@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { type XpertPlugin } from '@xpert-ai/plugin-sdk';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 import { initI18n } from './lib/i18n.js';
 import { LarkModule } from './lib/lark.module.js';
 
@@ -30,7 +30,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   },
   register(ctx) {
     ctx.logger.log('register lark plugin');
-    initI18n(__dirname)
+    initI18n(join(__dirname, '../src'));
     return { module: LarkModule, global: true };
   },
   async onStart(ctx) {

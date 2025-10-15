@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -16,6 +16,7 @@
   },
   "files": [
     "dist",
+    "src/i18n",
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
