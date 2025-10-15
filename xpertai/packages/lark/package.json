@@ -1,0 +1,25 @@
+{
+  "name": "@xpert-ai/plugin-lark",
+  "version": "0.0.2",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.0.29",
+    "tslib": "^2.3.0"
+  }
+}
