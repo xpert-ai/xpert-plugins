@@ -2,8 +2,9 @@ import type { IIntegration } from '@metad/contracts'
 import { Body, Controller, ForbiddenException, Post } from '@nestjs/common'
 import { translate } from './i18n.js'
 import { LarkIntegrationStrategy } from './integration.strategy.js'
+import { LarkName } from './types.js'
 
-@Controller('lark')
+@Controller(LarkName)
 export class LarkController {
   constructor(private readonly integrationStrategy: LarkIntegrationStrategy) {}
 

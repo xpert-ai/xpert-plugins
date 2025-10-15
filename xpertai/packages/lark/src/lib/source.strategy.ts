@@ -20,8 +20,8 @@ export class LarkSourceStrategy implements IDocumentSourceStrategy<LarkDocuments
     name: LarkName,
     category: DocumentSourceProviderCategoryEnum.OnlineDocument,
     label: {
-      en_US: 'Lark',
-      zh_Hans: '飞书'
+      en_US: 'Lark Documents',
+      zh_Hans: '飞书文档'
     } as I18nObject,
     configSchema: {
       type: 'object',

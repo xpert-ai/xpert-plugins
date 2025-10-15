@@ -84,6 +84,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TLarkIntegra
     helpUrl: 'https://feishu.cn/'
   }
 
+  /**
+   * 预留的执行方法，当前未使用
+   * @param integration 
+   * @param payload 
+   */
   execute(integration: IIntegration, payload: TIntegrationStrategyParams): Promise<any> {
     throw new Error('Method not implemented.')
   }

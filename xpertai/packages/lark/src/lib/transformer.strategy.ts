@@ -41,18 +41,6 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
     configSchema: {
       type: 'object',
       properties: {
-        isOcr: {
-          type: 'boolean',
-          title: {
-            en_US: 'Enable OCR',
-            zh_Hans: '启用 OCR'
-          },
-          description: {
-            en_US: 'Enable OCR for image-based PDFs.',
-            zh_Hans: '对基于图像的 PDF 启用 OCR。'
-          },
-          default: true
-        }
       },
       required: []
     }
