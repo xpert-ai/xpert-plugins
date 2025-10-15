@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { type XpertPlugin } from '@xpert-ai/plugin-sdk';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { initI18n } from './lib/i18n.js';
 import { LarkModule } from './lib/lark.module.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const ConfigSchema = z.object({
 });
