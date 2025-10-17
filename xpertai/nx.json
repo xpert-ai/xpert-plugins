@@ -43,7 +43,7 @@
     }
   ],
   "release": {
-    "projects": ["@xpert-ai/plugin-lark"],
+    "projects": ["@xpert-ai/plugin-lark", "@xpert-ai/plugin-firecrawl"],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
     }

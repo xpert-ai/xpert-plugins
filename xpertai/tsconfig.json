@@ -8,6 +8,9 @@
     },
     {
       "path": "./packages/lark"
+    },
+    {
+      "path": "./packages/firecrawl"
     }
   ]
 }

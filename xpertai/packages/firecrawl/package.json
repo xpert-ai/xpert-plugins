@@ -1,0 +1,35 @@
+{
+  "name": "@xpert-ai/plugin-firecrawl",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@mendable/firecrawl-js": "^4.3.8",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "zod": "^3.25.67",
+    "@xpert-ai/plugin-sdk": "^3.6.0-beta.6",
+    "@metad/contracts": "^3.6.0-beta.6",
+    "@nestjs/common": "^11.1.6",
+    "nestjs-i18n": "^10.5.1",
+    "chalk": "^4.1.2",
+    "@langchain/core": "^0.3.72",
+    "langchain": "^0.3.31"
+  }
+}

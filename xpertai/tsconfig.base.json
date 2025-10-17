@@ -16,6 +16,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "emitDecoratorMetadata": true,
     "customConditions": ["@xpert-plugins-starter/source"]
   }
 }
