@@ -43,6 +43,7 @@
     "@langchain/langgraph": "0.4.7",
     "@metad/contracts": "3.6.0-beta.6",
     "@metad/server-core": "3.6.0-beta.6",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/cqrs": "^11.0.3",

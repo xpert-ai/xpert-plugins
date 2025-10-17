@@ -11,6 +11,9 @@
     },
     {
       "path": "./packages/firecrawl"
+    },
+    {
+      "path": "./packages/mineru"
     }
   ]
 }
