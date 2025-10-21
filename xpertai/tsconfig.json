@@ -17,6 +17,9 @@
     },
     {
       "path": "./packages/dify"
+    },
+    {
+      "path": "./packages/file-system"
     }
   ]
 }

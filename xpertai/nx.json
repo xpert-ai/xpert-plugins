@@ -47,7 +47,8 @@
       "@xpert-ai/plugin-lark",
       "@xpert-ai/plugin-firecrawl",
       "@xpert-ai/plugin-mineru",
-      "@xpert-ai/plugin-dify"
+      "@xpert-ai/plugin-dify",
+      "@xpert-ai/plugin-file-system"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
