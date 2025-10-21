@@ -43,6 +43,7 @@
     }
   ],
   "release": {
+    "projectsRelationship": "independent",
     "projects": [
       "@xpert-ai/plugin-lark",
       "@xpert-ai/plugin-firecrawl",
