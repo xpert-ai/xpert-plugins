@@ -23,7 +23,7 @@ When using an Nx workspace, ensure the package lives inside the workspace `packa
 
 ## Usage
 
-Register the plugin with the Xpert plugin host. The example below demonstrates how to add the plugin to a typical server bootstrap that consumes `XpertPlugin` objects.
+Add this plugin to the `PLUGINS` environment variable when starting the XpertAI system, and it will be loaded automatically:
 
 ```ts
 PLUGINS=@xpert-ai/plugin-dify
