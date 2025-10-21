@@ -31,7 +31,7 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 To version and release the library use
 
 ```sh
-npx nx release
+npx nx release [-p <project-name>] [--dry-run]
 ```
 
 Pass `--dry-run` to see what would happen without actually releasing the library.
@@ -41,7 +41,7 @@ Pass `--dry-run` to see what would happen without actually releasing the library
 Publish to npm with:
 
 ```sh
-npx nx run @xpert-ai/my-plugin:nx-release-publish --access public --otp=<one-time-password-if-needed>
+npx nx run <project-name>:nx-release-publish --access public --otp=<one-time-password-if-needed>
 ```
 
 ## Useful links
