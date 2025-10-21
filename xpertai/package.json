@@ -54,6 +54,7 @@
     "i18next": "25.6.0",
     "i18next-fs-backend": "2.6.0",
     "langchain": "0.3.31",
+    "lodash-es": "4.17.21",
     "zod": "3.25.67"
   },
   "nx": {
