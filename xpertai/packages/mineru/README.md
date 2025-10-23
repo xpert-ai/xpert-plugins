@@ -10,7 +10,7 @@ pnpm add @xpert-ai/plugin-mineru
 npm install @xpert-ai/plugin-mineru
 ```
 
-> **Note**: This plugin depends on `@xpert-ai/plugin-sdk@^3.6.0`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@metad/contracts@^3.6.0`, `axios@1`, `chalk@4`, `@langchain/core@^0.3.72`, and `uuid@8` as peerDependencies. Please ensure these packages are installed in your host project.
+> **Note**: This plugin depends on `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@metad/contracts`, `axios@1`, `chalk@4`, `@langchain/core@^0.3.72`, and `uuid@8` as peerDependencies. Please ensure these packages are installed in your host project.
 
 ## Quick Start
 

@@ -51,7 +51,7 @@ export class MinerUResultParserService {
       const fileName = entry.path
 
       if (fileName.endsWith('layout.json')) {
-        layoutJson = JSON.parse(entry.data.toString('utf-8'))
+        layoutJson = JSON.parse(data.toString('utf-8'))
         metadata.mineruBackend = layoutJson?._backend
         metadata.mineruVersion = layoutJson?._version_name
         assets.push({
@@ -66,7 +66,7 @@ export class MinerUResultParserService {
           filePath: entry.path
         })
       } else if (fileName.endsWith('full.md')) {
-        fullMd = entry.data.toString('utf-8')
+        fullMd = data.toString('utf-8')
         assets.push({
           type: 'file',
           url: await fileSystem.writeFile(join(document.folder || '', entry.path), data),
