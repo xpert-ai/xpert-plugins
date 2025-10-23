@@ -1,11 +1,10 @@
-import { IIntegration } from '@metad/contracts'
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { TDifyIntegrationOptions } from './types.js'
 
 @Injectable()
 export class DifyService {
 
-	async test(integration: IIntegration) {
-		const options = integration.options
+	async test(options: TDifyIntegrationOptions) {
 		if (!options?.url) {
 			throw new BadRequestException('Dify Url is required')
 		}
@@ -17,9 +16,14 @@ export class DifyService {
 		if (baseUrl.endsWith('/v1')) {
 			baseUrl = baseUrl.slice(0, -3)
 		}
-
+		let urlPath = '/v1'
+		if (options.apiKey?.startsWith('app-')) {
+			urlPath = '/v1/info'
+		} else if (options.apiKey?.startsWith('dataset-')) {
+			urlPath = '/v1/datasets'
+		}
 		try {
-			const response = await fetch(`${baseUrl}/v1`, {
+			const response = await fetch(`${baseUrl}${urlPath}?limit=1`, {
 				method: 'GET',
 				headers: {
 					Authorization: `Bearer ${options.apiKey || ''}`,
