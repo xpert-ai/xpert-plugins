@@ -1,11 +1,11 @@
+import { Document } from '@langchain/core/documents'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChunkMetadata, TDocumentAsset, XpFileSystem } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
-import { Document } from 'langchain/document'
 import path from 'path'
 import unzipper from 'unzipper'
-import { MinerU, MinerUDocumentMetadata } from './types.js'
 import { v4 as uuidv4 } from 'uuid'
+import { MinerU, MinerUDocumentMetadata } from './types.js'
 
 @Injectable()
 export class MinerUResultParserService {

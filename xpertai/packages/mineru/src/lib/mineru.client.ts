@@ -56,7 +56,7 @@ export class MinerUClient {
 
   constructor(
 		private readonly configService: ConfigService,
-    private readonly integration?: IIntegration
+    private readonly integration?: Partial<IIntegration>
   ) {
     if (integration) {
       this.baseUrl = integration.options?.apiUrl || 'https://mineru.net/api/v4';

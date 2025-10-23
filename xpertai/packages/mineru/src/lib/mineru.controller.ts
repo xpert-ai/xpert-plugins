@@ -7,7 +7,6 @@ export class MinerUController {
 
 	@Post('test')
 	async connect(@Body() integration: IIntegration, @I18nLang() languageCode: LanguagesEnum) {
-		console.log(integration, languageCode)
 		return { success: true }
 	}
 }
