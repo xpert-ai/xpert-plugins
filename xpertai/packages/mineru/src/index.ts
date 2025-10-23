@@ -30,7 +30,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     description: 'Provide PDF to Markdown and JSON transformation functionality',
     keywords: ['integration', 'pdf', 'markdown', 'json', 'transformer'],
     author: 'XpertAI Team',
-    homepage: 'https://xpertai.cloud',
+    homepage: 'https://www.npmjs.com/package/@xpert-ai/plugin-mineru',
   },
   config: {
     schema: ConfigSchema,

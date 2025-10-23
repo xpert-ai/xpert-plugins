@@ -73,7 +73,7 @@ export class MinerUIntegrationStrategy
   @Inject(forwardRef(() => ConfigService))
   private readonly configService: ConfigService;
 
-  execute(
+  async execute(
     integration: IIntegration<MinerUIntegrationOptions>,
     payload: TIntegrationStrategyParams
   ): Promise<any> {
@@ -86,13 +86,8 @@ export class MinerUIntegrationStrategy
       options: config,
     });
 
-    try {
-      await mineruClient.createTask({
-        url: 'https://mineru.net/apiManage/docs',
-      });
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Invalid MinerU configuration: ' + err.message);
-    }
+    const result = await mineruClient.createTask({
+      url: 'https://mineru.net/apiManage/docs',
+    });
   }
 }

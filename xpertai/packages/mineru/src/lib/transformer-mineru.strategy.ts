@@ -124,14 +124,14 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
   }
 
   async transformDocuments(
-    files: Partial<IKnowledgeDocument>[],
+    documents: Partial<IKnowledgeDocument>[],
     config: TDocumentTransformerConfig
   ): Promise<Partial<IKnowledgeDocument>[]> {
     const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions?.integration)
     const parsedResults: Partial<IKnowledgeDocument>[] = []
-    for await (const file of files) {
+    for await (const document of documents) {
       const { taskId } = await mineru.createTask({
-        url: file.fileUrl,
+        url: document.fileUrl,
         isOcr: true,
         enableFormula: true,
         enableTable: true,
@@ -145,10 +145,11 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
       const parsedResult = await this.resultParser.parseFromUrl(
         result.full_zip_url,
         taskId,
+        document,
         config.permissions.fileSystem
       )
 
-      parsedResult.id = file.id
+      parsedResult.id = document.id
       parsedResults.push(parsedResult)
     }
 

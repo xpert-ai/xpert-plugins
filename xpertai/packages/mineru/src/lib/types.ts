@@ -36,8 +36,6 @@ export type MinerUDocumentMetadata = {
   originPdfUrl?: string;
   mineruBackend?: string;
   mineruVersion?: string;
-  layoutJson?: any;
-  contentListJson?: any;
 }
 
 export type MinerUIntegrationOptions = {

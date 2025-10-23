@@ -2,7 +2,7 @@ import { type IIntegration, LanguagesEnum } from '@metad/contracts'
 import { Body, Controller, Post } from '@nestjs/common'
 import { I18nLang } from 'nestjs-i18n'
 
-@Controller()
+@Controller('mineru')
 export class MinerUController {
 
 	@Post('test')

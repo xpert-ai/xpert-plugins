@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk';
 import { ConfigModule } from '@nestjs/config';
-import { RouterModule } from '@nestjs/core';
 import { MinerUTransformerStrategy } from './transformer-mineru.strategy.js';
 import { MinerUResultParserService } from './result-parser.service.js';
 import { MinerUIntegrationStrategy } from './integration.strategy.js';
@@ -13,7 +12,6 @@ import { MinerUController } from './mineru.controller.js';
 	 */
 	imports: [
 		ConfigModule,
-		RouterModule.register([{ path: '/mineru', module: MinerUPlugin }]),
 	],
 	/**
 	 * An array of Entity classes. The plugin (or ORM) will

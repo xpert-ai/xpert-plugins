@@ -76,4 +76,4 @@ npx nx test @xpert-ai/plugin-dify
 
 ## License
 
-MIT – see the repository root `LICENSE` file.
+This project follows the [AGPL-3.0 License](../../../LICENSE) in the repository root.

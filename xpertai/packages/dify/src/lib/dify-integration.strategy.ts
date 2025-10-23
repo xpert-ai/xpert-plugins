@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   IntegrationStrategy,
   IntegrationStrategyKey,
+  ISchemaSecretField,
   TIntegrationStrategyParams,
 } from '@xpert-ai/plugin-sdk';
 import { DifyService } from './dify.service.js';
@@ -54,6 +55,14 @@ export class DifyIntegrationStrategy implements IntegrationStrategy<TDifyIntegra
           description: {
             en_US: 'The API Key of the Dify server',
             zh_Hans: 'Dify 服务器的 API 密钥',
+          },
+          'x-ui': <ISchemaSecretField>{
+            component: 'secretInput',
+            label: 'API Key',
+            placeholder: '请输入您的 Dify API Key',
+            revealable: true,
+            maskSymbol: '*',
+            persist: true,
           },
         },
       },
