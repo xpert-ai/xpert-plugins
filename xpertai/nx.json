@@ -51,7 +51,8 @@
       "@xpert-ai/plugin-dify",
       "@xpert-ai/plugin-file-system",
       "@xpert-ai/plugin-fastgpt",
-      "@xpert-ai/plugin-ragflow"
+      "@xpert-ai/plugin-ragflow",
+      "@xpert-ai/plugin-unstructured"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
