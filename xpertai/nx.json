@@ -52,7 +52,8 @@
       "@xpert-ai/plugin-file-system",
       "@xpert-ai/plugin-fastgpt",
       "@xpert-ai/plugin-ragflow",
-      "@xpert-ai/plugin-unstructured"
+      "@xpert-ai/plugin-unstructured",
+      "@xpert-ai/plugin-rag-vlm"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
