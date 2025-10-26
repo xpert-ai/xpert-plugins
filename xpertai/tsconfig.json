@@ -20,6 +20,9 @@
     },
     {
       "path": "./packages/file-system"
+    },
+    {
+      "path": "./packages/fastgpt"
     }
   ]
 }
