@@ -20,5 +20,15 @@
   ],
   "dependencies": {
     "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@metad/contracts": "^3.6.0-beta.10",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/plugin-sdk": "^3.6.0-beta.10",
+    "axios": "^1.4.0",
+    "chalk": "^4.1.2",
+    "lodash-es": "^4.17.21",
+    "zod": "^3.25.67"
   }
 }

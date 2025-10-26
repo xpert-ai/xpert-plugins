@@ -3,7 +3,7 @@ import { IIntegration } from '@metad/contracts'
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { KnowledgeStrategy, KnowledgeStrategyKey, TKnowledgeStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosResponse } from 'axios'
-import { omit } from 'lodash'
+import { omit } from 'lodash-es'
 import { FastGPT } from './types.js'
 
 @Injectable()
