@@ -50,7 +50,8 @@
       "@xpert-ai/plugin-mineru",
       "@xpert-ai/plugin-dify",
       "@xpert-ai/plugin-file-system",
-      "@xpert-ai/plugin-fastgpt"
+      "@xpert-ai/plugin-fastgpt",
+      "@xpert-ai/plugin-ragflow"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
