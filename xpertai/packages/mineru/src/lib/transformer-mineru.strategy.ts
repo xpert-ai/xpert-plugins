@@ -2,6 +2,7 @@ import { IconType, IKnowledgeDocument } from '@metad/contracts'
 import { forwardRef, Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {
+  ChunkMetadata,
   DocumentTransformerStrategy,
   FileSystemPermission,
   IDocumentTransformerStrategy,
@@ -126,7 +127,7 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
   async transformDocuments(
     documents: Partial<IKnowledgeDocument>[],
     config: TDocumentTransformerConfig
-  ): Promise<Partial<IKnowledgeDocument>[]> {
+  ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions?.integration)
     const parsedResults: Partial<IKnowledgeDocument>[] = []
     for await (const document of documents) {
@@ -153,6 +154,7 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
       parsedResults.push(parsedResult)
     }
 
-    return parsedResults
+    // @fix type checking
+    return parsedResults as unknown as Partial<IKnowledgeDocument<ChunkMetadata>>[]
   }
 }
