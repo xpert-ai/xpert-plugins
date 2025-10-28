@@ -54,10 +54,7 @@
       "@xpert-ai/plugin-ragflow",
       "@xpert-ai/plugin-unstructured",
       "@xpert-ai/plugin-rag-vlm"
-    ],
-    "version": {
-      "preVersionCommand": "npx nx run-many -t build"
-    }
+    ]
   },
   "targetDefaults": {
     "@nx/js:tsc": {
