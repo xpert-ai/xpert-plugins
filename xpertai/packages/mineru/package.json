@@ -1,6 +1,13 @@
 {
   "name": "@xpert-ai/plugin-mineru",
   "version": "0.0.4",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
