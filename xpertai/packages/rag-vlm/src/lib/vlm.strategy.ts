@@ -11,7 +11,6 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { buildChunkTree, collectTreeLeaves, IconType, IKnowledgeDocument } from '@metad/contracts'
 import { Document, DocumentInterface } from '@langchain/core/documents'
-import { join } from 'path'
 import sharp from 'sharp'
 import { v4 as uuid } from 'uuid'
 import { SvgIcon, VlmDefault } from './types.js'
@@ -81,7 +80,7 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
       const assets: string[] = []
       chunk.metadata['chunkId'] ??= uuid()
 
-      // 源文档块
+      // Source Document Block
       chunks.push(chunk)
 
       // Find image tags inside the chunk
@@ -90,7 +89,7 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
         const url = match[1] // image-url.png
         const asset = params.files.find((a) => a.url === url)
         if (asset && !assets.some((_) => _ === asset.url)) {
-          const description = await this.runV(client, chunk.pageContent, join(doc.folder || '', asset.filePath), config)
+          const description = await this.runV(client, chunk.pageContent, asset.filePath, config)
           assets.push(asset.url)
           chunks.push(new Document({
             pageContent: description,
