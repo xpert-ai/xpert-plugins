@@ -49,28 +49,29 @@ export class MinerUResultParserService {
       }
 
       const fileName = entry.path
-
+      const filePath = join(document.folder || '', entry.path)
       if (fileName.endsWith('layout.json')) {
         layoutJson = JSON.parse(data.toString('utf-8'))
         metadata.mineruBackend = layoutJson?._backend
         metadata.mineruVersion = layoutJson?._version_name
+        
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(join(document.folder || '', entry.path), data),
-          filePath: entry.path
+          url: await fileSystem.writeFile(filePath, data),
+          filePath: filePath
         })
       } else if (fileName.endsWith('content_list.json')) {
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(join(document.folder || '', entry.path), data),
-          filePath: entry.path
+          url: await fileSystem.writeFile(filePath, data),
+          filePath: filePath
         })
       } else if (fileName.endsWith('full.md')) {
         fullMd = data.toString('utf-8')
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(join(document.folder || '', entry.path), data),
-          filePath: entry.path
+          url: await fileSystem.writeFile(filePath, data),
+          filePath: filePath
         })
       } else if (fileName.endsWith('origin.pdf')) {
         metadata.originPdfUrl = fileName
