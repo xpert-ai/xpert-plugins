@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { IntegrationFastGPTPlugin } from './lib/integration-fastgpt.plugin.js';
+import { IntegrationFastGPTPlugin } from './lib/fastgpt.module.js';
 import { SvgIcon } from './lib/types.js';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -6,11 +6,8 @@ export class FastGPTService {
 
 	async test(integration: IIntegration) {
 		const options = integration.options
-		if (!options?.url) {
-			throw new BadRequestException('FastGPT Url is required')
-		}
 
-		let baseUrl: string = options.url
+		let baseUrl = options.url || `https://api.fastgpt.in/`
 		if (baseUrl.endsWith('/')) {
 			baseUrl = baseUrl.slice(0, -1)
 		}

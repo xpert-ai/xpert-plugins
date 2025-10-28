@@ -13,7 +13,7 @@ export class FastGPTKnowledgeStrategy implements KnowledgeStrategy {
 		integration: IIntegration,
 		payload: TKnowledgeStrategyParams
 	): Promise<{ chunks: [Document, number][] }> {
-		let baseUrl: string = integration.options.url
+		let baseUrl = integration.options.url || `https://api.fastgpt.in/`
 		if (baseUrl.endsWith('/')) {
 			baseUrl = baseUrl.slice(0, -1)
 		}

@@ -37,11 +37,25 @@ export class FastGPTIntegrationStrategy
       properties: {
         url: {
           type: 'string',
-          description: 'The url of FastGPT server',
+          title: {
+            en_US: 'FastGPT Server URL',
+            zh_Hans: 'FastGPT 服务器地址',
+          },
+          description: {
+            en_US: 'The url of FastGPT server',
+            zh_Hans: 'FastGPT 服务器的地址',
+          },
         },
         apiKey: {
           type: 'string',
-          description: 'The API Key of the FastGPT server',
+          title: {
+            en_US: 'API Key',
+            zh_Hans: 'API 密钥',
+          },
+          description: {
+            en_US: 'The API Key of the FastGPT server',
+            zh_Hans: 'FastGPT 服务器的 API 密钥',
+          },
         },
       },
     },

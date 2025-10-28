@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Document } from '@langchain/core/documents';
 import type { IIntegration } from '@metad/contracts';
 import { InternalServerErrorException } from '@nestjs/common';
-import { FastGPTKnowledgeStrategy } from './fastgpt-knowledge.strategy.js';
+import { FastGPTKnowledgeStrategy } from './knowledge.strategy.js';
 
 jest.mock('@nestjs/common', () => {
   class InternalServerErrorException extends Error {

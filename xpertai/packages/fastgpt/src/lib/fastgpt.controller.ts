@@ -2,7 +2,7 @@ import { type IIntegration } from '@metad/contracts'
 import { Body, Controller, Post } from '@nestjs/common'
 import { FastGPTService } from './fastgpt.service.js'
 
-@Controller()
+@Controller('fastgpt')
 export class FastGPTController {
 	constructor(
 		private service: FastGPTService,

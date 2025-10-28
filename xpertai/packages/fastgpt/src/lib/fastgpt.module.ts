@@ -1,24 +1,11 @@
-import chalk from 'chalk';
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk';
-import { RouterModule } from '@nestjs/core'
+import chalk from 'chalk';
 import { FastGPTController } from './fastgpt.controller.js';
 import { FastGPTService } from './fastgpt.service.js';
-import { FastGPTIntegrationStrategy } from './fastgpt-integration.strategy.js';
-import { FastGPTKnowledgeStrategy } from './fastgpt-knowledge.strategy.js';
+import { FastGPTIntegrationStrategy } from './integration.strategy.js';
+import { FastGPTKnowledgeStrategy } from './knowledge.strategy.js';
 
 @XpertServerPlugin({
-	
-	/**
-	 * An array of modules that will be imported and registered with the plugin.
-	 */
-	imports: [
-		RouterModule.register([{ path: '/fastgpt', module: IntegrationFastGPTPlugin }])
-	],
-	/**
-	 * An array of Entity classes. The plugin (or ORM) will
-	 * register these entities for use within the application.
-	 */
-	entities: [],
 	controllers: [FastGPTController],
 	providers: [FastGPTService, FastGPTIntegrationStrategy, FastGPTKnowledgeStrategy],
 })
