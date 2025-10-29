@@ -17,7 +17,7 @@ export class MinerUResultParserService {
     chunks: Document<ChunkMetadata>[]
     metadata: MinerUDocumentMetadata
   }> {
-    this.logger.log(`Downloading MinerU result from: ${fullZipUrl}`)
+    this.logger.debug(`Downloading MinerU result from: ${fullZipUrl}`)
 
     // 1. Download the zip file to memory
     const response = await axios.get(fullZipUrl, { responseType: 'arraybuffer' })
@@ -38,19 +38,17 @@ export class MinerUResultParserService {
       if (!entry.type || entry.type !== 'File') continue
       const data = await entry.buffer()
       zipEntries.push({ entryName: entry.path, data })
-      // Write images to local file system
-      if (entry.path.startsWith('images/')) {
-        const url = await fileSystem.writeFile(join(document.folder || '', entry.path), data)
-        assets.push({
-          type: 'image',
-          url,
-          filePath: entry.path
-        })
-      }
 
       const fileName = entry.path
       const filePath = join(document.folder || '', entry.path)
-      if (fileName.endsWith('layout.json')) {
+      // Write images to local file system
+      if (fileName.startsWith('images/')) {
+        assets.push({
+          type: 'image',
+          url: await fileSystem.writeFile(filePath, data),
+          filePath: filePath
+        })
+      } else if (fileName.endsWith('layout.json')) {
         layoutJson = JSON.parse(data.toString('utf-8'))
         metadata.mineruBackend = layoutJson?._backend
         metadata.mineruVersion = layoutJson?._version_name
