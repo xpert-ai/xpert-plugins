@@ -1,6 +1,6 @@
 # Xpert Plugin: MinerU
 
-`@xpert-ai/plugin-mineru` is a MinerU document converter plugin for the Xpert plugin platform, providing extraction capabilities from PDF to Markdown and structured JSON. The plugin includes built-in MinerU integration strategies, document conversion strategies, and result parsing services, enabling secure access to the MinerU API in automated workflows, polling task status, and writing parsed content and attachment resources to the platform file system.
+`@xpert-ai/plugin-mineru` is a MinerU document converter plugin for the [Xpert AI](https://github.com/xpert-ai/xpert) platform, providing extraction capabilities from PDF to Markdown and structured JSON. The plugin includes built-in MinerU integration strategies, document conversion strategies, and result parsing services, enabling secure access to the MinerU API in automated workflows, polling task status, and writing parsed content and attachment resources to the platform file system.
 
 ## Installation
 
@@ -90,11 +90,11 @@ Run the following commands in the repository root to build and test locally:
 
 ```bash
 pnpm install
-pnpm exec tsc -p xpertai/packages/mineru/tsconfig.lib.json
-pnpm exec jest --config xpertai/packages/mineru/jest.config.ts
+pnpm exec tsc -p packages/mineru/tsconfig.lib.json
+pnpm exec jest --config packages/mineru/jest.config.ts
 ```
 
-TypeScript build artifacts are output to `xpertai/packages/mineru/dist`. Before publishing, ensure `package.json`, type declarations, and runtime files are in sync.
+TypeScript build artifacts are output to `packages/mineru/dist`. Before publishing, ensure `package.json`, type declarations, and runtime files are in sync.
 
 ## License
 

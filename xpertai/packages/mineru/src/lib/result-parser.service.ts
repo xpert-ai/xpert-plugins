@@ -32,6 +32,7 @@ export class MinerUResultParserService {
     const zipEntries: { entryName: string; data: Buffer }[] = []
     const assets: TDocumentAsset[] = []
     const directory = await unzipper.Open.buffer(zipBuffer)
+    const pathMap = new Map<string, string>();
     let fullMd = ''
     let layoutJson: any = null
     for (const entry of directory.files) {
@@ -41,13 +42,15 @@ export class MinerUResultParserService {
 
       const fileName = entry.path
       const filePath = join(document.folder || '', entry.path)
+      const url = await fileSystem.writeFile(filePath, data)
+      pathMap.set(fileName, url);
       // Write images to local file system
       if (fileName.startsWith('images/')) {
         assets.push({
-          type: 'image',
-          url: await fileSystem.writeFile(filePath, data),
-          filePath: filePath
-        })
+            type: 'image',
+            url: url,
+            filePath: filePath
+          });
       } else if (fileName.endsWith('layout.json')) {
         layoutJson = JSON.parse(data.toString('utf-8'))
         metadata.mineruBackend = layoutJson?._backend
@@ -55,20 +58,20 @@ export class MinerUResultParserService {
         
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(filePath, data),
+          url,
           filePath: filePath
         })
       } else if (fileName.endsWith('content_list.json')) {
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(filePath, data),
+          url,
           filePath: filePath
         })
       } else if (fileName.endsWith('full.md')) {
         fullMd = data.toString('utf-8')
         assets.push({
           type: 'file',
-          url: await fileSystem.writeFile(filePath, data),
+          url,
           filePath: filePath
         })
       } else if (fileName.endsWith('origin.pdf')) {
@@ -78,9 +81,9 @@ export class MinerUResultParserService {
 
     metadata.assets = assets
 
-    // 3. Parse chunks (simple rule: split by two newlines)
+    // 3. Replace image relative path in full.md with file url
     fullMd = fullMd.replace(/!\[(.*)\]\((images\/.+?)\)/g, (match, p1, p2) => {
-      const localPath = assets.find((asset) => asset.filePath === p2)?.url
+      const localPath = pathMap.get(p2)
       return localPath ? `![${p1}](${localPath})` : match
     })
     const chunks = [new Document<ChunkMetadata>({ pageContent: fullMd, metadata: { parser: MinerU, taskId, chunkId: uuidv4() } })]
