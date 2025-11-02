@@ -30,7 +30,6 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     description: 'Provide Milvus vector store functionality',
     keywords: ['milvus', 'vector', 'store'],
     author: 'XpertAI Team',
-    homepage: 'https://xpertai.cloud',
   },
   config: {
     schema: ConfigSchema,
