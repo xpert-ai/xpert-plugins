@@ -53,7 +53,8 @@
       "@xpert-ai/plugin-fastgpt",
       "@xpert-ai/plugin-ragflow",
       "@xpert-ai/plugin-unstructured",
-      "@xpert-ai/plugin-rag-vlm"
+      "@xpert-ai/plugin-rag-vlm",
+      "@xpert-ai/plugin-milvus"
     ]
   },
   "targetDefaults": {

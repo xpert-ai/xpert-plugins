@@ -32,6 +32,9 @@
     },
     {
       "path": "./packages/rag-vlm"
+    },
+    {
+      "path": "./packages/milvus"
     }
   ]
 }
