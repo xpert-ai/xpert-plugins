@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-vllm",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,6 +18,9 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "scripts": {
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
   "dependencies": {
     "tslib": "^2.3.0"
   },
