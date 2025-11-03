@@ -401,8 +401,6 @@ export class Milvus extends VectorStore {
       params.partition_name = this.partitionName;
     }
 
-    console.log(params)
-
     const resp = this.autoId
       ? await this.client.insert(params)
       : await this.client.upsert(params);

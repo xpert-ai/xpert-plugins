@@ -35,6 +35,9 @@
     },
     {
       "path": "./packages/milvus"
+    },
+    {
+      "path": "./packages/vllm"
     }
   ]
 }
