@@ -41,6 +41,9 @@
     },
     {
       "path": "./packages/volcengine"
+    },
+    {
+      "path": "./packages/openai-compatible"
     }
   ]
 }

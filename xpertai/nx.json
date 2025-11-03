@@ -56,7 +56,8 @@
       "@xpert-ai/plugin-rag-vlm",
       "@xpert-ai/plugin-milvus",
       "@xpert-ai/plugin-vllm",
-      "@xpert-ai/plugin-volcengine"
+      "@xpert-ai/plugin-volcengine",
+      "@xpert-ai/plugin-openai-compatible"
     ]
   },
   "targetDefaults": {
