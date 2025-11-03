@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-milvus",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,12 +23,12 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "zod": "^3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.6.0",
-    "@metad/contracts": "^3.6.1",
-    "@nestjs/common": "^11.1.6",
-    "chalk": "^4.1.2",
     "@langchain/core": "^0.3.72",
-    "lodash-es": "^4.17.21"
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/plugin-sdk": "^3.6.1",
+    "zod": "^3.25.67",
+    "chalk": "^4.1.2",
+    "uuid": "^8.3.2"
   }
 }
