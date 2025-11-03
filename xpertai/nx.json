@@ -55,7 +55,8 @@
       "@xpert-ai/plugin-unstructured",
       "@xpert-ai/plugin-rag-vlm",
       "@xpert-ai/plugin-milvus",
-      "@xpert-ai/plugin-vllm"
+      "@xpert-ai/plugin-vllm",
+      "@xpert-ai/plugin-volcengine"
     ]
   },
   "targetDefaults": {
