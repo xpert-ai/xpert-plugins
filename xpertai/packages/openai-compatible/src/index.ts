@@ -29,7 +29,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             value: svgIcon,
         },
         displayName: 'OpenAI Compatible',
-        description: 'Provide connector for OpenAI models',
+        description: 'Provide adapter for OpenAI compatible models',
         keywords: ['OpenAI', 'model'],
         author: 'XpertAI',
     },
