@@ -129,13 +129,14 @@ export class MinerUResultParserService {
       taskId,
     };
     const assets: TDocumentAsset[] = [];
-
+    const pathMap = new Map();
     for (const image of result.images) {
       const filePath = join(document.folder || '', 'images', image.name);
       const url = await fileSystem.writeFile(
         filePath,
         Buffer.from(image.dataUrl.split(',')[1], 'base64')
       );
+      pathMap.set(`images/${image.name}`, url);
       assets.push({
         type: 'image',
         url: url,
@@ -154,9 +155,15 @@ export class MinerUResultParserService {
 
     metadata.assets = assets;
 
+    let fullMd = result.mdContent;
+    // 3. Replace image relative path in full.md with file url
+    fullMd = fullMd.replace(/!\[(.*)\]\((images\/.+?)\)/g, (match, p1, p2) => {
+        const localPath = pathMap.get(p2);
+        return localPath ? `![${p1}](${localPath})` : match;
+    });
     const chunks = [
       new Document<ChunkMetadata>({
-        pageContent: result.mdContent,
+        pageContent: fullMd,
         metadata: { parser: MinerU, taskId, chunkId: uuidv4() },
       }),
     ];

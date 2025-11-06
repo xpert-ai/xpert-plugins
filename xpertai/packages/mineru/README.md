@@ -89,9 +89,9 @@ The returned `Document<ChunkMetadata>` array currently defaults to a single chun
 Run the following commands in the repository root to build and test locally:
 
 ```bash
-pnpm install
-pnpm exec tsc -p packages/mineru/tsconfig.lib.json
-pnpm exec jest --config packages/mineru/jest.config.ts
+npm install
+npx nx build @xpert-ai/plugin-mineru
+npx nx test @xpert-ai/plugin-mineru
 ```
 
 TypeScript build artifacts are output to `packages/mineru/dist`. Before publishing, ensure `package.json`, type declarations, and runtime files are in sync.

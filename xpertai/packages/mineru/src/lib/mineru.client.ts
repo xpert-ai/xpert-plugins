@@ -1,5 +1,5 @@
 import { IIntegration } from '@metad/contracts';
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
@@ -376,27 +376,28 @@ export class MinerUClient {
       ...form.getHeaders(),
     };
 
-    try {
-      const response = await axios.post(parseUrl, form, {
-        headers,
-        maxBodyLength: Infinity,
-        validateStatus: () => true,
-      });
+    const response = await axios.post(parseUrl, form, {
+      headers,
+      maxBodyLength: Infinity,
+      validateStatus: () => true,
+    });
 
-      if (this.isSelfHostedApiV1(response)) {
-        return this.invokeSelfHostedParseV1(fileBuffer, fileName, contentType, options);
-      }
-
-      if (response.status !== 200) {
-        console.error(response.data)
-        throw new Error(`MinerU self-hosted parse failed: ${response.status} ${response.statusText}`);
-      }
-
-      return this.normalizeSelfHostedResponse(response.data);
-    } catch (error) {
-      this.logger.error('invokeSelfHostedParse error', error instanceof Error ? error.stack : error);
-      throw error;
+    if (this.isSelfHostedApiV1(response)) {
+      return this.invokeSelfHostedParseV1(fileBuffer, fileName, contentType, options);
     }
+
+    if (response.status === 400) {
+      throw new BadRequestException(
+        `MinerU self-hosted parse failed: ${response.status} ${response.data?.error || response.statusText}`
+      )
+    }
+
+    if (response.status !== 200) {
+      console.error(response.data)
+      throw new Error(`MinerU self-hosted parse failed: ${response.status} ${response.statusText}`);
+    }
+
+    return this.normalizeSelfHostedResponse(response.data);
   }
 
   private async invokeSelfHostedParseV1(

@@ -2,7 +2,7 @@ import {
   type IIntegration,
   TIntegrationProvider,
 } from '@metad/contracts';
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   IntegrationStrategy,
@@ -104,8 +104,17 @@ export class MinerUIntegrationStrategy
       options: config,
     });
 
-    const result = await mineruClient.createTask({
-      url: 'https://mineru.net/apiManage/docs',
-    });
+    try {
+      await mineruClient.createTask({
+        url: 'https://mineru.net/apiManage/docs',
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        return;
+      }
+      console.error(`MinerU integration validation error:`);
+      console.error(error);
+      throw error;
+    }
   }
 }
