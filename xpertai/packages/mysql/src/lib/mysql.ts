@@ -1,4 +1,5 @@
-import { Connection, Pool, createConnection, FieldPacket, Types, ConnectionOptions } from 'mysql2'
+import mysql from 'mysql2'
+import { Connection, Pool, createConnection, FieldPacket, ConnectionOptions } from 'mysql2'
 import { BaseSQLQueryRunner, DBProtocolEnum, DBSyntaxEnum, getErrorMessage, IDSSchema, QueryOptions, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
 import { groupBy, pick } from 'lodash-es'
 import { MySQLDataSource } from './types.js'
@@ -126,7 +127,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
           columns: fields?.map((field) => ({
             name: field.name,
             type: MySQLTypeMap[field.columnType],
-            dataType: Types[field.columnType]
+            dataType: mysql.Types[field.columnType]
           }))
         })
       }
