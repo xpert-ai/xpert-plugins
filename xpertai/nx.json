@@ -57,8 +57,12 @@
       "@xpert-ai/plugin-milvus",
       "@xpert-ai/plugin-vllm",
       "@xpert-ai/plugin-volcengine",
-      "@xpert-ai/plugin-openai-compatible"
-    ]
+      "@xpert-ai/plugin-openai-compatible",
+      "@xpert-ai/plugin-mysql"
+    ],
+    "version": {
+      "preVersionCommand": "npx nx run-many -t build"
+    }
   },
   "targetDefaults": {
     "@nx/js:tsc": {
