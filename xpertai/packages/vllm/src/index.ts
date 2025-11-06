@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 import { z } from 'zod';
 import { SvgIcon } from './types.js';
 import { VLLMPlugin } from './vllm.js';
+import { initI18n } from './i18n.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,6 +37,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   },
   register(ctx) {
     ctx.logger.log('register VLLM plugin');
+    initI18n(join(__dirname, '../src'));
     return { module: VLLMPlugin, global: true };
   },
   async onStart(ctx) {

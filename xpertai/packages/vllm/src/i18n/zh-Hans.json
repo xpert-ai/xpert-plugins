@@ -1,0 +1,5 @@
+{
+    "Error": {
+        "ModelCredentialsMissing": "模型‘{{model}}’的凭证丢失或已删除"
+    }
+}

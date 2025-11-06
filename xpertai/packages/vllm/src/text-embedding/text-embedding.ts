@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common'
 import { toCredentialKwargs, VLLMModelCredentials } from '../types.js'
 import { CredentialsValidateFailedError, getErrorMessage, TChatModelOptions, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
 import { VLLMProviderStrategy } from '../provider.strategy.js'
+import { translate } from '../i18n.js'
 
 @Injectable()
 export class VLLMTextEmbeddingModel extends TextEmbeddingModelManager {
@@ -14,9 +15,14 @@ export class VLLMTextEmbeddingModel extends TextEmbeddingModelManager {
 	getEmbeddingInstance(copilotModel: ICopilotModel, options?: TChatModelOptions): OpenAIEmbeddings {
 		const { copilot } = copilotModel
 		const { modelProvider } = copilot
+		if (!options?.modelProperties) {
+			throw new Error(
+				translate('Error.ModelCredentialsMissing', {model: copilotModel.model})
+			)
+		}
 		const params = toCredentialKwargs({
 				...(modelProvider.credentials ?? {}),
-				...(options?.modelProperties ?? {}),
+				...options.modelProperties,
 			} as VLLMModelCredentials,
 			copilotModel.model || copilotModel.copilot.copilotModel?.model
 		)

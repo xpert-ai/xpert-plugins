@@ -9,6 +9,7 @@ import {
   TModelProperties
 } from '@xpert-ai/plugin-sdk'
 import { VLLMProviderStrategy } from '../provider.strategy.js'
+import { translate } from '../i18n.js'
 
 @Injectable()
 export class VLLMRerankModel extends RerankModel {
@@ -31,11 +32,17 @@ export class VLLMRerankModel extends RerankModel {
   }
 
   override async getReranker(copilotModel: ICopilotModel, options?: TChatModelOptions): Promise<IRerank> {
-    const credentials = options?.modelProperties ?? ({} as TModelProperties)
+    const credentials = options?.modelProperties as TModelProperties
+    if (!credentials) {
+      throw new Error(
+        translate('Error.ModelCredentialsMissing', {model: copilotModel.model})
+      )
+    }
+    
     return new OpenAICompatibleReranker({
       endpointUrl: credentials.endpoint_url,
       apiKey: credentials.api_key,
-      endpointModelName: credentials.endpoint_model_name
+      endpointModelName: credentials.endpoint_model_name || copilotModel.model
     })
   }
 }

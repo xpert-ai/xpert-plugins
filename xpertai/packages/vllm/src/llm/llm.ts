@@ -11,6 +11,7 @@ import {
 import { isNil, omitBy } from 'lodash-es'
 import { VLLMProviderStrategy } from '../provider.strategy.js'
 import { toCredentialKwargs, VLLMModelCredentials } from '../types.js'
+import { translate } from '../i18n.js'
 
 @Injectable()
 export class VLLMLargeLanguageModel extends LargeLanguageModel {
@@ -41,6 +42,11 @@ export class VLLMLargeLanguageModel extends LargeLanguageModel {
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
     const { handleLLMTokens, modelProperties } = options ?? {}
     const { copilot } = copilotModel
+    if (!modelProperties) {
+      throw new Error(
+        translate('Error.ModelCredentialsMissing', {model: copilotModel.model})
+      )
+    }
     const params = toCredentialKwargs(modelProperties as VLLMModelCredentials, copilotModel.model)
     
     const fields = omitBy(

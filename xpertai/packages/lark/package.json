@@ -22,5 +22,16 @@
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.55.0",
     "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "zod": "3.25.67",
+    "@xpert-ai/plugin-sdk": "^3.6.2",
+    "@metad/server-core": "^3.6.0",
+    "i18next": "25.6.0",
+    "@metad/contracts": "^3.6.2",
+    "@nestjs/common": "^11.1.6",
+    "axios": "1.12.2",
+    "chalk": "4.1.2",
+    "@langchain/core": "0.3.72"
   }
 }
