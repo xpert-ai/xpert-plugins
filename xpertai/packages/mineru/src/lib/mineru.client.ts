@@ -1,8 +1,21 @@
 import { IIntegration } from '@metad/contracts';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosError, AxiosResponse } from 'axios';
-import { ENV_MINERU_API_BASE_URL, ENV_MINERU_API_TOKEN } from './types.js';
+import axios, { AxiosResponse } from 'axios';
+import FormData from 'form-data';
+import { randomUUID } from 'crypto';
+import { basename } from 'path';
+import {
+  ENV_MINERU_API_BASE_URL,
+  ENV_MINERU_API_TOKEN,
+  ENV_MINERU_SERVER_TYPE,
+  MinerUIntegrationOptions,
+  MineruSelfHostedImage,
+  MineruSelfHostedTaskResult,
+  MinerUServerType,
+} from './types.js';
+
+const DEFAULT_OFFICIAL_BASE_URL = 'https://mineru.net/api/v4';
 
 interface CreateTaskOptions {
   url: string;
@@ -10,12 +23,20 @@ interface CreateTaskOptions {
   enableFormula?: boolean;
   enableTable?: boolean;
   language?: string;
-  modelVersion?: string; // "vlm" or "pipeline" etc.
+  modelVersion?: string;
   dataId?: string;
   pageRanges?: string;
-  extraFormats?: string[]; // e.g. ["docx","html"]
+  extraFormats?: string[];
   callbackUrl?: string;
   seed?: string;
+  /** Optional parse method used by self-hosted MinerU deployments */
+  parseMethod?: string;
+  /** Optional backend identifier used by self-hosted MinerU deployments */
+  backend?: string;
+  /** Optional mineru backend server url (used when backend is VLM client) */
+  serverUrl?: string;
+  /** Whether to request intermediate JSON payloads from self-hosted MinerU */
+  returnMiddleJson?: boolean;
 }
 
 interface CreateBatchTaskFile {
@@ -46,43 +67,253 @@ interface MineruTaskResult {
   code: number;
   msg: string;
   trace_id: string;
-  data: any;  // Can define the type according to the specific return structure
+  data: any;
 }
 
 export class MinerUClient {
   private readonly logger = new Logger(MinerUClient.name);
   private readonly baseUrl: string;
-  private readonly token: string;
+  private readonly token?: string;
+  public readonly serverType: MinerUServerType;
+  private readonly localTasks = new Map<string, MineruSelfHostedTaskResult>();
 
   constructor(
-		private readonly configService: ConfigService,
-    private readonly integration?: Partial<IIntegration>
+    private readonly configService: ConfigService,
+    private readonly integration?: Partial<IIntegration<MinerUIntegrationOptions>>,
   ) {
-    if (integration) {
-      this.baseUrl = integration.options?.apiUrl || 'https://mineru.net/api/v4';
-      this.token = integration.options?.apiKey;
-    } else {
-      // Read configuration or environment variables
-      this.baseUrl = this.configService.get<string>(ENV_MINERU_API_BASE_URL) || 'https://mineru.net/api/v4';
-      this.token = this.configService.get<string>(ENV_MINERU_API_TOKEN);
+    this.serverType = this.resolveServerType(integration);
+    const { baseUrl, token } = this.resolveCredentials(integration);
+
+    if (!baseUrl) {
+      throw new Error('MinerU base URL is required');
+    }
+
+    this.baseUrl = this.normalizeBaseUrl(baseUrl);
+    this.token = token;
+
+    if (this.serverType === 'official' && !this.token) {
+      throw new Error('MinerU official API requires an access token');
     }
   }
 
-  private get headers() {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`,
-    };
+  /**
+   * Create a MinerU extraction task. For self-hosted deployments the file will be uploaded immediately
+   * and the parsed result cached locally, while official deployments follow the async task lifecycle.
+   */
+  async createTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
+    if (!options.url) {
+      throw new Error('MinerU createTask requires a document URL');
+    }
+
+    if (this.serverType === 'self-hosted') {
+      return this.createSelfHostedTask(options);
+    }
+
+    return this.createOfficialTask(options);
   }
 
   /**
-   * Creating a single task
+   * Create a batch MinerU extraction task. Only supported for official MinerU deployments.
    */
-  async createTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
-    const url = `${this.baseUrl}/extract/task`;
-    const body: any = {
-      url: options.url,
+  async createBatchTask(options: CreateBatchTaskOptions): Promise<{ batchId: string; fileUrls?: string[] }> {
+    this.ensureOfficial('createBatchTask');
+
+    const url = this.buildApiUrl('extract', 'task', 'batch');
+    const body: Record<string, any> = {
+      files: options.files.map((file) => {
+        const entry: Record<string, any> = { url: file.url };
+        if (file.isOcr !== undefined) entry.is_ocr = file.isOcr;
+        if (file.dataId) entry.data_id = file.dataId;
+        if (file.pageRanges) entry.page_ranges = file.pageRanges;
+        return entry;
+      }),
     };
+
+    if (options.enableFormula !== undefined) body.enable_formula = options.enableFormula;
+    if (options.enableTable !== undefined) body.enable_table = options.enableTable;
+    if (options.language) body.language = options.language;
+    if (options.modelVersion) body.model_version = options.modelVersion;
+    if (options.extraFormats) body.extra_formats = options.extraFormats;
+    if (options.callbackUrl) body.callback = options.callbackUrl;
+    if (options.seed) body.seed = options.seed;
+
+    try {
+      const resp = await axios.post(url, body, { headers: this.getOfficialHeaders() });
+      const data = resp.data as MineruTaskResult;
+      if (data.code !== 0) {
+        throw new Error(`MinerU createBatchTask failed: ${data.msg}`);
+      }
+      return { batchId: data.data.batch_id, fileUrls: data.data.file_urls };
+    } catch (err) {
+      this.logger.error('createBatchTask error', err instanceof Error ? err.stack : err);
+      throw err;
+    }
+  }
+
+  getSelfHostedTask(taskId: string): MineruSelfHostedTaskResult | undefined {
+    if (this.serverType !== 'self-hosted') {
+      throw new Error('getSelfHostedTask is only available for self-hosted MinerU deployments');
+    }
+    return this.localTasks.get(taskId);
+  }
+
+  /**
+   * Query offical task status or results.
+   */
+  async getTaskResult(taskId: string, options?: TaskResultOptions): Promise<{
+    full_zip_url?: string;
+    full_url?: string;
+    content?: string;
+    status?: string;
+  }> {
+    const url = this.buildApiUrl('extract', 'task', taskId);
+    const params: Record<string, any> = {};
+    if (options?.enableFormula !== undefined) params.enable_formula = options.enableFormula;
+    if (options?.enableTable !== undefined) params.enable_table = options.enableTable;
+    if (options?.language) params.language = options.language;
+
+    try {
+      const resp = await axios.get(url, { headers: this.getOfficialHeaders(), params });
+      const data = resp.data as MineruTaskResult;
+      if (data.code !== 0) {
+        throw new Error(`MinerU getTaskResult failed: ${data.msg}`);
+      }
+      return data.data;
+    } catch (err) {
+      this.logger.error('getTaskResult error', err instanceof Error ? err.stack : err);
+      throw err;
+    }
+  }
+
+  /**
+   * Query batch task results. Only supported for official MinerU deployments.
+   */
+  async getBatchResult(batchId: string): Promise<any> {
+    this.ensureOfficial('getBatchResult');
+
+    const url = this.buildApiUrl('extract-results', 'batch', batchId);
+    try {
+      const resp = await axios.get(url, { headers: this.getOfficialHeaders() });
+      const data = resp.data as MineruTaskResult;
+      if (data.code !== 0) {
+        throw new Error(`MinerU getBatchResult failed: ${data.msg}`);
+      }
+      return data.data;
+    } catch (err) {
+      this.logger.error('getBatchResult error', err instanceof Error ? err.stack : err);
+      throw err;
+    }
+  }
+
+  /**
+   * Wait for a task to complete and return the result when available.
+   */
+  async waitForTask(taskId: string, timeoutMs = 5 * 60 * 1000, intervalMs = 5000): Promise<any> {
+    if (this.serverType === 'self-hosted') {
+      throw new Error('waitForTask is not supported for self-hosted MinerU deployments');
+    }
+    
+    const start = Date.now();
+    while (true) {
+      const result = await this.getTaskResult(taskId);
+      this.logger.debug(`MinerU waiting task result: ${JSON.stringify(result)}`);
+
+      if (result?.full_zip_url || result?.full_url || result?.content || result?.status === 'done') {
+        return result;
+      }
+
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`MinerU waitForTask timeout after ${timeoutMs} ms`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  private ensureOfficial(feature: string): void {
+    if (this.serverType !== 'official') {
+      throw new Error(`${feature} is only supported for official MinerU deployments`);
+    }
+  }
+
+  private resolveServerType(integration?: Partial<IIntegration<MinerUIntegrationOptions>>): MinerUServerType {
+    const integrationType = this.readIntegrationOptions(integration)?.serverType as MinerUServerType | undefined;
+    if (integrationType === 'self-hosted' || integrationType === 'official') {
+      return integrationType;
+    }
+
+    const envValue = this.configService.get<string>(ENV_MINERU_SERVER_TYPE)?.toLowerCase();
+    if (envValue === 'self-hosted') {
+      return 'self-hosted';
+    }
+
+    return 'official';
+  }
+
+  private resolveCredentials(integration?: Partial<IIntegration<MinerUIntegrationOptions>>): {
+    baseUrl?: string;
+    token?: string;
+  } {
+    const options = this.readIntegrationOptions(integration);
+    const baseUrlFromIntegration = options?.apiUrl;
+    const tokenFromIntegration = options?.apiKey;
+
+    const baseUrlEnvKey =
+      this.serverType === 'self-hosted' ? ENV_MINERU_API_BASE_URL : ENV_MINERU_API_BASE_URL;
+    const tokenEnvKey =
+      this.serverType === 'self-hosted' ? ENV_MINERU_API_TOKEN : ENV_MINERU_API_TOKEN;
+
+    const baseUrlFromEnv = this.configService.get<string>(baseUrlEnvKey);
+    const tokenFromEnv = this.configService.get<string>(tokenEnvKey);
+
+    const baseUrl =
+      baseUrlFromIntegration ||
+      baseUrlFromEnv ||
+      (this.serverType === 'official' ? DEFAULT_OFFICIAL_BASE_URL : null);
+    const token = tokenFromIntegration || tokenFromEnv;
+
+    return { baseUrl, token };
+  }
+
+  private readIntegrationOptions(integration?: Partial<IIntegration<MinerUIntegrationOptions>>): MinerUIntegrationOptions | undefined {
+    return (integration?.options as MinerUIntegrationOptions) || undefined;
+  }
+
+  private normalizeBaseUrl(url: string): string {
+    return url.replace(/\/+$/, '');
+  }
+
+  private buildApiUrl(...segments: string[]): string {
+    const path = segments
+      .filter(Boolean)
+      .map((segment) => segment.replace(/^\/+|\/+$/g, ''))
+      .join('/');
+    return path ? `${this.baseUrl}/${path}` : this.baseUrl;
+  }
+
+  private getOfficialHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.token}`,
+    };
+  }
+
+  private getSelfHostedHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+    };
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    return headers;
+  }
+
+  private async createOfficialTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
+    const url = this.buildApiUrl('extract', 'task');
+    const body: Record<string, any> = { url: options.url };
+
     if (options.isOcr !== undefined) body.is_ocr = options.isOcr;
     if (options.enableFormula !== undefined) body.enable_formula = options.enableFormula;
     if (options.enableTable !== undefined) body.enable_table = options.enableTable;
@@ -95,111 +326,241 @@ export class MinerUClient {
     if (options.seed) body.seed = options.seed;
 
     try {
-      const resp = await axios.post(url, body, { headers: this.headers });
+      const resp = await axios.post(url, body, { headers: this.getOfficialHeaders() });
       const data = resp.data as MineruTaskResult;
       if (data.code !== 0) {
-        throw new Error(`Mineru createTask failed: ${data.msg}`);
+        throw new Error(`MinerU createTask failed: ${data.msg}`);
       }
       return { taskId: data.data.task_id };
     } catch (err) {
-      this.logger.error('createTask error', err);
+      this.logger.error('createTask error', err instanceof Error ? err.stack : err);
       throw err;
     }
   }
 
-  /**
-   * Creating batch tasks
-   */
-  async createBatchTask(options: CreateBatchTaskOptions): Promise<{ batchId: string; fileUrls?: string[] }> {
-    const url = `${this.baseUrl}/extract/task/batch`;
-    const body: any = {
-      files: options.files.map(f => {
-        const entry: any = { url: f.url };
-        if (f.isOcr !== undefined) entry.is_ocr = f.isOcr;
-        if (f.dataId) entry.data_id = f.dataId;
-        if (f.pageRanges) entry.page_ranges = f.pageRanges;
-        return entry;
-      }),
+  private async createSelfHostedTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
+    const { buffer, fileName, contentType } = await this.downloadFile(options.url);
+    const taskId = randomUUID();
+
+    const result = await this.invokeSelfHostedParse(buffer, fileName, contentType, options);
+    this.localTasks.set(taskId, { ...result, sourceUrl: options.url });
+
+    return { taskId };
+  }
+
+  private async invokeSelfHostedParse(
+    fileBuffer: Buffer,
+    fileName: string,
+    contentType: string | undefined,
+    options: CreateTaskOptions,
+  ): Promise<MineruSelfHostedTaskResult> {
+    const parseUrl = this.buildApiUrl('file_parse');
+    const form = new FormData();
+    form.append('files', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
+    form.append('parse_method', options.parseMethod ?? 'auto');
+    form.append('return_md', 'true');
+    form.append('return_model_output', 'false');
+    form.append('return_content_list', 'true');
+    // form.append('lang_list', JSON.stringify(this.buildLanguageList(options.language)));
+    form.append('return_images', 'true');
+    form.append('backend', options.backend ?? options.modelVersion ?? 'pipeline');
+    form.append('formula_enable', this.booleanToString(options.enableFormula ?? true));
+    form.append('table_enable', this.booleanToString(options.enableTable ?? true));
+    form.append('return_middle_json', this.booleanToString(options.returnMiddleJson ?? false));
+    if (options.serverUrl) {
+      form.append('server_url', options.serverUrl);
+    }
+
+    const headers = {
+      ...this.getSelfHostedHeaders(),
+      ...form.getHeaders(),
     };
-    if (options.enableFormula !== undefined) body.enable_formula = options.enableFormula;
-    if (options.enableTable !== undefined) body.enable_table = options.enableTable;
-    if (options.language) body.language = options.language;
-    if (options.modelVersion) body.model_version = options.modelVersion;
-    if (options.extraFormats) body.extra_formats = options.extraFormats;
-    if (options.callbackUrl) body.callback = options.callbackUrl;
-    if (options.seed) body.seed = options.seed;
 
     try {
-      const resp = await axios.post(url, body, { headers: this.headers });
-      const data = resp.data as MineruTaskResult;
-      if (data.code !== 0) {
-        throw new Error(`Mineru createBatchTask failed: ${data.msg}`);
+      const response = await axios.post(parseUrl, form, {
+        headers,
+        maxBodyLength: Infinity,
+        validateStatus: () => true,
+      });
+
+      if (this.isSelfHostedApiV1(response)) {
+        return this.invokeSelfHostedParseV1(fileBuffer, fileName, contentType, options);
       }
-      return { batchId: data.data.batch_id, fileUrls: data.data.file_urls };
-    } catch (err) {
-      this.logger.error('createBatchTask error', err);
-      throw err;
+
+      if (response.status !== 200) {
+        console.error(response.data)
+        throw new Error(`MinerU self-hosted parse failed: ${response.status} ${response.statusText}`);
+      }
+
+      return this.normalizeSelfHostedResponse(response.data);
+    } catch (error) {
+      this.logger.error('invokeSelfHostedParse error', error instanceof Error ? error.stack : error);
+      throw error;
     }
   }
 
-  /**
-   * Query task status/results (single task)
-   */
-  async getTaskResult(taskId: string, options?: TaskResultOptions): Promise<any> {
-    const url = `${this.baseUrl}/extract/task/${taskId}`;
-    const params: any = {};
-    if (options?.enableFormula !== undefined) params.enable_formula = options.enableFormula;
-    if (options?.enableTable !== undefined) params.enable_table = options.enableTable;
-    if (options?.language) params.language = options.language;
+  private async invokeSelfHostedParseV1(
+    fileBuffer: Buffer,
+    fileName: string,
+    contentType: string | undefined,
+    options: CreateTaskOptions,
+  ): Promise<MineruSelfHostedTaskResult> {
+    const parseUrl = this.buildApiUrl('file_parse');
+    const form = new FormData();
+    form.append('file', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
+
+    const params = {
+      parse_method: options.parseMethod ?? 'auto',
+      return_layout: false,
+      return_info: false,
+      return_content_list: true,
+      return_images: true,
+    };
+
+    const headers = {
+      ...this.getSelfHostedHeaders(),
+      ...form.getHeaders(),
+    };
 
     try {
-      const resp = await axios.get(url, { headers: this.headers, params });
-      const data = resp.data as MineruTaskResult;
-      if (data.code !== 0) {
-        throw new Error(`Mineru getTaskResult failed: ${data.msg}`);
+      const response = await axios.post(parseUrl, form, {
+        headers,
+        params,
+        maxBodyLength: Infinity,
+        validateStatus: () => true,
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`MinerU self-hosted legacy parse failed: ${response.status} ${response.statusText}`);
       }
-      return data.data;
-    } catch (err) {
-      this.logger.error('getTaskResult error', err);
-      throw err;
+
+      return this.normalizeSelfHostedResponse(response.data);
+    } catch (error) {
+      this.logger.error('invokeSelfHostedParseV1 error', error instanceof Error ? error.stack : error);
+      throw error;
     }
   }
 
-  /**
-   * Query batch task status/results
-   */
-  async getBatchResult(batchId: string): Promise<any> {
-    const url = `${this.baseUrl}/extract-results/batch/${batchId}`;
-    try {
-      const resp = await axios.get(url, { headers: this.headers });
-      const data = resp.data as MineruTaskResult;
-      if (data.code !== 0) {
-        throw new Error(`Mineru getBatchResult failed: ${data.msg}`);
+  private isSelfHostedApiV1(response: AxiosResponse): boolean {
+    if (response.status !== 422) {
+      return false;
+    }
+
+    const detail = (response.data as any)?.detail;
+    if (!Array.isArray(detail)) {
+      return false;
+    }
+
+    return detail.some((item) => {
+      const loc = item?.loc;
+      return item?.type === 'missing' && Array.isArray(loc) && loc[0] === 'body' && loc[1] === 'file';
+    });
+  }
+
+  private normalizeSelfHostedResponse(payload: any): MineruSelfHostedTaskResult {
+    if (!payload) {
+      throw new Error('MinerU self-hosted parse returned empty payload');
+    }
+
+    if (payload.results && typeof payload.results === 'object') {
+      const [firstKey] = Object.keys(payload.results);
+      if (firstKey) {
+        return this.normalizeSelfHostedFileResult(payload.results[firstKey], firstKey);
       }
-      return data.data;
-    } catch (err) {
-      this.logger.error('getBatchResult error', err);
-      throw err;
+    }
+
+    return this.normalizeSelfHostedFileResult(payload);
+  }
+
+  private normalizeSelfHostedFileResult(result: any, fileName?: string): MineruSelfHostedTaskResult {
+    const mdContent = result?.md_content ?? '';
+    const contentList = this.parseJsonSafe(result?.content_list);
+    const images = this.normalizeImageMap(result?.images);
+
+    return {
+      mdContent,
+      contentList,
+      images,
+      raw: result,
+      fileName,
+    };
+  }
+
+  private normalizeImageMap(map: Record<string, string> | undefined): MineruSelfHostedImage[] {
+    if (!map) {
+      return [];
+    }
+
+    return Object.entries(map).map(([name, dataUrl]) => ({ name, dataUrl }));
+  }
+
+  private parseJsonSafe(value: any): any {
+    if (typeof value !== 'string') {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to parse MinerU content_list JSON: ${message}`);
+      return value;
     }
   }
 
-  /**
-   * Wait for a task to complete and get the result (polling)
-   */
-  async waitForTask(taskId: string, timeoutMs: number = 5 * 60 * 1000, intervalMs = 5000): Promise<any> {
-    const start = Date.now();
-    while (true) {
-      const result = await this.getTaskResult(taskId)
-      console.log('Mineru waiting task result:', result)
-      // Determine whether the task is complete based on whether the data contains the final URL or status.
-      // The documentation states that when a task is complete, a full or zip URL will be in the data - you need to determine this based on the actual fields.
-      if (result.full_zip_url || result.full_url || result.content /* Or other fields */) {
-        return result;
-      }
-      if (Date.now() - start > timeoutMs) {
-        throw new Error(`Mineru waitForTask timeout after ${timeoutMs} ms`);
-      }
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
+  private buildLanguageList(language?: string): string[] {
+    if (!language || language === 'auto') {
+      return ['zh'];
     }
+
+    return [language];
+  }
+
+  private booleanToString(value: boolean): string {
+    return value ? 'true' : 'false';
+  }
+
+  private async downloadFile(url: string): Promise<{ buffer: Buffer; fileName: string; contentType?: string }> {
+    try {
+      const response = await axios.get(url, { responseType: 'arraybuffer' });
+      const buffer = Buffer.from(response.data);
+      const contentType = response.headers['content-type'] as string | undefined;
+      const contentDisposition = response.headers['content-disposition'] as string | undefined;
+
+      return {
+        buffer,
+        fileName: this.extractFileName(url, contentDisposition),
+        contentType,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to download file for MinerU from ${url}`, error instanceof Error ? error.stack : error);
+      throw error;
+    }
+  }
+
+  private extractFileName(sourceUrl: string, contentDisposition?: string): string {
+    const dispositionMatch = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(contentDisposition || '');
+    if (dispositionMatch) {
+      const encodedName = dispositionMatch[1] || dispositionMatch[2];
+      if (encodedName) {
+        try {
+          return decodeURIComponent(encodedName);
+        } catch {
+          return encodedName;
+        }
+      }
+    }
+
+    try {
+      const pathname = new URL(sourceUrl).pathname;
+      const name = basename(pathname);
+      if (name) {
+        return name;
+      }
+    } catch {
+      // Ignore URL parsing errors and fallback to default
+    }
+
+    return `mineru-${Date.now()}.pdf`;
   }
 }

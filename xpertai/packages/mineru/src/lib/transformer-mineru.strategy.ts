@@ -7,15 +7,15 @@ import {
   FileSystemPermission,
   IDocumentTransformerStrategy,
   IntegrationPermission,
-  TDocumentTransformerConfig,
 } from '@xpert-ai/plugin-sdk'
+import { isNil, omitBy, pick } from 'lodash-es'
 import { MinerUClient } from './mineru.client.js'
 import { MinerUResultParserService } from './result-parser.service.js'
-import { icon, MinerU } from './types.js'
+import { icon, MinerU, TMinerUTransformerConfig } from './types.js'
 
 @Injectable()
 @DocumentTransformerStrategy(MinerU)
-export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<TDocumentTransformerConfig> {
+export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<TMinerUTransformerConfig> {
   @Inject(MinerUResultParserService)
   private readonly resultParser: MinerUResultParserService
 
@@ -126,32 +126,55 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
 
   async transformDocuments(
     documents: Partial<IKnowledgeDocument>[],
-    config: TDocumentTransformerConfig
+    config: TMinerUTransformerConfig
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions?.integration)
     const parsedResults: Partial<IKnowledgeDocument>[] = []
     for await (const document of documents) {
-      const { taskId } = await mineru.createTask({
-        url: document.fileUrl,
-        isOcr: true,
-        enableFormula: true,
-        enableTable: true,
-        language: 'ch',
-        modelVersion: 'vlm'
-      })
+      if (mineru.serverType === 'self-hosted') {
+        const { taskId } = await mineru.createTask({
+          url: document.fileUrl,
+          isOcr: true,
+          enableFormula: true,
+          enableTable: true,
+          // language: 'ch',
+          // modelVersion: 'vlm'
+        })
+        const result = mineru.getSelfHostedTask(taskId);
+        const parsedResult = await this.resultParser.parseLocalTask(
+          result,
+          taskId,
+          document,
+          config.permissions.fileSystem
+        )
 
-      // Waiting for completion
-      const result = await mineru.waitForTask(taskId, 5 * 60 * 1000, 5000)
+        parsedResult.id = document.id
+        parsedResults.push(parsedResult)
+      } else {
+        const { taskId } = await mineru.createTask({
+          url: document.fileUrl,
+          isOcr: true,
+          enableFormula: true,
+          enableTable: true,
+          language: 'ch',
+          modelVersion: 'vlm',
+          ...omitBy(
+            pick(config, ['isOcr', 'enableFormula', 'enableTable', 'language', 'modelVersion']),
+            isNil
+          )
+        })
+        // Waiting for completion
+        const result = await mineru.waitForTask(taskId, 5 * 60 * 1000, 5000)
+        const parsedResult = await this.resultParser.parseFromUrl(
+          result.full_zip_url,
+          taskId,
+          document,
+          config.permissions.fileSystem
+        )
 
-      const parsedResult = await this.resultParser.parseFromUrl(
-        result.full_zip_url,
-        taskId,
-        document,
-        config.permissions.fileSystem
-      )
-
-      parsedResult.id = document.id
-      parsedResults.push(parsedResult)
+        parsedResult.id = document.id
+        parsedResults.push(parsedResult)
+      }
     }
 
     // @fix type checking

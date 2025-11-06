@@ -1,9 +1,10 @@
-import { TDocumentAsset } from "@xpert-ai/plugin-sdk"
+import { TDocumentAsset, TDocumentTransformerConfig } from "@xpert-ai/plugin-sdk"
 
 export const MinerU = 'mineru'
 
 export const ENV_MINERU_API_BASE_URL = 'MINERU_API_BASE_URL'
 export const ENV_MINERU_API_TOKEN = 'MINERU_API_TOKEN'
+export const ENV_MINERU_SERVER_TYPE = 'MINERU_SERVER_TYPE'
 
 export const icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M19.7238 3.86898C19.7238 4.57597 19.1502 5.1491 18.4427 5.1491C17.7352 5.1491 17.1616 4.57597 17.1616 3.86898C17.1616 3.16199 17.7352 2.58887 18.4427 2.58887C19.1502 2.58887 19.7238 3.16199 19.7238 3.86898Z" fill="url(#paint0_linear_8609_1645)"/>
@@ -29,6 +30,14 @@ export const icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"
 </svg>
 `
 
+export type TMinerUTransformerConfig = TDocumentTransformerConfig & {
+  isOcr?: boolean
+  enableFormula?: boolean
+  enableTable?: boolean
+  language?: 'en' | 'ch'
+  modelVersion?: 'vlm' | 'pipeline'
+}
+
 export type MinerUDocumentMetadata = {
   parser: 'mineru';
   assets?: TDocumentAsset[];
@@ -38,7 +47,24 @@ export type MinerUDocumentMetadata = {
   mineruVersion?: string;
 }
 
+export type MinerUServerType = 'official' | 'self-hosted'
+
 export type MinerUIntegrationOptions = {
-  apiUrl: string
-  apiKey: string
+  apiUrl?: string
+  apiKey?: string
+  serverType?: MinerUServerType
+}
+
+export interface MineruSelfHostedImage {
+  name: string;
+  dataUrl: string; // base64 data URL
+}
+
+export interface MineruSelfHostedTaskResult {
+  mdContent: string;
+  contentList?: any;
+  images: MineruSelfHostedImage[];
+  raw: any;
+  fileName?: string;
+  sourceUrl?: string;
 }

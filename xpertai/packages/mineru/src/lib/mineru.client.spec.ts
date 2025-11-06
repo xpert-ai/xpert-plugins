@@ -1,10 +1,17 @@
-import "dotenv/config";
+import 'dotenv/config';
 
 import type { IIntegration } from '@metad/contracts';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
+import FormData from 'form-data';
+import { createServer } from 'http';
+import type { AddressInfo } from 'net';
 import { MinerUClient } from './mineru.client.js';
-import { ENV_MINERU_API_BASE_URL, ENV_MINERU_API_TOKEN } from './types.js';
+import {
+  ENV_MINERU_API_BASE_URL,
+  ENV_MINERU_API_TOKEN,
+  ENV_MINERU_SERVER_TYPE,
+} from './types.js';
 
 
 const createConfigServiceMock = (
@@ -21,7 +28,53 @@ const integrationOptions: Partial<IIntegration> = {
   options: {
     apiUrl: 'https://custom-mineru.test/api/v4',
     apiKey: 'integration-token',
+    serverType: 'official',
   },
+};
+
+const createSamplePdfBuffer = (text: string): Buffer => {
+  const header = '%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n';
+  const content = `BT\n/F1 24 Tf\n100 700 Td\n(${text}) Tj\nET\n`;
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n',
+    `4 0 obj\n<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream\nendobj\n`,
+    '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+  ];
+
+  const xrefEntries = ['0000000000 65535 f \n'];
+  let offset = Buffer.byteLength(header);
+  let body = '';
+
+  objects.forEach((object) => {
+    xrefEntries.push(`${offset.toString().padStart(10, '0')} 00000 n \n`);
+    body += object;
+    offset += Buffer.byteLength(object);
+  });
+
+  const xref = `xref\n0 ${objects.length + 1}\n${xrefEntries.join('')}trailer\n<< /Size ${
+    objects.length + 1
+  } /Root 1 0 R >>\nstartxref\n${offset}\n%%EOF`;
+  const pdfString = header + body + xref;
+
+  return Buffer.from(pdfString, 'utf-8');
+};
+
+const isConnectionRefused = (error: any): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === 'ECONNREFUSED') {
+    return true;
+  }
+
+  if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+    return true;
+  }
+
+  return Boolean(error.cause && error.cause.code === 'ECONNREFUSED');
 };
 
 describe('MinerUClient', () => {
@@ -252,6 +305,152 @@ describe('MinerUClient', () => {
 
     expect(result).toBe(finalResult);
     expect(getTaskResultSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should upload file and cache result for self-hosted deployments', async () => {
+    const { instance: configService } = createConfigServiceMock();
+    const selfHostedBaseUrl =
+      process.env[ENV_MINERU_API_BASE_URL] ?? 'http://localhost:9960';
+    const selfHostedApiKey = process.env[ENV_MINERU_API_TOKEN];
+    const client = new MinerUClient(configService, {
+      options: {
+        apiUrl: selfHostedBaseUrl,
+        serverType: 'self-hosted',
+        ...(selfHostedApiKey ? { apiKey: selfHostedApiKey } : {}),
+      },
+    });
+
+    const samplePdf = createSamplePdfBuffer('Hello MinerU');
+    const fileServer = createServer((req, res) => {
+      if (req.url === '/doc.pdf') {
+        res.writeHead(200, {
+          'Content-Type': 'application/pdf',
+          'Content-Length': samplePdf.length,
+        });
+        res.end(samplePdf);
+        return;
+      }
+
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      fileServer.once('error', reject);
+      fileServer.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const address = fileServer.address() as AddressInfo;
+    const sourceUrl = `http://127.0.0.1:${address.port}/doc.pdf`;
+
+    let taskId: string | undefined;
+    try {
+      ({ taskId } = await client.createTask({
+        url: sourceUrl,
+        // language: 'en',
+        enableFormula: false,
+      }));
+      console.log(`Created task with ID: ${taskId}`);
+    } catch (error: any) {
+      console.error(error);
+      if (isConnectionRefused(error)) {
+        console.warn(
+          `MinerU self-hosted server not reachable on ${selfHostedBaseUrl}. Skipping test.`,
+        );
+        return;
+      }
+      throw error;
+    } finally {
+      await new Promise<void>((resolve) => fileServer.close(() => resolve()));
+    }
+
+    expect(taskId).toBeDefined();
+
+    const result = await client.getTaskResult(taskId!);
+    console.log('Task result:', result);
+    expect(typeof result.mdContent).toBe('string');
+    expect(result.fileName).toBeDefined();
+    expect(Array.isArray(result.images)).toBe(true);
+    expect(result.raw).toBeDefined();
+    expect(result.sourceUrl).toBe(sourceUrl);
+
+    const waited = await client.waitForTask(taskId!);
+    expect(waited).toBe(result);
+  });
+
+  it('should derive self-hosted mode from environment settings', async () => {
+    const configValues = {
+      [ENV_MINERU_SERVER_TYPE]: 'self-hosted',
+      [ENV_MINERU_API_BASE_URL]: 'http://127.0.0.1:9000',
+      [ENV_MINERU_API_TOKEN]: 'local-token',
+    };
+    const { instance: configService } = createConfigServiceMock(configValues);
+    const client = new MinerUClient(configService);
+
+    const downloadResponse = {
+      data: Buffer.from('pdf-file'),
+      headers: {
+        'content-type': 'application/pdf',
+      },
+      status: 200,
+      statusText: 'OK',
+      config: {},
+      request: {},
+    } as AxiosResponse;
+
+    const parseResponse = {
+      data: {
+        md_content: '# Local',
+        content_list: [],
+        images: {},
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as AxiosResponse;
+
+    const getSpy = jest.spyOn(axios, 'get').mockResolvedValueOnce(downloadResponse);
+    const postSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce(parseResponse);
+
+    const { taskId } = await client.createTask({ url: 'https://example.com/local.pdf' });
+    const result = await client.getTaskResult(taskId);
+
+    expect(result.mdContent).toBe('# Local');
+    expect(getSpy).toHaveBeenCalledWith('https://example.com/local.pdf', expect.objectContaining({ responseType: 'arraybuffer' }));
+    expect(postSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:9000/file_parse',
+      expect.any(FormData),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer local-token',
+          accept: 'application/json',
+        }),
+      }),
+    );
+  });
+
+  it('should fallback to localhost for self-hosted when no base URL provided', () => {
+    const { instance: configService } = createConfigServiceMock({
+      [ENV_MINERU_SERVER_TYPE]: 'self-hosted',
+    });
+
+    const client = new MinerUClient(configService);
+    expect((client as any).baseUrl).toBe('http://localhost:9960');
+  });
+
+  it('should throw when official server token is missing', () => {
+    const { instance: configService } = createConfigServiceMock();
+
+    expect(
+      () =>
+        new MinerUClient(configService, {
+          options: {
+            apiUrl: 'https://official.api',
+            serverType: 'official',
+          },
+        }),
+    ).toThrow('MinerU official API requires an access token');
   });
 
   const connectivityIt =

@@ -21,6 +21,8 @@ export default {
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
+  // 👇 这一行是关键
+  transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
 };

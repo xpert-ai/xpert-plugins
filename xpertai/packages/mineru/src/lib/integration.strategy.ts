@@ -1,6 +1,5 @@
 import {
-  IIntegration,
-  IntegrationEnum,
+  type IIntegration,
   TIntegrationProvider,
 } from '@metad/contracts';
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
@@ -45,6 +44,8 @@ export class MinerUIntegrationStrategy
           },
           description: {
             en_US: 'https://api.mineru.dev',
+            ja_JP: 'MinerUサーバのBase URLを入力してください',
+            zh_Hans: '请输入你的 MinerU 服务的 Base URL'
           },
         },
         apiKey: {
@@ -54,16 +55,33 @@ export class MinerUIntegrationStrategy
           },
           description: {
             en_US: 'The API Key of the MinerU server',
+            ja_JP: 'MinerUサーバのトークンを入力してください',
+            zh_Hans: '请输入你的 MinerU 服务的令牌'
           },
           'x-ui': <ISchemaSecretField>{
             component: 'secretInput',
             label: 'API Key',
-            placeholder: '请输入您的 MinerU API Key',
+            placeholder: 'MinerU API Key',
             revealable: true,
             maskSymbol: '*',
             persist: true,
           },
         },
+        serverType: {
+          type: 'string',
+          title: {
+            en_US: 'Server Type',
+            ja_JP: 'サーバータイプ',
+            zh_Hans: '服务类型'
+          },
+          description: {
+            en_US: 'Please select MinerU service type, local deployment or official API',
+            ja_JP: 'MinerUサービスのタイプを選択してください、ローカルデプロイまたは公式API',
+            zh_Hans: '请选择MinerU服务类型,本地部署或官方API'
+          },
+          enum: ['official', 'self-hosted'],
+          default: 'official',
+        }
       },
     },
     features: [],
@@ -82,7 +100,7 @@ export class MinerUIntegrationStrategy
 
   async validateConfig(config: MinerUIntegrationOptions): Promise<void> {
     const mineruClient = new MinerUClient(this.configService, {
-      provider: MinerU as IntegrationEnum,
+      provider: MinerU,
       options: config,
     });
 

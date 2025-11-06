@@ -13,11 +13,6 @@ import { MinerUController } from './mineru.controller.js';
 	imports: [
 		ConfigModule,
 	],
-	/**
-	 * An array of Entity classes. The plugin (or ORM) will
-	 * register these entities for use within the application.
-	 */
-	entities: [],
 
 	providers: [
 		MinerUIntegrationStrategy,
