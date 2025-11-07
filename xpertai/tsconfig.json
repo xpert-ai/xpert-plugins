@@ -47,6 +47,9 @@
     },
     {
       "path": "./packages/mysql"
+    },
+    {
+      "path": "./packages/hana"
     }
   ]
 }

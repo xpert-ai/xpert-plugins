@@ -1,6 +1,6 @@
 {
-  "name": "@xpert-ai/plugin-mineru",
-  "version": "0.0.8",
+  "name": "@xpert-ai/plugin-hana",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins.git"
@@ -26,24 +26,14 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "form-data": "^4.0.0",
-    "tslib": "^2.3.0",
-    "unzipper": "0.12.3"
+    "@sap/hana-client": "^2.26.25",
+    "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@nestjs/config": "^4.0.2",
-    "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.6.2",
-    "@metad/contracts": "^3.6.2",
     "@nestjs/common": "^11.1.6",
-    "axios": "1.12.2",
-    "nestjs-i18n": "10.5.1",
+    "@xpert-ai/plugin-sdk": "^3.6.2",
     "chalk": "4.1.2",
-    "@langchain/core": "^0.3.72",
     "lodash-es": "4.17.21",
-    "uuid": "8.3.2"
-  },
-  "devDependencies": {
-    "@types/unzipper": "^0.10.11"
+    "zod": "3.25.67"
   }
 }

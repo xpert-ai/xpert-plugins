@@ -58,7 +58,8 @@
       "@xpert-ai/plugin-vllm",
       "@xpert-ai/plugin-volcengine",
       "@xpert-ai/plugin-openai-compatible",
-      "@xpert-ai/plugin-mysql"
+      "@xpert-ai/plugin-mysql",
+      "@xpert-ai/plugin-hana"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
