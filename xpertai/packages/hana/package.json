@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-hana",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins.git"
