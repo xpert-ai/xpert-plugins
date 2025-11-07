@@ -1,5 +1,6 @@
-import { Connection, ConnectionOptions, createConnection } from '@sap/hana-client'
-import { BaseSQLQueryRunner, CreationTable, DBProtocolEnum, DBSyntaxEnum, IDSSchema, QueryOptions, QueryResult, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
+import { Connection, ConnectionOptions } from '@sap/hana-client'
+import hanaClient from '@sap/hana-client'
+import { BaseSQLQueryRunner, CreationTable, DBProtocolEnum, DBSyntaxEnum, IDSSchema, IDSTable, QueryOptions, QueryResult, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
 import { groupBy } from 'lodash-es'
 import { HANA } from './types.js'
 
@@ -47,7 +48,7 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
   constructor(options: T) {
     super(options)
 
-    this.connection = createConnection()
+    this.connection = hanaClient.createConnection()
   }
 
   async connect(options?: QueryOptions): Promise<Connection> {
@@ -73,7 +74,7 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
     })
   }
 
-  async execute(query: string, options?: QueryOptions) {
+  async execute(query: string, options?: QueryOptions): Promise<any[]> {
     await this.connect(options)
 
     return new Promise((resolve, reject) => {
@@ -82,7 +83,7 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
           return reject(err)
         }
         this.connection.disconnect()
-        resolve(result)
+        resolve(result as any[])
       })
     })
   }
@@ -113,54 +114,112 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
     })
   }
 
+  /**
+   * Retrieve tables and views under a specified schema (catalog).
+   * If a table or view name is specified, its field information is retrieved.
+   * 
+   * @param catalog Schema name
+   * @param tableName Table or view name
+   * @returns 
+   */
   override async getSchema(catalog?: string, tableName?: string): Promise<IDSSchema[]> {
     let query = ''
+
     if (tableName) {
-      const tableCondition = `A.TABLE_NAME = '${tableName}'`
-      const whereCondition = catalog ? `A.SCHEMA_NAME = '${catalog}' AND ${tableCondition}` : tableCondition
-      query = `SELECT A.SCHEMA_NAME, A.TABLE_NAME, A.COMMENTS AS TABLE_LABEL, COLUMN_NAME, B.COMMENTS AS COLUMN_LABEL, DATA_TYPE_NAME, LENGTH, SCALE, IS_NULLABLE
-FROM "SYS"."TABLES" AS A JOIN "SYS"."TABLE_COLUMNS" AS B
-ON A.SCHEMA_NAME = B.SCHEMA_NAME AND A.TABLE_NAME = B.TABLE_NAME
-WHERE ${whereCondition} ORDER BY A.SCHEMA_NAME, A.TABLE_NAME, B.POSITION`
+      const tableCondition = `A.TABLE_NAME = '${tableName}'` + (catalog
+        ? ` AND A.SCHEMA_NAME = '${catalog}'`
+        : '')
+      const viewCondition = `A.VIEW_NAME = '${tableName}'` + (catalog
+        ? ` AND A.SCHEMA_NAME = '${catalog}'`
+        : '')
+
+      // Combine field information from a TABLE and VIEW using UNION ALL.
+      query = `
+        SELECT 
+          'TABLE' AS OBJECT_TYPE,
+          A.SCHEMA_NAME, 
+          A.TABLE_NAME AS OBJECT_NAME, 
+          A.COMMENTS AS OBJECT_LABEL,
+          B.COLUMN_NAME,
+          B.COMMENTS AS COLUMN_LABEL,
+          B.DATA_TYPE_NAME,
+          B.LENGTH,
+          B.SCALE,
+          B.IS_NULLABLE
+        FROM "SYS"."TABLES" AS A
+        JOIN "SYS"."TABLE_COLUMNS" AS B
+          ON A.SCHEMA_NAME = B.SCHEMA_NAME AND A.TABLE_NAME = B.TABLE_NAME
+        WHERE ${tableCondition}
+
+        UNION ALL
+
+        SELECT 
+          'VIEW' AS OBJECT_TYPE,
+          A.SCHEMA_NAME, 
+          A.VIEW_NAME AS OBJECT_NAME, 
+          A.COMMENTS AS OBJECT_LABEL,
+          B.COLUMN_NAME,
+          B.COMMENTS AS COLUMN_LABEL,
+          B.DATA_TYPE_NAME,
+          B.LENGTH,
+          B.SCALE,
+          B.IS_NULLABLE
+        FROM "SYS"."VIEWS" AS A
+        JOIN "SYS"."VIEW_COLUMNS" AS B
+          ON A.SCHEMA_NAME = B.SCHEMA_NAME AND A.VIEW_NAME = B.VIEW_NAME
+        WHERE ${viewCondition}
+
+        ORDER BY SCHEMA_NAME, OBJECT_NAME
+      `
     } else {
-      query = `SELECT A.SCHEMA_NAME, A.TABLE_NAME, A.COMMENTS AS TABLE_LABEL FROM "SYS"."TABLES" AS A`
-      if (catalog) {
-        query = query + ` WHERE A.SCHEMA_NAME = '${catalog}'`
-      }
+      // No table name specified, only retrieve table/view list
+      query = `
+        SELECT 'TABLE' AS OBJECT_TYPE, SCHEMA_NAME, TABLE_NAME AS OBJECT_NAME, COMMENTS AS OBJECT_LABEL
+        FROM "SYS"."TABLES"
+        ${catalog ? `WHERE SCHEMA_NAME = '${catalog}'` : ''}
+        UNION ALL
+        SELECT 'VIEW' AS OBJECT_TYPE, SCHEMA_NAME, VIEW_NAME AS OBJECT_NAME, COMMENTS AS OBJECT_LABEL
+        FROM "SYS"."VIEWS"
+        ${catalog ? `WHERE SCHEMA_NAME = '${catalog}'` : ''}
+      `
     }
 
-    return this.execute(query).then((data: any) => {
-      const tables = []
-      const schemas = groupBy(data, 'SCHEMA_NAME')
-      Object.keys(schemas).forEach((database) => {
-        const tableGroups = groupBy(schemas[database], 'TABLE_NAME')
-        Object.keys(tableGroups).forEach((name) => {
-          tables.push({
-            database,
-            schema: database,
-            name,
-            label: tableGroups[name][0].TABLE_LABEL,
-            columns: tableGroups[name]
-              .filter((item) => item.COLUMN_NAME)
-              .map((item) => ({
-                name: item.COLUMN_NAME,
-                label: item.COLUMN_LABEL,
-                dataType: concatHANAType(item.DATA_TYPE_NAME, item.LENGTH, item.SCALE),
-                type: hanaTypeMap(item.DATA_TYPE_NAME),
-                nullable: item.IS_NULLABLE.toLowerCase() === 'true',
-              }))
-          })
-        })
+    const data = await this.execute(query)
+
+    const tables: IDSTable[] = []
+    const schemas = groupBy(data, 'SCHEMA_NAME')
+
+    Object.keys(schemas).forEach((database) => {
+      const objectGroups = groupBy(schemas[database], 'OBJECT_NAME')
+      Object.keys(objectGroups).forEach((name) => {
+        const first = objectGroups[name][0]
+        tables.push({
+          schema: database,
+          name,
+          label: first.OBJECT_LABEL,
+          type: first.OBJECT_TYPE, // ✅ Add: TABLE or VIEW
+          columns: objectGroups[name]
+            .filter((item) => item.COLUMN_NAME)
+            .map((item) => ({
+              name: item.COLUMN_NAME,
+              label: item.COLUMN_LABEL,
+              dataType: concatHANAType(item.DATA_TYPE_NAME, item.LENGTH, item.SCALE),
+              type: hanaTypeMap(item.DATA_TYPE_NAME),
+              nullable: item.IS_NULLABLE?.toLowerCase() === 'true'
+            }))
+        } as IDSTable)
       })
-      return [
-        {
-          schema: catalog,
-          name: catalog,
-          tables
-        }
-      ]
     })
+
+    return [
+      {
+        schema: catalog,
+        name: catalog,
+        tables
+      }
+    ]
   }
+
 
   /**
    * Create HANA schema (catalog)
@@ -265,7 +324,7 @@ WHERE ${whereCondition} ORDER BY A.SCHEMA_NAME, A.TABLE_NAME, B.POSITION`
 }
 
 
-export function hanaTypeMap(type: string): string {
+export function hanaTypeMap(type: string): 'number' | 'string' | 'boolean' | 'object' | 'timestamp' {
   switch (type?.toLowerCase()) {
     case 'decimal':
     case 'numeric':
@@ -284,7 +343,7 @@ export function hanaTypeMap(type: string): string {
     case 'json':
       return 'object'
     default:
-      return type
+      return type as 'string'
   }
 }
 

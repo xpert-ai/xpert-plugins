@@ -65,13 +65,14 @@ describe('HANAAdapter (integration)', () => {
     // Get a catalog and table name from the first schema
     const catalogs = await adapter.getCatalogs()
     const catalogName = catalogs[0]?.schema
+    console.log(`Using catalog/schema: ${catalogName}`)
     const schemas = await adapter.getSchema(catalogName)
     const tableName = schemas[0]?.tables?.[0]?.name
 
     if (tableName) {
-      console.log(`Using table: ${tableName} in catalog/schema: ${catalogName}`)
+      console.log(`Using table: ${tableName}`)
       const tableSchemas = await adapter.getSchema(catalogName, tableName)
-      console.log(`Table schema for ${tableName}:`, tableSchemas[0])
+      console.log(`Table schema for ${tableName}:`, tableSchemas[0].tables[0])
       expect(Array.isArray(tableSchemas)).toBe(true)
       expect(tableSchemas[0]).toHaveProperty('tables')
       expect(tableSchemas[0].tables[0]).toHaveProperty('name', tableName)
