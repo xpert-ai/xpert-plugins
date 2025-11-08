@@ -177,7 +177,6 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
       }
     }
 
-    // @fix type checking
-    return parsedResults as unknown as Partial<IKnowledgeDocument<ChunkMetadata>>[]
+    return parsedResults as Partial<IKnowledgeDocument>[]
   }
 }
