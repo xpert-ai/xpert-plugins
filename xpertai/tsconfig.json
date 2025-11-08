@@ -50,6 +50,12 @@
     },
     {
       "path": "./packages/hana"
+    },
+    {
+      "path": "./packages/xinference"
+    },
+    {
+      "path": "./packages/calculator"
     }
   ]
 }
