@@ -1,10 +1,12 @@
 import { IIntegration } from '@metad/contracts';
 import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getErrorMessage, XpFileSystem } from '@xpert-ai/plugin-sdk';
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { randomUUID } from 'crypto';
 import { basename } from 'path';
+import fs from 'fs';
 import {
   ENV_MINERU_API_BASE_URL,
   ENV_MINERU_API_TOKEN,
@@ -18,7 +20,9 @@ import {
 const DEFAULT_OFFICIAL_BASE_URL = 'https://mineru.net/api/v4';
 
 interface CreateTaskOptions {
-  url: string;
+  url?: string;
+  filePath?: string;
+  fileName?: string;
   isOcr?: boolean;
   enableFormula?: boolean;
   enableTable?: boolean;
@@ -77,10 +81,17 @@ export class MinerUClient {
   public readonly serverType: MinerUServerType;
   private readonly localTasks = new Map<string, MineruSelfHostedTaskResult>();
 
+  get fileSystem(): XpFileSystem | undefined {
+    return this.permissions?.fileSystem;
+  }
   constructor(
     private readonly configService: ConfigService,
-    private readonly integration?: Partial<IIntegration<MinerUIntegrationOptions>>,
+    private readonly permissions?: {
+            fileSystem?: XpFileSystem;
+            integration?: Partial<IIntegration<MinerUIntegrationOptions>>;
+        }
   ) {
+    const integration = this.permissions?.integration;
     this.serverType = this.resolveServerType(integration);
     const { baseUrl, token } = this.resolveCredentials(integration);
 
@@ -339,24 +350,29 @@ export class MinerUClient {
   }
 
   private async createSelfHostedTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
-    const { buffer, fileName, contentType } = await this.downloadFile(options.url);
+    const filePath = this.fileSystem.fullPath(options.filePath);
     const taskId = randomUUID();
-
-    const result = await this.invokeSelfHostedParse(buffer, fileName, contentType, options);
+    const result = await this.invokeSelfHostedParse(filePath, options.fileName, options);
     this.localTasks.set(taskId, { ...result, sourceUrl: options.url });
 
     return { taskId };
   }
 
   private async invokeSelfHostedParse(
-    fileBuffer: Buffer,
+    filePath: string,
     fileName: string,
-    contentType: string | undefined,
     options: CreateTaskOptions,
   ): Promise<MineruSelfHostedTaskResult> {
     const parseUrl = this.buildApiUrl('file_parse');
     const form = new FormData();
-    form.append('files', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
+    form.append(
+      'files',
+      fs.createReadStream(filePath),
+      {
+        filename: fileName,
+      },
+    );
+    // form.append('files', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
     form.append('parse_method', options.parseMethod ?? 'auto');
     form.append('return_md', 'true');
     form.append('return_model_output', 'false');
@@ -383,12 +399,12 @@ export class MinerUClient {
     });
 
     if (this.isSelfHostedApiV1(response)) {
-      return this.invokeSelfHostedParseV1(fileBuffer, fileName, contentType, options);
+      return this.invokeSelfHostedParseV1(filePath, fileName, options);
     }
 
     if (response.status === 400) {
       throw new BadRequestException(
-        `MinerU self-hosted parse failed: ${response.status} ${response.data?.error || response.statusText}`
+        `MinerU self-hosted parse failed: ${response.status} ${getErrorMessage(response.data)}`
       )
     }
 
@@ -401,14 +417,19 @@ export class MinerUClient {
   }
 
   private async invokeSelfHostedParseV1(
-    fileBuffer: Buffer,
+    filePath: string,
     fileName: string,
-    contentType: string | undefined,
     options: CreateTaskOptions,
   ): Promise<MineruSelfHostedTaskResult> {
     const parseUrl = this.buildApiUrl('file_parse');
     const form = new FormData();
-    form.append('file', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
+    form.append(
+      'files',
+      fs.createReadStream(filePath),
+      {
+        filename: fileName,
+      },
+    );
 
     const params = {
       parse_method: options.parseMethod ?? 'auto',
@@ -563,5 +584,21 @@ export class MinerUClient {
     }
 
     return `mineru-${Date.now()}.pdf`;
+  }
+
+  getSelfHostedOpenApiSpec(): Promise<AxiosResponse<any, any>> {
+    const url = this.buildApiUrl('openapi.json');
+    return axios.get(url, { headers: this.getSelfHostedHeaders() });
+  }
+
+  async validateOfficialApiToken() {
+    const url = this.buildApiUrl('/extract/task/xxxxxxx');
+    const response = await axios.get(url, { headers: this.getOfficialHeaders() });
+    if (response.status !== 200) {
+      throw new BadRequestException(`MinerU official API token validation failed: ${getErrorMessage(response.data)}`);
+    }
+    if (response.data.code !== -60012) {
+      throw new BadRequestException('MinerU official Base URL or API token is invalid');
+    }
   }
 }

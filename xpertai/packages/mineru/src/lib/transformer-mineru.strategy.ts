@@ -128,12 +128,14 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
     documents: Partial<IKnowledgeDocument>[],
     config: TMinerUTransformerConfig
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
-    const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions?.integration)
+    const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions)
     const parsedResults: Partial<IKnowledgeDocument>[] = []
     for await (const document of documents) {
       if (mineru.serverType === 'self-hosted') {
         const { taskId } = await mineru.createTask({
           url: document.fileUrl,
+          filePath: document.filePath,
+          fileName: document.name,
           isOcr: true,
           enableFormula: true,
           enableTable: true,

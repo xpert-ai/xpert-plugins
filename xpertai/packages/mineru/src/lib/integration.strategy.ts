@@ -1,8 +1,9 @@
+import { type IIntegration, TIntegrationProvider } from '@metad/contracts';
 import {
-  type IIntegration,
-  TIntegrationProvider,
-} from '@metad/contracts';
-import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/common';
+  forwardRef,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   IntegrationStrategy,
@@ -45,7 +46,7 @@ export class MinerUIntegrationStrategy
           description: {
             en_US: 'https://api.mineru.dev',
             ja_JP: 'MinerUサーバのBase URLを入力してください',
-            zh_Hans: '请输入你的 MinerU 服务的 Base URL'
+            zh_Hans: '请输入你的 MinerU 服务的 Base URL',
           },
         },
         apiKey: {
@@ -56,7 +57,7 @@ export class MinerUIntegrationStrategy
           description: {
             en_US: 'The API Key of the MinerU server',
             ja_JP: 'MinerUサーバのトークンを入力してください',
-            zh_Hans: '请输入你的 MinerU 服务的令牌'
+            zh_Hans: '请输入你的 MinerU 服务的令牌',
           },
           'x-ui': <ISchemaSecretField>{
             component: 'secretInput',
@@ -72,16 +73,18 @@ export class MinerUIntegrationStrategy
           title: {
             en_US: 'Server Type',
             ja_JP: 'サーバータイプ',
-            zh_Hans: '服务类型'
+            zh_Hans: '服务类型',
           },
           description: {
-            en_US: 'Please select MinerU service type, local deployment or official API',
-            ja_JP: 'MinerUサービスのタイプを選択してください、ローカルデプロイまたは公式API',
-            zh_Hans: '请选择MinerU服务类型,本地部署或官方API'
+            en_US:
+              'Please select MinerU service type, local deployment or official API',
+            ja_JP:
+              'MinerUサービスのタイプを選択してください、ローカルデプロイまたは公式API',
+            zh_Hans: '请选择MinerU服务类型,本地部署或官方API',
           },
           enum: ['official', 'self-hosted'],
           default: 'official',
-        }
+        },
       },
     },
     features: [],
@@ -100,21 +103,29 @@ export class MinerUIntegrationStrategy
 
   async validateConfig(config: MinerUIntegrationOptions): Promise<void> {
     const mineruClient = new MinerUClient(this.configService, {
-      provider: MinerU,
-      options: config,
+      integration: {
+        provider: MinerU,
+        options: config,
+      },
     });
 
-    try {
-      await mineruClient.createTask({
-        url: 'https://mineru.net/apiManage/docs',
-      });
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        return;
+    if (mineruClient.serverType === 'official') {
+      try {
+        await mineruClient.validateOfficialApiToken();
+      } catch (error) {
+        console.error(`MinerU integration validation error:`);
+        console.error(error);
+        throw error;
       }
-      console.error(`MinerU integration validation error:`);
-      console.error(error);
-      throw error;
+    } else {
+      // Self-hosted MinerU validation logic: access openapi.json
+      try {
+        await mineruClient.getSelfHostedOpenApiSpec();
+      } catch (error) {
+        console.error(`MinerU self-hosted integration validation error:`);
+        console.error(error);
+        throw error;
+      }
     }
   }
 }

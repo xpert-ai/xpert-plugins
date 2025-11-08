@@ -6,12 +6,29 @@ import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { createServer } from 'http';
 import type { AddressInfo } from 'net';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MinerUClient } from './mineru.client.js';
 import {
   ENV_MINERU_API_BASE_URL,
   ENV_MINERU_API_TOKEN,
   ENV_MINERU_SERVER_TYPE,
 } from './types.js';
+import { XpFileSystem } from '@xpert-ai/plugin-sdk';
+import { readFile } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const _dirname = dirname(__filename);
+const sampleDocumentPath = join(_dirname, '..', '..', '..', '..', '__fixtures__', 'sample-notes.txt');
+const pdfDocumentPath = join(
+  _dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  '__fixtures__',
+  '一加 Ace 5 Pro_入门指南_CN.pdf'
+);
 
 
 const createConfigServiceMock = (
@@ -85,7 +102,7 @@ describe('MinerUClient', () => {
 
   it('should use integration options when provided', async () => {
     const { instance: configService } = createConfigServiceMock();
-    const client = new MinerUClient(configService, integrationOptions);
+    const client = new MinerUClient(configService, {integration: integrationOptions});
 
     const postSpy = jest
       .spyOn(axios, 'post')
@@ -183,7 +200,7 @@ describe('MinerUClient', () => {
 
   it('should create batch task with transformed file payload', async () => {
     const { instance: configService } = createConfigServiceMock();
-    const client = new MinerUClient(configService, integrationOptions);
+    const client = new MinerUClient(configService, {integration: integrationOptions});
 
     const payload = {
       files: [
@@ -252,7 +269,7 @@ describe('MinerUClient', () => {
 
   it('should request task result with optional query params', async () => {
     const { instance: configService } = createConfigServiceMock();
-    const client = new MinerUClient(configService, integrationOptions);
+    const client = new MinerUClient(configService, {integration: integrationOptions});
 
     const getSpy = jest
       .spyOn(axios, 'get')
@@ -293,7 +310,7 @@ describe('MinerUClient', () => {
 
   it('should poll until task provides a finished result', async () => {
     const { instance: configService } = createConfigServiceMock();
-    const client = new MinerUClient(configService, integrationOptions);
+    const client = new MinerUClient(configService, {integration: integrationOptions});
 
     const finalResult = { full_url: 'https://cdn/result.json' };
     const getTaskResultSpy = jest
@@ -313,16 +330,32 @@ describe('MinerUClient', () => {
       process.env[ENV_MINERU_API_BASE_URL] ?? 'http://localhost:9960';
     const selfHostedApiKey = process.env[ENV_MINERU_API_TOKEN];
     const client = new MinerUClient(configService, {
-      options: {
-        apiUrl: selfHostedBaseUrl,
-        serverType: 'self-hosted',
-        ...(selfHostedApiKey ? { apiKey: selfHostedApiKey } : {}),
+      integration: {
+        options: {
+          apiUrl: selfHostedBaseUrl,
+          serverType: 'self-hosted',
+          ...(selfHostedApiKey ? { apiKey: selfHostedApiKey } : {}),
+        },
       },
+      fileSystem: {
+        readFile: (filePath: string) =>
+          new Promise<Buffer>((resolve, reject) => {
+            readFile(filePath, (err, data) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(data);
+              }
+            });
+          }),
+        fullPath: (filePath: string) => filePath,
+      } as XpFileSystem
     });
 
     const samplePdf = createSamplePdfBuffer('Hello MinerU');
     const fileServer = createServer((req, res) => {
-      if (req.url === '/doc.pdf') {
+      console.log(req.url)
+      if (req.url === '/%E6%96%87%E4%BB%B6%20doc.pdf') {
         res.writeHead(200, {
           'Content-Type': 'application/pdf',
           'Content-Length': samplePdf.length,
@@ -341,14 +374,16 @@ describe('MinerUClient', () => {
     });
 
     const address = fileServer.address() as AddressInfo;
-    const sourceUrl = `http://127.0.0.1:${address.port}/doc.pdf`;
+    const sourceUrl = `http://127.0.0.1:${address.port}/文件 doc.pdf`;
 
     let taskId: string | undefined;
     try {
       ({ taskId } = await client.createTask({
         url: sourceUrl,
+        filePath: pdfDocumentPath,
         // language: 'en',
         enableFormula: false,
+        returnMiddleJson: false
       }));
       console.log(`Created task with ID: ${taskId}`);
     } catch (error: any) {
@@ -366,16 +401,13 @@ describe('MinerUClient', () => {
 
     expect(taskId).toBeDefined();
 
-    const result = await client.getTaskResult(taskId!);
+    const result = client.getSelfHostedTask(taskId!);
     console.log('Task result:', result);
     expect(typeof result.mdContent).toBe('string');
     expect(result.fileName).toBeDefined();
     expect(Array.isArray(result.images)).toBe(true);
     expect(result.raw).toBeDefined();
     expect(result.sourceUrl).toBe(sourceUrl);
-
-    const waited = await client.waitForTask(taskId!);
-    expect(waited).toBe(result);
   });
 
   it('should derive self-hosted mode from environment settings', async () => {
@@ -445,11 +477,13 @@ describe('MinerUClient', () => {
     expect(
       () =>
         new MinerUClient(configService, {
-          options: {
-            apiUrl: 'https://official.api',
-            serverType: 'official',
-          },
-        }),
+          integration: {
+            options: {
+              apiUrl: 'https://official.api',
+              serverType: 'official',
+            },
+          }
+        })
     ).toThrow('MinerU official API requires an access token');
   });
 

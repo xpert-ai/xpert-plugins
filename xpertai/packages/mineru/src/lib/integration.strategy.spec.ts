@@ -5,7 +5,9 @@ import { MinerUIntegrationStrategy } from './integration.strategy.js';
 import {
   ENV_MINERU_API_BASE_URL,
   ENV_MINERU_API_TOKEN,
+  ENV_MINERU_SERVER_TYPE,
   MinerUIntegrationOptions,
+  MinerUServerType,
 } from './types.js';
 
 describe('MinerUIntegrationStrategy', () => {
@@ -19,6 +21,7 @@ describe('MinerUIntegrationStrategy', () => {
     // @ts-ignore
     strategy.configService = configService;
     minerUOptions = {
+      serverType: (process.env[ENV_MINERU_SERVER_TYPE] || 'official') as MinerUServerType,
       apiUrl: process.env[ENV_MINERU_API_BASE_URL],
       apiKey: process.env[ENV_MINERU_API_TOKEN] || 'your-api-key',
     };

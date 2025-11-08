@@ -114,8 +114,7 @@ const ConfigSchemaProperties = {
     description: {
       en_US:
         'Should the pdf file be split at client. Ignored on backend. Default: false',
-      zh_Hans:
-        '是否应在客户端拆分 pdf 文件。在后端忽略。默认值：false',
+      zh_Hans: '是否应在客户端拆分 pdf 文件。在后端忽略。默认值：false',
     },
     default: false,
   },
@@ -128,11 +127,10 @@ const ConfigSchemaProperties = {
     description: {
       en_US:
         'Number of maximum concurrent requests made when splitting PDF. Ignored on backend. Default: 2',
-      zh_Hans:
-        '拆分 PDF 时发出的最大并发请求数。在后端忽略。默认值：2',
+      zh_Hans: '拆分 PDF 时发出的最大并发请求数。在后端忽略。默认值：2',
     },
     default: 2,
-  }
+  },
 };
 
 @Injectable()
@@ -237,28 +235,28 @@ export class UnstructuredTransformerStrategy
         else if (item.type === 'Table' || item.type === 'Image') {
           // Unstructured returns base64 image
           if ('image_base64' in item.metadata) {
-        const imageBuffer = Buffer.from(
-          item.metadata['image_base64'] as string,
-          'base64'
-        );
+            const imageBuffer = Buffer.from(
+              item.metadata['image_base64'] as string,
+              'base64'
+            );
 
-        const filePath = join(
-          file.folder || '',
-          `images`,
-          `${item.element_id}.png`
-        );
-        const url = await fileClient.writeFile(filePath, imageBuffer);
+            const filePath = join(
+              file.folder || '',
+              `images`,
+              `${item.element_id}.png`
+            );
+            const url = await fileClient.writeFile(filePath, imageBuffer);
 
-        imageAssets.push({
-          type: 'image',
-          url,
-          filePath,
-        });
+            imageAssets.push({
+              type: 'image',
+              url,
+              filePath,
+            });
 
-        md = `![${item.type}](${url})`;
+            md = (item.text ? item.text + '\n\n' : '') + `![${item.type}](${url})`;
           } else {
-        // No image, generate markdown table text directly
-        md = item.text || '';
+            // No image, generate markdown table text directly
+            md = item.text || '';
           }
         }
         // === 5) Fallback ===
