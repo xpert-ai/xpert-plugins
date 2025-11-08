@@ -3,6 +3,8 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { z } from 'zod';
+import { SvgIcon } from './types.js';
+import { XinferenceModule } from './xinference.module.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,26 +23,26 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     category: 'tools',
     icon: {
-      type: 'image',
-      value: icon
+      type: 'svg',
+      value: SvgIcon
     },
-    displayName: 'Calculator',
-    description: 'Provide calculator tools',
-    keywords: ['calculator', 'math', 'operations'],
+    displayName: 'Xorbits Inference',
+    description: 'Provide Xorbits Inference Models',
+    keywords: ['Xinference', 'model'],
     author: 'XpertAI Team',
   },
   config: {
     schema: ConfigSchema,
   },
   register(ctx) {
-    ctx.logger.log('register calculator plugin');
-    return { module: CalculatorPlugin, global: true };
+    ctx.logger.log('register Xinference plugin');
+    return { module: XinferenceModule, global: true };
   },
   async onStart(ctx) {
-    ctx.logger.log('calculator plugin started');
+    ctx.logger.log('Xinference plugin started');
   },
   async onStop(ctx) {
-    ctx.logger.log('calculator plugin stopped');
+    ctx.logger.log('Xinference plugin stopped');
   },
 };
 
