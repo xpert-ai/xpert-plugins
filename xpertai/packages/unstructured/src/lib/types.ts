@@ -27,8 +27,12 @@ export type TUnstructuredIntegrationOptions = {
 
 export type TTransformerOptions = TDocumentTransformerConfig & {
   chunkingStrategy?: 'basic' | 'by_title' | 'by_page' | 'by_similarity'
+  maxCharacters?: number
+  overlap?: number
   strategy?: 'auto' | 'fast' | 'hi_res' | 'ocr_only' | 'vlm'
   languages?: string[]
+  splitPdfPage?: boolean
+  splitPdfConcurrencyLevel?: number
 }
 
 export type TUnstructuredResponseItem = {
@@ -45,6 +49,9 @@ export type TUnstructuredResponseItem = {
     | 'CodeBlock'
     | 'Math'
     | 'Metadata'
+    | 'Heading'
+    | 'NarrativeText'
+    | 'Image'
   element_id: string
   text: string
   metadata: {

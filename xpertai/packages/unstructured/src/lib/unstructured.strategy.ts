@@ -8,7 +8,6 @@ import {
   IDocumentTransformerStrategy,
   IntegrationPermission,
 } from '@xpert-ai/plugin-sdk';
-import omit from 'lodash-es/omit.js';
 import pick from 'lodash-es/pick.js';
 import { join } from 'path';
 import { PartitionParameters } from 'unstructured-client/sdk/models/shared';
@@ -22,7 +21,6 @@ import {
 } from './types.js';
 import { UnstructuredService } from './unstructured.service.js';
 
-
 const ConfigSchemaProperties = {
   chunkingStrategy: {
     type: 'string',
@@ -35,7 +33,6 @@ const ConfigSchemaProperties = {
       zh_Hans: '将文档分块为更小部分时使用的策略。',
     },
     enum: ['basic', 'by_title', 'by_page', 'by_similarity'],
-    default: 'basic',
     'x-ui': {
       help: 'https://docs.unstructured.io/api-reference/partition/chunking',
     },
@@ -108,6 +105,34 @@ const ConfigSchemaProperties = {
       enumLabels: LangDescMap,
     },
   },
+  splitPdfPage: {
+    type: 'boolean',
+    title: {
+      en_US: 'Split PDF Pages',
+      zh_Hans: '拆分 PDF 页面',
+    },
+    description: {
+      en_US:
+        'Should the pdf file be split at client. Ignored on backend. Default: false',
+      zh_Hans:
+        '是否应在客户端拆分 pdf 文件。在后端忽略。默认值：false',
+    },
+    default: false,
+  },
+  splitPdfConcurrencyLevel: {
+    type: 'number',
+    title: {
+      en_US: 'PDF Split Concurrency Level',
+      zh_Hans: 'PDF 拆分并发级别',
+    },
+    description: {
+      en_US:
+        'Number of maximum concurrent requests made when splitting PDF. Ignored on backend. Default: 2',
+      zh_Hans:
+        '拆分 PDF 时发出的最大并发请求数。在后端忽略。默认值：2',
+    },
+    default: 2,
+  }
 };
 
 @Injectable()
@@ -187,42 +212,64 @@ export class UnstructuredTransformerStrategy
 
       // Convert to chunk Documents
       const imageAssets: TDocumentAsset[] = [];
-      const chunks = await Promise.all(
-        (<TUnstructuredResponseItem[]>response).map(async (item) => {
-          let pageContent = item.text;
+      const markdownParts: string[] = [];
+      for (const item of <TUnstructuredResponseItem[]>response) {
+        // Markdown fragment
+        let md = '';
+
+        // === 1) Title Elements ===
+        if (item.type === 'Title' || item.type === 'Heading') {
+          const level = item.metadata?.['level'] ?? 1;
+          md = `${'#'.repeat(level)} ${item.text}`;
+        }
+
+        // === 2) Plain Text ===
+        else if (item.type === 'NarrativeText' || item.type === 'Paragraph') {
+          md = item.text;
+        }
+
+        // === 3) List ===
+        else if (item.type === 'ListItem') {
+          md = `- ${item.text}`;
+        }
+
+        // === 4) Table/Image ===
+        else if (item.type === 'Table' || item.type === 'Image') {
+          // Unstructured returns base64 image
           if ('image_base64' in item.metadata) {
-            // console.log('Unstructured response:', JSON.stringify(omit(item, 'metadata.image_base64'), null, 2));
-            // Decode the Base64-encoded representation of the
-            // processed "Image" or "Table" element into its original
-            // visual representation, and then show it.
-            const imageBuffer = Buffer.from(
-              item.metadata['image_base64'] as string,
-              'base64'
-            );
-            const filePath = join(
-              `${file.folder || ''}/images/`,
-              `${item.element_id}.png`
-            );
-            const url = await fileClient.writeFile(filePath, imageBuffer);
-            imageAssets.push({
-              type: 'image',
-              url,
-              filePath,
-            });
+        const imageBuffer = Buffer.from(
+          item.metadata['image_base64'] as string,
+          'base64'
+        );
 
-            pageContent += `\n![Image](${url})`;
+        const filePath = join(
+          file.folder || '',
+          `images`,
+          `${item.element_id}.png`
+        );
+        const url = await fileClient.writeFile(filePath, imageBuffer);
+
+        imageAssets.push({
+          type: 'image',
+          url,
+          filePath,
+        });
+
+        md = `![${item.type}](${url})`;
+          } else {
+        // No image, generate markdown table text directly
+        md = item.text || '';
           }
-          const doc = new Document({
-            pageContent,
-            metadata: {
-              type: item.type,
-              ...omit(item.metadata, 'image_base64'),
-            },
-          });
+        }
+        // === 5) Fallback ===
+        else {
+          md = item.text ?? '';
+        }
 
-          return doc;
-        })
-      );
+        if (md) markdownParts.push(md);
+      }
+
+      const mergedMarkdown = markdownParts.join('\n\n');
 
       const metadata = {
         parser: Unstructured,
@@ -230,9 +277,17 @@ export class UnstructuredTransformerStrategy
         assets: imageAssets,
       };
 
+      const doc = new Document({
+        pageContent: mergedMarkdown,
+        metadata: {
+          parser: Unstructured,
+          source: file.filePath,
+        },
+      });
+
       results.push({
         id: file.id,
-        chunks,
+        chunks: [doc],
         metadata,
       });
     }

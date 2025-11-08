@@ -126,7 +126,15 @@ describeIfConfigured('UnstructuredTransformerStrategy (integration)', () => {
           filePath: pdfDocumentPath,
         },
       ],
-      transformerConfig
+      {
+        ...transformerConfig,
+        // chunkingStrategy: 'basic',
+        maxCharacters: 1000,
+        overlap: 0,
+        // strategy: 'auto',
+        languages: ['eng', 'chi_sim'],
+        splitPdfPage: false
+      }
     );
 
     console.log(
@@ -143,8 +151,8 @@ describeIfConfigured('UnstructuredTransformerStrategy (integration)', () => {
     expect(firstChunk).toBeInstanceOf(Document);
     expect(firstChunk?.metadata).toEqual(
       expect.objectContaining({
-        type: expect.any(String),
-        page_number: expect.any(Number),
+        source: expect.any(String),
+        parser: Unstructured
       })
     );
   }, 90_000);
