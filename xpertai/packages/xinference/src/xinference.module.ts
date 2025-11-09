@@ -5,6 +5,8 @@ import { XinferenceProviderStrategy } from './provider.strategy.js';
 import { XinferenceLargeLanguageModel } from './llm/llm.js';
 import { XinferenceTextEmbeddingModel } from './text-embedding/text-embedding.js';
 import { XinferenceRerankModel } from './rerank/rerank.js';
+import { XinferenceTTSModel } from './tts/tts.js';
+import { XinferenceSpeech2TextModel } from './speech2text/speech2text.js';
 
 @XpertServerPlugin({
 	/**
@@ -16,7 +18,9 @@ import { XinferenceRerankModel } from './rerank/rerank.js';
         XinferenceProviderStrategy,
 		XinferenceLargeLanguageModel,
 		XinferenceRerankModel,
-		XinferenceTextEmbeddingModel
+		XinferenceTextEmbeddingModel,
+		XinferenceTTSModel,
+		XinferenceSpeech2TextModel
 	]
 })
 export class XinferenceModule implements IOnPluginBootstrap, IOnPluginDestroy {
