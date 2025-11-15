@@ -1,33 +1,33 @@
 # zip
 
-这是一个使用 [Nx](https://nx.dev) 生成的插件库。
+This library was generated with [Nx](https://nx.dev).
 
-## 描述
+## Description
 
-一个用于将多个文件压缩为 zip 文件以及从 zip 归档中提取文件的 TypeScript 插件。
+A TypeScript plugin for compressing multiple files into a zip file and extracting files from zip archives.
 
-## 功能特性
+## Features
 
-- **Zip 工具**: 将多个文件压缩为单个 zip 文件
-- **Unzip 工具**: 从 zip 归档中提取文件
+- **Zip Tool**: Compress multiple files into a single zip file
+- **Unzip Tool**: Extract files from a zip archive
 
-## 构建
+## Building
 
-运行 `nx build @xpert-ai/plugin-zip` 来构建该库。
+Run `nx build @xpert-ai/plugin-zip` to build the library.
 
-## 运行单元测试
+## Running unit tests
 
-运行 `nx test @xpert-ai/plugin-zip` 通过 [Jest](https://jestjs.io) 执行单元测试。
+Run `nx test @xpert-ai/plugin-zip` to execute the unit tests via [Jest](https://jestjs.io).
 
-## 测试
+## Testing
 
-查看 [README-TEST.md](./README-TEST.md) 了解测试说明。
+See [README-TEST.md](./README-TEST.md) for testing instructions.
 
-## 使用方法
+## Usage
 
-### Zip 工具
+### Zip Tool
 
-将多个文件压缩为 zip 文件：
+Compress multiple files into a zip file:
 
 ```typescript
 {
@@ -35,60 +35,60 @@
     { name: 'file1.txt', content: 'Content 1' },
     { name: 'file2.txt', content: 'Content 2' }
   ],
-  file_name: 'archive.zip' // 可选，默认为 'files.zip'
+  file_name: 'archive.zip' // optional, defaults to 'files.zip'
 }
 ```
 
-**参数说明：**
-- `files` (必需): 要压缩的文件数组
-  - `name`: 文件名
-  - `content`: 文件内容（字符串、Buffer 或 Uint8Array）
-- `file_name` (可选): zip 文件的名称，如果不以 `.zip` 结尾会自动添加
+**Parameters:**
+- `files` (required): Array of files to compress
+  - `name`: File name
+  - `content`: File content (string, Buffer, or Uint8Array)
+- `file_name` (optional): Name of the zip file, will automatically add `.zip` extension if missing
 
-**返回结果：**
+**Return value:**
 ```typescript
 {
-  blob: "base64编码的zip文件内容",
+  blob: "base64 encoded zip file content",
   mime_type: "application/zip",
   filename: "archive.zip"
 }
 ```
 
-### Unzip 工具
+### Unzip Tool
 
-从 zip 归档中提取文件：
+Extract files from a zip archive:
 
 ```typescript
 {
   file: {
     name: 'archive.zip',
-    content: <zip文件buffer或base64字符串>
+    content: <zip file buffer or base64 string>
   }
 }
 ```
 
-**参数说明：**
-- `file` (必需): zip 文件对象
-  - `name` 或 `filename`: 文件名（必须以 `.zip` 结尾）
-  - `content` 或 `blob`: zip 文件内容（Buffer、Uint8Array 或 base64 字符串）
+**Parameters:**
+- `file` (required): Zip file object
+  - `name` or `filename`: File name (must end with `.zip`)
+  - `content` or `blob`: Zip file content (Buffer, Uint8Array, or base64 string)
 
-**返回结果：**
+**Return value:**
 ```typescript
 {
   files: [
     {
-      blob: "base64编码的文件内容",
+      blob: "base64 encoded file content",
       mime_type: "text/plain",
       filename: "file1.txt"
     },
-    // ... 更多文件
+    // ... more files
   ]
 }
 ```
 
-## 使用示例
+## Usage Examples
 
-### 示例 1: 压缩多个文件
+### Example 1: Compress Multiple Files
 
 ```typescript
 import { buildZipTool } from './src/lib/zip.tool.js'
@@ -97,18 +97,18 @@ const zipTool = buildZipTool()
 
 const result = await zipTool.invoke({
   files: [
-    { name: 'readme.txt', content: '这是说明文件' },
+    { name: 'readme.txt', content: 'This is a readme file' },
     { name: 'data.json', content: '{"key": "value"}' }
   ],
   file_name: 'my-archive.zip'
 })
 
 const zipData = JSON.parse(result as string)
-// zipData.blob 包含 base64 编码的 zip 文件
-// zipData.filename 为 'my-archive.zip'
+// zipData.blob contains base64 encoded zip file
+// zipData.filename is 'my-archive.zip'
 ```
 
-### 示例 2: 解压 zip 文件
+### Example 2: Extract Zip File
 
 ```typescript
 import { buildUnzipTool } from './src/lib/unzip.tool.js'
@@ -116,11 +116,11 @@ import { readFileSync } from 'fs'
 
 const unzipTool = buildUnzipTool()
 
-// 读取 zip 文件
+// Read zip file
 const zipBuffer = readFileSync('archive.zip')
 const base64Zip = zipBuffer.toString('base64')
 
-// 解压
+// Extract
 const result = await unzipTool.invoke({
   file: {
     name: 'archive.zip',
@@ -129,27 +129,27 @@ const result = await unzipTool.invoke({
 })
 
 const unzipData = JSON.parse(result as string)
-// unzipData.files 包含所有提取的文件
+// unzipData.files contains all extracted files
 for (const file of unzipData.files) {
   const content = Buffer.from(file.blob, 'base64').toString('utf-8')
-  console.log(`文件: ${file.filename}, 内容: ${content}`)
+  console.log(`File: ${file.filename}, Content: ${content}`)
 }
 ```
 
-## 支持的 MIME 类型
+## Supported MIME Types
 
-Unzip 工具会自动识别以下文件类型的 MIME 类型：
+The Unzip tool automatically recognizes MIME types for the following file types:
 
-- **文档类型**: `.md`, `.markdown`, `.rst`, `.tex`, `.docx`, `.xlsx`, `.pptx`
-- **代码类型**: `.py`, `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.sh`, `.bat`, `.ps1`
-- **图片类型**: `.webp`, `.svg`, `.ico`
-- **其他**: `.csv`, `.log`, `.env`, `.gitignore`, `.npmrc`, `.lock`
+- **Document Types**: `.md`, `.markdown`, `.rst`, `.tex`, `.docx`, `.xlsx`, `.pptx`
+- **Code Types**: `.py`, `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.sh`, `.bat`, `.ps1`
+- **Image Types**: `.webp`, `.svg`, `.ico`
+- **Others**: `.csv`, `.log`, `.env`, `.gitignore`, `.npmrc`, `.lock`
 
-对于未识别的文件类型，将使用默认的 `application/octet-stream`。
+For unrecognized file types, the default `application/octet-stream` will be used.
 
-## 注意事项
+## Notes
 
-1. Zip 工具会自动跳过空文件数组或 null 值
-2. Unzip 工具会自动跳过目录，只提取文件
-3. 所有文件内容都以 base64 编码返回，便于在 JSON 中传输
-4. 支持嵌套文件夹结构
+1. The Zip tool automatically skips empty file arrays or null values
+2. The Unzip tool automatically skips directories and only extracts files
+3. All file contents are returned as base64 encoded strings for easy JSON transmission
+4. Supports nested folder structures

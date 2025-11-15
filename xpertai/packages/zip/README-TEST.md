@@ -1,27 +1,27 @@
-# Zip 插件测试指南
+# Zip Plugin Testing Guide
 
-## 快速测试 Unzip 功能
+## Quick Test for Unzip Functionality
 
-### 方法 1: 使用测试脚本（推荐）
+### Method 1: Using Test Script (Recommended)
 
-运行测试脚本：
+Run the test script:
 
 ```bash
 cd xpertai/packages/zip
 npx tsx test-unzip.ts
 ```
 
-这个脚本会：
-1. 创建一个包含多个文件的 zip 文件
-2. 使用 unzip 工具解压它
-3. 验证解压结果和文件内容
-4. 测试 MIME 类型识别
+This script will:
+1. Create a zip file containing multiple files
+2. Use the unzip tool to extract it
+3. Verify the extraction results and file contents
+4. Test MIME type recognition
 
-### 方法 2: 手动测试
+### Method 2: Manual Testing
 
-#### 步骤 1: 创建一个测试 zip 文件
+#### Step 1: Create a Test Zip File
 
-你可以使用任何工具创建一个 zip 文件，或者使用 Node.js：
+You can use any tool to create a zip file, or use Node.js:
 
 ```javascript
 import JSZip from 'jszip'
@@ -35,7 +35,7 @@ const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 writeFileSync('test.zip', zipBuffer)
 ```
 
-#### 步骤 2: 在代码中使用 Unzip 工具
+#### Step 2: Use Unzip Tool in Code
 
 ```typescript
 import { buildUnzipTool } from './src/lib/unzip.tool.js'
@@ -43,11 +43,11 @@ import { readFileSync } from 'fs'
 
 const unzipTool = buildUnzipTool()
 
-// 读取 zip 文件
+// Read zip file
 const zipBuffer = readFileSync('test.zip')
 const base64Zip = zipBuffer.toString('base64')
 
-// 解压
+// Extract
 const result = await unzipTool.invoke({
   file: {
     name: 'test.zip',
@@ -55,55 +55,54 @@ const result = await unzipTool.invoke({
   }
 })
 
-// 解析结果
+// Parse result
 const data = JSON.parse(result as string)
-console.log('解压的文件:', data.files)
+console.log('Extracted files:', data.files)
 ```
 
-### 方法 3: 在 Xpert 平台中测试
+### Method 3: Test in Xpert Platform
 
-1. 构建插件：
+1. Build the plugin:
    ```bash
    npx nx build @xpert-ai/plugin-zip
    ```
 
-2. 在 Xpert 平台中安装插件
+2. Install the plugin in Xpert platform
 
-3. 使用 zip 工具创建一个 zip 文件
+3. Use the zip tool to create a zip file
 
-4. 使用 unzip 工具解压该文件
+4. Use the unzip tool to extract that file
 
-## 测试用例
+## Test Cases
 
-### 基本功能测试
+### Basic Functionality Tests
 
-- ✅ 解压包含多个文件的 zip
-- ✅ 解压包含子文件夹的 zip
-- ✅ 跳过空文件夹
-- ✅ 识别文件 MIME 类型
-- ✅ 处理 base64 编码的 zip 文件
-- ✅ 处理 Buffer 格式的 zip 文件
+- ✅ Extract files from a zip containing multiple files
+- ✅ Extract files from a zip containing subfolders
+- ✅ Skip empty folders
+- ✅ Identify file MIME types
+- ✅ Handle base64 encoded zip files
+- ✅ Handle Buffer format zip files
 
-### 错误处理测试
+### Error Handling Tests
 
-- ✅ 非 zip 文件错误
-- ✅ 空文件错误
-- ✅ 无效 zip 文件错误
-- ✅ 空 zip 文件错误
+- ✅ Non-zip file error
+- ✅ Empty file error
+- ✅ Invalid zip file error
+- ✅ Empty zip file error
 
-## 预期结果
+## Expected Results
 
-成功解压后，应该返回：
+After successful extraction, it should return:
 
 ```json
 {
   "files": [
     {
-      "blob": "base64编码的文件内容",
+      "blob": "base64 encoded file content",
       "mime_type": "text/plain",
       "filename": "test.txt"
     }
   ]
 }
 ```
-
