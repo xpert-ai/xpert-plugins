@@ -1,0 +1,33 @@
+version: 0.0.2
+type: plugin
+author: hjlarry
+name: zip
+label:
+  en_US: zip
+  ja_JP: zip
+  zh_Hans: zip
+  pt_BR: zip
+description:
+  en_US: zip multi files and unzip file
+  ja_JP: zip multi files and unzip file
+  zh_Hans: zip multi files and unzip file
+  pt_BR: zip multi files and unzip file
+icon: icon.svg
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/zip.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+created_at: 2025-05-07T17:13:38.560706718+08:00
+privacy: PRIVACY.md
+verified: false

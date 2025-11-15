@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Document } from '@langchain/core/documents'
 import {
+  ChunkMetadata,
   DocumentTransformerStrategy,
   IDocumentTransformerStrategy,
   IntegrationPermission,
@@ -53,7 +54,7 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
   async transformDocuments(
     files: Partial<IKnowledgeDocument<LarkDocumentMetadata>>[],
     config: TDocumentTransformerConfig
-  ): Promise<Partial<IKnowledgeDocument<LarkDocumentMetadata>>[]> {
+  ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const integration = config?.permissions?.integration
     if (!integration) {
       throw new Error('Integration system is required')
@@ -63,9 +64,9 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
 
     const client = new LarkClient(integration)
     
-    const results: Partial<IKnowledgeDocument<LarkDocumentMetadata>>[] = []
+    const results: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
     for await (const file of files) {
-      const content = await client.getDocumentContent(file.metadata.token)
+      const content = await client.getDocumentContent(file.metadata?.token || '')
       results.push({
         id: file.id,
         chunks: [
@@ -75,13 +76,14 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
             metadata: {
               chunkId: file.id,
               source: LarkName,
-              sourceId: file.id
+              sourceId: file.id,
+              type: 'parent' as const
             }
           })
         ],
         metadata: {
-          assets: []
-        } as LarkDocumentMetadata
+          type: 'parent' as const
+        } as ChunkMetadata
       })
     }
     return results
