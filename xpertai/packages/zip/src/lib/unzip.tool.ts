@@ -1,7 +1,10 @@
 import { tool } from '@langchain/core/tools'
+import { getCurrentTaskInput } from '@langchain/langgraph'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import JSZip from 'jszip'
+import path from 'path'
+import fs from 'fs/promises'
 
 // MIME type mapping for common file extensions
 const additionalMimeTypes: Record<string, string> = {
@@ -60,29 +63,35 @@ export function buildUnzipTool() {
   return tool(
     async (input) => {
       try {
-        const { file } = input
+        const { fileUrl, filePath } = input
+        let { content } = input
         
-        if (!file) {
+        if (!fileUrl && !filePath && !input.content) {
           return "Error: No file provided"
         }
+        const currentState = getCurrentTaskInput()
+        const workspacePath = currentState[`sys.workspace_path`]
 
-        // Check if file is a zip file
-        const fileName = file.name || file.filename || ''
-        if (!fileName.toLowerCase().endsWith('.zip')) {
-          return "Error: Not a zip file provided"
+        if (fileUrl) {
+          // download file from URL to workspace
+          const downloadResponse = await fetch(fileUrl)
+          if (!downloadResponse.ok) {
+            return `Error: Failed to download file from URL: ${downloadResponse.statusText}`
+          }
+          const arrayBuffer = await downloadResponse.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+          content = buffer
         }
 
         // Get file content
         let zipBuffer: Buffer
-        if (typeof file.content === 'string') {
+        if (typeof content === 'string') {
           // If content is base64 string
-          zipBuffer = Buffer.from(file.content, 'base64')
-        } else if (Buffer.isBuffer(file.content)) {
-          zipBuffer = file.content
-        } else if (file.content instanceof Uint8Array) {
-          zipBuffer = Buffer.from(file.content)
-        } else if (file.blob) {
-          zipBuffer = Buffer.from(file.blob, 'base64')
+          zipBuffer = Buffer.from(content, 'base64')
+        } else if (Buffer.isBuffer(content)) {
+          zipBuffer = content
+        } else if (content instanceof Uint8Array) {
+          zipBuffer = Buffer.from(content)
         } else {
           return "Error: Invalid file content format"
         }
@@ -91,9 +100,10 @@ export function buildUnzipTool() {
         const zip = await JSZip.loadAsync(zipBuffer)
         
         const results: Array<{
-          blob: string
-          mime_type: string
-          filename: string
+          mimeType: string
+          fileName: string
+          fileUrl?: string
+          filePath?: string
         }> = []
 
         // Extract each file
@@ -106,10 +116,16 @@ export function buildUnzipTool() {
           const fileContent = await zipEntry.async('nodebuffer')
           const mimeType = getMimeType(fileName)
 
+          // Save fileContent into workspacePath
+          const fullPath = path.join(workspacePath, fileName)
+          const dirPath = path.dirname(fullPath)
+          await fs.mkdir(dirPath, { recursive: true })
+          await fs.writeFile(fullPath, fileContent)
+
           results.push({
-            blob: fileContent.toString('base64'),
-            mime_type: mimeType,
-            filename: fileName
+            mimeType: mimeType,
+            fileName: fileName,
+            filePath: fullPath,
           })
         }
 
@@ -131,16 +147,14 @@ export function buildUnzipTool() {
       name: 'unzip',
       description: `Extract files from a zip file. The input should be a zip file. Returns an array of extracted files.`,
       schema: z.object({
-        file: z.object({
-          name: z.string().optional(),
-          filename: z.string().optional(),
+          fileName: z.string().optional().nullable(),
+          filePath: z.string().optional().nullable(),
+          fileUrl: z.string().optional().nullable(),
           content: z.union([
             z.string(),
             z.instanceof(Buffer),
             z.instanceof(Uint8Array)
-          ]).optional(),
-          blob: z.string().optional()
-        }).describe('The zip file you want to unzip')
+          ]).optional().nullable(),
       })
     }
   )
