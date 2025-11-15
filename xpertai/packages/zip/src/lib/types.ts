@@ -19,4 +19,3 @@ export const icon = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
   <rect class="zipper-slider" x="27" y="36" width="10" height="7" rx="2" />
   <rect class="zipper-pull-tab" x="28" y="40" width="8" height="9" rx="2" />
 </svg>`
-

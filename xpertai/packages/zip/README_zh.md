@@ -1,155 +1,109 @@
-# zip
+# Xpert 插件：Zip
 
-这是一个使用 [Nx](https://nx.dev) 生成的插件库。
+`@xpert-ai/plugin-zip` 是为 [Xpert AI](https://github.com/xpert-ai/xpert) 智能体平台提供的文件压缩/解压工具集插件。它为智能体提供 Zip 和 Unzip 工具，使其能在工作流中直接打包中间产物或检查上传的压缩包。
 
-## 描述
+## 安装
 
-一个用于将多个文件压缩为 zip 文件以及从 zip 归档中提取文件的 TypeScript 插件。
-
-## 功能特性
-
-- **Zip 工具**: 将多个文件压缩为单个 zip 文件
-- **Unzip 工具**: 从 zip 归档中提取文件
-
-## 构建
-
-运行 `nx build @xpert-ai/plugin-zip` 来构建该库。
-
-## 运行单元测试
-
-运行 `nx test @xpert-ai/plugin-zip` 通过 [Jest](https://jestjs.io) 执行单元测试。
-
-## 测试
-
-查看 [README-TEST_zh.md](./README-TEST_zh.md) 了解测试说明。
-
-## 使用方法
-
-### Zip 工具
-
-将多个文件压缩为 zip 文件：
-
-```typescript
-{
-  files: [
-    { name: 'file1.txt', content: 'Content 1' },
-    { name: 'file2.txt', content: 'Content 2' }
-  ],
-  file_name: 'archive.zip' // 可选，默认为 'files.zip'
-}
+```bash
+pnpm add @xpert-ai/plugin-zip
+# 或
+npm install @xpert-ai/plugin-zip
 ```
 
-**参数说明：**
-- `files` (必需): 要压缩的文件数组
-  - `name`: 文件名
-  - `content`: 文件内容（字符串、Buffer 或 Uint8Array）
-- `file_name` (可选): zip 文件的名称，如果不以 `.zip` 结尾会自动添加
+> **注意**：本插件依赖于 `@xpert-ai/plugin-sdk`、`@nestjs/common@^11`、`@nestjs/config@^4`、`@langchain/core@0.3.72`、`chalk@4.1.2` 和 `zod@3.25.67` 作为 peer 依赖。启用插件前请在宿主项目中安装这些依赖。
 
-**返回结果：**
-```typescript
+## 快速开始
+
+1. **安装与构建**  
+  将依赖添加到宿主服务并重新构建，以便插件可被发现。
+
+2. **注册插件**  
+  在插件列表（环境变量或配置文件）中包含此包：
+
+  ```sh .env
+  PLUGINS=@xpert-ai/plugin-zip
+  ```
+
+  插件会自动启动 `ZipPlugin` 的 NestJS 模块，注册工具集，并输出生命周期日志。
+
+3. **为智能体配置工具集**  
+  - Xpert 控制台：添加内置工具集实例并选择 `Zip`。  
+  - API：请求工具集 `zip`。  
+
+  无需凭证或密钥，任何授权智能体均可立即创建实例。
+
+## Zip 工具集
+
+| 字段        | 值                                                                 |
+| ----------- | ------------------------------------------------------------------ |
+| 名称        | `zip`                                                              |
+| 显示名称    | Zip / 压缩文件                                                     |
+| 分类        | `tools`                                                            |
+| 描述        | 在智能体工作流中压缩多个文件或解压归档文件。                       |
+| 配置        | 无需额外配置或外部集成。                                           |
+
+工具集基于 `jszip`，在内存中读写压缩包。文件以 base64 字符串交换，可安全通过 JSON 传递。
+
+## 工具
+
+| 工具      | 作用                                                                 | 输入说明                                                                                                                                         | 输出 |
+| --------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| `zip`     | 将多个文件打包为 `.zip` 压缩包并以 base64 形式返回。                  | `files[]`：每项需包含 `name`/`filename` 和 `content`（字符串、Buffer 或 `Uint8Array`）。可选 `file_name` 控制压缩包名称（默认为 `files.zip`）。 | JSON 字符串，含 `blob`（base64 zip）、`mime_type`、`filename`。 |
+| `unzip`   | 解压 `.zip` 压缩包，自动推断文件 MIME 类型。                         | `file`：需提供以 `.zip` 结尾的 `name`/`filename` 及 `content`/`blob`（Buffer、`Uint8Array` 或 base64 字符串）。目录会自动跳过。                  | JSON 字符串，含 `files[]`（每项含 `blob`、`mime_type`、`filename`）。 |
+
+### 示例输入输出
+
+```json
+// Zip
 {
-  blob: "base64编码的zip文件内容",
-  mime_type: "application/zip",
-  filename: "archive.zip"
-}
-```
-
-### Unzip 工具
-
-从 zip 归档中提取文件：
-
-```typescript
-{
-  file: {
-    name: 'archive.zip',
-    content: <zip文件buffer或base64字符串>
+  "tool": "zip",
+  "input": {
+   "files": [
+    { "name": "README.md", "content": "# intro" },
+    { "name": "data/data.json", "content": "{\"value\": 1}" }
+   ],
+   "file_name": "bundle.zip"
   }
 }
 ```
 
-**参数说明：**
-- `file` (必需): zip 文件对象
-  - `name` 或 `filename`: 文件名（必须以 `.zip` 结尾）
-  - `content` 或 `blob`: zip 文件内容（Buffer、Uint8Array 或 base64 字符串）
-
-**返回结果：**
-```typescript
+```json
+// Unzip
 {
-  files: [
-    {
-      blob: "base64编码的文件内容",
-      mime_type: "text/plain",
-      filename: "file1.txt"
-    },
-    // ... 更多文件
-  ]
-}
-```
-
-## 使用示例
-
-### 示例 1: 压缩多个文件
-
-```typescript
-import { buildZipTool } from './src/lib/zip.tool.js'
-
-const zipTool = buildZipTool()
-
-const result = await zipTool.invoke({
-  files: [
-    { name: 'readme.txt', content: '这是说明文件' },
-    { name: 'data.json', content: '{"key": "value"}' }
-  ],
-  file_name: 'my-archive.zip'
-})
-
-const zipData = JSON.parse(result as string)
-// zipData.blob 包含 base64 编码的 zip 文件
-// zipData.filename 为 'my-archive.zip'
-```
-
-### 示例 2: 解压 zip 文件
-
-```typescript
-import { buildUnzipTool } from './src/lib/unzip.tool.js'
-import { readFileSync } from 'fs'
-
-const unzipTool = buildUnzipTool()
-
-// 读取 zip 文件
-const zipBuffer = readFileSync('archive.zip')
-const base64Zip = zipBuffer.toString('base64')
-
-// 解压
-const result = await unzipTool.invoke({
-  file: {
-    name: 'archive.zip',
-    blob: base64Zip
+  "tool": "unzip",
+  "input": {
+   "file": {
+    "name": "bundle.zip",
+    "blob": "<base64-encoded zip>"
+   }
   }
-})
-
-const unzipData = JSON.parse(result as string)
-// unzipData.files 包含所有提取的文件
-for (const file of unzipData.files) {
-  const content = Buffer.from(file.blob, 'base64').toString('utf-8')
-  console.log(`文件: ${file.filename}, 内容: ${content}`)
 }
 ```
 
-## 支持的 MIME 类型
+每个工具返回 JSON 文本。智能体通常通过 `JSON.parse(result)` 解析结果，获取 base64 格式的二进制数据。无效输入会返回由 `getErrorMessage` 生成的友好错误信息。
 
-Unzip 工具会自动识别以下文件类型的 MIME 类型：
+## MIME 检测与行为
 
-- **文档类型**: `.md`, `.markdown`, `.rst`, `.tex`, `.docx`, `.xlsx`, `.pptx`
-- **代码类型**: `.py`, `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.sh`, `.bat`, `.ps1`
-- **图片类型**: `.webp`, `.svg`, `.ico`
-- **其他**: `.csv`, `.log`, `.env`, `.gitignore`, `.npmrc`, `.lock`
+- 内置映射覆盖常见文档类型（如 `.md`、`.docx`、`.xlsx`、`.pptx`）、代码文件（如 `.py`、`.ts`、`.json` 等）、图片（如 `.webp`、`.svg`、`.ico`）及其他格式（如 `.csv`、`.env`、`.gitignore`）。
+- 未知扩展名默认为 `application/octet-stream`。
+- Zip 工具会忽略空文件项；Unzip 工具跳过目录，若压缩包为空或无效则返回错误。
 
-对于未识别的文件类型，将使用默认的 `application/octet-stream`。
+## 权限与安全
 
-## 注意事项
+- **无外部网络请求**：所有压缩/解压均在本地完成。
+- **文件系统**：工具仅操作内存缓冲区，除非智能体自行读写文件，否则无需文件系统权限。
+- **日志**：仅输出轻量级生命周期日志（如 `register`、`onStart`、`onStop`）。
 
-1. Zip 工具会自动跳过空文件数组或 null 值
-2. Unzip 工具会自动跳过目录，只提取文件
-3. 所有文件内容都以 base64 编码返回，便于在 JSON 中传输
-4. 支持嵌套文件夹结构
+## 开发与测试
+
+```bash
+npm install
+npx nx build @xpert-ai/plugin-zip
+npx nx test @xpert-ai/plugin-zip
+```
+
+手动测试说明请参见 `packages/zip/README-TEST.md`（及中文版）。构建产物位于 `packages/zip/dist`，发布前请确保编译文件、类型声明和包元数据一致。
+
+## 许可证
+
+本项目遵循仓库根目录下的 [AGPL-3.0 License](../../../LICENSE)。

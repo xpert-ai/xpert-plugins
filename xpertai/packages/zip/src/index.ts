@@ -7,9 +7,9 @@ import { ZipPlugin } from './lib/plugin.js'
 import { icon } from './lib/types.js'
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const dir_name = dirname(__filename)
 
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
+const packageJson = JSON.parse(readFileSync(join(dir_name, '../package.json'), 'utf8')) as {
   name: string
   version: string
 }
@@ -22,7 +22,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     category: 'tools',
     icon: {
-      type: 'image',
+      type: 'svg',
       value: icon
     },
     displayName: 'Zip',
@@ -46,4 +46,3 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
 }
 
 export default plugin
-

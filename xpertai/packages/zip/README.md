@@ -1,155 +1,109 @@
-# zip
+# Xpert Plugin: Zip
 
-This library was generated with [Nx](https://nx.dev).
+`@xpert-ai/plugin-zip` is a file compression/decompression toolset plugin for the [Xpert AI](https://github.com/xpert-ai/xpert) agent platform. It equips agents with Zip and Unzip tools so they can package intermediate artifacts or inspect uploaded archives directly inside workflows.
 
-## Description
+## Installation
 
-A TypeScript plugin for compressing multiple files into a zip file and extracting files from zip archives.
-
-## Features
-
-- **Zip Tool**: Compress multiple files into a single zip file
-- **Unzip Tool**: Extract files from a zip archive
-
-## Building
-
-Run `nx build @xpert-ai/plugin-zip` to build the library.
-
-## Running unit tests
-
-Run `nx test @xpert-ai/plugin-zip` to execute the unit tests via [Jest](https://jestjs.io).
-
-## Testing
-
-See [README-TEST.md](./README-TEST.md) for testing instructions.
-
-## Usage
-
-### Zip Tool
-
-Compress multiple files into a zip file:
-
-```typescript
-{
-  files: [
-    { name: 'file1.txt', content: 'Content 1' },
-    { name: 'file2.txt', content: 'Content 2' }
-  ],
-  file_name: 'archive.zip' // optional, defaults to 'files.zip'
-}
+```bash
+pnpm add @xpert-ai/plugin-zip
+# or
+npm install @xpert-ai/plugin-zip
 ```
 
-**Parameters:**
-- `files` (required): Array of files to compress
-  - `name`: File name
-  - `content`: File content (string, Buffer, or Uint8Array)
-- `file_name` (optional): Name of the zip file, will automatically add `.zip` extension if missing
+> **Note**: This plugin depends on `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@langchain/core@0.3.72`, `chalk@4.1.2`, and `zod@3.25.67` as peer dependencies. Install these in the host project before enabling the plugin.
 
-**Return value:**
-```typescript
+## Quick Start
+
+1. **Install & Build**  
+   Add the dependency to your host service and rebuild to make the plugin discoverable.
+
+2. **Register the Plugin**  
+   Include the package in your plugin list (environment variable or configuration):
+
+   ```sh .env
+   PLUGINS=@xpert-ai/plugin-zip
+   ```
+
+   The plugin bootstraps the `ZipPlugin` NestJS module, registers the toolset, and emits lifecycle logs.
+
+3. **Provision Toolsets for Agents**  
+   - Xpert Console: add a Built-in Toolset instance and choose `Zip`.  
+   - API: request toolset `zip`.  
+
+   No credentials or secrets are required, so any authorized agent can immediately create instances.
+
+## Zip Toolset
+
+| Field        | Value                                                                 |
+| ------------ | --------------------------------------------------------------------- |
+| Name         | `zip`                                                                 |
+| Display Name | Zip / 压缩文件                                                         |
+| Category     | `tools`                                                               |
+| Description  | Compress multiple files or extract archives inside agent workflows.  |
+| Config       | No configuration or external integrations are needed.                |
+
+The toolset wraps `jszip` to read/write archives fully in memory. Files are exchanged as base64 strings so they can travel safely through JSON payloads.
+
+## Tools
+
+| Tool      | Purpose                                                                                | Input Highlights                                                                                                                                                                                               | Output |
+| --------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `zip`     | Bundle multiple files into a `.zip` archive and return it as a base64 payload.         | `files[]`: each entry accepts `name`/`filename` plus `content` (string, Buffer, or `Uint8Array`). Optional `file_name` controls the resulting archive name (defaults to `files.zip`).                          | JSON string with `blob` (base64 zip), `mime_type`, `filename`. |
+| `unzip`   | Extract every file from a `.zip` archive, with MIME types inferred from extensions.    | `file`: supply `name`/`filename` ending in `.zip` plus `content`/`blob` (Buffer, `Uint8Array`, or base64 string). Directories are skipped automatically.                                                        | JSON string containing `files[]` entries with `blob`, `mime_type`, `filename`. |
+
+### Example Payloads
+
+```json
+// Zip
 {
-  blob: "base64 encoded zip file content",
-  mime_type: "application/zip",
-  filename: "archive.zip"
-}
-```
-
-### Unzip Tool
-
-Extract files from a zip archive:
-
-```typescript
-{
-  file: {
-    name: 'archive.zip',
-    content: <zip file buffer or base64 string>
+  "tool": "zip",
+  "input": {
+    "files": [
+      { "name": "README.md", "content": "# intro" },
+      { "name": "data/data.json", "content": "{\"value\": 1}" }
+    ],
+    "file_name": "bundle.zip"
   }
 }
 ```
 
-**Parameters:**
-- `file` (required): Zip file object
-  - `name` or `filename`: File name (must end with `.zip`)
-  - `content` or `blob`: Zip file content (Buffer, Uint8Array, or base64 string)
-
-**Return value:**
-```typescript
+```json
+// Unzip
 {
-  files: [
-    {
-      blob: "base64 encoded file content",
-      mime_type: "text/plain",
-      filename: "file1.txt"
-    },
-    // ... more files
-  ]
-}
-```
-
-## Usage Examples
-
-### Example 1: Compress Multiple Files
-
-```typescript
-import { buildZipTool } from './src/lib/zip.tool.js'
-
-const zipTool = buildZipTool()
-
-const result = await zipTool.invoke({
-  files: [
-    { name: 'readme.txt', content: 'This is a readme file' },
-    { name: 'data.json', content: '{"key": "value"}' }
-  ],
-  file_name: 'my-archive.zip'
-})
-
-const zipData = JSON.parse(result as string)
-// zipData.blob contains base64 encoded zip file
-// zipData.filename is 'my-archive.zip'
-```
-
-### Example 2: Extract Zip File
-
-```typescript
-import { buildUnzipTool } from './src/lib/unzip.tool.js'
-import { readFileSync } from 'fs'
-
-const unzipTool = buildUnzipTool()
-
-// Read zip file
-const zipBuffer = readFileSync('archive.zip')
-const base64Zip = zipBuffer.toString('base64')
-
-// Extract
-const result = await unzipTool.invoke({
-  file: {
-    name: 'archive.zip',
-    blob: base64Zip
+  "tool": "unzip",
+  "input": {
+    "file": {
+      "name": "bundle.zip",
+      "blob": "<base64-encoded zip>"
+    }
   }
-})
-
-const unzipData = JSON.parse(result as string)
-// unzipData.files contains all extracted files
-for (const file of unzipData.files) {
-  const content = Buffer.from(file.blob, 'base64').toString('utf-8')
-  console.log(`File: ${file.filename}, Content: ${content}`)
 }
 ```
 
-## Supported MIME Types
+Each tool returns JSON text. Agents typically parse it (`JSON.parse(result)`) to access the binary data as base64 strings. Invalid inputs produce friendly error strings generated by `getErrorMessage`.
 
-The Unzip tool automatically recognizes MIME types for the following file types:
+## MIME Detection & Behavior
 
-- **Document Types**: `.md`, `.markdown`, `.rst`, `.tex`, `.docx`, `.xlsx`, `.pptx`
-- **Code Types**: `.py`, `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.sh`, `.bat`, `.ps1`
-- **Image Types**: `.webp`, `.svg`, `.ico`
-- **Others**: `.csv`, `.log`, `.env`, `.gitignore`, `.npmrc`, `.lock`
+- Built-in mapping covers common document types (`.md`, `.docx`, `.xlsx`, `.pptx`), code files (`.py`, `.ts`, `.json`, etc.), images (`.webp`, `.svg`, `.ico`), and other formats (`.csv`, `.env`, `.gitignore`).
+- Unknown extensions default to `application/octet-stream`.
+- The Zip tool ignores empty file entries; the Unzip tool skips directories and returns an error if the archive is empty or invalid.
 
-For unrecognized file types, the default `application/octet-stream` will be used.
+## Permissions & Security
 
-## Notes
+- **No external network calls**: All compression/decompression happens locally.
+- **Filesystem**: Tools operate on memory buffers; granting file-system permissions is unnecessary unless your agent independently reads/writes files.
+- **Logging**: Only lightweight lifecycle logs are emitted (`register`, `onStart`, `onStop`).
 
-1. The Zip tool automatically skips empty file arrays or null values
-2. The Unzip tool automatically skips directories and only extracts files
-3. All file contents are returned as base64 encoded strings for easy JSON transmission
-4. Supports nested folder structures
+## Development & Testing
+
+```bash
+npm install
+npx nx build @xpert-ai/plugin-zip
+npx nx test @xpert-ai/plugin-zip
+```
+
+Refer to `packages/zip/README-TEST.md` (and the Chinese variant) for manual testing instructions. Build artifacts land in `packages/zip/dist`; ensure compiled files, type declarations, and package metadata are aligned before publishing.
+
+## License
+
+This project follows the [AGPL-3.0 License](../../../LICENSE) located at the repository root.
