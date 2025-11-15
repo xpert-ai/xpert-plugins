@@ -64,6 +64,7 @@ type ExtractedFileInfo = {
   fileName: string
   fileUrl?: string
   filePath: string
+  extension?: string
 }
 
 const ZIP_FILE_REGEX = /\.zip$/i
@@ -88,6 +89,7 @@ async function extractZipEntries(zip: JSZip, outputDir: string): Promise<Extract
       mimeType: getMimeType(fileName),
       fileName,
       filePath: fullPath,
+      extension: path.extname(fileName).slice(1) || undefined,
     }]
 
     if (isZipFile(fileName)) {
