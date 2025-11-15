@@ -1,76 +1,70 @@
-import { buildUnzipTool } from './unzip.tool.js'
+import fs from 'fs/promises'
+import os from 'os'
+import path from 'path'
+import { getCurrentTaskInput } from '@langchain/langgraph'
 import JSZip from 'jszip'
+import { buildUnzipTool } from './unzip.tool'
+
+jest.mock('@langchain/langgraph', () => ({
+  getCurrentTaskInput: jest.fn()
+}))
 
 describe('UnzipTool', () => {
   let unzipTool: ReturnType<typeof buildUnzipTool>
+  let workspacePath: string
+  const mockedGetCurrentTaskInput = getCurrentTaskInput as jest.MockedFunction<typeof getCurrentTaskInput>
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'unzip-tool-'))
+    mockedGetCurrentTaskInput.mockReturnValue({
+      sys: {
+        workspace_path: workspacePath
+      }
+    })
     unzipTool = buildUnzipTool()
   })
 
+  afterEach(async () => {
+    await fs.rm(workspacePath, { recursive: true, force: true })
+  })
+
   it('should extract files from a valid zip file', async () => {
-    // Create a test zip file
     const zip = new JSZip()
     zip.file('test1.txt', 'Hello World 1')
     zip.file('test2.txt', 'Hello World 2')
     zip.file('subfolder/test3.txt', 'Hello World 3')
-    
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    const zipArrayBuffer = await zipBlob.arrayBuffer()
-    const zipBuffer = Buffer.from(zipArrayBuffer)
 
-    // Test unzip tool
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+
     const result = await unzipTool.invoke({
-      file: {
-        name: 'test.zip',
-        filename: 'test.zip',
-        content: zipBuffer
-      }
+      content: zipBuffer
     })
 
     const parsedResult = JSON.parse(result as string)
-    expect(parsedResult.files).toBeDefined()
-    expect(parsedResult.files.length).toBe(3)
-    
-    // Check file contents
-    const file1 = parsedResult.files.find((f: any) => f.filename === 'test1.txt')
-    const file2 = parsedResult.files.find((f: any) => f.filename === 'test2.txt')
-    const file3 = parsedResult.files.find((f: any) => f.filename === 'subfolder/test3.txt')
-    
-    expect(file1).toBeDefined()
-    expect(Buffer.from(file1.blob, 'base64').toString()).toBe('Hello World 1')
-    expect(file1.mime_type).toBe('text/plain')
-    
-    expect(file2).toBeDefined()
-    expect(Buffer.from(file2.blob, 'base64').toString()).toBe('Hello World 2')
-    
-    expect(file3).toBeDefined()
-    expect(Buffer.from(file3.blob, 'base64').toString()).toBe('Hello World 3')
+    expect(parsedResult.files).toHaveLength(3)
+
+    const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
+    expect(await fs.readFile(filesByName.get('test1.txt').filePath, 'utf8')).toBe('Hello World 1')
+    expect(await fs.readFile(filesByName.get('test2.txt').filePath, 'utf8')).toBe('Hello World 2')
+    expect(await fs.readFile(filesByName.get('subfolder/test3.txt').filePath, 'utf8')).toBe('Hello World 3')
   })
 
   it('should handle base64 encoded zip file', async () => {
-    // Create a test zip file
     const zip = new JSZip()
     zip.file('test.txt', 'Test content')
-    
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    const zipArrayBuffer = await zipBlob.arrayBuffer()
-    const zipBuffer = Buffer.from(zipArrayBuffer)
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
     const base64Zip = zipBuffer.toString('base64')
 
-    // Test with base64 string
     const result = await unzipTool.invoke({
-      file: {
-        name: 'test.zip',
-        blob: base64Zip
-      }
+      content: base64Zip
     })
 
     const parsedResult = JSON.parse(result as string)
-    expect(parsedResult.files).toBeDefined()
-    expect(parsedResult.files.length).toBe(1)
-    expect(parsedResult.files[0].filename).toBe('test.txt')
-    expect(Buffer.from(parsedResult.files[0].blob, 'base64').toString()).toBe('Test content')
+    expect(parsedResult.files).toHaveLength(1)
+    const [{ filePath, fileName }] = parsedResult.files
+    expect(fileName).toBe('test.txt')
+    expect(await fs.readFile(filePath, 'utf8')).toBe('Test content')
   })
 
   it('should skip directories and only extract files', async () => {
@@ -78,21 +72,16 @@ describe('UnzipTool', () => {
     zip.file('file1.txt', 'Content 1')
     zip.folder('empty-folder')
     zip.file('file2.txt', 'Content 2')
-    
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    const zipArrayBuffer = await zipBlob.arrayBuffer()
-    const zipBuffer = Buffer.from(zipArrayBuffer)
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
     const result = await unzipTool.invoke({
-      file: {
-        name: 'test.zip',
-        content: zipBuffer
-      }
+      content: zipBuffer
     })
 
     const parsedResult = JSON.parse(result as string)
-    expect(parsedResult.files.length).toBe(2)
-    expect(parsedResult.files.find((f: any) => f.filename.includes('empty-folder'))).toBeUndefined()
+    expect(parsedResult.files).toHaveLength(2)
+    expect(parsedResult.files.find((file: any) => file.fileName.includes('empty-folder'))).toBeUndefined()
   })
 
   it('should detect correct MIME types', async () => {
@@ -101,75 +90,74 @@ describe('UnzipTool', () => {
     zip.file('test.md', '# Markdown')
     zip.file('test.py', 'print("hello")')
     zip.file('test.txt', 'Plain text')
-    
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    const zipArrayBuffer = await zipBlob.arrayBuffer()
-    const zipBuffer = Buffer.from(zipArrayBuffer)
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
     const result = await unzipTool.invoke({
-      file: {
-        name: 'test.zip',
-        content: zipBuffer
-      }
+      content: zipBuffer
     })
 
     const parsedResult = JSON.parse(result as string)
-    const jsonFile = parsedResult.files.find((f: any) => f.filename === 'test.json')
-    const mdFile = parsedResult.files.find((f: any) => f.filename === 'test.md')
-    const pyFile = parsedResult.files.find((f: any) => f.filename === 'test.py')
-    
-    expect(jsonFile.mime_type).toBe('application/json')
-    expect(mdFile.mime_type).toBe('text/markdown')
-    expect(pyFile.mime_type).toBe('text/x-python')
+    const getFile = (fileName: string) => parsedResult.files.find((file: any) => file.fileName === fileName)
+
+    expect(getFile('test.json').mimeType).toBe('application/json')
+    expect(getFile('test.md').mimeType).toBe('text/markdown')
+    expect(getFile('test.py').mimeType).toBe('text/x-python')
+    expect(getFile('test.txt').mimeType).toBe('application/octet-stream')
   })
 
-  it('should return error for non-zip file', async () => {
+  it('should return error for invalid zip buffer', async () => {
     const result = await unzipTool.invoke({
-      file: {
-        name: 'test.txt',
-        content: Buffer.from('not a zip file')
-      }
-    })
-
-    expect(result).toContain('Error: Not a zip file provided')
-  })
-
-  it('should return error for empty file', async () => {
-    const result = await unzipTool.invoke({
-      file: {}
-    })
-
-    expect(result).toContain('Error: No file provided')
-  })
-
-  it('should return error for invalid zip file', async () => {
-    const result = await unzipTool.invoke({
-      file: {
-        name: 'test.zip',
-        content: Buffer.from('invalid zip content')
-      }
+      content: Buffer.from('not a zip file')
     })
 
     expect(result).toContain('Error')
   })
 
+  it('should return error for missing content', async () => {
+    const result = await unzipTool.invoke({})
+
+    expect(result).toContain('Error: No file provided')
+  })
+
   it('should return error for empty zip file', async () => {
     const zip = new JSZip()
-    // Only add a directory, no files
     zip.folder('empty-folder')
-    
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    const zipArrayBuffer = await zipBlob.arrayBuffer()
-    const zipBuffer = Buffer.from(zipArrayBuffer)
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
     const result = await unzipTool.invoke({
-      file: {
-        name: 'empty.zip',
-        content: zipBuffer
-      }
+      content: zipBuffer
     })
 
     expect(result).toContain('Error: Zip file is empty or contains only directories')
   })
-})
 
+  it('should recursively extract nested zip files', async () => {
+    const innerZip = new JSZip()
+    innerZip.file('inner.txt', 'Nested content')
+    const innerBuffer = await innerZip.generateAsync({ type: 'nodebuffer' })
+
+    const outerZip = new JSZip()
+    outerZip.file('nested.zip', innerBuffer, { binary: true })
+    const outerBuffer = await outerZip.generateAsync({ type: 'nodebuffer' })
+
+    const result = await unzipTool.invoke({
+      content: outerBuffer,
+      fileName: 'archive.zip'
+    })
+
+    console.log('Unzip Tool Result:')
+    console.log(JSON.stringify(result, null, 2))
+
+    const parsedResult = JSON.parse(result as string)
+    const nestedFile = parsedResult.files.find((file: any) => file.fileName === 'inner.txt')
+    expect(nestedFile).toBeDefined()
+
+    const nestedContent = await fs.readFile(nestedFile.filePath, 'utf8')
+    expect(nestedContent).toBe('Nested content')
+
+    const nestedDirectory = path.dirname(nestedFile.filePath)
+    expect(nestedDirectory).toContain('archive/nested')
+  })
+})

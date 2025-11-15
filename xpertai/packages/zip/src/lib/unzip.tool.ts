@@ -59,18 +59,64 @@ function getMimeType(fileName: string): string {
   return 'application/octet-stream'
 }
 
+type ExtractedFileInfo = {
+  mimeType: string
+  fileName: string
+  fileUrl?: string
+  filePath: string
+}
+
+const ZIP_FILE_REGEX = /\.zip$/i
+
+function isZipFile(fileName: string) {
+  return ZIP_FILE_REGEX.test(fileName)
+}
+
+async function extractZipEntries(zip: JSZip, outputDir: string): Promise<ExtractedFileInfo[]> {
+  const entries = Object.entries(zip.files)
+  const perEntryResults = await Promise.all(entries.map(async ([fileName, zipEntry]) => {
+    if (zipEntry.dir) {
+      return []
+    }
+
+    const fileContent = await zipEntry.async('nodebuffer')
+    const fullPath = path.join(outputDir, fileName)
+    await fs.mkdir(path.dirname(fullPath), { recursive: true })
+    await fs.writeFile(fullPath, fileContent)
+
+    const files: ExtractedFileInfo[] = [{
+      mimeType: getMimeType(fileName),
+      fileName,
+      filePath: fullPath,
+    }]
+
+    if (isZipFile(fileName)) {
+      const nestedZip = await JSZip.loadAsync(fileContent)
+      const parsed = path.parse(fullPath)
+      const nestedDir = path.join(parsed.dir, parsed.name)
+      await fs.mkdir(nestedDir, { recursive: true })
+      const nestedResults = await extractZipEntries(nestedZip, nestedDir)
+      files.push(...nestedResults)
+    }
+
+    return files
+  }))
+
+  return perEntryResults.flat()
+}
+
 export function buildUnzipTool() {
   return tool(
     async (input) => {
       try {
         const { fileUrl, filePath } = input
-        let { content } = input
+        let { fileName, content } = input
         
         if (!fileUrl && !filePath && !input.content) {
           return "Error: No file provided"
         }
         const currentState = getCurrentTaskInput()
-        const workspacePath = currentState[`sys.workspace_path`]
+        const workspacePath = currentState?.[`sys`]?.['workspace_path'] ?? '/tmp/xpert'
 
         if (fileUrl) {
           // download file from URL to workspace
@@ -81,6 +127,10 @@ export function buildUnzipTool() {
           const arrayBuffer = await downloadResponse.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
           content = buffer
+
+          if (!fileName) {
+            fileName = path.basename(new URL(fileUrl).pathname)
+          }
         }
 
         // Get file content
@@ -98,36 +148,12 @@ export function buildUnzipTool() {
 
         // Load zip file
         const zip = await JSZip.loadAsync(zipBuffer)
-        
-        const results: Array<{
-          mimeType: string
-          fileName: string
-          fileUrl?: string
-          filePath?: string
-        }> = []
-
-        // Extract each file
-        for (const [fileName, zipEntry] of Object.entries(zip.files)) {
-          // Skip directories
-          if (zipEntry.dir) {
-            continue
-          }
-
-          const fileContent = await zipEntry.async('nodebuffer')
-          const mimeType = getMimeType(fileName)
-
-          // Save fileContent into workspacePath
-          const fullPath = path.join(workspacePath, fileName)
-          const dirPath = path.dirname(fullPath)
-          await fs.mkdir(dirPath, { recursive: true })
-          await fs.writeFile(fullPath, fileContent)
-
-          results.push({
-            mimeType: mimeType,
-            fileName: fileName,
-            filePath: fullPath,
-          })
+        let subPath = ''
+        if (fileName) {
+          subPath = fileName.replace(ZIP_FILE_REGEX, '')
         }
+
+        const results = await extractZipEntries(zip, subPath ? path.join(workspacePath, subPath) : workspacePath)
 
         if (results.length === 0) {
           return "Error: Zip file is empty or contains only directories"
