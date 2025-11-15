@@ -95,7 +95,7 @@ async function extractZipEntries(zip: JSZip, outputDir: string): Promise<Extract
     if (isZipFile(fileName)) {
       const nestedZip = await JSZip.loadAsync(fileContent)
       const parsed = path.parse(fullPath)
-      const nestedDir = path.join(parsed.dir, parsed.name)
+      const nestedDir = parsed.dir // path.join(parsed.dir, parsed.name)
       await fs.mkdir(nestedDir, { recursive: true })
       const nestedResults = await extractZipEntries(nestedZip, nestedDir)
       files.push(...nestedResults)
