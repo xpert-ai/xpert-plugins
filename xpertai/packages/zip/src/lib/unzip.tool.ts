@@ -163,6 +163,7 @@ function isZipFile(fileName: string) {
 async function extractZipEntries(
   zip: JSZip, 
   outputDir: string, 
+  outputUrl: string, 
   basePath: string = '',
   depth: number = 0,
   maxDepth: number = 10
@@ -201,6 +202,7 @@ async function extractZipEntries(
         const nestedResults = await extractZipEntries(
           nestedZip, 
           outputDir, 
+          outputUrl,
           nestedBasePath,
           depth + 1,
           maxDepth
@@ -214,6 +216,7 @@ async function extractZipEntries(
           mimeType: getMimeType(fileName),
           fileName: relativePath,
           filePath: fullPath,
+          fileUrl: new URL(relativePath, outputUrl).href,
           extension: path.extname(fileName).slice(1) || undefined,
         })
       }
@@ -224,6 +227,7 @@ async function extractZipEntries(
         mimeType: getMimeType(fileName),
         fileName: relativePath,
         filePath: fullPath,
+        fileUrl: new URL(relativePath, outputUrl).href,
         extension: path.extname(fileName).slice(1) || undefined,
       })
     }
@@ -245,7 +249,7 @@ export function buildUnzipTool() {
           return "Error: No file provided"
         }
         const currentState = getCurrentTaskInput()
-        const workspacePath = currentState?.[`sys`]?.['workspace_path'] ?? '/tmp/xpert'
+        const workspacePath = currentState?.[`sys`]?.['volume'] ?? '/tmp/xpert'
 
         if (fileUrl) {
           // download file from URL to workspace
@@ -283,9 +287,11 @@ export function buildUnzipTool() {
         }
 
         // 开始递归解压，不保留中间zip文件
+        const baseUrl = currentState?.[`sys`]?.['workspace_url']
         const results = await extractZipEntries(
           zip, 
           subPath ? path.join(workspacePath, subPath) : workspacePath,
+          new URL(subPath + '/', baseUrl).href,
           '', // basePath 从空字符串开始
           0,  // depth 从0开始
           10  // maxDepth 最多10层，防止无限递归
