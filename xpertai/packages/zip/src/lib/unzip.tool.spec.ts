@@ -149,6 +149,8 @@ describe('UnzipTool', () => {
 
 
     const parsedResult = JSON.parse(result as string)
+
+    console.log(parsedResult)
     
     // 查找嵌套文件，路径可能是 nested/inner.txt
     const nestedFile = parsedResult.files.find((file: any) => 
