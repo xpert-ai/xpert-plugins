@@ -193,8 +193,9 @@ async function extractZipEntries(
       try {
         const nestedZip = await JSZip.loadAsync(fileContent)
         // 解压到以zip文件名（不含扩展名）命名的目录
-        const zipNameWithoutExt = fileName.replace(ZIP_FILE_REGEX, '')
-        const nestedBasePath = basePath ? path.join(basePath, zipNameWithoutExt) : zipNameWithoutExt
+        // const zipNameWithoutExt = fileName.replace(ZIP_FILE_REGEX, '')
+        const zipFolder = path.dirname(fileName) // 解压到当前目录下
+        const nestedBasePath = basePath ? path.join(basePath, zipFolder) : zipFolder
         const nestedDir = path.join(outputDir, nestedBasePath)
         await fs.mkdir(nestedDir, { recursive: true })
         
