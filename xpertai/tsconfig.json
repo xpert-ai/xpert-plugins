@@ -4,9 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./tsconfig.spec.json"
-    },
-    {
       "path": "./packages/lark"
     },
     {
@@ -56,6 +53,9 @@
     },
     {
       "path": "./packages/calculator"
+    },
+    {
+      "path": "./packages/zip"
     }
   ]
 }

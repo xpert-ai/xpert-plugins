@@ -61,7 +61,8 @@
       "@xpert-ai/plugin-mysql",
       "@xpert-ai/plugin-hana",
       "@xpert-ai/plugin-xinference",
-      "@xpert-ai/plugin-calculator"
+      "@xpert-ai/plugin-calculator",
+      "@xpert-ai/plugin-zip"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
