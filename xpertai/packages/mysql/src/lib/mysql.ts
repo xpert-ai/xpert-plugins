@@ -1,6 +1,6 @@
 import mysql from 'mysql2'
 import { Connection, Pool, createConnection, FieldPacket, ConnectionOptions } from 'mysql2'
-import { BaseSQLQueryRunner, DBProtocolEnum, DBSyntaxEnum, getErrorMessage, IDSSchema, QueryOptions, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
+import { BaseSQLQueryRunner, DBCreateTableMode, DBProtocolEnum, DBSyntaxEnum, DBTableAction, DBTableDataAction, DBTableDataParams, DBTableOperationParams, getErrorMessage, IDSSchema, QueryOptions, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
 import { groupBy, pick } from 'lodash-es'
 import { MySQLDataSource } from './types.js'
 
@@ -240,9 +240,390 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
     return null
   }
 
+  override async tableOp(
+    action: DBTableAction,
+    params: DBTableOperationParams,
+  ): Promise<any> {
+    const schema = params.schema ?? this.options.catalog
+    const table = params.table
+    const queryOptions = schema ? { catalog: schema } : undefined
+    const tableIdentifier = table ? formatTableIdentifier(table, schema) : null
+
+    switch (action) {
+      case DBTableAction.LIST_TABLES: {
+        if (!schema) {
+          throw new Error('schema is required to list tables')
+        }
+        const statement = `SELECT table_name AS table_name, table_type AS table_type FROM information_schema.tables WHERE table_schema = ${mysql.escape(
+          schema
+        )} ORDER BY table_name`
+        const result = await this.runQuery(statement, queryOptions)
+        return result.data
+      }
+      case DBTableAction.TABLE_EXISTS: {
+        if (!table) {
+          throw new Error('table is required to check existence')
+        }
+        return await this.tableExists(schema, table, queryOptions)
+      }
+      case DBTableAction.CREATE_TABLE: {
+        if (!tableIdentifier) {
+          throw new Error('table is required to create table')
+        }
+        if (!params.columns?.length) {
+          throw new Error('columns are required to create table')
+        }
+        const createMode = params.createMode ?? DBCreateTableMode.ERROR
+        const exists = await this.tableExists(schema, table, queryOptions)
+        if (exists) {
+          if (createMode === DBCreateTableMode.ERROR) {
+            throw new Error(`Table ${table} already exists`)
+          }
+          if (createMode === DBCreateTableMode.IGNORE) {
+            return { skipped: true }
+          }
+          // auto upgrade: add missing columns
+          const existingColumns = await this.getTableColumns(schema, table, queryOptions)
+          const missingColumns = params.columns.filter((column) => {
+            const columnName = resolveRawColumnName(column)
+            return columnName && !existingColumns.has(columnName.toLowerCase())
+          })
+          for (const column of missingColumns) {
+            const statement = `ALTER TABLE ${tableIdentifier} ADD COLUMN ${buildColumnDefinition(column)}`
+            await this.runQuery(statement, queryOptions)
+          }
+          return {
+            upgraded: missingColumns.map((column) => resolveRawColumnName(column))
+          }
+        }
+        const statement = buildCreateTableStatement(tableIdentifier, params.columns)
+        if (createMode === DBCreateTableMode.IGNORE || createMode === DBCreateTableMode.UPGRADE) {
+          const sql = statement.replace(/^CREATE TABLE/i, 'CREATE TABLE IF NOT EXISTS')
+          return await this.runQuery(sql, queryOptions)
+        }
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.DROP_TABLE: {
+        if (!tableIdentifier) {
+          throw new Error('table is required to drop table')
+        }
+        const statement = `DROP TABLE IF EXISTS ${tableIdentifier}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.RENAME_TABLE: {
+        if (!tableIdentifier || !params.newTable) {
+          throw new Error('table and newTable are required')
+        }
+        const target = formatTableIdentifier(params.newTable, schema)
+        const statement = `RENAME TABLE ${tableIdentifier} TO ${target}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.TRUNCATE_TABLE: {
+        if (!tableIdentifier) {
+          throw new Error('table is required to truncate table')
+        }
+        return await this.runQuery(`TRUNCATE TABLE ${tableIdentifier}`, queryOptions)
+      }
+      case DBTableAction.ADD_COLUMN: {
+        if (!tableIdentifier || !params.column) {
+          throw new Error('table and column are required to add column')
+        }
+        const statement = `ALTER TABLE ${tableIdentifier} ADD COLUMN ${buildColumnDefinition(params.column)}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.DROP_COLUMN: {
+        if (!tableIdentifier || !params.columnName) {
+          throw new Error('table and columnName are required to drop column')
+        }
+        const statement = `ALTER TABLE ${tableIdentifier} DROP COLUMN ${mysql.escapeId(params.columnName)}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.MODIFY_COLUMN: {
+        if (!tableIdentifier || !params.column) {
+          throw new Error('table and column are required to modify column')
+        }
+        const statement = `ALTER TABLE ${tableIdentifier} MODIFY COLUMN ${buildColumnDefinition(params.column)}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.CREATE_INDEX: {
+        if (!tableIdentifier || !params.index?.name || !params.index?.columns?.length) {
+          throw new Error('index definition is incomplete')
+        }
+        const unique = params.index.unique ? 'UNIQUE ' : ''
+        const indexName = mysql.escapeId(params.index.name)
+        const columnSql = params.index.columns.map((column) => mysql.escapeId(column)).join(', ')
+        const using = params.index.type ? ` USING ${params.index.type.toUpperCase()}` : ''
+        const statement = `CREATE ${unique}INDEX ${indexName}${using} ON ${tableIdentifier} (${columnSql})`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.DROP_INDEX: {
+        if (!tableIdentifier || !params.indexName) {
+          throw new Error('indexName is required to drop index')
+        }
+        const statement = `DROP INDEX ${mysql.escapeId(params.indexName)} ON ${tableIdentifier}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.GET_TABLE_INFO: {
+        if (!schema || !table) {
+          throw new Error('schema and table are required to get table info')
+        }
+        const schemas = await this.getSchema(schema, table)
+        const first = schemas?.[0]
+        return first?.tables?.find((item) => item.name === table)
+      }
+      case DBTableAction.CLONE_TABLE_STRUCTURE: {
+        if (!tableIdentifier || !params.newTable) {
+          throw new Error('table and newTable are required to clone table structure')
+        }
+        const target = formatTableIdentifier(params.newTable, schema)
+        const statement = `CREATE TABLE ${target} LIKE ${tableIdentifier}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableAction.CLONE_TABLE: {
+        if (!tableIdentifier || !params.newTable) {
+          throw new Error('table and newTable are required to clone table')
+        }
+        const target = formatTableIdentifier(params.newTable, schema)
+        await this.runQuery(`CREATE TABLE ${target} LIKE ${tableIdentifier}`, queryOptions)
+        return await this.runQuery(`INSERT INTO ${target} SELECT * FROM ${tableIdentifier}`, queryOptions)
+      }
+      case DBTableAction.OPTIMIZE_TABLE: {
+        if (!tableIdentifier) {
+          throw new Error('table is required to optimize table')
+        }
+        return await this.runQuery(`OPTIMIZE TABLE ${tableIdentifier}`, queryOptions)
+      }
+      default:
+        throw new Error(`Unsupported table operation: ${action}`)
+    }
+  }
+
+  override async tableDataOp(
+    action: DBTableDataAction,
+    params: DBTableDataParams,
+    options?: QueryOptions
+  ) {
+    if (!params.table) {
+      throw new Error('table is required')
+    }
+    const schema = params.schema ?? options?.catalog ?? this.options.catalog
+    const queryOptions = schema || options ? { ...(options ?? {}), ...(schema ? { catalog: schema } : {}) } : undefined
+    const tableIdentifier = formatTableIdentifier(params.table, schema)
+
+    switch (action) {
+      case DBTableDataAction.SELECT: {
+        const columnNames = resolveColumnNames(params.columns)
+        const columnsSql = columnNames.length ? columnNames.map((name) => mysql.escapeId(name)).join(', ') : '*'
+        const whereClause = buildWhereClause(params.where)
+        const orderClause = params.orderBy ? ` ORDER BY ${params.orderBy}` : ''
+        const limitClause =
+          typeof params.limit === 'number' && Number.isFinite(params.limit) ? ` LIMIT ${params.limit}` : ''
+        const offsetClause =
+          typeof params.offset === 'number' && Number.isFinite(params.offset) ? ` OFFSET ${params.offset}` : ''
+        const statement = `SELECT ${columnsSql} FROM ${tableIdentifier}${whereClause}${orderClause}${limitClause}${offsetClause}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableDataAction.INSERT:
+      case DBTableDataAction.BULK_INSERT: {
+        const rows = ensureRows(params.values)
+        const { statement } = buildInsertStatement(tableIdentifier, rows, resolveColumnNames(params.columns))
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableDataAction.UPDATE: {
+        const assignments = buildAssignments(params.set)
+        if (!assignments) {
+          throw new Error('`set` is required for update action')
+        }
+        const statement = `UPDATE ${tableIdentifier} SET ${assignments}${buildWhereClause(params.where)}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      case DBTableDataAction.UPSERT: {
+        const rows = ensureRows(params.values)
+        const { statement, columnNames } = buildInsertStatement(
+          tableIdentifier,
+          rows,
+          resolveColumnNames(params.columns)
+        )
+        let updateClause = buildAssignments(params.set)
+        if (!updateClause) {
+          updateClause = columnNames
+            .map((name) => `${mysql.escapeId(name)} = VALUES(${mysql.escapeId(name)})`)
+            .join(', ')
+        }
+        const sql = `${statement} ON DUPLICATE KEY UPDATE ${updateClause}`
+        return await this.runQuery(sql, queryOptions)
+      }
+      case DBTableDataAction.DELETE: {
+        const statement = `DELETE FROM ${tableIdentifier}${buildWhereClause(params.deleteWhere ?? params.where)}`
+        return await this.runQuery(statement, queryOptions)
+      }
+      default:
+        throw new Error(`Unsupported table data action: ${action}`)
+    }
+  }
+
+  private async tableExists(schema: string | undefined, table: string, options?: QueryOptions) {
+    const statement = buildTableExistsQuery(schema, table)
+    const result = await this.runQuery(statement, options)
+    const row = result.data?.[0]
+    const count = row?.cnt ?? row?.COUNT ?? row?.count ?? 0
+    return Number(count) > 0
+  }
+
+  private async getTableColumns(schema: string | undefined, table: string, options?: QueryOptions) {
+    const statement = buildColumnListQuery(schema, table)
+    const result = await this.runQuery(statement, options)
+    const names = (result.data ?? [])
+      .map((item) => item.column_name ?? item.COLUMN_NAME)
+      .filter(Boolean)
+      .map((name: string) => name.toLowerCase())
+    return new Set(names)
+  }
+  
   async teardown() {
     this.#connection?.destroy()
   }
+}
+
+type TableColumnDefinition = NonNullable<DBTableOperationParams['columns']>[number]
+type DataColumnDefinition = NonNullable<DBTableDataParams['columns']>[number]
+type ColumnDefinition = TableColumnDefinition | DataColumnDefinition | (TableColumnDefinition & DataColumnDefinition)
+
+function resolveRawColumnName(column?: Partial<ColumnDefinition> | string | null) {
+  if (!column) {
+    return null
+  }
+  if (typeof column === 'string') {
+    return column
+  }
+  return column.fieldName ?? column.name ?? null
+}
+
+function resolveColumnNames(columns?: Partial<ColumnDefinition>[]) {
+  return (columns ?? [])
+    .map((column) => resolveRawColumnName(column))
+    .filter((name): name is string => !!name)
+}
+
+function buildColumnDefinition(column: Partial<ColumnDefinition>) {
+  const columnName = resolveRawColumnName(column)
+  if (!columnName) {
+    throw new Error('Column name is required')
+  }
+  const dataType =
+    (column as any)?.dataType ??
+    typeToMySqlDB(column.type ?? 'string', Boolean(column.isKey), column.length ?? (column as any)?.size)
+  const required = column.required ? ' NOT NULL' : ''
+  const autoIncrement = (column as any)?.autoIncrement ? ' AUTO_INCREMENT' : ''
+  const defaultValue =
+    (column as any)?.defaultValue !== undefined
+      ? ` DEFAULT ${mysql.escape((column as any)?.defaultValue)}`
+      : ''
+  return `${mysql.escapeId(columnName)} ${dataType}${required}${autoIncrement}${defaultValue}`.trim()
+}
+
+function buildCreateTableStatement(tableIdentifier: string, columns: TableColumnDefinition[]) {
+  const definitions = columns.map((column) => buildColumnDefinition(column))
+  const primaryKeys = columns
+    .filter((column) => column.isKey)
+    .map((column) => resolveRawColumnName(column))
+    .filter((name): name is string => !!name)
+  if (primaryKeys.length) {
+    definitions.push(`PRIMARY KEY (${primaryKeys.map((name) => mysql.escapeId(name)).join(', ')})`)
+  }
+  return `CREATE TABLE ${tableIdentifier} (${definitions.join(', ')})`
+}
+
+function formatTableIdentifier(table: string, schema?: string | null) {
+  if (!table) {
+    throw new Error('table is required')
+  }
+  if (table.includes('.')) {
+    return mysql.escapeId(table)
+  }
+  if (schema) {
+    return mysql.escapeId(`${schema}.${table}`)
+  }
+  return mysql.escapeId(table)
+}
+
+function buildWhereClause(where?: Record<string, any> | string) {
+  if (!where) {
+    return ''
+  }
+  if (typeof where === 'string') {
+    return where.trim() ? ` WHERE ${where}` : ''
+  }
+  const parts = Object.entries(where)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => {
+      if (value === null) {
+        return `${mysql.escapeId(key)} IS NULL`
+      }
+      return `${mysql.escapeId(key)} = ${mysql.escape(value)}`
+    })
+  return parts.length ? ` WHERE ${parts.join(' AND ')}` : ''
+}
+
+function buildAssignments(values?: Record<string, any>) {
+  if (!values) {
+    return ''
+  }
+  const parts = Object.entries(values)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => {
+      if (value === null) {
+        return `${mysql.escapeId(key)} = NULL`
+      }
+      return `${mysql.escapeId(key)} = ${mysql.escape(value)}`
+    })
+  return parts.join(', ')
+}
+
+function ensureRows(values?: Record<string, any> | Array<Record<string, any>>) {
+  if (!values) {
+    throw new Error('values are required')
+  }
+  return Array.isArray(values) ? values : [values]
+}
+
+function buildInsertStatement(
+  tableIdentifier: string,
+  rows: Array<Record<string, any>>,
+  columns?: string[]
+) {
+  if (!rows.length) {
+    throw new Error('values are required')
+  }
+  const columnNames = columns && columns.length ? columns : Object.keys(rows[0] ?? {})
+  if (!columnNames.length) {
+    throw new Error('columns are required for insert')
+  }
+  const columnSql = columnNames.map((name) => mysql.escapeId(name)).join(', ')
+  const valuesSql = rows
+    .map((row) => `(${columnNames.map((name) => mysql.escape(row[name] ?? null)).join(', ')})`)
+    .join(', ')
+  const statement = `INSERT INTO ${tableIdentifier} (${columnSql}) VALUES ${valuesSql}`
+  return {
+    statement,
+    columnNames
+  }
+}
+
+function buildTableExistsQuery(schema: string | undefined, table: string) {
+  const conditions = [`table_name = ${mysql.escape(table)}`]
+  if (schema) {
+    conditions.push(`table_schema = ${mysql.escape(schema)}`)
+  }
+  return `SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE ${conditions.join(' AND ')}`
+}
+
+function buildColumnListQuery(schema: string | undefined, table: string) {
+  const conditions = [`table_name = ${mysql.escape(table)}`]
+  if (schema) {
+    conditions.push(`table_schema = ${mysql.escape(schema)}`)
+  }
+  return `SELECT COLUMN_NAME AS column_name FROM information_schema.columns WHERE ${conditions.join(' AND ')}`
 }
 
 export function convertMySQLSchema(data: Array<any>) {
