@@ -33,7 +33,7 @@ class StarRocksRunner extends DorisRunner {
 
     // Connection
     const database = options?.catalog ?? this.options?.catalog
-    const connection = this.getConnection(database)
+    const connection = this.getDorisConnection(database)
 
     const statements = []
     try {
@@ -53,8 +53,8 @@ class StarRocksRunner extends DorisRunner {
         )}) BUCKETS 10 PROPERTIES("replication_num" = "1")`
         statements.push(dropTableStatement)
         statements.push(createTableStatement)
-        await this.query(connection, dropTableStatement)
-        await this.query(connection, createTableStatement)
+        await this.queryDoris(connection, dropTableStatement)
+        await this.queryDoris(connection, createTableStatement)
       }
 
       // File stream load
@@ -69,7 +69,7 @@ class StarRocksRunner extends DorisRunner {
         .join(',')}) VALUES ?`
 
       statements.push(insertStatement)
-      await this.query(connection, insertStatement, [values])
+      await this.queryDoris(connection, insertStatement, [values])
     } catch (err: any) {
       throw {
         message: err.message,

@@ -97,7 +97,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
     } as any;
   }
 
-  #connection = null;
+  #connection: Connection | null = null;
   _createConnection(database?: string) {
     const config: any = pick(this.options, [
       'host',
@@ -135,7 +135,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
     });
   }
 
-  _getConnection(catalog: string): Connection {
+  getDorisConnection(catalog: string): Connection {
     if (!this.#connection) {
       this.#connection = this._createConnection(catalog);
     }
@@ -143,7 +143,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
     return this.#connection;
   }
 
-  async _query(connection: Connection | Pool, statment: string, values?: any) {
+  async queryDoris(connection: Connection | Pool, statment: string, values?: any) {
     return new Promise((resolve, reject) => {
       const callback = (error, results, fields) => {
         if (error) {
@@ -170,10 +170,10 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
   }
 
   override async runQuery(query: string, options?: QueryOptions): Promise<any> {
-    const connection = this._getConnection(
+    const connection = this.getDorisConnection(
       options?.catalog ?? this.options.catalog
     );
-    return await this._query(connection, query);
+    return await this.queryDoris(connection, query);
   }
 
   override async getCatalogs(): Promise<IDSSchema[]> {
@@ -242,7 +242,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
     const { name, columns, data, file, format, mergeType } = params;
 
     const database = options?.catalog ?? this.options?.catalog;
-    const connection = this._getConnection(database);
+    const connection = this.getDorisConnection(database);
 
     const statements = [];
     try {
@@ -273,8 +273,8 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
         )}) BUCKETS 10 PROPERTIES("replication_num" = "1")`;
         statements.push(dropTableStatement);
         statements.push(createTableStatement);
-        await this._query(connection, dropTableStatement);
-        await this._query(connection, createTableStatement);
+        await this.queryDoris(connection, dropTableStatement);
+        await this.queryDoris(connection, createTableStatement);
       }
 
       if (format && format !== 'data') {
@@ -286,7 +286,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
         .map(({ fieldName }) => `\`${fieldName}\``)
         .join(',')}) VALUES ?`;
       statements.push(insertStatement);
-      await this._query(connection, insertStatement, [values]);
+      await this.queryDoris(connection, insertStatement, [values]);
     } catch (err: any) {
       throw {
         message: err.message,
@@ -359,7 +359,10 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
   }
 
   override async teardown() {
-    this.#connection?.destroy();
+    if (this.#connection) {
+      this.#connection.destroy()
+      this.#connection = null
+    }
   }
 }
 
@@ -372,7 +375,7 @@ export function typeToDorisDB(type: string, length: number, fraction?: number) {
       return `DECIMAL(${length ?? 27}, ${fraction ?? 9})`;
     case 'string':
     case 'String':
-      return `VARCHAR(${length ?? 1000})`;
+      return `VARCHAR(${length ?? 100})`;
     case 'date':
     case 'Date':
       return 'DATE';
