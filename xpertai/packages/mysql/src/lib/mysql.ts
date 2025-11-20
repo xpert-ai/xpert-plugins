@@ -69,7 +69,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
     }
   }
 
-  #connection = null
+  #connection: mysql.Connection | null = null
   protected createConnection(database?: string): Connection {
     const config: ConnectionOptions = pick(this.options, ['host', 'port', 'password', 'database'])
     if (this.options.username) {
@@ -481,7 +481,10 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
   }
   
   async teardown() {
-    this.#connection?.destroy()
+    if (this.#connection) {
+      this.#connection.destroy()
+      this.#connection = null
+    }
   }
 }
 
@@ -669,7 +672,7 @@ export function typeToMySqlDB(type: string, isKey: boolean, length: number) {
       if (length !== null && length !== undefined) {
         return isKey ? `VARCHAR(${Math.min(length, 768)})` : `VARCHAR(${length})`
       }
-      return isKey ? 'VARCHAR(768)' : 'VARCHAR(1000)'
+      return isKey ? 'VARCHAR(768)' : 'VARCHAR(100)'
     case 'date':
     case 'Date':
       return 'DATE'
@@ -680,7 +683,7 @@ export function typeToMySqlDB(type: string, isKey: boolean, length: number) {
     case 'Boolean':
       return 'BOOLEAN'
     default:
-      return 'VARCHAR(1000)'
+      return 'VARCHAR(100)'
   }
 }
 
@@ -726,7 +729,7 @@ export const MySQLTypeMap = {
   0x05: 'number',
   0x06: 'null',
   0x07: 'Date',
-  0x08: 'number', // 或 'BigInt'
+  0x08: 'number', // Or 'BigInt'
   0x09: 'number',
   0x0a: 'Date',
   0x0b: 'string',
