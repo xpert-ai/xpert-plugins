@@ -37,7 +37,8 @@
     "verdaccio": "^6.0.5"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "models/*"
   ],
   "dependencies": {
     "@langchain/core": "0.3.72",

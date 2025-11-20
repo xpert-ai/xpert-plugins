@@ -4,6 +4,15 @@
 
 ## Generate a plugin library
 
+To create different types of plugins, you can replace 'packages' with different folder names to organize plugins into different libraries.
+
+- models: for AI models
+- tools: for AI tools
+- agents: for AI agents
+- databases: for databases
+- integrations: for third-party service integrations
+- packages: for general-purpose libraries
+
 ```sh
 npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1 --bundler=tsc --unitTestRunner=jest --linter=eslint
 ```
@@ -54,6 +63,7 @@ Learn more:
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 And join the Nx community:
+
 - [Discord](https://go.nx.dev/community)
 - [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
 - [Our Youtube channel](https://www.youtube.com/@nxdevtools)

@@ -62,7 +62,11 @@
       "@xpert-ai/plugin-hana",
       "@xpert-ai/plugin-xinference",
       "@xpert-ai/plugin-calculator",
-      "@xpert-ai/plugin-zip"
+      "@xpert-ai/plugin-zip",
+      "@xpert-ai/plugin-gemini",
+      "@xpert-ai/plugin-anthropic",
+      "@xpert-ai/plugin-minimax",
+      "@xpert-ai/plugin-moonshot"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"

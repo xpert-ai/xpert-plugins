@@ -56,6 +56,18 @@
     },
     {
       "path": "./packages/zip"
+    },
+    {
+      "path": "./models/gemini"
+    },
+    {
+      "path": "./models/anthropic"
+    },
+    {
+      "path": "./models/minimax"
+    },
+    {
+      "path": "./models/moonshot"
     }
   ]
 }
