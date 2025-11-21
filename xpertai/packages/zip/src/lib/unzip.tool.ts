@@ -168,8 +168,8 @@ function isZipFile(fileName: string) {
 function encodeFileUrl(relativePath: string, baseUrl: string): string {
   // Normalize path separators to forward slashes (Windows compatibility)
   const normalizedPath = relativePath.replace(/\\/g, '/')
-  // Split the path into segments and encode each one
-  const segments = normalizedPath.split('/').map(segment => encodeURIComponent(segment))
+  // Split the path into segments, filter out empty segments, and encode each one
+  const segments = normalizedPath.split('/').filter(segment => segment !== '').map(segment => encodeURIComponent(segment))
   const encodedPath = segments.join('/')
   return new URL(encodedPath, baseUrl).href
 }
