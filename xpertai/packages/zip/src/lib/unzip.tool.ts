@@ -160,6 +160,20 @@ function isZipFile(fileName: string) {
   return ZIP_FILE_REGEX.test(fileName)
 }
 
+/**
+ * Properly encode file path for use in URLs
+ * Encodes each path segment separately to handle special characters
+ * Normalizes path separators to forward slashes for URLs
+ */
+function encodeFileUrl(relativePath: string, baseUrl: string): string {
+  // Normalize path separators to forward slashes (Windows compatibility)
+  const normalizedPath = relativePath.replace(/\\/g, '/')
+  // Split the path into segments, filter out empty segments, and encode each one
+  const segments = normalizedPath.split('/').filter(segment => segment !== '').map(segment => encodeURIComponent(segment))
+  const encodedPath = segments.join('/')
+  return new URL(encodedPath, baseUrl).href
+}
+
 async function extractZipEntries(
   zip: JSZip, 
   outputDir: string, 
@@ -217,7 +231,7 @@ async function extractZipEntries(
           mimeType: getMimeType(fileName),
           fileName: relativePath,
           filePath: fullPath,
-          fileUrl: new URL(relativePath, outputUrl).href,
+          fileUrl: encodeFileUrl(relativePath, outputUrl),
           extension: path.extname(fileName).slice(1) || undefined,
         })
       }
@@ -228,7 +242,7 @@ async function extractZipEntries(
         mimeType: getMimeType(fileName),
         fileName: relativePath,
         filePath: fullPath,
-        fileUrl: new URL(relativePath, outputUrl).href,
+        fileUrl: encodeFileUrl(relativePath, outputUrl),
         extension: path.extname(fileName).slice(1) || undefined,
       })
     }
@@ -289,10 +303,12 @@ export function buildUnzipTool() {
 
         // 开始递归解压，不保留中间zip文件
         const baseUrl = currentState?.[`sys`]?.['workspace_url']
+        // Encode subPath for URL to handle special characters in zip file name
+        const encodedSubPath = subPath ? encodeURIComponent(subPath) + '/' : ''
         const results = await extractZipEntries(
           zip, 
           subPath ? path.join(workspacePath, subPath) : workspacePath,
-          new URL(subPath + '/', baseUrl).href,
+          new URL(encodedSubPath, baseUrl).href,
           '', // basePath 从空字符串开始
           0,  // depth 从0开始
           10  // maxDepth 最多10层，防止无限递归
