@@ -169,7 +169,6 @@ describe('UnzipTool', () => {
     expect(nestedFile.fileName).toContain('inner.txt')
   })
 
-  // TODO: 测试一个场景：zip里的文件名中有特殊字符#时给出的fileUrl是否正确
   it('should correctly encode fileUrl when filename contains special characters', async () => {
     const zip = new JSZip()
     // Test various special characters that need URL encoding
