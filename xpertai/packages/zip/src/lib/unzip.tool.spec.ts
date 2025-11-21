@@ -18,7 +18,9 @@ describe('UnzipTool', () => {
     workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'unzip-tool-'))
     mockedGetCurrentTaskInput.mockReturnValue({
       sys: {
-        workspace_path: workspacePath
+        workspace_path: workspacePath,
+        volume: workspacePath,
+        workspace_url: 'http://localhost:3000/workspace/'
       }
     })
     unzipTool = buildUnzipTool()
@@ -165,5 +167,82 @@ describe('UnzipTool', () => {
     // The important thing is that the file exists and has correct content
     expect(nestedFile.filePath).toBeDefined()
     expect(nestedFile.fileName).toContain('inner.txt')
+  })
+
+  // TODO: 测试一个场景：zip里的文件名中有特殊字符#时给出的fileUrl是否正确
+  it('should correctly encode fileUrl when filename contains special characters', async () => {
+    const zip = new JSZip()
+    // Test various special characters that need URL encoding
+    zip.file('file#hash.txt', 'Content with hash')
+    zip.file('file with spaces.txt', 'Content with spaces')
+    zip.file('file%percent.txt', 'Content with percent')
+    zip.file('file?question.txt', 'Content with question')
+    zip.file('file&ampersand.txt', 'Content with ampersand')
+    zip.file('测试中文.txt', 'Content with Chinese characters')
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+
+    const result = await unzipTool.invoke({
+      content: zipBuffer,
+      fileName: 'special-chars.zip'
+    })
+
+    const parsedResult = JSON.parse(result as string)
+    expect(parsedResult.files).toHaveLength(6)
+
+    // Check that each file has a properly encoded fileUrl
+    const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
+
+    // File with # character
+    const hashFile = filesByName.get('file#hash.txt')
+    expect(hashFile).toBeDefined()
+    expect(hashFile.fileUrl).toBeDefined()
+    expect(hashFile.fileUrl).toContain('file%23hash.txt') // # should be encoded as %23
+    // Verify the fileUrl is a valid URL
+    expect(() => new URL(hashFile.fileUrl)).not.toThrow()
+
+    // File with spaces
+    const spaceFile = filesByName.get('file with spaces.txt')
+    expect(spaceFile).toBeDefined()
+    expect(spaceFile.fileUrl).toBeDefined()
+    expect(spaceFile.fileUrl).toContain('file%20with%20spaces.txt') // spaces should be encoded as %20
+    expect(() => new URL(spaceFile.fileUrl)).not.toThrow()
+
+    // File with % character
+    const percentFile = filesByName.get('file%percent.txt')
+    expect(percentFile).toBeDefined()
+    expect(percentFile.fileUrl).toBeDefined()
+    expect(percentFile.fileUrl).toContain('file%25percent.txt') // % should be encoded as %25
+    expect(() => new URL(percentFile.fileUrl)).not.toThrow()
+
+    // File with ? character
+    const questionFile = filesByName.get('file?question.txt')
+    expect(questionFile).toBeDefined()
+    expect(questionFile.fileUrl).toBeDefined()
+    expect(questionFile.fileUrl).toContain('file%3Fquestion.txt') // ? should be encoded as %3F
+    expect(() => new URL(questionFile.fileUrl)).not.toThrow()
+
+    // File with & character
+    const ampersandFile = filesByName.get('file&ampersand.txt')
+    expect(ampersandFile).toBeDefined()
+    expect(ampersandFile.fileUrl).toBeDefined()
+    expect(ampersandFile.fileUrl).toContain('file%26ampersand.txt') // & should be encoded as %26
+    expect(() => new URL(ampersandFile.fileUrl)).not.toThrow()
+
+    // File with Chinese characters
+    const chineseFile = filesByName.get('测试中文.txt')
+    expect(chineseFile).toBeDefined()
+    expect(chineseFile.fileUrl).toBeDefined()
+    // Chinese characters should be percent-encoded
+    expect(chineseFile.fileUrl).toMatch(/%[0-9A-F]{2}/) // Should contain percent-encoded characters
+    expect(() => new URL(chineseFile.fileUrl)).not.toThrow()
+
+    // Verify files are actually created and readable
+    expect(await fs.readFile(hashFile.filePath, 'utf8')).toBe('Content with hash')
+    expect(await fs.readFile(spaceFile.filePath, 'utf8')).toBe('Content with spaces')
+    expect(await fs.readFile(percentFile.filePath, 'utf8')).toBe('Content with percent')
+    expect(await fs.readFile(questionFile.filePath, 'utf8')).toBe('Content with question')
+    expect(await fs.readFile(ampersandFile.filePath, 'utf8')).toBe('Content with ampersand')
+    expect(await fs.readFile(chineseFile.filePath, 'utf8')).toBe('Content with Chinese characters')
   })
 })

@@ -160,6 +160,17 @@ function isZipFile(fileName: string) {
   return ZIP_FILE_REGEX.test(fileName)
 }
 
+/**
+ * Properly encode file path for use in URLs
+ * Encodes each path segment separately to handle special characters
+ */
+function encodeFileUrl(relativePath: string, baseUrl: string): string {
+  // Split the path into segments and encode each one
+  const segments = relativePath.split('/').map(segment => encodeURIComponent(segment))
+  const encodedPath = segments.join('/')
+  return new URL(encodedPath, baseUrl).href
+}
+
 async function extractZipEntries(
   zip: JSZip, 
   outputDir: string, 
@@ -217,7 +228,7 @@ async function extractZipEntries(
           mimeType: getMimeType(fileName),
           fileName: relativePath,
           filePath: fullPath,
-          fileUrl: new URL(relativePath, outputUrl).href,
+          fileUrl: encodeFileUrl(relativePath, outputUrl),
           extension: path.extname(fileName).slice(1) || undefined,
         })
       }
@@ -228,7 +239,7 @@ async function extractZipEntries(
         mimeType: getMimeType(fileName),
         fileName: relativePath,
         filePath: fullPath,
-        fileUrl: new URL(relativePath, outputUrl).href,
+        fileUrl: encodeFileUrl(relativePath, outputUrl),
         extension: path.extname(fileName).slice(1) || undefined,
       })
     }
