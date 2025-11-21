@@ -244,4 +244,113 @@ describe('UnzipTool', () => {
     expect(await fs.readFile(ampersandFile.filePath, 'utf8')).toBe('Content with ampersand')
     expect(await fs.readFile(chineseFile.filePath, 'utf8')).toBe('Content with Chinese characters')
   })
+
+  it('should correctly encode fileUrl when folder names contain special characters', async () => {
+    const zip = new JSZip()
+    // Test folders with special characters
+    zip.file('folder#hash/file.txt', 'Content in hash folder')
+    zip.file('folder with spaces/file.txt', 'Content in space folder')
+    zip.file('folder%percent/file.txt', 'Content in percent folder')
+    zip.file('folder?question/file.txt', 'Content in question folder')
+    zip.file('测试文件夹/测试文件.txt', 'Content in Chinese folder')
+    zip.file('nested#1/nested#2/file.txt', 'Content in nested folders')
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+
+    const result = await unzipTool.invoke({
+      content: zipBuffer,
+      fileName: 'folder-test.zip'
+    })
+
+    const parsedResult = JSON.parse(result as string)
+    expect(parsedResult.files).toHaveLength(6)
+
+    const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
+
+    // File in folder with # character
+    const hashFolderFile = filesByName.get('folder#hash/file.txt')
+    expect(hashFolderFile).toBeDefined()
+    expect(hashFolderFile.fileUrl).toBeDefined()
+    expect(hashFolderFile.fileUrl).toContain('folder%23hash') // folder name should be encoded
+    expect(hashFolderFile.fileUrl).toContain('file.txt')
+    expect(() => new URL(hashFolderFile.fileUrl)).not.toThrow()
+
+    // File in folder with spaces
+    const spaceFolderFile = filesByName.get('folder with spaces/file.txt')
+    expect(spaceFolderFile).toBeDefined()
+    expect(spaceFolderFile.fileUrl).toBeDefined()
+    expect(spaceFolderFile.fileUrl).toContain('folder%20with%20spaces')
+    expect(() => new URL(spaceFolderFile.fileUrl)).not.toThrow()
+
+    // File in folder with % character
+    const percentFolderFile = filesByName.get('folder%percent/file.txt')
+    expect(percentFolderFile).toBeDefined()
+    expect(percentFolderFile.fileUrl).toBeDefined()
+    expect(percentFolderFile.fileUrl).toContain('folder%25percent')
+    expect(() => new URL(percentFolderFile.fileUrl)).not.toThrow()
+
+    // File in folder with ? character
+    const questionFolderFile = filesByName.get('folder?question/file.txt')
+    expect(questionFolderFile).toBeDefined()
+    expect(questionFolderFile.fileUrl).toBeDefined()
+    expect(questionFolderFile.fileUrl).toContain('folder%3Fquestion')
+    expect(() => new URL(questionFolderFile.fileUrl)).not.toThrow()
+
+    // File in Chinese folder
+    const chineseFolderFile = filesByName.get('测试文件夹/测试文件.txt')
+    expect(chineseFolderFile).toBeDefined()
+    expect(chineseFolderFile.fileUrl).toBeDefined()
+    expect(chineseFolderFile.fileUrl).toMatch(/%[0-9A-F]{2}/)
+    expect(() => new URL(chineseFolderFile.fileUrl)).not.toThrow()
+
+    // File in nested folders with special characters
+    const nestedFile = filesByName.get('nested#1/nested#2/file.txt')
+    expect(nestedFile).toBeDefined()
+    expect(nestedFile.fileUrl).toBeDefined()
+    expect(nestedFile.fileUrl).toContain('nested%231')
+    expect(nestedFile.fileUrl).toContain('nested%232')
+    expect(() => new URL(nestedFile.fileUrl)).not.toThrow()
+
+    // Verify files are actually created and readable
+    expect(await fs.readFile(hashFolderFile.filePath, 'utf8')).toBe('Content in hash folder')
+    expect(await fs.readFile(spaceFolderFile.filePath, 'utf8')).toBe('Content in space folder')
+    expect(await fs.readFile(nestedFile.filePath, 'utf8')).toBe('Content in nested folders')
+  })
+
+  it('should correctly encode fileUrl when zip filename contains special characters', async () => {
+    const zip = new JSZip()
+    zip.file('file1.txt', 'Content 1')
+    zip.file('folder/file2.txt', 'Content 2')
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+
+    // Test with zip file name containing special characters
+    const result = await unzipTool.invoke({
+      content: zipBuffer,
+      fileName: 'archive#test?.zip'
+    })
+
+    const parsedResult = JSON.parse(result as string)
+    expect(parsedResult.files).toHaveLength(2)
+
+    // All file URLs should start with properly encoded zip file name (without .zip extension)
+    parsedResult.files.forEach((file: any) => {
+      expect(file.fileUrl).toBeDefined()
+      // The base URL should contain the encoded zip file name
+      expect(file.fileUrl).toContain('archive%23test%3F')
+      // Verify the fileUrl is a valid URL
+      expect(() => new URL(file.fileUrl)).not.toThrow()
+    })
+
+    const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
+    const file1 = filesByName.get('file1.txt')
+    const file2 = filesByName.get('folder/file2.txt')
+
+    expect(file1).toBeDefined()
+    expect(file2).toBeDefined()
+
+    // Verify files are readable
+    expect(await fs.readFile(file1.filePath, 'utf8')).toBe('Content 1')
+    expect(await fs.readFile(file2.filePath, 'utf8')).toBe('Content 2')
+  })
 })

@@ -303,10 +303,12 @@ export function buildUnzipTool() {
 
         // 开始递归解压，不保留中间zip文件
         const baseUrl = currentState?.[`sys`]?.['workspace_url']
+        // Encode subPath for URL to handle special characters in zip file name
+        const encodedSubPath = subPath ? encodeURIComponent(subPath) + '/' : ''
         const results = await extractZipEntries(
           zip, 
           subPath ? path.join(workspacePath, subPath) : workspacePath,
-          new URL(subPath + '/', baseUrl).href,
+          new URL(encodedSubPath, baseUrl).href,
           '', // basePath 从空字符串开始
           0,  // depth 从0开始
           10  // maxDepth 最多10层，防止无限递归
