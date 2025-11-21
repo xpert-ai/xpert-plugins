@@ -62,7 +62,8 @@
       "@xpert-ai/plugin-hana",
       "@xpert-ai/plugin-xinference",
       "@xpert-ai/plugin-calculator",
-      "@xpert-ai/plugin-zip"
+      "@xpert-ai/plugin-zip",
+      "@xpert-ai/plugin-pdfium"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"

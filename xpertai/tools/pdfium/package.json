@@ -1,0 +1,38 @@
+{
+  "name": "@xpert-ai/plugin-pdfium",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@hyzyla/pdfium": "2.1.9",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.6.2",
+    "zod": "3.25.67",
+    "chalk": "4.1.2",
+    "@nestjs/common": "^11.1.6"
+  }
+}

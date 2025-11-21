@@ -56,6 +56,9 @@
     },
     {
       "path": "./packages/zip"
+    },
+    {
+      "path": "./tools/pdfium"
     }
   ]
 }
