@@ -1,9 +1,8 @@
-import 'dotenv/config';
+import 'dotenv/config'
 
 import { ICopilotModel } from '@metad/contracts'
 import { XinferenceLargeLanguageModel } from './llm.js'
 import { XinferenceProviderStrategy } from '../provider.strategy.js'
-
 
 describe('XinferenceLargeLanguageModel (live xinference)', () => {
   let liveLLM: XinferenceLargeLanguageModel
@@ -97,5 +96,21 @@ describe('XinferenceLargeLanguageModel (live xinference)', () => {
     const content = normalizeContent((response as any)?.content ?? response)
     console.log('Xinference LLM response:', content)
     expect(content.trim().length).toBeGreaterThan(0)
+  })
+
+  it('should return parameter rules including reasoning_content when reasoning is enabled', async () => {
+    const copilotModel = {
+      model: modelUid,
+      config: {
+        reasoning: true
+      }
+    } as unknown as ICopilotModel
+
+    const rules = liveLLM.getParameterRules('xxx', {})
+    const reasoningRule = rules.find((rule) => rule.name === 'reasoning_content')
+
+    expect(reasoningRule).toBeDefined()
+    expect(reasoningRule?.type).toBe('boolean')
+    expect(reasoningRule?.default).toBe(true)
   })
 })
