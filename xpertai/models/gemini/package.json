@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "test": "jest",
-    "copy-assets": "node scripts/copy-assets.mjs"
+    "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.18",
