@@ -34,13 +34,13 @@
       "path": "./packages/milvus"
     },
     {
-      "path": "./packages/vllm"
+      "path": "./models/vllm"
     },
     {
-      "path": "./packages/volcengine"
+      "path": "./models/volcengine"
     },
     {
-      "path": "./packages/openai-compatible"
+      "path": "./models/openai-compatible"
     },
     {
       "path": "./packages/mysql"
@@ -49,7 +49,7 @@
       "path": "./packages/hana"
     },
     {
-      "path": "./packages/xinference"
+      "path": "./models/xinference"
     },
     {
       "path": "./packages/calculator"
