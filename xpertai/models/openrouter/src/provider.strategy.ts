@@ -5,7 +5,11 @@ import {
   ModelProvider,
 } from '@xpert-ai/plugin-sdk';
 import { AiModelTypeEnum } from '@metad/contracts';
-import { OpenAICompatModelCredentials, toCredentialKwargs } from './types.js';
+import {
+  OpenRouterAiBaseUrl,
+  OpenRouterModelCredentials,
+  toCredentialKwargs,
+} from './types.js';
 
 export const OpenRouter = 'openrouter';
 
@@ -14,18 +18,18 @@ export const OpenRouter = 'openrouter';
 export class OpenRouterProviderStrategy extends ModelProvider {
   override logger = new Logger(OpenRouterProviderStrategy.name);
 
-  getBaseUrl(credentials: OpenAICompatModelCredentials): string {
+  getBaseUrl(credentials: OpenRouterModelCredentials): string {
     const kwags = toCredentialKwargs(credentials);
-    return kwags.configuration.baseURL || 'https://openrouter.ai/api/v1';
+    return kwags.configuration.baseURL || OpenRouterAiBaseUrl;
   }
 
-  getAuthorization(credentials: OpenAICompatModelCredentials): string {
+  getAuthorization(credentials: OpenRouterModelCredentials): string {
     const kwags = toCredentialKwargs(credentials);
     return `Bearer ${kwags.apiKey}`;
   }
 
   async validateProviderCredentials(
-    credentials: OpenAICompatModelCredentials
+    credentials: OpenRouterModelCredentials
   ): Promise<void> {
     try {
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM);
