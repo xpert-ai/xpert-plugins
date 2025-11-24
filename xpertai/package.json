@@ -58,6 +58,7 @@
     "i18next-fs-backend": "2.6.0",
     "langchain": "0.3.31",
     "lodash-es": "4.17.21",
+    "rxjs": "^7.8.1",
     "zod": "3.25.67"
   },
   "nx": {
