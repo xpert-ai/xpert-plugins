@@ -3,8 +3,8 @@ import { getCurrentTaskInput } from '@langchain/langgraph'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import JSZip from 'jszip'
-import path from 'path'
-import fs from 'fs/promises'
+import * as path from 'path'
+import * as fs from 'fs/promises'
 
 // MIME type mapping for common file extensions
 const additionalMimeTypes: Record<string, string> = {
@@ -267,6 +267,21 @@ export function buildUnzipTool() {
           }
         }
 
+        // Handle file from local path
+        if (filePath) {
+          try {
+            const fullPath = path.join(workspacePath, filePath)
+            const fileContent = await fs.readFile(fullPath)
+            content = fileContent
+
+            if (!fileName) {
+              fileName = path.basename(filePath)
+            }
+          } catch (error) {
+            return `Error: Failed to read file from path: ${getErrorMessage(error)}`
+          }
+        }
+
         // Get file content
         let zipBuffer: Buffer
         if (typeof content === 'string') {
@@ -288,7 +303,7 @@ export function buildUnzipTool() {
         }
 
         // 开始递归解压，不保留中间zip文件
-        const baseUrl = currentState?.[`sys`]?.['workspace_url']
+        const baseUrl = currentState?.[`sys`]?.['workspace_url'] ?? 'http://localhost:3000'
         const results = await extractZipEntries(
           zip, 
           subPath ? path.join(workspacePath, subPath) : workspacePath,

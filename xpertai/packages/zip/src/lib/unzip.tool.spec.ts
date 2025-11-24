@@ -18,7 +18,8 @@ describe('UnzipTool', () => {
     workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'unzip-tool-'))
     mockedGetCurrentTaskInput.mockReturnValue({
       sys: {
-        workspace_path: workspacePath
+        volume: workspacePath,
+        workspace_url: 'http://localhost:3000/'
       }
     })
     unzipTool = buildUnzipTool()
@@ -36,11 +37,16 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
-      content: zipBuffer
-    })
+    const input = { content: zipBuffer }
+    console.log('\n[UNZIP TEST 1] 解压多个文件')
+    console.log('输入参数:', { content: '<Buffer>' })
+
+    const result = await unzipTool.invoke(input)
+    console.log('输出结果:', result)
 
     const parsedResult = JSON.parse(result as string)
+    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
+    
     expect(parsedResult.files).toHaveLength(3)
 
     const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
@@ -56,11 +62,16 @@ describe('UnzipTool', () => {
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
     const base64Zip = zipBuffer.toString('base64')
 
-    const result = await unzipTool.invoke({
-      content: base64Zip
-    })
+    const input = { content: base64Zip }
+    console.log('\n[UNZIP TEST 2] 处理base64编码的zip')
+    console.log('输入参数:', { content: '<base64 string>' })
+
+    const result = await unzipTool.invoke(input)
+    console.log('输出结果:', result)
 
     const parsedResult = JSON.parse(result as string)
+    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
+    
     expect(parsedResult.files).toHaveLength(1)
     const [{ filePath, fileName }] = parsedResult.files
     expect(fileName).toBe('test.txt')
@@ -93,11 +104,16 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
-      content: zipBuffer
-    })
+    const input = { content: zipBuffer }
+    console.log('\n[UNZIP TEST 3] 检测MIME类型')
+    console.log('输入参数:', { content: '<Buffer>' })
+
+    const result = await unzipTool.invoke(input)
+    console.log('输出结果:', result)
 
     const parsedResult = JSON.parse(result as string)
+    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
+    
     const getFile = (fileName: string) => parsedResult.files.find((file: any) => file.fileName === fileName)
 
     expect(getFile('test.json').mimeType).toBe('application/json')
@@ -142,15 +158,18 @@ describe('UnzipTool', () => {
     outerZip.file('nested.zip', innerBuffer, { binary: true })
     const outerBuffer = await outerZip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const input = {
       content: outerBuffer,
       fileName: 'archive.zip'
-    })
+    }
+    console.log('\n[UNZIP TEST 4] 递归解压嵌套zip')
+    console.log('输入参数:', { content: '<Buffer>', fileName: 'archive.zip' })
 
+    const result = await unzipTool.invoke(input)
+    console.log('输出结果:', result)
 
     const parsedResult = JSON.parse(result as string)
-
-    console.log(parsedResult)
+    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
     
     // 查找嵌套文件，路径可能是 nested/inner.txt
     const nestedFile = parsedResult.files.find((file: any) => 
