@@ -52,10 +52,10 @@
       "path": "./models/xinference"
     },
     {
-      "path": "./packages/calculator"
+      "path": "./tools/calculator"
     },
     {
-      "path": "./packages/zip"
+      "path": "./tools/zip"
     },
     {
       "path": "./tools/pdfium"
