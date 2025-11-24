@@ -68,6 +68,9 @@
     },
     {
       "path": "./models/moonshot"
+    },
+    {
+      "path": "./models/openrouter"
     }
   ]
 }
