@@ -26,10 +26,10 @@ export function buildPdfToMarkdownTool() {
   return tool(
     async (input) => {
       try {
-        const { fileUrl, filePath } = input;
+        const { file, fileUrl, filePath } = input;
         let { fileName, content, scale } = input;
 
-        if (!fileUrl && !filePath && !content) {
+        if (!file && !fileUrl && !filePath && !content) {
           throw new Error('No PDF file provided');
         }
 
@@ -155,12 +155,15 @@ export function buildPdfToMarkdownTool() {
           mimeType: getMimeType(mdFileName),
         };
 
-        return {
-          group: groupName,
-          pageCount,
-          content: markdown,
-          files: [markdownInfo, ...images],
-        };
+        return [
+          markdown,
+          {
+            group: groupName,
+            pageCount,
+            content: markdown,
+            files: [markdownInfo, ...images],
+          }
+        ];
       } catch (e: any) {
         throw new Error('Error converting PDF: ' + (e?.message || String(e)));
       }
@@ -170,6 +173,7 @@ export function buildPdfToMarkdownTool() {
       description:
         'Convert a PDF file into a markdown file with extracted text and rendered page images. Returns markdown and images file list.',
       schema: z.object({
+        file: z.any().optional().nullable().describe('File object'),
         fileName: z.string().optional().nullable(),
         filePath: z.string().optional().nullable(),
         fileUrl: z.string().optional().nullable(),
@@ -182,6 +186,7 @@ export function buildPdfToMarkdownTool() {
           .optional()
           .describe('Rendering scale for images, default 2.0'),
       }),
+      responseFormat: 'content_and_artifact'
     }
   );
 }

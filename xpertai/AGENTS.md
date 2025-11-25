@@ -104,6 +104,13 @@ export class FirecrawlIntegrationStrategy implements IntegrationStrategy<Firecra
 * Must implement `IDocumentSourceStrategy`.
 * Decorated with `@DocumentSourceStrategy('<ProviderName>')`.
 
+### ToolsetStrategy
+
+* Used for **agent tool extensions**.
+* Must implement `IToolsetStrategy`.
+* Decorated with `@ToolsetStrategy('<ProviderName>')`.
+* **Error Handling**: When implementing tools, exceptions must be thrown using `throw new Error(...)` instead of returning error strings (e.g. `return 'Error: ...'`).
+
 ## 5. Services and Controllers
 
 * Services encapsulate the logic for interacting with external APIs or internal resources.
