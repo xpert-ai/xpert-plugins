@@ -1,3 +1,4 @@
+
 import { buildPdfToMarkdownTool } from './pdf2markdown.tool.js';
 import path from 'path';
 import fs from 'fs/promises';
@@ -32,17 +33,56 @@ describe('pdfium', () => {
       return;
     }
 
-    const parsed = await tool.invoke({
-      filePath: fixturePath,
+    const message = await tool.invoke({
+      id: '123',
+      name: 'pdf_to_markdown',
+      type: 'tool_call',
+      args: {
+        filePath: fixturePath,
+      }
     });
 
+    console.log(message)
+    const parsed = message.artifact
+
+    expect(message.tool_call_id).toEqual('123')
     expect(parsed).toHaveProperty('pageCount');
-    expect(parsed).toHaveProperty('content');
     expect(parsed).toHaveProperty('files');
     expect(parsed.pageCount).toBeGreaterThan(0);
     expect(parsed.files.length).toBe(parsed.pageCount + 1);
     expect(parsed.files[0].fileName).toMatch(/\.md$/);
+  }, 60000); // Increase timeout for PDF processing
 
-    console.log('Conversion result:', parsed);
+  it('should convert PDF Object to markdown and images', async () => {
+    const tool = buildPdfToMarkdownTool();
+
+    // Ensure fixture exists
+    try {
+      await fs.access(fixturePath);
+    } catch (e) {
+      console.warn(`Fixture not found at ${fixturePath}, skipping test`);
+      return;
+    }
+
+    const message = await tool.invoke({
+      id: '123',
+      name: 'pdf_to_markdown',
+      type: 'tool_call',
+      args: {
+        file: {
+          filePath: fixturePath,
+        }
+      }
+    });
+
+    console.log(message)
+    const parsed = message.artifact
+
+    expect(message.tool_call_id).toEqual('123')
+    expect(parsed).toHaveProperty('pageCount');
+    expect(parsed).toHaveProperty('files');
+    expect(parsed.pageCount).toBeGreaterThan(0);
+    expect(parsed.files.length).toBe(parsed.pageCount + 1);
+    expect(parsed.files[0].fileName).toMatch(/\.md$/);
   }, 60000); // Increase timeout for PDF processing
 });

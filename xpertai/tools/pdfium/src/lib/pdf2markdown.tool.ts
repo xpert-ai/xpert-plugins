@@ -26,21 +26,28 @@ export function buildPdfToMarkdownTool() {
   return tool(
     async (input) => {
       try {
-        const { file, fileUrl, filePath } = input;
-        let { fileName, content, scale } = input;
+        let { file, content, scale } = input;
 
-        if (!file && !fileUrl && !filePath && !content) {
+        if (!file && !input.fileUrl && !input.filePath && !input.content) {
           throw new Error('No PDF file provided');
         }
+        if (!file) {
+          file = {
+            fileName: input.fileName,
+            fileUrl: input.fileUrl,
+            filePath: input.filePath
+          }
+        }
 
+        // Workspace paths
         const currentState = getCurrentTaskInput();
         const workspacePath = currentState?.['sys']?.['volume'] ?? '/tmp/xpert';
         const baseUrl = currentState?.['sys']?.['workspace_url'];
 
         // Load content
         let pdfBuffer: Buffer;
-        if (fileUrl) {
-          const resp = await fetch(fileUrl);
+        if (file.fileUrl) {
+          const resp = await fetch(file.fileUrl);
           if (!resp.ok) {
             throw new Error(
               `Failed to download PDF from URL: ${resp.statusText}`
@@ -48,33 +55,33 @@ export function buildPdfToMarkdownTool() {
           }
           const arrayBuffer = await resp.arrayBuffer();
           pdfBuffer = Buffer.from(arrayBuffer);
-          if (!fileName) {
-            fileName = path.basename(new URL(fileUrl).pathname);
+          if (!file.fileName) {
+            file.fileName = path.basename(new URL(file.fileUrl).pathname);
           }
-        } else if (filePath) {
-          pdfBuffer = await fs.readFile(filePath);
-          if (!fileName) fileName = path.basename(filePath);
+        } else if (file.filePath) {
+          pdfBuffer = await fs.readFile(file.filePath);
+          if (!file.fileName) file.fileName = path.basename(file.filePath);
         } else if (typeof content === 'string') {
           // Accept base64 string
           pdfBuffer = Buffer.from(content, 'base64');
-          if (!fileName) fileName = 'document.pdf';
+          if (!file.fileName) file.fileName = 'document.pdf';
         } else if (content instanceof Uint8Array) {
           pdfBuffer = Buffer.from(content);
-          if (!fileName) fileName = 'document.pdf';
+          if (!file.fileName) file.fileName = 'document.pdf';
         } else if (Buffer.isBuffer(content)) {
           pdfBuffer = content;
-          if (!fileName) fileName = 'document.pdf';
+          if (!file.fileName) file.fileName = 'document.pdf';
         } else {
           throw new Error('Invalid PDF content format');
         }
 
         // Basic validation
-        if (!fileName?.toLowerCase().endsWith('.pdf')) {
+        if (!file.fileName?.toLowerCase().endsWith('.pdf')) {
           // still try to treat as pdf, but append extension for output grouping
-          fileName = fileName + '.pdf';
+          file.fileName = file.fileName + '.pdf';
         }
 
-        const groupName = fileName.replace(/\.pdf$/i, '') || 'pdf';
+        const groupName = file.fileName.replace(/\.pdf$/i, '') || 'pdf';
         const outputDir = path.join(workspacePath, groupName);
         await fs.mkdir(outputDir, { recursive: true });
 
@@ -85,7 +92,7 @@ export function buildPdfToMarkdownTool() {
 
         let markdown =
           `# PDF Converted to Markdown\\n\\n` +
-          `> Source File: ${fileName}\\n\\n` +
+          `> Source File: ${file.fileName}\\n\\n` +
           `> Pages: ${pageCount}\\n\\n`;
 
         const images: {
@@ -160,9 +167,8 @@ export function buildPdfToMarkdownTool() {
           {
             group: groupName,
             pageCount,
-            content: markdown,
             files: [markdownInfo, ...images],
-          }
+          },
         ];
       } catch (e: any) {
         throw new Error('Error converting PDF: ' + (e?.message || String(e)));
@@ -184,9 +190,10 @@ export function buildPdfToMarkdownTool() {
         scale: z
           .number()
           .optional()
+          .nullable()
           .describe('Rendering scale for images, default 2.0'),
       }),
-      responseFormat: 'content_and_artifact'
+      responseFormat: 'content_and_artifact',
     }
   );
 }
