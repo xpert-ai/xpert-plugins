@@ -10,7 +10,7 @@ export function buildZipTool() {
   return tool(
     async (input) => {
       try {
-        let { files, fileName } = input
+        const { files, fileName } = input
         
         const currentState = getCurrentTaskInput()
         const workspacePath = currentState?.[`sys`]?.['volume'] ?? '/tmp/xpert'

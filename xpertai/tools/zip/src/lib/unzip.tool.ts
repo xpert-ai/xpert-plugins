@@ -338,9 +338,12 @@ export function buildUnzipTool() {
           return 'Error: Zip file is empty or contains only directories'
         }
 
-        return JSON.stringify({
-          files: results
-        })
+        return [
+          `Extracted ${results.length} files from zip file: ${fileName || 'unknown'}`,
+          {
+            files: results
+          }
+        ]
       } catch (error) {
         if (error instanceof Error && error.message.includes('corrupted')) {
           return 'Error: Not a valid zip file provided'
@@ -359,7 +362,8 @@ export function buildUnzipTool() {
           .union([z.string(), z.instanceof(Buffer), z.instanceof(Uint8Array)])
           .optional()
           .nullable()
-      })
+      }),
+      responseFormat: 'content_and_artifact'
     }
   )
 }
