@@ -110,7 +110,17 @@ export class FirecrawlIntegrationStrategy implements IntegrationStrategy<Firecra
 * Must implement `IToolsetStrategy`.
 * Decorated with `@ToolsetStrategy('<ProviderName>')`.
 * **Error Handling**: When implementing tools, exceptions must be thrown using `throw new Error(...)` instead of returning error strings (e.g. `return 'Error: ...'`).
-* **Artifact Handling**: To enable a tool to return structured data (artifacts) in addition to text, configure the tool's `responseFormat` parameter to `'content_and_artifact'`. The tool function should then return a tuple `[text string, artifact object]`.
+* **Artifact Handling**: To enable a tool to return structured data (artifacts) in addition to text, configure the tool's `responseFormat` parameter to `'content_and_artifact'`. The tool function should then return a tuple `[text string, artifact object]`. To return a list of files, place it in the `files` property of the `artifact` object. The file type definition is:
+
+```ts
+interface IFileArtifact {
+  fileName: string; // Path relative to the workspace
+  filePath: string; // Absolute file path
+  fileUrl: string; // File server URL
+  mimeType: string; // File type
+  extension: string; // File extension
+}
+```
 
 ## 5. Services and Controllers
 
