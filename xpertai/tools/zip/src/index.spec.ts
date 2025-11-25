@@ -41,5 +41,22 @@ describe('Zip Plugin', () => {
     await plugin.onStop(ctx as any)
     expect(ctx.logger.log).toHaveBeenCalledWith('zip plugin stopped')
   })
+
+  it('should create zip tool with consistent interface', async () => {
+    const strategy = new (await import('./lib/strategy.js')).ZipStrategy()
+    const tools = strategy.createTools()
+    const zipTool = tools[0] // zip tool should be first
+    
+    expect(zipTool).toBeDefined()
+    expect(zipTool.name).toBe('zip')
+    
+    // Check that the schema includes the new fields
+    const schema = (zipTool as any).schema
+    expect(schema.shape).toHaveProperty('fileName')
+    expect(schema.shape).toHaveProperty('filePath')
+    expect(schema.shape).toHaveProperty('fileUrl')
+    expect(schema.shape).toHaveProperty('content')
+  })
 })
 
+export {}
