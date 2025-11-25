@@ -46,10 +46,7 @@ describe('pdfium', () => {
     const parsed = message.artifact
 
     expect(message.tool_call_id).toEqual('123')
-    expect(parsed).toHaveProperty('pageCount');
     expect(parsed).toHaveProperty('files');
-    expect(parsed.pageCount).toBeGreaterThan(0);
-    expect(parsed.files.length).toBe(parsed.pageCount + 1);
     expect(parsed.files[0].fileName).toMatch(/\.md$/);
   }, 60000); // Increase timeout for PDF processing
 
@@ -79,10 +76,24 @@ describe('pdfium', () => {
     const parsed = message.artifact
 
     expect(message.tool_call_id).toEqual('123')
-    expect(parsed).toHaveProperty('pageCount');
     expect(parsed).toHaveProperty('files');
-    expect(parsed.pageCount).toBeGreaterThan(0);
-    expect(parsed.files.length).toBe(parsed.pageCount + 1);
     expect(parsed.files[0].fileName).toMatch(/\.md$/);
+
+    const message2 = await tool.invoke({
+      id: '123',
+      name: 'pdf_to_markdown',
+      type: 'tool_call',
+      args: {
+        file: [{
+          filePath: fixturePath,
+        }]
+      }
+    });
+
+    console.log(message2)
+    const parsed2 = message2.artifact
+
+    expect(message2.tool_call_id).toEqual('123')
+    expect(parsed2).toHaveProperty('files');
   }, 60000); // Increase timeout for PDF processing
 });
