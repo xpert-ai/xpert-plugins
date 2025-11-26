@@ -1,10 +1,11 @@
 import { tool } from '@langchain/core/tools'
+import { getCurrentTaskInput } from '@langchain/langgraph'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import JSZip from 'jszip';
-import { getCurrentTaskInput } from '@langchain/langgraph'
 import * as path from 'path'
 import * as fs from 'fs/promises'
+import { TFileInfo } from './types.js';
 
 export function buildZipTool() {
   return tool(
@@ -18,7 +19,7 @@ export function buildZipTool() {
 
         // Validate files input
         if ((!files || !Array.isArray(files) || files.length === 0) ) {
-          return "Error: No files provided"
+          throw new Error("No files provided")
         }
 
         const zip = new JSZip()
@@ -64,7 +65,7 @@ export function buildZipTool() {
               filePath: responseFilePath,
               fileUrl: responseFileUrl,
               extension: 'zip'
-            }]
+            } as TFileInfo]
           }
         ]
       } catch (error) {

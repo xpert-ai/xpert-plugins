@@ -5,6 +5,7 @@ import { z } from 'zod'
 import JSZip from 'jszip'
 import * as path from 'path'
 import * as fs from 'fs/promises'
+import { TFileInfo } from './types.js'
 
 // MIME type mapping for common file extensions
 const additionalMimeTypes: Record<string, string> = {
@@ -146,14 +147,6 @@ function getMimeType(fileName: string): string {
   return 'application/octet-stream'
 }
 
-type ExtractedFileInfo = {
-  mimeType: string
-  fileName: string
-  fileUrl?: string
-  filePath: string
-  extension?: string
-}
-
 const ZIP_FILE_REGEX = /\.zip$/i
 
 function isZipFile(fileName: string) {
@@ -181,11 +174,11 @@ async function extractZipEntries(
   zip: JSZip,
   outputDir: string,
   outputUrl: string,
-  basePath: string = '',
-  depth: number = 0,
-  maxDepth: number = 10
-): Promise<ExtractedFileInfo[]> {
-  // 防止无限递归
+  basePath = '',
+  depth = 0,
+  maxDepth = 10
+): Promise<TFileInfo[]> {
+  // Preventing infinite recursion
   if (depth > maxDepth) {
     console.warn(`Warning: Maximum extraction depth (${maxDepth}) reached. Stopping recursion.`)
     return []
@@ -199,25 +192,25 @@ async function extractZipEntries(
       }
 
       const fileContent = await zipEntry.async('nodebuffer')
-      // 构建相对于原始zip的路径
+      // Construct relative path with respect to the original zip
       const relativePath = basePath ? path.join(basePath, fileName) : fileName
       const fullPath = path.join(outputDir, relativePath)
       await fs.mkdir(path.dirname(fullPath), { recursive: true })
 
-      const files: ExtractedFileInfo[] = []
+      const files: TFileInfo[] = []
 
-      // 如果是zip文件，递归解压，不保存原始zip文件
+      // If it's a zip file, recursively extract without saving the original zip file
       if (isZipFile(fileName)) {
         try {
           const nestedZip = await JSZip.loadAsync(fileContent)
-          // 解压到以zip文件名（不含扩展名）命名的目录
+          // Extract to a directory named after the zip file (without extension)
           // const zipNameWithoutExt = fileName.replace(ZIP_FILE_REGEX, '')
-          const zipFolder = path.dirname(fileName) // 解压到当前目录下
+          const zipFolder = path.dirname(fileName) // Extract to the current directory
           const nestedBasePath = basePath ? path.join(basePath, zipFolder) : zipFolder
           const nestedDir = path.join(outputDir, nestedBasePath)
           await fs.mkdir(nestedDir, { recursive: true })
 
-          // 递归解压嵌套的zip文件
+          // Recursively extract nested zip files
           const nestedResults = await extractZipEntries(
             nestedZip,
             outputDir,
@@ -228,7 +221,7 @@ async function extractZipEntries(
           )
           files.push(...nestedResults)
         } catch (error) {
-          // 如果嵌套zip解压失败，保存原始zip文件
+          // If nested zip extraction fails, save the original zip file
           console.warn(`Warning: Failed to extract nested zip file ${fileName}: ${getErrorMessage(error)}`)
           await fs.writeFile(fullPath, fileContent)
           files.push({
@@ -240,7 +233,7 @@ async function extractZipEntries(
           })
         }
       } else {
-        // 非zip文件，直接保存
+        // If it's not a zip file, save it directly
         await fs.writeFile(fullPath, fileContent)
         files.push({
           mimeType: getMimeType(fileName),
@@ -320,7 +313,7 @@ export function buildUnzipTool() {
           subPath = fileName.replace(ZIP_FILE_REGEX, '')
         }
 
-        // 开始递归解压，不保留中间zip文件
+        // Start recursive extraction, do not keep intermediate zip files
         const baseUrl = currentState?.[`sys`]?.['workspace_url']
         // Encode subPath for URL to handle special characters in zip file name
         const encodedSubPath = subPath ? encodeURIComponent(subPath) + '/' : ''
@@ -328,9 +321,9 @@ export function buildUnzipTool() {
           zip,
           subPath ? path.join(workspacePath, subPath) : workspacePath,
           new URL(encodedSubPath, baseUrl).href,
-          '', // basePath 从空字符串开始
-          0, // depth 从0开始
-          10 // maxDepth 最多10层，防止无限递归
+          '', // basePath starts from an empty string
+          0, // depth starts from 0
+          10 // maxDepth is 10 to prevent infinite recursion
         )
 
         if (results.length === 0) {
