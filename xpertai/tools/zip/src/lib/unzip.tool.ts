@@ -6,6 +6,27 @@ import JSZip from 'jszip'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import { TFileInfo } from './types.js'
+import * as iconv from 'iconv-lite'
+
+export function decodeFileName(bytes: Uint8Array | Buffer | string[]): string {
+  try {
+    const buffer = Buffer.from(bytes as any)
+    // Try UTF-8 first
+    const utf8String = new TextDecoder('utf-8').decode(buffer)
+    // If it contains replacement characters, it might be another encoding
+    // However, some valid UTF-8 strings might contain replacement characters if they were already corrupted,
+    // but usually this is a good indicator of wrong encoding for zip filenames.
+    if (utf8String.includes('\uFFFD')) {
+      // Try GBK (common for Chinese Windows)
+      // We can add more fallbacks here if needed
+      return iconv.decode(buffer, 'gbk')
+    }
+    return utf8String
+  } catch (e) {
+    // Fallback to GBK
+    return iconv.decode(Buffer.from(bytes as any), 'gbk')
+  }
+}
 
 // MIME type mapping for common file extensions
 const additionalMimeTypes: Record<string, string> = {
@@ -202,7 +223,9 @@ async function extractZipEntries(
       // If it's a zip file, recursively extract without saving the original zip file
       if (isZipFile(fileName)) {
         try {
-          const nestedZip = await JSZip.loadAsync(fileContent)
+          const nestedZip = await JSZip.loadAsync(fileContent, {
+            decodeFileName: decodeFileName
+          })
           // Extract to a directory named after the zip file (without extension)
           // const zipNameWithoutExt = fileName.replace(ZIP_FILE_REGEX, '')
           const zipFolder = path.dirname(fileName) // Extract to the current directory
@@ -307,7 +330,9 @@ export function buildUnzipTool() {
         }
 
         // Load zip file
-        const zip = await JSZip.loadAsync(zipBuffer)
+        const zip = await JSZip.loadAsync(zipBuffer, {
+          decodeFileName: decodeFileName
+        })
         let subPath = ''
         if (fileName) {
           subPath = fileName.replace(ZIP_FILE_REGEX, '')

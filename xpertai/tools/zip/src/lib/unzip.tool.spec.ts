@@ -3,7 +3,7 @@ import os from 'os'
 import path from 'path'
 import { getCurrentTaskInput } from '@langchain/langgraph'
 import JSZip from 'jszip'
-import { buildUnzipTool } from './unzip.tool'
+import { buildUnzipTool, decodeFileName } from './unzip.tool'
 
 jest.mock('@langchain/langgraph', () => ({
   getCurrentTaskInput: jest.fn()
@@ -381,3 +381,26 @@ async function callTool(tool, parameters) {
 
   return message
 }
+
+describe('decodeFileName', () => {
+  it('should decode UTF-8 correctly', () => {
+    const buffer = Buffer.from('Hello World', 'utf-8');
+    expect(decodeFileName(buffer)).toBe('Hello World');
+  });
+
+  it('should decode GBK correctly', () => {
+    // "你好" in GBK
+    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3]);
+    expect(decodeFileName(buffer)).toBe('你好');
+  });
+
+  it('should fallback to GBK when UTF-8 fails', () => {
+    // "你好" in GBK: c4 e3 ba c3
+    // In UTF-8, 0xc4 is invalid start byte or continuation? 
+    // 0xC4 is 11000100. It expects 1 continuation byte.
+    // 0xE3 is 11100011. It expects 2 continuation bytes.
+    // So this sequence is likely invalid UTF-8 or produces replacement chars.
+    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3]);
+    expect(decodeFileName(buffer)).toBe('你好');
+  });
+});
