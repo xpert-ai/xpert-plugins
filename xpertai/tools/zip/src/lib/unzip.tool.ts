@@ -266,7 +266,7 @@ export function buildUnzipTool() {
         let { fileName, content } = input
 
         if (!fileUrl && !filePath && !input.content) {
-          return 'Error: No file provided'
+          throw new Error('No file provided')
         }
         const currentState = getCurrentTaskInput()
         const workspacePath = currentState?.[`sys`]?.['volume'] ?? '/tmp/xpert'
@@ -289,8 +289,7 @@ export function buildUnzipTool() {
         // Handle file from local path
         if (filePath) {
           try {
-            const fullPath = path.join(workspacePath, filePath)
-            const fileContent = await fs.readFile(fullPath)
+            const fileContent = await fs.readFile(filePath)
             content = fileContent
 
             if (!fileName) {
@@ -311,7 +310,7 @@ export function buildUnzipTool() {
         } else if (content instanceof Uint8Array) {
           zipBuffer = Buffer.from(content)
         } else {
-          return 'Error: Invalid file content format'
+          throw new Error('Invalid file content format')
         }
 
         // Load zip file
@@ -335,7 +334,7 @@ export function buildUnzipTool() {
         )
 
         if (results.length === 0) {
-          return 'Error: Zip file is empty or contains only directories'
+          throw new Error('Zip file is empty or contains only directories')
         }
 
         return [
@@ -346,7 +345,7 @@ export function buildUnzipTool() {
         ]
       } catch (error) {
         if (error instanceof Error && error.message.includes('corrupted')) {
-          return 'Error: Not a valid zip file provided'
+          throw new Error('Not a valid zip file provided')
         }
         return 'Error extracting zip file: ' + getErrorMessage(error)
       }

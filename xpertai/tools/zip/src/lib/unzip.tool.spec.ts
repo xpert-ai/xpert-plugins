@@ -38,11 +38,12 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
+
     expect(parsedResult.files).toHaveLength(3)
 
     const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
@@ -58,11 +59,11 @@ describe('UnzipTool', () => {
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
     const base64Zip = zipBuffer.toString('base64')
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: base64Zip
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     expect(parsedResult.files).toHaveLength(1)
     const [{ filePath, fileName }] = parsedResult.files
     expect(fileName).toBe('test.txt')
@@ -77,11 +78,11 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     expect(parsedResult.files).toHaveLength(2)
     expect(parsedResult.files.find((file: any) => file.fileName.includes('empty-folder'))).toBeUndefined()
   })
@@ -95,11 +96,11 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     const getFile = (fileName: string) => parsedResult.files.find((file: any) => file.fileName === fileName)
 
     expect(getFile('test.json').mimeType).toBe('application/json')
@@ -109,17 +110,16 @@ describe('UnzipTool', () => {
   })
 
   it('should return error for invalid zip buffer', async () => {
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: Buffer.from('not a zip file')
     })
 
-    expect(result).toContain('Error')
+    expect(message.content).toContain('Error')
   })
 
   it('should return error for missing content', async () => {
-    const result = await unzipTool.invoke({})
-
-    expect(result).toContain('Error: No file provided')
+    const message = await callTool(unzipTool, {})
+    expect(message.content).toContain('Error: No file provided')
   })
 
   it('should return error for empty zip file', async () => {
@@ -128,11 +128,11 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer
     })
 
-    expect(result).toContain('Error: Zip file is empty or contains only directories')
+    expect(message.content).toContain('Error: Zip file is empty or contains only directories')
   })
 
   it('should recursively extract nested zip files', async () => {
@@ -144,19 +144,22 @@ describe('UnzipTool', () => {
     outerZip.file('nested.zip', innerBuffer, { binary: true })
     const outerBuffer = await outerZip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: outerBuffer,
       fileName: 'archive.zip'
     })
 
-
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
 
     console.log(parsedResult)
-    
+
     // 查找嵌套文件，路径可能是 nested/inner.txt
-    const nestedFile = parsedResult.files.find((file: any) => 
-      file.fileName === 'inner.txt' || file.fileName.endsWith('/inner.txt') || file.fileName.endsWith('\\inner.txt') || file.fileName.includes('inner.txt')
+    const nestedFile = parsedResult.files.find(
+      (file: any) =>
+        file.fileName === 'inner.txt' ||
+        file.fileName.endsWith('/inner.txt') ||
+        file.fileName.endsWith('\\inner.txt') ||
+        file.fileName.includes('inner.txt')
     )
     expect(nestedFile).toBeDefined()
 
@@ -181,12 +184,12 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer,
       fileName: 'special-chars.zip'
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     expect(parsedResult.files).toHaveLength(6)
 
     // Check that each file has a properly encoded fileUrl
@@ -257,12 +260,12 @@ describe('UnzipTool', () => {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer,
       fileName: 'folder-test.zip'
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     expect(parsedResult.files).toHaveLength(6)
 
     const filesByName = new Map(parsedResult.files.map((file: any) => [file.fileName, file]))
@@ -325,12 +328,12 @@ describe('UnzipTool', () => {
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
     // Test with zip file name containing special characters
-    const result = await unzipTool.invoke({
+    const message = await callTool(unzipTool, {
       content: zipBuffer,
       fileName: 'archive#test?.zip'
     })
 
-    const parsedResult = JSON.parse(result as string)
+    const parsedResult = message.artifact
     expect(parsedResult.files).toHaveLength(2)
 
     // All file URLs should start with properly encoded zip file name (without .zip extension)
@@ -353,4 +356,28 @@ describe('UnzipTool', () => {
     expect(await fs.readFile(file1.filePath, 'utf8')).toBe('Content 1')
     expect(await fs.readFile(file2.filePath, 'utf8')).toBe('Content 2')
   })
+
+  it('should correctly encode fileUrl when zip filename contains special characters', async () => {
+    const fixturePath = path.join(
+        process.cwd(),
+        '__fixtures__/杨洵.zip'
+      );
+    // Test with zip file name containing special characters
+    const message = await callTool(unzipTool, {
+      filePath: fixturePath
+    })
+
+    console.log(message)
+  })
 })
+
+async function callTool(tool, parameters) {
+  const message = await tool.invoke({
+    id: '123',
+    name: 'tool-name',
+    type: 'tool_call',
+    args: parameters
+  })
+
+  return message
+}
