@@ -5,6 +5,7 @@ import { z } from 'zod'
 import JSZip from 'jszip'
 import * as path from 'path'
 import * as fs from 'fs/promises'
+import iconv from 'iconv-lite'
 
 // MIME type mapping for common file extensions
 const additionalMimeTypes: Record<string, string> = {
@@ -161,6 +162,72 @@ function isZipFile(fileName: string) {
 }
 
 /**
+ * 创建一个兼容多种编码的文件名解码器
+ * 支持 UTF-8、GBK、GB2312、Big5、Shift-JIS、EUC-KR 等常见编码
+ * @param bytes 原始字节数据
+ * @returns 解码后的文件名
+ */
+function createUniversalDecoder(bytes: Uint8Array | Buffer | string[]): string {
+  // 定义要尝试的编码列表（按优先级排序）
+  const encodings = [
+    'utf-8',        // 标准 UTF-8（优先）
+    'gbk',          // 简体中文 Windows
+    'gb2312',       // 简体中文
+    'big5',         // 繁体中文
+    'shift_jis',    // 日文
+    'euc-kr',       // 韩文
+    'iso-8859-1',   // 西欧语言
+    'windows-1251', // 俄语
+    'windows-1252', // 西欧
+  ]
+
+  // 转换为 Buffer 以便统一处理
+  let byteBuffer: Buffer
+  if (Buffer.isBuffer(bytes)) {
+    byteBuffer = bytes
+  } else if (bytes instanceof Uint8Array) {
+    byteBuffer = Buffer.from(bytes)
+  } else {
+    byteBuffer = Buffer.from(bytes.map(c => typeof c === 'string' ? c.charCodeAt(0) : c))
+  }
+
+  // 首先尝试 UTF-8（使用严格模式）
+  try {
+    const utf8Decoder = new TextDecoder('utf-8', { fatal: true })
+    const decoded = utf8Decoder.decode(new Uint8Array(byteBuffer))
+    // 验证解码结果：不包含替换字符且不全是控制字符
+    if (!decoded.includes('\ufffd') && decoded.trim().length > 0) {
+      return decoded
+    }
+  } catch {
+    // UTF-8 解码失败，继续尝试其他编码
+  }
+
+  // 依次尝试其他编码
+  for (const encoding of encodings.slice(1)) {
+    try {
+      const decoded = iconv.decode(byteBuffer, encoding)
+      // 验证解码结果
+      if (decoded && !decoded.includes('\ufffd') && decoded.trim().length > 0) {
+        // 额外检查：确保解码后的字符串合理（包含有效字符）
+        // 支持：中文、日文、韩文、西欧字符、数字、字母等
+        const hasValidChars = /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\w\s.\-_()\[\]{}]/.test(decoded)
+        if (hasValidChars) {
+          return decoded
+        }
+      }
+    } catch {
+      // 该编码解码失败，继续下一个
+      continue
+    }
+  }
+
+  // 所有编码都失败，使用默认字符串表示
+  const byteArray = Array.from(byteBuffer)
+  return String.fromCharCode(...byteArray)
+}
+
+/**
  * Properly encode file path for use in URLs
  * Encodes each path segment separately to handle special characters
  * Normalizes path separators to forward slashes for URLs
@@ -198,21 +265,27 @@ async function extractZipEntries(
         return []
       }
 
+      // fileName 已经在 JSZip.loadAsync 时通过 createUniversalDecoder 正确解码
+      const decodedFileName = fileName
+
       const fileContent = await zipEntry.async('nodebuffer')
-      // 构建相对于原始zip的路径
-      const relativePath = basePath ? path.join(basePath, fileName) : fileName
+      // 构建相对于原始zip的路径，使用解码后的文件名
+      const relativePath = basePath ? path.join(basePath, decodedFileName) : decodedFileName
       const fullPath = path.join(outputDir, relativePath)
       await fs.mkdir(path.dirname(fullPath), { recursive: true })
 
       const files: ExtractedFileInfo[] = []
 
       // 如果是zip文件，递归解压，不保存原始zip文件
-      if (isZipFile(fileName)) {
+      if (isZipFile(decodedFileName)) {
         try {
-          const nestedZip = await JSZip.loadAsync(fileContent)
+          // 嵌套 zip 也使用通用解码器
+          const nestedZip = await JSZip.loadAsync(fileContent, {
+            decodeFileName: createUniversalDecoder
+          })
           // 解压到以zip文件名（不含扩展名）命名的目录
-          // const zipNameWithoutExt = fileName.replace(ZIP_FILE_REGEX, '')
-          const zipFolder = path.dirname(fileName) // 解压到当前目录下
+          // const zipNameWithoutExt = decodedFileName.replace(ZIP_FILE_REGEX, '')
+          const zipFolder = path.dirname(decodedFileName) // 解压到当前目录下
           const nestedBasePath = basePath ? path.join(basePath, zipFolder) : zipFolder
           const nestedDir = path.join(outputDir, nestedBasePath)
           await fs.mkdir(nestedDir, { recursive: true })
@@ -229,25 +302,25 @@ async function extractZipEntries(
           files.push(...nestedResults)
         } catch (error) {
           // 如果嵌套zip解压失败，保存原始zip文件
-          console.warn(`Warning: Failed to extract nested zip file ${fileName}: ${getErrorMessage(error)}`)
+          console.warn(`Warning: Failed to extract nested zip file ${decodedFileName}: ${getErrorMessage(error)}`)
           await fs.writeFile(fullPath, fileContent)
           files.push({
-            mimeType: getMimeType(fileName),
+            mimeType: getMimeType(decodedFileName),
             fileName: relativePath,
             filePath: fullPath,
             fileUrl: encodeFileUrl(relativePath, outputUrl),
-            extension: path.extname(fileName).slice(1) || undefined
+            extension: path.extname(decodedFileName).slice(1) || undefined
           })
         }
       } else {
         // 非zip文件，直接保存
         await fs.writeFile(fullPath, fileContent)
         files.push({
-          mimeType: getMimeType(fileName),
+          mimeType: getMimeType(decodedFileName),
           fileName: relativePath,
           filePath: fullPath,
           fileUrl: encodeFileUrl(relativePath, outputUrl),
-          extension: path.extname(fileName).slice(1) || undefined
+          extension: path.extname(decodedFileName).slice(1) || undefined
         })
       }
 
@@ -314,8 +387,11 @@ export function buildUnzipTool() {
           return 'Error: Invalid file content format'
         }
 
-        // Load zip file
-        const zip = await JSZip.loadAsync(zipBuffer)
+        // Load zip file with universal filename decoder to handle multiple encodings
+        const zip = await JSZip.loadAsync(zipBuffer, {
+          // 自定义文件名解码器：支持 UTF-8、GBK、Big5、Shift-JIS、EUC-KR 等多种编码
+          decodeFileName: createUniversalDecoder
+        })
         let subPath = ''
         if (fileName) {
           subPath = fileName.replace(ZIP_FILE_REGEX, '')
