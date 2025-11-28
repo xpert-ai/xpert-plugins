@@ -5,8 +5,8 @@ import { z } from 'zod'
 import JSZip from 'jszip'
 import * as path from 'path'
 import * as fs from 'fs/promises'
-import { TFileInfo } from './types.js'
 import * as iconv from 'iconv-lite'
+import { TFileInfo } from './types.js'
 
 export function decodeFileName(bytes: Uint8Array | Buffer | string[]): string {
   try {
@@ -212,6 +212,9 @@ async function extractZipEntries(
         return []
       }
 
+      // fileName 已经在 JSZip.loadAsync 时通过 createUniversalDecoder 正确解码
+      const decodedFileName = fileName
+
       const fileContent = await zipEntry.async('nodebuffer')
       // Construct relative path with respect to the original zip
       const relativePath = basePath ? path.join(basePath, fileName) : fileName
@@ -248,22 +251,22 @@ async function extractZipEntries(
           console.warn(`Warning: Failed to extract nested zip file ${fileName}: ${getErrorMessage(error)}`)
           await fs.writeFile(fullPath, fileContent)
           files.push({
-            mimeType: getMimeType(fileName),
+            mimeType: getMimeType(decodedFileName),
             fileName: relativePath,
             filePath: fullPath,
             fileUrl: encodeFileUrl(relativePath, outputUrl),
-            extension: path.extname(fileName).slice(1) || undefined
+            extension: path.extname(decodedFileName).slice(1) || undefined
           })
         }
       } else {
         // If it's not a zip file, save it directly
         await fs.writeFile(fullPath, fileContent)
         files.push({
-          mimeType: getMimeType(fileName),
+          mimeType: getMimeType(decodedFileName),
           fileName: relativePath,
           filePath: fullPath,
           fileUrl: encodeFileUrl(relativePath, outputUrl),
-          extension: path.extname(fileName).slice(1) || undefined
+          extension: path.extname(decodedFileName).slice(1) || undefined
         })
       }
 
