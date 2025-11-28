@@ -1,6 +1,7 @@
 {
   "name": "@xpert-ai/plugin-pdfium",
   "version": "0.0.5",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins.git"
@@ -31,6 +32,8 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@langchain/langgraph": "0.4.7",
     "@nestjs/common": "^11.1.6",
     "@xpert-ai/plugin-sdk": "^3.6.2",
     "chalk": "4.1.2",
