@@ -43,10 +43,10 @@
       "path": "./models/openai-compatible"
     },
     {
-      "path": "./packages/mysql"
+      "path": "./databases/mysql"
     },
     {
-      "path": "./packages/hana"
+      "path": "./databases/hana"
     },
     {
       "path": "./models/xinference"

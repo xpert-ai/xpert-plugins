@@ -39,7 +39,8 @@
   "workspaces": [
     "packages/*",
     "tools/*",
-    "models/*"
+    "models/*",
+    "databases/*"
   ],
   "dependencies": {
     "@langchain/core": "0.3.72",

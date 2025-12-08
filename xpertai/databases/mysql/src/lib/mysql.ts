@@ -518,16 +518,16 @@ function buildColumnDefinition(column: Partial<ColumnDefinition>) {
     typeToMySqlDB(column.type ?? 'string', Boolean(column.isKey), column.length ?? (column as any)?.size)
   const required = column.required ? ' NOT NULL' : ''
   const autoIncrement = (column as any)?.autoIncrement ? ' AUTO_INCREMENT' : ''
-  // 添加 UNIQUE 约束支持（非主键列可以设置 UNIQUE）
+  // Add support for UNIQUE constraints (non-primary key columns can be set to UNIQUE).
   const unique = !column.isKey && (column as any)?.unique ? ' UNIQUE' : ''
 
-  // 格式化默认值 - 不对 SQL 函数进行转义
+  // Formatting default values ​​- No escaping of SQL functions
   let defaultValue = ''
   if (!(column as any)?.autoIncrement && (column as any)?.defaultValue !== undefined && (column as any)?.defaultValue !== '') {
     const val = (column as any)?.defaultValue
-    // MySQL DATE 和 TIME 类型不支持函数默认值
+    // MySQL DATE and TIME types do not support function default values
     if (column.type !== 'date' && column.type !== 'time') {
-      // 检查是否为 SQL 函数（大写关键字）
+      // Check if it is an SQL function (uppercase keywords)
       const sqlFunctions = ['CURRENT_TIMESTAMP', 'NOW()', 'CURDATE()', 'CURTIME()', 'CURRENT_DATE', 'CURRENT_TIME']
       const valStr = String(val)
       if (sqlFunctions.includes(valStr.toUpperCase())) {
