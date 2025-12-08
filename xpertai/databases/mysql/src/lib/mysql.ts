@@ -35,7 +35,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
         port: { type: 'number', default: MYSQL_DEFAULT_PORT },
         username: { type: 'string', title: 'Username' },
         password: { type: 'string', title: 'Password' },
-        // 目前 catalog 用于指定数据库
+        // catalog is used to specify the database
         catalog: { type: 'string', title: 'Database' },
         timezone: { type: 'string', title: 'Timezone', default: '+08:00' },
         serverTimezone: { type: 'string', title: 'Server Timezone', default: 'Asia/Shanghai' },
@@ -192,7 +192,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
   }
 
   async createCatalog(catalog: string) {
-    // 用 `CREATE DATABASE` 使其适用于 Doris ？
+    // Use `CREATE DATABASE` to make it compatible with Doris?
     const query = `CREATE DATABASE IF NOT EXISTS \`${catalog}\``
     await this.runQuery(query, { catalog })
   }
@@ -213,7 +213,15 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
     const createTableStatement = `CREATE TABLE IF NOT EXISTS \`${name}\` (${columns
       .map(
         (col) =>
-          `\`${col.fieldName}\` ${typeToMySqlDB(col.type, col.isKey, col.length)}${col.isKey ? ' PRIMARY KEY' : ''}`
+          `\`${col.fieldName}\` ${typeToMySqlDB(
+            col.type,
+            col.isKey,
+            col.length,
+            (col as any)?.precision,
+            (col as any)?.scale ?? (col as any)?.fraction,
+            (col as any)?.enumValues,
+            (col as any)?.setValues
+          )}${col.isKey ? ' PRIMARY KEY' : ''}`
       )
       .join(', ')})`
     const values = data.map((row) => columns.map(({ name }) => row[name]))
@@ -282,18 +290,29 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
           if (createMode === DBCreateTableMode.IGNORE) {
             return { skipped: true }
           }
-          // auto upgrade: add missing columns
+          // auto upgrade: add missing columns and modify existing columns
           const existingColumns = await this.getTableColumns(schema, table, queryOptions)
           const missingColumns = params.columns.filter((column) => {
             const columnName = resolveRawColumnName(column)
             return columnName && !existingColumns.has(columnName.toLowerCase())
           })
+          // Add missing columns
           for (const column of missingColumns) {
             const statement = `ALTER TABLE ${tableIdentifier} ADD COLUMN ${buildColumnDefinition(column)}`
             await this.runQuery(statement, queryOptions)
           }
+          // Modify existing columns to match new definitions
+          const columnsToModify = params.columns.filter((column) => {
+            const columnName = resolveRawColumnName(column)
+            return columnName && existingColumns.has(columnName.toLowerCase())
+          })
+          for (const column of columnsToModify) {
+            const statement = `ALTER TABLE ${tableIdentifier} MODIFY COLUMN ${buildColumnDefinition(column)}`
+            await this.runQuery(statement, queryOptions)
+          }
           return {
-            upgraded: missingColumns.map((column) => resolveRawColumnName(column))
+            upgraded: missingColumns.map((column) => resolveRawColumnName(column)),
+            modified: columnsToModify.map((column) => resolveRawColumnName(column))
           }
         }
         const statement = buildCreateTableStatement(tableIdentifier, params.columns)
@@ -515,19 +534,27 @@ function buildColumnDefinition(column: Partial<ColumnDefinition>) {
   }
   const dataType =
     (column as any)?.dataType ??
-    typeToMySqlDB(column.type ?? 'string', Boolean(column.isKey), column.length ?? (column as any)?.size)
+    typeToMySqlDB(
+      column.type ?? 'string',
+      Boolean(column.isKey),
+      column.length ?? (column as any)?.size,
+      (column as any)?.precision,
+      (column as any)?.scale ?? (column as any)?.fraction, // Support scale or fraction (backward compatible)
+      (column as any)?.enumValues,
+      (column as any)?.setValues
+    )
   const required = column.required ? ' NOT NULL' : ''
   const autoIncrement = (column as any)?.autoIncrement ? ' AUTO_INCREMENT' : ''
-  // Add support for UNIQUE constraints (non-primary key columns can be set to UNIQUE).
+  // Add UNIQUE constraint support (non-primary key columns can be UNIQUE)
   const unique = !column.isKey && (column as any)?.unique ? ' UNIQUE' : ''
 
-  // Formatting default values ​​- No escaping of SQL functions
+  // Format default values - do not escape SQL functions
   let defaultValue = ''
   if (!(column as any)?.autoIncrement && (column as any)?.defaultValue !== undefined && (column as any)?.defaultValue !== '') {
     const val = (column as any)?.defaultValue
-    // MySQL DATE and TIME types do not support function default values
+    // MySQL DATE and TIME types do not support function defaults
     if (column.type !== 'date' && column.type !== 'time') {
-      // Check if it is an SQL function (uppercase keywords)
+      // Check if it is a SQL function (uppercase keywords)
       const sqlFunctions = ['CURRENT_TIMESTAMP', 'NOW()', 'CURDATE()', 'CURTIME()', 'CURRENT_DATE', 'CURRENT_TIME']
       const valStr = String(val)
       if (sqlFunctions.includes(valStr.toUpperCase())) {
@@ -675,31 +702,143 @@ export function convertMySQLSchema(data: Array<any>) {
 }
 
 
-export function typeToMySqlDB(type: string, isKey: boolean, length: number) {
-  switch(type) {
+/**
+ * Convert type to MySQL data type
+ * @param type - Data type
+ * @param isKey - Whether it is a primary key
+ * @param length - Length
+ * @param precision - Precision for DECIMAL
+ * @param scale - Scale for DECIMAL
+ * @param enumValues - Values for ENUM
+ * @param setValues - Values for SET
+ * @returns MySQL data type string
+ */
+export function typeToMySqlDB(
+  type: string,
+  isKey: boolean,
+  length: number,
+  precision?: number,
+  scale?: number,
+  enumValues?: string[],
+  setValues?: string[]
+): string {
+  const lowerType = type?.toLowerCase()
+
+  switch (lowerType) {
+    // Numeric types - integers
+    case 'tinyint':
+      return 'TINYINT'
+    case 'smallint':
+      return 'SMALLINT'
+    case 'mediumint':
+      return 'MEDIUMINT'
     case 'number':
-    case 'Number':
+    case 'int':
+    case 'integer':
       return 'INT'
-    case 'Numeric':
+    case 'bigint':
+      return 'BIGINT'
+
+    // Numeric types - floating point
+    case 'float':
+      return 'FLOAT'
+    case 'double':
       return 'DOUBLE'
+    case 'decimal':
+    case 'numeric':
+      return `DECIMAL(${precision || 10}, ${scale || 2})`
+
+    // String types - fixed/variable length
+    case 'char':
+      return length ? `CHAR(${length})` : 'CHAR(255)'
     case 'string':
-    case 'String':
-      // Max length 3072 btye for primary key
+    case 'varchar':
+      // Max length 3072 bytes for primary key
       if (length !== null && length !== undefined) {
         return isKey ? `VARCHAR(${Math.min(length, 768)})` : `VARCHAR(${length})`
       }
-      return isKey ? 'VARCHAR(768)' : 'VARCHAR(100)'
+      return isKey ? 'VARCHAR(768)' : 'VARCHAR(200)'
+
+    // String types - text
+    case 'tinytext':
+      return 'TINYTEXT'
+    case 'text':
+      return 'TEXT'
+    case 'mediumtext':
+      return 'MEDIUMTEXT'
+    case 'longtext':
+      return 'LONGTEXT'
+
+    // String types - binary
+    case 'tinyblob':
+      return 'TINYBLOB'
+    case 'blob':
+      return 'BLOB'
+    case 'mediumblob':
+      return 'MEDIUMBLOB'
+    case 'longblob':
+      return 'LONGBLOB'
+
+    // String types - special
+    case 'enum':
+      if (!enumValues || enumValues.length === 0) {
+        throw new Error('ENUM type requires at least one enum value')
+      }
+      // Escape single quotes by replacing ' with ''
+      const enumValuesStr = enumValues.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(',')
+      return `ENUM(${enumValuesStr})`
+    case 'set':
+      if (!setValues || setValues.length === 0) {
+        throw new Error('SET type requires at least one set value')
+      }
+      // Escape single quotes by replacing ' with ''
+      const setValuesStr = setValues.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(',')
+      return `SET(${setValuesStr})`
+
+    // Date and time types
     case 'date':
-    case 'Date':
       return 'DATE'
-    case 'Datetime':
+    case 'time':
+      return 'TIME'
     case 'datetime':
       return 'DATETIME'
+    case 'timestamp':
+      return 'TIMESTAMP'
+    case 'year':
+      return 'YEAR'
+
+    // JSON type
+    case 'object':
+    case 'json':
+      return 'JSON'
+
+    // Spatial types
+    case 'geometry':
+      return 'GEOMETRY'
+    case 'point':
+      return 'POINT'
+    case 'linestring':
+      return 'LINESTRING'
+    case 'polygon':
+      return 'POLYGON'
+    case 'multipoint':
+      return 'MULTIPOINT'
+    case 'multilinestring':
+      return 'MULTILINESTRING'
+    case 'multipolygon':
+      return 'MULTIPOLYGON'
+    case 'geometrycollection':
+      return 'GEOMETRYCOLLECTION'
+
+    // Other types
     case 'boolean':
-    case 'Boolean':
-      return 'BOOLEAN'
+    case 'bool':
+      return 'TINYINT(1)'
+    case 'uuid':
+      return 'VARCHAR(36)' // MySQL has no native UUID type
+
     default:
-      return 'VARCHAR(100)'
+      return 'VARCHAR(200)'
   }
 }
 
