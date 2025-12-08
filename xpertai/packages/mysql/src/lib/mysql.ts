@@ -518,11 +518,27 @@ function buildColumnDefinition(column: Partial<ColumnDefinition>) {
     typeToMySqlDB(column.type ?? 'string', Boolean(column.isKey), column.length ?? (column as any)?.size)
   const required = column.required ? ' NOT NULL' : ''
   const autoIncrement = (column as any)?.autoIncrement ? ' AUTO_INCREMENT' : ''
-  const defaultValue =
-    (column as any)?.defaultValue !== undefined
-      ? ` DEFAULT ${mysql.escape((column as any)?.defaultValue)}`
-      : ''
-  return `${mysql.escapeId(columnName)} ${dataType}${required}${autoIncrement}${defaultValue}`.trim()
+  // 添加 UNIQUE 约束支持（非主键列可以设置 UNIQUE）
+  const unique = !column.isKey && (column as any)?.unique ? ' UNIQUE' : ''
+
+  // 格式化默认值 - 不对 SQL 函数进行转义
+  let defaultValue = ''
+  if (!(column as any)?.autoIncrement && (column as any)?.defaultValue !== undefined && (column as any)?.defaultValue !== '') {
+    const val = (column as any)?.defaultValue
+    // MySQL DATE 和 TIME 类型不支持函数默认值
+    if (column.type !== 'date' && column.type !== 'time') {
+      // 检查是否为 SQL 函数（大写关键字）
+      const sqlFunctions = ['CURRENT_TIMESTAMP', 'NOW()', 'CURDATE()', 'CURTIME()', 'CURRENT_DATE', 'CURRENT_TIME']
+      const valStr = String(val)
+      if (sqlFunctions.includes(valStr.toUpperCase())) {
+        defaultValue = ` DEFAULT ${valStr}`
+      } else {
+        defaultValue = ` DEFAULT ${mysql.escape(val)}`
+      }
+    }
+  }
+
+  return `${mysql.escapeId(columnName)} ${dataType}${autoIncrement}${required}${unique}${defaultValue}`.trim()
 }
 
 function buildCreateTableStatement(tableIdentifier: string, columns: TableColumnDefinition[]) {
