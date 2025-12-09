@@ -1,6 +1,14 @@
 {
   "name": "@xpert-ai/plugin-context-editing",
   "version": "0.0.1",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,5 +28,13 @@
   ],
   "dependencies": {
     "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "zod": "3.25.67",
+    "@xpert-ai/plugin-sdk": "^3.7.0",
+    "chalk": "4.1.2",
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@metad/contracts": "^3.7.0"
   }
 }
