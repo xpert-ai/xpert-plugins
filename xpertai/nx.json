@@ -68,7 +68,8 @@
       "@xpert-ai/plugin-anthropic",
       "@xpert-ai/plugin-minimax",
       "@xpert-ai/plugin-moonshot",
-      "@xpert-ai/plugin-openrouter"
+      "@xpert-ai/plugin-openrouter",
+      "@xpert-ai/plugin-context-editing"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
