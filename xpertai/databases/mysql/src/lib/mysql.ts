@@ -780,21 +780,22 @@ export function typeToMySqlDB(
       return 'LONGBLOB'
 
     // String types - special
-    case 'enum':
+    case 'enum': {
       if (!enumValues || enumValues.length === 0) {
         throw new Error('ENUM type requires at least one enum value')
       }
       // Escape single quotes by replacing ' with ''
       const enumValuesStr = enumValues.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(',')
       return `ENUM(${enumValuesStr})`
-    case 'set':
+    }
+    case 'set': {
       if (!setValues || setValues.length === 0) {
         throw new Error('SET type requires at least one set value')
       }
       // Escape single quotes by replacing ' with ''
       const setValuesStr = setValues.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(',')
       return `SET(${setValuesStr})`
-
+    }
     // Date and time types
     case 'date':
       return 'DATE'
