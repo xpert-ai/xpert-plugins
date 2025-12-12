@@ -21,7 +21,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    category: 'database' as any,
+    category: 'database',
     icon: {
       type: 'svg',
       value: SvgIcon,

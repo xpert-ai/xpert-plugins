@@ -74,6 +74,9 @@
     },
     {
       "path": "./models/openrouter"
+    },
+    {
+      "path": "./middlewares/context-editing"
     }
   ]
 }
