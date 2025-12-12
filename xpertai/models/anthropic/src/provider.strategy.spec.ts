@@ -3,19 +3,32 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   ModelProvider: class {}
 }))
 
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  AIModelProviderStrategy: () => () => undefined,
+  ModelProvider: class {
+    getModelManager() {
+      return {
+        validateCredentials: jest.fn().mockResolvedValue(undefined)
+      }
+    }
+    getProviderSchema() {
+      return { provider: 'anthropic' }
+    }
+  },
+  CredentialsValidateFailedError: class extends Error {}
+}))
+
 import { AnthropicProviderStrategy } from './provider.strategy.js'
-import { AnthropicModelCredentials } from './types.js'
+import { AnthropicCredentials } from './types.js'
 
 describe('AnthropicProviderStrategy', () => {
   let strategy: AnthropicProviderStrategy
-  let credentials: AnthropicModelCredentials
+  let credentials: AnthropicCredentials
 
   beforeEach(() => {
     strategy = new AnthropicProviderStrategy()
     credentials = {
-      api_key: 'test-api-key',
-      context_size: '200000',
-      max_tokens_to_sample: '4096'
+      api_key: 'test-api-key'
     }
   })
 
@@ -25,7 +38,6 @@ describe('AnthropicProviderStrategy', () => {
 
   it('should throw error when API key is missing', async () => {
     const invalidCredentials = {
-      ...credentials,
       api_key: ''
     }
     await expect(strategy.validateProviderCredentials(invalidCredentials)).rejects.toThrow(
@@ -35,7 +47,6 @@ describe('AnthropicProviderStrategy', () => {
 
   it('should throw error when API key is undefined', async () => {
     const invalidCredentials = {
-      ...credentials,
       api_key: undefined as any
     }
     await expect(strategy.validateProviderCredentials(invalidCredentials)).rejects.toThrow(

@@ -15,8 +15,9 @@ import {
   LargeLanguageModel,
   TChatModelOptions
 } from '@xpert-ai/plugin-sdk'
-import { AnthropicModelCredentials, toCredentialKwargs } from '../types.js'
+import { AnthropicCredentials, AnthropicModelCredentials, toCredentialKwargs } from '../types.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
+import { mergeCredentials } from '@xpert-ai/plugin-sdk'
 
 @Injectable()
 export class AnthropicLargeLanguageModel extends LargeLanguageModel {
@@ -28,7 +29,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
 
   async validateCredentials(
     model: string,
-    credentials: AnthropicModelCredentials
+    credentials: AnthropicCredentials
   ): Promise<void> {
     const params = toCredentialKwargs(credentials, model)
 
@@ -53,41 +54,37 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
     return new ChatAnthropic(params)
   }
 
-  override getChatModel(
-    copilotModel: ICopilotModel,
-    options?: TChatModelOptions,
-    credentials?: AnthropicModelCredentials
-  ) {
-    const { copilot } = copilotModel
+  override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
     const { handleLLMTokens } = options ?? {}
+    const { copilot } = copilotModel
+    const { modelProvider } = copilot
 
-    credentials ??= options?.modelProperties as AnthropicModelCredentials
-    const params = toCredentialKwargs(credentials, copilotModel.model)
-
-    // Handle streaming: convert string to boolean if needed
-    const streamingValue = copilotModel.options?.['streaming']
-    let streaming: boolean
-    if (streamingValue !== undefined) {
-      streaming = streamingValue === true || streamingValue === 'true' || streamingValue === 'supported'
-    } else {
-      streaming = credentials.streaming === true || credentials.streaming === 'supported' || true
-    }
+    const modelCredentials = mergeCredentials(
+      modelProvider.credentials,
+      options?.modelProperties
+    ) as AnthropicModelCredentials
+    const params = toCredentialKwargs(modelProvider.credentials as AnthropicCredentials, copilotModel.model)
 
     const fields = {
       ...params,
-      streaming,
-      temperature: copilotModel.options?.['temperature'] ?? credentials.temperature ?? 1,
+      streaming: true,
+      temperature: copilotModel.options?.['temperature'] ?? modelCredentials.temperature,
       maxTokens: copilotModel.options?.['max_tokens']
         ? parseInt(copilotModel.options?.['max_tokens'] as string, 10)
-        : params.maxTokens,
-      topP: copilotModel.options?.['top_p'] ?? credentials.top_p,
+        : modelCredentials.max_tokens,
+      topP: copilotModel.options?.['top_p'] ?? modelCredentials.top_p,
       verbose: options?.verbose
     }
 
     return this.createChatModel({
       ...fields,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, params.modelName, credentials, handleLLMTokens),
+        ...this.createHandleUsageCallbacks(
+          copilot,
+          params.modelName,
+          modelCredentials,
+          handleLLMTokens
+        ),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ]
     })

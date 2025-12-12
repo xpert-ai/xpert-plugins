@@ -132,81 +132,45 @@ describe('AnthropicLargeLanguageModel', () => {
 
   describe('getChatModel', () => {
     it('should create chat model with correct configuration', () => {
-      const credentials: AnthropicModelCredentials = {
-        api_key: 'test-key',
-        context_size: '200000',
-        max_tokens_to_sample: '4096',
-        model: 'claude-3-5-sonnet-20241022',
-        temperature: 0.7,
-        top_p: 0.9,
-        streaming: true
-      }
-
       const mockCopilotModel = {
         model: 'claude-3-5-sonnet-20241022',
-        options: {}
+        options: {},
+        copilot: {
+          modelProvider: {
+            credentials: {
+              api_key: 'test-key'
+            }
+          }
+        }
       } as any
 
-      const model = llm.getChatModel(
-        mockCopilotModel,
-        { modelProperties: credentials } as unknown as TChatModelOptions,
-        credentials
-      )
+      const model = llm.getChatModel(mockCopilotModel, {} as TChatModelOptions)
 
       expect(model).toBeDefined()
       expect(model.model).toBe('claude-3-5-sonnet-20241022')
     })
 
     it('should use options from copilotModel when provided', () => {
-      const credentials: AnthropicModelCredentials = {
-        api_key: 'test-key',
-        context_size: '200000',
-        max_tokens_to_sample: '4096',
-        temperature: 0.5,
-        streaming: false
-      }
-
       const mockCopilotModel = {
         model: 'claude-3-5-sonnet-20241022',
         options: {
           temperature: 0.8,
-          max_tokens: '2048',
-          streaming: true
+          max_tokens: '2048'
+        },
+        copilot: {
+          modelProvider: {
+            credentials: {
+              api_key: 'test-key'
+            }
+          }
         }
       } as any
 
-      const model = llm.getChatModel(
-        mockCopilotModel,
-        { modelProperties: credentials } as unknown as TChatModelOptions,
-        credentials
-      )
+      const model = llm.getChatModel(mockCopilotModel, {} as TChatModelOptions)
 
       const params = model.invocationParams()
       expect(params.temperature).toBe(0.8)
       expect(params.maxTokens).toBe(2048)
-      expect(params.streaming).toBe(true)
-    })
-
-    it('should handle streaming string values correctly', () => {
-      const credentials: AnthropicModelCredentials = {
-        api_key: 'test-key',
-        context_size: '200000',
-        max_tokens_to_sample: '4096',
-        streaming: 'supported' as any
-      }
-
-      const mockCopilotModel = {
-        model: 'claude-3-5-sonnet-20241022',
-        options: {}
-      } as any
-
-      const model = llm.getChatModel(
-        mockCopilotModel,
-        { modelProperties: credentials } as unknown as TChatModelOptions,
-        credentials
-      )
-
-      const params = model.invocationParams()
       expect(params.streaming).toBe(true)
     })
   })

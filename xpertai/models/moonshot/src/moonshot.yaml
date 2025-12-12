@@ -1,0 +1,44 @@
+background: '#1E1E1E'
+configurate_methods:
+  - predefined-model
+description:
+  en_US: Moonshot AI provides long-context language models with up to 128K context window
+  zh_Hans: 月之暗面提供支持超长上下文（最高 128K）的大语言模型
+help:
+  title:
+    en_US: Get your API Key from Moonshot
+    zh_Hans: 从月之暗面获取 API Key
+  url:
+    en_US: https://platform.moonshot.cn/console/api-keys
+    zh_Hans: https://platform.moonshot.cn/console/api-keys
+icon_large:
+  en_US: moonshot.svg
+icon_small:
+  en_US: moonshot_square.svg
+label:
+  en_US: Moonshot AI
+  zh_Hans: 月之暗面
+provider: moonshot
+provider_credential_schema:
+  credential_form_schemas:
+    - label:
+        en_US: API Key
+        zh_Hans: API Key
+      placeholder:
+        en_US: Enter your Moonshot API Key
+        zh_Hans: 输入您的月之暗面 API Key
+      required: true
+      type: secret-input
+      variable: api_key
+    - label:
+        en_US: Base URL
+        zh_Hans: API 地址
+      placeholder:
+        en_US: https://api.moonshot.cn/v1
+        zh_Hans: https://api.moonshot.cn/v1
+      required: false
+      type: text-input
+      variable: base_url
+supported_model_types:
+  - llm
+
