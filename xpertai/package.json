@@ -48,7 +48,6 @@
     "@langchain/langgraph": "0.4.7",
     "@langchain/openai": "0.6.9",
     "@metad/contracts": "^3.7.0",
-    "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.6",
