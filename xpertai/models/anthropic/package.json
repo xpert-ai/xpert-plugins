@@ -18,7 +18,20 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "scripts": {
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
   "dependencies": {
     "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.72",
+    "@metad/contracts": "^3.6.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@xpert-ai/plugin-sdk": "^3.6.1",
+    "chalk": "4.1.2",
+    "zod": "3.25.67"
   }
 }

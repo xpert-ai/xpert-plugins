@@ -1,0 +1,32 @@
+provider: anthropic
+label:
+  en_US: Anthropic
+  zh_Hans: Anthropic
+description:
+  en_US: Models provided by Anthropic, including Claude series models.
+  zh_Hans: Anthropic 提供的模型，包括 Claude 系列模型。
+help:
+  title:
+    en_US: Get your API Key from Anthropic
+    zh_Hans: 从 Anthropic 获取 API Key
+  url:
+    en_US: https://console.anthropic.com/settings/keys
+    zh_Hans: https://console.anthropic.com/settings/keys
+icon_small:
+  en_US: icon.svg
+supported_model_types:
+  - llm
+configurate_methods:
+  - predefined-model
+provider_credential_schema:
+  credential_form_schemas:
+    - label:
+        en_US: API Key
+        zh_Hans: API Key
+      placeholder:
+        en_US: Enter your Anthropic API Key
+        zh_Hans: 输入您的 Anthropic API Key
+      required: true
+      type: secret-input
+      variable: api_key
+
