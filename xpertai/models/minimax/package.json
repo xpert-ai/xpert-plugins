@@ -20,7 +20,9 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "scripts": {},
+  "scripts": {
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
   
   "peerDependencies": {
     "@metad/contracts": "workspace:*",

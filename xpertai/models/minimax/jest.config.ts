@@ -1,16 +1,18 @@
-const fs = require('fs');
+/* eslint-disable */
+import { readFileSync } from 'fs';
 
+// Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
-  fs.readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8')
+  readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8')
 );
 
+// Disable .swcrc look-up by SWC core because we're passing in swcJestConfig ourselves
 swcJestConfig.swcrc = false;
 
-module.exports = {
+export default {
   displayName: '@xpert-ai/plugin-minimax',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
