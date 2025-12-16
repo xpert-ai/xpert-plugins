@@ -3,8 +3,8 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { z } from 'zod';
-import { SvgIcon } from './types.js';
 import { DeepSeekModule } from './deepseek.module.js';
+import { SvgIcon } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

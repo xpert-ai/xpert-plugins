@@ -18,6 +18,9 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "scripts": {
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
   "dependencies": {
     "tslib": "^2.3.0"
   },
