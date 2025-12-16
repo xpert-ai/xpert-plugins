@@ -1,6 +1,7 @@
 {
-  "name": "@xpert-ai/plugin-vllm",
-  "version": "0.0.4",
+  "name": "@xpert-ai/plugin-context-editing",
+  "version": "0.0.1",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins.git"
@@ -23,24 +24,17 @@
   },
   "files": [
     "dist",
-    "src/i18n",
     "!**/*.tsbuildinfo"
   ],
-  "scripts": {
-    "prepack": "node ./scripts/copy-assets.mjs"
-  },
   "dependencies": {
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@langchain/openai": "0.6.9",
-    "@metad/contracts": "^3.6.1",
-    "@nestjs/common": "^11.1.6",
-    "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.6.3",
-    "i18next": "25.6.0",
-    "lodash-es": "4.17.21",
+    "zod": "3.25.67",
+    "@xpert-ai/plugin-sdk": "^3.7.0",
     "chalk": "4.1.2",
-    "zod": "3.25.67"
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@metad/contracts": "^3.7.0"
   }
 }

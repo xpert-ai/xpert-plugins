@@ -52,6 +52,7 @@ export class VLLMLargeLanguageModel extends LargeLanguageModel {
     const fields = omitBy(
       {
         ...params,
+        streaming: copilotModel.options?.['streaming'] ?? true,
         // include token usage in the stream. this will include an additional chunk at the end of the stream with the token usage.
         streamUsage: true
       },
