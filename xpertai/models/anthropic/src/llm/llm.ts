@@ -1,4 +1,5 @@
-import { ChatAnthropic } from '@langchain/anthropic'
+import { ChatAnthropic, AnthropicInput } from '@langchain/anthropic'
+import type { Callbacks } from '@langchain/core/callbacks/manager'
 import {
   AIModelEntity,
   AiModelTypeEnum,
@@ -18,6 +19,10 @@ import {
 import { AnthropicCredentials, AnthropicModelCredentials, toCredentialKwargs } from '../types.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
 import { mergeCredentials } from '@xpert-ai/plugin-sdk'
+
+type AnthropicChatModelParams = AnthropicInput & {
+  callbacks?: Callbacks
+}
 
 @Injectable()
 export class AnthropicLargeLanguageModel extends LargeLanguageModel {
@@ -50,7 +55,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
     }
   }
 
-  protected createChatModel(params: Parameters<typeof ChatAnthropic>[0]) {
+  protected createChatModel(params: AnthropicChatModelParams) {
     return new ChatAnthropic(params)
   }
 
@@ -81,7 +86,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
       callbacks: [
         ...this.createHandleUsageCallbacks(
           copilot,
-          params.modelName,
+          params.model || params.modelName || copilotModel.model,
           modelCredentials,
           handleLLMTokens
         ),

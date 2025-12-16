@@ -22,10 +22,10 @@
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
+    "@langchain/anthropic": "^0.3.0",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^0.3.72",
     "@metad/contracts": "^3.6.1",
     "@nestjs/common": "^11.1.6",
