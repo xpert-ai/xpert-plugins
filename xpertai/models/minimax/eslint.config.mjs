@@ -9,6 +9,8 @@ export default [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+          checkMissingDependencies: true,
+          checkObsoleteDependencies: false, // @langchain/openai is used indirectly via ChatOAICompatReasoningModel from @xpert-ai/plugin-sdk
         },
       ],
     },
