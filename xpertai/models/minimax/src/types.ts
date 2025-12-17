@@ -2,6 +2,7 @@ export const MiniMax = 'minimax';
 
 export interface MiniMaxCredentials {
   api_key: string;
+  group_id: string;
   base_url?: string;
 }
 
@@ -38,11 +39,13 @@ export const SUPPORTED_TTS_MODELS = [
 ];
 
 export function toCredentialKwargs(credentials: MiniMaxCredentials, model?: string) {
+  const baseURL = credentials.base_url || 'https://api.minimaxi.com';
   return {
     apiKey: credentials.api_key,
+    groupId: credentials.group_id,
     model: model ?? null,
     configuration: {
-      baseURL: credentials.base_url || 'https://api.minimaxi.com/v1'
+      baseURL: baseURL.endsWith('/v1') ? baseURL : `${baseURL}/v1`
     }
   };
 }

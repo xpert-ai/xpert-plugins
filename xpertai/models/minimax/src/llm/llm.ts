@@ -45,6 +45,9 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
     if (!credentials.api_key) {
       throw new CredentialsValidateFailedError('API key is required');
     }
+    if (!credentials.group_id) {
+      throw new CredentialsValidateFailedError('Group ID is required');
+    }
   }
 
   static getSupportedModels() {

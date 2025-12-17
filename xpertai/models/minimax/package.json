@@ -20,18 +20,15 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "scripts": {
-    "prepack": "node ./scripts/copy-assets.mjs"
-  },
   
   "peerDependencies": {
     "@metad/contracts": "workspace:*",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    
     "@xpert-ai/plugin-sdk": "workspace:*",
-    "zod": "^3.22.4",
+    "@langchain/core": "^0.3.72",
     "@langchain/openai": "^0.6.9",
+    "zod": "^3.22.4",
     "tslib": "^2.6.2"
   },
   "devDependencies": {}

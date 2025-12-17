@@ -10,7 +10,8 @@ const pkg = JSON.parse(
 
 const ConfigSchema = z.object({
   api_key: z.string().min(1, 'API Key is required'),
-  base_url: z.string().url().optional().describe('Optional base URL, defaults to https://api.minimaxi.com/v1')
+  group_id: z.string().min(1, 'Group ID is required'),
+  base_url: z.string().url().optional().describe('Optional base URL, defaults to https://api.minimaxi.com')
 });
 
 const SvgIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
