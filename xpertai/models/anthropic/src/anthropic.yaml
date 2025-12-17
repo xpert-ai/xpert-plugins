@@ -13,7 +13,9 @@ help:
     en_US: https://console.anthropic.com/settings/keys
     zh_Hans: https://console.anthropic.com/settings/keys
 icon_small:
-  en_US: icon.svg
+  en_US: icon_s_en.svg
+icon_large:
+  en_US: icon_l_en.svg
 supported_model_types:
   - llm
 configurate_methods:

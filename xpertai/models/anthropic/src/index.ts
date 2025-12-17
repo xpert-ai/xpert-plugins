@@ -15,7 +15,7 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 
 const ConfigSchema = z.object({})
 
-const svgIcon: string = readFileSync(join(__dirname, '_assets/icon.svg'), 'utf-8')
+const svgIcon: string = readFileSync(join(__dirname, '_assets/icon_s_en.svg'), 'utf-8')
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
