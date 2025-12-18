@@ -1,4 +1,3 @@
-import { ChatOpenAI } from '@langchain/openai';
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -6,11 +5,10 @@ import {
   CredentialsValidateFailedError,
   getErrorMessage,
   LargeLanguageModel,
-  mergeCredentials,
   TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
 import { DeepSeekProviderStrategy } from '../provider.strategy.js';
-import { DeepSeekModelCredentials, DeepSeekCredentials, toCredentialKwargs } from '../types.js';
+import { DeepseekCredentials, DeepseekModelCredentials, toCredentialKwargs } from '../types.js';
 
 @Injectable()
 export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
@@ -20,49 +18,49 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
     super(modelProvider, AiModelTypeEnum.LLM);
   }
 
-  async validateCredentials(
-    model: string,
-    credentials: DeepSeekCredentials
-  ): Promise<void> {
-    try {
-      const params = toCredentialKwargs(credentials, model);
-      const chatModel = new ChatOpenAI({
-        ...params,
-        temperature: 0,
-        maxTokens: 10,
-      });
-      await chatModel.invoke([
-        {
-          role: 'human',
-          content: 'Hello',
-        },
-      ]);
-    } catch (err) {
-      this.#logger.error('DeepSeek credentials validation failed', err);
-      throw new CredentialsValidateFailedError(getErrorMessage(err));
-    }
-  }
+  async validateCredentials(model: string, credentials: DeepseekCredentials): Promise<void> {
+		try {
+			const chatModel = new ChatOAICompatReasoningModel({
+				...toCredentialKwargs(credentials),
+				model,
+				temperature: 0,
+				maxTokens: 5
+			})
+			await chatModel.invoke([
+				{
+					role: 'human',
+					content: `Hi`
+				}
+			])
+		} catch (err) {
+			throw new CredentialsValidateFailedError(getErrorMessage(err))
+		}
+	}
 
   override getChatModel(
     copilotModel: ICopilotModel,
     options?: TChatModelOptions
   ) {
-    const { handleLLMTokens } = options ?? {};
-    const { copilot } = copilotModel;
-    const { modelProvider } = copilot;
+    const { handleLLMTokens } = options ?? {}
+		const { copilot } = copilotModel
+		const { modelProvider } = copilot
+		const credentials = modelProvider.credentials as DeepseekCredentials
+		const params = toCredentialKwargs(credentials)
+		const modelCredentials = copilotModel.options as DeepseekModelCredentials
 
-    const modelCredentials = mergeCredentials(
-      modelProvider.credentials,
-      options?.modelProperties
-    ) as DeepSeekModelCredentials;
-    const params = toCredentialKwargs(modelCredentials, copilotModel.model);
-
-    const fields = {
-      ...params,
-      streaming: true,
-      streamUsage: false,
-      verbose: options?.verbose,
-    };
+		const model = copilotModel.model
+		const fields = {
+			...params,
+			model,
+			streaming: modelCredentials?.streaming ?? true,
+			temperature: modelCredentials?.temperature ?? 0,
+			maxTokens: modelCredentials?.max_tokens,
+			topP: modelCredentials?.top_p,
+			frequencyPenalty: modelCredentials?.frequency_penalty,
+			maxRetries: modelCredentials?.maxRetries,
+			streamUsage: false,
+			verbose: options?.verbose,
+		}
 
     return new ChatOAICompatReasoningModel({
       ...fields,

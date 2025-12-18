@@ -71,7 +71,8 @@
       "@xpert-ai/plugin-openrouter",
       "@xpert-ai/plugin-context-editing",
       "@xpert-ai/plugin-tool-call-limit",
-      "@xpert-ai/plugin-model-fallback"
+      "@xpert-ai/plugin-model-fallback",
+      "@xpert-ai/plugin-deepseek"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"

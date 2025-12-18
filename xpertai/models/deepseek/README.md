@@ -1,4 +1,4 @@
-# @xpert-ai/plugin-deepseek
+# Xpert AI Plugin: Deepseek
 
 DeepSeek AI model provider plugin for XpertAI platform.
 
