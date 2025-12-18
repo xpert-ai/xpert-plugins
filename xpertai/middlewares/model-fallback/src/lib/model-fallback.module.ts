@@ -1,3 +1,4 @@
+import { CqrsModule } from '@nestjs/cqrs';
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk';
 import chalk from 'chalk';
 import { ModelFallbackMiddleware } from './modelFallback.js';
@@ -7,7 +8,9 @@ import { ModelFallbackMiddleware } from './modelFallback.js';
 	/**
 	 * An array of modules that will be imported and registered with the plugin.
 	 */
-	imports: [],
+	imports: [
+		CqrsModule
+	],
 
 	providers: [
     	ModelFallbackMiddleware
