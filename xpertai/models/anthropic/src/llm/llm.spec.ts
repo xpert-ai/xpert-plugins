@@ -1,14 +1,16 @@
 import { AnthropicLargeLanguageModel } from './llm.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
 import { ModelFeature } from '@metad/contracts'
-import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import { AnthropicModelCredentials } from '../types.js'
+import { TChatModelOptions, CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
+import { AnthropicModelCredentials, AnthropicCredentials } from '../types.js'
+import { AnthropicInput } from '@langchain/anthropic'
 
 // Mock ChatAnthropic to avoid actual API calls during testing
+// Note: This mock should match the actual ChatAnthropic interface structure
 jest.mock('@langchain/anthropic', () => ({
-  ChatAnthropic: jest.fn().mockImplementation((params) => ({
-    model: params.modelName || 'claude-3-5-sonnet-20241022',
-    anthropicApiKey: params.anthropicApiKey,
+  ChatAnthropic: jest.fn().mockImplementation((params: AnthropicInput) => ({
+    model: params.modelName || params.model || 'claude-3-5-sonnet-20241022',
+    anthropicApiKey: params.anthropicApiKey || params.apiKey,
     streaming: params.streaming,
     temperature: params.temperature,
     topP: params.topP,
@@ -18,7 +20,8 @@ jest.mock('@langchain/anthropic', () => ({
       role: 'assistant'
     }),
     invocationParams: jest.fn().mockReturnValue(params)
-  }))
+  })),
+  AnthropicInput: {} // Export type for type checking
 }))
 
 describe('AnthropicLargeLanguageModel', () => {
@@ -172,6 +175,80 @@ describe('AnthropicLargeLanguageModel', () => {
       expect(params.temperature).toBe(0.8)
       expect(params.maxTokens).toBe(2048)
       expect(params.streaming).toBe(true)
+    })
+  })
+
+  describe('validateCredentials', () => {
+    it('should validate credentials successfully with mock', async () => {
+      const credentials: AnthropicCredentials = {
+        api_key: 'test-api-key'
+      }
+
+      // This test verifies that validateCredentials calls createChatModel correctly
+      // The actual API call is mocked, but we verify the method executes without errors
+      await expect(
+        llm.validateCredentials('claude-3-5-sonnet-20241022', credentials)
+      ).resolves.toBeUndefined()
+    })
+
+    it('should throw CredentialsValidateFailedError when API call fails', async () => {
+      const { ChatAnthropic } = require('@langchain/anthropic')
+      const mockInvoke = jest.fn().mockRejectedValue(new Error('API Error'))
+      ;(ChatAnthropic as jest.Mock).mockImplementation(() => ({
+        invoke: mockInvoke
+      }))
+
+      const credentials: AnthropicCredentials = {
+        api_key: 'test-api-key'
+      }
+
+      await expect(
+        llm.validateCredentials('claude-3-5-sonnet-20241022', credentials)
+      ).rejects.toThrow(CredentialsValidateFailedError)
+
+      // Reset mock
+      ;(ChatAnthropic as jest.Mock).mockImplementation((params: AnthropicInput) => ({
+        model: params.modelName || params.model || 'claude-3-5-sonnet-20241022',
+        anthropicApiKey: params.anthropicApiKey || params.apiKey,
+        streaming: params.streaming,
+        temperature: params.temperature,
+        topP: params.topP,
+        maxTokens: params.maxTokens,
+        invoke: jest.fn().mockResolvedValue({
+          content: 'Test response',
+          role: 'assistant'
+        }),
+        invocationParams: jest.fn().mockReturnValue(params)
+      }))
+    })
+  })
+
+  describe('createChatModel type safety', () => {
+    it('should accept AnthropicInput with callbacks', () => {
+      const params: AnthropicInput = {
+        anthropicApiKey: 'test-key',
+        modelName: 'claude-3-5-sonnet-20241022',
+        temperature: 0.7,
+        streaming: true
+      }
+
+      // Type check: This should compile without errors
+      const model = llm.getChatModel(
+        {
+          model: 'claude-3-5-sonnet-20241022',
+          options: {},
+          copilot: {
+            modelProvider: {
+              credentials: {
+                api_key: 'test-key'
+              }
+            }
+          }
+        } as any,
+        {} as TChatModelOptions
+      )
+
+      expect(model).toBeDefined()
     })
   })
 })

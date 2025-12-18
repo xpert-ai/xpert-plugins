@@ -77,6 +77,12 @@
     },
     {
       "path": "./middlewares/context-editing"
+    },
+    {
+      "path": "./middlewares/tool-call-limit"
+    },
+    {
+      "path": "./middlewares/model-fallback"
     }
   ]
 }

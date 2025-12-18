@@ -41,5 +41,15 @@ export class AnthropicProviderStrategy extends ModelProvider {
       }
     }
   }
+
+  getBaseUrl(credentials: AnthropicCredentials): string {
+    // Anthropic uses the official API endpoint
+    return 'https://api.anthropic.com'
+  }
+
+  getAuthorization(credentials: AnthropicCredentials): string {
+    // Anthropic API uses x-api-key header, not Bearer token
+    return credentials.api_key
+  }
 }
 
