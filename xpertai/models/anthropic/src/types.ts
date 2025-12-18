@@ -4,7 +4,8 @@ import { CommonChatModelParameters } from '@xpert-ai/plugin-sdk'
 export const Anthropic = 'anthropic'
 
 export type AnthropicCredentials = {
-  api_key: string
+  anthropic_api_key: string
+  anthropic_api_url?: string
 }
 
 export type AnthropicModelCredentials = AnthropicCredentials &
@@ -20,7 +21,7 @@ export function toCredentialKwargs(
 ): AnthropicInput {
   const modelName = model || 'claude-3-5-sonnet-20241022'
   return {
-    anthropicApiKey: credentials.api_key,
+    anthropicApiKey: credentials.anthropic_api_key,
     model: modelName, // Preferred property
     modelName: modelName // Deprecated but kept for compatibility
   }

@@ -1,6 +1,10 @@
 {
   "name": "@xpert-ai/plugin-gemini",
   "version": "0.0.2",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",

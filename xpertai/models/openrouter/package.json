@@ -1,6 +1,10 @@
 {
   "name": "@xpert-ai/plugin-openrouter",
   "version": "0.0.1",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -31,16 +35,14 @@
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@langchain/openai": "0.6.9"
   },
   "peerDependencies": {
     "@metad/contracts": "^3.6.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@xpert-ai/plugin-sdk": "^3.6.5",
-    "lodash-es": "4.17.21",
-    "chalk": "4.1.2",
-    "rxjs": "^7.8.1",
     "zod": "3.25.67"
   }
 }

@@ -2,7 +2,18 @@
   "name": "@xpert-ai/plugin-minimax",
   "version": "0.0.1",
   "description": "MiniMax AI model plugin for XpertAI platform",
-  "license": "MIT",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,16 +31,18 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  
+  "scripts": {
+    "test": "jest",
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
   "peerDependencies": {
-    "@metad/contracts": "workspace:*",
+    "@metad/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "workspace:*",
+    "@xpert-ai/plugin-sdk": "^3.7.1",
     "@langchain/core": "^0.3.72",
     "@langchain/openai": "^0.6.9",
     "zod": "^3.22.4",
     "tslib": "^2.6.2"
-  },
-  "devDependencies": {}
+  }
 }
