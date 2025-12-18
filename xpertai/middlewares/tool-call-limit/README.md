@@ -23,10 +23,11 @@ npm install @xpert-ai/plugin-tool-call-limit
 ## Quick Start
 
 1. **Register the Plugin**  
-   Start Xpert with the package in your plugin list:
-   ```sh
-   PLUGINS=@xpert-ai/plugin-tool-call-limit
-   ```
+   - Global env-based loading:
+     ```sh
+     PLUGINS=@xpert-ai/plugin-tool-call-limit
+     ```
+   - Or install dynamically via the system plugin management UI (manual add from the interface).  
    The plugin registers the global `ToolCallLimitPlugin` module.
 2. **Attach the Middleware**  
    In the Xpert console (or agent definition), add a middleware entry using strategy `ToolCallLimitMiddleware`.

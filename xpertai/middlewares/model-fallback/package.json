@@ -1,5 +1,5 @@
 {
-  "name": "@xpert-ai/plugin-tool-call-limit",
+  "name": "@xpert-ai/plugin-model-fallback",
   "version": "0.0.1",
   "license": "AGPL-3.0",
   "repository": {
@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.7.0",
+    "@xpert-ai/plugin-sdk": "^3.7.1",
     "chalk": "4.1.2",
     "@nestjs/common": "^11.1.6",
     "@metad/contracts": "^3.7.0",

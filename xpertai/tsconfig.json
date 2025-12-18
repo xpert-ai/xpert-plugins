@@ -80,6 +80,9 @@
     },
     {
       "path": "./middlewares/tool-call-limit"
+    },
+    {
+      "path": "./middlewares/model-fallback"
     }
   ]
 }
