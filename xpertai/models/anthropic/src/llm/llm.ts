@@ -14,11 +14,11 @@ import {
   CredentialsValidateFailedError,
   getErrorMessage,
   LargeLanguageModel,
-  TChatModelOptions
+  TChatModelOptions,
+  mergeCredentials
 } from '@xpert-ai/plugin-sdk'
 import { AnthropicCredentials, AnthropicModelCredentials, toCredentialKwargs } from '../types.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
-import { mergeCredentials } from '@xpert-ai/plugin-sdk'
 
 type AnthropicChatModelParams = AnthropicInput & {
   callbacks?: Callbacks

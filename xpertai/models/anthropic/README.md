@@ -51,6 +51,7 @@ The form fields defined in `anthropic.yaml` cover common Anthropic deployment sc
 ## Model Examples
 
 Common Claude model identifiers:
+
 - `claude-3-5-sonnet-20241022` - Latest Claude 3.5 Sonnet
 - `claude-3-opus-20240229` - Claude 3 Opus
 - `claude-3-sonnet-20240229` - Claude 3 Sonnet
@@ -75,6 +76,7 @@ When configuring a model provider in XpertAI:
 ## Development
 
 This plugin is built using:
+
 - TypeScript
 - NestJS
 - LangChain Anthropic SDK

@@ -181,7 +181,7 @@ describe('AnthropicLargeLanguageModel', () => {
   describe('validateCredentials', () => {
     it('should validate credentials successfully with mock', async () => {
       const credentials: AnthropicCredentials = {
-        api_key: 'test-api-key'
+        anthropic_api_key: 'test-api-key'
       }
 
       // This test verifies that validateCredentials calls createChatModel correctly
@@ -199,7 +199,7 @@ describe('AnthropicLargeLanguageModel', () => {
       }))
 
       const credentials: AnthropicCredentials = {
-        api_key: 'test-api-key'
+        anthropic_api_key: 'test-api-key'
       }
 
       await expect(
