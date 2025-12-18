@@ -6,17 +6,17 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export const Moonshot = 'moonshot';
-export const MoonshotBaseUrl = 'https://api.moonshot.cn/v1';
+export const DeepSeek = 'deepseek';
+export const DeepSeekBaseUrl = 'https://api.deepseek.com/v1';
 
 export const SvgIcon = readFileSync(join(__dirname, '_assets/icon_s_en.svg'), 'utf8');
 
-export type MoonshotCredentials = {
+export type DeepSeekCredentials = {
   api_key: string;
   base_url?: string;
 };
 
-export type MoonshotModelCredentials = MoonshotCredentials & {
+export type DeepSeekModelCredentials = DeepSeekCredentials & {
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
@@ -25,7 +25,7 @@ export type MoonshotModelCredentials = MoonshotCredentials & {
 };
 
 export function toCredentialKwargs(
-  credentials: MoonshotCredentials,
+  credentials: DeepSeekCredentials,
   model?: string
 ) {
   const credentialsKwargs: OpenAIBaseInput = {
@@ -33,7 +33,7 @@ export function toCredentialKwargs(
     model: model,
   } as OpenAIBaseInput;
   const configuration: ClientOptions = {
-    baseURL: credentials.base_url || MoonshotBaseUrl,
+    baseURL: credentials.base_url || DeepSeekBaseUrl,
   };
 
   return {

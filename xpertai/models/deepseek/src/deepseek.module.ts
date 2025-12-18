@@ -5,8 +5,8 @@ import {
 } from '@xpert-ai/plugin-sdk';
 import { ConfigModule } from '@nestjs/config';
 import chalk from 'chalk';
-import { MoonshotProviderStrategy } from './provider.strategy.js';
-import { MoonshotLargeLanguageModel } from './llm/llm.js';
+import { DeepSeekProviderStrategy } from './provider.strategy.js';
+import { DeepSeekLargeLanguageModel } from './llm/llm.js';
 
 @XpertServerPlugin({
   /**
@@ -14,9 +14,9 @@ import { MoonshotLargeLanguageModel } from './llm/llm.js';
    */
   imports: [ConfigModule],
 
-  providers: [MoonshotProviderStrategy, MoonshotLargeLanguageModel],
+  providers: [DeepSeekProviderStrategy, DeepSeekLargeLanguageModel],
 })
-export class MoonshotModule implements IOnPluginBootstrap, IOnPluginDestroy {
+export class DeepSeekModule implements IOnPluginBootstrap, IOnPluginDestroy {
   // We disable by default additional logging for each event to avoid cluttering the logs
   private logEnabled = true;
 
@@ -25,7 +25,7 @@ export class MoonshotModule implements IOnPluginBootstrap, IOnPluginDestroy {
    */
   onPluginBootstrap(): void | Promise<void> {
     if (this.logEnabled) {
-      console.log(chalk.green(`${MoonshotModule.name} is being bootstrapped...`));
+      console.log(chalk.green(`${DeepSeekModule.name} is being bootstrapped...`));
     }
   }
 
@@ -34,8 +34,7 @@ export class MoonshotModule implements IOnPluginBootstrap, IOnPluginDestroy {
    */
   onPluginDestroy(): void | Promise<void> {
     if (this.logEnabled) {
-      console.log(chalk.green(`${MoonshotModule.name} is being destroyed...`));
+      console.log(chalk.green(`${DeepSeekModule.name} is being destroyed...`));
     }
   }
 }
-
