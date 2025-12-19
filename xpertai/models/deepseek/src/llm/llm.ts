@@ -62,7 +62,7 @@ type DeepSeekCallOptions = TChatModelOptions & {
 
 type MessageWithKwargs = BaseMessage & {
   name?: string;
-  tool_calls?: Array<any>;
+  tool_calls?: Array<unknown>;
   tool_call_id?: string;
   additional_kwargs?: {
     function_call?: unknown;
@@ -245,7 +245,7 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
       completionParam.tool_call_id = messageWithKwargs.tool_call_id;
     }
   }
-  if (isAIMessage(message) && messageWithKwargs.additional_kwargs?.reasoning_content) {
+  if (messageWithKwargs.additional_kwargs?.reasoning_content) {
     completionParam.reasoning_content = messageWithKwargs.additional_kwargs.reasoning_content;
   }
   const audioId = messageWithKwargs.additional_kwargs?.audio?.id;
