@@ -24,7 +24,7 @@ import { DeepSeekProviderStrategy } from '../provider.strategy.js';
 import { DeepseekCredentials, DeepseekModelCredentials, toCredentialKwargs } from '../types.js';
 
 const completionsApiContentBlockConverter = {
-  providerName: 'ChatOpenAI',
+  providerName: 'DeepSeek',
   fromStandardTextBlock(block: any) {
     return { type: 'text', text: block.text };
   },
@@ -48,14 +48,16 @@ const completionsApiContentBlockConverter = {
         },
       };
     }
-    throw new Error(`Image content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+    throw new Error(
+      `Image content blocks with source_type ${block.source_type} are not supported for DeepSeek completions`,
+    );
   },
   fromStandardAudioBlock(block: any) {
     if (block.source_type === 'url') {
       const data = parseBase64DataUrl({ dataUrl: block.url });
       if (!data) {
         throw new Error(
-          `URL audio blocks with source_type ${block.source_type} must be formatted as a data URL for ChatOpenAI`,
+          `URL audio blocks with source_type ${block.source_type} must be formatted as a data URL for DeepSeek completions`,
         );
       }
       const rawMimeType = data.mime_type || block.mime_type || '';
@@ -94,7 +96,7 @@ const completionsApiContentBlockConverter = {
         },
       };
     }
-    throw new Error(`Audio content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+    throw new Error(`Audio content blocks with source_type ${block.source_type} are not supported for DeepSeek completions`);
   },
   fromStandardFileBlock(block: any) {
     if (block.source_type === 'url') {
@@ -126,15 +128,12 @@ const completionsApiContentBlockConverter = {
         },
       };
     }
-    throw new Error(`File content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+    throw new Error(`File content blocks with source_type ${block.source_type} are not supported for DeepSeek completions`);
   },
 };
 
 function isReasoningModel(model?: string) {
-  if (!model) return false;
-  if (/^o\d/.test(model ?? '')) return true;
-  if (model.startsWith('gpt-5') && !model.startsWith('gpt-5-chat')) return true;
-  return false;
+  return !!model && /reasoner/i.test(model);
 }
 
 function messageToOpenAIRole(message: BaseMessage) {
@@ -193,8 +192,7 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string) {
     }
   }
   if (isAIMessage(message) && (message as any).additional_kwargs?.reasoning_content) {
-    completionParam.reasoning_content =
-      completionParam.reasoning_content ?? (message as any).additional_kwargs.reasoning_content;
+    completionParam.reasoning_content = (message as any).additional_kwargs.reasoning_content;
   }
   if (
     (message as any).additional_kwargs?.audio &&
