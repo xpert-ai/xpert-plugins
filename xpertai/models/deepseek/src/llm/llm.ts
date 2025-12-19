@@ -184,7 +184,7 @@ const completionsApiContentBlockConverter = {
 };
 
 function isReasoningModel(model?: string) {
-  return !!model && /reasoner/i.test(model);
+  return !!model && /(^|[-_])reasoner$/i.test(model);
 }
 
 function messageToOpenAIRole(message: BaseMessage) {
@@ -270,7 +270,8 @@ function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], mod
 }
 
 /**
- * DeepSeek-specific chat model that forwards reasoning_content for assistant messages.
+ * DeepSeek-specific chat model that overrides generation and streaming paths to
+ * ensure reasoning_content from assistant messages is forwarded in subsequent requests.
  */
 class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
   override async _generate(
@@ -347,25 +348,25 @@ class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
       if (totalTokens) {
         usageMetadata.total_tokens = (usageMetadata.total_tokens ?? 0) + totalTokens;
       }
-      if (promptTokensDetails?.audio_tokens !== null || promptTokensDetails?.cached_tokens !== null) {
+      if (promptTokensDetails?.audio_tokens !== undefined || promptTokensDetails?.cached_tokens !== undefined) {
         usageMetadata.input_token_details = {
-          ...(promptTokensDetails?.audio_tokens !== null && {
+          ...(promptTokensDetails?.audio_tokens !== undefined && {
             audio: promptTokensDetails?.audio_tokens,
           }),
-          ...(promptTokensDetails?.cached_tokens !== null && {
+          ...(promptTokensDetails?.cached_tokens !== undefined && {
             cache_read: promptTokensDetails?.cached_tokens,
           }),
         };
       }
       if (
-        completionTokensDetails?.audio_tokens !== null ||
-        completionTokensDetails?.reasoning_tokens !== null
+        completionTokensDetails?.audio_tokens !== undefined ||
+        completionTokensDetails?.reasoning_tokens !== undefined
       ) {
         usageMetadata.output_token_details = {
-          ...(completionTokensDetails?.audio_tokens !== null && {
+          ...(completionTokensDetails?.audio_tokens !== undefined && {
             audio: completionTokensDetails?.audio_tokens,
           }),
-          ...(completionTokensDetails?.reasoning_tokens !== null && {
+          ...(completionTokensDetails?.reasoning_tokens !== undefined && {
             reasoning: completionTokensDetails?.reasoning_tokens,
           }),
         };
@@ -473,18 +474,18 @@ class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     }
     if (usage) {
       const inputTokenDetails = {
-        ...(usage.prompt_tokens_details?.audio_tokens !== null && {
+        ...(usage.prompt_tokens_details?.audio_tokens !== undefined && {
           audio: usage.prompt_tokens_details?.audio_tokens,
         }),
-        ...(usage.prompt_tokens_details?.cached_tokens !== null && {
+        ...(usage.prompt_tokens_details?.cached_tokens !== undefined && {
           cache_read: usage.prompt_tokens_details?.cached_tokens,
         }),
       };
       const outputTokenDetails = {
-        ...(usage.completion_tokens_details?.audio_tokens !== null && {
+        ...(usage.completion_tokens_details?.audio_tokens !== undefined && {
           audio: usage.completion_tokens_details?.audio_tokens,
         }),
-        ...(usage.completion_tokens_details?.reasoning_tokens !== null && {
+        ...(usage.completion_tokens_details?.reasoning_tokens !== undefined && {
           reasoning: usage.completion_tokens_details?.reasoning_tokens,
         }),
       };
