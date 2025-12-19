@@ -248,16 +248,13 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
   if (isAIMessage(message) && messageWithKwargs.additional_kwargs?.reasoning_content) {
     completionParam.reasoning_content = messageWithKwargs.additional_kwargs.reasoning_content;
   }
-  if (
-    messageWithKwargs.additional_kwargs?.audio &&
-    typeof messageWithKwargs.additional_kwargs.audio === 'object' &&
-    messageWithKwargs.additional_kwargs.audio.id
-  ) {
+  const audioId = messageWithKwargs.additional_kwargs?.audio?.id;
+  if (audioId) {
     const audioMessage: CompletionParam = {
       role: 'assistant',
       content: '',
       audio: {
-        id: messageWithKwargs.additional_kwargs.audio.id,
+        id: audioId,
       },
     };
     return [completionParam, audioMessage];

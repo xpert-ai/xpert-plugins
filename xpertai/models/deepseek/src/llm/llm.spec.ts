@@ -1,15 +1,17 @@
 import { ICopilotModel } from '@metad/contracts';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import { ChatOAICompatReasoningModel } from '@xpert-ai/plugin-sdk';
 import { DeepSeekLargeLanguageModel } from './llm.js';
 import { DeepSeekProviderStrategy } from '../provider.strategy.js';
 
 describe('DeepSeekLargeLanguageModel', () => {
   it('includes reasoning_content when forwarding assistant messages', async () => {
-    const provider = new DeepSeekProviderStrategy();
-    (provider as any).credentials = {
-      api_key: 'test-key',
-      endpoint_url: 'https://api.deepseek.com',
-    };
+    const provider = Object.assign(new DeepSeekProviderStrategy(), {
+      credentials: {
+        api_key: 'test-key',
+        endpoint_url: 'https://api.deepseek.com',
+      },
+    });
 
     const llm = new DeepSeekLargeLanguageModel(provider);
 
@@ -23,8 +25,8 @@ describe('DeepSeekLargeLanguageModel', () => {
       },
     } as unknown as ICopilotModel;
 
-    const chatModel: any = llm.getChatModel(copilotModel);
-    const completionSpy = jest.spyOn(chatModel as any, 'completionWithRetry').mockResolvedValue({
+    const chatModel = llm.getChatModel(copilotModel) as ChatOAICompatReasoningModel;
+    const completionSpy = jest.spyOn(chatModel, 'completionWithRetry').mockResolvedValue({
       choices: [{ message: { role: 'assistant', content: 'ok' } }],
       usage: {
         prompt_tokens: 1,
