@@ -7,43 +7,226 @@ import {
   LargeLanguageModel,
   TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
-import { _convertMessagesToOpenAIParams as convertMessagesToOpenAIParams } from '@langchain/openai/dist/chat_models.js';
-import { BaseMessage, AIMessage, AIMessageChunk, isAIMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  AIMessageChunk,
+  BaseMessage,
+  ChatMessage,
+  convertToProviderContentBlock,
+  isAIMessage,
+  isDataContentBlock,
+  parseBase64DataUrl,
+  parseMimeType,
+} from '@langchain/core/messages';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
+import { convertLangChainToolCallToOpenAI } from '@langchain/core/output_parsers/openai_tools';
 import { DeepSeekProviderStrategy } from '../provider.strategy.js';
 import { DeepseekCredentials, DeepseekModelCredentials, toCredentialKwargs } from '../types.js';
 
-function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], model: string) {
-  return messages.flatMap((message) => {
-    const converted = convertMessagesToOpenAIParams([message], model);
-    if (
-      isAIMessage(message) &&
-      message.additional_kwargs?.reasoning_content &&
-      Array.isArray(converted) &&
-      converted.length > 0
-    ) {
-      const [first, ...rest] = converted;
-      return [
-        {
-          ...first,
-          reasoning_content:
-            (first as any).reasoning_content ?? message.additional_kwargs.reasoning_content,
+const completionsApiContentBlockConverter = {
+  providerName: 'ChatOpenAI',
+  fromStandardTextBlock(block: any) {
+    return { type: 'text', text: block.text };
+  },
+  fromStandardImageBlock(block: any) {
+    if (block.source_type === 'url') {
+      return {
+        type: 'image_url',
+        image_url: {
+          url: block.url,
+          ...(block.metadata?.detail ? { detail: block.metadata.detail } : {}),
         },
-        ...rest,
-      ];
+      };
     }
-    return converted;
-  });
+    if (block.source_type === 'base64') {
+      const url = `data:${block.mime_type ?? ''};base64,${block.data}`;
+      return {
+        type: 'image_url',
+        image_url: {
+          url,
+          ...(block.metadata?.detail ? { detail: block.metadata.detail } : {}),
+        },
+      };
+    }
+    throw new Error(`Image content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+  },
+  fromStandardAudioBlock(block: any) {
+    if (block.source_type === 'url') {
+      const data = parseBase64DataUrl({ dataUrl: block.url });
+      if (!data) {
+        throw new Error(
+          `URL audio blocks with source_type ${block.source_type} must be formatted as a data URL for ChatOpenAI`,
+        );
+      }
+      const rawMimeType = data.mime_type || block.mime_type || '';
+      let mimeType;
+      try {
+        mimeType = parseMimeType(rawMimeType);
+      } catch {
+        throw new Error(
+          `Audio blocks with source_type ${block.source_type} must have mime type of audio/wav or audio/mp3`,
+        );
+      }
+      if (mimeType.type !== 'audio' || (mimeType.subtype !== 'wav' && mimeType.subtype !== 'mp3')) {
+        throw new Error(
+          `Audio blocks with source_type ${block.source_type} must have mime type of audio/wav or audio/mp3`,
+        );
+      }
+      return {
+        type: 'input_audio',
+        input_audio: {
+          format: mimeType.subtype,
+          data: data.data,
+        },
+      };
+    }
+    if (block.source_type === 'base64') {
+      if (block.mime_type !== 'audio/wav' && block.mime_type !== 'audio/mp3') {
+        throw new Error(
+          `Audio blocks with source_type ${block.source_type} must have mime type of audio/wav or audio/mp3`,
+        );
+      }
+      return {
+        type: 'input_audio',
+        input_audio: {
+          format: block.mime_type.replace('audio/', ''),
+          data: block.data,
+        },
+      };
+    }
+    throw new Error(`Audio content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+  },
+  fromStandardFileBlock(block: any) {
+    if (block.source_type === 'url') {
+      return {
+        type: 'input_text',
+        text: {
+          data: block.url,
+        },
+      };
+    }
+    if (block.source_type === 'base64') {
+      return {
+        type: 'file',
+        file: {
+          file_data: `data:${block.mime_type ?? ''};base64,${block.data}`,
+          ...(block.metadata?.filename || block.metadata?.name || block.metadata?.title
+            ? {
+                filename: block.metadata?.filename || block.metadata?.name || block.metadata?.title,
+              }
+            : {}),
+        },
+      };
+    }
+    if (block.source_type === 'id') {
+      return {
+        type: 'file',
+        file: {
+          file_id: block.id,
+        },
+      };
+    }
+    throw new Error(`File content blocks with source_type ${block.source_type} are not supported for ChatOpenAI`);
+  },
+};
+
+function isReasoningModel(model?: string) {
+  if (!model) return false;
+  if (/^o\d/.test(model ?? '')) return true;
+  if (model.startsWith('gpt-5') && !model.startsWith('gpt-5-chat')) return true;
+  return false;
 }
 
+function messageToOpenAIRole(message: BaseMessage) {
+  const type = message._getType();
+  switch (type) {
+    case 'system':
+      return 'system';
+    case 'ai':
+      return 'assistant';
+    case 'human':
+      return 'user';
+    case 'function':
+      return 'function';
+    case 'tool':
+      return 'tool';
+    case 'generic': {
+      if (!ChatMessage.isInstance(message)) throw new Error('Invalid generic chat message');
+      return message.role;
+    }
+    default:
+      throw new Error(`Unknown message type: ${type}`);
+  }
+}
+
+function convertMessageToOpenAIParams(message: BaseMessage, model: string) {
+  let role = messageToOpenAIRole(message);
+  if (role === 'system' && isReasoningModel(model)) {
+    role = 'developer';
+  }
+  const content =
+    typeof message.content === 'string'
+      ? message.content
+      : message.content.map((m: any) =>
+          isDataContentBlock(m) ? convertToProviderContentBlock(m, completionsApiContentBlockConverter) : m,
+        );
+  const completionParam: any = {
+    role,
+    content,
+  };
+  if ((message as any).name != null) {
+    completionParam.name = (message as any).name;
+  }
+  if ((message as any).additional_kwargs?.function_call != null) {
+    completionParam.function_call = (message as any).additional_kwargs.function_call;
+    completionParam.content = '';
+  }
+  if (isAIMessage(message) && !!(message as any).tool_calls?.length) {
+    completionParam.tool_calls = (message as any).tool_calls.map(convertLangChainToolCallToOpenAI);
+    completionParam.content = '';
+  } else {
+    if ((message as any).additional_kwargs?.tool_calls != null) {
+      completionParam.tool_calls = (message as any).additional_kwargs.tool_calls;
+    }
+    if ((message as any).tool_call_id != null) {
+      completionParam.tool_call_id = (message as any).tool_call_id;
+    }
+  }
+  if (isAIMessage(message) && (message as any).additional_kwargs?.reasoning_content) {
+    completionParam.reasoning_content =
+      completionParam.reasoning_content ?? (message as any).additional_kwargs.reasoning_content;
+  }
+  if (
+    (message as any).additional_kwargs?.audio &&
+    typeof (message as any).additional_kwargs.audio === 'object' &&
+    'id' in (message as any).additional_kwargs.audio
+  ) {
+    const audioMessage = {
+      role: 'assistant',
+      audio: {
+        id: (message as any).additional_kwargs.audio.id,
+      },
+    };
+    return [completionParam, audioMessage];
+  }
+  return [completionParam];
+}
+
+/**
+ * Convert messages to OpenAI-compatible params while preserving DeepSeek reasoning content.
+ */
+function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], model: string) {
+  return messages.flatMap((message) => convertMessageToOpenAIParams(message, model));
+}
+
+/**
+ * DeepSeek-specific chat model that forwards reasoning_content for assistant messages.
+ */
 class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
   override async _generate(messages: BaseMessage[], options?: any, runManager?: any) {
     const usageMetadata: Record<string, any> = {};
     const params = this.invocationParams(options as any);
-    const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(
-      messages,
-      (this as any).model ?? '',
-    );
+    const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(messages, this.model ?? '');
     if ((params as any).stream) {
       const stream = this._streamResponseChunks(messages, options, runManager);
       const finalChunks: Record<number, ChatGenerationChunk> = {};
@@ -171,7 +354,7 @@ class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
   protected override async *_streamResponseChunks(messages: BaseMessage[], options?: any, runManager?: any) {
     const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(
       messages,
-      (this as any).model ?? '',
+      this.model ?? '',
     );
     const params = {
       ...this.invocationParams(options as any, {
@@ -285,7 +468,7 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
 
   async validateCredentials(model: string, credentials: DeepseekCredentials): Promise<void> {
 		try {
-			const chatModel = new ChatOAICompatReasoningModel({
+			const chatModel = new DeepSeekChatOAICompatReasoningModel({
 				...toCredentialKwargs(credentials),
 				model,
 				temperature: 0,
