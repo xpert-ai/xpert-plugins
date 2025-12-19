@@ -60,6 +60,20 @@ type DeepSeekCallOptions = TChatModelOptions & {
   options?: Record<string, unknown>;
 };
 
+type MessageWithKwargs = BaseMessage & {
+  name?: string;
+  tool_calls?: Array<any>;
+  tool_call_id?: string;
+  additional_kwargs?: {
+    function_call?: unknown;
+    tool_calls?: unknown;
+    reasoning_content?: unknown;
+    audio?: {
+      id?: string;
+    };
+  };
+};
+
 const completionsApiContentBlockConverter = {
   providerName: 'DeepSeek',
   fromStandardTextBlock(block: StandardContentBlock) {
@@ -200,6 +214,7 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
   if (role === 'system' && isReasoningModel(model)) {
     role = 'developer';
   }
+  const messageWithKwargs = message as MessageWithKwargs;
   const content =
     typeof message.content === 'string'
       ? message.content
@@ -212,37 +227,37 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
     role,
     content,
   };
-  if ((message as any).name != null) {
-    completionParam.name = (message as any).name;
+  if (messageWithKwargs.name != null) {
+    completionParam.name = messageWithKwargs.name;
   }
-  if ((message as any).additional_kwargs?.function_call != null) {
-    completionParam.function_call = (message as any).additional_kwargs.function_call;
+  if (messageWithKwargs.additional_kwargs?.function_call != null) {
+    completionParam.function_call = messageWithKwargs.additional_kwargs.function_call;
     completionParam.content = '';
   }
-  if (isAIMessage(message) && !!(message as any).tool_calls?.length) {
-    completionParam.tool_calls = (message as any).tool_calls.map(convertLangChainToolCallToOpenAI);
+  if (isAIMessage(message) && !!messageWithKwargs.tool_calls?.length) {
+    completionParam.tool_calls = messageWithKwargs.tool_calls.map(convertLangChainToolCallToOpenAI);
     completionParam.content = '';
   } else {
-    if ((message as any).additional_kwargs?.tool_calls != null) {
-      completionParam.tool_calls = (message as any).additional_kwargs.tool_calls;
+    if (messageWithKwargs.additional_kwargs?.tool_calls != null) {
+      completionParam.tool_calls = messageWithKwargs.additional_kwargs.tool_calls;
     }
-    if ((message as any).tool_call_id != null) {
-      completionParam.tool_call_id = (message as any).tool_call_id;
+    if (messageWithKwargs.tool_call_id != null) {
+      completionParam.tool_call_id = messageWithKwargs.tool_call_id;
     }
   }
-  if (isAIMessage(message) && (message as any).additional_kwargs?.reasoning_content) {
-    completionParam.reasoning_content = (message as any).additional_kwargs.reasoning_content;
+  if (isAIMessage(message) && messageWithKwargs.additional_kwargs?.reasoning_content) {
+    completionParam.reasoning_content = messageWithKwargs.additional_kwargs.reasoning_content;
   }
   if (
-    (message as any).additional_kwargs?.audio &&
-    typeof (message as any).additional_kwargs.audio === 'object' &&
-    'id' in (message as any).additional_kwargs.audio
+    messageWithKwargs.additional_kwargs?.audio &&
+    typeof messageWithKwargs.additional_kwargs.audio === 'object' &&
+    messageWithKwargs.additional_kwargs.audio.id
   ) {
     const audioMessage: CompletionParam = {
       role: 'assistant',
       content: '',
       audio: {
-        id: (message as any).additional_kwargs.audio.id,
+        id: messageWithKwargs.additional_kwargs.audio.id,
       },
     };
     return [completionParam, audioMessage];
@@ -499,7 +514,7 @@ class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
       yield generationChunk;
     }
     if (options?.signal?.aborted) {
-      throw new Error('AbortError');
+      throw new Error('Request was aborted');
     }
   }
 }
