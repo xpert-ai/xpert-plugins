@@ -20,15 +20,52 @@ import {
 } from '@langchain/core/messages';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import { convertLangChainToolCallToOpenAI } from '@langchain/core/output_parsers/openai_tools';
+import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
 import { DeepSeekProviderStrategy } from '../provider.strategy.js';
 import { DeepseekCredentials, DeepseekModelCredentials, toCredentialKwargs } from '../types.js';
 
+type StandardBlockMetadata = {
+  detail?: string;
+  filename?: string;
+  name?: string;
+  title?: string;
+};
+
+type StandardContentBlock = {
+  source_type?: string;
+  mime_type?: string;
+  data?: string;
+  url?: string;
+  metadata?: StandardBlockMetadata;
+  id?: string;
+  text?: string;
+};
+
+type CompletionParam = {
+  role: string;
+  content: string | Array<unknown>;
+  name?: string;
+  function_call?: unknown;
+  tool_calls?: unknown;
+  tool_call_id?: unknown;
+  reasoning_content?: unknown;
+  audio?: {
+    id: string;
+  };
+};
+
+type DeepSeekCallOptions = TChatModelOptions & {
+  signal?: AbortSignal;
+  promptIndex?: number;
+  options?: Record<string, unknown>;
+};
+
 const completionsApiContentBlockConverter = {
   providerName: 'DeepSeek',
-  fromStandardTextBlock(block: any) {
+  fromStandardTextBlock(block: StandardContentBlock) {
     return { type: 'text', text: block.text };
   },
-  fromStandardImageBlock(block: any) {
+  fromStandardImageBlock(block: StandardContentBlock) {
     if (block.source_type === 'url') {
       return {
         type: 'image_url',
@@ -52,7 +89,7 @@ const completionsApiContentBlockConverter = {
       `Image content blocks with source_type ${block.source_type} are not supported for DeepSeek completions`,
     );
   },
-  fromStandardAudioBlock(block: any) {
+  fromStandardAudioBlock(block: StandardContentBlock) {
     if (block.source_type === 'url') {
       const data = parseBase64DataUrl({ dataUrl: block.url });
       if (!data) {
@@ -98,7 +135,7 @@ const completionsApiContentBlockConverter = {
     }
     throw new Error(`Audio content blocks with source_type ${block.source_type} are not supported for DeepSeek completions`);
   },
-  fromStandardFileBlock(block: any) {
+  fromStandardFileBlock(block: StandardContentBlock) {
     if (block.source_type === 'url') {
       return {
         type: 'input_text',
@@ -158,7 +195,7 @@ function messageToOpenAIRole(message: BaseMessage) {
   }
 }
 
-function convertMessageToOpenAIParams(message: BaseMessage, model: string) {
+function convertMessageToOpenAIParams(message: BaseMessage, model: string): CompletionParam[] {
   let role = messageToOpenAIRole(message);
   if (role === 'system' && isReasoningModel(model)) {
     role = 'developer';
@@ -166,10 +203,12 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string) {
   const content =
     typeof message.content === 'string'
       ? message.content
-      : message.content.map((m: any) =>
-          isDataContentBlock(m) ? convertToProviderContentBlock(m, completionsApiContentBlockConverter) : m,
+      : (message.content as Array<unknown>).map((m) =>
+          isDataContentBlock(m)
+            ? convertToProviderContentBlock(m as never, completionsApiContentBlockConverter)
+            : m,
         );
-  const completionParam: any = {
+  const completionParam: CompletionParam = {
     role,
     content,
   };
@@ -199,8 +238,9 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string) {
     typeof (message as any).additional_kwargs.audio === 'object' &&
     'id' in (message as any).additional_kwargs.audio
   ) {
-    const audioMessage = {
+    const audioMessage: CompletionParam = {
       role: 'assistant',
+      content: '',
       audio: {
         id: (message as any).additional_kwargs.audio.id,
       },
@@ -221,7 +261,11 @@ function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], mod
  * DeepSeek-specific chat model that forwards reasoning_content for assistant messages.
  */
 class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
-  override async _generate(messages: BaseMessage[], options?: any, runManager?: any) {
+  override async _generate(
+    messages: BaseMessage[],
+    options?: DeepSeekCallOptions,
+    runManager?: CallbackManagerForLLMRun,
+  ) {
     const usageMetadata: Record<string, any> = {};
     const params = this.invocationParams(options as any);
     const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(messages, this.model ?? '');
@@ -349,7 +393,11 @@ class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     }
   }
 
-  protected override async *_streamResponseChunks(messages: BaseMessage[], options?: any, runManager?: any) {
+  protected override async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options?: DeepSeekCallOptions,
+    runManager?: CallbackManagerForLLMRun,
+  ) {
     const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(
       messages,
       this.model ?? '',
