@@ -386,26 +386,20 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         },
       };
     } else {
-      // Enable thinking mode for deepseek-chat
-      // According to DeepSeek API docs, thinking mode can be enabled by:
-      // 1. Setting model to "deepseek-reasoner"
-      // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
-      // For OpenAI SDK, thinking parameter should be passed in extra_body
       const requestParams = {
         ...params,
         stream: false,
         messages: messagesMapped as never,
       } as Record<string, unknown>;
       
-      // Enable think mode for deepseek-chat model
-      // According to DeepSeek API docs, thinking mode can be enabled by:
+      // Enable thinking mode for deepseek-chat model
+      // According to DeepSeek API documentation, thinking mode can be enabled by:
       // 1. Setting model to "deepseek-reasoner"
       // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
-      // IMPORTANT: Test results show that directly using thinking parameter works,
-      // but using extra_body does NOT work. So we use thinking parameter directly.
+      // Note: The thinking parameter must be added directly to the request body.
+      // Using extra_body parameter does not work for enabling thinking mode.
       if (this.model === 'deepseek-chat') {
-        // Directly add thinking parameter to request body (not in extra_body)
-        // This is the working method according to test results
+        // Add thinking parameter directly to request body (not via extra_body)
         requestParams.thinking = {
           type: 'enabled',
         };
@@ -541,12 +535,11 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       stream: true,
     } as Record<string, unknown>;
     
-    // Enable think mode for deepseek-chat model in streaming
-    // IMPORTANT: Test results show that directly using thinking parameter works,
-    // but using extra_body does NOT work. So we use thinking parameter directly.
+    // Enable thinking mode for deepseek-chat model in streaming
+    // Note: The thinking parameter must be added directly to the request body.
+    // Using extra_body parameter does not work for enabling thinking mode.
     if (this.model === 'deepseek-chat') {
-      // Directly add thinking parameter to request body (not in extra_body)
-      // This is the working method according to test results
+      // Add thinking parameter directly to request body (not via extra_body)
       params.thinking = {
         type: 'enabled',
       };
