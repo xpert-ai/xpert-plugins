@@ -4,13 +4,12 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const moduleDir = dirname(fileURLToPath(import.meta.url));
 
 export const DeepSeek = 'deepseek';
 export const DeepSeekBaseUrl = 'https://api.deepseek.com/v1';
 
-export const SvgIcon = readFileSync(join(__dirname, '_assets/icon_s_en.svg'), 'utf8');
+export const SvgIcon = readFileSync(join(moduleDir, '_assets/icon_s_en.svg'), 'utf8');
 
 export interface DeepseekCredentials {
 	api_key: string
@@ -22,6 +21,7 @@ export interface DeepseekModelCredentials extends CommonChatModelParameters {
 	top_p?: number
 	max_tokens?: number
 	frequency_penalty?: number
+	thinking?: boolean
 }
 
 export function toCredentialKwargs(credentials: DeepseekCredentials) {

@@ -30,6 +30,15 @@ parameter_rules:
     help:
       zh_Hans: 指定生成结果长度的上限。如果生成结果截断，可以调大该参数。
       en_US: Specifies the upper limit on the length of generated results. If the generated results are truncated, you can increase this parameter.
+  - name: thinking
+    label:
+      zh_Hans: 思考模式
+      en_US: Thinking Mode
+    type: boolean
+    default: false
+    help:
+      zh_Hans: 是否启用思考模式
+      en_US: Enable thinking mode
   - name: top_p
     use_template: top_p
     type: float

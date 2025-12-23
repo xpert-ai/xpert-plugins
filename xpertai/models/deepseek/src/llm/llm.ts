@@ -60,6 +60,10 @@ type DeepSeekCallOptions = TChatModelOptions & {
   options?: Record<string, unknown>;
 };
 
+type DeepSeekChatModelFields = ConstructorParameters<typeof ChatOAICompatReasoningModel>[0] & {
+  thinking?: boolean;
+};
+
 type MessageWithKwargs = BaseMessage & {
   name?: string;
   tool_calls?: Array<unknown>;
@@ -243,10 +247,6 @@ const completionsApiContentBlockConverter = {
   },
 };
 
-function isReasoningModel(model?: string) {
-  return !!model && /(^|[-_])reasoner$/i.test(model);
-}
-
 function messageToOpenAIRole(message: BaseMessage) {
   const type = message._getType();
   switch (type) {
@@ -340,8 +340,18 @@ function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], mod
 /**
  * DeepSeek-specific chat model that overrides generation and streaming paths to
  * ensure reasoning_content from assistant messages is forwarded in subsequent requests.
+ * 
+ * @deprecated Replace with the latest official langchain code.
  */
 export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
+  private readonly thinkingEnabled: boolean;
+
+  constructor(fields: DeepSeekChatModelFields) {
+    const { thinking, ...rest } = fields;
+    super(rest as ConstructorParameters<typeof ChatOAICompatReasoningModel>[0]);
+    this.thinkingEnabled = Boolean(thinking);
+  }
+
   override async _generate(
     messages: BaseMessage[],
     options?: DeepSeekCallOptions,
@@ -417,7 +427,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
       // IMPORTANT: Test results show that directly using thinking parameter works,
       // but using extra_body does NOT work. So we use thinking parameter directly.
-      if (this.model === 'deepseek-chat') {
+      if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
         // Directly add thinking parameter to request body (not in extra_body)
         // This is the working method according to test results
         requestParams.thinking = {
@@ -568,7 +578,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
     // Enable think mode for deepseek-chat model in streaming
     // IMPORTANT: Test results show that directly using thinking parameter works,
     // but using extra_body does NOT work. So we use thinking parameter directly.
-    if (this.model === 'deepseek-chat') {
+    if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
       // Directly add thinking parameter to request body (not in extra_body)
       // This is the working method according to test results
       params.thinking = {
@@ -720,6 +730,7 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
       maxTokens: modelCredentials?.max_tokens,
       topP: modelCredentials?.top_p,
       frequencyPenalty: modelCredentials?.frequency_penalty,
+      thinking: modelCredentials?.thinking,
       maxRetries: modelCredentials?.maxRetries,
       streamUsage: false,
       verbose: options?.verbose,
