@@ -4,13 +4,13 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const typesFileUrl = fileURLToPath(import.meta.url);
-const typesFileDir = dirname(typesFileUrl);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const DeepSeek = 'deepseek';
 export const DeepSeekBaseUrl = 'https://api.deepseek.com/v1';
 
-export const SvgIcon = readFileSync(join(typesFileDir, '_assets/icon_s_en.svg'), 'utf8');
+export const SvgIcon = readFileSync(join(__dirname, '_assets/icon_s_en.svg'), 'utf8');
 
 export interface DeepseekCredentials {
 	api_key: string

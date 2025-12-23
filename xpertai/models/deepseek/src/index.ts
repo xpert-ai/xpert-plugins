@@ -6,11 +6,11 @@ import { z } from 'zod';
 import { DeepSeekModule } from './deepseek.module.js';
 import { SvgIcon } from './types.js';
 
-const indexFileUrl = fileURLToPath(import.meta.url);
-const indexFileDir = dirname(indexFileUrl);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const packageJson = JSON.parse(
-  readFileSync(join(indexFileDir, '../package.json'), 'utf8')
+  readFileSync(join(__dirname, '../package.json'), 'utf8')
 ) as {
   name: string;
   version: string;

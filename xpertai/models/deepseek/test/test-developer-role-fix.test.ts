@@ -1,10 +1,10 @@
 /**
- * 测试 deepseek-reasoner 模型的 developer role 问题修复
+ * Test for deepseek-reasoner model's developer role issue fix
  * 
- * 此测试验证：
- * 1. 消息转换时不会产生 developer role
- * 2. 即使有 developer role，也会被转换为 system
- * 3. 实际 API 调用不会报 400 错误
+ * This test verifies:
+ * 1. Message conversion does not produce developer role
+ * 2. Even if developer role exists, it will be converted to system
+ * 3. Actual API calls do not return 400 errors
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
@@ -17,7 +17,7 @@ describe('DeepSeek Reasoner - Developer Role Fix Test', () => {
 
   beforeAll(() => {
     if (!validateConfig()) {
-      console.warn('⚠️  测试配置不完整，跳过实际 API 测试');
+      console.warn('⚠️  Test configuration incomplete, skipping actual API tests');
       return;
     }
 
@@ -30,92 +30,92 @@ describe('DeepSeek Reasoner - Developer Role Fix Test', () => {
     });
   });
 
-  describe('消息转换测试', () => {
-    it('应该正确处理 system message，不会转换为 developer', async () => {
+  describe('Message Conversion Tests', () => {
+    it('should handle system message correctly, not convert to developer', async () => {
       if (!testConfig.apiKey) {
-        console.log('⚠️  跳过测试（API key 未设置）');
+        console.log('⚠️  Skipping test (API key not set)');
         return;
       }
 
       const messages = [
-        new SystemMessage('你是一个有用的AI助手'),
-        new HumanMessage('你是谁啊？'),
+        new SystemMessage('You are a helpful AI assistant'),
+        new HumanMessage('Who are you?'),
       ];
       
       try {
         const response = await model.invoke(messages);
         
-        // 验证响应成功，没有 400 错误
+        // Verify response is successful, no 400 error
         expect(response).toBeDefined();
         expect(response.content).toBeDefined();
-        console.log('✅ System message 测试通过，响应:', response.content);
+        console.log('✅ System message test passed, response:', response.content);
       } catch (error: unknown) {
-        // 检查是否是 developer role 错误
+        // Check if it's a developer role error
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('developer') || errorMessage.includes('400')) {
-          console.error('❌ 仍然出现 developer role 错误:', errorMessage);
-          throw new Error(`测试失败：仍然出现 developer role 错误 - ${errorMessage}`);
+          console.error('❌ Developer role error still occurs:', errorMessage);
+          throw new Error(`Test failed: Developer role error still occurs - ${errorMessage}`);
         }
         throw error;
       }
     }, testConfig.timeout);
 
-    it('应该正确处理包含 reasoning_content 的多轮对话', async () => {
+    it('should handle multi-turn conversations with reasoning_content correctly', async () => {
       if (!testConfig.apiKey) {
-        console.log('⚠️  跳过测试（API key 未设置）');
+        console.log('⚠️  Skipping test (API key not set)');
         return;
       }
 
-      // 第一轮对话
+      // First round of conversation
       const firstMessages = [
-        new SystemMessage('你是一个有用的AI助手'),
-        new HumanMessage('你是谁啊？'),
+        new SystemMessage('You are a helpful AI assistant'),
+        new HumanMessage('Who are you?'),
       ];
 
       try {
         const firstResponse = await model.invoke(firstMessages);
         expect(firstResponse).toBeDefined();
-        console.log('✅ 第一轮对话成功');
+        console.log('✅ First round of conversation successful');
 
-        // 第二轮对话（包含 reasoning_content）
+        // Second round of conversation (with reasoning_content)
         if (firstResponse.additional_kwargs?.reasoning_content) {
           const secondMessages = [
-            new SystemMessage('你是一个有用的AI助手'),
-            new HumanMessage('你是谁啊？'),
+            new SystemMessage('You are a helpful AI assistant'),
+            new HumanMessage('Who are you?'),
             new AIMessage({
               content: firstResponse.content as string,
               additional_kwargs: {
                 reasoning_content: firstResponse.additional_kwargs.reasoning_content,
               },
             }),
-            new HumanMessage('请再介绍一下自己'),
+            new HumanMessage('Please introduce yourself again'),
           ];
 
           const secondResponse = await model.invoke(secondMessages);
           expect(secondResponse).toBeDefined();
-          console.log('✅ 多轮对话测试通过（包含 reasoning_content）');
+          console.log('✅ Multi-turn conversation test passed (with reasoning_content)');
         } else {
-          console.log('⚠️  第一轮响应中没有 reasoning_content，跳过多轮对话测试');
+          console.log('⚠️  No reasoning_content in first response, skipping multi-turn conversation test');
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('developer') || errorMessage.includes('400')) {
-          console.error('❌ 多轮对话中出现 developer role 错误:', errorMessage);
-          throw new Error(`测试失败：多轮对话中出现 developer role 错误 - ${errorMessage}`);
+          console.error('❌ Developer role error in multi-turn conversation:', errorMessage);
+          throw new Error(`Test failed: Developer role error in multi-turn conversation - ${errorMessage}`);
         }
         throw error;
       }
     }, testConfig.timeout);
 
-    it('应该正确处理流式响应', async () => {
+    it('should handle streaming responses correctly', async () => {
       if (!testConfig.apiKey) {
-        console.log('⚠️  跳过测试（API key 未设置）');
+        console.log('⚠️  Skipping test (API key not set)');
         return;
       }
 
       const messages = [
-        new SystemMessage('你是一个有用的AI助手'),
-        new HumanMessage('你是谁啊？'),
+        new SystemMessage('You are a helpful AI assistant'),
+        new HumanMessage('Who are you?'),
       ];
 
       try {
@@ -124,7 +124,7 @@ describe('DeepSeek Reasoner - Developer Role Fix Test', () => {
         
         for await (const chunk of stream) {
           if (chunk.content) {
-            // chunk.content 可能是 string 或 MessageContentComplex[]
+            // chunk.content may be string or MessageContentComplex[]
             const content = typeof chunk.content === 'string' 
               ? chunk.content 
               : Array.isArray(chunk.content) 
@@ -135,30 +135,29 @@ describe('DeepSeek Reasoner - Developer Role Fix Test', () => {
         }
 
         expect(chunks.length).toBeGreaterThan(0);
-        console.log('✅ 流式响应测试通过，收到', chunks.length, '个chunk');
+        console.log('✅ Streaming response test passed, received', chunks.length, 'chunks');
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('developer') || errorMessage.includes('400')) {
-          console.error('❌ 流式响应中出现 developer role 错误:', errorMessage);
-          throw new Error(`测试失败：流式响应中出现 developer role 错误 - ${errorMessage}`);
+          console.error('❌ Developer role error in streaming response:', errorMessage);
+          throw new Error(`Test failed: Developer role error in streaming response - ${errorMessage}`);
         }
         throw error;
       }
     }, testConfig.timeout);
   });
 
-  describe('安全检查验证', () => {
-    it('应该记录并转换任何 developer role', () => {
-      // 这个测试验证代码中的安全检查逻辑
-      // 由于 convertMessageToOpenAIParams 是私有函数，我们通过实际调用验证
+  describe('Safety Check Verification', () => {
+    it('should log and convert any developer role', () => {
+      // This test verifies the safety check logic in the code
+      // Since convertMessageToOpenAIParams is a private function, we verify through actual calls
       
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       
-      // 注意：这个测试需要实际调用 API 才能触发安全检查
-      // 如果消息中有 developer role，应该会被转换为 system
+      // Note: This test requires actual API calls to trigger safety checks
+      // If messages contain developer role, it should be converted to system
       
       consoleSpy.mockRestore();
     });
   });
 });
-

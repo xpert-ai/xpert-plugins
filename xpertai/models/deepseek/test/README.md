@@ -1,143 +1,143 @@
-# DeepSeek 插件测试
+# DeepSeek Plugin Testing
 
-## 快速开始
+## Quick Start
 
-### 1. 配置 API Key
+### 1. Configure API Key
 
-1. 在项目根目录（`xpertai/`）创建 `.env` 文件：
+1. Create a `.env` file in the project root directory (`xpertai/`):
    ```bash
    cd xpertai
    cp .env.example .env
    ```
 
-2. 编辑 `.env` 文件，填入你的 DeepSeek API Key：
+2. Edit the `.env` file and add your DeepSeek API Key:
    ```env
    DEEPSEEK_API_KEY=your_api_key_here
    ```
 
-3. 获取 API Key：
-   - 访问：https://platform.deepseek.com/api_keys
-   - 创建或复制你的 API Key
+3. Get your API Key:
+   - Visit: https://platform.deepseek.com/api_keys
+   - Create or copy your API Key
 
-**注意**：`.env` 文件已在根目录的 `.gitignore` 中，不会被提交到 Git
+**Note**: The `.env` file is already in the root directory's `.gitignore` and will not be committed to Git
 
-### 2. 运行测试
+### 2. Run Tests
 
-#### 简单测试脚本（推荐）
+#### Simple Test Script (Recommended)
 
 ```bash
-# 从 deepseek 插件目录运行
+# Run from the deepseek plugin directory
 npx tsx test/test-developer-role-fix-simple.ts
 ```
 
-#### Jest 单元测试
+#### Jest Unit Tests
 
 ```bash
-# 从项目根目录运行
+# Run from the project root directory
 npx nx test @cry0100/plugin-deepseek3.0 --testPathPatterns=test-developer-role-fix
 ```
 
-## 测试文件说明
+## Test Files
 
-- **test-developer-role-fix-simple.ts**: 简单的独立测试脚本，易于运行
-- **test-developer-role-fix.test.ts**: Jest 单元测试，适合 CI/CD
-- **config.ts**: 测试配置文件（从根目录 .env 文件读取 API Key）
-- **config.example.ts**: 配置文件示例（已废弃，仅作参考）
+- **test-developer-role-fix-simple.ts**: Simple standalone test script, easy to run
+- **test-developer-role-fix.test.ts**: Jest unit tests, suitable for CI/CD
+- **config.ts**: Test configuration file (reads API Key from root `.env` file)
+- **config.example.ts**: Configuration example (deprecated, for reference only)
 
-## 测试内容
+## Test Coverage
 
-测试会验证：
+Tests verify:
 
-1. ✅ **System Message 处理**：确保 system message 不会转换为 developer role
-2. ✅ **多轮对话**：测试包含 reasoning_content 的多轮对话
-3. ✅ **流式响应**：测试流式响应是否正常工作
-4. ✅ **安全检查**：验证代码中的安全检查是否生效
+1. ✅ **System Message Handling**: Ensures system messages are not converted to developer role
+2. ✅ **Multi-turn Conversations**: Tests multi-turn conversations with reasoning_content
+3. ✅ **Streaming Responses**: Tests if streaming responses work correctly
+4. ✅ **Safety Checks**: Verifies that safety checks in the code are working
 
-## 预期结果
+## Expected Results
 
-### ✅ 成功情况
+### ✅ Success Case
 
 ```
-🧪 开始测试 deepseek-reasoner 模型...
+🧪 Starting test for deepseek-reasoner model...
 
-📤 发送请求：
+📤 Sending request:
    Model: deepseek-reasoner
    Messages: [...]
 
-⏳ 等待 API 响应...
+⏳ Waiting for API response...
 
-✅ 测试成功！
-📥 响应内容：
-   [模型的实际响应]
+✅ Test successful!
+📥 Response content:
+   [Actual model response]
 
-✅ 没有出现 developer role 错误！修复成功！
+✅ No developer role error occurred! Fix successful!
 ```
 
-### ❌ 失败情况
+### ❌ Failure Case
 
-如果仍然报错，会看到：
+If errors still occur, you will see:
 
 ```
-❌ 测试失败！
-   错误信息: 400 Failed to deserialize the JSON body into the target type: messages[0].role: unknown variant `developer`...
+❌ Test failed!
+   Error: 400 Failed to deserialize the JSON body into the target type: messages[0].role: unknown variant `developer`...
 
-❌ 仍然出现 developer role 错误！
+❌ Developer role error still occurs!
 ```
 
-## 环境变量配置
+## Environment Variable Configuration
 
-测试从以下位置读取配置（按优先级）：
+Tests read configuration from the following locations (in priority order):
 
-1. **根目录 `.env` 文件**（推荐）
+1. **Root directory `.env` file** (Recommended)
    ```env
    DEEPSEEK_API_KEY=your_api_key_here
-   DEEPSEEK_BASE_URL=https://api.deepseek.com/v1  # 可选
-   DEEPSEEK_TEST_TIMEOUT=30000  # 可选
+   DEEPSEEK_BASE_URL=https://api.deepseek.com/v1  # Optional
+   DEEPSEEK_TEST_TIMEOUT=30000  # Optional
    ```
 
-2. **系统环境变量**
+2. **System Environment Variables**
    ```bash
    export DEEPSEEK_API_KEY=your_api_key_here
    ```
 
-## 注意事项
+## Notes
 
-1. **配置文件安全**：
-   - `.env` 文件已在根目录的 `.gitignore` 中，不会被提交
-   - 不要将包含真实 API Key 的 `.env` 文件提交到 Git
+1. **Configuration File Security**:
+   - The `.env` file is already in the root directory's `.gitignore` and will not be committed
+   - Do not commit `.env` files containing real API keys to Git
 
-2. **API 费用**：
-   - 测试会实际调用 DeepSeek API
-   - 可能会产生费用
+2. **API Costs**:
+   - Tests will actually call the DeepSeek API
+   - May incur costs
 
-3. **网络要求**：
-   - 需要能够访问 `api.deepseek.com`
+3. **Network Requirements**:
+   - Must be able to access `api.deepseek.com`
 
-## 故障排查
+## Troubleshooting
 
-### 问题：找不到 .env 文件
+### Issue: Cannot find .env file
 
-**解决方案**：
+**Solution**:
 ```bash
-# 在项目根目录（xpertai/）创建 .env 文件
+# Create .env file in project root directory (xpertai/)
 cd xpertai
 echo "DEEPSEEK_API_KEY=your_api_key_here" > .env
 ```
 
-### 问题：API Key 无效
+### Issue: Invalid API Key
 
-**检查**：
-- API Key 是否正确
-- API Key 是否已过期
-- API Key 是否有足够的权限
+**Check**:
+- Is the API Key correct
+- Has the API Key expired
+- Does the API Key have sufficient permissions
 
-### 问题：仍然出现 developer role 错误
+### Issue: Developer role error still occurs
 
-**可能原因**：
-1. 平台仍在使用旧版本代码
-2. 需要更新到最新版本
+**Possible Causes**:
+1. Platform is still using old version of code
+2. Need to update to latest version
 
-**解决方案**：
+**Solution**:
 ```bash
 npm cache clean --force
 npm uninstall @cry0100/plugin-deepseek3.0

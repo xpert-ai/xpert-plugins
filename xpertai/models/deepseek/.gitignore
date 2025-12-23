@@ -1,3 +1,2 @@
-# 测试配置文件（已改为从根目录 .env 读取，此文件不再使用）
+# Test configuration file (now reads from root .env file, this file is no longer used)
 # test/config.ts
-
