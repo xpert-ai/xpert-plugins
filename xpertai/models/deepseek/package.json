@@ -1,6 +1,7 @@
 {
   "name": "@xpert-ai/plugin-deepseek",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "description": "DeepSeek AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -44,6 +45,7 @@
     "zod": "3.25.67",
     "@metad/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",
+    "@langchain/core": "^0.3.72",
     "@langchain/openai": "0.6.9"
   }
 }
