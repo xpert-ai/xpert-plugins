@@ -20,4 +20,5 @@ module.exports = {
   transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
+  testTimeout: 30000, // 设置默认测试超时为 30 秒
 };

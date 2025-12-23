@@ -1,0 +1,3 @@
+# 测试配置文件（包含 API Key，不应提交到 Git）
+test/config.ts
+

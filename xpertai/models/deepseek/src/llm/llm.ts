@@ -270,10 +270,15 @@ function messageToOpenAIRole(message: BaseMessage) {
 }
 
 function convertMessageToOpenAIParams(message: BaseMessage, model: string): CompletionParam[] {
-  let role = messageToOpenAIRole(message);
-  if (role === 'system' && isReasoningModel(model)) {
-    role = 'developer';
+  const role = messageToOpenAIRole(message);
+  // Note: DeepSeek API only accepts 'system', 'user', 'assistant', 'tool' roles
+  // Do not convert 'system' to 'developer' as it's not supported by the API
+  // Ensure role is never 'developer' - if it is, log error and use 'system' instead
+  if (role === 'developer') {
+    console.error('[DeepSeek] ERROR: Received developer role, converting to system. Model:', model);
+    // This should never happen, but if it does, convert to system
   }
+  const finalRole = role === 'developer' ? 'system' : role;
   const messageWithKwargs = message as MessageWithKwargs;
   const content =
     typeof message.content === 'string'
@@ -284,7 +289,7 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
             : m,
         );
   const completionParam: CompletionParam = {
-    role,
+    role: finalRole,
     content,
   };
   if (messageWithKwargs.name != null) {
@@ -386,20 +391,35 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         },
       };
     } else {
+      // Enable thinking mode for deepseek-chat
+      // According to DeepSeek API docs, thinking mode can be enabled by:
+      // 1. Setting model to "deepseek-reasoner"
+      // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
+      // For OpenAI SDK, thinking parameter should be passed in extra_body
+      // Final safety check: ensure no developer role in messages
+      const safeMessages = (messagesMapped as Array<{ role?: string; [key: string]: unknown }>).map((msg) => {
+        if (msg.role === 'developer') {
+          console.error('[DeepSeek] CRITICAL: Found developer role in message, converting to system. Model:', this.model);
+          return { ...msg, role: 'system' };
+        }
+        return msg;
+      });
+      
       const requestParams = {
         ...params,
         stream: false,
-        messages: messagesMapped as never,
+        messages: safeMessages as never,
       } as Record<string, unknown>;
       
-      // Enable thinking mode for deepseek-chat model
-      // According to DeepSeek API documentation, thinking mode can be enabled by:
+      // Enable think mode for deepseek-chat model
+      // According to DeepSeek API docs, thinking mode can be enabled by:
       // 1. Setting model to "deepseek-reasoner"
       // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
-      // Note: The thinking parameter must be added directly to the request body.
-      // Using extra_body parameter does not work for enabling thinking mode.
+      // IMPORTANT: Test results show that directly using thinking parameter works,
+      // but using extra_body does NOT work. So we use thinking parameter directly.
       if (this.model === 'deepseek-chat') {
-        // Add thinking parameter directly to request body (not via extra_body)
+        // Directly add thinking parameter to request body (not in extra_body)
+        // This is the working method according to test results
         requestParams.thinking = {
           type: 'enabled',
         };
@@ -527,24 +547,35 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       messages,
       this.model ?? '',
     );
+    
+    // Final safety check: ensure no developer role in messages
+    const safeMessages = (messagesMapped as Array<{ role?: string; [key: string]: unknown }>).map((msg) => {
+      if (msg.role === 'developer') {
+        console.error('[DeepSeek] CRITICAL: Found developer role in message (streaming), converting to system. Model:', this.model);
+        return { ...msg, role: 'system' };
+      }
+      return msg;
+    });
+    
     const params = {
       ...this.invocationParams(options, {
         streaming: true,
       }),
-      messages: messagesMapped as never,
+      messages: safeMessages as never,
       stream: true,
     } as Record<string, unknown>;
     
-    // Enable thinking mode for deepseek-chat model in streaming
-    // Note: The thinking parameter must be added directly to the request body.
-    // Using extra_body parameter does not work for enabling thinking mode.
+    // Enable think mode for deepseek-chat model in streaming
+    // IMPORTANT: Test results show that directly using thinking parameter works,
+    // but using extra_body does NOT work. So we use thinking parameter directly.
     if (this.model === 'deepseek-chat') {
-      // Add thinking parameter directly to request body (not via extra_body)
+      // Directly add thinking parameter to request body (not in extra_body)
+      // This is the working method according to test results
       params.thinking = {
         type: 'enabled',
       };
     }
-    let defaultRole: 'function' | 'developer' | 'system' | 'tool' | 'assistant' | 'user' | undefined;
+    let defaultRole: 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined;
     const streamIterable = (await this.completionWithRetry(
       params as never,
       options,
@@ -565,9 +596,9 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       const chunk = this._convertCompletionsDeltaToBaseMessageChunk(
         delta as { role?: string; content?: string; refusal?: string },
         data as never,
-        defaultRole as 'function' | 'developer' | 'system' | 'tool' | 'assistant' | 'user' | undefined,
+        defaultRole as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined,
       ) as AIMessageChunk;
-      defaultRole = (delta.role as 'function' | 'developer' | 'system' | 'tool' | 'assistant' | 'user' | undefined) ?? defaultRole;
+      defaultRole = (delta.role as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined) ?? defaultRole;
       const newTokenIndices = {
         prompt: options?.promptIndex ?? 0,
         completion: choice.index ?? 0,

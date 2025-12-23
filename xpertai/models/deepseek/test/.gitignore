@@ -1,0 +1,6 @@
+# 忽略配置文件（包含 API Key）
+config.ts
+
+# 但保留示例文件
+!config.example.ts
+
