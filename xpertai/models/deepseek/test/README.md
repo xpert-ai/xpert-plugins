@@ -4,31 +4,29 @@
 
 ### 1. 配置 API Key
 
-1. 复制配置文件：
+1. 在项目根目录（`xpertai/`）创建 `.env` 文件：
    ```bash
-   cd test
-   cp config.example.ts config.ts
+   cd xpertai
+   cp .env.example .env
    ```
 
-2. 编辑 `config.ts`，填入你的 DeepSeek API Key：
-   ```typescript
-   export const testConfig = {
-     apiKey: 'your_api_key_here', // 填入你的 API Key
-     baseURL: 'https://api.deepseek.com/v1',
-     timeout: 30000,
-   };
+2. 编辑 `.env` 文件，填入你的 DeepSeek API Key：
+   ```env
+   DEEPSEEK_API_KEY=your_api_key_here
    ```
 
 3. 获取 API Key：
    - 访问：https://platform.deepseek.com/api_keys
    - 创建或复制你的 API Key
 
+**注意**：`.env` 文件已在根目录的 `.gitignore` 中，不会被提交到 Git
+
 ### 2. 运行测试
 
 #### 简单测试脚本（推荐）
 
 ```bash
-# 从项目根目录运行
+# 从 deepseek 插件目录运行
 npx tsx test/test-developer-role-fix-simple.ts
 ```
 
@@ -36,15 +34,15 @@ npx tsx test/test-developer-role-fix-simple.ts
 
 ```bash
 # 从项目根目录运行
-npx nx test @cry0100/plugin-deepseek --testPathPattern=test-developer-role-fix
+npx nx test @cry0100/plugin-deepseek3.0 --testPathPatterns=test-developer-role-fix
 ```
 
 ## 测试文件说明
 
 - **test-developer-role-fix-simple.ts**: 简单的独立测试脚本，易于运行
 - **test-developer-role-fix.test.ts**: Jest 单元测试，适合 CI/CD
-- **config.ts**: 测试配置文件（包含 API Key，不提交到 Git）
-- **config.example.ts**: 配置文件示例（可以提交到 Git）
+- **config.ts**: 测试配置文件（从根目录 .env 文件读取 API Key）
+- **config.example.ts**: 配置文件示例（已废弃，仅作参考）
 
 ## 测试内容
 
@@ -86,11 +84,27 @@ npx nx test @cry0100/plugin-deepseek --testPathPattern=test-developer-role-fix
 ❌ 仍然出现 developer role 错误！
 ```
 
+## 环境变量配置
+
+测试从以下位置读取配置（按优先级）：
+
+1. **根目录 `.env` 文件**（推荐）
+   ```env
+   DEEPSEEK_API_KEY=your_api_key_here
+   DEEPSEEK_BASE_URL=https://api.deepseek.com/v1  # 可选
+   DEEPSEEK_TEST_TIMEOUT=30000  # 可选
+   ```
+
+2. **系统环境变量**
+   ```bash
+   export DEEPSEEK_API_KEY=your_api_key_here
+   ```
+
 ## 注意事项
 
 1. **配置文件安全**：
-   - `config.ts` 已在 `.gitignore` 中，不会被提交
-   - 不要将包含真实 API Key 的 `config.ts` 提交到 Git
+   - `.env` 文件已在根目录的 `.gitignore` 中，不会被提交
+   - 不要将包含真实 API Key 的 `.env` 文件提交到 Git
 
 2. **API 费用**：
    - 测试会实际调用 DeepSeek API
@@ -101,13 +115,13 @@ npx nx test @cry0100/plugin-deepseek --testPathPattern=test-developer-role-fix
 
 ## 故障排查
 
-### 问题：找不到 config.ts
+### 问题：找不到 .env 文件
 
 **解决方案**：
 ```bash
-cd test
-cp config.example.ts config.ts
-# 然后编辑 config.ts 填入 API Key
+# 在项目根目录（xpertai/）创建 .env 文件
+cd xpertai
+echo "DEEPSEEK_API_KEY=your_api_key_here" > .env
 ```
 
 ### 问题：API Key 无效
@@ -121,12 +135,11 @@ cp config.example.ts config.ts
 
 **可能原因**：
 1. 平台仍在使用旧版本代码
-2. 需要更新到最新版本 (0.0.4)
+2. 需要更新到最新版本
 
 **解决方案**：
 ```bash
 npm cache clean --force
-npm uninstall @cry0100/plugin-deepseek
-npm install @cry0100/plugin-deepseek@0.0.4
+npm uninstall @cry0100/plugin-deepseek3.0
+npm install @cry0100/plugin-deepseek3.0@latest
 ```
-

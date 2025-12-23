@@ -2,7 +2,7 @@
  * 简单的测试脚本，用于验证 deepseek-reasoner 是否还会出现 developer role 错误
  * 
  * 使用方法：
- * 1. 在 test/config.ts 中填入你的 API Key
+ * 1. 在项目根目录创建 .env 文件，添加：DEEPSEEK_API_KEY=your_api_key_here
  * 2. 运行：npx tsx test/test-developer-role-fix-simple.ts
  * 
  * 或者使用 ts-node：
