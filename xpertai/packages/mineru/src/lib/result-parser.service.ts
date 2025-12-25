@@ -24,7 +24,7 @@ export class MinerUResultParserService {
     fullZipUrl: string,
     taskId: string,
     document: Partial<IKnowledgeDocument>,
-    fileSystem: XpFileSystem
+    fileSystem?: XpFileSystem
   ): Promise<{
     id?: string;
     chunks: Document<ChunkMetadata>[];
@@ -57,40 +57,56 @@ export class MinerUResultParserService {
 
       const fileName = entry.path;
       const filePath = join(document.folder || '', entry.path);
-      const url = await fileSystem.writeFile(filePath, data);
-      pathMap.set(fileName, url);
-      // Write images to local file system
-      if (fileName.startsWith('images/')) {
-        assets.push({
-          type: 'image',
-          url: url,
-          filePath: filePath,
-        });
-      } else if (fileName.endsWith('layout.json')) {
-        layoutJson = JSON.parse(data.toString('utf-8'));
-        metadata.mineruBackend = layoutJson?._backend;
-        metadata.mineruVersion = layoutJson?._version_name;
 
-        assets.push({
-          type: 'file',
-          url,
-          filePath: filePath,
-        });
-      } else if (fileName.endsWith('content_list.json')) {
-        assets.push({
-          type: 'file',
-          url,
-          filePath: filePath,
-        });
-      } else if (fileName.endsWith('full.md')) {
-        fullMd = data.toString('utf-8');
-        assets.push({
-          type: 'file',
-          url,
-          filePath: filePath,
-        });
-      } else if (fileName.endsWith('origin.pdf')) {
-        metadata.originPdfUrl = fileName;
+      // If platform didn't provide filesystem permission, still parse markdown but skip persisting files.
+      // This avoids runtime crashes like: "Cannot read properties of undefined (reading 'writeFile')".
+      if (fileSystem) {
+        const url = await fileSystem.writeFile(filePath, data);
+        pathMap.set(fileName, url);
+        // Write images to local file system
+        if (fileName.startsWith('images/')) {
+          assets.push({
+            type: 'image',
+            url: url,
+            filePath: filePath,
+          });
+        } else if (fileName.endsWith('layout.json')) {
+          layoutJson = JSON.parse(data.toString('utf-8'));
+          metadata.mineruBackend = layoutJson?._backend;
+          metadata.mineruVersion = layoutJson?._version_name;
+
+          assets.push({
+            type: 'file',
+            url,
+            filePath: filePath,
+          });
+        } else if (fileName.endsWith('content_list.json')) {
+          assets.push({
+            type: 'file',
+            url,
+            filePath: filePath,
+          });
+        } else if (fileName.endsWith('full.md')) {
+          fullMd = data.toString('utf-8');
+          assets.push({
+            type: 'file',
+            url,
+            filePath: filePath,
+          });
+        } else if (fileName.endsWith('origin.pdf')) {
+          metadata.originPdfUrl = fileName;
+        }
+      } else {
+        // Still extract key metadata & markdown without writing to filesystem
+        if (fileName.endsWith('layout.json')) {
+          layoutJson = JSON.parse(data.toString('utf-8'));
+          metadata.mineruBackend = layoutJson?._backend;
+          metadata.mineruVersion = layoutJson?._version_name;
+        } else if (fileName.endsWith('full.md')) {
+          fullMd = data.toString('utf-8');
+        } else if (fileName.endsWith('origin.pdf')) {
+          metadata.originPdfUrl = fileName;
+        }
       }
     }
 
@@ -118,7 +134,7 @@ export class MinerUResultParserService {
     result: MineruSelfHostedTaskResult,
     taskId: string,
     document: Partial<IKnowledgeDocument>,
-    fileSystem: XpFileSystem
+    fileSystem?: XpFileSystem
   ): Promise<{
     id?: string;
     chunks: Document<ChunkMetadata>[];
@@ -132,16 +148,26 @@ export class MinerUResultParserService {
     const pathMap = new Map();
     for (const image of result.images) {
       const filePath = join(document.folder || '', 'images', image.name);
-      const url = await fileSystem.writeFile(
-        filePath,
-        Buffer.from(image.dataUrl.split(',')[1], 'base64')
-      );
-      pathMap.set(`images/${image.name}`, url);
-      assets.push({
-        type: 'image',
-        url: url,
-        filePath: filePath,
-      });
+      if (fileSystem) {
+        const url = await fileSystem.writeFile(
+          filePath,
+          Buffer.from(image.dataUrl.split(',')[1], 'base64')
+        );
+        pathMap.set(`images/${image.name}`, url);
+        assets.push({
+          type: 'image',
+          url: url,
+          filePath: filePath,
+        });
+      } else {
+        // Fallback: keep images as data URLs so markdown can still render without filesystem permission
+        pathMap.set(`images/${image.name}`, image.dataUrl);
+        assets.push({
+          type: 'image',
+          url: image.dataUrl,
+          filePath: filePath,
+        });
+      }
     }
 
     if (result.sourceUrl) {

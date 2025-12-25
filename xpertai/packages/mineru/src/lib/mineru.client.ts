@@ -92,8 +92,24 @@ export class MinerUClient {
         }
   ) {
     const integration = this.permissions?.integration;
-    this.serverType = this.resolveServerType(integration);
+    
+    // First, resolve credentials without depending on serverType
     const { baseUrl, token } = this.resolveCredentials(integration);
+    const maskedToken =
+      token && token.length > 8
+        ? `${token.slice(0, 4)}***${token.slice(-4)}`
+        : token
+          ? 'provided'
+          : 'missing';
+    this.logger.debug('[MinerU] MinerUClient credentials resolved', {
+      hasIntegration: Boolean(integration),
+      apiUrl: baseUrl,
+      token: maskedToken,
+      serverTypeFromUrl: this.resolveServerTypeFromUrl(
+        baseUrl || '',
+        integration
+      ),
+    });
 
     if (!baseUrl) {
       throw new Error('MinerU base URL is required');
@@ -101,6 +117,9 @@ export class MinerUClient {
 
     this.baseUrl = this.normalizeBaseUrl(baseUrl);
     this.token = token;
+    
+    // Automatically determine serverType from URL: official if it's the official URL, otherwise self-hosted
+    this.serverType = this.resolveServerTypeFromUrl(this.baseUrl, integration);
 
     if (this.serverType === 'official' && !this.token) {
       throw new Error('MinerU official API requires an access token');
@@ -227,7 +246,13 @@ export class MinerUClient {
     const start = Date.now();
     while (true) {
       const result = await this.getTaskResult(taskId);
-      this.logger.debug(`MinerU waiting task result: ${JSON.stringify(result)}`);
+      this.logger.debug('[MinerU] waiting task result', {
+        taskId,
+        hasZip: Boolean(result?.full_zip_url),
+        hasUrl: Boolean(result?.full_url),
+        hasContent: Boolean(result?.content),
+        status: result?.status,
+      });
 
       if (result?.full_zip_url || result?.full_url || result?.content || result?.status === 'done') {
         return result;
@@ -247,18 +272,32 @@ export class MinerUClient {
     }
   }
 
-  private resolveServerType(integration?: Partial<IIntegration<MinerUIntegrationOptions>>): MinerUServerType {
+  /**
+   * Automatically determine serverType from URL
+   * Returns 'official' if URL is the official address (https://mineru.net/api/v4), otherwise 'self-hosted'
+   */
+  private resolveServerTypeFromUrl(baseUrl: string, integration?: Partial<IIntegration<MinerUIntegrationOptions>>): MinerUServerType {
+    // Prefer explicitly specified serverType (backward compatibility)
     const integrationType = this.readIntegrationOptions(integration)?.serverType as MinerUServerType | undefined;
     if (integrationType === 'self-hosted' || integrationType === 'official') {
       return integrationType;
     }
 
+    // Check environment variable (backward compatibility)
     const envValue = this.configService.get<string>(ENV_MINERU_SERVER_TYPE)?.toLowerCase();
     if (envValue === 'self-hosted') {
       return 'self-hosted';
     }
 
-    return 'official';
+    // Automatically determine from URL: if normalized URL matches official address, return 'official'
+    const normalizedOfficialUrl = this.normalizeBaseUrl(DEFAULT_OFFICIAL_BASE_URL);
+    const normalizedBaseUrl = this.normalizeBaseUrl(baseUrl);
+    
+    if (normalizedBaseUrl === normalizedOfficialUrl) {
+      return 'official';
+    }
+    
+    return 'self-hosted';
   }
 
   private resolveCredentials(integration?: Partial<IIntegration<MinerUIntegrationOptions>>): {
@@ -269,18 +308,17 @@ export class MinerUClient {
     const baseUrlFromIntegration = options?.apiUrl;
     const tokenFromIntegration = options?.apiKey;
 
-    const baseUrlEnvKey =
-      this.serverType === 'self-hosted' ? ENV_MINERU_API_BASE_URL : ENV_MINERU_API_BASE_URL;
-    const tokenEnvKey =
-      this.serverType === 'self-hosted' ? ENV_MINERU_API_TOKEN : ENV_MINERU_API_TOKEN;
+    // Read from environment variables (same keys for both official and self-hosted)
+    const baseUrlFromEnv = this.configService.get<string>(ENV_MINERU_API_BASE_URL);
+    const tokenFromEnv = this.configService.get<string>(ENV_MINERU_API_TOKEN);
 
-    const baseUrlFromEnv = this.configService.get<string>(baseUrlEnvKey);
-    const tokenFromEnv = this.configService.get<string>(tokenEnvKey);
-
+    // Determine baseUrl: prefer integration config, then env, then default to official URL
     const baseUrl =
       baseUrlFromIntegration ||
       baseUrlFromEnv ||
-      (this.serverType === 'official' ? DEFAULT_OFFICIAL_BASE_URL : null);
+      DEFAULT_OFFICIAL_BASE_URL;
+    
+    // Determine token: prefer integration config, then env
     const token = tokenFromIntegration || tokenFromEnv;
 
     return { baseUrl, token };
@@ -337,6 +375,11 @@ export class MinerUClient {
     if (options.seed) body.seed = options.seed;
 
     try {
+      this.logger.debug('[MinerU] createOfficialTask request', {
+        url,
+        body,
+        hasAuthHeader: Boolean(this.getOfficialHeaders().Authorization),
+      });
       const resp = await axios.post(url, body, { headers: this.getOfficialHeaders() });
       const data = resp.data as MineruTaskResult;
       if (data.code !== 0) {

@@ -1,9 +1,20 @@
 {
   "name": "@xpert-ai/plugin-mineru",
-  "version": "0.0.9",
+  "version": "0.1.0",
+  "license": "AGPL-3.0",
+  "description": "MinerU PDF to Markdown converter plugin for XpertAI platform with toolset support",
+  "keywords": [
+    "xpert-ai",
+    "plugin",
+    "mineru",
+    "pdf",
+    "markdown",
+    "ocr",
+    "document-conversion"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git"
   },
   "bugs": {
     "url": "https://github.com/xpert-ai/xpert-plugins/issues"
@@ -23,6 +34,7 @@
   },
   "files": [
     "dist",
+    "package.json",
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
@@ -31,17 +43,18 @@
     "unzipper": "0.12.3"
   },
   "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@langchain/langgraph": "0.4.7",
+    "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "zod": "3.25.67",
     "@xpert-ai/plugin-sdk": "^3.6.2",
     "@metad/contracts": "^3.6.2",
-    "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "nestjs-i18n": "10.5.1",
     "chalk": "4.1.2",
-    "@langchain/core": "^0.3.72",
     "lodash-es": "4.17.21",
-    "uuid": "8.3.2"
+    "uuid": "8.3.2",
+    "zod": "3.25.67"
   },
   "devDependencies": {
     "@types/unzipper": "^0.10.11"
