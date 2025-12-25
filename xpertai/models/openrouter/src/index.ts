@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { z } from 'zod';
 import { OpenRouterModule } from './openrouter.module.js';
+import { SvgIcon } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,8 +25,7 @@ const plugin: XpertPlugin<any> = {
     category: 'model',
     icon: {
       type: 'svg',
-      value:
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-2 1L12 15.5l7-3.5-2-1-5 2.5z"/></svg>', // Placeholder SVG
+      value: SvgIcon
     },
     displayName: 'OpenRouter',
     description: 'Provide OpenRouter Models',
