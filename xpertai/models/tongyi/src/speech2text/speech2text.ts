@@ -4,12 +4,9 @@ import { AIMessage, BaseMessage } from '@langchain/core/messages'
 import { ChatResult } from '@langchain/core/outputs'
 import { getEnvironmentVariable } from '@langchain/core/utils/env'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
-import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { Injectable } from '@nestjs/common'
+import { getErrorMessage, ModelProvider, SpeechToTextModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
-import { ModelProvider, 
-	TChatModelOptions, 
-	SpeechToTextModel } from '@xpert-ai/plugin-sdk'
 
 @Injectable()
 export class TongyiSpeech2TextModel extends SpeechToTextModel {
@@ -81,6 +78,8 @@ export class Speech2TextChatModel extends BaseChatModel {
 				}))
 			}
 		}
+
+		return null
 	}
 }
 

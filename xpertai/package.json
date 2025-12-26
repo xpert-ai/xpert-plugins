@@ -60,7 +60,7 @@
     "i18next": "25.6.0",
     "i18next-fs-backend": "2.6.0",
     "langchain": "0.3.31",
-    "lodash-es": "4.17.21",
+    "lodash-es": "^4.17.21",
     "rxjs": "^7.8.1",
     "short-unique-id": "^5.3.2",
     "zod": "3.25.67"

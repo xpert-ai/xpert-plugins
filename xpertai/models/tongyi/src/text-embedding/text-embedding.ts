@@ -1,10 +1,7 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
-import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { Injectable } from '@nestjs/common'
-import { ModelProvider, 
-	TextEmbeddingModelManager, 
-	CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
+import { CredentialsValidateFailedError, getErrorMessage, ModelProvider, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
 import { toCredentialKwargs, TongyiCredentials, TongyiTextEmbeddingModelOptions } from '../types.js'
 
 @Injectable()

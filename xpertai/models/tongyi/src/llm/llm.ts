@@ -1,14 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
+import { ChatOAICompatReasoningModel, CredentialsValidateFailedError, getErrorMessage, LargeLanguageModel, ModelProvider, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash'
 import { QWenModelCredentials, toCredentialKwargs, TongyiCredentials } from '../types.js'
-import { ModelProvider, 
-	LargeLanguageModel, 
-	getErrorMessage, 
-	TChatModelOptions, 
-	CredentialsValidateFailedError,
-	ChatOAICompatReasoningModel } from '@xpert-ai/plugin-sdk'
 
 @Injectable()
 export class TongyiLargeLanguageModel extends LargeLanguageModel {
@@ -76,7 +71,10 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
 			callbacks: [
 				...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),
 				this.createHandleLLMErrorCallbacks(fields, this.#logger)
-			]
+			],
+			// metadata: {
+			// 	profile: this.getModelProfile(model, credentials),
+			// }
 		})
 	}
 }

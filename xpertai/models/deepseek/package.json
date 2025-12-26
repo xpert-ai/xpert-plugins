@@ -1,18 +1,18 @@
 {
-  "name": "@xpert-ai/plugin-deepseek",
+  "name": "@zephyr-wing/plugin-deepseek",
   "version": "0.0.1",
   "description": "DeepSeek AI model plugin for XpertAI platform",
   "author": {
-    "name": "XpertAI",
-    "url": "https://xpertai.cn"
+    "name": "zhezhiming",
+    "url": "https://github.com/zhezhiming"
   },
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+    "url": "https://github.com/zhezhiming/xpert-plugins"
   },
   "bugs": {
-    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+    "url": "https://github.com/zhezhiming/xpert-plugins/issues"
   },
   "type": "module",
   "main": "./dist/index.js",

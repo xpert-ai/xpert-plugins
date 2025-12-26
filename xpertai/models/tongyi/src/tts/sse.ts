@@ -25,9 +25,10 @@ export async function* createSSEGenerator(options: SSEGeneratorOptions): AsyncGe
 
 	const events: MessageEvent[] = []
 	const errors: any[] = []
+	// let result = ''
 
 	const es = new EventSource(url, {
-		fetch: async (input: string | URL | Request, init?: RequestInit) => {
+		fetch: async (input: any, init?: RequestInit) => {
 			return fetch(input, {
 				...init,
 				...fetchOptionsBuilder(),
@@ -37,6 +38,7 @@ export async function* createSSEGenerator(options: SSEGeneratorOptions): AsyncGe
 	} as any)
 
 	const onMessage = (event: MessageEvent) => {
+		// console.log('SSE Message:', event.data)
 		events.push(event)
 	}
 	const onError = (error: any) => {
@@ -45,6 +47,7 @@ export async function* createSSEGenerator(options: SSEGeneratorOptions): AsyncGe
 	}
 
 	es.addEventListener('result', onMessage)
+	// es.addEventListener('error', onError)
 	es.onerror = (error: any) => {
 		console.error('SSE onerror:', error)
 		errors.push(error)
@@ -73,15 +76,19 @@ export async function* createSSEGenerator(options: SSEGeneratorOptions): AsyncGe
 
 				if (errorCondition(data)) {
 					yield { type: 'complete', status: 'fail', error: data }
+					// es.close()
 					return
 				}
 
 				if (completionCondition(data)) {
 					yield { type: 'complete', status: 'success', result: data }
+					// es.close()
 					return
 				}
 
 				if (data != null) {
+					// if (result) result += '\n'
+					// result += data
 					yield { type: 'progress', output: data }
 				}
 			}
@@ -92,4 +99,3 @@ export async function* createSSEGenerator(options: SSEGeneratorOptions): AsyncGe
 		es.close()
 	}
 }
-

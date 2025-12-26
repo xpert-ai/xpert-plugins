@@ -86,6 +86,9 @@
     },
     {
       "path": "./models/deepseek"
+    },
+    {
+      "path": "./models/tongyi"
     }
   ]
 }

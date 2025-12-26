@@ -3,11 +3,9 @@
   "compilerOptions": {
     "outDir": "./out-tsc/jest",
     "types": ["jest", "node"],
-    "forceConsistentCasingInFileNames": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["jest.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "test/**/*.test.ts", "test/**/*.spec.ts", "test/**/*.ts"],
+  "include": ["jest.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"],
   "references": [
     {
       "path": "./tsconfig.lib.json"

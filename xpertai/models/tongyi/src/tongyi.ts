@@ -1,19 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { ModelProvider, 
-    AIModelProviderStrategy, 
-    CredentialsValidateFailedError 
-} from '@xpert-ai/plugin-sdk'
+
+import { Injectable, Module } from '@nestjs/common'
 import { AiModelTypeEnum } from '@metad/contracts'
-import { TongyiCredentials, toCredentialKwargs } from './types.js'
-import { Tongyi } from './types.js'
+import { AIModelProviderStrategy, CredentialsValidateFailedError, ModelProvider } from '@xpert-ai/plugin-sdk'
+import { toCredentialKwargs, TongyiCredentials } from './types.js'
 
 @Injectable()
-@AIModelProviderStrategy(Tongyi)
+@AIModelProviderStrategy('tongyi')
 export class TongyiProviderStrategy extends ModelProvider {
-	override logger = new Logger(TongyiProviderStrategy.name)
+
 	getBaseUrl(credentials: TongyiCredentials): string {
 		const params = toCredentialKwargs(credentials)
-		return params.configuration.baseURL??'https://dashscope.aliyuncs.com/compatible-mode/v1'
+		return params.configuration.baseURL
 	}
 
 	getAuthorization(credentials: TongyiCredentials): string {
@@ -25,7 +22,7 @@ export class TongyiProviderStrategy extends ModelProvider {
 			const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
 
 			await modelInstance.validateCredentials('qwen-turbo', credentials)
-		} catch (ex) {
+		} catch (ex: any) {
 			if (ex instanceof CredentialsValidateFailedError) {
 				throw ex
 			} else {

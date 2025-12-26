@@ -1,8 +1,6 @@
 import { ClientOptions, OpenAIBaseInput } from "@langchain/openai"
 import { CommonChatModelParameters } from "@xpert-ai/plugin-sdk"
 
-export const Tongyi = 'tongyi'
-
 export interface TongyiCredentials {
     dashscope_api_key: string
 }

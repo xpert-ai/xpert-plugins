@@ -1,52 +1,28 @@
 {
-    "name": "@xpert-ai/plugin-tongyi",
-    "version": "0.0.1",
-    "author": {
-      "name": "XpertAI",
-      "url": "https://xpertai.cn"
-    },
-    "license": "AGPL-3.0",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/xpert-ai/xpert-plugins.git"
-    },
-    "bugs": {
-      "url": "https://github.com/xpert-ai/xpert-plugins/issues"
-    },
-    "type": "module",
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-      "./package.json": "./package.json",
-      ".": {
-        "@xpert-plugins-starter/source": "./src/index.ts",
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js",
-        "default": "./dist/index.js"
-      }
-    },
-    "files": [
-      "dist",
-      "!**/*.tsbuildinfo"
-    ],
-    "scripts": {
-      "prepack": "node ./scripts/copy-assets.mjs"
-    },
-    "dependencies": {
-      "@langchain/openai": "0.6.9",
-      "axios": "^1.7.0",
-      "eventsource": "^3.0.6",
-      "tslib": "^2.3.0"
-    },
-    "peerDependencies": {
-      "@langchain/core": "^0.3.72",
-      "@metad/contracts": "^3.7.0",
-      "@nestjs/common": "^11.1.6",
-      "@nestjs/config": "^4.0.2",
-      "@xpert-ai/plugin-sdk": "^3.7.1",
-      "chalk": "4.1.2",
-      "zod": "3.25.67"
+  "name": "@zephyr-wing/plugin-tongyi",
+  "version": "0.0.3",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "test": "jest",
+    "prepack": "node ./scripts/copy-assets.mjs"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
   }
-  
+}

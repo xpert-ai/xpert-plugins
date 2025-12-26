@@ -5,11 +5,8 @@ import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs'
 import { getEnvironmentVariable } from '@langchain/core/utils/env'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
+import { ModelProvider, TChatModelOptions, TextToSpeechModel } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
-import { ModelProvider, 
-	TextToSpeechModel, 
-	TChatModelOptions
-} from '@xpert-ai/plugin-sdk'
 import { createSSEGenerator } from './sse.js'
 
 @Injectable()
@@ -70,7 +67,7 @@ export class TTSChatModel extends BaseChatModel {
 		throw new Error('Method not implemented.')
 	}
 
-	 override async *_streamResponseChunks(
+	override async *_streamResponseChunks(
 		messages: BaseMessage[],
 		options: this["ParsedCallOptions"],
 		runManager?: CallbackManagerForLLMRun

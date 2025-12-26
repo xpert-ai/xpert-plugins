@@ -4,9 +4,9 @@ import { DocumentInterface } from '@langchain/core/documents'
 import { BaseDocumentCompressor } from '@langchain/core/retrievers/document_compressors'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
-import { IRerank, TChatModelOptions, RerankModel, ModelProvider } from '@xpert-ai/plugin-sdk'
+import { IRerank, ModelProvider, RerankModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
-import { TongyiCredentials } from '../types.js'
+import { TongyiCredentials } from 'src/types.js'
 
 @Injectable()
 export class TongyiRerankModel extends RerankModel {
