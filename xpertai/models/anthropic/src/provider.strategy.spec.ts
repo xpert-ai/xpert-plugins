@@ -28,7 +28,7 @@ describe('AnthropicProviderStrategy', () => {
   beforeEach(() => {
     strategy = new AnthropicProviderStrategy()
     credentials = {
-      api_key: 'test-api-key'
+      anthropic_api_key: 'test-api-key'
     }
   })
 

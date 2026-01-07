@@ -15,7 +15,7 @@ export class AnthropicProviderStrategy extends ModelProvider {
   override async validateProviderCredentials(
     credentials: AnthropicCredentials
   ): Promise<void> {
-    if (!credentials.api_key) {
+    if (!credentials.anthropic_api_key) {
       throw new Error('Anthropic API key is required')
     }
 
@@ -49,7 +49,7 @@ export class AnthropicProviderStrategy extends ModelProvider {
 
   getAuthorization(credentials: AnthropicCredentials): string {
     // Anthropic API uses x-api-key header, not Bearer token
-    return credentials.api_key
+    return credentials.anthropic_api_key
   }
 }
 
