@@ -10,8 +10,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 
-
-
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
   name: string;
   version: string;
@@ -26,7 +24,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     category: 'middleware',
     icon: {
-      type: 'base64',
+      type: 'image',
       value: LongTermMemoryIcon,
     },
     displayName: 'Long-term Memory Middleware',

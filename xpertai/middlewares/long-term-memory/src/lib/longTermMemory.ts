@@ -106,7 +106,7 @@ export class LongTermMemoryMiddleware implements IAgentMiddlewareStrategy<LongTe
       zh_Hans: '检索相关长期记忆并注入到系统提示词中。'
     },
     icon: {
-      type: 'base64',
+      type: 'image',
       value: LongTermMemoryIcon,
     },
     configSchema: {

@@ -1,5 +1,5 @@
 {
-  "name": "@xpert-ai/plugin-long-term-memory",
+  "name": "plugin-long-term-memory",
   "version": "0.0.1",
   "license": "AGPL-3.0",
   "repository": {
@@ -31,11 +31,12 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.7.1",
+    "@xpert-ai/plugin-sdk": "^3.7.0",
     "chalk": "4.1.2",
     "@nestjs/common": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
     "@metad/contracts": "^3.7.0",
     "@langchain/core": "0.3.72",
-    "@langchain/langgraph": "^0.2.0"
+    "@langchain/langgraph": "^0.4.7"
   }
 }
