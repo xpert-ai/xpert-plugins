@@ -129,7 +129,7 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
     config: TMinerUTransformerConfig
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions)
-    const parsedResults: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
+    const parsedResults: Partial<IKnowledgeDocument>[] = []
     for await (const document of documents) {
       if (mineru.serverType === 'self-hosted') {
         const { taskId } = await mineru.createTask({
@@ -150,12 +150,8 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
           config.permissions.fileSystem
         )
 
-        // Convert parsedResult to IKnowledgeDocument format
-        parsedResults.push({
-          id: document.id,
-          chunks: parsedResult.chunks as any,
-          metadata: parsedResult.metadata as any
-        } as Partial<IKnowledgeDocument<ChunkMetadata>>)
+        parsedResult.id = document.id
+        parsedResults.push(parsedResult)
       } else {
         const { taskId } = await mineru.createTask({
           url: document.fileUrl,
@@ -178,15 +174,11 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
           config.permissions.fileSystem
         )
 
-        // Convert parsedResult to IKnowledgeDocument format
-        parsedResults.push({
-          id: document.id,
-          chunks: parsedResult.chunks as any,
-          metadata: parsedResult.metadata as any
-        } as Partial<IKnowledgeDocument<ChunkMetadata>>)
+        parsedResult.id = document.id
+        parsedResults.push(parsedResult)
       }
     }
 
-    return parsedResults
+    return parsedResults as Partial<IKnowledgeDocument>[]
   }
 }
