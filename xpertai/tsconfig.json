@@ -85,6 +85,9 @@
       "path": "./middlewares/model-fallback"
     },
     {
+      "path": "./middlewares/long-term-memory"
+    },  
+    {
       "path": "./models/deepseek"
     }
   ]
