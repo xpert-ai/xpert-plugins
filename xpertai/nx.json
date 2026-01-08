@@ -72,6 +72,7 @@
       "@xpert-ai/plugin-context-editing",
       "@xpert-ai/plugin-tool-call-limit",
       "@xpert-ai/plugin-model-fallback",
+      "@xpert-ai/plugin-long-term-memory",
       "@xpert-ai/plugin-deepseek"
     ],
     "version": {
