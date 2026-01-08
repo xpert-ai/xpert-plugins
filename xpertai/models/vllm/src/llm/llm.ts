@@ -54,8 +54,20 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
   // Track accumulated reasoning content across chunks
   private accumulatedReasoning: string = ''
   private finalReasoningContent: string | null = null // Store final reasoning content after tag found
-  private inReasoningMode: boolean = true // Start in reasoning mode for vLLM thinking mode
+  private inReasoningMode: boolean = false // Start in normal mode, only enter reasoning mode if thinking is enabled
   private reasoningComplete: boolean = false // Track if reasoning phase is complete
+  private readonly thinkingEnabled: boolean // Track if thinking mode is enabled
+  
+  constructor(fields: any) {
+    super(fields)
+    // Get thinking mode state from modelKwargs
+    // This determines whether we should process reasoning tags
+    const modelKwargs = fields.modelKwargs || {}
+    const chatTemplateKwargs = modelKwargs.chat_template_kwargs || {}
+    this.thinkingEnabled = !!chatTemplateKwargs.enable_thinking
+    // Only start in reasoning mode if thinking is enabled
+    this.inReasoningMode = this.thinkingEnabled
+  }
   /**
    * Override _convertCompletionsDeltaToBaseMessageChunk to handle vLLM's tag format
    * This is the key fix: process tags at delta conversion stage, not in streaming
@@ -131,7 +143,8 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     }
     
     // If still in reasoning mode (before tag found), accumulate reasoning content
-    if (this.inReasoningMode) {
+    // Only process reasoning if thinking mode is enabled
+    if (this.inReasoningMode && this.thinkingEnabled) {
       // Only pass the current delta content, not accumulated content
       // This prevents duplicate reasoning content in each chunk
       // Platform code will accumulate the reasoning_content chunks on its own
@@ -144,6 +157,8 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
       return messageChunk
     }
     
+    // If thinking mode is disabled, return content as normal text
+    // This ensures normal content appears in text tab, not reasoning tab
     // Fallback: return as is
     return messageChunk
   }
@@ -171,7 +186,8 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     }
     
     // Handle vLLM's tag format in non-streaming case
-    if (typeof langChainMessage.content === 'string') {
+    // Only process reasoning tags if thinking mode is enabled
+    if (this.thinkingEnabled && typeof langChainMessage.content === 'string') {
       const { reasoning, finalContent } = extractReasoningFromContent(langChainMessage.content)
       
       if (reasoning) {
@@ -195,30 +211,34 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     runManager?: Parameters<ChatOAICompatReasoningModel['_generate']>[2]
   ) {
     // Reset state for new generation
+    // Only start in reasoning mode if thinking is enabled
     this.accumulatedReasoning = ''
     this.finalReasoningContent = null
-    this.inReasoningMode = true
+    this.inReasoningMode = this.thinkingEnabled
     this.reasoningComplete = false
     
     const result = await super._generate(messages, options, runManager)
     
-    // Process each generation to extract reasoning content from tags
-    for (const generation of result.generations) {
-      if (isAIMessage(generation.message) && typeof generation.message.content === 'string') {
-        const { reasoning, finalContent } = extractReasoningFromContent(generation.message.content)
-        
-        if (reasoning) {
-          // Update content to remove thinking tags
-          generation.message.content = finalContent
+    // Only process reasoning content from tags if thinking mode is enabled
+    if (this.thinkingEnabled) {
+      // Process each generation to extract reasoning content from tags
+      for (const generation of result.generations) {
+        if (isAIMessage(generation.message) && typeof generation.message.content === 'string') {
+          const { reasoning, finalContent } = extractReasoningFromContent(generation.message.content)
           
-          // Set reasoning_content in additional_kwargs
-          if (!generation.message.additional_kwargs) {
-            generation.message.additional_kwargs = {}
+          if (reasoning) {
+            // Update content to remove thinking tags
+            generation.message.content = finalContent
+            
+            // Set reasoning_content in additional_kwargs
+            if (!generation.message.additional_kwargs) {
+              generation.message.additional_kwargs = {}
+            }
+            generation.message.additional_kwargs.reasoning_content = reasoning
+            
+            // Update text field as well
+            generation.text = finalContent
           }
-          generation.message.additional_kwargs.reasoning_content = reasoning
-          
-          // Update text field as well
-          generation.text = finalContent
         }
       }
     }
@@ -236,9 +256,10 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     runManager?: Parameters<ChatOAICompatReasoningModel['_streamResponseChunks']>[2]
   ) {
     // Reset state for new stream
+    // Only start in reasoning mode if thinking is enabled
     this.accumulatedReasoning = ''
     this.finalReasoningContent = null
-    this.inReasoningMode = true
+    this.inReasoningMode = this.thinkingEnabled
     this.reasoningComplete = false
     
     // Let parent handle streaming, _convertCompletionsDeltaToBaseMessageChunk will process tags
