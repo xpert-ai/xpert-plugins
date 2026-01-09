@@ -24,7 +24,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     category: 'middleware',
     icon: {
-      type: 'image',
+      type: 'svg',
       value: LongTermMemoryIcon,
     },
     displayName: 'Long-term Memory Middleware',
