@@ -15,6 +15,7 @@ export type VLLMModelCredentials = {
 	stream_function_calling?: 'supported' | 'unsupported';
 	vision_support?: 'supported' | 'unsupported';
 	stream_mode_delimiter?: string;
+	thinking?: boolean;
 }
 
 
@@ -30,8 +31,17 @@ export function toCredentialKwargs(credentials: VLLMModelCredentials, model: str
 		configuration.baseURL = openaiApiBase
 	}
 
+	// Handle thinking mode parameter
+	// Pass thinking parameter through modelKwargs for ChatOAICompatReasoningModel
+	const modelKwargs = {}
+	if (credentials.thinking != null) {
+		modelKwargs['chat_template_kwargs'] ??= {}
+		modelKwargs['chat_template_kwargs']['enable_thinking'] = !!credentials.thinking
+	}
+
 	return {
 		...credentialsKwargs,
+		modelKwargs,
 		configuration
 	}
 }
