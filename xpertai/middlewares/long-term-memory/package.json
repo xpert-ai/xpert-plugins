@@ -1,6 +1,6 @@
 {
-  "name": "plugin-long-term-memory",
-  "version": "0.0.1",
+  "name": "@xpert-ai/plugin-long-term-memory",
+  "version": "0.0.2",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
