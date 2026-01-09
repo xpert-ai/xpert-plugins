@@ -4,28 +4,28 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/lark"
+      "path": "./integrations/lark"
     },
     {
-      "path": "./packages/firecrawl"
+      "path": "./integrations/firecrawl"
     },
     {
-      "path": "./packages/mineru"
+      "path": "./integrations/mineru"
     },
     {
-      "path": "./packages/dify"
+      "path": "./integrations/dify"
     },
     {
       "path": "./packages/file-system"
     },
     {
-      "path": "./packages/fastgpt"
+      "path": "./integrations/fastgpt"
     },
     {
-      "path": "./packages/ragflow"
+      "path": "./integrations/ragflow"
     },
     {
-      "path": "./packages/unstructured"
+      "path": "./integrations/unstructured"
     },
     {
       "path": "./packages/rag-vlm"

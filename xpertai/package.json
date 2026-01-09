@@ -38,6 +38,7 @@
   },
   "workspaces": [
     "packages/*",
+    "integrations/*",
     "tools/*",
     "models/*",
     "databases/*",
