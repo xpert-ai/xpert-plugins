@@ -5,7 +5,7 @@ import { getErrorMessage, XpFileSystem } from '@xpert-ai/plugin-sdk';
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { randomUUID } from 'crypto';
-import { basename } from 'path';
+import { basename, isAbsolute, join as pathJoin } from 'path';
 import fs from 'fs';
 import {
   ENV_MINERU_API_BASE_URL,
@@ -280,8 +280,16 @@ export class MinerUClient {
     const baseUrl =
       baseUrlFromIntegration ||
       baseUrlFromEnv ||
-      (this.serverType === 'official' ? DEFAULT_OFFICIAL_BASE_URL : null);
+      (this.serverType === 'official' ? DEFAULT_OFFICIAL_BASE_URL : undefined);
     const token = tokenFromIntegration || tokenFromEnv;
+    
+    // Validate baseUrl is provided for self-hosted mode
+    if (this.serverType === 'self-hosted' && !baseUrl) {
+      throw new Error(
+        'MinerU self-hosted mode requires apiUrl to be configured in integration options or ' +
+        `${ENV_MINERU_API_BASE_URL} environment variable`
+      );
+    }
 
     return { baseUrl, token };
   }
@@ -350,9 +358,136 @@ export class MinerUClient {
   }
 
   private async createSelfHostedTask(options: CreateTaskOptions): Promise<{ taskId: string }> {
-    const filePath = this.fileSystem.fullPath(options.filePath);
+    // Validate fileSystem is available for self-hosted mode
+    if (!this.fileSystem) {
+      throw new Error('MinerU self-hosted mode requires fileSystem permission');
+    }
+
+    // Validate filePath is provided
+    if (!options.filePath) {
+      throw new Error('MinerU self-hosted mode requires filePath to be provided');
+    }
+
+    // Resolve absolute file path
+    // Log original filePath for debugging
+    const basePath = this.fileSystem ? (this.fileSystem as any).basePath : 'N/A';
+    this.logger.debug(`Resolving file path. Original filePath: ${options.filePath}, basePath: ${basePath}`);
+    
+    // Check if filePath is already an absolute path
+    const isAbsolutePath = isAbsolute(options.filePath);
+    // Also check if it looks like a full path even without leading slash
+    const looksLikeFullPath = !isAbsolutePath && (
+      options.filePath.startsWith('Users/') ||
+      options.filePath.startsWith('home/')
+    );
+    
+    let filePath: string;
+    if (isAbsolutePath) {
+      // Use absolute path directly
+      filePath = options.filePath;
+      this.logger.debug(`Using absolute path directly: ${filePath}`);
+    } else if (looksLikeFullPath) {
+      // If it looks like a full path but doesn't start with /, add it
+      filePath = options.filePath.startsWith('/') ? options.filePath : '/' + options.filePath;
+      this.logger.debug(`Detected full path pattern, normalized to: ${filePath}`);
+    } else {
+      // Use xpFileSystem.fullPath() to resolve relative path to absolute path
+      filePath = this.fileSystem.fullPath(options.filePath);
+      this.logger.debug(`Resolved relative path using basePath: ${filePath}`);
+    }
+    
+    // Validate file exists and is readable before attempting to parse
+    try {
+      await fs.promises.access(filePath, fs.constants.F_OK | fs.constants.R_OK);
+      const stats = await fs.promises.stat(filePath);
+      this.logger.debug(`Processing file: ${filePath}, size: ${stats.size} bytes`);
+      
+      if (stats.size === 0) {
+        throw new Error(`File is empty: ${filePath}`);
+      }
+    } catch (error) {
+      // If file not found in the resolved path, try to find it in common alternative locations
+      // This handles two scenarios:
+      // 1. StorageFile: files/{tenantId}/filename -> apps/api/public/files/{tenantId}/filename (already tried above)
+      // 2. VolumeClient: folder/filename or filename -> ~/data/folder/filename or ~/data/filename
+      if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        const homeDir = process.env.HOME || process.env.USERPROFILE;
+        const originalFilePath = options.filePath;
+        const fileName = basename(originalFilePath);
+        
+        // Build alternative paths for VolumeClient storage
+        const alternativePaths: string[] = [];
+        
+        // If original path contains directory separators, try both full path and just filename
+        if (originalFilePath.includes('/') || originalFilePath.includes('\\')) {
+          // Try full path in ~/data/
+          alternativePaths.push(pathJoin(homeDir || '', 'data', originalFilePath));
+          
+          // Try just filename in ~/data/ (for VolumeClient files stored directly in root)
+          alternativePaths.push(pathJoin(homeDir || '', 'data', fileName));
+        } else {
+          // If original path is just a filename, try in ~/data/ root
+          alternativePaths.push(pathJoin(homeDir || '', 'data', originalFilePath));
+        }
+        
+        // Also try in knowledge base specific paths if we can determine knowledgebaseId
+        // Note: We don't have direct access to knowledgebaseId here, but files might be in knowledges subdirectory
+        const resolvedPath = this.fileSystem.fullPath(originalFilePath);
+        if (resolvedPath.includes('apps/api/public')) {
+          // This looks like a StorageFile path, but file not found
+          // Try VolumeClient paths as fallback
+          this.logger.debug(`File not found in StorageFile path, trying VolumeClient paths...`);
+        }
+        
+        let foundPath: string | null = null;
+        for (const altPath of alternativePaths) {
+          try {
+            await fs.promises.access(altPath, fs.constants.F_OK | fs.constants.R_OK);
+            const stats = await fs.promises.stat(altPath);
+            this.logger.debug(`Found file in alternative location: ${altPath}, size: ${stats.size} bytes`);
+            foundPath = altPath;
+            if (stats.size === 0) {
+              throw new Error(`File is empty: ${foundPath}`);
+            }
+            break; // File found, exit loop
+          } catch (altError) {
+            // Continue to next alternative path
+            continue;
+          }
+        }
+        
+        // If file found in alternative location, use it
+        if (foundPath) {
+          filePath = foundPath;
+        } else {
+          // If still not found after trying alternatives, throw original error
+          const basePath = this.fileSystem ? (this.fileSystem as any).basePath : 'N/A';
+          this.logger.error(
+            `File not found or not readable. ` +
+            `Original path: ${originalFilePath}, ` +
+            `Resolved path: ${filePath}, ` +
+            `Base path: ${basePath}, ` +
+            `Tried alternative paths: ${alternativePaths.join(', ')}`,
+            error instanceof Error ? error.stack : error
+          );
+          throw new Error(
+            `File not found or not readable: ${filePath}. ` +
+            `Original path: ${originalFilePath}, ` +
+            `Base path: ${basePath}. ` +
+            `Tried alternative locations: ${alternativePaths.join(', ')}`
+          );
+        }
+      } else if (error instanceof Error && error.message.includes('empty')) {
+        this.logger.error(`File is empty: ${filePath}`);
+        throw error;
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
+
     const taskId = randomUUID();
-    const result = await this.invokeSelfHostedParse(filePath, options.fileName, options);
+    const result = await this.invokeSelfHostedParse(filePath, options.fileName || basename(filePath), options);
     this.localTasks.set(taskId, { ...result, sourceUrl: options.url });
 
     return { taskId };
@@ -364,14 +499,23 @@ export class MinerUClient {
     options: CreateTaskOptions,
   ): Promise<MineruSelfHostedTaskResult> {
     const parseUrl = this.buildApiUrl('file_parse');
+    this.logger.debug(`Sending parse request to: ${parseUrl}, file: ${fileName}`);
+    
     const form = new FormData();
-    form.append(
-      'files',
-      fs.createReadStream(filePath),
-      {
-        filename: fileName,
-      },
-    );
+    
+    // Create file read stream (file existence is already validated in createSelfHostedTask)
+    try {
+      form.append(
+        'files',
+        fs.createReadStream(filePath),
+        {
+          filename: fileName,
+        },
+      );
+    } catch (error) {
+      this.logger.error(`Failed to create read stream for file: ${filePath}`, error instanceof Error ? error.stack : error);
+      throw new Error(`Failed to read file: ${filePath}. ${error instanceof Error ? error.message : String(error)}`);
+    }
     // form.append('files', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
     form.append('parse_method', options.parseMethod ?? 'auto');
     form.append('return_md', 'true');
@@ -403,14 +547,36 @@ export class MinerUClient {
     }
 
     if (response.status === 400) {
+      const errorMessage = getErrorMessage(response.data);
+      this.logger.error(`MinerU self-hosted parse failed with 400: ${errorMessage}`, JSON.stringify(response.data));
       throw new BadRequestException(
-        `MinerU self-hosted parse failed: ${response.status} ${getErrorMessage(response.data)}`
+        `MinerU self-hosted parse failed: ${response.status} ${errorMessage}`
       )
     }
 
     if (response.status !== 200) {
-      console.error(response.data)
-      throw new Error(`MinerU self-hosted parse failed: ${response.status} ${response.statusText}`);
+      const errorMessage = getErrorMessage(response.data) || response.statusText;
+      const errorDetails = typeof response.data === 'object' ? JSON.stringify(response.data) : String(response.data);
+      
+      this.logger.error(
+        `MinerU self-hosted parse failed with ${response.status}: ${errorMessage}`,
+        `Request URL: ${parseUrl}, File: ${fileName}, Details: ${errorDetails}`
+      );
+      
+      // Provide more helpful error message for common issues
+      let userFriendlyMessage = `MinerU self-hosted parse failed: ${response.status} ${response.statusText}`;
+      if (errorMessage) {
+        userFriendlyMessage += `. ${errorMessage}`;
+      }
+      
+      // Check for specific error patterns
+      if (errorMessage && errorMessage.includes('0 active models')) {
+        userFriendlyMessage += ' Please ensure MinerU service has active models configured.';
+      } else if (errorMessage && errorMessage.includes('NoneType')) {
+        userFriendlyMessage += ' This may indicate a configuration issue with the MinerU service.';
+      }
+      
+      throw new Error(userFriendlyMessage);
     }
 
     return this.normalizeSelfHostedResponse(response.data);
@@ -453,7 +619,14 @@ export class MinerUClient {
       });
 
       if (response.status !== 200) {
-        throw new Error(`MinerU self-hosted legacy parse failed: ${response.status} ${response.statusText}`);
+        const errorMessage = getErrorMessage(response.data) || response.statusText;
+        this.logger.error(
+          `MinerU self-hosted legacy parse failed with ${response.status}: ${errorMessage}`,
+          JSON.stringify(response.data)
+        );
+        throw new Error(
+          `MinerU self-hosted legacy parse failed: ${response.status} ${response.statusText}. ${errorMessage}`
+        );
       }
 
       return this.normalizeSelfHostedResponse(response.data);
