@@ -1,11 +1,20 @@
-import { TDocumentAsset, TDocumentTransformerConfig } from "@xpert-ai/plugin-sdk"
-
-export const MinerU = 'mineru'
-
-export const ENV_MINERU_API_BASE_URL = 'MINERU_API_BASE_URL'
-export const ENV_MINERU_API_TOKEN = 'MINERU_API_TOKEN'
-export const ENV_MINERU_SERVER_TYPE = 'MINERU_SERVER_TYPE'
-
+export const MinerU = 'mineru';
+/**
+ * Integration provider key for MinerU API credentials.
+ *
+ * IMPORTANT:
+ * Keep this different from the builtin toolset provider key (`mineru`) to avoid the platform
+ * treating builtin toolset authorization as an "integration-backed" flow (which may read
+ * `credentials.integration` and crash when credentials is null).
+ */
+export const MinerUIntegration = 'mineru_api';
+/**
+ * Document transformer provider key (distinct from toolset key).
+ */
+export const MinerUTransformer = 'mineru_transformer';
+export const ENV_MINERU_API_BASE_URL = 'MINERU_API_BASE_URL';
+export const ENV_MINERU_API_TOKEN = 'MINERU_API_TOKEN';
+export const ENV_MINERU_SERVER_TYPE = 'MINERU_SERVER_TYPE';
 export const icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M19.7238 3.86898C19.7238 4.57597 19.1502 5.1491 18.4427 5.1491C17.7352 5.1491 17.1616 4.57597 17.1616 3.86898C17.1616 3.16199 17.7352 2.58887 18.4427 2.58887C19.1502 2.58887 19.7238 3.16199 19.7238 3.86898Z" fill="url(#paint0_linear_8609_1645)"/>
 <path d="M19.7238 3.86898C19.7238 4.57597 19.1502 5.1491 18.4427 5.1491C17.7352 5.1491 17.1616 4.57597 17.1616 3.86898C17.1616 3.16199 17.7352 2.58887 18.4427 2.58887C19.1502 2.58887 19.7238 3.16199 19.7238 3.86898Z" fill="#010101"/>
@@ -28,43 +37,54 @@ export const icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"
 </linearGradient>
 </defs>
 </svg>
-`
+`;
 
-export type TMinerUTransformerConfig = TDocumentTransformerConfig & {
-  isOcr?: boolean
-  enableFormula?: boolean
-  enableTable?: boolean
-  language?: 'en' | 'ch'
-  modelVersion?: 'vlm' | 'pipeline'
+export interface MinerUIntegrationOptions {
+  apiUrl?: string;
+  apiKey?: string;
+  serverType?: MinerUServerType;
 }
 
-export type MinerUDocumentMetadata = {
-  parser: 'mineru';
-  assets?: TDocumentAsset[];
-  taskId: string;
-  originPdfUrl?: string;
-  mineruBackend?: string;
-  mineruVersion?: string;
-}
-
-export type MinerUServerType = 'official' | 'self-hosted'
-
-export type MinerUIntegrationOptions = {
-  apiUrl?: string
-  apiKey?: string
-  serverType?: MinerUServerType
-}
+export type MinerUServerType = 'official' | 'self-hosted';
 
 export interface MineruSelfHostedImage {
   name: string;
-  dataUrl: string; // base64 data URL
+  dataUrl: string;
 }
 
 export interface MineruSelfHostedTaskResult {
   mdContent: string;
-  contentList?: any;
+  contentList: any;
+  images: MineruSelfHostedImage[];
+  raw: any;
+  fileName?: string;
+}
+
+export interface MinerUDocumentMetadata {
+  parser: string;
+  taskId: string;
+  mineruBackend?: string;
+  mineruVersion?: string;
+  originPdfUrl?: string;
+  assets?: any[];
+}
+
+export interface MineruSelfHostedTaskResult {
+  mdContent: string;
+  contentList: any;
   images: MineruSelfHostedImage[];
   raw: any;
   fileName?: string;
   sourceUrl?: string;
 }
+
+import type { XpFileSystem, TDocumentTransformerConfig } from '@xpert-ai/plugin-sdk';
+import type { IIntegration } from '@metad/contracts';
+
+export interface TMinerUTransformerConfig extends TDocumentTransformerConfig {
+  permissions?: {
+    fileSystem?: XpFileSystem;
+    integration?: IIntegration<MinerUIntegrationOptions>;
+  };
+}
+

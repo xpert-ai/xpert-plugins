@@ -1,6 +1,17 @@
-# Xpert Plugin: MinerU
+# MinerU Plugin for XpertAI
 
-`@xpert-ai/plugin-mineru` is a MinerU document converter plugin for the [Xpert AI](https://github.com/xpert-ai/xpert) platform, providing extraction capabilities from PDF to Markdown and structured JSON. The plugin includes built-in MinerU integration strategies, document conversion strategies, and result parsing services, enabling secure access to the MinerU API in automated workflows, polling task status, and writing parsed content and attachment resources to the platform file system.
+A powerful PDF to Markdown conversion plugin for the [XpertAI](https://github.com/xpert-ai/xpert) platform, powered by [MinerU](https://mineru.net). This plugin provides seamless integration with MinerU services to extract and convert PDF documents into structured Markdown format with support for OCR, formula recognition, and table extraction.
+
+## Features
+
+- 📄 **PDF to Markdown Conversion**: Convert PDF documents to clean, structured Markdown format
+- 🔍 **OCR Support**: Extract text from image-based PDFs using OCR technology
+- 📐 **Formula Recognition**: Automatically recognize and preserve mathematical formulas
+- 📊 **Table Extraction**: Extract and structure tables from PDF documents
+- 🤖 **Agent Toolset Integration**: Use as a built-in toolset in XpertAI agent workflows
+- 🔄 **Document Transformer**: Transform documents in knowledge base pipelines
+- 🌐 **Multi-language Support**: Support for English and Chinese documents
+- 🏢 **Self-hosted Support**: Works with both official MinerU API and self-hosted deployments
 
 ## Installation
 
@@ -10,92 +21,238 @@ pnpm add @xpert-ai/plugin-mineru
 npm install @xpert-ai/plugin-mineru
 ```
 
-> **Note**: This plugin depends on `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@metad/contracts`, `axios@1`, `chalk@4`, `@langchain/core@^0.3.72`, and `uuid@8` as peerDependencies. Please ensure these packages are installed in your host project.
+### Peer Dependencies
+
+This plugin requires the following peer dependencies to be installed in your host project:
+
+- `@xpert-ai/plugin-sdk`: ^3.6.2
+- `@nestjs/common`: ^11.1.6
+- `@nestjs/config`: ^4.0.2
+- `@metad/contracts`: ^3.6.2
+- `@langchain/core`: 0.3.72
+- `axios`: 1.12.2
+- `zod`: 3.25.67
+- `uuid`: 8.3.2
 
 ## Quick Start
 
-1. **Prepare MinerU Credentials**  
-    Obtain a valid API Key from the MinerU dashboard and confirm the service address (default: `https://mineru.net/api/v4`).
+### 1. Get MinerU API Credentials
 
-2. **Configure Integration in Xpert**  
-    - Via Xpert Console: Create a MinerU integration and fill in the following fields.  
-    - Or set environment variables in your deployment environment:
-      - `MINERU_API_BASE_URL`: Optional, defaults to `https://mineru.net/api/v4`.
-      - `MINERU_API_TOKEN`: Required, used as a fallback credential if no integration is configured.
+1. Sign up for a MinerU account at [mineru.net](https://mineru.net)
+2. Obtain your API Key from the MinerU dashboard
+3. Note the API base URL (default: `https://mineru.net/api/v4`)
 
-    Example integration configuration (JSON):
+### 2. Configure the Plugin
 
-    ```json
-    {
-      "provider": "mineru",
-      "options": {
-         "apiUrl": "https://mineru.net/api/v4",
-         "apiKey": "your-mineru-api-key"
-      }
-    }
-    ```
+#### Option A: Via XpertAI Console (Recommended)
 
-3. **Register the Plugin**  
-    Configure the plugin in your host service's plugin registration process:
+1. Navigate to the Built-in Tools section in XpertAI Console
+2. Find "MinerU PDF Parser" in the toolset list
+3. Click "Authorize" and fill in the configuration:
+   - **Base URL**: MinerU API base URL (default: `https://mineru.net/api/v4`)
+   - **API Key**: Your MinerU API Key (required)
+   - **Enable OCR**: Enable/disable OCR for image-based PDFs (default: Enabled)
+   - **Enable Formula Recognition**: Enable/disable formula recognition (default: Enabled)
+   - **Enable Table Recognition**: Enable/disable table recognition (default: Enabled)
+   - **Document Language**: Select document language - "en" for English, "ch" for Chinese (default: "ch")
+   - **Model Version**: Select model version - "pipeline" or "vlm" (default: "pipeline")
 
-    ```sh .env
-    PLUGINS=@xpert-ai/plugin-mineru
-    ```
+#### Option B: Environment Variables
 
-    The plugin returns the NestJS module `MinerUPlugin` in the `register` hook and logs messages during the `onStart`/`onStop` lifecycle.
+Set the following environment variables in your deployment:
 
-## MinerU Integration Options
+```bash
+MINERU_API_BASE_URL=https://mineru.net/api/v4  # Optional, defaults to official URL
+MINERU_API_TOKEN=your-api-key-here              # Required
+MINERU_SERVER_TYPE=official                     # Optional: 'official' or 'self-hosted'
+```
 
-| Field    | Type   | Description                           | Required | Default                      |
-| -------- | ------ | ------------------------------------- | -------- | ---------------------------- |
-| apiUrl   | string | MinerU API base URL                   | No       | `https://mineru.net/api/v4`  |
-| apiKey   | string | MinerU service API Key (keep secret)  | Yes      | —                            |
+### 3. Register the Plugin
 
-> If both integration configuration and environment variables are provided, options from the integration configuration take precedence.
+Add the plugin to your XpertAI host service configuration:
 
-## Document Conversion Parameters
+```bash
+# .env
+PLUGINS=@xpert-ai/plugin-mineru
+```
 
-`MinerUTransformerStrategy` supports the following configuration options (passed to the MinerU API when starting a workflow):
+The plugin will automatically register the `MinerUPlugin` NestJS module and be available for use in agent workflows.
 
-| Field            | Type    | Default      | Description                                         |
-| ---------------- | ------- | ------------ | --------------------------------------------------- |
-| `isOcr`          | boolean | `true`       | Enable OCR for image-based PDFs.                    |
-| `enableFormula`  | boolean | `true`       | Recognize mathematical formulas and output tags.    |
-| `enableTable`    | boolean | `true`       | Recognize tables and output structured tags.        |
-| `language`       | string  | `"ch"`       | Main document language, per MinerU API (`en`/`ch`). |
-| `modelVersion`   | string  | `"pipeline"` | MinerU model version (`pipeline`, `vlm`, etc.).     |
+## Usage
 
-By default, the plugin creates MinerU tasks for each file to be processed, polls until `full_zip_url` is returned, then downloads and parses the zip package in memory.
+### As a Toolset in Agent Workflows
+
+Once configured, the MinerU toolset is available in your agent workflows. The tool accepts a PDF document URL and returns the converted Markdown content.
+
+**Tool Input:**
+```json
+{
+  "doc_url": "https://example.com/document.pdf"
+}
+```
+
+**Tool Output:**
+- Markdown content with extracted text, formulas, and tables
+- Structured metadata including task ID and document information
+- Image assets extracted from the PDF
+
+### Configuration Options
+
+#### Toolset Configuration (Authorization Page)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `apiUrl` | string | `https://mineru.net/api/v4` | MinerU API base URL |
+| `apiKey` | string | - | MinerU API Key (required) |
+| `isOcr` | string enum | `"true"` | Enable OCR for image-based PDFs (`"true"` or `"false"`) |
+| `enableFormula` | string enum | `"true"` | Enable formula recognition (`"true"` or `"false"`) |
+| `enableTable` | string enum | `"true"` | Enable table recognition (`"true"` or `"false"`) |
+| `language` | string enum | `"ch"` | Document language (`"en"` or `"ch"`) |
+| `modelVersion` | string enum | `"pipeline"` | Model version (`"pipeline"` or `"vlm"`) |
+
+> **Note**: Configuration values set in the authorization page serve as defaults. They can be overridden when calling the tool programmatically.
+
+## Architecture
+
+### Components
+
+- **MinerUToolsetStrategy**: Implements `IToolsetStrategy` to register MinerU as a built-in toolset
+- **MinerUToolset**: Extends `BuiltinToolset` to provide the PDF parser tool
+- **MinerUClient**: Handles communication with MinerU API (both official and self-hosted)
+- **MinerUResultParserService**: Parses MinerU response and extracts Markdown content
+- **MinerUTransformerStrategy**: Implements document transformation for knowledge base pipelines
+
+### Server Types
+
+The plugin supports two MinerU deployment types:
+
+1. **Official Server** (`https://mineru.net/api/v4`)
+   - Requires API Key authentication
+   - Uses async task-based workflow
+   - Polls for task completion
+
+2. **Self-hosted Server**
+   - Can work without authentication (depending on your setup)
+   - Supports direct file upload and immediate parsing
+   - Caches results locally
+
+The plugin automatically detects the server type based on the API URL.
 
 ## Permissions
 
-- **Integration**: Access MinerU integration configuration to read API address and credentials.
-- **File System**: Perform `read/write/list` on `XpFileSystem` to store image resources from MinerU results.
+The plugin requires the following permissions:
 
-Ensure the plugin is granted these permissions in your authorization policy, or it will not be able to retrieve results or write attachments.
+- **File System**: `read`, `write`, `list` operations for storing extracted images and assets
+- **Integration** (for transformer): Access to MinerU integration configuration
 
-## Output Content
+Ensure these permissions are granted in your XpertAI authorization policy.
 
-The parser generates:
+## Output Format
 
-- Full Markdown: Resource links are automatically replaced to point to actual URLs written via `XpFileSystem`.
-- Structured metadata: Includes MinerU task ID, layout JSON (`layout.json`), content list (`content_list.json`), original PDF filename, etc.
-- Attachment asset list: Records written image resources for easy association by callers.
+The plugin returns structured documents with:
 
-The returned `Document<ChunkMetadata>` array currently defaults to a single chunk containing the full Markdown; you can split it as needed.
+- **Markdown Content**: Full document text in Markdown format with proper formatting
+- **Metadata**: Includes MinerU task ID, backend version, document language, etc.
+- **Assets**: List of extracted images and files with their storage locations
+- **Structured Data**: Layout JSON and content list for advanced processing
 
-## Development & Debugging
+## Development
 
-Run the following commands in the repository root to build and test locally:
+### Build
 
 ```bash
-npm install
+# Build the plugin
 npx nx build @xpert-ai/plugin-mineru
-npx nx test @xpert-ai/plugin-mineru
+
+# Build with cache skip
+npx nx build @xpert-ai/plugin-mineru --skip-nx-cache
 ```
 
-TypeScript build artifacts are output to `packages/mineru/dist`. Before publishing, ensure `package.json`, type declarations, and runtime files are in sync.
+### Test
+
+```bash
+# Run all tests
+npx nx test @xpert-ai/plugin-mineru
+
+# Run specific test file
+npx nx test @xpert-ai/plugin-mineru --testFile=mineru.client.spec.ts
+```
+
+### Project Structure
+
+```
+packages/mineru/
+├── src/
+│   ├── lib/
+│   │   ├── mineru-toolset.strategy.ts    # Toolset strategy implementation
+│   │   ├── mineru.toolset.ts             # Toolset class
+│   │   ├── mineru.tool.ts                # Tool builder
+│   │   ├── mineru.client.ts              # MinerU API client
+│   │   ├── result-parser.service.ts      # Result parsing service
+│   │   ├── transformer-mineru.strategy.ts # Document transformer
+│   │   └── types.ts                      # Type definitions
+│   ├── index.ts                          # Plugin entry point
+│   └── mineru.plugin.ts                  # NestJS module
+├── package.json
+└── README.md
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"MinerU apiKey is required"**
+   - Ensure you've configured the API Key in the authorization page
+   - Check that the credentials are properly saved
+
+2. **"MinerU official API requires an access token"**
+   - Official MinerU servers require a valid API Key
+   - Verify your API Key is correct and has not expired
+
+3. **Connection Refused (Self-hosted)**
+   - Verify your self-hosted MinerU server is running
+   - Check the API URL is correct
+   - Ensure network connectivity
+
+4. **Task Timeout**
+   - Large PDFs may take longer to process
+   - Check MinerU server logs for processing status
+   - Consider using the VLM model for faster processing
+
+## API Reference
+
+### MinerUToolsetConfig
+
+```typescript
+interface MinerUToolsetConfig {
+  apiUrl?: string;
+  apiKey?: string;
+  isOcr?: boolean | string;
+  enableFormula?: boolean | string;
+  enableTable?: boolean | string;
+  language?: 'en' | 'ch';
+  modelVersion?: 'pipeline' | 'vlm';
+}
+```
+
+### Tool Input Schema
+
+```typescript
+{
+  doc_url: string;  // Required: URL of the PDF document to convert
+}
+```
 
 ## License
 
-This project follows the [AGPL-3.0 License](../../../LICENSE) in the repository root.
+This project is licensed under the [AGPL-3.0 License](../../../LICENSE).
+
+## Support
+
+- **Documentation**: [MinerU API Docs](https://mineru.net/apiManage/docs)
+- **Issues**: [GitHub Issues](https://github.com/xpert-ai/xpert-plugins/issues)
+- **Homepage**: [MinerU Website](https://mineru.net)
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for version history and updates.

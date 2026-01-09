@@ -1,14 +1,15 @@
 import { z } from 'zod';
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk';
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { MinerUPlugin } from './lib/mineru.plugin.js';
 import { icon } from './lib/types.js';
-import { getModuleMeta } from './lib/path-meta.js';
 
-const { __filename, __dirname } = getModuleMeta(import.meta);
+const __filename = fileURLToPath(import.meta.url);
+const dir_name = dirname(__filename);
 
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
+const packageJson = JSON.parse(readFileSync(join(dir_name, '../package.json'), 'utf8')) as {
   name: string;
   version: string;
 };
@@ -20,7 +21,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    category: 'set',
+    category: 'tools',
     icon: {
       type: 'svg',
       value: icon

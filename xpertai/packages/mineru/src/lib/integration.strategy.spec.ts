@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import { ConfigService } from '@nestjs/config';
 import { MinerUIntegrationStrategy } from './integration.strategy.js';
+import { MinerUClient } from './mineru.client.js';
 import {
   ENV_MINERU_API_BASE_URL,
   ENV_MINERU_API_TOKEN,
@@ -10,10 +11,14 @@ import {
   MinerUServerType,
 } from './types.js';
 
+// Mock MinerUClient
+jest.mock('./mineru.client.js');
+
 describe('MinerUIntegrationStrategy', () => {
   let strategy: MinerUIntegrationStrategy;
   let configService: ConfigService;
   let minerUOptions = null as MinerUIntegrationOptions;
+  let mockMinerUClient: jest.Mocked<MinerUClient>;
 
   beforeEach(() => {
     configService = new ConfigService();
@@ -22,9 +27,20 @@ describe('MinerUIntegrationStrategy', () => {
     strategy.configService = configService;
     minerUOptions = {
       serverType: (process.env[ENV_MINERU_SERVER_TYPE] || 'official') as MinerUServerType,
-      apiUrl: process.env[ENV_MINERU_API_BASE_URL],
+      apiUrl: process.env[ENV_MINERU_API_BASE_URL] || 'https://mineru.net/api/v4',
       apiKey: process.env[ENV_MINERU_API_TOKEN] || 'your-api-key',
     };
+
+    // Setup mock MinerUClient
+    mockMinerUClient = {
+      serverType: 'official',
+      validateOfficialApiToken: jest.fn().mockResolvedValue(undefined),
+      getSelfHostedOpenApiSpec: jest.fn().mockResolvedValue({}),
+    } as any;
+
+    (MinerUClient as jest.MockedClass<typeof MinerUClient>).mockImplementation(() => {
+      return mockMinerUClient;
+    });
   });
 
   it('should have correct meta information', () => {
