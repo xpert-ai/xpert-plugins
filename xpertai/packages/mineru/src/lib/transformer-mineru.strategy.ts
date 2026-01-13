@@ -4,14 +4,18 @@ import { ConfigService } from '@nestjs/config'
 import {
   ChunkMetadata,
   DocumentTransformerStrategy,
+  downloadRemoteFile,
   FileSystemPermission,
   IDocumentTransformerStrategy,
   IntegrationPermission,
+  isRemoteFile,
 } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy, pick } from 'lodash-es'
 import { MinerUClient } from './mineru.client.js'
 import { MinerUResultParserService } from './result-parser.service.js'
 import { icon, MinerU, TMinerUTransformerConfig } from './types.js'
+import path from 'path'
+import fsPromises from 'fs/promises'
 
 @Injectable()
 @DocumentTransformerStrategy(MinerU)
@@ -132,9 +136,33 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
     const parsedResults: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
     for await (const document of documents) {
       if (mineru.serverType === 'self-hosted') {
+        // Resolve filePath for self-hosted mode
+        // Priority: 1) document.filePath, 2) download remote fileUrl, 3) resolve local fileUrl
+        let filePath = document.filePath
+        
+        if (!filePath && document.fileUrl) {
+          if (isRemoteFile(document.fileUrl)) {
+            const tempDir = config.tempDir || '/tmp/'
+            const fileName = document.name || path.basename(document.fileUrl) || 'document.pdf'
+            const tempFilePath = path.join(tempDir, `mineru_${Date.now()}_${fileName}`)
+            
+            await fsPromises.mkdir(path.dirname(tempFilePath), { recursive: true })
+            filePath = await downloadRemoteFile(document.fileUrl, tempFilePath)
+          } else if (config.permissions?.fileSystem) {
+            filePath = config.permissions.fileSystem.fullPath(document.fileUrl)
+          }
+        }
+        
+        if (!filePath) {
+          throw new Error(
+            'MinerU self-hosted mode requires filePath to be provided. ' +
+            'Either provide filePath in the document, or ensure fileUrl is a valid remote URL that can be downloaded.'
+          )
+        }
+        
         const { taskId } = await mineru.createTask({
           url: document.fileUrl,
-          filePath: document.filePath,
+          filePath: filePath,
           fileName: document.name,
           isOcr: true,
           enableFormula: true,
