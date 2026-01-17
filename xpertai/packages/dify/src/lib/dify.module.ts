@@ -3,8 +3,6 @@ import { Module } from '@nestjs/common'
 import { RouterModule } from '@nestjs/core'
 import { DifyController } from './dify.controller.js'
 import { DifyService } from './dify.service.js'
-import { DifyKnowledgeStrategy } from './dify-knowledge.strategy.js'
-import { DifyIntegrationStrategy } from './dify-integration.strategy.js'
 
 @Module({
 	imports: [
@@ -12,7 +10,10 @@ import { DifyIntegrationStrategy } from './dify-integration.strategy.js'
 		ConfigModule,
 	],
 	controllers: [DifyController],
-	providers: [DifyService, DifyIntegrationStrategy, DifyKnowledgeStrategy],
-	exports: []
+	// Strategy classes are moved to IntegrationDifyPlugin providers 
+	// so they can be discovered by collectProvidersWithMetadata() during plugin installation
+	providers: [DifyService],
+	// Export DifyService so it can be injected into strategies registered in the parent module
+	exports: [DifyService]
 })
 export class IntegrationDifyModule {}
