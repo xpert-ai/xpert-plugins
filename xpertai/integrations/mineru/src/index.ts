@@ -26,8 +26,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       value: icon
     },
     displayName: 'MinerU Transformer',
-    description: 'Provide PDF to Markdown and JSON transformation functionality',
-    keywords: ['integration', 'pdf', 'markdown', 'json', 'transformer'],
+    description: 'Provide document to Markdown and JSON transformation functionality',
+    keywords: ['integration', 'document', 'pdf', 'docx', 'ppt', 'image', 'markdown', 'json', 'transformer'],
     author: 'XpertAI Team',
     homepage: 'https://www.npmjs.com/package/@xpert-ai/plugin-mineru',
   },

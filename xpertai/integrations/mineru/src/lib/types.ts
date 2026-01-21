@@ -36,6 +36,7 @@ export type TMinerUTransformerConfig = TDocumentTransformerConfig & {
   enableTable?: boolean
   language?: 'en' | 'ch'
   modelVersion?: 'vlm' | 'pipeline'
+  pageRanges?: string
 }
 
 export type MinerUDocumentMetadata = {
@@ -45,6 +46,7 @@ export type MinerUDocumentMetadata = {
   originPdfUrl?: string;
   mineruBackend?: string;
   mineruVersion?: string;
+  fullZipUrl?: string;
 }
 
 export type MinerUServerType = 'official' | 'self-hosted'
@@ -53,6 +55,7 @@ export type MinerUIntegrationOptions = {
   apiUrl?: string
   apiKey?: string
   serverType?: MinerUServerType
+  extraFormats?: string[]
 }
 
 export interface MineruSelfHostedImage {

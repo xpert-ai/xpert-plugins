@@ -5,6 +5,7 @@ import { MinerUTransformerStrategy } from './transformer-mineru.strategy.js';
 import { MinerUResultParserService } from './result-parser.service.js';
 import { MinerUIntegrationStrategy } from './integration.strategy.js';
 import { MinerUController } from './mineru.controller.js';
+import { MinerUToolsetStrategy } from './mineru-toolset.strategy.js';
 
 @XpertServerPlugin({
 	/**
@@ -18,6 +19,7 @@ import { MinerUController } from './mineru.controller.js';
 		MinerUIntegrationStrategy,
 		MinerUTransformerStrategy,
 		MinerUResultParserService,
+		MinerUToolsetStrategy,
 	],
 	controllers: [
 		MinerUController
