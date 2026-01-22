@@ -181,7 +181,7 @@ npx nx test @xpert-ai/plugin-mineru --testFile=mineru.client.spec.ts
 ### Project Structure
 
 ```
-packages/mineru/
+xpertai/integrations/mineru/
 ├── src/
 │   ├── lib/
 │   │   ├── mineru-toolset.strategy.ts    # Toolset strategy implementation
