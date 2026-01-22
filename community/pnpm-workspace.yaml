@@ -1,0 +1,5 @@
+packages:
+  - tools/*
+  - middlewares/*
+  - models/*
+  - packages/*

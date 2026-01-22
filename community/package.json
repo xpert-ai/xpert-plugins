@@ -1,0 +1,16 @@
+{
+  "name": "@community/root",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Community workspace for pluggable packages and agents.",
+  "packageManager": "pnpm@8.15.8",
+  "scripts": {
+    "create:package": "node ./scripts/create-package.mjs",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

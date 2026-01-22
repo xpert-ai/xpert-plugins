@@ -1,11 +1,6 @@
 {
-  "name": "@xpert-ai/plugin-deepseek",
-  "version": "0.0.3",
-  "description": "DeepSeek AI model plugin for XpertAI platform",
-  "author": {
-    "name": "XpertAI",
-    "url": "https://xpertai.cn"
-  },
+  "name": "@xpert-ai/plugin-long-term-memory",
+  "version": "0.0.2",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -31,21 +26,17 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "scripts": {
-    "test": "jest",
-    "prepack": "node ./scripts/copy-assets.mjs"
-  },
   "dependencies": {
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.7.2",
-    "@nestjs/config": "^4.0.2",
-    "chalk": "4.1.2",
     "zod": "3.25.67",
-    "@metad/contracts": "^3.7.0",
+    "@xpert-ai/plugin-sdk": "^3.7.0",
+    "chalk": "4.1.2",
     "@nestjs/common": "^11.1.6",
-    "@langchain/core": "^0.3.72",
-    "@langchain/openai": "0.6.9"
+    "@nestjs/cqrs": "^11.0.3",
+    "@metad/contracts": "^3.7.0",
+    "@langchain/core": "0.3.72",
+    "@langchain/langgraph": "^0.4.7"
   }
 }

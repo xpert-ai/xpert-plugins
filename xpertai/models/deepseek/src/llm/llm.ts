@@ -738,15 +738,18 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
 
     return new DeepSeekChatOAICompatReasoningModel({
       ...fields,
-      callbacks: [
-        ...this.createHandleUsageCallbacks(
+			callbacks: [
+				...this.createHandleUsageCallbacks(
           copilot,
-          params.model,
-          modelCredentials,
+          model,
+          credentials,
           handleLLMTokens
         ),
-        this.createHandleLLMErrorCallbacks(fields, this.#logger),
-      ],
+				this.createHandleLLMErrorCallbacks(fields, this.#logger)
+			],
+			metadata: {
+				profile: this.getModelProfile(model, credentials),
+			}
     });
   }
 }
