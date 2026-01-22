@@ -12,24 +12,14 @@ import { MinerUToolset, MinerUToolsetConfig } from './mineru.toolset.js';
 import { MinerU, icon } from './types.js';
 import { buildMinerUTool } from './mineru.tool.js';
 
-/**
- * Interface for IXpertToolset (simplified version for type checking)
- */
 interface IXpertToolset {
   credentials?: any;
   [key: string]: any;
 }
 
-/**
- * ToolsetStrategy for MinerU PDF parser tool
- * Registers MinerU as a toolset that can be used in agent workflows
- */
 @Injectable()
 @ToolsetStrategy(MinerU)
 export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConfig> {
-  /**
-   * Metadata for MinerU toolset
-   */
   meta = {
     author: 'Xpert AI',
     tags: ['pdf', 'markdown', 'parser', 'ocr', 'mineru', 'document', 'extraction'],
@@ -40,13 +30,10 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
     },
     description: {
       en_US:
-        'Convert PDF files to markdown format using MinerU. Supports OCR, formula recognition, and table extraction.',
-      zh_Hans: '使用 MinerU 将 PDF 文件转换为 Markdown 格式。支持 OCR、公式识别和表格提取。',
+        'Convert documents to markdown format using MinerU. Supports OCR, formula recognition, and table extraction.',
+      zh_Hans: '使用 MinerU 将文档转换为 Markdown 格式。支持 OCR、公式识别和表格提取。',
     },
     icon: {
-      // Provide both shapes to maximize compatibility with different platform icon resolvers
-      // - builtin-provider icon endpoints may look for `type/value`
-      // - toolset registries may look for `svg`
       type: 'svg',
       value: icon,
       svg: icon,
@@ -55,15 +42,6 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
     configSchema: {
       type: 'object',
       properties: {
-        /**
-         * NOTE:
-         * We intentionally keep MinerU as a "self-contained" toolset that stores its own API credentials,
-         * instead of relying on the platform IntegrationPermission flow.
-         *
-         * Reason: during the built-in toolset authorization step, the platform may send `credentials = null`,
-         * and backend may access `credentials.integration`, causing a 500 (`Cannot read properties of null (reading 'integration')`).
-         * Defining API fields directly ensures the authorization UI renders fields and always submits an object.
-         */
         apiUrl: {
           type: 'string',
           title: {
@@ -75,7 +53,6 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             zh_Hans: 'MinerU 服务地址。官方： https://mineru.net/api/v4',
           },
           default: 'https://mineru.net/api/v4',
-          // Note: apiUrl is not in required array because it's optional with a default value
         },
         apiKey: {
           type: 'string',
@@ -96,8 +73,6 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             persist: true,
           },
         },
-        // Default parsing settings (optional, can be overridden when calling the tool)
-        // Changed isOcr from boolean to string enum
         isOcr: {
           type: 'string',
           title: {
@@ -105,8 +80,8 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             zh_Hans: '启用 OCR',
           },
           description: {
-            en_US: 'Enable OCR for image-based PDFs',
-            zh_Hans: '为基于图像的 PDF 启用 OCR',
+            en_US: 'Enable OCR for image-based documents',
+            zh_Hans: '为基于图像的文档启用 OCR',
           },
           enum: ['true', 'false'],
           default: 'true',
@@ -123,7 +98,6 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             },
           },
         },
-        // Changed enableFormula from boolean to string enum
         enableFormula: {
           type: 'string',
           title: {
@@ -149,7 +123,6 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             },
           },
         },
-        // Changed enableTable from boolean to string enum
         enableTable: {
           type: 'string',
           title: {
@@ -225,14 +198,72 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
             },
           },
         },
+        returnJson: {
+          type: 'string',
+          title: {
+            en_US: 'Return JSON',
+            zh_Hans: '返回完整 JSON',
+          },
+          description: {
+            en_US: 'Return full JSON payload instead of plain text.',
+            zh_Hans: '返回完整 JSON 结构，而非纯文本。',
+          },
+          enum: ['true', 'false'],
+          default: 'false',
+          'x-ui': {
+            enumLabels: {
+              'true': {
+                en_US: 'Enabled',
+                zh_Hans: '启用',
+              },
+              'false': {
+                en_US: 'Disabled',
+                zh_Hans: '禁用',
+              },
+            },
+          },
+        },
+        includeNonImageFiles: {
+          type: 'string',
+          title: {
+            en_US: 'Include Non-Image Files',
+            zh_Hans: '包含非图片文件',
+          },
+          description: {
+            en_US: 'Include markdown and JSON files in tool file outputs.',
+            zh_Hans: '在工具文件输出中包含 Markdown 与 JSON 文件。',
+          },
+          enum: ['true', 'false'],
+          default: 'true',
+          'x-ui': {
+            enumLabels: {
+              'true': {
+                en_US: 'Enabled',
+                zh_Hans: '启用',
+              },
+              'false': {
+                en_US: 'Disabled',
+                zh_Hans: '禁用',
+              },
+            },
+          },
+        },
+        extraFormats: {
+          type: 'string',
+          title: {
+            en_US: 'Extra Formats',
+            zh_Hans: '额外输出格式',
+          },
+          description: {
+            en_US: 'Optional extra formats, comma-separated (docx, html, latex).',
+            zh_Hans: '可选额外输出格式，逗号分隔（docx、html、latex）。',
+          },
+        },
       },
       required: ['apiKey'],
     },
   };
 
-  /**
-   * Permissions required by MinerU toolset
-   */
   readonly permissions = [
     {
       type: 'filesystem',
@@ -248,83 +279,60 @@ export class MinerUToolsetStrategy implements IToolsetStrategy<MinerUToolsetConf
     private readonly resultParser: MinerUResultParserService
   ) {}
 
-  /**
-   * Validate toolset configuration
-   */
   validateConfig(config: MinerUToolsetConfig | null | undefined): Promise<void> {
     if (!config) {
       return Promise.resolve();
     }
 
-    // apiKey is now a required field, validated by schema.required
     if (!config.apiKey) {
       throw new Error('MinerU apiKey is required');
     }
     return Promise.resolve();
   }
 
-  /**
-   * Create MinerU toolset instance
-   * Note: config may be null/undefined during authorization phase
-   * Modified to read from toolset.credentials (like @searchapi/@email)
-   */
   async create(config: any): Promise<BuiltinToolset> {
-    // Check if config is an IXpertToolset object with credentials property
-    const toolset = (config && typeof config === 'object' && 'credentials' in config)
-      ? (config as IXpertToolset)
-      : null;
-    
-    // Priority: toolset.credentials > config (flat structure) > empty object
+    const toolset =
+      config && typeof config === 'object' && 'credentials' in config
+        ? (config as IXpertToolset)
+        : null;
+
     const creds: any = toolset?.credentials ?? config ?? {};
-    
-    // Build config with dependencies
+
     const configWithDependencies: MinerUToolsetConfig = {
       apiUrl: creds.apiUrl,
       apiKey: creds.apiKey,
+      extraFormats: creds.extraFormats,
       isOcr: creds.isOcr,
       enableFormula: creds.enableFormula,
       enableTable: creds.enableTable,
       language: creds.language,
       modelVersion: creds.modelVersion,
+      returnJson: creds.returnJson,
+      includeNonImageFiles: creds.includeNonImageFiles,
       configService: this.configService,
       resultParser: this.resultParser,
     };
-    
+
     return new MinerUToolset(configWithDependencies);
   }
 
-  /**
-   * Create tools for MinerU toolset
-   * Tools are created dynamically in MinerUToolset.initTools()
-   * based on the toolset credentials/configuration
-   */
   createTools() {
-    /**
-     * IMPORTANT:
-     * The console UI requires builtin providers to expose at least one tool so users can
-     * enable it (otherwise it fails the "Enable at least one tool" validation).
-     *
-     * The returned tools here are used for listing/preview & toggling in UI. Actual execution
-     * will use the toolset instance created by `create()` -> `MinerUToolset.initTools()`,
-     * which wires credentials (apiUrl/apiKey/serverType) correctly.
-     */
     return [
       buildMinerUTool(
         this.configService,
         this.resultParser,
-        // No credentials at listing time
         undefined,
         undefined,
-        // Defaults used if user doesn't pass tool-call parameters
         {
           isOcr: true,
           enableFormula: true,
           enableTable: true,
           language: 'ch',
           modelVersion: 'pipeline',
+          returnJson: false,
+          includeNonImageFiles: true,
         }
       ),
     ];
   }
 }
-
