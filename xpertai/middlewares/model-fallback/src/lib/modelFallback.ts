@@ -5,6 +5,7 @@ import { CommandBus } from "@nestjs/cqrs";
 import {
   AgentMiddlewareStrategy,
   IAgentMiddlewareStrategy,
+  AgentBuiltInState,
   CreateModelClientCommand,
   IAgentMiddlewareContext,
   ModelRequest,
@@ -21,10 +22,6 @@ import {
   JSONValue,
   IXpertAgentExecution,
 } from "@metad/contracts";
-import {
-  interopSafeParse,
-  InferInteropZodInput,
-} from "@langchain/core/utils/types";
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { AIMessage } from "@langchain/core/messages";
 import { ModelFallbackIcon } from "./types.js";
@@ -35,13 +32,13 @@ import { ModelFallbackIcon } from "./types.js";
  * 【Requirement】All configurations are fallback model arrays:
  * - fallbackModels: List of fallback models (at least one), tried in sequence
  */
-const modelFallbackSchema = z.object({
-  fallbackModels: z.array(z.custom<ICopilotModel>()).nonempty(),
-});
+export type ModelFallbackMiddlewareConfig = {
+  fallbackModels: ICopilotModel[];
+};
 
-export type ModelFallbackMiddlewareConfig = InferInteropZodInput<
-  typeof modelFallbackSchema
->;
+const modelFallbackSchema = z.object({
+  fallbackModels: z.array(z.unknown()).nonempty(),
+});
 
 /**
  * Model Fallback Middleware
@@ -115,20 +112,18 @@ export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
     options: ModelFallbackMiddlewareConfig,
     context: IAgentMiddlewareContext
   ) {
-    const { data: userOptions, error } = interopSafeParse(
-      modelFallbackSchema,
-      options
-    );
-    if (error) {
+    const result = modelFallbackSchema.safeParse(options);
+    if (!result.success) {
       throw new Error(
-        `Invalid model fallback middleware options: ${z4.prettifyError(error)}`
+        `Invalid model fallback middleware options: ${z4.prettifyError(result.error)}`
       );
     }
+    const userOptions = result.data as ModelFallbackMiddlewareConfig;
 
     return {
       name: "ModelFallbackMiddleware",
       wrapModelCall: async (
-        request: ModelRequest,
+        request: ModelRequest<AgentBuiltInState>,
         handler: WrapModelCallHandler,
       ): Promise<AIMessage> => {
         // Try primary model first
