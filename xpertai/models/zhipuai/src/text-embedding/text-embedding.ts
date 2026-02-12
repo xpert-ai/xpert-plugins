@@ -1,12 +1,13 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
-import { CredentialsValidateFailedError, getErrorMessage, ModelProvider, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
+import { CredentialsValidateFailedError, getErrorMessage, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'
 import { toCredentialKwargs, ZhipuaiCredentials, ZhipuaiTextEmbeddingModelOptions } from '../types.js'
+import { ZhipuaiProviderStrategy } from '../zhipuai.js'
 
 @Injectable()
 export class ZhipuaiTextEmbeddingModel extends TextEmbeddingModelManager {
-	constructor(override readonly modelProvider: ModelProvider) {
+	constructor(override readonly modelProvider: ZhipuaiProviderStrategy) {
 		super(modelProvider, AiModelTypeEnum.TEXT_EMBEDDING)
 	}
 

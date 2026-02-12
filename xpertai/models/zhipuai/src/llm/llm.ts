@@ -1,16 +1,17 @@
 import { HumanMessage } from '@langchain/core/messages'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
-import { ChatOAICompatReasoningModel, LargeLanguageModel, ModelProvider, TChatModelOptions } from '@xpert-ai/plugin-sdk'
+import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import omitBy from 'lodash-es/omitby.js'
 import isNil from 'lodash-es/isnil.js'
 import { toCredentialKwargs, ZhipuaiCredentials, ZhipuaiModelOptions } from '../types.js'
+import { ZhipuaiProviderStrategy } from '../zhipuai.js'
 
 @Injectable()
 export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
   readonly #logger = new Logger(ZhipuAILargeLanguageModel.name)
 
-  constructor(override readonly modelProvider: ModelProvider) {
+  constructor(override readonly modelProvider: ZhipuaiProviderStrategy) {
     super(modelProvider, AiModelTypeEnum.LLM)
   }
 
