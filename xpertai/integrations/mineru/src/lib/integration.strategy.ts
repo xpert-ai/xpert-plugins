@@ -12,15 +12,15 @@ import {
   TIntegrationStrategyParams,
 } from '@xpert-ai/plugin-sdk';
 import { MinerUClient } from './mineru.client.js';
-import { icon, MinerU, MinerUIntegrationOptions } from './types.js';
+import { icon, MinerUIntegration, MinerUIntegrationOptions } from './types.js';
 
 @Injectable()
-@IntegrationStrategyKey(MinerU)
+@IntegrationStrategyKey(MinerUIntegration)
 export class MinerUIntegrationStrategy
   implements IntegrationStrategy<MinerUIntegrationOptions>
 {
   readonly meta: TIntegrationProvider = {
-    name: MinerU,
+    name: MinerUIntegration,
     label: {
       en_US: 'MinerU',
     },
@@ -44,7 +44,7 @@ export class MinerUIntegrationStrategy
             en_US: 'Base URL',
           },
           description: {
-            en_US: 'https://api.mineru.dev',
+            en_US: 'https://mineru.net/api/v4',
             ja_JP: 'MinerUサーバのBase URLを入力してください',
             zh_Hans: '请输入你的 MinerU 服务的 Base URL',
           },
@@ -104,7 +104,7 @@ export class MinerUIntegrationStrategy
   async validateConfig(config: MinerUIntegrationOptions): Promise<void> {
     const mineruClient = new MinerUClient(this.configService, {
       integration: {
-        provider: MinerU,
+        provider: MinerUIntegration,
         options: config,
       },
     });

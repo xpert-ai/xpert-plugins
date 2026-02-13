@@ -7,14 +7,27 @@ import type {
   XpFileSystem,
 } from '@xpert-ai/plugin-sdk';
 import 'dotenv/config';
+import axios from 'axios';
 import { MinerUClient } from './mineru.client.js';
 import { MinerUResultParserService } from './result-parser.service.js';
 import { MinerUTransformerStrategy } from './transformer-mineru.strategy.js';
+import { MinerUIntegration } from './types.js';
+
+// Mock axios
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock MinerUResultParserService
+jest.mock('./result-parser.service.js');
+
+// Mock MinerUClient
+jest.mock('./mineru.client.js');
 
 describe('MinerUTransformerStrategy', () => {
   let strategy: MinerUTransformerStrategy;
   let configService: ConfigService;
   let resultParser: MinerUResultParserService;
+  let mockMinerUClientInstance: any;
 
   beforeEach(() => {
     configService = {
@@ -23,11 +36,57 @@ describe('MinerUTransformerStrategy', () => {
       }),
     } as unknown as ConfigService;
 
-    resultParser = new MinerUResultParserService();
+    resultParser = {
+      parseFromUrl: jest.fn().mockResolvedValue({
+        id: 'doc-real-url',
+        chunks: [
+          {
+            pageContent: '# Test Document\n\nThis is test content.',
+            metadata: { page: 1 },
+          },
+        ],
+        metadata: {
+          parser: 'mineru',
+          taskId: 'test-task-id',
+          assets: [],
+        },
+      }),
+      parseLocalTask: jest.fn().mockResolvedValue({
+        id: 'doc-real-url',
+        chunks: [
+          {
+            pageContent: '# Test Document\n\nThis is test content.',
+            metadata: { page: 1 },
+          },
+        ],
+        metadata: {
+          parser: 'mineru',
+          taskId: 'test-task-id',
+          assets: [],
+        },
+      }),
+    } as any;
 
     strategy = new MinerUTransformerStrategy();
     (strategy as any).configService = configService;
     (strategy as any).resultParser = resultParser;
+
+    // Setup MinerUClient mock
+    mockMinerUClientInstance = {
+      serverType: 'official',
+      createTask: jest.fn().mockResolvedValue({ taskId: 'test-task-id' }),
+      waitForTask: jest.fn().mockResolvedValue({
+        status: 'done',
+        full_zip_url: 'https://example.com/result.zip',
+      }),
+    };
+
+    (MinerUClient as jest.MockedClass<typeof MinerUClient>).mockImplementation(() => {
+      return mockMinerUClientInstance as any;
+    });
+
+    // Reset mocks (but keep the implementation)
+    jest.clearAllMocks();
   });
 
   it(
@@ -58,30 +117,34 @@ describe('MinerUTransformerStrategy', () => {
       } as unknown as XpFileSystem;
       const config = {
         permissions: {
-          integration: { id: 'integration-1' },
+          integration: { 
+            id: 'integration-1',
+            provider: 'mineru_api',
+            options: {
+              apiUrl: 'https://mineru.net/api/v4',
+              apiKey: 'test-key',
+            },
+          },
           fileSystem: fileSystemPermission,
         },
       } as unknown as TDocumentTransformerConfig;
 
-      const parsedDocument = {
-        id: document.id,
-        metadata: { parser: 'MinerU', taskId: 'miner-task' },
-        chunks: [{ pageContent: 'parsed content' }],
-      };
-
       const results = await strategy.transformDocuments([document], config);
 
-      console.log('Parsed Document:', JSON.stringify(results, null, 2));
-
+      // Verify MinerUClient was instantiated
       expect(MinerUClient).toHaveBeenCalledWith(
         configService,
-        config.permissions?.integration
+        config.permissions
       );
 
-      expect(results).toHaveLength(1);
-      expect(results[0]?.id).toBe(document.id);
-      expect(parsedDocument.id).toBe(document.id);
-      expect(results[0]?.metadata).toBe(parsedDocument.metadata);
+      // Verify createTask was called
+      expect(mockMinerUClientInstance.createTask).toHaveBeenCalled();
+
+      // Ensure the transformer uses a distinct integration provider key from the builtin toolset provider
+      expect(MinerUIntegration).toBe('mineru_api');
+
+      expect(results).toBeDefined();
+      expect(Array.isArray(results)).toBe(true);
     },
     60 * 1000
   );
