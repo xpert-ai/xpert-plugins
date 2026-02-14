@@ -11,7 +11,7 @@ import {
 import { isNil, omitBy, pick } from 'lodash-es'
 import { MinerUClient } from './mineru.client.js'
 import { MinerUResultParserService } from './result-parser.service.js'
-import { icon, MinerU, TMinerUTransformerConfig } from './types.js'
+import { icon, MinerU, MinerUIntegrationOptions, TMinerUTransformerConfig } from './types.js'
 
 @Injectable()
 @DocumentTransformerStrategy(MinerU)
@@ -114,6 +114,17 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
           },
           enum: ['pipeline', 'vlm'],
           default: 'pipeline'
+        },
+        pageRanges: {
+          type: 'string',
+          title: {
+            en_US: 'Page Ranges',
+            zh_Hans: '页码范围'
+          },
+          description: {
+            en_US: 'Page ranges like "2,4-6" or "2--2" (official API only).',
+            zh_Hans: '页码范围，例如 "2,4-6" 或 "2--2"（仅官方 API）。'
+          }
         }
       },
       required: []
@@ -130,6 +141,7 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const mineru: MinerUClient = new MinerUClient(this.configService, config.permissions)
     const parsedResults: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
+    const integrationOptions = config.permissions?.integration?.options as MinerUIntegrationOptions | undefined
     for await (const document of documents) {
       if (mineru.serverType === 'self-hosted') {
         const { taskId } = await mineru.createTask({
@@ -164,8 +176,10 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
           enableTable: true,
           language: 'ch',
           modelVersion: 'vlm',
+          pageRanges: config.pageRanges,
+          extraFormats: integrationOptions?.extraFormats,
           ...omitBy(
-            pick(config, ['isOcr', 'enableFormula', 'enableTable', 'language', 'modelVersion']),
+            pick(config, ['isOcr', 'enableFormula', 'enableTable', 'language', 'modelVersion', 'pageRanges']),
             isNil
           )
         })

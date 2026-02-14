@@ -85,6 +85,23 @@ export class MinerUIntegrationStrategy
           enum: ['official', 'self-hosted'],
           default: 'official',
         },
+        extraFormats: {
+          type: 'array',
+          title: {
+            en_US: 'Extra Formats',
+            zh_Hans: '额外输出格式',
+          },
+          description: {
+            en_US:
+              'Optional extra output formats (docx, html, latex). Markdown and JSON are always included.',
+            zh_Hans:
+              '可选额外输出格式（docx、html、latex）。Markdown 和 JSON 默认包含。',
+          },
+          items: {
+            type: 'string',
+            enum: ['docx', 'html', 'latex'],
+          },
+        },
       },
     },
     features: [],
