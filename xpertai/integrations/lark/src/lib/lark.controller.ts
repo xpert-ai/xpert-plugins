@@ -35,7 +35,7 @@ import { Public } from './decorators/public.decorator.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import { TIntegrationLarkOptions } from './types.js'
-import { LarkChatDispatchService } from './handoff/index.js'
+import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 
 
 @Controller('lark')

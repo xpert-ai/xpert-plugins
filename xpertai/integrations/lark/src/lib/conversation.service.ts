@@ -37,10 +37,18 @@ import {
   TLarkEvent
 } from './types.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
-import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
+import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
 
 type LarkConversationQueueJob = ChatLarkContext & {
   tenantId?: string
+}
+
+type LarkTriggerService = {
+  handleInboundMessage: (params: {
+    integrationId: string
+    input?: string
+    larkMessage: ChatLarkMessage
+  }) => Promise<boolean>
 }
 
 type LarkActiveMessage = {
@@ -77,7 +85,7 @@ export interface LarkDispatchExecutionContext {
 export class LarkConversationService implements OnModuleDestroy {
   private readonly logger = new Logger(LarkConversationService.name)
   private _integrationPermissionService: IntegrationPermissionService
-  private _larkTriggerStrategy: LarkTriggerStrategy
+  private _larkTriggerStrategy: LarkTriggerService
 
   public static readonly prefix = 'lark:chat'
   private static readonly cacheTtlMs = 60 * 10 * 1000 // 10 min
@@ -91,6 +99,8 @@ export class LarkConversationService implements OnModuleDestroy {
     private readonly larkChannel: LarkChannelStrategy,
     @InjectRepository(LarkConversationBindingEntity)
     private readonly conversationBindingRepository: Repository<LarkConversationBindingEntity>,
+    @InjectRepository(LarkTriggerBindingEntity)
+    private readonly triggerBindingRepository: Repository<LarkTriggerBindingEntity>,
     @Inject(LARK_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -102,11 +112,24 @@ export class LarkConversationService implements OnModuleDestroy {
     return this._integrationPermissionService
   }
 
-  private get larkTriggerStrategy(): LarkTriggerStrategy {
+  private async getLarkTriggerStrategy(): Promise<LarkTriggerService> {
     if (!this._larkTriggerStrategy) {
+      const { LarkTriggerStrategy } = await import('./workflow/lark-trigger.strategy.js')
       this._larkTriggerStrategy = this.pluginContext.resolve(LarkTriggerStrategy)
     }
     return this._larkTriggerStrategy
+  }
+
+  private async getBoundXpertId(integrationId: string): Promise<string | null> {
+    if (!integrationId) {
+      return null
+    }
+    const binding = await this.triggerBindingRepository.findOne({
+      where: {
+        integrationId
+      }
+    })
+    return binding?.xpertId ?? null
   }
 
   /**
@@ -316,7 +339,7 @@ export class LarkConversationService implements OnModuleDestroy {
     const latestBinding = normalizedSenderOpenId
       ? await this.getLatestConversationBindingByUserId(normalizedSenderOpenId)
       : null
-    const triggerXpertId = latestBinding ? null : await this.larkTriggerStrategy.getBoundXpertId(integrationId)
+    const triggerXpertId = latestBinding ? null : await this.getBoundXpertId(integrationId)
     const fallbackXpertId = integration.options?.xpertId
     const targetXpertId = latestBinding?.xpertId ?? triggerXpertId ?? fallbackXpertId
 
@@ -362,7 +385,8 @@ export class LarkConversationService implements OnModuleDestroy {
       })
     }
 
-    const handledByTrigger = await this.larkTriggerStrategy.handleInboundMessage({
+    const larkTriggerStrategy = await this.getLarkTriggerStrategy()
+    const handledByTrigger = await larkTriggerStrategy.handleInboundMessage({
       integrationId,
       input: text,
       larkMessage

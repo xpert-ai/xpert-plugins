@@ -9,11 +9,9 @@ import { LarkIntegrationStrategy } from './lark-integration.strategy.js'
 import { LarkHooksController } from './lark.controller.js'
 import { LarkConversationService } from './conversation.service.js'
 import { LarkTokenStrategy } from './auth/lark-token.strategy.js'
-import {
-	LarkChatDispatchService,
-	LarkChatRunStateService,
-	LarkChatStreamCallbackProcessor,
-} from './handoff/index.js'
+import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
+import { LarkChatRunStateService } from './handoff/lark-chat-run-state.service.js'
+import { LarkChatStreamCallbackProcessor } from './handoff/lark-chat-callback.processor.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
 import { ChatBILarkMiddleware, LarkNotifyMiddleware } from './middlewares/index.js'

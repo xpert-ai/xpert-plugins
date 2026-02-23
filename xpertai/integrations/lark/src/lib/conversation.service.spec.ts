@@ -36,6 +36,11 @@ type PersistedConversationBinding = {
 	updatedAt?: Date
 }
 
+type PersistedTriggerBinding = {
+	integrationId: string
+	xpertId: string
+}
+
 describe('LarkConversationService', () => {
 	const userId = 'user-1'
 	const xpertId = 'xpert-1'
@@ -75,13 +80,17 @@ describe('LarkConversationService', () => {
 			})
 		}
 		const larkTriggerStrategy = {
-			getBoundXpertId: jest
-				.fn()
-				.mockResolvedValue(params?.boundXpertId === undefined ? null : params.boundXpertId),
 			handleInboundMessage: jest
 				.fn()
 				.mockResolvedValue(params?.triggerHandled === undefined ? false : params.triggerHandled)
 		}
+		const persistedTriggerBinding: PersistedTriggerBinding | null =
+			params?.boundXpertId === undefined || params.boundXpertId === null
+				? null
+				: {
+						integrationId: 'integration-1',
+						xpertId: params.boundXpertId
+				  }
 		const conversationBindingRepository = {
 			findOne: jest
 				.fn()
@@ -95,33 +104,33 @@ describe('LarkConversationService', () => {
 							updatedAt?: 'ASC' | 'DESC'
 						}
 					}) => {
-					if (where.userId !== undefined) {
-						return persistedConversationBindings.find((item) => item.userId === where.userId) ?? null
-					}
-					if (where.conversationUserKey && where.xpertId) {
-						return (
-							persistedConversationBindings.find(
-								(item) =>
-									item.conversationUserKey === where.conversationUserKey && item.xpertId === where.xpertId
-							) ?? null
-						)
-					}
-					if (where.xpertId) {
-						const items = persistedConversationBindings.filter((item) => item.xpertId === where.xpertId)
-						if (!items.length) {
-							return null
+						if (where.userId !== undefined) {
+							return persistedConversationBindings.find((item) => item.userId === where.userId) ?? null
 						}
-						const toTime = (value?: Date) => (value instanceof Date ? value.getTime() : 0)
-						items.sort((a, b) => {
-							if (order?.updatedAt === 'ASC') {
-								return toTime(a.updatedAt) - toTime(b.updatedAt)
+						if (where.conversationUserKey && where.xpertId) {
+							return (
+								persistedConversationBindings.find(
+									(item) =>
+										item.conversationUserKey === where.conversationUserKey && item.xpertId === where.xpertId
+								) ?? null
+							)
+						}
+						if (where.xpertId) {
+							const items = persistedConversationBindings.filter((item) => item.xpertId === where.xpertId)
+							if (!items.length) {
+								return null
 							}
-							return toTime(b.updatedAt) - toTime(a.updatedAt)
-						})
-						return items[0]
+							const toTime = (value?: Date) => (value instanceof Date ? value.getTime() : 0)
+							items.sort((a, b) => {
+								if (order?.updatedAt === 'ASC') {
+									return toTime(a.updatedAt) - toTime(b.updatedAt)
+								}
+								return toTime(b.updatedAt) - toTime(a.updatedAt)
+							})
+							return items[0]
+						}
+						return null
 					}
-					return null
-				}
 				),
 			upsert: jest
 				.fn()
@@ -186,6 +195,22 @@ describe('LarkConversationService', () => {
 					return { affected: removed }
 				})
 		}
+		const triggerBindingRepository = {
+			findOne: jest
+				.fn()
+				.mockImplementation(async ({ where }: { where: { integrationId?: string } }) => {
+					if (!where.integrationId) {
+						return null
+					}
+					if (
+						persistedTriggerBinding &&
+						persistedTriggerBinding.integrationId === where.integrationId
+					) {
+						return persistedTriggerBinding
+					}
+					return null
+				})
+		}
 		const pluginContext = {
 			resolve: jest.fn((token: unknown) => {
 				if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
@@ -208,6 +233,7 @@ describe('LarkConversationService', () => {
 			cache as any,
 			larkChannel as any,
 			conversationBindingRepository as any,
+			triggerBindingRepository as any,
 			pluginContext as any
 		)
 
@@ -218,6 +244,7 @@ describe('LarkConversationService', () => {
 			integrationPermissionService,
 			larkTriggerStrategy,
 			conversationBindingRepository,
+			triggerBindingRepository,
 			persistedConversationBindings
 		}
 	}

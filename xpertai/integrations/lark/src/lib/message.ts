@@ -1,7 +1,7 @@
 import { Serializable } from '@langchain/core/load/serializable'
 import { I18nObject, IChatMessage, TSensitiveOperation, XpertAgentExecutionStatusEnum } from '@metad/contracts'
 import { Logger } from '@nestjs/common'
-import { LarkEventRenderItem, LarkRenderItem } from './handoff/index.js'
+import type { LarkEventRenderItem, LarkRenderItem } from './handoff/lark-chat.types.js'
 import { translate } from './i18n.js'
 import type { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { ChatLarkContext, LARK_CONFIRM, LARK_END_CONVERSATION, LARK_REJECT, LarkRenderElement, LarkStructuredElement, TLarkConversationStatus } from './types.js'

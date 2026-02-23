@@ -11,7 +11,7 @@ import {
 	WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
 import { Repository } from 'typeorm'
-import { LarkChatDispatchService } from '../handoff/index.js'
+import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { iconImage } from '../types.js'
@@ -22,6 +22,9 @@ import { LarkTrigger, TLarkTriggerConfig } from './lark-trigger.types.js'
 @WorkflowTriggerStrategy(LarkTrigger)
 export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTriggerConfig> {
 	private readonly logger = new Logger(LarkTriggerStrategy.name)
+	/**
+	 * @deprecated use persisted binding and handoff message queue instead of in-memory callback
+	 */
 	private readonly callbacks = new Map<string, (payload: any) => void>()
 	private _integrationPermissionService: IntegrationPermissionService
 
