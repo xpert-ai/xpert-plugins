@@ -4,9 +4,6 @@ import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput, LangGraphRunnableConfig } from '@langchain/langgraph'
 import {
-  ChatMessageEventTypeEnum,
-  ChatMessageStepCategory,
-  ChatMessageTypeEnum,
   getToolCallIdFromConfig,
   TAgentMiddlewareMeta,
   TAgentRunnableConfigurable
@@ -38,6 +35,7 @@ import {
   PromiseOrValue,
   getErrorMessage
 } from '@xpert-ai/plugin-sdk'
+import { ChatMessageEventTypeEnum, ChatMessageStepCategory, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { firstValueFrom, switchMap, throwError, timeout } from 'rxjs'
 import { z } from 'zod/v3'
 import { ChatLarkMessage } from '../message.js'

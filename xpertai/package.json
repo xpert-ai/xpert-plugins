@@ -57,6 +57,7 @@
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/chatkit-types": "^0.0.12",
     "@xpert-ai/plugin-sdk": "^3.7.2",
     "axios": "^1.12.2",
     "bull": "^4.12.6",

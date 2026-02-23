@@ -1,9 +1,3 @@
-import {
-	ChatMessageEventTypeEnum,
-	ChatMessageTypeEnum,
-	messageContentText,
-	XpertAgentExecutionStatusEnum
-} from '@metad/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	HandoffMessage,
@@ -13,6 +7,7 @@ import {
 	ProcessContext,
 	ProcessResult,
 } from '@xpert-ai/plugin-sdk'
+import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { ChatLarkMessage, cloneStructuredElement } from '../message.js'
 import { LarkConversationService } from '../conversation.service.js'
 import { resolveConversationUserKey as resolveLarkConversationUserKey } from '../conversation-user-key.js'
@@ -33,6 +28,7 @@ import {
 } from './lark-chat.types.js'
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
+import { messageContentText, XpertAgentExecutionStatusEnum } from '@metad/contracts'
 
 /**
  * Callback processor for Lark stream events.
