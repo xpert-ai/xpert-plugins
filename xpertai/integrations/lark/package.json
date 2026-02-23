@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,8 +20,15 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@larksuiteoapi/node-sdk": "^1.55.0",
+    "@larksuiteoapi/node-sdk": "^1.x",
+    "axios": "^1.6.8",
     "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.8.0",
+    "@metad/ocap-core": "3.7.5",
+    "@types/express": "^5.0.6",
+    "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
@@ -31,6 +38,20 @@
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "chalk": "4.1.2",
-    "@langchain/core": "0.3.72"
+    "@langchain/core": "0.3.72",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/passport": "^11.0.5",
+    "express": "4.21.2",
+    "passport": "^0.6.0",
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "bull": "^4.12.6",
+    "cache-manager": "^7.2.0",
+    "typeorm": "^0.3.24",
+    "date-fns": "^3.0.4",
+    "@metad/ocap-core": "3.7.5",
+    "rxjs": "^7.8.1",
+    "@langchain/langgraph": "0.4.7"
   }
 }
