@@ -1,5 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -24,7 +24,7 @@ import {
 } from './conversation-user-key.js'
 import { translate } from './i18n.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
-import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
+import { DispatchLarkChatCommand, DispatchLarkChatPayload } from './handoff/commands/dispatch-lark-chat.command.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
   ChatLarkContext,
@@ -71,7 +71,7 @@ export interface LarkDispatchExecutionContext {
  * - Store and restore conversation/session metadata in cache.
  * - Orchestrate card action flows (confirm/reject/end) and session cleanup.
  * - Serialize inbound user events through per-user queues to keep ordering.
- * - Delegate actual xpert dispatch to `LarkChatDispatchService`.
+ * - Dispatch xpert requests via CQRS command (`DispatchLarkChatCommand`).
  */
 @Injectable()
 export class LarkConversationService implements OnModuleDestroy {
@@ -86,8 +86,6 @@ export class LarkConversationService implements OnModuleDestroy {
 
   constructor(
     private readonly commandBus: CommandBus,
-    @Inject(forwardRef(() => LarkChatDispatchService))
-    private readonly dispatchService: LarkChatDispatchService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly larkChannel: LarkChannelStrategy,
@@ -290,7 +288,7 @@ export class LarkConversationService implements OnModuleDestroy {
   }
 
   async ask(xpertId: string, content: string, message: ChatLarkMessage) {
-    await this.dispatchService.enqueueDispatch({
+    await this.dispatchToLarkChat({
       xpertId,
       input: content,
       larkMessage: message
@@ -357,7 +355,7 @@ export class LarkConversationService implements OnModuleDestroy {
     )
 
     if (latestBinding) {
-      return await this.dispatchService.enqueueDispatch({
+      return await this.dispatchToLarkChat({
         xpertId: targetXpertId,
         input: text,
         larkMessage
@@ -374,7 +372,7 @@ export class LarkConversationService implements OnModuleDestroy {
     }
 
     if (fallbackXpertId) {
-      return await this.dispatchService.enqueueDispatch({
+      return await this.dispatchToLarkChat({
         xpertId: fallbackXpertId,
         input: text,
         larkMessage
@@ -456,7 +454,7 @@ export class LarkConversationService implements OnModuleDestroy {
       await this.clearConversationSession(conversationUserKey, xpertId)
     } else if (isConfirmAction(action)) {
       await prevMessage.done()
-      await this.dispatchService.enqueueDispatch({
+      await this.dispatchToLarkChat({
         xpertId,
         larkMessage: newMessage,
         options: {
@@ -465,7 +463,7 @@ export class LarkConversationService implements OnModuleDestroy {
       })
     } else if (isRejectAction(action)) {
       await prevMessage.done()
-      await this.dispatchService.enqueueDispatch({
+      await this.dispatchToLarkChat({
         xpertId,
         larkMessage: newMessage,
         options: {
@@ -482,6 +480,10 @@ export class LarkConversationService implements OnModuleDestroy {
   ): Promise<void> {
     const key = this.getConversationCacheKey(conversationUserKey, xpertId)
     await this.cacheManager.set(key, conversationId, LarkConversationService.cacheTtlMs)
+  }
+
+  private async dispatchToLarkChat(payload: DispatchLarkChatPayload): Promise<ChatLarkMessage> {
+    return this.commandBus.execute(new DispatchLarkChatCommand(payload))
   }
 
   private resolveOpenIdFromConversationUserKey(conversationUserKey: string): string | null {

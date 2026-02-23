@@ -4,6 +4,7 @@ import {
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
+import { DispatchLarkChatCommand } from './handoff/commands/dispatch-lark-chat.command.js'
 import { ChatLarkContext, LARK_CONFIRM, LARK_END_CONVERSATION, LARK_REJECT } from './types.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
 
@@ -63,9 +64,6 @@ describe('LarkConversationService', () => {
 		}
 		const commandBus = {
 			execute: jest.fn().mockResolvedValue(undefined)
-		}
-		const dispatchService = {
-			enqueueDispatch: jest.fn().mockResolvedValue('ok')
 		}
 		const integrationPermissionService = {
 			read: jest.fn().mockResolvedValue({
@@ -207,7 +205,6 @@ describe('LarkConversationService', () => {
 		}
 		const service = new LarkConversationService(
 			commandBus as any,
-			dispatchService as any,
 			cache as any,
 			larkChannel as any,
 			conversationBindingRepository as any,
@@ -217,7 +214,6 @@ describe('LarkConversationService', () => {
 		return {
 			service,
 			commandBus,
-			dispatchService,
 			larkChannel,
 			integrationPermissionService,
 			larkTriggerStrategy,
@@ -229,6 +225,12 @@ describe('LarkConversationService', () => {
 	beforeEach(() => {
 		jest.restoreAllMocks()
 	})
+
+	function getExecutedDispatchCommands(commandBus: { execute: jest.Mock }) {
+		return commandBus.execute.mock.calls
+			.map(([command]) => command)
+			.filter((command) => command instanceof DispatchLarkChatCommand) as DispatchLarkChatCommand[]
+	}
 
 	it('setConversation persists to binding table and resolves latest by open_id', async () => {
 		const { service, conversationBindingRepository } = createFixture()
@@ -412,7 +414,7 @@ describe('LarkConversationService', () => {
 	)
 
 	it('uses action.messageId fallback when cached thirdPartyMessage.id is missing', async () => {
-		const { service, larkChannel, commandBus, dispatchService } = createFixture()
+		const { service, larkChannel, commandBus } = createFixture()
 		await service.setConversation(userId, xpertId, 'conversation-1')
 		await service.setActiveMessage(userId, xpertId, {
 			id: 'chat-message-id',
@@ -435,13 +437,13 @@ describe('LarkConversationService', () => {
 		)
 		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
 		expect(patchPayload.elements).toContainEqual({ tag: 'markdown', content: 'cached body' })
-		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
-		expect(dispatchService.enqueueDispatch.mock.calls[0][0].options).toEqual({ confirm: true })
-		expect(commandBus.execute).not.toHaveBeenCalled()
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.options).toEqual({ confirm: true })
 	})
 
 	it('keeps existing card content on end, cancels conversation and clears conversation session', async () => {
-		const { service, larkChannel, commandBus, dispatchService } = createFixture()
+		const { service, larkChannel, commandBus } = createFixture()
 		await service.setConversation(userId, xpertId, 'conversation-1')
 		await service.setActiveMessage(userId, xpertId, {
 			id: 'chat-message-id',
@@ -473,7 +475,7 @@ describe('LarkConversationService', () => {
 		expect(commandBus.execute).toHaveBeenCalledTimes(1)
 		expect(commandBus.execute.mock.calls[0][0]).toBeInstanceOf(CancelConversationCommand)
 		expect(commandBus.execute.mock.calls[0][0].input).toEqual({ conversationId: 'conversation-1' })
-		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(await service.getConversation(userId, xpertId)).toBeUndefined()
 		expect(await service.getActiveMessage(userId, xpertId)).toBeNull()
 	})
@@ -556,7 +558,7 @@ describe('LarkConversationService', () => {
 	})
 
 	it('processMessage prioritizes latest conversation binding and bypasses trigger routing', async () => {
-		const { service, larkTriggerStrategy, dispatchService, larkChannel } = createFixture({
+		const { service, larkTriggerStrategy, commandBus, larkChannel } = createFixture({
 			boundXpertId: 'trigger-xpert',
 			triggerHandled: true,
 			legacyXpertId: 'legacy-xpert',
@@ -583,13 +585,14 @@ describe('LarkConversationService', () => {
 		} as any)
 
 		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
-		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
-		expect(dispatchService.enqueueDispatch.mock.calls[0][0].xpertId).toBe('xpert-from-db')
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-db')
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
 	})
 
 	it('processMessage falls back to trigger strategy when latest binding does not exist', async () => {
-		const { service, larkTriggerStrategy, dispatchService, larkChannel } = createFixture({
+		const { service, larkTriggerStrategy, commandBus, larkChannel } = createFixture({
 			boundXpertId: 'trigger-xpert',
 			triggerHandled: true,
 			legacyXpertId: 'legacy-xpert'
@@ -608,12 +611,12 @@ describe('LarkConversationService', () => {
 		} as any)
 
 		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
-		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
 	})
 
 	it('processMessage falls back to legacy xpert dispatch when trigger is not handled', async () => {
-		const { service, larkTriggerStrategy, dispatchService } = createFixture({
+		const { service, larkTriggerStrategy, commandBus } = createFixture({
 			boundXpertId: null,
 			triggerHandled: false,
 			legacyXpertId: 'legacy-xpert'
@@ -632,12 +635,13 @@ describe('LarkConversationService', () => {
 		} as any)
 
 		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
-		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
-		expect(dispatchService.enqueueDispatch.mock.calls[0][0].xpertId).toBe('legacy-xpert')
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('legacy-xpert')
 	})
 
 	it('processMessage returns error when neither latest binding nor integration fallback is configured', async () => {
-		const { service, dispatchService, larkChannel } = createFixture({
+		const { service, commandBus, larkChannel } = createFixture({
 			boundXpertId: null,
 			triggerHandled: false,
 			legacyXpertId: null
@@ -655,7 +659,7 @@ describe('LarkConversationService', () => {
 			}
 		} as any)
 
-		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
 	})
 })

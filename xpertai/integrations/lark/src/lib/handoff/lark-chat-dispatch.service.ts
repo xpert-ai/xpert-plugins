@@ -17,6 +17,7 @@ import { LarkConversationService } from '../conversation.service.js'
 import { resolveConversationUserKey } from '../conversation-user-key.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
+import { DispatchLarkChatPayload } from './commands/dispatch-lark-chat.command.js'
 import { LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import {
 	LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
@@ -24,15 +25,7 @@ import {
 	LarkChatMessageSnapshot
 } from './lark-chat.types.js'
 
-export type TLarkChatDispatchInput = {
-	xpertId: string
-	input?: string
-	larkMessage: ChatLarkMessage
-	options?: {
-		confirm?: boolean
-		reject?: boolean
-	}
-}
+export type TLarkChatDispatchInput = DispatchLarkChatPayload
 
 /**
  * Builds and enqueues handoff messages for Lark chat requests.

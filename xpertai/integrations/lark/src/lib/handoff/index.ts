@@ -1,3 +1,4 @@
+export * from './commands/index.js'
 export * from './lark-chat-callback.processor.js'
 export * from './lark-chat-run-state.service.js'
 export * from './lark-chat.types.js'

@@ -20,6 +20,7 @@ import { ChatBILarkMiddleware, LarkNotifyMiddleware } from './middlewares/index.
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
 import { LarkSourceStrategy } from './source.strategy.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'
+import { Handlers } from './handoff/commands/handlers/index.js'
 
 @XpertServerPlugin({
 	imports: [
@@ -41,7 +42,8 @@ import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 		ChatBILarkMiddleware,
 		LarkNotifyMiddleware,
 		LarkSourceStrategy,
-		LarkDocTransformerStrategy
+		LarkDocTransformerStrategy,
+		...Handlers
 	],
 	exports: [
 		LarkChannelStrategy,
