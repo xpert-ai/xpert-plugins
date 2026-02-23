@@ -86,9 +86,12 @@
     },
     {
       "path": "./middlewares/long-term-memory"
-    },  
+    },
     {
       "path": "./models/deepseek"
+    },
+    {
+      "path": "./models/zhipuai"
     }
   ]
 }
