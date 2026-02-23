@@ -22,7 +22,7 @@
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.x",
     "@metad/ocap-core": "3.7.5",
-    "axios": "^1.6.8",
+    "@metad/store": "3.6.7",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
