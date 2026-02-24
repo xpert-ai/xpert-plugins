@@ -34,9 +34,45 @@ This is the source code repository for plugins on the [XpertAI platform](https:/
 
 ## Plugin Release and Registration
 
-1. Complete the plugin packaging and release process according to the official guide: <https://xpertai.cn/docs/plugin/>.
-2. After releasing your plugin, you can register its metadata in the registry repository: <https://github.com/xpert-ai/xpert-plugin-registry>.
-3. When registering, please provide complete metadata (plugin name, version, description, dependencies, maintainer contact, etc.) and keep the information up to date.
+### Release Workflow (Validated)
+
+This repository uses `.github/workflows/release-plugin.yml` to release plugins in each workspace (`xpertai`, `community`) with **Changesets + OIDC trusted publishing**.
+
+1. Before release, run plugin tests first (follow `plugin-dev-harness/README.md`).
+2. Enter the target workspace and create a changeset:
+   - For `xpertai`: `cd xpertai && pnpm exec changeset add`
+   - For `community`: `cd community && pnpm exec changeset add`
+3. Check pending release plan locally:
+   - `pnpm exec changeset status`
+4. Submit PR with both code changes and `.changeset/*.md`, then merge into `main`.
+5. Workflow will create or update the release PR (`changeset-release/main`) with version bumps.
+6. Merge the release PR into `main`; workflow then publishes changed packages to npm.
+
+Notes:
+- If logs show `No changesets found`, the merged commit did not contain a valid `.changeset/*.md` for that workspace.
+- If logs show `ENEEDAUTH`, verify npm Trusted Publisher settings for that package.
+
+### New Package Checklist (Required)
+
+When creating a new publishable package, ensure `package.json` includes at least:
+
+```json
+{
+  "name": "@xpert-ai/plugin-xxx",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins"
+  }
+}
+```
+
+Important:
+- `repository.url` must match the GitHub repository used by provenance/OIDC (recommended exact value: `https://github.com/xpert-ai/xpert-plugins`).
+- If this field is missing or empty, npm may reject publish with provenance error (`E422`).
+- Trusted Publisher is configured per npm package. A brand-new package may require one bootstrap publish before switching to OIDC-only publishing.
+
+After releasing your plugin, register/update plugin metadata in: <https://github.com/xpert-ai/xpert-plugin-registry>.
 
 ## Support and Feedback
 
