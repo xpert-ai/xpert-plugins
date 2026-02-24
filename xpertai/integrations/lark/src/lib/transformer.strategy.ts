@@ -60,8 +60,6 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
       throw new Error('Integration system is required')
     }
 
-    console.log('LarkDocTransformerStrategy transformDocuments', files, config)
-
     const client = new LarkClient(integration)
     
     const results: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
