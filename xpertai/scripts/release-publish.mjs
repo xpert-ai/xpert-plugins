@@ -62,29 +62,66 @@ function getChangedWorkspacePackageFiles() {
 
     return diffOutput.split('\n').map((line) => line.trim()).filter(Boolean);
   } catch {
-    console.warn('Could not diff HEAD^..HEAD, fallback to all workspace packages.');
-    const fileListOutput = runForOutput('git', ['ls-files', ...workspacePackagePatterns]);
-    return fileListOutput.split('\n').map((line) => line.trim()).filter(Boolean);
+    console.warn('Could not diff HEAD^..HEAD. Continue with npm publish-state detection only.');
+    return [];
   }
 }
 
-function resolvePackageNames(packageFiles) {
+function getWorkspacePackageFiles() {
+  const workspacePackagePatterns = getWorkspacePackagePatterns();
+  const fileListOutput = runForOutput('git', ['ls-files', ...workspacePackagePatterns]);
+  return fileListOutput.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function resolvePackageNames(workspacePackageFiles, changedPackageFiles) {
+  const changedPackageFileSet = new Set(changedPackageFiles);
   const packageNames = new Set();
 
-  for (const relativePath of packageFiles) {
-    if (!hasVersionChange(relativePath)) {
-      continue;
-    }
-
+  for (const relativePath of workspacePackageFiles) {
     const absolutePath = resolve(process.cwd(), relativePath);
     const pkg = JSON.parse(readFileSync(absolutePath, 'utf8'));
 
-    if (typeof pkg.name === 'string' && pkg.name.length > 0) {
+    if (pkg.private === true) {
+      continue;
+    }
+
+    const hasChangedVersion =
+      changedPackageFileSet.has(relativePath) && hasVersionChange(relativePath);
+    const isUnpublished = !hasChangedVersion && !isVersionPublished(pkg.name, pkg.version);
+
+    if ((hasChangedVersion || isUnpublished) && typeof pkg.name === 'string' && pkg.name.length > 0) {
       packageNames.add(pkg.name);
     }
   }
 
   return Array.from(packageNames);
+}
+
+function isVersionPublished(packageName, version) {
+  if (typeof packageName !== 'string' || packageName.length === 0) {
+    return true;
+  }
+  if (typeof version !== 'string' || version.length === 0) {
+    return true;
+  }
+
+  const result = spawnSync('npm', ['view', `${packageName}@${version}`, 'version', '--json'], {
+    encoding: 'utf8'
+  });
+
+  if (result.status === 0) {
+    return true;
+  }
+
+  const errorOutput = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  if (/E404|404 Not Found|No match found for version/i.test(errorOutput)) {
+    return false;
+  }
+
+  console.warn(
+    `Could not verify publish status for ${packageName}@${version}. Build it to be safe.`
+  );
+  return false;
 }
 
 function hasVersionChange(relativePath) {
@@ -101,8 +138,9 @@ function hasVersionChange(relativePath) {
   return /(^[-+]\s*"version"\s*:)/m.test(result.stdout);
 }
 
+const workspacePackageFiles = getWorkspacePackageFiles();
 const changedPackageFiles = getChangedWorkspacePackageFiles();
-const changedPackageNames = resolvePackageNames(changedPackageFiles);
+const changedPackageNames = resolvePackageNames(workspacePackageFiles, changedPackageFiles);
 
 if (changedPackageNames.length > 0) {
   console.log(
@@ -110,7 +148,7 @@ if (changedPackageNames.length > 0) {
   );
   run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(',')]);
 } else {
-  console.log('No workspace package version changes detected in HEAD^..HEAD. Skip build.');
+  console.log('No publish-target workspace packages detected. Skip build.');
 }
 
 run('pnpm', ['dlx', '@changesets/cli', 'publish', '--access', 'public']);
