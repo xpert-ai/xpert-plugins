@@ -154,7 +154,11 @@ export interface LarkListFilesResponse {
 }
 
 
-
+/**
+ * Options for user provisioning when a new user interacts with the Lark integration.
+ * - `autoProvision`: If true, automatically create a new user in the system when an unknown user interacts. Defaults to false.
+ * - `roleName`: Optional role name to assign to provisioned users. If not specified, defaults to a standard user role.
+ */
 export type TLarkUserProvisionOptions = {
 	autoProvision?: boolean
 	roleName?: string
