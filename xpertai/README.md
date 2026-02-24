@@ -44,19 +44,12 @@ pnpm dlx @changesets/cli add
 ```
 
 Run the command above in `xpertai/` whenever a publishable plugin changes, then merge your PR into `main`.
-The workflow `../.github/workflows/release-plugin.yml` will:
-
-- create/update a release PR when pending changesets exist
-- publish to npm after the release PR is merged
 
 Useful local checks:
 
 ```sh
 pnpm dlx @changesets/cli status
 ```
-
-Prerequisite:
-- Configure npm Trusted Publisher for repository `xpert-ai/xpert-plugins`, workflow `.github/workflows/release-plugin.yml`, branch `main`.
 
 ### First-time publish (bootstrap)
 
@@ -68,7 +61,7 @@ For a brand-new package (for example `@xpert-ai/plugin-xxx` never published befo
    pnpm exec nx run <nx-project-name>:build
    pnpm exec nx run <nx-project-name>:nx-release-publish --access public --otp=<your_2FA_otp_if_enabled>
    ```
-2. In npm package settings, configure Trusted Publisher for this repository/workflow, then continue future releases through `.github/workflows/release-plugin.yml` (OIDC only, no npm token).
+2. In npm package settings, configure Trusted Publisher for this repository/workflow [New Package Checklist](../README.md#new-package-checklist-required)
 
 Tip:
 - If CI shows `ENEEDAUTH This command requires you to be logged in`, it usually means bootstrap (step 1) is still required for that package.

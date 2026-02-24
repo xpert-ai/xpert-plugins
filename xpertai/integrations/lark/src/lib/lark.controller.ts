@@ -25,7 +25,6 @@ import {
 	Response,
 	UseGuards
 } from '@nestjs/common'
-import { AxiosError } from 'axios'
 import { t } from 'i18next'
 import express from 'express'
 import { LarkAuthGuard } from './auth/lark-auth.guard.js'
@@ -34,7 +33,7 @@ import { LarkConversationService } from './conversation.service.js'
 import { Public } from './decorators/public.decorator.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
-import { TIntegrationLarkOptions } from './types.js'
+import { parseLarkClientError, TIntegrationLarkOptions } from './types.js'
 import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 
 const LARK_ROOT_DEPARTMENT_ID = '0'
@@ -192,11 +191,8 @@ export class LarkHooksController {
 				label: item.name,
 				icon: item.avatar
 			}))
-		} catch (err: any) {
-			if ((<AxiosError>err).response?.data) {
-				throw new BadRequestException(err.response.data.msg)
-			}
-			throw new BadRequestException(err)
+		} catch (error: unknown) {
+			throw new BadRequestException(this.toLarkApiErrorMessage(error))
 		}
 	}
 
@@ -228,6 +224,59 @@ export class LarkHooksController {
 		return normalizedDepartmentId || LARK_ROOT_DEPARTMENT_ID
 	}
 
+	private toLarkApiErrorMessage(error: unknown): string {
+		const parsed = parseLarkClientError(error)
+		const segments: string[] = []
+
+		for (const value of [parsed.msg, parsed.error?.message]) {
+			const normalized = this.toNonEmptyString(value)
+			if (normalized && !segments.includes(normalized)) {
+				segments.push(normalized)
+			}
+		}
+
+		const fieldViolations = parsed.error?.field_violations || parsed.field_violations
+		if (fieldViolations?.length) {
+			const violationMessage = fieldViolations
+				.map((violation) => {
+					const field = this.toNonEmptyString(violation.field)
+					const reason =
+						this.toNonEmptyString(violation.message) ||
+						this.toNonEmptyString(violation.reason) ||
+						this.toNonEmptyString(violation.msg)
+
+					if (field && reason) {
+						return `${field}: ${reason}`
+					}
+					return field || reason || null
+				})
+				.filter((value): value is string => Boolean(value))
+				.join('; ')
+
+			if (violationMessage) {
+				segments.push(`field_violations: ${violationMessage}`)
+			}
+		}
+
+		const logId =
+			this.toNonEmptyString(parsed.error?.log_id) ||
+			this.toNonEmptyString(parsed.log_id)
+		if (logId) {
+			segments.push(`log_id: ${logId}`)
+		}
+
+		return segments.join(' | ') || 'Lark API request failed'
+	}
+
+	private toNonEmptyString(value: unknown): string | null {
+		if (typeof value !== 'string') {
+			return null
+		}
+
+		const trimmed = value.trim()
+		return trimmed || null
+	}
+
 	private async getUsersByIntegrationId(id: string, departmentId?: string) {
 		if (!id) {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
@@ -252,11 +301,8 @@ export class LarkHooksController {
 				label: item.name || item.email || item.mobile,
 				icon: item.avatar
 			}))
-		} catch (err: any) {
-			if ((<AxiosError>err).response?.data) {
-				throw new BadRequestException(err.response.data.msg)
-			}
-			throw new BadRequestException(err)
+		} catch (error: unknown) {
+			throw new BadRequestException(this.toLarkApiErrorMessage(error))
 		}
 	}
 
@@ -305,11 +351,8 @@ export class LarkHooksController {
 			)
 
 			return uniqueOptions
-		} catch (err: any) {
-			if ((<AxiosError>err).response?.data) {
-				throw new BadRequestException(err.response.data.msg)
-			}
-			throw new BadRequestException(err)
+		} catch (error: unknown) {
+			throw new BadRequestException(this.toLarkApiErrorMessage(error))
 		}
 	}
 
