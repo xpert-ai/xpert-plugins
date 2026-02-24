@@ -2,6 +2,9 @@ import * as lark from '@larksuiteoapi/node-sdk'
 import { IIntegration } from '@metad/contracts'
 import { formatLarkErrorToMarkdown, LarkFile, parseLarkClientError } from './types.js'
 
+/**
+ * Common Lark Methods
+ */
 export class LarkClient {
   private client: lark.Client
   constructor(private readonly integration: IIntegration) {
