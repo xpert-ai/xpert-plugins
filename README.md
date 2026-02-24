@@ -49,6 +49,7 @@ This repository uses `.github/workflows/release-plugin.yml` to release plugins i
 6. Merge the release PR into `main`; workflow then publishes changed packages to npm.
 
 Notes:
+
 - If logs show `No changesets found`, the merged commit did not contain a valid `.changeset/*.md` for that workspace.
 - If logs show `ENEEDAUTH`, verify npm Trusted Publisher settings for that package.
 
@@ -68,8 +69,10 @@ When creating a new publishable package, ensure `package.json` includes at least
 ```
 
 Important:
+
 - `repository.url` must match the GitHub repository used by provenance/OIDC (recommended exact value: `https://github.com/xpert-ai/xpert-plugins`).
 - If this field is missing or empty, npm may reject publish with provenance error (`E422`).
+- For Trusted Publisher, leave `Environment name` empty unless workflow explicitly adds `environment: <name>` in the release job.
 - Trusted Publisher is configured per npm package. A brand-new package may require one bootstrap publish before switching to OIDC-only publishing.
 
 After releasing your plugin, register/update plugin metadata in: <https://github.com/xpert-ai/xpert-plugin-registry>.
