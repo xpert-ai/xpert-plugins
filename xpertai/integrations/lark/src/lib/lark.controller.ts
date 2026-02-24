@@ -260,6 +260,12 @@ export class LarkHooksController {
 		}
 	}
 
+	/**
+	 * Fetch departments for the given integration ID
+	 * 
+	 * @param id 
+	 * @returns 
+	 */
 	private async getDepartmentsByIntegrationId(id: string) {
 		if (!id) {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
