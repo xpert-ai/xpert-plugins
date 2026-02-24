@@ -58,6 +58,6 @@ jobs:
           commit: "chore(release): version plugins"
           title: "chore(release): version plugins"
           version: pnpm dlx @changesets/cli version
-          publish: pnpm exec nx run-many -t build && pnpm dlx @changesets/cli publish --access public
+          publish: pnpm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
