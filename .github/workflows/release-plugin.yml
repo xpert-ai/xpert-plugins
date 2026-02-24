@@ -2,11 +2,22 @@ name: Release Plugins
 
 on:
   workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Workspace to release"
+        required: true
+        default: xpertai
+        type: choice
+        options:
+          - xpertai
+          - community
+          - all
   push:
     branches:
       - main
     paths:
       - "xpertai/**"
+      - "community/**"
       - ".github/workflows/release-plugin.yml"
 
 concurrency:
@@ -19,10 +30,57 @@ permissions:
   id-token: write
 
 jobs:
-  release:
-    name: Version Or Publish
+  detect:
+    name: Detect Changed Workspaces
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      xpertai: ${{ steps.filter.outputs.xpertai }}
+      community: ${{ steps.filter.outputs.community }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            xpertai:
+              - "xpertai/**"
+            community:
+              - "community/**"
+
+  release:
+    name: Version Or Publish (${{ matrix.workspace }})
+    needs: detect
+    if: >
+      github.ref == 'refs/heads/main' &&
+      (
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            github.event.inputs.workspace == 'all' ||
+            github.event.inputs.workspace == matrix.workspace
+          )
+        ) ||
+        (matrix.workspace == 'xpertai' && needs.detect.outputs.xpertai == 'true') ||
+        (matrix.workspace == 'community' && needs.detect.outputs.community == 'true')
+      )
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: xpertai
+            install_command: pnpm -C xpertai install --frozen-lockfile
+            publish_command: pnpm run release:publish
+          - workspace: community
+            install_command: pnpm -C community install --no-frozen-lockfile
+            publish_command: pnpm run release:publish
 
     steps:
       - name: Checkout
@@ -39,26 +97,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.14.0
-          cache: pnpm
-          cache-dependency-path: xpertai/pnpm-lock.yaml
 
       - name: Upgrade npm for trusted publishing
         run: npm i -g npm@^11.5.1
 
       - name: Install dependencies
-        run: pnpm -C xpertai install --frozen-lockfile
+        run: ${{ matrix.install_command }}
+
+      - name: Ensure workspace npmrc exists
+        run: |
+          if [ ! -f "${{ matrix.workspace }}/.npmrc" ]; then
+            touch "${{ matrix.workspace }}/.npmrc"
+          fi
+
+      - name: Point root changeset to workspace changeset
+        run: |
+          rm -rf .changeset
+          ln -s "${{ matrix.workspace }}/.changeset" .changeset
 
       - name: Create release PR or publish
         id: changesets
         uses: changesets/action@v1
         with:
-          cwd: xpertai
+          cwd: ${{ matrix.workspace }}
           branch: main
-          commit: "chore(release): version plugins"
-          title: "chore(release): version plugins"
+          commit: "chore(release): version ${{ matrix.workspace }} packages"
+          title: "chore(release): version ${{ matrix.workspace }} packages"
           version: pnpm dlx @changesets/cli version
-          publish: pnpm run release:publish
+          publish: ${{ matrix.publish_command }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/xpertai/.npmrc
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/${{ matrix.workspace }}/.npmrc
           NPM_CONFIG_PROVENANCE: "true"
