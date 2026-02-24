@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "release:publish": "nx run-many -t build && pnpm dlx @changesets/cli publish --access public"
+    "release:publish": "node ./scripts/release-publish.mjs"
   },
   "private": true,
   "devDependencies": {
