@@ -36,6 +36,9 @@ import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import { parseLarkClientError, TIntegrationLarkOptions } from './types.js'
 import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 
+/**
+ * Root department
+ */
 const LARK_ROOT_DEPARTMENT_ID = '0'
 
 @Controller('lark')
