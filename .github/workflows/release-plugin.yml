@@ -16,6 +16,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
@@ -37,10 +38,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: pnpm
           cache-dependency-path: xpertai/pnpm-lock.yaml
           registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing
+        run: npm i -g npm@^11.5.1
 
       - name: Install dependencies
         run: pnpm -C xpertai install --frozen-lockfile
@@ -57,4 +61,3 @@ jobs:
           publish: pnpm exec nx run-many -t build && pnpm dlx @changesets/cli publish --access public
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -45,8 +45,8 @@ The wrapped vector store overrides `delete()` to accept either LangChain-style f
 
 ## Deployment
 
-- `npx nx release -p @xpert-ai/plugin-milvus` runs package tests.
-- `npx nx run @xpert-ai/plugin-milvus:nx-release-publish --access public --otp=<one-time-password-if-needed>` publishes to npm.
+- In `xpertai/`, run `pnpm dlx @changesets/cli add` and include `@xpert-ai/plugin-milvus` in the changeset.
+- Merge the PR into `main`; repository workflow `.github/workflows/release-plugin.yml` will create the release PR and publish via npm OIDC trusted publishing after merge.
 
 ## Requirements
 
