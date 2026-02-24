@@ -41,7 +41,6 @@ jobs:
           node-version: 22.14.0
           cache: pnpm
           cache-dependency-path: xpertai/pnpm-lock.yaml
-          registry-url: https://registry.npmjs.org
 
       - name: Upgrade npm for trusted publishing
         run: npm i -g npm@^11.5.1
@@ -61,3 +60,5 @@ jobs:
           publish: pnpm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/xpertai/.npmrc
+          NPM_CONFIG_PROVENANCE: "true"
