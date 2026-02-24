@@ -15,7 +15,6 @@ on:
   push:
     branches:
       - main
-      - develop
     paths:
       - "xpertai/**"
       - "community/**"
@@ -33,6 +32,7 @@ permissions:
 jobs:
   detect:
     name: Detect Changed Workspaces
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       xpertai: ${{ steps.filter.outputs.xpertai }}
@@ -57,6 +57,7 @@ jobs:
   release:
     name: Version Or Publish (${{ matrix.workspace }})
     needs: detect
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

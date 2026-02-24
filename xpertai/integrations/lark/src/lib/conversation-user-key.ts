@@ -1,3 +1,6 @@
+/**
+ * @deprecated
+ */
 function normalizeString(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null
@@ -6,6 +9,9 @@ function normalizeString(value: unknown): string | null {
   return normalized.length ? normalized : null
 }
 
+/**
+ * @deprecated
+ */
 export function normalizeConversationUserKey(value: unknown): string | null {
   return normalizeString(value)
 }
