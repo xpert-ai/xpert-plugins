@@ -85,9 +85,141 @@ function isAxiosError(error: unknown): error is AxiosError {
   return typeof error === 'object' && error !== null && 'isAxiosError' in error && (error as any).isAxiosError === true
 }
 
+type UnknownRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function toFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function normalizePermissionViolations(value: unknown): LarkPermissionViolation[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const violations = value.reduce<LarkPermissionViolation[]>((acc, item) => {
+    if (!isRecord(item)) {
+      return acc
+    }
+
+    const type = toNonEmptyString(item.type)
+    const subject = toNonEmptyString(item.subject)
+    if (type && subject) {
+      acc.push({ type, subject })
+    }
+
+    return acc
+  }, [])
+
+  return violations.length > 0 ? violations : undefined
+}
+
+function normalizeFieldViolations(value: unknown): LarkFieldViolation[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const violations = value
+    .filter((item) => isRecord(item))
+    .map((item) => ({ ...item }) as LarkFieldViolation)
+
+  return violations.length > 0 ? violations : undefined
+}
+
+function looksLikeLarkErrorPayload(value: UnknownRecord): boolean {
+  if (toNonEmptyString(value.msg)) {
+    return true
+  }
+
+  if (toNonEmptyString(value.log_id) || toNonEmptyString(value.troubleshooter) || Array.isArray(value.field_violations)) {
+    return true
+  }
+
+  if (!isRecord(value.error)) {
+    return false
+  }
+
+  const detail = value.error
+  return Boolean(
+    toNonEmptyString(detail.message) ||
+      toNonEmptyString(detail.log_id) ||
+      toNonEmptyString(detail.troubleshooter) ||
+      Array.isArray(detail.permission_violations) ||
+      Array.isArray(detail.field_violations)
+  )
+}
+
+function findLarkErrorPayload(error: unknown): UnknownRecord | undefined {
+  const queue: unknown[] = [error]
+  const visited = new Set<unknown>()
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+
+    if (!current || typeof current !== 'object') {
+      continue
+    }
+
+    if (visited.has(current)) {
+      continue
+    }
+    visited.add(current)
+
+    if (Array.isArray(current)) {
+      queue.push(...current)
+      continue
+    }
+
+    const record = current as UnknownRecord
+    if (looksLikeLarkErrorPayload(record)) {
+      return record
+    }
+
+    const response = record.response
+    if (isRecord(response) && response.data !== undefined) {
+      queue.push(response.data)
+    }
+
+    if (record.data !== undefined) {
+      queue.push(record.data)
+    }
+    if (record.error !== undefined) {
+      queue.push(record.error)
+    }
+    if (record.errors !== undefined) {
+      queue.push(record.errors)
+    }
+  }
+
+  return undefined
+}
+
 export interface LarkPermissionViolation {
   type: string
   subject: string
+}
+
+export interface LarkFieldViolation {
+  field?: string
+  message?: string
+  reason?: string
+  [key: string]: unknown
 }
 
 export interface LarkErrorDetail {
@@ -95,22 +227,101 @@ export interface LarkErrorDetail {
   log_id: string
   troubleshooter: string
   permission_violations?: LarkPermissionViolation[]
+  field_violations?: LarkFieldViolation[]
 }
 
 export interface LarkError {
   code: number
   msg: string
   error: LarkErrorDetail
+  log_id?: string
+  troubleshooter?: string
+  field_violations?: LarkFieldViolation[]
+}
+
+/**
+ * Parse Lark SDK/Axios mixed error payloads, including nested array shapes like:
+ * [[axiosError, larkErrorBody]]
+ */
+export function parseLarkClientError(error: unknown): LarkError {
+  const payload = findLarkErrorPayload(error)
+  if (!payload) {
+    const message = extractAxiosErrorMessage(error)
+    return {
+      code: -1,
+      msg: message,
+      error: {
+        message,
+        log_id: '',
+        troubleshooter: ''
+      }
+    }
+  }
+
+  const detail = isRecord(payload.error) ? payload.error : {}
+  const fieldViolations = normalizeFieldViolations(detail.field_violations ?? payload.field_violations)
+  const permissionViolations = normalizePermissionViolations(detail.permission_violations ?? payload.permission_violations)
+
+  const message =
+    toNonEmptyString(detail.message) ||
+    toNonEmptyString(payload.msg) ||
+    toNonEmptyString(payload.message) ||
+    extractAxiosErrorMessage(error)
+
+  const logId = toNonEmptyString(detail.log_id) || toNonEmptyString(payload.log_id) || ''
+  const troubleshooter = toNonEmptyString(detail.troubleshooter) || toNonEmptyString(payload.troubleshooter) || ''
+
+  return {
+    code: toFiniteNumber(payload.code) ?? -1,
+    msg: toNonEmptyString(payload.msg) || message,
+    log_id: toNonEmptyString(payload.log_id),
+    troubleshooter: toNonEmptyString(payload.troubleshooter),
+    field_violations: fieldViolations,
+    error: {
+      message,
+      log_id: logId,
+      troubleshooter,
+      permission_violations: permissionViolations,
+      field_violations: fieldViolations
+    }
+  }
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function formatFieldViolation(violation: LarkFieldViolation, index: number): string {
+  const field = toNonEmptyString(violation.field)
+  const reason = toNonEmptyString(violation.message) || toNonEmptyString(violation.reason) || toNonEmptyString(violation.msg)
+
+  if (field && reason) {
+    return `${index + 1}. \`${field}\`: ${reason}`
+  }
+  if (field) {
+    return `${index + 1}. \`${field}\``
+  }
+  if (reason) {
+    return `${index + 1}. ${reason}`
+  }
+
+  return `${index + 1}. ${safeStringify(violation)}`
 }
 
 export function formatLarkErrorToMarkdown(error: LarkError): string {
   console.error(error)
 
   const { code, msg, error: errDetail } = error
+  const fieldViolations = errDetail.field_violations || error.field_violations
 
   const permissionList =
     errDetail.permission_violations?.map((v, i) => `${i + 1}. **${v.subject}**  _(type: ${v.type})_`).join('\n') ||
     'None'
+  const fieldViolationList = fieldViolations?.map((v, i) => formatFieldViolation(v, i)).join('\n') || 'None'
 
   return [
     `### 🚨 Lark API Error`,
@@ -125,6 +336,9 @@ export function formatLarkErrorToMarkdown(error: LarkError): string {
     `**Log ID:** \`${errDetail.log_id}\``,
     ``,
     `**Troubleshooter:** ${errDetail.troubleshooter || 'N/A'}`,
+    ``,
+    `**Field Violations:**`,
+    `${fieldViolationList}`,
     ``,
     `**Permission Violations:**`,
     `${permissionList}`

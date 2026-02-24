@@ -1,7 +1,6 @@
 import * as lark from '@larksuiteoapi/node-sdk'
 import { IIntegration } from '@metad/contracts'
-import { AxiosError } from 'axios'
-import { formatLarkErrorToMarkdown, LarkError, LarkFile } from './types.js'
+import { formatLarkErrorToMarkdown, LarkFile, parseLarkClientError } from './types.js'
 
 export class LarkClient {
   private client: lark.Client
@@ -58,7 +57,7 @@ export class LarkClient {
 
       return res.data.files
     } catch (error: unknown) {
-      throw formatLarkErrorToMarkdown(getLarkError(error))
+      throw formatLarkErrorToMarkdown(parseLarkClientError(error))
     }
   }
 
@@ -82,7 +81,7 @@ export class LarkClient {
 
       return res.data.content
     } catch (error: unknown) {
-      throw formatLarkErrorToMarkdown(getLarkError(error))
+      throw formatLarkErrorToMarkdown(parseLarkClientError(error))
     }
   }
 
@@ -105,10 +104,4 @@ export class LarkClient {
 
     return result
   }
-}
-
-function getLarkError(error: unknown) {
-  const axiosError = error as AxiosError
-  console.error(error)
-  return axiosError.response?.data as LarkError
 }
