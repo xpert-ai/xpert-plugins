@@ -140,8 +140,8 @@ jobs:
           branch: main
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"
-          version: pnpm -C ${{ matrix.workspace }} exec changeset version
-          publish: pnpm -C ${{ matrix.workspace }} run release:publish
+          version: pnpm exec changeset version
+          publish: pnpm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/${{ matrix.workspace }}/.npmrc
