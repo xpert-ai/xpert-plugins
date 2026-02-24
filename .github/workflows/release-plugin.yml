@@ -2,11 +2,22 @@ name: Release Plugins
 
 on:
   workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Workspace to release"
+        required: true
+        default: xpertai
+        type: choice
+        options:
+          - xpertai
+          - community
+          - all
   push:
     branches:
       - main
     paths:
       - "xpertai/**"
+      - "community/**"
       - ".github/workflows/release-plugin.yml"
 
 concurrency:
@@ -19,10 +30,13 @@ permissions:
   id-token: write
 
 jobs:
-  release:
-    name: Version Or Publish
+  detect:
+    name: Detect Changed Workspaces
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      xpertai: ${{ steps.filter.outputs.xpertai }}
+      community: ${{ steps.filter.outputs.community }}
 
     steps:
       - name: Checkout
@@ -30,35 +44,107 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            xpertai:
+              - "xpertai/**"
+            community:
+              - "community/**"
+
+  release:
+    name: Version Or Publish (${{ matrix.workspace }})
+    needs: detect
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: xpertai
+            install_command: pnpm -C xpertai install --frozen-lockfile
+            publish_command: pnpm run release:publish
+          - workspace: community
+            install_command: pnpm -C community install --no-frozen-lockfile
+            publish_command: pnpm run release:publish
+
+    steps:
+      - name: Decide whether to run this workspace
+        id: decide
+        run: |
+          run_workspace="false"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            selected="${{ github.event.inputs.workspace }}"
+            if [ "$selected" = "all" ] || [ "$selected" = "${{ matrix.workspace }}" ]; then
+              run_workspace="true"
+            fi
+          else
+            if [ "${{ matrix.workspace }}" = "xpertai" ] && [ "${{ needs.detect.outputs.xpertai }}" = "true" ]; then
+              run_workspace="true"
+            fi
+            if [ "${{ matrix.workspace }}" = "community" ] && [ "${{ needs.detect.outputs.community }}" = "true" ]; then
+              run_workspace="true"
+            fi
+          fi
+          echo "run=$run_workspace" >> "$GITHUB_OUTPUT"
+
+      - name: Skip workspace
+        if: steps.decide.outputs.run != 'true'
+        run: echo "No matching changes or workspace selection for ${{ matrix.workspace }}. Skipping."
+
+      - name: Checkout
+        if: steps.decide.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup pnpm
+        if: steps.decide.outputs.run == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Node.js
+        if: steps.decide.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.14.0
-          cache: pnpm
-          cache-dependency-path: xpertai/pnpm-lock.yaml
 
       - name: Upgrade npm for trusted publishing
+        if: steps.decide.outputs.run == 'true'
         run: npm i -g npm@^11.5.1
 
       - name: Install dependencies
-        run: pnpm -C xpertai install --frozen-lockfile
+        if: steps.decide.outputs.run == 'true'
+        run: ${{ matrix.install_command }}
+
+      - name: Ensure workspace npmrc exists
+        if: steps.decide.outputs.run == 'true'
+        run: |
+          if [ ! -f "${{ matrix.workspace }}/.npmrc" ]; then
+            touch "${{ matrix.workspace }}/.npmrc"
+          fi
+
+      - name: Point root changeset to workspace changeset
+        if: steps.decide.outputs.run == 'true'
+        run: |
+          rm -rf .changeset
+          ln -s "${{ matrix.workspace }}/.changeset" .changeset
 
       - name: Create release PR or publish
+        if: steps.decide.outputs.run == 'true'
         id: changesets
         uses: changesets/action@v1
         with:
-          cwd: xpertai
+          cwd: ${{ matrix.workspace }}
           branch: main
-          commit: "chore(release): version plugins"
-          title: "chore(release): version plugins"
+          commit: "chore(release): version ${{ matrix.workspace }} packages"
+          title: "chore(release): version ${{ matrix.workspace }} packages"
           version: pnpm dlx @changesets/cli version
-          publish: pnpm run release:publish
+          publish: ${{ matrix.publish_command }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/xpertai/.npmrc
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/${{ matrix.workspace }}/.npmrc
           NPM_CONFIG_PROVENANCE: "true"
