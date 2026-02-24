@@ -2,7 +2,9 @@
   "name": "@xpert-plugins-starter/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "release:publish": "nx run-many -t build && pnpm dlx @changesets/cli publish --access public"
+  },
   "private": true,
   "devDependencies": {
     "@eslint/js": "^9.8.0",
