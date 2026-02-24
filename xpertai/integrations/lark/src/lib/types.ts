@@ -1,7 +1,8 @@
+import { ITenant, TChatConversationStatus } from '@metad/contracts'
 import { TDocumentAsset } from '@xpert-ai/plugin-sdk'
 import { AxiosError } from 'axios'
 
-
+export const INTEGRATION_LARK = 'lark'
 export const LarkName = 'lark'
 export const LarkDocumentName = 'lark-document'
 
@@ -150,4 +151,167 @@ export interface LarkListFilesResponse {
   files?: LarkFile[] | undefined
   next_page_token?: string | undefined
   has_more?: boolean | undefined
+}
+
+
+
+export type TLarkUserProvisionOptions = {
+	autoProvision?: boolean
+	roleName?: string
+}
+
+export type TIntegrationLarkOptions = {
+  isLark?: boolean
+  appId: string
+  appSecret: string
+  verificationToken: string
+  encryptKey: string
+  xpertId: string
+  preferLanguage: string
+  userProvision?: TLarkUserProvisionOptions
+}
+
+export type LarkMessage = {
+	data: {
+		receive_id: string
+		content: string
+		msg_type: 'text' | 'post' | 'image' | 'interactive'
+		uuid?: string
+	}
+	params: {
+		receive_id_type: 'open_id' | 'user_id' | 'union_id' | 'email' | 'chat_id'
+	}
+}
+
+export type ChatLarkContext<T = any> = {
+	tenant: ITenant
+	organizationId: string
+	integrationId: string
+	userId: string
+	/**
+	 * Preferred language from integration options.
+	 */
+	preferLanguage?: string
+	chatId?: string
+	chatType?: 'p2p' | 'group' | string
+	/**
+	 * Lark platform sender's open_id (for @mention and private message)
+	 */
+	senderOpenId?: string
+	message?: T
+	input?: string
+}
+
+export type TLarkEvent = {
+	schema: '2.0'
+	event_id: string
+	token: string
+	create_time: string
+	event_type: 'im.message.receive_v1'
+	tenant_key: string
+	app_id: string
+	message: {
+		chat_id: string
+		chat_type: string
+		content: string
+		create_time: string
+		message_id: string
+		message_type: 'text' | 'image'
+		update_time: string
+		mentions?: {
+			id: {
+				open_id: string
+				union_id: string
+				user_id: string
+			}
+			key: string
+			name: string
+			tenant_key: string
+		}[]
+	}
+	sender: {
+		sender_id: {
+			open_id: string
+			union_id: string
+			user_id: string
+		}
+		sender_type: 'user'
+		tenant_key: string
+	}
+}
+
+export type LarkElementScalar = string | number | boolean | null
+
+export interface LarkElementObject {
+	[key: string]: LarkElementScalar | LarkElementObject | Array<LarkElementScalar | LarkElementObject>
+}
+
+export interface LarkCardElement extends LarkElementObject {
+	tag: string
+}
+
+export interface LarkMarkdownElement extends LarkCardElement {
+	tag: 'markdown'
+	content: string
+}
+
+export type LarkStreamTextElement = LarkMarkdownElement
+
+export type LarkEventElement = LarkMarkdownElement
+
+export type LarkStructuredElement = LarkCardElement
+
+export type LarkRenderElement =
+	| LarkStreamTextElement
+	| LarkEventElement
+	| LarkStructuredElement
+
+export enum LarkCardActionEnum {
+	Confirm = 'lark-confirm',
+	Reject = 'lark-reject',
+	EndConversation = 'lark-end-conversation'
+}
+
+export type LarkCardActionPayload = {
+	action: string
+}
+
+export type LarkCardActionValue = string | LarkCardActionPayload
+
+export const LARK_END_CONVERSATION = LarkCardActionEnum.EndConversation
+export const LARK_CONFIRM = LarkCardActionEnum.Confirm
+export const LARK_REJECT = LarkCardActionEnum.Reject
+
+export type TLarkConversationStatus = TChatConversationStatus | 'end'
+
+export function isLarkCardActionValue(value: unknown): value is LarkCardActionValue {
+	if (typeof value === 'string') {
+		return true
+	}
+
+	if (!value || typeof value !== 'object') {
+		return false
+	}
+
+	return typeof (value as LarkCardActionPayload).action === 'string'
+}
+
+export function resolveLarkCardActionValue(value: LarkCardActionValue): string {
+	return typeof value === 'string' ? value : value.action
+}
+
+export function isEndAction(value: string) {
+	return value === `"${LARK_END_CONVERSATION}"` || value === LARK_END_CONVERSATION
+}
+
+export function isConfirmAction(value: string) {
+	return value === `"${LARK_CONFIRM}"` || value === LARK_CONFIRM
+}
+
+export function isRejectAction(value: string) {
+	return value === `"${LARK_REJECT}"` || value === LARK_REJECT
+}
+
+export function isConversationAction(value: string) {
+	return isEndAction(value) || isConfirmAction(value) || isRejectAction(value)
 }

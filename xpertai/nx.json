@@ -73,7 +73,8 @@
       "@xpert-ai/plugin-tool-call-limit",
       "@xpert-ai/plugin-model-fallback",
       "@xpert-ai/plugin-long-term-memory",
-      "@xpert-ai/plugin-deepseek"
+      "@xpert-ai/plugin-deepseek",
+      "@xpert-ai/plugin-zhipuai"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
