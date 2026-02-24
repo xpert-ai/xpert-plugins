@@ -37,6 +37,7 @@ import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import { TIntegrationLarkOptions } from './types.js'
 import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 
+const LARK_ROOT_DEPARTMENT_ID = '0'
 
 @Controller('lark')
 export class LarkHooksController {
@@ -200,38 +201,104 @@ export class LarkHooksController {
 	}
 
 	@Get(':id/users')
-	async getUsers(@Param('id') id: string) {
-		return this.getUsersByIntegrationId(id)
+	async getUsers(@Param('id') id: string, @Query('departmentId') departmentId?: string) {
+		return this.getUsersByIntegrationId(id, departmentId)
 	}
 
 	@Get('user-select-options')
-	async getUserSelectOptions(@Query('integration') id: string) {
-		return this.getUsersByIntegrationId(id)
+	async getUserSelectOptions(
+		@Query('integration') id: string,
+		@Query('departmentId') departmentId?: string
+	) {
+		return this.getUsersByIntegrationId(id, departmentId)
 	}
 
-	private async getUsersByIntegrationId(id: string) {
+	@Get(':id/departments')
+	async getDepartments(@Param('id') id: string) {
+		return this.getDepartmentsByIntegrationId(id)
+	}
+
+	@Get('department-select-options')
+	async getDepartmentSelectOptions(@Query('integration') id: string) {
+		return this.getDepartmentsByIntegrationId(id)
+	}
+
+	private normalizeDepartmentId(departmentId?: string): string {
+		const normalizedDepartmentId = departmentId?.trim()
+		return normalizedDepartmentId || LARK_ROOT_DEPARTMENT_ID
+	}
+
+	private async getUsersByIntegrationId(id: string, departmentId?: string) {
 		if (!id) {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
 		}
 		const client = await this.larkChannel.getOrCreateLarkClientById(id)
+		const normalizedDepartmentId = this.normalizeDepartmentId(departmentId)
 
 		try {
 			const result = await client.contact.v3.user.findByDepartment({
-                params: {
-                  user_id_type: 'open_id',
-                  department_id_type: 'open_department_id',
-                  department_id: '0',
-                  page_size: 50,
-                  page_token: undefined
-                },
-              })
-			const items = result.data.items
+				params: {
+					user_id_type: 'open_id',
+					department_id_type: 'open_department_id',
+					department_id: normalizedDepartmentId,
+					page_size: 50,
+					page_token: undefined
+				}
+			})
+			const items = result.data.items ?? []
 
 			return items.map((item) => ({
 				value: item.open_id,
 				label: item.name || item.email || item.mobile,
 				icon: item.avatar
 			}))
+		} catch (err: any) {
+			if ((<AxiosError>err).response?.data) {
+				throw new BadRequestException(err.response.data.msg)
+			}
+			throw new BadRequestException(err)
+		}
+	}
+
+	private async getDepartmentsByIntegrationId(id: string) {
+		if (!id) {
+			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
+		}
+
+		const client = await this.larkChannel.getOrCreateLarkClientById(id)
+
+		try {
+			const result = await client.contact.v3.department.children({
+				path: {
+					department_id: LARK_ROOT_DEPARTMENT_ID
+				},
+				params: {
+					department_id_type: 'open_department_id',
+					fetch_child: true,
+					page_size: 100,
+					page_token: undefined
+				}
+			})
+
+			const rootOption = {
+				value: LARK_ROOT_DEPARTMENT_ID,
+				label: t('integration.Lark.RootDepartment', {
+					defaultValue: 'Root Department'
+				})
+			}
+			const items = result.data.items ?? []
+			const mappedItems = items
+				.map((item) => ({
+					value: item.open_department_id || item.department_id,
+					label: item.name
+				}))
+				.filter((item) => Boolean(item.value))
+			const uniqueOptions = [rootOption, ...mappedItems].filter(
+				(option, index, arr) =>
+					arr.findIndex((item) => item.value === option.value) === index
+			)
+
+			return uniqueOptions
 		} catch (err: any) {
 			if ((<AxiosError>err).response?.data) {
 				throw new BadRequestException(err.response.data.msg)
