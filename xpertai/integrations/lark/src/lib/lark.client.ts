@@ -29,7 +29,7 @@ export class LarkClient {
   // Online Documents
 
   /**
-   * 获取根目录 Token
+   * Get root folder token
    */
   async getRootFolderToken(): Promise<string> {
     
@@ -46,7 +46,7 @@ export class LarkClient {
   }
 
   /**
-   * 获取文件夹下的子文件/文件夹
+   * List child files/folders in a folder
    */
   async listDriveFiles(folderToken: string): Promise<LarkFile[]> {
     try {
@@ -63,7 +63,7 @@ export class LarkClient {
   }
 
   /**
-   * 获取文档内容
+   * Get document content
    */
   async getDocumentContent(docToken: string): Promise<string> {
     try {
@@ -87,7 +87,7 @@ export class LarkClient {
   }
 
   /**
-   * 递归获取文件夹下所有文档
+   * Recursively retrieve all documents in a folder
    */
   async getAllDocsInFolder(folderToken: string): Promise<LarkFile[]> {
     let result: LarkFile[] = []
@@ -95,7 +95,7 @@ export class LarkClient {
 
     for (const child of children) {
       if (child.type === 'folder') {
-        // 递归进入子文件夹
+        // Recursively enter subfolders
         const subDocs = await this.getAllDocsInFolder(child.token)
         result = result.concat(subDocs)
       } else if (child.type === 'docx') {
