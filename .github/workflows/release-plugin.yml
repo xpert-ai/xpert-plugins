@@ -142,7 +142,7 @@ jobs:
           branch: main
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"
-          version: pnpm dlx @changesets/cli version
+          version: npx -y @changesets/cli version
           publish: ${{ matrix.publish_command }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
