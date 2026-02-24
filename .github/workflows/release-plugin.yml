@@ -65,10 +65,8 @@ jobs:
         include:
           - workspace: xpertai
             install_command: pnpm -C xpertai install --frozen-lockfile
-            publish_command: pnpm run release:publish
           - workspace: community
             install_command: pnpm -C community install --no-frozen-lockfile
-            publish_command: pnpm run release:publish
 
     steps:
       - name: Decide whether to run this workspace
@@ -142,8 +140,8 @@ jobs:
           branch: main
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"
-          version: npx -y @changesets/cli version
-          publish: ${{ matrix.publish_command }}
+          version: pnpm -C ${{ matrix.workspace }} exec changeset version
+          publish: pnpm -C ${{ matrix.workspace }} run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/${{ matrix.workspace }}/.npmrc

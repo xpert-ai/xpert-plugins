@@ -9,9 +9,10 @@
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
-    "release:publish": "pnpm -r run build --if-present && pnpm dlx @changesets/cli publish --access public"
+    "release:publish": "pnpm -r run build --if-present && pnpm exec changeset publish --access public"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "typescript": "^5.3.3"
   }
 }
