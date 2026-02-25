@@ -1,4 +1,4 @@
-# @xpert-ai/plugin-integration-lark
+# @xpert-ai/plugin-lark
 
 Lark (Feishu) integration plugin for Xpert AI platform.
 
