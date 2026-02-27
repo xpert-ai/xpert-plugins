@@ -1,0 +1,48 @@
+{
+  "name": "@xpert-ai/plugin-web-tools",
+  "version": "0.0.1",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "zod": "3.25.67",
+    "@xpert-ai/chatkit-types": "^0.0.12",
+    "@xpert-ai/plugin-sdk": "^3.7.2",
+    "chalk": "4.1.2",
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@metad/contracts": "^3.8.0",
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "cheerio": "^1.0.0-rc.12",
+    "turndown": "^7.2.0"
+  }
+}

@@ -44,7 +44,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           title: {
             en_US: 'Is Lark',
             zh_Hans: '国际版'
-          }
+          },
+          placeholder: {
+            en_US: 'Using Lark (international version) instead of Feishu (Chinese version)',
+            zh_Hans: '是 Lark（国际版）而不是 Feishu（中国版），请勾选此项'
+          },
         },
         appId: { type: 'string', title: 'App ID' },
         appSecret: {
