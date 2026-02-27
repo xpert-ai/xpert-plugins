@@ -73,6 +73,7 @@
       "@xpert-ai/plugin-tool-call-limit",
       "@xpert-ai/plugin-model-fallback",
       "@xpert-ai/plugin-long-term-memory",
+      "@xpert-ai/plugin-web-tools",
       "@xpert-ai/plugin-deepseek",
       "@xpert-ai/plugin-zhipuai"
     ],

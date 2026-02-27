@@ -88,6 +88,9 @@
       "path": "./middlewares/long-term-memory"
     },
     {
+      "path": "./middlewares/web-tools"
+    },
+    {
       "path": "./models/deepseek"
     },
     {
