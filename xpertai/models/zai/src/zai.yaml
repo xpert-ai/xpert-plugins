@@ -1,0 +1,35 @@
+provider: zai
+label:
+  zh_Hans: 智谱 Coding Plan
+  en_US: ZHIPU Coding Plan
+description:
+  zh_Hans: 智谱 AI Coding Plan 套餐，专为编程工具设计的订阅制服务，支持最新的 GLM 模型，默认开启深度推理。API 端点为 /api/coding/paas/v4，与通用 API 不同。
+  en_US: ZHIPU AI Coding Plan subscription, designed for coding tools with the latest GLM models and deep reasoning enabled by default. Uses the /api/coding/paas/v4 endpoint.
+icon_small:
+  en_US: icon_s_en.svg
+icon_large:
+  zh_Hans: icon_l_zh.svg
+  en_US: icon_l_en.svg
+background: "#E8ECFF"
+help:
+  title:
+    en_US: Get your API key from ZHIPU Coding Plan (z.ai)
+    zh_Hans: 从智谱 Coding Plan (z.ai) 获取 API Key
+  url:
+    en_US: https://z.ai/manage-apikey/apikey-list
+supported_model_types:
+  - llm
+configurate_methods:
+  - predefined-model
+  - customizable-model
+provider_credential_schema:
+  credential_form_schemas:
+    - variable: api_key
+      label:
+        en_US: API Key
+        zh_Hans: API Key
+      type: secret-input
+      required: true
+      placeholder:
+        zh_Hans: 在此输入您的 API Key
+        en_US: Enter your API Key
