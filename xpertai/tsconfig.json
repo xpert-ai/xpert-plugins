@@ -95,9 +95,6 @@
     },
     {
       "path": "./models/zhipuai"
-    },
-    {
-      "path": "./models/zai"
     }
   ]
 }
