@@ -23,7 +23,7 @@ export class ZhipuaiProviderStrategy extends ModelProvider {
   async validateProviderCredentials(credentials: ZhipuaiCredentials): Promise<void> {
     try {
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
-      await modelInstance.validateCredentials('glm-4.7-flash', credentials)
+      await modelInstance.validateCredentials('glm-4.7', credentials)
     } catch (ex: any) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex
