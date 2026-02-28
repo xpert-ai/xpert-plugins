@@ -57,5 +57,10 @@
     "date-fns": "^3.0.4",
     "rxjs": "^7.8.1",
     "@langchain/langgraph": "0.4.7"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
   }
 }
