@@ -76,7 +76,8 @@
       "@xpert-ai/plugin-sensitive-filter",
       "@xpert-ai/plugin-web-tools",
       "@xpert-ai/plugin-deepseek",
-      "@xpert-ai/plugin-zhipuai"
+      "@xpert-ai/plugin-zhipuai",
+      "@xpert-ai/plugin-openai"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
