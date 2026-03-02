@@ -1,4 +1,5 @@
 import { z as z4 } from 'zod/v4'
+import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AIMessage, HumanMessage } from '@langchain/core/messages'
 import { BaseLanguageModel } from '@langchain/core/language_models/base'
 import type { JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
@@ -93,7 +94,7 @@ const INTERNAL_LLM_INVOKE_OPTIONS = {
   metadata: {
     internal: true,
   },
-} as const
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -1122,7 +1123,9 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
       if (!modelPromise) {
         modelPromise = this.commandBus.execute(
           new CreateModelClientCommand<BaseLanguageModel>(buildInternalModelConfig(llmConfig.model), {
-            usageCallback: () => {},
+            usageCallback: () => {
+              //
+            },
           }),
         )
       }
@@ -1131,7 +1134,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
     const ensureStructuredModel = async (
       method: 'functionCalling' | 'jsonMode' | 'jsonSchema',
-    ): Promise<any> => {
+    ): Promise<BaseChatModel> => {
       if (!structuredModelPromises.has(method)) {
         structuredModelPromises.set(
           method,
@@ -1143,7 +1146,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
           })(),
         )
       }
-      return structuredModelPromises.get(method)!
+      return structuredModelPromises.get(method)! as Promise<BaseChatModel>
     }
 
     let pendingInputRewrite: string | null = null
@@ -1306,7 +1309,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
               throw new Error(`Structured output is not available for method: ${method}`)
             }
             const raw = await withTimeout(
-              structuredModel.invoke(messages as any, INTERNAL_LLM_INVOKE_OPTIONS as any),
+              structuredModel.invoke(messages, INTERNAL_LLM_INVOKE_OPTIONS),
               llmConfig.timeoutMs,
             )
             return {
@@ -1328,7 +1331,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
         attempts.push('plainText')
         const raw = await withTimeout(
-          model.invoke(messages as any, INTERNAL_LLM_INVOKE_OPTIONS as any),
+          model.invoke(messages, INTERNAL_LLM_INVOKE_OPTIONS),
           llmConfig.timeoutMs,
         )
         return {

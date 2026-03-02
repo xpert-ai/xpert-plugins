@@ -95,6 +95,9 @@
     },
     {
       "path": "./models/zhipuai"
+    },
+    {
+      "path": "./middlewares/sensitive-filter"
     }
   ]
 }
