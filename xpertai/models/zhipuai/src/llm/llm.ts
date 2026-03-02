@@ -2,8 +2,7 @@ import { HumanMessage } from '@langchain/core/messages'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import omitBy from 'lodash-es/omitby.js'
-import isNil from 'lodash-es/isnil.js'
+import { isNil, omitBy } from 'lodash-es'
 import { toCredentialKwargs, ZhipuaiCredentials, ZhipuaiModelOptions } from '../types.js'
 import { ZhipuaiProviderStrategy } from '../zhipuai.js'
 
@@ -17,12 +16,11 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
 
   async validateCredentials(model: string, credentials: ZhipuaiCredentials): Promise<void> {
     const params = toCredentialKwargs(credentials)
-    const glm = new ChatOAICompatReasoningModel({
+    const chatModel = new ChatOAICompatReasoningModel({
       ...params,
       model,
       temperature: 1,
       modelKwargs: {
-		web_search: false,
         thinking: {
           type: 'disabled'
         }
@@ -30,7 +28,7 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
     })
 
     const messages = [new HumanMessage('Hello')]
-    const res = await glm.invoke(messages)
+    await chatModel.invoke(messages)
   }
 
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
@@ -47,21 +45,29 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
         ...params,
         model,
         streaming: modelCredentials?.streaming ?? true,
-        temperature: modelCredentials?.temperature ?? 0,
+        temperature: modelCredentials?.temperature ?? 0.6,
         maxTokens: modelCredentials?.max_tokens,
         topP: modelCredentials?.top_p,
         frequencyPenalty: modelCredentials?.frequency_penalty,
         maxRetries: modelCredentials?.maxRetries,
-        doSample: modelCredentials?.do_sample,
-        modelKwargs: {
-		  web_search: modelCredentials?.web_search,
-          thinking: {
-            type: modelCredentials?.thinking ? 'enabled' : 'disabled'
-          }
-        }
+        modelKwargs: omitBy(
+          {
+            web_search: modelCredentials?.web_search,
+            response_format: modelCredentials?.response_format
+              ? { type: modelCredentials.response_format }
+              : undefined,
+            thinking: {
+              type: modelCredentials?.thinking ?? 'enabled',
+              clear_thinking: modelCredentials?.clear_thinking
+            }
+          },
+          isNil
+        ),
+        streamUsage: true
       },
       isNil
     )
+
     return new ChatOAICompatReasoningModel({
       ...fields,
       verbose: options?.verbose,

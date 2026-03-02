@@ -1,9 +1,18 @@
 {
-  "name": "@xpert-ai/plugin-zhipuai",
-  "version": "0.0.3",
+  "name": "@xpert-ai/plugin-openai",
+  "version": "0.0.1",
+  "description": "OpenAI GPT-5 model plugin for XpertAI platform using Responses API",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins"
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -30,14 +39,14 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "zod": "3.25.67",
     "@xpert-ai/plugin-sdk": "^3.7.2",
-    "@langchain/core": "0.3.72",
+    "@nestjs/config": "^4.0.2",
+    "chalk": "4.1.2",
+    "zod": "3.25.67",
     "@metad/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",
-    "lodash-es": "4.17.21",
+    "@langchain/core": "^0.3.72",
     "@langchain/openai": "0.6.9",
-    "@nestjs/config": "^4.0.2",
-    "chalk": "4.1.2"
+    "lodash-es": "4.17.21"
   }
 }

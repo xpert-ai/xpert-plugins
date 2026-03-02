@@ -95,6 +95,12 @@
     },
     {
       "path": "./models/zhipuai"
+    },
+    {
+      "path": "./middlewares/sensitive-filter"
+    },
+    {
+      "path": "./models/openai"
     }
   ]
 }
