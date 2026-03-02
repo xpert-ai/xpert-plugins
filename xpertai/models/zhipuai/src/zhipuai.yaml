@@ -2,6 +2,9 @@ provider: zhipuai
 label:
   zh_Hans: 智谱 AI
   en_US: ZHIPU AI
+description:
+  zh_Hans: 智谱 AI 大模型服务，支持智谱 Coding Plan 端点。
+  en_US: ZHIPU AI model service, supports ZHIPU Coding Plan endpoint.
 icon_small:
   en_US: icon_s_en.svg
 icon_large:
@@ -19,13 +22,24 @@ supported_model_types:
   - text-embedding
 configurate_methods:
   - predefined-model
+  - customizable-model
 provider_credential_schema:
   credential_form_schemas:
     - variable: api_key
       label:
-        en_US: APIKey
+        en_US: API Key
+        zh_Hans: API Key
       type: secret-input
       required: true
       placeholder:
-        zh_Hans: 在此输入您的 APIKey
-        en_US: Enter your APIKey
+        zh_Hans: 在此输入您的 API Key
+        en_US: Enter your API Key
+    - variable: endpoint_url
+      label:
+        en_US: API endpoint URL
+        zh_Hans: API endpoint URL
+      type: text-input
+      required: false
+      placeholder:
+        zh_Hans: "Base URL, e.g. https://open.bigmodel.cn/api/paas/v4"
+        en_US: "Base URL, e.g. https://open.bigmodel.cn/api/paas/v4"

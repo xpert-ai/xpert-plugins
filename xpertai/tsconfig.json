@@ -88,10 +88,19 @@
       "path": "./middlewares/long-term-memory"
     },
     {
+      "path": "./middlewares/web-tools"
+    },
+    {
       "path": "./models/deepseek"
     },
     {
       "path": "./models/zhipuai"
+    },
+    {
+      "path": "./middlewares/sensitive-filter"
+    },
+    {
+      "path": "./models/openai"
     }
   ]
 }

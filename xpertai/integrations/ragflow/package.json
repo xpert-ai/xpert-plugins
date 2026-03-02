@@ -1,6 +1,10 @@
 {
   "name": "@xpert-ai/plugin-ragflow",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

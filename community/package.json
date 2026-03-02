@@ -8,9 +8,11 @@
     "create:package": "node ./scripts/create-package.mjs",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "release:publish": "pnpm -r run build --if-present && pnpm exec changeset publish --access public"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "typescript": "^5.3.3"
   }
 }

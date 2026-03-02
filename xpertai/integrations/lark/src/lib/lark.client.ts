@@ -1,8 +1,10 @@
 import * as lark from '@larksuiteoapi/node-sdk'
 import { IIntegration } from '@metad/contracts'
-import { AxiosError } from 'axios'
-import { formatLarkErrorToMarkdown, LarkError, LarkFile } from './types.js'
+import { formatLarkErrorToMarkdown, LarkFile, parseLarkClientError } from './types.js'
 
+/**
+ * Common Lark Methods
+ */
 export class LarkClient {
   private client: lark.Client
   constructor(private readonly integration: IIntegration) {
@@ -29,7 +31,7 @@ export class LarkClient {
   // Online Documents
 
   /**
-   * 获取根目录 Token
+   * Get root folder token
    */
   async getRootFolderToken(): Promise<string> {
     
@@ -46,7 +48,7 @@ export class LarkClient {
   }
 
   /**
-   * 获取文件夹下的子文件/文件夹
+   * List child files/folders in a folder
    */
   async listDriveFiles(folderToken: string): Promise<LarkFile[]> {
     try {
@@ -58,12 +60,12 @@ export class LarkClient {
 
       return res.data.files
     } catch (error: unknown) {
-      throw formatLarkErrorToMarkdown(getLarkError(error))
+      throw formatLarkErrorToMarkdown(parseLarkClientError(error))
     }
   }
 
   /**
-   * 获取文档内容
+   * Get document content
    */
   async getDocumentContent(docToken: string): Promise<string> {
     try {
@@ -82,12 +84,12 @@ export class LarkClient {
 
       return res.data.content
     } catch (error: unknown) {
-      throw formatLarkErrorToMarkdown(getLarkError(error))
+      throw formatLarkErrorToMarkdown(parseLarkClientError(error))
     }
   }
 
   /**
-   * 递归获取文件夹下所有文档
+   * Recursively retrieve all documents in a folder
    */
   async getAllDocsInFolder(folderToken: string): Promise<LarkFile[]> {
     let result: LarkFile[] = []
@@ -95,7 +97,7 @@ export class LarkClient {
 
     for (const child of children) {
       if (child.type === 'folder') {
-        // 递归进入子文件夹
+        // Recursively enter subfolders
         const subDocs = await this.getAllDocsInFolder(child.token)
         result = result.concat(subDocs)
       } else if (child.type === 'docx') {
@@ -105,10 +107,4 @@ export class LarkClient {
 
     return result
   }
-}
-
-function getLarkError(error: unknown) {
-  const axiosError = error as AxiosError
-  console.error(error)
-  return axiosError.response?.data as LarkError
 }

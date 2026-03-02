@@ -37,21 +37,34 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 
 ## Versioning and releasing
 
-To version and release the library use
+This workspace releases packages with **Changesets + GitHub Actions (OIDC trusted publishing)**.
 
 ```sh
-npx nx release [-p <project-name>] [--dry-run]
+pnpm dlx @changesets/cli add
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+Run the command above in `xpertai/` whenever a publishable plugin changes, then merge your PR into `main`.
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-Publish to npm with:
+Useful local checks:
 
 ```sh
-npx nx run <project-name>:nx-release-publish --access public --otp=<one-time-password-if-needed>
+pnpm dlx @changesets/cli status
 ```
+
+### First-time publish (bootstrap)
+
+For a brand-new package (for example `@xpert-ai/plugin-xxx` never published before), use this bootstrap flow:
+
+1. Build and publish the first version once with a temporary npm token (run from repository root):
+   ```sh
+   cd xpertai
+   pnpm exec nx run <nx-project-name>:build
+   pnpm exec nx run <nx-project-name>:nx-release-publish --access public --otp=<your_2FA_otp_if_enabled>
+   ```
+2. In npm package settings, configure Trusted Publisher for this repository/workflow [New Package Checklist](../README.md#new-package-checklist-required)
+
+Tip:
+- If CI shows `ENEEDAUTH This command requires you to be logged in`, it usually means bootstrap (step 1) is still required for that package.
 
 ## Useful links
 
@@ -59,7 +72,8 @@ Learn more:
 
 - [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
 - [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [Changesets documentation](https://github.com/changesets/changesets)
+- [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/)
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 And join the Nx community:

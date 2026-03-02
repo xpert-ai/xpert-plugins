@@ -1,0 +1,25 @@
+{
+  "name": "xpert-plugins",
+  "version": "1.0.0",
+  "private": true,
+  "description": "This is the source code repository for plugins on the [XpertAI platform](https://github.com/xpert-ai/xpert). The `xpertai/` folder contains officially maintained plugin projects. Partners or community contributors can create independent project folders in the root directory according to their company or organization, and maintain their own plugin code within. For plugin development and release processes, please refer to the official documentation: <https://xpertai.cn/docs/plugin/>.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "keywords": [
+    "xpert",
+    "plugins",
+    "agent"
+  ],
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "homepage": "https://github.com/xpert-ai/xpert-plugins#readme"
+}

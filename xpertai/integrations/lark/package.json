@@ -1,6 +1,10 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.0.12",
+  "version": "0.0.17",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -53,5 +57,10 @@
     "date-fns": "^3.0.4",
     "rxjs": "^7.8.1",
     "@langchain/langgraph": "0.4.7"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
   }
 }
