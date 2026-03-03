@@ -77,7 +77,7 @@
       "@xpert-ai/plugin-web-tools",
       "@xpert-ai/plugin-deepseek",
       "@xpert-ai/plugin-zhipuai",
-      "@xpert-ai/plugin-dingtalk"
+      "@xpert-ai/plugin-dingtalk",
       "@xpert-ai/plugin-openai"
     ],
     "version": {
