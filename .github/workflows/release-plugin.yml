@@ -136,6 +136,7 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
+          createGithubReleases: false
           branch: main
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"

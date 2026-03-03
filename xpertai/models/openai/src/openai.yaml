@@ -1,0 +1,65 @@
+provider: openai
+label:
+  en_US: OpenAI
+  zh_Hans: OpenAI
+description:
+  en_US: OpenAI GPT-5 model service via Responses API.
+  zh_Hans: OpenAI GPT-5 模型服务，通过 Responses API 提供。
+icon_small:
+  en_US: icon_s_en.svg
+icon_large:
+  en_US: icon_l_en.svg
+background: "#74AA9C"
+help:
+  title:
+    en_US: Get your API key from OpenAI
+    zh_Hans: 从 OpenAI 获取 API Key
+  url:
+    en_US: https://platform.openai.com/api-keys
+supported_model_types:
+  - llm
+configurate_methods:
+  - predefined-model
+provider_credential_schema:
+  credential_form_schemas:
+    - variable: api_key
+      label:
+        en_US: API Key
+        zh_Hans: API Key
+      type: secret-input
+      required: true
+      placeholder:
+        zh_Hans: 在此输入您的 API Key
+        en_US: Enter your API Key
+    - variable: endpoint_url
+      label:
+        en_US: API endpoint URL
+        zh_Hans: API endpoint URL
+      type: text-input
+      required: false
+      placeholder:
+        zh_Hans: "Base URL, e.g. https://api.openai.com/v1"
+        en_US: "Base URL, e.g. https://api.openai.com/v1"
+    - variable: sampling_parameters
+      label:
+        en_US: Sampling Params for Endpoint
+        zh_Hans: Endpoint 采样参数支持
+      type: select
+      required: false
+      default: auto
+      placeholder:
+        en_US: Auto detect sampling params support
+        zh_Hans: 自动检测 endpoint 是否支持采样参数
+      options:
+        - value: auto
+          label:
+            en_US: Auto
+            zh_Hans: 自动
+        - value: enabled
+          label:
+            en_US: Always enabled
+            zh_Hans: 强制开启
+        - value: disabled
+          label:
+            en_US: Always disabled
+            zh_Hans: 强制关闭
