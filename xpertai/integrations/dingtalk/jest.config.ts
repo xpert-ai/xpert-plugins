@@ -1,10 +1,5 @@
 /* eslint-disable */
 import { readFileSync } from 'fs';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const swcJestConfig = JSON.parse(
   readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8')

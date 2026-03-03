@@ -74,7 +74,8 @@
       "@xpert-ai/plugin-model-fallback",
       "@xpert-ai/plugin-long-term-memory",
       "@xpert-ai/plugin-deepseek",
-      "@xpert-ai/plugin-zhipuai"
+      "@xpert-ai/plugin-zhipuai",
+      "@xpert-ai/plugin-dingtalk"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
