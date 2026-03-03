@@ -1,6 +1,9 @@
 import { z as z4 } from 'zod/v4'
-import { AIMessage, HumanMessage } from '@langchain/core/messages'
+import { AIMessage, AIMessageChunk, BaseMessage, HumanMessage } from '@langchain/core/messages'
 import { BaseLanguageModel } from '@langchain/core/language_models/base'
+import { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager'
+import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs'
 import type { JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
 import { Inject, Injectable } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
@@ -78,6 +81,15 @@ type AuditSnapshot = {
   }
 }
 
+type BufferedOutputResolution = {
+  finalMessage: AIMessage
+  matched: boolean
+  source: 'rule' | 'llm' | 'error-policy'
+  action?: SensitiveRule['action']
+  reason?: string
+  errorPolicyTriggered: boolean
+}
+
 const SENSITIVE_FILTER_MIDDLEWARE_NAME = 'SensitiveFilterMiddleware'
 
 const DEFAULT_INPUT_BLOCK_MESSAGE = '输入内容触发敏感策略，已拦截。'
@@ -88,6 +100,7 @@ const BUSINESS_RULES_VALIDATION_ERROR =
   '请至少配置 1 条有效业务规则（pattern/type/action/scope/severity）。'
 const LLM_MODE_VALIDATION_ERROR = '请完善 LLM 过滤配置：需填写过滤模型、生效范围、审核规则说明。'
 const INTERNAL_LLM_INVOKE_TAG = 'sensitive-filter/internal-eval'
+const INTERNAL_SOURCE_STREAM_TAG = 'sensitive-filter/internal-source-stream'
 const INTERNAL_LLM_INVOKE_OPTIONS = {
   tags: [INTERNAL_LLM_INVOKE_TAG],
   metadata: {
@@ -254,6 +267,185 @@ function replaceModelResponseText(response: any, text: string): AIMessage {
   }
 
   return new AIMessage(text)
+}
+
+function cloneAiMessage(source: AIMessage): AIMessage {
+  return new AIMessage({
+    content: source.content,
+    additional_kwargs: source.additional_kwargs,
+    response_metadata: source.response_metadata,
+    tool_calls: source.tool_calls,
+    invalid_tool_calls: source.invalid_tool_calls,
+    usage_metadata: source.usage_metadata,
+    id: source.id,
+    name: source.name,
+  })
+}
+
+function cloneAiMessageWithText(source: AIMessage, text: string): AIMessage {
+  const cloned = cloneAiMessage(source)
+  cloned.content = text
+  return cloned
+}
+
+function toAiMessageChunk(value: unknown): AIMessageChunk | null {
+  if (value instanceof AIMessageChunk) {
+    return value
+  }
+
+  if (!isRecord(value) || !('content' in value)) {
+    return null
+  }
+
+  return new AIMessageChunk({
+    content: value['content'] as any,
+    additional_kwargs: isRecord(value['additional_kwargs']) ? value['additional_kwargs'] : {},
+    response_metadata: isRecord(value['response_metadata']) ? value['response_metadata'] : {},
+    tool_call_chunks: Array.isArray(value['tool_call_chunks']) ? value['tool_call_chunks'] : [],
+    tool_calls: Array.isArray(value['tool_calls']) ? value['tool_calls'] : [],
+    invalid_tool_calls: Array.isArray(value['invalid_tool_calls']) ? value['invalid_tool_calls'] : [],
+    usage_metadata: isRecord(value['usage_metadata']) ? (value['usage_metadata'] as any) : undefined,
+    id: typeof value['id'] === 'string' ? value['id'] : undefined,
+  })
+}
+
+function toAiMessage(value: unknown): AIMessage {
+  if (value instanceof AIMessage) {
+    return value
+  }
+
+  if (value instanceof AIMessageChunk) {
+    return new AIMessage({
+      content: value.content,
+      additional_kwargs: value.additional_kwargs,
+      response_metadata: value.response_metadata,
+      tool_calls: value.tool_calls,
+      invalid_tool_calls: value.invalid_tool_calls,
+      usage_metadata: value.usage_metadata,
+      id: value.id,
+      name: value.name,
+    })
+  }
+
+  if (isRecord(value) && 'content' in value) {
+    return new AIMessage({
+      content: value['content'] as any,
+      additional_kwargs: isRecord(value['additional_kwargs']) ? value['additional_kwargs'] : {},
+      response_metadata: isRecord(value['response_metadata']) ? value['response_metadata'] : {},
+      tool_calls: Array.isArray(value['tool_calls']) ? value['tool_calls'] : [],
+      invalid_tool_calls: Array.isArray(value['invalid_tool_calls']) ? value['invalid_tool_calls'] : [],
+      usage_metadata: isRecord(value['usage_metadata']) ? (value['usage_metadata'] as any) : undefined,
+      id: typeof value['id'] === 'string' ? value['id'] : undefined,
+      name: typeof value['name'] === 'string' ? value['name'] : undefined,
+    })
+  }
+
+  return new AIMessage(extractPrimitiveText(value))
+}
+
+function buildInternalSourceOptions(options: Record<string, any> | undefined) {
+  const tags = Array.isArray(options?.tags) ? options.tags : []
+  const metadata = isRecord(options?.metadata) ? options.metadata : {}
+
+  return {
+    ...(options ?? {}),
+    tags: [...tags, INTERNAL_SOURCE_STREAM_TAG],
+    metadata: {
+      ...metadata,
+      internal: true,
+    },
+  }
+}
+
+class BufferedOutputProxyChatModel extends BaseChatModel {
+  constructor(
+    private readonly innerModel: BaseLanguageModel,
+    private readonly resolveOutput: (message: AIMessage, outputText: string) => Promise<BufferedOutputResolution>,
+  ) {
+    super({})
+  }
+
+  override _llmType() {
+    return 'sensitive-filter-output-proxy'
+  }
+
+  private async collectInnerMessage(
+    messages: BaseMessage[],
+    options?: Record<string, any>,
+  ): Promise<AIMessage> {
+    const internalOptions = buildInternalSourceOptions(options)
+    const streamFn = (this.innerModel as any)?.stream
+
+    if (typeof streamFn === 'function') {
+      const stream = await streamFn.call(this.innerModel, messages, internalOptions)
+      if (stream && typeof (stream as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function') {
+        let mergedChunk: AIMessageChunk | null = null
+        for await (const rawChunk of stream as AsyncIterable<unknown>) {
+          const chunk = toAiMessageChunk(rawChunk)
+          if (!chunk) {
+            continue
+          }
+          mergedChunk = mergedChunk ? mergedChunk.concat(chunk) : chunk
+        }
+
+        if (mergedChunk) {
+          return toAiMessage(mergedChunk)
+        }
+      }
+    }
+
+    return toAiMessage(await (this.innerModel as any).invoke(messages, internalOptions))
+  }
+
+  private async finalizeMessage(
+    messages: BaseMessage[],
+    options?: Record<string, any>,
+  ): Promise<BufferedOutputResolution> {
+    const sourceMessage = await this.collectInnerMessage(messages, options)
+    return this.resolveOutput(sourceMessage, extractPrimitiveText(sourceMessage.content))
+  }
+
+  override async _generate(
+    messages: BaseMessage[],
+    options: this['ParsedCallOptions'],
+    _runManager?: CallbackManagerForLLMRun,
+  ): Promise<ChatResult> {
+    const resolved = await this.finalizeMessage(messages, options as Record<string, any> | undefined)
+    return {
+      generations: [
+        {
+          text: extractPrimitiveText(resolved.finalMessage.content),
+          message: resolved.finalMessage,
+        },
+      ],
+    }
+  }
+
+  override async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: this['ParsedCallOptions'],
+    runManager?: CallbackManagerForLLMRun,
+  ): AsyncGenerator<ChatGenerationChunk> {
+    const resolved = await this.finalizeMessage(messages, options as Record<string, any> | undefined)
+    const finalText = extractPrimitiveText(resolved.finalMessage.content)
+
+    if (!finalText) {
+      return
+    }
+
+    const generationChunk = new ChatGenerationChunk({
+      message: new AIMessageChunk({
+        content: finalText,
+        id: resolved.finalMessage.id,
+      }),
+      text: finalText,
+    })
+
+    yield generationChunk
+    await runManager?.handleLLMNewToken(finalText, undefined, undefined, undefined, undefined, {
+      chunk: generationChunk,
+    })
+  }
 }
 
 function rewriteModelRequestInput(request: any, rewrittenText: string): any {
@@ -912,6 +1104,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
     let inputBlockedMessage: string | null = null
     let pendingInputRewrite: string | null = null
+    let bufferedOutputResolution: BufferedOutputResolution | null = null
     let finalAction: 'pass' | 'block' | 'rewrite' = 'pass'
     let auditEntries: AuditEntry[] = []
     let runtimeConfigurable: TAgentRunnableConfigurable | null = null
@@ -919,6 +1112,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
     const resetRunState = () => {
       inputBlockedMessage = null
       pendingInputRewrite = null
+      bufferedOutputResolution = null
       finalAction = 'pass'
       auditEntries = []
     }
@@ -1062,8 +1256,73 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
         const modelRequest = pendingInputRewrite ? rewriteModelRequestInput(request, pendingInputRewrite) : request
         pendingInputRewrite = null
+        bufferedOutputResolution = null
+        const shouldBufferOutput = compiledRules.some((rule) => rule.scope === 'output' || rule.scope === 'both')
+        const effectiveRequest = shouldBufferOutput
+          ? {
+              ...modelRequest,
+              model: new BufferedOutputProxyChatModel(modelRequest.model as BaseLanguageModel, async (message, outputText) => {
+                if (message.tool_calls?.length || message.invalid_tool_calls?.length) {
+                  bufferedOutputResolution = {
+                    finalMessage: cloneAiMessage(message),
+                    matched: false,
+                    source: 'rule',
+                    reason: 'tool-call-skip',
+                    errorPolicyTriggered: false,
+                  }
+                  return bufferedOutputResolution
+                }
 
-        const response = await handler(modelRequest)
+                const outputMatches = findMatches(outputText, 'output', compiledRules, normalize, caseSensitive)
+                const winner = pickWinningRule(outputMatches)
+
+                if (!winner) {
+                  bufferedOutputResolution = {
+                    finalMessage: cloneAiMessage(message),
+                    matched: false,
+                    source: 'rule',
+                    errorPolicyTriggered: false,
+                  }
+                  return bufferedOutputResolution
+                }
+
+                const finalText =
+                  winner.action === 'block'
+                    ? winner.replacementText?.trim() || DEFAULT_OUTPUT_BLOCK_MESSAGE
+                    : rewriteTextByRule(outputText, winner, caseSensitive)
+
+                bufferedOutputResolution = {
+                  finalMessage: cloneAiMessageWithText(message, finalText),
+                  matched: true,
+                  source: 'rule',
+                  action: winner.action,
+                  reason: `rule:${winner.id}`,
+                  errorPolicyTriggered: false,
+                }
+                return bufferedOutputResolution
+              }),
+            }
+          : modelRequest
+
+        const response = await handler(effectiveRequest)
+
+        if (bufferedOutputResolution) {
+          pushAudit({
+            phase: 'output',
+            matched: bufferedOutputResolution.matched,
+            source: bufferedOutputResolution.source,
+            action: bufferedOutputResolution.action,
+            reason: bufferedOutputResolution.reason,
+            errorPolicyTriggered: bufferedOutputResolution.errorPolicyTriggered,
+          })
+
+          if (bufferedOutputResolution.matched && bufferedOutputResolution.action) {
+            finalAction = bufferedOutputResolution.action === 'block' ? 'block' : 'rewrite'
+          }
+
+          return response
+        }
+
         const outputText = extractModelResponseText(response)
         const outputMatches = findMatches(outputText, 'output', compiledRules, normalize, caseSensitive)
         const winner = pickWinningRule(outputMatches)
@@ -1147,6 +1406,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
     }
 
     let pendingInputRewrite: string | null = null
+    let bufferedOutputResolution: BufferedOutputResolution | null = null
     let finalAction: 'pass' | 'rewrite' = 'pass'
     let auditEntries: AuditEntry[] = []
     let runtimeConfigurable: TAgentRunnableConfigurable | null = null
@@ -1156,6 +1416,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
     const resetRunState = () => {
       pendingInputRewrite = null
+      bufferedOutputResolution = null
       finalAction = 'pass'
       auditEntries = []
       resolvedOutputMethod = undefined
@@ -1477,8 +1738,79 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
         const llmConfig = getLlmConfig()
         const modelRequest = pendingInputRewrite ? rewriteModelRequestInput(request, pendingInputRewrite) : request
         pendingInputRewrite = null
+        bufferedOutputResolution = null
+        const effectiveRequest = modeIncludesScope(llmConfig.scope, 'output')
+          ? {
+              ...modelRequest,
+              model: new BufferedOutputProxyChatModel(modelRequest.model as BaseLanguageModel, async (message, outputText) => {
+                if (message.tool_calls?.length || message.invalid_tool_calls?.length) {
+                  bufferedOutputResolution = {
+                    finalMessage: cloneAiMessage(message),
+                    matched: false,
+                    source: 'llm',
+                    reason: 'tool-call-skip',
+                    errorPolicyTriggered: false,
+                  }
+                  return bufferedOutputResolution
+                }
 
-        const response = await handler(modelRequest)
+                if (!outputText) {
+                  bufferedOutputResolution = {
+                    finalMessage: cloneAiMessage(message),
+                    matched: false,
+                    source: 'llm',
+                    reason: 'empty-output',
+                    errorPolicyTriggered: false,
+                  }
+                  return bufferedOutputResolution
+                }
+
+                let decision: ResolvedLlmDecision
+                let fromErrorPolicy = false
+
+                try {
+                  decision = await invokeAndTrack('output', outputText, request?.runtime, llmConfig)
+                } catch (error) {
+                  decision = resolveOnErrorDecision(llmConfig, error)
+                  fromErrorPolicy = true
+                }
+
+                const finalText =
+                  decision.matched && decision.action
+                    ? toNonEmptyString(decision.replacementText) ?? llmConfig.rewriteFallbackText
+                    : outputText
+
+                bufferedOutputResolution = {
+                  finalMessage: cloneAiMessageWithText(message, finalText),
+                  matched: decision.matched,
+                  source: fromErrorPolicy ? 'error-policy' : 'llm',
+                  action: decision.action,
+                  reason: decision.reason,
+                  errorPolicyTriggered: fromErrorPolicy,
+                }
+                return bufferedOutputResolution
+              }),
+            }
+          : modelRequest
+
+        const response = await handler(effectiveRequest)
+
+        if (bufferedOutputResolution) {
+          pushAudit({
+            phase: 'output',
+            matched: bufferedOutputResolution.matched,
+            source: bufferedOutputResolution.source,
+            action: bufferedOutputResolution.action,
+            reason: bufferedOutputResolution.reason,
+            errorPolicyTriggered: bufferedOutputResolution.errorPolicyTriggered,
+          })
+
+          if (bufferedOutputResolution.matched && bufferedOutputResolution.action) {
+            finalAction = 'rewrite'
+          }
+
+          return response
+        }
 
         if (!modeIncludesScope(llmConfig.scope, 'output')) {
           pushAudit({
