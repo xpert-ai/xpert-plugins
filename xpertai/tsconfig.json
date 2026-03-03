@@ -95,6 +95,15 @@
     },
     {
       "path": "./models/zhipuai"
+    },
+    {
+      "path": "./models/openai"
+    },
+    {
+      "path": "./middlewares/sensitive-filter"
+    },
+    {
+      "path": "./integrations/dingtalk"
     }
   ]
 }
