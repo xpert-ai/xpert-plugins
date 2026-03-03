@@ -97,10 +97,13 @@
       "path": "./models/zhipuai"
     },
     {
+      "path": "./models/openai"
+    },
+    {
       "path": "./middlewares/sensitive-filter"
     },
     {
-      "path": "./models/openai"
+      "path": "./integrations/dingtalk"
     }
   ]
 }
