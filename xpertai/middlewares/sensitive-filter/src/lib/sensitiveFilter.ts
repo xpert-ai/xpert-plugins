@@ -24,6 +24,7 @@ import {
   SensitiveFilterConfig,
   SensitiveFilterIcon,
   SensitiveRule,
+  WecomNotifyConfig,
   llmDecisionSchema,
   sensitiveFilterConfigSchema,
 } from './types.js'
@@ -49,6 +50,15 @@ type ResolvedLlmConfig = {
   legacyErrorRewriteText?: string
   rewriteFallbackText: string
   timeoutMs?: number
+}
+
+type ResolvedWecomGroup = {
+  webhookUrl: string
+}
+
+type ResolvedWecomConfig = {
+  groups: ResolvedWecomGroup[]
+  timeoutMs: number
 }
 
 type AuditEntry = {
@@ -95,6 +105,7 @@ const SENSITIVE_FILTER_MIDDLEWARE_NAME = 'SensitiveFilterMiddleware'
 const DEFAULT_INPUT_BLOCK_MESSAGE = '输入内容触发敏感策略，已拦截。'
 const DEFAULT_OUTPUT_BLOCK_MESSAGE = '输出内容触发敏感策略，已拦截。'
 const DEFAULT_REWRITE_TEXT = '[已过滤]'
+const DEFAULT_WECOM_TIMEOUT_MS = 10000
 const CONFIG_PARSE_ERROR = '敏感词过滤配置格式不正确，请检查填写内容。'
 const BUSINESS_RULES_VALIDATION_ERROR =
   '请至少配置 1 条有效业务规则（pattern/type/action/scope/severity）。'
@@ -118,6 +129,43 @@ function toNonEmptyString(value: unknown): string | null {
   }
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+function resolveRuntimeWecomConfig(config: WecomNotifyConfig | null | undefined): ResolvedWecomConfig | null {
+  if (!isRecord(config) || config.enabled === false) {
+    return null
+  }
+
+  const groups: ResolvedWecomGroup[] = []
+  const drafts = Array.isArray(config.groups) ? config.groups : []
+  for (const item of drafts) {
+    if (!isRecord(item)) {
+      continue
+    }
+
+    const webhookUrl = toNonEmptyString(item.webhookUrl)
+    if (!webhookUrl) {
+      continue
+    }
+
+    groups.push({
+      webhookUrl,
+    })
+  }
+
+  if (groups.length === 0) {
+    return null
+  }
+
+  const timeoutMs =
+    typeof config.timeoutMs === 'number' && Number.isFinite(config.timeoutMs) && config.timeoutMs > 0
+      ? Math.min(Math.floor(config.timeoutMs), 120000)
+      : DEFAULT_WECOM_TIMEOUT_MS
+
+  return {
+    groups,
+    timeoutMs,
+  }
 }
 
 function buildInternalModelConfig(
@@ -186,6 +234,105 @@ function extractInputText(state: any, runtime: any): string {
   }
 
   return ''
+}
+
+function toSnippet(text: string, maxLength = 200): string {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (!compact) {
+    return ''
+  }
+  if (compact.length <= maxLength) {
+    return compact
+  }
+  return `${compact.slice(0, maxLength)}...`
+}
+
+function buildMatchedNotificationMessage(input: {
+  mode: FilterMode
+  nodeTitle: string
+  finalAction: 'pass' | 'block' | 'rewrite'
+  records: AuditEntry[]
+  runtimeConfigurable: TAgentRunnableConfigurable | null
+  inputSnippet?: string
+}): string {
+  const modeLabel = input.mode === 'rule' ? '规则模式' : 'LLM 模式'
+  const finalActionLabel =
+    input.finalAction === 'block' ? '已拦截' : input.finalAction === 'rewrite' ? '已改写' : '放行'
+  const phaseLabel = (phase: MatchPhase) => (phase === 'input' ? '输入' : '输出')
+  const actionLabel = (action?: SensitiveRule['action']) => {
+    if (action === 'block') {
+      return '拦截'
+    }
+    if (action === 'rewrite') {
+      return '改写'
+    }
+    return '未指定'
+  }
+  const sourceLabel = (source: AuditEntry['source']) => {
+    if (source === 'rule') {
+      return '规则'
+    }
+    if (source === 'llm') {
+      return 'LLM'
+    }
+    return '异常兜底策略'
+  }
+  const reasonLabel = (reason?: string) => {
+    if (!reason) {
+      return '无'
+    }
+    if (reason === 'llm') {
+      return 'LLM判定命中（模型未返回具体原因）'
+    }
+    if (reason.startsWith('llm:')) {
+      return `LLM判定：${reason.replace('llm:', '') || '命中'}`
+    }
+    if (reason.startsWith('rule:')) {
+      return `命中规则 ${reason.replace('rule:', '')}`
+    }
+    if (reason.startsWith('llm-error:')) {
+      return `LLM判定异常: ${reason.replace('llm-error:', '')}`
+    }
+    if (reason.startsWith('llm-fail-open:')) {
+      return `LLM故障放行: ${reason.replace('llm-fail-open:', '')}`
+    }
+    return reason
+  }
+
+  const matched = input.records.filter((entry) => entry.matched)
+  const now = new Date()
+  const alertTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(
+    now.getSeconds(),
+  ).padStart(2, '0')}`
+  const lines: string[] = [
+    '【敏感内容告警】',
+    `节点：${input.nodeTitle || SENSITIVE_FILTER_MIDDLEWARE_NAME}`,
+    `模式：${modeLabel}`,
+    `处理结果：${finalActionLabel}`,
+    `命中数量：${matched.length}`,
+    `告警时间：${alertTime}`,
+  ]
+
+  if (input.runtimeConfigurable?.thread_id) {
+    lines.push(`会话ID：${input.runtimeConfigurable.thread_id}`)
+  }
+  if (input.runtimeConfigurable?.executionId) {
+    lines.push(`执行ID：${input.runtimeConfigurable.executionId}`)
+  }
+  if (input.inputSnippet?.trim()) {
+    lines.push(`最近输入片段：${input.inputSnippet}`)
+  }
+
+  lines.push('命中详情：')
+  matched.forEach((entry, index) => {
+    lines.push(
+      `${index + 1}. 阶段=${phaseLabel(entry.phase)}，来源=${sourceLabel(entry.source)}，动作=${actionLabel(entry.action)}，依据=${reasonLabel(entry.reason)}`,
+    )
+  })
+
+  return lines.join('\n')
 }
 
 function getSeverityWeight(severity: 'high' | 'medium'): number {
@@ -705,7 +852,7 @@ function resolveRuntimeLlmConfig(config: LlmFilterConfig | null | undefined): Re
       ? Math.min(Math.floor(config.timeoutMs), 120000)
       : undefined
 
-const legacyOnLlmError = toNonEmptyString(config.onLlmError) as 'block' | 'rewrite' | null
+  const legacyOnLlmError = toNonEmptyString(config.onLlmError) as 'block' | 'rewrite' | null
   const legacyErrorRewriteText = toNonEmptyString(config.errorRewriteText) ?? undefined
 
   return {
@@ -741,6 +888,54 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs?: number | null): Promise
         reject(error)
       })
   })
+}
+
+async function dispatchWecomNotification(
+  wecomConfig: ResolvedWecomConfig | null,
+  message: string,
+): Promise<void> {
+  if (!wecomConfig || !message.trim()) {
+    return
+  }
+
+  const payload: Record<string, unknown> = {
+    msgtype: 'text',
+    text: {
+      content: message,
+    },
+  }
+
+  for (const group of wecomConfig.groups) {
+    try {
+      const response = await withTimeout(
+        fetch(group.webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }),
+        wecomConfig.timeoutMs,
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const body = await response.json().catch(() => null)
+      const rawErrCode = isRecord(body) ? body['errcode'] : undefined
+      const errCode = typeof rawErrCode === 'number' ? rawErrCode : Number(rawErrCode)
+      if (!Number.isFinite(errCode) || errCode !== 0) {
+        const errMsg = isRecord(body) ? String(body['errmsg'] ?? '') : 'unknown'
+        throw new Error(`errcode=${String(rawErrCode ?? 'unknown')}, errmsg=${errMsg}`)
+      }
+    } catch (error) {
+      // Notify failure should not break model execution.
+      console.warn(
+        `[${SENSITIVE_FILTER_MIDDLEWARE_NAME}] Failed to send WeCom notification to ${group.webhookUrl}: ${getErrorText(error)}`,
+      )
+    }
+  }
 }
 
 function normalizeConfigurable(input: unknown): TAgentRunnableConfigurable | null {
@@ -1024,6 +1219,44 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
           },
           required: ['model', 'scope', 'rulePrompt'],
         },
+        wecom: {
+          type: 'object',
+          'x-ui': {
+            span: 2,
+          },
+          title: {
+            en_US: 'WeCom Notify',
+            zh_Hans: '企业微信群通知',
+          },
+          description: {
+            en_US: 'When sensitive content is matched, send alerts to configured WeCom group webhooks.',
+            zh_Hans: '敏感内容命中后，发送告警到已配置的企业微信群 webhook。',
+          },
+          properties: {
+            enabled: {
+              type: 'boolean',
+              default: true,
+              title: { en_US: 'Enabled', zh_Hans: '启用通知' },
+            },
+            timeoutMs: {
+              type: 'number',
+              title: { en_US: 'Timeout (ms)', zh_Hans: '请求超时(毫秒)' },
+            },
+            groups: {
+              type: 'array',
+              title: { en_US: 'Group Webhooks', zh_Hans: '群聊 Webhook 配置' },
+              items: {
+                type: 'object',
+                properties: {
+                  webhookUrl: {
+                    type: 'string',
+                    title: { en_US: 'Webhook URL', zh_Hans: 'Webhook 地址' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       required: ['mode'],
       allOf: [
@@ -1062,6 +1295,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
   private createRuleModeMiddleware(config: RuleModeConfig, context: IAgentMiddlewareContext): AgentMiddleware {
     const caseSensitive = config.caseSensitive ?? false
     const normalize = config.normalize ?? true
+    const wecomConfig = resolveRuntimeWecomConfig(config.wecom)
 
     const customRules = normalizeRuleDrafts(config.rules ?? [])
     const allRules = [...customRules]
@@ -1108,6 +1342,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
     let finalAction: 'pass' | 'block' | 'rewrite' = 'pass'
     let auditEntries: AuditEntry[] = []
     let runtimeConfigurable: TAgentRunnableConfigurable | null = null
+    let latestInputSnippet = ''
 
     const resetRunState = () => {
       inputBlockedMessage = null
@@ -1115,6 +1350,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
       bufferedOutputResolution = null
       finalAction = 'pass'
       auditEntries = []
+      latestInputSnippet = ''
     }
 
     const pushAudit = (entry: Omit<AuditEntry, 'timestamp' | 'mode'>) => {
@@ -1211,6 +1447,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
         const safeRuntime = runtime ?? {}
 
         const inputText = extractInputText(safeState, safeRuntime)
+        latestInputSnippet = toSnippet(inputText)
         const inputMatches = findMatches(inputText, 'input', compiledRules, normalize, caseSensitive)
         const winner = pickWinningRule(inputMatches)
 
@@ -1357,7 +1594,34 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
         return replaceModelResponseText(response, rewrittenOutput)
       },
       afterAgent: async () => {
-        await persistAuditSnapshot()
+        const matchedRecords = auditEntries.filter((entry) => entry.matched)
+        const notification =
+          matchedRecords.length > 0
+            ? buildMatchedNotificationMessage({
+                mode: 'rule',
+                nodeTitle: context.node.title ?? SENSITIVE_FILTER_MIDDLEWARE_NAME,
+                finalAction,
+                records: matchedRecords,
+                runtimeConfigurable,
+                inputSnippet: latestInputSnippet,
+              })
+            : null
+
+        const [persistResult, notifyResult] = await Promise.allSettled([
+          persistAuditSnapshot(),
+          notification ? dispatchWecomNotification(wecomConfig, notification) : Promise.resolve(undefined),
+        ])
+
+        if (persistResult.status === 'rejected') {
+          console.warn(
+            `[${SENSITIVE_FILTER_MIDDLEWARE_NAME}] Failed to persist audit snapshot: ${getErrorText(persistResult.reason)}`,
+          )
+        }
+        if (notifyResult.status === 'rejected') {
+          console.warn(
+            `[${SENSITIVE_FILTER_MIDDLEWARE_NAME}] Failed to dispatch WeCom notification: ${getErrorText(notifyResult.reason)}`,
+          )
+        }
         return undefined
       },
     }
@@ -1365,6 +1629,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
   private createLlmModeMiddleware(config: LlmModeConfig, context: IAgentMiddlewareContext): AgentMiddleware {
     const llmDraftConfig = config.llm
+    const wecomConfig = resolveRuntimeWecomConfig(config.wecom)
     let resolvedLlmConfig: ResolvedLlmConfig | null = null
     let modelPromise: Promise<BaseLanguageModel> | null = null
     const structuredModelPromises = new Map<'functionCalling' | 'jsonMode' | 'jsonSchema', Promise<any>>()
@@ -1412,6 +1677,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
     let finalAction: 'pass' | 'rewrite' = 'pass'
     let auditEntries: AuditEntry[] = []
     let runtimeConfigurable: TAgentRunnableConfigurable | null = null
+    let latestInputSnippet = ''
     let resolvedOutputMethod: 'functionCalling' | 'jsonMode' | 'jsonSchema' | 'plainText' | undefined
     let fallbackTriggered = false
     let methodAttempts: Array<'functionCalling' | 'jsonMode' | 'jsonSchema' | 'plainText'> = []
@@ -1421,6 +1687,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
       bufferedOutputResolution = null
       finalAction = 'pass'
       auditEntries = []
+      latestInputSnippet = ''
       resolvedOutputMethod = undefined
       fallbackTriggered = false
       methodAttempts = []
@@ -1697,6 +1964,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
         }
 
         const inputText = extractInputText(state ?? {}, runtime ?? {})
+        latestInputSnippet = toSnippet(inputText)
         if (!inputText) {
           pushAudit({
             phase: 'input',
@@ -1867,7 +2135,34 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
         )
       },
       afterAgent: async () => {
-        await persistAuditSnapshot()
+        const matchedRecords = auditEntries.filter((entry) => entry.matched)
+        const notification =
+          matchedRecords.length > 0
+            ? buildMatchedNotificationMessage({
+                mode: 'llm',
+                nodeTitle: context.node.title ?? SENSITIVE_FILTER_MIDDLEWARE_NAME,
+                finalAction,
+                records: matchedRecords,
+                runtimeConfigurable,
+                inputSnippet: latestInputSnippet,
+              })
+            : null
+
+        const [persistResult, notifyResult] = await Promise.allSettled([
+          persistAuditSnapshot(),
+          notification ? dispatchWecomNotification(wecomConfig, notification) : Promise.resolve(undefined),
+        ])
+
+        if (persistResult.status === 'rejected') {
+          console.warn(
+            `[${SENSITIVE_FILTER_MIDDLEWARE_NAME}] Failed to persist audit snapshot: ${getErrorText(persistResult.reason)}`,
+          )
+        }
+        if (notifyResult.status === 'rejected') {
+          console.warn(
+            `[${SENSITIVE_FILTER_MIDDLEWARE_NAME}] Failed to dispatch WeCom notification: ${getErrorText(notifyResult.reason)}`,
+          )
+        }
         return undefined
       },
     }

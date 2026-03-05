@@ -74,6 +74,7 @@
       "@xpert-ai/plugin-model-fallback",
       "@xpert-ai/plugin-long-term-memory",
       "@xpert-ai/plugin-sensitive-filter",
+      "@xpert-ai/plugin-agent-behavior-monitor",
       "@xpert-ai/plugin-web-tools",
       "@xpert-ai/plugin-deepseek",
       "@xpert-ai/plugin-zhipuai",
