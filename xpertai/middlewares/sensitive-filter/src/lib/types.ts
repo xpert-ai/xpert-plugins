@@ -16,6 +16,7 @@ export type RuleModeConfig = {
   rules?: Array<Partial<SensitiveRule> | null>
   caseSensitive?: boolean
   normalize?: boolean
+  wecom?: WecomNotifyConfig | null
   // Backward compatibility: ignore historical field if present.
   generalPack?: unknown
 }
@@ -44,11 +45,22 @@ export type LlmFilterConfig = {
 export type LlmModeConfig = {
   mode: 'llm'
   llm?: LlmFilterConfig | null
+  wecom?: WecomNotifyConfig | null
   // Backward compatibility: ignore historical field if present.
   generalPack?: unknown
 }
 
 export type SensitiveFilterConfig = RuleModeConfig | LlmModeConfig
+
+export type WecomNotifyGroup = {
+  webhookUrl?: string | null
+}
+
+export type WecomNotifyConfig = {
+  enabled?: boolean
+  groups?: Array<WecomNotifyGroup | null>
+  timeoutMs?: number | null
+}
 
 export type LlmDecision = {
   matched: boolean
@@ -93,11 +105,24 @@ const llmConfigSchema = z
     timeoutMs: z.number().int().positive().max(120000).optional().nullable(),
   })
 
+const wecomNotifyGroupSchema = z
+  .object({
+    webhookUrl: z.string().optional().nullable(),
+  })
+  .nullable()
+
+const wecomNotifyConfigSchema = z.object({
+  enabled: z.boolean().optional().default(true),
+  groups: z.array(wecomNotifyGroupSchema).optional().default([]),
+  timeoutMs: z.number().int().positive().max(120000).optional().nullable(),
+})
+
 const ruleModeConfigSchema = z.object({
   mode: z.literal('rule').optional(),
   rules: z.array(sensitiveRuleDraftSchema).optional().default([]),
   caseSensitive: z.boolean().optional().default(false),
   normalize: z.boolean().optional().default(true),
+  wecom: wecomNotifyConfigSchema.optional().nullable().default({}),
   llm: z.unknown().optional(),
   // Backward compatibility only.
   generalPack: z.unknown().optional(),
@@ -106,6 +131,7 @@ const ruleModeConfigSchema = z.object({
 const llmModeConfigSchema = z.object({
   mode: z.literal('llm'),
   llm: llmConfigSchema.optional().nullable().default({}),
+  wecom: wecomNotifyConfigSchema.optional().nullable().default({}),
   rules: z.unknown().optional(),
   caseSensitive: z.unknown().optional(),
   normalize: z.unknown().optional(),

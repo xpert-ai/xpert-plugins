@@ -9,7 +9,7 @@
 
 - `beforeAgent`: evaluates and optionally rewrites/blocks input
 - `wrapModelCall`: evaluates and optionally rewrites/blocks output
-- `afterAgent`: writes audit snapshot
+- `afterAgent`: writes audit snapshot and sends matched alerts to configured WeCom group webhooks
 
 ## Configuration
 
@@ -22,6 +22,15 @@
 | `caseSensitive` | `boolean` | No | `false` | Case-sensitive matching in `rule` mode. |
 | `normalize` | `boolean` | No | `true` | Whitespace normalization in `rule` mode. |
 | `llm` | `object` | Runtime-required in `llm` mode | - | LLM mode configuration. |
+| `wecom` | `object` | No | disabled when no groups | WeCom webhook notification config. |
+
+### WeCom Notify (`wecom`)
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `enabled` | `boolean` | No | `true` | Turn notification on/off. |
+| `groups` | `Array<{webhookUrl}>` | Runtime-required for sending | `[]` | One or more WeCom group webhook targets. |
+| `timeoutMs` | `number` | No | `10000` | Per webhook request timeout (max `120000`). |
 
 ### Rule Mode (`mode=rule`)
 
@@ -55,6 +64,7 @@ Notes:
 - The middleware internally enforces rewrite-only behavior for LLM hits.
 - Structured output method is internally adaptive; the UI does not expose method selection.
 - Internal decision traces are muted from chat output.
+- Notifications are sent only when there is at least one matched record.
 
 ## Backward Compatibility
 
@@ -90,8 +100,6 @@ Current behavior:
 - Ensure `model/scope/rulePrompt` are all present.
 
 3. Unexpected rewrites in LLM mode:
-- Check audit records for `source=error-policy` and `reason` starting with `llm-error:`.
+- Check audit records or runtime logs for entries with `source=error-policy` and `reason` starting with `llm-error:`.
 
 ## Validation Commands
-
-
