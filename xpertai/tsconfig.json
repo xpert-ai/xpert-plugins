@@ -104,6 +104,9 @@
     },
     {
       "path": "./integrations/dingtalk"
+    },
+    {
+      "path": "./middlewares/agent-behavior-monitor"
     }
   ]
 }

@@ -40,7 +40,6 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/cqrs": "^11.0.3",
     "@metad/contracts": "^3.7.0",
-    "@langchain/core": "0.3.72",
-    "@langchain/langgraph": "^0.4.7"
+    "@langchain/core": "0.3.72"
   }
 }

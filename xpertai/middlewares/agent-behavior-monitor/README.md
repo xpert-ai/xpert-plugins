@@ -1,4 +1,4 @@
-# Agent Behavior Monitor Middleware
+# Xpert Plugin: Agent Behavior Monitor Middleware
 
 `@xpert-ai/plugin-agent-behavior-monitor` monitors runtime anomalies in Xpert agents and persists audit-friendly snapshots for later inspection.
 
