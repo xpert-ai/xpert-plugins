@@ -28,6 +28,7 @@ import {
   SeverityValues,
   TargetValues,
   TraceEvent,
+  WecomNotifyConfig,
 } from './types.js'
 
 const MIDDLEWARE_NAME = 'AgentBehaviorMonitorMiddleware'
@@ -37,6 +38,16 @@ const DEFAULT_RULE_MESSAGES: Record<RuleType, string> = {
   high_frequency: '检测到工具调用频率异常，已触发告警。',
   prompt_injection: '检测到 Prompt 注入风险，已触发告警。',
   sensitive_instruction: '检测到违规或敏感指令，已触发告警。',
+}
+const DEFAULT_WECOM_TIMEOUT_MS = 10000
+
+type ResolvedWecomGroup = {
+  webhookUrl: string
+}
+
+type ResolvedWecomConfig = {
+  groups: ResolvedWecomGroup[]
+  timeoutMs: number
 }
 
 type JudgeResult = {
@@ -94,11 +105,24 @@ const ruleSchema = z3.object({
   judgeModel: z3.any().optional().nullable(),
 })
 
+const wecomNotifyGroupSchema = z3
+  .object({
+    webhookUrl: z3.string().optional().nullable(),
+  })
+  .nullable()
+
+const wecomNotifyConfigSchema = z3.object({
+  enabled: z3.boolean().optional().default(true),
+  groups: z3.array(wecomNotifyGroupSchema).optional().default([]),
+  timeoutMs: z3.number().int().positive().max(120000).optional().nullable(),
+})
+
 const configSchema = z3.object({
   enabled: z3.boolean().optional().default(true),
   evidenceMaxLength: z3.number().int().positive().max(2000).optional().default(240),
   ringBufferSize: z3.number().int().positive().max(500).optional().default(120),
   rules: z3.array(ruleSchema).optional().default([]),
+  wecom: wecomNotifyConfigSchema.optional().nullable().default({}),
 })
 
 const inputJudgeSchema = z3.object({
@@ -116,6 +140,47 @@ const RULE_TARGETS: Record<RuleType, MonitorTarget[]> = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function resolveRuntimeWecomConfig(config: WecomNotifyConfig | null | undefined): ResolvedWecomConfig | null {
+  if (!isRecord(config) || config.enabled === false) {
+    return null
+  }
+
+  const groups: ResolvedWecomGroup[] = []
+  const drafts = Array.isArray(config.groups) ? config.groups : []
+  for (const item of drafts) {
+    if (!isRecord(item)) {
+      continue
+    }
+    const webhookUrl = toNonEmptyString(item.webhookUrl)
+    if (!webhookUrl) {
+      continue
+    }
+    groups.push({ webhookUrl })
+  }
+
+  if (groups.length === 0) {
+    return null
+  }
+
+  const timeoutMs =
+    typeof config.timeoutMs === 'number' && Number.isFinite(config.timeoutMs) && config.timeoutMs > 0
+      ? Math.min(Math.floor(config.timeoutMs), 120000)
+      : DEFAULT_WECOM_TIMEOUT_MS
+
+  return {
+    groups,
+    timeoutMs,
+  }
 }
 
 function normalizeConfigurable(input: unknown): TAgentRunnableConfigurable | null {
@@ -203,6 +268,135 @@ function trimEvidence(text: string, maxLength: number): string {
   }
 
   return `${compact.slice(0, maxLength)}...`
+}
+
+function formatAlertTime(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(
+    date.getHours(),
+  ).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+}
+
+function buildMatchedNotificationMessage(input: {
+  nodeTitle: string
+  hits: Array<
+    HitRecord & {
+      target: MonitorTarget
+      threshold?: number
+      windowSeconds?: number
+    }
+  >
+  runtimeConfigurable: TAgentRunnableConfigurable | null
+}): string {
+  const targetLabel = (target: MonitorTarget) => {
+    if (target === 'input') {
+      return '输入'
+    }
+    if (target === 'tool_call') {
+      return '工具调用'
+    }
+    return '工具结果'
+  }
+  const actionLabel = (action: RuleAction) => {
+    if (action === 'alert_only') {
+      return '仅告警'
+    }
+    if (action === 'block') {
+      return '拦截'
+    }
+    return '终止运行'
+  }
+  const severityLabel = (severity: RuleSeverity) => {
+    if (severity === 'low') {
+      return '低'
+    }
+    if (severity === 'high') {
+      return '高'
+    }
+    return '中'
+  }
+  const reasonLabel = (reason: string) => {
+    const raw = reason?.trim()
+    if (!raw) {
+      return '无'
+    }
+    if (raw === 'llm') {
+      return 'LLM判定命中（模型未返回具体原因）'
+    }
+    if (raw.startsWith('llm:')) {
+      return `LLM判定：${raw.slice(4) || '命中'}`
+    }
+    if (raw.startsWith('frequency:')) {
+      const count = raw.slice('frequency:'.length)
+      return `工具调用频率超阈值（当前计数=${count || 'unknown'}）`
+    }
+    if (raw.startsWith('consecutive=')) {
+      const consecutiveMatch = raw.match(/consecutive=(\d+)/)
+      const windowMatch = raw.match(/window=(\d+)/)
+      const consecutive = consecutiveMatch?.[1] ?? 'unknown'
+      const window = windowMatch?.[1] ?? 'unknown'
+      return `工具连续失败触发（连续失败=${consecutive}，窗口内失败=${window}）`
+    }
+    return raw
+  }
+
+  const latestHits = input.hits.slice(-5)
+  const lines: string[] = [
+    '【异常行为告警】',
+    `节点：${input.nodeTitle || MIDDLEWARE_NAME}`,
+    `告警时间：${formatAlertTime()}`,
+    `命中数量：${input.hits.length}`,
+  ]
+
+  if (input.runtimeConfigurable?.thread_id) {
+    lines.push(`会话ID：${input.runtimeConfigurable.thread_id}`)
+  }
+  if (input.runtimeConfigurable?.executionId) {
+    lines.push(`执行ID：${input.runtimeConfigurable.executionId}`)
+  }
+
+  lines.push('命中详情：')
+  latestHits.forEach((hit, index) => {
+    const thresholdPart = typeof hit.threshold === 'number' ? `，阈值=${hit.threshold}` : ''
+    const windowPart = typeof hit.windowSeconds === 'number' ? `，窗口=${hit.windowSeconds}s` : ''
+    const evidencePart = hit.maskedEvidence ? `，证据=${hit.maskedEvidence}` : ''
+    lines.push(
+      `${index + 1}. 规则=${hit.ruleId}，类型=${hit.ruleType}，目标=${targetLabel(hit.target)}，动作=${actionLabel(hit.action)}，级别=${severityLabel(hit.severity)}${thresholdPart}${windowPart}，原因=${reasonLabel(hit.reason)}${evidencePart}`,
+    )
+  })
+  if (input.hits.length > latestHits.length) {
+    lines.push(`... 仅展示最近 ${latestHits.length} 条，共 ${input.hits.length} 条`)
+  }
+
+  return lines.join('\n')
+}
+
+function buildRuntimeErrorNotificationMessage(input: {
+  nodeTitle: string
+  toolName: string
+  errorText: string
+  inputSnippet?: string
+  runtimeConfigurable: TAgentRunnableConfigurable | null
+}): string {
+  const lines: string[] = [
+    '【异常运行报错】',
+    `节点：${input.nodeTitle || MIDDLEWARE_NAME}`,
+    `告警时间：${formatAlertTime()}`,
+    `阶段：工具执行`,
+    `工具：${input.toolName || 'unknown'}`,
+    `错误：${input.errorText || 'unknown'}`,
+  ]
+  if (input.inputSnippet?.trim()) {
+    lines.push(`最近输入片段：${input.inputSnippet}`)
+  }
+
+  if (input.runtimeConfigurable?.thread_id) {
+    lines.push(`会话ID：${input.runtimeConfigurable.thread_id}`)
+  }
+  if (input.runtimeConfigurable?.executionId) {
+    lines.push(`执行ID：${input.runtimeConfigurable.executionId}`)
+  }
+
+  return lines.join('\n')
 }
 
 function buildInternalModelConfig(model: ICopilotModel): ICopilotModel {
@@ -316,6 +510,69 @@ function getErrorText(error: unknown): string {
     return error.message
   }
   return String(error ?? '')
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs?: number | null): Promise<T> {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return promise
+  }
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out after ${timeoutMs} ms`))
+    }, timeoutMs)
+
+    promise
+      .then((result) => {
+        clearTimeout(timer)
+        resolve(result)
+      })
+      .catch((error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
+
+async function dispatchWecomNotification(wecomConfig: ResolvedWecomConfig | null, message: string): Promise<void> {
+  if (!wecomConfig || !message.trim()) {
+    return
+  }
+
+  const payload: Record<string, unknown> = {
+    msgtype: 'text',
+    text: {
+      content: message,
+    },
+  }
+
+  for (const group of wecomConfig.groups) {
+    try {
+      const response = await withTimeout(
+        fetch(group.webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }),
+        wecomConfig.timeoutMs,
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const body = await response.json().catch(() => null)
+      const rawErrCode = isRecord(body) ? body['errcode'] : undefined
+      const errCode = typeof rawErrCode === 'number' ? rawErrCode : Number(rawErrCode)
+      if (!Number.isFinite(errCode) || errCode !== 0) {
+        const errMsg = isRecord(body) ? String(body['errmsg'] ?? '') : 'unknown'
+        throw new Error(`errcode=${String(rawErrCode ?? 'unknown')}, errmsg=${errMsg}`)
+      }
+    } catch {
+      // WeCom notify should never break middleware execution.
+    }
+  }
 }
 
 function isMissingWrapWorkflowHandlerError(error: unknown): boolean {
@@ -591,6 +848,44 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
             required: ['ruleType', 'threshold', 'action', 'severity'],
           },
         },
+        wecom: {
+          type: 'object',
+          'x-ui': {
+            span: 2,
+          },
+          title: {
+            en_US: 'WeCom Notify',
+            zh_Hans: '企业微信群通知',
+          },
+          description: {
+            en_US: 'Send monitor alerts to configured WeCom group webhooks.',
+            zh_Hans: '将异常监控告警发送到已配置的企业微信群 webhook。',
+          },
+          properties: {
+            enabled: {
+              type: 'boolean',
+              default: true,
+              title: { en_US: 'Enabled', zh_Hans: '启用通知' },
+            },
+            timeoutMs: {
+              type: 'number',
+              title: { en_US: 'Timeout (ms)', zh_Hans: '请求超时(毫秒)' },
+            },
+            groups: {
+              type: 'array',
+              title: { en_US: 'Group Webhooks', zh_Hans: '群聊 Webhook 配置' },
+              items: {
+                type: 'object',
+                properties: {
+                  webhookUrl: {
+                    type: 'string',
+                    title: { en_US: 'Webhook URL', zh_Hans: 'Webhook 地址' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     } as TAgentMiddlewareMeta['configSchema'],
   }
@@ -603,6 +898,7 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
 
     const userConfig = this.normalizeConfig(parsed.data)
     const compiledRules = this.compileRules(userConfig.rules)
+    const wecomConfig = resolveRuntimeWecomConfig(userConfig.wecom)
 
     let runtimeConfigurable: TAgentRunnableConfigurable | null = null
     let startedAt = new Date().toISOString()
@@ -994,6 +1290,38 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       )
     }
 
+    const notifyMatchedHits = async () => {
+      if (hits.length === 0) {
+        return
+      }
+      const rulesById = new Map(compiledRules.map((rule) => [rule.id, rule]))
+      const enrichedHits = hits.map((hit) => {
+        const rule = rulesById.get(hit.ruleId)
+        return {
+          ...hit,
+          threshold: rule?.threshold,
+          windowSeconds: rule?.windowSeconds,
+        }
+      })
+      const message = buildMatchedNotificationMessage({
+        nodeTitle: context.node.title ?? MIDDLEWARE_NAME,
+        hits: enrichedHits,
+        runtimeConfigurable,
+      })
+      await dispatchWecomNotification(wecomConfig, message)
+    }
+
+    const notifyRuntimeError = async (toolName: string, errorText: string, inputSnippet?: string) => {
+      const message = buildRuntimeErrorNotificationMessage({
+        nodeTitle: context.node.title ?? MIDDLEWARE_NAME,
+        toolName,
+        errorText,
+        inputSnippet,
+        runtimeConfigurable,
+      })
+      await dispatchWecomNotification(wecomConfig, message)
+    }
+
     return {
       name: MIDDLEWARE_NAME,
       beforeAgent: {
@@ -1061,6 +1389,9 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
           toolConsecutiveFailures.set(toolName, 0)
           return result
         } catch (error) {
+          const inputSnippet = trimEvidence(extractInputText(request.state, request.runtime), userConfig.evidenceMaxLength!)
+          await notifyRuntimeError(toolName || request.toolCall.name, getErrorText(error), inputSnippet)
+
           const decision = runRepeatFailureRules(toolName)
           if (decision?.shouldStop || decision?.shouldBlock) {
             if (decision.shouldStop) {
@@ -1074,7 +1405,7 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       },
       afterAgent: async (_state, runtime) => {
         assignRuntimeConfigurable(runtime)
-        await persistAuditSnapshot()
+        await Promise.allSettled([persistAuditSnapshot(), notifyMatchedHits()])
         return undefined
       },
     }
@@ -1086,6 +1417,7 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       evidenceMaxLength: config.evidenceMaxLength ?? 240,
       ringBufferSize: config.ringBufferSize ?? 120,
       rules: (config.rules ?? []).map((rule, index) => this.normalizeRule(rule, index)),
+      wecom: config.wecom ?? {},
     }
   }
 

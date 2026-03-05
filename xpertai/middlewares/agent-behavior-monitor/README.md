@@ -16,6 +16,7 @@ The middleware is designed for practical guardrail scenarios instead of generic 
 - Supports three actions: `alert_only`, `block`, and `end_run`
 - Persists runtime snapshots and hit records through the existing workflow execution audit chain
 - Stores LLM judge traces in the audit `ringBuffer` for troubleshooting
+- Sends matched alerts and runtime error alerts to optional WeCom group webhooks
 
 ## Supported Rule Types
 
@@ -50,6 +51,15 @@ Notes:
 | `evidenceMaxLength` | `number` | No | `240` | Maximum stored evidence length for each hit. |
 | `ringBufferSize` | `number` | No | `120` | Maximum number of runtime trace events stored in memory and audit snapshots. |
 | `rules` | `Array<Rule>` | No | `[]` | Monitoring rules. |
+| `wecom` | `object` | No | disabled when no groups | WeCom webhook notification config. |
+
+### WeCom Notify (`wecom`)
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `enabled` | `boolean` | No | `true` | Turn notification on/off. |
+| `groups` | `Array<{webhookUrl}>` | Runtime-required for sending | `[]` | One or more WeCom group webhook targets. |
+| `timeoutMs` | `number` | No | `10000` | Per webhook request timeout (max `120000`). |
 
 ### Rule fields
 

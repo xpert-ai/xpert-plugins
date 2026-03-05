@@ -36,6 +36,17 @@ export type AgentBehaviorMonitorConfig = {
   evidenceMaxLength?: number
   ringBufferSize?: number
   rules?: BehaviorRule[]
+  wecom?: WecomNotifyConfig | null
+}
+
+export type WecomNotifyGroup = {
+  webhookUrl?: string | null
+}
+
+export type WecomNotifyConfig = {
+  enabled?: boolean
+  groups?: Array<WecomNotifyGroup | null>
+  timeoutMs?: number | null
 }
 
 export type TraceEvent = {
