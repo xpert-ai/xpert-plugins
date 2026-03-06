@@ -616,9 +616,6 @@ importers:
       '@langchain/core':
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
-      '@langchain/langgraph':
-        specifier: ^0.4.7
-        version: 0.4.7(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(zod-to-json-schema@3.25.1(zod@3.25.67))
       '@metad/contracts':
         specifier: ^3.7.0
         version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
