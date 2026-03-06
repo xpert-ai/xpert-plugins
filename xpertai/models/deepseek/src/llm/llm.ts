@@ -111,12 +111,14 @@ type ChatCompletionChoice = {
   message?: {
     role?: string;
     content?: string;
+    reasoning_content?: string;
   };
   finish_reason?: string;
   logprobs?: unknown;
   delta?: {
     role?: string;
     content?: string;
+    reasoning_content?: string;
   };
 };
 
@@ -340,8 +342,6 @@ function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], mod
 /**
  * DeepSeek-specific chat model that overrides generation and streaming paths to
  * ensure reasoning_content from assistant messages is forwarded in subsequent requests.
- * 
- * @deprecated Replace with the latest official langchain code.
  */
 export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
   private readonly thinkingEnabled: boolean;
@@ -359,18 +359,24 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
   ) {
     const usageMetadata: UsageMetadata = {};
     const params = this.invocationParams(options);
-    const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(messages, this.model ?? '');
     const paramsWithStream = params as { stream?: boolean };
     if (paramsWithStream.stream) {
       const stream = this._streamResponseChunks(messages, options, runManager);
       const finalChunks: Record<number, ChatGenerationChunk> = {};
+      // Manually accumulate reasoning_content because AIMessageChunk.concat() may corrupt it
+      // when subsequent content deltas carry reasoning_content: null, overwriting the accumulated string.
+      const accumulatedReasoningContent: Record<number, string> = {};
       for await (const chunk of stream) {
-        const message = chunk.message as AIMessage & { response_metadata?: Record<string, unknown> };
+        const message = chunk.message as AIMessageChunk & { response_metadata?: Record<string, unknown> };
         message.response_metadata = {
           ...(chunk.generationInfo as GenerationInfo),
           ...message.response_metadata,
         };
         const index = (chunk.generationInfo as GenerationInfo)?.completion ?? 0;
+        const chunkReasoning = message.additional_kwargs?.reasoning_content;
+        if (typeof chunkReasoning === 'string' && chunkReasoning) {
+          accumulatedReasoningContent[index] = (accumulatedReasoningContent[index] ?? '') + chunkReasoning;
+        }
         if (finalChunks[index] === undefined) {
           finalChunks[index] = chunk;
         } else {
@@ -379,7 +385,17 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       }
       const generations = Object.entries(finalChunks)
         .sort(([aKey], [bKey]) => parseInt(aKey, 10) - parseInt(bKey, 10))
-        .map(([, value]) => value);
+        .map(([key, value]) => {
+          const reasoningContent = accumulatedReasoningContent[parseInt(key, 10)];
+          if (reasoningContent) {
+            const msg = value.message as AIMessageChunk;
+            msg.additional_kwargs = {
+              ...msg.additional_kwargs,
+              reasoning_content: reasoningContent,
+            };
+          }
+          return value;
+        });
       const { functions, function_call } = this.invocationParams(options);
       const promptTokenUsage = await this._getEstimatedTokenCountFromPrompt(
         messages,
@@ -401,11 +417,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         },
       };
     } else {
-      // Enable thinking mode for deepseek-chat
-      // According to DeepSeek API docs, thinking mode can be enabled by:
-      // 1. Setting model to "deepseek-reasoner"
-      // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
-      // For OpenAI SDK, thinking parameter should be passed in extra_body
+      const messagesMapped = convertMessagesToOpenAIParamsWithReasoning(messages, this.model ?? '');
       // Final safety check: ensure no developer role in messages
       const safeMessages = (messagesMapped as Array<{ role?: string; [key: string]: unknown }>).map((msg) => {
         if (msg.role === 'developer') {
@@ -420,16 +432,9 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         stream: false,
         messages: safeMessages as never,
       } as Record<string, unknown>;
-      
-      // Enable think mode for deepseek-chat model
-      // According to DeepSeek API docs, thinking mode can be enabled by:
-      // 1. Setting model to "deepseek-reasoner"
-      // 2. Setting thinking parameter: "thinking": {"type": "enabled"}
-      // IMPORTANT: Test results show that directly using thinking parameter works,
-      // but using extra_body does NOT work. So we use thinking parameter directly.
+
+      // Enable thinking mode for deepseek-chat via third-party compatible providers
       if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
-        // Directly add thinking parameter to request body (not in extra_body)
-        // This is the working method according to test results
         requestParams.thinking = {
           type: 'enabled',
         };
@@ -516,22 +521,11 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
             }),
           };
         }
-        // Preserve additional_kwargs (including reasoning_content) when creating new AIMessage
-        const messageWithKwargs = generation.message as MessageWithKwargs;
+        // Reconstruct as a plain AIMessage to strip internal LangChain metadata,
+        // while preserving additional_kwargs (including reasoning_content).
         const filteredEntries = Object.fromEntries(
           Object.entries(generation.message).filter(([key]) => !key.startsWith('lc_'))
         ) as { content: string | unknown[]; additional_kwargs?: Record<string, unknown>; [key: string]: unknown };
-        // Explicitly preserve additional_kwargs to ensure reasoning_content is retained
-        // Merge additional_kwargs to preserve all fields including reasoning_content
-        if (messageWithKwargs.additional_kwargs) {
-          filteredEntries.additional_kwargs = {
-            ...(filteredEntries.additional_kwargs || {}),
-            ...messageWithKwargs.additional_kwargs,
-          };
-        } else if (filteredEntries.additional_kwargs) {
-          // Keep existing additional_kwargs if messageWithKwargs doesn't have it
-          // This ensures reasoning_content from _convertCompletionsMessageToBaseMessage is preserved
-        }
         generation.message = new AIMessage(filteredEntries);
         generations.push(generation);
       }
@@ -575,12 +569,8 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       stream: true,
     } as Record<string, unknown>;
     
-    // Enable think mode for deepseek-chat model in streaming
-    // IMPORTANT: Test results show that directly using thinking parameter works,
-    // but using extra_body does NOT work. So we use thinking parameter directly.
+    // Enable thinking mode for deepseek-chat via third-party compatible providers
     if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
-      // Directly add thinking parameter to request body (not in extra_body)
-      // This is the working method according to test results
       params.thinking = {
         type: 'enabled',
       };
