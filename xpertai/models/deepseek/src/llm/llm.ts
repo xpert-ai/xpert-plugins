@@ -367,7 +367,6 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       // Manually accumulate reasoning_content because AIMessageChunk.concat() may corrupt it
       // when subsequent content deltas carry reasoning_content: null, overwriting the accumulated string.
       const accumulatedReasoningContent: Record<number, string> = {};
-      const sawReasoningContent: Record<number, boolean> = {};
       for await (const chunk of stream) {
         const message = chunk.message as AIMessageChunk & { response_metadata?: Record<string, unknown> };
         message.response_metadata = {
@@ -377,7 +376,6 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         const index = (chunk.generationInfo as GenerationInfo)?.completion ?? 0;
         const chunkReasoning = message.additional_kwargs?.reasoning_content;
         if (typeof chunkReasoning === 'string') {
-          sawReasoningContent[index] = true;
           accumulatedReasoningContent[index] = (accumulatedReasoningContent[index] ?? '') + chunkReasoning;
         }
         if (finalChunks[index] === undefined) {
@@ -390,7 +388,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         .sort(([aKey], [bKey]) => parseInt(aKey, 10) - parseInt(bKey, 10))
         .map(([key, value]) => {
           const index = parseInt(key, 10);
-          if (sawReasoningContent[index]) {
+          if (index in accumulatedReasoningContent) {
             const msg = value.message as AIMessageChunk;
             msg.additional_kwargs = {
               ...msg.additional_kwargs,

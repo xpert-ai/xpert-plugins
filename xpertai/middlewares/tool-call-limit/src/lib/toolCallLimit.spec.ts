@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals'
 import { AIMessage } from '@langchain/core/messages'
-import { ToolCallLimitMiddleware } from './toolCallLimit.js'
+import { ToolCallLimitMiddleware, ALL_TOOLS_KEY } from './toolCallLimit.js'
 
 const calculatorToolCall = {
   id: 'call_allowed',
@@ -43,10 +43,10 @@ describe('ToolCallLimitMiddleware', () => {
     const result = await strategy.afterModel.hook({
       messages: [assistantMessage],
       threadToolCallCount: {
-        __all__: 0
+        [ALL_TOOLS_KEY]: 0
       },
       runToolCallCount: {
-        __all__: 0
+        [ALL_TOOLS_KEY]: 0
       }
     })
 

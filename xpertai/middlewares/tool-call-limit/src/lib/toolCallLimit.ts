@@ -28,6 +28,8 @@ import { ToolCallLimitIcon } from "./types.js";
  */
 export type ExitBehavior = "continue" | "error" | "end";
 
+export const ALL_TOOLS_KEY = "__all__";
+
 /**
  * Configuration Schema definition
  */
@@ -321,7 +323,7 @@ export class ToolCallLimitMiddleware implements IAgentMiddlewareStrategy {
     const exitBehavior = userOptions.exitBehavior ?? "continue";
 
     // Get the count key for this middleware instance
-    const countKey = toolName ?? "__all__";
+    const countKey = toolName ?? ALL_TOOLS_KEY;
 
     // Helper function to check if a tool call matches the filter
     const matchesToolFilter = (toolCall: { name: string }): boolean => {
@@ -396,7 +398,7 @@ export class ToolCallLimitMiddleware implements IAgentMiddlewareStrategy {
         hook: async (state: Record<string, unknown>) => {
           // Reset runToolCallCount at the start of each new agent invocation
           // This ensures runLimit applies per conversation/run, not across multiple runs
-          const countKey = toolName ?? "__all__";
+          const countKey = toolName ?? ALL_TOOLS_KEY;
           const runCounts = (state["runToolCallCount"] as Record<string, number>) || {};
           
           // Reset the count for this tool (or all tools if toolName is null)
