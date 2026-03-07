@@ -1,5 +1,6 @@
 ---
 "@xpert-ai/plugin-deepseek": patch
+"@xpert-ai/plugin-tool-call-limit": patch
 ---
 
 Fix streaming reasoning_content loss in deepseek-reasoner tool-call turns.
