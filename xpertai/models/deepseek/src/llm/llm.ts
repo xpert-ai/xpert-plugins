@@ -315,8 +315,9 @@ function convertMessageToOpenAIParams(message: BaseMessage, model: string): Comp
   // Critical: Always include reasoning_content if present in assistant messages
   // This is required by DeepSeek API for multi-turn conversations with reasoning model
   // The reasoning_content must be included in subsequent requests after the first response
-  if (messageWithKwargs.additional_kwargs?.reasoning_content) {
-    completionParam.reasoning_content = messageWithKwargs.additional_kwargs.reasoning_content;
+  const reasoningContent = messageWithKwargs.additional_kwargs?.reasoning_content;
+  if (typeof reasoningContent === 'string') {
+    completionParam.reasoning_content = reasoningContent;
   }
   const audioId = messageWithKwargs.additional_kwargs?.audio?.id;
   if (audioId) {
@@ -366,6 +367,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       // Manually accumulate reasoning_content because AIMessageChunk.concat() may corrupt it
       // when subsequent content deltas carry reasoning_content: null, overwriting the accumulated string.
       const accumulatedReasoningContent: Record<number, string> = {};
+      const sawReasoningContent: Record<number, boolean> = {};
       for await (const chunk of stream) {
         const message = chunk.message as AIMessageChunk & { response_metadata?: Record<string, unknown> };
         message.response_metadata = {
@@ -374,7 +376,8 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         };
         const index = (chunk.generationInfo as GenerationInfo)?.completion ?? 0;
         const chunkReasoning = message.additional_kwargs?.reasoning_content;
-        if (typeof chunkReasoning === 'string' && chunkReasoning) {
+        if (typeof chunkReasoning === 'string') {
+          sawReasoningContent[index] = true;
           accumulatedReasoningContent[index] = (accumulatedReasoningContent[index] ?? '') + chunkReasoning;
         }
         if (finalChunks[index] === undefined) {
@@ -386,12 +389,12 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       const generations = Object.entries(finalChunks)
         .sort(([aKey], [bKey]) => parseInt(aKey, 10) - parseInt(bKey, 10))
         .map(([key, value]) => {
-          const reasoningContent = accumulatedReasoningContent[parseInt(key, 10)];
-          if (reasoningContent) {
+          const index = parseInt(key, 10);
+          if (sawReasoningContent[index]) {
             const msg = value.message as AIMessageChunk;
             msg.additional_kwargs = {
               ...msg.additional_kwargs,
-              reasoning_content: reasoningContent,
+              reasoning_content: accumulatedReasoningContent[index] ?? '',
             };
           }
           return value;

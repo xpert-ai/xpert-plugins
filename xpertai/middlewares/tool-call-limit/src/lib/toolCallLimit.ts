@@ -177,6 +177,20 @@ function buildUserErrorMessage(
   return `⚠️ ${blockedCount} ${toolDesc} call(s) blocked due to limit (${limits.join(", ")}). Please try again later or adjust the limits.`;
 }
 
+function cloneAIMessage(
+  message: AIMessage,
+  overrides: Record<string, unknown> = {}
+): AIMessage {
+  const filteredEntries = Object.fromEntries(
+    Object.entries(message).filter(([key]) => !key.startsWith("lc_"))
+  );
+
+  return new AIMessage({
+    ...(filteredEntries as Record<string, unknown>),
+    ...overrides,
+  } as ConstructorParameters<typeof AIMessage>[0]);
+}
+
 /**
  * Tool Call Limit Middleware
  *
@@ -630,10 +644,8 @@ export class ToolCallLimitMiddleware implements IAgentMiddlewareStrategy {
 
           // For exitBehavior="continue", return error messages to block exceeded tools
           // Also need to modify the AIMessage to remove blocked tool calls
-          const modifiedAIMessage = new AIMessage({
-            content: lastAIMessage.content,
+          const modifiedAIMessage = cloneAIMessage(lastAIMessage, {
             tool_calls: allowed as ToolCall[],
-            id: lastAIMessage.id,
           });
 
           // Replace the last AIMessage with the modified one
