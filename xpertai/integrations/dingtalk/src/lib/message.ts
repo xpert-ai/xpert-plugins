@@ -135,7 +135,7 @@ export class ChatDingTalkMessage extends Serializable implements ChatDingTalkMes
   }
 
   getSubtitle() {
-    return this.options.text
+    return null
   }
 
   async getHeader() {
@@ -338,6 +338,8 @@ export class ChatDingTalkMessage extends Serializable implements ChatDingTalkMes
       return
     }
 
+    const terminalUpdate = this.isTerminalStatus(this.status)
+
     // Do not send standalone "thinking" placeholder message.
     // DingTalk webhook fallback usually cannot patch the same message afterwards,
     // so placeholder delivery causes noisy extra messages.
@@ -345,7 +347,12 @@ export class ChatDingTalkMessage extends Serializable implements ChatDingTalkMes
       return
     }
 
-    const terminalUpdate = this.isTerminalStatus(this.status)
+    // In reply-mode (sessionWebhook), non-terminal streaming updates are skipped.
+    // This avoids noisy partial messages and repeated primary-path failures.
+    if (!this.id && !terminalUpdate && this.sessionWebhook) {
+      return
+    }
+
     if (this.degradedWithoutMessageId && !terminalUpdate) {
       return
     }

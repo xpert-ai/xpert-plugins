@@ -21,6 +21,7 @@ type SendMessageInput = {
   sessionWebhook?: string | null
   allowFallback?: boolean
   robotCodeOverride?: string
+  preferSessionWebhook?: boolean
 }
 
 type DingTalkListResultItem = {
@@ -495,10 +496,6 @@ export class DingTalkClient {
       header && this.isPlainObject((header as any).title)
         ? this.sanitizeFallbackText(this.stringOrEmpty((header as any).title?.content || (header as any).title?.text))
         : ''
-    const headerSubtitle =
-      header && this.isPlainObject((header as any).subtitle)
-        ? this.sanitizeFallbackText(this.stringOrEmpty((header as any).subtitle?.content || (header as any).subtitle?.text))
-        : ''
 
     const title = directTitle || headerTitle || 'Xpert Notification'
 
@@ -507,9 +504,6 @@ export class DingTalkClient {
     )
 
     const lines: string[] = []
-    if (headerSubtitle) {
-      lines.push(headerSubtitle)
-    }
 
     const elements = Array.isArray((content as any)?.elements) ? ((content as any).elements as unknown[]) : []
     for (const element of elements) {
@@ -715,15 +709,42 @@ export class DingTalkClient {
     let primaryError: unknown = null
     const allowFallback = input.allowFallback !== false
 
+    if (input.preferSessionWebhook && input.sessionWebhook) {
+      try {
+        const sessionResult = await this.sendBySessionWebhook({
+          sessionWebhook: input.sessionWebhook,
+          msgType: input.msgType,
+          content: input.content,
+          timeoutMs: input.timeoutMs
+        })
+        return {
+          ...sessionResult,
+          degraded: true
+        }
+      } catch (error) {
+        primaryError = error
+      }
+    }
+
     try {
       const payload = this.buildMessagePayload(input.msgType, input.content)
 
       if (input.recipient.type === 'chat_id') {
-        return await this.sendGroupMessage(input.recipient.id, payload, input.robotCodeOverride, input.timeoutMs)
+        return await this.sendGroupMessage(
+          input.recipient.id,
+          payload,
+          input.robotCodeOverride,
+          input.timeoutMs
+        )
       }
 
       if (['open_id', 'user_id', 'union_id', 'email'].includes(input.recipient.type)) {
-        return await this.sendUserMessage(input.recipient, payload, input.robotCodeOverride, input.timeoutMs)
+        return await this.sendUserMessage(
+          input.recipient,
+          payload,
+          input.robotCodeOverride,
+          input.timeoutMs
+        )
       }
     } catch (error) {
       primaryError = error
