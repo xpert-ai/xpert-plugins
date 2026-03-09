@@ -2,6 +2,14 @@
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
+## Setup
+
+1. Install dependencies:
+
+```sh
+pnpm install
+```
+
 ## Generate a plugin library
 
 To create different types of plugins, you can replace 'packages' with different folder names to organize plugins into different libraries.
