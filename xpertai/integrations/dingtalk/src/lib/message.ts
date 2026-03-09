@@ -375,7 +375,10 @@ export class ChatDingTalkMessage extends Serializable implements ChatDingTalkMes
         }
 
         try {
-          await this.dingtalkChannel.deleteMessage(this.chatContext.integrationId, this.id)
+          await this.dingtalkChannel.deleteMessage(this.chatContext.integrationId, this.id, {
+            chatId: this.chatContext.chatId,
+            robotCodeOverride: this.robotCode || null
+          })
         } catch {
           // keep going: fallback resend still better than drop final answer
         }

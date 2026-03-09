@@ -622,9 +622,17 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     return client.updateMessage(payload)
   }
 
-  async deleteMessage(integrationId: string, messageId: string) {
+  async deleteMessage(
+    integrationId: string,
+    messageId: string,
+    options?: { chatId?: string | null; robotCodeOverride?: string | null; timeoutMs?: number }
+  ) {
     const client = await this.getOrCreateDingTalkClientById(integrationId)
-    return client.recallMessage({ messageId })
+    return client.recallMessage({
+      messageId,
+      robotCodeOverride: options?.robotCodeOverride || null,
+      timeoutMs: options?.timeoutMs
+    })
   }
 
   async errorMessage(

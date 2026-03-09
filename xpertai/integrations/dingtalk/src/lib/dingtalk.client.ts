@@ -979,41 +979,41 @@ export class DingTalkClient {
 
   async recallMessage(params: {
     messageId: string
+    robotCodeOverride?: string | null
     timeoutMs?: number
   }): Promise<{ success: boolean; degraded?: boolean }> {
+    const robotCode = this.resolveRobotCode(params.robotCodeOverride)
+    if (!robotCode) {
+      throw new Error('robotCode is required for message recall')
+    }
+
     try {
+      const processQueryKeys = [params.messageId]
       const result: any = await this.requestV1({
         method: 'POST',
-        path: '/v1.0/robot/groupMessages/recall',
+        path: '/v1.0/robot/otoMessages/batchRecall',
         timeoutMs: params.timeoutMs,
         data: {
-          processQueryKey: params.messageId
+          robotCode,
+          processQueryKeys
         }
       })
 
-      return {
-        success: result?.success !== false
-      }
-    } catch {
-      if (this.options.webhookAccessToken) {
-        try {
-          await this.sendByWebhook({
-            msgType: 'text',
-            content: {
-              text: `[degraded] recall message failed for ${params.messageId}, fallback notification sent`
-            },
-            timeoutMs: params.timeoutMs
-          })
-          return {
-            success: true,
-            degraded: true
-          }
-        } catch {}
+      const failedResult = result?.failedResult ?? {}
+      const failedReason =
+        typeof failedResult?.[params.messageId] === 'string'
+          ? failedResult[params.messageId]
+          : typeof failedResult?.[0] === 'string'
+            ? failedResult[0]
+            : ''
+      if (failedReason) {
+        throw new Error(`oto recall failed: ${failedReason}`)
       }
       return {
-        success: false,
-        degraded: true
+        success: true
       }
+    } catch (error) {
+      throw new Error(`DingTalk recall message failed: oto recall: ${this.formatError(error)}`)
     }
   }
 
