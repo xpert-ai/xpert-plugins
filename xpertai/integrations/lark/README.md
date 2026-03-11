@@ -41,10 +41,15 @@ POST /api/lark/webhook/:integrationId
   - `lark_recall_message`
   - `lark_list_users`
   - `lark_list_chats`
-- `integrationId` is resolved from middleware config only (`configSchema.integrationId`).
-- Send targets are resolved from `configSchema.recipients` only.
-- `recipients[].id` supports runtime state variable paths (for example: `runtime.chatId`).
-- Runtime state variables can still be injected via Mustache templates (for example: `{{channel.foo}}`).
+- `integrationId` is resolved from middleware config (`configSchema.integrationId`).
+- Recipient resolution priority:
+  1. Middleware configured `recipient_type` + `recipient_id` (if both are present)
+  2. Tool call parameter `recipient_id` (defaults to `open_id` type)
+- Both middleware config and tool call support:
+  - Literal ID values
+  - System variable paths (e.g., `runtime.chatId`)
+  - Mustache templates (e.g., `{{channel.foo}}`)
+- **Note**: UI currently only exposes `open_id` as recipient_type option. Backend supports all types (`chat_id`, `open_id`, `user_id`, `union_id`, `email`) via direct configuration.
 
 ## License
 
