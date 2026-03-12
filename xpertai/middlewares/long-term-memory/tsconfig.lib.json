@@ -7,7 +7,14 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": ["node"],
+    /**
+     * The workspace base tsconfig uses NodeNext. Keep lib build consistent so TS can:
+     * - resolve `.js`-suffixed ESM imports in TS source to the corresponding `.ts` files
+     * - allow `import.meta` (ESM-only) without treating output as CommonJS
+     */
+    "module": "nodenext",
+    "moduleResolution": "nodenext"
   },
   "include": ["src/**/*.ts"],
   "references": [],
