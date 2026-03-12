@@ -1,0 +1,41 @@
+{
+  "name": "@community/middlewares-pii",
+  "version": "0.0.0",
+  "description": "PII (Personally Identifiable Information) detection and redaction middleware",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "echo \"(todo) add tests\""
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@metad/contracts": "^3.7.0",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/plugin-sdk": "^3.7.0",
+    "chalk": "4.1.2",
+    "zod": "3.25.67"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}
