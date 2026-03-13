@@ -1,23 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { AIModelProviderStrategy, ModelProvider } from '@xpert-ai/plugin-sdk'
-import { Volcengine } from './types.js'
+import { Volcengine, VolcengineBaseUrl, VolcengineModelCredentials } from './types.js'
 
 @Injectable()
 @AIModelProviderStrategy(Volcengine)
 export class VolcengineProviderStrategy extends ModelProvider {
   override logger = new Logger(VolcengineProviderStrategy.name)
 
-  override async validateProviderCredentials(credentials: Record<string, any>): Promise<void> {
-    if (!credentials['apiKey']) {
-      throw new Error('OpenAI API key is missing')
+  override async validateProviderCredentials(credentials: VolcengineModelCredentials): Promise<void> {
+    if (!credentials.ark_api_key) {
+      throw new Error('Ark API key is missing')
     }
   }
 
-  getBaseUrl(credentials: Record<string, any>): string {
-    return credentials['baseUrl'] || 'https://api.openai.com/v1'
+  getBaseUrl(credentials: VolcengineModelCredentials): string {
+    return credentials?.api_endpoint_host || VolcengineBaseUrl
   }
 
-  getAuthorization(credentials: Record<string, any>): string {
-    return `Bearer ${credentials['apiKey']}`
+  getAuthorization(credentials: VolcengineModelCredentials): string {
+    return `Bearer ${credentials.ark_api_key}`
   }
 }

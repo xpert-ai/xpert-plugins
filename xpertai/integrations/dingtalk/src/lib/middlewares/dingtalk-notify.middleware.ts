@@ -107,6 +107,7 @@ const updateMessageSchema = z.object({
 
 const recallMessageSchema = z.object({
   messageId: z.string().describe('DingTalk message id to recall'),
+  robotCode: z.string().optional().nullable().describe('Optional robot code override for recall API'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -114,13 +115,6 @@ const listUsersSchema = z.object({
   keyword: z.string().optional().nullable().describe('Filter keyword for users'),
   pageSize: z.number().int().min(1).max(100).optional().nullable().default(20).describe('Users page size'),
   pageToken: z.string().optional().nullable().describe('Users page token'),
-  timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
-})
-
-const listChatsSchema = z.object({
-  keyword: z.string().optional().nullable().describe('Filter keyword for chats'),
-  pageSize: z.number().int().min(1).max(100).optional().nullable().default(20).describe('Chats page size'),
-  pageToken: z.string().optional().nullable().describe('Chats page token'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -994,7 +988,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'dingtalk_recall_message'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+          const { state, renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           const messageId = normalizeString(renderedInput.messageId)
 
@@ -1002,11 +996,20 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
             throw new Error(`[${toolName}] messageId is required`)
           }
 
+          const robotCodeOverride = resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
+
           const recallResult = await withTimeout(
-            this.dingtalkChannel.deleteMessage(resolvedIntegrationId, messageId),
+            this.dingtalkChannel.deleteMessage(resolvedIntegrationId, messageId, {
+              robotCodeOverride,
+              timeoutMs
+            }),
             timeoutMs,
             `[${toolName}] recall message '${messageId}'`
           )
+
+          if (recallResult?.success !== true) {
+            throw new Error(`[${toolName}] recall failed`)
+          }
 
           const result: DingTalkNotifyResult = {
             tool: toolName,
@@ -1033,7 +1036,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         },
         {
           name: 'dingtalk_recall_message',
-          description: 'Recall (delete) an existing DingTalk message by messageId. Use when user asks to withdraw or delete a sent message.',
+          description: 'Recall an existing DingTalk OTO message by messageId (human-bot conversation).',
           schema: recallMessageSchema,
           verboseParsingErrors: true
         }
@@ -1081,52 +1084,6 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
           description:
             'List DingTalk users for selecting notification recipients. Use when user asks to send to someone and you need to find their user ID.',
           schema: listUsersSchema,
-          verboseParsingErrors: true
-        }
-      )
-    )
-
-    tools.push(
-      tool(
-        async (parameters, config) => {
-          const toolName = 'dingtalk_list_chats'
-          const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          const keyword = normalizeString(renderedInput.keyword)
-          const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
-          const pageToken = normalizeString(renderedInput.pageToken)
-
-          const listResult = await withTimeout(
-            this.dingtalkChannel.listChats(resolvedIntegrationId, {
-              keyword,
-              pageSize,
-              pageToken,
-              timeoutMs
-            }),
-            timeoutMs,
-            `[${toolName}] list chats`
-          )
-
-          const result: DingTalkNotifyResult = {
-            tool: toolName,
-            integrationId: resolvedIntegrationId,
-            successCount: 1,
-            failureCount: 0,
-            results: [{ target: 'chats', success: true }],
-            data: {
-              items: listResult.items,
-              pageToken: listResult.nextPageToken ?? null
-            }
-          }
-
-          return buildCommand(toolName, toolCallId, result)
-        },
-        {
-          name: 'dingtalk_list_chats',
-          description:
-            'List DingTalk group chats for selecting notification recipients. Use when user asks to send to a group and you need to find the chat ID.',
-          schema: listChatsSchema,
           verboseParsingErrors: true
         }
       )

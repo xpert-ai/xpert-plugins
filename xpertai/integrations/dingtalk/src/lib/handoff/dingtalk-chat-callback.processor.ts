@@ -393,7 +393,6 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 					userId: context.userId,
 					chatId: context.chatId,
 					senderOpenId: context.senderOpenId,
-					robotCode: context.robotCode,
 					sessionWebhook: context.sessionWebhook,
 					dingtalkChannel: this.dingtalkChannel
 				},

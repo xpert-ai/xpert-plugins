@@ -79,7 +79,9 @@
       "@xpert-ai/plugin-deepseek",
       "@xpert-ai/plugin-zhipuai",
       "@xpert-ai/plugin-dingtalk",
-      "@xpert-ai/plugin-openai"
+      "@xpert-ai/plugin-openai",
+      "@xpert-ai/plugin-model-retry",
+      "@xpert-ai/plugin-tool-retry"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
