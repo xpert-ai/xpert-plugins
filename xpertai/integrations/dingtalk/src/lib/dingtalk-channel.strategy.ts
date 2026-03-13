@@ -312,7 +312,6 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
 
     const senderName = payload?.senderNick || payload?.senderName || payload?.sender?.nick || payload?.sender?.name
     const robotCode = typeof payload?.robotCode === 'string' ? payload.robotCode : undefined
-
     const cardActionValue = payload?.actionCallback?.value || payload?.value
     const isCardAction =
       eventType === 'chatbot_card_callback' ||
@@ -590,6 +589,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     sessionWebhook?: string | null
     allowFallback?: boolean
     robotCodeOverride?: string | null
+    preferSessionWebhook?: boolean
   }) {
     const client = await this.getOrCreateDingTalkClientById(integrationId)
     const result = await client.sendMessage({
@@ -598,7 +598,8 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       robotCodeOverride: message.robotCodeOverride || undefined,
       msgType: message.msgType,
       content: message.content,
-      allowFallback: message.allowFallback
+      allowFallback: message.allowFallback,
+      preferSessionWebhook: message.preferSessionWebhook
     })
 
     return {
@@ -622,9 +623,17 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     return client.updateMessage(payload)
   }
 
-  async deleteMessage(integrationId: string, messageId: string) {
+  async deleteMessage(
+    integrationId: string,
+    messageId: string,
+    options?: { chatId?: string | null; robotCodeOverride?: string | null; timeoutMs?: number }
+  ) {
     const client = await this.getOrCreateDingTalkClientById(integrationId)
-    return client.recallMessage({ messageId })
+    return client.recallMessage({
+      messageId,
+      robotCodeOverride: options?.robotCodeOverride || null,
+      timeoutMs: options?.timeoutMs
+    })
   }
 
   async errorMessage(
@@ -682,10 +691,10 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         id: context.chatId
       },
       sessionWebhook: context.sessionWebhook,
-      robotCodeOverride: this.resolveRobotCode(context),
       msgType: 'interactive',
       content: card,
-      allowFallback: options?.allowFallback
+      allowFallback: options?.allowFallback,
+      preferSessionWebhook: true
     })
   }
 
@@ -696,12 +705,12 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         id: context.chatId
       },
       sessionWebhook: context.sessionWebhook,
-      robotCodeOverride: this.resolveRobotCode(context),
       msgType: 'markdown',
       content: {
         title: 'Xpert Notification',
         markdown
-      }
+      },
+      preferSessionWebhook: true
     })
   }
 

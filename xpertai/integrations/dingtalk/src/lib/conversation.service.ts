@@ -398,7 +398,6 @@ export class DingTalkConversationService implements OnModuleDestroy {
         preferLanguage: integration.options?.preferLanguage,
         userId: options.userId,
         senderOpenId,
-        robotCode: (options.message as any)?.robotCode || (options.message as any)?.raw?.robotCode,
         sessionWebhook: (options.message as any)?.sessionWebhook,
         chatId: options.chatId,
         dingtalkChannel: this.dingtalkChannel
@@ -697,7 +696,6 @@ export class DingTalkConversationService implements OnModuleDestroy {
         preferLanguage: ctx.integration.options?.preferLanguage,
         userId: requestUser.id,
         senderOpenId: action.userId,
-        robotCode: (action.raw as any)?.robotCode,
         sessionWebhook: (action.raw as any)?.sessionWebhook,
         chatId: action.chatId
       } as ChatDingTalkContext,
