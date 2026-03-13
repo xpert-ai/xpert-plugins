@@ -3,11 +3,15 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { z } from 'zod';
-import { SvgIcon } from './types.js';
 import { MoonshotModule } from './moonshot.module.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Read PNG icon as data URL. No fallback/try-catch: missing asset should fail fast.
+const iconPngDataUrl =
+  'data:image/png;base64,' +
+  readFileSync(join(__dirname, '_assets/icon_s_en.png')).toString('base64');
 
 const packageJson = JSON.parse(
   readFileSync(join(__dirname, '../package.json'), 'utf8')
@@ -24,8 +28,8 @@ const plugin: XpertPlugin<any> = {
     version: packageJson.version,
     category: 'model',
     icon: {
-      type: 'svg',
-      value: SvgIcon,
+      type: 'image',
+      value: iconPngDataUrl,
     },
     displayName: 'Moonshot AI (Kimi)',
     description: 'Provide Moonshot AI (Kimi) Models with Long Context Support',

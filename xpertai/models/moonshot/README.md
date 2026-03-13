@@ -2,7 +2,7 @@
 
 ## Overview
 
-`@xpert-ai/plugin-moonshot` connects [Moonshot AI (Kimi)](https://platform.moonshot.cn/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates Moonshot's OpenAI-compatible API so XpertAI agents can leverage Kimi's powerful long-context language models with context windows up to 128K tokens, including the latest K2 series with advanced reasoning capabilities.
+`@xpert-ai/plugin-moonshot` connects [Moonshot AI (Kimi)](https://platform.moonshot.cn/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates Moonshot's OpenAI-compatible API so XpertAI agents can leverage Kimi's powerful long-context language models with context windows up to 262K tokens, including the latest K2 series with advanced reasoning capabilities.
 
 ## Core Features
 
@@ -12,6 +12,7 @@
 - Supports multiple Moonshot model variants including:
   - **Moonshot V1 Series**: `moonshot-v1-8k`, `moonshot-v1-32k`, `moonshot-v1-128k` for various context length requirements
   - **Kimi K2 Series**: `kimi-k2-0711-preview`, `kimi-k2-0905-preview`, `kimi-k2-turbo-preview` for enhanced performance
+  - **Kimi K2.5**: `kimi-k2.5` with 262K context window, vision support, and deep thinking mode for complex reasoning tasks
   - **Kimi K2 Thinking Series**: `kimi-k2-thinking`, `kimi-k2-thinking-turbo` for advanced reasoning tasks
 
 ## Installation
@@ -43,7 +44,7 @@ During validation, the plugin instantiates a ChatOpenAI client with your credent
 
 ## Model Capabilities
 
-- **Long Context Support**: All Moonshot models excel at handling long-context scenarios, with the V1-128K variant supporting up to 128,000 tokens of context.
+- **Long Context Support**: All Moonshot models excel at handling long-context scenarios, with the V1-128K variant supporting up to 128,000 tokens and the latest K2.5 supporting up to 262,000 tokens of context.
 - **Conversational Models**: `MoonshotLargeLanguageModel` merges provider credentials with per-model overrides, enables streaming, and registers token usage callbacks so agent telemetry stays accurate.
 - **Advanced Reasoning**: The K2 Thinking series models provide enhanced reasoning capabilities for complex problem-solving tasks.
 - **OpenAI Compatibility**: Built on LangChain's `ChatOpenAI`, ensuring seamless integration with existing OpenAI-compatible workflows.
