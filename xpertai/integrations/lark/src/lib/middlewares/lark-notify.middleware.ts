@@ -640,7 +640,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     const requireRecipients = (recipients: LarkRecipient[], toolName: string) => {
       if (!recipients.length) {
         throw new Error(
-          `[${toolName}] 未找到可用的飞书收件人。请在中间件中配置 recipient_id，或在工具调用时提供 recipient_id 参数。`
+          `[${toolName}] No valid Lark recipient was found. Please configure recipient_id in the middleware or provide recipient_id in the tool call.`
         )
       }
       return recipients
