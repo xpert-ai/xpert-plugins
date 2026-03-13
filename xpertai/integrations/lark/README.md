@@ -43,7 +43,7 @@ POST /api/lark/webhook/:integrationId
   - `lark_list_chats`
 - `integrationId` is resolved from middleware config (`configSchema.integrationId`).
 - Recipient resolution priority:
-  1. Middleware configured `recipient_type` + `recipient_id` (if both are present)
+  1. Middleware configured `recipient_id` (with optional `recipient_type`, defaults to `open_id`)
   2. Tool call parameter `recipient_id` (defaults to `open_id` type)
 - Both middleware config and tool call support:
   - Literal ID values
