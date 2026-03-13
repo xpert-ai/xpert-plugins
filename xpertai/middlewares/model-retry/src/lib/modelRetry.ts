@@ -254,6 +254,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
   }
 
   async createMiddleware(options: ModelRetryMiddlewareConfig, context: IAgentMiddlewareContext) {
+    options ??= {}
     const result = retryBaseSchema.safeParse(options)
     if (!result.success) {
       throw new Error(

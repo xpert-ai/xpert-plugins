@@ -240,6 +240,7 @@ export class ToolRetryMiddleware implements IAgentMiddlewareStrategy {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     context: IAgentMiddlewareContext
   ) {
+    options ??= {}
     const result = toolRetrySchema.safeParse(options)
     if (!result.success) {
       throw new Error(`Invalid tool retry middleware options: ${z4.prettifyError(result.error)}`)
