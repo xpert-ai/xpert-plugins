@@ -1,0 +1,165 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
+
+export const INTEGRATION_WECOM = 'wecom'
+export const INTEGRATION_WECOM_LONG = 'wecom_long'
+
+export const iconImage =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzA3QzcxNiIvPjxwYXRoIGQ9Ik0xOCAzNGM0LTEwIDE0LTEzIDIyLTcgNC0xIDEwIDAgMTQgNCAyIDIgMyA1IDMgOGgtN2MwLTIgMC00LTEtNWMtMy00LTktNS0xNC0yLTMgMi01IDUtNiA5aC0xMXoiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNSIgY3k9IjQ2IiByPSIzIiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzkiIGN5PSI0NiIgcj0iMyIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg=='
+
+export type TIntegrationWeComShortOptions = {
+  token: string
+  encodingAesKey: string
+  xpertId?: string
+  preferLanguage?: 'en' | 'zh-Hans'
+  timeoutMs?: number
+}
+
+export type TIntegrationWeComLongOptions = {
+  botId: string
+  secret: string
+  wsOrigin?: string
+  xpertId?: string
+  preferLanguage?: 'en' | 'zh-Hans'
+  timeoutMs?: number
+}
+
+export type TIntegrationWeComOptions = {
+  // short mode
+  token?: string
+  encodingAesKey?: string
+  // long mode
+  botId?: string
+  secret?: string
+  wsOrigin?: string
+  // shared
+  xpertId?: string
+  preferLanguage?: 'en' | 'zh-Hans'
+  timeoutMs?: number
+  // deprecated openapi fields (kept only for backward compatibility with saved integrations)
+  corpId?: string
+  corpSecret?: string
+  agentId?: number
+}
+
+export type TWeComEvent = {
+  msgType?: string
+  eventType?: string
+  cmd?: string
+  reqId?: string
+  messageId?: string
+  chatId: string
+  chatType?: 'private' | 'group' | 'channel' | 'thread'
+  senderId: string
+  senderName?: string
+  content: string
+  responseUrl?: string
+  timestamp: number
+  mentions?: Array<{ id: string; name?: string }>
+  raw?: unknown
+}
+
+export function computeWeComSignature(params: {
+  token: string
+  timestamp: string
+  nonce: string
+  encrypt: string
+}): string {
+  const values = [params.token, params.timestamp, params.nonce, params.encrypt].sort()
+  return createHash('sha1').update(values.join('')).digest('hex')
+}
+
+export function verifyWeComSignature(params: {
+  token?: string
+  timestamp?: string
+  nonce?: string
+  encrypt?: string
+  signature?: string
+}): boolean {
+  if (!params.token || !params.timestamp || !params.nonce || !params.encrypt || !params.signature) {
+    return false
+  }
+
+  const expected = computeWeComSignature({
+    token: params.token,
+    timestamp: params.timestamp,
+    nonce: params.nonce,
+    encrypt: params.encrypt
+  })
+
+  return expected === params.signature
+}
+
+function decodeAesKey(aesKey: string): Buffer {
+  const normalized = aesKey.endsWith('=') ? aesKey : `${aesKey}=`
+  return Buffer.from(normalized, 'base64')
+}
+
+function removePkcs7Padding(buffer: Buffer): Buffer {
+  const pad = buffer[buffer.length - 1]
+  if (pad < 1 || pad > 32) {
+    return buffer
+  }
+  return buffer.subarray(0, buffer.length - pad)
+}
+
+function applyPkcs7Padding(buffer: Buffer, blockSize = 32): Buffer {
+  const pad = blockSize - (buffer.length % blockSize || blockSize)
+  return Buffer.concat([buffer, Buffer.alloc(pad, pad)])
+}
+
+export function decryptWeComMessage(params: {
+  encrypt: string
+  aesKey: string
+  receiveId?: string
+}): string {
+  const key = decodeAesKey(params.aesKey)
+  const iv = key.subarray(0, 16)
+  const decipher = createDecipheriv('aes-256-cbc', key, iv)
+  decipher.setAutoPadding(false)
+
+  const encrypted = Buffer.from(params.encrypt, 'base64')
+  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
+  const unpadded = removePkcs7Padding(decrypted)
+
+  if (unpadded.length < 20) {
+    throw new Error('Invalid decrypted WeCom payload length')
+  }
+
+  const msgLength = unpadded.readUInt32BE(16)
+  const msgStart = 20
+  const msgEnd = msgStart + msgLength
+
+  if (msgEnd > unpadded.length) {
+    throw new Error('Invalid WeCom payload message length')
+  }
+
+  const message = unpadded.subarray(msgStart, msgEnd).toString('utf8')
+  const receiveId = unpadded.subarray(msgEnd).toString('utf8')
+
+  if (params.receiveId && receiveId && params.receiveId !== receiveId) {
+    throw new Error('WeCom callback receiveId mismatch')
+  }
+
+  return message
+}
+
+export function encryptWeComMessage(params: {
+  message: string
+  aesKey: string
+  receiveId: string
+}): string {
+  const key = decodeAesKey(params.aesKey)
+  const iv = key.subarray(0, 16)
+  const cipher = createCipheriv('aes-256-cbc', key, iv)
+  cipher.setAutoPadding(false)
+
+  const random = randomBytes(16)
+  const msgBuffer = Buffer.from(params.message, 'utf8')
+  const msgLength = Buffer.alloc(4)
+  msgLength.writeUInt32BE(msgBuffer.length, 0)
+  const receiveId = Buffer.from(params.receiveId, 'utf8')
+
+  const plaintext = applyPkcs7Padding(Buffer.concat([random, msgLength, msgBuffer, receiveId]))
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()])
+  return encrypted.toString('base64')
+}
