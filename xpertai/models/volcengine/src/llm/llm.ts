@@ -40,9 +40,11 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
   }
 
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
-    const { handleLLMTokens, modelProperties } = options ?? {}
+    const { handleLLMTokens } = options ?? {}
     const { copilot } = copilotModel
-    const params = toCredentialKwargs(modelProperties as VolcengineModelCredentials)
+    const { modelProvider } = copilot
+    const credentials = modelProvider?.credentials as VolcengineModelCredentials
+    const params = toCredentialKwargs(credentials)
 
     const model = copilotModel.model
     const fields = omitBy(
@@ -58,7 +60,7 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
       ...fields,
       verbose: options?.verbose,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, model, modelProperties, handleLLMTokens),
+        ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ]
     })
