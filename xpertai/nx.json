@@ -79,6 +79,7 @@
       "@xpert-ai/plugin-deepseek",
       "@xpert-ai/plugin-zhipuai",
       "@xpert-ai/plugin-dingtalk",
+      "@xpert-ai/plugin-wecom",
       "@xpert-ai/plugin-openai",
       "@xpert-ai/plugin-model-retry",
       "@xpert-ai/plugin-tool-retry"

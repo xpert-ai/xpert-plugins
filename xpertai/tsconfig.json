@@ -113,6 +113,9 @@
     },
     {
       "path": "./middlewares/tool-retry"
+    },
+    {
+      "path": "./integrations/wecom"
     }
   ]
 }
