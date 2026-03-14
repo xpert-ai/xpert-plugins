@@ -65,10 +65,6 @@ const updateMessageSchema = runtimeContextSchema.extend({
   card: z.record(z.any()).optional().nullable()
 })
 
-const stateSchema = z.object({
-  wecom_notify_last_result: z.record(z.any()).nullable().default(null)
-})
-
 type MiddlewareConfig = InferInteropZodInput<typeof middlewareConfigSchema>
 
 type WeComNotifyResult = {
@@ -309,7 +305,6 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
       const success = result.failureCount === 0
       return new Command({
         update: {
-          wecom_notify_last_result: result,
           messages: [
             new ToolMessage({
               content: toToolMessageContent(result),
@@ -512,7 +507,6 @@ export class WeComNotifyMiddleware implements IAgentMiddlewareStrategy {
 
     return {
       name: WECOM_NOTIFY_MIDDLEWARE_NAME,
-      stateSchema,
       tools
     }
   }
