@@ -10,6 +10,7 @@
 - Wraps retry attempts with `WrapWorkflowNodeExecutionCommand` so middleware-level execution tracking remains visible in Xpert.
 - Registers as a global middleware plugin so the strategy is available across the platform.
 - Treats `AIMessage.response_metadata.finish_reason === "network_error"` as a retryable model failure, even when the provider returns a message instead of throwing.
+- Treats empty `AIMessage` results with no `tool_calls` and no `invalid_tool_calls` as retryable model failures.
 
 ## Installation
 
@@ -66,6 +67,7 @@ npm install @xpert-ai/plugin-model-retry
 - Retry matching uses declarative JSON fields instead of runtime classes or callback functions.
 - Retry attempts are execution-tracked with Xpert workflow commands, but no model client is recreated during retries.
 - Provider responses that finish with `network_error` are normalized into an internal `ModelNetworkError` and routed through the same retry policy.
+- Provider responses with empty content and no tool call payload are normalized into an internal `ModelEmptyResponseError` and routed through the same retry policy.
 
 ## Development & Testing
 

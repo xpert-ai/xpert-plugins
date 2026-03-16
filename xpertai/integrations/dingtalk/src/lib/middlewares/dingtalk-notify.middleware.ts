@@ -487,7 +487,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
   meta: TAgentMiddlewareMeta = {
     name: DINGTALK_NOTIFY_MIDDLEWARE_NAME,
     icon: {
-      type: 'image',
+      type: 'svg',
       value: iconImage
     },
     label: {

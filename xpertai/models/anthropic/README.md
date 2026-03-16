@@ -33,7 +33,7 @@ npm install @xpert-ai/plugin-anthropic
 The form fields defined in `anthropic.yaml` cover common Anthropic deployment scenarios:
 
 - **API Key**: Your Anthropic API key (required)
-- **Model Name**: The Claude model identifier (e.g., `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`)
+- **Model Name**: The Claude model identifier (e.g., `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5`)
 - **Context Size**: Maximum context window size (default: 200000)
 - **Max Tokens**: Maximum tokens to generate (default: 4096)
 - **Function Calling**: Enable/disable tool calling support
@@ -52,10 +52,9 @@ The form fields defined in `anthropic.yaml` cover common Anthropic deployment sc
 
 Common Claude model identifiers:
 
-- `claude-3-5-sonnet-20241022` - Latest Claude 3.5 Sonnet
-- `claude-3-opus-20240229` - Claude 3 Opus
-- `claude-3-sonnet-20240229` - Claude 3 Sonnet
-- `claude-3-haiku-20240307` - Claude 3 Haiku
+- `claude-sonnet-4-6` - Latest Claude Sonnet 4.6
+- `claude-opus-4-6` - Latest Claude Opus 4.6
+- `claude-haiku-4-5` - Latest Claude Haiku 4.5
 
 The plugin supports all available Claude models from Anthropic. You can use any valid model identifier from the Anthropic API. For the latest model list, refer to [Anthropic's documentation](https://docs.anthropic.com/claude/docs/models-overview).
 
@@ -65,7 +64,7 @@ When configuring a model provider in XpertAI:
 
 1. Select provider type: `anthropic`
 2. Enter your Anthropic API key
-3. Specify the model name (e.g., `claude-3-5-sonnet-20241022`)
+3. Specify the model name (e.g., `claude-sonnet-4-6`)
 4. Set context size (default: 200000)
 5. Configure max tokens (default: 4096)
 6. Enable/disable features as needed:

@@ -1,6 +1,6 @@
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'
-import { ToolCall } from '@langchain/core/messages/tool'
+import { InvalidToolCall, ToolCall } from '@langchain/core/messages/tool'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import {
@@ -206,25 +206,21 @@ const extractToolCalls = (message: AIMessage) => {
   return toolCalls
 }
 
-const safeJsonStringify = (value: unknown): string => {
-  const seen = new WeakSet<object>()
+const extractInvalidToolCalls = (message: AIMessage) => {
+  const invalidToolCalls: InvalidToolCall[] = []
 
-  try {
-    return (
-      JSON.stringify(value, (_key, currentValue) => {
-        if (typeof currentValue === 'object' && currentValue !== null) {
-          if (seen.has(currentValue)) {
-            return '[Circular]'
-          }
-          seen.add(currentValue)
-        }
-        return currentValue
-      }) ?? String(value)
-    )
-  } catch {
-    return String(value)
+  if (Array.isArray(message['invalid_tool_calls'])) {
+    invalidToolCalls.push(...message['invalid_tool_calls'])
   }
+
+  return invalidToolCalls
 }
+
+const isEmptyModelResult = (message: AIMessage): boolean =>
+  !hasMessageContent(message) &&
+  extractToolCalls(message).length === 0 &&
+  extractInvalidToolCalls(message).length === 0
+
 
 const extractFinishReason = (message: AIMessage): string | null => {
   const candidates: unknown[] = [
@@ -251,14 +247,29 @@ const extractFinishReason = (message: AIMessage): string | null => {
 
 const toModelResultError = (message: AIMessage): Error | null => {
   const finishReason = extractFinishReason(message)
-  if (finishReason !== 'network_error') {
+  if (finishReason === 'network_error') {
+    const error = new Error(`Model call returned finish_reason "${finishReason}"`)
+    error.name = 'ModelNetworkError'
+    Object.assign(error, {
+      finishReason,
+      responseMetadata: message.response_metadata,
+      additionalKwargs: message.additional_kwargs,
+    })
+    return error
+  }
+
+  if (!isEmptyModelResult(message)) {
     return null
   }
 
-  const error = new Error(`Model call returned finish_reason "${finishReason}"`)
-  error.name = 'ModelNetworkError'
+  const error = new Error(
+    'Model call returned empty content without tool calls or invalid tool calls'
+  )
+  error.name = 'ModelEmptyResponseError'
   Object.assign(error, {
-    finishReason,
+    content: message.content,
+    toolCalls: extractToolCalls(message),
+    invalidToolCalls: extractInvalidToolCalls(message),
     responseMetadata: message.response_metadata,
     additionalKwargs: message.additional_kwargs,
   })
@@ -440,16 +451,6 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     context?: IAgentMiddlewareContext
   ): Promise<AIMessage> {
     const result = await handler(request)
-    const toolCalls = extractToolCalls(result)
-    if (!hasMessageContent(result) && toolCalls.length === 0) {
-      const logScope = context ? this.buildLogScope(context, request) : ''
-      this.logger.warn({
-          context: logScope,
-          ai_message: safeJsonStringify(result),
-        },
-        `Model returned empty content and tool calls${logScope}.`
-      )
-    }
     const resultError = toModelResultError(result)
     if (resultError) {
       throw resultError

@@ -35,7 +35,7 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			zh_Hans: '钉钉触发器'
 		},
 		icon: {
-			type: 'image',
+			type: 'svg',
 			value: iconImage
 		},
 		configSchema: {
