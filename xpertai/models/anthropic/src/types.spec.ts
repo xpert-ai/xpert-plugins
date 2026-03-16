@@ -1,5 +1,9 @@
 import { AnthropicInput } from '@langchain/anthropic'
-import { toCredentialKwargs, AnthropicCredentials } from './types.js'
+import {
+  AnthropicCredentials,
+  normalizeAnthropicBaseUrl,
+  toCredentialKwargs
+} from './types.js'
 
 describe('toCredentialKwargs', () => {
   it('should convert credentials to AnthropicInput correctly', () => {
@@ -7,54 +11,49 @@ describe('toCredentialKwargs', () => {
       anthropic_api_key: 'test-api-key'
     }
 
-    const result = toCredentialKwargs(credentials, 'claude-3-5-sonnet-20241022')
+    const result = toCredentialKwargs(credentials, 'claude-sonnet-4-6')
 
-    // Type check: result should be assignable to AnthropicInput
     const _typeCheck: AnthropicInput = result
-    
+
     expect(result.anthropicApiKey).toBe('test-api-key')
-    expect(result.modelName).toBe('claude-3-5-sonnet-20241022')
+    expect(result.modelName).toBe('claude-sonnet-4-6')
+    expect(result.model).toBe('claude-sonnet-4-6')
   })
 
-  it('should use default model when model is not provided', () => {
+  it('should use latest Sonnet model by default', () => {
     const credentials: AnthropicCredentials = {
       anthropic_api_key: 'test-api-key'
     }
 
     const result = toCredentialKwargs(credentials)
 
-    // Type check: result should be assignable to AnthropicInput
     const _typeCheck: AnthropicInput = result
 
-    expect(result.modelName).toBe('claude-3-5-sonnet-20241022')
+    expect(result.modelName).toBe('claude-sonnet-4-6')
   })
 
-  it('should use provided model parameter', () => {
+  it('should support custom base URLs in both compatibility fields', () => {
     const credentials: AnthropicCredentials = {
-      anthropic_api_key: 'test-api-key'
+      anthropic_api_key: 'test-api-key',
+      anthropic_api_url: 'https://anthropic.example.com/'
     }
 
-    const result = toCredentialKwargs(credentials, 'claude-3-opus-20240229')
+    const result = toCredentialKwargs(credentials, 'claude-opus-4-6')
 
-    // Type check: result should be assignable to AnthropicInput
-    const _typeCheck: AnthropicInput = result
-
-    expect(result.modelName).toBe('claude-3-opus-20240229')
-    expect(result.anthropicApiKey).toBe('test-api-key')
-  })
-
-  it('should return AnthropicInput type that matches @langchain/anthropic interface', () => {
-    const credentials: AnthropicCredentials = {
-      anthropic_api_key: 'test-api-key'
-    }
-
-    const result = toCredentialKwargs(credentials, 'claude-3-5-sonnet-20241022')
-
-    // Verify the result has the correct structure for AnthropicInput
-    expect(result).toHaveProperty('anthropicApiKey')
-    expect(result).toHaveProperty('modelName')
-    expect(typeof result.anthropicApiKey).toBe('string')
-    expect(typeof result.modelName).toBe('string')
+    expect(result.anthropicApiUrl).toBe('https://anthropic.example.com')
+    expect(result.clientOptions?.baseURL).toBe('https://anthropic.example.com')
   })
 })
 
+describe('normalizeAnthropicBaseUrl', () => {
+  it('should trim whitespace and trailing slashes', () => {
+    expect(normalizeAnthropicBaseUrl(' https://anthropic.example.com/// ')).toBe(
+      'https://anthropic.example.com'
+    )
+  })
+
+  it('should return undefined for empty values', () => {
+    expect(normalizeAnthropicBaseUrl('')).toBeUndefined()
+    expect(normalizeAnthropicBaseUrl(undefined)).toBeUndefined()
+  })
+})
