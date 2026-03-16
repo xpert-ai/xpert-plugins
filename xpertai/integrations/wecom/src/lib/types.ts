@@ -1,10 +1,15 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+export const iconImage = `data:image/png;base64,${readFileSync(join(__dirname, '../_assets/icon.png')).toString('base64')}`
 
 export const INTEGRATION_WECOM = 'wecom'
 export const INTEGRATION_WECOM_LONG = 'wecom_long'
-
-export const iconImage =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzA3QzcxNiIvPjxwYXRoIGQ9Ik0xOCAzNGM0LTEwIDE0LTEzIDIyLTcgNC0xIDEwIDAgMTQgNCAyIDIgMyA1IDMgOGgtN2MwLTIgMC00LTEtNWMtMy00LTktNS0xNC0yLTMgMi01IDUtNiA5aC0xMXoiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNSIgY3k9IjQ2IiByPSIzIiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iMzkiIGN5PSI0NiIgcj0iMyIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg=='
 
 export type TIntegrationWeComShortOptions = {
   token: string

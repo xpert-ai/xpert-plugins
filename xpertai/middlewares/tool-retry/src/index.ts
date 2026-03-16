@@ -24,7 +24,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     icon: {
       type: 'svg',
       value: ToolRetryIcon,
-      color: '#2E7D32',
+      color: '#45BA4B',
     },
     displayName: 'Tool Retry Middleware',
     description:

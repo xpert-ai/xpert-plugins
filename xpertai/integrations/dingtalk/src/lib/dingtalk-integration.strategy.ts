@@ -22,7 +22,7 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
       zh_Hans: '钉钉'
     },
     icon: {
-      type: 'image',
+      type: 'svg',
       value: iconImage
     },
     description: {

@@ -23,7 +23,7 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
     version: packageJson.version,
     category: 'integration',
     icon: {
-      type: 'image',
+      type: 'svg',
       value: iconImage
     },
     displayName: 'DingTalk Plugin',
