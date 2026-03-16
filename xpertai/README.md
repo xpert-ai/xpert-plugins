@@ -19,6 +19,7 @@ To create different types of plugins, you can replace 'packages' with different 
 - agents: for AI agents
 - databases: for databases
 - integrations: for third-party service integrations
+- middlewares: for agent middlewares
 - packages: for general-purpose libraries
 
 ```sh
@@ -30,13 +31,13 @@ npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1 --bund
 To build the library use:
 
 ```sh
-npx nx build pkg1
+pnpm nx build pkg1
 ```
 
 To run any task with Nx use:
 
 ```sh
-npx nx <target> <project-name>
+pnpm nx <target> <project-name>
 ```
 
 These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.

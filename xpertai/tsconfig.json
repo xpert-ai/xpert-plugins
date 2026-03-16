@@ -116,6 +116,9 @@
     },
     {
       "path": "./integrations/wecom"
+    },
+    {
+      "path": "./middlewares/playwright-cli"
     }
   ]
 }

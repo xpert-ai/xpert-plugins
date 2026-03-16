@@ -82,7 +82,8 @@
       "@xpert-ai/plugin-wecom",
       "@xpert-ai/plugin-openai",
       "@xpert-ai/plugin-model-retry",
-      "@xpert-ai/plugin-tool-retry"
+      "@xpert-ai/plugin-tool-retry",
+      "@xpert-ai/plugin-playwright-cli"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
