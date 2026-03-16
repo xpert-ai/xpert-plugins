@@ -34,6 +34,7 @@ jest.mock('@metad/contracts', () => ({
 }))
 
 import { AIMessage } from '@langchain/core/messages'
+import { Logger } from '@nestjs/common'
 import { calculateRetryDelay } from './retry'
 const { ModelRetryMiddleware } = require('./modelRetry')
 
@@ -136,6 +137,30 @@ describe('ModelRetryMiddleware', () => {
     expect(handler).toHaveBeenCalledTimes(2)
     expect(strategy.commandBus.execute).toHaveBeenCalledTimes(1)
     expect(result?.content).toBe('recovered after network error')
+  })
+
+  it('warns when the model returns an AIMessage without content or tool calls', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    const { middleware } = await createMiddleware({})
+    const handler = jest.fn().mockResolvedValue(
+      new AIMessage({
+        content: '',
+        response_metadata: {
+          model_name: 'glm-5',
+        },
+        additional_kwargs: {
+          finish_reason: 'stop',
+        },
+      })
+    )
+
+    const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
+
+    expect(result).toBeInstanceOf(AIMessage)
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Model returned empty content and tool calls')
+    )
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"model_name":"glm-5"'))
   })
 
   it('returns an AIMessage immediately for non-retryable errors in continue mode', async () => {

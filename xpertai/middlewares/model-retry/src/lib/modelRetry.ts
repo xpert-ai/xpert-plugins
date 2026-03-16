@@ -1,6 +1,7 @@
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'
-import { Inject, Injectable } from '@nestjs/common'
+import { ToolCall } from '@langchain/core/messages/tool'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import {
   AgentBuiltInState,
@@ -29,6 +30,7 @@ import {
   shouldRetryError,
   sleep,
 } from './retry.js'
+
 
 export type ModelRetryMiddlewareConfig = z.input<typeof retryBaseSchema>
 
@@ -184,6 +186,46 @@ const configSchemaProperties: JsonSchemaObjectType['properties'] = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+const hasMessageContent = (message: AIMessage): boolean => {
+  const { content } = message
+
+  if (typeof content === 'string') {
+    return content.trim().length > 0
+  }
+
+  return content != null
+}
+
+const extractToolCalls = (message: AIMessage) => {
+  const toolCalls: ToolCall[] = []
+
+  if (Array.isArray(message['tool_calls'])) {
+    toolCalls.push(...message['tool_calls'])
+  }
+
+  return toolCalls
+}
+
+const safeJsonStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>()
+
+  try {
+    return (
+      JSON.stringify(value, (_key, currentValue) => {
+        if (typeof currentValue === 'object' && currentValue !== null) {
+          if (seen.has(currentValue)) {
+            return '[Circular]'
+          }
+          seen.add(currentValue)
+        }
+        return currentValue
+      }) ?? String(value)
+    )
+  } catch {
+    return String(value)
+  }
+}
+
 const extractFinishReason = (message: AIMessage): string | null => {
   const candidates: unknown[] = [
     message.response_metadata?.['finish_reason'],
@@ -229,6 +271,8 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
   @Inject(CommandBus)
   private readonly commandBus: CommandBus
 
+  private readonly logger = new Logger(ModelRetryMiddleware.name)
+
   readonly meta: TAgentMiddlewareMeta = {
     name: 'ModelRetryMiddleware',
     label: {
@@ -263,6 +307,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     }
 
     const retryConfig = normalizeRetryConfig(result.data)
+    const totalAllowedAttempts = retryConfig.maxRetries + 1
 
     const handleFailure = (error: Error, attemptsMade: number): AIMessage => {
       if (retryConfig.onFailure === 'error') {
@@ -282,30 +327,52 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
         request: ModelRequest<AgentBuiltInState>,
         handler: WrapModelCallHandler
       ): Promise<AIMessage> => {
+        const logScope = this.buildLogScope(context, request)
         try {
-          return await this.invokeModel(request, handler)
+          return await this.invokeModel(request, handler, context)
         } catch (error) {
           let lastError = normalizeError(error)
+          this.logger.warn(
+            `Initial model call failed${logScope}. ${this.formatError(lastError)}`
+          )
 
           if (!shouldRetryError(lastError, retryConfig) || retryConfig.maxRetries === 0) {
+            this.logger.error(
+              `Model retry stopped${logScope}. attemptsMade=1/${totalAllowedAttempts} retryable=${shouldRetryError(lastError, retryConfig)} onFailure=${retryConfig.onFailure}. ${this.formatError(lastError)}`
+            )
             return handleFailure(lastError, 1)
           }
 
           for (let retryAttempt = 1; retryAttempt <= retryConfig.maxRetries; retryAttempt++) {
+            const attemptsMade = retryAttempt + 1
             const delay = calculateRetryDelay(retryConfig, retryAttempt - 1)
+            this.logger.warn(
+              `Scheduling model retry${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts} delayMs=${delay}`
+            )
             if (delay > 0) {
               await sleep(delay)
             }
 
             try {
-              return await this.executeTrackedRetry(request, handler, context)
+              const result = await this.executeTrackedRetry(request, handler, context)
+              this.logger.log(
+                `Model retry succeeded${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts}`
+              )
+              return result
             } catch (retryError) {
               lastError = normalizeError(retryError)
-              const attemptsMade = retryAttempt + 1
+              const retryable = shouldRetryError(lastError, retryConfig)
 
-              if (!shouldRetryError(lastError, retryConfig) || retryAttempt === retryConfig.maxRetries) {
+              if (!retryable || retryAttempt === retryConfig.maxRetries) {
+                this.logger.error(
+            `Model retry exhausted${logScope}. attemptsMade=${attemptsMade}/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure}. ${this.formatError(lastError)}`
+                )
                 return handleFailure(lastError, attemptsMade)
               }
+
+              this.logger.warn(
+                `Model retry attempt failed${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts}. ${this.formatError(lastError)}`
+              )
             }
           }
 
@@ -337,7 +404,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
           execution: Partial<IXpertAgentExecution>
         ): Promise<{ output?: string | JSONValue; state: AIMessage }> => {
           void execution
-          retryResult = await this.invokeModel(request, handler)
+          retryResult = await this.invokeModel(request, handler, context)
           return {
             state: retryResult,
             output: retryResult.content as JSONValue,
@@ -369,13 +436,48 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
 
   private async invokeModel(
     request: ModelRequest<AgentBuiltInState>,
-    handler: WrapModelCallHandler
+    handler: WrapModelCallHandler,
+    context?: IAgentMiddlewareContext
   ): Promise<AIMessage> {
     const result = await handler(request)
+    const toolCalls = extractToolCalls(result)
+    if (!hasMessageContent(result) && toolCalls.length === 0) {
+      const logScope = context ? this.buildLogScope(context, request) : ''
+      this.logger.warn({
+          context: logScope,
+          ai_message: safeJsonStringify(result),
+        },
+        `Model returned empty content and tool calls${logScope}.`
+      )
+    }
     const resultError = toModelResultError(result)
     if (resultError) {
       throw resultError
     }
     return result
+  }
+
+  private buildLogScope(
+    context: IAgentMiddlewareContext,
+    request?: ModelRequest<AgentBuiltInState>
+  ): string {
+    const configurable = request?.runtime?.configurable as
+      | Partial<TAgentRunnableConfigurable>
+      | undefined
+
+    const segments = [
+      context.xpertId ? `xpertId=${context.xpertId}` : null,
+      context.agentKey ? `agentKey=${context.agentKey}` : null,
+      context.conversationId ? `conversationId=${context.conversationId}` : null,
+      context.node?.key ? `nodeKey=${context.node.key}` : null,
+      configurable?.executionId ? `executionId=${configurable.executionId}` : null,
+    ].filter(Boolean)
+
+    return segments.length > 0 ? ` [${segments.join(' ')}]` : ''
+  }
+
+  private formatError(error: Error): string {
+    const errorType = error.name || error.constructor.name || 'Error'
+    return `${errorType}: ${error.message}`
   }
 }
