@@ -17,11 +17,23 @@ import {
   TChatModelOptions,
   mergeCredentials
 } from '@xpert-ai/plugin-sdk'
+import { isNil, omitBy } from 'lodash-es'
 import { AnthropicCredentials, AnthropicModelCredentials, toCredentialKwargs } from '../types.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
+import { enhanceChatAnthropicWithPromptCaching } from './chat-model-enhancer.js'
+import {
+  AnthropicPromptCachingOptions,
+  buildAnthropicBetaHeader,
+  buildAnthropicThinkingConfig,
+  hasPromptCachingEnabled,
+  normalizeBoolean,
+  normalizeInteger,
+  normalizeNumber
+} from './runtime-options.js'
 
 type AnthropicChatModelParams = AnthropicInput & {
   callbacks?: Callbacks
+  promptCaching?: AnthropicPromptCachingOptions
 }
 
 @Injectable()
@@ -56,7 +68,14 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
   }
 
   protected createChatModel(params: AnthropicChatModelParams) {
-    return new ChatAnthropic(params)
+    const { promptCaching, ...fields } = params
+    const chatModel = new ChatAnthropic(fields)
+
+    if (promptCaching && hasPromptCachingEnabled(promptCaching)) {
+      return enhanceChatAnthropicWithPromptCaching(chatModel, promptCaching)
+    }
+
+    return chatModel
   }
 
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
@@ -68,18 +87,54 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
       modelProvider.credentials,
       options?.modelProperties
     ) as AnthropicModelCredentials
-    const params = toCredentialKwargs(modelProvider.credentials as AnthropicCredentials, copilotModel.model)
+    const optionValue = (key: keyof AnthropicModelCredentials) =>
+      copilotModel.options?.[key as string] ?? modelCredentials[key]
 
-    const fields = {
-      ...params,
-      streaming: true,
-      temperature: copilotModel.options?.['temperature'] ?? modelCredentials.temperature,
-      maxTokens: copilotModel.options?.['max_tokens']
-        ? parseInt(copilotModel.options?.['max_tokens'] as string, 10)
-        : modelCredentials.max_tokens,
-      topP: copilotModel.options?.['top_p'] ?? modelCredentials.top_p,
-      verbose: options?.verbose
-    }
+    const thinkingEnabled = normalizeBoolean(optionValue('thinking')) ?? false
+    const promptCaching = {
+      messageFlowThreshold: normalizeInteger(optionValue('prompt_caching_message_flow')) ?? 0,
+      cacheSystemMessage: normalizeBoolean(optionValue('prompt_caching_system_message')) ?? true,
+      cacheImages: normalizeBoolean(optionValue('prompt_caching_images')) ?? true,
+      cacheDocuments: normalizeBoolean(optionValue('prompt_caching_documents')) ?? true,
+      cacheToolDefinitions:
+        normalizeBoolean(optionValue('prompt_caching_tool_definitions')) ?? true,
+      cacheToolResults: normalizeBoolean(optionValue('prompt_caching_tool_results')) ?? true
+    } satisfies AnthropicPromptCachingOptions
+    const betaHeader = buildAnthropicBetaHeader({
+      context1m:
+        copilotModel.model === 'claude-sonnet-4-6' &&
+        (normalizeBoolean(optionValue('context_1m')) ?? true),
+      promptCaching
+    })
+    const params = toCredentialKwargs(
+      modelProvider.credentials as AnthropicCredentials,
+      copilotModel.model,
+      betaHeader
+        ? {
+            defaultHeaders: {
+              'anthropic-beta': betaHeader
+            }
+          }
+        : undefined
+    )
+
+    const fields = omitBy(
+      {
+        ...params,
+        streaming: true,
+        temperature: thinkingEnabled ? undefined : normalizeNumber(optionValue('temperature')),
+        maxTokens: normalizeInteger(optionValue('max_tokens')),
+        topK: thinkingEnabled ? undefined : normalizeInteger(optionValue('top_k')),
+        topP: thinkingEnabled ? undefined : normalizeNumber(optionValue('top_p')),
+        thinking: buildAnthropicThinkingConfig(
+          thinkingEnabled,
+          normalizeInteger(optionValue('thinking_budget'))
+        ),
+        promptCaching,
+        verbose: options?.verbose
+      },
+      isNil
+    )
 
     return this.createChatModel({
       ...fields,
@@ -178,4 +233,3 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
     }
   }
 }
-

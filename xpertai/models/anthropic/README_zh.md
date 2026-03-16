@@ -33,7 +33,7 @@ npm install @xpert-ai/plugin-anthropic
 `anthropic.yaml` 中定义的表单字段涵盖了常见的 Anthropic 部署场景：
 
 - **API Key**：您的 Anthropic API 密钥（必需）
-- **Model Name**：Claude 模型标识符（例如：`claude-3-5-sonnet-20241022`、`claude-3-opus-20240229`）
+- **Model Name**：Claude 模型标识符（例如：`claude-sonnet-4-6`、`claude-opus-4-6`、`claude-haiku-4-5`）
 - **Context Size**：最大上下文窗口大小（默认：200000）
 - **Max Tokens**：生成的最大令牌数（默认：4096）
 - **Function Calling**：启用/禁用工具调用支持
@@ -51,10 +51,9 @@ npm install @xpert-ai/plugin-anthropic
 ## 模型示例
 
 常见的 Claude 模型标识符：
-- `claude-3-5-sonnet-20241022` - 最新的 Claude 3.5 Sonnet
-- `claude-3-opus-20240229` - Claude 3 Opus
-- `claude-3-sonnet-20240229` - Claude 3 Sonnet
-- `claude-3-haiku-20240307` - Claude 3 Haiku
+- `claude-sonnet-4-6` - 最新的 Claude Sonnet 4.6
+- `claude-opus-4-6` - 最新的 Claude Opus 4.6
+- `claude-haiku-4-5` - 最新的 Claude Haiku 4.5
 
 该插件支持 Anthropic 提供的所有可用 Claude 模型。您可以使用 Anthropic API 中的任何有效模型标识符。有关最新模型列表，请参阅 [Anthropic 文档](https://docs.anthropic.com/claude/docs/models-overview)。
 
@@ -64,7 +63,7 @@ npm install @xpert-ai/plugin-anthropic
 
 1. 选择提供商类型：`anthropic`
 2. 输入您的 Anthropic API 密钥
-3. 指定模型名称（例如：`claude-3-5-sonnet-20241022`）
+3. 指定模型名称（例如：`claude-sonnet-4-6`）
 4. 设置上下文大小（默认：200000）
 5. 配置最大令牌数（默认：4096）
 6. 根据需要启用/禁用功能：
@@ -83,4 +82,3 @@ npm install @xpert-ai/plugin-anthropic
 ## 许可证
 
 请参阅主仓库的 LICENSE 文件。
-

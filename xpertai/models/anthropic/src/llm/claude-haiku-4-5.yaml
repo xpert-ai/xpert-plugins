@@ -1,6 +1,6 @@
-model: claude-opus-4-20250514
+model: claude-haiku-4-5
 label:
-  en_US: claude-opus-4-20250514
+  en_US: claude-haiku-4-5
 model_type: llm
 features:
   - agent-thought
@@ -28,8 +28,8 @@ parameter_rules:
       en_US: Thinking Budget
     type: int
     default: 1024
-    min: 0
-    max: 32000
+    min: 1024
+    max: 64000
     required: false
     help:
       zh_Hans: 推理的预算限制（最小1024），必须小于max_tokens。仅在推理模式启用时可用。
@@ -50,11 +50,9 @@ parameter_rules:
   - name: max_tokens
     use_template: max_tokens
     required: true
-    default: 32000
+    default: 64000
     min: 1
-    max: 32000
-  - name: response_format
-    use_template: response_format
+    max: 64000
   - name: prompt_caching_message_flow
     label:
       zh_Hans: 大消息自动缓存阈值
@@ -116,8 +114,7 @@ parameter_rules:
       zh_Hans: 启用工具结果的提示缓存。
       en_US: Enable prompt caching for tool results.
 pricing:
-  input: '15.00'
-  output: '75.00'
+  input: '1.00'
+  output: '5.00'
   unit: '0.000001'
   currency: USD
-

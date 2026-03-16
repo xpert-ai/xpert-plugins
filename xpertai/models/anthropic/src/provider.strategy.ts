@@ -22,7 +22,7 @@ export class AnthropicProviderStrategy extends ModelProvider {
     try {
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
       // Use a cost-effective model for validation
-      await modelInstance.validateCredentials('claude-3-haiku-20240307', credentials)
+      await modelInstance.validateCredentials('claude-haiku-4-5', credentials)
     } catch (ex: unknown) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex
@@ -43,8 +43,8 @@ export class AnthropicProviderStrategy extends ModelProvider {
   }
 
   getBaseUrl(credentials: AnthropicCredentials): string {
-    // Anthropic uses the official API endpoint
-    return 'https://api.anthropic.com'
+    // Support custom base URL or use official API endpoint
+    return credentials.anthropic_api_url?.replace(/\/$/, '') || 'https://api.anthropic.com'
   }
 
   getAuthorization(credentials: AnthropicCredentials): string {
@@ -52,4 +52,3 @@ export class AnthropicProviderStrategy extends ModelProvider {
     return credentials.anthropic_api_key
   }
 }
-
