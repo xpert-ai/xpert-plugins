@@ -1,4 +1,15 @@
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const moduleDir = dirname(fileURLToPath(import.meta.url));
+
 export const MiniMax = 'minimax';
+const MiniMaxIconPngBase64 = readFileSync(join(moduleDir, '_assets/icon_s_en.png')).toString('base64');
+
+export const SvgIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <image width="24" height="24" href="data:image/png;base64,${MiniMaxIconPngBase64}"/>
+</svg>`;
 
 export interface MiniMaxCredentials {
   api_key: string;
