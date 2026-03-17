@@ -1,0 +1,9 @@
+# for more details, please refer to https://help.aliyun.com/zh/model-studio/text-rerank-api
+model: gte-rerank-v2
+model_type: rerank
+model_properties:
+  context_size: 4000
+pricing:
+  input: '0.0008'
+  unit: '0.001'
+  currency: RMB
