@@ -1,6 +1,7 @@
-model: MiniMax-M2
+model: M2-her
 label:
-  en_US: MiniMax-M2
+  en_US: M2-her
+  zh_Hans: M2-her (角色扮演)
 model_type: llm
 features:
   - agent-thought
@@ -8,7 +9,7 @@ features:
   - stream-tool-call
 model_properties:
   mode: chat
-  context_size: 196000
+  context_size: 65536
 parameter_rules:
   - name: temperature
     use_template: temperature
@@ -23,9 +24,9 @@ parameter_rules:
   - name: max_tokens
     use_template: max_tokens
     required: true
-    default: 10240
+    default: 8192
     min: 1
-    max: 128000
+    max: 65536
   - name: presence_penalty
     use_template: presence_penalty
   - name: frequency_penalty

@@ -29,9 +29,9 @@ npm install @xpert-ai/plugin-minimax
 
 ## 支持模型
 
-- **LLM**: `MiniMax-M2`, `MiniMax-M2-Stable`, `abab7-chat-preview`, `abab6.5-chat`, `abab6.5s-chat`, `abab6.5t-chat`, `abab6-chat`, `abab5.5-chat`, `abab5.5s-chat`, `abab5-chat`, `minimax-text-01`, `minimax-m1`
-- **Embedding**: `embo-01`, `text-embedding-ada-002`
-- **TTS**: `speech-01`, `speech-01-hd`, `speech-01-turbo`, `speech-02`, `speech-02-hd`, `speech-02-turbo`, `tts-1`, `tts-1-hd`
+- **LLM**: `MiniMax-M2.5`, `MiniMax-M2.5-highspeed`, `MiniMax-M2.1`, `MiniMax-M2.1-highspeed`, `MiniMax-M2`, `M2-her`, `minimax-m1`
+- **Embedding**: `embo-01`
+- **TTS**: `speech-2.8-hd`, `speech-2.8-turbo`, `speech-2.6-hd`, `speech-2.6-turbo`, `speech-02-hd`, `speech-02-turbo`
 
 ## 运行
 
