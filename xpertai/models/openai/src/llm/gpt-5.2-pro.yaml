@@ -8,21 +8,12 @@ features:
   - tool-call
   - multi-tool-call
   - stream-tool-call
-  - structured-output
   - vision
 model_properties:
   mode: chat
   context_size: 400000
   max_output: 128000
 parameter_rules:
-  - name: temperature
-    use_template: temperature
-    default: 1
-    min: 0.0
-    max: 2.0
-    help:
-      zh_Hans: 采样温度，控制输出的随机性。
-      en_US: Sampling temperature, controls the randomness of the output.
   - name: max_tokens
     use_template: max_tokens
     default: 32768
@@ -31,14 +22,6 @@ parameter_rules:
     help:
       zh_Hans: 最大输出 token 数量。
       en_US: Maximum number of output tokens.
-  - name: top_p
-    use_template: top_p
-    default: 1
-    min: 0.0
-    max: 1.0
-    help:
-      zh_Hans: 核采样参数，控制输出的多样性。
-      en_US: Nucleus sampling parameter, controls output diversity.
   - name: reasoning_effort
     label:
       zh_Hans: 推理力度
@@ -47,12 +30,13 @@ parameter_rules:
     required: false
     default: medium
     options:
+      - minimal
+      - low
       - medium
       - high
-      - xhigh
     help:
-      zh_Hans: 控制模型推理的深度。xhigh 提供最深度的推理。
-      en_US: Controls how much reasoning effort the model uses. xhigh provides the deepest reasoning.
+      zh_Hans: 控制模型推理的深度。high 提供最深度的推理，minimal 适合更快的响应。
+      en_US: Controls how much reasoning effort the model uses. high provides the deepest reasoning, while minimal favors faster responses.
   - name: frequency_penalty
     use_template: frequency_penalty
     default: 0
@@ -72,18 +56,6 @@ parameter_rules:
     help:
       zh_Hans: 提高讨论新话题的可能性。
       en_US: Increases the likelihood of discussing new topics.
-  - name: response_format
-    label:
-      zh_Hans: 回复格式
-      en_US: Response Format
-    type: string
-    help:
-      zh_Hans: 指定模型必须输出的格式。
-      en_US: Specifying the format that the model must output.
-    required: false
-    options:
-      - text
-      - json_object
 pricing:
   input: '21'
   output: '168'

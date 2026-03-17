@@ -26,8 +26,8 @@ const plugin: XpertPlugin<any> = {
       value: SvgIcon,
     },
     displayName: 'OpenAI',
-    description: 'Provide OpenAI GPT-5 Models via Responses API',
-    keywords: ['OpenAI', 'GPT-5', 'model', 'llm', 'reasoning', 'Responses API'],
+    description: 'Provide OpenAI GPT-5 and GPT-5.4 models via Responses API',
+    keywords: ['OpenAI', 'GPT-5', 'GPT-5.4', 'model', 'llm', 'reasoning', 'Responses API'],
     author: 'XpertAI Team',
   },
   config: {

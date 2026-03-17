@@ -28,7 +28,7 @@ export class OpenAIProviderStrategy extends ModelProvider {
   async validateProviderCredentials(credentials: OpenAICredentials): Promise<void> {
     try {
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
-      await modelInstance.validateCredentials('gpt-5.3-codex', credentials)
+      await modelInstance.validateCredentials('gpt-5', credentials)
     } catch (ex: any) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex
