@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-openai",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "OpenAI GPT-5 model plugin for XpertAI platform using Responses API",
   "author": {
     "name": "XpertAI",
