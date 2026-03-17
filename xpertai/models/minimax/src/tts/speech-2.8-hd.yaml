@@ -1,4 +1,4 @@
-model: speech-01-hd
+model: speech-2.8-hd
 model_type: tts
 model_properties:
   default_voice: 'male-qn-qingse'

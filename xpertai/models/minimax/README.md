@@ -44,32 +44,24 @@ During validation, the plugin checks that both `api_key` and `group_id` are prov
 ## Supported Models
 
 ### Large Language Models (LLM)
-- `MiniMax-M2` - Latest MiniMax M2 model
-- `MiniMax-M2-Stable` - Stable version of M2 model
-- `abab7-chat-preview` - Preview version of abab7 chat model
-- `abab6.5-chat` - abab6.5 chat model
-- `abab6.5s-chat` - Speed-optimized abab6.5 chat model
-- `abab6.5t-chat` - Turbo version of abab6.5 chat model
-- `abab6-chat` - abab6 chat model
-- `abab5.5-chat` - abab5.5 chat model
-- `abab5.5s-chat` - Speed-optimized abab5.5 chat model
-- `abab5-chat` - abab5 chat model
-- `minimax-text-01` - Text generation model
-- `minimax-m1` - MiniMax M1 model
+- `MiniMax-M2.5` - Latest flagship model, excels at coding and agentic tasks (196K context)
+- `MiniMax-M2.5-highspeed` - High-speed variant of M2.5 with 100 tokens/s throughput
+- `MiniMax-M2.1` - Enhanced reasoning model with 230B parameters (196K context)
+- `MiniMax-M2.1-highspeed` - High-speed variant of M2.1
+- `MiniMax-M2` - MiniMax M2 model with agentic capabilities (196K context)
+- `M2-her` - Specialized for role-playing and multi-turn conversations (65K context)
+- `minimax-m1` - MiniMax M1 open-source model (1M context)
 
 ### Text Embedding Models
 - `embo-01` - MiniMax embedding model
-- `text-embedding-ada-002` - OpenAI-compatible embedding model
 
 ### Text-to-Speech Models
-- `speech-01` - Standard TTS model
-- `speech-01-hd` - High-definition TTS model
-- `speech-01-turbo` - Turbo TTS model
-- `speech-02` - Speech-02 model
-- `speech-02-hd` - High-definition Speech-02 model
-- `speech-02-turbo` - Turbo Speech-02 model
-- `tts-1` - TTS-1 model
-- `tts-1-hd` - High-definition TTS-1 model
+- `speech-2.8-hd` - Latest HD TTS with 40 languages and 7 emotional variants
+- `speech-2.8-turbo` - Latest turbo TTS with 40 languages and 7 emotional variants
+- `speech-2.6-hd` - HD voice generation supporting 40 languages
+- `speech-2.6-turbo` - Low-latency voice generation supporting 40 languages
+- `speech-02-hd` - HD Speech-02 model with 24 languages
+- `speech-02-turbo` - Turbo Speech-02 model with 24 languages
 
 ## Model Capabilities
 

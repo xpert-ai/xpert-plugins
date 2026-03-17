@@ -1,6 +1,6 @@
-model: MiniMax-M2
+model: MiniMax-M2.5-highspeed
 label:
-  en_US: MiniMax-M2
+  en_US: MiniMax-M2.5-highspeed
 model_type: llm
 features:
   - agent-thought
@@ -32,6 +32,6 @@ parameter_rules:
     use_template: frequency_penalty
 pricing:
   input: "2.1"
-  output: "8.4"
+  output: "16.8"
   unit: "0.000001"
   currency: RMB
