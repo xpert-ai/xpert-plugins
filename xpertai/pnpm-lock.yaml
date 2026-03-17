@@ -302,8 +302,8 @@ importers:
         specifier: 0.4.7
         version: 0.4.7(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(zod-to-json-schema@3.25.1(zod@3.25.67))
       '@metad/contracts':
-        specifier: ^3.8.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/cache-manager':
         specifier: ^3.0.1
         version: 3.1.0(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(cache-manager@7.2.8)(keyv@5.6.0)(rxjs@7.8.2)
@@ -325,6 +325,9 @@ importers:
       '@xpert-ai/chatkit-types':
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       axios:
         specifier: 1.12.2
         version: 1.12.2
@@ -368,9 +371,6 @@ importers:
       '@types/passport':
         specifier: ^1.0.17
         version: 1.0.17
-      '@xpert-ai/plugin-sdk':
-        specifier: ^3.8.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
 
   integrations/fastgpt:
     dependencies:
@@ -447,8 +447,8 @@ importers:
         specifier: ^1.x
         version: 1.59.0
       '@metad/contracts':
-        specifier: ^3.8.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@metad/ocap-core':
         specifier: 3.7.5
         version: 3.7.5(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
@@ -476,6 +476,9 @@ importers:
       '@xpert-ai/chatkit-types':
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       axios:
         specifier: 1.12.2
         version: 1.12.2
@@ -519,9 +522,6 @@ importers:
       '@types/passport':
         specifier: ^1.0.17
         version: 1.0.17
-      '@xpert-ai/plugin-sdk':
-        specifier: ^3.8.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
 
   integrations/mineru:
     dependencies:
@@ -614,8 +614,8 @@ importers:
   integrations/wecom:
     dependencies:
       '@metad/contracts':
-        specifier: ^3.8.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/cache-manager':
         specifier: ^3.0.1
         version: 3.1.0(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(cache-manager@7.2.8)(keyv@5.6.0)(rxjs@7.8.2)
@@ -634,6 +634,9 @@ importers:
       '@xpert-ai/chatkit-types':
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       cache-manager:
         specifier: ^7.2.0
         version: 7.2.8
@@ -665,9 +668,6 @@ importers:
       '@types/passport':
         specifier: ^1.0.17
         version: 1.0.17
-      '@xpert-ai/plugin-sdk':
-        specifier: ^3.8.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
 
   middlewares/agent-behavior-monitor:
     dependencies:
@@ -675,8 +675,8 @@ importers:
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@metad/contracts':
-        specifier: ^3.7.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -684,8 +684,8 @@ importers:
         specifier: ^11.0.3
         version: 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.7.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -756,14 +756,14 @@ importers:
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@metad/contracts':
-        specifier: ^3.7.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.7.1
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -780,8 +780,8 @@ importers:
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@metad/contracts':
-        specifier: ^3.8.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -789,8 +789,8 @@ importers:
         specifier: ^11.0.3
         version: 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.8.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -819,14 +819,14 @@ importers:
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@metad/contracts':
-        specifier: ^3.7.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+        specifier: ^3.8.1
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.7.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+        specifier: ^3.8.1
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
