@@ -25,6 +25,11 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     enable_search?: boolean
 }
 
+export interface TongyiTextEmbeddingModelOptions {
+    context_size: number
+    max_chunks: number
+}
+
 export function toCredentialKwargs(credentials: TongyiCredentials) {
     const credentialsKwargs = {
         apiKey: credentials.dashscope_api_key,
