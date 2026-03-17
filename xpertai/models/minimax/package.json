@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-minimax",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "MiniMax AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
