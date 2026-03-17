@@ -7,10 +7,21 @@ import { ConfigModule } from '@nestjs/config';
 import chalk from 'chalk';
 import { TongyiProviderStrategy } from './provider.strategy.js';
 import { TongyiLargeLanguageModel } from './llm/llm.js';
+import { TongyiTextEmbeddingModel } from './text-embedding/text-embedding.js';
+import { TongyiTTSModel } from './tts/tts.js';
+import { TongyiSpeech2TextModel } from './speech2text/speech2text.js';
+import { TongyiRerankModel } from './rerank/rerank.js';
 
 @XpertServerPlugin({
   imports: [ConfigModule],
-  providers: [TongyiProviderStrategy, TongyiLargeLanguageModel],
+  providers: [
+    TongyiProviderStrategy,
+    TongyiLargeLanguageModel,
+    TongyiTextEmbeddingModel,
+    TongyiTTSModel,
+    TongyiSpeech2TextModel,
+    TongyiRerankModel,
+  ],
 })
 export class TongyiModule implements IOnPluginBootstrap, IOnPluginDestroy {
   private logEnabled = true;
