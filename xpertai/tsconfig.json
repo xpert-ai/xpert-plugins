@@ -119,6 +119,9 @@
     },
     {
       "path": "./middlewares/playwright-cli"
+    },
+    {
+      "path": "./models/tongyi"
     }
   ]
 }

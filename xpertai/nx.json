@@ -83,7 +83,8 @@
       "@xpert-ai/plugin-openai",
       "@xpert-ai/plugin-model-retry",
       "@xpert-ai/plugin-tool-retry",
-      "@xpert-ai/plugin-playwright-cli"
+      "@xpert-ai/plugin-playwright-cli",
+      "@xpert-ai/plugin-tongyi"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
