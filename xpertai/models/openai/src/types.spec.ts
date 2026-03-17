@@ -1,9 +1,11 @@
 import { OpenAIBaseInput } from '@langchain/openai'
 import {
   isOpenAIOfficialBaseUrl,
+  isOpenAIGPT5ProModel,
   normalizeOpenAIBaseUrl,
   OpenAICredentials,
   OpenAIDefaultBaseUrl,
+  shouldEnableResponseFormat,
   shouldEnableSamplingParameters,
   toCredentialKwargs
 } from './types.js'
@@ -39,10 +41,30 @@ describe('OpenAI credential kwargs', () => {
     expect(isOpenAIOfficialBaseUrl('https://api.example.com/v1')).toBe(false)
   })
 
+  it('detects GPT-5 Pro model variants', () => {
+    expect(isOpenAIGPT5ProModel('gpt-5-pro')).toBe(true)
+    expect(isOpenAIGPT5ProModel('gpt-5.2-pro')).toBe(true)
+    expect(isOpenAIGPT5ProModel('gpt-5.4-pro')).toBe(true)
+    expect(isOpenAIGPT5ProModel('gpt-5.4')).toBe(false)
+  })
+
   it('supports configurable sampling parameter strategy', () => {
-    expect(shouldEnableSamplingParameters('enabled', 'https://api.example.com/v1')).toBe(true)
-    expect(shouldEnableSamplingParameters('disabled', 'https://api.openai.com/v1')).toBe(false)
-    expect(shouldEnableSamplingParameters('auto', 'https://api.openai.com/v1')).toBe(true)
-    expect(shouldEnableSamplingParameters('auto', 'https://api.example.com/v1')).toBe(false)
+    expect(shouldEnableSamplingParameters('enabled', 'https://api.example.com/v1', 'gpt-5.4-pro')).toBe(
+      true
+    )
+    expect(shouldEnableSamplingParameters('disabled', 'https://api.openai.com/v1', 'gpt-5.4')).toBe(
+      false
+    )
+    expect(shouldEnableSamplingParameters('auto', 'https://api.openai.com/v1', 'gpt-5.4')).toBe(true)
+    expect(shouldEnableSamplingParameters('auto', 'https://api.openai.com/v1', 'gpt-5.4-pro')).toBe(
+      false
+    )
+    expect(shouldEnableSamplingParameters('auto', 'https://api.example.com/v1', 'gpt-5.4')).toBe(false)
+  })
+
+  it('disables response_format for official GPT-5 Pro models only', () => {
+    expect(shouldEnableResponseFormat('https://api.openai.com/v1', 'gpt-5.4')).toBe(true)
+    expect(shouldEnableResponseFormat('https://api.openai.com/v1', 'gpt-5.4-pro')).toBe(false)
+    expect(shouldEnableResponseFormat('https://gateway.example.com/v1', 'gpt-5.4-pro')).toBe(true)
   })
 })

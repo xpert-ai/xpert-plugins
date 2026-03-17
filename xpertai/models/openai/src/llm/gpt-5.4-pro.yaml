@@ -1,44 +1,27 @@
-model: gpt-5.2
+model: gpt-5.4-pro
 label:
-  en_US: GPT-5.2
-  zh_Hans: GPT-5.2
+  en_US: GPT-5.4 Pro
+  zh_Hans: GPT-5.4 Pro
 model_type: llm
 features:
   - agent-thought
   - tool-call
   - multi-tool-call
   - stream-tool-call
-  - structured-output
   - vision
 model_properties:
   mode: chat
   context_size: 400000
   max_output: 128000
 parameter_rules:
-  - name: temperature
-    use_template: temperature
-    default: 1
-    min: 0.0
-    max: 2.0
-    help:
-      zh_Hans: 采样温度，控制输出的随机性。
-      en_US: Sampling temperature, controls the randomness of the output.
   - name: max_tokens
     use_template: max_tokens
     default: 32768
     min: 1
     max: 128000
     help:
-      zh_Hans: 最大输出 token 数量。GPT-5.2 支持最大 128K 输出。
-      en_US: Maximum number of output tokens. GPT-5.2 supports up to 128K output.
-  - name: top_p
-    use_template: top_p
-    default: 1
-    min: 0.0
-    max: 1.0
-    help:
-      zh_Hans: 核采样参数，控制输出的多样性。
-      en_US: Nucleus sampling parameter, controls output diversity.
+      zh_Hans: 最大输出 token 数量。
+      en_US: Maximum number of output tokens.
   - name: reasoning_effort
     label:
       zh_Hans: 推理力度
@@ -73,20 +56,8 @@ parameter_rules:
     help:
       zh_Hans: 提高讨论新话题的可能性。
       en_US: Increases the likelihood of discussing new topics.
-  - name: response_format
-    label:
-      zh_Hans: 回复格式
-      en_US: Response Format
-    type: string
-    help:
-      zh_Hans: 指定模型必须输出的格式。
-      en_US: Specifying the format that the model must output.
-    required: false
-    options:
-      - text
-      - json_object
 pricing:
-  input: '1.75'
-  output: '14'
+  input: '25'
+  output: '200'
   unit: '0.000001'
   currency: USD

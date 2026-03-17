@@ -12,6 +12,7 @@ import { isNil, omitBy } from 'lodash-es'
 import {
   OpenAICredentials,
   OpenAIModelOptions,
+  shouldEnableResponseFormat,
   shouldEnableSamplingParameters,
   toCredentialKwargs
 } from '../types.js'
@@ -48,14 +49,20 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
     const credentials = modelProvider.credentials as OpenAICredentials
     const params = toCredentialKwargs(credentials)
     const modelOptions = copilotModel.options as OpenAIModelOptions
+    const model = copilotModel.model
     const hasCustomEndpoint = !!credentials?.endpoint_url?.trim()
     const streaming = modelOptions?.streaming ?? !hasCustomEndpoint
     const supportsSamplingParams = shouldEnableSamplingParameters(
       credentials?.sampling_parameters,
-      params.configuration?.baseURL
+      params.configuration?.baseURL,
+      model
     )
+    const supportsResponseFormat = shouldEnableResponseFormat(params.configuration?.baseURL, model)
+    const responseFormat =
+      supportsResponseFormat && modelOptions?.response_format
+        ? { type: modelOptions.response_format }
+        : undefined
 
-    const model = copilotModel.model
     const fields = omitBy(
       {
         ...params,
@@ -76,7 +83,7 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
       isNil
     )
 
-    return new ChatOpenAI({
+    const chatModel = new ChatOpenAI({
       ...fields,
       verbose: options?.verbose,
       callbacks: [
@@ -87,5 +94,9 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
         profile: this.getModelProfile(model, credentials)
       }
     })
+
+    return responseFormat
+      ? (chatModel.withConfig({ response_format: responseFormat }) as ChatOpenAI)
+      : chatModel
   }
 }

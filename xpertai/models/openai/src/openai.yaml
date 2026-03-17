@@ -3,8 +3,8 @@ label:
   en_US: OpenAI
   zh_Hans: OpenAI
 description:
-  en_US: OpenAI GPT-5 model service via Responses API.
-  zh_Hans: OpenAI GPT-5 模型服务，通过 Responses API 提供。
+  en_US: OpenAI GPT-5 and GPT-5.4 model service via Responses API.
+  zh_Hans: OpenAI GPT-5 与 GPT-5.4 模型服务，通过 Responses API 提供。
 icon_small:
   en_US: icon_s_en.svg
 icon_large:

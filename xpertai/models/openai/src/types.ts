@@ -19,15 +19,19 @@ export interface OpenAICredentials {
 	sampling_parameters?: 'auto' | 'enabled' | 'disabled'
 }
 
+export type OpenAIReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
+
 export interface OpenAIModelOptions extends CommonChatModelParameters {
 	streaming?: boolean
 	top_p?: number
 	max_tokens?: number
 	frequency_penalty?: number
 	presence_penalty?: number
-	reasoning_effort?: 'low' | 'medium' | 'high' | 'xhigh'
+	reasoning_effort?: OpenAIReasoningEffort
 	response_format?: 'text' | 'json_object'
 }
+
+const OpenAIGPT5ProModelPattern = /^gpt-5(?:\.\d+)?-pro$/
 
 export function normalizeOpenAIBaseUrl(endpointUrl?: string): string {
 	if (!endpointUrl?.trim()) {
@@ -67,9 +71,14 @@ export function isOpenAIOfficialBaseUrl(baseURL?: string): boolean {
 	}
 }
 
+export function isOpenAIGPT5ProModel(model?: string): boolean {
+	return !!model?.trim() && OpenAIGPT5ProModelPattern.test(model.trim())
+}
+
 export function shouldEnableSamplingParameters(
 	mode: OpenAICredentials['sampling_parameters'],
-	baseURL?: string
+	baseURL?: string,
+	model?: string
 ): boolean {
 	if (mode === 'enabled') {
 		return true
@@ -79,7 +88,22 @@ export function shouldEnableSamplingParameters(
 		return false
 	}
 
-	return isOpenAIOfficialBaseUrl(baseURL)
+	if (!isOpenAIOfficialBaseUrl(baseURL)) {
+		return false
+	}
+
+	return !isOpenAIGPT5ProModel(model)
+}
+
+export function shouldEnableResponseFormat(
+	baseURL?: string,
+	model?: string
+): boolean {
+	if (!isOpenAIOfficialBaseUrl(baseURL)) {
+		return true
+	}
+
+	return !isOpenAIGPT5ProModel(model)
 }
 
 export function toCredentialKwargs(credentials: OpenAICredentials) {
