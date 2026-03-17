@@ -27,16 +27,15 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.8.0",
     "@types/express": "^5.0.6",
     "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.6.3",
+    "@xpert-ai/plugin-sdk": "^3.8.1",
     "i18next": "25.6.0",
-    "@metad/contracts": "^3.8.0",
+    "@metad/contracts": "^3.8.1",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "chalk": "4.1.2",

@@ -30,15 +30,14 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.8.0",
     "@types/express": "^5.0.6",
     "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.6.3",
-    "@metad/contracts": "^3.8.0",
+    "@xpert-ai/plugin-sdk": "^3.8.1",
+    "@metad/contracts": "^3.8.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/core": "^11.1.6",
