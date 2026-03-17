@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-tongyi",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Tongyi (通义千问) AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
@@ -27,7 +27,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "!**/*.tsbuildinfo"],
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
   "scripts": {
     "test": "jest",
     "prepack": "node ./scripts/copy-assets.mjs"
