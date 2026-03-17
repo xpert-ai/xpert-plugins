@@ -34,7 +34,7 @@ jest.mock('@metad/contracts', () => ({
 }))
 
 import { AIMessage } from '@langchain/core/messages'
-import { calculateRetryDelay } from './retry'
+import { calculateRetryDelay, sleep } from './retry'
 const { ModelRetryMiddleware } = require('./modelRetry')
 
 describe('ModelRetryMiddleware', () => {
@@ -46,7 +46,7 @@ describe('ModelRetryMiddleware', () => {
     tools: new Map(),
   })
 
-  const createRuntime = () => ({
+  const createRuntime = (signal?: AbortSignal) => ({
     configurable: {
       thread_id: 'thread-1',
       executionId: 'exec-1',
@@ -54,14 +54,15 @@ describe('ModelRetryMiddleware', () => {
       checkpoint_id: 'checkpoint-1',
       subscriber: undefined,
     },
+    signal,
   })
 
-  const createRequest = () => ({
+  const createRequest = (options?: { signal?: AbortSignal }) => ({
     model: { model: 'mock-model' },
     messages: [],
     tools: [],
     state: { messages: [] },
-    runtime: createRuntime(),
+    runtime: createRuntime(options?.signal),
   })
 
   async function createMiddleware(config: any) {
@@ -144,6 +145,7 @@ describe('ModelRetryMiddleware', () => {
       retryableErrorNames: ['RateLimitError'],
       initialDelayMs: 0,
       jitter: false,
+      onFailure: 'continue',
     })
     const handler = jest.fn().mockRejectedValue(new Error('boom'))
 
@@ -200,15 +202,31 @@ describe('ModelRetryMiddleware', () => {
   })
 
   it('rethrows after retries are exhausted when onFailure is error', async () => {
-    const { middleware } = await createMiddleware({
-      maxRetries: 0,
-      onFailure: 'error',
-    })
+    const { middleware } = await createMiddleware({ maxRetries: 0 })
     const handler = jest.fn().mockRejectedValue(new Error('fatal'))
 
     await expect(middleware.wrapModelCall?.(createRequest(), handler as any)).rejects.toThrow(
       'fatal'
     )
+  })
+
+  it('does not retry abort-like model errors', async () => {
+    const abortError = new Error('This operation was aborted')
+    abortError.name = 'AbortError'
+
+    const { strategy, middleware } = await createMiddleware({
+      maxRetries: 2,
+      initialDelayMs: 0,
+      jitter: false,
+    })
+    const handler = jest.fn().mockRejectedValue(abortError)
+
+    await expect(
+      middleware.wrapModelCall?.(createRequest({ signal: new AbortController().signal }), handler as any)
+    ).rejects.toThrow('This operation was aborted')
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(strategy.commandBus.execute).not.toHaveBeenCalled()
   })
 
   it('validates matcher configuration when retryAllErrors is false', async () => {
@@ -254,5 +272,17 @@ describe('ModelRetryMiddleware', () => {
     ).toBe(1250)
 
     randomSpy.mockRestore()
+  })
+
+  it('rejects sleep when the runtime is aborted during backoff', async () => {
+    const abortController = new AbortController()
+    const pending = sleep(50, abortController.signal)
+
+    abortController.abort('Request canceled')
+
+    await expect(pending).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'Request canceled',
+    })
   })
 })

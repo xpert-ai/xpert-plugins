@@ -13,7 +13,7 @@ export const retryBaseSchema = z
     retryableErrorNames: z.array(z.string().trim().min(1)).optional(),
     retryableStatusCodes: z.array(z.number().int()).optional(),
     retryableMessageIncludes: z.array(z.string().trim().min(1)).optional(),
-    onFailure: z.enum(['continue', 'error']).default('continue'),
+    onFailure: z.enum(['continue', 'error']).default('error'),
   })
   .superRefine((data, ctx) => {
     const hasMatchers =
@@ -46,6 +46,8 @@ export interface NormalizedRetryConfig {
   onFailure: RetryOnFailureMode
 }
 
+const DEFAULT_ABORT_MESSAGE = 'This operation was aborted'
+
 const normalizeStringList = (values?: string[], lowercase = false): string[] => {
   const normalized = (values ?? [])
     .map((value) => value.trim())
@@ -69,7 +71,7 @@ export function normalizeRetryConfig(input: RetryBaseConfigInput): NormalizedRet
     retryableErrorNames: normalizeStringList(input.retryableErrorNames),
     retryableStatusCodes: normalizeNumberList(input.retryableStatusCodes),
     retryableMessageIncludes: normalizeStringList(input.retryableMessageIncludes, true),
-    onFailure: input.onFailure ?? 'continue',
+    onFailure: input.onFailure ?? 'error',
   }
 }
 
@@ -89,6 +91,44 @@ export function normalizeError(error: unknown): Error {
   }
 
   return new Error(typeof error === 'string' ? error : String(error))
+}
+
+export function isAbortLikeError(error: Error): boolean {
+  const name = error.name.toLowerCase()
+  const message = error.message.toLowerCase()
+
+  return name === 'aborterror' || message.includes('abort') || message.includes('cancel')
+}
+
+export function createAbortError(signal?: AbortSignal): Error {
+  const reason = signal?.reason
+  if (reason instanceof Error) {
+    if (reason.name === 'AbortError') {
+      return reason
+    }
+
+    const abortError = new Error(reason.message || DEFAULT_ABORT_MESSAGE)
+    abortError.name = 'AbortError'
+    Object.assign(abortError, { cause: reason })
+    return abortError
+  }
+
+  const abortError = new Error(
+    typeof reason === 'string' && reason.trim().length > 0 ? reason : DEFAULT_ABORT_MESSAGE
+  )
+  abortError.name = 'AbortError'
+  if (reason !== undefined) {
+    Object.assign(abortError, { reason })
+  }
+  return abortError
+}
+
+export function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) {
+    return
+  }
+
+  throw createAbortError(signal)
 }
 
 const toStatusCode = (value: unknown): number | null => {
@@ -125,6 +165,10 @@ const extractStatusCodes = (error: Error): number[] => {
 }
 
 export function shouldRetryError(error: Error, config: NormalizedRetryConfig): boolean {
+  if (isAbortLikeError(error)) {
+    return false
+  }
+
   if (config.retryAllErrors) {
     return true
   }
@@ -157,12 +201,29 @@ export function calculateRetryDelay(
   return Math.max(0, Math.round(Math.min(config.maxDelayMs, baseDelay * jitterFactor)))
 }
 
-export async function sleep(ms: number): Promise<void> {
+export async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal)
+
   if (ms <= 0) {
     return
   }
 
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, ms)
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      signal?.removeEventListener('abort', onAbort)
+    }
+
+    const onAbort = () => {
+      clearTimeout(timer)
+      cleanup()
+      reject(createAbortError(signal))
+    }
+
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve()
+    }, ms)
+
+    signal?.addEventListener('abort', onAbort, { once: true })
   })
 }

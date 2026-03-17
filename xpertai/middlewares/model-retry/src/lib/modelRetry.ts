@@ -23,11 +23,13 @@ import { AIMessage } from '@langchain/core/messages'
 import { ModelRetryIcon } from './types.js'
 import {
   calculateRetryDelay,
+  isAbortLikeError,
   normalizeError,
   normalizeRetryConfig,
   retryBaseSchema,
   shouldRetryError,
   sleep,
+  throwIfAborted,
 } from './retry.js'
 
 export type ModelRetryMiddlewareConfig = z.input<typeof retryBaseSchema>
@@ -157,7 +159,7 @@ const configSchemaProperties: JsonSchemaObjectType['properties'] = {
   onFailure: {
     type: 'string',
     enum: ['continue', 'error'],
-    default: 'continue',
+    default: 'error',
     title: {
       en_US: 'On Failure',
       zh_Hans: '失败处理',
@@ -282,10 +284,16 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
         request: ModelRequest<AgentBuiltInState>,
         handler: WrapModelCallHandler
       ): Promise<AIMessage> => {
+        const signal = request.runtime?.signal
+
         try {
+          throwIfAborted(signal)
           return await this.invokeModel(request, handler)
         } catch (error) {
           let lastError = normalizeError(error)
+          if (isAbortLikeError(lastError)) {
+            throw lastError
+          }
 
           if (!shouldRetryError(lastError, retryConfig) || retryConfig.maxRetries === 0) {
             return handleFailure(lastError, 1)
@@ -294,13 +302,18 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
           for (let retryAttempt = 1; retryAttempt <= retryConfig.maxRetries; retryAttempt++) {
             const delay = calculateRetryDelay(retryConfig, retryAttempt - 1)
             if (delay > 0) {
-              await sleep(delay)
+              await sleep(delay, signal)
             }
 
             try {
+              throwIfAborted(signal)
               return await this.executeTrackedRetry(request, handler, context)
             } catch (retryError) {
               lastError = normalizeError(retryError)
+              if (isAbortLikeError(lastError)) {
+                throw lastError
+              }
+
               const attemptsMade = retryAttempt + 1
 
               if (!shouldRetryError(lastError, retryConfig) || retryAttempt === retryConfig.maxRetries) {

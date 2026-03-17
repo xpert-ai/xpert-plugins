@@ -10,6 +10,7 @@
 - Wraps retry attempts with `WrapWorkflowNodeExecutionCommand` so middleware-level execution tracking remains visible in Xpert.
 - Registers as a global middleware plugin so the strategy is available across the platform.
 - Treats `AIMessage.response_metadata.finish_reason === "network_error"` as a retryable model failure, even when the provider returns a message instead of throwing.
+- Respects runtime abort signals and never retries cancellation-style errors.
 
 ## Installation
 
@@ -58,7 +59,7 @@ npm install @xpert-ai/plugin-model-retry
 | `retryableErrorNames` | string[] | Retry only matching `error.name` values when `retryAllErrors=false`. | `[]` |
 | `retryableStatusCodes` | number[] | Retry matching HTTP-style status codes from `status`, `statusCode`, or `response.status`. | `[]` |
 | `retryableMessageIncludes` | string[] | Retry when the error message contains any configured fragment. Matching is case-insensitive. | `[]` |
-| `onFailure` | `"continue"` \| `"error"` | Return an `AIMessage` or rethrow after retries are exhausted. | `"continue"` |
+| `onFailure` | `"continue"` \| `"error"` | Return an `AIMessage` or rethrow after retries are exhausted. | `"error"` |
 
 ## LangChain Differences
 
@@ -66,6 +67,7 @@ npm install @xpert-ai/plugin-model-retry
 - Retry matching uses declarative JSON fields instead of runtime classes or callback functions.
 - Retry attempts are execution-tracked with Xpert workflow commands, but no model client is recreated during retries.
 - Provider responses that finish with `network_error` are normalized into an internal `ModelNetworkError` and routed through the same retry policy.
+- Abort and cancel errors are treated as terminal and are never retried or converted into fallback `AIMessage` content.
 
 ## Development & Testing
 
