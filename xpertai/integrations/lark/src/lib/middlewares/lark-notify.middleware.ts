@@ -1,4 +1,4 @@
-import { ToolMessage } from '@langchain/core/messages'
+import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput } from '@langchain/langgraph'
@@ -16,12 +16,15 @@ import { z } from 'zod/v3'
 import { LarkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
+import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
 import { iconImage } from '../types.js'
+import { toLarkApiErrorMessage } from '../utils.js'
 
 const LARK_NOTIFY_MIDDLEWARE_NAME = 'LarkNotifyMiddleware'
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_POST_LOCALE = 'en_us'
 const MAX_BATCH_CONCURRENCY = 5
+const MAX_KNOWN_RECIPIENT_SUMMARY_NAMES = 8
 
 // TODO: 当前 UI 只展示 open_id 作为 recipient_type 选项，这是阶段性策略。
 // 未来确认其他类型完整可用后可扩展（如 chat_id、user_id、union_id、email）。
@@ -46,20 +49,35 @@ const middlewareConfigSchema = z.object({
       timeoutMs: z.number().int().min(100).default(DEFAULT_TIMEOUT_MS)
     })
     .default({}),
+  lookupTools: z
+    .object({
+      enabled: z.boolean().default(false)
+    })
+    .default({})
 })
 
 const larkNotifyStateSchema = z.object({
   lark_notify_last_result: z.record(z.any()).nullable().default(null),
-  lark_notify_last_message_ids: z.array(z.string()).default([])
+  lark_notify_last_message_ids: z.array(z.string()).default([]),
+  lark_notify_known_recipients_summary: z.string().default(''),
+  lark_notify_agent_guidance: z.string().default('')
 })
+
+const RECIPIENT_NAME_FIELD_DESCRIPTION =
+  'Preferred recipient name from the current Lark conversation context. Use a real person name that has already appeared in this chat, especially someone the user previously @mentioned.'
+
+const RECIPIENT_NAMES_FIELD_DESCRIPTION =
+  'Preferred recipient names from the current Lark conversation context. Each name should refer to someone already seen in this chat, especially via earlier @mentions.'
 
 // TODO: 当前 tool-level recipient_id 的默认类型策略为 open_id。
 // 若未来需要支持 recipient_type override，可在 schema 中增加 recipient_type 参数。
 const sendTextNotificationSchema = z.object({
   content: z.string().describe('Text content to send'),
+  recipient_name: z.string().optional().nullable().describe(RECIPIENT_NAME_FIELD_DESCRIPTION),
+  recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
   // 可选的收件人 ID，若 middleware 未配置 recipient_id 则使用此值
   // 当仅传入 recipient_id 而未指定类型时，默认按 open_id 解释
-  recipient_id: z.string().optional().nullable().describe('Recipient ID (optional, defaults to open_id type)'),
+  recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -70,9 +88,11 @@ const sendRichNotificationSchema = z.object({
   markdown: z.string().optional().nullable().describe('Markdown content for post mode'),
   card: z.record(z.any()).optional().nullable().describe('Lark interactive card payload for interactive mode'),
   locale: PostLocaleSchema.optional().nullable().describe('Locale key for post mode content'),
+  recipient_name: z.string().optional().nullable().describe(RECIPIENT_NAME_FIELD_DESCRIPTION),
+  recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
   // 可选的收件人 ID，若 middleware 未配置 recipient_id 则使用此值
   // 当仅传入 recipient_id 而未指定类型时，默认按 open_id 解释
-  recipient_id: z.string().optional().nullable().describe('Recipient ID (optional, defaults to open_id type)'),
+  recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -123,6 +143,10 @@ export type LarkNotifyResult = {
 type LarkRecipient = {type: z.infer<typeof RecipientTypeSchema>; id: string}
 type LarkNotifyState = z.infer<typeof larkNotifyStateSchema>
 type LarkNotifyMiddlewareConfig = InferInteropZodInput<typeof middlewareConfigSchema>
+type LarkRecipientNameResolution =
+  | { status: 'resolved'; recipient: LarkRecipient }
+  | { status: 'not_found'; name: string }
+  | { status: 'ambiguous'; name: string }
 
 function getCurrentStateSafe() {
   try {
@@ -267,6 +291,50 @@ function normalizeRecipientIdValues(value: unknown): string[] {
   return []
 }
 
+function normalizeNameValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeNameValues(item))
+  }
+  return normalizeRecipientIdValues(value)
+}
+
+function toSystemMessageText(content: unknown): string {
+  if (typeof content === 'string') {
+    return content
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item
+        }
+        if (item && typeof item === 'object' && 'text' in item) {
+          return String((item as Record<string, unknown>).text ?? '')
+        }
+        return JSON.stringify(item)
+      })
+      .join('\n')
+  }
+  if (content == null) {
+    return ''
+  }
+  return String(content)
+}
+
+function resolveFirstStringByPaths(
+  source: Record<string, unknown>,
+  paths: readonly string[]
+): string | null {
+  for (const path of paths) {
+    const value = getValueByPath(source, path)
+    const normalized = normalizeString(value)
+    if (normalized) {
+      return normalized
+    }
+  }
+  return null
+}
+
 function normalizeRecipients(value: unknown, state: Record<string, unknown>): LarkRecipient[] {
   const recipientTypes = RecipientTypeSchema.options as readonly string[]
   if (!Array.isArray(value)) {
@@ -331,7 +399,7 @@ function toToolMessageContent(result: LarkNotifyResult) {
 }
 
 function formatError(error: unknown): string {
-  const message = (error as any)?.response?.data?.msg || getErrorMessage(error)
+  const message = toLarkApiErrorMessage(error) || getErrorMessage(error)
   return message || 'Unknown error'
 }
 
@@ -360,11 +428,121 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
   constructor(
     private readonly larkChannel: LarkChannelStrategy,
-    private readonly conversationService: LarkConversationService
+    private readonly conversationService: LarkConversationService,
+    private readonly recipientDirectoryService: LarkRecipientDirectoryService
   ) {}
 
   private resolveTargetXpertId(context: IAgentMiddlewareContext): string | null {
     return normalizeString(context?.xpertId)
+  }
+
+  private resolveRecipientDirectoryKey(state: Record<string, unknown>): string | null {
+    return resolveFirstStringByPaths(state, [
+      'recipientDirectoryKey',
+      'runtime.recipientDirectoryKey',
+      'callback.context.recipientDirectoryKey',
+      'message.recipientDirectoryKey'
+    ])
+  }
+
+  private formatKnownRecipientsSummary(directory: Awaited<ReturnType<LarkRecipientDirectoryService['get']>>): string {
+    const entries = directory?.entries ?? []
+    if (!entries.length) {
+      return 'Known Lark recipients in this chat: none yet.'
+    }
+
+    const sorted = [...entries].sort((left, right) => (right.lastSeenAt ?? 0) - (left.lastSeenAt ?? 0))
+    const names = Array.from(
+      new Map(
+        sorted
+          .map((entry) => normalizeString(entry.name))
+          .filter((name): name is string => Boolean(name))
+          .map((name) => [name.toLocaleLowerCase(), name])
+      ).values()
+    )
+
+    if (!names.length) {
+      return 'Known Lark recipients in this chat: none yet.'
+    }
+
+    const summaryNames = names.slice(0, MAX_KNOWN_RECIPIENT_SUMMARY_NAMES)
+    const remainingCount = names.length - summaryNames.length
+    const suffix =
+      remainingCount > 0
+        ? ` plus ${remainingCount} more recent recipients.`
+        : '.'
+
+    return `Known Lark recipients in this chat (use these exact names with recipient_name): ${summaryNames.join(', ')}${suffix}`
+  }
+
+  private formatAgentGuidance(summary: string, directory: Awaited<ReturnType<LarkRecipientDirectoryService['get']>>): string {
+    const entries = directory?.entries ?? []
+    const duplicateNames = new Set<string>()
+    const seenNames = new Set<string>()
+    for (const entry of entries) {
+      const normalized = normalizeString(entry.name)?.toLocaleLowerCase()
+      const displayName = normalizeString(entry.name)
+      if (!normalized || !displayName) {
+        continue
+      }
+      if (seenNames.has(normalized)) {
+        duplicateNames.add(displayName)
+      } else {
+        seenNames.add(normalized)
+      }
+    }
+
+    const lines = [
+      'Lark notify operating rules:',
+      '- Default to lark_send_text_notification or lark_send_rich_notification.',
+      '- Prefer recipient_name and real display names from the current group context.',
+      `- ${summary}`,
+      '- Do not ask the user for open_id and do not expose open_id in normal conversation.',
+      '- Do not call lark_list_users as the default discovery step.',
+      '- If the target person is not known in this chat yet, ask the user to @mention that person first.',
+    ]
+
+    if (duplicateNames.size > 0) {
+      lines.push(
+        `- These names are currently ambiguous in this chat: ${Array.from(duplicateNames).join(', ')}. If the user refers to one of them, ask the user to @mention the target person again.`
+      )
+    } else {
+      lines.push('- If multiple people might match the same name, ask the user to @mention the target person again.')
+    }
+
+    return lines.join('\n')
+  }
+
+  private async resolveRecipientsByName(
+    directoryKey: string | null,
+    names: string[]
+  ): Promise<LarkRecipientNameResolution[]> {
+    const normalizedNames = normalizeNameValues(names)
+    if (!normalizedNames.length) {
+      return []
+    }
+
+    const resolutions: LarkRecipientNameResolution[] = []
+    for (const name of normalizedNames) {
+      const result = await this.recipientDirectoryService.resolveByName(directoryKey, name)
+      if (result.status === 'resolved') {
+        resolutions.push({
+          status: 'resolved',
+          recipient: {
+            type: 'open_id',
+            id: result.entry.openId
+          }
+        })
+        continue
+      }
+
+      resolutions.push({
+        status: result.status,
+        name
+      })
+    }
+
+    return resolutions
   }
 
   private async tryBindConversationForRecipient(params: {
@@ -428,7 +606,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       zh_Hans: '飞书通知中间件'
     },
     description: {
-      en_US: 'Provides built-in tools to send notifications to Lark users or chats.',
+      en_US:
+        'Provides Lark notification tools. Prefer sending by recipient_name from the current chat context instead of exposing open_id. If the target user has not appeared in this group context yet, ask the user to @mention that person first.',
       zh_Hans: '提供向飞书用户或群组发送通知的内置工具。'
     },
     configSchema: {
@@ -470,7 +649,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         recipient_id: {
           type: 'string',
           description: {
-            en_US: 'Optional recipient ID. Can also be provided by AI during tool call.',
+            en_US: 'Optional fallback recipient ID. For normal conversations, prefer recipient_name so the model can work with real names instead of open_id.',
             zh_Hans: '可选收件人 ID。也可由 AI 在工具调用时动态提供。'
           },
           'x-ui': {
@@ -535,6 +714,26 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             span: 2
           }
         },
+        lookupTools: {
+          type: 'object',
+          properties: {
+            enabled: {
+              type: 'boolean',
+              default: false,
+              title: {
+                en_US: 'Enable Lookup Tools',
+                zh_Hans: '启用查找工具'
+              },
+              description: {
+                en_US: 'Expose list users/chats tools for admin or debugging only. Keep disabled for normal name-based chat flows.',
+                zh_Hans: '仅在管理或调试场景下暴露查找工具。正常按名字发送流程建议保持关闭。'
+              }
+            }
+          },
+          'x-ui': {
+            span: 2
+          }
+        },
       }
     } as TAgentMiddlewareMeta['configSchema']
   }
@@ -553,6 +752,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       enabled: parsed.template?.enabled !== false,
       strict: parsed.template?.strict === true
     }
+    const lookupToolsEnabled = parsed.lookupTools?.enabled === true
 
     /**
      * 解析收件人信息，优先级：
@@ -567,6 +767,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       const renderedDefaults = renderTemplateValue(parsed.defaults, state, templateOptions)
       const renderedIntegration = renderTemplateValue(parsed.integrationId, state, templateOptions)
       const integrationId = resolveStateBackedString(renderedIntegration, state)
+      const recipientDirectoryKey = this.resolveRecipientDirectoryKey(state)
       const timeoutMs = normalizeTimeout(
         (renderedInput as Record<string, unknown>)?.timeoutMs,
         normalizeTimeout(renderedDefaults.timeoutMs, DEFAULT_TIMEOUT_MS)
@@ -586,6 +787,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         renderedRecipients,
         renderedDefaults,
         integrationId,
+        recipientDirectoryKey,
         timeoutMs
       }
     }
@@ -595,19 +797,40 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
      * 1. middleware 配置的 recipient（如果存在且有效）
      * 2. tool call 传入的 recipient_id（默认按 open_id 解释）
      */
-    const resolveRecipients = (
+    const resolveRecipients = async (
       renderedRecipients: unknown,
+      toolRecipientNames: unknown,
       toolRecipientId: unknown,
-      state: Record<string, unknown>
-    ): LarkRecipient[] => {
+      state: Record<string, unknown>,
+      recipientDirectoryKey: string | null
+    ): Promise<LarkRecipient[]> => {
       // 优先使用 middleware 配置的收件人
+      const nameResolutions = await this.resolveRecipientsByName(
+        recipientDirectoryKey,
+        normalizeNameValues(toolRecipientNames)
+      )
+      const unresolved = nameResolutions.filter((item) => item.status !== 'resolved')
+      if (unresolved.length > 0) {
+        const [first] = unresolved
+        if (first.status === 'ambiguous') {
+          throw new Error(`群里有多个“${first.name}”，请先 @ 目标用户一次，我才能确认发给谁。`)
+        }
+        throw new Error(`我还不知道“${first.name}”对应的飞书账号，请先在群里 @ ${first.name} 一次。`)
+      }
+      const nameRecipients = nameResolutions
+        .filter((item): item is Extract<LarkRecipientNameResolution, { status: 'resolved' }> => item.status === 'resolved')
+        .map((item) => item.recipient)
+      if (nameRecipients.length > 0) {
+        return nameRecipients
+      }
+
+      // 回退到 tool call 传入的 recipient_id
+      // TODO: 当前默认按 open_id 解释，未来可扩展 recipient_type override
       const middlewareRecipients = normalizeRecipients(renderedRecipients, state)
       if (middlewareRecipients.length > 0) {
         return middlewareRecipients
       }
 
-      // 回退到 tool call 传入的 recipient_id
-      // TODO: 当前默认按 open_id 解释，未来可扩展 recipient_type override
       const toolRecipientIdStr = normalizeString(toolRecipientId)
       if (toolRecipientIdStr) {
         // 支持 Mustache 模板和系统变量路径
@@ -640,7 +863,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     const requireRecipients = (recipients: LarkRecipient[], toolName: string) => {
       if (!recipients.length) {
         throw new Error(
-          `[${toolName}] No valid Lark recipient was found. Please configure recipient_id in the middleware or provide recipient_id in the tool call.`
+          `[${toolName}] No valid Lark recipient was found. Prefer recipient_name from the current conversation context. If the target person has not appeared in this group chat yet, ask the user to @mention them first. Use recipient_id only as a fallback when a stable ID is already configured.`
         )
       }
       return recipients
@@ -747,11 +970,20 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_send_text_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, integrationId, timeoutMs } = resolveInput(parameters)
+          const { state, renderedInput, renderedRecipients, integrationId, recipientDirectoryKey, timeoutMs } = resolveInput(parameters)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           // 收件人解析优先级：middleware 配置 > tool call 参数
           const recipients = requireRecipients(
-            resolveRecipients(renderedRecipients, (renderedInput as Record<string, unknown>)?.recipient_id, state),
+            await resolveRecipients(
+              renderedRecipients,
+              [
+                (renderedInput as Record<string, unknown>)?.recipient_name,
+                (renderedInput as Record<string, unknown>)?.recipient_names
+              ],
+              (renderedInput as Record<string, unknown>)?.recipient_id,
+              state,
+              recipientDirectoryKey
+            ),
             toolName
           )
           const content = normalizeString(renderedInput.content)
@@ -796,7 +1028,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         },
         {
           name: 'lark_send_text_notification',
-          description: 'Send text notifications to Lark users/chats with partial-success batch semantics.',
+          description:
+            'Send a text notification in Lark. Prefer recipient_name from the current conversation context, especially names learned from earlier @mentions in this chat. If the person has not been identified in this chat yet, ask the user to @mention them first instead of asking for open_id.',
           schema: sendTextNotificationSchema,
           verboseParsingErrors: true
         }
@@ -808,12 +1041,21 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_send_rich_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, renderedDefaults, integrationId, timeoutMs } =
+          const { state, renderedInput, renderedRecipients, renderedDefaults, integrationId, recipientDirectoryKey, timeoutMs } =
             resolveInput(parameters)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           // 收件人解析优先级：middleware 配置 > tool call 参数
           const recipients = requireRecipients(
-            resolveRecipients(renderedRecipients, (renderedInput as Record<string, unknown>)?.recipient_id, state),
+            await resolveRecipients(
+              renderedRecipients,
+              [
+                (renderedInput as Record<string, unknown>)?.recipient_name,
+                (renderedInput as Record<string, unknown>)?.recipient_names
+              ],
+              (renderedInput as Record<string, unknown>)?.recipient_id,
+              state,
+              recipientDirectoryKey
+            ),
             toolName
           )
           const mode = renderedInput.mode as 'post' | 'interactive'
@@ -891,7 +1133,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         },
         {
           name: 'lark_send_rich_notification',
-          description: 'Send post/interactive notifications to Lark users/chats with partial-success batch semantics.',
+          description:
+            'Send a rich Lark notification (post or interactive card). Prefer recipient_name from the current conversation context, especially names learned from earlier @mentions in this chat. If the person has not been identified in this chat yet, ask the user to @mention them first instead of asking for open_id.',
           schema: sendRichNotificationSchema,
           verboseParsingErrors: true
         }
@@ -1030,154 +1273,192 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       )
     )
 
-    tools.push(
-      tool(
-        async (parameters, config) => {
-          const toolName = 'lark_list_users'
-          const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
-          const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
-          const pageToken = normalizeString(renderedInput.pageToken)
+    if (lookupToolsEnabled) {
+      tools.push(
+        tool(
+          async (parameters, config) => {
+            const toolName = 'lark_list_users'
+            const toolCallId = getToolCallIdFromConfig(config)
+            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+            const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
+            const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
+            const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
+            const pageToken = normalizeString(renderedInput.pageToken)
 
-          const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
-          let response: Awaited<ReturnType<typeof client.contact.v3.user.findByDepartment>>;
-          try {
-            response = await withTimeout(
-              client.contact.v3.user.findByDepartment({
-                params: {
-                  user_id_type: 'open_id',
-                  department_id_type: 'open_department_id',
-                  department_id: '0',
-                  page_size: pageSize,
-                  page_token: pageToken || undefined
-                },
-              }),
-              timeoutMs,
-              `[${toolName}] list users`
-            )
-          } catch (error) {
-            throw new Error(`[${toolName}] Failed to list users: ${formatError(error)}`)
-          }
-
-          const items = (response?.data?.items ?? [])
-            .map((item) => ({
-              open_id: item?.open_id ?? null,
-              union_id: item?.union_id ?? null,
-              user_id: item?.user_id ?? null,
-              name: item?.name ?? null,
-              email: item?.email ?? null,
-              mobile: item?.mobile ?? null,
-              avatar: item?.avatar?.avatar_240 ?? null
-            }))
-            .filter((item) => {
-              if (!keyword) {
-                return true
-              }
-              const values = [item.name, item.email, item.mobile, item.user_id, item.open_id, item.union_id]
-              return values.some((value) => String(value || '').toLowerCase().includes(keyword))
-            })
-
-          const result: LarkNotifyResult = {
-            tool: toolName,
-            integrationId: resolvedIntegrationId,
-            successCount: 1,
-            failureCount: 0,
-            results: [{ target: 'users', success: true }],
-            data: {
-              items,
-              pageToken: response?.data?.page_token ?? null,
-              hasMore: response?.data?.has_more ?? false
+            const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
+            let response: Awaited<ReturnType<typeof client.contact.v3.user.findByDepartment>>;
+            try {
+              response = await withTimeout(
+                client.contact.v3.user.findByDepartment({
+                  params: {
+                    user_id_type: 'open_id',
+                    department_id_type: 'open_department_id',
+                    department_id: '0',
+                    page_size: pageSize,
+                    page_token: pageToken || undefined
+                  },
+                }),
+                timeoutMs,
+                `[${toolName}] list users`
+              )
+            } catch (error) {
+              throw new Error(`[${toolName}] Failed to list users: ${formatError(error)}`)
             }
-          }
 
-          this.logger.log(`[${toolName}] integrationId=${resolvedIntegrationId}, successCount=1, failureCount=0`)
-
-          return buildCommand(toolName, toolCallId, result)
-        },
-        {
-          name: 'lark_list_users',
-          description: 'List users available for Lark notifications.',
-          schema: listUsersSchema,
-          verboseParsingErrors: true
-        }
-      )
-    )
-
-    tools.push(
-      tool(
-        async (parameters, config) => {
-          const toolName = 'lark_list_chats'
-          const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
-          const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
-          const pageToken = normalizeString(renderedInput.pageToken)
-
-          const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
-          let response: Awaited<ReturnType<typeof client.im.chat.list>>;
-          try {
-            response = await withTimeout(
-              client.im.chat.list({
-                params: {
-                  page_size: pageSize,
-                  page_token: pageToken || undefined
+            const items = (response?.data?.items ?? [])
+              .map((item) => ({
+                name: item?.name ?? null,
+                email: item?.email ?? null,
+                mobile: item?.mobile ?? null,
+                avatar: item?.avatar?.avatar_240 ?? null
+              }))
+              .filter((item) => {
+                if (!keyword) {
+                  return true
                 }
-              }),
-              timeoutMs,
-              `[${toolName}] list chats`
-            )
-          } catch (error) {
-            throw new Error(`[${toolName}] Failed to list chats: ${formatError(error)}`)
-          }
+                const values = [item.name, item.email, item.mobile]
+                return values.some((value) => String(value || '').toLowerCase().includes(keyword))
+              })
 
-          const items = (response?.data?.items ?? [])
-            .map((item) => ({
-              ...item,
-              chat_id: item?.chat_id ?? null,
-              name: item?.name ?? null,
-              avatar: item?.avatar ?? null,
-              description: item?.description ?? null,
-            }))
-            .filter((item) => {
-              if (!keyword) {
-                return true
+            const result: LarkNotifyResult = {
+              tool: toolName,
+              integrationId: resolvedIntegrationId,
+              successCount: 1,
+              failureCount: 0,
+              results: [{ target: 'users', success: true }],
+              data: {
+                items,
+                pageToken: response?.data?.page_token ?? null,
+                hasMore: response?.data?.has_more ?? false
               }
-              const values = [item.name, item.chat_id, item.description]
-              return values.some((value) => String(value || '').toLowerCase().includes(keyword))
-            })
-
-          const result: LarkNotifyResult = {
-            tool: toolName,
-            integrationId: resolvedIntegrationId,
-            successCount: 1,
-            failureCount: 0,
-            results: [{ target: 'chats', success: true }],
-            data: {
-              items,
-              pageToken: response?.data?.page_token ?? null,
-              hasMore: response?.data?.has_more ?? false
             }
+
+            this.logger.log(`[${toolName}] integrationId=${resolvedIntegrationId}, successCount=1, failureCount=0`)
+
+            return buildCommand(toolName, toolCallId, result)
+          },
+          {
+            name: 'lark_list_users',
+            description:
+              'List users available for Lark notifications. This is a fallback or admin/debug tool, not the primary way to pick recipients during chat. Prefer recipient_name from the current group context when possible.',
+            schema: listUsersSchema,
+            verboseParsingErrors: true
           }
-
-          this.logger.log(`[${toolName}] integrationId=${resolvedIntegrationId}, successCount=1, failureCount=0`)
-
-          return buildCommand(toolName, toolCallId, result)
-        },
-        {
-          name: 'lark_list_chats',
-          description: 'List chats available for Lark notifications.',
-          schema: listChatsSchema,
-          verboseParsingErrors: true
-        }
+        )
       )
-    )
+
+      tools.push(
+        tool(
+          async (parameters, config) => {
+            const toolName = 'lark_list_chats'
+            const toolCallId = getToolCallIdFromConfig(config)
+            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+            const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
+            const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
+            const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
+            const pageToken = normalizeString(renderedInput.pageToken)
+
+            const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
+            let response: Awaited<ReturnType<typeof client.im.chat.list>>;
+            try {
+              response = await withTimeout(
+                client.im.chat.list({
+                  params: {
+                    page_size: pageSize,
+                    page_token: pageToken || undefined
+                  }
+                }),
+                timeoutMs,
+                `[${toolName}] list chats`
+              )
+            } catch (error) {
+              throw new Error(`[${toolName}] Failed to list chats: ${formatError(error)}`)
+            }
+
+            const items = (response?.data?.items ?? [])
+              .map((item) => ({
+                ...item,
+                chat_id: item?.chat_id ?? null,
+                name: item?.name ?? null,
+                avatar: item?.avatar ?? null,
+                description: item?.description ?? null,
+              }))
+              .filter((item) => {
+                if (!keyword) {
+                  return true
+                }
+                const values = [item.name, item.chat_id, item.description]
+                return values.some((value) => String(value || '').toLowerCase().includes(keyword))
+              })
+
+            const result: LarkNotifyResult = {
+              tool: toolName,
+              integrationId: resolvedIntegrationId,
+              successCount: 1,
+              failureCount: 0,
+              results: [{ target: 'chats', success: true }],
+              data: {
+                items,
+                pageToken: response?.data?.page_token ?? null,
+                hasMore: response?.data?.has_more ?? false
+              }
+            }
+
+            this.logger.log(`[${toolName}] integrationId=${resolvedIntegrationId}, successCount=1, failureCount=0`)
+
+            return buildCommand(toolName, toolCallId, result)
+          },
+          {
+            name: 'lark_list_chats',
+            description: 'List chats available for Lark notifications. This tool is mainly intended for admin or debugging flows.',
+            schema: listChatsSchema,
+            verboseParsingErrors: true
+          }
+        )
+      )
+    }
 
     return {
       name: LARK_NOTIFY_MIDDLEWARE_NAME,
       stateSchema: larkNotifyStateSchema,
+      beforeAgent: async (state, runtime) => {
+        const rootState =
+          ((runtime as Record<string, unknown> | undefined)?.state as Record<string, unknown> | undefined) ??
+          {}
+        const recipientDirectoryKey =
+          this.resolveRecipientDirectoryKey(rootState) || this.resolveRecipientDirectoryKey((state ?? {}) as Record<string, unknown>)
+        const directory = await this.recipientDirectoryService.get(recipientDirectoryKey)
+        const summary = this.formatKnownRecipientsSummary(directory)
+        const guidance = this.formatAgentGuidance(summary, directory)
+
+        return {
+          lark_notify_known_recipients_summary: summary,
+          lark_notify_agent_guidance: guidance
+        }
+      },
+      wrapModelCall: async (request, handler) => {
+        const guidance = normalizeString((request.state as Record<string, unknown>)?.lark_notify_agent_guidance)
+        if (!guidance) {
+          return handler(request)
+        }
+
+        const baseSystemContent = toSystemMessageText(request.systemMessage?.content).trim()
+        const mergedSystemContent = [
+          baseSystemContent,
+          '<lark_notify_guidance>',
+          guidance,
+          '</lark_notify_guidance>'
+        ]
+          .filter(Boolean)
+          .join('\n\n')
+
+        return handler({
+          ...request,
+          systemMessage: new SystemMessage({
+            content: mergedSystemContent
+          })
+        })
+      },
       tools
     }
   }

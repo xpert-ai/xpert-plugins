@@ -1,3 +1,4 @@
+import { SystemMessage } from '@langchain/core/messages'
 import { Command } from '@langchain/langgraph'
 import * as langgraph from '@langchain/langgraph'
 import {
@@ -17,6 +18,9 @@ function createBaseConfig(): LarkNotifyMiddlewareConfig {
     defaults: {
       postLocale: 'en_us',
       timeoutMs: 1000
+    },
+    lookupTools: {
+      enabled: false
     }
   }
 }
@@ -118,8 +122,16 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
   const conversationService = {
     setConversation: jest.fn().mockResolvedValue(undefined)
   }
+  const recipientDirectoryService = {
+    get: jest.fn().mockResolvedValue(null),
+    resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' })
+  }
 
-  const strategy = new LarkNotifyMiddleware(larkChannel as any, conversationService as any)
+  const strategy = new LarkNotifyMiddleware(
+    larkChannel as any,
+    conversationService as any,
+    recipientDirectoryService as any
+  )
   const middleware = await Promise.resolve(strategy.createMiddleware(mergeConfig(config), {} as any))
 
   return {
@@ -130,7 +142,8 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
     messageDelete,
     listUsers,
     listChats,
-    conversationService
+    conversationService,
+    recipientDirectoryService
   }
 }
 
@@ -155,10 +168,104 @@ describe('LarkNotifyMiddleware', () => {
       'lark_send_text_notification',
       'lark_send_rich_notification',
       'lark_update_message',
+      'lark_recall_message'
+    ])
+  })
+
+  it('exposes lookup tools only when explicitly enabled', async () => {
+    const { middleware } = await createFixture({
+      lookupTools: {
+        enabled: true
+      }
+    })
+
+    expect(middleware.tools.map((tool) => tool.name)).toEqual([
+      'lark_send_text_notification',
+      'lark_send_rich_notification',
+      'lark_update_message',
       'lark_recall_message',
       'lark_list_users',
       'lark_list_chats'
     ])
+  })
+
+  it('resolves recipient_name from callback context directory key', async () => {
+    const { middleware, messageCreate, recipientDirectoryService } = await createFixture({
+      recipient_id: null,
+      recipient_type: null
+    })
+    recipientDirectoryService.resolveByName.mockResolvedValue({
+      status: 'resolved',
+      entry: {
+        ref: 'u_1',
+        openId: 'ou_tom',
+        name: 'Tom Jerry',
+        aliases: ['Tom Jerry'],
+        source: 'mention',
+        firstSeenAt: Date.now(),
+        lastSeenAt: Date.now()
+      }
+    })
+
+    jest.spyOn(langgraph, 'getCurrentTaskInput').mockReturnValue({
+      callback: {
+        context: {
+          recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+        }
+      }
+    } as any)
+
+    await getTool(middleware, 'lark_send_text_notification').invoke(
+      {
+        recipient_name: 'Tom Jerry',
+        content: 'hello Tom'
+      },
+      {
+        metadata: {
+          tool_call_id: 'tool-call-id'
+        }
+      }
+    )
+
+    expect(recipientDirectoryService.resolveByName).toHaveBeenCalledWith(
+      'lark:recipient-dir:integration-1:chat:chat-1',
+      'Tom Jerry'
+    )
+    expect(messageCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          receive_id_type: 'open_id'
+        }),
+        data: expect.objectContaining({
+          receive_id: 'ou_tom'
+        })
+      })
+    )
+  })
+
+  it('asks user to mention first when recipient_name is missing from directory', async () => {
+    const { middleware, recipientDirectoryService } = await createFixture({
+      recipient_id: null,
+      recipient_type: null
+    })
+    recipientDirectoryService.resolveByName.mockResolvedValue({
+      status: 'not_found'
+    })
+
+    jest.spyOn(langgraph, 'getCurrentTaskInput').mockReturnValue({
+      callback: {
+        context: {
+          recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+        }
+      }
+    } as any)
+
+    await expect(
+      getTool(middleware, 'lark_send_text_notification').invoke({
+        recipient_name: 'Unknown User',
+        content: 'hello'
+      })
+    ).rejects.toThrow('请先在群里 @ Unknown User 一次')
   })
 
   it('uses middleware integration and default recipients even when tool params provide overrides', async () => {
@@ -630,7 +737,11 @@ describe('LarkNotifyMiddleware', () => {
   })
 
   it('lists users and chats with pagination and keyword filter', async () => {
-    const { middleware, listUsers, listChats } = await createFixture()
+    const { middleware, listUsers, listChats } = await createFixture({
+      lookupTools: {
+        enabled: true
+      }
+    })
 
     const usersResult = await getTool(middleware, 'lark_list_users').invoke(
       {
@@ -681,6 +792,7 @@ describe('LarkNotifyMiddleware', () => {
         items: [expect.objectContaining({ name: 'Tom Jerry' })]
       })
     )
+    expect(usersResult.update.lark_notify_last_result.data.items[0].open_id).toBeUndefined()
 
     expect(chatsResult.update.lark_notify_last_result.data).toEqual(
       expect.objectContaining({
@@ -689,6 +801,85 @@ describe('LarkNotifyMiddleware', () => {
         items: [expect.objectContaining({ name: 'Analytics Team' })]
       })
     )
+  })
+
+  it('beforeAgent injects known recipient summary and wrapModelCall appends guidance', async () => {
+    const { middleware, recipientDirectoryService } = await createFixture({
+      recipient_id: null,
+      recipient_type: null
+    })
+    recipientDirectoryService.get.mockResolvedValue({
+      scopeType: 'group',
+      integrationId: 'integration-1',
+      chatId: 'chat-1',
+      entries: [
+        {
+          ref: 'u_1',
+          openId: 'ou_tom',
+          name: 'Tom Jerry',
+          aliases: ['Tom Jerry'],
+          source: 'mention',
+          firstSeenAt: Date.now(),
+          lastSeenAt: Date.now()
+        },
+        {
+          ref: 'u_2',
+          openId: 'ou_alice',
+          name: 'Alice',
+          aliases: ['Alice'],
+          source: 'mention',
+          firstSeenAt: Date.now(),
+          lastSeenAt: Date.now() - 1000
+        }
+      ]
+    })
+
+    const beforeAgent =
+      typeof middleware.beforeAgent === 'function' ? middleware.beforeAgent : middleware.beforeAgent?.hook
+    expect(beforeAgent).toBeDefined()
+
+    const stateUpdate = await beforeAgent?.(
+      {
+        lark_notify_known_recipients_summary: '',
+        lark_notify_agent_guidance: ''
+      } as any,
+      {
+        state: {
+          callback: {
+            context: {
+              recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+            }
+          }
+        }
+      } as any
+    )
+
+    expect(recipientDirectoryService.get).toHaveBeenCalledWith('lark:recipient-dir:integration-1:chat:chat-1')
+    expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Tom Jerry')
+    expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Alice')
+    expect(stateUpdate?.lark_notify_agent_guidance).toContain('Do not call lark_list_users as the default discovery step.')
+
+    const handler = jest.fn().mockResolvedValue('ok')
+    await middleware.wrapModelCall?.(
+      {
+        state: stateUpdate as any,
+        runtime: {} as any,
+        messages: [],
+        tools: [],
+        model: {} as any,
+        systemMessage: new SystemMessage('Base system prompt')
+      } as any,
+      handler as any
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemMessage: expect.objectContaining({
+          content: expect.stringContaining('<lark_notify_guidance>')
+        })
+      })
+    )
+    expect((handler.mock.calls[0][0].systemMessage as SystemMessage).content).toContain('Tom Jerry')
   })
 
   it('throws clear errors when integration or recipients is missing', async () => {
