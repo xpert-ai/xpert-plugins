@@ -79,6 +79,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.chatContext.senderOpenId
   }
 
+  get recipientDirectoryKey() {
+    return this.chatContext.recipientDirectoryKey
+  }
+
   public header = null
   public elements: LarkRenderElement[] = []
   set renderItems(value: LarkRenderItem[]) {

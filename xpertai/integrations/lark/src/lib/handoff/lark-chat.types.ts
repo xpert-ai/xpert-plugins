@@ -54,6 +54,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	integrationId?: string
 	chatId?: string
 	senderOpenId?: string
+	recipientDirectoryKey?: string
 	reject?: boolean
 	streaming?: {
 		updateWindowMs?: number

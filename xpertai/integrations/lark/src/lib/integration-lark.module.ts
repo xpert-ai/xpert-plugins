@@ -12,6 +12,7 @@ import { LarkTokenStrategy } from './auth/lark-token.strategy.js'
 import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 import { LarkChatRunStateService } from './handoff/lark-chat-run-state.service.js'
 import { LarkChatStreamCallbackProcessor } from './handoff/lark-chat-callback.processor.js'
+import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
 import { ChatBILarkMiddleware, LarkNotifyMiddleware } from './middlewares/index.js'
@@ -36,6 +37,7 @@ import { Handlers } from './handoff/commands/handlers/index.js'
 		LarkChatDispatchService,
 		LarkChatRunStateService,
 		LarkChatStreamCallbackProcessor,
+		LarkRecipientDirectoryService,
 		LarkTokenStrategy,
 		ChatBILarkMiddleware,
 		LarkNotifyMiddleware,
@@ -48,6 +50,7 @@ import { Handlers } from './handoff/commands/handlers/index.js'
 		LarkIntegrationStrategy,
 		LarkTriggerStrategy,
 		LarkChatDispatchService,
+		LarkRecipientDirectoryService,
 		ChatBILarkMiddleware,
 		LarkNotifyMiddleware
 	]

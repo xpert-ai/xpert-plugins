@@ -228,10 +228,24 @@ describe('LarkConversationService', () => {
 			patchInteractiveMessage: jest.fn().mockResolvedValue(undefined),
 			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } })
 		}
+		const recipientDirectoryService = {
+			buildKey: jest.fn().mockImplementation(({ integrationId, chatType, chatId, senderOpenId }) => {
+				if (!integrationId) {
+					return null
+				}
+				return chatType === 'group'
+					? `lark:recipient-dir:${integrationId}:chat:${chatId}`
+					: `lark:recipient-dir:${integrationId}:user:${senderOpenId}`
+			}),
+			upsertSender: jest.fn().mockResolvedValue(undefined),
+			upsertMentions: jest.fn().mockResolvedValue(undefined),
+			resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' })
+		}
 		const service = new LarkConversationService(
 			commandBus as any,
 			cache as any,
 			larkChannel as any,
+			recipientDirectoryService as any,
 			conversationBindingRepository as any,
 			triggerBindingRepository as any,
 			pluginContext as any
@@ -243,6 +257,7 @@ describe('LarkConversationService', () => {
 			larkChannel,
 			integrationPermissionService,
 			larkTriggerStrategy,
+			recipientDirectoryService,
 			conversationBindingRepository,
 			triggerBindingRepository,
 			persistedConversationBindings
@@ -688,5 +703,49 @@ describe('LarkConversationService', () => {
 
 		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
+	})
+
+	it('processMessage prefers semanticMessage agentText and keeps recipientDirectoryKey in dispatch payload', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			semanticMessage: {
+				rawText: '<at user_id="ou_user_1">Tom Jerry</at> hi',
+				displayText: '@Tom Jerry hi',
+				agentText: 'Tom Jerry hi',
+				mentions: [
+					{
+						key: '@_user_1',
+						id: 'ou_user_1',
+						idType: 'open_id',
+						name: 'Tom Jerry',
+						rawToken: '<at user_id="ou_user_1">Tom Jerry</at>'
+					}
+				]
+			},
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'fallback text' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe('Tom Jerry hi')
+		expect(dispatchCommands[0].input.larkMessage.recipientDirectoryKey).toBe(
+			'lark:recipient-dir:integration-1:chat:chat-1'
+		)
 	})
 })

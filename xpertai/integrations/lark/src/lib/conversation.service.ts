@@ -25,12 +25,16 @@ import {
 import { translate } from './i18n.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { DispatchLarkChatCommand, DispatchLarkChatPayload } from './handoff/commands/dispatch-lark-chat.command.js'
+import { extractLarkSemanticMessage } from './lark-message-semantics.js'
+import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
   ChatLarkContext,
   isConfirmAction,
   isEndAction,
   isLarkCardActionValue,
+  LarkSemanticMessage,
+  RecipientDirectory,
   isRejectAction,
   resolveLarkCardActionValue,
   TIntegrationLarkOptions,
@@ -97,6 +101,7 @@ export class LarkConversationService implements OnModuleDestroy {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly larkChannel: LarkChannelStrategy,
+    private readonly recipientDirectoryService: LarkRecipientDirectoryService,
     @InjectRepository(LarkConversationBindingEntity)
     private readonly conversationBindingRepository: Repository<LarkConversationBindingEntity>,
     @InjectRepository(LarkTriggerBindingEntity)
@@ -118,6 +123,59 @@ export class LarkConversationService implements OnModuleDestroy {
       this._larkTriggerStrategy = this.pluginContext.resolve(LarkTriggerStrategy)
     }
     return this._larkTriggerStrategy
+  }
+
+  private buildRecipientDirectoryScope(params: {
+    integrationId?: string | null
+    chatType?: string | null
+    chatId?: string | null
+    senderOpenId?: string | null
+  }): Omit<RecipientDirectory, 'entries'> {
+    const normalizedChatType = params.chatType === 'group' ? 'group' : 'private'
+    return {
+      scopeType: normalizedChatType,
+      integrationId: params.integrationId ?? '',
+      chatId: params.chatId ?? undefined,
+      senderOpenId: params.senderOpenId ?? undefined
+    }
+  }
+
+  private async ensureRecipientDirectory(params: {
+    integrationId?: string | null
+    chatType?: string | null
+    chatId?: string | null
+    senderOpenId?: string | null
+    senderName?: string | null
+    semanticMessage?: LarkSemanticMessage | null
+  }): Promise<string | undefined> {
+    const key = this.recipientDirectoryService.buildKey({
+      integrationId: params.integrationId,
+      chatType: params.chatType,
+      chatId: params.chatId,
+      senderOpenId: params.senderOpenId
+    })
+    if (!key) {
+      return undefined
+    }
+
+    const scope = this.buildRecipientDirectoryScope({
+      integrationId: params.integrationId,
+      chatType: params.chatType,
+      chatId: params.chatId,
+      senderOpenId: params.senderOpenId
+    })
+
+    await this.recipientDirectoryService.upsertSender(key, {
+      scope,
+      openId: params.senderOpenId,
+      name: params.senderName
+    })
+    await this.recipientDirectoryService.upsertMentions(key, {
+      scope,
+      mentions: params.semanticMessage?.mentions ?? []
+    })
+
+    return key
   }
 
   private async getBoundXpertId(integrationId: string): Promise<string | null> {
@@ -325,7 +383,8 @@ export class LarkConversationService implements OnModuleDestroy {
       throw new Error(`Integration ${integrationId} not found`)
     }
 
-    let text = input
+    const semanticMessage = options.semanticMessage ?? extractLarkSemanticMessage(message)
+    let text = input || semanticMessage?.agentText
     if (!text && message?.message?.content) {
       try {
         const textContent = JSON.parse(message.message.content)
@@ -334,6 +393,17 @@ export class LarkConversationService implements OnModuleDestroy {
         text = message.message.content as any
       }
     }
+
+    const recipientDirectoryKey =
+      options.recipientDirectoryKey ??
+      (await this.ensureRecipientDirectory({
+        integrationId,
+        chatType: options.chatType,
+        chatId: options.chatId,
+        senderOpenId,
+        senderName: null,
+        semanticMessage
+      }))
 
     const normalizedSenderOpenId = normalizeConversationUserKey(senderOpenId)
     const latestBinding = normalizedSenderOpenId
@@ -370,7 +440,7 @@ export class LarkConversationService implements OnModuleDestroy {
     }
     const activeMessage = await this.getActiveMessage(conversationUserKey, targetXpertId)
     const larkMessage = new ChatLarkMessage(
-      { ...options, larkChannel: this.larkChannel },
+      { ...options, semanticMessage, recipientDirectoryKey, larkChannel: this.larkChannel },
       {
         text,
         language: activeMessage?.thirdPartyMessage?.language || integration.options?.preferLanguage
@@ -714,6 +784,16 @@ export class LarkConversationService implements OnModuleDestroy {
     }
 
     const userQueue = await this.getUserQueue(user.id)
+    const semanticMessage = (message as TChatInboundMessage & { semanticMessage?: LarkSemanticMessage }).semanticMessage
+      ?? extractLarkSemanticMessage(message.raw)
+    const recipientDirectoryKey = await this.ensureRecipientDirectory({
+      integrationId: ctx.integration.id,
+      chatType: message.chatType,
+      chatId: message.chatId,
+      senderOpenId: message.senderId,
+      senderName: message.senderName,
+      semanticMessage
+    })
 
     // Add task to user's queue
     await userQueue.add({
@@ -726,7 +806,9 @@ export class LarkConversationService implements OnModuleDestroy {
       message: message.raw,
       chatId: message.chatId,
       chatType: message.chatType,
-      senderOpenId: message.senderId // Lark sender's open_id
+      senderOpenId: message.senderId, // Lark sender's open_id
+      semanticMessage,
+      recipientDirectoryKey
     })
   }
 

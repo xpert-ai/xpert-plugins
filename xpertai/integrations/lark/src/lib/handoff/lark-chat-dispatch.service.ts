@@ -117,6 +117,7 @@ export class LarkChatDispatchService {
 			integrationId: larkMessage.integrationId,
 			chatId: larkMessage.chatId,
 			senderOpenId: larkMessage.senderOpenId,
+			recipientDirectoryKey: larkMessage.recipientDirectoryKey,
 			reject: Boolean(input.options?.reject),
 			streaming: this.resolveStreamingOverrideFromRequest(),
 			message: this.toMessageSnapshot(larkMessage, input.input)

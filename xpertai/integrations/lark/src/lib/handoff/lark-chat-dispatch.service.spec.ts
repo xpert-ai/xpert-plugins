@@ -15,6 +15,7 @@ function createLarkMessage(
 		integrationId: string
 		chatId: string
 		senderOpenId: string
+		recipientDirectoryKey: string
 	}> = {}
 ) {
 	return {
@@ -27,6 +28,7 @@ function createLarkMessage(
 		integrationId: 'integration-1',
 		chatId: 'chat-1',
 		senderOpenId: 'ou_sender_1',
+		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
 		update: jest.fn().mockResolvedValue(undefined),
 		...overrides
 	}
@@ -158,7 +160,8 @@ describe('LarkChatDispatchService', () => {
 				context: expect.objectContaining({
 					tenantId: 'binding-tenant-id',
 					organizationId: 'binding-organization-id',
-					userId: 'binding-creator-id'
+					userId: 'binding-creator-id',
+					recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
 				})
 			})
 		)

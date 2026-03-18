@@ -24,7 +24,9 @@ import {
 	UserPermissionService,
 } from '@xpert-ai/plugin-sdk'
 import { type Cache } from 'cache-manager'
+import { extractLarkSemanticMessage, unwrapLarkEventPayload } from './lark-message-semantics.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
+import { toLarkApiErrorMessage } from './utils.js'
 import {
 	ChatLarkContext,
 	isLarkCardActionValue,
@@ -189,19 +191,23 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	parseInboundMessage(event: any, _ctx: TChatEventContext<TIntegrationLarkOptions>): TChatInboundMessage | null {
-		const { message, sender } = event
+		const payload = unwrapLarkEventPayload(event)
+		const { message, sender } = payload ?? {}
 		if (!message) {
 			return null
 		}
 
-		let content = ''
+		const semanticMessage = extractLarkSemanticMessage(event)
+		let content = semanticMessage?.displayText || ''
 		let contentType: TChatInboundMessage['contentType'] = 'text'
 
-		try {
-			const parsed = JSON.parse(message.content)
-			content = parsed.text || ''
-		} catch {
-			content = message.content
+		if (!content) {
+			try {
+				const parsed = JSON.parse(message.content)
+				content = parsed.text || ''
+			} catch {
+				content = message.content
+			}
 		}
 
 		switch (message.message_type) {
@@ -224,23 +230,27 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			chatId: message.chat_id,
 			chatType: message.chat_type === 'p2p' ? 'private' : 'group',
 			senderId: sender?.sender_id?.open_id,
-			senderName: sender?.sender_id?.user_id,
+			senderName: (sender as any)?.name,
 			content,
 			contentType,
-			mentions: message.mentions?.map((m: any) => ({
-				id: m.id?.open_id,
-				name: m.name
-			})),
+			mentions: semanticMessage?.mentions
+				?.filter((mention) => mention.idType === 'open_id' && !!mention.id)
+				.map((mention) => ({
+					id: mention.id as string,
+					name: mention.name ?? undefined
+				})),
 			timestamp: parseInt(message.create_time),
-			raw: event
-		}
+			raw: event,
+			semanticMessage
+		} as TChatInboundMessage
 	}
 
 	parseCardAction(
 		event: any,
 		_ctx: TChatEventContext<TIntegrationLarkOptions>
 	): TChatCardAction<LarkCardActionValue> | null {
-		const { action, context, operator } = event
+		const payload = unwrapLarkEventPayload(event) ?? event?.event ?? event
+		const { action, context, operator } = payload ?? {}
 		if (!action || !context) {
 			return null
 		}
@@ -282,7 +292,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			return { success: true, messageId: result.data?.message_id }
 		} catch (error: any) {
 			this.logger.error('Failed to send text message:', error)
-			return { success: false, error: error.message }
+			return { success: false, error: toLarkApiErrorMessage(error) }
 		}
 	}
 
@@ -304,7 +314,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			return { success: true, messageId: result.data?.message_id }
 		} catch (error: any) {
 			this.logger.error('Failed to send markdown message:', error)
-			return { success: false, error: error.message }
+			return { success: false, error: toLarkApiErrorMessage(error) }
 		}
 	}
 
@@ -324,7 +334,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			return { success: true, messageId: result.data?.message_id }
 		} catch (error: any) {
 			this.logger.error('Failed to send card message:', error)
-			return { success: false, error: error.message }
+			return { success: false, error: toLarkApiErrorMessage(error) }
 		}
 	}
 
@@ -355,7 +365,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			return { success: false, error: 'Media type not fully supported yet' }
 		} catch (error: any) {
 			this.logger.error('Failed to send media message:', error)
-			return { success: false, error: error.message }
+			return { success: false, error: toLarkApiErrorMessage(error) }
 		}
 	}
 
@@ -372,7 +382,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			return { success: true, messageId }
 		} catch (error: any) {
 			this.logger.error('Failed to update message:', error)
-			return { success: false, error: error.message }
+			return { success: false, error: toLarkApiErrorMessage(error) }
 		}
 	}
 
@@ -402,7 +412,13 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				bot: null
 			}
 			this.clients.set(integration.id, item)
-			this.fetchBotInfo(client, integration.options?.isLark).then((bot) => (item.bot = bot))
+			this.fetchBotInfo(client, integration.options?.isLark)
+				.then((bot) => (item.bot = bot))
+				.catch((error) => {
+					this.logger.warn(
+						`Failed to preload Lark bot info for integration "${integration.id}": ${toLarkApiErrorMessage(error)}`
+					)
+				})
 		}
 		return item
 	}
@@ -420,13 +436,17 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	private async fetchBotInfo(client: lark.Client, isLark?: boolean) {
-		const res = await client.request({
-			method: 'GET',
-			url: this.getBotInfoUrl(isLark),
-			data: {},
-			params: {}
-		})
-		return res.bot
+		try {
+			const res = await client.request({
+				method: 'GET',
+				url: this.getBotInfoUrl(isLark),
+				data: {},
+				params: {}
+			})
+			return res.bot
+		} catch (error) {
+			throw new Error(toLarkApiErrorMessage(error))
+		}
 	}
 
 	async test(integration: IIntegration<TIntegrationLarkOptions>) {
@@ -793,7 +813,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				errors.push('Failed to get bot info from Lark API')
 			}
 		} catch (error: any) {
-			errors.push(`Lark API connection failed: ${error.message}`)
+			errors.push(`Lark API connection failed: ${toLarkApiErrorMessage(error)}`)
 		}
 
 		return {
@@ -821,7 +841,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		} catch (error: any) {
 			return {
 				success: false,
-				message: error.message
+				message: toLarkApiErrorMessage(error)
 			}
 		}
 	}
