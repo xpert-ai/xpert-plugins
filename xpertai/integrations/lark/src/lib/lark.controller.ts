@@ -186,8 +186,8 @@ export class LarkHooksController {
 		if (!id) {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
 		}
-		const client = await this.larkChannel.getOrCreateLarkClientById(id)
 		try {
+			const client = await this.larkChannel.getOrCreateLarkClientById(id)
 			const result = await client.im.chat.list()
 			const items = result.data.items
 			return items.map((item) => ({
@@ -232,10 +232,10 @@ export class LarkHooksController {
 		if (!id) {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
 		}
-		const client = await this.larkChannel.getOrCreateLarkClientById(id)
 		const normalizedDepartmentId = this.normalizeDepartmentId(departmentId)
 
 		try {
+			const client = await this.larkChannel.getOrCreateLarkClientById(id)
 			const result = await client.contact.v3.user.findByDepartment({
 				params: {
 					user_id_type: 'open_id',
@@ -268,9 +268,8 @@ export class LarkHooksController {
 			throw new BadRequestException(t('integration.Lark.Error_SelectAIntegration'))
 		}
 
-		const client = await this.larkChannel.getOrCreateLarkClientById(id)
-
 		try {
+			const client = await this.larkChannel.getOrCreateLarkClientById(id)
 			const result = await client.contact.v3.department.children({
 				path: {
 					department_id: LARK_ROOT_DEPARTMENT_ID

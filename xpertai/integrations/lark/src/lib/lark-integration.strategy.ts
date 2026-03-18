@@ -3,6 +3,7 @@ import { IIntegration, RolesEnum, TIntegrationProvider } from '@metad/contracts'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosError } from 'axios'
 import { iconImage, INTEGRATION_LARK, TIntegrationLarkOptions } from './types.js'
+import { toLarkApiErrorMessage } from './utils.js'
 
 /**
  * Lark Integration Strategy
@@ -207,7 +208,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       }
     } catch (error: any) {
       const axiosError = error as AxiosError<{ code?: number; msg?: string }>
-      const message = axiosError?.response?.data?.msg || axiosError?.message || 'Unknown error'
+      const message =
+        toLarkApiErrorMessage(error) ||
+        axiosError?.response?.data?.msg ||
+        axiosError?.message ||
+        'Unknown error'
       this.logger.error('Lark connection test failed:', error)
       throw new Error(`Lark API connection failed: ${message}`)
     }
