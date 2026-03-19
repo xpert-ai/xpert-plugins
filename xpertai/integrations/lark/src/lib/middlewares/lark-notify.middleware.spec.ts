@@ -268,6 +268,59 @@ describe('LarkNotifyMiddleware', () => {
     ).rejects.toThrow('请先在群里 @ Unknown User 一次')
   })
 
+  it('resolves recipient_name when recipientDirectoryKey is nested under an agent channel state', async () => {
+    const { middleware, messageCreate, recipientDirectoryService } = await createFixture({
+      recipient_id: null,
+      recipient_type: null
+    })
+    recipientDirectoryService.resolveByName.mockResolvedValue({
+      status: 'resolved',
+      entry: {
+        ref: 'u_1',
+        openId: 'ou_nested_tom',
+        name: '李林浩',
+        aliases: ['李林浩'],
+        source: 'mention',
+        firstSeenAt: Date.now(),
+        lastSeenAt: Date.now()
+      }
+    })
+
+    jest.spyOn(langgraph, 'getCurrentTaskInput').mockReturnValue({
+      agent_lark: {
+        callback: {
+          context: {
+            recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+          }
+        }
+      }
+    } as any)
+
+    await getTool(middleware, 'lark_send_text_notification').invoke(
+      {
+        recipient_name: '李林浩',
+        content: 'hello nested'
+      },
+      {
+        metadata: {
+          tool_call_id: 'tool-call-id'
+        }
+      }
+    )
+
+    expect(recipientDirectoryService.resolveByName).toHaveBeenCalledWith(
+      'lark:recipient-dir:integration-1:chat:chat-1',
+      '李林浩'
+    )
+    expect(messageCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          receive_id: 'ou_nested_tom'
+        })
+      })
+    )
+  })
+
   it('uses middleware integration and default recipients even when tool params provide overrides', async () => {
     const { middleware, larkChannel, messageCreate } = await createFixture({
       integrationId: 'integration-from-config',
@@ -858,6 +911,7 @@ describe('LarkNotifyMiddleware', () => {
     expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Tom Jerry')
     expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Alice')
     expect(stateUpdate?.lark_notify_agent_guidance).toContain('Do not call lark_list_users as the default discovery step.')
+    expect(stateUpdate?.lark_notify_recipient_directory_key).toBe('lark:recipient-dir:integration-1:chat:chat-1')
 
     const handler = jest.fn().mockResolvedValue('ok')
     await middleware.wrapModelCall?.(

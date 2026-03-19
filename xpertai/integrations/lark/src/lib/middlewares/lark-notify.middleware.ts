@@ -60,7 +60,8 @@ const larkNotifyStateSchema = z.object({
   lark_notify_last_result: z.record(z.any()).nullable().default(null),
   lark_notify_last_message_ids: z.array(z.string()).default([]),
   lark_notify_known_recipients_summary: z.string().default(''),
-  lark_notify_agent_guidance: z.string().default('')
+  lark_notify_agent_guidance: z.string().default(''),
+  lark_notify_recipient_directory_key: z.string().default('')
 })
 
 const RECIPIENT_NAME_FIELD_DESCRIPTION =
@@ -335,6 +336,45 @@ function resolveFirstStringByPaths(
   return null
 }
 
+function findRecipientDirectoryKeyDeep(
+  source: unknown,
+  maxDepth = 4,
+  visited = new WeakSet<object>()
+): string | null {
+  if (!source || typeof source !== 'object' || maxDepth < 0) {
+    return null
+  }
+
+  const record = source as Record<string, unknown>
+  if (visited.has(record)) {
+    return null
+  }
+  visited.add(record)
+
+  const directMatch = resolveFirstStringByPaths(record, [
+    'recipientDirectoryKey',
+    'runtime.recipientDirectoryKey',
+    'callback.context.recipientDirectoryKey',
+    'message.recipientDirectoryKey',
+    'lark_notify_recipient_directory_key'
+  ])
+  if (directMatch) {
+    return directMatch
+  }
+
+  for (const value of Object.values(record)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      continue
+    }
+    const nested = findRecipientDirectoryKeyDeep(value, maxDepth - 1, visited)
+    if (nested) {
+      return nested
+    }
+  }
+
+  return null
+}
+
 function normalizeRecipients(value: unknown, state: Record<string, unknown>): LarkRecipient[] {
   const recipientTypes = RecipientTypeSchema.options as readonly string[]
   if (!Array.isArray(value)) {
@@ -437,12 +477,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
   }
 
   private resolveRecipientDirectoryKey(state: Record<string, unknown>): string | null {
-    return resolveFirstStringByPaths(state, [
-      'recipientDirectoryKey',
-      'runtime.recipientDirectoryKey',
-      'callback.context.recipientDirectoryKey',
-      'message.recipientDirectoryKey'
-    ])
+    return findRecipientDirectoryKeyDeep(state)
   }
 
   private formatKnownRecipientsSummary(directory: Awaited<ReturnType<LarkRecipientDirectoryService['get']>>): string {
@@ -1078,6 +1113,15 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           if (mode === 'interactive' && !card && !markdown) {
             throw new Error(`[${toolName}] card or markdown is required when mode=interactive`)
           }
+          if (mode === 'interactive') {
+            await this.larkChannel.assertCardPayloadSupportedByIntegrationId(
+              resolvedIntegrationId,
+              card || {
+                elements: [{ tag: 'markdown', content: markdown }]
+              },
+              toolName
+            )
+          }
 
           const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
 
@@ -1168,6 +1212,13 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             if (!card && !markdown) {
               throw new Error(`[${toolName}] card or markdown is required when mode=interactive`)
             }
+            await this.larkChannel.assertCardPayloadSupportedByIntegrationId(
+              resolvedIntegrationId,
+              card || {
+                elements: [{ tag: 'markdown', content: markdown }]
+              },
+              toolName
+            )
             content = JSON.stringify(
               card || {
                 elements: [{ tag: 'markdown', content: markdown }]
@@ -1433,7 +1484,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
         return {
           lark_notify_known_recipients_summary: summary,
-          lark_notify_agent_guidance: guidance
+          lark_notify_agent_guidance: guidance,
+          lark_notify_recipient_directory_key: recipientDirectoryKey ?? ''
         }
       },
       wrapModelCall: async (request, handler) => {
