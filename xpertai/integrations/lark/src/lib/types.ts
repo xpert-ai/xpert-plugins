@@ -1,4 +1,4 @@
-import { ITenant, TChatConversationStatus } from '@metad/contracts'
+import type { ITenant, TChatConversationStatus } from '@metad/contracts'
 import { TDocumentAsset } from '@xpert-ai/plugin-sdk'
 import { AxiosError } from 'axios'
 
@@ -384,9 +384,39 @@ export type TIntegrationLarkOptions = {
   appSecret: string
   verificationToken: string
   encryptKey: string
+  connectionMode?: 'webhook' | 'long_connection'
   xpertId: string
   preferLanguage: string
   userProvision?: TLarkUserProvisionOptions
+}
+
+export type TLarkConnectionMode = 'webhook' | 'long_connection'
+
+export type TLarkLongConnectionState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+
+export type TLarkRuntimeStatus = {
+  integrationId: string
+  connectionMode: TLarkConnectionMode
+  connected: boolean
+  state: TLarkLongConnectionState
+  ownerInstanceId?: string | null
+  lastConnectedAt?: number | null
+  lastError?: string | null
+  failureCount?: number
+  nextReconnectAt?: number | null
+  disabledReason?: string | null
+}
+
+export type TLarkConnectionProbeState = 'connected' | 'failed'
+
+export type TLarkConnectionProbeResult = {
+  connectionMode: TLarkConnectionMode
+  connected: boolean
+  state: TLarkConnectionProbeState
+  checkedAt: number
+  endpointValidated: boolean
+  lastError?: string | null
+  recoverable?: boolean
 }
 
 export type LarkMessage = {
@@ -405,6 +435,7 @@ export type ChatLarkContext<T = any> = {
 	tenant: ITenant
 	organizationId: string
 	integrationId: string
+	connectionMode?: TLarkConnectionMode
 	userId: string
 	/**
 	 * Preferred language from integration options.

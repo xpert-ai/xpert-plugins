@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { IIntegration, RolesEnum, TIntegrationProvider } from '@metad/contracts'
+import type { IIntegration, TIntegrationProvider } from '@metad/contracts'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosError } from 'axios'
 import { iconImage, INTEGRATION_LARK, TIntegrationLarkOptions } from './types.js'
 import { toLarkApiErrorMessage } from './utils.js'
+import { LarkCapabilityService } from './lark-capability.service.js'
+import { LarkLongConnectionService } from './lark-long-connection.service.js'
+import { describeLarkProxy, getLarkAxiosRequestConfig } from './lark-network.js'
+import { RolesEnum } from './contracts-compat.js'
 
 /**
  * Lark Integration Strategy
@@ -21,6 +25,11 @@ import { toLarkApiErrorMessage } from './utils.js'
 @IntegrationStrategyKey(INTEGRATION_LARK)
 export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegrationLarkOptions> {
   private readonly logger = new Logger(LarkIntegrationStrategy.name)
+
+  constructor(
+    private readonly capabilityService: LarkCapabilityService,
+    private readonly longConnectionService: LarkLongConnectionService
+  ) {}
 
   meta: TIntegrationProvider = {
     name: INTEGRATION_LARK,
@@ -74,6 +83,21 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           },
           'x-ui': {
             component: 'password'
+          }
+        },
+        connectionMode: {
+          type: 'string',
+          title: {
+            en_US: 'Connection Mode',
+            zh_Hans: '连接方式'
+          },
+          enum: ['webhook', 'long_connection'],
+          default: 'webhook',
+          'x-ui': {
+            enumLabels: {
+              webhook: { en_US: 'Webhook', zh_Hans: 'Webhook' },
+              long_connection: { en_US: 'Long Connection', zh_Hans: '长连接' }
+            }
           }
         },
         xpertId: {
@@ -146,6 +170,12 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     return null
   }
 
+  async onDelete(integration: IIntegration<TIntegrationLarkOptions>): Promise<void> {
+    if (this.capabilityService.resolveConnectionMode(integration.options) === 'long_connection') {
+      await this.longConnectionService.disconnect(integration.id)
+    }
+  }
+
   /**
    * Validate Lark integration configuration
    *
@@ -168,6 +198,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     // Test actual connection to Lark API
     try {
       const baseUrl = config.isLark ? 'https://open.larksuite.com' : 'https://open.feishu.cn'
+      const axiosConfig = getLarkAxiosRequestConfig('https:')
+      const proxyInfo = describeLarkProxy('https:')
+      if (proxyInfo.note) {
+        this.logger.log(`[lark] ${proxyInfo.note}`)
+      }
 
       /**
        * Do a direct token request to avoid SDK-level token cache causing false-positive tests
@@ -180,6 +215,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           app_secret: config.appSecret
         },
         {
+          ...axiosConfig,
           headers: { 'Content-Type': 'application/json' },
           timeout: 10000
         }
@@ -191,6 +227,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       }
 
       const botInfoResponse = await axios.get(`${baseUrl}/open-apis/bot/v3/info`, {
+        ...axiosConfig,
         headers: {
           Authorization: `Bearer ${tokenData.tenant_access_token}`
         },
@@ -202,8 +239,28 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
         throw new Error('Failed to get bot info from Lark API')
       }
 
+      const connectionMode = this.capabilityService.resolveConnectionMode(config)
+      const capabilities = this.capabilityService.getCapabilities(config)
       const apiBaseUrl = process.env.API_BASE_URL
+      if (connectionMode === 'long_connection') {
+        const probe = await this.longConnectionService.probeConfig(config)
+        return {
+          webhookUrl: '',
+          mode: connectionMode,
+          capabilities,
+          probe,
+          warnings: [
+            '长连接模式下不支持交互卡片回调、确认/拒绝/结束会话等依赖 callback subscription 的能力。',
+            ...(probe.connected
+              ? ['长连接试连成功，可以继续保存并进入运行时状态管理。']
+              : [`长连接试连失败：${probe.lastError || 'Unknown error'}`])
+          ]
+        }
+      }
+
       return {
+        mode: connectionMode,
+        capabilities,
         webhookUrl: `${apiBaseUrl}/api/lark/webhook/${integration.id || '<save_and_get_your_integration_id>'}`
       }
     } catch (error: any) {

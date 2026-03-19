@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk'
-import { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@metad/contracts'
 import { formatLarkErrorToMarkdown, LarkFile, parseLarkClientError } from './types.js'
 
 /**

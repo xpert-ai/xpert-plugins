@@ -1,4 +1,4 @@
-import { LanguagesEnum, TChatOptions } from '@metad/contracts'
+import type { LanguagesEnum, TChatOptions } from '@metad/contracts'
 import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
@@ -37,6 +37,7 @@ export type LarkRenderItem = LarkStreamTextRenderItem | LarkEventRenderItem | La
 export interface LarkChatMessageSnapshot {
 	id?: string
 	messageId?: string
+	deliveryMode?: 'interactive' | 'text'
 	status?: string
 	language?: string
 	header?: any
@@ -50,6 +51,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	organizationId?: string
 	userId: string
 	xpertId: string
+	connectionMode?: 'webhook' | 'long_connection'
 	preferLanguage?: string
 	integrationId?: string
 	chatId?: string
@@ -71,6 +73,7 @@ export interface LarkChatHandoffPayload extends Record<string, unknown> {
 		input: {
 			input: string
 		}
+		state?: Record<string, unknown>
 		conversationId?: string
 		confirm?: boolean
 	}

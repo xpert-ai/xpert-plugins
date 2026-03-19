@@ -28,7 +28,7 @@ import {
 } from './lark-chat.types.js'
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
-import { messageContentText, XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { messageContentText, XpertAgentExecutionStatusEnum } from '../contracts-compat.js'
 
 /**
  * Callback processor for Lark stream events.
@@ -372,6 +372,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				tenant: null,
 				organizationId: context.organizationId,
 				integrationId: context.integrationId,
+				connectionMode: context.connectionMode ?? 'webhook',
 				userId: context.userId,
 				chatId: context.chatId,
 				senderOpenId: context.senderOpenId,
@@ -380,6 +381,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				{
 					id: context.message?.id,
 					messageId: context.message?.messageId,
+					deliveryMode: context.message?.deliveryMode,
 					status: context.message?.status as any,
 					language,
 				header: context.message?.header,
@@ -596,6 +598,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		return {
 			id: message.id,
 			messageId: message.messageId,
+			deliveryMode: message.deliveryMode,
 			status: message.status,
 			language: message.language,
 			header: message.header,
@@ -617,6 +620,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			thirdPartyMessage: {
 				id: message.id,
 				messageId: message.messageId,
+				deliveryMode: message.deliveryMode,
 				status: message.status,
 				language,
 				header: message.header,

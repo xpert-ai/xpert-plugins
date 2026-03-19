@@ -2,7 +2,7 @@ import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput } from '@langchain/langgraph'
-import { getToolCallIdFromConfig, TAgentMiddlewareMeta } from '@metad/contracts'
+import type { TAgentMiddlewareMeta } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   AgentMiddleware,
@@ -13,6 +13,7 @@ import {
   getErrorMessage
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
+import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { LarkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'

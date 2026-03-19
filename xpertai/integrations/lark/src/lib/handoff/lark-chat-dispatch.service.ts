@@ -1,7 +1,4 @@
-import {
-	LanguagesEnum,
-	TChatOptions
-} from '@metad/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatOptions } from '@metad/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -14,6 +11,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'crypto'
 import { LarkConversationService } from '../conversation.service.js'
+import { LanguagesEnum, STATE_VARIABLE_HUMAN } from '../contracts-compat.js'
 import { resolveConversationUserKey } from '../conversation-user-key.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
@@ -114,6 +112,7 @@ export class LarkChatDispatchService {
 			organizationId,
 			userId: executorUserId,
 			xpertId,
+			connectionMode: larkMessage.connectionMode,
 			integrationId: larkMessage.integrationId,
 			chatId: larkMessage.chatId,
 			senderOpenId: larkMessage.senderOpenId,
@@ -153,6 +152,16 @@ export class LarkChatDispatchService {
 					input: {
 						input: input.input
 					},
+					state: {
+						[STATE_VARIABLE_HUMAN]: {
+							input: input.input
+						},
+						...(larkMessage.recipientDirectoryKey
+							? {
+									recipientDirectoryKey: larkMessage.recipientDirectoryKey
+								}
+							: {})
+					},
 					conversationId,
 					confirm: input.options?.confirm
 				},
@@ -168,7 +177,7 @@ export class LarkChatDispatchService {
 						id: executorUserId,
 						tenantId
 					},
-					language: language as LanguagesEnum,
+					language: language as TLanguagesEnum,
 					channelType: 'lark',
 					integrationId: larkMessage.integrationId,
 					chatId: larkMessage.chatId,
@@ -208,6 +217,7 @@ export class LarkChatDispatchService {
 		return {
 			id: message.id,
 			messageId: message.messageId,
+			deliveryMode: message.deliveryMode,
 			status: message.status,
 			language: message.language,
 			header: message.header,
@@ -222,6 +232,7 @@ export class LarkChatDispatchService {
 			thirdPartyMessage: {
 				id: message.id,
 				messageId: message.messageId,
+				deliveryMode: message.deliveryMode,
 				status: message.status as string,
 				language: message.language,
 				header: message.header,

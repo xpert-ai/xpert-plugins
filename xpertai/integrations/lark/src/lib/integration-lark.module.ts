@@ -12,6 +12,9 @@ import { LarkTokenStrategy } from './auth/lark-token.strategy.js'
 import { LarkChatDispatchService } from './handoff/lark-chat-dispatch.service.js'
 import { LarkChatRunStateService } from './handoff/lark-chat-run-state.service.js'
 import { LarkChatStreamCallbackProcessor } from './handoff/lark-chat-callback.processor.js'
+import { LarkCapabilityService } from './lark-capability.service.js'
+import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
+import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
@@ -20,6 +23,7 @@ import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
 import { LarkSourceStrategy } from './source.strategy.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
+import { LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 
 @XpertServerPlugin({
 	imports: [
@@ -32,8 +36,11 @@ import { Handlers } from './handoff/commands/handlers/index.js'
 	providers: [
 		LarkConversationService,
 		LarkChannelStrategy,
+		LarkCapabilityService,
+		LarkInboundIdentityService,
 		LarkIntegrationStrategy,
 		LarkTriggerStrategy,
+		LarkLongConnectionService,
 		LarkChatDispatchService,
 		LarkChatRunStateService,
 		LarkChatStreamCallbackProcessor,
@@ -43,12 +50,18 @@ import { Handlers } from './handoff/commands/handlers/index.js'
 		LarkNotifyMiddleware,
 		LarkSourceStrategy,
 		LarkDocTransformerStrategy,
+		{
+			provide: LARK_LONG_CONNECTION_SERVICE,
+			useExisting: LarkLongConnectionService
+		},
 		...Handlers
 	],
 	exports: [
 		LarkChannelStrategy,
+		LarkCapabilityService,
 		LarkIntegrationStrategy,
 		LarkTriggerStrategy,
+		LarkLongConnectionService,
 		LarkChatDispatchService,
 		LarkRecipientDirectoryService,
 		ChatBILarkMiddleware,

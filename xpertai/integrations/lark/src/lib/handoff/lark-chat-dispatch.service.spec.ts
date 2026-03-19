@@ -154,6 +154,12 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).callback.headers?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).callback.context?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).options.channelUserId).toBe('ou_sender_1')
+		expect((message.payload as any).request.state).toEqual({
+			human: {
+				input: 'hello'
+			},
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+		})
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(runStateService.save).toHaveBeenCalledWith(
 			expect.objectContaining({

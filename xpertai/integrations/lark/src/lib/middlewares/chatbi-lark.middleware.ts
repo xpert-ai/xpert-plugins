@@ -3,11 +3,7 @@ import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput, LangGraphRunnableConfig } from '@langchain/langgraph'
-import {
-  getToolCallIdFromConfig,
-  TAgentMiddlewareMeta,
-  TAgentRunnableConfigurable
-} from '@metad/contracts'
+import type { TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
 import {
   CalculatedMeasureSchema,
   ChartDimensionSchema,
@@ -38,6 +34,7 @@ import {
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { firstValueFrom, switchMap, throwError, timeout } from 'rxjs'
 import { z } from 'zod/v3'
+import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { ChatLarkMessage } from '../message.js'
 import { drawChatAnswerCard } from './chatbi-lark-answer.render.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'

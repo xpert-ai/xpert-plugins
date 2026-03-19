@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk'
-import { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@metad/contracts'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
@@ -18,6 +18,7 @@ import {
 	Get,
 	HttpCode,
 	Inject,
+	Logger,
 	Param,
 	Post,
 	Query,
@@ -32,6 +33,7 @@ import { ChatLarkMessage } from './message.js'
 import { LarkConversationService } from './conversation.service.js'
 import { Public } from './decorators/public.decorator.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
+import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import { TIntegrationLarkOptions } from './types.js'
 import { toLarkApiErrorMessage } from './utils.js'
@@ -44,11 +46,13 @@ const LARK_ROOT_DEPARTMENT_ID = '0'
 
 @Controller('lark')
 export class LarkHooksController {
+	private readonly logger = new Logger(LarkHooksController.name)
 	private _integrationPermissionService: IntegrationPermissionService
 
 	constructor(
 		private readonly conversation: LarkConversationService,
 		private readonly dispatchService: LarkChatDispatchService,
+		private readonly longConnectionService: LarkLongConnectionService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext,
 		private readonly larkChannel: LarkChannelStrategy
@@ -81,6 +85,13 @@ export class LarkHooksController {
 		if (!integration) {
 			throw new BadRequestException(`Integration ${integrationId} not found. Please save the integration first before configuring webhook URL in Lark.`)
 		}
+		if (this.larkChannel.resolveConnectionMode(integration) === 'long_connection') {
+			throw new BadRequestException('Current Lark integration uses long connection mode and does not accept webhook callbacks.')
+		}
+
+		this.logger.debug(
+			`[lark-webhook] inbound integration=${integrationId} payload=${this.stringifyInboundPayload(req.body)}`
+		)
 
 		// Handle Lark webhook URL verification challenge explicitly (plain + encrypted body).
 		// This avoids dispatching to event handlers and prevents 500 on malformed encrypted challenge payloads.
@@ -179,6 +190,38 @@ export class LarkHooksController {
 
 	private getHeaderValue(value: string | string[] | undefined): string | undefined {
 		return Array.isArray(value) ? value[0] : value
+	}
+
+	private stringifyInboundPayload(payload: unknown): string {
+		try {
+			const serialized = JSON.stringify(payload)
+			if (!serialized) {
+				return 'null'
+			}
+			return serialized.length > 8000 ? `${serialized.slice(0, 8000)}...(truncated)` : serialized
+		} catch (error) {
+			return `<<unserializable: ${toLarkApiErrorMessage(error)}>>`
+		}
+	}
+
+	@Get(':id/runtime-status')
+	async getRuntimeStatus(@Param('id') integrationId: string) {
+		const integration = await this.inboundReadIntegration(integrationId)
+		const runtimeStatus = await this.longConnectionService.status(integrationId)
+		return {
+			...runtimeStatus,
+			capabilities: this.larkChannel.getCapabilities(integration)
+		}
+	}
+
+	@Post(':id/runtime-status/reconnect')
+	async reconnectRuntimeStatus(@Param('id') integrationId: string) {
+		const integration = await this.inboundReadIntegration(integrationId)
+		const runtimeStatus = await this.longConnectionService.reconnect(integrationId)
+		return {
+			...runtimeStatus,
+			capabilities: this.larkChannel.getCapabilities(integration)
+		}
 	}
 
 	@Get('chat-select-options')
@@ -347,6 +390,7 @@ export class LarkHooksController {
 				tenant: null,
 				organizationId: normalized.organizationId,
 				integrationId: normalized.integrationId,
+				connectionMode: 'webhook',
 				userId: normalized.userId,
 				chatId: normalized.chatId,
 				senderOpenId: normalized.senderOpenId,
@@ -512,5 +556,16 @@ export class LarkHooksController {
 				larkMessage.id = fallbackId ?? `e2e-lark-message-${Date.now()}`
 			}
 		}
+	}
+
+	private async inboundReadIntegration(integrationId: string) {
+		const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationLarkOptions>>(
+			integrationId,
+			{ relations: ['tenant'] }
+		)
+		if (!integration) {
+			throw new BadRequestException(`Integration ${integrationId} not found.`)
+		}
+		return integration
 	}
 }

@@ -1,6 +1,7 @@
 import { Serializable } from '@langchain/core/load/serializable'
-import { I18nObject, IChatMessage, TSensitiveOperation, XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import type { I18nObject, IChatMessage, TSensitiveOperation } from '@metad/contracts'
 import { Logger } from '@nestjs/common'
+import { XpertAgentExecutionStatusEnum } from './contracts-compat.js'
 import type { LarkEventRenderItem, LarkRenderItem } from './handoff/lark-chat.types.js'
 import { translate } from './i18n.js'
 import type { LarkChannelStrategy } from './lark-channel.strategy.js'
@@ -13,6 +14,8 @@ export interface ChatLarkMessageFields {
   id: string
   // ID of IChatMessage
   messageId: string
+  // Current delivery mode on Lark side
+  deliveryMode?: 'interactive' | 'text'
   // Status of lark message
   status: ChatLarkMessageStatus
   language: string
@@ -20,17 +23,19 @@ export interface ChatLarkMessageFields {
   elements: LarkRenderElement[]
 }
 
-type LarkMessageChannel = Pick<LarkChannelStrategy, 'interactiveMessage' | 'patchInteractiveMessage'>
+type LarkMessageChannel = Pick<LarkChannelStrategy, 'interactiveMessage' | 'patchInteractiveMessage' | 'textMessage'>
 
 export class ChatLarkMessage extends Serializable implements ChatLarkMessageFields {
   lc_namespace: string[] = ['lark']
   override lc_serializable = true
+  private static readonly logger = new Logger(ChatLarkMessage.name)
 
   override get lc_attributes() {
     return {
       status: this.status,
       id: this.id,
       messageId: this.messageId,
+      deliveryMode: this.deliveryMode,
       header: this.header,
       elements: this.elements,
       language: this.language
@@ -45,12 +50,14 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     corner_radius: '30%'
   }
   static readonly helpUrl = 'https://docs.xpertai.cn/en/ai/toolset/chatbi-toolset/bot'
-
-  private readonly logger = new Logger(ChatLarkMessage.name)
+  static readonly cardConfig = {
+    wide_screen_mode: true
+  }
 
   // ID of lark message
   public id: string = null
   // private prevStatus: ChatLarkMessageStatus = null
+  public deliveryMode: 'interactive' | 'text' = 'interactive'
   public status: ChatLarkMessageStatus = 'thinking'
   // ID of IChatMessage
   public messageId: string
@@ -83,6 +90,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.chatContext.recipientDirectoryKey
   }
 
+  get connectionMode() {
+    return this.chatContext.connectionMode ?? 'webhook'
+  }
+
   public header = null
   public elements: LarkRenderElement[] = []
   set renderItems(value: LarkRenderItem[]) {
@@ -98,6 +109,7 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     super(options)
     this.id = options.id
     this.messageId = options.messageId
+    this.deliveryMode = options.deliveryMode ?? 'interactive'
     this.status = options.status
     this.language = options.language
     this.header = options.header
@@ -124,29 +136,23 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.options.text
   }
 
-  async getHeader() {
-    const title = await this.getTitle()
-    const subTitle = this.getSubtitle()
-    return title || subTitle
-      ? {
+	async getHeader() {
+		const title = await this.getTitle()
+		const subTitle = this.getSubtitle()
+		return title || subTitle
+			? {
           title: {
             tag: 'plain_text',
             content: title
           },
           subtitle: {
             tag: 'plain_text',
-            content: subTitle
-          },
-          template: ChatLarkMessage.headerTemplate,
-          ud_icon: {
-            token: 'myai_colorful',
-            style: {
-              color: 'red'
-            }
-          }
-        }
-      : null
-  }
+					content: subTitle
+				  },
+				  template: ChatLarkMessage.headerTemplate
+			  }
+			: null
+	}
 
   async getCard() {
     const elements = [...this.elements]
@@ -167,10 +173,15 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       if (elements[elements.length - 1]?.tag !== 'hr') {
         elements.push({ tag: 'hr' })
       }
-      elements.push(await this.getEndAction())
+      if (this.supportsInteractiveActions()) {
+        elements.push(await this.getEndAction())
+      } else {
+        elements.push(await this.getLongConnectionNotice())
+      }
     }
 
     return {
+      config: ChatLarkMessage.cardConfig,
       elements
     }
   }
@@ -183,6 +194,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       this.status !== XpertAgentExecutionStatusEnum.ERROR &&
       this.status !== XpertAgentExecutionStatusEnum.INTERRUPTED
     )
+  }
+
+  private supportsInteractiveActions(): boolean {
+    return true
   }
 
   private async getThinkingFooter() {
@@ -209,7 +224,8 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
           complex_interaction: true,
           width: 'default',
           size: 'medium',
-          value: LARK_END_CONVERSATION
+          value: this.createCardActionValue(LARK_END_CONVERSATION),
+          behaviors: [this.createCallbackBehavior(LARK_END_CONVERSATION)]
         },
         {
           tag: 'button',
@@ -240,7 +256,8 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
         type: 'primary',
         width: 'default',
         size: 'medium',
-        value: LARK_CONFIRM
+        value: this.createCardActionValue(LARK_CONFIRM),
+        behaviors: [this.createCallbackBehavior(LARK_CONFIRM)]
       },
       {
         tag: 'button',
@@ -251,9 +268,29 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
         type: 'danger',
         width: 'default',
         size: 'medium',
-        value: LARK_REJECT
+        value: this.createCardActionValue(LARK_REJECT),
+        behaviors: [this.createCallbackBehavior(LARK_REJECT)]
       }
     ]
+  }
+
+  private createCardActionValue(action: string) {
+    return { action }
+  }
+
+  private createCallbackBehavior(action: string) {
+    return {
+      type: 'callback',
+      value: this.createCardActionValue(action)
+    }
+  }
+
+  private async getLongConnectionNotice() {
+    return {
+      tag: 'markdown',
+      content:
+        'Long connection mode is active. Callback-based card actions are unavailable, so this message is shown without interactive buttons.'
+    }
   }
 
   /**
@@ -308,22 +345,35 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     }
 
     const elements = await this.getCard()
+    if (this.id && this.deliveryMode === 'text') {
+      await this.updateTextFallback(elements.elements)
+      return
+    }
+
     if (this.id) {
       try {
         await this.larkChannel.patchInteractiveMessage(this.chatContext.integrationId, this.id, {
           ...elements,
           header: this.header ?? (await this.getHeader())
         })
-      } catch (err) {
-        console.error(err)
+      } catch (error) {
+        await this.handleCardSendFailure(error, elements.elements, true)
       }
     } else {
-      const result = await this.larkChannel.interactiveMessage(this.chatContext, {
-        ...elements,
-        header: this.header ?? (await this.getHeader())
-      })
+      try {
+        const result = await this.larkChannel.interactiveMessage(this.chatContext, {
+          ...elements,
+          header: this.header ?? (await this.getHeader())
+        })
 
-      this.id = result.data.message_id
+        const messageId = result?.data?.message_id
+        if (!messageId) {
+          throw new Error('Lark interactiveMessage succeeded without returning a message_id')
+        }
+        this.id = messageId
+      } catch (error) {
+        await this.handleCardSendFailure(error, elements.elements, false)
+      }
     }
   }
 
@@ -392,6 +442,84 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       lines.push(`**Error:** ${item.error}`)
     }
     return lines.join('\n')
+  }
+
+  private async handleCardSendFailure(
+    error: unknown,
+    elements: LarkRenderElement[],
+    isPatch: boolean
+  ) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    ChatLarkMessage.logger.warn(
+      `[lark] interactive card downgraded to text for integration=${this.integrationId} mode=${this.connectionMode} patch=${isPatch} because ${message}`
+    )
+
+    const fallback = this.toPlainText(elements)
+    try {
+      this.deliveryMode = 'text'
+      const result = (await this.larkChannel.textMessage(
+        {
+          ...this.chatContext,
+          messageId: undefined
+        } as any,
+        fallback
+      )) as {
+        data?: { message_id?: string }
+      }
+      this.id = result?.data?.message_id ?? this.id
+    } catch (fallbackError) {
+      ChatLarkMessage.logger.error(
+        `[lark] text fallback failed for integration=${this.integrationId}: ${
+          fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+        }`
+      )
+      throw error
+    }
+  }
+
+  private async updateTextFallback(elements: LarkRenderElement[]) {
+    if (!this.shouldSendTextFallbackUpdate()) {
+      return
+    }
+
+    const fallback = this.toPlainText(elements)
+    const result = (await this.larkChannel.textMessage(
+      {
+        ...this.chatContext,
+        messageId: undefined
+      } as any,
+      fallback
+    )) as {
+      data?: { message_id?: string }
+    }
+    this.id = result?.data?.message_id ?? this.id
+  }
+
+  private shouldSendTextFallbackUpdate(): boolean {
+    return (
+      !this.id ||
+      this.status === 'end' ||
+      this.status === 'done' ||
+      this.status === 'interrupted' ||
+      this.status === XpertAgentExecutionStatusEnum.SUCCESS ||
+      this.status === XpertAgentExecutionStatusEnum.ERROR
+    )
+  }
+
+  private toPlainText(elements: readonly LarkRenderElement[]): string {
+    const blocks = elements
+      .map((element) => {
+        if (element?.tag === 'markdown') {
+          return typeof (element as { content?: unknown }).content === 'string'
+            ? ((element as { content: string }).content)
+            : ''
+        }
+        return ''
+      })
+      .filter(Boolean)
+
+    return blocks.join('\n\n') || this.options.text || ''
   }
 
 }

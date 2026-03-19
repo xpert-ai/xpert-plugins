@@ -60,6 +60,7 @@ type LarkActiveMessage = {
   thirdPartyMessage?: {
     id?: string
     messageId?: string
+    deliveryMode?: 'interactive' | 'text'
     language?: string
     header?: any
     elements?: any[]
@@ -440,7 +441,13 @@ export class LarkConversationService implements OnModuleDestroy {
     }
     const activeMessage = await this.getActiveMessage(conversationUserKey, targetXpertId)
     const larkMessage = new ChatLarkMessage(
-      { ...options, semanticMessage, recipientDirectoryKey, larkChannel: this.larkChannel },
+      {
+        ...options,
+        connectionMode: integration.options?.connectionMode ?? 'webhook',
+        semanticMessage,
+        recipientDirectoryKey,
+        larkChannel: this.larkChannel
+      },
       {
         text,
         language: activeMessage?.thirdPartyMessage?.language || integration.options?.preferLanguage
@@ -527,10 +534,15 @@ export class LarkConversationService implements OnModuleDestroy {
     }
 
     const prevMessage = new ChatLarkMessage(
-      { ...chatContext, larkChannel: this.larkChannel },
+      {
+        ...chatContext,
+        connectionMode: chatContext.connectionMode ?? 'webhook',
+        larkChannel: this.larkChannel
+      },
       {
         id: larkMessageId,
         messageId: activeMessage.id || thirdPartyMessage.messageId,
+        deliveryMode: thirdPartyMessage.deliveryMode,
         language: thirdPartyMessage.language,
         header: thirdPartyMessage.header,
         elements: [...(thirdPartyMessage.elements ?? [])],
@@ -538,9 +550,16 @@ export class LarkConversationService implements OnModuleDestroy {
       } as any
     )
 
-    const newMessage = new ChatLarkMessage({ ...chatContext, larkChannel: this.larkChannel }, {
-      language: thirdPartyMessage.language
-    } as any)
+    const newMessage = new ChatLarkMessage(
+      {
+        ...chatContext,
+        connectionMode: chatContext.connectionMode ?? 'webhook',
+        larkChannel: this.larkChannel
+      },
+      {
+        language: thirdPartyMessage.language
+      } as any
+    )
 
     if (isEndAction(action)) {
       await prevMessage.end()
@@ -794,6 +813,10 @@ export class LarkConversationService implements OnModuleDestroy {
       senderName: message.senderName,
       semanticMessage
     })
+
+    this.logger.debug(
+      `[lark-dispatch] inbound integration=${ctx.integration.id} chat=${message.chatId} sender=${message.senderId} content=${JSON.stringify(message.content)}`
+    )
 
     // Add task to user's queue
     await userQueue.add({
