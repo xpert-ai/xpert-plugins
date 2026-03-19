@@ -158,7 +158,8 @@ describe('LarkChatDispatchService', () => {
 			human: {
 				input: 'hello'
 			},
-			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
 		})
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(runStateService.save).toHaveBeenCalledWith(

@@ -136,6 +136,12 @@ export class LarkChatDispatchService {
 			}))
 		})
 
+		this.logger.debug(
+			`[lark-dispatch] runId=${runId} integration=${larkMessage.integrationId ?? 'n/a'} chat=${larkMessage.chatId ?? 'n/a'} conversationId=${
+				conversationId ?? 'n/a'
+			} recipientDirectoryKey=${larkMessage.recipientDirectoryKey ?? 'n/a'}`
+		)
+
 		return {
 			id: runId,
 			type: AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -158,7 +164,8 @@ export class LarkChatDispatchService {
 						},
 						...(larkMessage.recipientDirectoryKey
 							? {
-									recipientDirectoryKey: larkMessage.recipientDirectoryKey
+									recipientDirectoryKey: larkMessage.recipientDirectoryKey,
+									lark_notify_recipient_directory_key: larkMessage.recipientDirectoryKey
 								}
 							: {})
 					},
