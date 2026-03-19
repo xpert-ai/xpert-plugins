@@ -130,6 +130,7 @@ describe('MarkItDownBootstrapService', () => {
       // Verify pip install was called
       const installCall = mockBackend.execute.mock.calls[2][0]
       expect(installCall).toContain('pip3 install')
+      expect(installCall).toContain('--break-system-packages')
       expect(installCall).toContain('markitdown')
     })
 

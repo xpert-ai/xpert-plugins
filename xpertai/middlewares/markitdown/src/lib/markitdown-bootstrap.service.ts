@@ -129,9 +129,11 @@ export class MarkItDownBootstrapService {
     const pipCmd = pipCheck.output.trim().split('\n')[0]
 
     // 2. Install markitdown via pip
+    // --break-system-packages is needed for PEP 668 compliant environments
+    // (Debian/Ubuntu with externally-managed Python). Safe in a disposable sandbox.
     const versionSpec = config.version === 'latest' ? '' : `==${config.version}`
     const extrasSpec = config.extras ? `[${config.extras}]` : ''
-    const installCmd = `${pipCmd} install "markitdown${extrasSpec}${versionSpec}"`
+    const installCmd = `${pipCmd} install --break-system-packages "markitdown${extrasSpec}${versionSpec}"`
     const installResult = await backend.execute(installCmd)
     if (installResult?.exitCode !== 0) {
       throw new Error(`MarkItDown install failed: ${installResult?.output || 'Unknown error'}`)
