@@ -122,6 +122,9 @@
     },
     {
       "path": "./models/tongyi"
+    },
+    {
+      "path": "./middlewares/markitdown"
     }
   ]
 }

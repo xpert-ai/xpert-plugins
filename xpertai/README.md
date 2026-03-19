@@ -23,7 +23,7 @@ To create different types of plugins, you can replace 'packages' with different 
 - packages: for general-purpose libraries
 
 ```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1 --bundler=tsc --unitTestRunner=jest --linter=eslint
+pnpm nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1 --bundler=tsc --unitTestRunner=jest --linter=eslint
 ```
 
 ## Run tasks

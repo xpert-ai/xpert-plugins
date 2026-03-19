@@ -750,6 +750,12 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  middlewares/markitdown:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
   middlewares/model-fallback:
     dependencies:
       '@langchain/core':
