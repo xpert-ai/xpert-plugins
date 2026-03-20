@@ -762,7 +762,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               },
               description: {
                 en_US: 'Expose list users/chats tools for admin or debugging only. Keep disabled for normal name-based chat flows.',
-                zh_Hans: '仅在管理或调试场景下暴露查找工具。正常按名字发送流程建议保持关闭。'
+                zh_Hans: '不建议使用查找工具。正常按名字发送流程建议保持关闭。'
               }
             }
           },
@@ -794,7 +794,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
      * 解析收件人信息，优先级：
      * 1. middleware 配置的 recipient_type + recipient_id
      * 2. tool call 传入的 recipient_id（默认按 open_id 解释）
-     * 
+     * 3.中间件升级之后，可以不暴露openid，直接通过人名去发送，这样用户的体验会更好一些
      * TODO: 未来可扩展 recipient_type override 能力，允许 tool call 指定类型
      */
     const resolveInput = <T extends Record<string, unknown>>(value: T) => {

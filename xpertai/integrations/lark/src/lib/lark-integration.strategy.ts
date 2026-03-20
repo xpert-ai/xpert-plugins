@@ -95,8 +95,8 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           default: 'webhook',
           'x-ui': {
             enumLabels: {
-              webhook: { en_US: 'Webhook', zh_Hans: 'Webhook' },
-              long_connection: { en_US: 'Long Connection', zh_Hans: '长连接' }
+              webhook: { en_US: 'Webhook', zh_Hans: 'Webhook（传统连接方式，稳定）' },
+              long_connection: { en_US: 'Long Connection', zh_Hans: '长连接（支持个人电脑调试，灵活且安全）' }
             }
           }
         },
@@ -261,7 +261,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           capabilities,
           probe,
           warnings: [
-            '长连接模式下不支持交互卡片回调、确认/拒绝/结束会话等依赖 callback subscription 的能力。',
             ...(probe.connected
               ? ['长连接试连成功，可以继续保存并进入运行时状态管理。']
               : [`长连接试连失败：${probe.lastError || 'Unknown error'}`])

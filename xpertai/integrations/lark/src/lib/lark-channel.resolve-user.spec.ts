@@ -15,6 +15,9 @@ function createFixture() {
     read: jest.fn(),
     provisionByThirdPartyIdentity: jest.fn()
   }
+  const capabilityService = {
+    hasModelProviders: jest.fn()
+  }
 
   const pluginContext: PluginContext = {
     resolve: jest.fn((token: unknown) => {
@@ -28,7 +31,7 @@ function createFixture() {
     })
   } as any
 
-  const strategy = new LarkChannelStrategy(pluginContext)
+  const strategy = new LarkChannelStrategy(pluginContext, capabilityService as any)
 
   const userGet = jest.fn()
   const batchGetId = jest.fn()
@@ -65,6 +68,7 @@ function createFixture() {
   return {
     strategy,
     integrationPermissionService,
+    capabilityService,
     client,
     userGet,
     batchGetId,
@@ -86,7 +90,7 @@ describe('LarkChannelStrategy.resolveUserByRecipient', () => {
     })
 
     expect(user).toEqual({ id: 'user-target-1' })
-    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_1', undefined)
+    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_1', undefined, undefined)
     expect(userGet).not.toHaveBeenCalled()
     expect(batchGetId).not.toHaveBeenCalled()
   })
@@ -114,7 +118,7 @@ describe('LarkChannelStrategy.resolveUserByRecipient', () => {
         user_id: 'ou_1'
       }
     })
-    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_from_open', undefined)
+    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_from_open', undefined, undefined)
   })
 
   it('resolves email recipient through batchGetId', async () => {
@@ -142,7 +146,7 @@ describe('LarkChannelStrategy.resolveUserByRecipient', () => {
         emails: ['target@example.com']
       }
     })
-    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_from_email', undefined)
+    expect(getUser).toHaveBeenCalledWith(expect.any(Object), 'tenant-1', 'uu_from_email', undefined, undefined)
   })
 
   it('returns null for chat_id recipient without querying integration', async () => {
@@ -169,5 +173,32 @@ describe('LarkChannelStrategy.resolveUserByRecipient', () => {
 
     expect(user).toBeNull()
     expect(getUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('LarkChannelStrategy.resolveUserNameByOpenId', () => {
+  beforeEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('returns the Lark display name for an open_id', async () => {
+    const { strategy, userGet } = createFixture()
+    userGet.mockResolvedValue({
+      data: {
+        user: {
+          name: 'Alice Zhang'
+        }
+      }
+    })
+
+    await expect(strategy.resolveUserNameByOpenId('integration-1', 'ou_1')).resolves.toBe('Alice Zhang')
+    expect(userGet).toHaveBeenCalledWith({
+      params: {
+        user_id_type: 'open_id'
+      },
+      path: {
+        user_id: 'ou_1'
+      }
+    })
   })
 })

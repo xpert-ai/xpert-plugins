@@ -657,6 +657,37 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		)
 	}
 
+	async resolveUserNameByOpenId(integrationId: string, openId: string): Promise<string | null> {
+		const normalizedOpenId = openId?.trim()
+		if (!integrationId || !normalizedOpenId) {
+			return null
+		}
+
+		const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationLarkOptions>>(integrationId)
+		if (!integration) {
+			return null
+		}
+
+		try {
+			const client = this.getOrCreateLarkClient(integration).client
+			const response = await client.contact.v3.user.get({
+				params: {
+					user_id_type: 'open_id'
+				},
+				path: {
+					user_id: normalizedOpenId
+				}
+			})
+			const name = response?.data?.user?.name?.trim()
+			return name || null
+		} catch (error) {
+			this.logger.warn(
+				`Failed to resolve Lark user name for open_id "${normalizedOpenId}" on integration "${integrationId}": ${getErrorMessage(error)}`
+			)
+			return null
+		}
+	}
+
 	private getUserByUnionIdCacheKey(tenantId: string, unionId: string): string {
 		return `lark:user:union:${tenantId}:${unionId}`
 	}

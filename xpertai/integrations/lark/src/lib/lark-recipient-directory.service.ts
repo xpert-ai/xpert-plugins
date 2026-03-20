@@ -176,6 +176,19 @@ export class LarkRecipientDirectoryService {
     return { status: 'resolved', entry: matches[0] }
   }
 
+  async resolveByOpenId(
+    key: string | null | undefined,
+    openId: string | null | undefined
+  ): Promise<RecipientDirectoryEntry | null> {
+    const directory = await this.get(key)
+    const normalizedOpenId = normalizeString(openId)
+    if (!directory || !normalizedOpenId) {
+      return null
+    }
+
+    return directory.entries.find((entry) => entry.openId === normalizedOpenId) ?? null
+  }
+
   private pruneExpiredEntries(directory: RecipientDirectory): RecipientDirectory {
     const now = Date.now()
     return {

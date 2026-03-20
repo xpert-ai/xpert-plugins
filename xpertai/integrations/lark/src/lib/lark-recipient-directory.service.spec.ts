@@ -81,6 +81,33 @@ describe('LarkRecipientDirectoryService', () => {
     })
   })
 
+  it('resolves sender entry by open_id', async () => {
+    const { service } = createFixture()
+    const key = service.buildKey({
+      integrationId: 'integration-1',
+      chatType: 'group',
+      chatId: 'oc_group_1'
+    })!
+    const scope = {
+      scopeType: 'group' as const,
+      integrationId: 'integration-1',
+      chatId: 'oc_group_1'
+    }
+
+    await service.upsertSender(key, {
+      scope,
+      openId: 'ou_sender_1',
+      name: 'Alice Zhang'
+    })
+
+    await expect(service.resolveByOpenId(key, 'ou_sender_1')).resolves.toEqual(
+      expect.objectContaining({
+        openId: 'ou_sender_1',
+        name: 'Alice Zhang'
+      })
+    )
+  })
+
   it('returns ambiguous when exact name matches multiple entries', async () => {
     const { service } = createFixture()
     const key = service.buildKey({
