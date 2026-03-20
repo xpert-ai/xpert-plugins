@@ -212,8 +212,14 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 
 		if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
 			const textDelta = messageContentText(eventPayload.data)
+			this.logReplacementCharacter('callback.messageContentText', textDelta, state.sourceMessageId)
 			if (textDelta) {
 				state.responseMessageContent += textDelta
+				this.logReplacementCharacter(
+					'callback.responseMessageContent',
+					state.responseMessageContent,
+					state.sourceMessageId
+				)
 				this.appendStreamTextDelta(state, textDelta)
 			}
 
@@ -561,6 +567,24 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 
 		return null
+	}
+
+	private logReplacementCharacter(
+		stage: string,
+		value: string | null | undefined,
+		sourceMessageId: string
+	): void {
+		if (!value || !value.includes('\uFFFD')) {
+			return
+		}
+
+		const preview = value.length > 320 ? `${value.slice(0, 320)}...(truncated)` : value
+		this.logger.warn(
+			`[encoding] replacement char detected at lark.${stage}: ${JSON.stringify({
+				sourceMessageId,
+				preview
+			})}`
+		)
 	}
 
 	private extractStructuredElements(value: unknown): LarkStructuredElement[] {

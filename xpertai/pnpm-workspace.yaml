@@ -1,7 +1,19 @@
 packages:
-  - "packages/*"
-  - "integrations/*"
-  - "tools/*"
-  - "models/*"
-  - "databases/*"
-  - "middlewares/*"
+  - packages/*
+  - integrations/*
+  - tools/*
+  - models/*
+  - databases/*
+  - middlewares/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@sap/hana-client'
+  - '@swc/core'
+  - cpu-features
+  - msgpackr-extract
+  - nx
+  - protobufjs
+  - sharp
+  - ssh2
+  - unrs-resolver
