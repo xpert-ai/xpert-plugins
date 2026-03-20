@@ -224,6 +224,16 @@ export class LarkHooksController {
 		}
 	}
 
+	@Post(':id/runtime-status/disconnect')
+	async disconnectRuntimeStatus(@Param('id') integrationId: string) {
+		const integration = await this.inboundReadIntegration(integrationId)
+		const runtimeStatus = await this.longConnectionService.disconnect(integrationId)
+		return {
+			...runtimeStatus,
+			capabilities: this.larkChannel.getCapabilities(integration)
+		}
+	}
+
 	@Get('chat-select-options')
 	async getChatSelectOptions(@Query('integration') id: string) {
 		if (!id) {

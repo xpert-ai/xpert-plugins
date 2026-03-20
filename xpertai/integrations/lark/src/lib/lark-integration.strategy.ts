@@ -170,6 +170,17 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     return null
   }
 
+  async onUpdate(previous: IIntegration<TIntegrationLarkOptions>, current: IIntegration<any>): Promise<void> {
+    const wasLongConnection = this.capabilityService.resolveConnectionMode(previous.options) === 'long_connection'
+    const isStillLongConnection =
+      current.provider === INTEGRATION_LARK &&
+      this.capabilityService.resolveConnectionMode(current.options as TIntegrationLarkOptions) === 'long_connection'
+
+    if (wasLongConnection && !isStillLongConnection) {
+      await this.longConnectionService.disconnect(previous.id)
+    }
+  }
+
   async onDelete(integration: IIntegration<TIntegrationLarkOptions>): Promise<void> {
     if (this.capabilityService.resolveConnectionMode(integration.options) === 'long_connection') {
       await this.longConnectionService.disconnect(integration.id)
