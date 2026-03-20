@@ -179,6 +179,59 @@ export class LarkConversationService implements OnModuleDestroy {
     return key
   }
 
+  private async resolveSenderName(params: {
+    integrationId: string
+    recipientDirectoryKey?: string | null
+    chatType?: string | null
+    chatId?: string | null
+    senderOpenId?: string | null
+  }): Promise<string | null> {
+    const normalizedSenderOpenId = normalizeConversationUserKey(params.senderOpenId)
+    if (!normalizedSenderOpenId) {
+      return null
+    }
+
+    const entry = await this.recipientDirectoryService.resolveByOpenId(
+      params.recipientDirectoryKey,
+      normalizedSenderOpenId
+    )
+    if (entry?.name) {
+      return entry.name
+    }
+
+    const senderName = await this.larkChannel.resolveUserNameByOpenId(params.integrationId, normalizedSenderOpenId)
+    if (!senderName || !params.recipientDirectoryKey) {
+      return senderName
+    }
+
+    await this.recipientDirectoryService.upsertSender(params.recipientDirectoryKey, {
+      scope: this.buildRecipientDirectoryScope({
+        integrationId: params.integrationId,
+        chatType: params.chatType,
+        chatId: params.chatId,
+        senderOpenId: normalizedSenderOpenId
+      }),
+      openId: normalizedSenderOpenId,
+      name: senderName
+    })
+
+    return senderName
+  }
+
+  private withSpeakerContext(input: string | undefined, senderName: string | null, chatType?: string | null): string | undefined {
+    if (chatType !== 'group') {
+      return input
+    }
+
+    const normalizedInput = typeof input === 'string' ? input.trim() : ''
+    const normalizedSenderName = typeof senderName === 'string' ? senderName.trim() : ''
+    if (!normalizedInput || !normalizedSenderName) {
+      return input
+    }
+
+    return `补充上下文：当前和你说话的人是 ${normalizedSenderName}。\n\n用户消息：${normalizedInput}`
+  }
+
   private async getBoundXpertId(integrationId: string): Promise<string | null> {
     if (!integrationId) {
       return null
@@ -405,6 +458,14 @@ export class LarkConversationService implements OnModuleDestroy {
         senderName: null,
         semanticMessage
       }))
+    const senderName = await this.resolveSenderName({
+      integrationId,
+      recipientDirectoryKey,
+      chatType: options.chatType,
+      chatId: options.chatId,
+      senderOpenId
+    })
+    const dispatchInput = this.withSpeakerContext(text, senderName, options.chatType)
 
     const normalizedSenderOpenId = normalizeConversationUserKey(senderOpenId)
     const latestBinding = normalizedSenderOpenId
@@ -457,7 +518,7 @@ export class LarkConversationService implements OnModuleDestroy {
     if (latestBinding) {
       return await this.dispatchToLarkChat({
         xpertId: targetXpertId,
-        input: text,
+        input: dispatchInput,
         larkMessage
       })
     }
@@ -465,7 +526,7 @@ export class LarkConversationService implements OnModuleDestroy {
     const larkTriggerStrategy = await this.getLarkTriggerStrategy()
     const handledByTrigger = await larkTriggerStrategy.handleInboundMessage({
       integrationId,
-      input: text,
+      input: triggerXpertId ? dispatchInput : text,
       larkMessage
     })
     if (handledByTrigger) {
@@ -475,7 +536,7 @@ export class LarkConversationService implements OnModuleDestroy {
     if (fallbackXpertId) {
       return await this.dispatchToLarkChat({
         xpertId: fallbackXpertId,
-        input: text,
+        input: dispatchInput,
         larkMessage
       })
     }

@@ -226,7 +226,8 @@ describe('LarkConversationService', () => {
 		const larkChannel = {
 			errorMessage: jest.fn().mockResolvedValue(undefined),
 			patchInteractiveMessage: jest.fn().mockResolvedValue(undefined),
-			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } })
+			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } }),
+			resolveUserNameByOpenId: jest.fn().mockResolvedValue(null)
 		}
 		const recipientDirectoryService = {
 			buildKey: jest.fn().mockImplementation(({ integrationId, chatType, chatId, senderOpenId }) => {
@@ -239,7 +240,8 @@ describe('LarkConversationService', () => {
 			}),
 			upsertSender: jest.fn().mockResolvedValue(undefined),
 			upsertMentions: jest.fn().mockResolvedValue(undefined),
-			resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' })
+			resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' }),
+			resolveByOpenId: jest.fn().mockResolvedValue(null)
 		}
 		const service = new LarkConversationService(
 			commandBus as any,
@@ -747,5 +749,86 @@ describe('LarkConversationService', () => {
 		expect(dispatchCommands[0].input.larkMessage.recipientDirectoryKey).toBe(
 			'lark:recipient-dir:integration-1:chat:chat-1'
 		)
+	})
+
+	it('processMessage appends speaker context when sender name is resolved from open_id', async () => {
+		const { service, commandBus, larkTriggerStrategy, recipientDirectoryService, larkChannel } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+		recipientDirectoryService.resolveByOpenId.mockResolvedValue({
+			ref: 'u_1',
+			openId: 'ou_sender_1',
+			name: 'Alice Zhang',
+			aliases: ['Alice Zhang'],
+			source: 'sender',
+			firstSeenAt: Date.now(),
+			lastSeenAt: Date.now()
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			message: {
+				message: {
+					content: JSON.stringify({ text: '请帮我总结一下今天的讨论' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '请帮我总结一下今天的讨论'
+			})
+		)
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe(
+			'补充上下文：当前和你说话的人是 Alice Zhang。\n\n用户消息：请帮我总结一下今天的讨论'
+		)
+		expect(larkChannel.resolveUserNameByOpenId).not.toHaveBeenCalled()
+	})
+
+	it('processMessage passes speaker context into trigger-bound dispatches', async () => {
+		const { service, commandBus, larkTriggerStrategy, recipientDirectoryService } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: true,
+			legacyXpertId: 'legacy-xpert'
+		})
+		recipientDirectoryService.resolveByOpenId.mockResolvedValue({
+			ref: 'u_1',
+			openId: 'ou_sender_1',
+			name: 'Alice Zhang',
+			aliases: ['Alice Zhang'],
+			source: 'sender',
+			firstSeenAt: Date.now(),
+			lastSeenAt: Date.now()
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			message: {
+				message: {
+					content: JSON.stringify({ text: '请帮我总结一下今天的讨论' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '补充上下文：当前和你说话的人是 Alice Zhang。\n\n用户消息：请帮我总结一下今天的讨论'
+			})
+		)
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 	})
 })
