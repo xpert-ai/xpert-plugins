@@ -84,6 +84,7 @@
       "@xpert-ai/plugin-model-retry",
       "@xpert-ai/plugin-tool-retry",
       "@xpert-ai/plugin-playwright-cli",
+      "@xpert-ai/plugin-mineru-cli",
       "@xpert-ai/plugin-tongyi",
       "@xpert-ai/plugin-markitdown"
     ],

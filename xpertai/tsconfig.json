@@ -121,6 +121,9 @@
       "path": "./middlewares/playwright-cli"
     },
     {
+      "path": "./middlewares/mineru-cli"
+    },
+    {
       "path": "./models/tongyi"
     },
     {
