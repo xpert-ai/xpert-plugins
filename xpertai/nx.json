@@ -86,7 +86,8 @@
       "@xpert-ai/plugin-playwright-cli",
       "@xpert-ai/plugin-mineru-cli",
       "@xpert-ai/plugin-tongyi",
-      "@xpert-ai/plugin-markitdown"
+      "@xpert-ai/plugin-markitdown",
+      "@xpert-ai/plugin-zip-unzip-cli"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
