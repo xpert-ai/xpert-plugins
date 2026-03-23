@@ -14,16 +14,22 @@ import { LarkChatRunStateService } from './handoff/lark-chat-run-state.service.j
 import { LarkChatStreamCallbackProcessor } from './handoff/lark-chat-callback.processor.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
+import { LarkContextToolService } from './lark-context-tool.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
+import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
-import { ChatBILarkMiddleware, LarkNotifyMiddleware } from './middlewares/index.js'
+import {
+	ChatBILarkMiddleware,
+	LarkConversationContextMiddleware,
+	LarkNotifyMiddleware
+} from './middlewares/index.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
 import { LarkSourceStrategy } from './source.strategy.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
-import { LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
+import { LARK_CONVERSATION_QUEUE_SERVICE, LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 
 @XpertServerPlugin({
 	imports: [
@@ -35,6 +41,8 @@ import { LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 	controllers: [LarkHooksController],
 	providers: [
 		LarkConversationService,
+		LarkContextToolService,
+		LarkGroupMentionWindowService,
 		LarkChannelStrategy,
 		LarkCapabilityService,
 		LarkInboundIdentityService,
@@ -47,12 +55,17 @@ import { LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 		LarkRecipientDirectoryService,
 		LarkTokenStrategy,
 		ChatBILarkMiddleware,
+		LarkConversationContextMiddleware,
 		LarkNotifyMiddleware,
 		LarkSourceStrategy,
 		LarkDocTransformerStrategy,
 		{
 			provide: LARK_LONG_CONNECTION_SERVICE,
 			useExisting: LarkLongConnectionService
+		},
+		{
+			provide: LARK_CONVERSATION_QUEUE_SERVICE,
+			useExisting: LarkConversationService
 		},
 		...Handlers
 	],
@@ -64,7 +77,10 @@ import { LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 		LarkLongConnectionService,
 		LarkChatDispatchService,
 		LarkRecipientDirectoryService,
+		LarkGroupMentionWindowService,
+		LarkContextToolService,
 		ChatBILarkMiddleware,
+		LarkConversationContextMiddleware,
 		LarkNotifyMiddleware
 	]
 })

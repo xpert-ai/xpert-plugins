@@ -447,10 +447,16 @@ export type ChatLarkContext<T = any> = {
 	 * Lark platform sender's open_id (for @mention and private message)
 	 */
 	senderOpenId?: string
+	senderName?: string
+	principalKey?: string
+	scopeKey?: string
+	legacyConversationUserKey?: string
 	message?: T
 	input?: string
 	semanticMessage?: LarkSemanticMessage
 	recipientDirectoryKey?: string
+	groupWindow?: LarkGroupWindow
+	groupWindowId?: string
 }
 
 export type TLarkEventMention = {
@@ -524,6 +530,73 @@ export type LarkSemanticMessage = {
 	displayText: string
 	agentText: string
 	mentions: LarkMentionIdentity[]
+}
+
+export type LarkMessageResourceType = 'file' | 'image' | 'audio' | 'media'
+
+export type NormalizedMessageMention = {
+	openId: string
+	name?: string
+	isBot?: boolean
+}
+
+export type NormalizedMessageResourceRef = {
+	fileKey: string
+	type?: LarkMessageResourceType | string
+	name?: string
+}
+
+export type NormalizedMessage = {
+	messageId: string
+	chatId?: string
+	senderOpenId?: string
+	senderName?: string
+	msgType: string
+	text?: string
+	mentions?: NormalizedMessageMention[]
+	parentId?: string
+	rootId?: string
+	createTime?: string
+	hasResource?: boolean
+	resourceRefs?: NormalizedMessageResourceRef[]
+}
+
+export type NormalizedMessageResource = {
+	messageId: string
+	fileKey: string
+	type: LarkMessageResourceType | string
+	name?: string
+	mimeType?: string
+	size?: number
+	contentEncoding?: 'base64'
+	contentBase64?: string
+}
+
+export type LarkGroupWindowParticipant = {
+	senderOpenId: string
+	userId?: string
+	senderName?: string
+}
+
+export type LarkGroupWindowItem = {
+	messageId: string
+	senderOpenId: string
+	userId?: string
+	senderName?: string
+	text: string
+	createTime?: string
+	mentions?: NormalizedMessageMention[]
+}
+
+export type LarkGroupWindow = {
+	windowId: string
+	integrationId: string
+	chatId: string
+	scopeKey: string
+	openedAt: number
+	lastEventAt: number
+	items: LarkGroupWindowItem[]
+	participants: LarkGroupWindowParticipant[]
 }
 
 export type RecipientDirectoryEntry = {

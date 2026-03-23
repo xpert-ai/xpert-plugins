@@ -14,7 +14,11 @@ function createLarkMessage(
 		elements: unknown[]
 		integrationId: string
 		chatId: string
+		chatType: string
 		senderOpenId: string
+		principalKey: string
+		scopeKey: string
+		legacyConversationUserKey: string
 		recipientDirectoryKey: string
 	}> = {}
 ) {
@@ -27,7 +31,11 @@ function createLarkMessage(
 		elements: [],
 		integrationId: 'integration-1',
 		chatId: 'chat-1',
+		chatType: 'group',
 		senderOpenId: 'ou_sender_1',
+		principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+		scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+		legacyConversationUserKey: 'open_id:ou_sender_1',
 		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
 		update: jest.fn().mockResolvedValue(undefined),
 		...overrides
@@ -141,7 +149,10 @@ describe('LarkChatDispatchService', () => {
 
 		expect(conversationService.resolveDispatchExecutionContext).toHaveBeenCalledWith(
 			'xpert-1',
-			'open_id:ou_sender_1'
+			{
+				scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			}
 		)
 		expect(message.tenantId).toBe('binding-tenant-id')
 		expect((message.payload as any).options.fromEndUserId).toBe('request-user-id')
@@ -157,6 +168,14 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).request.state).toEqual({
 			human: {
 				input: 'hello'
+			},
+			lark_conversation_context_current_chat_id: 'chat-1',
+			lark_conversation_context_current_chat_type: 'group',
+			lark_conversation_context_current_sender_open_id: 'ou_sender_1',
+			lark_current_context: {
+				chatId: 'chat-1',
+				chatType: 'group',
+				senderOpenId: 'ou_sender_1'
 			},
 			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
 			lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'

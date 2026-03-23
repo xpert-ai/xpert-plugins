@@ -1,4 +1,4 @@
-import { SystemMessage, ToolMessage } from '@langchain/core/messages'
+﻿import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput } from '@langchain/langgraph'
@@ -27,15 +27,15 @@ const DEFAULT_POST_LOCALE = 'en_us'
 const MAX_BATCH_CONCURRENCY = 5
 const MAX_KNOWN_RECIPIENT_SUMMARY_NAMES = 8
 
-// TODO: 当前 UI 只展示 open_id 作为 recipient_type 选项，这是阶段性策略。
-// 未来确认其他类型完整可用后可扩展（如 chat_id、user_id、union_id、email）。
-// 后端保留对所有类型的兼容逻辑，仅 UI 层面收口。
+// TODO: 当前 UI 只暴露 open_id 形式的 recipient_type 选择。
+// 后端仍然支持 chat_id、user_id、union_id、email 等类型。
+// 后续可以按产品需要继续扩展 UI 配置。
 const RecipientTypeSchema = z.enum(['chat_id', 'open_id', 'user_id', 'union_id', 'email'])
 const PostLocaleSchema = z.enum(['en_us', 'zh_cn', 'ja_jp'])
 
 const middlewareConfigSchema = z.object({
   integrationId: z.string().optional().nullable(),
-  // recipient_type 和 recipient_id 均为可选，允许在工具调用时动态指定
+  // recipient_type 和 recipient_id 作为中间件级默认接收人配置
   recipient_type: RecipientTypeSchema.optional().nullable().describe('Lark receive_id_type (optional)'),
   recipient_id: z.string().optional().nullable().describe('Lark receive_id value (optional)'),
   template: z
@@ -71,20 +71,20 @@ const RECIPIENT_NAME_FIELD_DESCRIPTION =
 const RECIPIENT_NAMES_FIELD_DESCRIPTION =
   'Preferred recipient names from the current Lark conversation context. Each name should refer to someone already seen in this chat, especially via earlier @mentions.'
 
-// TODO: 当前 tool-level recipient_id 的默认类型策略为 open_id。
-// 若未来需要支持 recipient_type override，可在 schema 中增加 recipient_type 参数。
+// TODO: 当前 tool-level recipient_id 默认按 open_id 处理。
+// 如果后面需要支持 recipient_type override，再扩展 schema。
 const sendTextNotificationSchema = z.object({
   content: z.string().describe('Text content to send'),
   recipient_name: z.string().optional().nullable().describe(RECIPIENT_NAME_FIELD_DESCRIPTION),
   recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
-  // 可选的收件人 ID，若 middleware 未配置 recipient_id 则使用此值
-  // 当仅传入 recipient_id 而未指定类型时，默认按 open_id 解释
+  // 兜底 ID：当中间件没有配置 recipient_id 时使用。
+  // 当前 recipient_id 默认按 open_id 解释。
   recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
-// TODO: 当前 tool-level recipient_id 的默认类型策略为 open_id。
-// 若未来需要支持 recipient_type override，可在 schema 中增加 recipient_type 参数。
+// TODO: 当前 tool-level recipient_id 默认按 open_id 处理。
+// 如果后面需要支持 recipient_type override，再扩展 schema。
 const sendRichNotificationSchema = z.object({
   mode: z.enum(['post', 'interactive']).describe('post=rich text, interactive=card'),
   markdown: z.string().optional().nullable().describe('Markdown content for post mode'),
@@ -92,8 +92,8 @@ const sendRichNotificationSchema = z.object({
   locale: PostLocaleSchema.optional().nullable().describe('Locale key for post mode content'),
   recipient_name: z.string().optional().nullable().describe(RECIPIENT_NAME_FIELD_DESCRIPTION),
   recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
-  // 可选的收件人 ID，若 middleware 未配置 recipient_id 则使用此值
-  // 当仅传入 recipient_id 而未指定类型时，默认按 open_id 解释
+  // 兜底 ID：当中间件没有配置 recipient_id 时使用。
+  // 当前 recipient_id 默认按 open_id 解释。
   recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
@@ -644,7 +644,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     description: {
       en_US:
         'Provides Lark notification tools. Prefer sending by recipient_name from the current chat context instead of exposing open_id. If the target user has not appeared in this group context yet, ask the user to @mention that person first.',
-      zh_Hans: '提供向飞书用户或群组发送通知的内置工具。'
+      zh_Hans:
+        '提供飞书通知工具。优先基于当前对话中的真实姓名发送，而不是直接暴露 open_id；如果目标用户还没出现在当前群上下文中，请先让用户 @ 对方。'
     },
     configSchema: {
       type: 'object',
@@ -657,7 +658,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           },
           description: {
             en_US: 'Default integration used by notify tools',
-            zh_Hans: '通知工具默认使用的飞书集成'
+            zh_Hans: '通知工具默认使用的飞书集成。'
           },
           'x-ui': {
             component: 'remoteSelect',
@@ -666,27 +667,28 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             span: 2,
           }
         },
-        // TODO: 当前 UI 只展示 open_id 作为 recipient_type 选项，这是阶段性策略。
-        // 后端保留对所有类型的兼容逻辑，未来确认其他类型完整可用后可扩展 UI 选项。
+        // TODO: 当前 UI 先只支持 open_id。
+        // 其他接收类型后续可以在不改后端能力的前提下补进 UI。
         recipient_type: {
           type: 'string',
-          // 阶段性只展示 open_id，避免误导用户
+          // 目前先限制为 open_id，保证配置与工具调用一致。
           enum: ['open_id'],
           default: 'open_id',
           title: {
             en_US: 'Recipient type',
-            zh_Hans: '收件人类型'
+            zh_Hans: '接收方类型'
           },
           description: {
             en_US: 'Currently only open_id is supported in UI. Backend supports other types via configuration.',
-            zh_Hans: '当前 UI 仅支持 open_id。后端通过配置支持其他类型。'
+            zh_Hans: '当前 UI 仅支持 open_id。后端仍可通过配置使用其他类型。'
           },
         },
         recipient_id: {
           type: 'string',
           description: {
             en_US: 'Optional fallback recipient ID. For normal conversations, prefer recipient_name so the model can work with real names instead of open_id.',
-            zh_Hans: '可选收件人 ID。也可由 AI 在工具调用时动态提供。'
+            zh_Hans:
+              '可选的兜底接收方 ID。普通对话中优先使用 recipient_name，让模型基于真实姓名工作，而不是直接依赖 open_id。'
           },
           'x-ui': {
             component: 'remoteSelect',
@@ -716,7 +718,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               default: false,
               title: {
                 en_US: 'Strict Template Mode',
-                zh_Hans: '模板严格模式'
+                zh_Hans: '严格模板模式'
               }
             }
           },
@@ -733,7 +735,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               default: DEFAULT_POST_LOCALE,
               title: {
                 en_US: 'Post Locale',
-                zh_Hans: '富文本语言'
+                zh_Hans: '消息语言'
               }
             },
             timeoutMs: {
@@ -742,7 +744,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               minimum: 100,
               title: {
                 en_US: 'Timeout (ms)',
-                zh_Hans: '超时毫秒'
+                zh_Hans: '超时（毫秒）'
               }
             }
           },
@@ -758,11 +760,12 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               default: false,
               title: {
                 en_US: 'Enable Lookup Tools',
-                zh_Hans: '启用查找工具'
+                zh_Hans: '启用查询工具'
               },
               description: {
                 en_US: 'Expose list users/chats tools for admin or debugging only. Keep disabled for normal name-based chat flows.',
-                zh_Hans: '不建议使用查找工具。正常按名字发送流程建议保持关闭。'
+                zh_Hans:
+                  '仅为管理或调试场景暴露用户/群组列表工具。普通基于姓名的对话流程建议保持关闭。'
               }
             }
           },
@@ -791,11 +794,10 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     const lookupToolsEnabled = parsed.lookupTools?.enabled === true
 
     /**
-     * 解析收件人信息，优先级：
-     * 1. middleware 配置的 recipient_type + recipient_id
-     * 2. tool call 传入的 recipient_id（默认按 open_id 解释）
-     * 3.中间件升级之后，可以不暴露openid，直接通过人名去发送，这样用户的体验会更好一些
-     * TODO: 未来可扩展 recipient_type override 能力，允许 tool call 指定类型
+     * 解析工具输入与中间件默认配置。
+     * 1. 中间件可预置 recipient_type + recipient_id。
+     * 2. tool call 的 recipient_id 当前默认按 open_id 处理。
+     * 3. 如果后续需要更多类型，再扩展 recipient_type override。
      */
     const resolveInput = <T extends Record<string, unknown>>(value: T) => {
       const state = getCurrentStateSafe()
@@ -809,8 +811,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         normalizeTimeout(renderedDefaults.timeoutMs, DEFAULT_TIMEOUT_MS)
       )
 
-      // 解析 middleware 配置的收件人（如果存在）
-      // 若只有 recipient_id 没有 recipient_type，按 open_id 解释（阶段性默认策略）
+      // 中间件级默认接收人配置。
+      // 当前 recipient_id 按 recipient_type 指定的类型解释，默认是 open_id。
       let renderedRecipients: unknown = null
       if (parsed.recipient_id) {
         const recipientType = parsed.recipient_type || 'open_id'
@@ -829,9 +831,9 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     }
 
     /**
-     * 解析收件人列表，优先级：
-     * 1. middleware 配置的 recipient（如果存在且有效）
-     * 2. tool call 传入的 recipient_id（默认按 open_id 解释）
+     * 解析最终接收人。
+     * 1. 优先根据当前会话中的姓名解析接收人。
+     * 2. 如果没有姓名，再回退到 middleware 或 tool call 中的 recipient_id。
      */
     const resolveRecipients = async (
       renderedRecipients: unknown,
@@ -840,7 +842,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       state: Record<string, unknown>,
       recipientDirectoryKey: string | null
     ): Promise<LarkRecipient[]> => {
-      // 优先使用 middleware 配置的收件人
+      // 姓名解析优先于 middleware 默认接收人。
       const nameResolutions = await this.resolveRecipientsByName(
         recipientDirectoryKey,
         normalizeNameValues(toolRecipientNames)
@@ -849,9 +851,13 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       if (unresolved.length > 0) {
         const [first] = unresolved
         if (first.status === 'ambiguous') {
-          throw new Error(`群里有多个“${first.name}”，请先 @ 目标用户一次，我才能确认发给谁。`)
+          throw new Error(
+            `无法唯一定位接收人 ${first.name}。请让用户在当前会话里通过 @ 明确指向该成员。`
+          )
         }
-        throw new Error(`我还不知道“${first.name}”对应的飞书账号，请先在群里 @ ${first.name} 一次。`)
+        throw new Error(
+          `找不到接收人 ${first.name}。请先让用户在当前会话中 @ ${first.name}。`
+        )
       }
       const nameRecipients = nameResolutions
         .filter((item): item is Extract<LarkRecipientNameResolution, { status: 'resolved' }> => item.status === 'resolved')
@@ -860,8 +866,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         return nameRecipients
       }
 
-      // 回退到 tool call 传入的 recipient_id
-      // TODO: 当前默认按 open_id 解释，未来可扩展 recipient_type override
+      // 再回退到 tool call 的 recipient_id。
+      // TODO: 如果未来需要，可支持在 tool call 中覆盖 recipient_type。
       const middlewareRecipients = normalizeRecipients(renderedRecipients, state)
       if (middlewareRecipients.length > 0) {
         return middlewareRecipients
@@ -869,7 +875,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
       const toolRecipientIdStr = normalizeString(toolRecipientId)
       if (toolRecipientIdStr) {
-        // 支持 Mustache 模板和系统变量路径
+        // 允许 recipient_id 指向一个 Mustache 渲染后的状态变量。
         const resolvedValue = getValueByPath(state, toolRecipientIdStr)
         const resolvedIds = resolvedValue !== undefined 
           ? normalizeRecipientIdValues(resolvedValue) 
@@ -894,7 +900,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     }
 
     /**
-     * 验证收件人是否存在，若不存在则返回用户友好的提示
+     * 确保至少有一个有效接收人。
      */
     const requireRecipients = (recipients: LarkRecipient[], toolName: string) => {
       if (!recipients.length) {
@@ -1008,7 +1014,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           const toolCallId = getToolCallIdFromConfig(config)
           const { state, renderedInput, renderedRecipients, integrationId, recipientDirectoryKey, timeoutMs } = resolveInput(parameters)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          // 收件人解析优先级：middleware 配置 > tool call 参数
+          // 接收人优先级：当前会话姓名 > middleware 默认配置 > tool call recipient_id
           const recipients = requireRecipients(
             await resolveRecipients(
               renderedRecipients,
@@ -1080,7 +1086,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           const { state, renderedInput, renderedRecipients, renderedDefaults, integrationId, recipientDirectoryKey, timeoutMs } =
             resolveInput(parameters)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          // 收件人解析优先级：middleware 配置 > tool call 参数
+          // 接收人优先级：当前会话姓名 > middleware 默认配置 > tool call recipient_id
           const recipients = requireRecipients(
             await resolveRecipients(
               renderedRecipients,
@@ -1518,3 +1524,4 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 }
 
 export type { LarkNotifyMiddlewareConfig, LarkNotifyState }
+

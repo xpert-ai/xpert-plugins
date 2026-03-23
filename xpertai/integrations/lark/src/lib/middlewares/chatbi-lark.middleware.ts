@@ -1,4 +1,4 @@
-import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+﻿import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
@@ -482,7 +482,7 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
     },
     description: {
       en_US: 'Provides ChatBI-Lark compatible tools in middleware mode.',
-      zh_Hans: '以中间件方式提供兼容 ChatBI-Lark 的工具集。'
+      zh_Hans: '以中间件方式提供兼容 ChatBI-Lark 的工具。'
     },
     configSchema: {
       type: 'object',
@@ -514,7 +514,7 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
           type: 'number',
           title: {
             en_US: 'Data Limit',
-            zh_Hans: '数据条数限制'
+            zh_Hans: '数据条数上限'
           },
           default: 100
         },
@@ -522,7 +522,7 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
           type: 'number',
           title: {
             en_US: 'Timeout (ms, default 30s)',
-            zh_Hans: '超时时间(毫秒，默认30s)'
+            zh_Hans: '超时（毫秒，默认 30 秒）'
           },
           default: DEFAULT_TIMEOUT_MS,
           minimum: 100
@@ -974,7 +974,10 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
             const elements = [
               {
                 tag: 'markdown',
-                content: lang === 'zh-Hans' ? '你可以从这些数据集开始提问：' : 'You can start from these datasets:'
+                content:
+                  lang === 'zh-Hans'
+                    ? '你可以从这些数据集开始：'
+                    : 'You can start from these datasets:'
               }
             ] as any[]
 
@@ -1285,3 +1288,4 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
 }
 
 export type { ChatBILarkMiddlewareConfig }
+

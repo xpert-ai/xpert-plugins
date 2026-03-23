@@ -12,7 +12,6 @@ import {
 import { randomUUID } from 'crypto'
 import { LarkConversationService } from '../conversation.service.js'
 import { LanguagesEnum, STATE_VARIABLE_HUMAN } from '../contracts-compat.js'
-import { resolveConversationUserKey } from '../conversation-user-key.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { DispatchLarkChatPayload } from './commands/dispatch-lark-chat.command.js'
@@ -66,17 +65,21 @@ export class LarkChatDispatchService {
 		const requestUserId = RequestContext.currentUserId()
 		const requestTenantId = RequestContext.currentTenantId()
 		const requestOrganizationId = RequestContext.getOrganizationId()
-		const conversationUserKey = resolveConversationUserKey({
-			senderOpenId: larkMessage.senderOpenId,
-			fallbackUserId: requestUserId
-		})
-		const conversationId = conversationUserKey
-			? await this.conversationService.getConversation(conversationUserKey, xpertId)
+		const scopeKey = larkMessage['scopeKey'] as string | undefined
+		const legacyConversationUserKey = larkMessage['legacyConversationUserKey'] as string | undefined
+		const principalKey = larkMessage['principalKey'] as string | undefined
+		const conversationId = scopeKey
+			? await this.conversationService.getConversation(scopeKey, xpertId, {
+					legacyConversationUserKey
+			  })
 			: undefined
 		// Dispatch must run under xpert creator context; request context is only a safety fallback.
 		const dispatchContext = await this.conversationService.resolveDispatchExecutionContext(
 			xpertId,
-			conversationUserKey
+			{
+				scopeKey,
+				legacyConversationUserKey
+			}
 		)
 		const tenantId = dispatchContext.tenantId ?? requestTenantId
 		const organizationId = dispatchContext.organizationId ?? requestOrganizationId
@@ -88,19 +91,22 @@ export class LarkChatDispatchService {
 			throw new Error('Missing executor userId in resolved dispatch context')
 		}
 		this.logger.debug(
-			`Resolved Lark dispatch context: source=${dispatchContext.source}, xpertId=${xpertId}, conversationUserKey=${
-				conversationUserKey ?? 'n/a'
+			`Resolved Lark dispatch context: source=${dispatchContext.source}, xpertId=${xpertId}, scopeKey=${
+				scopeKey ?? 'n/a'
 			}, tenantId=${tenantId}, organizationId=${organizationId ?? 'n/a'}, executorUserId=${executorUserId}, requestUserId=${
 				requestUserId ?? 'n/a'
 			}`
 		)
 
 		await larkMessage.update({ status: 'thinking' })
-		if (conversationUserKey) {
+		if (scopeKey) {
 			await this.conversationService.setActiveMessage(
-				conversationUserKey,
+				scopeKey,
 				xpertId,
-				this.toActiveMessageCache(larkMessage)
+				this.toActiveMessageCache(larkMessage),
+				{
+					legacyConversationUserKey
+				}
 			)
 		}
 
@@ -115,8 +121,15 @@ export class LarkChatDispatchService {
 			connectionMode: larkMessage.connectionMode,
 			integrationId: larkMessage.integrationId,
 			chatId: larkMessage.chatId,
+			chatType: larkMessage['chatType'] as string | undefined,
 			senderOpenId: larkMessage.senderOpenId,
+			senderName: larkMessage['senderName'] as string | undefined,
+			principalKey,
+			scopeKey,
+			legacyConversationUserKey,
 			recipientDirectoryKey: larkMessage.recipientDirectoryKey,
+			groupWindowId: input.options?.groupWindow?.windowId,
+			groupWindow: input.options?.groupWindow,
 			reject: Boolean(input.options?.reject),
 			streaming: this.resolveStreamingOverrideFromRequest(),
 			message: this.toMessageSnapshot(larkMessage, input.input)
@@ -162,10 +175,25 @@ export class LarkChatDispatchService {
 						[STATE_VARIABLE_HUMAN]: {
 							input: input.input
 						},
+						lark_conversation_context_current_chat_id: larkMessage.chatId ?? '',
+						lark_conversation_context_current_chat_type: (larkMessage['chatType'] as string | undefined) ?? '',
+						lark_conversation_context_current_sender_open_id: larkMessage.senderOpenId ?? '',
+						lark_conversation_context_current_sender_name: (larkMessage['senderName'] as string | undefined) ?? '',
+						lark_current_context: {
+							chatId: larkMessage.chatId ?? '',
+							chatType: (larkMessage['chatType'] as string | undefined) ?? '',
+							senderOpenId: larkMessage.senderOpenId ?? '',
+							senderName: (larkMessage['senderName'] as string | undefined) ?? ''
+						},
 						...(larkMessage.recipientDirectoryKey
 							? {
 									recipientDirectoryKey: larkMessage.recipientDirectoryKey,
 									lark_notify_recipient_directory_key: larkMessage.recipientDirectoryKey
+								}
+							: {}),
+						...(input.options?.groupWindow
+							? {
+									lark_group_window: input.options.groupWindow
 								}
 							: {})
 					},
@@ -176,7 +204,7 @@ export class LarkChatDispatchService {
 					xpertId,
 					from: 'feishu',
 					// Keep the inbound Lark user as end-user identity for conversation attribution.
-					fromEndUserId: requestUserId,
+					fromEndUserId: input.options?.fromEndUserId ?? requestUserId,
 					tenantId,
 					organizationId,
 					// Force execution user to xpert creator (minimal shape is enough for downstream context).

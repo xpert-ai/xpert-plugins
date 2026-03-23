@@ -2,7 +2,12 @@ import { Serializable } from '@langchain/core/load/serializable'
 import type { I18nObject, IChatMessage, TSensitiveOperation } from '@metad/contracts'
 import { Logger } from '@nestjs/common'
 import { XpertAgentExecutionStatusEnum } from './contracts-compat.js'
-import type { LarkEventRenderItem, LarkRenderItem } from './handoff/lark-chat.types.js'
+import type {
+  LarkEventRenderItem,
+  LarkProgressRenderItem,
+  LarkRenderItem,
+  LarkToolTraceRenderItem
+} from './handoff/lark-chat.types.js'
 import { translate } from './i18n.js'
 import type { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { ChatLarkContext, LARK_CONFIRM, LARK_END_CONVERSATION, LARK_REJECT, LarkRenderElement, LarkStructuredElement, TLarkConversationStatus } from './types.js'
@@ -75,6 +80,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.chatContext.chatId
   }
 
+  get chatType() {
+    return this.chatContext.chatType
+  }
+
   get larkUserId() {
     return this.chatContext.userId
   }
@@ -84,6 +93,18 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
    */
   get senderOpenId() {
     return this.chatContext.senderOpenId
+  }
+
+  get principalKey() {
+    return this.chatContext.principalKey
+  }
+
+  get scopeKey() {
+    return this.chatContext.scopeKey
+  }
+
+  get legacyConversationUserKey() {
+    return this.chatContext.legacyConversationUserKey
   }
 
   get recipientDirectoryKey() {
@@ -409,6 +430,16 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
           tag: 'markdown',
           content: item.text
         }
+      case 'progress':
+        return {
+          tag: 'markdown',
+          content: this.serializeProgressContent(item)
+        }
+      case 'tool_trace':
+        return {
+          tag: 'markdown',
+          content: this.serializeToolTraceContent(item)
+        }
       case 'event':
         return {
           tag: 'markdown',
@@ -442,6 +473,36 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       lines.push(`**Error:** ${item.error}`)
     }
     return lines.join('\n')
+  }
+
+  private serializeProgressContent(item: LarkProgressRenderItem): string {
+    const lines = [`**执行过程：${item.title}**`]
+    if (item.detail) {
+      lines.push(item.detail)
+    }
+    return lines.join('\n')
+  }
+
+  private serializeToolTraceContent(item: LarkToolTraceRenderItem): string {
+    const prefix = this.resolveToolTracePrefix(item.status, item.error)
+    const lines = [`**${prefix}${item.title}**`]
+    if (item.detail) {
+      lines.push(item.detail)
+    }
+    if (item.error && item.error !== item.detail) {
+      lines.push(`错误：${item.error}`)
+    }
+    return lines.join('\n')
+  }
+
+  private resolveToolTracePrefix(status?: string | null, error?: string | null): string {
+    if (error || status === 'fail' || status === 'error') {
+      return '工具失败：'
+    }
+    if (status === 'success' || status === 'done') {
+      return '工具结果：'
+    }
+    return '调用工具：'
   }
 
   private async handleCardSendFailure(
