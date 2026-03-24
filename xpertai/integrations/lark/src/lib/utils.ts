@@ -1,5 +1,8 @@
 import { type LarkFieldViolation, parseLarkClientError } from './types.js'
 
+const LARK_TOKEN_ERROR_MESSAGE =
+	'Failed to acquire Lark tenant access token. Please verify App ID, App Secret, and Is Lark configuration.'
+
 export function toNonEmptyString(value: unknown): string | null {
 	if (typeof value !== 'string') {
 		return null
@@ -107,7 +110,9 @@ function formatFieldViolation(violation: LarkFieldViolation): string | null {
 }
 
 export function toLarkApiErrorMessage(error: unknown): string {
-	console.error(stringifyErrorAsJson(error))
+	if (isLarkCredentialBootstrapError(error)) {
+		return LARK_TOKEN_ERROR_MESSAGE
+	}
 
 	const parsed = parseLarkClientError(error)
 	const segments: string[] = []
@@ -146,4 +151,40 @@ export function toLarkApiErrorMessage(error: unknown): string {
 	}
 
 	return segments.join(' | ') || 'Lark API request failed'
+}
+
+function isLarkCredentialBootstrapError(error: unknown): boolean {
+	const message = extractErrorMessage(error)
+	if (!message) {
+		return false
+	}
+
+	return (
+		message.includes("tenant_access_token") &&
+		(message.includes('undefined') ||
+			message.includes('Cannot destructure property') ||
+			message.includes('Failed to get tenant_access_token'))
+	)
+}
+
+function extractErrorMessage(error: unknown): string {
+	if (typeof error === 'string') {
+		return error
+	}
+
+	if (error instanceof Error) {
+		return error.message || String(error)
+	}
+
+	const responseMessage = (error as any)?.response?.data?.msg
+	if (typeof responseMessage === 'string' && responseMessage.trim()) {
+		return responseMessage
+	}
+
+	const message = (error as any)?.message
+	if (typeof message === 'string' && message.trim()) {
+		return message
+	}
+
+	return String(error ?? '')
 }

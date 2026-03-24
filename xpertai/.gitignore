@@ -43,6 +43,7 @@ Thumbs.db
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+.local-deploy/
 
 test-output
 .env

@@ -1,7 +1,8 @@
-import { DocumentSourceProviderCategoryEnum, I18nObject, IDocumentSourceProvider, IIntegration } from '@metad/contracts'
+import type { I18nObject, IDocumentSourceProvider, IIntegration } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { DocumentSourceStrategy, IDocumentSourceStrategy, IntegrationPermission } from '@xpert-ai/plugin-sdk'
 import { Document } from '@langchain/core/documents'
+import { DocumentSourceProviderCategoryEnum } from './contracts-compat.js'
 import { LarkClient } from './lark.client.js'
 import { iconImage, LarkDocumentsParams, LarkName } from './types.js'
 

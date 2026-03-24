@@ -101,6 +101,18 @@ describe('lark utils', () => {
 			expect(message).toBe('network timeout')
 		})
 
+		it('normalizes sdk tenant token bootstrap crash into a readable credential error', () => {
+			const message = toLarkApiErrorMessage(
+				new TypeError(
+					"Cannot destructure property 'tenant_access_token' of '(intermediate value)' as it is undefined."
+				)
+			)
+
+			expect(message).toBe(
+				'Failed to acquire Lark tenant access token. Please verify App ID, App Secret, and Is Lark configuration.'
+			)
+		})
+
 		it('supports replaying captured error json string fixture', () => {
 			const capturedErrorJson = JSON.stringify({
 				code: 1002,

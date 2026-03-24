@@ -7,7 +7,7 @@ import {
   IntegrationPermission,
   TDocumentTransformerConfig,
 } from '@xpert-ai/plugin-sdk'
-import { IconType, IKnowledgeDocument } from '@metad/contracts'
+import type { IconType, IKnowledgeDocument } from '@metad/contracts'
 import { iconImage, LarkDocumentMetadata, LarkDocumentName, LarkName } from './types.js'
 import { LarkClient } from './lark.client.js'
 

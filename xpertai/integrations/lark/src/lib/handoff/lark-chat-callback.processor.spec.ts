@@ -74,7 +74,11 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			xpertId: 'xpert-id',
 			integrationId: 'integration-id',
 			chatId: 'chat-id',
+			chatType: 'group',
 			senderOpenId: 'open-id',
+			principalKey: 'lark:v2:principal:integration-id:open_id:open-id',
+			scopeKey: 'lark:v2:scope:integration-id:group:chat-id',
+			legacyConversationUserKey: 'open_id:open-id',
 			requestContext: {
 				user: {
 					id: 'user-id',
@@ -452,6 +456,51 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(eventItems?.[0]).toMatchObject({ id: 'tool-1' })
 	})
 
+	it('summarizes lark notify tool output without rendering raw payload JSON', async () => {
+		const { processor, runStateService, larkChannel } = createFixture()
+		await runStateService.save(createRunState())
+
+		await processor.process(
+			createStreamMessage(
+				1,
+				'{"tool":"lark_send_text_notification","integrationId":"integration-id","successCount":1,"failureCount":0,"results":[{"target":"open_id:ou_test","success":true,"messageId":"om_123"}]}'
+			) as any,
+			createProcessContext() as any
+		)
+
+		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(0)
+		const state = await runStateService.get('run-1')
+		expect(state?.responseMessageContent).toBe('')
+	})
+
+	it('renders a concise notify tool summary instead of raw payload JSON', async () => {
+		const { processor, runStateService, larkChannel } = createFixture()
+		await runStateService.save(createRunState())
+
+		await processor.process(
+			createEventMessage(1, ChatMessageEventTypeEnum.ON_TOOL_END, {
+				id: 'tool-notify-1',
+				tool: 'lark_send_text_notification',
+				status: 'success',
+				message:
+					'{"tool":"lark_send_text_notification","integrationId":"integration-id","successCount":1,"failureCount":0,"results":[{"target":"open_id:ou_test","success":true,"messageId":"om_123"}]}'
+			}) as any,
+			createProcessContext() as any
+		)
+
+		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(1)
+		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
+		const markdown = patchPayload.elements
+			.filter((element: { tag?: string; content?: string }) => element.tag === 'markdown')
+			.map((element: { content?: string }) => element.content ?? '')
+			.join('\n')
+
+		expect(markdown).toContain('lark_send_text_notification')
+		expect(markdown).toContain('已发送通知 1 条')
+		expect(markdown).not.toContain('"successCount":1')
+		expect(markdown).not.toContain('open_id:ou_test')
+	})
+
 	it('renders ON_TOOL_ERROR as event and resolves id from toolCall.id', async () => {
 		const { processor, runStateService, larkChannel } = createFixture()
 		await runStateService.save(createRunState())
@@ -491,7 +540,7 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			createProcessContext() as any
 		)
 
-		expect(conversationService.setActiveMessage).toHaveBeenCalledWith('open_id:open-id', 'xpert-id', {
+		expect(conversationService.setActiveMessage).toHaveBeenCalledWith('lark:v2:scope:integration-id:group:chat-id', 'xpert-id', {
 			id: 'chat-message-2',
 			thirdPartyMessage: {
 				id: 'lark-message-id',
@@ -501,6 +550,8 @@ describe('LarkChatStreamCallbackProcessor', () => {
 				header: null,
 				elements: []
 			}
+		}, {
+			legacyConversationUserKey: 'open_id:open-id'
 		})
 	})
 
@@ -539,7 +590,7 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			createProcessContext() as any
 		)
 
-		expect(conversationService.setActiveMessage).toHaveBeenCalledWith('open_id:open-id', 'xpert-id', {
+		expect(conversationService.setActiveMessage).toHaveBeenCalledWith('lark:v2:scope:integration-id:group:chat-id', 'xpert-id', {
 			id: 'chat-message-2',
 			thirdPartyMessage: {
 				id: 'lark-message-id',
@@ -549,6 +600,8 @@ describe('LarkChatStreamCallbackProcessor', () => {
 				header: null,
 				elements: []
 			}
+		}, {
+			legacyConversationUserKey: 'open_id:open-id'
 		})
 	})
 

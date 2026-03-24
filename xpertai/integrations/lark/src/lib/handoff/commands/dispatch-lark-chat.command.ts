@@ -1,3 +1,4 @@
+import { LarkGroupWindow } from '../../types.js'
 import { ChatLarkMessage } from '../../message.js'
 
 export type DispatchLarkChatPayload = {
@@ -7,6 +8,8 @@ export type DispatchLarkChatPayload = {
 	options?: {
 		confirm?: boolean
 		reject?: boolean
+		fromEndUserId?: string
+		groupWindow?: LarkGroupWindow
 	}
 }
 

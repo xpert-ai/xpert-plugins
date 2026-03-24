@@ -14,7 +14,12 @@ function createLarkMessage(
 		elements: unknown[]
 		integrationId: string
 		chatId: string
+		chatType: string
 		senderOpenId: string
+		principalKey: string
+		scopeKey: string
+		legacyConversationUserKey: string
+		recipientDirectoryKey: string
 	}> = {}
 ) {
 	return {
@@ -26,7 +31,12 @@ function createLarkMessage(
 		elements: [],
 		integrationId: 'integration-1',
 		chatId: 'chat-1',
+		chatType: 'group',
 		senderOpenId: 'ou_sender_1',
+		principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+		scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+		legacyConversationUserKey: 'open_id:ou_sender_1',
+		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
 		update: jest.fn().mockResolvedValue(undefined),
 		...overrides
 	}
@@ -79,6 +89,7 @@ describe('LarkChatDispatchService', () => {
 			getConversation: jest
 				.fn()
 				.mockResolvedValue(hasConversationId ? params?.conversationId : 'conversation-1'),
+			getActiveMessage: jest.fn().mockResolvedValue(null),
 			setActiveMessage: jest.fn().mockResolvedValue(undefined),
 			resolveDispatchExecutionContext: jest.fn().mockResolvedValue(
 				params?.dispatchContext ?? {
@@ -139,8 +150,37 @@ describe('LarkChatDispatchService', () => {
 
 		expect(conversationService.resolveDispatchExecutionContext).toHaveBeenCalledWith(
 			'xpert-1',
-			'open_id:ou_sender_1'
+			{
+				scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			}
 		)
+		expect((message.payload as any).request).toEqual({
+			action: 'send',
+			conversationId: 'conversation-1',
+			message: {
+				input: {
+					input: 'hello'
+				}
+			},
+			state: {
+				human: {
+					input: 'hello'
+				},
+				lark_conversation_context_current_chat_id: 'chat-1',
+				lark_conversation_context_current_chat_type: 'group',
+				lark_conversation_context_current_sender_open_id: 'ou_sender_1',
+				lark_conversation_context_current_sender_name: '',
+				lark_current_context: {
+					chatId: 'chat-1',
+					chatType: 'group',
+					senderOpenId: 'ou_sender_1',
+					senderName: ''
+				},
+				recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+				lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
+			}
+		})
 		expect(message.tenantId).toBe('binding-tenant-id')
 		expect((message.payload as any).options.fromEndUserId).toBe('request-user-id')
 		expect((message.payload as any).options.user).toEqual({
@@ -152,13 +192,29 @@ describe('LarkChatDispatchService', () => {
 		expect((message.payload as any).callback.headers?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).callback.context?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).options.channelUserId).toBe('ou_sender_1')
+		expect((message.payload as any).request.state).toEqual({
+			human: {
+				input: 'hello'
+			},
+			lark_conversation_context_current_chat_id: 'chat-1',
+			lark_conversation_context_current_chat_type: 'group',
+			lark_conversation_context_current_sender_open_id: 'ou_sender_1',
+			lark_current_context: {
+				chatId: 'chat-1',
+				chatType: 'group',
+				senderOpenId: 'ou_sender_1'
+			},
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
+		})
 		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 		expect(runStateService.save).toHaveBeenCalledWith(
 			expect.objectContaining({
 				context: expect.objectContaining({
 					tenantId: 'binding-tenant-id',
 					organizationId: 'binding-organization-id',
-					userId: 'binding-creator-id'
+					userId: 'binding-creator-id',
+					recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1'
 				})
 			})
 		)
@@ -190,6 +246,90 @@ describe('LarkChatDispatchService', () => {
 			tenantId: 'latest-tenant-id'
 		})
 		expect((message.payload as any).callback.context?.userId).toBe('latest-creator-id')
+	})
+
+	it('buildDispatchMessage creates resume request for confirm action', async () => {
+		mockRequestContext()
+		const { service, conversationService } = createFixture({
+			conversationId: 'conversation-1'
+		})
+		conversationService.getActiveMessage = jest.fn().mockResolvedValue({
+			id: 'ai-message-1'
+		})
+		const larkMessage = createLarkMessage()
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			larkMessage: larkMessage as any,
+			options: {
+				confirm: true
+			}
+		})
+
+		expect((message.payload as any).request).toEqual({
+			action: 'resume',
+			conversationId: 'conversation-1',
+			target: {
+				aiMessageId: 'ai-message-1'
+			},
+			decision: {
+				type: 'confirm'
+			},
+			state: {
+				lark_conversation_context_current_chat_id: 'chat-1',
+				lark_conversation_context_current_chat_type: 'group',
+				lark_conversation_context_current_sender_open_id: 'ou_sender_1',
+				lark_conversation_context_current_sender_name: '',
+				lark_current_context: {
+					chatId: 'chat-1',
+					chatType: 'group',
+					senderOpenId: 'ou_sender_1',
+					senderName: ''
+				},
+				recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+				lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
+			}
+		})
+	})
+
+	it('buildDispatchMessage creates resume request for reject action without cached ai message id', async () => {
+		mockRequestContext()
+		const { service, conversationService } = createFixture({
+			conversationId: 'conversation-1'
+		})
+		conversationService.getActiveMessage = jest.fn().mockResolvedValue(null)
+		const larkMessage = createLarkMessage()
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			larkMessage: larkMessage as any,
+			options: {
+				reject: true
+			}
+		})
+
+		expect((message.payload as any).request).toEqual({
+			action: 'resume',
+			conversationId: 'conversation-1',
+			target: {},
+			decision: {
+				type: 'reject'
+			},
+			state: {
+				lark_conversation_context_current_chat_id: 'chat-1',
+				lark_conversation_context_current_chat_type: 'group',
+				lark_conversation_context_current_sender_open_id: 'ou_sender_1',
+				lark_conversation_context_current_sender_name: '',
+				lark_current_context: {
+					chatId: 'chat-1',
+					chatType: 'group',
+					senderOpenId: 'ou_sender_1',
+					senderName: ''
+				},
+				recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+				lark_notify_recipient_directory_key: 'lark:recipient-dir:integration-1:chat:chat-1'
+			}
+		})
 	})
 
 	it('buildDispatchMessage falls back to request context when binding context is unavailable', async () => {
@@ -265,5 +405,23 @@ describe('LarkChatDispatchService', () => {
 				larkMessage: larkMessage as any
 			})
 		).rejects.toThrow('Missing executor userId in resolved dispatch context')
+	})
+
+	it('buildDispatchMessage throws when resume action misses conversationId', async () => {
+		mockRequestContext()
+		const { service } = createFixture({
+			conversationId: undefined
+		})
+		const larkMessage = createLarkMessage()
+
+		await expect(
+			service.buildDispatchMessage({
+				xpertId: 'xpert-1',
+				larkMessage: larkMessage as any,
+				options: {
+					confirm: true
+				}
+			})
+		).rejects.toThrow('Missing conversationId for Lark resume action')
 	})
 })

@@ -1,9 +1,9 @@
-import { LanguagesEnum, TChatOptions } from '@metad/contracts'
+import type { LanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
 } from '@xpert-ai/plugin-sdk'
-import { LarkCardElement, LarkStructuredElement } from '../types.js'
+import { LarkCardElement, LarkGroupWindow, LarkStructuredElement } from '../types.js'
 
 export const LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
 	'lark',
@@ -14,6 +14,24 @@ export const LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
 export interface LarkStreamTextRenderItem {
 	kind: 'stream_text'
 	text: string
+}
+
+export interface LarkProgressRenderItem {
+	kind: 'progress'
+	id: string
+	title: string
+	detail?: string | null
+	status?: string | null
+}
+
+export interface LarkToolTraceRenderItem {
+	kind: 'tool_trace'
+	id: string
+	tool?: string | null
+	title: string
+	detail?: string | null
+	status?: string | null
+	error?: string | null
 }
 
 export interface LarkEventRenderItem {
@@ -32,11 +50,17 @@ export interface LarkStructuredRenderItem {
 	element: LarkStructuredElement
 }
 
-export type LarkRenderItem = LarkStreamTextRenderItem | LarkEventRenderItem | LarkStructuredRenderItem
+export type LarkRenderItem =
+	| LarkStreamTextRenderItem
+	| LarkProgressRenderItem
+	| LarkToolTraceRenderItem
+	| LarkEventRenderItem
+	| LarkStructuredRenderItem
 
 export interface LarkChatMessageSnapshot {
 	id?: string
 	messageId?: string
+	deliveryMode?: 'interactive' | 'text'
 	status?: string
 	language?: string
 	header?: any
@@ -50,10 +74,19 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	organizationId?: string
 	userId: string
 	xpertId: string
+	connectionMode?: 'webhook' | 'long_connection'
 	preferLanguage?: string
 	integrationId?: string
 	chatId?: string
+	chatType?: string
 	senderOpenId?: string
+	senderName?: string
+	principalKey?: string
+	scopeKey?: string
+	legacyConversationUserKey?: string
+	recipientDirectoryKey?: string
+	groupWindowId?: string
+	groupWindow?: LarkGroupWindow
 	reject?: boolean
 	streaming?: {
 		updateWindowMs?: number
@@ -66,13 +99,7 @@ export interface LarkChatStreamCallbackPayload extends AgentChatCallbackEnvelope
 }
 
 export interface LarkChatHandoffPayload extends Record<string, unknown> {
-	request: {
-		input: {
-			input: string
-		}
-		conversationId?: string
-		confirm?: boolean
-	}
+	request: TChatRequest
 	options: TChatOptions & {
 		xpertId: string
 		from: string

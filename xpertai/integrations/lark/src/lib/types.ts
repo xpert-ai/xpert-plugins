@@ -1,4 +1,4 @@
-import { ITenant, TChatConversationStatus } from '@metad/contracts'
+import type { ITenant, TChatConversationStatus } from '@metad/contracts'
 import { TDocumentAsset } from '@xpert-ai/plugin-sdk'
 import { AxiosError } from 'axios'
 
@@ -384,9 +384,39 @@ export type TIntegrationLarkOptions = {
   appSecret: string
   verificationToken: string
   encryptKey: string
+  connectionMode?: 'webhook' | 'long_connection'
   xpertId: string
   preferLanguage: string
   userProvision?: TLarkUserProvisionOptions
+}
+
+export type TLarkConnectionMode = 'webhook' | 'long_connection'
+
+export type TLarkLongConnectionState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+
+export type TLarkRuntimeStatus = {
+  integrationId: string
+  connectionMode: TLarkConnectionMode
+  connected: boolean
+  state: TLarkLongConnectionState
+  ownerInstanceId?: string | null
+  lastConnectedAt?: number | null
+  lastError?: string | null
+  failureCount?: number
+  nextReconnectAt?: number | null
+  disabledReason?: string | null
+}
+
+export type TLarkConnectionProbeState = 'connected' | 'failed'
+
+export type TLarkConnectionProbeResult = {
+  connectionMode: TLarkConnectionMode
+  connected: boolean
+  state: TLarkConnectionProbeState
+  checkedAt: number
+  endpointValidated: boolean
+  lastError?: string | null
+  recoverable?: boolean
 }
 
 export type LarkMessage = {
@@ -405,6 +435,7 @@ export type ChatLarkContext<T = any> = {
 	tenant: ITenant
 	organizationId: string
 	integrationId: string
+	connectionMode?: TLarkConnectionMode
 	userId: string
 	/**
 	 * Preferred language from integration options.
@@ -416,36 +447,57 @@ export type ChatLarkContext<T = any> = {
 	 * Lark platform sender's open_id (for @mention and private message)
 	 */
 	senderOpenId?: string
+	senderName?: string
+	principalKey?: string
+	scopeKey?: string
+	legacyConversationUserKey?: string
 	message?: T
 	input?: string
+	semanticMessage?: LarkSemanticMessage
+	recipientDirectoryKey?: string
+	groupWindow?: LarkGroupWindow
+	groupWindowId?: string
+}
+
+export type TLarkEventMention = {
+	id:
+		| string
+		| {
+				open_id?: string
+				union_id?: string
+				user_id?: string
+		  }
+	id_type?: 'open_id' | 'user_id' | 'union_id'
+	key?: string
+	name?: string
+	tenant_key?: string
 }
 
 export type TLarkEvent = {
 	schema: '2.0'
-	event_id: string
-	token: string
-	create_time: string
-	event_type: 'im.message.receive_v1'
-	tenant_key: string
-	app_id: string
+	header?: {
+		event_id?: string
+		event_type?: 'im.message.receive_v1'
+		token?: string
+		app_id?: string
+		tenant_key?: string
+		create_time?: string
+	}
+	event_id?: string
+	token?: string
+	create_time?: string
+	event_type?: 'im.message.receive_v1'
+	tenant_key?: string
+	app_id?: string
 	message: {
 		chat_id: string
 		chat_type: string
 		content: string
 		create_time: string
 		message_id: string
-		message_type: 'text' | 'image'
+		message_type: 'text' | 'image' | 'file' | 'audio'
 		update_time: string
-		mentions?: {
-			id: {
-				open_id: string
-				union_id: string
-				user_id: string
-			}
-			key: string
-			name: string
-			tenant_key: string
-		}[]
+		mentions?: TLarkEventMention[]
 	}
 	sender: {
 		sender_id: {
@@ -456,6 +508,113 @@ export type TLarkEvent = {
 		sender_type: 'user'
 		tenant_key: string
 	}
+}
+
+export type TLarkEventEnvelope = {
+	schema: '2.0'
+	header?: TLarkEvent['header']
+	event?: TLarkEvent
+}
+
+export type LarkMentionIdentity = {
+	key: string
+	id: string | null
+	idType: 'open_id' | 'user_id' | 'union_id' | 'unknown'
+	name: string | null
+	rawToken: string
+	isBot?: boolean
+}
+
+export type LarkSemanticMessage = {
+	rawText: string
+	displayText: string
+	agentText: string
+	mentions: LarkMentionIdentity[]
+}
+
+export type LarkMessageResourceType = 'file' | 'image' | 'audio' | 'media'
+
+export type NormalizedMessageMention = {
+	openId: string
+	name?: string
+	isBot?: boolean
+}
+
+export type NormalizedMessageResourceRef = {
+	fileKey: string
+	type?: LarkMessageResourceType | string
+	name?: string
+}
+
+export type NormalizedMessage = {
+	messageId: string
+	chatId?: string
+	senderOpenId?: string
+	senderName?: string
+	msgType: string
+	text?: string
+	mentions?: NormalizedMessageMention[]
+	parentId?: string
+	rootId?: string
+	createTime?: string
+	hasResource?: boolean
+	resourceRefs?: NormalizedMessageResourceRef[]
+}
+
+export type NormalizedMessageResource = {
+	messageId: string
+	fileKey: string
+	type: LarkMessageResourceType | string
+	name?: string
+	mimeType?: string
+	size?: number
+	contentEncoding?: 'base64'
+	contentBase64?: string
+}
+
+export type LarkGroupWindowParticipant = {
+	senderOpenId: string
+	userId?: string
+	senderName?: string
+}
+
+export type LarkGroupWindowItem = {
+	messageId: string
+	senderOpenId: string
+	userId?: string
+	senderName?: string
+	text: string
+	createTime?: string
+	mentions?: NormalizedMessageMention[]
+}
+
+export type LarkGroupWindow = {
+	windowId: string
+	integrationId: string
+	chatId: string
+	scopeKey: string
+	openedAt: number
+	lastEventAt: number
+	items: LarkGroupWindowItem[]
+	participants: LarkGroupWindowParticipant[]
+}
+
+export type RecipientDirectoryEntry = {
+	ref: string
+	openId: string
+	name: string
+	aliases: string[]
+	source: 'mention' | 'sender' | 'manual'
+	firstSeenAt: number
+	lastSeenAt: number
+}
+
+export type RecipientDirectory = {
+	scopeType: 'group' | 'private'
+	integrationId: string
+	chatId?: string
+	senderOpenId?: string
+	entries: RecipientDirectoryEntry[]
 }
 
 export type LarkElementScalar = string | number | boolean | null

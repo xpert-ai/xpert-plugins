@@ -1,18 +1,8 @@
-import * as lark from '@larksuiteoapi/node-sdk'
-import { IIntegration } from '@metad/contracts'
-import {
-	getErrorMessage,
-	INTEGRATION_PERMISSION_SERVICE_TOKEN,
-	IntegrationPermissionService,
-	type PluginContext,
-} from '@xpert-ai/plugin-sdk'
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import express from 'express'
 import { Strategy } from 'passport'
-import { LarkChannelStrategy } from '../lark-channel.strategy.js'
-import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
-import { TIntegrationLarkOptions } from '../types.js'
+import { LarkInboundIdentityService } from '../lark-inbound-identity.service.js'
 
 @Injectable()
 export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') {
@@ -20,23 +10,9 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 		throw new Error('Method not implemented.')
 	}
 	readonly logger = new Logger(LarkTokenStrategy.name)
-	private _integrationPermissionService: IntegrationPermissionService
 
-	constructor(
-		private readonly larkChannel: LarkChannelStrategy,
-		@Inject(LARK_PLUGIN_CONTEXT)
-		private readonly pluginContext: PluginContext,
-	) {
+	constructor(private readonly inboundIdentityService: LarkInboundIdentityService) {
 		super()
-	}
-
-	private get integrationPermissionService(): IntegrationPermissionService {
-		if (!this._integrationPermissionService) {
-			this._integrationPermissionService = this.pluginContext.resolve(
-				INTEGRATION_PERMISSION_SERVICE_TOKEN
-			)
-		}
-		return this._integrationPermissionService
 	}
 
 	override authenticate(req: express.Request, options: { session: boolean; property: string }) {
@@ -46,51 +22,15 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 		this.logger.verbose(`Lark request body:`, data)
 		;(async () => {
 			try {
-				const integration: IIntegration<TIntegrationLarkOptions> =
-					await this.integrationPermissionService.read(integrationId, { relations: ['tenant'] })
-				if (!integration) {
-					throw new Error(`Integration ${integrationId} not found`)
-				}
+				const integration = await this.inboundIdentityService.readIntegration(integrationId)
 				req.headers['organization-id'] = integration.organizationId
 
-				if (data.encrypt) {
-					const encryptKey = integration.options.encryptKey
-					if (!encryptKey) {
-						throw new Error(`You need to configure the encrypt Key for Feishu (Lark)`)
-					}
-					data = new lark.AESCipher(encryptKey).decrypt(data.encrypt)
-					data = JSON.parse(data)
-				}
+				data = this.inboundIdentityService.decryptWebhookBody(data, integration)
 
 				if (data.type === 'url_verification') {
 					this.success({})
 				} else {
-					const integrationClient = this.larkChannel.getOrCreateLarkClient(integration)
-					let union_id = null
-					switch (data.header?.event_type) {
-						case 'card.action.trigger': {
-							union_id = data.event.operator?.union_id
-							break
-						}
-						case 'im.message.receive_v1': {
-							union_id = data.event.sender?.sender_id.union_id
-							break
-						}
-					}
-
-					if (!union_id) {
-						throw new Error(`Can't get union_id from event of lark message`)
-					}
-
-					const user = await this.larkChannel.getUser(
-						integrationClient.client,
-						integration.tenantId,
-						union_id,
-						integration.options?.userProvision
-					)
-					if (!user) {
-						throw new UnauthorizedException(`No mapped user found for union_id '${union_id}'`)
-					}
+					const user = await this.inboundIdentityService.resolveUserForEvent(integration, data)
 
 					// Set language header
 					req.headers['language'] = integration.options?.preferLanguage || user.preferredLanguage
@@ -98,7 +38,7 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 				}
 			} catch (err) {
 				this.logger.error(err, integrationId, data)
-				this.fail(new UnauthorizedException('Invalid user', getErrorMessage(err)))
+				this.fail(this.inboundIdentityService.toUnauthorizedError(err))
 			}
 		})()
 	}

@@ -1,7 +1,4 @@
-import {
-	LanguagesEnum,
-	TChatOptions
-} from '@metad/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -14,7 +11,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'crypto'
 import { LarkConversationService } from '../conversation.service.js'
-import { resolveConversationUserKey } from '../conversation-user-key.js'
+import { LanguagesEnum, STATE_VARIABLE_HUMAN } from '../contracts-compat.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { DispatchLarkChatPayload } from './commands/dispatch-lark-chat.command.js'
@@ -68,17 +65,26 @@ export class LarkChatDispatchService {
 		const requestUserId = RequestContext.currentUserId()
 		const requestTenantId = RequestContext.currentTenantId()
 		const requestOrganizationId = RequestContext.getOrganizationId()
-		const conversationUserKey = resolveConversationUserKey({
-			senderOpenId: larkMessage.senderOpenId,
-			fallbackUserId: requestUserId
-		})
-		const conversationId = conversationUserKey
-			? await this.conversationService.getConversation(conversationUserKey, xpertId)
+		const scopeKey = larkMessage['scopeKey'] as string | undefined
+		const legacyConversationUserKey = larkMessage['legacyConversationUserKey'] as string | undefined
+		const principalKey = larkMessage['principalKey'] as string | undefined
+		const conversationId = scopeKey
+			? await this.conversationService.getConversation(scopeKey, xpertId, {
+					legacyConversationUserKey
+			  })
 			: undefined
+		const activeMessage = scopeKey
+			? await this.conversationService.getActiveMessage(scopeKey, xpertId, {
+					legacyConversationUserKey
+			  })
+			: null
 		// Dispatch must run under xpert creator context; request context is only a safety fallback.
 		const dispatchContext = await this.conversationService.resolveDispatchExecutionContext(
 			xpertId,
-			conversationUserKey
+			{
+				scopeKey,
+				legacyConversationUserKey
+			}
 		)
 		const tenantId = dispatchContext.tenantId ?? requestTenantId
 		const organizationId = dispatchContext.organizationId ?? requestOrganizationId
@@ -90,19 +96,22 @@ export class LarkChatDispatchService {
 			throw new Error('Missing executor userId in resolved dispatch context')
 		}
 		this.logger.debug(
-			`Resolved Lark dispatch context: source=${dispatchContext.source}, xpertId=${xpertId}, conversationUserKey=${
-				conversationUserKey ?? 'n/a'
+			`Resolved Lark dispatch context: source=${dispatchContext.source}, xpertId=${xpertId}, scopeKey=${
+				scopeKey ?? 'n/a'
 			}, tenantId=${tenantId}, organizationId=${organizationId ?? 'n/a'}, executorUserId=${executorUserId}, requestUserId=${
 				requestUserId ?? 'n/a'
 			}`
 		)
 
 		await larkMessage.update({ status: 'thinking' })
-		if (conversationUserKey) {
+		if (scopeKey) {
 			await this.conversationService.setActiveMessage(
-				conversationUserKey,
+				scopeKey,
 				xpertId,
-				this.toActiveMessageCache(larkMessage)
+				this.toActiveMessageCache(larkMessage),
+				{
+					legacyConversationUserKey
+				}
 			)
 		}
 
@@ -114,9 +123,18 @@ export class LarkChatDispatchService {
 			organizationId,
 			userId: executorUserId,
 			xpertId,
+			connectionMode: larkMessage.connectionMode,
 			integrationId: larkMessage.integrationId,
 			chatId: larkMessage.chatId,
+			chatType: larkMessage['chatType'] as string | undefined,
 			senderOpenId: larkMessage.senderOpenId,
+			senderName: larkMessage['senderName'] as string | undefined,
+			principalKey,
+			scopeKey,
+			legacyConversationUserKey,
+			recipientDirectoryKey: larkMessage.recipientDirectoryKey,
+			groupWindowId: input.options?.groupWindow?.windowId,
+			groupWindow: input.options?.groupWindow,
 			reject: Boolean(input.options?.reject),
 			streaming: this.resolveStreamingOverrideFromRequest(),
 			message: this.toMessageSnapshot(larkMessage, input.input)
@@ -136,6 +154,20 @@ export class LarkChatDispatchService {
 			}))
 		})
 
+		this.logger.debug(
+			`[lark-dispatch] runId=${runId} integration=${larkMessage.integrationId ?? 'n/a'} chat=${larkMessage.chatId ?? 'n/a'} conversationId=${
+				conversationId ?? 'n/a'
+			} recipientDirectoryKey=${larkMessage.recipientDirectoryKey ?? 'n/a'}`
+		)
+		const state = this.buildChatState(input)
+		const request = this.buildChatRequest({
+			conversationId,
+			activeMessageId: activeMessage?.id,
+			state,
+			options: input.options,
+			input: input.input
+		})
+
 		return {
 			id: runId,
 			type: AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -148,18 +180,12 @@ export class LarkChatDispatchService {
 			enqueuedAt: Date.now(),
 			traceId: runId,
 			payload: {
-				request: {
-					input: {
-						input: input.input
-					},
-					conversationId,
-					confirm: input.options?.confirm
-				},
+				request,
 				options: {
 					xpertId,
 					from: 'feishu',
 					// Keep the inbound Lark user as end-user identity for conversation attribution.
-					fromEndUserId: requestUserId,
+					fromEndUserId: input.options?.fromEndUserId ?? requestUserId,
 					tenantId,
 					organizationId,
 					// Force execution user to xpert creator (minimal shape is enough for downstream context).
@@ -167,7 +193,7 @@ export class LarkChatDispatchService {
 						id: executorUserId,
 						tenantId
 					},
-					language: language as LanguagesEnum,
+					language: language as TLanguagesEnum,
 					channelType: 'lark',
 					integrationId: larkMessage.integrationId,
 					chatId: larkMessage.chatId,
@@ -203,10 +229,82 @@ export class LarkChatDispatchService {
 		}
 	}
 
+	private buildChatState(input: TLarkChatDispatchInput): Record<string, any> {
+		const { larkMessage } = input
+		return {
+			...(input.input !== undefined
+				? {
+						[STATE_VARIABLE_HUMAN]: {
+							input: input.input
+						}
+					}
+				: {}),
+			lark_conversation_context_current_chat_id: larkMessage.chatId ?? '',
+			lark_conversation_context_current_chat_type: (larkMessage['chatType'] as string | undefined) ?? '',
+			lark_conversation_context_current_sender_open_id: larkMessage.senderOpenId ?? '',
+			lark_conversation_context_current_sender_name: (larkMessage['senderName'] as string | undefined) ?? '',
+			lark_current_context: {
+				chatId: larkMessage.chatId ?? '',
+				chatType: (larkMessage['chatType'] as string | undefined) ?? '',
+				senderOpenId: larkMessage.senderOpenId ?? '',
+				senderName: (larkMessage['senderName'] as string | undefined) ?? ''
+			},
+			...(larkMessage.recipientDirectoryKey
+				? {
+						recipientDirectoryKey: larkMessage.recipientDirectoryKey,
+						lark_notify_recipient_directory_key: larkMessage.recipientDirectoryKey
+					}
+				: {}),
+			...(input.options?.groupWindow
+				? {
+						lark_group_window: input.options.groupWindow
+					}
+				: {})
+		}
+	}
+
+	private buildChatRequest(params: {
+		conversationId?: string
+		activeMessageId?: string
+		state: Record<string, any>
+		options?: TLarkChatDispatchInput['options']
+		input?: string
+	}): TChatRequest {
+		if (params.options?.confirm || params.options?.reject) {
+			if (!params.conversationId) {
+				throw new Error('Missing conversationId for Lark resume action')
+			}
+
+			return {
+				action: 'resume',
+				conversationId: params.conversationId,
+				target: {
+					...(params.activeMessageId ? { aiMessageId: params.activeMessageId } : {})
+				},
+				decision: {
+					type: params.options.reject ? 'reject' : 'confirm'
+				},
+				state: params.state
+			} as unknown as TChatRequest
+		}
+
+		return {
+			action: 'send',
+			...(params.conversationId ? { conversationId: params.conversationId } : {}),
+			message: {
+				input: {
+					input: params.input ?? ''
+				}
+			},
+			state: params.state
+		} as unknown as TChatRequest
+	}
+
 	private toMessageSnapshot(message: ChatLarkMessage, text?: string): LarkChatMessageSnapshot {
 		return {
 			id: message.id,
 			messageId: message.messageId,
+			deliveryMode: message.deliveryMode,
 			status: message.status,
 			language: message.language,
 			header: message.header,
@@ -221,6 +319,7 @@ export class LarkChatDispatchService {
 			thirdPartyMessage: {
 				id: message.id,
 				messageId: message.messageId,
+				deliveryMode: message.deliveryMode,
 				status: message.status as string,
 				language: message.language,
 				header: message.header,

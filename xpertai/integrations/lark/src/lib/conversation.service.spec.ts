@@ -1,4 +1,4 @@
-import { LarkConversationService } from './conversation.service.js'
+﻿import { LarkConversationService } from './conversation.service.js'
 import {
 	CancelConversationCommand,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
@@ -26,7 +26,13 @@ class MemoryCache {
 
 type PersistedConversationBinding = {
 	userId?: string | null
-	conversationUserKey: string
+	integrationId?: string | null
+	principalKey?: string | null
+	scopeKey?: string | null
+	chatType?: string | null
+	chatId?: string | null
+	senderOpenId?: string | null
+	conversationUserKey?: string | null
 	xpertId: string
 	conversationId: string
 	tenantId?: string | null
@@ -91,6 +97,20 @@ describe('LarkConversationService', () => {
 						integrationId: 'integration-1',
 						xpertId: params.boundXpertId
 				  }
+		const sortBindings = (
+			items: PersistedConversationBinding[],
+			order?: {
+				updatedAt?: 'ASC' | 'DESC'
+			}
+		) => {
+			const toTime = (value?: Date) => (value instanceof Date ? value.getTime() : 0)
+			return [...items].sort((a, b) => {
+				if (order?.updatedAt === 'ASC') {
+					return toTime(a.updatedAt) - toTime(b.updatedAt)
+				}
+				return toTime(b.updatedAt) - toTime(a.updatedAt)
+			})
+		}
 		const conversationBindingRepository = {
 			findOne: jest
 				.fn()
@@ -104,8 +124,38 @@ describe('LarkConversationService', () => {
 							updatedAt?: 'ASC' | 'DESC'
 						}
 					}) => {
+						if (where.scopeKey && where.xpertId) {
+							return (
+								persistedConversationBindings.find(
+									(item) => item.scopeKey === where.scopeKey && item.xpertId === where.xpertId
+								) ?? null
+							)
+						}
+						if (where.scopeKey) {
+							return sortBindings(
+								persistedConversationBindings.filter((item) => item.scopeKey === where.scopeKey),
+								order
+							)[0] ?? null
+						}
+						if (where.principalKey) {
+							return sortBindings(
+								persistedConversationBindings.filter((item) => item.principalKey === where.principalKey),
+								order
+							)[0] ?? null
+						}
+						if (where.integrationId && where.chatId) {
+							return sortBindings(
+								persistedConversationBindings.filter(
+									(item) => item.integrationId === where.integrationId && item.chatId === where.chatId
+								),
+								order
+							)[0] ?? null
+						}
 						if (where.userId !== undefined) {
-							return persistedConversationBindings.find((item) => item.userId === where.userId) ?? null
+							return sortBindings(
+								persistedConversationBindings.filter((item) => item.userId === where.userId),
+								order
+							)[0] ?? null
 						}
 						if (where.conversationUserKey && where.xpertId) {
 							return (
@@ -116,17 +166,13 @@ describe('LarkConversationService', () => {
 							)
 						}
 						if (where.xpertId) {
-							const items = persistedConversationBindings.filter((item) => item.xpertId === where.xpertId)
+							const items = sortBindings(
+								persistedConversationBindings.filter((item) => item.xpertId === where.xpertId),
+								order
+							)
 							if (!items.length) {
 								return null
 							}
-							const toTime = (value?: Date) => (value instanceof Date ? value.getTime() : 0)
-							items.sort((a, b) => {
-								if (order?.updatedAt === 'ASC') {
-									return toTime(a.updatedAt) - toTime(b.updatedAt)
-								}
-								return toTime(b.updatedAt) - toTime(a.updatedAt)
-							})
 							return items[0]
 						}
 						return null
@@ -137,9 +183,25 @@ describe('LarkConversationService', () => {
 				.mockImplementation(
 					async (
 						payload: PersistedConversationBinding,
-						conflictPaths: Array<'userId' | 'conversationUserKey' | 'xpertId'>
+						conflictPaths: Array<'userId' | 'conversationUserKey' | 'scopeKey' | 'xpertId'>
 					) => {
-						if (conflictPaths.includes('userId') && payload.userId) {
+						if (conflictPaths.includes('scopeKey') && payload.scopeKey) {
+							const index = persistedConversationBindings.findIndex(
+								(item) => item.scopeKey === payload.scopeKey && item.xpertId === payload.xpertId
+							)
+							if (index >= 0) {
+								persistedConversationBindings[index] = {
+									...persistedConversationBindings[index],
+									...payload,
+									updatedAt: nextUpdatedAt()
+								}
+							} else {
+								persistedConversationBindings.push({
+									...payload,
+									updatedAt: payload.updatedAt ?? nextUpdatedAt()
+								})
+							}
+						} else if (conflictPaths.includes('userId') && payload.userId) {
 							const index = persistedConversationBindings.findIndex(
 								(item) => item.userId === payload.userId
 							)
@@ -183,11 +245,12 @@ describe('LarkConversationService', () => {
 					for (let index = persistedConversationBindings.length - 1; index >= 0; index--) {
 						const item = persistedConversationBindings[index]
 						const matchUserId = criteria.userId === undefined || item.userId === criteria.userId
+						const matchScopeKey = criteria.scopeKey === undefined || item.scopeKey === criteria.scopeKey
 						const matchUserKey =
 							criteria.conversationUserKey === undefined ||
 							item.conversationUserKey === criteria.conversationUserKey
 						const matchXpertId = criteria.xpertId === undefined || item.xpertId === criteria.xpertId
-						if (matchUserId && matchUserKey && matchXpertId) {
+						if (matchUserId && matchScopeKey && matchUserKey && matchXpertId) {
 							persistedConversationBindings.splice(index, 1)
 							removed++
 						}
@@ -226,12 +289,32 @@ describe('LarkConversationService', () => {
 		const larkChannel = {
 			errorMessage: jest.fn().mockResolvedValue(undefined),
 			patchInteractiveMessage: jest.fn().mockResolvedValue(undefined),
-			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } })
+			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } }),
+			resolveUserNameByOpenId: jest.fn().mockResolvedValue(null)
+		}
+		const recipientDirectoryService = {
+			buildKey: jest.fn().mockImplementation(({ integrationId, chatType, chatId, senderOpenId }) => {
+				if (!integrationId) {
+					return null
+				}
+				return chatType === 'group'
+					? `lark:recipient-dir:${integrationId}:chat:${chatId}`
+					: `lark:recipient-dir:${integrationId}:user:${senderOpenId}`
+			}),
+			upsertSender: jest.fn().mockResolvedValue(undefined),
+			upsertMentions: jest.fn().mockResolvedValue(undefined),
+			resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' }),
+			resolveByOpenId: jest.fn().mockResolvedValue(null)
+		}
+		const groupMentionWindowService = {
+			ingest: jest.fn().mockResolvedValue(false)
 		}
 		const service = new LarkConversationService(
 			commandBus as any,
 			cache as any,
 			larkChannel as any,
+			recipientDirectoryService as any,
+			groupMentionWindowService as any,
 			conversationBindingRepository as any,
 			triggerBindingRepository as any,
 			pluginContext as any
@@ -243,6 +326,8 @@ describe('LarkConversationService', () => {
 			larkChannel,
 			integrationPermissionService,
 			larkTriggerStrategy,
+			recipientDirectoryService,
+			groupMentionWindowService,
 			conversationBindingRepository,
 			triggerBindingRepository,
 			persistedConversationBindings
@@ -296,6 +381,31 @@ describe('LarkConversationService', () => {
 		)
 		expect(await service.getLatestConversationBindingByUserId('target@example.com')).toBeNull()
 		expect(await service.getConversation('email:target@example.com', 'xpert-1')).toBe('conversation-1')
+	})
+
+	it('setConversation for group scope does not persist legacy conversationUserKey', async () => {
+		const { service, conversationBindingRepository } = createFixture()
+
+		await service.setConversation('lark:v2:scope:integration-1:group:chat-1', 'xpert-1', 'conversation-1', {
+			userId: 'user-1',
+			integrationId: 'integration-1',
+			principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+			scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+			chatType: 'group',
+			chatId: 'chat-1',
+			senderOpenId: 'ou_sender_1',
+			legacyConversationUserKey: 'open_id:ou_sender_1'
+		})
+
+		expect(conversationBindingRepository.upsert).toHaveBeenCalledWith(
+			expect.objectContaining({
+				scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+				conversationUserKey: null,
+				xpertId: 'xpert-1',
+				conversationId: 'conversation-1'
+			}),
+			['scopeKey', 'xpertId']
+		)
 	})
 
 	it('resolveDispatchExecutionContext uses exact binding when exact context is complete', async () => {
@@ -424,6 +534,45 @@ describe('LarkConversationService', () => {
 		expect(first).toBe('conversation-from-db')
 		expect(second).toBe('conversation-from-db')
 		expect(conversationBindingRepository.findOne).toHaveBeenCalledTimes(1)
+	})
+
+	it('getConversation does not reuse legacy open_id binding for a new group scope', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-from-db',
+					conversationId: 'conversation-from-db'
+				}
+			]
+		})
+
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db', {
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			})
+		).resolves.toBeUndefined()
+	})
+
+	it('getActiveMessage does not reuse legacy open_id cache for a new group scope', async () => {
+		const { service } = createFixture()
+
+		await service.setActiveMessage('open_id:ou_sender_1', 'xpert-from-db', {
+			id: 'message-1',
+			thirdPartyMessage: {
+				id: 'lark-message-1',
+				messageId: 'message-1',
+				language: 'en_US',
+				status: 'thinking'
+			}
+		})
+
+		await expect(
+			service.getActiveMessage('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db', {
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			})
+		).resolves.toBeNull()
 	})
 
 	it.each([LARK_CONFIRM, LARK_REJECT, LARK_END_CONVERSATION])(
@@ -618,6 +767,44 @@ describe('LarkConversationService', () => {
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
 	})
 
+	it('processMessage reuses fallback xpert but does not cache an old sender conversation into a new group scope', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+					xpertId: 'xpert-from-db',
+					conversationId: 'conversation-from-db'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-new',
+			chatType: 'group',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello from new group' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-db')
+		expect(
+			await service.getConversation('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db')
+		).toBeUndefined()
+		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+	})
+
 	it('processMessage falls back to trigger strategy when latest binding does not exist', async () => {
 		const { service, larkTriggerStrategy, commandBus, larkChannel } = createFixture({
 			boundXpertId: 'trigger-xpert',
@@ -688,5 +875,130 @@ describe('LarkConversationService', () => {
 
 		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
+	})
+
+	it('processMessage prefers semanticMessage agentText and keeps recipientDirectoryKey in dispatch payload', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			semanticMessage: {
+				rawText: '<at user_id="ou_user_1">Tom Jerry</at> hi',
+				displayText: '@Tom Jerry hi',
+				agentText: 'Tom Jerry hi',
+				mentions: [
+					{
+						key: '@_user_1',
+						id: 'ou_user_1',
+						idType: 'open_id',
+						name: 'Tom Jerry',
+						rawToken: '<at user_id="ou_user_1">Tom Jerry</at>'
+					}
+				]
+			},
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'fallback text' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe('Tom Jerry hi')
+		expect(dispatchCommands[0].input.larkMessage.recipientDirectoryKey).toBe(
+			'lark:recipient-dir:integration-1:chat:chat-1'
+		)
+	})
+
+	it('processMessage appends speaker context when sender name is resolved from open_id', async () => {
+		const { service, commandBus, larkTriggerStrategy, recipientDirectoryService, larkChannel } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+		recipientDirectoryService.resolveByOpenId.mockResolvedValue({
+			ref: 'u_1',
+			openId: 'ou_sender_1',
+			name: 'Alice Zhang',
+			aliases: ['Alice Zhang'],
+			source: 'sender',
+			firstSeenAt: Date.now(),
+			lastSeenAt: Date.now()
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			message: {
+				message: {
+					content: JSON.stringify({ text: '\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
+			})
+		)
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe(
+			'[\u7fa4\u804a\u4e0a\u4e0b\u6587]\\n\u5f53\u524d\u53d1\u8a00\u4eba\uff1aAlice Zhang\\n\u7528\u6237\u6d88\u606f\uff1a\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
+		)
+		expect(larkChannel.resolveUserNameByOpenId).not.toHaveBeenCalled()
+	})
+
+	it('processMessage passes speaker context into trigger-bound dispatches', async () => {
+		const { service, commandBus, larkTriggerStrategy, recipientDirectoryService } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: true,
+			legacyXpertId: 'legacy-xpert'
+		})
+		recipientDirectoryService.resolveByOpenId.mockResolvedValue({
+			ref: 'u_1',
+			openId: 'ou_sender_1',
+			name: 'Alice Zhang',
+			aliases: ['Alice Zhang'],
+			source: 'sender',
+			firstSeenAt: Date.now(),
+			lastSeenAt: Date.now()
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+			message: {
+				message: {
+					content: JSON.stringify({ text: '\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '[\u7fa4\u804a\u4e0a\u4e0b\u6587]\\n\u5f53\u524d\u53d1\u8a00\u4eba\uff1aAlice Zhang\\n\u7528\u6237\u6d88\u606f\uff1a\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
+			})
+		)
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 	})
 })

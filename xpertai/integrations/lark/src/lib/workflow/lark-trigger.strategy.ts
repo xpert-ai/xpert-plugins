@@ -1,4 +1,4 @@
-import { ChecklistItem, TWorkflowTriggerMeta } from '@metad/contracts'
+import type { ChecklistItem, TWorkflowTriggerMeta } from '@metad/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -235,6 +235,10 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		if (!binding?.xpertId) {
 			return false
 		}
+
+		this.logger.debug(
+			`[lark-dispatch] trigger integration=${params.integrationId} xpert=${binding.xpertId} input=${JSON.stringify(params.input ?? '')}`
+		)
 
 		const callback = this.callbacks.get(params.integrationId)
 		if (!callback) {
