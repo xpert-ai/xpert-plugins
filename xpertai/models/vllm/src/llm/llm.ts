@@ -88,78 +88,69 @@ class VLLMChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
       messageChunk.additional_kwargs = {}
     }
     
-    // Check if delta has standard reasoning_content field (like DeepSeek)
-    if (delta['reasoning_content']) {
-      messageChunk.additional_kwargs['reasoning_content'] = delta['reasoning_content']
-      // For standard format, keep content as is
-      return messageChunk
+    // Fix 1: Use 'in' operator to detect explicit-fields format (reasoning_content + content in separate fields)
+    // e.g. DeepSeek, vLLM with explicit fields: reasoning chunks have reasoning_content=value,content=null
+    //                                            text chunks have reasoning_content=null,content=value
+    // Must use 'in' not truthiness check, because reasoning_content=null signals transition to text mode
+    if ('reasoning_content' in delta) {
+      if (delta['reasoning_content']) {
+        // Reasoning chunk: set reasoning_content and clear content
+        messageChunk.additional_kwargs['reasoning_content'] = delta['reasoning_content']
+        messageChunk.content = ''
+        return messageChunk
+      } else {
+        // Transition: reasoning_content is null, model switched to normal text
+        // Exit reasoning mode so subsequent content chunks are treated as text
+        this.reasoningComplete = true
+        this.inReasoningMode = false
+        return messageChunk
+      }
     }
-    
-    // Handle vLLM's tag format: content contains tags mixed with text
-    const content = messageChunk.content as string
-    
-    // If no content in this delta, return as is
-    if (!content || typeof content !== 'string') {
-      return messageChunk
-    }
-    
-    // Check if content contains closing tag: "</think>"
-    // vLLM format: "推理内容</think>正常回复"
-    if (content.includes('</think>')) {
-      const parts = content.split('</think>')
-      
-      // Content before closing tag is reasoning
+
+    // Fix 2: Use original delta.content (not messageChunk.content) to detect </think> tag
+    // Parent class ChatOAICompatReasoningModel may already consume the </think> tag,
+    // returning messageChunk.content = '', which would cause an early return before detection
+    const rawDeltaContent = typeof delta.content === 'string' ? delta.content : ''
+    const content = typeof messageChunk.content === 'string' ? messageChunk.content : ''
+
+    // Check for </think> using original delta content first
+    const checkContent = rawDeltaContent.includes('</think>') ? rawDeltaContent : content
+    if (checkContent.includes('</think>')) {
+      const parts = checkContent.split('</think>')
+
       if (parts[0]) {
         this.accumulatedReasoning += parts[0]
       }
-      
-      // Save final reasoning content before resetting
       this.finalReasoningContent = this.accumulatedReasoning
-      
-      // Set reasoning content in additional_kwargs
       messageChunk.additional_kwargs['reasoning_content'] = this.finalReasoningContent
-      
-      // Mark reasoning as complete
       this.reasoningComplete = true
       this.inReasoningMode = false
-      
-      // Content after closing tag is normal content
-      // Set content to final answer part (empty if no final content yet)
       messageChunk.content = parts[1] || ''
-      
-      // Reset accumulated reasoning for next message
       this.accumulatedReasoning = ''
-      
       return messageChunk
     }
-    
+
+    // If no content in this delta, return as is
+    if (!content) {
+      return messageChunk
+    }
+
     // If reasoning is complete, this is normal content
     if (this.reasoningComplete) {
-      // Keep content as is, but ensure reasoning_content is set from saved final reasoning
       if (this.finalReasoningContent && !messageChunk.additional_kwargs['reasoning_content']) {
         messageChunk.additional_kwargs['reasoning_content'] = this.finalReasoningContent
       }
       return messageChunk
     }
-    
-    // If still in reasoning mode (before tag found), accumulate reasoning content
-    // Only process reasoning if thinking mode is enabled
+
+    // If still in reasoning mode (before </think> tag found), accumulate reasoning content
     if (this.inReasoningMode && this.thinkingEnabled) {
-      // Only pass the current delta content, not accumulated content
-      // This prevents duplicate reasoning content in each chunk
-      // Platform code will accumulate the reasoning_content chunks on its own
       messageChunk.additional_kwargs['reasoning_content'] = content
-      // Clear content so platform code recognizes this as reasoning type
-      // Platform logic: if content is empty, it checks reasoning_content
       messageChunk.content = ''
-      // Still accumulate for final reasoning content when tag is found
       this.accumulatedReasoning += content
       return messageChunk
     }
-    
-    // If thinking mode is disabled, return content as normal text
-    // This ensures normal content appears in text tab, not reasoning tab
-    // Fallback: return as is
+
     return messageChunk
   }
 
