@@ -1,0 +1,5 @@
+# for more details, please refer to https://help.aliyun.com/zh/model-studio/text-rerank-api
+model: gte-rerank
+model_type: rerank
+model_properties:
+  context_size: 4000

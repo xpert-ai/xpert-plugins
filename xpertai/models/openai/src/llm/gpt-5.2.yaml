@@ -47,13 +47,13 @@ parameter_rules:
     required: false
     default: medium
     options:
+      - minimal
       - low
       - medium
       - high
-      - xhigh
     help:
-      zh_Hans: 控制模型推理的深度。xhigh 提供最深度的推理。
-      en_US: Controls how much reasoning effort the model uses. xhigh provides the deepest reasoning.
+      zh_Hans: 控制模型推理的深度。high 提供最深度的推理，minimal 适合更快的响应。
+      en_US: Controls how much reasoning effort the model uses. high provides the deepest reasoning, while minimal favors faster responses.
   - name: frequency_penalty
     use_template: frequency_penalty
     default: 0

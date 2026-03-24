@@ -762,6 +762,18 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  middlewares/markitdown:
+    dependencies:
+      '@metad/contracts':
+        specifier: ^3.8.3
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.8.3
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
   middlewares/model-fallback:
     dependencies:
       '@langchain/core':
@@ -1157,6 +1169,39 @@ importers:
       '@xpert-ai/plugin-sdk':
         specifier: ^3.6.5
         version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
+  models/tongyi:
+    dependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
+      '@langchain/openai':
+        specifier: 0.6.9
+        version: 0.6.9(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(ws@8.19.0)
+      '@metad/contracts':
+        specifier: ^3.7.0
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/config':
+        specifier: ^4.0.2
+        version: 4.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.7.2
+        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
+      chalk:
+        specifier: 4.1.2
+        version: 4.1.2
+      lodash-es:
+        specifier: 4.17.21
+        version: 4.17.21
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -4940,7 +4985,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}

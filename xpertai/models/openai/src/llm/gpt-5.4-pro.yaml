@@ -1,0 +1,63 @@
+model: gpt-5.4-pro
+label:
+  en_US: GPT-5.4 Pro
+  zh_Hans: GPT-5.4 Pro
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+model_properties:
+  mode: chat
+  context_size: 400000
+  max_output: 128000
+parameter_rules:
+  - name: max_tokens
+    use_template: max_tokens
+    default: 32768
+    min: 1
+    max: 128000
+    help:
+      zh_Hans: 最大输出 token 数量。
+      en_US: Maximum number of output tokens.
+  - name: reasoning_effort
+    label:
+      zh_Hans: 推理力度
+      en_US: Reasoning Effort
+    type: string
+    required: false
+    default: medium
+    options:
+      - minimal
+      - low
+      - medium
+      - high
+    help:
+      zh_Hans: 控制模型推理的深度。high 提供最深度的推理，minimal 适合更快的响应。
+      en_US: Controls how much reasoning effort the model uses. high provides the deepest reasoning, while minimal favors faster responses.
+  - name: frequency_penalty
+    use_template: frequency_penalty
+    default: 0
+    min: -2.0
+    max: 2.0
+    help:
+      zh_Hans: 降低重复内容的出现频率。
+      en_US: Reduces repetition in the output.
+  - name: presence_penalty
+    label:
+      zh_Hans: 存在惩罚
+      en_US: Presence Penalty
+    type: float
+    default: 0
+    min: -2.0
+    max: 2.0
+    help:
+      zh_Hans: 提高讨论新话题的可能性。
+      en_US: Increases the likelihood of discussing new topics.
+pricing:
+  input: '25'
+  output: '200'
+  unit: '0.000001'
+  currency: USD
