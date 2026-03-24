@@ -1,4 +1,4 @@
-import type { LanguagesEnum as TLanguagesEnum, TChatOptions } from '@metad/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -73,6 +73,11 @@ export class LarkChatDispatchService {
 					legacyConversationUserKey
 			  })
 			: undefined
+		const activeMessage = scopeKey
+			? await this.conversationService.getActiveMessage(scopeKey, xpertId, {
+					legacyConversationUserKey
+			  })
+			: null
 		// Dispatch must run under xpert creator context; request context is only a safety fallback.
 		const dispatchContext = await this.conversationService.resolveDispatchExecutionContext(
 			xpertId,
@@ -154,6 +159,14 @@ export class LarkChatDispatchService {
 				conversationId ?? 'n/a'
 			} recipientDirectoryKey=${larkMessage.recipientDirectoryKey ?? 'n/a'}`
 		)
+		const state = this.buildChatState(input)
+		const request = this.buildChatRequest({
+			conversationId,
+			activeMessageId: activeMessage?.id,
+			state,
+			options: input.options,
+			input: input.input
+		})
 
 		return {
 			id: runId,
@@ -167,39 +180,7 @@ export class LarkChatDispatchService {
 			enqueuedAt: Date.now(),
 			traceId: runId,
 			payload: {
-				request: {
-					input: {
-						input: input.input
-					},
-					state: {
-						[STATE_VARIABLE_HUMAN]: {
-							input: input.input
-						},
-						lark_conversation_context_current_chat_id: larkMessage.chatId ?? '',
-						lark_conversation_context_current_chat_type: (larkMessage['chatType'] as string | undefined) ?? '',
-						lark_conversation_context_current_sender_open_id: larkMessage.senderOpenId ?? '',
-						lark_conversation_context_current_sender_name: (larkMessage['senderName'] as string | undefined) ?? '',
-						lark_current_context: {
-							chatId: larkMessage.chatId ?? '',
-							chatType: (larkMessage['chatType'] as string | undefined) ?? '',
-							senderOpenId: larkMessage.senderOpenId ?? '',
-							senderName: (larkMessage['senderName'] as string | undefined) ?? ''
-						},
-						...(larkMessage.recipientDirectoryKey
-							? {
-									recipientDirectoryKey: larkMessage.recipientDirectoryKey,
-									lark_notify_recipient_directory_key: larkMessage.recipientDirectoryKey
-								}
-							: {}),
-						...(input.options?.groupWindow
-							? {
-									lark_group_window: input.options.groupWindow
-								}
-							: {})
-					},
-					conversationId,
-					confirm: input.options?.confirm
-				},
+				request,
 				options: {
 					xpertId,
 					from: 'feishu',
@@ -246,6 +227,77 @@ export class LarkChatDispatchService {
 				...(larkMessage.integrationId ? { integrationId: larkMessage.integrationId } : {})
 			}
 		}
+	}
+
+	private buildChatState(input: TLarkChatDispatchInput): Record<string, any> {
+		const { larkMessage } = input
+		return {
+			...(input.input !== undefined
+				? {
+						[STATE_VARIABLE_HUMAN]: {
+							input: input.input
+						}
+					}
+				: {}),
+			lark_conversation_context_current_chat_id: larkMessage.chatId ?? '',
+			lark_conversation_context_current_chat_type: (larkMessage['chatType'] as string | undefined) ?? '',
+			lark_conversation_context_current_sender_open_id: larkMessage.senderOpenId ?? '',
+			lark_conversation_context_current_sender_name: (larkMessage['senderName'] as string | undefined) ?? '',
+			lark_current_context: {
+				chatId: larkMessage.chatId ?? '',
+				chatType: (larkMessage['chatType'] as string | undefined) ?? '',
+				senderOpenId: larkMessage.senderOpenId ?? '',
+				senderName: (larkMessage['senderName'] as string | undefined) ?? ''
+			},
+			...(larkMessage.recipientDirectoryKey
+				? {
+						recipientDirectoryKey: larkMessage.recipientDirectoryKey,
+						lark_notify_recipient_directory_key: larkMessage.recipientDirectoryKey
+					}
+				: {}),
+			...(input.options?.groupWindow
+				? {
+						lark_group_window: input.options.groupWindow
+					}
+				: {})
+		}
+	}
+
+	private buildChatRequest(params: {
+		conversationId?: string
+		activeMessageId?: string
+		state: Record<string, any>
+		options?: TLarkChatDispatchInput['options']
+		input?: string
+	}): TChatRequest {
+		if (params.options?.confirm || params.options?.reject) {
+			if (!params.conversationId) {
+				throw new Error('Missing conversationId for Lark resume action')
+			}
+
+			return {
+				action: 'resume',
+				conversationId: params.conversationId,
+				target: {
+					...(params.activeMessageId ? { aiMessageId: params.activeMessageId } : {})
+				},
+				decision: {
+					type: params.options.reject ? 'reject' : 'confirm'
+				},
+				state: params.state
+			} as unknown as TChatRequest
+		}
+
+		return {
+			action: 'send',
+			...(params.conversationId ? { conversationId: params.conversationId } : {}),
+			message: {
+				input: {
+					input: params.input ?? ''
+				}
+			},
+			state: params.state
+		} as unknown as TChatRequest
 	}
 
 	private toMessageSnapshot(message: ChatLarkMessage, text?: string): LarkChatMessageSnapshot {

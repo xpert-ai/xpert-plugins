@@ -1,4 +1,4 @@
-import type { LanguagesEnum, TChatOptions } from '@metad/contracts'
+import type { LanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
@@ -99,14 +99,7 @@ export interface LarkChatStreamCallbackPayload extends AgentChatCallbackEnvelope
 }
 
 export interface LarkChatHandoffPayload extends Record<string, unknown> {
-	request: {
-		input: {
-			input: string
-		}
-		state?: Record<string, unknown>
-		conversationId?: string
-		confirm?: boolean
-	}
+	request: TChatRequest
 	options: TChatOptions & {
 		xpertId: string
 		from: string
