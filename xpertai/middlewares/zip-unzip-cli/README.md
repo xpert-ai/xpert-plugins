@@ -5,9 +5,11 @@
 ## Key Features
 
 - Checks whether `zip` and `unzip` are present in the sandbox on first use.
-- Installs `zip` and `unzip` with `apt` automatically when the sandbox image does not already include them.
+- Installs `zip` and `unzip` with `apt-get` automatically when the sandbox image does not already include them.
+- Serializes first-time installation with a plugin-level bootstrap lock inside the sandbox.
+- Retries automatically when `apt`/`dpkg` package-manager locks are temporarily held by another process.
 - Writes embedded skill assets (`SKILL.md` and workflow references) into the sandbox at `/workspace/.xpert/skills/zip-unzip` by default.
-- Appends Zip/Unzip-specific system guidance so the agent uses `sandbox_shell` consistently.
+- Appends the embedded Zip/Unzip skill description to the system prompt inside `<skill>...</skill>` tags.
 - Re-checks bootstrap state before `sandbox_shell` commands that invoke `zip` or `unzip`.
 - Blocks interactive `zip -e` password prompts, which can hang in non-interactive sandbox sessions.
 - Validates agent drafts and warns when sandbox support or `SandboxShell` is missing.
@@ -44,18 +46,21 @@ This middleware does not expose runtime configuration in v1. Skill assets are al
 
 - On first use, the middleware checks `/workspace/.xpert/.zip-unzip-bootstrap.json`.
 - If the stamp is missing or outdated, it verifies whether `zip` and `unzip` exist in `PATH`.
-- If either binary is missing, it checks for `apt` and runs:
-  - `DEBIAN_FRONTEND=noninteractive apt update`
-  - `DEBIAN_FRONTEND=noninteractive apt install -y zip unzip`
+- If either binary is missing, it checks for `apt-get`.
+- Each install attempt runs inside a plugin-level bootstrap lock rooted at `/workspace/.xpert/.zip-unzip-bootstrap.lock`.
+- Inside the lock, it re-checks `zip` and `unzip` before running package installation so concurrent requests can reuse a completed install.
+- Package installation uses:
+  - `DEBIAN_FRONTEND=noninteractive apt-get update`
+  - `DEBIAN_FRONTEND=noninteractive apt-get install -y zip unzip`
+- When installation fails because `apt` or `dpkg` is locked, the middleware waits and retries with bounded backoff before surfacing an error.
 - After bootstrap, it writes:
   - `SKILL.md`
   - `references/common-workflows.md`
   - the bootstrap stamp file
-- The system prompt tells the agent to:
-  - use `sandbox_shell` for all archive operations
-  - read the sandbox skill file before first use
-  - avoid interactive commands such as `zip -e`
-  - choose `unzip -o` or `unzip -n` explicitly when overwrite behavior matters
+- The system prompt appends:
+  - `<skill>`
+  - the `description` field from the embedded `SKILL.md`
+  - `</skill>`
 - Non-archive `sandbox_shell` commands are passed through unchanged.
 
 ## Validation Rules

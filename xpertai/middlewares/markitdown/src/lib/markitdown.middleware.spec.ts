@@ -66,6 +66,16 @@ describe('MarkItDownSkillMiddleware', () => {
     expect(markitdownBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend, defaultConfig)
   })
 
+  it('skips bootstrap in beforeAgent when no backend is available', async () => {
+    const { middleware, markitdownBootstrapService } = createSubject()
+
+    await middleware.beforeAgent?.({} as any, {
+      configurable: {}
+    } as any)
+
+    expect(markitdownBootstrapService.ensureBootstrap).not.toHaveBeenCalled()
+  })
+
   it('appends the MarkItDown prompt to the system message when sandbox is enabled', async () => {
     const backend = { execute: jest.fn() }
     const { middleware, markitdownBootstrapService } = createSubject()

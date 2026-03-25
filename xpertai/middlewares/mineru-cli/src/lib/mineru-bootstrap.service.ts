@@ -1,5 +1,4 @@
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
 import { posix as path } from 'node:path'
 import {
   BaseSandbox,
@@ -8,25 +7,34 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { Inject, Injectable, Optional } from '@nestjs/common'
 import {
-  DEFAULT_MINERU_SECRET_ENV_PATH,
-  DEFAULT_MINERU_STAMP_PATH,
-  DEFAULT_MINERU_WRAPPER_PATH,
-  MINERU_BOOTSTRAP_SCHEMA_VERSION,
-  MINERU_SKILLS_VERSION,
-  MinerUConfig,
-  MinerUConfigSchema
-} from './mineru.types.js'
-import { MinerUPluginName } from './types.js'
-import { getSkillAssets, type MinerUSkillAsset } from './skills/index.js'
+  DEFAULT_MINERU_CLI_SECRETS_DIR,
+  DEFAULT_MINERU_CLI_SKILLS_DIR,
+  DEFAULT_MINERU_SCRIPT_PATH,
+  DEFAULT_MINERU_CLI_STAMP_PATH,
+  DEFAULT_MINERU_CLI_TOKEN_PATH,
+  MINERU_CLI_BOOTSTRAP_SCHEMA_VERSION,
+  MinerUCliConfig,
+  MinerUCliConfigSchema
+} from './mineru-cli.types.js'
+import { getSkillAssets, getSkillDescription, type MinerUSkillAsset } from './skills/index.js'
+import { MinerUCliPluginName } from './types.js'
 
-type MinerUBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles'>
-
+type MinerUBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles' | 'workingDirectory'>
 type MinerUBootstrapStamp = {
   tool?: string
   bootstrapVersion?: number
-  skillsVersion?: string
-  secretFingerprint?: string
   installedAt?: string
+}
+
+type ExecutableInfo = {
+  executable: string
+  tokens: string[]
+  index: number
+}
+
+type ParsedShellSegment = {
+  segment: string
+  separator: string
 }
 
 @Injectable()
@@ -37,195 +45,233 @@ export class MinerUBootstrapService {
     private readonly pluginConfigResolver?: IPluginConfigResolver
   ) {}
 
-  resolveConfig(config?: Partial<MinerUConfig>): MinerUConfig {
-    const defaults = {
-      skillsDir: process.env['MINERU_SKILLS_DIR'],
-      wrapperPath: process.env['MINERU_WRAPPER_PATH']
+  resolveConfig(config?: Partial<MinerUCliConfig>): MinerUCliConfig {
+    const defaults: MinerUCliConfig = {
+      apiToken: normalizeString(process.env['MINERU_TOKEN'])
     }
     const pluginConfig =
-      this.pluginConfigResolver?.resolve<Partial<MinerUConfig>>(MinerUPluginName, {
+      this.pluginConfigResolver?.resolve<MinerUCliConfig>(MinerUCliPluginName, {
         defaults
-      }) ?? {}
+      }) ?? defaults
+    const middlewareConfig = MinerUCliConfigSchema.partial().parse(config ?? {})
 
-    return MinerUConfigSchema.parse({
+    return MinerUCliConfigSchema.parse({
       ...defaults,
       ...pluginConfig,
-      ...(config ?? {})
+      ...middlewareConfig
     })
   }
 
   getStampPath() {
-    return DEFAULT_MINERU_STAMP_PATH
+    return DEFAULT_MINERU_CLI_STAMP_PATH
   }
 
-  getSecretEnvPath() {
-    return DEFAULT_MINERU_SECRET_ENV_PATH
+  getScriptPath() {
+    return DEFAULT_MINERU_SCRIPT_PATH
   }
 
-  getRunnerPath(config: Pick<MinerUConfig, 'skillsDir'>) {
-    return path.join(config.skillsDir, 'scripts/mineru_runner.py')
+  getSecretDirPath() {
+    return DEFAULT_MINERU_CLI_SECRETS_DIR
   }
 
-  buildSystemPrompt(config: MinerUConfig): string {
+  getTokenPath() {
+    return DEFAULT_MINERU_CLI_TOKEN_PATH
+  }
+
+  buildSystemPrompt() {
     return [
-      'The `mineru` command is available in the sandbox through a managed wrapper.',
-      'Always run MinerU via the `sandbox_shell` tool using the `mineru` command.',
-      `Before your first use, read the skill file at \`${config.skillsDir}/SKILL.md\` with \`cat ${config.skillsDir}/SKILL.md\`.`,
-      'Do not export API keys manually and do not pass tokens on the command line unless the user explicitly asks.',
+      '<skill>',
+      getSkillDescription(),
       '',
-      'PREFER:',
-      '- `mineru --file ./document.pdf --output ./output/`',
-      '- `mineru --dir ./docs --output ./output --workers 4 --resume`',
-      '',
-      'GUIDELINES:',
-      '- Inspect generated Markdown before summarizing results.',
-      '- Use `--resume` for large directories.',
-      '- The command downloads result archives and writes `full.md` under the chosen output directory.',
-      '',
-      `For API details read \`${config.skillsDir}/references/api_reference.md\`.`
+      'Always run MinerU through the `sandbox_shell` tool.',
+      `Before your first use, read the skill file at \`${DEFAULT_MINERU_CLI_SKILLS_DIR}/SKILL.md\` with \`cat ${DEFAULT_MINERU_CLI_SKILLS_DIR}/SKILL.md\`.`,
+      `Run the converter with \`python3 ${this.getScriptPath()}\`.`,
+      'If this middleware has an API token configured, it will be securely provisioned inside the sandbox and read automatically by the MinerU script.',
+      'Do not hardcode secrets in the command.',
+      'If no token is configured, the script falls back to the lightweight MinerU API with stricter limits.',
+      '</skill>'
     ].join('\n')
   }
 
-  isMinerUCommand(command: string): boolean {
-    const firstToken = getFirstCommandToken(command)
-    return firstToken === 'mineru' || firstToken.endsWith('/mineru')
+  isMinerUCommand(command: string) {
+    return this.getExecutableInfos(command).some((info) => this.getMinerUScriptTokenIndex(info) !== null)
   }
 
-  rewriteCommand(command: string, wrapperPath: string): string {
-    const firstToken = getFirstCommandToken(command)
-    if (firstToken === wrapperPath) {
-      return command
-    }
-    if (firstToken === 'mineru' || firstToken.endsWith('/mineru')) {
-      return command.replace(/^(\s*)\S+/, `$1${wrapperPath}`)
-    }
-    return command
-  }
-
-  computeSecretFingerprint(apiKey: string) {
-    return `sha256:${createHash('sha256').update(apiKey).digest('hex')}`
-  }
-
-  async ensureBootstrap(backend: MinerUBootstrapBackend | null, config: MinerUConfig) {
+  async ensureBootstrap(backend: MinerUBootstrapBackend | null) {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for MinerU bootstrap.')
     }
 
-    const stampPath = this.getStampPath()
-    const runnerPath = this.getRunnerPath(config)
-    const wrapperPath = config.wrapperPath
-    const secretEnvPath = this.getSecretEnvPath()
-    const secretFingerprint = this.computeSecretFingerprint(config.apiKey)
-    const bootstrapAssets = this.getBootstrapAssets(config)
-
-    const pythonCheck = await backend.execute('which python3 2>/dev/null')
-    if (pythonCheck?.exitCode !== 0 || !pythonCheck?.output?.trim()) {
-      throw new Error('Python 3 is not available in the sandbox. MinerU CLI requires python3 to be pre-installed.')
-    }
-
-    const stampCheck = await backend.execute(`cat ${shellQuote(stampPath)} 2>/dev/null || echo ''`)
+    const stampCheck = await backend.execute(
+      `cat ${shellQuote(this.getStampPath())} 2>/dev/null || echo ''`
+    )
     const stampContent = stampCheck?.output?.trim() ?? ''
 
+    let stampMatches = false
     if (stampContent) {
       try {
         const stamp = JSON.parse(stampContent) as MinerUBootstrapStamp
-        if (
-          stamp.bootstrapVersion === MINERU_BOOTSTRAP_SCHEMA_VERSION &&
-          stamp.skillsVersion === MINERU_SKILLS_VERSION &&
-          stamp.secretFingerprint === secretFingerprint
-        ) {
-          const fileChecks = await backend.execute(
-            `[ -f ${shellQuote(wrapperPath)} ] && [ -f ${shellQuote(runnerPath)} ] && echo ok || echo missing`
-          )
-          if (fileChecks?.output?.trim() === 'ok') {
-            return { output: 'already bootstrapped', exitCode: 0, truncated: false }
-          }
-        }
+        stampMatches = stamp.bootstrapVersion === MINERU_CLI_BOOTSTRAP_SCHEMA_VERSION
       } catch {
-        // Corrupted stamp. Re-bootstrap.
+        stampMatches = false
       }
     }
 
-    await this.writeAssets(backend, bootstrapAssets)
-    await this.writeSecretEnv(backend, secretEnvPath, config.apiKey)
-    await this.writeWrapper(backend, wrapperPath, runnerPath, secretEnvPath)
-    await this.writeStamp(backend, secretFingerprint)
+    const pythonReady = await this.hasPython3(backend)
+    if (!pythonReady) {
+      throw new Error('Python 3 is not available in the sandbox. MinerU CLI requires `python3`.')
+    }
 
-    return { output: 'bootstrapped mineru', exitCode: 0, truncated: false }
-  }
+    const assetsReady = await this.areAssetsReady(backend)
+    if (stampMatches && assetsReady) {
+      return { output: 'already bootstrapped', exitCode: 0, truncated: false }
+    }
 
-  private getBootstrapAssets(config: MinerUConfig): MinerUSkillAsset[] {
-    return getSkillAssets(config.skillsDir)
-  }
+    await this.writeAssets(backend, this.getBootstrapAssets())
+    await this.writeStamp(backend)
 
-  private async writeSecretEnv(backend: MinerUBootstrapBackend, secretEnvPath: string, apiKey: string) {
-    const content = `MINERU_TOKEN=${shellQuote(apiKey)}\n`
-    const command =
-      `mkdir -p ${shellQuote(path.dirname(secretEnvPath))} && ` +
-      `cat <<'__XPERT_MINERU_SECRET_EOF__' > ${shellQuote(secretEnvPath)}\n${content}__XPERT_MINERU_SECRET_EOF__\n` +
-      `chmod 600 ${shellQuote(secretEnvPath)}`
-    const result = await backend.execute(command)
-    if (result?.exitCode !== 0) {
-      throw new Error(`Failed to write MinerU secret env file: ${result?.output || 'Unknown error'}`)
+    return {
+      output: stampMatches ? 'refreshed mineru bootstrap' : 'bootstrapped mineru',
+      exitCode: 0,
+      truncated: false
     }
   }
 
-  private async writeWrapper(
-    backend: MinerUBootstrapBackend,
-    wrapperPath: string,
-    runnerPath: string,
-    secretEnvPath: string
+  async syncApiTokenSecret(
+    backend: MinerUBootstrapBackend | null,
+    config = this.resolveConfig()
   ) {
-    const content = `#!/usr/bin/env bash
-set -euo pipefail
-
-ENV_FILE=${shellQuote(secretEnvPath)}
-PY_SCRIPT=${shellQuote(runnerPath)}
-
-if [ ! -f "$ENV_FILE" ]; then
-  echo "MinerU secret env file is missing: $ENV_FILE" >&2
-  exit 1
-fi
-
-if [ ! -f "$PY_SCRIPT" ]; then
-  echo "MinerU runner script is missing: $PY_SCRIPT" >&2
-  exit 1
-fi
-
-set -a
-. "$ENV_FILE"
-set +a
-
-exec python3 "$PY_SCRIPT" "$@"
-`
-    const command =
-      `mkdir -p ${shellQuote(path.dirname(wrapperPath))} && ` +
-      `cat <<'__XPERT_MINERU_WRAPPER_EOF__' > ${shellQuote(wrapperPath)}\n${content}__XPERT_MINERU_WRAPPER_EOF__\n` +
-      `chmod 755 ${shellQuote(wrapperPath)}`
-    const result = await backend.execute(command)
-    if (result?.exitCode !== 0) {
-      throw new Error(`Failed to write MinerU wrapper script: ${result?.output || 'Unknown error'}`)
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for MinerU secret sync.')
     }
+
+    const tokenPath = this.getTokenPath()
+    if (!config.apiToken) {
+      const result = await backend.execute(`rm -f ${shellQuote(tokenPath)}`)
+      if (result?.exitCode !== 0) {
+        throw new Error(`Failed to remove MinerU API token file: ${result?.output || 'Unknown error'}`)
+      }
+      return { output: 'removed mineru api token', exitCode: 0, truncated: false }
+    }
+
+    if (typeof backend.uploadFiles !== 'function') {
+      throw new Error('Sandbox backend does not support secure file uploads required for MinerU API tokens.')
+    }
+
+    const secretDirPath = this.getSecretDirPath()
+    const prepareResult = await backend.execute(
+      `mkdir -p ${shellQuote(secretDirPath)} && chmod 700 ${shellQuote(secretDirPath)}`
+    )
+    if (prepareResult?.exitCode !== 0) {
+      throw new Error(`Failed to prepare MinerU secret directory: ${prepareResult?.output || 'Unknown error'}`)
+    }
+
+    const uploadPath = this.toUploadPath(backend, tokenPath)
+
+    try {
+      const uploadResults = await backend.uploadFiles([[uploadPath, Buffer.from(config.apiToken, 'utf8')]])
+      if (!Array.isArray(uploadResults) || uploadResults.length !== 1 || uploadResults[0]?.error) {
+        throw new Error(`Failed to upload MinerU API token file: ${tokenPath}`)
+      }
+
+      const chmodResult = await backend.execute(`chmod 600 ${shellQuote(tokenPath)}`)
+      if (chmodResult?.exitCode !== 0) {
+        throw new Error(`Failed to lock down MinerU API token file: ${chmodResult?.output || 'Unknown error'}`)
+      }
+    } catch (error) {
+      const cleanupResult = await backend.execute(`rm -f ${shellQuote(tokenPath)}`)
+      if (cleanupResult?.exitCode !== 0) {
+        throw new Error(
+          `${getErrorMessage(error)}; cleanup failed: ${cleanupResult?.output || 'Unknown error'}`
+        )
+      }
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error(getErrorMessage(error))
+    }
+
+    return { output: 'synced mineru api token', exitCode: 0, truncated: false }
   }
 
-  private async writeStamp(backend: MinerUBootstrapBackend, secretFingerprint: string) {
+  private getBootstrapAssets(): MinerUSkillAsset[] {
+    return getSkillAssets()
+  }
+
+  private getExecutableInfos(command: string) {
+    return parseShellCommand(command)
+      .map(({ segment }) => getExecutableInfo(segment))
+      .filter((item): item is ExecutableInfo => !!item)
+  }
+
+  private getMinerUScriptTokenIndex(info: ExecutableInfo) {
+    if (!isPythonExecutableToken(info.executable)) {
+      return null
+    }
+
+    const scriptTokenIndex = findPythonScriptTokenIndex(info.tokens, info.index + 1)
+    if (scriptTokenIndex === null) {
+      return null
+    }
+
+    const expectedScriptPath = path.normalize(this.getScriptPath())
+    const token = path.normalize(stripOuterQuotes(info.tokens[scriptTokenIndex]))
+    return token === expectedScriptPath ? scriptTokenIndex : null
+  }
+
+  private toUploadPath(backend: MinerUBootstrapBackend, targetPath: string) {
+    const normalizedTargetPath = path.normalize(targetPath)
+    if (!path.isAbsolute(normalizedTargetPath)) {
+      return normalizedTargetPath
+    }
+
+    const workingDirectory = normalizeString(backend.workingDirectory)
+    if (!workingDirectory || !path.isAbsolute(workingDirectory)) {
+      return normalizedTargetPath
+    }
+
+    const normalizedWorkingDirectory = path.normalize(workingDirectory)
+    const relativePath = path.relative(normalizedWorkingDirectory, normalizedTargetPath)
+    if (!relativePath || path.isAbsolute(relativePath)) {
+      return normalizedTargetPath
+    }
+
+    const roundTripPath = path.normalize(path.join(normalizedWorkingDirectory, relativePath))
+    if (roundTripPath !== normalizedTargetPath) {
+      return normalizedTargetPath
+    }
+
+    return relativePath
+  }
+
+  private async hasPython3(backend: MinerUBootstrapBackend) {
+    const result = await backend.execute('which python3 2>/dev/null')
+    return result?.exitCode === 0 && !!result?.output?.trim()
+  }
+
+  private async areAssetsReady(backend: MinerUBootstrapBackend) {
+    const assets = this.getBootstrapAssets()
+    const checks = assets.map((asset) => `test -f ${shellQuote(asset.path)}`).join(' && ')
+    const result = await backend.execute(checks)
+    return result?.exitCode === 0
+  }
+
+  private async writeStamp(backend: MinerUBootstrapBackend) {
     const stampPath = this.getStampPath()
     const stampData = JSON.stringify({
-      tool: 'mineru',
-      bootstrapVersion: MINERU_BOOTSTRAP_SCHEMA_VERSION,
-      skillsVersion: MINERU_SKILLS_VERSION,
-      secretFingerprint,
+      tool: 'mineru-cli',
+      bootstrapVersion: MINERU_CLI_BOOTSTRAP_SCHEMA_VERSION,
       installedAt: new Date().toISOString()
     })
-    const result = await backend.execute(
+    await backend.execute(
       `mkdir -p ${shellQuote(path.dirname(stampPath))} && echo ${shellQuote(stampData)} > ${shellQuote(stampPath)}`
     )
-    if (result?.exitCode !== 0) {
-      throw new Error(`Failed to write MinerU bootstrap stamp: ${result?.output || 'Unknown error'}`)
-    }
   }
 
-  private async writeAssets(backend: MinerUBootstrapBackend, assets: MinerUSkillAsset[]) {
+  private async writeAssets(
+    backend: MinerUBootstrapBackend,
+    assets: MinerUSkillAsset[]
+  ) {
     const canUploadDirectly =
       typeof backend.uploadFiles === 'function' && assets.every((asset) => !path.isAbsolute(asset.path))
 
@@ -243,7 +289,7 @@ exec python3 "$PY_SCRIPT" "$@"
     for (const asset of assets) {
       const dir = path.dirname(asset.path)
       const result = await backend.execute(
-        `mkdir -p ${shellQuote(dir)} && cat <<'__XPERT_MINERU_ASSET_EOF__' > ${shellQuote(asset.path)}\n${asset.content}\n__XPERT_MINERU_ASSET_EOF__`
+        `mkdir -p ${shellQuote(dir)} && cat <<'__XPERT_MINERU_EOF__' > ${shellQuote(asset.path)}\n${asset.content}\n__XPERT_MINERU_EOF__`
       )
       if (result?.exitCode !== 0) {
         throw new Error(`Failed to write MinerU skill asset ${asset.path}: ${result?.output || 'Unknown error'}`)
@@ -252,12 +298,247 @@ exec python3 "$PY_SCRIPT" "$@"
   }
 }
 
-function getFirstCommandToken(command: string) {
-  const trimmed = command.trim()
-  if (!trimmed) {
-    return ''
+function normalizeString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
   }
-  return trimmed.split(/\s+/, 1)[0]?.replace(/^['"]|['"]$/g, '') ?? ''
+  if (typeof error === 'string' && error) {
+    return error
+  }
+  return 'Unknown error'
+}
+
+function parseShellCommand(command: string) {
+  const segments: ParsedShellSegment[] = []
+  let buffer = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  const pushSegment = (separator = '') => {
+    if (buffer || separator) {
+      segments.push({
+        segment: buffer,
+        separator
+      })
+      buffer = ''
+    }
+  }
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index]
+    const next = index + 1 < command.length ? command[index + 1] : ''
+
+    if (escaped) {
+      buffer += character
+      escaped = false
+      continue
+    }
+
+    if (character === '\\') {
+      buffer += character
+      escaped = true
+      continue
+    }
+
+    if (quote) {
+      buffer += character
+      if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character
+      buffer += character
+      continue
+    }
+
+    if (character === ';') {
+      pushSegment(';')
+      continue
+    }
+
+    if ((character === '&' && next === '&') || (character === '|' && next === '|')) {
+      pushSegment(`${character}${next}`)
+      index += 1
+      continue
+    }
+
+    if (character === '|') {
+      pushSegment('|')
+      continue
+    }
+
+    buffer += character
+  }
+
+  pushSegment('')
+  return segments
+}
+
+function getExecutableInfo(segment: string): ExecutableInfo | null {
+  const tokens = tokenizeShellSegment(segment)
+  if (!tokens.length) {
+    return null
+  }
+
+  let index = 0
+
+  if (stripOuterQuotes(tokens[index]) === 'env') {
+    index += 1
+    while (index < tokens.length) {
+      const token = stripOuterQuotes(tokens[index])
+      if (token.startsWith('-')) {
+        index += 1
+        continue
+      }
+      if (isEnvAssignmentToken(token)) {
+        index += 1
+        continue
+      }
+      break
+    }
+  } else {
+    while (index < tokens.length && isEnvAssignmentToken(stripOuterQuotes(tokens[index]))) {
+      index += 1
+    }
+  }
+
+  if (index >= tokens.length) {
+    return null
+  }
+
+  return {
+    executable: stripOuterQuotes(tokens[index]),
+    tokens,
+    index
+  }
+}
+
+function tokenizeShellSegment(segment: string) {
+  const tokens: string[] = []
+  let buffer = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  for (let index = 0; index < segment.length; index += 1) {
+    const character = segment[index]
+
+    if (escaped) {
+      buffer += character
+      escaped = false
+      continue
+    }
+
+    if (character === '\\') {
+      buffer += character
+      escaped = true
+      continue
+    }
+
+    if (quote) {
+      buffer += character
+      if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character
+      buffer += character
+      continue
+    }
+
+    if (/\s/.test(character)) {
+      if (buffer) {
+        tokens.push(buffer)
+        buffer = ''
+      }
+      continue
+    }
+
+    buffer += character
+  }
+
+  if (buffer) {
+    tokens.push(buffer)
+  }
+
+  return tokens
+}
+
+function isEnvAssignmentToken(token: string) {
+  return /^[A-Za-z_][A-Za-z0-9_]*=.*$/.test(token)
+}
+
+function stripOuterQuotes(token: string) {
+  if (
+    token.length >= 2 &&
+    ((token.startsWith("'") && token.endsWith("'")) ||
+      (token.startsWith('"') && token.endsWith('"')))
+  ) {
+    return token.slice(1, -1)
+  }
+  return token
+}
+
+function isPythonExecutableToken(token: string) {
+  return token === 'python' || token === 'python3' || token === '/usr/bin/python' || token === '/usr/bin/python3'
+}
+
+function findPythonScriptTokenIndex(tokens: string[], startIndex: number) {
+  let index = startIndex
+
+  while (index < tokens.length) {
+    const token = stripOuterQuotes(tokens[index])
+
+    if (token === '-m' || token === '-c' || token === '-') {
+      return null
+    }
+
+    if (isPythonInterpreterFlagWithSeparateValue(token)) {
+      if (index + 1 >= tokens.length) {
+        return null
+      }
+      index += 2
+      continue
+    }
+
+    if (hasAttachedPythonInterpreterFlagValue(token) || isPythonInterpreterFlagWithoutValue(token)) {
+      index += 1
+      continue
+    }
+
+    if (token.startsWith('-')) {
+      return null
+    }
+
+    return index
+  }
+
+  return null
+}
+
+function isPythonInterpreterFlagWithSeparateValue(token: string) {
+  return token === '-X' || token === '-W' || token === '--check-hash-based-pycs'
+}
+
+function hasAttachedPythonInterpreterFlagValue(token: string) {
+  return (
+    (token.startsWith('-X') && token !== '-X') ||
+    (token.startsWith('-W') && token !== '-W') ||
+    token.startsWith('--check-hash-based-pycs=')
+  )
+}
+
+function isPythonInterpreterFlagWithoutValue(token: string) {
+  return token === '--help' || token === '--version' || /^-[bBdEhiIOPqsSuvVx]+$/.test(token)
 }
 
 function shellQuote(value: string) {

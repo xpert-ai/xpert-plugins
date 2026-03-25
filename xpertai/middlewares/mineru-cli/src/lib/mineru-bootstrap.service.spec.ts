@@ -3,158 +3,320 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   PLUGIN_CONFIG_RESOLVER_TOKEN: 'PLUGIN_CONFIG_RESOLVER_TOKEN'
 }))
 
-import { MinerUBootstrapService } from './mineru-bootstrap.service.js'
 import {
-  DEFAULT_MINERU_SECRET_ENV_PATH,
-  DEFAULT_MINERU_SKILLS_DIR,
-  DEFAULT_MINERU_STAMP_PATH,
-  DEFAULT_MINERU_WRAPPER_PATH,
-  MINERU_BOOTSTRAP_SCHEMA_VERSION,
-  MINERU_SKILLS_VERSION
-} from './mineru.types.js'
-import { getSkillAssets } from './skills/index.js'
+  DEFAULT_MINERU_CLI_SECRETS_DIR,
+  DEFAULT_MINERU_CLI_STAMP_PATH,
+  DEFAULT_MINERU_CLI_TOKEN_PATH,
+  MINERU_CLI_BOOTSTRAP_SCHEMA_VERSION
+} from './mineru-cli.types.js'
+import { MinerUBootstrapService } from './mineru-bootstrap.service.js'
+
+const DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH = '.xpert/secrets/mineru_token'
+const PROJECT_MINERU_CLI_TOKEN_UPLOAD_PATH = '../.xpert/secrets/mineru_token'
 
 describe('MinerUBootstrapService', () => {
-  const baseConfig = {
-    apiKey: 'secret-token',
-    skillsDir: DEFAULT_MINERU_SKILLS_DIR,
-    wrapperPath: DEFAULT_MINERU_WRAPPER_PATH
-  }
+  let service: MinerUBootstrapService
 
-  it('merges plugin config and middleware config', () => {
-    const service = new MinerUBootstrapService({
-      resolve: jest.fn().mockReturnValue({
-        apiKey: 'plugin-token',
-        skillsDir: '/legacy/skills',
-        wrapperPath: '/legacy/bin/mineru'
-      })
-    } as any)
+  beforeEach(() => {
+    delete process.env['MINERU_TOKEN']
+    service = new MinerUBootstrapService()
+  })
 
-    const config = service.resolveConfig({
-      apiKey: 'middleware-token',
-      wrapperPath: '/custom/bin/mineru'
+  describe('resolveConfig', () => {
+    it('returns defaults when no config is provided', () => {
+      const config = service.resolveConfig()
+      expect(config).toEqual({ apiToken: undefined })
     })
 
-    expect(config.apiKey).toBe('middleware-token')
-    expect(config.skillsDir).toBe('/legacy/skills')
-    expect(config.wrapperPath).toBe('/custom/bin/mineru')
+    it('uses MINERU_TOKEN from the environment by default', () => {
+      process.env['MINERU_TOKEN'] = 'env-token'
+      service = new MinerUBootstrapService()
+
+      const config = service.resolveConfig()
+      expect(config.apiToken).toBe('env-token')
+    })
+
+    it('lets middleware options override env defaults', () => {
+      process.env['MINERU_TOKEN'] = 'env-token'
+      service = new MinerUBootstrapService()
+
+      const config = service.resolveConfig({ apiToken: 'option-token' })
+      expect(config.apiToken).toBe('option-token')
+    })
+
+    it('ignores deprecated skillsDir overrides', () => {
+      const config = service.resolveConfig({
+        apiToken: 'option-token',
+        skillsDir: '/custom/skills'
+      } as any)
+
+      expect(config).toEqual({ apiToken: 'option-token' })
+    })
   })
 
-  it('computes a stable secret fingerprint', () => {
-    const service = new MinerUBootstrapService()
-    expect(service.computeSecretFingerprint('abc')).toMatch(/^sha256:/)
-    expect(service.computeSecretFingerprint('abc')).toBe(service.computeSecretFingerprint('abc'))
+  describe('buildSystemPrompt', () => {
+    it('includes the skill description and secure token guidance', () => {
+      const prompt = service.buildSystemPrompt()
+      expect(prompt).toContain('<skill>')
+      expect(prompt).toContain('Convert documents')
+      expect(prompt).toContain('/workspace/.xpert/skills/mineru-cli/SKILL.md')
+      expect(prompt).toContain('/workspace/.xpert/skills/mineru-cli/scripts/mineru.py')
+      expect(prompt).toContain('securely provisioned inside the sandbox')
+    })
   })
 
-  it('writes assets, secret env, wrapper, and stamp on first bootstrap', async () => {
-    const service = new MinerUBootstrapService({
-      resolve: jest.fn().mockReturnValue(baseConfig)
-    } as any)
+  describe('isMinerUCommand', () => {
+    it('detects direct python3 mineru script execution', () => {
+      expect(
+        service.isMinerUCommand('python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf')
+      ).toBe(true)
+    })
 
-    const execute = jest.fn()
-      .mockResolvedValueOnce({ output: '/usr/bin/python3\n', exitCode: 0, truncated: false })
-      .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false })
-      .mockResolvedValue({ output: '', exitCode: 0, truncated: false })
+    it('detects env-prefixed mineru script execution', () => {
+      expect(
+        service.isMinerUCommand('env LANG=C python /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --url https://example.com/a.pdf')
+      ).toBe(true)
+    })
 
-    await service.ensureBootstrap({ execute } as any, baseConfig)
+    it('detects mineru script execution after supported python interpreter flags', () => {
+      expect(
+        service.isMinerUCommand(
+          'env -i LANG=C python3 -u -X utf8 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf'
+        )
+      ).toBe(true)
+    })
 
-    const allCalls = execute.mock.calls.map(([cmd]: [string]) => cmd)
-    const skillAssets = getSkillAssets(DEFAULT_MINERU_SKILLS_DIR)
+    it('does not match unrelated python scripts', () => {
+      expect(service.isMinerUCommand('python3 ./other.py')).toBe(false)
+    })
 
-    expect(execute).toHaveBeenCalledTimes(2 + skillAssets.length + 3)
-    expect(allCalls.some((cmd) => cmd.includes('/workspace/.xpert/skills/mineru/SKILL.md'))).toBe(true)
-    expect(allCalls.some((cmd) => cmd.includes(DEFAULT_MINERU_SECRET_ENV_PATH))).toBe(true)
-    expect(allCalls.some((cmd) => cmd.includes(DEFAULT_MINERU_WRAPPER_PATH))).toBe(true)
-    expect(allCalls.some((cmd) => cmd.includes(DEFAULT_MINERU_STAMP_PATH))).toBe(true)
+    it('does not match file arguments that mention mineru.py', () => {
+      expect(service.isMinerUCommand('cat /workspace/.xpert/skills/mineru-cli/scripts/mineru.py')).toBe(false)
+    })
+
+    it('does not match wrapper scripts that receive mineru.py as an argument', () => {
+      expect(
+        service.isMinerUCommand(
+          'python3 ./wrapper.py /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf'
+        )
+      ).toBe(false)
+    })
+
+    it('does not match module-mode python invocations that mention mineru.py later', () => {
+      expect(
+        service.isMinerUCommand(
+          'python3 -m helper /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf'
+        )
+      ).toBe(false)
+    })
+
+    it('does not match command-string python invocations that mention mineru.py later', () => {
+      expect(
+        service.isMinerUCommand(
+          'python3 -c "print(\'helper\')" /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf'
+        )
+      ).toBe(false)
+    })
   })
 
-  it('skips bootstrap when stamp, wrapper, runner, and python are available', async () => {
-    const service = new MinerUBootstrapService({
-      resolve: jest.fn().mockReturnValue(baseConfig)
-    } as any)
+  describe('syncApiTokenSecret', () => {
+    it('uploads the managed token file without exposing the token in execute commands', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH, error: null }])
+      }
 
-    const execute = jest.fn()
-      .mockResolvedValueOnce({ output: '/usr/bin/python3\n', exitCode: 0, truncated: false })
-      .mockResolvedValueOnce({
-        output: JSON.stringify({
-          bootstrapVersion: MINERU_BOOTSTRAP_SCHEMA_VERSION,
-          skillsVersion: MINERU_SKILLS_VERSION,
-          secretFingerprint: service.computeSecretFingerprint(baseConfig.apiKey)
-        }),
-        exitCode: 0,
-        truncated: false
-      })
-      .mockResolvedValueOnce({ output: 'ok\n', exitCode: 0, truncated: false })
+      await service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
 
-    const result = await service.ensureBootstrap({ execute } as any, baseConfig)
-
-    expect(result).toEqual({ output: 'already bootstrapped', exitCode: 0, truncated: false })
-    expect(execute).toHaveBeenCalledTimes(3)
-  })
-
-  it('re-bootstraps when the api key fingerprint changes', async () => {
-    const service = new MinerUBootstrapService({
-      resolve: jest.fn().mockReturnValue(baseConfig)
-    } as any)
-
-    const execute = jest.fn()
-      .mockResolvedValueOnce({ output: '/usr/bin/python3\n', exitCode: 0, truncated: false })
-      .mockResolvedValueOnce({
-        output: JSON.stringify({
-          bootstrapVersion: MINERU_BOOTSTRAP_SCHEMA_VERSION,
-          skillsVersion: MINERU_SKILLS_VERSION,
-          secretFingerprint: service.computeSecretFingerprint('different')
-        }),
-        exitCode: 0,
-        truncated: false
-      })
-      .mockResolvedValue({ output: '', exitCode: 0, truncated: false })
-
-    await service.ensureBootstrap({ execute } as any, baseConfig)
-
-    const allCalls = execute.mock.calls.map(([cmd]: [string]) => cmd)
-    expect(allCalls.some((cmd) => cmd.includes(DEFAULT_MINERU_SECRET_ENV_PATH))).toBe(true)
-    expect(allCalls.some((cmd) => cmd.includes(DEFAULT_MINERU_WRAPPER_PATH))).toBe(true)
-  })
-
-  it('throws when python3 is unavailable', async () => {
-    const service = new MinerUBootstrapService({
-      resolve: jest.fn().mockReturnValue(baseConfig)
-    } as any)
-
-    await expect(
-      service.ensureBootstrap(
-        {
-          execute: jest.fn().mockResolvedValueOnce({ output: '', exitCode: 1, truncated: false })
-        } as any,
-        baseConfig
+      expect(backend.execute).toHaveBeenNthCalledWith(
+        1,
+        `mkdir -p '${DEFAULT_MINERU_CLI_SECRETS_DIR}' && chmod 700 '${DEFAULT_MINERU_CLI_SECRETS_DIR}'`
       )
-    ).rejects.toThrow('Python 3 is not available in the sandbox')
+      expect(backend.execute).toHaveBeenNthCalledWith(2, `chmod 600 '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`)
+      expect(backend.uploadFiles).toHaveBeenCalledTimes(1)
+
+      const [[uploadedPath, uploadedContent]] = backend.uploadFiles.mock.calls[0][0]
+      expect(uploadedPath).toBe(DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH)
+      expect(Buffer.from(uploadedContent).toString('utf8')).toBe('secret-token')
+
+      const executedCommands = backend.execute.mock.calls.map(([command]) => command as string).join('\n')
+      expect(executedCommands).not.toContain('secret-token')
+    })
+
+    it('uploads the managed token file relative to the backend working directory', async () => {
+      const backend = {
+        workingDirectory: '/workspace/project-a',
+        execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: PROJECT_MINERU_CLI_TOKEN_UPLOAD_PATH, error: null }])
+      }
+
+      await service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+
+      const [[uploadedPath]] = backend.uploadFiles.mock.calls[0][0]
+      expect(uploadedPath).toBe(PROJECT_MINERU_CLI_TOKEN_UPLOAD_PATH)
+      expect(backend.execute).toHaveBeenNthCalledWith(2, `chmod 600 '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`)
+    })
+
+    it('falls back to the absolute token path when backend workingDirectory is unavailable', async () => {
+      const backend = {
+        execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: DEFAULT_MINERU_CLI_TOKEN_PATH, error: null }])
+      }
+
+      await service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+
+      const [[uploadedPath]] = backend.uploadFiles.mock.calls[0][0]
+      expect(uploadedPath).toBe(DEFAULT_MINERU_CLI_TOKEN_PATH)
+    })
+
+    it('removes the managed token file when upload fails after preparing the secret directory', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false })
+          .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH, error: 'invalid_path' }])
+      }
+
+      await expect(
+        service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+      ).rejects.toThrow(`Failed to upload MinerU API token file: ${DEFAULT_MINERU_CLI_TOKEN_PATH}`)
+
+      expect(backend.execute).toHaveBeenNthCalledWith(2, `rm -f '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`)
+    })
+
+    it('removes the uploaded token file when chmod fails after upload', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false })
+          .mockResolvedValueOnce({ output: 'chmod failed', exitCode: 1, truncated: false })
+          .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH, error: null }])
+      }
+
+      await expect(
+        service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+      ).rejects.toThrow('Failed to lock down MinerU API token file: chmod failed')
+
+      expect(backend.execute).toHaveBeenNthCalledWith(
+        3,
+        `rm -f '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`
+      )
+    })
+
+    it('surfaces cleanup failure when chmod fails after upload', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0, truncated: false })
+          .mockResolvedValueOnce({ output: 'chmod failed', exitCode: 1, truncated: false })
+          .mockResolvedValueOnce({ output: 'rm failed', exitCode: 1, truncated: false }),
+        uploadFiles: jest.fn().mockResolvedValue([{ path: DEFAULT_MINERU_CLI_TOKEN_UPLOAD_PATH, error: null }])
+      }
+
+      await expect(
+        service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+      ).rejects.toThrow(
+        'Failed to lock down MinerU API token file: chmod failed; cleanup failed: rm failed'
+      )
+
+      expect(backend.execute).toHaveBeenNthCalledWith(
+        3,
+        `rm -f '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`
+      )
+    })
+
+    it('throws when a token is configured but secure upload is unavailable', async () => {
+      const backend = {
+        execute: jest.fn()
+      }
+
+      await expect(
+        service.syncApiTokenSecret(backend as any, service.resolveConfig({ apiToken: 'secret-token' }))
+      ).rejects.toThrow('secure file uploads')
+    })
+
+    it('removes the managed token file when apiToken is absent', async () => {
+      const backend = {
+        execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false })
+      }
+
+      await service.syncApiTokenSecret(backend as any)
+
+      expect(backend.execute).toHaveBeenCalledWith(`rm -f '${DEFAULT_MINERU_CLI_TOKEN_PATH}'`)
+    })
   })
 
-  it('builds a system prompt that references the skill files and wrapper usage', () => {
-    const service = new MinerUBootstrapService()
-    const prompt = service.buildSystemPrompt(baseConfig)
+  describe('ensureBootstrap', () => {
+    it('throws if backend is not available', async () => {
+      await expect(service.ensureBootstrap(null as any)).rejects.toThrow(
+        'Sandbox backend is not available'
+      )
+    })
 
-    expect(prompt).toContain('The `mineru` command is available in the sandbox')
-    expect(prompt).toContain('/workspace/.xpert/skills/mineru/SKILL.md')
-    expect(prompt).toContain('Do not export API keys manually')
-  })
+    it('throws when python3 is missing', async () => {
+      const backend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+      }
 
-  it('detects mineru commands and rewrites them to the wrapper path', () => {
-    const service = new MinerUBootstrapService()
+      await expect(service.ensureBootstrap(backend as any)).rejects.toThrow(
+        'Python 3 is not available in the sandbox'
+      )
+    })
 
-    expect(service.isMinerUCommand('mineru --file ./a.pdf --output ./out')).toBe(true)
-    expect(service.isMinerUCommand('/tmp/mineru --file ./a.pdf --output ./out')).toBe(true)
-    expect(service.isMinerUCommand('ls -la')).toBe(false)
-    expect(service.rewriteCommand('mineru --file ./a.pdf --output ./out', '/wrapper/mineru')).toBe(
-      '/wrapper/mineru --file ./a.pdf --output ./out'
-    )
-    expect(service.rewriteCommand('/tmp/mineru --file ./a.pdf --output ./out', '/wrapper/mineru')).toBe(
-      '/wrapper/mineru --file ./a.pdf --output ./out'
-    )
-    expect(
-      service.rewriteCommand('/wrapper/mineru --file ./a.pdf --output ./out', '/wrapper/mineru')
-    ).toBe('/wrapper/mineru --file ./a.pdf --output ./out')
+    it('skips bootstrap when stamp matches and assets are present', async () => {
+      const backend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'mineru-cli',
+              bootstrapVersion: MINERU_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/python3', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+      }
+
+      const result = await service.ensureBootstrap(backend as any)
+      expect(result).toEqual({ output: 'already bootstrapped', exitCode: 0, truncated: false })
+      expect(backend.execute).toHaveBeenCalledTimes(3)
+    })
+
+    it('writes assets and stamp when bootstrap is needed', async () => {
+      const backend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/python3', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+
+      const result = await service.ensureBootstrap(backend as any)
+
+      expect(result.exitCode).toBe(0)
+      expect(backend.execute).toHaveBeenCalledWith(
+        expect.stringContaining(DEFAULT_MINERU_CLI_STAMP_PATH)
+      )
+      expect(backend.execute).toHaveBeenCalledWith(expect.stringContaining('mkdir -p'))
+      expect(backend.execute).toHaveBeenCalledWith(expect.stringContaining('__XPERT_MINERU_EOF__'))
+
+      const executedCommands = backend.execute.mock.calls.map(([command]) => command as string)
+      const scriptWriteCommand = executedCommands.find((command) =>
+        command.includes("> '/workspace/.xpert/skills/mineru-cli/scripts/mineru.py'") &&
+        command.includes('__XPERT_MINERU_EOF__')
+      )
+
+      expect(scriptWriteCommand).toContain('upload_url = extract_upload_url(file_urls[0])')
+      expect(scriptWriteCommand).toContain('upload_headers = extract_upload_headers(file_urls[0])')
+      expect(scriptWriteCommand).toContain('put_signed_file(upload_url, file_data, headers=upload_headers)')
+      expect(scriptWriteCommand).not.toContain('/extract/task/batch')
+    })
   })
 })

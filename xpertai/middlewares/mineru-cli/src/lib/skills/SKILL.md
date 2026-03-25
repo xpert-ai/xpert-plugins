@@ -1,140 +1,110 @@
 ---
 name: mineru
-description: "Parse PDFs, Word docs, PPTs, and images into clean Markdown using MinerU's VLM engine. Use when: (1) Converting PDF/Word/PPT/image to Markdown, (2) Extracting text/tables/formulas from documents, (3) Batch processing multiple files, (4) Saving parsed content to Obsidian or knowledge bases. Supports LaTeX formulas, tables, images, multilingual OCR, and async parallel processing."
-homepage: https://mineru.net
-metadata:
-  openclaw:
-    emoji: "📄"
-    requires:
-      bins: ["python3"]
-      env:
-        - name: MINERU_TOKEN
-          description: "MinerU API key — get free token at https://mineru.net/user-center/api-token (2000 pages/day, 200MB/file)"
-    install:
-      - id: pip
-        kind: pip
-        packages: ["requests", "aiohttp"]
-        label: "Install Python dependencies (pip)"
+description: "Convert documents (PDF, Word, PPT, images, HTML) to Markdown using the MinerU cloud API. Use this skill whenever the user wants to parse, extract, or convert a document into Markdown or other text formats, whether from a local file or a URL. Also trigger when the user mentions MinerU, asks to read or extract a PDF/doc/ppt, wants OCR on a scanned document, or needs structured text from any supported file type."
 ---
 
-# MinerU Document Parser
+# MinerU Document Converter
 
-Convert PDF, Word, PPT, and images to clean Markdown using MinerU's VLM engine — LaTeX formulas, tables, and images all preserved.
+Convert documents to Markdown (and optionally Docx/HTML/LaTeX) via the MinerU cloud API. This skill wraps a Python CLI script that handles the full workflow: submit, poll, and download results.
 
-## Setup
+## Supported file types
 
-The middleware injects `MINERU_TOKEN` automatically. Do not pass API keys on the command line or export them manually during normal use.
+PDF, Doc, Docx, PPT, PPTx, PNG, JPG, JPEG, WebP, GIF, BMP, HTML
 
-**Preferred command via middleware wrapper:**
+## How to use
 
-```bash
-mineru --file ./document.pdf --output ./output/
-```
-
-If you need to inspect the original upstream scripts, they are available under `scripts/`. In this middleware package they still rely on the injected `MINERU_TOKEN`, so invoke them without passing secrets in CLI flags.
-
-**Limits:** 2000 pages/day · 200 MB per file · 600 pages per file
-
-## Supported File Types
-
-| Type | Formats |
-|------|---------|
-| PDF | `.pdf` — papers, textbooks, scanned docs |
-| Word | `.doc`, `.docx` — reports, manuscripts |
-| PPT | `.pptx` — slides, presentations |
-| Image | `.jpg`, `.jpeg`, `.png` — OCR extraction |
-| HTML | `.html` — web pages |
-
-## Commands
-
-### Single File
+Run the CLI script through `sandbox_shell` with Python. The script path inside the sandbox is:
 
 ```bash
-mineru --file ./document.pdf --output ./output/
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py
 ```
 
-### Batch Directory with Resume
+### Converting a URL
 
 ```bash
-mineru --dir ./docs/ --output ./output/ --workers 10 --resume
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --url "https://example.com/paper.pdf"
 ```
 
-### Direct to Obsidian
+### Converting a local file
 
 ```bash
-mineru --dir ./pdfs/ --output "~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian/VaultName/" --resume
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file /path/to/document.pdf
 ```
 
-### Chinese Documents
+### Choosing the right model
+
+The `--model` flag selects the parsing engine (only applies to the precise API):
+
+| Model | Best for | Notes |
+|-------|----------|-------|
+| `pipeline` | General documents (default) | Fast, good baseline |
+| `vlm` | Complex layouts, mixed content | Recommended for best quality |
+| `MinerU-HTML` | HTML-heavy documents | Specialized for web content |
+
+For best results, default to `--model vlm` unless the user has a reason to prefer speed over quality.
+
+### Common options
+
+| Flag | Purpose | Example |
+|------|---------|---------|
+| `--url URL` | Parse a document from a URL | `--url "https://..."` |
+| `--file PATH` | Parse a local file | `--file ./report.pdf` |
+| `--model MODEL` | Select model (`pipeline`, `vlm`, `MinerU-HTML`) | `--model vlm` |
+| `--ocr` | Enable OCR for scanned documents | `--ocr` |
+| `--pages RANGE` | Parse specific pages only | `--pages 1-10` |
+| `--language LANG` | Document language (default: `ch`) | `--language en` |
+| `--formats FMT...` | Additional output formats (precise API only) | `--formats docx html` |
+| `--agent` | Force using the lightweight API | `--agent` |
+
+### Examples
 
 ```bash
-mineru --dir ./papers/ --output ./output/ --language ch
+# Best quality conversion of a local PDF
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./report.pdf --model vlm
+
+# OCR a scanned document
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./scan.pdf --ocr --model vlm
+
+# Convert first 5 pages only, also produce a docx
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./book.pdf --pages 1-5 --formats docx
+
+# Parse from URL with English language hint
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --url "https://arxiv.org/pdf/xxx" --language en --model vlm
+
+# Force lightweight API (no token needed, but 10MB / 20 page limit)
+python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./small.pdf --agent
 ```
 
-### Complex Layouts
+## API selection logic
 
-```bash
-mineru --file ./paper.pdf --output ./output/ --model-version vlm
-```
+The script uses two MinerU APIs with automatic fallback:
 
-## CLI Options
+1. Precise Parsing API (primary). Uses a MinerU token. The script checks `MINERU_TOKEN`, then `MINERU_TOKEN_FILE`, then the middleware-managed secret file. Supports files up to 200MB / 600 pages, formula and table detection, multiple output formats, and the VLM model.
+2. Agent Lightweight API (fallback). No token needed, but limited to 10MB / 20 pages, Markdown-only output, and no formula or table detection.
 
-```
---dir PATH          Input directory
---file PATH         Single file
---output PATH       Output directory
---workers N         Concurrent workers
---resume            Skip already processed files
---model-version M   Model version: pipeline | vlm | MinerU-HTML
---language LANG     Document language
---ocr               Enable OCR for scanned documents
-```
+If this middleware has an API token configured, it securely provisions the token inside the sandbox and the script reads it automatically. Do not hardcode secrets in the command. If no token is configured, let the user know the script will fall back to the lightweight API and its limits.
 
-The upstream scripts under `scripts/` expose additional parsing options such as `--page-ranges` and `--extra-formats`. Prefer the managed `mineru` wrapper unless you explicitly need those script-level flows.
+## Output location
 
-## Model Version Guide
+All results are saved under a per-run directory in the current working directory:
 
-| Model | Speed | Accuracy | Best For |
-|-------|-------|----------|----------|
-| `pipeline` | Fast | High | Standard docs, most use cases |
-| `vlm` | Slow | Highest | Complex layouts, multi-column, mixed text+figures |
-| `MinerU-HTML` | Fast | High | Web-style output, HTML-ready content |
+- Local files use `mineru_{原文件名去扩展名}` such as `mineru_report/`
+- URL inputs use the URL file name when available
+- If a URL has no usable file name, the script falls back to `mineru_{task_id}/`
+- If the directory already exists, the script appends `_2`, `_3`, and so on
 
-## Script Selection
+After conversion completes, the script prints the actual saved directory and file paths.
 
-| Script | Use When |
-|--------|----------|
-| `mineru_runner.py` | Default middleware entrypoint, no extra Python packages |
-| `mineru_v2.py` | Original async parallel variant |
-| `mineru_async.py` | Fast network, maximum throughput |
-| `mineru_stable.py` | Unstable network, sequential retry-heavy flow |
-| `mineru_batch.py` | Batch-oriented script with retry logic |
-| `mineru_parallel.py` | Threaded parallel processing |
-| `mineru_obsidian.py` | Direct output to Obsidian vault |
-| `mineru_api.py` | Mixed URL/file API helper |
+## After conversion
 
-## Output Structure
+1. Check the script output for the actual `mineru_*` output directory and saved file paths
+2. Read the resulting `.md` file and present the content to the user
+3. If the result is a `.zip` file from the precise API, mention where it was saved
+4. If extra formats were requested, mention those files too
 
-The managed wrapper writes one directory per input file plus a root `manifest.json`:
+## Troubleshooting
 
-```text
-output/
-├── manifest.json
-└── document-name-<stable-id>/
-    ├── full.md
-    ├── result.zip
-    └── extracted/
-```
-
-The stable suffix prevents collisions when different source folders contain files with the same name. Some upstream scripts may emit a slightly different layout.
-
-## Error Handling
-
-- Use `--resume` to continue interrupted batches
-- Failed files are recorded in `manifest.json`
-- Repeated `waiting-file` usually means upload did not complete
-- `failed` task state means inspect `err_msg` before retrying
-
-## API Reference
-
-For detailed API documentation, see [references/api_reference.md](references/api_reference.md).
+- `MINERU_TOKEN not set`: the precise API needs a token, otherwise the script falls back to the lightweight API
+- `Warning: unable to read MINERU_TOKEN_FILE`: the explicit token file path is unreadable, so the script continues without a token
+- Timeout: large documents can take several minutes; the script polls for up to 10 minutes
+- File too large for lightweight API: ask the user to configure `MINERU_TOKEN` or narrow `--pages`

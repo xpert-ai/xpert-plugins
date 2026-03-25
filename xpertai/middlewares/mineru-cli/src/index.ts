@@ -24,8 +24,8 @@ const plugin: XpertPlugin = {
     },
     displayName: 'MinerU CLI',
     description:
-      'Bootstraps a managed MinerU wrapper into the sandbox, injects skill assets, and guides the agent to parse documents through sandbox_shell.',
-    keywords: ['mineru', 'middleware', 'sandbox', 'pdf', 'markdown'],
+      'Bootstraps the MinerU Python CLI skill into the sandbox, securely provisions MINERU_TOKEN through a managed secret file, and teaches the agent how to convert documents to Markdown through sandbox_shell.',
+    keywords: ['mineru', 'middleware', 'sandbox', 'markdown', 'document', 'pdf', 'ocr'],
     author: 'XpertAI Team'
   },
   register(ctx) {

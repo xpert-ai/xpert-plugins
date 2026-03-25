@@ -1,0 +1,32 @@
+{
+  "name": "@xpert-ai/plugin-markitdown",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/markitdown/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/markitdown/dist",
+        "main": "middlewares/markitdown/src/index.ts",
+        "rootDir": "middlewares/markitdown/src",
+        "tsConfig": "middlewares/markitdown/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/markitdown/src",
+            "output": "./"
+          },
+          {
+            "glob": "**/*.json",
+            "input": "middlewares/markitdown/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

@@ -7,7 +7,7 @@ import {
 } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { MINERU_SKILL_MIDDLEWARE_NAME } from './mineru.types.js'
+import { MINERU_CLI_SKILL_MIDDLEWARE_NAME } from './mineru-cli.types.js'
 
 const SANDBOX_SHELL_MIDDLEWARE_NAME = 'SandboxShell'
 const EventNameXpertValidate = 'xpert.validate'
@@ -36,18 +36,18 @@ export class MinerUSkillValidator {
       )
 
       middlewareEntities
-        .filter(({ entity }) => entity.provider === MINERU_SKILL_MIDDLEWARE_NAME)
+        .filter(({ entity }) => entity.provider === MINERU_CLI_SKILL_MIDDLEWARE_NAME)
         .forEach(({ node, entity }) => {
           if (!sandboxEnabled) {
             items.push({
               node: node.key,
-              ruleCode: 'MINERU_SKILL_SANDBOX_DISABLED',
+              ruleCode: 'MINERU_CLI_SKILL_SANDBOX_DISABLED',
               field: 'provider',
               value: entity.provider,
               level: 'warning',
               message: {
-                en_US: 'MinerUSkill requires the agent sandbox feature to be enabled.',
-                zh_Hans: 'MinerUSkill 需要先启用智能体的 sandbox 功能。'
+                en_US: 'MinerUCLISkill requires the agent sandbox feature to be enabled.',
+                zh_Hans: 'MinerUCLISkill 需要先启用智能体的 sandbox 功能。'
               }
             })
           }
@@ -55,13 +55,13 @@ export class MinerUSkillValidator {
           if (!hasSandboxShell) {
             items.push({
               node: node.key,
-              ruleCode: 'MINERU_SKILL_SANDBOX_SHELL_MISSING',
+              ruleCode: 'MINERU_CLI_SKILL_SANDBOX_SHELL_MISSING',
               field: 'provider',
               value: entity.provider,
               level: 'warning',
               message: {
-                en_US: 'MinerUSkill should be paired with the SandboxShell middleware on the same agent.',
-                zh_Hans: 'MinerUSkill 需要与同一智能体上的 SandboxShell 中间件配合使用。'
+                en_US: 'MinerUCLISkill should be paired with the SandboxShell middleware on the same agent.',
+                zh_Hans: 'MinerUCLISkill 需要与同一智能体上的 SandboxShell 中间件配合使用。'
               }
             })
           }

@@ -9,9 +9,14 @@ import {
   ZipUnzipConfig,
   ZipUnzipConfigSchema
 } from './zip-unzip.types.js'
-import { getSkillAssets, type ZipUnzipSkillAsset } from './skills/index.js'
+import {
+  getSkillAssets,
+  getSkillDescription,
+  type ZipUnzipSkillAsset
+} from './skills/index.js'
 
 type ZipUnzipBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles'>
+type BootstrapCommandResult = Awaited<ReturnType<ZipUnzipBootstrapBackend['execute']>>
 
 type ZipUnzipBootstrapStamp = {
   tool?: string
@@ -20,11 +25,30 @@ type ZipUnzipBootstrapStamp = {
   installedAt?: string
 }
 
+type BinaryCheck = {
+  zipExists: boolean
+  unzipExists: boolean
+}
+
 type ExecutableInfo = {
   executable: string
   tokens: string[]
   index: number
 }
+
+const DEFAULT_ZIP_UNZIP_LOCK_PATH = '/workspace/.xpert/.zip-unzip-bootstrap.lock'
+const BOOTSTRAP_LOCK_TIMEOUT_SECONDS = 120
+const BOOTSTRAP_LOCK_TIMEOUT_EXIT_CODE = 97
+const BOOTSTRAP_LOCK_TIMEOUT_MARKER = '__ZIP_UNZIP_BOOTSTRAP_LOCK_TIMEOUT__'
+const APT_LOCK_RETRY_DELAYS_MS = [2000, 4000, 8000, 12000, 16000, 20000] as const
+const APT_LOCK_ERROR_PATTERNS = [
+  'could not get lock',
+  'unable to lock directory',
+  'held by process',
+  '/var/lib/apt/lists/lock',
+  '/var/lib/dpkg/lock',
+  '/var/lib/dpkg/lock-frontend'
+] as const
 
 @Injectable()
 export class ZipUnzipBootstrapService {
@@ -37,25 +61,14 @@ export class ZipUnzipBootstrapService {
   }
 
   buildSystemPrompt(config = this.resolveConfig()) {
+    void config
+
     return [
-      'The system `zip` and `unzip` commands are available in the sandbox through this middleware.',
-      'Always use `zip` and `unzip` through the `sandbox_shell` tool.',
+      '<skill>',
+      getSkillDescription(),
+      '',
       `Before your first use, read the skill file at \`${DEFAULT_ZIP_UNZIP_SKILLS_DIR}/SKILL.md\` with \`cat ${DEFAULT_ZIP_UNZIP_SKILLS_DIR}/SKILL.md\`.`,
-      'Use Ubuntu/Linux shell syntax.',
-      'Avoid interactive commands in the sandbox.',
-      'Do not use `zip -e`; it prompts for a password and will be blocked.',
-      'If the user explicitly provided a password and accepts the command-line exposure risk, use `zip -P <password>` or `unzip -P <password>` instead.',
-      'When extracting into a directory that may already contain files, explicitly choose `unzip -o` or `unzip -n`.',
-      '',
-      'COMMON EXAMPLES:',
-      '- `zip -r archive.zip folder/`',
-      '- `zip -r archive.zip folder/ -x "*.log" "*/node_modules/*"`',
-      '- `unzip archive.zip`',
-      '- `unzip archive.zip -d /tmp/output`',
-      '- `unzip -l archive.zip`',
-      '- `unzip -t archive.zip`',
-      '',
-      `For end-to-end workflows, read \`${DEFAULT_ZIP_UNZIP_SKILLS_DIR}/references/common-workflows.md\`.`
+      '</skill>'
     ].join('\n')
   }
 
@@ -119,29 +132,18 @@ export class ZipUnzipBootstrapService {
       }
     }
 
-    let zipExists = await this.commandExists(backend, 'zip')
-    let unzipExists = await this.commandExists(backend, 'unzip')
+    let binaryCheck = await this.checkBinaries(backend)
 
-    if (stampMatches && zipExists && unzipExists) {
+    if (stampMatches && this.hasRequiredBinaries(binaryCheck)) {
       return { output: 'already bootstrapped', exitCode: 0, truncated: false }
     }
 
-    if (!zipExists || !unzipExists) {
-      const aptCheck = await backend.execute('which apt 2>/dev/null')
-      if (aptCheck?.exitCode !== 0 || !aptCheck?.output?.trim()) {
-        throw new Error('The sandbox is missing `apt`, so zip/unzip cannot be installed automatically.')
-      }
+    if (!this.hasRequiredBinaries(binaryCheck)) {
+      await this.assertAptGetAvailable(backend)
+      await this.installPackagesWithRetry(backend)
 
-      const installResult = await backend.execute(
-        'DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install -y zip unzip'
-      )
-      if (installResult?.exitCode !== 0) {
-        throw new Error(`zip/unzip install failed: ${installResult?.output || 'Unknown error'}`)
-      }
-
-      zipExists = await this.commandExists(backend, 'zip')
-      unzipExists = await this.commandExists(backend, 'unzip')
-      if (!zipExists || !unzipExists) {
+      binaryCheck = await this.checkBinaries(backend)
+      if (!this.hasRequiredBinaries(binaryCheck)) {
         throw new Error('zip/unzip install completed but the binaries are still missing from PATH.')
       }
     }
@@ -160,9 +162,161 @@ export class ZipUnzipBootstrapService {
     return getSkillAssets(DEFAULT_ZIP_UNZIP_SKILLS_DIR)
   }
 
+  private hasRequiredBinaries(binaryCheck: BinaryCheck) {
+    return binaryCheck.zipExists && binaryCheck.unzipExists
+  }
+
+  private async checkBinaries(backend: ZipUnzipBootstrapBackend): Promise<BinaryCheck> {
+    const [zipExists, unzipExists] = await Promise.all([
+      this.commandExists(backend, 'zip'),
+      this.commandExists(backend, 'unzip')
+    ])
+
+    return { zipExists, unzipExists }
+  }
+
   private async commandExists(backend: ZipUnzipBootstrapBackend, command: 'zip' | 'unzip') {
     const result = await backend.execute(`which ${command} 2>/dev/null`)
     return result?.exitCode === 0 && !!result?.output?.trim()
+  }
+
+  private async assertAptGetAvailable(backend: ZipUnzipBootstrapBackend) {
+    const aptGetCheck = await backend.execute('which apt-get 2>/dev/null')
+    if (aptGetCheck?.exitCode !== 0 || !aptGetCheck?.output?.trim()) {
+      throw new Error('The sandbox is missing `apt-get`, so zip/unzip cannot be installed automatically.')
+    }
+  }
+
+  private async installPackagesWithRetry(backend: ZipUnzipBootstrapBackend) {
+    for (let retryIndex = 0; retryIndex <= APT_LOCK_RETRY_DELAYS_MS.length; retryIndex += 1) {
+      const attemptNumber = retryIndex + 1
+
+      if (retryIndex > 0) {
+        const binaryCheck = await this.checkBinaries(backend)
+        if (this.hasRequiredBinaries(binaryCheck)) {
+          return
+        }
+      }
+
+      const installResult = await this.runLockedInstallAttempt(backend)
+      const output = this.getResultOutput(installResult)
+
+      if (installResult?.exitCode === 0) {
+        return
+      }
+
+      if (this.isBootstrapLockTimeout(output, installResult)) {
+        throw new Error(
+          `zip/unzip bootstrap lock timed out after waiting ${BOOTSTRAP_LOCK_TIMEOUT_SECONDS} seconds. Last output: ${this.summarizeOutput(output)}`
+        )
+      }
+
+      if (!this.isRetryableAptLockError(output)) {
+        throw new Error(
+          `zip/unzip install failed on attempt ${attemptNumber} with a non-retryable error. Last output: ${this.summarizeOutput(output)}`
+        )
+      }
+
+      if (retryIndex === APT_LOCK_RETRY_DELAYS_MS.length) {
+        throw new Error(
+          `zip/unzip install failed after ${attemptNumber} attempts (${APT_LOCK_RETRY_DELAYS_MS.length} retries) due to apt lock. Last output: ${this.summarizeOutput(output)}`
+        )
+      }
+
+      await this.sleep(APT_LOCK_RETRY_DELAYS_MS[retryIndex])
+    }
+  }
+
+  // BaseSandbox.execute runs one shell command at a time, so locking and
+  // installation must happen inside the same shell invocation.
+  private async runLockedInstallAttempt(backend: ZipUnzipBootstrapBackend) {
+    return backend.execute(this.buildLockedInstallCommand())
+  }
+
+  private buildLockedInstallCommand() {
+    const lockPath = DEFAULT_ZIP_UNZIP_LOCK_PATH
+    const lockDir = `${DEFAULT_ZIP_UNZIP_LOCK_PATH}.d`
+
+    return [
+      'set -eu',
+      `LOCK_PATH=${shellQuote(lockPath)}`,
+      `LOCK_DIR=${shellQuote(lockDir)}`,
+      `LOCK_TIMEOUT=${BOOTSTRAP_LOCK_TIMEOUT_SECONDS}`,
+      `LOCK_TIMEOUT_MARKER=${shellQuote(BOOTSTRAP_LOCK_TIMEOUT_MARKER)}`,
+      'mkdir -p "$(dirname "$LOCK_PATH")"',
+      'binaries_ready() {',
+      '  command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1',
+      '}',
+      'run_install() {',
+      '  if binaries_ready; then',
+      "    echo 'zip/unzip already available inside bootstrap lock'",
+      '    exit 0',
+      '  fi',
+      '  DEBIAN_FRONTEND=noninteractive apt-get update',
+      '  DEBIAN_FRONTEND=noninteractive apt-get install -y zip unzip',
+      '  if binaries_ready; then',
+      "    echo 'zip/unzip installed successfully'",
+      '    exit 0',
+      '  fi',
+      "  echo 'zip/unzip install completed but the binaries are still missing from PATH.' >&2",
+      '  exit 1',
+      '}',
+      'if command -v flock >/dev/null 2>&1; then',
+      '  exec 9>"$LOCK_PATH"',
+      '  if ! flock -w "$LOCK_TIMEOUT" 9; then',
+      '    echo "$LOCK_TIMEOUT_MARKER timed out waiting for zip/unzip bootstrap lock" >&2',
+      `    exit ${BOOTSTRAP_LOCK_TIMEOUT_EXIT_CODE}`,
+      '  fi',
+      '  run_install',
+      'fi',
+      'cleanup_lock_dir() {',
+      '  rmdir "$LOCK_DIR" 2>/dev/null || true',
+      '}',
+      'lock_waited=0',
+      'while ! mkdir "$LOCK_DIR" 2>/dev/null; do',
+      '  lock_waited=$((lock_waited + 1))',
+      '  if [ "$lock_waited" -ge "$LOCK_TIMEOUT" ]; then',
+      '    echo "$LOCK_TIMEOUT_MARKER timed out waiting for zip/unzip bootstrap lock" >&2',
+      `    exit ${BOOTSTRAP_LOCK_TIMEOUT_EXIT_CODE}`,
+      '  fi',
+      '  sleep 1',
+      'done',
+      'trap cleanup_lock_dir EXIT INT TERM',
+      'run_install'
+    ].join('\n')
+  }
+
+  private isRetryableAptLockError(output: string) {
+    const normalizedOutput = output.toLowerCase()
+    return APT_LOCK_ERROR_PATTERNS.some((pattern) => normalizedOutput.includes(pattern))
+  }
+
+  private isBootstrapLockTimeout(output: string, result?: BootstrapCommandResult) {
+    return (
+      output.includes(BOOTSTRAP_LOCK_TIMEOUT_MARKER) ||
+      result?.exitCode === BOOTSTRAP_LOCK_TIMEOUT_EXIT_CODE
+    )
+  }
+
+  private getResultOutput(result?: BootstrapCommandResult) {
+    const output = result?.output
+    if (typeof output !== 'string' || !output.trim()) {
+      return 'Unknown error'
+    }
+    return output.trim()
+  }
+
+  private summarizeOutput(output: string) {
+    const normalized = output
+      .replaceAll(BOOTSTRAP_LOCK_TIMEOUT_MARKER, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    return normalized || 'Unknown error'
+  }
+
+  private async sleep(ms: number) {
+    await new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   private async writeStamp(backend: ZipUnzipBootstrapBackend) {

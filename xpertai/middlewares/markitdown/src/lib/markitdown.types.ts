@@ -37,8 +37,10 @@ export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
         zh_Hans: 'Pip Extras'
       },
       description: {
-        en_US: 'Python extras to install (e.g. "all", "ocr", "az-doc-intel"). Use "all" for full functionality.',
-        zh_Hans: '要安装的 Python extras（如 "all"、"ocr"、"az-doc-intel"）。使用 "all" 获得完整功能。'
+        en_US:
+          'Python extras to install (e.g. "all", "pdf", "docx", "pptx", "xlsx", "xls", "outlook", "az-doc-intel", "audio-transcription", "youtube-transcription"). Use "all" for broadest coverage.',
+        zh_Hans:
+          '要安装的 Python extras（如 "all"、"pdf"、"docx"、"pptx"、"xlsx"、"xls"、"outlook"、"az-doc-intel"、"audio-transcription"、"youtube-transcription"）。使用 "all" 可获得最广覆盖。'
       },
       default: 'all'
     },
@@ -49,8 +51,8 @@ export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
         zh_Hans: 'Skills 目录'
       },
       description: {
-        en_US: 'Path inside the sandbox where skill files (SKILL.md and references) are written.',
-        zh_Hans: 'sandbox 中写入 skill 文件（SKILL.md 和 references）的目录路径。'
+        en_US: 'Path inside the sandbox where the MarkItDown skill file (SKILL.md) is written.',
+        zh_Hans: 'sandbox 中写入 MarkItDown skill 文件（SKILL.md）的目录路径。'
       },
       default: DEFAULT_MARKITDOWN_SKILLS_DIR,
       'x-ui': {

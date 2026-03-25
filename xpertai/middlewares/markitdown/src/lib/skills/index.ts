@@ -4,6 +4,8 @@ import { posix as path } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
+const SKILL_FRONT_MATTER_PATTERN = /^---\n([\s\S]*?)\n---/
+const SKILL_DESCRIPTION_PATTERN = /^description:\s*(.+)$/m
 
 export type MarkItDownSkillAsset = {
   path: string
@@ -15,8 +17,7 @@ function readSkill(relativePath: string): string {
 }
 
 const SKILL_FILES = [
-  { name: 'SKILL.md', src: 'SKILL.md' },
-  { name: 'references/supported-formats.md', src: 'references/supported-formats.md' }
+  { name: 'SKILL.md', src: 'SKILL.md' }
 ]
 
 /**
@@ -31,4 +32,16 @@ export function getSkillAssets(skillsDir: string): MarkItDownSkillAsset[] {
     path: path.join(skillsDir, name),
     content: readSkill(src)
   }))
+}
+
+export function getSkillDescription(): string {
+  const skill = readSkill('SKILL.md')
+  const frontMatter = skill.match(SKILL_FRONT_MATTER_PATTERN)?.[1] ?? ''
+  const description = frontMatter.match(SKILL_DESCRIPTION_PATTERN)?.[1]?.trim()
+
+  if (!description) {
+    throw new Error('MarkItDown skill description is missing from SKILL.md front matter.')
+  }
+
+  return description
 }

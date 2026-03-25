@@ -51,7 +51,9 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
       tools: [],
       beforeAgent: async (_state, runtime) => {
         const backend = getSandboxBackend(runtime)
-        await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+        if (backend) {
+          await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+        }
       },
       wrapModelCall: async (request, handler) => {
         const backend = getSandboxBackend(request.runtime)

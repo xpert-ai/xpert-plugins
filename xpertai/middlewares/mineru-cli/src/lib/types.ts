@@ -1,4 +1,4 @@
-export const MinerUPluginName = 'mineru-cli'
+export const MinerUCliPluginName = 'mineru-cli'
 
 export const MinerUIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M19.7238 3.86898C19.7238 4.57597 19.1502 5.1491 18.4427 5.1491C17.7352 5.1491 17.1616 4.57597 17.1616 3.86898C17.1616 3.16199 17.7352 2.58887 18.4427 2.58887C19.1502 2.58887 19.7238 3.16199 19.7238 3.86898Z" fill="#010101"/>

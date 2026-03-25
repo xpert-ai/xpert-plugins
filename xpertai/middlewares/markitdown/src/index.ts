@@ -22,7 +22,7 @@ const plugin: XpertPlugin = {
       type: 'svg',
       value: MarkItDownIcon
     },
-    displayName: 'MarkItDown',
+    displayName: 'MARKITDOWN CLI技能',
     description: 'Installs Microsoft MarkItDown in the sandbox and provides skills for converting files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown.',
     keywords: ['markitdown', 'markdown', 'pdf', 'docx', 'conversion', 'document'],
     author: 'XpertAI Team'

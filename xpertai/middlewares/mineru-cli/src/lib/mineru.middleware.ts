@@ -13,49 +13,48 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { MinerUBootstrapService } from './mineru-bootstrap.service.js'
 import {
-  DEFAULT_MINERU_BATCH_TIMEOUT_SEC,
-  DEFAULT_MINERU_FILE_TIMEOUT_SEC,
-  MINERU_SKILL_MIDDLEWARE_NAME,
-  MinerUConfig,
-  MinerUConfigFormSchema
-} from './mineru.types.js'
+  MINERU_CLI_SKILL_MIDDLEWARE_NAME,
+  MinerUCliConfig,
+  MinerUCliConfigFormSchema
+} from './mineru-cli.types.js'
 import { MinerUIcon } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
 
 @Injectable()
-@AgentMiddlewareStrategy(MINERU_SKILL_MIDDLEWARE_NAME)
-export class MinerUSkillMiddleware implements IAgentMiddlewareStrategy<Partial<MinerUConfig>> {
+@AgentMiddlewareStrategy(MINERU_CLI_SKILL_MIDDLEWARE_NAME)
+export class MinerUCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<MinerUCliConfig>> {
   constructor(private readonly mineruBootstrapService: MinerUBootstrapService) {}
 
   meta: TAgentMiddlewareMeta = {
-    name: MINERU_SKILL_MIDDLEWARE_NAME,
+    name: MINERU_CLI_SKILL_MIDDLEWARE_NAME,
     label: {
-      en_US: 'MinerU Skill',
-      zh_Hans: 'MinerU 技能'
+      en_US: 'MinerU CLI Skill',
+      zh_Hans: 'MinerU CLI 技能'
     },
     description: {
-      en_US:
-        'Bootstraps a managed MinerU wrapper and embedded skill assets into the sandbox so the agent can parse local documents through sandbox_shell.',
-      zh_Hans:
-        '将托管的 MinerU wrapper 和内置 skill 资产写入 sandbox，使智能体可以通过 sandbox_shell 解析本地文档。'
+      en_US: 'Bootstraps the MinerU Python CLI skill into the sandbox, securely provisions MINERU_TOKEN, and teaches the agent how to convert documents through sandbox_shell.',
+      zh_Hans: '将 MinerU Python CLI skill 写入 sandbox，安全下发 MINERU_TOKEN，并指导智能体通过 sandbox_shell 转换文档。'
     },
     icon: {
       type: 'svg',
       value: MinerUIcon
     },
-    configSchema: MinerUConfigFormSchema
+    configSchema: MinerUCliConfigFormSchema
   }
 
-  createMiddleware(options: Partial<MinerUConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
+  createMiddleware(options: Partial<MinerUCliConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
     const config = this.mineruBootstrapService.resolveConfig(options)
 
     return {
-      name: MINERU_SKILL_MIDDLEWARE_NAME,
+      name: MINERU_CLI_SKILL_MIDDLEWARE_NAME,
       tools: [],
       beforeAgent: async (_state, runtime) => {
         const backend = getSandboxBackend(runtime)
-        await this.mineruBootstrapService.ensureBootstrap(backend, config)
+        if (backend) {
+          await this.mineruBootstrapService.ensureBootstrap(backend)
+          await this.mineruBootstrapService.syncApiTokenSecret(backend, config)
+        }
       },
       wrapModelCall: async (request, handler) => {
         const backend = getSandboxBackend(request.runtime)
@@ -63,7 +62,7 @@ export class MinerUSkillMiddleware implements IAgentMiddlewareStrategy<Partial<M
           return handler(request)
         }
 
-        const prompt = this.mineruBootstrapService.buildSystemPrompt(config)
+        const prompt = this.mineruBootstrapService.buildSystemPrompt()
         const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
         const content = [baseContent, prompt].filter(Boolean).join('\n\n')
 
@@ -86,27 +85,11 @@ export class MinerUSkillMiddleware implements IAgentMiddlewareStrategy<Partial<M
 
         const backend = getSandboxBackend(request.runtime)
         if (backend) {
-          await this.mineruBootstrapService.ensureBootstrap(backend, config)
+          await this.mineruBootstrapService.ensureBootstrap(backend)
+          await this.mineruBootstrapService.syncApiTokenSecret(backend, config)
         }
 
-        const args = getSandboxShellArgs(request)
-        if (!args) {
-          return handler(request)
-        }
-
-        const rewrittenCommand = this.mineruBootstrapService.rewriteCommand(command, config.wrapperPath)
-        const timeoutSec = getTimeoutForCommand(command, args['timeout_sec'])
-        return handler({
-          ...request,
-          toolCall: {
-            ...request.toolCall,
-            args: {
-              ...args,
-              command: rewrittenCommand,
-              ...(timeoutSec ? { timeout_sec: timeoutSec } : {})
-            }
-          }
-        })
+        return handler(request)
       }
     }
   }
@@ -131,32 +114,4 @@ function getSandboxShellCommand(request: ToolCallRequest<AgentBuiltInState>) {
   }
   const command = (args as Record<string, unknown>)['command']
   return typeof command === 'string' ? command : ''
-}
-
-function getSandboxShellArgs(request: ToolCallRequest<AgentBuiltInState>) {
-  const args = request.toolCall?.args
-  if (!args || typeof args !== 'object') {
-    return null
-  }
-  return args as Record<string, unknown>
-}
-
-function getTimeoutForCommand(command: string, timeoutSec: unknown) {
-  const minimum = /\s--dir(?:\s|$)|^mineru\s+--dir(?:\s|$)|\/mineru\s+--dir(?:\s|$)/.test(command)
-    ? DEFAULT_MINERU_BATCH_TIMEOUT_SEC
-    : /\s--file(?:\s|$)|^mineru\s+--file(?:\s|$)|\/mineru\s+--file(?:\s|$)/.test(command)
-      ? DEFAULT_MINERU_FILE_TIMEOUT_SEC
-      : 0
-
-  if (!minimum) {
-    return typeof timeoutSec === 'number' && Number.isFinite(timeoutSec) && timeoutSec > 0
-      ? timeoutSec
-      : undefined
-  }
-
-  if (typeof timeoutSec !== 'number' || !Number.isFinite(timeoutSec) || timeoutSec <= 0) {
-    return minimum
-  }
-
-  return Math.max(timeoutSec, minimum)
 }

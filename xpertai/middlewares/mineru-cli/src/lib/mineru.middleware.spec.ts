@@ -5,20 +5,15 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined
 }))
 
-import { MinerUSkillMiddleware } from './mineru.middleware.js'
+import { MinerUCLISkillMiddleware } from './mineru.middleware.js'
 import {
-  DEFAULT_MINERU_BATCH_TIMEOUT_SEC,
-  DEFAULT_MINERU_FILE_TIMEOUT_SEC,
-  DEFAULT_MINERU_SKILLS_DIR,
-  DEFAULT_MINERU_WRAPPER_PATH,
-  MinerUConfigFormSchema
-} from './mineru.types.js'
+  MINERU_CLI_SKILL_MIDDLEWARE_NAME,
+  MinerUCliConfigFormSchema
+} from './mineru-cli.types.js'
 
-describe('MinerUSkillMiddleware', () => {
+describe('MinerUCLISkillMiddleware', () => {
   const defaultConfig = {
-    apiKey: 'secret-token',
-    skillsDir: DEFAULT_MINERU_SKILLS_DIR,
-    wrapperPath: DEFAULT_MINERU_WRAPPER_PATH
+    apiToken: undefined
   }
 
   function createSubject(options = {}) {
@@ -28,16 +23,12 @@ describe('MinerUSkillMiddleware', () => {
         ...(config ?? {})
       })),
       ensureBootstrap: jest.fn().mockResolvedValue(undefined),
+      syncApiTokenSecret: jest.fn().mockResolvedValue(undefined),
       buildSystemPrompt: jest.fn().mockReturnValue('mineru prompt'),
-      isMinerUCommand: jest.fn().mockImplementation((command: string) => /\bmineru\b/.test(command)),
-      rewriteCommand: jest
-        .fn()
-        .mockImplementation((command: string, wrapperPath: string) =>
-          command.replace(/^(\s*)\S+/, `$1${wrapperPath}`)
-        )
+      isMinerUCommand: jest.fn().mockReturnValue(true)
     }
 
-    const strategy = new MinerUSkillMiddleware(mineruBootstrapService as any)
+    const strategy = new MinerUCLISkillMiddleware(mineruBootstrapService as any)
     const middleware = strategy.createMiddleware(options, {} as any)
 
     return {
@@ -47,29 +38,29 @@ describe('MinerUSkillMiddleware', () => {
     }
   }
 
-  it('exposes the MinerU config schema on middleware meta', () => {
+  it('has correct metadata', () => {
     const { strategy } = createSubject()
-    expect(strategy.meta.configSchema).toEqual(MinerUConfigFormSchema)
+    expect(strategy.meta.name).toBe(MINERU_CLI_SKILL_MIDDLEWARE_NAME)
+    expect(strategy.meta.label.en_US).toBe('MinerU CLI Skill')
+    expect(strategy.meta.configSchema).toEqual(MinerUCliConfigFormSchema)
+    expect((MinerUCliConfigFormSchema.properties.apiToken as any)['x-ui'].span).toBe(2)
   })
 
-  it('bootstraps the sandbox in beforeAgent when a backend is available', async () => {
+  it('bootstraps the sandbox and syncs the token in beforeAgent when a backend is available', async () => {
     const backend = { execute: jest.fn() }
-    const { middleware, mineruBootstrapService } = createSubject()
+    const { middleware, mineruBootstrapService } = createSubject({ apiToken: 'token-123' })
 
     await middleware.beforeAgent?.({} as any, {
-      configurable: {
-        sandbox: {
-          backend
-        }
-      }
+      configurable: { sandbox: { backend } }
     } as any)
 
-    expect(mineruBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend, defaultConfig)
+    expect(mineruBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend)
+    expect(mineruBootstrapService.syncApiTokenSecret).toHaveBeenCalledWith(backend, { apiToken: 'token-123' })
   })
 
   it('appends the MinerU prompt to the system message when sandbox is enabled', async () => {
     const backend = { execute: jest.fn() }
-    const { middleware, mineruBootstrapService } = createSubject()
+    const { middleware } = createSubject()
     const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
 
     await middleware.wrapModelCall?.(
@@ -79,168 +70,108 @@ describe('MinerUSkillMiddleware', () => {
         tools: [],
         state: {} as any,
         runtime: {
-          configurable: {
-            sandbox: {
-              backend
-            }
-          }
+          configurable: { sandbox: { backend } }
         } as any,
         systemMessage: new SystemMessage('base prompt')
       },
       handler
     )
 
-    expect(mineruBootstrapService.buildSystemPrompt).toHaveBeenCalledWith(defaultConfig)
     expect(handler.mock.calls[0][0].systemMessage).toEqual(
-      new SystemMessage({
-        content: 'base prompt\n\nmineru prompt'
-      })
+      new SystemMessage({ content: 'base prompt\n\nmineru prompt' })
     )
   })
 
-  it('passes through non-sandbox-shell tool calls', async () => {
-    const { middleware, mineruBootstrapService } = createSubject()
-    const handler = jest.fn().mockResolvedValue({ ok: true })
+  it('re-checks bootstrap and syncs the token for sandbox_shell mineru commands without rewriting the command', async () => {
+    const backend = { execute: jest.fn() }
+    const { middleware, mineruBootstrapService } = createSubject({ apiToken: 'token-123' })
+    const handler = jest.fn().mockResolvedValue({} as any)
+    const command = 'python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./a.pdf'
 
     await middleware.wrapToolCall?.(
       {
-        tool: { name: 'calculator' },
-        toolCall: { id: '1', name: 'calculator', args: {} },
+        tool: { name: 'sandbox_shell' },
+        toolCall: {
+          id: 'tool-call-1',
+          name: 'sandbox_shell',
+          args: { command }
+        },
         state: {} as any,
-        runtime: {} as any
-      } as any,
+        runtime: {
+          configurable: { sandbox: { backend } }
+        } as any
+      },
       handler
     )
 
-    expect(mineruBootstrapService.ensureBootstrap).not.toHaveBeenCalled()
-    expect(handler).toHaveBeenCalledTimes(1)
+    expect(mineruBootstrapService.isMinerUCommand).toHaveBeenCalledWith(command)
+    expect(mineruBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend)
+    expect(mineruBootstrapService.syncApiTokenSecret).toHaveBeenCalledWith(backend, { apiToken: 'token-123' })
+    expect(handler.mock.calls[0][0].toolCall.args.command).toBe(command)
   })
 
-  it('passes through non-mineru sandbox commands', async () => {
+  it('passes through non-mineru sandbox commands untouched', async () => {
     const backend = { execute: jest.fn() }
     const { middleware, mineruBootstrapService } = createSubject()
+    const handler = jest.fn().mockResolvedValue({} as any)
     mineruBootstrapService.isMinerUCommand.mockReturnValue(false)
-    const handler = jest.fn().mockResolvedValue({ ok: true })
+    const request = {
+      tool: { name: 'sandbox_shell' },
+      toolCall: {
+        id: 'tool-call-2',
+        name: 'sandbox_shell',
+        args: { command: 'ls -la' }
+      },
+      state: {} as any,
+      runtime: {
+        configurable: { sandbox: { backend } }
+      } as any
+    } as any
 
-    await middleware.wrapToolCall?.(
-      {
-        tool: { name: 'sandbox_shell' },
-        toolCall: { id: '1', name: 'sandbox_shell', args: { command: 'ls -la' } },
-        state: {} as any,
-        runtime: { configurable: { sandbox: { backend } } } as any
-      } as any,
-      handler
-    )
+    await middleware.wrapToolCall?.(request, handler)
 
     expect(mineruBootstrapService.ensureBootstrap).not.toHaveBeenCalled()
-    expect(handler).toHaveBeenCalledTimes(1)
+    expect(mineruBootstrapService.syncApiTokenSecret).not.toHaveBeenCalled()
+    expect(handler).toHaveBeenCalledWith(request)
   })
 
-  it('rewrites mineru commands to the wrapper path and bootstraps first', async () => {
+  it('syncs secret cleanup even when no api token is configured', async () => {
     const backend = { execute: jest.fn() }
     const { middleware, mineruBootstrapService } = createSubject()
-    const handler = jest.fn().mockResolvedValue({ ok: true })
+    const handler = jest.fn().mockResolvedValue({} as any)
 
     await middleware.wrapToolCall?.(
       {
         tool: { name: 'sandbox_shell' },
         toolCall: {
-          id: '1',
+          id: 'tool-call-3',
           name: 'sandbox_shell',
-          args: { command: 'mineru --file ./report.pdf --output ./output/' }
+          args: { command: 'python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./a.pdf' }
         },
         state: {} as any,
-        runtime: { configurable: { sandbox: { backend } } } as any
-      } as any,
+        runtime: {
+          configurable: { sandbox: { backend } }
+        } as any
+      },
       handler
     )
 
-    expect(mineruBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend, defaultConfig)
-    expect(mineruBootstrapService.rewriteCommand).toHaveBeenCalledWith(
-      'mineru --file ./report.pdf --output ./output/',
-      DEFAULT_MINERU_WRAPPER_PATH
-    )
+    expect(mineruBootstrapService.syncApiTokenSecret).toHaveBeenCalledWith(backend, { apiToken: undefined })
     expect(handler.mock.calls[0][0].toolCall.args.command).toBe(
-      '/workspace/.xpert/bin/mineru --file ./report.pdf --output ./output/'
+      'python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./a.pdf'
     )
   })
 
-  it('rewrites non-wrapper absolute mineru paths back to the managed wrapper', async () => {
-    const backend = { execute: jest.fn() }
-    const { middleware, mineruBootstrapService } = createSubject()
-    const handler = jest.fn().mockResolvedValue({ ok: true })
-
-    await middleware.wrapToolCall?.(
-      {
-        tool: { name: 'sandbox_shell' },
-        toolCall: {
-          id: 'absolute-path',
-          name: 'sandbox_shell',
-          args: { command: '/tmp/mineru --file ./report.pdf --output ./output/' }
-        },
-        state: {} as any,
-        runtime: { configurable: { sandbox: { backend } } } as any
-      } as any,
-      handler
-    )
-
-    expect(mineruBootstrapService.rewriteCommand).toHaveBeenCalledWith(
-      '/tmp/mineru --file ./report.pdf --output ./output/',
-      DEFAULT_MINERU_WRAPPER_PATH
-    )
-    expect(handler.mock.calls[0][0].toolCall.args.command).toBe(
-      '/workspace/.xpert/bin/mineru --file ./report.pdf --output ./output/'
-    )
-  })
-
-  it('raises timeout for --file commands', async () => {
-    const backend = { execute: jest.fn() }
+  it('passes through non-sandbox_shell tools', async () => {
     const { middleware } = createSubject()
-    const handler = jest.fn().mockResolvedValue({ ok: true })
+    const handler = jest.fn().mockResolvedValue({} as any)
+    const request = {
+      tool: { name: 'other_tool' },
+      toolCall: { args: { command: 'python3 /workspace/.xpert/skills/mineru-cli/scripts/mineru.py --file ./a.pdf' } },
+      runtime: undefined
+    } as any
 
-    await middleware.wrapToolCall?.(
-      {
-        tool: { name: 'sandbox_shell' },
-        toolCall: {
-          id: '2',
-          name: 'sandbox_shell',
-          args: { command: 'mineru --file ./report.pdf --output ./output/' }
-        },
-        state: {} as any,
-        runtime: { configurable: { sandbox: { backend } } } as any
-      } as any,
-      handler
-    )
-
-    expect(handler.mock.calls[0][0].toolCall.args.timeout_sec).toBe(DEFAULT_MINERU_FILE_TIMEOUT_SEC)
-  })
-
-  it('raises timeout for --dir commands but keeps larger explicit values', async () => {
-    const backend = { execute: jest.fn() }
-    const { middleware } = createSubject()
-    const handler = jest.fn().mockResolvedValue({ ok: true })
-
-    await middleware.wrapToolCall?.(
-      {
-        tool: { name: 'sandbox_shell' },
-        toolCall: {
-          id: '3',
-          name: 'sandbox_shell',
-          args: {
-            command: 'mineru --dir ./docs --output ./output/',
-            timeout_sec: 3600
-          }
-        },
-        state: {} as any,
-        runtime: { configurable: { sandbox: { backend } } } as any
-      } as any,
-      handler
-    )
-
-    expect(handler.mock.calls[0][0].toolCall.args.timeout_sec).toBe(3600)
-    expect(handler.mock.calls[0][0].toolCall.args.command).toBe(
-      '/workspace/.xpert/bin/mineru --dir ./docs --output ./output/'
-    )
-    expect(DEFAULT_MINERU_BATCH_TIMEOUT_SEC).toBeLessThan(3600)
+    await middleware.wrapToolCall?.(request, handler)
+    expect(handler).toHaveBeenCalledWith(request)
   })
 })

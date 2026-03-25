@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename)
 const packageRoot = path.resolve(__dirname, '..')
 const srcRoot = path.join(packageRoot, 'src')
 const distRoot = path.join(packageRoot, 'dist')
-const ASSET_EXTENSIONS = new Set(['.md', '.png'])
+const ASSET_EXTENSIONS = new Set(['.md', '.png', '.json'])
 
 function copyAssetFiles(srcDir, destDir) {
   const entries = readdirSync(srcDir)

@@ -1,0 +1,29 @@
+{
+  "skill_name": "markitdown-cli",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "我有一个 quarterly_report.pdf 想转成 markdown，怎么用 markitdown？",
+      "expected_output": "Should provide the basic markitdown command for PDF conversion, show both stdout and -o flag options, mention PDF-specific notes if relevant",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "I have a folder full of .docx and .xlsx files. I want to convert them all to markdown and save each one with the same name but .md extension.",
+      "expected_output": "Should provide batch conversion shell commands (for loop or find) covering both .docx and .xlsx, using markitdown with -o flag and proper filename substitution",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I'm piping HTML content from curl into markitdown but getting empty output. What am I doing wrong?",
+      "expected_output": "Should identify the likely cause: missing type hints when using stdin. Recommend using -x html or -m text/html flag. Show corrected command example.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I need OCR for a scanned PDF in markitdown. How should I do it?",
+      "expected_output": "Should explain that OCR should be treated as a plugin-backed workflow rather than an official built-in extra in this guide, recommend checking --list-plugins and using --use-plugins when an OCR plugin is installed, and mention Azure Document Intelligence with -d -e as an alternative.",
+      "files": []
+    }
+  ]
+}

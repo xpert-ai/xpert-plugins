@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { posix as path } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DEFAULT_MINERU_CLI_SKILLS_DIR } from '../mineru-cli.types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
+const SKILL_FRONT_MATTER_PATTERN = /^---\n([\s\S]*?)\n---/
+const SKILL_DESCRIPTION_PATTERN = /^description:\s*(.+)$/m
 
 export type MinerUSkillAsset = {
   path: string
@@ -16,20 +19,24 @@ function readSkill(relativePath: string): string {
 
 const SKILL_FILES = [
   { name: 'SKILL.md', src: 'SKILL.md' },
-  { name: 'references/api_reference.md', src: 'references/api_reference.md' },
-  { name: 'scripts/mineru_api.py', src: 'scripts/mineru_api.py' },
-  { name: 'scripts/mineru_async.py', src: 'scripts/mineru_async.py' },
-  { name: 'scripts/mineru_batch.py', src: 'scripts/mineru_batch.py' },
-  { name: 'scripts/mineru_obsidian.py', src: 'scripts/mineru_obsidian.py' },
-  { name: 'scripts/mineru_parallel.py', src: 'scripts/mineru_parallel.py' },
-  { name: 'scripts/mineru_runner.py', src: 'scripts/mineru_runner.py' },
-  { name: 'scripts/mineru_v2.py', src: 'scripts/mineru_v2.py' },
-  { name: 'scripts/mineru_stable.py', src: 'scripts/mineru_stable.py' }
+  { name: 'scripts/mineru.py', src: 'scripts/mineru.py' }
 ]
 
-export function getSkillAssets(skillsDir: string): MinerUSkillAsset[] {
+export function getSkillAssets(): MinerUSkillAsset[] {
   return SKILL_FILES.map(({ name, src }) => ({
-    path: path.join(skillsDir, name),
+    path: path.join(DEFAULT_MINERU_CLI_SKILLS_DIR, name),
     content: readSkill(src)
   }))
+}
+
+export function getSkillDescription(): string {
+  const skill = readSkill('SKILL.md')
+  const frontMatter = skill.match(SKILL_FRONT_MATTER_PATTERN)?.[1] ?? ''
+  const description = frontMatter.match(SKILL_DESCRIPTION_PATTERN)?.[1]?.trim()
+
+  if (!description) {
+    throw new Error('MinerU skill description is missing from SKILL.md front matter.')
+  }
+
+  return description
 }

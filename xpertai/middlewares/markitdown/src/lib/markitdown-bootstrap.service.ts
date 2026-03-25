@@ -15,14 +15,26 @@ import {
   MarkItDownConfigSchema
 } from './markitdown.types.js'
 import { MarkItDownPluginName } from './types.js'
-import { getSkillAssets, type MarkItDownSkillAsset } from './skills/index.js'
+import {
+  getSkillAssets,
+  getSkillDescription,
+  type MarkItDownSkillAsset
+} from './skills/index.js'
 
 type MarkItDownBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles'>
 type MarkItDownBootstrapStamp = {
   tool?: string
   version?: string
+  extras?: string
+  skillsDir?: string
   bootstrapVersion?: number
   installedAt?: string
+}
+
+type ExecutableInfo = {
+  executable: string
+  tokens: string[]
+  index: number
 }
 
 @Injectable()
@@ -57,34 +69,22 @@ export class MarkItDownBootstrapService {
   }
 
   buildSystemPrompt(config = this.resolveConfig()): string {
+    const skillPath = path.join(config.skillsDir, 'SKILL.md')
+
     return [
-      'The `markitdown` command (from Microsoft markitdown) is installed in the sandbox via pip.',
-      'IMPORTANT: Use the `markitdown` command to convert files to Markdown. It supports PDF, DOCX, PPTX, XLSX, HTML, CSV, JSON, XML, ZIP, images (JPEG/PNG with EXIF and OCR), audio (MP3/WAV with speech-to-text), RSS feeds, and more.',
-      'Always run file conversion via the `sandbox_shell` tool using the `markitdown` command.',
-      `Before your first use, read the skill file at \`${config.skillsDir}/SKILL.md\` with \`cat ${config.skillsDir}/SKILL.md\` to learn all available options and usage patterns.`,
+      '<skill>',
+      getSkillDescription(),
       '',
-      'QUICK USAGE:',
-      '- Convert a file: `markitdown path/to/file.pdf`',
-      '- Convert a URL: `markitdown https://example.com/page.html`',
-      '- Save output: `markitdown path/to/file.docx > output.md`',
-      '- Piped input: `cat file.html | markitdown`',
-      '',
-      'GUIDELINES:',
-      '- Output goes to stdout by default. Redirect with `>` to save to a file.',
-      '- For large files, the conversion may take a moment. The default timeout should be sufficient for most files.',
-      '- For images, markitdown extracts EXIF metadata and can do OCR if configured.',
-      '- For audio files, markitdown performs speech-to-text transcription.',
-      '- Inspect the output carefully and summarize results back to the user.',
-      '',
-      `For detailed format-specific guidance, read \`${config.skillsDir}/references/supported-formats.md\`.`
+      'Always run MarkItDown through the `sandbox_shell` tool using the `markitdown` command.',
+      `Before your first use, read the skill file at \`${skillPath}\` with \`cat ${shellQuote(skillPath)}\`.`,
+      '</skill>'
     ].join('\n')
   }
 
   isMarkItDownCommand(command: string): boolean {
-    if (!command) {
-      return false
-    }
-    return /\bmarkitdown\b/.test(command)
+    return this.getExecutableInfos(command).some(({ executable }) =>
+      isMarkItDownExecutableToken(executable)
+    )
   }
 
   async ensureBootstrap(backend: MarkItDownBootstrapBackend, config = this.resolveConfig()) {
@@ -94,75 +94,101 @@ export class MarkItDownBootstrapService {
 
     const stampPath = this.getStampPath()
     const bootstrapAssets = this.getBootstrapAssets(config)
+    const stamp = await this.readStamp(backend, stampPath)
+    const binaryReady = await this.commandExists(backend, 'markitdown')
+    const assetsReady = binaryReady ? await this.areAssetsReady(backend, bootstrapAssets) : false
+    const recordedConfigMatches =
+      stamp?.version === config.version &&
+      stamp?.extras === config.extras
+    const stampMatches =
+      recordedConfigMatches &&
+      stamp?.bootstrapVersion === MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION
+    const needsInstall = !binaryReady || (!!stamp && !recordedConfigMatches)
+    const needsAssetRefresh = !assetsReady || !stampMatches
 
-    // Check stamp to see if already bootstrapped with same version
-    const stampCheck = await backend.execute(
-      `cat ${shellQuote(stampPath)} 2>/dev/null || echo ''`
-    )
-    const stampContent = stampCheck?.output?.trim() ?? ''
-    if (stampContent) {
-      try {
-        const stamp = JSON.parse(stampContent) as MarkItDownBootstrapStamp
-        if (stamp.version === config.version) {
-          // Stamp matches, but verify the markitdown binary actually exists
-          const whichResult = await backend.execute('which markitdown 2>/dev/null')
-          if (whichResult?.exitCode === 0 && whichResult?.output?.trim()) {
-            if (stamp.bootstrapVersion !== MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION) {
-              await this.writeAssets(backend, bootstrapAssets)
-              await this.writeStamp(backend, config.version)
-            }
-            return { output: 'already bootstrapped', exitCode: 0, truncated: false }
-          }
-        }
-      } catch {
-        // stamp is corrupted, re-bootstrap
+    if (!needsInstall && !needsAssetRefresh) {
+      return { output: 'already bootstrapped', exitCode: 0, truncated: false }
+    }
+
+    if (needsInstall) {
+      const pipCheck = await backend.execute('which pip3 2>/dev/null || which pip 2>/dev/null')
+      if (pipCheck?.exitCode !== 0 || !pipCheck?.output?.trim()) {
+        throw new Error(
+          'Python pip is not available in the sandbox. MarkItDown requires Python with pip to be pre-installed.'
+        )
+      }
+      const pipCmd = pipCheck.output.trim().split('\n')[0]
+
+      // --break-system-packages is needed for PEP 668 compliant environments
+      // (Debian/Ubuntu with externally-managed Python). Safe in a disposable sandbox.
+      const versionSpec = config.version === 'latest' ? '' : `==${config.version}`
+      const extrasSpec = config.extras ? `[${config.extras}]` : ''
+      const installCmd = `${pipCmd} install --break-system-packages "markitdown${extrasSpec}${versionSpec}"`
+      const installResult = await backend.execute(installCmd)
+      if (installResult?.exitCode !== 0) {
+        throw new Error(`MarkItDown install failed: ${installResult?.output || 'Unknown error'}`)
       }
     }
 
-    // 1. Check Python/pip availability
-    const pipCheck = await backend.execute('which pip3 2>/dev/null || which pip 2>/dev/null')
-    if (pipCheck?.exitCode !== 0 || !pipCheck?.output?.trim()) {
-      throw new Error(
-        'Python pip is not available in the sandbox. MarkItDown requires Python with pip to be pre-installed.'
-      )
-    }
-    const pipCmd = pipCheck.output.trim().split('\n')[0]
-
-    // 2. Install markitdown via pip
-    // --break-system-packages is needed for PEP 668 compliant environments
-    // (Debian/Ubuntu with externally-managed Python). Safe in a disposable sandbox.
-    const versionSpec = config.version === 'latest' ? '' : `==${config.version}`
-    const extrasSpec = config.extras ? `[${config.extras}]` : ''
-    const installCmd = `${pipCmd} install --break-system-packages "markitdown${extrasSpec}${versionSpec}"`
-    const installResult = await backend.execute(installCmd)
-    if (installResult?.exitCode !== 0) {
-      throw new Error(`MarkItDown install failed: ${installResult?.output || 'Unknown error'}`)
-    }
-
-    // 3. Upload skill files to sandbox
     await this.writeAssets(backend, bootstrapAssets)
+    await this.writeStamp(backend, config)
 
-    // 4. Write stamp file
-    await this.writeStamp(backend, config.version)
-
-    return installResult
+    return {
+      output: needsInstall ? 'bootstrapped markitdown' : 'refreshed markitdown bootstrap',
+      exitCode: 0,
+      truncated: false
+    }
   }
 
   private getBootstrapAssets(config: MarkItDownConfig): MarkItDownSkillAsset[] {
     return getSkillAssets(config.skillsDir)
   }
 
-  private async writeStamp(backend: MarkItDownBootstrapBackend, version: string) {
+  private async readStamp(backend: MarkItDownBootstrapBackend, stampPath: string) {
+    const stampCheck = await backend.execute(`cat ${shellQuote(stampPath)} 2>/dev/null || echo ''`)
+    const stampContent = stampCheck?.output?.trim() ?? ''
+
+    if (!stampContent) {
+      return null
+    }
+
+    try {
+      return JSON.parse(stampContent) as MarkItDownBootstrapStamp
+    } catch {
+      return null
+    }
+  }
+
+  private async commandExists(backend: MarkItDownBootstrapBackend, command: string) {
+    const result = await backend.execute(`which ${command} 2>/dev/null`)
+    return result?.exitCode === 0 && !!result?.output?.trim()
+  }
+
+  private async areAssetsReady(
+    backend: MarkItDownBootstrapBackend,
+    assets: MarkItDownSkillAsset[]
+  ) {
+    const checks = assets.map((asset) => `test -f ${shellQuote(asset.path)}`).join(' && ')
+    const result = await backend.execute(checks)
+    return result?.exitCode === 0
+  }
+
+  private async writeStamp(backend: MarkItDownBootstrapBackend, config: MarkItDownConfig) {
     const stampPath = this.getStampPath()
     const stampData = JSON.stringify({
       tool: 'markitdown',
-      version,
+      version: config.version,
+      extras: config.extras,
+      skillsDir: config.skillsDir,
       bootstrapVersion: MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION,
       installedAt: new Date().toISOString()
     })
-    await backend.execute(
+    const result = await backend.execute(
       `mkdir -p ${shellQuote(path.dirname(stampPath))} && echo ${shellQuote(stampData)} > ${shellQuote(stampPath)}`
     )
+    if (result?.exitCode !== 0) {
+      throw new Error(`Failed to write MarkItDown bootstrap stamp: ${result?.output || 'Unknown error'}`)
+    }
   }
 
   private async writeAssets(
@@ -193,8 +219,198 @@ export class MarkItDownBootstrapService {
       }
     }
   }
+
+  private getExecutableInfos(command: string): ExecutableInfo[] {
+    if (!command) {
+      return []
+    }
+
+    return splitShellSegments(command)
+      .map(getExecutableInfo)
+      .filter((item): item is ExecutableInfo => !!item)
+  }
 }
 
 function shellQuote(value: string) {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`
+}
+
+function splitShellSegments(command: string) {
+  const segments: string[] = []
+  let buffer = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index]
+    const next = index + 1 < command.length ? command[index + 1] : ''
+
+    if (escaped) {
+      buffer += character
+      escaped = false
+      continue
+    }
+
+    if (character === '\\') {
+      buffer += character
+      escaped = true
+      continue
+    }
+
+    if (quote) {
+      buffer += character
+      if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character
+      buffer += character
+      continue
+    }
+
+    if (character === ';') {
+      pushSegment(segments, buffer)
+      buffer = ''
+      continue
+    }
+
+    if ((character === '&' && next === '&') || (character === '|' && next === '|')) {
+      pushSegment(segments, buffer)
+      buffer = ''
+      index += 1
+      continue
+    }
+
+    if (character === '|') {
+      pushSegment(segments, buffer)
+      buffer = ''
+      continue
+    }
+
+    buffer += character
+  }
+
+  pushSegment(segments, buffer)
+  return segments
+}
+
+function pushSegment(segments: string[], value: string) {
+  const trimmed = value.trim()
+  if (trimmed) {
+    segments.push(trimmed)
+  }
+}
+
+function getExecutableInfo(segment: string): ExecutableInfo | null {
+  const tokens = tokenizeShellSegment(segment)
+  if (!tokens.length) {
+    return null
+  }
+
+  let index = 0
+
+  if (stripOuterQuotes(tokens[index]) === 'env') {
+    index += 1
+    while (index < tokens.length) {
+      const token = stripOuterQuotes(tokens[index])
+      if (token.startsWith('-')) {
+        index += 1
+        continue
+      }
+      if (isEnvAssignmentToken(token)) {
+        index += 1
+        continue
+      }
+      break
+    }
+  } else {
+    while (index < tokens.length && isEnvAssignmentToken(stripOuterQuotes(tokens[index]))) {
+      index += 1
+    }
+  }
+
+  if (index >= tokens.length) {
+    return null
+  }
+
+  return {
+    executable: stripOuterQuotes(tokens[index]),
+    tokens,
+    index
+  }
+}
+
+function tokenizeShellSegment(segment: string) {
+  const tokens: string[] = []
+  let buffer = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  for (let index = 0; index < segment.length; index += 1) {
+    const character = segment[index]
+
+    if (escaped) {
+      buffer += character
+      escaped = false
+      continue
+    }
+
+    if (character === '\\') {
+      buffer += character
+      escaped = true
+      continue
+    }
+
+    if (quote) {
+      buffer += character
+      if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character
+      buffer += character
+      continue
+    }
+
+    if (/\s/.test(character)) {
+      if (buffer) {
+        tokens.push(buffer)
+        buffer = ''
+      }
+      continue
+    }
+
+    buffer += character
+  }
+
+  if (buffer) {
+    tokens.push(buffer)
+  }
+
+  return tokens
+}
+
+function isEnvAssignmentToken(token: string) {
+  return /^[A-Za-z_][A-Za-z0-9_]*=.*$/.test(token)
+}
+
+function stripOuterQuotes(token: string) {
+  if (
+    token.length >= 2 &&
+    ((token.startsWith("'") && token.endsWith("'")) ||
+      (token.startsWith('"') && token.endsWith('"')))
+  ) {
+    return token.slice(1, -1)
+  }
+  return token
+}
+
+function isMarkItDownExecutableToken(token: string) {
+  return path.basename(token) === 'markitdown'
 }
