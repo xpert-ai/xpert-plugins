@@ -1,0 +1,32 @@
+{
+  "name": "@xpert-ai/plugin-mineru-cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/mineru-cli/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/mineru-cli/dist",
+        "main": "middlewares/mineru-cli/src/index.ts",
+        "rootDir": "middlewares/mineru-cli/src",
+        "tsConfig": "middlewares/mineru-cli/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/mineru-cli/src",
+            "output": "./"
+          },
+          {
+            "glob": "**/*.py",
+            "input": "middlewares/mineru-cli/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

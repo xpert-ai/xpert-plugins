@@ -11,48 +11,49 @@ import {
   Runtime,
   ToolCallRequest
 } from '@xpert-ai/plugin-sdk'
-import { MarkItDownBootstrapService } from './markitdown-bootstrap.service.js'
+import { MinerUBootstrapService } from './mineru-bootstrap.service.js'
 import {
-  MARKITDOWN_SKILL_MIDDLEWARE_NAME,
-  MarkItDownConfig,
-  MarkItDownConfigFormSchema
-} from './markitdown.types.js'
-import { MarkItDownIcon } from './types.js'
+  MINERU_CLI_SKILL_MIDDLEWARE_NAME,
+  MinerUCliConfig,
+  MinerUCliConfigFormSchema
+} from './mineru-cli.types.js'
+import { MinerUIcon } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
 
 @Injectable()
-@AgentMiddlewareStrategy(MARKITDOWN_SKILL_MIDDLEWARE_NAME)
-export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Partial<MarkItDownConfig>> {
-  constructor(private readonly markitdownBootstrapService: MarkItDownBootstrapService) {}
+@AgentMiddlewareStrategy(MINERU_CLI_SKILL_MIDDLEWARE_NAME)
+export class MinerUCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<MinerUCliConfig>> {
+  constructor(private readonly mineruBootstrapService: MinerUBootstrapService) {}
 
   meta: TAgentMiddlewareMeta = {
-    name: MARKITDOWN_SKILL_MIDDLEWARE_NAME,
+    name: MINERU_CLI_SKILL_MIDDLEWARE_NAME,
     label: {
-      en_US: 'MarkItDown Skill',
-      zh_Hans: 'MarkItDown 技能'
+      en_US: 'MinerU CLI Skill',
+      zh_Hans: 'MinerU CLI 技能'
     },
     description: {
-      en_US: 'Installs Microsoft MarkItDown into the sandbox and teaches the agent to convert files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown via sandbox_shell.',
-      zh_Hans: '将 Microsoft MarkItDown 安装到 sandbox 中，并教会智能体通过 sandbox_shell 将文件（PDF、DOCX、PPTX、图片、音频等）转换为 Markdown。'
+      en_US: 'Bootstraps the MinerU Python CLI skill into the sandbox, securely provisions MINERU_TOKEN, and teaches the agent how to convert documents through sandbox_shell.',
+      zh_Hans: '将 MinerU Python CLI skill 写入 sandbox，安全下发 MINERU_TOKEN，并指导智能体通过 sandbox_shell 转换文档。'
     },
     icon: {
       type: 'svg',
-      value: MarkItDownIcon
+      value: MinerUIcon
     },
-    configSchema: MarkItDownConfigFormSchema
+    configSchema: MinerUCliConfigFormSchema
   }
 
-  createMiddleware(options: Partial<MarkItDownConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
-    const config = this.markitdownBootstrapService.resolveConfig(options)
+  createMiddleware(options: Partial<MinerUCliConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
+    const config = this.mineruBootstrapService.resolveConfig(options)
 
     return {
-      name: MARKITDOWN_SKILL_MIDDLEWARE_NAME,
+      name: MINERU_CLI_SKILL_MIDDLEWARE_NAME,
       tools: [],
       beforeAgent: async (_state, runtime) => {
         const backend = getSandboxBackend(runtime)
         if (backend) {
-          await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+          await this.mineruBootstrapService.ensureBootstrap(backend)
+          await this.mineruBootstrapService.syncApiTokenSecret(backend, config)
         }
       },
       wrapModelCall: async (request, handler) => {
@@ -61,7 +62,7 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
           return handler(request)
         }
 
-        const prompt = this.markitdownBootstrapService.buildSystemPrompt(config)
+        const prompt = this.mineruBootstrapService.buildSystemPrompt()
         const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
         const content = [baseContent, prompt].filter(Boolean).join('\n\n')
 
@@ -72,23 +73,20 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
           })
         })
       },
-      wrapToolCall: async (
-        request: ToolCallRequest<AgentBuiltInState>,
-        handler
-      ) => {
+      wrapToolCall: async (request: ToolCallRequest<AgentBuiltInState>, handler) => {
         if (!isSandboxShellTool(request.tool)) {
           return handler(request)
         }
 
         const command = getSandboxShellCommand(request)
-        if (!this.markitdownBootstrapService.isMarkItDownCommand(command)) {
+        if (!this.mineruBootstrapService.isMinerUCommand(command)) {
           return handler(request)
         }
 
-        // Ensure markitdown is installed before running the command
         const backend = getSandboxBackend(request.runtime)
         if (backend) {
-          await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+          await this.mineruBootstrapService.ensureBootstrap(backend)
+          await this.mineruBootstrapService.syncApiTokenSecret(backend, config)
         }
 
         return handler(request)

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
-import { MarkItDownPluginModule } from './lib/markitdown.module.js'
-import { MarkItDownIcon } from './lib/types.js'
+import { MinerUCliPluginModule } from './lib/mineru-cli.module.js'
+import { MinerUIcon } from './lib/types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -20,22 +20,23 @@ const plugin: XpertPlugin = {
     category: 'middleware',
     icon: {
       type: 'svg',
-      value: MarkItDownIcon
+      value: MinerUIcon
     },
-    displayName: 'MARKITDOWN CLI技能',
-    description: 'Installs Microsoft MarkItDown in the sandbox and provides skills for converting files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown.',
-    keywords: ['markitdown', 'markdown', 'pdf', 'docx', 'conversion', 'document'],
+    displayName: 'MinerU CLI',
+    description:
+      'Bootstraps the MinerU Python CLI skill into the sandbox, securely provisions MINERU_TOKEN through a managed secret file, and teaches the agent how to convert documents to Markdown through sandbox_shell.',
+    keywords: ['mineru', 'middleware', 'sandbox', 'markdown', 'document', 'pdf', 'ocr'],
     author: 'XpertAI Team'
   },
   register(ctx) {
-    ctx.logger.log('register markitdown plugin')
-    return { module: MarkItDownPluginModule, global: true }
+    ctx.logger.log('register mineru cli plugin')
+    return { module: MinerUCliPluginModule, global: true }
   },
   async onStart(ctx) {
-    ctx.logger.log('markitdown plugin started')
+    ctx.logger.log('mineru cli plugin started')
   },
   async onStop(ctx) {
-    ctx.logger.log('markitdown plugin stopped')
+    ctx.logger.log('mineru cli plugin stopped')
   }
 }
 

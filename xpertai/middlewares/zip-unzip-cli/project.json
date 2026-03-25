@@ -1,0 +1,27 @@
+{
+  "name": "@xpert-ai/plugin-zip-unzip-cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/zip-unzip-cli/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/zip-unzip-cli/dist",
+        "main": "middlewares/zip-unzip-cli/src/index.ts",
+        "rootDir": "middlewares/zip-unzip-cli/src",
+        "tsConfig": "middlewares/zip-unzip-cli/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/zip-unzip-cli/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

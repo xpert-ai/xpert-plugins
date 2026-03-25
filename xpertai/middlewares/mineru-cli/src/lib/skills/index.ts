@@ -2,12 +2,13 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { posix as path } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DEFAULT_MINERU_CLI_SKILLS_DIR } from '../mineru-cli.types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const SKILL_FRONT_MATTER_PATTERN = /^---\n([\s\S]*?)\n---/
 const SKILL_DESCRIPTION_PATTERN = /^description:\s*(.+)$/m
 
-export type MarkItDownSkillAsset = {
+export type MinerUSkillAsset = {
   path: string
   content: string
 }
@@ -17,19 +18,13 @@ function readSkill(relativePath: string): string {
 }
 
 const SKILL_FILES = [
-  { name: 'SKILL.md', src: 'SKILL.md' }
+  { name: 'SKILL.md', src: 'SKILL.md' },
+  { name: 'scripts/mineru.py', src: 'scripts/mineru.py' }
 ]
 
-/**
- * Returns all markitdown skill files as assets ready to be uploaded
- * into the sandbox container.
- *
- * @param skillsDir - The target directory inside the sandbox where
- *   skill files will be written, e.g. `/workspace/.xpert/skills/markitdown`.
- */
-export function getSkillAssets(skillsDir: string): MarkItDownSkillAsset[] {
+export function getSkillAssets(): MinerUSkillAsset[] {
   return SKILL_FILES.map(({ name, src }) => ({
-    path: path.join(skillsDir, name),
+    path: path.join(DEFAULT_MINERU_CLI_SKILLS_DIR, name),
     content: readSkill(src)
   }))
 }
@@ -40,7 +35,7 @@ export function getSkillDescription(): string {
   const description = frontMatter.match(SKILL_DESCRIPTION_PATTERN)?.[1]?.trim()
 
   if (!description) {
-    throw new Error('MarkItDown skill description is missing from SKILL.md front matter.')
+    throw new Error('MinerU skill description is missing from SKILL.md front matter.')
   }
 
   return description

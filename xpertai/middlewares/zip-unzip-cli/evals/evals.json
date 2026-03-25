@@ -1,0 +1,23 @@
+{
+  "skill_name": "zip-unzip-cli",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我需要压缩项目文件夹 /tmp/test-project，但要排除所有的 node_modules 目录、.log 文件和 .git 文件夹，压缩包命名为 project-backup.zip",
+      "expected_output": "使用 zip -r 命令压缩目录，并使用 -x 参数排除指定的文件和目录模式",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "有一个加密的 zip 文件 secure-data.zip（密码是 mypass123），我想把它解压到 /tmp/extracted 目录下",
+      "expected_output": "使用 unzip 命令配合 -P 参数指定密码，-d 参数指定目标目录",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "需要把 /tmp/large-dataset 目录压缩成多个 100MB 的分卷文件，因为要上传到有大小限制的系统",
+      "expected_output": "使用 zip -r -s 100m 命令创建分卷压缩包",
+      "files": []
+    }
+  ]
+}

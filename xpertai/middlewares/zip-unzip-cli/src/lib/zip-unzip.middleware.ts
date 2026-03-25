@@ -11,48 +11,48 @@ import {
   Runtime,
   ToolCallRequest
 } from '@xpert-ai/plugin-sdk'
-import { MarkItDownBootstrapService } from './markitdown-bootstrap.service.js'
+import { ZipUnzipBootstrapService } from './zip-unzip-bootstrap.service.js'
 import {
-  MARKITDOWN_SKILL_MIDDLEWARE_NAME,
-  MarkItDownConfig,
-  MarkItDownConfigFormSchema
-} from './markitdown.types.js'
-import { MarkItDownIcon } from './types.js'
+  ZIP_UNZIP_SKILL_MIDDLEWARE_NAME,
+  ZipUnzipConfig,
+  ZipUnzipConfigFormSchema
+} from './zip-unzip.types.js'
+import { ZipUnzipIcon } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
 
 @Injectable()
-@AgentMiddlewareStrategy(MARKITDOWN_SKILL_MIDDLEWARE_NAME)
-export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Partial<MarkItDownConfig>> {
-  constructor(private readonly markitdownBootstrapService: MarkItDownBootstrapService) {}
+@AgentMiddlewareStrategy(ZIP_UNZIP_SKILL_MIDDLEWARE_NAME)
+export class ZipUnzipCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<ZipUnzipConfig>> {
+  constructor(private readonly zipUnzipBootstrapService: ZipUnzipBootstrapService) {}
 
   meta: TAgentMiddlewareMeta = {
-    name: MARKITDOWN_SKILL_MIDDLEWARE_NAME,
+    name: ZIP_UNZIP_SKILL_MIDDLEWARE_NAME,
     label: {
-      en_US: 'MarkItDown Skill',
-      zh_Hans: 'MarkItDown 技能'
+      en_US: 'Zip/Unzip CLI Skill',
+      zh_Hans: 'Zip/Unzip CLI 技能'
     },
     description: {
-      en_US: 'Installs Microsoft MarkItDown into the sandbox and teaches the agent to convert files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown via sandbox_shell.',
-      zh_Hans: '将 Microsoft MarkItDown 安装到 sandbox 中，并教会智能体通过 sandbox_shell 将文件（PDF、DOCX、PPTX、图片、音频等）转换为 Markdown。'
+      en_US: 'Bootstraps zip/unzip into the sandbox and teaches the agent how to use them through sandbox_shell.',
+      zh_Hans: '将 zip/unzip 准备到 sandbox 中，并指导智能体通过 sandbox_shell 使用它们。'
     },
     icon: {
       type: 'svg',
-      value: MarkItDownIcon
+      value: ZipUnzipIcon
     },
-    configSchema: MarkItDownConfigFormSchema
+    configSchema: ZipUnzipConfigFormSchema
   }
 
-  createMiddleware(options: Partial<MarkItDownConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
-    const config = this.markitdownBootstrapService.resolveConfig(options)
+  createMiddleware(options: Partial<ZipUnzipConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
+    const config = this.zipUnzipBootstrapService.resolveConfig(options)
 
     return {
-      name: MARKITDOWN_SKILL_MIDDLEWARE_NAME,
+      name: ZIP_UNZIP_SKILL_MIDDLEWARE_NAME,
       tools: [],
       beforeAgent: async (_state, runtime) => {
         const backend = getSandboxBackend(runtime)
         if (backend) {
-          await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+          await this.zipUnzipBootstrapService.ensureBootstrap(backend, config)
         }
       },
       wrapModelCall: async (request, handler) => {
@@ -61,7 +61,7 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
           return handler(request)
         }
 
-        const prompt = this.markitdownBootstrapService.buildSystemPrompt(config)
+        const prompt = this.zipUnzipBootstrapService.buildSystemPrompt(config)
         const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
         const content = [baseContent, prompt].filter(Boolean).join('\n\n')
 
@@ -72,24 +72,22 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
           })
         })
       },
-      wrapToolCall: async (
-        request: ToolCallRequest<AgentBuiltInState>,
-        handler
-      ) => {
+      wrapToolCall: async (request: ToolCallRequest<AgentBuiltInState>, handler) => {
         if (!isSandboxShellTool(request.tool)) {
           return handler(request)
         }
 
         const command = getSandboxShellCommand(request)
-        if (!this.markitdownBootstrapService.isMarkItDownCommand(command)) {
+        if (!this.zipUnzipBootstrapService.isZipUnzipCommand(command)) {
           return handler(request)
         }
 
-        // Ensure markitdown is installed before running the command
         const backend = getSandboxBackend(request.runtime)
         if (backend) {
-          await this.markitdownBootstrapService.ensureBootstrap(backend, config)
+          await this.zipUnzipBootstrapService.ensureBootstrap(backend, config)
         }
+
+        this.zipUnzipBootstrapService.assertSupportedCommand(command)
 
         return handler(request)
       }

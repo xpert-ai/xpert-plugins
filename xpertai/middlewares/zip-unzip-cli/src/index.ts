@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
-import { MarkItDownPluginModule } from './lib/markitdown.module.js'
-import { MarkItDownIcon } from './lib/types.js'
+import { ZipUnzipCliPluginModule } from './lib/zip-unzip-cli.module.js'
+import { ZipUnzipIcon } from './lib/types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -20,22 +20,22 @@ const plugin: XpertPlugin = {
     category: 'middleware',
     icon: {
       type: 'svg',
-      value: MarkItDownIcon
+      value: ZipUnzipIcon
     },
-    displayName: 'MARKITDOWN CLI技能',
-    description: 'Installs Microsoft MarkItDown in the sandbox and provides skills for converting files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown.',
-    keywords: ['markitdown', 'markdown', 'pdf', 'docx', 'conversion', 'document'],
+    displayName: 'Zip/Unzip CLI',
+    description: 'Checks and installs zip/unzip in the sandbox and teaches the agent to use them through sandbox_shell.',
+    keywords: ['zip', 'unzip', 'archive', 'sandbox', 'middleware', 'cli'],
     author: 'XpertAI Team'
   },
   register(ctx) {
-    ctx.logger.log('register markitdown plugin')
-    return { module: MarkItDownPluginModule, global: true }
+    ctx.logger.log('register zip/unzip cli plugin')
+    return { module: ZipUnzipCliPluginModule, global: true }
   },
   async onStart(ctx) {
-    ctx.logger.log('markitdown plugin started')
+    ctx.logger.log('zip/unzip cli plugin started')
   },
   async onStop(ctx) {
-    ctx.logger.log('markitdown plugin stopped')
+    ctx.logger.log('zip/unzip cli plugin stopped')
   }
 }
 

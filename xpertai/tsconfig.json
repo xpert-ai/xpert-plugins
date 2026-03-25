@@ -121,10 +121,16 @@
       "path": "./middlewares/playwright-cli"
     },
     {
+      "path": "./middlewares/mineru-cli"
+    },
+    {
       "path": "./models/tongyi"
     },
     {
       "path": "./middlewares/markitdown"
+    },
+    {
+      "path": "./middlewares/zip-unzip-cli"
     }
   ]
 }

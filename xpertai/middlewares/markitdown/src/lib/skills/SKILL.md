@@ -1,120 +1,116 @@
 ---
-name: markitdown
-description: Converts files and URLs to Markdown. Use when the user needs to extract text from PDF, DOCX, PPTX, XLSX, HTML, images, audio, or other documents and convert them to clean Markdown format.
-allowed-tools: Bash(markitdown:*)
+name: markitdown-cli
+description: Use this skill when the user wants to convert documents, URLs, or typed stdin content to Markdown with the markitdown CLI. It covers local files, URLs, format hints for stdin, batch conversion, third-party plugins, and Azure Document Intelligence workflows.
 ---
 
-# File-to-Markdown Conversion with markitdown
+# MarkItDown CLI Usage Guide
 
-## Quick start
+MarkItDown is a command-line tool for converting many file and URL inputs into Markdown. It works well for PDFs, Office documents, HTML, feeds, archives, and several optional plugin-backed workflows.
+
+## Basic Usage
 
 ```bash
-# Convert a local file to Markdown (output to stdout)
+# Convert a file to stdout
 markitdown document.pdf
 
-# Save output to a file
+# Save Markdown to a file
 markitdown document.pdf > document.md
+markitdown document.pdf -o document.md
 
-# Convert from a URL
-markitdown https://example.com/page.html
+# Convert a URL
+markitdown https://example.com/report.pdf
+markitdown https://example.com/article -o article.md
 
-# Pipe input
-cat report.docx | markitdown
-
-# Convert with explicit output flag
-markitdown document.pptx -o output.md
+# Read from stdin with an explicit type hint
+cat page.html | markitdown -x html
+cat payload | markitdown -m text/html
 ```
 
-## Supported File Formats
+## Common CLI Flags
 
-| Format | Extensions | Notes |
-|--------|-----------|-------|
-| PDF | `.pdf` | Text extraction, layout preservation |
-| Word | `.docx` | Full document structure, tables, images |
-| PowerPoint | `.pptx` | Slides, speaker notes, embedded content |
-| Excel | `.xlsx` | Sheets as Markdown tables |
-| HTML | `.html`, `.htm` | Web page content extraction |
-| CSV | `.csv` | Converted to Markdown tables |
-| JSON | `.json` | Structured representation |
-| XML | `.xml` | Structured representation |
-| Plain Text | `.txt`, `.md`, `.rst` | Pass-through with minimal processing |
-| Images | `.jpg`, `.jpeg`, `.png` | EXIF metadata extraction, OCR if available |
-| Audio | `.mp3`, `.wav` | Speech-to-text transcription |
-| ZIP | `.zip` | Recursively converts contained files |
-| RSS/Atom | `.xml` (feeds) | Feed entry extraction |
-| EPUB | `.epub` | Book content extraction |
+| Flag | Description |
+|------|-------------|
+| `-o, --output FILE` | Write output to `FILE` instead of stdout |
+| `-x, --extension EXT` | Hint the file extension, especially when using stdin |
+| `-m, --mime-type MIME` | Hint the MIME type |
+| `-c, --charset CHARSET` | Hint the character encoding |
+| `-d, --use-docintel` | Use Azure Document Intelligence |
+| `-e, --endpoint URL` | Azure Document Intelligence endpoint |
+| `-p, --use-plugins` | Enable installed third-party plugins |
+| `--list-plugins` | List installed plugins and exit |
+| `-v, --version` | Show the installed version |
 
-## CLI Usage
+## Supported Inputs
 
-### Basic conversion
+Typical direct inputs include:
 
-```bash
-# Convert any supported file
-markitdown <input-file>
+- PDF, DOCX, PPTX, XLSX, XLS, EPUB, MSG
+- HTML pages, feed URLs, and some specialized web handlers
+- CSV, JSON, XML, plain text, and Markdown
+- ZIP archives
+- Images and audio when the required optional dependencies are installed
 
-# Convert from URL
-markitdown <url>
-```
-
-### Output options
-
-```bash
-# Redirect to file
-markitdown input.pdf > output.md
-
-# Use -o flag
-markitdown input.pdf -o output.md
-```
-
-### Piped input
-
-```bash
-# Pipe from another command
-cat document.html | markitdown
-curl -s https://example.com | markitdown
-```
+## High-Frequency Patterns
 
 ### Batch conversion
 
 ```bash
-# Convert all PDFs in a directory
-for f in *.pdf; do markitdown "$f" > "${f%.pdf}.md"; done
-
-# Convert multiple specific files
-for f in report.docx slides.pptx data.xlsx; do
-  markitdown "$f" > "${f%.*}.md"
+# Convert all DOCX files in the current directory
+for f in *.docx; do
+  markitdown "$f" -o "${f%.docx}.md"
 done
+
+# Convert all XLSX files recursively
+find . -name "*.xlsx" -exec sh -c 'markitdown "$1" -o "${1%.xlsx}.md"' _ {} \;
 ```
 
-## Advanced Features
-
-### Image description with LLM
-
-If `OPENAI_API_KEY` is set in the environment, markitdown can use an LLM to generate descriptions for images:
+### Piping and chaining
 
 ```bash
-export OPENAI_API_KEY="your-key"
-markitdown photo.jpg
+markitdown report.pdf | grep "revenue"
+markitdown data.xlsx | head -50
+curl -s https://example.com/page.html | markitdown -x html
 ```
 
-### Document Intelligence (Azure)
+### Stdin hints
 
-For enhanced PDF/image processing with Azure Document Intelligence:
+When the input comes from stdin, MarkItDown cannot reliably infer the format on its own. Add `-x` or `-m`:
 
 ```bash
-export AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT="https://your-endpoint.cognitiveservices.azure.com/"
-export AZURE_DOCUMENT_INTELLIGENCE_KEY="your-key"
-markitdown --use-docintel complex-document.pdf
+cat mystery_file | markitdown -x pdf
+cat spreadsheet.bin | markitdown -m application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+cat text_payload | markitdown -x csv -c UTF-8
 ```
 
-## Tips
+## Plugins, OCR, and Azure
 
-- **Large files**: For very large documents, conversion may take longer. Be patient and let it complete.
-- **Tables**: Excel files and HTML tables are converted to proper Markdown table syntax.
-- **Images in documents**: Images embedded in DOCX/PPTX are described if LLM support is configured.
-- **Error handling**: If a file format is not supported, markitdown will output an informative error message.
-- **Chaining**: Combine markitdown output with other tools for further processing:
-  ```bash
-  markitdown report.pdf | grep "revenue"
-  markitdown data.xlsx | head -50
-  ```
+- OCR should be treated as a plugin-backed capability rather than an official built-in extra documented here.
+- If an OCR plugin is installed, discover it with `--list-plugins` and enable it with `--use-plugins`.
+- Azure Document Intelligence is a first-class path for complex scanned documents. Use `-d -e`.
+- In Xpert's MarkItDown middleware, the relevant official extras are values such as `all`, `pdf`, `docx`, `pptx`, `xlsx`, `xls`, `outlook`, `az-doc-intel`, `audio-transcription`, and `youtube-transcription`.
+
+```bash
+# Discover installed plugins
+markitdown --list-plugins
+
+# Use installed plugins, for example an OCR plugin
+markitdown --use-plugins scanned.pdf -o scanned.md
+
+# Use Azure Document Intelligence
+markitdown -d -e "https://your-resource.cognitiveservices.azure.com/" complex.pdf -o complex.md
+```
+
+## Format-Specific Notes
+
+- **PDF**: Text PDFs usually work directly. For scanned PDFs, prefer Azure Document Intelligence or an installed OCR plugin.
+- **DOCX / PPTX / XLSX**: Good defaults for headings, lists, slides, and tables, but review the output for complex layouts.
+- **HTML / URL**: Works best when the content is either a file path or a fetchable URL. For stdin, add `-x html` or `-m text/html`.
+- **Images**: Core behavior is often metadata-oriented. OCR or richer extraction usually depends on installed plugins or additional services.
+- **Audio**: Requires optional dependencies such as `audio-transcription` or `all`.
+
+## Troubleshooting
+
+- **Empty output from stdin**: add `-x` or `-m` so MarkItDown knows the input type.
+- **Scanned PDF is missing text**: use `-d -e` for Azure Document Intelligence, or enable the installed OCR plugin with `--use-plugins`.
+- **A format is unsupported**: verify the input really matches the hinted type and that the relevant optional dependencies are installed.
+- **Output is very large**: save it with `-o` or `>` first, then inspect the result with other shell tools.
