@@ -27,6 +27,8 @@ type MarkItDownBootstrapStamp = {
   version?: string
   extras?: string
   skillsDir?: string
+  pipIndexUrl?: string
+  pipExtraIndexUrl?: string
   bootstrapVersion?: number
   installedAt?: string
 }
@@ -64,6 +66,17 @@ export class MarkItDownBootstrapService {
     })
   }
 
+  buildPipIndexArgs(config: MarkItDownConfig): string {
+    const args: string[] = []
+    if (config.pipIndexUrl) {
+      args.push(`--index-url ${shellQuote(config.pipIndexUrl)}`)
+    }
+    if (config.pipExtraIndexUrl) {
+      args.push(`--extra-index-url ${shellQuote(config.pipExtraIndexUrl)}`)
+    }
+    return args.length > 0 ? ` ${args.join(' ')}` : ''
+  }
+
   getStampPath(): string {
     return DEFAULT_MARKITDOWN_STAMP_PATH
   }
@@ -99,7 +112,9 @@ export class MarkItDownBootstrapService {
     const assetsReady = binaryReady ? await this.areAssetsReady(backend, bootstrapAssets) : false
     const recordedConfigMatches =
       stamp?.version === config.version &&
-      stamp?.extras === config.extras
+      stamp?.extras === config.extras &&
+      stamp?.pipIndexUrl === config.pipIndexUrl &&
+      stamp?.pipExtraIndexUrl === config.pipExtraIndexUrl
     const stampMatches =
       recordedConfigMatches &&
       stamp?.bootstrapVersion === MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION
@@ -123,7 +138,8 @@ export class MarkItDownBootstrapService {
       // (Debian/Ubuntu with externally-managed Python). Safe in a disposable sandbox.
       const versionSpec = config.version === 'latest' ? '' : `==${config.version}`
       const extrasSpec = config.extras ? `[${config.extras}]` : ''
-      const installCmd = `${pipCmd} install --break-system-packages "markitdown${extrasSpec}${versionSpec}"`
+      const pipIndexArgs = this.buildPipIndexArgs(config)
+      const installCmd = `${pipCmd} install --break-system-packages${pipIndexArgs} "markitdown${extrasSpec}${versionSpec}"`
       const installResult = await backend.execute(installCmd)
       if (installResult?.exitCode !== 0) {
         throw new Error(`MarkItDown install failed: ${installResult?.output || 'Unknown error'}`)
@@ -180,6 +196,8 @@ export class MarkItDownBootstrapService {
       version: config.version,
       extras: config.extras,
       skillsDir: config.skillsDir,
+      pipIndexUrl: config.pipIndexUrl,
+      pipExtraIndexUrl: config.pipExtraIndexUrl,
       bootstrapVersion: MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION,
       installedAt: new Date().toISOString()
     })

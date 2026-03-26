@@ -32,7 +32,9 @@
      "options": {
        "version": "latest",
        "extras": "all",
-       "skillsDir": "/workspace/.xpert/skills/markitdown"
+       "skillsDir": "/workspace/.xpert/skills/markitdown",
+       "pipIndexUrl": "https://pypi.tuna.tsinghua.edu.cn/simple",
+       "pipExtraIndexUrl": "https://mirrors.aliyun.com/pypi/simple"
      }
    }
    ```
@@ -44,6 +46,8 @@
 | `version` | string | Version of `markitdown` to install via pip in the sandbox. | `"latest"` |
 | `extras` | string | Pip extras to install, for example `all`, `pdf`, `docx`, `pptx`, `xlsx`, `xls`, `outlook`, `az-doc-intel`, `audio-transcription`, or `youtube-transcription`. | `"all"` |
 | `skillsDir` | string | Path inside the sandbox where `SKILL.md` is written. | `"/workspace/.xpert/skills/markitdown"` |
+| `pipIndexUrl` | string | Custom pip index URL for downloading packages (e.g., "https://pypi.tuna.tsinghua.edu.cn/simple"). | `undefined` (use pip default) |
+| `pipExtraIndexUrl` | string | Additional pip index URL as fallback. | `undefined` |
 
 ## Runtime Behavior
 
