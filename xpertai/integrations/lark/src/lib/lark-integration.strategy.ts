@@ -1,26 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import type { IIntegration, TIntegrationProvider } from '@metad/contracts'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosError } from 'axios'
-import { iconImage, INTEGRATION_LARK, TIntegrationLarkOptions } from './types.js'
-import { toLarkApiErrorMessage } from './utils.js'
-import { LarkCapabilityService } from './lark-capability.service.js'
+import { RolesEnum } from './contracts-compat.js'
+import { LarkCapabilityService, TLarkCapabilityMatrix } from './lark-capability.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { describeLarkProxy, getLarkAxiosRequestConfig } from './lark-network.js'
-import { RolesEnum } from './contracts-compat.js'
+import {
+  iconImage,
+  INTEGRATION_LARK,
+  TLarkConnectionProbeResult,
+  TLarkRuntimeStatus,
+  TIntegrationLarkOptions
+} from './types.js'
+import { toLarkApiErrorMessage } from './utils.js'
 
-/**
- * Lark Integration Strategy
- *
- * Implements IntegrationStrategy for Lark (Feishu) platform.
- * This strategy is used for:
- * - Validating Lark integration configuration
- * - Testing Lark API connection
- * - Providing integration metadata
- *
- * Note: For chat channel operations (sending/receiving messages),
- * use LarkChannelStrategy instead.
- */
 @Injectable()
 @IntegrationStrategyKey(INTEGRATION_LARK)
 export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegrationLarkOptions> {
@@ -35,7 +29,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     name: INTEGRATION_LARK,
     label: {
       en_US: 'Lark',
-      zh_Hans: '飞书'
+      zh_Hans: 'Lark'
     },
     icon: {
       type: 'image',
@@ -43,7 +37,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     },
     description: {
       en_US: 'Integration with Lark (Feishu) platform for messaging and collaboration.',
-      zh_Hans: '与飞书平台的集成，用于消息传递和协作。'
+      zh_Hans: 'Integration with Lark (Feishu) platform for messaging and collaboration.'
     },
     webhook: true,
     schema: {
@@ -53,12 +47,12 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'boolean',
           title: {
             en_US: 'Is Lark',
-            zh_Hans: '国际版'
+            zh_Hans: 'Is Lark'
           },
           placeholder: {
             en_US: 'Using Lark (international version) instead of Feishu (Chinese version)',
-            zh_Hans: '是 Lark（国际版）而不是 Feishu（中国版），请勾选此项'
-          },
+            zh_Hans: 'Using Lark (international version) instead of Feishu (Chinese version)'
+          }
         },
         appId: { type: 'string', title: 'App ID' },
         appSecret: {
@@ -79,7 +73,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'string',
           title: {
             en_US: 'Encrypt Key',
-            zh_Hans: '加密密钥'
+            zh_Hans: 'Encrypt Key'
           },
           'x-ui': {
             component: 'password'
@@ -89,14 +83,20 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'string',
           title: {
             en_US: 'Connection Mode',
-            zh_Hans: '连接方式'
+            zh_Hans: 'Connection Mode'
           },
           enum: ['webhook', 'long_connection'],
           default: 'webhook',
           'x-ui': {
             enumLabels: {
-              webhook: { en_US: 'Webhook', zh_Hans: 'Webhook（传统连接方式，稳定）' },
-              long_connection: { en_US: 'Long Connection', zh_Hans: '长连接（支持个人电脑调试，灵活且安全）' }
+              webhook: {
+                en_US: 'Webhook',
+                zh_Hans: 'Webhook'
+              },
+              long_connection: {
+                en_US: 'Long Connection',
+                zh_Hans: 'Long Connection'
+              }
             }
           }
         },
@@ -104,11 +104,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'string',
           title: {
             en_US: 'Xpert',
-            zh_Hans: '数字专家'
+            zh_Hans: 'Xpert'
           },
           description: {
             en_US: 'Choose a corresponding digital expert',
-            zh_Hans: '选择一个对应的数字专家'
+            zh_Hans: 'Choose a corresponding digital expert'
           },
           'x-ui': {
             component: 'remoteSelect',
@@ -119,13 +119,13 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'string',
           title: {
             en_US: 'Preferred Language',
-            zh_Hans: '首选语言'
+            zh_Hans: 'Preferred Language'
           },
           enum: ['en', 'zh-Hans'],
           'x-ui': {
             enumLabels: {
-              en: { en_US: 'English', zh_Hans: '英语' },
-              'zh-Hans': { en_US: 'Chinese', zh_Hans: '中文' }
+              en: { en_US: 'English', zh_Hans: 'English' },
+              'zh-Hans': { en_US: 'Chinese', zh_Hans: 'Chinese' }
             }
           }
         },
@@ -133,14 +133,14 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           type: 'object',
           title: {
             en_US: 'User Provision',
-            zh_Hans: '用户自动开通'
+            zh_Hans: 'User Provision'
           },
           properties: {
             autoProvision: {
               type: 'boolean',
               title: {
                 en_US: 'Auto Provision User',
-                zh_Hans: '自动创建用户'
+                zh_Hans: 'Auto Provision User'
               },
               default: false
             },
@@ -148,7 +148,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
               type: 'string',
               title: {
                 en_US: 'Default Role',
-                zh_Hans: '默认角色'
+                zh_Hans: 'Default Role'
               },
               enum: Object.values(RolesEnum),
               default: RolesEnum.EMPLOYEE
@@ -161,23 +161,31 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     }
   }
 
-  /**
-   * Execute integration action (not used for Lark, but required by interface)
-   */
   async execute(integration: IIntegration<TIntegrationLarkOptions>, payload: TIntegrationStrategyParams): Promise<any> {
-    // Lark integration doesn't have a generic execute action
-    // Chat operations are handled by LarkChannelStrategy
+    void integration
+    void payload
     return null
+  }
+
+  async onCreate(integration: IIntegration<TIntegrationLarkOptions>): Promise<void> {
+    if (this.capabilityService.resolveConnectionMode(integration.options) === 'long_connection') {
+      await this.longConnectionService.connect(integration.id)
+    }
   }
 
   async onUpdate(previous: IIntegration<TIntegrationLarkOptions>, current: IIntegration<any>): Promise<void> {
     const wasLongConnection = this.capabilityService.resolveConnectionMode(previous.options) === 'long_connection'
-    const isStillLongConnection =
+    const isLongConnection =
       current.provider === INTEGRATION_LARK &&
       this.capabilityService.resolveConnectionMode(current.options as TIntegrationLarkOptions) === 'long_connection'
 
-    if (wasLongConnection && !isStillLongConnection) {
+    if (wasLongConnection && !isLongConnection) {
       await this.longConnectionService.disconnect(previous.id)
+      return
+    }
+
+    if (isLongConnection && (!wasLongConnection || this.hasLongConnectionConfigChanged(previous.options, current.options as TIntegrationLarkOptions))) {
+      await this.longConnectionService.reconnect(current.id)
     }
   }
 
@@ -187,17 +195,59 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     }
   }
 
-  /**
-   * Validate Lark integration configuration
-   *
-   * This method is called when user clicks "Test" button in the UI.
-   * It validates the configuration and tests the actual Lark API connection.
-   *
-   * @param config - Lark configuration options
-   * @throws Error if configuration is invalid or connection fails
-   */
-  async validateConfig(config: TIntegrationLarkOptions, integration: IIntegration<TIntegrationLarkOptions>) {
-    // Validate required fields
+  async getRuntimeView(integration: IIntegration<TIntegrationLarkOptions>) {
+    const capabilities = this.capabilityService.getCapabilities(integration.options)
+    const connectionMode = this.capabilityService.resolveConnectionMode(integration.options)
+
+    if (connectionMode !== 'long_connection') {
+      return {
+        supported: true,
+        state: connectionMode,
+        connected: false,
+        sections: [
+          {
+            key: 'runtime-status',
+            title: 'Runtime Status',
+            tone: 'info' as const,
+            items: [
+              {
+                key: 'connectionMode',
+                type: 'badge' as const,
+                label: 'Connection Mode',
+                value: connectionMode
+              }
+            ],
+            messages: ['Webhook mode receives callbacks through the saved webhook URL and does not keep a persistent socket connection.']
+          },
+          this.buildCapabilitiesSection(capabilities)
+        ]
+      }
+    }
+
+    const status = await this.longConnectionService.status(integration.id)
+    return this.buildRuntimeView(integration, status, capabilities)
+  }
+
+  async runRuntimeAction(integration: IIntegration<TIntegrationLarkOptions>, action: string) {
+    if (this.capabilityService.resolveConnectionMode(integration.options) !== 'long_connection') {
+      throw new BadRequestException('Runtime actions are only available in long connection mode.')
+    }
+
+    switch (action) {
+      case 'reconnect': {
+        const status = await this.longConnectionService.reconnect(integration.id)
+        return this.buildRuntimeView(integration, status)
+      }
+      case 'disconnect': {
+        const status = await this.longConnectionService.disconnect(integration.id)
+        return this.buildRuntimeView(integration, status)
+      }
+      default:
+        throw new BadRequestException(`Unsupported Lark runtime action: ${action}`)
+    }
+  }
+
+  async validateConfig(config: TIntegrationLarkOptions, integration?: IIntegration<TIntegrationLarkOptions>) {
     if (!config?.appId) {
       throw new Error('App ID is required')
     }
@@ -206,7 +256,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       throw new Error('App Secret is required')
     }
 
-    // Test actual connection to Lark API
     try {
       const baseUrl = config.isLark ? 'https://open.larksuite.com' : 'https://open.feishu.cn'
       const axiosConfig = getLarkAxiosRequestConfig('https:')
@@ -215,10 +264,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
         this.logger.log(`[lark] ${proxyInfo.note}`)
       }
 
-      /**
-       * Do a direct token request to avoid SDK-level token cache causing false-positive tests
-       * when appSecret is changed but appId remains the same.
-       */
       const tokenResponse = await axios.post(
         `${baseUrl}/open-apis/auth/v3/tenant_access_token/internal`,
         {
@@ -253,25 +298,46 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       const connectionMode = this.capabilityService.resolveConnectionMode(config)
       const capabilities = this.capabilityService.getCapabilities(config)
       const apiBaseUrl = process.env.API_BASE_URL
+
       if (connectionMode === 'long_connection') {
         const probe = await this.longConnectionService.probeConfig(config)
+        const warningMessages = [
+          probe.connected
+            ? 'Long connection probe succeeded. You can save this integration now.'
+            : `Long connection probe failed: ${probe.lastError || 'Unknown error'}`
+        ]
+
         return {
           webhookUrl: '',
           mode: connectionMode,
-          capabilities,
-          probe,
-          warnings: [
-            ...(probe.connected
-              ? ['长连接试连成功，可以继续保存并进入运行时状态管理。']
-              : [`长连接试连失败：${probe.lastError || 'Unknown error'}`])
+          sections: [
+            this.buildWarningsSection(warningMessages),
+            this.buildProbeSection(probe),
+            this.buildCapabilitiesSection(capabilities)
           ]
         }
       }
 
       return {
         mode: connectionMode,
-        capabilities,
-        webhookUrl: `${apiBaseUrl}/api/lark/webhook/${integration.id || '<save_and_get_your_integration_id>'}`
+        webhookUrl: `${apiBaseUrl}/api/lark/webhook/${integration?.id || '<save_and_get_your_integration_id>'}`,
+        sections: [
+          {
+            key: 'connection-mode',
+            title: 'Connection Mode',
+            tone: 'info' as const,
+            items: [
+              {
+                key: 'mode',
+                type: 'badge' as const,
+                label: 'Mode',
+                value: connectionMode
+              }
+            ],
+            messages: ['Webhook mode uses the callback URL below after the integration is saved.']
+          },
+          this.buildCapabilitiesSection(capabilities)
+        ]
       }
     } catch (error: any) {
       const axiosError = error as AxiosError<{ code?: number; msg?: string }>
@@ -283,5 +349,203 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       this.logger.error('Lark connection test failed:', error)
       throw new Error(`Lark API connection failed: ${message}`)
     }
+  }
+
+  private buildWarningsSection(messages: string[]) {
+    return {
+      key: 'warnings',
+      title: 'Warnings',
+      tone: 'warning' as const,
+      messages
+    }
+  }
+
+  private buildProbeSection(probe: TLarkConnectionProbeResult) {
+    const tone: 'success' | 'danger' = probe.connected ? 'success' : 'danger'
+
+    return {
+      key: 'probe',
+      title: 'Connection Probe',
+      tone,
+      items: [
+        {
+          key: 'state',
+          type: 'badge' as const,
+          label: 'State',
+          value: probe.state
+        },
+        {
+          key: 'connected',
+          type: 'boolean' as const,
+          label: 'Connected',
+          value: probe.connected
+        },
+        {
+          key: 'endpointValidated',
+          type: 'boolean' as const,
+          label: 'Endpoint Ready',
+          value: probe.endpointValidated
+        },
+        {
+          key: 'checkedAt',
+          type: 'datetime' as const,
+          label: 'Checked At',
+          value: probe.checkedAt
+        },
+        {
+          key: 'recoverable',
+          type: 'boolean' as const,
+          label: 'Recoverable',
+          value: probe.recoverable ?? false
+        }
+      ],
+      messages: [
+        probe.connected
+          ? 'Long connection probe succeeded. You can save this integration now.'
+          : 'Long connection probe did not pass yet. You can adjust config and try again before saving.'
+      ]
+    }
+  }
+
+  private buildCapabilitiesSection(capabilities: TLarkCapabilityMatrix) {
+    return {
+      key: 'capabilities',
+      title: 'Capabilities',
+      tone: 'neutral' as const,
+      items: [
+        {
+          key: 'supportsInboundMessage',
+          type: 'boolean' as const,
+          label: 'Inbound Message',
+          value: capabilities.supportsInboundMessage
+        },
+        {
+          key: 'supportsMentionTrigger',
+          type: 'boolean' as const,
+          label: 'Mention Trigger',
+          value: capabilities.supportsMentionTrigger
+        },
+        {
+          key: 'supportsCardSend',
+          type: 'boolean' as const,
+          label: 'Card Send',
+          value: capabilities.supportsCardSend
+        },
+        {
+          key: 'supportsCardAction',
+          type: 'boolean' as const,
+          label: 'Card Action',
+          value: capabilities.supportsCardAction
+        },
+        {
+          key: 'supportsWebhookCallback',
+          type: 'boolean' as const,
+          label: 'Webhook Callback',
+          value: capabilities.supportsWebhookCallback
+        }
+      ]
+    }
+  }
+
+  private buildRuntimeView(
+    integration: IIntegration<TIntegrationLarkOptions>,
+    status: TLarkRuntimeStatus,
+    capabilities = this.capabilityService.getCapabilities(integration.options)
+  ) {
+    return {
+      supported: true,
+      state: status.state,
+      connected: status.connected,
+      sections: [
+        {
+          key: 'runtime-status',
+          title: 'Runtime Status',
+          tone: 'info' as const,
+          items: [
+            {
+              key: 'connectionMode',
+              type: 'badge' as const,
+              label: 'Connection Mode',
+              value: status.connectionMode
+            },
+            {
+              key: 'state',
+              type: 'badge' as const,
+              label: 'State',
+              value: status.state
+            },
+            {
+              key: 'connected',
+              type: 'boolean' as const,
+              label: 'Connected',
+              value: status.connected
+            },
+            {
+              key: 'ownerInstanceId',
+              type: 'text' as const,
+              label: 'Owner',
+              value: status.ownerInstanceId ?? null
+            },
+            {
+              key: 'lastConnectedAt',
+              type: 'datetime' as const,
+              label: 'Last Connected',
+              value: status.lastConnectedAt ?? null
+            },
+            {
+              key: 'nextReconnectAt',
+              type: 'datetime' as const,
+              label: 'Next Reconnect',
+              value: status.nextReconnectAt ?? null
+            },
+            {
+              key: 'failureCount',
+              type: 'text' as const,
+              label: 'Failure Count',
+              value: status.failureCount ?? 0
+            },
+            {
+              key: 'lastError',
+              type: 'paragraph' as const,
+              label: 'Last Error',
+              value: status.lastError ?? null
+            },
+            {
+              key: 'disabledReason',
+              type: 'paragraph' as const,
+              label: 'Disabled Reason',
+              value: status.disabledReason ?? null
+            }
+          ],
+          actions: [
+            {
+              key: 'reconnect',
+              label: 'Reconnect',
+              variant: 'stroked' as const,
+              color: 'default' as const,
+              requiresSaved: true,
+              hiddenWhenDirty: true
+            },
+            {
+              key: 'disconnect',
+              label: 'Disconnect',
+              variant: 'flat' as const,
+              color: 'warn' as const,
+              requiresSaved: true,
+              hiddenWhenDirty: true,
+              confirmText: 'Disconnect the long connection for this integration?'
+            }
+          ]
+        },
+        this.buildCapabilitiesSection(capabilities)
+      ]
+    }
+  }
+
+  private hasLongConnectionConfigChanged(
+    previous: TIntegrationLarkOptions | null | undefined,
+    current: TIntegrationLarkOptions | null | undefined
+  ) {
+    return JSON.stringify(previous ?? {}) !== JSON.stringify(current ?? {})
   }
 }
