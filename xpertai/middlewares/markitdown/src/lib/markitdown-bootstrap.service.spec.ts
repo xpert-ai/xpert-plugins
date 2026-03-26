@@ -30,6 +30,41 @@ describe('MarkItDownBootstrapService', () => {
       const config = service.resolveConfig({ extras: 'pdf' })
       expect(config.extras).toBe('pdf')
     })
+
+    it('should include pipIndexUrl when provided', () => {
+      const config = service.resolveConfig({ pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple' })
+      expect(config.pipIndexUrl).toBe('https://pypi.tuna.tsinghua.edu.cn/simple')
+    })
+
+    it('should include pipExtraIndexUrl when provided', () => {
+      const config = service.resolveConfig({ pipExtraIndexUrl: 'https://mirrors.aliyun.com/pypi/simple' })
+      expect(config.pipExtraIndexUrl).toBe('https://mirrors.aliyun.com/pypi/simple')
+    })
+  })
+
+  describe('buildPipIndexArgs', () => {
+    it('should return empty string when no pip index urls provided', () => {
+      const config = service.resolveConfig()
+      expect(service.buildPipIndexArgs(config)).toBe('')
+    })
+
+    it('should include --index-url when pipIndexUrl provided', () => {
+      const config = service.resolveConfig({ pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple' })
+      expect(service.buildPipIndexArgs(config)).toBe(' --index-url \'https://pypi.tuna.tsinghua.edu.cn/simple\'')
+    })
+
+    it('should include --extra-index-url when pipExtraIndexUrl provided', () => {
+      const config = service.resolveConfig({ pipExtraIndexUrl: 'https://mirrors.aliyun.com/pypi/simple' })
+      expect(service.buildPipIndexArgs(config)).toBe(' --extra-index-url \'https://mirrors.aliyun.com/pypi/simple\'')
+    })
+
+    it('should include both --index-url and --extra-index-url when both provided', () => {
+      const config = service.resolveConfig({ 
+        pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+        pipExtraIndexUrl: 'https://mirrors.aliyun.com/pypi/simple'
+      })
+      expect(service.buildPipIndexArgs(config)).toBe(' --index-url \'https://pypi.tuna.tsinghua.edu.cn/simple\' --extra-index-url \'https://mirrors.aliyun.com/pypi/simple\'')
+    })
   })
 
   describe('isMarkItDownCommand', () => {
@@ -292,6 +327,146 @@ describe('MarkItDownBootstrapService', () => {
       await expect(service.ensureBootstrap(mockBackend)).rejects.toThrow(
         'Failed to write MarkItDown bootstrap stamp'
       )
+    })
+
+    it('should include pip index arguments when configured', async () => {
+      const mockBackend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // stamp check
+          .mockResolvedValueOnce({ output: '', exitCode: 1 }) // markitdown missing
+          .mockResolvedValueOnce({ output: '/usr/bin/pip3', exitCode: 0 }) // pip check
+          .mockResolvedValueOnce({ output: 'Successfully installed', exitCode: 0 }) // pip install
+          .mockResolvedValue({ output: '', exitCode: 0 }), // asset writes + stamp
+        uploadFiles: jest.fn().mockResolvedValue([])
+      }
+
+      const config = service.resolveConfig({ pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple' })
+      await service.ensureBootstrap(mockBackend, config)
+      
+      const installCall = mockBackend.execute.mock.calls[3][0]
+      expect(installCall).toContain('--index-url \'https://pypi.tuna.tsinghua.edu.cn/simple\'')
+    })
+
+    it('should reinstall when pipIndexUrl changes', async () => {
+      const mockBackend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'markitdown',
+              version: 'latest',
+              extras: 'all',
+              bootstrapVersion: 1,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          }) // existing stamp
+          .mockResolvedValueOnce({
+            output: '/usr/local/bin/markitdown',
+            exitCode: 0
+          }) // markitdown exists
+          .mockResolvedValueOnce({
+            output: '',
+            exitCode: 0
+          }) // assets ready
+          .mockResolvedValueOnce({
+            output: '/usr/bin/pip3',
+            exitCode: 0
+          }) // pip check
+          .mockResolvedValueOnce({
+            output: 'Successfully installed',
+            exitCode: 0
+          }) // pip install
+          .mockResolvedValue({ output: '', exitCode: 0 }), // asset writes + stamp
+        uploadFiles: jest.fn()
+      }
+
+      const config = service.resolveConfig({ pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple' })
+      const result = await service.ensureBootstrap(mockBackend, config)
+      
+      expect(result).toEqual({ output: 'bootstrapped markitdown', exitCode: 0, truncated: false })
+    })
+
+    it('should reinstall when pipExtraIndexUrl changes', async () => {
+      const mockBackend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'markitdown',
+              version: 'latest',
+              extras: 'all',
+              pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+              bootstrapVersion: 1,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          }) // existing stamp
+          .mockResolvedValueOnce({
+            output: '/usr/local/bin/markitdown',
+            exitCode: 0
+          }) // markitdown exists
+          .mockResolvedValueOnce({
+            output: '',
+            exitCode: 0
+          }) // assets ready
+          .mockResolvedValueOnce({
+            output: '/usr/bin/pip3',
+            exitCode: 0
+          }) // pip check
+          .mockResolvedValueOnce({
+            output: 'Successfully installed',
+            exitCode: 0
+          }) // pip install
+          .mockResolvedValue({ output: '', exitCode: 0 }), // asset writes + stamp
+        uploadFiles: jest.fn()
+      }
+
+      const config = service.resolveConfig({ 
+        pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+        pipExtraIndexUrl: 'https://mirrors.aliyun.com/pypi/simple'
+      })
+      const result = await service.ensureBootstrap(mockBackend, config)
+      
+      expect(result).toEqual({ output: 'bootstrapped markitdown', exitCode: 0, truncated: false })
+    })
+
+    it('should write stamp with pip index urls', async () => {
+      const mockBackend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // stamp check
+          .mockResolvedValueOnce({ output: '', exitCode: 1 }) // markitdown missing
+          .mockResolvedValueOnce({ output: '/usr/bin/pip3', exitCode: 0 }) // pip check
+          .mockResolvedValueOnce({ output: 'Successfully installed', exitCode: 0 }) // pip install
+          .mockResolvedValue({ output: '', exitCode: 0 }), // asset writes + stamp
+        uploadFiles: jest.fn().mockResolvedValue([])
+      }
+
+      const config = service.resolveConfig({ 
+        pipIndexUrl: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+        pipExtraIndexUrl: 'https://mirrors.aliyun.com/pypi/simple'
+      })
+      await service.ensureBootstrap(mockBackend, config)
+      
+      // Find the stamp write call - it should have mkdir and echo with redirection to the stamp file
+      // The writeStamp method generates: mkdir -p '/path' && echo 'json_data' > '/path/file.json'
+      const stampCall = mockBackend.execute.mock.calls.find(([command]) => {
+        const cmd = command as string
+        return cmd.includes('.markitdown-bootstrap.json') && 
+               cmd.includes('mkdir') && 
+               cmd.includes('echo') &&
+               cmd.includes('>')
+      })
+      
+      expect(stampCall).toBeDefined()
+      // Extract JSON from shell-quoted echo command
+      // The shellQuote function wraps in single quotes: echo '{"key":"value"}' > '/path/file.json'
+      const command = stampCall![0] as string
+      // Match the echo argument - JSON string wrapped in single quotes
+      // The regex needs to handle the full JSON content
+      const echoMatch = command.match(/echo '(.+)' >/)
+      expect(echoMatch).not.toBeNull()
+      const stampData = JSON.parse(echoMatch![1])
+      expect(stampData.pipIndexUrl).toBe('https://pypi.tuna.tsinghua.edu.cn/simple')
+      expect(stampData.pipExtraIndexUrl).toBe('https://mirrors.aliyun.com/pypi/simple')
     })
   })
 })
