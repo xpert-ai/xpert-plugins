@@ -536,22 +536,24 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 
 		const larkUser = await this.safeGetLarkUser(client, unionId)
 		try {
+			const provisionInput = {
+				tenantId,
+				organizationId,
+				thirdPartyId: unionId,
+				profile: {
+					username: larkUser?.data?.user?.user_id,
+					email: larkUser?.data?.user?.email,
+					mobile: larkUser?.data?.user?.mobile,
+					imageUrl: larkUser?.data?.user?.avatar?.avatar_240,
+					firstName: larkUser?.data?.user?.name
+				},
+				defaults: {
+					roleName: this.resolveAutoProvisionRoleName(userProvision)
+				}
+			} as any
+
 			user = await this.userPermissionService.provisionByThirdPartyIdentity<IUser>(
-				{
-					tenantId,
-					organizationId,
-					thirdPartyId: unionId,
-					profile: {
-						username: larkUser?.data?.user?.user_id,
-						email: larkUser?.data?.user?.email,
-						mobile: larkUser?.data?.user?.mobile,
-						imageUrl: larkUser?.data?.user?.avatar?.avatar_240,
-						firstName: larkUser?.data?.user?.name
-					},
-					defaults: {
-						roleName: this.resolveAutoProvisionRoleName(userProvision)
-					}
-				} as any
+				provisionInput
 			)
 		} catch (error) {
 			this.logger.warn(

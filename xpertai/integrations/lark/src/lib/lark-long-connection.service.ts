@@ -868,13 +868,15 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	private async loadBootstrapIntegrationIds(): Promise<string[]> {
-		const permissionService = this.integrationPermissionService as IntegrationPermissionService & {
-			findAll?: (options?: Record<string, any>) => Promise<{ items: Array<IIntegration<TIntegrationLarkOptions>> }>
-		}
+		const findAll = (this.integrationPermissionService as IntegrationPermissionService & {
+			findAll?: <TIntegration = IIntegration<TIntegrationLarkOptions>>(
+				options?: Record<string, any>
+			) => Promise<{ items: TIntegration[]; total?: number }>
+		}).findAll
 
-		if (typeof permissionService.findAll === 'function') {
+		if (typeof findAll === 'function') {
 			try {
-				const result = await permissionService.findAll({
+				const result = await findAll<IIntegration<TIntegrationLarkOptions>>({
 					where: {
 						provider: 'lark'
 					},
