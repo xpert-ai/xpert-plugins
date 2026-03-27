@@ -3,7 +3,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { MarkItDownPluginModule } from './lib/markitdown.module.js'
-import { MarkItDownIcon } from './lib/types.js'
+import {
+  MarkItDownIcon,
+  MarkItDownPluginConfigFormSchema,
+  MarkItDownPluginConfigSchema
+} from './lib/types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -26,6 +30,10 @@ const plugin: XpertPlugin = {
     description: 'Installs Microsoft MarkItDown in the sandbox and provides skills for converting files (PDF, DOCX, PPTX, images, audio, etc.) to Markdown.',
     keywords: ['markitdown', 'markdown', 'pdf', 'docx', 'conversion', 'document'],
     author: 'XpertAI Team'
+  },
+  config: {
+    schema: MarkItDownPluginConfigSchema,
+    formSchema: MarkItDownPluginConfigFormSchema
   },
   register(ctx) {
     ctx.logger.log('register markitdown plugin')

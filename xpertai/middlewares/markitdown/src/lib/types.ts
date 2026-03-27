@@ -1,14 +1,21 @@
 export const MarkItDownPluginName = 'markitdown'
 
+// Re-export plugin config types from markitdown.types.ts
+export {
+  MarkItDownPluginConfigSchema,
+  MarkItDownPluginConfigFormSchema,
+  type MarkItDownPluginConfig
+} from './markitdown.types.js'
+
 // MarkItDown SVG icon (document-to-markdown conversion)
 export const MarkItDownIcon = `<?xml version="1.0" encoding="utf-8"?>
 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 129 129" style="enable-background:new 0 0 129 129;" xml:space="preserve">
+         viewBox="0 0 129 129" style="enable-background:new 0 0 129 129;" xml:space="preserve">
 <style type="text/css">
-	.st0{fill:#F25022;}
-	.st1{fill:#7FBA00;}
-	.st2{fill:#00A4EF;}
-	.st3{fill:#FFB900;}
+        .st0{fill:#F25022;}
+        .st1{fill:#7FBA00;}
+        .st2{fill:#00A4EF;}
+        .st3{fill:#FFB900;}
 </style>
 <path class="st0" d="M0,0h61.3v61.3H0V0z"/>
 <path class="st1" d="M67.7,0H129v61.3H67.7V0z"/>

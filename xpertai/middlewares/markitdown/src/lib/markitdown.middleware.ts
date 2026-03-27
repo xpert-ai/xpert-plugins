@@ -15,7 +15,7 @@ import { MarkItDownBootstrapService } from './markitdown-bootstrap.service.js'
 import {
   MARKITDOWN_SKILL_MIDDLEWARE_NAME,
   MarkItDownConfig,
-  MarkItDownConfigFormSchema
+  MarkItDownMiddlewareConfigFormSchema
 } from './markitdown.types.js'
 import { MarkItDownIcon } from './types.js'
 
@@ -40,7 +40,7 @@ export class MarkItDownSkillMiddleware implements IAgentMiddlewareStrategy<Parti
       type: 'svg',
       value: MarkItDownIcon
     },
-    configSchema: MarkItDownConfigFormSchema
+    configSchema: MarkItDownMiddlewareConfigFormSchema
   }
 
   createMiddleware(options: Partial<MarkItDownConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
