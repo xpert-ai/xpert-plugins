@@ -10,7 +10,9 @@ export const MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION = 1
 export const MarkItDownConfigSchema = z.object({
   version: z.string().min(1).default(DEFAULT_MARKITDOWN_VERSION),
   skillsDir: z.string().min(1).default(DEFAULT_MARKITDOWN_SKILLS_DIR),
-  extras: z.string().min(1).default('all')
+  extras: z.string().min(1).default('all'),
+  pipIndexUrl: z.string().min(1).optional(),
+  pipExtraIndexUrl: z.string().min(1).optional()
 })
 
 export type MarkItDownConfig = z.infer<typeof MarkItDownConfigSchema>
@@ -57,6 +59,28 @@ export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
       default: DEFAULT_MARKITDOWN_SKILLS_DIR,
       'x-ui': {
         span: 2
+      }
+    },
+    pipIndexUrl: {
+      type: 'string',
+      title: {
+        en_US: 'Pip Index URL',
+        zh_Hans: 'Pip 索引地址'
+      },
+      description: {
+        en_US: 'Custom pip index URL for downloading packages (e.g., "https://pypi.tuna.tsinghua.edu.cn/simple").',
+        zh_Hans: '用于下载包的自定义 pip 索引地址（例如 "https://pypi.tuna.tsinghua.edu.cn/simple"）。'
+      }
+    },
+    pipExtraIndexUrl: {
+      type: 'string',
+      title: {
+        en_US: 'Pip Extra Index URL',
+        zh_Hans: 'Pip 额外索引地址'
+      },
+      description: {
+        en_US: 'Additional pip index URL as fallback.',
+        zh_Hans: '作为备用的额外 pip 索引地址。'
       }
     }
   }
