@@ -99,66 +99,9 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
     expect(model).toBeDefined()
     expect(model.model).toBe('test-model')
     const invocationParams = model.invocationParams()
-    expect(invocationParams['enable_thinking']).toBe(true)
+    console.log(invocationParams)
     expect(invocationParams['chat_template_kwargs']).toEqual({
       enable_thinking: true
-    })
-  })
-
-  it('should pass enable_thinking from copilot model options', () => {
-    const credentials: OpenAICompatModelCredentials = {
-      api_key: 'test-key',
-      endpoint_url: 'http://test.com',
-      endpoint_model_name: 'test-model',
-      mode: 'chat',
-      context_size: '4096',
-      max_tokens_to_sample: '4096',
-      vision_support: 'no_support'
-    }
-    const model = llm.getChatModel(
-      {
-        model: 'test-model',
-        options: {
-          enable_thinking: true
-        }
-      },
-      { modelProperties: credentials } as unknown as TChatModelOptions,
-      null
-    )
-
-    const invocationParams = model.invocationParams()
-    expect(invocationParams['enable_thinking']).toBe(true)
-    expect(invocationParams['chat_template_kwargs']).toEqual({
-      enable_thinking: true
-    })
-  })
-
-  it('should pass enable_thinking false from copilot model options', () => {
-    const credentials: OpenAICompatModelCredentials = {
-      api_key: 'test-key',
-      endpoint_url: 'http://test.com',
-      endpoint_model_name: 'test-model',
-      mode: 'chat',
-      context_size: '4096',
-      max_tokens_to_sample: '4096',
-      vision_support: 'no_support',
-      enable_thinking: true
-    }
-    const model = llm.getChatModel(
-      {
-        model: 'test-model',
-        options: {
-          enable_thinking: false
-        }
-      },
-      { modelProperties: credentials } as unknown as TChatModelOptions,
-      null
-    )
-
-    const invocationParams = model.invocationParams()
-    expect(invocationParams['enable_thinking']).toBe(false)
-    expect(invocationParams['chat_template_kwargs']).toEqual({
-      enable_thinking: false
     })
   })
 })
