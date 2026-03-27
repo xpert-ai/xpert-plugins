@@ -17,6 +17,10 @@ export interface OpenAICompatModelCredentials extends CommonChatModelParameters 
   enable_thinking?: boolean
 }
 
+function toBoolean(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
+
 export function toCredentialKwargs(
   credentials: OpenAICompatModelCredentials,
   model?: string
@@ -37,8 +41,10 @@ export function toCredentialKwargs(
 
   const modelKwargs = {}
   if (credentials.enable_thinking != null) {
+    const thinkingEnabled = toBoolean(credentials.enable_thinking)
+    modelKwargs['enable_thinking'] = thinkingEnabled
     modelKwargs['chat_template_kwargs'] ??= {}
-    modelKwargs['chat_template_kwargs']['enable_thinking'] = !!credentials.enable_thinking
+    modelKwargs['chat_template_kwargs']['enable_thinking'] = thinkingEnabled
   }
 
   return {
