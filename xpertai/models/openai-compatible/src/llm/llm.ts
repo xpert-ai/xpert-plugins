@@ -1,4 +1,4 @@
-import { ChatOpenAI, ChatOpenAIFields, ClientOptions } from '@langchain/openai'
+import { ChatOpenAIFields, ClientOptions } from '@langchain/openai'
 import {
   AIModelEntity,
   AiModelTypeEnum,
@@ -20,6 +20,10 @@ import { OpenAICompatModelCredentials, toCredentialKwargs } from '../types.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
 
 export type TOAIAPICompatLLMParams = ChatOpenAIFields & { configuration: ClientOptions }
+
+function toBoolean(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
 
 @Injectable()
 export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
@@ -63,7 +67,12 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
     const { handleLLMTokens } = options ?? {}
 
     credentials ??= options?.modelProperties as OpenAICompatModelCredentials
-    const params = toCredentialKwargs(credentials, copilotModel.model)
+    const runtimeEnableThinking = copilotModel.options?.['enable_thinking']
+    const runtimeCredentials = {
+      ...(credentials ?? {}),
+      ...(runtimeEnableThinking !== undefined ? { enable_thinking: toBoolean(runtimeEnableThinking) } : {})
+    } as OpenAICompatModelCredentials
+    const params = toCredentialKwargs(runtimeCredentials, copilotModel.model)
 
     return this.createChatModel({
       ...params,
@@ -72,7 +81,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       maxTokens: copilotModel.options?.['max_tokens'],
       streamUsage: false,
       verbose: options?.verbose,
-      callbacks: [...this.createHandleUsageCallbacks(copilot, params.model, credentials, handleLLMTokens)]
+      callbacks: [...this.createHandleUsageCallbacks(copilot, params.model, runtimeCredentials, handleLLMTokens)]
     })
   }
 
