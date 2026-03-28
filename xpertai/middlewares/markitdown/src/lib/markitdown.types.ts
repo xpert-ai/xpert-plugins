@@ -7,17 +7,73 @@ export const DEFAULT_MARKITDOWN_SKILLS_DIR = '/workspace/.xpert/skills/markitdow
 export const DEFAULT_MARKITDOWN_STAMP_PATH = '/workspace/.xpert/.markitdown-bootstrap.json'
 export const MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION = 1
 
-export const MarkItDownConfigSchema = z.object({
+/**
+ * Plugin-level config schema (organization-wide defaults)
+ * Only includes pip index URLs which are typically configured at organization level.
+ */
+export const MarkItDownPluginConfigSchema = z.object({
+  pipIndexUrl: z.string().optional(),
+  pipExtraIndexUrl: z.string().optional()
+})
+
+export type MarkItDownPluginConfig = z.infer<typeof MarkItDownPluginConfigSchema>
+
+/**
+ * Middleware-level config schema (per-agent overrides)
+ * Includes version, extras, and skillsDir which may vary per agent.
+ */
+export const MarkItDownMiddlewareConfigSchema = z.object({
   version: z.string().min(1).default(DEFAULT_MARKITDOWN_VERSION),
   skillsDir: z.string().min(1).default(DEFAULT_MARKITDOWN_SKILLS_DIR),
-  extras: z.string().min(1).default('all'),
-  pipIndexUrl: z.string().min(1).optional(),
-  pipExtraIndexUrl: z.string().min(1).optional()
+  extras: z.string().min(1).default('all')
 })
+
+export type MarkItDownMiddlewareConfig = z.infer<typeof MarkItDownMiddlewareConfigSchema>
+
+/**
+ * Full config schema (merged from plugin and middleware configs)
+ */
+export const MarkItDownConfigSchema = MarkItDownMiddlewareConfigSchema.merge(MarkItDownPluginConfigSchema)
 
 export type MarkItDownConfig = z.infer<typeof MarkItDownConfigSchema>
 
-export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
+/**
+ * Plugin-level config form schema (organization-wide defaults)
+ * Only includes pip index URLs which are typically configured at organization level.
+ */
+export const MarkItDownPluginConfigFormSchema: JsonSchemaObjectType = {
+  type: 'object',
+  properties: {
+    pipIndexUrl: {
+      type: 'string',
+      title: {
+        en_US: 'Pip Index URL',
+        zh_Hans: 'Pip 索引地址'
+      },
+      description: {
+        en_US: 'Custom pip index URL for downloading packages (e.g., "https://pypi.tuna.tsinghua.edu.cn/simple"). Leave blank to use default.',
+        zh_Hans: '用于下载包的自定义 pip 索引地址（例如 "https://pypi.tuna.tsinghua.edu.cn/simple"）。留空则使用默认值。'
+      }
+    },
+    pipExtraIndexUrl: {
+      type: 'string',
+      title: {
+        en_US: 'Pip Extra Index URL',
+        zh_Hans: 'Pip 额外索引地址'
+      },
+      description: {
+        en_US: 'Additional pip index URL as fallback. Leave blank if not needed.',
+        zh_Hans: '作为备用的额外 pip 索引地址。如不需要可留空。'
+      }
+    }
+  }
+}
+
+/**
+ * Middleware-level config form schema (per-agent overrides)
+ * Includes version, extras, and skillsDir which may vary per agent.
+ */
+export const MarkItDownMiddlewareConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
     version: {
@@ -60,28 +116,18 @@ export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
       'x-ui': {
         span: 2
       }
-    },
-    pipIndexUrl: {
-      type: 'string',
-      title: {
-        en_US: 'Pip Index URL',
-        zh_Hans: 'Pip 索引地址'
-      },
-      description: {
-        en_US: 'Custom pip index URL for downloading packages (e.g., "https://pypi.tuna.tsinghua.edu.cn/simple").',
-        zh_Hans: '用于下载包的自定义 pip 索引地址（例如 "https://pypi.tuna.tsinghua.edu.cn/simple"）。'
-      }
-    },
-    pipExtraIndexUrl: {
-      type: 'string',
-      title: {
-        en_US: 'Pip Extra Index URL',
-        zh_Hans: 'Pip 额外索引地址'
-      },
-      description: {
-        en_US: 'Additional pip index URL as fallback.',
-        zh_Hans: '作为备用的额外 pip 索引地址。'
-      }
     }
+  }
+}
+
+/**
+ * @deprecated Use MarkItDownPluginConfigFormSchema or MarkItDownMiddlewareConfigFormSchema instead.
+ * Full config form schema for backward compatibility.
+ */
+export const MarkItDownConfigFormSchema: JsonSchemaObjectType = {
+  type: 'object',
+  properties: {
+    ...MarkItDownMiddlewareConfigFormSchema.properties,
+    ...MarkItDownPluginConfigFormSchema.properties
   }
 }

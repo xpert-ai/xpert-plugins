@@ -10,7 +10,7 @@ import {
   MARKITDOWN_SKILL_MIDDLEWARE_NAME,
   DEFAULT_MARKITDOWN_VERSION,
   DEFAULT_MARKITDOWN_SKILLS_DIR,
-  MarkItDownConfigFormSchema
+  MarkItDownMiddlewareConfigFormSchema
 } from './markitdown.types.js'
 
 describe('MarkItDownSkillMiddleware', () => {
@@ -46,7 +46,7 @@ describe('MarkItDownSkillMiddleware', () => {
     expect(strategy.meta.name).toBe(MARKITDOWN_SKILL_MIDDLEWARE_NAME)
     expect(strategy.meta.label.en_US).toBe('MarkItDown Skill')
     expect(strategy.meta.label.zh_Hans).toBe('MarkItDown 技能')
-    expect(strategy.meta.configSchema).toEqual(MarkItDownConfigFormSchema)
+    expect(strategy.meta.configSchema).toEqual(MarkItDownMiddlewareConfigFormSchema)
   })
 
   it('should return middleware with correct name', () => {
