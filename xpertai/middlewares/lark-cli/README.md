@@ -7,12 +7,30 @@
 - Registers a middleware strategy named `LarkCLISkill`
 - Installs `@larksuite/cli` npm package in the sandbox
 - Downloads 19 AI Agent Skills from the larksuite/cli GitHub repository
+- Supports optional shared proxy settings for both npm package and skill downloads
+- Supports optional npm registry or mirror overrides for installing `@larksuite/cli`
 - Supports both user-level (OAuth) and bot-level (App ID/Secret) authentication
 - Validates that `node` is available in the sandbox
 - Appends the Lark CLI skill description to the model system prompt
 - Detects Lark CLI execution via `sandbox_shell`
 - Securely syncs bot credentials into `/workspace/.xpert/secrets/`
 - Warns in draft validation when sandbox or `SandboxShell` is missing
+
+## Plugin Config
+
+Configure organization-wide download behavior at plugin level:
+
+```json
+{
+  "proxy": "http://proxy.example.com:7890",
+  "npmRegistryUrl": "https://registry.npmmirror.com"
+}
+```
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `proxy` | string | Optional shared HTTP(S) proxy URL used for both `npm install` and GitHub skill downloads during bootstrap | unset |
+| `npmRegistryUrl` | string | Optional npm registry or mirror URL used only for `npm install -g @larksuite/cli` | unset |
 
 ## Middleware Config
 
@@ -27,6 +45,8 @@
 1. On `beforeAgent`, the plugin ensures the Lark CLI is installed, skills are downloaded, and bot credentials are synced if configured.
 2. On `wrapModelCall`, it appends a `<skill>...</skill>` block with Lark CLI usage instructions.
 3. On `wrapToolCall`, it intercepts `sandbox_shell` calls that execute `lark-cli` commands.
+4. Bootstrap state is tracked in `/workspace/.xpert/.lark-cli-bootstrap.json`, including the configured `proxy` and `npmRegistryUrl`.
+5. Any change to `proxy`, `npmRegistryUrl`, the installed `lark-cli` binary, or the required `lark-shared` skill file triggers a fresh bootstrap.
 
 ## Available Skills
 

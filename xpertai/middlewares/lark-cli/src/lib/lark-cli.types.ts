@@ -10,7 +10,7 @@ export const DEFAULT_LARK_CLI_STAMP_PATH = '/workspace/.xpert/.lark-cli-bootstra
 export const DEFAULT_LARK_BOOTSTRAP_SCRIPT_PATH = `${DEFAULT_LARK_CLI_SKILLS_DIR}/scripts/lark-bootstrap.sh`
 export const DEFAULT_LARK_CLI_APP_ID_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_id`
 export const DEFAULT_LARK_CLI_APP_SECRET_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_secret`
-export const LARK_CLI_BOOTSTRAP_SCHEMA_VERSION = 1
+export const LARK_CLI_BOOTSTRAP_SCHEMA_VERSION = 2
 
 // Authentication mode enum
 export const LarkAuthMode = {
@@ -20,34 +20,96 @@ export const LarkAuthMode = {
 
 export type LarkAuthModeType = (typeof LarkAuthMode)[keyof typeof LarkAuthMode]
 
-// Configuration schema for user-level authentication
+const OptionalConfigStringSchema = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().min(1).optional()
+)
+
+const RequiredConfigStringSchema = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().min(1)
+)
+
+// Plugin-level config schema for organization-wide download settings
+export const LarkCliPluginConfigSchema = z.object({
+  proxy: OptionalConfigStringSchema,
+  npmRegistryUrl: OptionalConfigStringSchema
+})
+
+export type LarkCliPluginConfig = z.infer<typeof LarkCliPluginConfigSchema>
+
+// Middleware-level configuration schema for user-level authentication
 export const LarkUserAuthConfigSchema = z.object({
   authMode: z.literal(LarkAuthMode.USER).optional().default(LarkAuthMode.USER)
 })
 
-// Configuration schema for bot-level authentication
+// Middleware-level configuration schema for bot-level authentication
 export const LarkBotAuthConfigSchema = z.object({
   authMode: z.literal(LarkAuthMode.BOT),
-  appId: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().min(1)
-  ),
-  appSecret: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().min(1)
-  )
+  appId: RequiredConfigStringSchema,
+  appSecret: RequiredConfigStringSchema
 })
 
-// Combined config schema - discriminated union based on authMode
-export const LarkCliConfigSchema = z.discriminatedUnion('authMode', [
+export const LarkCliMiddlewareConfigSchema = z.discriminatedUnion('authMode', [
   LarkUserAuthConfigSchema,
   LarkBotAuthConfigSchema
 ])
 
+export type LarkCliMiddlewareConfig = z.infer<typeof LarkCliMiddlewareConfigSchema>
+
+const LarkCliUserConfigSchema = LarkUserAuthConfigSchema.merge(LarkCliPluginConfigSchema)
+const LarkCliBotConfigSchema = LarkBotAuthConfigSchema.merge(LarkCliPluginConfigSchema)
+
+// Combined runtime config schema - authentication plus plugin-level download settings
+export const LarkCliConfigSchema = z.discriminatedUnion('authMode', [
+  LarkCliUserConfigSchema,
+  LarkCliBotConfigSchema
+])
+
 export type LarkCliConfig = z.infer<typeof LarkCliConfigSchema>
 
-// Form schema for UI configuration
-export const LarkCliConfigFormSchema: JsonSchemaObjectType = {
+// Plugin-level config form schema for organization-wide defaults
+export const LarkCliPluginConfigFormSchema: JsonSchemaObjectType = {
+  type: 'object',
+  properties: {
+    proxy: {
+      type: 'string',
+      title: {
+        en_US: 'Download Proxy',
+        zh_Hans: '下载代理地址'
+      },
+      description: {
+        en_US: 'Optional shared HTTP(S) proxy URL used for both npm install and GitHub skill downloads during sandbox bootstrap.',
+        zh_Hans: '可选的共享 HTTP(S) 代理地址，在 sandbox bootstrap 时同时用于 npm 安装和 GitHub skill 下载。'
+      },
+      'x-ui': <ISchemaSecretField>{
+        component: 'secretInput',
+        placeholder: 'http://proxy.example.com:7890',
+        revealable: true,
+        maskSymbol: '*',
+        persist: true,
+        span: 2
+      }
+    },
+    npmRegistryUrl: {
+      type: 'string',
+      title: {
+        en_US: 'NPM Registry URL',
+        zh_Hans: 'NPM 镜像地址'
+      },
+      description: {
+        en_US: 'Optional npm registry or mirror URL used only for installing @larksuite/cli.',
+        zh_Hans: '可选的 npm registry 或镜像地址，仅用于安装 @larksuite/cli。'
+      },
+      'x-ui': {
+        span: 2
+      }
+    }
+  }
+}
+
+// Middleware-level form schema for UI configuration
+export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
     authMode: {
@@ -105,6 +167,18 @@ export const LarkCliConfigFormSchema: JsonSchemaObjectType = {
         span: 2
       }
     }
+  },
+  required: ['authMode']
+}
+
+/**
+ * @deprecated Use LarkCliPluginConfigFormSchema or LarkCliMiddlewareConfigFormSchema instead.
+ */
+export const LarkCliConfigFormSchema: JsonSchemaObjectType = {
+  type: 'object',
+  properties: {
+    ...LarkCliMiddlewareConfigFormSchema.properties,
+    ...LarkCliPluginConfigFormSchema.properties
   },
   required: ['authMode']
 }

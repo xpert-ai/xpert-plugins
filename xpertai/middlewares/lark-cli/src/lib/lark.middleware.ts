@@ -16,7 +16,7 @@ import {
   LARK_CLI_SKILL_MIDDLEWARE_NAME,
   LarkAuthMode,
   LarkCliConfig,
-  LarkCliConfigFormSchema
+  LarkCliMiddlewareConfigFormSchema
 } from './lark-cli.types.js'
 import { LarkIcon } from './types.js'
 
@@ -38,10 +38,10 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
       zh_Hans: '将 Lark CLI 工具写入 sandbox，从 GitHub 下载 AI Agent Skills，并指导智能体通过 sandbox_shell 与飞书交互。'
     },
     icon: {
-      type: 'svg',
+      type: 'image',
       value: LarkIcon
     },
-    configSchema: LarkCliConfigFormSchema
+    configSchema: LarkCliMiddlewareConfigFormSchema
   }
 
   createMiddleware(options: Partial<LarkCliConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
@@ -53,7 +53,7 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
       beforeAgent: async (_state, runtime) => {
         const backend = getSandboxBackend(runtime)
         if (backend) {
-          await this.larkBootstrapService.ensureBootstrap(backend)
+          await this.larkBootstrapService.ensureBootstrap(backend, config)
           if (config.authMode === LarkAuthMode.BOT) {
             await this.larkBootstrapService.syncBotCredentials(backend, config)
           }
@@ -88,7 +88,7 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
 
         const backend = getSandboxBackend(request.runtime)
         if (backend) {
-          await this.larkBootstrapService.ensureBootstrap(backend)
+          await this.larkBootstrapService.ensureBootstrap(backend, config)
           if (config.authMode === LarkAuthMode.BOT) {
             await this.larkBootstrapService.syncBotCredentials(backend, config)
           }
