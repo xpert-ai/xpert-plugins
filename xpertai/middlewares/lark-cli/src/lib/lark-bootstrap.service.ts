@@ -13,9 +13,13 @@ import {
   DEFAULT_LARK_CLI_SKILLS_DIR,
   DEFAULT_LARK_CLI_STAMP_PATH,
   LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+  LarkAuthEnsureResponse,
   LarkAuthMode,
+  LarkCliAuthStatus,
+  LarkCliAuthStatusSchema,
   LarkCliConfig,
-  LarkCliConfigSchema
+  LarkCliConfigSchema,
+  LarkWaitUserResponse
 } from './lark-cli.types.js'
 import { LarkCliPluginName } from './types.js'
 
@@ -324,6 +328,386 @@ export class LarkBootstrapService {
     }
 
     return relativePath
+  }
+
+  // ============================================================
+  // Auth Status Methods
+  // ============================================================
+
+  /**
+   * Check current authentication status by running `lark-cli auth status --format json`
+   */
+  async checkAuthStatus(backend: LarkBootstrapBackend): Promise<LarkCliAuthStatus> {
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for auth status check.')
+    }
+
+    const result = await backend.execute('lark-cli auth status --format json 2>&1 || echo "{}"')
+    const output = result?.output?.trim() ?? '{}'
+
+    try {
+      // Try to parse JSON output
+      const parsed = JSON.parse(output)
+      return LarkCliAuthStatusSchema.parse(parsed)
+    } catch {
+      // If JSON parsing fails, try to parse text output
+      return this.parseAuthStatusText(output)
+    }
+  }
+
+  /**
+   * Parse auth status from text output (fallback when JSON is not available)
+   */
+  private parseAuthStatusText(output: string): LarkCliAuthStatus {
+    const normalizedOutput = output.toLowerCase()
+    
+    const loggedIn = normalizedOutput.includes('logged in') || 
+                     normalizedOutput.includes('authenticated') ||
+                     !normalizedOutput.includes('not logged in')
+    
+    let identityType: 'user' | 'bot' | 'none' = 'none'
+    if (normalizedOutput.includes('user identity') || normalizedOutput.includes('user:')) {
+      identityType = 'user'
+    } else if (normalizedOutput.includes('bot identity') || normalizedOutput.includes('bot:')) {
+      identityType = 'bot'
+    }
+    
+    const tokenValid = normalizedOutput.includes('token valid') || 
+                       normalizedOutput.includes('valid token') ||
+                       (loggedIn && !normalizedOutput.includes('token expired'))
+    
+    // Try to extract expiration time
+    let expiresAt: string | null = null
+    const expiresMatch = output.match(/expires?\s*(?:at|in|on)?[:\s]+([^\n]+)/i)
+    if (expiresMatch) {
+      expiresAt = expiresMatch[1].trim()
+    }
+
+    return LarkCliAuthStatusSchema.parse({
+      loggedIn,
+      identityType,
+      tokenValid,
+      expiresAt,
+      scopes: []
+    })
+  }
+
+  /**
+   * Perform bot login using App ID and Secret from config
+   */
+  async performBotLogin(backend: LarkBootstrapBackend, config: LarkCliConfig): Promise<{ success: boolean; message: string }> {
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for bot login.')
+    }
+
+    if (config.authMode !== LarkAuthMode.BOT) {
+      return { success: false, message: 'Bot login requires bot auth mode configuration.' }
+    }
+
+    if (!config.appId || !config.appSecret) {
+      return { success: false, message: 'Bot login requires appId and appSecret.' }
+    }
+
+    // Ensure credentials are synced first
+    await this.syncBotCredentials(backend, config)
+
+    // Run lark-cli auth login with app credentials
+    const result = await backend.execute(
+      `lark-cli auth login --app-id --app-secret 2>&1`
+    )
+
+    if (result?.exitCode === 0) {
+      return { success: true, message: 'Bot authentication successful.' }
+    }
+
+    return { 
+      success: false, 
+      message: `Bot authentication failed: ${result?.output || 'Unknown error'}` 
+    }
+  }
+
+  /**
+   * Initiate user OAuth login and return authorization URL
+   */
+  async initiateUserLogin(backend: LarkBootstrapBackend): Promise<{ authorizationUrl: string; deviceCode: string }> {
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for user login.')
+    }
+
+    // Run lark-cli auth login with --no-wait to get URL immediately
+    const result = await backend.execute(
+      `lark-cli auth login --recommend --no-wait --format json 2>&1`
+    )
+
+    const output = result?.output?.trim() ?? ''
+
+    // Try to parse JSON output for URL and device code
+    try {
+      const parsed = JSON.parse(output)
+      if (parsed.authorization_url && parsed.device_code) {
+        return {
+          authorizationUrl: parsed.authorization_url,
+          deviceCode: parsed.device_code
+        }
+      }
+    } catch {
+      // Fall back to text parsing
+    }
+
+    // Extract URL from text output
+    const urlMatch = output.match(/https?:\/\/[^\s]+/)
+    const deviceCodeMatch = output.match(/device[_-]?code[:\s]+([A-Za-z0-9]+)/i)
+
+    if (!urlMatch) {
+      throw new Error('Failed to get authorization URL from lark-cli auth login.')
+    }
+
+    return {
+      authorizationUrl: urlMatch[0],
+      deviceCode: deviceCodeMatch?.[1] ?? ''
+    }
+  }
+
+  /**
+   * Wait for user to complete OAuth login (polling for up to 60 seconds)
+   */
+  async waitForUserLogin(
+    backend: LarkBootstrapBackend, 
+    deviceCode: string,
+    maxWaitSeconds: number = 60
+  ): Promise<LarkWaitUserResponse> {
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for user login wait.')
+    }
+
+    const startTime = Date.now()
+    const pollIntervalMs = 3000 // Poll every 3 seconds
+
+    while (Date.now() - startTime < maxWaitSeconds * 1000) {
+      // Poll auth status using device code
+      const result = await backend.execute(
+        `lark-cli auth login --device-code ${shellQuote(deviceCode)} --format json 2>&1 || echo '{"status":"pending"}'`
+      )
+
+      const output = result?.output?.trim() ?? '{"status":"pending"}'
+
+      try {
+        const parsed = JSON.parse(output)
+        if (parsed.status === 'success' || parsed.logged_in === true) {
+          const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
+          return {
+            success: true,
+            identityType: 'user',
+            waitedSeconds,
+            message: `User login successful after ${waitedSeconds} seconds.`
+          }
+        }
+        if (parsed.status === 'expired' || parsed.error) {
+          const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
+          return {
+            success: false,
+            identityType: 'none',
+            waitedSeconds,
+            message: `Login expired or failed: ${parsed.error || 'Unknown error'}`
+          }
+        }
+      } catch {
+        // Continue polling if JSON parsing fails
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+    }
+
+    const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
+    return {
+      success: false,
+      identityType: 'none',
+      waitedSeconds,
+      message: `User login timed out after ${waitedSeconds} seconds.`
+    }
+  }
+
+  /**
+   * Build comprehensive auth ensure response
+   */
+  async buildAuthEnsureResponse(
+    backend: LarkBootstrapBackend | null,
+    config: LarkCliConfig
+  ): Promise<LarkAuthEnsureResponse> {
+    // Check config validity
+    const configExists = !!config
+    const configValid = this.validateConfig(config)
+
+    // Default response when backend is not available
+    if (!backend || typeof backend.execute !== 'function') {
+      return {
+        configExists,
+        configValid,
+        authMode: config.authMode,
+        identityType: 'none',
+        isLoggedIn: false,
+        tokenValid: false,
+        tokenExpiresAt: null,
+        authorizationUrl: null,
+        deviceCode: null,
+        message: 'Sandbox backend not available. Cannot check auth status.'
+      }
+    }
+
+    // Ensure bootstrap first
+    try {
+      await this.ensureBootstrap(backend)
+    } catch (error) {
+      return {
+        configExists,
+        configValid,
+        authMode: config.authMode,
+        identityType: 'none',
+        isLoggedIn: false,
+        tokenValid: false,
+        tokenExpiresAt: null,
+        authorizationUrl: null,
+        deviceCode: null,
+        message: `Bootstrap failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+
+    // For bot mode, sync credentials and check status
+    if (config.authMode === LarkAuthMode.BOT) {
+      try {
+        await this.syncBotCredentials(backend, config)
+        
+        // Check if bot credentials are valid by running auth status
+        const authStatus = await this.checkAuthStatus(backend)
+        
+        // If not logged in as bot, try to login
+        if (!authStatus.loggedIn || authStatus.identityType !== 'bot') {
+          const loginResult = await this.performBotLogin(backend, config)
+          
+          if (loginResult.success) {
+            const newStatus = await this.checkAuthStatus(backend)
+            return {
+              configExists,
+              configValid,
+              authMode: LarkAuthMode.BOT,
+              identityType: newStatus.identityType ?? 'bot',
+              isLoggedIn: true,
+              tokenValid: newStatus.tokenValid ?? true,
+              tokenExpiresAt: newStatus.expiresAt ?? null,
+              authorizationUrl: null,
+              deviceCode: null,
+              message: 'Bot authentication successful.'
+            }
+          }
+          
+          return {
+            configExists,
+            configValid,
+            authMode: LarkAuthMode.BOT,
+            identityType: 'none',
+            isLoggedIn: false,
+            tokenValid: false,
+            tokenExpiresAt: null,
+            authorizationUrl: null,
+            deviceCode: null,
+            message: loginResult.message
+          }
+        }
+        
+        return {
+          configExists,
+          configValid,
+          authMode: LarkAuthMode.BOT,
+          identityType: authStatus.identityType ?? 'bot',
+          isLoggedIn: authStatus.loggedIn ?? true,
+          tokenValid: authStatus.tokenValid ?? true,
+          tokenExpiresAt: authStatus.expiresAt ?? null,
+          authorizationUrl: null,
+          deviceCode: null,
+          message: 'Bot authentication active.'
+        }
+      } catch (error) {
+        return {
+          configExists,
+          configValid,
+          authMode: LarkAuthMode.BOT,
+          identityType: 'none',
+          isLoggedIn: false,
+          tokenValid: false,
+          tokenExpiresAt: null,
+          authorizationUrl: null,
+          deviceCode: null,
+          message: `Bot auth check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }
+      }
+    }
+
+    // For user mode, check current status and provide URL if needed
+    try {
+      const authStatus = await this.checkAuthStatus(backend)
+      
+      if (authStatus.loggedIn && authStatus.identityType === 'user' && authStatus.tokenValid) {
+        return {
+          configExists,
+          configValid,
+          authMode: LarkAuthMode.USER,
+          identityType: 'user',
+          isLoggedIn: true,
+          tokenValid: true,
+          tokenExpiresAt: authStatus.expiresAt ?? null,
+          authorizationUrl: null,
+          deviceCode: null,
+          message: 'User authentication active.'
+        }
+      }
+      
+      // User not logged in - initiate login and return URL
+      const loginInfo = await this.initiateUserLogin(backend)
+      
+      return {
+        configExists,
+        configValid,
+        authMode: LarkAuthMode.USER,
+        identityType: authStatus.identityType ?? 'none',
+        isLoggedIn: false,
+        tokenValid: false,
+        tokenExpiresAt: null,
+        authorizationUrl: loginInfo.authorizationUrl,
+        deviceCode: loginInfo.deviceCode,
+        message: 'User login required. Please visit the authorization URL.'
+      }
+    } catch (error) {
+      return {
+        configExists,
+        configValid,
+        authMode: LarkAuthMode.USER,
+        identityType: 'none',
+        isLoggedIn: false,
+        tokenValid: false,
+        tokenExpiresAt: null,
+        authorizationUrl: null,
+        deviceCode: null,
+        message: `User auth check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
+  /**
+   * Validate configuration based on auth mode
+   */
+  private validateConfig(config: LarkCliConfig): boolean {
+    if (!config) return false
+    
+    if (config.authMode === LarkAuthMode.USER) {
+      return true // User mode always valid (no required fields)
+    }
+    
+    if (config.authMode === LarkAuthMode.BOT) {
+      return !!config.appId && !!config.appSecret
+    }
+    
+    return false
   }
 }
 
