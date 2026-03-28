@@ -1,0 +1,32 @@
+{
+  "name": "@xpert-ai/plugin-lark-cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/lark-cli/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/lark-cli/dist",
+        "main": "middlewares/lark-cli/src/index.ts",
+        "rootDir": "middlewares/lark-cli/src",
+        "tsConfig": "middlewares/lark-cli/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/lark-cli/src",
+            "output": "./"
+          },
+          {
+            "glob": "**/*.sh",
+            "input": "middlewares/lark-cli/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

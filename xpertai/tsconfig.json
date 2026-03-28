@@ -131,6 +131,9 @@
     },
     {
       "path": "./middlewares/zip-unzip-cli"
+    },
+    {
+      "path": "./middlewares/lark-cli"
     }
   ]
 }
