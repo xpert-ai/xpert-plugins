@@ -15,6 +15,7 @@ import { LarkChatStreamCallbackProcessor } from './handoff/lark-chat-callback.pr
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
 import { LarkContextToolService } from './lark-context-tool.service.js'
+import { LarkConversationBindingSchemaService } from './lark-conversation-binding-schema.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
@@ -41,6 +42,7 @@ import { LARK_CONVERSATION_QUEUE_SERVICE, LARK_LONG_CONNECTION_SERVICE } from '.
 	controllers: [LarkHooksController],
 	providers: [
 		LarkConversationService,
+		LarkConversationBindingSchemaService,
 		LarkContextToolService,
 		LarkGroupMentionWindowService,
 		LarkChannelStrategy,

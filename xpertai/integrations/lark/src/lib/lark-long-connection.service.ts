@@ -14,6 +14,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { LarkConversationService } from './conversation.service.js'
+import { LarkConversationBindingSchemaService } from './lark-conversation-binding-schema.service.js'
 import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
 import {
 	classifyLongConnectionError,
@@ -89,6 +90,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	constructor(
 		private readonly larkChannel: LarkChannelStrategy,
 		private readonly conversation: LarkConversationService,
+		private readonly conversationBindingSchemaService: LarkConversationBindingSchemaService,
 		private readonly inboundIdentityService: LarkInboundIdentityService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext
@@ -113,6 +115,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	async onModuleInit(): Promise<void> {
+		await this.conversationBindingSchemaService.ensureSchema()
 		const integrationIds = await this.loadBootstrapIntegrationIds()
 		await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId)))
 	}
