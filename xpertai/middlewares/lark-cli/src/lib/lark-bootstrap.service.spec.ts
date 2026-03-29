@@ -248,34 +248,39 @@ describe('LarkBootstrapService', () => {
       const backend = {
         execute: jest.fn().mockResolvedValue({
           output: JSON.stringify({
-            loggedIn: true,
-            identityType: 'user',
-            tokenValid: true,
+            appId: 'cli_test',
+            brand: 'lark',
+            defaultAs: 'auto',
+            identity: 'user',
+            userName: 'Test User',
+            userOpenId: 'ou_xxx',
+            tokenStatus: 'ok',
+            scope: 'calendar:calendar:readonly',
             expiresAt: '2025-12-31T23:59:59Z',
-            scopes: ['calendar:calendar:readonly']
+            refreshExpiresAt: '2026-01-30T23:59:59Z',
+            grantedAt: '2025-01-01T00:00:00Z'
           }),
           exitCode: 0
         })
       }
 
       const status = await service.checkAuthStatus(backend as any)
-      expect(status.loggedIn).toBe(true)
-      expect(status.identityType).toBe('user')
-      expect(status.tokenValid).toBe(true)
+      expect(status.identity).toBe('user')
+      expect(status.tokenStatus).toBe('ok')
       expect(status.expiresAt).toBe('2025-12-31T23:59:59Z')
     })
 
-    it('parses text auth status output as fallback', async () => {
+    it('returns error status when JSON parsing fails', async () => {
       const backend = {
         execute: jest.fn().mockResolvedValue({
-          output: 'Logged in\nUser identity\nToken valid until 2025-12-31',
-          exitCode: 0
+          output: 'not json output',
+          exitCode: 1
         })
       }
 
       const status = await service.checkAuthStatus(backend as any)
-      expect(status.loggedIn).toBe(true)
-      expect(status.identityType).toBe('user')
+      expect(status.ok).toBe(false)
+      expect(status.error?.type).toBe('parse_error')
     })
   })
 
@@ -304,10 +309,10 @@ describe('LarkBootstrapService', () => {
           }) // stamp check - already bootstrapped
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 }) // node check
           .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check (lark-shared exists)
-          .mockResolvedValueOnce({ output: JSON.stringify({ loggedIn: false, identityType: 'none' }), exitCode: 0 }) // auth status
+          .mockResolvedValueOnce({ output: JSON.stringify({ appId: 'cli_test', brand: 'lark', defaultAs: 'auto', identity: 'bot', note: 'No user logged in.' }), exitCode: 0 }) // auth status
           .mockResolvedValueOnce({ 
             output: JSON.stringify({ 
-              authorization_url: 'https://example.com/auth',
+              verification_url: 'https://example.com/auth',
               device_code: 'ABC123'
             }), 
             exitCode: 0 

@@ -409,50 +409,12 @@ export class LarkBootstrapService {
     const output = result?.output?.trim() ?? '{}'
 
     try {
-      // Try to parse JSON output
       const parsed = JSON.parse(output)
       return LarkCliAuthStatusSchema.parse(parsed)
     } catch {
-      // If JSON parsing fails, try to parse text output
-      return this.parseAuthStatusText(output)
+      // If JSON parsing fails, return an error status
+      return { ok: false, error: { type: 'parse_error', message: output || 'Failed to parse auth status output' } } as LarkCliAuthStatus
     }
-  }
-
-  /**
-   * Parse auth status from text output (fallback when JSON is not available)
-   */
-  private parseAuthStatusText(output: string): LarkCliAuthStatus {
-    const normalizedOutput = output.toLowerCase()
-    
-    const loggedIn = normalizedOutput.includes('logged in') || 
-                     normalizedOutput.includes('authenticated') ||
-                     !normalizedOutput.includes('not logged in')
-    
-    let identityType: 'user' | 'bot' | 'none' = 'none'
-    if (normalizedOutput.includes('user identity') || normalizedOutput.includes('user:')) {
-      identityType = 'user'
-    } else if (normalizedOutput.includes('bot identity') || normalizedOutput.includes('bot:')) {
-      identityType = 'bot'
-    }
-    
-    const tokenValid = normalizedOutput.includes('token valid') || 
-                       normalizedOutput.includes('valid token') ||
-                       (loggedIn && !normalizedOutput.includes('token expired'))
-    
-    // Try to extract expiration time
-    let expiresAt: string | null = null
-    const expiresMatch = output.match(/expires?\s*(?:at|in|on)?[:\s]+([^\n]+)/i)
-    if (expiresMatch) {
-      expiresAt = expiresMatch[1].trim()
-    }
-
-    return LarkCliAuthStatusSchema.parse({
-      loggedIn,
-      identityType,
-      tokenValid,
-      expiresAt,
-      scopes: []
-    })
   }
 
   /**
@@ -532,11 +494,12 @@ export class LarkBootstrapService {
     const output = result?.output?.trim() ?? ''
 
     // Try to parse JSON output for URL and device code
+    // `--no-wait` outputs: { verification_url, device_code, expires_in, hint }
     try {
       const parsed = JSON.parse(output)
-      if (parsed.authorization_url && parsed.device_code) {
+      if (parsed.verification_url && parsed.device_code) {
         return {
-          authorizationUrl: parsed.authorization_url,
+          authorizationUrl: parsed.verification_url,
           deviceCode: parsed.device_code
         }
       }
@@ -559,62 +522,44 @@ export class LarkBootstrapService {
   }
 
   /**
-   * Wait for user to complete OAuth login (polling for up to 60 seconds)
+   * Wait for user to complete OAuth login.
+   * `lark-cli auth login --device-code` blocks internally and polls the server
+   * until the user authorizes or the code expires (~180s).
    */
   async waitForUserLogin(
     backend: LarkBootstrapBackend, 
     deviceCode: string,
-    maxWaitSeconds: number = 60
+    _maxWaitSeconds: number = 60
   ): Promise<LarkWaitUserResponse> {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for user login wait.')
     }
 
     const startTime = Date.now()
-    const pollIntervalMs = 3000 // Poll every 3 seconds
 
-    while (Date.now() - startTime < maxWaitSeconds * 1000) {
-      // Poll auth status using device code
-      const result = await backend.execute(
-        `lark-cli auth login --device-code ${shellQuote(deviceCode)} --json 2>&1 || echo '{"status":"pending"}'`
-      )
-
-      const output = result?.output?.trim() ?? '{"status":"pending"}'
-
-      try {
-        const parsed = JSON.parse(output)
-        if (parsed.status === 'success' || parsed.logged_in === true) {
-          const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
-          return {
-            success: true,
-            identityType: 'user',
-            waitedSeconds,
-            message: `User login successful after ${waitedSeconds} seconds.`
-          }
-        }
-        if (parsed.status === 'expired' || parsed.error) {
-          const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
-          return {
-            success: false,
-            identityType: 'none',
-            waitedSeconds,
-            message: `Login expired or failed: ${parsed.error || 'Unknown error'}`
-          }
-        }
-      } catch {
-        // Continue polling if JSON parsing fails
-      }
-
-      // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
-    }
+    // `--device-code` resumes the device flow and blocks until authorization
+    // completes or the code expires. It does not support `--json`.
+    const result = await backend.execute(
+      `lark-cli auth login --device-code ${shellQuote(deviceCode)} 2>&1`
+    )
 
     const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
+    const output = result?.output?.trim() ?? ''
+
+    if (result?.exitCode === 0) {
+      return {
+        success: true,
+        identityType: 'user',
+        waitedSeconds,
+        message: `User login successful after ${waitedSeconds} seconds.`
+      }
+    }
+
     return {
       success: false,
       identityType: 'none',
       waitedSeconds,
-      message: `User login timed out after ${waitedSeconds} seconds.`
+      message: `Login failed or expired: ${output || 'Unknown error'}`
     }
   }
 
@@ -718,7 +663,14 @@ export class LarkBootstrapService {
     try {
       const authStatus = await this.checkAuthStatus(backend)
       
-      if (authStatus.loggedIn && authStatus.identityType === 'user' && authStatus.tokenValid) {
+      // Check for error response from CLI
+      if (authStatus.ok === false || authStatus.error) {
+        // auth status returned an error — treat as not logged in
+      } else if (
+        authStatus.identity === 'user' &&
+        authStatus.tokenStatus &&
+        authStatus.tokenStatus !== 'expired'
+      ) {
         return {
           configExists,
           configValid,
@@ -740,7 +692,7 @@ export class LarkBootstrapService {
         configExists,
         configValid,
         authMode: LarkAuthMode.USER,
-        identityType: authStatus.identityType ?? 'none',
+        identityType: authStatus.identity ?? 'none',
         isLoggedIn: false,
         tokenValid: false,
         tokenExpiresAt: null,
