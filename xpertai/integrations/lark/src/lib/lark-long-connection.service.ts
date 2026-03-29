@@ -2,7 +2,7 @@ import * as lark from '@larksuiteoapi/node-sdk'
 import axios from 'axios'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
-import type { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IPagination, IUser } from '@metad/contracts'
 import {
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
@@ -869,12 +869,14 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 	private async loadBootstrapIntegrationIds(): Promise<string[]> {
 		const permissionService = this.integrationPermissionService as IntegrationPermissionService & {
-			findAll?: (options?: Record<string, any>) => Promise<{ items: Array<IIntegration<TIntegrationLarkOptions>> }>
+			findAll?: <TIntegration = IIntegration>(
+				options?: Record<string, any>
+			) => Promise<IPagination<TIntegration>>
 		}
 
 		if (typeof permissionService.findAll === 'function') {
 			try {
-				const result = await permissionService.findAll({
+				const result = await permissionService.findAll<IIntegration<TIntegrationLarkOptions>>({
 					where: {
 						provider: 'lark'
 					},
