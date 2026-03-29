@@ -171,6 +171,51 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
   required: ['authMode']
 }
 
+// ============================================================
+// Auth Tool Response Types
+// ============================================================
+
+/** Response type for lark-cli-auth-ensure tool */
+export const LarkAuthEnsureResponseSchema = z.object({
+  configExists: z.boolean().describe('Whether middleware configuration exists'),
+  configValid: z.boolean().describe('Whether required configuration fields are valid'),
+  authMode: z.enum(['user', 'bot']).describe('Current authentication mode from config'),
+  identityType: z.enum(['user', 'bot', 'none']).describe('Current active identity type'),
+  isLoggedIn: z.boolean().describe('Whether authentication is currently active'),
+  tokenValid: z.boolean().describe('Whether token is valid (not expired)'),
+  tokenExpiresAt: z.string().nullable().describe('Token expiration timestamp (ISO format) or null'),
+  authorizationUrl: z.string().nullable().describe('OAuth authorization URL for user login, if needed'),
+  deviceCode: z.string().nullable().describe('Device code for polling auth status, if applicable'),
+  message: z.string().describe('Human-readable status message')
+})
+
+export type LarkAuthEnsureResponse = z.infer<typeof LarkAuthEnsureResponseSchema>
+
+/** Response type for lark-cli-wait-user tool */
+export const LarkWaitUserResponseSchema = z.object({
+  success: z.boolean().describe('Whether user login was successful'),
+  identityType: z.enum(['user', 'bot', 'none']).describe('Identity type after login attempt'),
+  waitedSeconds: z.number().describe('Number of seconds waited for user action'),
+  message: z.string().describe('Human-readable result message')
+})
+
+export type LarkWaitUserResponse = z.infer<typeof LarkWaitUserResponseSchema>
+
+/** Internal type for parsed auth status from lark-cli */
+export const LarkCliAuthStatusSchema = z.object({
+  loggedIn: z.boolean().optional().default(false),
+  identityType: z.enum(['user', 'bot', 'none']).optional().default('none'),
+  tokenValid: z.boolean().optional().default(false),
+  expiresAt: z.string().optional().nullable(),
+  scopes: z.array(z.string()).optional().default([]),
+  user: z.object({
+    name: z.string().optional(),
+    id: z.string().optional()
+  }).optional()
+})
+
+export type LarkCliAuthStatus = z.infer<typeof LarkCliAuthStatusSchema>
+
 /**
  * @deprecated Use LarkCliPluginConfigFormSchema or LarkCliMiddlewareConfigFormSchema instead.
  */

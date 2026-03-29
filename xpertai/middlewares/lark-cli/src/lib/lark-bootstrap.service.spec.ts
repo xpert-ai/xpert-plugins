@@ -235,8 +235,139 @@ describe('LarkBootstrapService', () => {
         workingDirectory: '/workspace',
         execute: jest.fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
-          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
-          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 
+  describe('checkAuthStatus', () => {
+    it('throws if backend is not available', async () => {
+      await expect(service.checkAuthStatus(null as any)).rejects.toThrow(
+        'Sandbox backend is not available'
+      )
+    })
+
+    it('parses JSON auth status output', async () => {
+      const backend = {
+        execute: jest.fn().mockResolvedValue({
+          output: JSON.stringify({
+            loggedIn: true,
+            identityType: 'user',
+            tokenValid: true,
+            expiresAt: '2025-12-31T23:59:59Z',
+            scopes: ['calendar:calendar:readonly']
+          }),
+          exitCode: 0
+        })
+      }
+
+      const status = await service.checkAuthStatus(backend as any)
+      expect(status.loggedIn).toBe(true)
+      expect(status.identityType).toBe('user')
+      expect(status.tokenValid).toBe(true)
+      expect(status.expiresAt).toBe('2025-12-31T23:59:59Z')
+    })
+
+    it('parses text auth status output as fallback', async () => {
+      const backend = {
+        execute: jest.fn().mockResolvedValue({
+          output: 'Logged in\nUser identity\nToken valid until 2025-12-31',
+          exitCode: 0
+        })
+      }
+
+      const status = await service.checkAuthStatus(backend as any)
+      expect(status.loggedIn).toBe(true)
+      expect(status.identityType).toBe('user')
+    })
+  })
+
+  describe('buildAuthEnsureResponse', () => {
+    it('returns error response when backend is not available', async () => {
+      const response = await service.buildAuthEnsureResponse(null, { authMode: LarkAuthMode.USER })
+      
+      expect(response.configExists).toBe(true)
+      expect(response.configValid).toBe(true)
+      expect(response.isLoggedIn).toBe(false)
+      expect(response.message).toContain('Sandbox backend not available')
+    })
+
+    it('returns user mode response with authorization URL when not logged in', async () => {
+      // Mock a fully bootstrapped environment
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ 
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0 
+          }) // stamp check - already bootstrapped
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 }) // node check
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check (lark-shared exists)
+          .mockResolvedValueOnce({ output: JSON.stringify({ loggedIn: false, identityType: 'none' }), exitCode: 0 }) // auth status
+          .mockResolvedValueOnce({ 
+            output: JSON.stringify({ 
+              authorization_url: 'https://example.com/auth',
+              device_code: 'ABC123'
+            }), 
+            exitCode: 0 
+          }) // initiate login
+      }
+
+      const response = await service.buildAuthEnsureResponse(backend as any, { authMode: LarkAuthMode.USER })
+      
+      expect(response.authMode).toBe(LarkAuthMode.USER)
+      expect(response.isLoggedIn).toBe(false)
+      // The authorization URL should be extracted from the login response
+      expect(response.authorizationUrl).toBeTruthy()
+    })
+
+    it('returns bot mode response with successful auth', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // stamp check
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 }) // node check
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // mkdir secrets
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // chmod
+          .mockResolvedValueOnce({ output: JSON.stringify({ loggedIn: true, identityType: 'bot', tokenValid: true }), exitCode: 0 }), // auth status
+        uploadFiles: jest.fn()
+          .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_id', error: null }])
+          .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_secret', error: null }])
+      }
+
+      const response = await service.buildAuthEnsureResponse(backend as any, {
+        authMode: LarkAuthMode.BOT,
+        appId: 'cli_test_id',
+        appSecret: 'test_secret'
+      })
+      
+      expect(response.authMode).toBe(LarkAuthMode.BOT)
+      expect(response.configValid).toBe(true)
+    })
+  })
+
+  describe('waitForUserLogin', () => {
+    it('throws if backend is not available', async () => {
+      await expect(service.waitForUserLogin(null as any, 'ABC123')).rejects.toThrow(
+        'Sandbox backend is not available'
+      )
+    })
+
+    it('returns success when login completes', async () => {
+      const backend = {
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '{"status":"pending"}', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '{"status":"success", "logged_in": true}', exitCode: 0 })
+      }
+
+      const response = await service.waitForUserLogin(backend as any, 'ABC123', 10)
+      
+      expect(response.success).toBe(true)
+      expect(response.identityType).toBe('user')
+    })
+  })
+})          .mockResolvedValueOnce({ output: '', exitCode: 1 })
           .mockResolvedValue({ output: '', exitCode: 0 }),
         uploadFiles: jest.fn()
       }
