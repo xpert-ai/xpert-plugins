@@ -47,6 +47,7 @@ describe('LarkBootstrapService', () => {
         authMode: LarkAuthMode.BOT,
         appId: 'cli_test_app_id',
         appSecret: 'test_app_secret',
+        brand: 'lark',
         proxy: 'http://proxy.example.com:7890',
         npmRegistryUrl: 'https://registry.npmmirror.com'
       })
@@ -321,16 +322,24 @@ describe('LarkBootstrapService', () => {
       expect(response.authorizationUrl).toBeTruthy()
     })
 
-    it('returns bot mode response with successful auth', async () => {
+    it('returns bot mode response with successful config', async () => {
       const backend = {
         workingDirectory: '/workspace',
         execute: jest.fn()
-          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // stamp check
+          // ensureBootstrap: stamp matches, cli ready, skills ready
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          }) // stamp check
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 }) // node check
-          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check
-          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // mkdir secrets
-          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // chmod
-          .mockResolvedValueOnce({ output: JSON.stringify({ loggedIn: true, identityType: 'bot', tokenValid: true }), exitCode: 0 }), // auth status
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 }) // which lark-cli
+          .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check (test -f)
+          // performBotLogin → syncBotCredentials
+          .mockResolvedValue({ output: '', exitCode: 0 }), // rm, mkdir, chmod, write config
         uploadFiles: jest.fn()
           .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_id', error: null }])
           .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_secret', error: null }])
@@ -344,6 +353,14 @@ describe('LarkBootstrapService', () => {
       
       expect(response.authMode).toBe(LarkAuthMode.BOT)
       expect(response.configValid).toBe(true)
+      expect(response.identityType).toBe('bot')
+      expect(response.isLoggedIn).toBe(true)
+      expect(response.message).toContain('Bot configuration ready')
+      // Verify config.json was written (not auth login)
+      const configWriteCall = backend.execute.mock.calls.find(
+        ([cmd]: [string]) => typeof cmd === 'string' && cmd.includes('.lark-cli/config.json')
+      )
+      expect(configWriteCall).toBeTruthy()
     })
   })
 
