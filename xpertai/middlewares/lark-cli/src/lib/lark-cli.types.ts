@@ -227,17 +227,30 @@ export const LarkWaitUserResponseSchema = z.object({
 
 export type LarkWaitUserResponse = z.infer<typeof LarkWaitUserResponseSchema>
 
-/** Internal type for parsed auth status from lark-cli */
+/** Internal type for parsed auth status from lark-cli.
+ *  Matches the JSON output of `lark-cli auth status [--verify]`.
+ */
 export const LarkCliAuthStatusSchema = z.object({
-  loggedIn: z.boolean().optional().default(false),
-  identityType: z.enum(['user', 'bot', 'none']).optional().default('none'),
-  tokenValid: z.boolean().optional().default(false),
-  expiresAt: z.string().optional().nullable(),
-  scopes: z.array(z.string()).optional().default([]),
-  user: z.object({
-    name: z.string().optional(),
-    id: z.string().optional()
-  }).optional()
+  ok: z.literal(false).optional(),
+  error: z.object({
+    type: z.string().optional(),
+    message: z.string().optional(),
+    hint: z.string().optional()
+  }).optional(),
+  appId: z.string().optional(),
+  brand: z.string().optional(),
+  defaultAs: z.string().optional(),
+  identity: z.enum(['user', 'bot']).optional(),
+  userName: z.string().optional(),
+  userOpenId: z.string().optional(),
+  tokenStatus: z.string().optional(),
+  scope: z.string().optional(),
+  expiresAt: z.string().optional(),
+  refreshExpiresAt: z.string().optional(),
+  grantedAt: z.string().optional(),
+  note: z.string().optional(),
+  verified: z.boolean().optional(),
+  verifyError: z.string().optional()
 })
 
 export type LarkCliAuthStatus = z.infer<typeof LarkCliAuthStatusSchema>
