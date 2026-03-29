@@ -682,7 +682,7 @@ export class LarkBootstrapService {
             tokenExpiresAt: null,
             authorizationUrl: null,
             deviceCode: null,
-            message: 'Bot configuration ready. Use --as bot with lark-cli commands.'
+            message: 'Bot configuration ready. Default identity is set to bot.'
           }
         }
         
