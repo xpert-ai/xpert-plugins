@@ -4,6 +4,7 @@ import { DataSource, QueryRunner, Table, TableColumn, TableIndex } from 'typeorm
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 
 const USER_ID_INDEX = 'plugin_lark_conversation_binding_user_id_idx'
+const USER_KEY_XPERT_INDEX = 'plugin_lark_conversation_binding_user_key_xpert_idx'
 const PRINCIPAL_KEY_INDEX = 'plugin_lark_conversation_binding_principal_key_idx'
 const SCOPE_KEY_XPERT_UNIQUE_INDEX = 'plugin_lark_conversation_binding_scope_key_xpert_uq'
 
@@ -62,12 +63,26 @@ export class LarkConversationBindingSchemaService {
 				return
 			}
 
-			const droppedLegacyUserIdUnique = await this.dropLegacyUserIdUniqueSemantics(
+			const droppedLegacyUserIdUnique = await this.dropLegacyUniqueSemantics(
 				queryRunner,
 				table,
+				['userId'],
 				actions
 			)
 			if (droppedLegacyUserIdUnique) {
+				table = await this.loadTable(queryRunner)
+			}
+			if (!table) {
+				return
+			}
+
+			const droppedLegacyConversationUserKeyUnique = await this.dropLegacyUniqueSemantics(
+				queryRunner,
+				table,
+				['conversationUserKey', 'xpertId'],
+				actions
+			)
+			if (droppedLegacyConversationUserKeyUnique) {
 				table = await this.loadTable(queryRunner)
 			}
 			if (!table) {
@@ -83,6 +98,17 @@ export class LarkConversationBindingSchemaService {
 					})
 				)
 				actions.push(`create index ${USER_ID_INDEX}`)
+			}
+
+			if (!this.hasPlainIndex(table, ['conversationUserKey', 'xpertId'])) {
+				await queryRunner.createIndex(
+					LarkConversationBindingEntity.tableName,
+					new TableIndex({
+						name: USER_KEY_XPERT_INDEX,
+						columnNames: ['conversationUserKey', 'xpertId']
+					})
+				)
+				actions.push(`create index ${USER_KEY_XPERT_INDEX}`)
 			}
 
 			if (!this.hasAnyIndex(table, ['principalKey'])) {
@@ -120,30 +146,31 @@ export class LarkConversationBindingSchemaService {
 		return (await queryRunner.getTable(LarkConversationBindingEntity.tableName)) ?? undefined
 	}
 
-	private async dropLegacyUserIdUniqueSemantics(
+	private async dropLegacyUniqueSemantics(
 		queryRunner: QueryRunner,
 		table: Table,
+		columns: string[],
 		actions: string[]
 	): Promise<boolean> {
 		let changed = false
 
 		for (const index of table.indices) {
-			if (!index.isUnique || !this.hasSameColumnSet(index.columnNames, ['userId'])) {
+			if (!index.isUnique || !this.hasSameColumnSet(index.columnNames, columns)) {
 				continue
 			}
 
 			await queryRunner.dropIndex(LarkConversationBindingEntity.tableName, index)
-			actions.push(`drop unique index ${index.name ?? '(unnamed-userId-index)'}`)
+			actions.push(`drop unique index ${index.name ?? `(${columns.join('+')}-index)`}`)
 			changed = true
 		}
 
 		for (const unique of table.uniques) {
-			if (!this.hasSameColumnSet(unique.columnNames, ['userId'])) {
+			if (!this.hasSameColumnSet(unique.columnNames, columns)) {
 				continue
 			}
 
 			await queryRunner.dropUniqueConstraint(LarkConversationBindingEntity.tableName, unique)
-			actions.push(`drop unique constraint ${unique.name ?? '(unnamed-userId-constraint)'}`)
+			actions.push(`drop unique constraint ${unique.name ?? `(${columns.join('+')}-constraint)`}`)
 			changed = true
 		}
 
@@ -174,8 +201,8 @@ export class LarkConversationBindingSchemaService {
 			return false
 		}
 
-		const actualColumns = [...actual].sort()
-		const expectedColumns = [...expected].sort()
-		return actualColumns.every((column, index) => column === expectedColumns[index])
+		const actualSet = [...actual].sort()
+		const expectedSet = [...expected].sort()
+		return actualSet.every((column, index) => column === expectedSet[index])
 	}
 }
