@@ -18,6 +18,14 @@ export const LarkAuthMode = {
   BOT: 'bot'
 } as const
 
+// Lark brand enum (determines API endpoint)
+export const LarkBrand = {
+  LARK: 'lark',
+  FEISHU: 'feishu'
+} as const
+
+export type LarkBrandType = (typeof LarkBrand)[keyof typeof LarkBrand]
+
 export type LarkAuthModeType = (typeof LarkAuthMode)[keyof typeof LarkAuthMode]
 
 const OptionalConfigStringSchema = z.preprocess(
@@ -47,7 +55,8 @@ export const LarkUserAuthConfigSchema = z.object({
 export const LarkBotAuthConfigSchema = z.object({
   authMode: z.literal(LarkAuthMode.BOT),
   appId: RequiredConfigStringSchema,
-  appSecret: RequiredConfigStringSchema
+  appSecret: RequiredConfigStringSchema,
+  brand: z.enum([LarkBrand.LARK, LarkBrand.FEISHU]).optional().default(LarkBrand.LARK)
 })
 
 export const LarkCliMiddlewareConfigSchema = z.discriminatedUnion('authMode', [
@@ -164,6 +173,23 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
         revealable: true,
         maskSymbol: '*',
         persist: true,
+        span: 2
+      }
+    },
+    brand: {
+      type: 'string',
+      enum: [LarkBrand.LARK, LarkBrand.FEISHU],
+      title: {
+        en_US: 'Brand',
+        zh_Hans: '品牌'
+      },
+      description: {
+        en_US: 'Lark (international) or Feishu (China). Determines API endpoint. Only used in bot mode.',
+        zh_Hans: 'Lark（国际版）或飞书（中国版）。决定 API 端点，仅在应用模式下使用。'
+      },
+      default: LarkBrand.LARK,
+      'x-ui': {
+        component: 'select',
         span: 2
       }
     }

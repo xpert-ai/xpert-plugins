@@ -473,18 +473,42 @@ export class LarkBootstrapService {
     // Ensure credentials are synced first
     await this.syncBotCredentials(backend, config)
 
-    // Run lark-cli auth login with app credentials
+    // Bot mode does NOT use `auth login`. Instead, write lark-cli config.json
+    // so the CLI can resolve app credentials automatically via --as bot.
+    const configData = JSON.stringify({
+      apps: [{
+        appId: config.appId,
+        appSecret: { source: 'file', id: this.getAppSecretPath() },
+        brand: config.brand ?? 'lark',
+        defaultAs: 'bot',
+        users: []
+      }]
+    })
+
     const result = await backend.execute(
-      `lark-cli auth login --app-id --app-secret 2>&1`
+      `mkdir -p ~/.lark-cli && echo ${shellQuote(configData)} > ~/.lark-cli/config.json && chmod 600 ~/.lark-cli/config.json`
     )
 
-    if (result?.exitCode === 0) {
-      return { success: true, message: 'Bot authentication successful.' }
+    if (result?.exitCode !== 0) {
+      return { 
+        success: false, 
+        message: `Failed to write bot config: ${result?.output || 'Unknown error'}` 
+      }
     }
 
-    return { 
-      success: false, 
-      message: `Bot authentication failed: ${result?.output || 'Unknown error'}` 
+    // Verify bot credentials by making a real API call via lark-cli
+    const verifyResult = await backend.execute(
+      `lark-cli auth status --as bot --json 2>&1`
+    )
+
+    if (verifyResult?.exitCode === 0) {
+      return { success: true, message: 'Bot configuration written and verified successfully.' }
+    }
+
+    // Config was written but credentials are invalid
+    return {
+      success: false,
+      message: `Bot credentials verification failed: ${verifyResult?.output || 'Invalid appId or appSecret. Please check your Lark app configuration.'}`
     }
   }
 
@@ -635,45 +659,26 @@ export class LarkBootstrapService {
       }
     }
 
-    // For bot mode, sync credentials and check status
+    // For bot mode, sync credentials and write config
     if (config.authMode === LarkAuthMode.BOT) {
       try {
-        await this.syncBotCredentials(backend, config)
+        // Bot mode does NOT use `auth login`. It only needs:
+        // 1. Credential files synced to the sandbox
+        // 2. lark-cli config.json written with appId + appSecret file reference
+        const loginResult = await this.performBotLogin(backend, config)
         
-        // Check if bot credentials are valid by running auth status
-        const authStatus = await this.checkAuthStatus(backend)
-        
-        // If not logged in as bot, try to login
-        if (!authStatus.loggedIn || authStatus.identityType !== 'bot') {
-          const loginResult = await this.performBotLogin(backend, config)
-          
-          if (loginResult.success) {
-            const newStatus = await this.checkAuthStatus(backend)
-            return {
-              configExists,
-              configValid,
-              authMode: LarkAuthMode.BOT,
-              identityType: newStatus.identityType ?? 'bot',
-              isLoggedIn: true,
-              tokenValid: newStatus.tokenValid ?? true,
-              tokenExpiresAt: newStatus.expiresAt ?? null,
-              authorizationUrl: null,
-              deviceCode: null,
-              message: 'Bot authentication successful.'
-            }
-          }
-          
+        if (loginResult.success) {
           return {
             configExists,
             configValid,
             authMode: LarkAuthMode.BOT,
-            identityType: 'none',
-            isLoggedIn: false,
-            tokenValid: false,
+            identityType: 'bot',
+            isLoggedIn: true,
+            tokenValid: true,
             tokenExpiresAt: null,
             authorizationUrl: null,
             deviceCode: null,
-            message: loginResult.message
+            message: 'Bot configuration ready. Use --as bot with lark-cli commands.'
           }
         }
         
@@ -681,13 +686,13 @@ export class LarkBootstrapService {
           configExists,
           configValid,
           authMode: LarkAuthMode.BOT,
-          identityType: authStatus.identityType ?? 'bot',
-          isLoggedIn: authStatus.loggedIn ?? true,
-          tokenValid: authStatus.tokenValid ?? true,
-          tokenExpiresAt: authStatus.expiresAt ?? null,
+          identityType: 'none',
+          isLoggedIn: false,
+          tokenValid: false,
+          tokenExpiresAt: null,
           authorizationUrl: null,
           deviceCode: null,
-          message: 'Bot authentication active.'
+          message: loginResult.message
         }
       } catch (error) {
         return {
@@ -700,7 +705,7 @@ export class LarkBootstrapService {
           tokenExpiresAt: null,
           authorizationUrl: null,
           deviceCode: null,
-          message: `Bot auth check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          message: `Bot config setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         }
       }
     }

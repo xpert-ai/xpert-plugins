@@ -1,5 +1,5 @@
+import { RunnableConfig } from '@langchain/core/runnables'
 import { SystemMessage } from '@langchain/core/messages'
-import { ToolMessage } from '@langchain/core/messages/tool'
 import { tool } from '@langchain/core/tools'
 import { TAgentMiddlewareMeta } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
@@ -17,12 +17,11 @@ import { z } from 'zod'
 import { LarkBootstrapService } from './lark-bootstrap.service.js'
 import {
   LARK_CLI_SKILL_MIDDLEWARE_NAME,
-  LarkAuthEnsureResponseSchema,
   LarkAuthMode,
   LarkCliConfig,
-  LarkCliMiddlewareConfigFormSchema,
-  LarkWaitUserResponseSchema
+  LarkCliMiddlewareConfigFormSchema
 } from './lark-cli.types.js'
+import type { TAgentRunnableConfigurable } from '@metad/contracts'
 import { LarkIcon } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
@@ -52,29 +51,14 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
   createMiddleware(options: Partial<LarkCliConfig>, _context: IAgentMiddlewareContext): AgentMiddleware {
     const config = this.larkBootstrapService.resolveConfig(options)
 
+    const bootstrapService = this.larkBootstrapService
+
     // Tool: lark-cli-auth-ensure
     const authEnsureTool = tool(
-      async () => {
-        // Get sandbox backend from the current execution context
-        // Note: We need to access the backend through the runtime context
-        // For now, we'll return a response that indicates the tool needs to be called
-        // with the sandbox backend available through wrapToolCall
-        
-        return JSON.stringify({
-          configExists: true,
-          configValid: config.authMode === LarkAuthMode.USER || 
-            (config.authMode === LarkAuthMode.BOT && !!config.appId && !!config.appSecret),
-          authMode: config.authMode,
-          identityType: 'none',
-          isLoggedIn: false,
-          tokenValid: false,
-          tokenExpiresAt: null,
-          authorizationUrl: null,
-          deviceCode: null,
-          message: 'Use sandbox_shell to run "lark-cli auth status" to check authentication. ' +
-            'For user mode, run "lark-cli auth login --recommend --no-wait" to get authorization URL. ' +
-            'For bot mode, credentials are synced automatically.'
-        })
+      async (_input: Record<string, never>, runConfig?: RunnableConfig) => {
+        const backend = getSandboxBackendFromConfig(runConfig)
+        const response = await bootstrapService.buildAuthEnsureResponse(backend, config)
+        return JSON.stringify(response)
       },
       {
         name: 'lark-cli-auth-ensure',
@@ -90,15 +74,18 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
 
     // Tool: lark-cli-wait-user
     const waitUserTool = tool(
-      async ({ deviceCode, maxWaitSeconds }) => {
-        return JSON.stringify({
-          success: false,
-          identityType: 'none',
-          waitedSeconds: 0,
-          message: `Use sandbox_shell to poll for user login completion. ` +
-            `Run: lark-cli auth login --device-code "${deviceCode}" --format json ` +
-            `Repeat every 3 seconds for up to ${maxWaitSeconds} seconds until login succeeds or times out.`
-        })
+      async ({ deviceCode, maxWaitSeconds }: { deviceCode: string; maxWaitSeconds: number }, runConfig?: RunnableConfig) => {
+        const backend = getSandboxBackendFromConfig(runConfig)
+        if (!backend) {
+          return JSON.stringify({
+            success: false,
+            identityType: 'none',
+            waitedSeconds: 0,
+            message: 'Sandbox backend not available.'
+          })
+        }
+        const response = await bootstrapService.waitForUserLogin(backend, deviceCode, maxWaitSeconds)
+        return JSON.stringify(response)
       },
       {
         name: 'lark-cli-wait-user',
@@ -144,63 +131,6 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
         })
       },
       wrapToolCall: async (request: ToolCallRequest<AgentBuiltInState>, handler) => {
-        // Handle lark-cli-auth-ensure tool specially
-        if (request.tool?.name === 'lark-cli-auth-ensure') {
-          const backend = getSandboxBackend(request.runtime)
-          if (backend) {
-            const response = await this.larkBootstrapService.buildAuthEnsureResponse(backend, config)
-            return new ToolMessage({
-              content: JSON.stringify(response),
-              tool_call_id: request.toolCall?.id ?? ''
-            })
-          }
-          // Fallback if backend not available
-          return new ToolMessage({
-            content: JSON.stringify({
-              configExists: true,
-              configValid: config.authMode === LarkAuthMode.USER || 
-                (config.authMode === LarkAuthMode.BOT && !!config.appId && !!config.appSecret),
-              authMode: config.authMode,
-              identityType: 'none',
-              isLoggedIn: false,
-              tokenValid: false,
-              tokenExpiresAt: null,
-              authorizationUrl: null,
-              deviceCode: null,
-              message: 'Sandbox backend not available.'
-            }),
-            tool_call_id: request.toolCall?.id ?? ''
-          })
-        }
-
-        // Handle lark-cli-wait-user tool specially
-        if (request.tool?.name === 'lark-cli-wait-user') {
-          const backend = getSandboxBackend(request.runtime)
-          const args = request.toolCall?.args as { deviceCode?: string; maxWaitSeconds?: number } | undefined
-          
-          if (backend && args?.deviceCode) {
-            const response = await this.larkBootstrapService.waitForUserLogin(
-              backend,
-              args.deviceCode,
-              args.maxWaitSeconds ?? 60
-            )
-            return new ToolMessage({
-              content: JSON.stringify(response),
-              tool_call_id: request.toolCall?.id ?? ''
-            })
-          }
-          // Fallback if backend or deviceCode not available
-          return new ToolMessage({
-            content: JSON.stringify({
-              success: false,
-              identityType: 'none',
-              waitedSeconds: 0,
-              message: 'Sandbox backend not available or deviceCode missing.'
-            }),
-            tool_call_id: request.toolCall?.id ?? ''
-          })
-        }
-
         if (!isSandboxShellTool(request.tool)) {
           return handler(request)
         }
@@ -226,6 +156,14 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
 
 function getSandboxBackend(runtime: Runtime | undefined) {
   const backend = runtime?.configurable?.sandbox?.backend
+  if (backend && typeof (backend as BaseSandbox).execute === 'function') {
+    return backend as BaseSandbox
+  }
+  return null
+}
+
+function getSandboxBackendFromConfig(runConfig?: RunnableConfig) {
+  const backend = (runConfig?.configurable as TAgentRunnableConfigurable)?.sandbox?.backend
   if (backend && typeof (backend as BaseSandbox).execute === 'function') {
     return backend as BaseSandbox
   }
