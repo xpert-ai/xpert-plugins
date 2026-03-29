@@ -29,20 +29,58 @@ describe('LarkBootstrapService', () => {
       expect(config).toEqual({ authMode: LarkAuthMode.USER })
     })
 
-    it('accepts user mode config', () => {
-      const config = service.resolveConfig({ authMode: LarkAuthMode.USER })
-      expect(config.authMode).toBe(LarkAuthMode.USER)
-    })
+    it('merges plugin config with middleware config', () => {
+      const serviceWithResolver = new LarkBootstrapService({
+        resolve: jest.fn().mockReturnValue({
+          proxy: 'http://proxy.example.com:7890',
+          npmRegistryUrl: 'https://registry.npmmirror.com'
+        })
+      } as any)
 
-    it('accepts bot mode config with credentials', () => {
-      const config = service.resolveConfig({
+      const config = serviceWithResolver.resolveConfig({
         authMode: LarkAuthMode.BOT,
         appId: 'cli_test_app_id',
         appSecret: 'test_app_secret'
       })
-      expect(config.authMode).toBe(LarkAuthMode.BOT)
-      expect(config.appId).toBe('cli_test_app_id')
-      expect(config.appSecret).toBe('test_app_secret')
+
+      expect(config).toEqual({
+        authMode: LarkAuthMode.BOT,
+        appId: 'cli_test_app_id',
+        appSecret: 'test_app_secret',
+        proxy: 'http://proxy.example.com:7890',
+        npmRegistryUrl: 'https://registry.npmmirror.com'
+      })
+    })
+
+    it('normalizes empty strings for download config fields', () => {
+      const serviceWithResolver = new LarkBootstrapService({
+        resolve: jest.fn().mockReturnValue({
+          proxy: 'http://proxy.example.com:7890',
+          npmRegistryUrl: 'https://registry.npmmirror.com'
+        })
+      } as any)
+
+      const config = serviceWithResolver.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: '',
+        npmRegistryUrl: ''
+      })
+
+      expect(config.authMode).toBe(LarkAuthMode.USER)
+      expect(config.proxy).toBeUndefined()
+      expect(config.npmRegistryUrl).toBeUndefined()
+    })
+
+    it('accepts user mode config with download overrides', () => {
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: 'http://proxy.example.com:7890',
+        npmRegistryUrl: 'https://registry.npmmirror.com'
+      })
+
+      expect(config.authMode).toBe(LarkAuthMode.USER)
+      expect(config.proxy).toBe('http://proxy.example.com:7890')
+      expect(config.npmRegistryUrl).toBe('https://registry.npmmirror.com')
     })
   })
 
@@ -68,10 +106,6 @@ describe('LarkBootstrapService', () => {
   describe('isLarkCliCommand', () => {
     it('detects direct lark-cli execution', () => {
       expect(service.isLarkCliCommand('lark-cli calendar +agenda')).toBe(true)
-    })
-
-    it('detects lark-cli with various prefixes', () => {
-      expect(service.isLarkCliCommand('lark-cli im +messages-send --chat-id "oc_xxx"')).toBe(true)
     })
 
     it('detects lark-cli in compound commands', () => {
@@ -153,7 +187,7 @@ describe('LarkBootstrapService', () => {
       )
     })
 
-    it('skips bootstrap when stamp matches and skills are present', async () => {
+    it('skips bootstrap when stamp matches, binary exists, and skills are present', async () => {
       const backend = {
         execute: jest.fn()
           .mockResolvedValueOnce({
@@ -165,12 +199,13 @@ describe('LarkBootstrapService', () => {
             exitCode: 0
           })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
       }
 
       const result = await service.ensureBootstrap(backend as any)
       expect(result).toEqual({ output: 'already bootstrapped', exitCode: 0, truncated: false })
-      expect(backend.execute).toHaveBeenCalledTimes(3)
+      expect(backend.execute).toHaveBeenCalledTimes(4)
     })
 
     it('installs lark-cli when bootstrap is needed', async () => {
@@ -194,8 +229,13 @@ describe('LarkBootstrapService', () => {
         expect.stringContaining(DEFAULT_LARK_CLI_STAMP_PATH)
       )
     })
-  })
 
+    it('includes proxy in npm install and curl download when configured', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 
   describe('checkAuthStatus', () => {
     it('throws if backend is not available', async () => {
       await expect(service.checkAuthStatus(null as any)).rejects.toThrow(
@@ -327,4 +367,239 @@ describe('LarkBootstrapService', () => {
       expect(response.identityType).toBe('user')
     })
   })
+})          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: 'http://proxy.example.com:7890'
+      })
+
+      await service.ensureBootstrap(backend as any, config)
+
+      const installCommand = findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')
+      const curlCommand = findCommand(backend.execute.mock.calls, 'curl -sSL')
+
+      expect(installCommand).toContain("--proxy 'http://proxy.example.com:7890'")
+      expect(installCommand).toContain("--https-proxy 'http://proxy.example.com:7890'")
+      expect(curlCommand).toContain("--proxy 'http://proxy.example.com:7890'")
+    })
+
+    it('includes npm registry only in npm install when configured', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        npmRegistryUrl: 'https://registry.npmmirror.com'
+      })
+
+      await service.ensureBootstrap(backend as any, config)
+
+      const installCommand = findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')
+      const curlCommand = findCommand(backend.execute.mock.calls, 'curl -sSL')
+
+      expect(installCommand).toContain("--registry 'https://registry.npmmirror.com'")
+      expect(curlCommand).not.toContain('--registry')
+    })
+
+    it('shell-quotes proxy and npm registry when both are configured', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: 'http://user:pass@proxy.example.com:7890',
+        npmRegistryUrl: 'https://registry.npmmirror.com/lark'
+      })
+
+      await service.ensureBootstrap(backend as any, config)
+
+      const installCommand = findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')
+      const curlCommand = findCommand(backend.execute.mock.calls, 'curl -sSL')
+
+      expect(installCommand).toContain("--registry 'https://registry.npmmirror.com/lark'")
+      expect(installCommand).toContain("--proxy 'http://user:pass@proxy.example.com:7890'")
+      expect(installCommand).toContain("--https-proxy 'http://user:pass@proxy.example.com:7890'")
+      expect(curlCommand).toContain("--proxy 'http://user:pass@proxy.example.com:7890'")
+    })
+
+    it('reinstalls when proxy changes', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              proxy: 'http://old-proxy.example.com:7890',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: 'http://new-proxy.example.com:7890'
+      })
+
+      const result = await service.ensureBootstrap(backend as any, config)
+
+      expect(result).toEqual({ output: 'bootstrapped lark cli', exitCode: 0, truncated: false })
+      expect(findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')).toContain(
+        "--proxy 'http://new-proxy.example.com:7890'"
+      )
+    })
+
+    it('reinstalls when npm registry changes', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              npmRegistryUrl: 'https://registry.npmjs.org',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        npmRegistryUrl: 'https://registry.npmmirror.com'
+      })
+
+      const result = await service.ensureBootstrap(backend as any, config)
+
+      expect(result).toEqual({ output: 'bootstrapped lark cli', exitCode: 0, truncated: false })
+      expect(findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')).toContain(
+        "--registry 'https://registry.npmmirror.com'"
+      )
+    })
+
+    it('reinstalls when the binary is missing even if stamp matches', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+
+      const result = await service.ensureBootstrap(backend as any)
+
+      expect(result).toEqual({
+        output: 'refreshed lark cli bootstrap',
+        exitCode: 0,
+        truncated: false
+      })
+      expect(findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')).toContain(
+        'npm install -g @larksuite/cli'
+      )
+    })
+
+    it('reinstalls when skills are missing even if stamp matches', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+
+      const result = await service.ensureBootstrap(backend as any)
+
+      expect(result).toEqual({
+        output: 'refreshed lark cli bootstrap',
+        exitCode: 0,
+        truncated: false
+      })
+      expect(findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')).toContain(
+        'npm install -g @larksuite/cli'
+      )
+    })
+
+    it('writes stamp with proxy and npm registry config', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest.fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+      const config = service.resolveConfig({
+        authMode: LarkAuthMode.USER,
+        proxy: 'http://proxy.example.com:7890',
+        npmRegistryUrl: 'https://registry.npmmirror.com'
+      })
+
+      await service.ensureBootstrap(backend as any, config)
+
+      const stampCommand = findCommand(backend.execute.mock.calls, DEFAULT_LARK_CLI_STAMP_PATH)
+      const echoMatch = stampCommand.match(/echo '(.+)' >/)
+
+      expect(echoMatch).not.toBeNull()
+      const stampData = JSON.parse(echoMatch![1])
+      expect(stampData.proxy).toBe('http://proxy.example.com:7890')
+      expect(stampData.npmRegistryUrl).toBe('https://registry.npmmirror.com')
+      expect(stampData.bootstrapVersion).toBe(LARK_CLI_BOOTSTRAP_SCHEMA_VERSION)
+    })
+  })
 })
+
+function findCommand(calls: Array<[unknown]>, pattern: string) {
+  const match = calls.find(([command]) =>
+    typeof command === 'string' && command.includes(pattern)
+  )
+
+  if (!match) {
+    throw new Error(`Expected command containing "${pattern}" but none was found.`)
+  }
+
+  return match[0] as string
+}

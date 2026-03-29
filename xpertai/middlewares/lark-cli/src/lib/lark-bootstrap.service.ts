@@ -19,6 +19,8 @@ import {
   LarkCliAuthStatusSchema,
   LarkCliConfig,
   LarkCliConfigSchema,
+  LarkCliPluginConfig,
+  LarkCliPluginConfigSchema,
   LarkWaitUserResponse
 } from './lark-cli.types.js'
 import { LarkCliPluginName } from './types.js'
@@ -27,6 +29,8 @@ type LarkBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles' | 'worki
 
 type LarkBootstrapStamp = {
   tool?: string
+  proxy?: string
+  npmRegistryUrl?: string
   bootstrapVersion?: number
   installedAt?: string
 }
@@ -70,11 +74,14 @@ export class LarkBootstrapService {
     const defaults: LarkCliConfig = {
       authMode: LarkAuthMode.USER
     }
+    const pluginDefaults: LarkCliPluginConfig = {}
 
     const pluginConfig =
-      this.pluginConfigResolver?.resolve<LarkCliConfig>(LarkCliPluginName, {
-        defaults
-      }) ?? defaults
+      LarkCliPluginConfigSchema.parse(
+        this.pluginConfigResolver?.resolve<LarkCliPluginConfig>(LarkCliPluginName, {
+          defaults: pluginDefaults
+        }) ?? pluginDefaults
+      )
 
     // Merge config manually since discriminated union doesn't support .partial()
     const mergedConfig = {
@@ -147,39 +154,36 @@ export class LarkBootstrapService {
     )
   }
 
-  async ensureBootstrap(backend: LarkBootstrapBackend | null) {
+  async ensureBootstrap(
+    backend: LarkBootstrapBackend | null,
+    config = this.resolveConfig()
+  ) {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for Lark CLI bootstrap.')
     }
-
-    const stampCheck = await backend.execute(
-      `cat ${shellQuote(this.getStampPath())} 2>/dev/null || echo ''`
-    )
-    const stampContent = stampCheck?.output?.trim() ?? ''
-
-    let stampMatches = false
-    if (stampContent) {
-      try {
-        const stamp = JSON.parse(stampContent) as LarkBootstrapStamp
-        stampMatches = stamp.bootstrapVersion === LARK_CLI_BOOTSTRAP_SCHEMA_VERSION
-      } catch {
-        stampMatches = false
-      }
-    }
+    const stamp = await this.readStamp(backend)
 
     const nodeReady = await this.hasNode(backend)
     if (!nodeReady) {
       throw new Error('Node.js is not available in the sandbox. Lark CLI requires Node.js.')
     }
 
-    const skillsReady = await this.areSkillsReady(backend)
-    if (stampMatches && skillsReady) {
+    const cliReady = await this.commandExists(backend, 'lark-cli')
+    const skillsReady = cliReady ? await this.areSkillsReady(backend) : false
+    const recordedConfigMatches =
+      stamp?.proxy === config.proxy &&
+      stamp?.npmRegistryUrl === config.npmRegistryUrl
+    const stampMatches =
+      recordedConfigMatches &&
+      stamp?.bootstrapVersion === LARK_CLI_BOOTSTRAP_SCHEMA_VERSION
+
+    if (stampMatches && cliReady && skillsReady) {
       return { output: 'already bootstrapped', exitCode: 0, truncated: false }
     }
 
-    await this.installLarkCli(backend)
-    await this.downloadSkills(backend)
-    await this.writeStamp(backend)
+    await this.installLarkCli(backend, config)
+    await this.downloadSkills(backend, config)
+    await this.writeStamp(backend, config)
 
     return {
       output: stampMatches ? 'refreshed lark cli bootstrap' : 'bootstrapped lark cli',
@@ -245,17 +249,17 @@ export class LarkBootstrapService {
     return { output: 'synced lark cli bot credentials', exitCode: 0, truncated: false }
   }
 
-  private async installLarkCli(backend: LarkBootstrapBackend) {
-    const result = await backend.execute('npm install -g @larksuite/cli 2>&1')
+  private async installLarkCli(backend: LarkBootstrapBackend, config: LarkCliConfig) {
+    const result = await backend.execute(this.buildNpmInstallCommand(config))
     if (result?.exitCode !== 0) {
       throw new Error(`Failed to install Lark CLI: ${result?.output || 'Unknown error'}`)
     }
     return result
   }
 
-  private async downloadSkills(backend: LarkBootstrapBackend) {
+  private async downloadSkills(backend: LarkBootstrapBackend, config: LarkCliConfig) {
     const skillsDir = this.getSkillsDir()
-    
+
     // Create skills directory
     await backend.execute(`mkdir -p ${shellQuote(skillsDir)}`)
 
@@ -263,15 +267,20 @@ export class LarkBootstrapService {
     for (const skillName of LARK_SKILLS) {
       const skillUrl = `${LARK_CLI_SKILLS_URL}/${skillName}/SKILL.md`
       const skillPath = `${skillsDir}/${skillName}`
-      
+
       // Create skill directory
       await backend.execute(`mkdir -p ${shellQuote(skillPath)}`)
-      
+
       // Download SKILL.md using curl
       const downloadResult = await backend.execute(
-        `curl -sSL "${skillUrl}" -o ${shellQuote(`${skillPath}/SKILL.md`)} 2>&1 || echo "Warning: Failed to download ${skillName}"`
+        this.buildSkillDownloadCommand(
+          skillUrl,
+          `${skillPath}/SKILL.md`,
+          skillName,
+          config
+        )
       )
-      
+
       // Continue even if some skills fail to download
       if (downloadResult?.exitCode !== 0) {
         console.warn(`Warning: Failed to download skill ${skillName}`)
@@ -282,8 +291,7 @@ export class LarkBootstrapService {
   }
 
   private async hasNode(backend: LarkBootstrapBackend) {
-    const result = await backend.execute('which node 2>/dev/null')
-    return result?.exitCode === 0 && !!result?.output?.trim()
+    return this.commandExists(backend, 'node')
   }
 
   private async areSkillsReady(backend: LarkBootstrapBackend) {
@@ -293,16 +301,70 @@ export class LarkBootstrapService {
     return result?.exitCode === 0
   }
 
-  private async writeStamp(backend: LarkBootstrapBackend) {
+  private async writeStamp(backend: LarkBootstrapBackend, config: LarkCliConfig) {
     const stampPath = this.getStampPath()
     const stampData = JSON.stringify({
       tool: 'lark-cli',
+      proxy: config.proxy,
+      npmRegistryUrl: config.npmRegistryUrl,
       bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
       installedAt: new Date().toISOString()
     })
-    await backend.execute(
+    const result = await backend.execute(
       `mkdir -p ${shellQuote(path.dirname(stampPath))} && echo ${shellQuote(stampData)} > ${shellQuote(stampPath)}`
     )
+    if (result?.exitCode !== 0) {
+      throw new Error(`Failed to write Lark CLI bootstrap stamp: ${result?.output || 'Unknown error'}`)
+    }
+  }
+
+  private async readStamp(backend: LarkBootstrapBackend) {
+    const stampCheck = await backend.execute(
+      `cat ${shellQuote(this.getStampPath())} 2>/dev/null || echo ''`
+    )
+    const stampContent = stampCheck?.output?.trim() ?? ''
+
+    if (!stampContent) {
+      return null
+    }
+
+    try {
+      return JSON.parse(stampContent) as LarkBootstrapStamp
+    } catch {
+      return null
+    }
+  }
+
+  private async commandExists(backend: LarkBootstrapBackend, command: string) {
+    const result = await backend.execute(`which ${command} 2>/dev/null`)
+    return result?.exitCode === 0 && !!result?.output?.trim()
+  }
+
+  private buildNpmInstallCommand(config: LarkCliConfig) {
+    const args = ['npm install -g @larksuite/cli']
+    if (config.npmRegistryUrl) {
+      args.push(`--registry ${shellQuote(config.npmRegistryUrl)}`)
+    }
+    if (config.proxy) {
+      args.push(`--proxy ${shellQuote(config.proxy)}`)
+      args.push(`--https-proxy ${shellQuote(config.proxy)}`)
+    }
+    return `${args.join(' ')} 2>&1`
+  }
+
+  private buildSkillDownloadCommand(
+    skillUrl: string,
+    outputPath: string,
+    skillName: string,
+    config: LarkCliConfig
+  ) {
+    const args = ['curl -sSL']
+    if (config.proxy) {
+      args.push(`--proxy ${shellQuote(config.proxy)}`)
+    }
+    args.push(shellQuote(skillUrl))
+    args.push(`-o ${shellQuote(outputPath)}`)
+    return `${args.join(' ')} 2>&1 || echo "Warning: Failed to download ${skillName}"`
   }
 
   private toUploadPath(backend: LarkBootstrapBackend, targetPath: string) {
