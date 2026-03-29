@@ -397,14 +397,15 @@ export class LarkBootstrapService {
   // ============================================================
 
   /**
-   * Check current authentication status by running `lark-cli auth status --format json`
+   * Check current authentication status by running `lark-cli auth status`
+   * (outputs JSON by default; `--verify` additionally checks token against server)
    */
   async checkAuthStatus(backend: LarkBootstrapBackend): Promise<LarkCliAuthStatus> {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for auth status check.')
     }
 
-    const result = await backend.execute('lark-cli auth status --format json 2>&1 || echo "{}"')
+    const result = await backend.execute('lark-cli auth status 2>&1')
     const output = result?.output?.trim() ?? '{}'
 
     try {
@@ -473,39 +474,42 @@ export class LarkBootstrapService {
     // Ensure credentials are synced first
     await this.syncBotCredentials(backend, config)
 
-    // Bot mode does NOT use `auth login`. Instead, write lark-cli config.json
-    // so the CLI can resolve app credentials automatically via --as bot.
-    const configData = JSON.stringify({
-      apps: [{
-        appId: config.appId,
-        appSecret: { source: 'file', id: this.getAppSecretPath() },
-        brand: config.brand ?? 'lark',
-        defaultAs: 'bot',
-        users: []
-      }]
-    })
-
-    const result = await backend.execute(
-      `mkdir -p ~/.lark-cli && echo ${shellQuote(configData)} > ~/.lark-cli/config.json && chmod 600 ~/.lark-cli/config.json`
+    // Use `config init --app-id --app-secret-stdin --brand` to configure the app,
+    // then `config default-as bot` to set the default identity to bot.
+    const brand = config.brand ?? 'lark'
+    const initResult = await backend.execute(
+      `echo ${shellQuote(config.appSecret)} | lark-cli config init --app-id ${shellQuote(config.appId)} --app-secret-stdin --brand ${shellQuote(brand)} 2>&1`
     )
 
-    if (result?.exitCode !== 0) {
-      return { 
-        success: false, 
-        message: `Failed to write bot config: ${result?.output || 'Unknown error'}` 
+    if (initResult?.exitCode !== 0) {
+      return {
+        success: false,
+        message: `Failed to initialize bot config: ${initResult?.output || 'Unknown error'}`
       }
     }
 
-    // Verify bot credentials by making a real API call via lark-cli
+    // Set default identity to bot
+    const defaultAsResult = await backend.execute(
+      `lark-cli config default-as bot 2>&1`
+    )
+
+    if (defaultAsResult?.exitCode !== 0) {
+      return {
+        success: false,
+        message: `Failed to set default identity to bot: ${defaultAsResult?.output || 'Unknown error'}`
+      }
+    }
+
+    // Verify bot credentials by checking auth status
     const verifyResult = await backend.execute(
-      `lark-cli auth status --as bot --json 2>&1`
+      `lark-cli auth status --verify 2>&1`
     )
 
     if (verifyResult?.exitCode === 0) {
-      return { success: true, message: 'Bot configuration written and verified successfully.' }
+      return { success: true, message: 'Bot configuration initialized and verified successfully.' }
     }
 
-    // Config was written but credentials are invalid
+    // Config was written but credentials may be invalid
     return {
       success: false,
       message: `Bot credentials verification failed: ${verifyResult?.output || 'Invalid appId or appSecret. Please check your Lark app configuration.'}`
@@ -522,7 +526,7 @@ export class LarkBootstrapService {
 
     // Run lark-cli auth login with --no-wait to get URL immediately
     const result = await backend.execute(
-      `lark-cli auth login --recommend --no-wait --format json 2>&1`
+      `lark-cli auth login --recommend --no-wait --json 2>&1`
     )
 
     const output = result?.output?.trim() ?? ''
@@ -572,7 +576,7 @@ export class LarkBootstrapService {
     while (Date.now() - startTime < maxWaitSeconds * 1000) {
       // Poll auth status using device code
       const result = await backend.execute(
-        `lark-cli auth login --device-code ${shellQuote(deviceCode)} --format json 2>&1 || echo '{"status":"pending"}'`
+        `lark-cli auth login --device-code ${shellQuote(deviceCode)} --json 2>&1 || echo '{"status":"pending"}'`
       )
 
       const output = result?.output?.trim() ?? '{"status":"pending"}'
