@@ -1,5 +1,6 @@
 import * as lark from '@larksuiteoapi/node-sdk'
 import axios from 'axios'
+import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
 import type { IIntegration, IPagination, IUser } from '@metad/contracts'
@@ -78,6 +79,7 @@ const MAX_RETRY_MS = 30_000
 const MAX_UNRECOVERABLE_FAILURES = 3
 const MAX_ENDPOINT_400_FAILURES = 3
 const INITIAL_CONNECT_TIMEOUT_MS = 8_000
+const require = createRequire(import.meta.url)
 
 @Injectable()
 export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy {
@@ -297,7 +299,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	private async probeWebSocket(connectUrl: string, checkedAt: number): Promise<TLarkConnectionProbeResult> {
-		const wsModule = (Function('return require')() as (name: string) => any)('ws')
+		const wsModule = require('ws')
 		const WebSocketCtor = (wsModule.default ?? wsModule) as any
 		const wsAgent = getLarkWebSocketAgent(connectUrl.startsWith('wss:') ? 'wss:' : 'ws:')
 
