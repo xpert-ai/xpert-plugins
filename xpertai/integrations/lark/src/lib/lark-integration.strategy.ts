@@ -281,7 +281,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
             ? [
                 'Long connection probe succeeded. The host does not provide a generic onCreate hook, so a new integration may need a plugin restart before it connects automatically.'
               ]
-            : [Long connection probe failed: ]
+            : [`Long connection probe failed: ${probe.lastError ?? 'Unknown error'}`]
         }
       }
 
