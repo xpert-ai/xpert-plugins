@@ -134,6 +134,12 @@
     },
     {
       "path": "./middlewares/lark-cli"
+    },
+    {
+      "path": "./models/siliconflow"
+    },
+    {
+      "path": "./models/hunyuan"
     }
   ]
 }
