@@ -1031,6 +1031,9 @@ export class LarkConversationService implements OnModuleDestroy {
 				where: {
 					conversationUserKey: normalizedConversationUserKey,
 					xpertId: normalizedXpertId
+				},
+				order: {
+					updatedAt: 'DESC'
 				}
 			})) ?? null
 		)

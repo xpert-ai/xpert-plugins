@@ -8,9 +8,7 @@ import {
 } from 'typeorm'
 
 @Entity(LarkConversationBindingEntity.tableName)
-@Index('plugin_lark_conversation_binding_user_key_xpert_uq', ['conversationUserKey', 'xpertId'], {
-	unique: true
-})
+@Index('plugin_lark_conversation_binding_user_key_xpert_idx', ['conversationUserKey', 'xpertId'])
 @Index('plugin_lark_conversation_binding_scope_key_xpert_uq', ['scopeKey', 'xpertId'], {
 	unique: true
 })
