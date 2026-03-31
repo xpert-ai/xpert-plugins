@@ -477,8 +477,8 @@ importers:
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.8.1
-        version: 3.8.3(1c71fb6577ea7c83c275767fc5cae2fc)
+        specifier: ^3.8.4
+        version: 3.8.4(1c71fb6577ea7c83c275767fc5cae2fc)
       axios:
         specifier: 1.12.2
         version: 1.12.2
