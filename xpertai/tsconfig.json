@@ -146,6 +146,12 @@
     },
     {
       "path": "./middlewares/view-image"
+    },
+    {
+      "path": "./models/siliconflow"
+    },
+    {
+      "path": "./models/hunyuan"
     }
   ]
 }

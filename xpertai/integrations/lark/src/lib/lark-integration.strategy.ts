@@ -9,6 +9,18 @@ import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { describeLarkProxy, getLarkAxiosRequestConfig } from './lark-network.js'
 import { RolesEnum } from './contracts-compat.js'
 
+type LarkIntegrationTestResult = {
+  webhookUrl?: string
+  mode?: string
+  warnings?: string[]
+  probe?: {
+    connected?: boolean
+    state?: string
+    lastError?: string | null
+    checkedAt?: number | null
+  }
+}
+
 /**
  * Lark Integration Strategy
  *
@@ -196,7 +208,10 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
    * @param config - Lark configuration options
    * @throws Error if configuration is invalid or connection fails
    */
-  async validateConfig(config: TIntegrationLarkOptions, integration: IIntegration<TIntegrationLarkOptions>) {
+  async validateConfig(
+    config: TIntegrationLarkOptions,
+    integration: IIntegration<TIntegrationLarkOptions>
+  ): Promise<LarkIntegrationTestResult> {
     // Validate required fields
     if (!config?.appId) {
       throw new Error('App ID is required')
@@ -251,26 +266,27 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       }
 
       const connectionMode = this.capabilityService.resolveConnectionMode(config)
-      const capabilities = this.capabilityService.getCapabilities(config)
       const apiBaseUrl = process.env.API_BASE_URL
       if (connectionMode === 'long_connection') {
         const probe = await this.longConnectionService.probeConfig(config)
         return {
-          webhookUrl: '',
           mode: connectionMode,
-          capabilities,
-          probe,
-          warnings: [
-            ...(probe.connected
-              ? ['长连接试连成功，可以继续保存并进入运行时状态管理。']
-              : [`长连接试连失败：${probe.lastError || 'Unknown error'}`])
-          ]
+          probe: {
+            connected: probe.connected,
+            state: probe.state,
+            lastError: probe.lastError ?? null,
+            checkedAt: probe.checkedAt ?? null
+          },
+          warnings: probe.connected
+            ? [
+                'Long connection probe succeeded. The host does not provide a generic onCreate hook, so a new integration may need a plugin restart before it connects automatically.'
+              ]
+            : [`Long connection probe failed: ${probe.lastError ?? 'Unknown error'}`]
         }
       }
 
       return {
         mode: connectionMode,
-        capabilities,
         webhookUrl: `${apiBaseUrl}/api/lark/webhook/${integration.id || '<save_and_get_your_integration_id>'}`
       }
     } catch (error: any) {

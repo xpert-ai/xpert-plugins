@@ -63,7 +63,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/turndown": "^5.0.6",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.8.3",
+    "@xpert-ai/plugin-sdk": "^3.8.4",
     "ajv": "^8.18.0",
     "axios": "^1.12.2",
     "bull": "^4.12.6",

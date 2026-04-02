@@ -1,8 +1,9 @@
 import * as lark from '@larksuiteoapi/node-sdk'
 import axios from 'axios'
+import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
-import type { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IPagination, IUser } from '@metad/contracts'
 import {
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
@@ -14,6 +15,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { LarkConversationService } from './conversation.service.js'
+import { LarkConversationBindingSchemaService } from './lark-conversation-binding-schema.service.js'
 import { LarkInboundIdentityService } from './lark-inbound-identity.service.js'
 import {
 	classifyLongConnectionError,
@@ -77,6 +79,7 @@ const MAX_RETRY_MS = 30_000
 const MAX_UNRECOVERABLE_FAILURES = 3
 const MAX_ENDPOINT_400_FAILURES = 3
 const INITIAL_CONNECT_TIMEOUT_MS = 8_000
+const require = createRequire(import.meta.url)
 
 @Injectable()
 export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy {
@@ -89,6 +92,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	constructor(
 		private readonly larkChannel: LarkChannelStrategy,
 		private readonly conversation: LarkConversationService,
+		private readonly conversationBindingSchemaService: LarkConversationBindingSchemaService,
 		private readonly inboundIdentityService: LarkInboundIdentityService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext
@@ -113,6 +117,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	async onModuleInit(): Promise<void> {
+		await this.conversationBindingSchemaService.ensureSchema()
 		const integrationIds = await this.loadBootstrapIntegrationIds()
 		await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId)))
 	}
@@ -294,7 +299,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	private async probeWebSocket(connectUrl: string, checkedAt: number): Promise<TLarkConnectionProbeResult> {
-		const wsModule = (Function('return require')() as (name: string) => any)('ws')
+		const wsModule = require('ws')
 		const WebSocketCtor = (wsModule.default ?? wsModule) as any
 		const wsAgent = getLarkWebSocketAgent(connectUrl.startsWith('wss:') ? 'wss:' : 'ws:')
 
@@ -869,12 +874,14 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 	private async loadBootstrapIntegrationIds(): Promise<string[]> {
 		const permissionService = this.integrationPermissionService as IntegrationPermissionService & {
-			findAll?: (options?: Record<string, any>) => Promise<{ items: Array<IIntegration<TIntegrationLarkOptions>> }>
+			findAll?: <TIntegration = IIntegration>(
+				options?: Record<string, any>
+			) => Promise<IPagination<TIntegration>>
 		}
 
 		if (typeof permissionService.findAll === 'function') {
 			try {
-				const result = await permissionService.findAll({
+				const result = await permissionService.findAll<IIntegration<TIntegrationLarkOptions>>({
 					where: {
 						provider: 'lark'
 					},

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.0.20",
+  "version": "0.0.23",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -40,7 +40,7 @@
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.8.1",
+    "@xpert-ai/plugin-sdk": "^3.8.4",
     "i18next": "25.6.0",
     "@metad/contracts": "^3.8.1",
     "@nestjs/common": "^11.1.6",
