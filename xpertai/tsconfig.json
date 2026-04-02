@@ -82,6 +82,9 @@
       "path": "./middlewares/tool-call-limit"
     },
     {
+      "path": "./middlewares/loop-guard"
+    },
+    {
       "path": "./middlewares/model-fallback"
     },
     {
@@ -134,6 +137,15 @@
     },
     {
       "path": "./middlewares/lark-cli"
+    },
+    {
+      "path": "./middlewares/clarification"
+    },
+    {
+      "path": "./middlewares/dangling-tool-call"
+    },
+    {
+      "path": "./middlewares/view-image"
     },
     {
       "path": "./models/siliconflow"

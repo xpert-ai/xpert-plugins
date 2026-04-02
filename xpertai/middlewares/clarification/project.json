@@ -1,0 +1,27 @@
+{
+  "name": "@xpert-ai/plugin-clarification",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/clarification/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/clarification/dist",
+        "main": "middlewares/clarification/src/index.ts",
+        "rootDir": "middlewares/clarification/src",
+        "tsConfig": "middlewares/clarification/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/clarification/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

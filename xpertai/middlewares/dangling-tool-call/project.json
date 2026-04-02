@@ -1,0 +1,27 @@
+{
+  "name": "@xpert-ai/plugin-dangling-tool-call",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/dangling-tool-call/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/dangling-tool-call/dist",
+        "main": "middlewares/dangling-tool-call/src/index.ts",
+        "rootDir": "middlewares/dangling-tool-call/src",
+        "tsConfig": "middlewares/dangling-tool-call/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/dangling-tool-call/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}
