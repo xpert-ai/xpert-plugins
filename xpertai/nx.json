@@ -91,6 +91,10 @@
       "@xpert-ai/plugin-tongyi",
       "@xpert-ai/plugin-markitdown",
       "@xpert-ai/plugin-zip-unzip-cli",
+      "@xpert-ai/plugin-dangling-tool-call",
+      "@xpert-ai/plugin-clarification",
+      "@xpert-ai/plugin-loop-guard",
+      "@xpert-ai/plugin-view-image",
       "@xpert-ai/plugin-lark-cli"
     ],
     "version": {

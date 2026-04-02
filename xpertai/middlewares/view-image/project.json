@@ -1,0 +1,27 @@
+{
+  "name": "@xpert-ai/plugin-view-image",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/view-image/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/view-image/dist",
+        "main": "middlewares/view-image/src/index.ts",
+        "rootDir": "middlewares/view-image/src",
+        "tsConfig": "middlewares/view-image/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.md",
+            "input": "middlewares/view-image/src",
+            "output": "./"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}
