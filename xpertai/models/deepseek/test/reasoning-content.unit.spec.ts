@@ -131,4 +131,54 @@ describe('DeepSeek reasoning_content regressions', () => {
       'thought-continued'
     );
   });
+
+  it('emits terminal message content as a stream chunk when the last delta has no text', async () => {
+    const model = createModel(true);
+
+    model.completionWithRetry = async () =>
+      (async function* () {
+        yield {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: 'assistant',
+                reasoning_content: 'thought-',
+              },
+            },
+          ],
+        };
+        yield {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                reasoning_content: 'continued',
+              },
+            },
+          ],
+        };
+        yield {
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              message: {
+                role: 'assistant',
+                content: 'final answer',
+              },
+              finish_reason: 'stop',
+            },
+          ],
+          model: 'deepseek-reasoner',
+        };
+      })();
+
+    const chunks: string[] = [];
+    for await (const chunk of model._streamResponseChunks([new HumanMessage('Hi')])) {
+      chunks.push(chunk.text);
+    }
+
+    expect(chunks).toContain('final answer');
+  });
 });
