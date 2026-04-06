@@ -450,9 +450,9 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
     this.pluginContext = pluginContext
   }
 
-  private _analyticsPermissionService: AnalyticsPermissionService | null | undefined
+  private _analyticsPermissionService: AnalyticsPermissionService<DSCoreService> | null | undefined
 
-  private get analyticsPermissionService(): AnalyticsPermissionService | null {
+  private get analyticsPermissionService(): AnalyticsPermissionService<DSCoreService> | null {
     if (this._analyticsPermissionService !== undefined) {
       return this._analyticsPermissionService
     }

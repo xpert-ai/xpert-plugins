@@ -119,6 +119,29 @@ type LarkConversationBindingLookup = {
 	updatedById?: string
 }
 
+export type LarkConversationBindingListItem = {
+	id: string
+	chatType: string | null
+	chatId: string | null
+	senderOpenId: string | null
+	xpertId: string
+	conversationId: string
+	updatedAt: Date | null
+}
+
+export type LarkConversationBindingListQuery = {
+	page?: number
+	pageSize?: number
+	search?: string | null
+	sortBy?: string | null
+	sortDirection?: 'asc' | 'desc' | null
+}
+
+export type LarkConversationBindingListResult = {
+	items: LarkConversationBindingListItem[]
+	total: number
+}
+
 type LarkConversationBindingMeta = {
 	userId?: string | null
 	integrationId?: string | null
@@ -665,6 +688,127 @@ export class LarkConversationService implements OnModuleDestroy {
 
 		const legacyBinding = bindings.find((binding) => !normalizeConversationUserKey(binding.integrationId))
 		return this.normalizeBinding(legacyBinding)
+	}
+
+	async listBindingsByIntegration(
+		integrationId: string,
+		query: LarkConversationBindingListQuery = {}
+	): Promise<LarkConversationBindingListResult> {
+		const normalizedIntegrationId = normalizeConversationUserKey(integrationId)
+		if (!normalizedIntegrationId) {
+			return {
+				items: [],
+				total: 0
+			}
+		}
+
+		const bindings = await this.conversationBindingRepository.find({
+			where: {
+				integrationId: normalizedIntegrationId
+			},
+			order: {
+				updatedAt: 'DESC'
+			}
+		})
+
+		const normalizedSearch = normalizeListSearch(query.search)
+		const filtered = bindings
+			.map((binding) => this.toBindingListItem(binding))
+			.filter((binding) => {
+				if (!normalizedSearch) {
+					return true
+				}
+
+				return [
+					binding.chatId,
+					binding.senderOpenId,
+					binding.xpertId,
+					binding.conversationId
+				].some((value) => normalizeListSearch(value)?.includes(normalizedSearch))
+			})
+
+		const sorted = this.sortBindingListItems(filtered, query.sortBy, query.sortDirection)
+		const pageSize = normalizeListPositiveInt(query.pageSize) ?? 10
+		const page = normalizeListPositiveInt(query.page) ?? 1
+		const start = Math.max(0, (page - 1) * pageSize)
+
+		return {
+			items: sorted.slice(start, start + pageSize),
+			total: sorted.length
+		}
+	}
+
+	private toBindingListItem(binding: LarkConversationBindingEntity): LarkConversationBindingListItem {
+		const normalizedChatType = normalizeConversationUserKey(binding.chatType)
+		const normalizedChatId = normalizeConversationUserKey(binding.chatId)
+		const normalizedSenderOpenId = normalizeConversationUserKey(binding.senderOpenId)
+
+		return {
+			id:
+				normalizeConversationUserKey(binding.id) ??
+				[
+					normalizedChatType ?? 'unknown',
+					normalizedChatId ?? normalizedSenderOpenId ?? 'unknown',
+					binding.xpertId,
+					binding.conversationId
+				].join(':'),
+			chatType: normalizedChatType,
+			chatId: normalizedChatId,
+			senderOpenId: normalizedSenderOpenId,
+			xpertId: binding.xpertId,
+			conversationId: binding.conversationId,
+			updatedAt: binding.updatedAt instanceof Date ? binding.updatedAt : null
+		}
+	}
+
+	private sortBindingListItems(
+		items: LarkConversationBindingListItem[],
+		sortBy?: string | null,
+		sortDirection?: 'asc' | 'desc' | null
+	): LarkConversationBindingListItem[] {
+		const key =
+			sortBy === 'chatType' ||
+			sortBy === 'chatId' ||
+			sortBy === 'senderOpenId' ||
+			sortBy === 'xpertId' ||
+			sortBy === 'conversationId' ||
+			sortBy === 'updatedAt'
+				? sortBy
+				: 'updatedAt'
+		const direction = sortDirection === 'asc' ? 'asc' : 'desc'
+
+		return [...items].sort((left, right) => {
+			const factor = direction === 'asc' ? 1 : -1
+
+			if (key === 'updatedAt') {
+				const leftTime = left.updatedAt?.getTime() ?? 0
+				const rightTime = right.updatedAt?.getTime() ?? 0
+				return factor * (leftTime - rightTime)
+			}
+
+			const leftValue =
+				key === 'chatType'
+					? left.chatType ?? ''
+					: key === 'chatId'
+						? left.chatId ?? ''
+						: key === 'senderOpenId'
+							? left.senderOpenId ?? ''
+							: key === 'xpertId'
+								? left.xpertId
+								: left.conversationId
+			const rightValue =
+				key === 'chatType'
+					? right.chatType ?? ''
+					: key === 'chatId'
+						? right.chatId ?? ''
+						: key === 'senderOpenId'
+							? right.senderOpenId ?? ''
+							: key === 'xpertId'
+								? right.xpertId
+								: right.conversationId
+
+			return factor * leftValue.localeCompare(rightValue)
+		})
 	}
 
 	private normalizeBinding(binding?: LarkConversationBindingEntity | null): LarkConversationBindingLookup | null {
@@ -1792,4 +1936,21 @@ export class LarkConversationService implements OnModuleDestroy {
 			await queue.close()
 		}
 	}
+}
+
+function normalizeListSearch(value: unknown): string | null {
+	if (typeof value !== 'string') {
+		return null
+	}
+
+	const normalized = value.trim().toLocaleLowerCase()
+	return normalized.length ? normalized : null
+}
+
+function normalizeListPositiveInt(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+		return value
+	}
+
+	return null
 }

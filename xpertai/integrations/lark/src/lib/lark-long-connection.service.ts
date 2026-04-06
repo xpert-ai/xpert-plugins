@@ -23,7 +23,6 @@ import {
 	getLarkLongConnectionStatusKey
 } from './lark-long-connection.utils.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
-import { describeLarkProxy, getLarkAxiosRequestConfig, getLarkWebSocketAgent } from './lark-network.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
 	TIntegrationLarkOptions,
@@ -214,11 +213,6 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	async probeConfig(config: TIntegrationLarkOptions): Promise<TLarkConnectionProbeResult> {
 		const checkedAt = Date.now()
 		const baseUrl = config?.isLark ? 'https://open.larksuite.com' : 'https://open.feishu.cn'
-		const axiosConfig = getLarkAxiosRequestConfig('https:')
-		const proxyInfo = describeLarkProxy('https:')
-		if (proxyInfo.note) {
-			this.logger.log(`[lark-long] ${proxyInfo.note}`)
-		}
 
 		try {
 			const endpointResponse = await axios.post(
@@ -228,7 +222,6 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 					AppSecret: config.appSecret
 				},
 				{
-					...axiosConfig,
 					headers: {
 						locale: 'zh'
 					},
@@ -301,7 +294,6 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	private async probeWebSocket(connectUrl: string, checkedAt: number): Promise<TLarkConnectionProbeResult> {
 		const wsModule = require('ws')
 		const WebSocketCtor = (wsModule.default ?? wsModule) as any
-		const wsAgent = getLarkWebSocketAgent(connectUrl.startsWith('wss:') ? 'wss:' : 'ws:')
 
 		return await new Promise<TLarkConnectionProbeResult>((resolve) => {
 			let settled = false
@@ -346,7 +338,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			}, 10_000)
 
 			try {
-				ws = new WebSocketCtor(connectUrl, wsAgent ? { agent: wsAgent } : undefined)
+				ws = new WebSocketCtor(connectUrl)
 			} catch (error) {
 				const classification = classifyLongConnectionError(error)
 				finish({

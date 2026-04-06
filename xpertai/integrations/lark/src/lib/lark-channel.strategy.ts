@@ -27,7 +27,6 @@ import { type Cache } from 'cache-manager'
 import { extractLarkSemanticMessage, unwrapLarkEventPayload } from './lark-message-semantics.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { resolveLarkLongConnectionAppKey } from './lark-long-connection.utils.js'
-import { createLarkHttpInstance, getLarkWebSocketAgent } from './lark-network.js'
 import { RolesEnum } from './contracts-compat.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import { stringifyErrorAsJson, toLarkApiErrorMessage } from './utils.js'
@@ -439,7 +438,6 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			appSecret: config.appSecret,
 			appType: lark.AppType.SelfBuild,
 			domain: config.isLark ? lark.Domain.Lark : lark.Domain.Feishu,
-			httpInstance: createLarkHttpInstance('https:'),
 			loggerLevel: lark.LoggerLevel.debug
 		})
 	}
@@ -452,8 +450,6 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			appId: config.appId,
 			appSecret: config.appSecret,
 			domain: config.isLark ? lark.Domain.Lark : lark.Domain.Feishu,
-			httpInstance: createLarkHttpInstance('https:'),
-			agent: getLarkWebSocketAgent('wss:'),
 			loggerLevel: lark.LoggerLevel.debug,
 			logger: options?.logger,
 			autoReconnect: true
