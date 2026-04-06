@@ -3,11 +3,10 @@ import axios from 'axios'
 import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
-import type { IIntegration, IPagination, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@metad/contracts'
 import {
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
-	RequestContext,
 	runWithRequestContext,
 	TChatEventContext,
 	TChatEventHandlers,
@@ -119,6 +118,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	async onModuleInit(): Promise<void> {
 		await this.conversationBindingSchemaService.ensureSchema()
 		const integrationIds = await this.loadBootstrapIntegrationIds()
+		this.logger.debug(`[lark-long] bootstrapping long connection sessions for integrations: [${integrationIds.join(', ')}]`)
 		await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId)))
 	}
 
@@ -315,14 +315,18 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 				clearTimeout(timer)
 				try {
 					ws?.removeAllListeners?.()
-				} catch {}
+				} catch {
+					//
+				}
 				try {
 					if (ws?.readyState === WebSocketCtor.OPEN) {
 						ws.close()
 					} else {
 						ws?.terminate?.()
 					}
-				} catch {}
+				} catch {
+					//
+				}
 				resolve(result)
 			}
 
@@ -514,7 +518,9 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 		let user: IUser
 		try {
-			user = await this.inboundIdentityService.resolveUserForEvent(integration, rawPayload)
+			user = (
+				await this.inboundIdentityService.resolveInboundIdentityForEvent(integration, rawPayload)
+			).requestUser
 		} catch (error) {
 			this.logger.warn(
 				`[lark-long] skip inbound event integration=${integration.id}: ${toLarkApiErrorMessage(error)}`
@@ -562,7 +568,9 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 		let user: IUser
 		try {
-			user = await this.inboundIdentityService.resolveUserForEvent(integration, rawPayload)
+			user = (
+				await this.inboundIdentityService.resolveInboundIdentityForEvent(integration, rawPayload)
+			).requestUser
 		} catch (error) {
 			this.logger.warn(
 				`[lark-long] skip inbound card action integration=${integration.id}: ${toLarkApiErrorMessage(error)}`
@@ -873,30 +881,25 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	private async loadBootstrapIntegrationIds(): Promise<string[]> {
-		const permissionService = this.integrationPermissionService as IntegrationPermissionService & {
-			findAll?: <TIntegration = IIntegration>(
-				options?: Record<string, any>
-			) => Promise<IPagination<TIntegration>>
-		}
+		const permissionService = this.integrationPermissionService
 
-		if (typeof permissionService.findAll === 'function') {
-			try {
-				const result = await permissionService.findAll<IIntegration<TIntegrationLarkOptions>>({
-					where: {
-						provider: 'lark'
-					},
-					relations: ['tenant']
-				})
-				const items = (result?.items ?? []).filter(
-					(item) => this.larkChannel.resolveConnectionMode(item) === 'long_connection'
-				)
-				for (const item of items) {
-					await this.registerIntegration(item.id)
-				}
-				return items.map((item) => item.id)
-			} catch (error) {
-				this.logger.warn(`[lark-long] load from integration service failed: ${toLarkApiErrorMessage(error)}`)
+		try {
+			const result = await permissionService.findAll<IIntegration<TIntegrationLarkOptions>>({
+				where: {
+					provider: 'lark'
+				},
+				relations: ['tenant']
+			})
+			this.logger.debug(`[lark-long] loaded ${result?.items?.length ?? 0} lark integrations from permission service`)
+			const items = (result?.items ?? []).filter(
+				(item) => this.larkChannel.resolveConnectionMode(item) === 'long_connection'
+			)
+			for (const item of items) {
+				await this.registerIntegration(item.id)
 			}
+			return items.map((item) => item.id)
+		} catch (error) {
+			this.logger.warn(`[lark-long] load from integration service failed: ${toLarkApiErrorMessage(error)}`)
 		}
 
 		return this.loadRegistry()

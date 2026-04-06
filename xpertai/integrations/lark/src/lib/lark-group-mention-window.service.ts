@@ -4,8 +4,17 @@ import { ModuleRef } from '@nestjs/core'
 import Bull, { Queue } from 'bull'
 import { randomUUID } from 'crypto'
 import { type Cache } from 'cache-manager'
-import { ChatLarkContext, LarkGroupWindow, LarkGroupWindowItem, LarkGroupWindowParticipant, TLarkEvent } from './types.js'
+import {
+	ChatLarkContext,
+	LarkGroupWindow,
+	LarkGroupWindowItem,
+	LarkGroupWindowParticipant,
+	LarkMessageReactionRef,
+	LARK_TYPING_REACTION_EMOJI_TYPE,
+	TLarkEvent
+} from './types.js'
 import { buildLarkGroupWindowPrompt } from './lark-agent-prompt.js'
+import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import {
 	DEFAULT_GROUP_MENTION_DEBOUNCE_MS,
 	DEFAULT_GROUP_MENTION_MAX_MESSAGES,
@@ -33,6 +42,7 @@ type LarkGroupMentionWindowState = {
 	baseContext: ChatLarkContext<TLarkEvent>
 	items: LarkGroupWindowItem[]
 	participants: LarkGroupWindowParticipant[]
+	typingReaction?: LarkMessageReactionRef
 }
 
 type LarkGroupMentionWindowFlushQueueJob = {
@@ -91,6 +101,9 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			await this.saveWindow(key, state)
 			return false
 		}
+		if (state.items.length === 0 && !state.typingReaction) {
+			state.typingReaction = await this.createTypingReaction(context)
+		}
 
 		state.items.push(item)
 		state.participants = this.upsertParticipant(state.participants, {
@@ -144,10 +157,12 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			flushAt: Math.min(now + config.debounceMs, now + config.maxWindowMs),
 			status: 'collecting',
 			baseContext: {
-				...context
+				...context,
+				replyToMessageId: context.replyToMessageId ?? this.resolveMessageId(context) ?? undefined
 			},
 			items: [],
-			participants: []
+			participants: [],
+			typingReaction: context.typingReaction
 		}
 	}
 
@@ -162,7 +177,7 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 		return {
 			messageId,
 			senderOpenId,
-			userId: context.userId,
+			userId: context.mappedUserId,
 			senderName: context.senderName,
 			text,
 			createTime: this.resolveMessageCreateTime(context),
@@ -270,13 +285,16 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 		const firstItem = state.items[0]
 		return {
 			...state.baseContext,
-			userId: firstItem?.userId ?? state.baseContext.userId,
+			userId: state.baseContext.userId,
+			mappedUserId: firstItem?.userId ?? state.baseContext.mappedUserId,
 			senderOpenId: firstItem?.senderOpenId ?? state.baseContext.senderOpenId,
 			senderName: firstItem?.senderName ?? state.baseContext.senderName,
 			input: this.buildMergedPrompt(groupWindow),
 			groupWindow,
 			groupWindowId: groupWindow.windowId,
-			scopeKey: groupWindow.scopeKey
+			scopeKey: groupWindow.scopeKey,
+			replyToMessageId: firstItem?.messageId ?? state.baseContext.replyToMessageId,
+			typingReaction: state.typingReaction
 		}
 	}
 
@@ -370,6 +388,37 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			...flushContext,
 			tenantId: flushContext.tenantId ?? flushContext.tenant?.id
 		})
+	}
+
+	private async createTypingReaction(
+		context: ChatLarkContext<TLarkEvent>
+	): Promise<LarkMessageReactionRef | undefined> {
+		const replyToMessageId = context.replyToMessageId ?? this.resolveMessageId(context)
+		if (!context.integrationId || !replyToMessageId) {
+			return undefined
+		}
+
+		const larkChannel = this.moduleRef.get<LarkChannelStrategy>(LarkChannelStrategy, {
+			strict: false
+		})
+		if (!larkChannel) {
+			return undefined
+		}
+
+		try {
+			return await larkChannel.createMessageReaction(
+				context.integrationId,
+				replyToMessageId,
+				LARK_TYPING_REACTION_EMOJI_TYPE
+			)
+		} catch (error) {
+			this.logger.warn(
+				`Failed to create Lark typing reaction for group window message "${replyToMessageId}": ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			)
+			return undefined
+		}
 	}
 
 	private async ensureFlushQueue(): Promise<Queue<LarkGroupMentionWindowFlushQueueJob>> {

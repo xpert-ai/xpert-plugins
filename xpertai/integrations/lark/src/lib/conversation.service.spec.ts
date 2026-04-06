@@ -5,8 +5,27 @@ import {
 	RequestContext
 } from '@xpert-ai/plugin-sdk'
 import { DispatchLarkChatCommand } from './handoff/commands/dispatch-lark-chat.command.js'
-import { ChatLarkContext, LARK_CONFIRM, LARK_END_CONVERSATION, LARK_REJECT } from './types.js'
+import {
+	ChatLarkContext,
+	LARK_CONFIRM,
+	LARK_END_CONVERSATION,
+	LARK_REJECT,
+	LARK_TYPING_REACTION_EMOJI_TYPE
+} from './types.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
+
+const DEFAULT_TRIGGER_CONFIG = {
+	enabled: true,
+	singleChatScope: 'all_users',
+	singleChatUserOpenIds: [],
+	executeAsMappedUser: false,
+	streamingEnabled: true,
+	allowedGroupScope: 'all_chats',
+	allowedGroupChatIds: [],
+	groupUserScope: 'all_users',
+	groupUserOpenIds: [],
+	groupReplyStrategy: 'mention_only'
+} as const
 
 class MemoryCache {
 	private readonly store = new Map<string, unknown>()
@@ -45,6 +64,8 @@ type PersistedConversationBinding = {
 type PersistedTriggerBinding = {
 	integrationId: string
 	xpertId: string
+	config?: Record<string, unknown>
+	ownerOpenId?: string | null
 }
 
 describe('LarkConversationService', () => {
@@ -64,8 +85,11 @@ describe('LarkConversationService', () => {
 	function createFixture(params?: {
 		boundXpertId?: string | null
 		triggerHandled?: boolean
+		triggerMatches?: boolean
 		legacyXpertId?: string | null
 		conversationBindings?: PersistedConversationBinding[]
+		triggerConfig?: Record<string, unknown>
+		triggerOwnerOpenId?: string | null
 	}) {
 		const persistedConversationBindings = [...(params?.conversationBindings ?? [])]
 		let bindingSequence = persistedConversationBindings.length
@@ -86,6 +110,25 @@ describe('LarkConversationService', () => {
 			})
 		}
 		const larkTriggerStrategy = {
+			normalizeConfig: jest.fn().mockImplementation((config?: Record<string, unknown>) => ({
+				...DEFAULT_TRIGGER_CONFIG,
+				integrationId: 'integration-1',
+				...(config ?? {})
+			})),
+			matchesInboundMessage: jest.fn().mockImplementation((options: any) => {
+				if (params?.triggerMatches !== undefined) {
+					return params.triggerMatches
+				}
+				const config = {
+					...DEFAULT_TRIGGER_CONFIG,
+					integrationId: 'integration-1',
+					...(options?.binding?.config ?? options?.config ?? {})
+				}
+				if (config.groupReplyStrategy !== 'all_messages') {
+					return false
+				}
+				return true
+			}),
 			handleInboundMessage: jest
 				.fn()
 				.mockResolvedValue(params?.triggerHandled === undefined ? false : params.triggerHandled)
@@ -95,7 +138,12 @@ describe('LarkConversationService', () => {
 				? null
 				: {
 						integrationId: 'integration-1',
-						xpertId: params.boundXpertId
+						xpertId: params.boundXpertId,
+						config: params?.triggerConfig ?? {
+							integrationId: 'integration-1',
+							...DEFAULT_TRIGGER_CONFIG
+						},
+						ownerOpenId: params?.triggerOwnerOpenId ?? 'ou_owner_1'
 				  }
 		const sortBindings = (
 			items: PersistedConversationBinding[],
@@ -151,6 +199,14 @@ describe('LarkConversationService', () => {
 								order
 							)[0] ?? null
 						}
+						if (where.userId !== undefined && where.integrationId !== undefined) {
+							return sortBindings(
+								persistedConversationBindings.filter(
+									(item) => item.userId === where.userId && item.integrationId === where.integrationId
+								),
+								order
+							)[0] ?? null
+						}
 						if (where.userId !== undefined) {
 							return sortBindings(
 								persistedConversationBindings.filter((item) => item.userId === where.userId),
@@ -178,7 +234,28 @@ describe('LarkConversationService', () => {
 						return null
 					}
 				),
-			upsert: jest
+				find: jest
+					.fn()
+					.mockImplementation(
+						async ({
+							where,
+							order
+						}: {
+							where: Partial<PersistedConversationBinding>
+							order?: {
+								updatedAt?: 'ASC' | 'DESC'
+							}
+						}) => {
+							if (where.userId !== undefined) {
+								return sortBindings(
+									persistedConversationBindings.filter((item) => item.userId === where.userId),
+									order
+								)
+							}
+							return []
+						}
+					),
+				upsert: jest
 				.fn()
 				.mockImplementation(
 					async (
@@ -287,6 +364,12 @@ describe('LarkConversationService', () => {
 		}
 		const cache = new MemoryCache()
 		const larkChannel = {
+			createMessageReaction: jest.fn().mockImplementation(async (_integrationId: string, messageId: string, emojiType: string) => ({
+				messageId,
+				reactionId: `reaction-for-${messageId}`,
+				emojiType
+			})),
+			deleteMessageReaction: jest.fn().mockResolvedValue(undefined),
 			errorMessage: jest.fn().mockResolvedValue(undefined),
 			patchInteractiveMessage: jest.fn().mockResolvedValue(undefined),
 			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } }),
@@ -344,6 +427,152 @@ describe('LarkConversationService', () => {
 			.filter((command) => command instanceof DispatchLarkChatCommand) as DispatchLarkChatCommand[]
 	}
 
+	it('handleMessage routes non-mentioned group messages into trigger queue when all_messages is enabled', async () => {
+		const { service, groupMentionWindowService, larkChannel } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerConfig: {
+				integrationId: 'integration-1',
+				...DEFAULT_TRIGGER_CONFIG,
+				groupReplyStrategy: 'all_messages'
+			}
+		})
+		const add = jest.fn().mockResolvedValue(undefined)
+		jest.spyOn(service, 'getScopeQueue').mockResolvedValue({
+			add
+		} as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: 'creator-user-1',
+			tenantId: 'tenant-1',
+			larkInboundIdentity: {
+				mappedUserId: 'mapped-user-1'
+			}
+		} as any)
+
+		await service.handleMessage(
+			{
+				chatId: 'chat-1',
+				chatType: 'group',
+				messageId: 'message-1',
+				senderId: 'ou_sender_1',
+				senderName: 'Alice',
+				content: 'hello',
+				raw: {},
+				semanticMessage: {
+					rawText: 'hello',
+					displayText: 'hello',
+					agentText: 'hello',
+					mentions: []
+				},
+				isBotMentioned: false
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						preferLanguage: 'en_US'
+					}
+				}
+			} as any
+		)
+
+		expect(add).toHaveBeenCalledWith(
+			expect.objectContaining({
+				userId: 'creator-user-1',
+				mappedUserId: 'mapped-user-1',
+				botMentioned: false,
+				replyToMessageId: 'message-1',
+				typingReaction: {
+					messageId: 'message-1',
+					reactionId: 'reaction-for-message-1',
+					emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
+				}
+			})
+		)
+		expect(larkChannel.createMessageReaction).toHaveBeenCalledWith(
+			'integration-1',
+			'message-1',
+			LARK_TYPING_REACTION_EMOJI_TYPE
+		)
+		expect(groupMentionWindowService.ingest).not.toHaveBeenCalled()
+	})
+
+	it('handleMessage keeps group fallback mention-only when all_messages is not enabled', async () => {
+		const { service, groupMentionWindowService } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerConfig: {
+				integrationId: 'integration-1',
+				...DEFAULT_TRIGGER_CONFIG,
+				groupReplyStrategy: 'mention_only'
+			}
+		})
+		const add = jest.fn().mockResolvedValue(undefined)
+		jest.spyOn(service, 'getScopeQueue').mockResolvedValue({
+			add
+		} as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: 'creator-user-1',
+			tenantId: 'tenant-1'
+		} as any)
+
+		await service.handleMessage(
+			{
+				chatId: 'chat-1',
+				chatType: 'group',
+				senderId: 'ou_sender_1',
+				senderName: 'Alice',
+				content: 'hello',
+				raw: {},
+				semanticMessage: {
+					rawText: 'hello',
+					displayText: 'hello',
+					agentText: 'hello',
+					mentions: []
+				},
+				isBotMentioned: false
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						preferLanguage: 'en_US'
+					}
+				}
+			} as any
+		)
+
+		expect(add).not.toHaveBeenCalled()
+		expect(groupMentionWindowService.ingest).not.toHaveBeenCalled()
+	})
+
+	it('processMessage uses mapped sender as fromEndUserId instead of creator fallback', async () => {
+		const { service, commandBus } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'creator-user-1',
+			mappedUserId: 'mapped-user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.options?.fromEndUserId).toBe('mapped-user-1')
+	})
+
 	it('setConversation persists to binding table and resolves latest by open_id', async () => {
 		const { service, conversationBindingRepository } = createFixture()
 
@@ -381,6 +610,70 @@ describe('LarkConversationService', () => {
 		)
 		expect(await service.getLatestConversationBindingByUserId('target@example.com')).toBeNull()
 		expect(await service.getConversation('email:target@example.com', 'xpert-1')).toBe('conversation-1')
+	})
+
+	it('getLatestConversationBindingByUserId prefers bindings from the current integration', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-2',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-other-integration',
+					conversationId: 'conversation-other',
+					updatedAt: new Date('2026-02-01T00:00:00.000Z')
+				},
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-current-integration',
+					conversationId: 'conversation-current',
+					updatedAt: new Date('2026-01-01T00:00:00.000Z')
+				}
+			]
+		})
+
+		await expect(
+			service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')
+		).resolves.toEqual({
+			userId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			xpertId: 'xpert-current-integration',
+			conversationId: 'conversation-current',
+			conversationUserKey: 'open_id:ou_sender_1'
+		})
+	})
+
+	it('getLatestConversationBindingByUserId falls back to integrationless legacy bindings before crossing integrations', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-2',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-other-integration',
+					conversationId: 'conversation-other',
+					updatedAt: new Date('2026-03-01T00:00:00.000Z')
+				},
+				{
+					userId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-legacy',
+					conversationId: 'conversation-legacy',
+					updatedAt: new Date('2026-01-01T00:00:00.000Z')
+				}
+			]
+		})
+
+		await expect(
+			service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')
+		).resolves.toEqual({
+			userId: 'ou_sender_1',
+			xpertId: 'xpert-legacy',
+			conversationId: 'conversation-legacy',
+			conversationUserKey: 'open_id:ou_sender_1'
+		})
 	})
 
 	it('setConversation for group scope does not persist legacy conversationUserKey', async () => {
@@ -704,6 +997,211 @@ describe('LarkConversationService', () => {
 		)
 	})
 
+	it('handleCardAction blocks trigger-bound users that no longer match current trigger scope', async () => {
+		const { service, larkTriggerStrategy } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerMatches: false,
+			conversationBindings: [
+				{
+					userId: 'ou-action-1',
+					integrationId: 'integration-1',
+					scopeKey: 'lark:v2:scope:integration-1:p2p:ou-action-1',
+					chatType: 'p2p',
+					conversationUserKey: 'open_id:ou-action-1',
+					xpertId: 'trigger-xpert',
+					conversationId: 'conversation-from-db'
+				}
+			]
+		})
+		const onAction = jest.spyOn(service, 'onAction').mockResolvedValue(undefined as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: userId,
+			tenantId: 'tenant-1'
+		} as any)
+
+		await service.handleCardAction(
+			{
+				value: LARK_CONFIRM,
+				userId: 'ou-action-1',
+				chatId: 'chat-1',
+				messageId: 'action-message-id'
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						xpertId: 'xpert-from-integration'
+					}
+				}
+			} as any
+		)
+
+		expect(larkTriggerStrategy.matchesInboundMessage).toHaveBeenCalledTimes(1)
+		expect(onAction).not.toHaveBeenCalled()
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:p2p:ou-action-1', 'trigger-xpert', {
+				legacyConversationUserKey: 'open_id:ou-action-1'
+			})
+		).resolves.toBeUndefined()
+	})
+
+	it('handleCardAction ignores user history from other integrations', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou-action-1',
+					integrationId: 'integration-2',
+					conversationUserKey: 'open_id:ou-action-1',
+					xpertId: 'xpert-from-other-integration',
+					conversationId: 'conversation-other'
+				}
+			]
+		})
+		const onAction = jest.spyOn(service, 'onAction').mockResolvedValue(undefined as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: userId,
+			tenantId: 'tenant-1'
+		} as any)
+
+		await service.handleCardAction(
+			{
+				value: LARK_CONFIRM,
+				userId: 'ou-action-1',
+				chatId: 'chat-1',
+				messageId: 'action-message-id'
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						xpertId: 'xpert-from-integration'
+					}
+				}
+			} as any
+		)
+
+		expect(onAction).toHaveBeenCalledWith(
+			LARK_CONFIRM,
+			expect.objectContaining({
+				userId,
+				senderOpenId: 'ou-action-1'
+			}),
+			'open_id:ou-action-1',
+			'xpert-from-integration',
+			'action-message-id'
+		)
+	})
+
+	it('handleCardAction ignores integrationless legacy history when current integration points to a different xpert', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou-action-1',
+					conversationUserKey: 'open_id:ou-action-1',
+					xpertId: 'xpert-from-legacy-history',
+					conversationId: 'conversation-legacy'
+				}
+			]
+		})
+		const onAction = jest.spyOn(service, 'onAction').mockResolvedValue(undefined as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: userId,
+			tenantId: 'tenant-1'
+		} as any)
+
+		await service.handleCardAction(
+			{
+				value: LARK_CONFIRM,
+				userId: 'ou-action-1',
+				chatId: 'chat-1',
+				messageId: 'action-message-id'
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						xpertId: 'xpert-from-integration'
+					}
+				}
+			} as any
+		)
+
+		expect(onAction).toHaveBeenCalledWith(
+			LARK_CONFIRM,
+			expect.objectContaining({
+				userId,
+				senderOpenId: 'ou-action-1'
+			}),
+			'open_id:ou-action-1',
+			'xpert-from-integration',
+			'action-message-id'
+		)
+		await expect(service.getConversation('open_id:ou-action-1', 'xpert-from-legacy-history')).resolves.toBeUndefined()
+	})
+
+	it('handleCardAction clears stale exact binding when integration now points to a different xpert', async () => {
+		const { service } = createFixture({
+			conversationBindings: [
+				{
+					userId: 'ou-action-1',
+					integrationId: 'integration-1',
+					chatId: 'chat-1',
+					chatType: 'group',
+					scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+					conversationUserKey: 'open_id:ou-action-1',
+					xpertId: 'xpert-from-stale-binding',
+					conversationId: 'conversation-stale'
+				}
+			]
+		})
+		const onAction = jest.spyOn(service, 'onAction').mockResolvedValue(undefined as any)
+		jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+			id: userId,
+			tenantId: 'tenant-1'
+		} as any)
+
+		await service.handleCardAction(
+			{
+				value: LARK_CONFIRM,
+				userId: 'ou-action-1',
+				chatId: 'chat-1',
+				messageId: 'action-message-id'
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: {
+						xpertId: 'xpert-from-integration'
+					}
+				}
+			} as any
+		)
+
+		expect(onAction).toHaveBeenCalledWith(
+			LARK_CONFIRM,
+			expect.objectContaining({
+				userId,
+				senderOpenId: 'ou-action-1'
+			}),
+			'lark:v2:scope:integration-1:group:chat-1',
+			'xpert-from-integration',
+			'action-message-id'
+		)
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:group:chat-1', 'xpert-from-stale-binding', {
+				legacyConversationUserKey: 'open_id:ou-action-1'
+			})
+		).resolves.toBeUndefined()
+	})
+
 	it('skips card action handling when action open_id is missing', async () => {
 		const { service } = createFixture()
 		const onAction = jest.spyOn(service, 'onAction').mockResolvedValue(undefined as any)
@@ -767,7 +1265,68 @@ describe('LarkConversationService', () => {
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
 	})
 
-	it('processMessage reuses fallback xpert but does not cache an old sender conversation into a new group scope', async () => {
+	it('processMessage does not fall back to integration xpert when trigger scope rejects inbound sender', async () => {
+		const { service, larkTriggerStrategy, commandBus, larkChannel } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: false,
+			triggerMatches: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_blocked_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'blocked sender' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.matchesInboundMessage).toHaveBeenCalledTimes(1)
+		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
+		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
+	})
+
+	it('processMessage clears typing reaction before returning on trigger mismatch', async () => {
+		const { service, larkChannel } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: false,
+			triggerMatches: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_blocked_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			replyToMessageId: 'message-1',
+			typingReaction: {
+				messageId: 'message-1',
+				reactionId: 'reaction-1',
+				emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
+			},
+			message: {
+				message: {
+					message_id: 'message-1',
+					content: JSON.stringify({ text: 'blocked sender' })
+				}
+			}
+		} as any)
+
+		expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith(
+			'integration-1',
+			'message-1',
+			'reaction-1'
+		)
+		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
+	})
+
+	it('processMessage does not reuse sender history to bypass trigger routing for a new group scope', async () => {
 		const { service, commandBus, larkTriggerStrategy } = createFixture({
 			boundXpertId: null,
 			triggerHandled: false,
@@ -798,11 +1357,196 @@ describe('LarkConversationService', () => {
 
 		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
 		expect(dispatchCommands).toHaveLength(1)
-		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-db')
+		expect(dispatchCommands[0].input.xpertId).toBe('legacy-xpert')
 		expect(
 			await service.getConversation('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db')
 		).toBeUndefined()
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+	})
+
+	it('processMessage reuses sender history for p2p scope when exact scope binding is missing', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+					xpertId: 'xpert-from-db',
+					conversationId: 'conversation-from-db'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello from p2p' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-db')
 		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+	})
+
+	it('processMessage purges p2p history when trigger scope no longer allows the sender', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: false,
+			triggerMatches: false,
+			legacyXpertId: 'legacy-xpert',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-1',
+					scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+					principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+					chatType: 'p2p',
+					senderOpenId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'trigger-xpert',
+					conversationId: 'conversation-from-db'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'sender should now be blocked' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.matchesInboundMessage).toHaveBeenCalledTimes(1)
+		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:p2p:ou_sender_1', 'trigger-xpert', {
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			})
+		).resolves.toBeUndefined()
+	})
+
+	it('processMessage ignores sender history from other integrations during p2p reuse', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-2',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-other-integration',
+					conversationId: 'conversation-other'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello from p2p' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('legacy-xpert')
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+	})
+
+	it('processMessage ignores integrationless legacy history when current integration points to a different xpert', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'xpert-from-integration',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-from-legacy-history',
+					conversationId: 'conversation-legacy'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello from p2p' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-integration')
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+		await expect(service.getConversation('open_id:ou_sender_1', 'xpert-from-legacy-history')).resolves.toBeUndefined()
+	})
+
+	it('processMessage clears stale exact scope binding when integration now points to a different xpert', async () => {
+		const { service, commandBus, larkTriggerStrategy } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'xpert-from-integration',
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-1',
+					scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'xpert-from-stale-scope',
+					conversationId: 'conversation-stale-scope'
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello from p2p' })
+				}
+			}
+		} as any)
+
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.xpertId).toBe('xpert-from-integration')
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:p2p:ou_sender_1', 'xpert-from-stale-scope', {
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			})
+		).resolves.toBeUndefined()
 	})
 
 	it('processMessage falls back to trigger strategy when latest binding does not exist', async () => {
@@ -874,6 +1618,40 @@ describe('LarkConversationService', () => {
 		} as any)
 
 		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
+		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
+	})
+
+	it('processMessage clears typing reaction before sending integration error reply', async () => {
+		const { service, larkChannel } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: null
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			replyToMessageId: 'message-2',
+			typingReaction: {
+				messageId: 'message-2',
+				reactionId: 'reaction-2',
+				emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
+			},
+			message: {
+				message: {
+					message_id: 'message-2',
+					content: JSON.stringify({ text: 'hello' })
+				}
+			}
+		} as any)
+
+		expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith(
+			'integration-1',
+			'message-2',
+			'reaction-2'
+		)
 		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
 	})
 
@@ -958,9 +1736,7 @@ describe('LarkConversationService', () => {
 		)
 		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
 		expect(dispatchCommands).toHaveLength(1)
-		expect(dispatchCommands[0].input.input).toBe(
-			'[\u7fa4\u804a\u4e0a\u4e0b\u6587]\\n\u5f53\u524d\u53d1\u8a00\u4eba\uff1aAlice Zhang\\n\u7528\u6237\u6d88\u606f\uff1a\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
-		)
+		expect(dispatchCommands[0].input.input).toBe('Alice Zhang: \u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba')
 		expect(larkChannel.resolveUserNameByOpenId).not.toHaveBeenCalled()
 	})
 
@@ -996,7 +1772,7 @@ describe('LarkConversationService', () => {
 
 		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
 			expect.objectContaining({
-				input: '[\u7fa4\u804a\u4e0a\u4e0b\u6587]\\n\u5f53\u524d\u53d1\u8a00\u4eba\uff1aAlice Zhang\\n\u7528\u6237\u6d88\u606f\uff1a\u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
+				input: 'Alice Zhang: \u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
 			})
 		)
 		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)

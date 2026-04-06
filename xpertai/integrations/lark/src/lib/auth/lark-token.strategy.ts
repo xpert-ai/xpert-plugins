@@ -30,11 +30,16 @@ export class LarkTokenStrategy extends PassportStrategy(Strategy, 'lark-token') 
 				if (data.type === 'url_verification') {
 					this.success({})
 				} else {
-					const user = await this.inboundIdentityService.resolveUserForEvent(integration, data)
+					const identity = await this.inboundIdentityService.resolveInboundIdentityForEvent(
+						integration,
+						data
+					)
+					;(req as any).larkInboundIdentity = identity.metadata
 
 					// Set language header
-					req.headers['language'] = integration.options?.preferLanguage || user.preferredLanguage
-					this.success(user)
+					req.headers['language'] =
+						integration.options?.preferLanguage || identity.requestUser.preferredLanguage
+					this.success(identity.requestUser)
 				}
 			} catch (err) {
 				this.logger.error(err, integrationId, data)
