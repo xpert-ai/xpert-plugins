@@ -1,3 +1,5 @@
+import { ScopeKey } from "./types.js"
+
 /**
  * @deprecated
  */
@@ -69,7 +71,7 @@ export function toLarkConversationScopeKey(params: {
   chatType?: unknown
   chatId?: unknown
   senderOpenId?: unknown
-}): string | null {
+}): ScopeKey | null {
   const normalizedIntegrationId = normalizeIntegrationId(params.integrationId)
   const normalizedChatType = normalizeLarkChatType(params.chatType)
   if (!normalizedIntegrationId || !normalizedChatType) {
@@ -104,7 +106,7 @@ export function resolveConversationScopeKey(params: {
   chatType?: unknown
   chatId?: unknown
   senderOpenId?: unknown
-}): string | null {
+}): ScopeKey | null {
   return toLarkConversationScopeKey(params)
 }
 

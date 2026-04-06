@@ -1,5 +1,7 @@
 import { buildLarkGroupWindowPrompt } from './lark-agent-prompt.js'
+import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
+import { LARK_TYPING_REACTION_EMOJI_TYPE } from './types.js'
 
 class MemoryCache {
 	private readonly store = new Map<string, unknown>()
@@ -41,6 +43,13 @@ describe('LarkGroupMentionWindowService', () => {
 		const scopeQueue = {
 			add: jest.fn().mockResolvedValue(undefined)
 		}
+		const larkChannel = {
+			createMessageReaction: jest.fn().mockImplementation(async (_integrationId: string, messageId: string, emojiType: string) => ({
+				messageId,
+				reactionId: `reaction-for-${messageId}`,
+				emojiType
+			}))
+		}
 		const service = new LarkGroupMentionWindowService(new MemoryCache() as any, {
 			config: {
 				groupMentionWindow: {
@@ -51,14 +60,20 @@ describe('LarkGroupMentionWindowService', () => {
 				}
 			}
 		} as any, {
-			get: jest.fn().mockReturnValue({
-				getScopeQueue: jest.fn().mockResolvedValue(scopeQueue)
+			get: jest.fn().mockImplementation((token: unknown) => {
+				if (token === LarkChannelStrategy) {
+					return larkChannel
+				}
+				return {
+					getScopeQueue: jest.fn().mockResolvedValue(scopeQueue)
+				}
 			})
 		} as any)
 		;(service as any).flushQueue = createFlushQueueMock()
 		return {
 			service,
 			scopeQueue,
+			larkChannel,
 			flushQueue: (service as any).flushQueue
 		}
 	}
@@ -89,7 +104,7 @@ describe('LarkGroupMentionWindowService', () => {
 	}
 
 	it('merges multiple group mentions into one flushed context', async () => {
-		const { service, scopeQueue } = createService({
+		const { service, scopeQueue, larkChannel } = createService({
 			maxMessages: 2
 		})
 
@@ -112,15 +127,34 @@ describe('LarkGroupMentionWindowService', () => {
 		expect(scopeQueue.add).toHaveBeenCalledTimes(1)
 		const flushed = (scopeQueue.add as jest.Mock).mock.calls[0][0]
 		expect(flushed.groupWindow.items).toHaveLength(2)
+		expect(flushed.replyToMessageId).toBe('m-1')
+		expect(flushed.typingReaction).toEqual({
+			messageId: 'm-1',
+			reactionId: 'reaction-for-m-1',
+			emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
+		})
 		expect(flushed.input).toContain('[\u7fa4\u804a\u77ed\u7a97\u4e0a\u4e0b\u6587]')
 		expect(flushed.input).toContain('- Alice [00:00:00]: hello')
 		expect(flushed.input).toContain('- Bob [00:00:02]: world')
+		expect(larkChannel.createMessageReaction).toHaveBeenCalledTimes(1)
+		expect(larkChannel.createMessageReaction).toHaveBeenCalledWith(
+			'integration-1',
+			'm-1',
+			LARK_TYPING_REACTION_EMOJI_TYPE
+		)
 	})
 
 	it('flushes a restored cached window without relying on in-memory handlers', async () => {
 		const cache = new MemoryCache()
 		const firstScopeQueue = {
 			add: jest.fn().mockResolvedValue(undefined)
+		}
+		const firstLarkChannel = {
+			createMessageReaction: jest.fn().mockResolvedValue({
+				messageId: 'm-1',
+				reactionId: 'reaction-for-m-1',
+				emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
+			})
 		}
 		const first = new LarkGroupMentionWindowService(cache as any, {
 			config: {
@@ -132,8 +166,13 @@ describe('LarkGroupMentionWindowService', () => {
 				}
 			}
 		} as any, {
-			get: jest.fn().mockReturnValue({
-				getScopeQueue: jest.fn().mockResolvedValue(firstScopeQueue)
+			get: jest.fn().mockImplementation((token: unknown) => {
+				if (token === LarkChannelStrategy) {
+					return firstLarkChannel
+				}
+				return {
+					getScopeQueue: jest.fn().mockResolvedValue(firstScopeQueue)
+				}
 			})
 		} as any)
 		;(first as any).flushQueue = createFlushQueueMock()
@@ -153,8 +192,15 @@ describe('LarkGroupMentionWindowService', () => {
 				}
 			}
 		} as any, {
-			get: jest.fn().mockReturnValue({
-				getScopeQueue: jest.fn().mockResolvedValue(scopeQueue)
+			get: jest.fn().mockImplementation((token: unknown) => {
+				if (token === LarkChannelStrategy) {
+					return {
+						createMessageReaction: jest.fn()
+					}
+				}
+				return {
+					getScopeQueue: jest.fn().mockResolvedValue(scopeQueue)
+				}
 			})
 		} as any)
 		;(restored as any).flushQueue = createFlushQueueMock()
@@ -168,7 +214,7 @@ describe('LarkGroupMentionWindowService', () => {
 		expect(scopeQueue.add).toHaveBeenCalledTimes(1)
 		const flushed = (scopeQueue.add as jest.Mock).mock.calls[0][0]
 		expect(flushed.groupWindow.items).toHaveLength(1)
-		expect(flushed.input).toContain('[\u7fa4\u804a\u4e0a\u4e0b\u6587]')
+		expect(flushed.input).toBe('Alice: hello')
 	})
 })
 
@@ -193,6 +239,6 @@ describe('buildLarkGroupWindowPrompt', () => {
 			participants: []
 		} as any)
 
-		expect(prompt).toBe('[\u7fa4\u804a\u4e0a\u4e0b\u6587]\n\u5f53\u524d\u53d1\u8a00\u4eba\uff1aAlice\n\u7528\u6237\u6d88\u606f\uff1ahello')
+		expect(prompt).toBe('Alice: hello')
 	})
 })

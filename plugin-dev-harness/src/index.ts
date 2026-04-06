@@ -48,6 +48,11 @@ interface DynamicModuleLike {
   exports?: unknown[];
 }
 
+interface ProviderLike {
+  provide: unknown;
+  useValue?: unknown;
+}
+
 interface ApplicationContextLike {
   get(token: unknown, options?: unknown): unknown;
   close(): Promise<void> | void;
@@ -61,6 +66,14 @@ interface NestRuntimeLike {
     ): Promise<ApplicationContextLike>;
   };
   ModuleRef: unknown;
+}
+
+interface PluginSdkRuntimeLike {
+  INTEGRATION_PERMISSION_SERVICE_TOKEN?: unknown;
+  USER_PERMISSION_SERVICE_TOKEN?: unknown;
+  HANDOFF_PERMISSION_SERVICE_TOKEN?: unknown;
+  ANALYTICS_PERMISSION_SERVICE_TOKEN?: unknown;
+  HANDOFF_QUEUE_SERVICE_TOKEN?: unknown;
 }
 
 interface HarnessPluginContext {
@@ -217,6 +230,18 @@ function loadNestRuntimeFromWorkspace(workspaceRoot: string): NestRuntimeLike {
   };
 }
 
+function loadPluginSdkRuntimeFromWorkspace(workspaceRoot: string): PluginSdkRuntimeLike | undefined {
+  const workspacePackageJson = path.join(workspaceRoot, 'package.json');
+  const requireFromWorkspace = createRequire(workspacePackageJson);
+
+  try {
+    const pluginSdk = requireFromWorkspace('@xpert-ai/plugin-sdk');
+    return isPlainObject(pluginSdk) ? pluginSdk as PluginSdkRuntimeLike : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function createCacheManagerMock() {
   const store = new Map<string, unknown>();
   return {
@@ -259,6 +284,72 @@ function createCacheMockModule(): DynamicModuleLike {
       }
     ],
     exports: ['CACHE_MANAGER']
+  };
+}
+
+function createPermissionServiceMocks(workspaceRoot: string): {
+  module?: DynamicModuleLike;
+  fallbacks: Map<unknown, unknown>;
+} {
+  const runtime = loadPluginSdkRuntimeFromWorkspace(workspaceRoot);
+  const fallbacks = new Map<unknown, unknown>();
+  if (!runtime) {
+    return { fallbacks };
+  }
+
+  const integrationPermissionService = {
+    read: async () => null,
+    findAll: async () => ({
+      items: [],
+      total: 0
+    })
+  };
+  const userPermissionService = {
+    read: async () => null,
+    provisionByThirdPartyIdentity: async () => null
+  };
+  const handoffPermissionService = {
+    enqueue: async () => ({ id: 'mock-handoff-id' }),
+    enqueueAndWait: async () => ({ status: 'completed' })
+  };
+  const analyticsPermissionService = {
+    resolveChatBIModels: async () => [],
+    getDSCoreService: async () => ({}),
+    visitChatBIModel: async () => undefined,
+    ensureCreateIndicatorAccess: async () => undefined,
+    validateIndicatorStatement: async () => undefined
+  };
+
+  const providers: ProviderLike[] = [];
+  const register = (token: unknown, value: unknown) => {
+    if (!token) {
+      return;
+    }
+    fallbacks.set(token, value);
+    providers.push({
+      provide: token,
+      useValue: value
+    });
+  };
+
+  register(runtime.INTEGRATION_PERMISSION_SERVICE_TOKEN, integrationPermissionService);
+  register(runtime.USER_PERMISSION_SERVICE_TOKEN, userPermissionService);
+  register(runtime.HANDOFF_PERMISSION_SERVICE_TOKEN, handoffPermissionService);
+  register(runtime.ANALYTICS_PERMISSION_SERVICE_TOKEN, analyticsPermissionService);
+
+  if (!providers.length) {
+    return { fallbacks };
+  }
+
+  class PermissionMockModule {}
+  return {
+    module: {
+      module: PermissionMockModule,
+      global: true,
+      providers,
+      exports: providers.map((provider) => provider.provide)
+    },
+    fallbacks
   };
 }
 
@@ -457,7 +548,8 @@ function createHarnessLogger(
 function createPluginContext(
   pluginName: string,
   config: Record<string, unknown>,
-  verbose: boolean
+  verbose: boolean,
+  fallbacks: Map<unknown, unknown> = new Map()
 ): HarnessPluginContext {
   const context: HarnessPluginContext = {
     module: undefined as unknown as NestModuleRefLike,
@@ -465,12 +557,24 @@ function createPluginContext(
     logger: createHarnessLogger(`plugin:${pluginName}`, verbose),
     config,
     resolve<TInput = unknown, TResult = TInput>(token: unknown): TResult {
-      if (!context.module || typeof context.module.get !== 'function') {
-        throw new Error(
-          `Plugin '${pluginName}' context is not bound to a Nest module yet.`
-        );
+      if (context.module && typeof context.module.get === 'function') {
+        try {
+          return context.module.get(token, { strict: false }) as TResult;
+        } catch {
+          if (fallbacks.has(token)) {
+            return fallbacks.get(token) as TResult;
+          }
+          throw new Error(
+            `Plugin '${pluginName}' context failed to resolve token: ${String(token)}`
+          );
+        }
       }
-      return context.module.get(token, { strict: false }) as TResult;
+      if (fallbacks.has(token)) {
+        return fallbacks.get(token) as TResult;
+      }
+      throw new Error(
+        `Plugin '${pluginName}' context is not bound to a Nest module yet.`
+      );
     }
   };
 
@@ -527,7 +631,15 @@ async function run(): Promise<void> {
   console.log(`[plugin-dev-harness] entry: ${resolvedEntry}`);
   console.log(`[plugin-dev-harness] mocks: ${options.enableMocks ? 'enabled' : 'disabled'}`);
 
-  const context = createPluginContext(pluginName, validatedConfig, options.verbose);
+  const permissionMocks = options.enableMocks
+    ? createPermissionServiceMocks(workspaceRoot)
+    : { fallbacks: new Map<unknown, unknown>() };
+  const context = createPluginContext(
+    pluginName,
+    validatedConfig,
+    options.verbose,
+    permissionMocks.fallbacks
+  );
   let appContext: ApplicationContextLike | undefined;
   let pluginModuleInstance: unknown;
   let dynamicModule: DynamicModuleLike | undefined;
@@ -541,6 +653,9 @@ async function run(): Promise<void> {
     const rootImports: unknown[] = [dynamicModule];
     if (options.enableMocks) {
       rootImports.unshift(createCacheMockModule());
+      if (permissionMocks.module) {
+        rootImports.unshift(permissionMocks.module);
+      }
       const typeOrmMockModule = createTypeOrmMockModule(workspaceRoot);
       if (typeOrmMockModule) {
         rootImports.unshift(typeOrmMockModule);

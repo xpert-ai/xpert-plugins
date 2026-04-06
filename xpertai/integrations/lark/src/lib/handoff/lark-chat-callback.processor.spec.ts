@@ -315,6 +315,32 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(state?.lastFlushedLength).toBe(0)
 	})
 
+	it('suppresses intermediate patches when streaming is disabled and flushes once on complete', async () => {
+		const { processor, runStateService, larkChannel } = createFixture()
+
+		await runStateService.save(
+			createRunState({
+				context: {
+					streaming: {
+						enabled: false
+					}
+				} as any
+			})
+		)
+
+		await processor.process(createStreamMessage(1, 'hello') as any, createProcessContext() as any)
+
+		expect(larkChannel.patchInteractiveMessage).not.toHaveBeenCalled()
+
+		await processor.process(createCompleteMessage(2) as any, createProcessContext() as any)
+
+		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(1)
+		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
+		const streamTextElements = getManagedStreamTextElements(patchPayload.elements)
+		expect(streamTextElements).toHaveLength(1)
+		expect(streamTextElements[0].content).toContain('hello')
+	})
+
 	it('handles out-of-order callbacks and flushes only when window condition is met', async () => {
 		const { processor, runStateService, larkChannel } = createFixture()
 		jest.useFakeTimers()
@@ -406,6 +432,52 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		const eventItems = state?.renderItems.filter((item: any) => item.kind === 'event')
 		expect(eventItems).toHaveLength(1)
 		expect(eventItems?.[0]).toMatchObject({ id: 'event-1' })
+	})
+
+	it('skips explicitly typed hidden chat events when rendering Lark messages', async () => {
+		const { processor, runStateService, larkChannel } = createFixture()
+		await runStateService.save(createRunState())
+
+		await processor.process(
+			createEventMessage(1, ChatMessageEventTypeEnum.ON_CHAT_EVENT, {
+				id: 'event-1',
+				type: 'thread_context_usage',
+				title: 'Thread context usage',
+				status: 'running'
+			}) as any,
+			createProcessContext() as any
+		)
+		await processor.process(
+			createEventMessage(2, ChatMessageEventTypeEnum.ON_CHAT_EVENT, {
+				id: 'event-1',
+				type: 'thread_context_usage',
+				title: 'Thread context usage',
+				status: 'success'
+			}) as any,
+			createProcessContext() as any
+		)
+		await processor.process(
+			createEventMessage(3, ChatMessageEventTypeEnum.ON_CHAT_EVENT, {
+				id: 'event-2',
+				type: 'conversation_title_summary',
+				title: 'Summarizing title',
+				status: 'running'
+			}) as any,
+			createProcessContext() as any
+		)
+		await processor.process(
+			createEventMessage(4, ChatMessageEventTypeEnum.ON_CHAT_EVENT, {
+				id: 'event-2',
+				type: 'conversation_title_summary',
+				title: 'Title summarized',
+				status: 'success'
+			}) as any,
+			createProcessContext() as any
+		)
+
+		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(0)
+		const state = await runStateService.get('run-1')
+		expect(state?.renderItems).toEqual([])
 	})
 
 	it('renders tool lifecycle events and updates event content by tool id', async () => {

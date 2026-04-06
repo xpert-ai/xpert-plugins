@@ -9,6 +9,8 @@ export type DispatchLarkChatPayload = {
 		confirm?: boolean
 		reject?: boolean
 		fromEndUserId?: string
+		executorUserId?: string
+		streamingEnabled?: boolean
 		groupWindow?: LarkGroupWindow
 	}
 }

@@ -36,6 +36,7 @@ import {
 	isLarkCardActionValue,
 	LarkCardActionValue,
 	LarkMessage,
+	parseLarkClientError,
 	TLarkConnectionMode,
 	TIntegrationLarkOptions,
 	TLarkUserProvisionOptions
@@ -166,10 +167,13 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				this.runBackgroundEventHandler('message', async () => {
 					if (message.chatType === 'group') {
 						const botInfo = await this.getBotInfo(integration)
-						if (this.isBotMentioned(message, botInfo.id)) {
+						;(message as Record<string, unknown>)['isBotMentioned'] = this.isBotMentioned(
+							message,
+							botInfo.id
+						)
+						if (!eventHandlers.onMessage && (message as any).isBotMentioned) {
 							await eventHandlers.onMention?.(message, ctx)
 						}
-						return
 					}
 					await eventHandlers.onMessage?.(message, ctx)
 				})
@@ -207,9 +211,16 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	private runBackgroundEventHandler(eventName: string, handler: () => Promise<void>): void {
-		void handler().catch((error) => {
-			this.logger.error(`Error handling ${eventName}:`, error)
-		})
+		void Promise.resolve()
+			.then(handler)
+			.catch((error) => {
+				const message = getErrorMessage(error)
+				const stack = error instanceof Error ? error.stack : undefined
+				this.logger.error(
+					`Error handling ${eventName}: ${message} | error=${this.toLogString(stringifyErrorAsJson(error))}`,
+					stack
+				)
+			})
 	}
 
 	parseInboundMessage(event: any, _ctx: TChatEventContext<TIntegrationLarkOptions>): TChatInboundMessage | null {
@@ -751,7 +762,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				)
 			}
 			const client = await this.getOrCreateLarkClientById(integrationId)
-			return await client.im.message.create(message)
+			return await this.createMessageWithQuoteFallback(client, integrationId, message)
 		} catch (err: any) {
 			this.logLarkRequestFailure('createMessage', err, {
 				integrationId,
@@ -759,6 +770,55 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				payload: message?.data
 			})
 			throw this.wrapLarkRequestError('createMessage', err)
+		}
+	}
+
+	async createMessageReaction(integrationId: string, messageId: string, emojiType: string) {
+		try {
+			const client = await this.getOrCreateLarkClientById(integrationId)
+			const result = await client.im.messageReaction.create({
+				path: { message_id: messageId },
+				data: {
+					reaction_type: {
+						emoji_type: emojiType
+					}
+				}
+			})
+			const reactionId = result?.data?.reaction_id
+			if (!reactionId) {
+				throw new Error('Lark createMessageReaction succeeded without returning a reaction_id')
+			}
+			return {
+				messageId,
+				reactionId,
+				emojiType: result?.data?.reaction_type?.emoji_type ?? emojiType
+			}
+		} catch (err: any) {
+			this.logLarkRequestFailure('createMessageReaction', err, {
+				integrationId,
+				messageId,
+				emojiType
+			})
+			throw this.wrapLarkRequestError('createMessageReaction', err)
+		}
+	}
+
+	async deleteMessageReaction(integrationId: string, messageId: string, reactionId: string) {
+		try {
+			const client = await this.getOrCreateLarkClientById(integrationId)
+			return await client.im.messageReaction.delete({
+				path: {
+					message_id: messageId,
+					reaction_id: reactionId
+				}
+			})
+		} catch (err: any) {
+			this.logLarkRequestFailure('deleteMessageReaction', err, {
+				integrationId,
+				messageId,
+				reactionId
+			})
+			throw this.wrapLarkRequestError('deleteMessageReaction', err)
 		}
 	}
 
@@ -818,7 +878,10 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		} as LarkMessage)
 	}
 
-	async textMessage(context: { integrationId: string; chatId: string; messageId?: string }, content: string) {
+	async textMessage(
+		context: { integrationId: string; chatId: string; messageId?: string; replyToMessageId?: string },
+		content: string
+	) {
 		const { chatId, messageId } = context
 		if (messageId) {
 			return await this.patchMessage(context.integrationId, {
@@ -831,7 +894,8 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			data: {
 				receive_id: chatId,
 				content: JSON.stringify({ text: content }),
-				msg_type: 'text'
+				msg_type: 'text',
+				...(context.replyToMessageId ? { quote_message_id: context.replyToMessageId } : {})
 			}
 		} as LarkMessage)
 	}
@@ -843,7 +907,8 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 			data: {
 				receive_id: context.chatId,
 				content: JSON.stringify(data),
-				msg_type: 'interactive'
+				msg_type: 'interactive',
+				...(context.replyToMessageId ? { quote_message_id: context.replyToMessageId } : {})
 			}
 		} as LarkMessage)
 	}
@@ -856,7 +921,8 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 				content: JSON.stringify({
 					elements: [{ tag: 'markdown', content }]
 				}),
-				msg_type: 'interactive'
+				msg_type: 'interactive',
+				...(context.replyToMessageId ? { quote_message_id: context.replyToMessageId } : {})
 			}
 		} as LarkMessage)
 	}
@@ -1010,6 +1076,42 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		} catch {
 			return null
 		}
+	}
+
+	private async createMessageWithQuoteFallback(client: lark.Client, integrationId: string, message: LarkMessage) {
+		try {
+			return await client.im.message.create(message)
+		} catch (error) {
+			const quoteMessageId = message?.data?.quote_message_id
+			if (quoteMessageId && this.shouldRetryCreateWithoutQuote(error)) {
+				const { quote_message_id: _quoteMessageId, ...dataWithoutQuote } = message.data
+				this.logger.warn(
+					`[lark-outbound] createMessage retrying without quote_message_id for integration=${integrationId} replyTo=${quoteMessageId}`
+				)
+				return await client.im.message.create({
+					...message,
+					data: dataWithoutQuote
+				})
+			}
+			throw error
+		}
+	}
+
+	private shouldRetryCreateWithoutQuote(error: unknown): boolean {
+		const parsed = parseLarkClientError(error)
+		if (parsed.field_violations?.some((violation) => violation.field === 'quote_message_id')) {
+			return true
+		}
+
+		const messages = [
+			parsed.msg,
+			parsed.error?.message,
+			(error as Error | undefined)?.message
+		]
+			.filter((value): value is string => typeof value === 'string' && value.length > 0)
+			.map((value) => value.toLowerCase())
+
+		return messages.some((value) => value.includes('quote_message_id') || value.includes('quote message'))
 	}
 
 	private extractOptions(

@@ -89,6 +89,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	groupWindow?: LarkGroupWindow
 	reject?: boolean
 	streaming?: {
+		enabled?: boolean
 		updateWindowMs?: number
 	}
 	message: LarkChatMessageSnapshot
@@ -103,7 +104,7 @@ export interface LarkChatHandoffPayload extends Record<string, unknown> {
 	options: TChatOptions & {
 		xpertId: string
 		from: string
-		fromEndUserId: string
+		fromEndUserId?: string
 		tenantId: string
 		organizationId?: string
 		user?: any

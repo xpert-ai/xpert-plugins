@@ -88,7 +88,8 @@ export class LarkChatDispatchService {
 		)
 		const tenantId = dispatchContext.tenantId ?? requestTenantId
 		const organizationId = dispatchContext.organizationId ?? requestOrganizationId
-		const executorUserId = dispatchContext.createdById ?? requestUserId
+		const executorUserId =
+			input.options?.executorUserId ?? dispatchContext.createdById ?? requestUserId
 		if (!tenantId) {
 			throw new Error('Missing tenantId in resolved dispatch context')
 		}
@@ -103,6 +104,7 @@ export class LarkChatDispatchService {
 			}`
 		)
 
+		await this.clearTypingReaction(larkMessage)
 		await larkMessage.update({ status: 'thinking' })
 		if (scopeKey) {
 			await this.conversationService.setActiveMessage(
@@ -136,7 +138,7 @@ export class LarkChatDispatchService {
 			groupWindowId: input.options?.groupWindow?.windowId,
 			groupWindow: input.options?.groupWindow,
 			reject: Boolean(input.options?.reject),
-			streaming: this.resolveStreamingOverrideFromRequest(),
+			streaming: this.resolveStreamingConfig(input.options),
 			message: this.toMessageSnapshot(larkMessage, input.input)
 		}
 
@@ -185,7 +187,9 @@ export class LarkChatDispatchService {
 					xpertId,
 					from: 'feishu',
 					// Keep the inbound Lark user as end-user identity for conversation attribution.
-					fromEndUserId: input.options?.fromEndUserId ?? requestUserId,
+					...(input.options?.fromEndUserId
+						? { fromEndUserId: input.options.fromEndUserId }
+						: {}),
 					tenantId,
 					organizationId,
 					// Force execution user to xpert creator (minimal shape is enough for downstream context).
@@ -226,6 +230,33 @@ export class LarkChatDispatchService {
 				handoffQueue: 'realtime',
 				...(larkMessage.integrationId ? { integrationId: larkMessage.integrationId } : {})
 			}
+		}
+	}
+
+	private async clearTypingReaction(larkMessage: ChatLarkMessage): Promise<void> {
+		const typingReaction = larkMessage.typingReaction
+		const deleteMessageReaction = larkMessage.larkChannel?.deleteMessageReaction
+		if (
+			!typingReaction?.messageId ||
+			!typingReaction.reactionId ||
+			typeof deleteMessageReaction !== 'function'
+		) {
+			return
+		}
+
+		try {
+			await deleteMessageReaction.call(
+				larkMessage.larkChannel,
+				larkMessage.integrationId,
+				typingReaction.messageId,
+				typingReaction.reactionId
+			)
+		} catch (error) {
+			this.logger.warn(
+				`Failed to delete Lark typing reaction "${typingReaction.reactionId}" before dispatch: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			)
 		}
 	}
 
@@ -328,20 +359,24 @@ export class LarkChatDispatchService {
 		}
 	}
 
-	private resolveStreamingOverrideFromRequest(): LarkChatCallbackContext['streaming'] | undefined {
+	private resolveStreamingConfig(
+		options?: TLarkChatDispatchInput['options']
+	): LarkChatCallbackContext['streaming'] | undefined {
+		const enabled = options?.streamingEnabled
 		const request = RequestContext.currentRequest()
 		const rawHeader =
 			request?.headers?.['x-lark-stream-update-window-ms'] ??
 			request?.headers?.['lark-stream-update-window-ms']
 		const rawValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader
 		if (!rawValue) {
-			return undefined
+			return enabled === undefined ? undefined : { enabled }
 		}
 		const parsed = parseInt(String(rawValue), 10)
 		if (!Number.isFinite(parsed) || parsed <= 0) {
-			return undefined
+			return enabled === undefined ? undefined : { enabled }
 		}
 		return {
+			...(enabled === undefined ? {} : { enabled }),
 			updateWindowMs: parsed
 		}
 	}

@@ -20,8 +20,21 @@ function createLarkMessage(
 		scopeKey: string
 		legacyConversationUserKey: string
 		recipientDirectoryKey: string
+		replyToMessageId: string
+		typingReaction: {
+			messageId: string
+			reactionId: string
+			emojiType: string
+		}
+		update: jest.Mock
+		larkChannel: {
+			deleteMessageReaction: jest.Mock
+		}
 	}> = {}
 ) {
+	const larkChannel = overrides.larkChannel ?? {
+		deleteMessageReaction: jest.fn().mockResolvedValue(undefined)
+	}
 	return {
 		id: 'lark-message-id',
 		messageId: 'chat-message-id',
@@ -37,6 +50,7 @@ function createLarkMessage(
 		scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
 		legacyConversationUserKey: 'open_id:ou_sender_1',
 		recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+		larkChannel,
 		update: jest.fn().mockResolvedValue(undefined),
 		...overrides
 	}
@@ -182,7 +196,7 @@ describe('LarkChatDispatchService', () => {
 			}
 		})
 		expect(message.tenantId).toBe('binding-tenant-id')
-		expect((message.payload as any).options.fromEndUserId).toBe('request-user-id')
+		expect((message.payload as any).options.fromEndUserId).toBeUndefined()
 		expect((message.payload as any).options.user).toEqual({
 			id: 'binding-creator-id',
 			tenantId: 'binding-tenant-id'
@@ -218,6 +232,64 @@ describe('LarkChatDispatchService', () => {
 				})
 			})
 		)
+	})
+
+	it('buildDispatchMessage deletes typing reaction before sending thinking state', async () => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const callOrder: string[] = []
+		const larkMessage = createLarkMessage({
+			typingReaction: {
+				messageId: 'source-message-1',
+				reactionId: 'reaction-1',
+				emojiType: 'Typing'
+			},
+			larkChannel: {
+				deleteMessageReaction: jest.fn().mockImplementation(async () => {
+					callOrder.push('delete')
+				})
+			} as any,
+			update: jest.fn().mockImplementation(async () => {
+				callOrder.push('update')
+			})
+		})
+
+		await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			input: 'hello',
+			larkMessage: larkMessage as any
+		})
+
+		expect(larkMessage.larkChannel.deleteMessageReaction).toHaveBeenCalledWith(
+			'integration-1',
+			'source-message-1',
+			'reaction-1'
+		)
+		expect(callOrder).toEqual(['delete', 'update'])
+	})
+
+	it('buildDispatchMessage continues when deleting typing reaction fails', async () => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const larkMessage = createLarkMessage({
+			typingReaction: {
+				messageId: 'source-message-1',
+				reactionId: 'reaction-1',
+				emojiType: 'Typing'
+			},
+			larkChannel: {
+				deleteMessageReaction: jest.fn().mockRejectedValue(new Error('delete failed'))
+			} as any
+		})
+
+		await expect(
+			service.buildDispatchMessage({
+				xpertId: 'xpert-1',
+				input: 'hello',
+				larkMessage: larkMessage as any
+			})
+		).resolves.toEqual(expect.objectContaining({ payload: expect.any(Object) }))
+		expect(larkMessage.update).toHaveBeenCalledWith({ status: 'thinking' })
 	})
 
 	it('buildDispatchMessage uses xpert latest context when exact binding is missing', async () => {
@@ -355,10 +427,64 @@ describe('LarkChatDispatchService', () => {
 			id: 'request-user-id',
 			tenantId: 'request-tenant-id'
 		})
-		expect((message.payload as any).options.fromEndUserId).toBe('request-user-id')
+		expect((message.payload as any).options.fromEndUserId).toBeUndefined()
 		expect((message.payload as any).options.organizationId).toBe('request-organization-id')
 		expect(message.headers?.userId).toBe('request-user-id')
 		expect((message.payload as any).callback.context?.userId).toBe('request-user-id')
+	})
+
+	it('buildDispatchMessage uses explicit executor and fromEndUser overrides when provided', async () => {
+		mockRequestContext({
+			userId: 'creator-user-id',
+			tenantId: 'request-tenant-id',
+			organizationId: 'request-organization-id'
+		})
+		const { service } = createFixture({
+			dispatchContext: {
+				tenantId: 'binding-tenant-id',
+				organizationId: 'binding-organization-id',
+				createdById: 'binding-creator-id',
+				source: 'request-fallback'
+			}
+		})
+		const larkMessage = createLarkMessage()
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			input: 'hello',
+			larkMessage: larkMessage as any,
+			options: {
+				fromEndUserId: 'mapped-user-id',
+				executorUserId: 'mapped-user-id'
+			} as any
+		})
+
+		expect((message.payload as any).options.fromEndUserId).toBe('mapped-user-id')
+		expect((message.payload as any).options.user).toEqual({
+			id: 'mapped-user-id',
+			tenantId: 'binding-tenant-id'
+		})
+		expect((message.payload as any).callback.context?.userId).toBe('mapped-user-id')
+		expect(message.headers?.userId).toBe('mapped-user-id')
+	})
+
+	it('buildDispatchMessage passes streaming enabled flag into callback context', async () => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const larkMessage = createLarkMessage()
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			input: 'hello',
+			larkMessage: larkMessage as any,
+			options: {
+				streamingEnabled: false
+			} as any
+		})
+
+		expect((message.payload as any).callback.context?.streaming).toEqual({
+			enabled: false
+		})
 	})
 
 	it('buildDispatchMessage throws when final tenantId cannot be resolved', async () => {

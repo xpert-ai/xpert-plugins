@@ -6,6 +6,7 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn
 } from 'typeorm'
+import type { TLarkTriggerConfig } from '../workflow/lark-trigger.types.js'
 
 @Entity(LarkTriggerBindingEntity.tableName)
 @Index('plugin_lark_trigger_binding_integration_id_uq', ['integrationId'], { unique: true })
@@ -21,6 +22,12 @@ export class LarkTriggerBindingEntity {
 
 	@Column({ length: 36 })
 	xpertId: string
+
+	@Column({ type: 'simple-json', nullable: true })
+	config?: TLarkTriggerConfig
+
+	@Column({ nullable: true, type: 'text' })
+	ownerOpenId?: string | null
 
 	@Column({ nullable: true, length: 36 })
 	tenantId?: string
