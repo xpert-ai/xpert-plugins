@@ -126,20 +126,20 @@ describe('XpertFileMemoryService freshness alignment', () => {
 
     await writeMemoryFile(filePath, {
       title: '饮食偏好',
-      summary: '周可名爱吃麦当劳',
+      summary: '张三爱吃麦当劳',
       updatedAt: new Date().toISOString()
     })
     fileRepository.listFiles.mockResolvedValue([filePath])
 
     const digest = await service.buildRuntimeSummaryDigest('tenant-1', layer.scope, {
-      query: '周可名爱吃什么',
+      query: '张三爱吃什么',
       userId: 'u1'
     })
 
     expect(recallPlanner.selectSummaryDigestHeaders).toHaveBeenCalledTimes(1)
     expect(recallPlanner.selectAsyncRecallHeaders).not.toHaveBeenCalled()
     expect(digest).toHaveLength(1)
-    expect(digest[0].summary).toBe('周可名爱吃麦当劳')
+    expect(digest[0].summary).toBe('张三爱吃麦当劳')
   })
 
   it('uses file mtime rather than updatedAt when deciding whether to show a staleness note', async () => {

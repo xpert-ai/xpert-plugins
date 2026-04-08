@@ -59,7 +59,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
           id: 'memory-1',
           canonicalRef: 'memory-1',
           title: 'Favorite food',
-          summary: '周可名爱吃麦当劳',
+          summary: '张三爱吃麦当劳',
           kind: 'profile',
           semanticKind: 'user',
           audience: 'user',
@@ -116,7 +116,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     expect(String(request.systemMessage.content)).toContain('如果 digest 中某条 summary 已经足够回答用户问题，直接回答')
     expect(String(request.systemMessage.content)).toContain('绝不要猜测、拼接、改写 memoryId')
     expect(request.messages.some((message: HumanMessage) => String(message.content).includes('memory-summary-digest'))).toBe(true)
-    expect(request.messages.some((message: HumanMessage) => String(message.content).includes('周可名爱吃麦当劳'))).toBe(true)
+    expect(request.messages.some((message: HumanMessage) => String(message.content).includes('张三爱吃麦当劳'))).toBe(true)
     expect(request.messages.some((message: HumanMessage) => String(message.content).includes('不要为了确认一个简短事实或偏好去调用 search_recall_memories'))).toBe(true)
     expect(request.messages.some((message: HumanMessage) => String(message.content).includes('只能原样复用 canonicalRef 或 relativePath'))).toBe(true)
     expect(request.messages.some((message: HumanMessage) => String(message.content).includes('memory-index-context'))).toBe(true)
@@ -312,7 +312,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       headers: [createHeader('memory-7')]
     })
     service.findVisibleRecordById.mockResolvedValue({
-      record: createRecord('memory-7', '周可名的饮食偏好', '周可名爱吃麦当劳'),
+      record: createRecord('memory-7', '张三的饮食偏好', '张三爱吃麦当劳'),
       layer: {
         scope,
         audience: 'user' as const,
@@ -328,7 +328,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const middleware = await strategy.createMiddleware({}, createContext())
     const recallTool = middleware.tools?.find((item: any) => item.name === 'search_recall_memories') as any
 
-    const [queryContent] = await recallTool.func({ query: '周可名的饮食偏好' })
+    const [queryContent] = await recallTool.func({ query: '张三的饮食偏好' })
     expect(queryContent).toContain('copy canonicalRef into memoryId or copy relativePath verbatim')
     expect(queryContent).toContain('Do not use the title, filename, or filename stem as memoryId')
 
@@ -452,14 +452,14 @@ function createHeader(id: string) {
     semanticKind: 'user',
     audience: 'user',
     layerLabel: 'My Memory',
-    title: '周可名的饮食偏好',
-    summary: '周可名爱吃麦当劳',
+    title: '张三的饮食偏好',
+    summary: '张三爱吃麦当劳',
     updatedAt: '2026-04-08T06:08:36.643Z',
     mtimeMs: Date.parse('2026-04-08T06:08:36.643Z'),
     filePath: '/tmp/user/zhou-keming-food-memory-7.md',
     status: 'active',
     ownerUserId: 'u1',
-    tags: ['饮食偏好', '麦当劳', '周可名']
+    tags: ['饮食偏好', '麦当劳', '张三']
   }
 }
 
@@ -485,7 +485,7 @@ function createRecord(id: string, title: string, body: string) {
     updatedBy: 'u1',
     source: 'manual',
     sourceRef: undefined,
-    tags: ['饮食偏好', '麦当劳', '周可名'],
+    tags: ['饮食偏好', '麦当劳', '张三'],
     content: body,
     context: undefined,
     value: {

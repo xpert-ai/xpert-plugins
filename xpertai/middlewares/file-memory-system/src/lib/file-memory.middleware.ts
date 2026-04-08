@@ -909,7 +909,7 @@ function buildSummaryDigestMessages(items: MemoryRuntimeSummaryDigestItem[]) {
 
   return [
     new HumanMessage(
-      `<memory-summary-digest source="file-memory">\n这些摘要已经是当前回合最相关的候选记忆。\n如果某条 summary 已足够回答，直接回答。\n不要为了确认一个简短事实或偏好去调用 search_recall_memories。\n只有在需要正文、来源、完整上下文、或冲突消解时才调用工具。\n如果需要精确读取，只能原样复用 canonicalRef 或 relativePath，绝不要猜 memoryId。\n示例：如果摘要写着“周可名爱吃麦当劳”，就直接回答这个结论，不要再调工具确认。\n\n${lines.join('\n')}\n</memory-summary-digest>`
+      `<memory-summary-digest source="file-memory">\n这些摘要已经是当前回合最相关的候选记忆。\n如果某条 summary 已足够回答，直接回答。\n不要为了确认一个简短事实或偏好去调用 search_recall_memories。\n只有在需要正文、来源、完整上下文、或冲突消解时才调用工具。\n如果需要精确读取，只能原样复用 canonicalRef 或 relativePath，绝不要猜 memoryId。\n示例：如果摘要写着“张三爱吃麦当劳”，就直接回答这个结论，不要再调工具确认。\n\n${lines.join('\n')}\n</memory-summary-digest>`
     )
   ]
 }

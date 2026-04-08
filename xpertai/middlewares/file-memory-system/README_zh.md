@@ -243,7 +243,7 @@ kind: profile
 semanticKind: user
 status: active
 title: 用户姓名
-summary: 用户姓名：周可名
+summary: 用户姓名：张三
 createdAt: 2026-04-04T02:26:32.440Z
 updatedAt: 2026-04-04T02:26:32.440Z
 createdBy: user-1
@@ -258,7 +258,7 @@ tags:
 # 用户姓名
 
 ## 用户记忆
-用户姓名：周可名
+用户姓名：张三
 
 ## 补充上下文
 只在当前账号范围内使用
