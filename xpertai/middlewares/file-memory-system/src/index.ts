@@ -20,9 +20,9 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     level: 'system',
     category: 'middleware',
-    displayName: 'File Memory System',
-    description: 'Tracked workspace package for the file-memory middleware plugin.',
-    keywords: ['memory', 'file-memory', 'middleware'],
+    displayName: 'File Memory Runtime',
+    description: 'Single-plugin file memory runtime with recall and writeback middleware.',
+    keywords: ['memory', 'file-memory', 'middleware', 'runtime'],
     author: 'XpertAI Team'
   },
   config: {
