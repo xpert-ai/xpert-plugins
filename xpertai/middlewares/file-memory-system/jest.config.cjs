@@ -1,10 +1,10 @@
 /* eslint-disable */
-import { readFileSync } from 'fs'
+const { readFileSync } = require('node:fs')
 
 const swcJestConfig = JSON.parse(readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'))
 swcJestConfig.swcrc = false
 
-export default {
+module.exports = {
   displayName: '@xpert-ai/plugin-file-memory',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
