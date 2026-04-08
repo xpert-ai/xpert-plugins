@@ -1,0 +1,48 @@
+{
+  "name": "@xpert-ai/plugin-file-memory",
+  "version": "0.0.1",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "chalk": "4.1.2",
+    "uuid": "^10.0.0",
+    "yaml": "^2.6.1",
+    "zod": "3.25.67",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@metad/contracts": "^3.8.3",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@xpert-ai/chatkit-types": "^0.0.12",
+    "@xpert-ai/plugin-sdk": "^3.8.4"
+  }
+}

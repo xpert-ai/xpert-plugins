@@ -95,7 +95,8 @@
       "@xpert-ai/plugin-clarification",
       "@xpert-ai/plugin-loop-guard",
       "@xpert-ai/plugin-view-image",
-      "@xpert-ai/plugin-lark-cli"
+      "@xpert-ai/plugin-lark-cli",
+      "@xpert-ai/plugin-file-memory"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
