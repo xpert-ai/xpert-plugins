@@ -31,6 +31,7 @@ import { LarkSourceStrategy } from './source.strategy.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
 import { LARK_CONVERSATION_QUEUE_SERVICE, LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
+import { LarkIntegrationViewProvider } from './views/index.js'
 
 @XpertServerPlugin({
 	imports: [
@@ -55,6 +56,7 @@ import { LARK_CONVERSATION_QUEUE_SERVICE, LARK_LONG_CONNECTION_SERVICE } from '.
 		LarkChatRunStateService,
 		LarkChatStreamCallbackProcessor,
 		LarkRecipientDirectoryService,
+		LarkIntegrationViewProvider,
 		LarkTokenStrategy,
 		ChatBILarkMiddleware,
 		LarkConversationContextMiddleware,

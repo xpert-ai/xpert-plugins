@@ -28,6 +28,12 @@ export type LarkDocumentMetadata = LarkFile & {
   assets?: TDocumentAsset[]
 }
 
+/**
+ * The scopekey is the actual primary key, indicating the type of a conversation—group chat or one-on-one chat—and its ID.
+ * - Group chat: lark:v2:scope:{integrationId}:group:{chatId}
+ * - One-on-one chat: lark:v2:scope:{integrationId}:p2p:{senderOpenId}
+ */
+export type ScopeKey = string
 
 /**
  * Safely extract a readable message from an AxiosError or any unknown error.
@@ -424,6 +430,7 @@ export type LarkMessage = {
 		receive_id: string
 		content: string
 		msg_type: 'text' | 'post' | 'image' | 'interactive'
+		quote_message_id?: string
 		uuid?: string
 	}
 	params: {
@@ -431,12 +438,27 @@ export type LarkMessage = {
 	}
 }
 
+export type LarkMessageReactionRef = {
+	messageId: string
+	reactionId: string
+	emojiType: string
+}
+
+export const LARK_TYPING_REACTION_EMOJI_TYPE = 'Typing'
+
 export type ChatLarkContext<T = any> = {
 	tenant: ITenant
 	organizationId: string
 	integrationId: string
 	connectionMode?: TLarkConnectionMode
+	/**
+	 * Request principal used to process the inbound event. This may fall back to integration creator.
+	 */
 	userId: string
+	/**
+	 * Actual mapped internal sender. Keep empty when the sender is not mapped.
+	 */
+	mappedUserId?: string
 	/**
 	 * Preferred language from integration options.
 	 */
@@ -453,10 +475,13 @@ export type ChatLarkContext<T = any> = {
 	legacyConversationUserKey?: string
 	message?: T
 	input?: string
+	replyToMessageId?: string
 	semanticMessage?: LarkSemanticMessage
 	recipientDirectoryKey?: string
 	groupWindow?: LarkGroupWindow
 	groupWindowId?: string
+	typingReaction?: LarkMessageReactionRef
+	botMentioned?: boolean
 }
 
 export type TLarkEventMention = {

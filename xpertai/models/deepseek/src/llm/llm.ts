@@ -582,31 +582,18 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       options,
     )) as AsyncIterable<ChatCompletionResponse & { id?: string; created?: number; object?: string }>;
     let usage: ChatCompletionUsage | undefined;
-    for await (const data of streamIterable) {
-      const choice = data?.choices?.[0];
-      if (data.usage) {
-        usage = data.usage;
-      }
-      if (!choice) {
-        continue;
-      }
-      const { delta } = choice;
-      if (!delta) {
-        continue;
-      }
-      const chunk = this._convertCompletionsDeltaToBaseMessageChunk(
-        delta as { role?: string; content?: string; refusal?: string },
-        data as never,
-        defaultRole as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined,
-      ) as AIMessageChunk;
-      defaultRole = (delta.role as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined) ?? defaultRole;
-      const newTokenIndices = {
-        prompt: options?.promptIndex ?? 0,
-        completion: choice.index ?? 0,
-      };
+    const streamedTextByChoice: Record<number, string> = {};
+
+    const emitGenerationChunk = async function* (
+      chunk: AIMessageChunk,
+      choice: ChatCompletionChoice,
+      data: ChatCompletionResponse,
+      newTokenIndices: { prompt: number; completion: number },
+    ) {
       if (typeof chunk.content !== 'string') {
-        continue;
+        return;
       }
+
       const generationInfo: GenerationInfo = { ...newTokenIndices };
       if (choice.finish_reason != null) {
         generationInfo.finish_reason = choice.finish_reason;
@@ -614,11 +601,18 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         generationInfo.model_name = data.model;
         generationInfo.service_tier = data.service_tier;
       }
+
       const generationChunk = new ChatGenerationChunk({
         message: chunk,
         text: chunk.content,
         generationInfo,
       });
+
+      if (generationChunk.text) {
+        streamedTextByChoice[newTokenIndices.completion] =
+          (streamedTextByChoice[newTokenIndices.completion] ?? '') + generationChunk.text;
+      }
+
       yield generationChunk;
       await runManager?.handleLLMNewToken(
         generationChunk.text ?? '',
@@ -628,6 +622,54 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         undefined,
         { chunk: generationChunk },
       );
+    };
+
+    for await (const data of streamIterable) {
+      const choice = data?.choices?.[0];
+      if (data.usage) {
+        usage = data.usage;
+      }
+      if (!choice) {
+        continue;
+      }
+      const newTokenIndices = {
+        prompt: options?.promptIndex ?? 0,
+        completion: choice.index ?? 0,
+      };
+
+      const { delta } = choice;
+      if (delta) {
+        const chunk = this._convertCompletionsDeltaToBaseMessageChunk(
+          delta as { role?: string; content?: string; refusal?: string },
+          data as never,
+          defaultRole as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined,
+        ) as AIMessageChunk;
+        defaultRole =
+          (delta.role as 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined) ??
+          defaultRole;
+        yield* emitGenerationChunk(chunk, choice, data, newTokenIndices);
+      }
+
+      // DeepSeek may put the final answer on the terminal message instead of the last delta.
+      // Emit only the missing suffix so downstream streaming consumers still receive the answer once.
+      const terminalContent = choice.message?.content;
+      if (typeof terminalContent === 'string' && terminalContent) {
+        const streamedText = streamedTextByChoice[newTokenIndices.completion] ?? '';
+        let missingContent = '';
+
+        if (!streamedText) {
+          missingContent = terminalContent;
+        } else if (terminalContent.startsWith(streamedText)) {
+          missingContent = terminalContent.slice(streamedText.length);
+        }
+
+        if (missingContent) {
+          const fallbackChunk = new AIMessageChunk({
+            content: missingContent,
+          });
+          yield* emitGenerationChunk(fallbackChunk, choice, data, newTokenIndices);
+        }
+      }
     }
     if (usage) {
       const inputTokenDetails = {

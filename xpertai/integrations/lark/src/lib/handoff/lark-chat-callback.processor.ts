@@ -7,7 +7,7 @@ import {
 	ProcessContext,
 	ProcessResult,
 } from '@xpert-ai/plugin-sdk'
-import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
+import { ChatEventEnvelope, ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { ChatLarkMessage, cloneStructuredElement } from '../message.js'
 import { LarkConversationService } from '../conversation.service.js'
 import { resolveConversationUserKey as resolveLegacyConversationUserKey } from '../conversation-user-key.js'
@@ -31,6 +31,14 @@ import {
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
 import { messageContentText, XpertAgentExecutionStatusEnum } from '../contracts-compat.js'
+
+const HIDDEN_LARK_CHAT_EVENT_TYPES = [
+	'thread_context_usage',
+	'conversation_title_summary'
+] as const
+
+type HiddenLarkChatEventType = (typeof HIDDEN_LARK_CHAT_EVENT_TYPES)[number]
+const HIDDEN_LARK_CHAT_EVENT_TYPE_SET = new Set<HiddenLarkChatEventType>(HIDDEN_LARK_CHAT_EVENT_TYPES)
 
 /**
  * Callback processor for Lark stream events.
@@ -141,16 +149,9 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 	 * stay buffered in pendingEvents until earlier sequence arrives.
 	 */
 	private async processPendingEvents(state: LarkChatRunState): Promise<boolean> {
-		this.logger.debug(
-			`Processing pending events for source message "${state.sourceMessageId}": nextSequence=${state.nextSequence}, pendingCount=${Object.keys(state.pendingEvents).length}`
-		)
-		
 		while (state.pendingEvents[String(state.nextSequence)]) {
 			const payload = state.pendingEvents[String(state.nextSequence)]
 			delete state.pendingEvents[String(state.nextSequence)]
-			this.logger.debug(
-				`Applying callback payload for source message "${state.sourceMessageId}": sequence=${payload.sequence}, kind=${payload.kind}`
-			)
 
 			switch (payload.kind) {
 				case 'stream': {
@@ -191,6 +192,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 	 */
 	private async applyStreamEvent(state: LarkChatRunState, event: unknown) {
 		const context = state.context
+		const streamingEnabled = this.isStreamingEnabled(context)
 		let larkMessage: ChatLarkMessage | undefined
 		const ensureLarkMessage = (): ChatLarkMessage => {
 			if (!larkMessage) {
@@ -203,14 +205,11 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			return larkMessage
 		}
 
-		const eventPayload = (event as MessageEvent | undefined)?.data
+		const eventPayload = (event as MessageEvent | undefined)?.data as ChatEventEnvelope
 		if (!eventPayload) {
 			this.logger.warn('Unrecognized handoff stream event')
 			return
 		}
-		this.logger.debug(
-			`Applying stream event for source message "${state.sourceMessageId}": type=${eventPayload.type}`
-		)
 
 		if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
 			const messageData = eventPayload.data
@@ -228,14 +227,27 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				this.appendStreamTextDelta(state, textDelta)
 			}
 
-			if (typeof messageData !== 'string') {
+				if (typeof messageData !== 'string') {
 				if (structuredMessageData?.type === 'update') {
-					const message = ensureLarkMessage()
 					const updatePayload = structuredMessageData.data as Record<string, unknown> | undefined
 					const structuredElements = this.extractStructuredElements(updatePayload?.elements)
 					if (structuredElements.length > 0) {
 						this.appendStructuredElements(state, structuredElements)
 					}
+					if (!streamingEnabled) {
+						context.message = {
+							...(context.message ?? {}),
+							...(typeof updatePayload?.status === 'string'
+								? { status: updatePayload.status as ChatLarkMessage['status'] }
+								: {}),
+							...(updatePayload?.header !== undefined ? { header: updatePayload.header } : {}),
+							...(typeof updatePayload?.language === 'string'
+								? { language: updatePayload.language }
+								: {})
+						}
+						return
+					}
+					const message = ensureLarkMessage()
 					message.renderItems = state.renderItems
 					await message.update({
 						status:
@@ -250,6 +262,9 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					return
 				} else if (structuredMessageData?.type === 'component') {
 					if (this.upsertComponentRenderItem(state, structuredMessageData)) {
+						if (!streamingEnabled) {
+							return
+						}
 						const message = ensureLarkMessage()
 						message.renderItems = state.renderItems
 						await message.update()
@@ -258,7 +273,11 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					}
 					return
 				} else if (structuredMessageData?.type !== 'text') {
-					this.logger.warn('Unprocessed chat message event payload')
+					if (structuredMessageData?.type === 'reasoning') {
+						// skip for now, as the rendering is not finalized and may change in the future
+					} else {
+					  this.logger.warn(`Unprocessed chat message event payload: ${JSON.stringify(structuredMessageData)}`)
+					}
 				}
 			}
 
@@ -266,7 +285,9 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				return
 			}
 
-			this.logger.debug(`Appended stream content for source message "${state.sourceMessageId}", current buffered length: ${state.responseMessageContent.length}`)
+			if (!streamingEnabled) {
+				return
+			}
 			const now = Date.now()
 			const updateWindowMs = this.resolveStreamUpdateWindowMs(context)
 			if (this.shouldFlushStreamContent(state, now, updateWindowMs)) {
@@ -282,14 +303,16 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			return
 		}
 
+		const eventData = this.toRecord(eventPayload.data)
 		switch (eventPayload.event) {
 			case ChatMessageEventTypeEnum.ON_CONVERSATION_START: {
 				const conversationUserKey = this.resolveConversationUserKey(context)
-				if (conversationUserKey) {
+				const conversationId = this.toNonEmptyString(eventData?.id)
+				if (conversationUserKey && conversationId) {
 					await this.conversationService.setConversation(
 						conversationUserKey,
 						context.xpertId,
-						eventPayload.data.id,
+						conversationId,
 						{
 							integrationId: context.integrationId,
 							principalKey: context.principalKey,
@@ -304,23 +327,26 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				break
 			}
 			case ChatMessageEventTypeEnum.ON_MESSAGE_START: {
+				const messageId = this.toNonEmptyString(eventData?.id)
 				context.message = {
 					...(context.message ?? {}),
-					messageId: eventPayload.data.id
+					...(messageId ? { messageId } : {})
 				}
 				await this.syncActiveMessageCache(context)
 				break
 			}
 			case ChatMessageEventTypeEnum.ON_CONVERSATION_END: {
+				const status = this.toNonEmptyString(eventData?.status)
+				const operation = eventData?.operation
 				if (
-					eventPayload.data.status === XpertAgentExecutionStatusEnum.INTERRUPTED &&
-					eventPayload.data.operation
+					status === XpertAgentExecutionStatusEnum.INTERRUPTED &&
+					operation
 				) {
 					const message = ensureLarkMessage()
-					await message.confirm(eventPayload.data.operation)
-				} else if (eventPayload.data.status === XpertAgentExecutionStatusEnum.ERROR) {
+					await message.confirm(operation)
+				} else if (status === XpertAgentExecutionStatusEnum.ERROR) {
 					const message = ensureLarkMessage()
-					await message.error(eventPayload.data.error || 'Internal Error')
+					await message.error(this.toNonEmptyString(eventData?.error) || 'Internal Error')
 				}
 				break
 			}
@@ -340,6 +366,10 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					break
 				}
 
+				if (!streamingEnabled) {
+					break
+				}
+
 				const message = ensureLarkMessage()
 				message.renderItems = state.renderItems
 				await message.update()
@@ -352,7 +382,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			}
 		}
 
-		if (larkMessage) {
+		if (larkMessage && (streamingEnabled || this.isTerminalStatus(context.message?.status))) {
 			context.message = this.toMessageSnapshot(larkMessage, context.message?.text)
 			await this.syncActiveMessageCache(context)
 		}
@@ -460,6 +490,18 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		)
 	}
 
+	private isStreamingEnabled(context: LarkChatCallbackContext): boolean {
+		return context.streaming?.enabled !== false
+	}
+
+	private isTerminalStatus(status?: string | null): boolean {
+		return (
+			status === 'interrupted' ||
+			status === XpertAgentExecutionStatusEnum.ERROR ||
+			status === XpertAgentExecutionStatusEnum.SUCCESS
+		)
+	}
+
 	private shouldFlushStreamContent(
 		state: LarkChatRunState,
 		now: number,
@@ -540,8 +582,12 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		eventType: string,
 		data: Record<string, unknown>
 	): LarkProgressRenderItem | LarkToolTraceRenderItem | null {
-		if (eventType === ChatMessageEventTypeEnum.ON_CHAT_EVENT && this.shouldHideChatEvent(data)) {
-			return null
+		if (eventType === ChatMessageEventTypeEnum.ON_CHAT_EVENT) {
+			const chatEventType = this.toNonEmptyString(data?.type)
+			if (this.isHiddenLarkChatEventType(chatEventType)) {
+				return null
+			}
+			this.logger.debug(`Received chat event: ${chatEventType ?? 'unknown'}: ${JSON.stringify(data)}`)
 		}
 
 		const id = this.resolveManagedEventId(data) ?? this.buildSyntheticManagedEventId(state, eventType, data)
@@ -825,13 +871,9 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 	}
 
-	private shouldHideChatEvent(data: Record<string, unknown>): boolean {
-		const type = this.toNonEmptyString(data?.type)
-		if (type === 'thread_context_usage') {
-			return true
-		}
-
-		return this.toNonEmptyString(data?.title) === 'Thread context usage'
+	private isHiddenLarkChatEventType(value: unknown): value is HiddenLarkChatEventType {
+		const type = this.toNonEmptyString(value)
+		return Boolean(type && HIDDEN_LARK_CHAT_EVENT_TYPE_SET.has(type as HiddenLarkChatEventType))
 	}
 
 	private shouldSuppressToolPayloadText(value: string | null | undefined, tool?: string | null): boolean {
@@ -1019,6 +1061,3 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		return undefined
 	}
 }
-
-
-

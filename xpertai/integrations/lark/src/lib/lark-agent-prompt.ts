@@ -1,9 +1,6 @@
 ﻿import type { LarkGroupWindow } from './types.js'
 
-const GROUP_CONTEXT_LABEL = '[群聊上下文]'
 const GROUP_WINDOW_LABEL = '[群聊短窗上下文]'
-const CURRENT_SPEAKER_PREFIX = '当前发言人：'
-const USER_MESSAGE_PREFIX = '用户消息：'
 const GROUP_WINDOW_INSTRUCTION =
   '请将以下短时间内连续 @ 机器人的消息视为同一轮对话，综合理解后统一回复。'
 const SAFE_SPEAKER_FALLBACK = '当前发言成员'
@@ -21,6 +18,15 @@ function normalizeSpeakerName(senderName: string | undefined | null, fallback = 
 
   if (normalized.startsWith('ou_')) {
     return fallback
+  }
+
+  return normalized
+}
+
+function resolveSpeakerName(senderName: string | undefined | null): string | null {
+  const normalized = normalizeText(senderName)
+  if (!normalized || normalized.startsWith('ou_')) {
+    return null
   }
 
   return normalized
@@ -59,11 +65,9 @@ export function buildLarkSpeakerContextInput(
     return input
   }
 
-  const displaySpeakerName = normalizeSpeakerName(senderName, SAFE_SPEAKER_FALLBACK)
+  const displaySpeakerName = resolveSpeakerName(senderName)
 
-  return [GROUP_CONTEXT_LABEL, `${CURRENT_SPEAKER_PREFIX}${displaySpeakerName}`, `${USER_MESSAGE_PREFIX}${normalizedInput}`].join(
-    '\n'
-  )
+  return displaySpeakerName ? `${displaySpeakerName}: ${normalizedInput}` : normalizedInput
 }
 
 export function buildLarkGroupWindowPrompt(groupWindow: LarkGroupWindow): string {

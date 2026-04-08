@@ -10,7 +10,16 @@ import type {
 } from './handoff/lark-chat.types.js'
 import { translate } from './i18n.js'
 import type { LarkChannelStrategy } from './lark-channel.strategy.js'
-import { ChatLarkContext, LARK_CONFIRM, LARK_END_CONVERSATION, LARK_REJECT, LarkRenderElement, LarkStructuredElement, TLarkConversationStatus } from './types.js'
+import {
+  ChatLarkContext,
+  LARK_CONFIRM,
+  LARK_END_CONVERSATION,
+  LARK_REJECT,
+  LarkMessageReactionRef,
+  LarkRenderElement,
+  LarkStructuredElement,
+  TLarkConversationStatus
+} from './types.js'
 
 export type ChatLarkMessageStatus = IChatMessage['status'] | 'continuing' | 'waiting' | 'done' | TLarkConversationStatus
 
@@ -28,7 +37,10 @@ export interface ChatLarkMessageFields {
   elements: LarkRenderElement[]
 }
 
-type LarkMessageChannel = Pick<LarkChannelStrategy, 'interactiveMessage' | 'patchInteractiveMessage' | 'textMessage'>
+type LarkMessageChannel = Pick<
+  LarkChannelStrategy,
+  'interactiveMessage' | 'patchInteractiveMessage' | 'textMessage' | 'deleteMessageReaction'
+>
 
 export class ChatLarkMessage extends Serializable implements ChatLarkMessageFields {
   lc_namespace: string[] = ['lark']
@@ -111,6 +123,14 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     return this.chatContext.recipientDirectoryKey
   }
 
+  get replyToMessageId() {
+    return this.chatContext.replyToMessageId
+  }
+
+  get typingReaction(): LarkMessageReactionRef | undefined {
+    return this.chatContext.typingReaction
+  }
+
   get connectionMode() {
     return this.chatContext.connectionMode ?? 'webhook'
   }
@@ -154,6 +174,9 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
   }
 
   getSubtitle() {
+    if (this.chatType === 'group') {
+      return undefined
+    }
     return this.options.text
   }
 
@@ -392,6 +415,7 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
           throw new Error('Lark interactiveMessage succeeded without returning a message_id')
         }
         this.id = messageId
+        this.consumeReplyReference()
       } catch (error) {
         await this.handleCardSendFailure(error, elements.elements, false)
       }
@@ -529,6 +553,9 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
         data?: { message_id?: string }
       }
       this.id = result?.data?.message_id ?? this.id
+      if (result?.data?.message_id) {
+        this.consumeReplyReference()
+      }
     } catch (fallbackError) {
       ChatLarkMessage.logger.error(
         `[lark] text fallback failed for integration=${this.integrationId}: ${
@@ -566,6 +593,10 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       this.status === XpertAgentExecutionStatusEnum.SUCCESS ||
       this.status === XpertAgentExecutionStatusEnum.ERROR
     )
+  }
+
+  private consumeReplyReference() {
+    this.chatContext.replyToMessageId = undefined
   }
 
   private toPlainText(elements: readonly LarkRenderElement[]): string {

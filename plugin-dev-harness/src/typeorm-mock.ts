@@ -208,6 +208,11 @@ function createDataSourceMock() {
     createQueryRunner: () => ({
       manager,
       connect: async () => undefined,
+      getTable: async () => undefined,
+      addColumn: async () => undefined,
+      createIndex: async () => undefined,
+      dropIndex: async () => undefined,
+      dropUniqueConstraint: async () => undefined,
       release: async () => undefined,
       startTransaction: async () => undefined,
       commitTransaction: async () => undefined,

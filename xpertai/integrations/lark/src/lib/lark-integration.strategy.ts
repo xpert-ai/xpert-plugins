@@ -6,7 +6,6 @@ import { iconImage, INTEGRATION_LARK, TIntegrationLarkOptions } from './types.js
 import { toLarkApiErrorMessage } from './utils.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
-import { describeLarkProxy, getLarkAxiosRequestConfig } from './lark-network.js'
 import { RolesEnum } from './contracts-compat.js'
 
 type LarkIntegrationTestResult = {
@@ -182,11 +181,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     return null
   }
 
-  async onUpdate(previous: IIntegration<TIntegrationLarkOptions>, current: IIntegration<any>): Promise<void> {
+  async onUpdate(previous: IIntegration<TIntegrationLarkOptions>, current: IIntegration<TIntegrationLarkOptions>): Promise<void> {
     const wasLongConnection = this.capabilityService.resolveConnectionMode(previous.options) === 'long_connection'
     const isStillLongConnection =
       current.provider === INTEGRATION_LARK &&
-      this.capabilityService.resolveConnectionMode(current.options as TIntegrationLarkOptions) === 'long_connection'
+      this.capabilityService.resolveConnectionMode(current.options) === 'long_connection'
 
     if (wasLongConnection && !isStillLongConnection) {
       await this.longConnectionService.disconnect(previous.id)
@@ -224,11 +223,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     // Test actual connection to Lark API
     try {
       const baseUrl = config.isLark ? 'https://open.larksuite.com' : 'https://open.feishu.cn'
-      const axiosConfig = getLarkAxiosRequestConfig('https:')
-      const proxyInfo = describeLarkProxy('https:')
-      if (proxyInfo.note) {
-        this.logger.log(`[lark] ${proxyInfo.note}`)
-      }
 
       /**
        * Do a direct token request to avoid SDK-level token cache causing false-positive tests
@@ -241,7 +235,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
           app_secret: config.appSecret
         },
         {
-          ...axiosConfig,
           headers: { 'Content-Type': 'application/json' },
           timeout: 10000
         }
@@ -253,7 +246,6 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       }
 
       const botInfoResponse = await axios.get(`${baseUrl}/open-apis/bot/v3/info`, {
-        ...axiosConfig,
         headers: {
           Authorization: `Bearer ${tokenData.tenant_access_token}`
         },
