@@ -42,6 +42,15 @@ describe('XpertFileMemoryService freshness alignment', () => {
     audience: 'shared' as const,
     layerLabel: 'Shared Memory'
   }
+  const userLayer = {
+    scope: {
+      scopeType: 'xpert' as const,
+      scopeId: 'xpert-1'
+    },
+    audience: 'user' as const,
+    ownerUserId: 'u1',
+    layerLabel: 'My Memory'
+  }
 
   beforeEach(async () => {
     tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'file-memory-service-'))
@@ -52,9 +61,19 @@ describe('XpertFileMemoryService freshness alignment', () => {
 
     const layerResolver = {
       resolveScope: jest.fn(),
-      resolveVisibleLayers: jest.fn().mockReturnValue([layer]),
+      resolveVisibleLayers: jest.fn((_scope, _userId, audience = 'all') => {
+        if (audience === 'user') {
+          return [userLayer]
+        }
+        if (audience === 'shared') {
+          return [layer]
+        }
+        return [userLayer, layer]
+      }),
       resolveScopeDirectory: jest.fn().mockReturnValue(tempDir),
-      resolveLayerDirectory: jest.fn().mockReturnValue(tempDir)
+      resolveLayerDirectory: jest.fn((_tenantId, currentLayer) =>
+        currentLayer.audience === 'user' ? path.join(tempDir, 'users', currentLayer.ownerUserId) : tempDir
+      )
     }
     fileRepository = {
       listFiles: jest.fn().mockResolvedValue([]),
@@ -106,7 +125,9 @@ describe('XpertFileMemoryService freshness alignment', () => {
       updatedAt: new Date().toISOString()
     })
     await fsPromises.utimes(filePath, oldTime, oldTime)
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    fileRepository.listFiles.mockImplementation(async (_tenantId: string, currentLayer: { audience: string }) =>
+      currentLayer.audience === 'shared' ? [filePath] : []
+    )
 
     const recall = await service.buildRuntimeRecall('tenant-1', layer.scope, {
       query: 'deployment',
@@ -129,7 +150,9 @@ describe('XpertFileMemoryService freshness alignment', () => {
       summary: '张三爱吃麦当劳',
       updatedAt: new Date().toISOString()
     })
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    fileRepository.listFiles.mockImplementation(async (_tenantId: string, currentLayer: { audience: string }) =>
+      currentLayer.audience === 'shared' ? [filePath] : []
+    )
 
     const digest = await service.buildRuntimeSummaryDigest('tenant-1', layer.scope, {
       query: '张三爱吃什么',
@@ -150,7 +173,9 @@ describe('XpertFileMemoryService freshness alignment', () => {
       summary: 'Recently touched file',
       updatedAt: '2020-01-01T00:00:00.000Z'
     })
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    fileRepository.listFiles.mockImplementation(async (_tenantId: string, currentLayer: { audience: string }) =>
+      currentLayer.audience === 'shared' ? [filePath] : []
+    )
 
     const recall = await service.buildRuntimeRecall('tenant-1', layer.scope, {
       query: 'preference',
@@ -184,6 +209,70 @@ describe('XpertFileMemoryService freshness alignment', () => {
     const raw = await fsPromises.readFile(record.filePath, 'utf8')
     expect(raw).toContain('semanticKind: project')
     expect(raw).toContain('## 项目信息')
+  })
+
+  it('lists workbench roots and shared layer directories for memory files', async () => {
+    const filePath = path.join(tempDir, 'project', 'launch-plan-memory-1.md')
+
+    await writeMemoryFile(filePath, {
+      title: 'Launch plan',
+      summary: 'Keep the launch owner updated.',
+      updatedAt: new Date().toISOString()
+    })
+    fileRepository.listFiles.mockImplementation(async (_tenantId: string, currentLayer: { audience: string }) =>
+      currentLayer.audience === 'shared' ? [filePath] : []
+    )
+
+    const roots = await service.listWorkbenchFiles('tenant-1', layer.scope, 'u1')
+    const sharedItems = await service.listWorkbenchFiles('tenant-1', layer.scope, 'u1', 'shared')
+    const projectItems = await service.listWorkbenchFiles('tenant-1', layer.scope, 'u1', 'shared/project')
+
+    expect(roots.map((item) => item.fullPath)).toEqual(['my', 'shared'])
+    expect(sharedItems.map((item) => item.fullPath)).toEqual(['shared/MEMORY.md', 'shared/project'])
+    expect(projectItems.map((item) => item.fullPath)).toEqual(['shared/project/launch-plan-memory-1.md'])
+  })
+
+  it('reads and saves workbench memory files while blocking direct MEMORY.md edits', async () => {
+    const filePath = path.join(tempDir, 'project', 'launch-plan-memory-1.md')
+
+    await writeMemoryFile(filePath, {
+      title: 'Launch plan',
+      summary: 'Keep the launch owner updated.',
+      updatedAt: new Date().toISOString()
+    })
+    fileRepository.listFiles.mockImplementation(async (_tenantId: string, currentLayer: { audience: string }) =>
+      currentLayer.audience === 'shared' ? [filePath] : []
+    )
+
+    const file = await service.readWorkbenchFile('tenant-1', layer.scope, 'u1', 'shared/project/launch-plan-memory-1.md')
+    expect(file.contents).toContain('Launch plan')
+
+    await expect(
+      service.saveWorkbenchFile('tenant-1', layer.scope, 'u1', 'shared/MEMORY.md', '# hacked', 'u2')
+    ).rejects.toThrow('MEMORY.md')
+
+    const updated = await service.saveWorkbenchFile(
+      'tenant-1',
+      layer.scope,
+      'u1',
+      'shared/project/launch-plan-memory-1.md',
+      [
+        '---',
+        'tags:',
+        '  - release',
+        '---',
+        '',
+        '# Launch checklist',
+        '',
+        '## 项目信息',
+        'Ship the launch checklist and notify the owner.'
+      ].join('\n'),
+      'u2'
+    )
+
+    expect(updated.contents).toContain('Launch checklist')
+    expect(updated.contents).toContain('updatedBy: u2')
+    expect(updated.contents).toContain('  - release')
   })
 })
 
@@ -220,5 +309,6 @@ async function writeMemoryFile(
     'Always mention the deployment checklist.'
   ].join('\n')
 
+  await fsPromises.mkdir(path.dirname(filePath), { recursive: true })
   await fsPromises.writeFile(filePath, file, 'utf8')
 }

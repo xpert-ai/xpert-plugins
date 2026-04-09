@@ -1,39 +1,21 @@
 import path from 'node:path'
 import { Injectable } from '@nestjs/common'
 
-type FileMemoryRuntimeEnvironment = {
-  envName?: string
-  sandboxConfig?: {
-    volume?: string
-  }
-}
-
 @Injectable()
 export class FileMemoryPathPolicy {
-  private readonly runtimeEnvironment: FileMemoryRuntimeEnvironment = {
-    envName:
-      process.env['ENV_NAME'] ??
-      (process.env['NODE_ENV'] === 'production' ? 'prod' : 'dev'),
-    sandboxConfig: {
-      volume: process.env['SANDBOX_VOLUME'] ?? process.env['SANDBOX_CONFIG_VOLUME']
-    }
-  }
+  private readonly isDocker = process.env['IS_DOCKER'] === 'true'
 
   hasConfiguredSandboxVolume() {
-    return Boolean(this.runtimeEnvironment.sandboxConfig?.volume?.trim())
+    return false
   }
 
   usesFlattenedSandboxVolumeLayout() {
-    return this.runtimeEnvironment.envName === 'dev' && !this.hasConfiguredSandboxVolume()
+    return !this.isDocker
   }
 
   getSandboxRootPath(tenantId?: string) {
     if (this.usesFlattenedSandboxVolumeLayout()) {
       return this.getLocalSandboxDataRoot()
-    }
-
-    if (this.runtimeEnvironment.envName === 'dev') {
-      return path.join(this.runtimeEnvironment.sandboxConfig?.volume || '', tenantId ?? '')
     }
 
     return tenantId ? path.join('/sandbox', tenantId) : '/sandbox'
@@ -46,7 +28,7 @@ export class FileMemoryPathPolicy {
 
   getWorkspaceRootPath(tenantId: string, workspaceId: string) {
     const root = this.getSandboxRootPath(tenantId)
-    return this.usesFlattenedSandboxVolumeLayout() ? root : path.join(root, 'workspace', workspaceId)
+    return this.usesFlattenedSandboxVolumeLayout() ? root : path.join(root, 'workspaces', workspaceId)
   }
 
   private getLocalSandboxDataRoot() {

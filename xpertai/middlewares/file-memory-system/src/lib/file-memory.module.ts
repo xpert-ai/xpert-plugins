@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { CqrsModule } from '@nestjs/cqrs'
 import { IOnPluginBootstrap, IOnPluginDestroy, XpertServerPlugin } from '@xpert-ai/plugin-sdk'
+import { FileMemoryController } from './file-memory.controller.js'
 import { FileMemoryFileRepository } from './file-repository.js'
 import { XpertFileMemoryService } from './file-memory.service.js'
 import { FileMemorySystemMiddleware } from './file-memory.middleware.js'
@@ -12,6 +13,7 @@ import { FileMemoryWritePolicy } from './write-policy.js'
 
 @XpertServerPlugin({
   imports: [CqrsModule],
+  controllers: [FileMemoryController],
   providers: [
     FileMemoryPathPolicy,
     FileMemoryLayerResolver,

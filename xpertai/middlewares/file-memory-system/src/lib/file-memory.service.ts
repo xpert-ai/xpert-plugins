@@ -1,6 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { LongTermMemoryTypeEnum, TMemoryQA, TMemoryUserProfile } from '@metad/contracts'
-import { Injectable, Logger } from '@nestjs/common'
+import { LongTermMemoryTypeEnum, TFile, TFileDirectory, TMemoryQA, TMemoryUserProfile } from '@metad/contracts'
+import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { v4 as uuidv4 } from 'uuid'
@@ -53,6 +53,9 @@ const MAX_SELECTED_TOTAL = 5
 const MAX_RUNTIME_SUMMARY_ITEMS = 5
 const MEMORY_CONTEXT_SECTION_HEADING = '补充上下文'
 const MEMORY_CONTEXT_SECTION_PATTERN = /\n##\s+(?:Context|上下文|补充上下文)\s*\n([\s\S]*)$/i
+const MEMORY_WORKBENCH_ROOTS = ['my', 'shared'] as const
+
+type MemoryWorkbenchLayerKey = (typeof MEMORY_WORKBENCH_ROOTS)[number]
 
 @Injectable()
 export class XpertFileMemoryService {
@@ -367,6 +370,127 @@ export class XpertFileMemoryService {
     return this.readRecord(tenantId, record.filePath, layer)
   }
 
+  async listWorkbenchFiles(
+    tenantId: string,
+    scope: MemoryScope,
+    userId: string,
+    logicalPath = ''
+  ): Promise<TFileDirectory[]> {
+    const target = parseMemoryWorkbenchPath(logicalPath)
+    if (!target.layerKey) {
+      return MEMORY_WORKBENCH_ROOTS.map((layerKey) => createWorkbenchRootNode(layerKey))
+    }
+
+    const layer = this.resolveWorkbenchLayer(scope, userId, target.layerKey)
+    if (!target.relativePath) {
+      return this.listWorkbenchLayerEntries(tenantId, layer, target.layerKey)
+    }
+
+    if (isMemoryIndexPath(target.relativePath)) {
+      return []
+    }
+
+    return this.listWorkbenchDirectoryEntries(tenantId, layer, target.layerKey, target.relativePath)
+  }
+
+  async readWorkbenchFile(
+    tenantId: string,
+    scope: MemoryScope,
+    userId: string,
+    logicalPath: string
+  ): Promise<TFile> {
+    const target = parseMemoryWorkbenchPath(logicalPath)
+    if (!target.layerKey || !target.relativePath) {
+      throw new BadRequestException('File path is required')
+    }
+
+    const layer = this.resolveWorkbenchLayer(scope, userId, target.layerKey)
+    if (isMemoryIndexPath(target.relativePath)) {
+      let contents = await this.readIndexForLayer(tenantId, layer)
+      if (!contents.trim()) {
+        const headers = await this.scanHeadersInLayer(tenantId, layer, {
+          includeArchived: true,
+          includeFrozen: true,
+          audience: layer.audience
+        })
+        contents = normalizeIndexSource('', renderManagedIndex(layer, headers), layer)
+      }
+      return createWorkbenchFile({
+        logicalPath: target.fullPath,
+        contents,
+        description: `${layer.layerLabel} index`
+      })
+    }
+
+    if (!isMemoryRecordPath(target.relativePath)) {
+      throw new BadRequestException('Directory paths cannot be opened as files')
+    }
+
+    const found = await this.findRecordInLayersByRelativePath(tenantId, [layer], target.relativePath)
+    if (!found) {
+      throw new BadRequestException('Memory file not found')
+    }
+
+    const contents = await this.fileRepository.readFile(found.record.filePath)
+    return createWorkbenchFile({
+      logicalPath: target.fullPath,
+      contents,
+      description: found.record.summary,
+      mtimeMs: found.record.mtimeMs
+    })
+  }
+
+  async saveWorkbenchFile(
+    tenantId: string,
+    scope: MemoryScope,
+    userId: string,
+    logicalPath: string,
+    content: string,
+    updatedBy: string
+  ): Promise<TFile> {
+    const target = parseMemoryWorkbenchPath(logicalPath)
+    if (!target.layerKey || !target.relativePath) {
+      throw new BadRequestException('File path is required')
+    }
+    if (isMemoryIndexPath(target.relativePath)) {
+      throw new BadRequestException('MEMORY.md is managed by the file-memory runtime and cannot be edited directly')
+    }
+    if (!isMemoryRecordPath(target.relativePath)) {
+      throw new BadRequestException('Directory paths cannot be edited as files')
+    }
+
+    const layer = this.resolveWorkbenchLayer(scope, userId, target.layerKey)
+    const found = await this.findRecordInLayersByRelativePath(tenantId, [layer], target.relativePath)
+    if (!found) {
+      throw new BadRequestException('Memory file not found')
+    }
+
+    const parsed = parseMemoryFile(content ?? '', toFrontmatter(found.record))
+    const resolvedTitle =
+      coalesce(parsed.frontmatter.title, extractTitleFromBody(parsed.body), found.record.title) || found.record.title
+    const parsedBody = parseBody(found.record.kind, resolvedTitle, parsed.body)
+
+    await this.upsert(tenantId, {
+      scope: found.layer.scope,
+      audience: found.record.audience,
+      ownerUserId: found.record.ownerUserId,
+      kind: found.record.kind,
+      semanticKind: found.record.semanticKind,
+      memoryId: found.record.id,
+      title: resolvedTitle,
+      content: parsedBody.content,
+      context: parsedBody.context,
+      tags: parsed.frontmatter.tags,
+      source: found.record.source,
+      sourceRef: found.record.sourceRef,
+      status: found.record.status,
+      createdBy: found.record.createdBy,
+      updatedBy
+    })
+
+    return this.readWorkbenchFile(tenantId, scope, userId, target.fullPath)
+  }
+
   private async listRecords(
     tenantId: string,
     scope: MemoryScope,
@@ -460,6 +584,54 @@ export class XpertFileMemoryService {
         layerLabel: 'Shared Memory'
       }
     ]
+  }
+
+  private resolveWorkbenchLayer(scope: MemoryScope, userId: string, layerKey: MemoryWorkbenchLayerKey) {
+    const audience = layerKey === 'my' ? 'user' : 'shared'
+    const layers = this.resolveVisibleLayers(scope, userId, audience)
+    const layer = layers[0]
+    if (!layer) {
+      throw new BadRequestException(`Memory layer "${layerKey}" is not available`)
+    }
+    return layer
+  }
+
+  private async listWorkbenchLayerEntries(
+    tenantId: string,
+    layer: MemoryLayer,
+    layerKey: MemoryWorkbenchLayerKey
+  ): Promise<TFileDirectory[]> {
+    const headers = await this.readHeaderManifest(tenantId, layer)
+    const directoryNames = Array.from(
+      new Set(
+        headers
+          .map((header) => inferRelativeMemoryPath(header.filePath).split('/')[0]?.trim())
+          .filter(Boolean)
+      )
+    ).sort((left, right) => left.localeCompare(right))
+
+    return [
+      createWorkbenchIndexNode(layerKey),
+      ...directoryNames.map((directoryName) => createWorkbenchDirectoryNode(layerKey, directoryName))
+    ]
+  }
+
+  private async listWorkbenchDirectoryEntries(
+    tenantId: string,
+    layer: MemoryLayer,
+    layerKey: MemoryWorkbenchLayerKey,
+    directoryPath: string
+  ): Promise<TFileDirectory[]> {
+    const normalizedDirectoryPath = normalizeRelativePath(directoryPath)
+    if (!isMemoryDirectoryPath(normalizedDirectoryPath)) {
+      return []
+    }
+
+    const directoryName = normalizedDirectoryPath.split('/')[0]
+    const headers = await this.readHeaderManifest(tenantId, layer)
+    return headers
+      .filter((header) => inferRelativeMemoryPath(header.filePath).startsWith(`${directoryName}/`))
+      .map((header) => createWorkbenchRecordNode(layerKey, header))
   }
 
   private layerCacheKey(tenantId: string, layer: MemoryLayer) {
@@ -1247,6 +1419,130 @@ function coalesce(...values: Array<string | null | undefined>) {
     }
   }
   return ''
+}
+
+function parseMemoryWorkbenchPath(value?: string | null) {
+  const fullPath = normalizeRelativePath(value ?? '')
+  if (!fullPath) {
+    return {
+      layerKey: null as MemoryWorkbenchLayerKey | null,
+      relativePath: '',
+      fullPath: ''
+    }
+  }
+
+  const [layerKey, ...rest] = fullPath.split('/')
+  if (!MEMORY_WORKBENCH_ROOTS.includes(layerKey as MemoryWorkbenchLayerKey)) {
+    throw new BadRequestException(`Unsupported memory path "${value}"`)
+  }
+
+  return {
+    layerKey: layerKey as MemoryWorkbenchLayerKey,
+    relativePath: rest.join('/'),
+    fullPath
+  }
+}
+
+function createWorkbenchRootNode(layerKey: MemoryWorkbenchLayerKey): TFileDirectory {
+  return {
+    filePath: layerKey,
+    fullPath: layerKey,
+    directory: '',
+    hasChildren: true,
+    children: null
+  }
+}
+
+function createWorkbenchIndexNode(layerKey: MemoryWorkbenchLayerKey): TFileDirectory {
+  const fullPath = `${layerKey}/${MEMORY_INDEX_FILENAME}`
+  return {
+    filePath: MEMORY_INDEX_FILENAME,
+    fullPath,
+    directory: layerKey,
+    hasChildren: false
+  }
+}
+
+function createWorkbenchDirectoryNode(layerKey: MemoryWorkbenchLayerKey, directoryName: string): TFileDirectory {
+  const fullPath = `${layerKey}/${directoryName}`
+  return {
+    filePath: directoryName,
+    fullPath,
+    directory: layerKey,
+    hasChildren: true,
+    children: null
+  }
+}
+
+function createWorkbenchRecordNode(layerKey: MemoryWorkbenchLayerKey, header: MemoryRecordHeader): TFileDirectory {
+  const relativePath = inferRelativeMemoryPath(header.filePath)
+  return {
+    filePath: path.basename(relativePath),
+    fullPath: `${layerKey}/${relativePath}`,
+    directory: `${layerKey}/${path.posix.dirname(relativePath)}`.replace(/\/\.$/, ''),
+    hasChildren: false,
+    createdAt: new Date(header.mtimeMs),
+    description: header.summary,
+    fileType: getFileExtension(relativePath)
+  }
+}
+
+function createWorkbenchFile(options: {
+  logicalPath: string
+  contents: string
+  description?: string
+  mtimeMs?: number
+}): TFile {
+  return {
+    filePath: normalizeRelativePath(options.logicalPath),
+    fileType: getFileExtension(options.logicalPath) || 'md',
+    mimeType: 'text/markdown; charset=utf-8',
+    contents: options.contents,
+    size: Buffer.byteLength(options.contents ?? '', 'utf8'),
+    createdAt: options.mtimeMs ? new Date(options.mtimeMs) : undefined,
+    description: options.description
+  }
+}
+
+function isMemoryIndexPath(relativePath: string) {
+  return normalizeRelativePath(relativePath) === MEMORY_INDEX_FILENAME
+}
+
+function isMemoryDirectoryPath(relativePath: string) {
+  const normalized = normalizeRelativePath(relativePath)
+  return Boolean(normalized && !normalized.includes('/') && normalized !== MEMORY_INDEX_FILENAME)
+}
+
+function isMemoryRecordPath(relativePath: string) {
+  const normalized = normalizeRelativePath(relativePath)
+  const segments = normalized.split('/').filter(Boolean)
+  return segments.length === 2 && segments[1].toLowerCase().endsWith('.md')
+}
+
+function getFileExtension(filePath: string) {
+  return normalizeRelativePath(filePath).split('.').pop()?.toLowerCase() ?? ''
+}
+
+function toFrontmatter(record: MemoryRecord): MemoryRecordFrontmatter {
+  return {
+    id: record.id,
+    scopeType: record.scopeType,
+    scopeId: record.scopeId,
+    audience: record.audience,
+    ownerUserId: record.ownerUserId ?? undefined,
+    kind: record.kind,
+    semanticKind: record.semanticKind,
+    status: record.status,
+    title: record.title,
+    summary: record.summary,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    createdBy: record.createdBy,
+    updatedBy: record.updatedBy,
+    source: record.source,
+    sourceRef: record.sourceRef,
+    tags: record.tags
+  }
 }
 
 function getErrorMessage(error: unknown) {
