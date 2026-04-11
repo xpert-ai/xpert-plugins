@@ -1,4 +1,4 @@
-model: MiniMax-M1
+model: minimax-m1
 label:
   en_US: MiniMax-M1
 deprecated: true

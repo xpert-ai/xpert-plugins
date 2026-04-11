@@ -52,7 +52,7 @@ During validation, the plugin checks that both `api_key` and `group_id` are prov
 - `MiniMax-M2.1-highspeed` - Historical high-speed variant of M2.1
 - `MiniMax-M2` - Historical MiniMax M2 model with 204.8K total context
 - `M2-her` - Specialized for role-playing and multi-turn conversations (65K context)
-- `MiniMax-M1` - Historical MiniMax M1 model (1M context)
+- `minimax-m1` - Historical MiniMax M1 model (1M context)
 
 ### Text Embedding Models
 - `embo-01` - MiniMax embedding model

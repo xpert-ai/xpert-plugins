@@ -30,7 +30,7 @@ export const SUPPORTED_LLM_MODELS = [
   'MiniMax-M2.1-highspeed',
   'MiniMax-M2',
   'M2-her',
-  'MiniMax-M1'
+  'minimax-m1'
 ];
 
 export const SUPPORTED_EMBEDDING_MODELS = ['embo-01'];
