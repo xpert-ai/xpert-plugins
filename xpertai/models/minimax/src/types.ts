@@ -22,13 +22,15 @@ export type MiniMaxModelCredentials = MiniMaxCredentials & {
 };
 
 export const SUPPORTED_LLM_MODELS = [
+  'MiniMax-M2.7',
+  'MiniMax-M2.7-highspeed',
   'MiniMax-M2.5',
   'MiniMax-M2.5-highspeed',
   'MiniMax-M2.1',
   'MiniMax-M2.1-highspeed',
   'MiniMax-M2',
   'M2-her',
-  'minimax-m1'
+  'MiniMax-M1'
 ];
 
 export const SUPPORTED_EMBEDDING_MODELS = ['embo-01'];

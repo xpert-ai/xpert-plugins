@@ -10,7 +10,7 @@
 - Implements `MiniMaxLargeLanguageModel`, a LangChain-powered adapter built on `ChatOAICompatReasoningModel` that supports streaming chat completions, function calling, and token accounting callbacks for agent telemetry.
 - Provides `MiniMaxTextEmbeddingModel`, a custom implementation that handles MiniMax's specific embedding API format with support for document and query embedding types.
 - Exposes `MiniMaxTTSModel`, which supports streaming text-to-speech synthesis with multiple voice options and audio formats.
-- Shares a console-ready `manifest.yaml` that drives the XpertAI UI forms (icons, help links, credential prompts) for quick operator onboarding.
+- Ships a `minimax.yaml` provider schema for XpertAI's model-provider UI and a `manifest.yaml` plugin manifest for packaging metadata.
 
 ## Installation
 
@@ -31,7 +31,7 @@ npm install @xpert-ai/plugin-minimax
 
 ## Credentials & Model Configuration
 
-The plugin schema backs the form fields you see in the console:
+The provider schema in `src/minimax.yaml` backs the form fields you see in the console:
 
 | Field | Description |
 | --- | --- |
@@ -44,13 +44,15 @@ During validation, the plugin checks that both `api_key` and `group_id` are prov
 ## Supported Models
 
 ### Large Language Models (LLM)
-- `MiniMax-M2.5` - Latest flagship model, excels at coding and agentic tasks (196K context)
+- `MiniMax-M2.7` - Latest flagship model for software engineering and agent workflows (204.8K total context)
+- `MiniMax-M2.7-highspeed` - High-speed variant of M2.7 with higher throughput
+- `MiniMax-M2.5` - Previous flagship model for coding and agentic tasks (204.8K total context)
 - `MiniMax-M2.5-highspeed` - High-speed variant of M2.5 with 100 tokens/s throughput
-- `MiniMax-M2.1` - Enhanced reasoning model with 230B parameters (196K context)
-- `MiniMax-M2.1-highspeed` - High-speed variant of M2.1
-- `MiniMax-M2` - MiniMax M2 model with agentic capabilities (196K context)
+- `MiniMax-M2.1` - Historical reasoning model with 204.8K total context
+- `MiniMax-M2.1-highspeed` - Historical high-speed variant of M2.1
+- `MiniMax-M2` - Historical MiniMax M2 model with 204.8K total context
 - `M2-her` - Specialized for role-playing and multi-turn conversations (65K context)
-- `minimax-m1` - MiniMax M1 open-source model (1M context)
+- `MiniMax-M1` - Historical MiniMax M1 model (1M context)
 
 ### Text Embedding Models
 - `embo-01` - MiniMax embedding model

@@ -1,0 +1,53 @@
+provider: minimax
+label:
+  en_US: MiniMax
+  zh_Hans: MiniMax
+description:
+  en_US: MiniMax models for chat, text embedding, and text-to-speech.
+  zh_Hans: MiniMax 提供的对话、文本嵌入和语音合成模型。
+icon_small:
+  en_US: icon_s_en.png
+icon_large:
+  en_US: icon_l_en.png
+background: '#EFF3FF'
+help:
+  title:
+    en_US: Get your API Key and Group ID from MiniMax
+    zh_Hans: 从 MiniMax 获取 API Key 和 Group ID
+  url:
+    en_US: https://platform.minimaxi.com/user-center/basic-information/interface-key
+supported_model_types:
+  - llm
+  - text-embedding
+  - tts
+configurate_methods:
+  - predefined-model
+provider_credential_schema:
+  credential_form_schemas:
+    - variable: api_key
+      label:
+        en_US: API Key
+        zh_Hans: API Key
+      type: secret-input
+      required: true
+      placeholder:
+        en_US: Enter your API Key
+        zh_Hans: 在此输入您的 API Key
+    - variable: group_id
+      label:
+        en_US: Group ID
+        zh_Hans: Group ID
+      type: text-input
+      required: true
+      placeholder:
+        en_US: Enter your Group ID
+        zh_Hans: 在此输入您的 Group ID
+    - variable: base_url
+      label:
+        en_US: Custom API endpoint URL
+        zh_Hans: 自定义 API endpoint 地址
+      type: text-input
+      required: false
+      placeholder:
+        en_US: Base URL, e.g. https://api.minimaxi.com/v1 or https://api.minimaxi.com
+        zh_Hans: Base URL，例如 https://api.minimaxi.com/v1 或 https://api.minimaxi.com

@@ -18,7 +18,7 @@ meta:
 name: minimax
 plugins:
   models:
-  - provider/minimax.yaml
+  - minimax.yaml
 resource:
   memory: 1048576
   permission:
