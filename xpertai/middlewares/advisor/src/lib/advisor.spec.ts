@@ -14,17 +14,45 @@ jest.mock('@metad/contracts', () => ({
   }
 }))
 
+jest.mock('@langchain/core/callbacks/dispatch', () => ({
+  dispatchCustomEvent: jest.fn().mockResolvedValue(undefined)
+}))
+
+jest.mock('@xpert-ai/chatkit-types', () => ({
+  ChatMessageEventTypeEnum: {
+    ON_TOOL_MESSAGE: 'on_tool_message'
+  },
+  ChatMessageStepCategory: {
+    List: 'list'
+  }
+}))
+
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
+import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { Command } from '@langchain/langgraph'
+import { CommandBus } from '@nestjs/cqrs'
+import { ChatMessageEventTypeEnum } from '@xpert-ai/chatkit-types'
 import { AdvisorMiddleware } from './advisor.middleware.js'
 import { AdvisorPluginConfigFormSchema } from './advisor.types.js'
 
 describe('AdvisorMiddleware', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   function createSubject(options: Record<string, unknown> = {}) {
     const commandBus = {
       execute: jest.fn()
     }
-    const strategy = new AdvisorMiddleware(commandBus as any)
+    const pluginContext = {
+      resolve: jest.fn((token: unknown) => {
+        if (token === CommandBus) {
+          return commandBus
+        }
+        return undefined
+      })
+    }
+    const strategy = new AdvisorMiddleware(pluginContext as any)
     const middleware = strategy.createMiddleware(
       {
         advisorModel: {
@@ -37,6 +65,7 @@ describe('AdvisorMiddleware', () => {
 
     return {
       commandBus,
+      pluginContext,
       strategy,
       middleware
     }
@@ -49,10 +78,10 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('validates advisorModel when enabled', () => {
-    const commandBus = {
-      execute: jest.fn()
+    const pluginContext = {
+      resolve: jest.fn()
     }
-    const strategy = new AdvisorMiddleware(commandBus as any)
+    const strategy = new AdvisorMiddleware(pluginContext as any)
 
     expect(() => strategy.createMiddleware({}, {} as any)).toThrow(
       'advisorModel is required when advisor middleware is enabled'
@@ -235,6 +264,70 @@ describe('AdvisorMiddleware', () => {
     expect((result as any).update.advisorSessionUses).toBe(6)
     expect((result as any).update.messages[0]).toBeInstanceOf(ToolMessage)
     expect((result as any).update.messages[0].content).toContain('Check the parser branch first')
+    expect(dispatchCustomEvent).toHaveBeenCalledWith(
+      ChatMessageEventTypeEnum.ON_TOOL_MESSAGE,
+      expect.objectContaining({
+        id: 'tool-call-4',
+        category: 'Tool',
+        toolset: 'AdvisorMiddleware',
+        tool: 'advisor',
+        title: 'Advisor',
+        message: 'What is the safest fix path?',
+        status: 'success',
+        input: {
+          question: 'What is the safest fix path?'
+        },
+        output: 'Check the parser branch first, then add a fallback.'
+      })
+    )
+  })
+
+  it('emits a fail event when the advisor model call throws', async () => {
+    const { commandBus, middleware } = createSubject()
+    const invoke = jest.fn().mockRejectedValue(new Error('network unavailable'))
+    commandBus.execute.mockResolvedValue({
+      invoke
+    })
+
+    const result = await middleware.wrapToolCall?.(
+      {
+        tool: { name: 'advisor' },
+        toolCall: {
+          id: 'tool-call-8',
+          name: 'advisor',
+          args: {
+            question: 'Why did the advisor request fail?'
+          }
+        },
+        state: {
+          advisorRunUses: 0,
+          advisorSessionUses: 0,
+          messages: []
+        },
+        runtime: {} as any
+      } as any,
+      jest.fn() as any
+    )
+
+    expect(result).toBeInstanceOf(ToolMessage)
+    expect((result as ToolMessage).status).toBe('error')
+    expect((result as ToolMessage).content).toBe('Advisor model call failed: network unavailable')
+    expect(dispatchCustomEvent).toHaveBeenCalledWith(
+      ChatMessageEventTypeEnum.ON_TOOL_MESSAGE,
+      expect.objectContaining({
+        id: 'tool-call-8',
+        category: 'Tool',
+        toolset: 'AdvisorMiddleware',
+        tool: 'advisor',
+        title: 'Advisor',
+        message: 'Why did the advisor request fail?',
+        status: 'fail',
+        input: {
+          question: 'Why did the advisor request fail?'
+        },
+        error: 'Advisor model call failed: network unavailable'
+      })
+    )
   })
 
   it('curates forwarded context and strips advisor tool calls and tool results when configured', async () => {
@@ -310,5 +403,156 @@ describe('AdvisorMiddleware', () => {
           'The executor agent needs advice on the following question:\n\nShould I keep provider logic outside the middleware core?'
       })
     )
+  })
+
+  it('keeps only tool results that still match the sanitized AI tool calls', async () => {
+    const { commandBus, middleware } = createSubject({
+      context: {
+        includeSystemPrompt: false,
+        includeToolResults: true,
+        maxContextMessages: 12,
+        maxContextChars: 4000
+      }
+    })
+    const invoke = jest.fn().mockResolvedValue(new AIMessage('Keep the valid search context only.'))
+    commandBus.execute.mockResolvedValue({
+      invoke
+    })
+
+    await middleware.wrapToolCall?.(
+      {
+        tool: { name: 'advisor' },
+        toolCall: {
+          id: 'tool-call-6',
+          name: 'advisor',
+          args: {
+            question: 'Which context should remain after sanitization?'
+          }
+        },
+        state: {
+          advisorRunUses: 0,
+          advisorSessionUses: 0,
+          messages: [
+            new HumanMessage('The executor needs more evidence.'),
+            new AIMessage({
+              content: 'I will inspect logs and maybe ask advisor.',
+              tool_calls: [
+                {
+                  id: 'search-1',
+                  name: 'search',
+                  args: {
+                    query: 'error logs'
+                  },
+                  type: 'tool_call'
+                },
+                {
+                  id: 'advisor-1',
+                  name: 'advisor',
+                  args: {
+                    question: 'Help'
+                  },
+                  type: 'tool_call'
+                }
+              ]
+            }),
+            new ToolMessage({
+              name: 'search',
+              tool_call_id: 'search-1',
+              content: 'Matched stack trace'
+            }),
+            new ToolMessage({
+              name: 'advisor',
+              tool_call_id: 'advisor-1',
+              content: 'Old advisor response that should not be forwarded'
+            }),
+            new AIMessage('I saw enough to continue.')
+          ]
+        },
+        runtime: {} as any
+      } as any,
+      jest.fn() as any
+    )
+
+    const forwardedMessages = invoke.mock.calls[0][0]
+    const sanitizedAiMessage = forwardedMessages.find((message: unknown) => message instanceof AIMessage) as AIMessage
+    const forwardedToolMessages = forwardedMessages.filter(
+      (message: unknown) => message instanceof ToolMessage
+    ) as ToolMessage[]
+
+    expect(sanitizedAiMessage.tool_calls).toEqual([
+      {
+        id: 'search-1',
+        name: 'search',
+        args: {
+          query: 'error logs'
+        },
+        type: 'tool_call'
+      }
+    ])
+    expect(forwardedToolMessages).toHaveLength(1)
+    expect(forwardedToolMessages[0].tool_call_id).toBe('search-1')
+    expect(forwardedToolMessages[0].content).toBe('Matched stack trace')
+  })
+
+  it('drops orphan tool results after tail truncation', async () => {
+    const { commandBus, middleware } = createSubject({
+      context: {
+        includeSystemPrompt: false,
+        includeToolResults: true,
+        maxContextMessages: 1,
+        maxContextChars: 50
+      }
+    })
+    const invoke = jest.fn().mockResolvedValue(new AIMessage('No invalid tool history was forwarded.'))
+    commandBus.execute.mockResolvedValue({
+      invoke
+    })
+
+    await middleware.wrapToolCall?.(
+      {
+        tool: { name: 'advisor' },
+        toolCall: {
+          id: 'tool-call-7',
+          name: 'advisor',
+          args: {
+            question: 'Did truncation leave any broken tool messages?'
+          }
+        },
+        state: {
+          advisorRunUses: 0,
+          advisorSessionUses: 0,
+          messages: [
+            new AIMessage({
+              content: 'Calling search now.',
+              tool_calls: [
+                {
+                  id: 'search-2',
+                  name: 'search',
+                  args: {
+                    query: 'build failure'
+                  },
+                  type: 'tool_call'
+                }
+              ]
+            }),
+            new ToolMessage({
+              name: 'search',
+              tool_call_id: 'search-2',
+              content: 'stack trace'
+            })
+          ]
+        },
+        runtime: {} as any
+      } as any,
+      jest.fn() as any
+    )
+
+    const forwardedMessages = invoke.mock.calls[0][0]
+    expect(forwardedMessages.some((message: unknown) => message instanceof ToolMessage)).toBe(false)
+    expect(
+      forwardedMessages.some(
+        (message: unknown) => message instanceof AIMessage && Array.isArray(message.tool_calls) && message.tool_calls.length
+      )
+    ).toBe(false)
   })
 })

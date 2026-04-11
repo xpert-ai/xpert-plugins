@@ -1,3 +1,4 @@
+import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
   AIMessage,
@@ -12,16 +13,19 @@ import {
 import { tool } from '@langchain/core/tools'
 import { Command } from '@langchain/langgraph'
 import { type ICopilotModel, type TAgentMiddlewareMeta } from '@metad/contracts'
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
+import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/chatkit-types'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
   CreateModelClientCommand,
   IAgentMiddlewareContext,
-  IAgentMiddlewareStrategy
+  IAgentMiddlewareStrategy,
+  type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
+import { ADVISOR_PLUGIN_CONTEXT } from './tokens.js'
 import {
   ADVISOR_METADATA_KEY,
   ADVISOR_MIDDLEWARE_NAME,
@@ -59,7 +63,10 @@ const DEFAULT_ADVISOR_SYSTEM_PROMPT = [
 @Injectable()
 @AgentMiddlewareStrategy(ADVISOR_MIDDLEWARE_NAME)
 export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<AdvisorPluginConfig>> {
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    @Inject(ADVISOR_PLUGIN_CONTEXT)
+    private readonly pluginContext: PluginContext<Partial<AdvisorPluginConfig>>
+  ) {}
 
   readonly meta: TAgentMiddlewareMeta = {
     name: ADVISOR_MIDDLEWARE_NAME,
@@ -97,7 +104,8 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
 
     const getAdvisorModel = async () => {
       if (!advisorModelPromise) {
-        advisorModelPromise = this.commandBus.execute(
+        const commandBus = this.pluginContext.resolve(CommandBus)
+        advisorModelPromise = commandBus.execute(
           new CreateModelClientCommand<BaseChatModel>(buildInternalModelConfig(config.advisorModel, config), {
             usageCallback: () => undefined
           })
@@ -141,14 +149,30 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
           return handler(request)
         }
 
-        const parsedInput = AdvisorToolInputSchema.safeParse(normalizeToolArgs(request.toolCall?.args))
+        const toolCallId = normalizeToolCallId(request.toolCall?.id)
+        const normalizedToolArgs = normalizeToolArgs(request.toolCall?.args)
+        const parsedInput = AdvisorToolInputSchema.safeParse(normalizedToolArgs)
         if (!parsedInput.success) {
-          return buildErrorToolMessage(request.toolCall?.id, INVALID_ADVISOR_INPUT)
+          await emitAdvisorToolStep({
+            toolCallId,
+            message: INVALID_ADVISOR_INPUT,
+            input: normalizedToolArgs,
+            error: INVALID_ADVISOR_INPUT,
+            status: 'fail'
+          })
+          return buildErrorToolMessage(toolCallId, INVALID_ADVISOR_INPUT)
         }
 
         const quota = evaluateQuota(config, request.state)
         if (quota.exhausted) {
-          return buildErrorToolMessage(request.toolCall?.id, quota.reason)
+          await emitAdvisorToolStep({
+            toolCallId,
+            message: parsedInput.data.question,
+            input: parsedInput.data,
+            error: quota.reason,
+            status: 'fail'
+          })
+          return buildErrorToolMessage(toolCallId, quota.reason)
         }
 
         try {
@@ -158,9 +182,16 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
           const content = extractTextContent(advisorResponse?.content).trim() || ADVISOR_NO_TEXT_RESPONSE
           const nextRunUses = quota.runUses + 1
           const nextSessionUses = quota.sessionUses + 1
+          await emitAdvisorToolStep({
+            toolCallId,
+            message: parsedInput.data.question,
+            input: parsedInput.data,
+            output: content,
+            status: 'success'
+          })
           const toolMessage = new ToolMessage({
             name: ADVISOR_TOOL_NAME,
-            tool_call_id: normalizeToolCallId(request.toolCall?.id),
+            tool_call_id: toolCallId,
             status: 'success',
             content,
             metadata: {
@@ -181,7 +212,15 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
           })
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error)
-          return buildErrorToolMessage(request.toolCall?.id, `Advisor model call failed: ${reason}`)
+          const failureMessage = `Advisor model call failed: ${reason}`
+          await emitAdvisorToolStep({
+            toolCallId,
+            message: parsedInput.data.question,
+            input: parsedInput.data,
+            error: failureMessage,
+            status: 'fail'
+          })
+          return buildErrorToolMessage(toolCallId, failureMessage)
         }
       }
     }
@@ -299,14 +338,16 @@ function curateContextMessages(
     return []
   }
 
-  const curated = stateMessages
-    .map((message) => sanitizeMessage(message, config))
-    .filter((message): message is BaseMessage => Boolean(message))
+  const curated = normalizeToolMessageSequence(
+    stateMessages
+      .map((message) => sanitizeMessageContent(message, config))
+      .filter((message): message is BaseMessage => Boolean(message))
+  )
 
   const limitedByCount =
     config.context.maxContextMessages === null
       ? curated
-      : curated.slice(-config.context.maxContextMessages)
+      : normalizeToolMessageSequence(curated.slice(-config.context.maxContextMessages))
 
   if (config.context.maxContextChars === null) {
     return limitedByCount
@@ -325,10 +366,10 @@ function curateContextMessages(
     result.unshift(message)
   }
 
-  return result
+  return normalizeToolMessageSequence(result)
 }
 
-function sanitizeMessage(
+function sanitizeMessageContent(
   message: BaseMessage,
   config: ResolvedAdvisorPluginConfig
 ): BaseMessage | null {
@@ -345,6 +386,64 @@ function sanitizeMessage(
   }
 
   return message
+}
+
+function normalizeToolMessageSequence(messages: BaseMessage[]): BaseMessage[] {
+  const normalized: BaseMessage[] = []
+  let pendingAiIndex: number | null = null
+  let pendingToolCallIds = new Set<string>()
+
+  for (const message of messages) {
+    if (isToolMessage(message)) {
+      const toolCallId = normalizeToolCallId(message.tool_call_id)
+      if (!toolCallId || pendingToolCallIds.size === 0 || !pendingToolCallIds.has(toolCallId)) {
+        continue
+      }
+
+      normalized.push(message)
+      pendingToolCallIds.delete(toolCallId)
+      if (pendingToolCallIds.size === 0) {
+        pendingAiIndex = null
+      }
+      continue
+    }
+
+    if (pendingToolCallIds.size > 0 && pendingAiIndex !== null) {
+      normalized.splice(pendingAiIndex)
+      pendingAiIndex = null
+      pendingToolCallIds.clear()
+    }
+
+    normalized.push(message)
+
+    if (!isAIMessage(message)) {
+      continue
+    }
+
+    const toolCallIds = collectToolCallIds(message)
+    if (toolCallIds.size > 0) {
+      pendingAiIndex = normalized.length - 1
+      pendingToolCallIds = toolCallIds
+    }
+  }
+
+  if (pendingToolCallIds.size > 0 && pendingAiIndex !== null) {
+    normalized.splice(pendingAiIndex)
+  }
+
+  return normalized
+}
+
+function collectToolCallIds(message: AIMessage) {
+  if (!Array.isArray(message.tool_calls) || message.tool_calls.length === 0) {
+    return new Set<string>()
+  }
+
+  return new Set(
+    message.tool_calls
+      .map((toolCall) => normalizeToolCallId(toolCall?.id))
+      .filter((toolCallId): toolCallId is string => Boolean(toolCallId))
+  )
 }
 
 function stripAdvisorToolCall(message: AIMessage): AIMessage | null {
@@ -407,6 +506,38 @@ function buildErrorToolMessage(toolCallId: string | undefined, content: string) 
     status: 'error',
     content
   })
+}
+
+async function emitAdvisorToolStep(event: {
+  toolCallId?: string | null
+  message?: string
+  input?: unknown
+  output?: string
+  error?: string
+  status: 'success' | 'fail'
+}) {
+  const timestamp = new Date().toISOString()
+  const toolCallId = normalizeToolCallId(event.toolCallId)
+
+  try {
+    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, {
+      id: toolCallId || undefined,
+      category: 'Tool',
+      type: ChatMessageStepCategory.List,
+      toolset: ADVISOR_MIDDLEWARE_NAME,
+      tool: ADVISOR_TOOL_NAME,
+      title: 'Advisor',
+      message: event.message || 'Advisor execution',
+      status: event.status,
+      created_date: timestamp,
+      end_date: timestamp,
+      ...(event.input !== undefined ? { input: event.input } : {}),
+      ...(event.output !== undefined ? { output: event.output } : {}),
+      ...(event.error !== undefined ? { error: event.error } : {})
+    })
+  } catch {
+    // Ignore dispatch failures so advisor execution is not blocked by UI event transport.
+  }
 }
 
 function normalizeToolArgs(rawArgs: unknown) {

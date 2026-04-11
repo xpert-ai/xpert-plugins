@@ -1,9 +1,7 @@
-import { CqrsModule } from '@nestjs/cqrs'
 import { IOnPluginBootstrap, IOnPluginDestroy, XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { AdvisorMiddleware } from './advisor.middleware.js'
 
 @XpertServerPlugin({
-  imports: [CqrsModule],
   providers: [AdvisorMiddleware]
 })
 export class AdvisorPluginModule implements IOnPluginBootstrap, IOnPluginDestroy {
