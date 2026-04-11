@@ -1,6 +1,7 @@
 model: MiniMax-M2.1-highspeed
 label:
   en_US: MiniMax-M2.1-highspeed
+deprecated: true
 model_type: llm
 features:
   - agent-thought
@@ -8,7 +9,7 @@ features:
   - stream-tool-call
 model_properties:
   mode: chat
-  context_size: 196000
+  context_size: 204800
 parameter_rules:
   - name: temperature
     use_template: temperature
@@ -31,7 +32,7 @@ parameter_rules:
   - name: frequency_penalty
     use_template: frequency_penalty
 pricing:
-  input: "2.1"
-  output: "8.4"
+  input: "4.2"
+  output: "16.8"
   unit: "0.000001"
   currency: RMB

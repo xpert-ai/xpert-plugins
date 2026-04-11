@@ -21,6 +21,27 @@ if (existsSync(sourceDir)) {
 const srcRoot = path.join(packageRoot, 'src')
 const distRoot = path.join(packageRoot, 'dist')
 
+function removeYamlFiles(dir) {
+  if (!existsSync(dir)) {
+    return
+  }
+
+  const entries = readdirSync(dir)
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry)
+    const stats = statSync(entryPath)
+
+    if (stats.isDirectory()) {
+      removeYamlFiles(entryPath)
+      if (readdirSync(entryPath).length === 0) {
+        rmSync(entryPath, { recursive: true, force: true })
+      }
+    } else if (entry.endsWith('.yaml') || entry.endsWith('.yml')) {
+      rmSync(entryPath, { force: true })
+    }
+  }
+}
+
 function copyYamlFiles(srcDir, destDir) {
   const entries = readdirSync(srcDir)
   for (const entry of entries) {
@@ -39,6 +60,7 @@ function copyYamlFiles(srcDir, destDir) {
 }
 
 if (existsSync(srcRoot)) {
+  removeYamlFiles(distRoot)
   copyYamlFiles(srcRoot, distRoot)
   // console.info('Copied all .yaml files from src to dist.')
 } else {
