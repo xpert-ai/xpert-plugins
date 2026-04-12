@@ -1,4 +1,4 @@
-import { AiModelTypeEnum, JsonSchemaObjectType, type ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, JsonSchemaObjectType, type ICopilotModel } from '@xpert-ai/contracts'
 import { z } from 'zod'
 
 export const ADVISOR_MIDDLEWARE_NAME = 'AdvisorMiddleware'
@@ -208,17 +208,12 @@ export const AdvisorPluginConfigFormSchema: JsonSchemaObjectType = {
           },
           default: 12000
         }
+      },
+      'x-ui': {
+        span: 2
       }
     }
   }
 }
 
-export const AdvisorPluginIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect x="6" y="8" width="52" height="40" rx="12" fill="currentColor" opacity="0.12"/>
-  <path d="M19 22c0-5.523 4.477-10 10-10h6c5.523 0 10 4.477 10 10v7c0 5.523-4.477 10-10 10h-6l-8 8v-8c-3.314 0-6-2.686-6-6V22Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M27 25h10M27 32h16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="45" cy="47" r="9" fill="currentColor" opacity="0.18"/>
-  <path d="m41 47 3 3 6-6" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-`
+export const AdvisorPluginIcon = `<svg class="svg-icon" style="vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M295.37789 295.405352a255.992714 216.60922 90 1 0 433.218439 0 255.992714 216.60922 90 1 0-433.218439 0Z" fill="#FFE4B9" /><path d="M534.475085 156.30285c-199.280482 0-273.951588-31.231111-224.170851-93.732717C360.124355 0.029144 484.654964-15.645487 683.935446 15.625008 766.24695 57.765347 794.209231 157.563122 767.979824 315.0971c-49.820121 62.501606-77.821785 72.071795-84.044378 28.749951V156.30285H534.435701z" fill="#474747" /><path d="M255.994395 157.563122c21.109553-26.268791 47.378344-23.708864 78.766989 7.640398v188.174336C255.994395 400.441132 216.610901 204.587014 255.994395 157.563122z" fill="#474747" /><path d="M369.221942 590.781561c0 144.301124 14.76881 288.562864 44.306431 432.863988H59.076923C88.614544 735.082685 191.996217 590.781561 369.221942 590.781561zM654.752277 590.781561c177.225725 0 280.607398 144.301124 310.145019 432.863988h-354.45145A2153.253177 2153.253177 0 0 0 654.752277 590.781561z" fill="#444444" /><path d="M452.911868 590.781561h118.150483l-39.383494 86.564921h-39.383495zM492.295362 708.932044h39.383495l39.383494 315.067956h-118.150483z" fill="#6570C7" /><path d="M689.212835 866.466022m19.691747 0l118.150483 0q19.691747 0 19.691747 19.691747l0 0q0 19.691747-19.691747 19.691748l-118.150483 0q-19.691747 0-19.691747-19.691748l0 0q0-19.691747 19.691747-19.691747Z" fill="#FFFFFF" /></svg>`
