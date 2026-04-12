@@ -12,9 +12,10 @@ import { tool } from '@langchain/core/tools'
 import {
   ChatMessageEventTypeEnum,
   ICopilotModel,
+  TSandboxConfigurable,
   TAgentMiddlewareMeta,
   TChatEventMessage
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import {
@@ -22,21 +23,22 @@ import {
   AgentMiddlewareStrategy,
   CreateModelClientCommand,
   IAgentMiddlewareContext,
-  IAgentMiddlewareStrategy
+  IAgentMiddlewareStrategy,
+  Runtime
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { XpertFileMemoryService } from './file-memory.service.js'
 import { FileMemoryWritebackRunner } from './file-memory.writeback-runner.js'
 import {
-  FileMemorySystemIcon,
   fileMemoryMiddlewareConfigSchema,
   fileMemorySystemMiddlewareOptionsSchema,
   fileMemorySystemStateSchema
 } from './file-memory.middleware.types.js'
 import { buildRecallProgressMessage, buildRecallResultMessage } from './recall-event-message.js'
 import { memoryAge, memoryFreshnessNote, memoryFreshnessText } from './memory-freshness.js'
-import { MemoryAudience, MemoryRuntimeRecallResult, MemoryRuntimeSummaryDigestItem, MemoryScope } from './types.js'
+import { FileMemorySystemIcon, MemoryAudience, MemoryRuntimeRecallResult, MemoryRuntimeSummaryDigestItem, MemoryScope } from './types.js'
 import { inferRelativeMemoryPath, normalizeWriteMemoryType, WRITE_MEMORY_TYPES, WriteMemoryType } from './memory-taxonomy.js'
+import { SandboxMemoryStore } from './sandbox-memory.store.js'
 
 const FILE_MEMORY_SYSTEM_MIDDLEWARE_NAME = 'FileMemorySystemMiddleware'
 const NON_INTERACTIVE_WRITEBACK_DRAIN_MS = 1_500
@@ -152,6 +154,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       type: 'svg',
       value: FileMemorySystemIcon
     },
+    features: ['sandbox'],
     configSchema: fileMemoryMiddlewareConfigSchema
   }
 
@@ -161,13 +164,14 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       throw parsed.error
     }
 
-    const enableLogging = parsed.data.enableLogging ?? false
+    const enableLogging = Logger.isLevelEnabled('debug')
     const recallConfig = parsed.data.recall
-    const recallEnabled = recallConfig?.enabled ?? true
+    const recallEnabled = true
     const recallMode = recallConfig?.mode ?? 'hybrid_async'
     const writebackConfig = parsed.data.writeback
-    const writebackEnabled = writebackConfig?.enabled ?? true
+    const writebackEnabled = true
     const writebackWaitPolicy = writebackConfig?.waitPolicy ?? 'never_wait'
+    assertSandboxFeatureEnabled(context)
     const scope = context.xpertId
       ? this.fileMemoryService.resolveScope({
           id: context.xpertId,
@@ -189,6 +193,19 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
     let warnedWritebackModelMissing = false
     let warnedRecallModelMissing = false
     let recallModelPromise: Promise<BaseChatModel> | null = null
+    let currentSandbox: TSandboxConfigurable | null = null
+    let currentStore: SandboxMemoryStore | null = null
+
+    const requireMemoryStore = (runtimeLike: unknown, reason: string) => {
+      const sandbox = extractSandboxConfig(runtimeLike) ?? currentSandbox
+      if (sandbox && currentSandbox === sandbox && currentStore) {
+        return currentStore
+      }
+      const store = SandboxMemoryStore.require(sandbox, this.logger, reason)
+      currentSandbox = sandbox
+      currentStore = store
+      return store
+    }
 
     const getRecallModel = async () => {
       if (!recallEnabled) {
@@ -244,7 +261,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
     }
 
     const startRecallPrefetch = () => {
-      if (!scope || !preparedRun || !recallEnabled) {
+      if (!scope || !preparedRun || !recallEnabled || !currentStore) {
         activeRecall = undefined
         return
       }
@@ -264,9 +281,10 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       const generation = ++recallGeneration
       const alreadySurfaced = new Set(preparedRun.alreadySurfaced)
       const surfacedBytes = preparedRun.surfacedBytes
+      const store = currentStore
       const promise = (async () => {
         const recallModel = await getRecallModel()
-        return this.fileMemoryService.buildRuntimeRecall(context.tenantId, scope, {
+        return this.fileMemoryService.buildRuntimeRecall(store, scope, {
           query,
           userId: context.userId,
           recallModel,
@@ -311,7 +329,10 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       )
     }
 
-    const searchRecallMemories = async (input: { query?: string; memoryId?: string; relativePath?: string }) => {
+    const searchRecallMemories = async (
+      input: { query?: string; memoryId?: string; relativePath?: string },
+      config?: unknown
+    ) => {
       const memoryId = input.memoryId?.trim()
       const relativePath = normalizeRelativePathInput(input.relativePath)
       const query = input.query?.trim() ?? ''
@@ -329,9 +350,10 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       }, this.logger)
 
       try {
+        const store = requireMemoryStore(config, 'memory lookup')
         if (relativePath) {
           const found = await this.fileMemoryService.findVisibleRecordByRelativePath(
-            context.tenantId,
+            store,
             scope,
             context.userId,
             relativePath
@@ -376,7 +398,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         if (memoryId) {
           const exactLookup = await findVisibleRecordByExactIdWithFallback(
             this.fileMemoryService,
-            context.tenantId,
+            store,
             scope,
             context.userId,
             memoryId
@@ -421,7 +443,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         }
 
         const recallModel = await getRecallModel()
-        const selection = await this.fileMemoryService.selectRecallHeadersForQuery(context.tenantId, scope, {
+        const selection = await this.fileMemoryService.selectRecallHeadersForQuery(store, scope, {
           query,
           userId: context.userId,
           recallModel,
@@ -472,21 +494,25 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       }
     }
 
-    const writeMemory = async (input: {
-      type: WriteMemoryType
-      audience?: MemoryAudience
-      memoryId?: string
-      title: string
-      content: string
-      context?: string
-      tags?: string[]
-    }) => {
+    const writeMemory = async (
+      input: {
+        type: WriteMemoryType
+        audience?: MemoryAudience
+        memoryId?: string
+        title: string
+        content: string
+        context?: string
+        tags?: string[]
+      },
+      config?: unknown
+    ) => {
       if (!scope) {
         return ['File memory scope is unavailable for the current agent.', null] as const
       }
 
+      const store = requireMemoryStore(config, 'memory write')
       const normalizedType = normalizeWriteMemoryType(input.type)
-      const record = await this.fileMemoryService.upsert(context.tenantId, {
+      const record = await this.fileMemoryService.upsert(store, {
         scope,
         audience: input.audience,
         ownerUserId: input.audience === 'user' ? context.userId : undefined,
@@ -528,17 +554,21 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
           responseFormat: 'content_and_artifact'
         })
       ],
-      beforeAgent: async (state: FileMemorySystemState) => {
+      beforeAgent: async (state: FileMemorySystemState, runtime: Runtime) => {
         preparedRun = undefined
         nextSurfaceState = undefined
         recallGeneration = 0
         consumedRecallGeneration = 0
         activeRecall = undefined
         explicitWriteOccurred = false
+        currentStore = null
+        currentSandbox = extractSandboxConfig(runtime)
 
         if (!scope) {
           return undefined
         }
+
+        requireMemoryStore(runtime, 'memory recall')
 
         const query = extractQuery(state)
         if (!query) {
@@ -581,8 +611,8 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
 
         try {
           const [entrypoints, summaryDigest] = await Promise.all([
-            this.fileMemoryService.readRuntimeEntrypoints(context.tenantId, scope, context.userId),
-            this.fileMemoryService.buildRuntimeSummaryDigest(context.tenantId, scope, {
+            this.fileMemoryService.readRuntimeEntrypoints(requireMemoryStore(request.runtime, 'memory recall'), scope, context.userId),
+            this.fileMemoryService.buildRuntimeSummaryDigest(requireMemoryStore(request.runtime, 'memory recall'), scope, {
               query: preparedRun.recallQuery,
               userId: context.userId,
               recentTools: preparedRun.recentTools,
@@ -604,7 +634,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
             }, this.logger)
 
             const recallModel = await getRecallModel()
-            const recall = await this.fileMemoryService.buildRuntimeRecall(context.tenantId, scope, {
+            const recall = await this.fileMemoryService.buildRuntimeRecall(requireMemoryStore(request.runtime, 'memory recall'), scope, {
               query: preparedRun.recallQuery,
               userId: context.userId,
               recallModel,
@@ -743,6 +773,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
           typeof request.tool.name === 'string' &&
           !['search_recall_memories', 'write_memory'].includes(request.tool.name)
         ) {
+          requireMemoryStore(request.runtime, 'memory recall')
           preparedRun.recentTools = appendRecentTool(preparedRun.recentTools, request.tool.name)
           preparedRun.recallQuery = buildRecallQueryFromTool(
             preparedRun.baseQuery,
@@ -756,15 +787,16 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
 
         return output
       },
-      afterAgent: async (state: FileMemorySystemState, _runtime: unknown) => {
+      afterAgent: async (state: FileMemorySystemState, runtime: Runtime) => {
         try {
           const messages = Array.isArray(state.messages) ? [...state.messages] : []
           if (!scope || !writebackEnabled || explicitWriteOccurred || !messages.length || !ensureWritebackConfigured()) {
             return nextSurfaceState ?? undefined
           }
 
+          const store = requireMemoryStore(runtime, 'memory writeback')
           const key = this.writebackRunner.enqueue({
-            tenantId: context.tenantId,
+            store,
             scope,
             messages,
             context: {
@@ -790,6 +822,8 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
           recallGeneration = 0
           consumedRecallGeneration = 0
           explicitWriteOccurred = false
+          currentStore = null
+          currentSandbox = null
         }
 
         return nextSurfaceState ?? undefined
@@ -1145,12 +1179,12 @@ function buildRecallQueryFromTool(
 
 async function findVisibleRecordByExactIdWithFallback(
   fileMemoryService: XpertFileMemoryService,
-  tenantId: string,
+  store: SandboxMemoryStore,
   scope: MemoryScope,
   userId: string,
   requestedMemoryId: string
 ) {
-  const directHit = await fileMemoryService.findVisibleRecordById(tenantId, scope, userId, requestedMemoryId)
+  const directHit = await fileMemoryService.findVisibleRecordById(store, scope, userId, requestedMemoryId)
   if (directHit) {
     return {
       found: directHit,
@@ -1168,7 +1202,7 @@ async function findVisibleRecordByExactIdWithFallback(
     }
   }
 
-  const fallbackHit = await fileMemoryService.findVisibleRecordById(tenantId, scope, userId, tailUuid)
+  const fallbackHit = await fileMemoryService.findVisibleRecordById(store, scope, userId, tailUuid)
   return {
     found: fallbackHit,
     resolvedMemoryId: fallbackHit?.record.id ?? tailUuid,
@@ -1187,6 +1221,28 @@ function normalizeRelativePathInput(value?: string) {
     return undefined
   }
   return trimmed.replace(/^\.?\//, '').replace(/\\/g, '/')
+}
+
+function assertSandboxFeatureEnabled(context: IAgentMiddlewareContext) {
+  if (context.xpertFeatures?.sandbox?.enabled === true) {
+    return
+  }
+  throw new Error(`${FILE_MEMORY_SYSTEM_MIDDLEWARE_NAME} requires the xpert sandbox feature to be enabled.`)
+}
+
+function extractSandboxConfig(runtimeLike: unknown): TSandboxConfigurable | null {
+  if (!runtimeLike || typeof runtimeLike !== 'object') {
+    return null
+  }
+
+  const runtimeRecord = runtimeLike as {
+    configurable?: {
+      sandbox?: TSandboxConfigurable | null
+    }
+    sandbox?: TSandboxConfigurable | null
+  }
+
+  return runtimeRecord.configurable?.sandbox ?? runtimeRecord.sandbox ?? null
 }
 
 function renderModelInputLog(systemMessage: SystemMessage, messages: BaseMessage[]) {

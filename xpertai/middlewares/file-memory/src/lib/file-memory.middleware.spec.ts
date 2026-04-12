@@ -1,6 +1,6 @@
 import { HumanMessage } from '@langchain/core/messages'
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   __esModule: true,
   AiModelTypeEnum: {
     LLM: 'llm'
@@ -23,7 +23,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: unknown) => target,
   CreateModelClientCommand: class CreateModelClientCommand {
     constructor(public readonly model: unknown, public readonly options: unknown) {}
-  }
+  },
+  resolveSandboxBackend: jest.fn((sandbox?: { backend?: unknown } | null) => sandbox?.backend ?? null)
 }))
 
 import { FileMemorySystemMiddleware } from './file-memory.middleware.js'
@@ -64,7 +65,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
           semanticKind: 'user',
           audience: 'user',
           layerLabel: 'My Memory',
-          relativePath: 'user/favorite-food-memory-1.md',
+          relativePath: 'private/user/favorite-food-memory-1.md',
           updatedAt: '2026-04-08T06:08:36.643Z',
           mtimeMs: Date.parse('2026-04-08T06:08:36.643Z')
         }
@@ -96,15 +97,17 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       },
       createContext()
     )
+    const runtime = createRuntime()
 
     await middleware.beforeAgent?.({
       input: 'deployment rollback'
-    } as any)
+    } as any, runtime as any)
 
     const handler = jest.fn().mockResolvedValue('ok')
     const wrapPromise = middleware.wrapModelCall!(
       {
-        messages: [new HumanMessage('deployment rollback')]
+        messages: [new HumanMessage('deployment rollback')],
+        runtime
       } as any,
       handler
     )
@@ -144,15 +147,17 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       },
       createContext()
     )
+    const runtime = createRuntime()
 
     await middleware.beforeAgent?.({
       input: 'deployment rollback'
-    } as any)
+    } as any, runtime as any)
 
     const firstHandler = jest.fn().mockResolvedValue('first')
     await middleware.wrapModelCall!(
       {
-        messages: [new HumanMessage('deployment rollback')]
+        messages: [new HumanMessage('deployment rollback')],
+        runtime
       } as any,
       firstHandler
     )
@@ -163,7 +168,8 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const secondHandler = jest.fn().mockResolvedValue('second')
     await middleware.wrapModelCall!(
       {
-        messages: [new HumanMessage('deployment rollback again')]
+        messages: [new HumanMessage('deployment rollback again')],
+        runtime
       } as any,
       secondHandler
     )
@@ -174,7 +180,8 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const thirdHandler = jest.fn().mockResolvedValue('third')
     await middleware.wrapModelCall!(
       {
-        messages: [new HumanMessage('deployment rollback third')]
+        messages: [new HumanMessage('deployment rollback third')],
+        runtime
       } as any,
       thirdHandler
     )
@@ -202,15 +209,17 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       },
       createContext()
     )
+    const runtime = createRuntime()
 
     await middleware.beforeAgent?.({
       input: 'deployment rollback'
-    } as any)
+    } as any, runtime as any)
 
     const handler = jest.fn().mockResolvedValue('ok')
     const wrapPromise = middleware.wrapModelCall!(
       {
-        messages: [new HumanMessage('deployment rollback')]
+        messages: [new HumanMessage('deployment rollback')],
+        runtime
       } as any,
       handler
     )
@@ -242,10 +251,11 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       },
       createContext()
     )
+    const runtime = createRuntime()
 
     await middleware.afterAgent?.({
       messages: [new HumanMessage('remember my preference')]
-    } as any, {} as any)
+    } as any, runtime as any)
 
     expect(writebackRunner.enqueue).toHaveBeenCalledTimes(1)
     expect(writebackRunner.softDrain).not.toHaveBeenCalled()
@@ -268,10 +278,11 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       },
       createContext()
     )
+    const runtime = createRuntime()
 
     await middleware.afterAgent?.({
       messages: [new HumanMessage('remember my preference')]
-    } as any, {} as any)
+    } as any, runtime as any)
 
     expect(writebackRunner.enqueue).toHaveBeenCalledTimes(1)
     expect(writebackRunner.softDrain).toHaveBeenCalledWith('job-1', 1_500)
@@ -327,14 +338,34 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     } as any)
     const middleware = await strategy.createMiddleware({}, createContext())
     const recallTool = middleware.tools?.find((item: any) => item.name === 'search_recall_memories') as any
+    const runtime = createRuntime()
 
-    const [queryContent] = await recallTool.func({ query: '张三的饮食偏好' })
+    const [queryContent] = await recallTool.func({ query: '张三的饮食偏好' }, undefined, runtime)
     expect(queryContent).toContain('copy canonicalRef into memoryId or copy relativePath verbatim')
     expect(queryContent).toContain('Do not use the title, filename, or filename stem as memoryId')
 
-    const [exactContent] = await recallTool.func({ memoryId: 'memory-7' })
+    const [exactContent] = await recallTool.func({ memoryId: 'memory-7' }, undefined, runtime)
     expect(exactContent).toContain('- canonicalRef: memory-7')
     expect(exactContent).toContain('- use memoryId only with this canonicalRef value; do not substitute title or filename')
+  })
+
+  it('fails middleware creation when sandbox feature is disabled', async () => {
+    const service = createServiceMock()
+    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+      enqueue: jest.fn(),
+      softDrain: jest.fn()
+    } as any)
+
+    await expect(
+      strategy.createMiddleware({}, {
+        ...createContext(),
+        xpertFeatures: {
+          sandbox: {
+            enabled: false
+          }
+        }
+      } as any)
+    ).rejects.toThrow('requires the xpert sandbox feature to be enabled')
   })
 })
 
@@ -344,7 +375,12 @@ function createContext() {
     userId: 'u1',
     xpertId: 'xpert-1',
     workspaceId: null,
-    conversationId: 'conversation-1'
+    conversationId: 'conversation-1',
+    xpertFeatures: {
+      sandbox: {
+        enabled: true
+      }
+    }
   }
 }
 
@@ -397,8 +433,8 @@ function createRecallResult(detailText: string) {
           source: 'manual',
           tags: ['deploy'],
           layerLabel: 'Shared Memory',
-          filePath: '/tmp/reference/rollback.md',
-          relativePath: 'reference/rollback.md',
+          filePath: 'xperts/xpert-1/shared/reference/rollback.md',
+          relativePath: 'shared/reference/rollback.md',
           mtimeMs: Date.parse('2026-04-02T00:00:00.000Z'),
           body: detailText,
           content: detailText,
@@ -414,7 +450,7 @@ function createRecallResult(detailText: string) {
       }
     ],
     surfaceState: {
-      alreadySurfaced: ['/tmp/reference/rollback.md'],
+      alreadySurfaced: ['xperts/xpert-1/shared/reference/rollback.md'],
       totalBytes: detailText.length
     },
     budget: {
@@ -456,7 +492,7 @@ function createHeader(id: string) {
     summary: '张三爱吃麦当劳',
     updatedAt: '2026-04-08T06:08:36.643Z',
     mtimeMs: Date.parse('2026-04-08T06:08:36.643Z'),
-    filePath: '/tmp/user/zhou-keming-food-memory-7.md',
+    filePath: 'xperts/xpert-1/private/user/zhou-keming-food-memory-7.md',
     status: 'active',
     ownerUserId: 'u1',
     tags: ['饮食偏好', '麦当劳', '张三']
@@ -472,7 +508,7 @@ function createRecord(id: string, title: string, body: string) {
     audience: 'user',
     layerLabel: 'My Memory',
     status: 'active',
-    relativePath: `user/${title}-${id}.md`,
+    relativePath: `private/user/${title}-${id}.md`,
     body,
     scopeType: 'xpert',
     scopeId: 'xpert-1',
@@ -492,5 +528,26 @@ function createRecord(id: string, title: string, body: string) {
       memoryId: id,
       profile: body
     }
+  }
+}
+
+function createRuntime() {
+  return {
+    configurable: {
+      sandbox: {
+        backend: createSandboxBackend()
+      }
+    }
+  }
+}
+
+function createSandboxBackend() {
+  return {
+    id: 'test-sandbox',
+    workingDirectory: '/tmp/workspace',
+    downloadFiles: jest.fn().mockResolvedValue([]),
+    uploadFiles: jest.fn().mockResolvedValue([]),
+    globInfo: jest.fn().mockResolvedValue([]),
+    lsInfo: jest.fn().mockResolvedValue([])
   }
 }

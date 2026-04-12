@@ -148,7 +148,7 @@
       "path": "./middlewares/view-image"
     },
     {
-      "path": "./middlewares/file-memory-system"
+      "path": "./middlewares/file-memory"
     },
     {
       "path": "./models/siliconflow"

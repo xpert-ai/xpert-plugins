@@ -12,7 +12,7 @@ import {
 } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { Command } from '@langchain/langgraph'
-import { type ICopilotModel, type TAgentMiddlewareMeta } from '@metad/contracts'
+import { type ICopilotModel, type TAgentMiddlewareMeta, type TMessageComponentStep } from '@xpert-ai/contracts'
 import { Inject, Injectable } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/chatkit-types'
@@ -34,6 +34,7 @@ import {
   type AdvisorPluginConfig,
   AdvisorPluginConfigFormSchema,
   AdvisorPluginConfigSchema,
+  AdvisorPluginIcon,
   type AdvisorState,
   AdvisorStateSchema,
   AdvisorToolInputSchema,
@@ -60,6 +61,14 @@ const DEFAULT_ADVISOR_SYSTEM_PROMPT = [
   'If context is incomplete, make the best recommendation you can from the available information.'
 ].join('\n')
 
+const INTERNAL_ADVISOR_INVOKE_TAG = 'advisor/internal-eval'
+const INTERNAL_ADVISOR_INVOKE_OPTIONS = {
+  tags: [INTERNAL_ADVISOR_INVOKE_TAG],
+  metadata: {
+    internal: true
+  }
+}
+
 @Injectable()
 @AgentMiddlewareStrategy(ADVISOR_MIDDLEWARE_NAME)
 export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<AdvisorPluginConfig>> {
@@ -82,8 +91,7 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
     },
     icon: {
       type: 'svg',
-      value:
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><rect x="6" y="8" width="52" height="40" rx="12" fill="currentColor" opacity="0.12"/><path d="M19 22c0-5.523 4.477-10 10-10h6c5.523 0 10 4.477 10 10v7c0 5.523-4.477 10-10 10h-6l-8 8v-8c-3.314 0-6-2.686-6-6V22Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M27 25h10M27 32h16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="47" r="9" fill="currentColor" opacity="0.18"/><path d="m41 47 3 3 6-6" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      value: AdvisorPluginIcon
     },
     configSchema: AdvisorPluginConfigFormSchema
   }
@@ -176,9 +184,18 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
         }
 
         try {
+          await emitAdvisorToolStep({
+            toolCallId,
+            message: parsedInput.data.question,
+            input: parsedInput.data,
+            status: 'running'
+          })
           const advisorModel = await getAdvisorModel()
           const advisorMessages = buildAdvisorMessages(parsedInput.data.question, request.state.messages, config)
-          const advisorResponse = await advisorModel.invoke(advisorMessages as BaseMessage[])
+          const advisorResponse = await advisorModel.invoke(
+            advisorMessages as BaseMessage[],
+            INTERNAL_ADVISOR_INVOKE_OPTIONS
+          )
           const content = extractTextContent(advisorResponse?.content).trim() || ADVISOR_NO_TEXT_RESPONSE
           const nextRunUses = quota.runUses + 1
           const nextSessionUses = quota.sessionUses + 1
@@ -508,14 +525,12 @@ function buildErrorToolMessage(toolCallId: string | undefined, content: string) 
   })
 }
 
-async function emitAdvisorToolStep(event: {
+type AdvisorToolStepEvent = {
   toolCallId?: string | null
-  message?: string
-  input?: unknown
-  output?: string
-  error?: string
-  status: 'success' | 'fail'
-}) {
+} & Pick<TMessageComponentStep, 'status'> &
+  Partial<Pick<TMessageComponentStep, 'message' | 'input' | 'output' | 'error'>>
+
+async function emitAdvisorToolStep(event: AdvisorToolStepEvent) {
   const timestamp = new Date().toISOString()
   const toolCallId = normalizeToolCallId(event.toolCallId)
 
@@ -530,7 +545,7 @@ async function emitAdvisorToolStep(event: {
       message: event.message || 'Advisor execution',
       status: event.status,
       created_date: timestamp,
-      end_date: timestamp,
+      ...(event.status === 'running' ? {} : { end_date: timestamp }),
       ...(event.input !== undefined ? { input: event.input } : {}),
       ...(event.output !== undefined ? { output: event.output } : {}),
       ...(event.error !== undefined ? { error: event.error } : {})

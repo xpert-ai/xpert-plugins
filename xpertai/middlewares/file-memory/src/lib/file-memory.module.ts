@@ -5,7 +5,6 @@ import { FileMemoryFileRepository } from './file-repository.js'
 import { XpertFileMemoryService } from './file-memory.service.js'
 import { FileMemorySystemMiddleware } from './file-memory.middleware.js'
 import { FileMemoryLayerResolver } from './layer-resolver.js'
-import { FileMemoryPathPolicy } from './path-policy.js'
 import { FileMemoryRecallPlanner } from './recall-planner.js'
 import { FileMemoryWritebackRunner } from './file-memory.writeback-runner.js'
 import { FileMemoryWritePolicy } from './write-policy.js'
@@ -13,7 +12,6 @@ import { FileMemoryWritePolicy } from './write-policy.js'
 @XpertServerPlugin({
   imports: [CqrsModule],
   providers: [
-    FileMemoryPathPolicy,
     FileMemoryLayerResolver,
     FileMemoryFileRepository,
     FileMemoryRecallPlanner,

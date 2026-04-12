@@ -7,7 +7,7 @@ import { ADVISOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 import {
   AdvisorPluginConfigFormSchema,
   AdvisorPluginConfigSchema,
-  AdvisorPluginIcon
+  AdvisorPluginIcon,
 } from './lib/advisor.types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))

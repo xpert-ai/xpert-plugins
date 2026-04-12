@@ -8,7 +8,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   }
 }))
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   AiModelTypeEnum: {
     LLM: 'LLM'
   }
@@ -259,6 +259,15 @@ describe('AdvisorMiddleware', () => {
     )
 
     expect(commandBus.execute).toHaveBeenCalledTimes(1)
+    expect(invoke).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        tags: ['advisor/internal-eval'],
+        metadata: expect.objectContaining({
+          internal: true
+        })
+      })
+    )
     expect(result).toBeInstanceOf(Command)
     expect((result as any).update.advisorRunUses).toBe(2)
     expect((result as any).update.advisorSessionUses).toBe(6)

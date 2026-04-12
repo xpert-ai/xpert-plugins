@@ -1,7 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { LongTermMemoryTypeEnum, TMemoryQA, TMemoryUserProfile } from '@metad/contracts'
+import { LongTermMemoryTypeEnum, TMemoryQA, TMemoryUserProfile } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
-import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { v4 as uuidv4 } from 'uuid'
 import yaml from 'yaml'
@@ -34,17 +33,18 @@ import { FileMemoryWritePolicy } from './write-policy.js'
 import { memoryAge, memoryFreshnessText } from './memory-freshness.js'
 import {
   defaultSemanticKindForLegacyKind,
+  inferLayerRelativeMemoryPath,
   inferRelativeMemoryPath,
   resolveMemoryDirectoryName,
   resolveSemanticKind,
   sectionHeadingForSemanticKind,
   SemanticMemoryKind
 } from './memory-taxonomy.js'
+import { SandboxMemoryStore } from './sandbox-memory.store.js'
 
 const MAX_ENTRYPOINT_LINES = 200
 const MAX_ENTRYPOINT_BYTES = 25_000
 const MAX_MEMORY_FILES = 200
-const MAX_HEADER_LINES = 30
 const MAX_MEMORY_LINES = 200
 const MAX_MEMORY_BYTES = 4_096
 const MAX_RECALL_BYTES_PER_TURN = 20 * 1024
@@ -75,16 +75,16 @@ export class XpertFileMemoryService {
     return this.layerResolver.resolveVisibleLayers(scope, userId, audience)
   }
 
-  resolveScopeDirectory(tenantId: string, scope: MemoryScope) {
-    return this.layerResolver.resolveScopeDirectory(tenantId, scope)
+  resolveScopeDirectory(scope: MemoryScope) {
+    return this.layerResolver.resolveScopeDirectory(scope)
   }
 
-  resolveLayerDirectory(tenantId: string, layer: MemoryLayer) {
-    return this.layerResolver.resolveLayerDirectory(tenantId, layer)
+  resolveLayerDirectory(layer: MemoryLayer) {
+    return this.layerResolver.resolveLayerDirectory(layer)
   }
 
-  async search(tenantId: string, scope: MemoryScope, options: MemorySearchOptions = {}): Promise<MemorySearchResult[]> {
-    const records = await this.listRecords(tenantId, scope, options)
+  async search(store: SandboxMemoryStore, scope: MemoryScope, options: MemorySearchOptions = {}): Promise<MemorySearchResult[]> {
+    const records = await this.listRecords(store, scope, options)
     const query = options.text?.trim()
     if (!query) {
       return records.slice(0, options.limit ?? records.length).map((record) => ({ ...record, score: 1 }))
@@ -100,14 +100,14 @@ export class XpertFileMemoryService {
       .slice(0, options.limit ?? records.length)
   }
 
-  async readRuntimeEntrypoints(tenantId: string, scope: MemoryScope, userId: string) {
+  async readRuntimeEntrypoints(store: SandboxMemoryStore, scope: MemoryScope, userId: string) {
     const layers = this.resolveVisibleLayers(scope, userId, 'all')
-    const indexParts = await Promise.all(layers.map((layer) => this.readIndexForLayer(tenantId, layer)))
+    const indexParts = await Promise.all(layers.map((layer) => this.readIndexForLayer(store, layer)))
     return layers.map((layer, index) => createRuntimeEntrypoint(layer, indexParts[index] ?? ''))
   }
 
   async buildRuntimeSummaryDigest(
-    tenantId: string,
+    store: SandboxMemoryStore,
     scope: MemoryScope,
     options: {
       query: string
@@ -125,7 +125,7 @@ export class XpertFileMemoryService {
     const layers = this.resolveVisibleLayers(scope, options.userId, 'all')
     const headersByLayer = await Promise.all(
       layers.map(async (layer) => {
-        const headers = await this.scanHeadersInLayer(tenantId, layer, {
+        const headers = await this.scanHeadersInLayer(store, layer, {
           audience: layer.audience,
           includeArchived: false,
           includeFrozen: false
@@ -161,18 +161,18 @@ export class XpertFileMemoryService {
   }
 
   async buildRuntimeRecall(
-    tenantId: string,
+    store: SandboxMemoryStore,
     scope: MemoryScope,
     options: MemoryRuntimeRecallOptions
   ): Promise<MemoryRuntimeRecallResult> {
-    const entrypoints = await this.readRuntimeEntrypoints(tenantId, scope, options.userId)
+    const entrypoints = await this.readRuntimeEntrypoints(store, scope, options.userId)
     const layers = entrypoints.map((entrypoint) => entrypoint.layer)
     const recallLimits = {
       maxSelectedTotal: options.maxSelectedTotal ?? MAX_SELECTED_TOTAL
     }
     const headersByLayer = await Promise.all(
       layers.map(async (layer) => {
-        const headers = await this.scanHeadersInLayer(tenantId, layer, {
+        const headers = await this.scanHeadersInLayer(store, layer, {
           audience: layer.audience,
           includeArchived: false,
           includeFrozen: false
@@ -194,7 +194,7 @@ export class XpertFileMemoryService {
       : { headers: [], strategy: 'disabled' as const }
 
     const selectedRecords = await Promise.all(
-      selection.headers.map((header) => this.readRecordForRuntimeDetail(header, layerFromHeader(header)))
+      selection.headers.map((header) => this.readRecordForRuntimeDetail(store, header, layerFromHeader(header)))
     )
 
     const surfacedPaths = new Set<string>(options.alreadySurfaced ?? [])
@@ -231,7 +231,7 @@ export class XpertFileMemoryService {
       budget: {
         maxSelectedTotal: recallLimits.maxSelectedTotal,
         maxFilesPerLayer: MAX_MEMORY_FILES,
-        maxHeaderLines: MAX_HEADER_LINES,
+        maxHeaderLines: MAX_MEMORY_LINES,
         maxMemoryLinesPerFile: MAX_MEMORY_LINES,
         maxMemoryBytesPerFile: MAX_MEMORY_BYTES,
         maxRecallBytesPerTurn: MAX_RECALL_BYTES_PER_TURN,
@@ -241,14 +241,14 @@ export class XpertFileMemoryService {
   }
 
   async selectRecallHeadersForQuery(
-    tenantId: string,
+    store: SandboxMemoryStore,
     scope: MemoryScope,
     options: MemoryRuntimeRecallOptions
   ): Promise<MemoryRecallSelectionResult> {
     const layers = this.resolveVisibleLayers(scope, options.userId, 'all')
     const headersByLayer = await Promise.all(
       layers.map(async (layer) => {
-        const headers = await this.scanHeadersInLayer(tenantId, layer, {
+        const headers = await this.scanHeadersInLayer(store, layer, {
           audience: layer.audience,
           includeArchived: false,
           includeFrozen: false
@@ -276,19 +276,19 @@ export class XpertFileMemoryService {
     })
   }
 
-  async findVisibleRecordById(tenantId: string, scope: MemoryScope, userId: string, memoryId: string) {
+  async findVisibleRecordById(store: SandboxMemoryStore, scope: MemoryScope, userId: string, memoryId: string) {
     const layers = this.resolveVisibleLayers(scope, userId, 'all')
-    return this.findRecordInLayers(tenantId, layers, memoryId)
+    return this.findRecordInLayers(store, layers, memoryId)
   }
 
-  async findVisibleRecordByRelativePath(tenantId: string, scope: MemoryScope, userId: string, relativePath: string) {
+  async findVisibleRecordByRelativePath(store: SandboxMemoryStore, scope: MemoryScope, userId: string, relativePath: string) {
     const layers = this.resolveVisibleLayers(scope, userId, 'all')
-    return this.findRecordInLayersByRelativePath(tenantId, layers, relativePath)
+    return this.findRecordInLayersByRelativePath(store, layers, relativePath)
   }
 
-  async upsert(tenantId: string, input: MemoryUpsertInput): Promise<MemoryRecord> {
+  async upsert(store: SandboxMemoryStore, input: MemoryUpsertInput): Promise<MemoryRecord> {
     const layer = this.resolveTargetLayer(input)
-    const existing = input.memoryId ? await this.getRecordFromLayer(tenantId, layer, input.memoryId) : null
+    const existing = input.memoryId ? await this.getRecordFromLayer(store, layer, input.memoryId) : null
     const id = input.memoryId ?? uuidv4()
     const semanticKind = resolveSemanticKind({
       semanticKind: input.semanticKind ?? existing?.semanticKind,
@@ -301,8 +301,7 @@ export class XpertFileMemoryService {
       relativePath: existing?.relativePath
     })
     const normalized = normalizeRecordValue(input.kind, semanticKind, input, existing)
-    const filePath =
-      existing?.filePath ?? this.resolveRecordPath(tenantId, layer, input.kind, semanticKind, id, normalized.title)
+    const filePath = existing?.filePath ?? this.resolveRecordPath(layer, input.kind, semanticKind, id, normalized.title)
     const createdAt = existing?.createdAt ?? new Date().toISOString()
     const createdBy = existing?.createdBy ?? input.createdBy
     const updatedAt = new Date().toISOString()
@@ -328,15 +327,14 @@ export class XpertFileMemoryService {
       tags: normalizeTags(input.tags ?? existing?.tags)
     }
 
-    await this.ensureLayerDirectories(tenantId, layer)
-    await this.fileRepository.writeFile(filePath, serializeMemoryFile(frontmatter, normalized.body))
-    this.invalidateLayerCaches(tenantId, layer)
-    await this.updateIndexForLayer(tenantId, layer)
-    return this.readRecord(tenantId, filePath, layer)
+    await this.fileRepository.writeFile(store, filePath, serializeMemoryFile(frontmatter, normalized.body))
+    this.invalidateLayerCaches(store, layer)
+    await this.updateIndexForLayer(store, layer)
+    return this.readRecord(store, filePath, layer)
   }
 
   async applyGovernance(
-    tenantId: string,
+    store: SandboxMemoryStore,
     scope: MemoryScope,
     memoryId: string,
     action: 'archive',
@@ -348,7 +346,7 @@ export class XpertFileMemoryService {
     } = {}
   ) {
     const layers = this.resolveLayersForOptions(scope, options)
-    const found = await this.findRecordInLayers(tenantId, layers, memoryId)
+    const found = await this.findRecordInLayers(store, layers, memoryId)
     if (!found) {
       return null
     }
@@ -361,14 +359,14 @@ export class XpertFileMemoryService {
       updatedBy
     }
 
-    await this.fileRepository.writeFile(record.filePath, serializeMemoryFile(frontmatter, record.body))
-    this.invalidateLayerCaches(tenantId, layer)
-    await this.updateIndexForLayer(tenantId, layer)
-    return this.readRecord(tenantId, record.filePath, layer)
+    await this.fileRepository.writeFile(store, record.filePath, serializeMemoryFile(frontmatter, record.body))
+    this.invalidateLayerCaches(store, layer)
+    await this.updateIndexForLayer(store, layer)
+    return this.readRecord(store, record.filePath, layer)
   }
 
   private async listRecords(
-    tenantId: string,
+    store: SandboxMemoryStore,
     scope: MemoryScope,
     options: {
       kinds?: LongTermMemoryTypeEnum[]
@@ -383,14 +381,14 @@ export class XpertFileMemoryService {
     const layers = this.resolveLayersForOptions(scope, options)
     const groups = await Promise.all(
       layers.map(async (layer) => {
-        const headers = await this.scanHeadersInLayer(tenantId, layer, {
+        const headers = await this.scanHeadersInLayer(store, layer, {
           kinds: options.kinds,
           semanticKinds: options.semanticKinds,
           includeArchived: options.includeArchived,
           includeFrozen: options.includeFrozen,
           audience: layer.audience
         })
-        return Promise.all(headers.map((header) => this.readRecord(tenantId, header.filePath, layer)))
+        return Promise.all(headers.map((header) => this.readRecord(store, header.filePath, layer, header.mtimeMs)))
       })
     )
     return groups.flat().sort(compareLayeredRecords)
@@ -462,9 +460,9 @@ export class XpertFileMemoryService {
     ]
   }
 
-  private layerCacheKey(tenantId: string, layer: MemoryLayer) {
+  private layerCacheKey(store: SandboxMemoryStore, layer: MemoryLayer) {
     return [
-      tenantId,
+      store.cacheKey,
       layer.scope.scopeType,
       layer.scope.scopeId,
       layer.audience,
@@ -472,25 +470,25 @@ export class XpertFileMemoryService {
     ].join(':')
   }
 
-  private invalidateLayerCaches(tenantId: string, layer: MemoryLayer) {
-    const cacheKey = this.layerCacheKey(tenantId, layer)
+  private invalidateLayerCaches(store: SandboxMemoryStore, layer: MemoryLayer) {
+    const cacheKey = this.layerCacheKey(store, layer)
     this.entrypointCache.delete(cacheKey)
     this.headerManifestCache.delete(cacheKey)
   }
 
-  private async readHeaderManifest(tenantId: string, layer: MemoryLayer) {
-    const cacheKey = this.layerCacheKey(tenantId, layer)
+  private async readHeaderManifest(store: SandboxMemoryStore, layer: MemoryLayer) {
+    const cacheKey = this.layerCacheKey(store, layer)
     const cached = this.headerManifestCache.get(cacheKey)
     if (cached) {
       return cached
     }
 
-    const files = await this.fileRepository.listFiles(tenantId, layer)
+    const files = await this.fileRepository.listFiles(store, layer)
     const headers = (
       await Promise.all(
         files.map(async (filePath) => {
           try {
-            return await this.readHeader(filePath, layer)
+            return await this.readHeader(store, filePath, layer)
           } catch (error) {
             this.logger.warn(`Failed to scan memory header ${filePath}: ${getErrorMessage(error)}`)
             return null
@@ -499,6 +497,7 @@ export class XpertFileMemoryService {
       )
     )
       .filter((item): item is MemoryRecordHeader => Boolean(item))
+      .filter((header) => isHeaderVisibleInLayer(header, layer))
       .sort(compareLayeredRecords)
 
     this.headerManifestCache.set(cacheKey, headers)
@@ -506,7 +505,7 @@ export class XpertFileMemoryService {
   }
 
   private async scanHeadersInLayer(
-    tenantId: string,
+    store: SandboxMemoryStore,
     layer: MemoryLayer,
     options: {
       kinds?: LongTermMemoryTypeEnum[]
@@ -516,15 +515,18 @@ export class XpertFileMemoryService {
       audience?: MemoryAudience
     } = {}
   ) {
-    const headers = await this.readHeaderManifest(tenantId, layer)
+    const headers = await this.readHeaderManifest(store, layer)
     return headers
       .filter((header) => matchesKindFilters(header, options))
       .filter((header) => shouldIncludeStatus(header.status, options))
       .sort(compareLayeredRecords)
   }
 
-  private async readHeader(filePath: string, layer: MemoryLayer): Promise<MemoryRecordHeader> {
-    const { content, mtimeMs } = await readFileHeader(filePath, MAX_HEADER_LINES)
+  private async readHeader(store: SandboxMemoryStore, filePath: string, layer: MemoryLayer): Promise<MemoryRecordHeader> {
+    const [content, mtimeMs] = await Promise.all([
+      this.fileRepository.readFile(store, filePath),
+      this.fileRepository.getMtimeMs(store, filePath)
+    ])
     const relativePath = inferRelativeMemoryPath(filePath)
     const { frontmatter, body } = parseMemoryFile(content, createFrontmatterDefaults(layer))
     const title = frontmatter.title || extractTitleFromBody(body) || createTitle(frontmatter.kind, body, frontmatter.semanticKind)
@@ -550,8 +552,16 @@ export class XpertFileMemoryService {
     }
   }
 
-  private async readRecord(tenantId: string, filePath: string, layer: MemoryLayer): Promise<MemoryRecord> {
-    const [raw, mtimeMs] = await Promise.all([this.fileRepository.readFile(filePath), getFileMtimeMs(filePath)])
+  private async readRecord(
+    store: SandboxMemoryStore,
+    filePath: string,
+    layer: MemoryLayer,
+    knownMtimeMs?: number
+  ): Promise<MemoryRecord> {
+    const [raw, mtimeMs] = await Promise.all([
+      this.fileRepository.readFile(store, filePath),
+      knownMtimeMs ?? this.fileRepository.getMtimeMs(store, filePath)
+    ])
     const relativePath = inferRelativeMemoryPath(filePath)
     const { frontmatter, body } = parseMemoryFile(raw, createFrontmatterDefaults(layer))
     const resolvedTitle =
@@ -595,10 +605,11 @@ export class XpertFileMemoryService {
     }
   }
 
-  private async readRecordForRuntimeDetail(header: MemoryRecordHeader, layer: MemoryLayer): Promise<MemoryRecord> {
-    const { content } = await readRuntimeDetailSource(header.filePath)
+  private async readRecordForRuntimeDetail(store: SandboxMemoryStore, header: MemoryRecordHeader, layer: MemoryLayer): Promise<MemoryRecord> {
+    const content = await this.fileRepository.readFile(store, header.filePath)
     const { frontmatter, body } = parseMemoryFile(content, createFrontmatterDefaults(layer))
-    const title = header.title || frontmatter.title || extractTitleFromBody(body) || createTitle(header.kind, body, header.semanticKind)
+    const title =
+      header.title || frontmatter.title || extractTitleFromBody(body) || createTitle(header.kind, body, header.semanticKind)
     const parsed = parseBody(header.kind, title, body)
     const relativePath = inferRelativeMemoryPath(header.filePath)
     const semanticKind = resolveSemanticKind({
@@ -640,17 +651,17 @@ export class XpertFileMemoryService {
     }
   }
 
-  private async getRecordFromLayer(tenantId: string, layer: MemoryLayer, memoryId: string) {
-    const filePath = await this.findRecordPathInLayer(tenantId, layer, memoryId)
+  private async getRecordFromLayer(store: SandboxMemoryStore, layer: MemoryLayer, memoryId: string) {
+    const filePath = await this.findRecordPathInLayer(store, layer, memoryId)
     if (!filePath) {
       return null
     }
-    return this.readRecord(tenantId, filePath, layer)
+    return this.readRecord(store, filePath, layer)
   }
 
-  private async findRecordInLayers(tenantId: string, layers: MemoryLayer[], memoryId: string) {
+  private async findRecordInLayers(store: SandboxMemoryStore, layers: MemoryLayer[], memoryId: string) {
     for (const layer of layers) {
-      const record = await this.getRecordFromLayer(tenantId, layer, memoryId)
+      const record = await this.getRecordFromLayer(store, layer, memoryId)
       if (record) {
         return { record, layer }
       }
@@ -658,14 +669,14 @@ export class XpertFileMemoryService {
     return null
   }
 
-  private async findRecordInLayersByRelativePath(tenantId: string, layers: MemoryLayer[], relativePath: string) {
+  private async findRecordInLayersByRelativePath(store: SandboxMemoryStore, layers: MemoryLayer[], relativePath: string) {
     const normalizedRelativePath = normalizeRelativePath(relativePath)
     for (const layer of layers) {
-      const headers = await this.readHeaderManifest(tenantId, layer)
+      const headers = await this.readHeaderManifest(store, layer)
       const matchedHeader = headers.find((header) => inferRelativeMemoryPath(header.filePath) === normalizedRelativePath)
       if (matchedHeader) {
         return {
-          record: await this.readRecord(tenantId, matchedHeader.filePath, layer),
+          record: await this.readRecord(store, matchedHeader.filePath, layer, matchedHeader.mtimeMs),
           layer
         }
       }
@@ -673,49 +684,39 @@ export class XpertFileMemoryService {
     return null
   }
 
-  private async findRecordPathInLayer(tenantId: string, layer: MemoryLayer, memoryId: string) {
-    const headers = await this.readHeaderManifest(tenantId, layer)
+  private async findRecordPathInLayer(store: SandboxMemoryStore, layer: MemoryLayer, memoryId: string) {
+    const headers = await this.readHeaderManifest(store, layer)
     return headers.find((header) => header.id === memoryId)?.filePath ?? null
   }
 
-  private resolveIndexPath(tenantId: string, layer: MemoryLayer) {
-    return path.join(this.resolveLayerDirectory(tenantId, layer), MEMORY_INDEX_FILENAME)
+  private resolveIndexPath(layer: MemoryLayer) {
+    return path.posix.join(this.resolveLayerDirectory(layer), MEMORY_INDEX_FILENAME)
   }
 
   private resolveRecordPath(
-    tenantId: string,
     layer: MemoryLayer,
     kind: LongTermMemoryTypeEnum,
     semanticKind: SemanticMemoryKind,
     memoryId: string,
     title?: string | null
   ) {
-    return path.join(
-      this.resolveLayerDirectory(tenantId, layer),
+    return path.posix.join(
+      this.resolveLayerDirectory(layer),
       resolveMemoryDirectoryName({ kind, semanticKind }),
       buildMemoryFileName(title, memoryId)
     )
   }
 
-  private async ensureLayerDirectories(tenantId: string, layer: MemoryLayer) {
-    const layerDirectory = this.resolveLayerDirectory(tenantId, layer)
-    await Promise.all(
-      [layerDirectory, ...['profile', 'qa', 'user', 'feedback', 'project', 'reference'].map((name) => path.join(layerDirectory, name))].map(
-        (directory) => fsPromises.mkdir(directory, { recursive: true })
-      )
-    )
-  }
-
-  private async readIndexForLayer(tenantId: string, layer: MemoryLayer) {
-    const cacheKey = this.layerCacheKey(tenantId, layer)
+  private async readIndexForLayer(store: SandboxMemoryStore, layer: MemoryLayer) {
+    const cacheKey = this.layerCacheKey(store, layer)
     const cached = this.entrypointCache.get(cacheKey)
     if (typeof cached === 'string') {
       return cached
     }
 
-    const indexPath = this.resolveIndexPath(tenantId, layer)
+    const indexPath = this.resolveIndexPath(layer)
     try {
-      const source = await this.fileRepository.readFile(indexPath)
+      const source = await this.fileRepository.readFile(store, indexPath)
       this.entrypointCache.set(cacheKey, source)
       return source
     } catch (error) {
@@ -726,17 +727,16 @@ export class XpertFileMemoryService {
     }
   }
 
-  private async updateIndexForLayer(tenantId: string, layer: MemoryLayer) {
-    await this.ensureLayerDirectories(tenantId, layer)
-    const headers = await this.scanHeadersInLayer(tenantId, layer, {
+  private async updateIndexForLayer(store: SandboxMemoryStore, layer: MemoryLayer) {
+    const headers = await this.scanHeadersInLayer(store, layer, {
       includeArchived: true,
       includeFrozen: true,
       audience: layer.audience
     })
-    const indexPath = this.resolveIndexPath(tenantId, layer)
+    const indexPath = this.resolveIndexPath(layer)
     let existing = ''
     try {
-      existing = await this.fileRepository.readFile(indexPath)
+      existing = await this.fileRepository.readFile(store, indexPath)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error
@@ -744,8 +744,8 @@ export class XpertFileMemoryService {
     }
     const managed = renderManagedIndex(layer, headers)
     const normalized = normalizeIndexSource(existing, managed, layer)
-    await this.fileRepository.writeFile(indexPath, normalized)
-    this.entrypointCache.set(this.layerCacheKey(tenantId, layer), normalized)
+    await this.fileRepository.writeFile(store, indexPath, normalized)
+    this.entrypointCache.set(this.layerCacheKey(store, layer), normalized)
   }
 
   private scoreRecord(record: MemoryRecord, query: string) {
@@ -807,18 +807,6 @@ function normalizeRecordValue(
   input: MemoryUpsertInput,
   existing?: MemoryRecord | null
 ) {
-  if (kind === LongTermMemoryTypeEnum.QA) {
-    const title = coalesce(input.title, existing?.title, createTitle(kind, input.content, semanticKind))
-    const content = coalesce(input.content, existing?.content, '')
-    const context = coalesce(input.context, existing?.context)
-    return {
-      title,
-      content,
-      context,
-      body: formatBody(semanticKind, title, content, context)
-    }
-  }
-
   const title = coalesce(input.title, existing?.title, createTitle(kind, input.content, semanticKind))
   const content = coalesce(input.content, existing?.content, '')
   const context = coalesce(input.context, existing?.context)
@@ -895,7 +883,7 @@ function renderManagedIndex(layer: MemoryLayer, headers: MemoryRecordHeader[]) {
     .filter((header) => header.status !== 'archived')
     .sort(compareLayeredRecords)
     .map((header) => {
-      const relativePath = inferRelativeMemoryPath(header.filePath)
+      const relativePath = inferLayerRelativeMemoryPath(header.filePath)
       const hook = header.summary || header.title
       return `- [${header.title}](${relativePath}) - ${hook}`
     })
@@ -1075,183 +1063,79 @@ function normalizeTags(tags?: string[] | null) {
   )
 }
 
-async function readFileHeader(filePath: string, maxLines: number) {
-  const [content, mtimeMs] = await Promise.all([
-    readFilePrefix(filePath, {
-      maxLines,
-      maxBytes: 12_288,
-      requireClosedFrontmatter: true
-    }),
-    getFileMtimeMs(filePath)
-  ])
-  return {
-    content,
-    mtimeMs
+function isHeaderVisibleInLayer(header: MemoryRecordHeader, layer: MemoryLayer) {
+  if (header.audience !== layer.audience) {
+    return false
   }
-}
-
-async function readRuntimeDetailSource(filePath: string) {
-  const content = await readFilePrefix(filePath, {
-    maxLines: MAX_MEMORY_LINES + MAX_HEADER_LINES,
-    maxBytes: 12_288,
-    requireClosedFrontmatter: true
-  })
-  return {
-    content
+  if (layer.audience === 'user') {
+    return Boolean(layer.ownerUserId) && header.ownerUserId === layer.ownerUserId
   }
-}
-
-async function getFileMtimeMs(filePath: string) {
-  const stats = await fsPromises.stat(filePath)
-  return Math.floor(stats.mtimeMs)
-}
-
-async function readFilePrefix(
-  filePath: string,
-  options: {
-    maxLines: number
-    maxBytes: number
-    requireClosedFrontmatter?: boolean
-  }
-) {
-  const fileHandle = await fsPromises.open(filePath, 'r')
-  try {
-    const chunks: Buffer[] = []
-    const chunkSize = 2_048
-    const absoluteMaxBytes = Math.max(options.maxBytes, 4_096) + 16_384
-    let offset = 0
-    let content = ''
-    let sawEof = false
-
-    while (offset < absoluteMaxBytes) {
-      const buffer = Buffer.alloc(Math.min(chunkSize, absoluteMaxBytes - offset))
-      const { bytesRead } = await fileHandle.read(buffer, 0, buffer.length, offset)
-      if (bytesRead <= 0) {
-        sawEof = true
-        break
-      }
-      chunks.push(buffer.subarray(0, bytesRead))
-      offset += bytesRead
-      content = Buffer.concat(chunks).toString('utf8')
-
-      const lineCount = content.split('\n').length
-      const byteLength = Buffer.byteLength(content, 'utf8')
-      const closedFrontmatter = !options.requireClosedFrontmatter || !content.startsWith('---') || hasClosedFrontmatter(content)
-      if (closedFrontmatter && (lineCount >= options.maxLines || byteLength >= options.maxBytes)) {
-        break
-      }
-    }
-
-    if (!sawEof && Buffer.byteLength(content, 'utf8') > options.maxBytes) {
-      let trimmed = content
-      while (Buffer.byteLength(trimmed, 'utf8') > options.maxBytes && trimmed.length > 0) {
-        trimmed = trimmed.slice(0, -1)
-      }
-      return trimmed
-    }
-
-    return content
-  } finally {
-    await fileHandle.close()
-  }
-}
-
-function tokenize(value?: string | null) {
-  const chunks = (value ?? '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .split(/\s+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-
-  const tokens = new Set<string>()
-  for (const chunk of chunks) {
-    if (chunk.length > 1) {
-      tokens.add(chunk)
-    }
-    if (containsHan(chunk)) {
-      const chars = Array.from(chunk).filter(Boolean)
-      for (const char of chars) {
-        if (containsHan(char)) {
-          tokens.add(char)
-        }
-      }
-      for (let size = 2; size <= Math.min(4, chars.length); size++) {
-        for (let index = 0; index <= chars.length - size; index++) {
-          tokens.add(chars.slice(index, index + size).join(''))
-        }
-      }
-    }
-  }
-  return tokens
-}
-
-function scoreText(query: string, text?: string | null) {
-  const queryTokens = Array.from(tokenize(query))
-  if (!queryTokens.length) {
-    return 0
-  }
-  const textTokens = tokenize(text)
-  if (!textTokens.size) {
-    return 0
-  }
-  let matched = 0
-  queryTokens.forEach((token) => {
-    if (textTokens.has(token)) {
-      matched += 1
-    }
-  })
-  const ratio = matched / queryTokens.length
-  const exact = includesNormalized(text, query) ? 0.2 : 0
-  return Math.min(1, ratio + exact)
+  return true
 }
 
 function matchesKindFilters(
-  header: MemoryRecordHeader,
+  header: Pick<MemoryRecordHeader, 'kind' | 'semanticKind'>,
   options: {
     kinds?: LongTermMemoryTypeEnum[]
     semanticKinds?: SemanticMemoryKind[]
   }
 ) {
-  if (options.kinds?.length && !options.kinds.includes(header.kind)) {
+  const kindMatch = !options.kinds?.length || options.kinds.includes(header.kind)
+  const semanticMatch = !options.semanticKinds?.length || options.semanticKinds.includes(header.semanticKind ?? 'reference')
+  return kindMatch && semanticMatch
+}
+
+function includesNormalized(haystack: string | undefined, needle: string) {
+  if (!haystack?.trim() || !needle.trim()) {
     return false
   }
-  if (options.semanticKinds?.length && !options.semanticKinds.includes(header.semanticKind ?? defaultSemanticKindForLegacyKind(header.kind))) {
-    return false
+  return normalizeSearchText(haystack).includes(normalizeSearchText(needle))
+}
+
+function scoreText(query: string, target?: string) {
+  if (!target?.trim()) {
+    return 0
   }
-  return true
+  const normalizedQuery = normalizeSearchText(query)
+  if (!normalizedQuery) {
+    return 0
+  }
+  const normalizedTarget = normalizeSearchText(target)
+  if (!normalizedTarget) {
+    return 0
+  }
+
+  if (normalizedTarget.includes(normalizedQuery)) {
+    return 1
+  }
+
+  const queryTokens = normalizedQuery.split(' ')
+  const targetTokens = normalizedTarget.split(' ')
+  const matchedTokens = queryTokens.filter((token) => targetTokens.some((candidate) => candidate.includes(token)))
+  if (!matchedTokens.length) {
+    return 0
+  }
+
+  return Number((matchedTokens.length / queryTokens.length).toFixed(4))
 }
 
-function includesNormalized(text?: string | null, query?: string | null) {
-  const left = (text ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
-  const right = (query ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
-  return Boolean(left && right && left.includes(right))
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function containsHan(value: string) {
-  return /\p{Script=Han}/u.test(value)
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function escapeRegex(input: string) {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function hasClosedFrontmatter(source: string) {
-  return /^---\n[\s\S]*?\n---\n?/m.test(source)
-}
-
-function coalesce(...values: Array<string | null | undefined>) {
+function coalesce<T>(...values: Array<T | null | undefined>) {
   for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
+    if (value !== undefined && value !== null) {
+      return value
     }
   }
-  return ''
+  return values[values.length - 1] as T
 }
 
 function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-  return typeof error === 'string' ? error : JSON.stringify(error)
+  return error instanceof Error ? error.message : String(error)
 }

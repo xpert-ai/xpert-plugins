@@ -1,6 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { BaseMessage, HumanMessage, isAIMessage, isHumanMessage, isToolMessage } from '@langchain/core/messages'
-import { LongTermMemoryTypeEnum, MEMORY_PROFILE_PROMPT, MEMORY_QA_PROMPT } from '@metad/contracts'
+import { LongTermMemoryTypeEnum, MEMORY_PROFILE_PROMPT, MEMORY_QA_PROMPT } from '@xpert-ai/contracts'
 import z from 'zod'
 import { createInternalRunnableConfig } from './internal-runnable-config.js'
 import {

@@ -1,16 +1,17 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { BaseMessage, isAIMessage, isHumanMessage, isToolMessage } from '@langchain/core/messages'
-import { ICopilotModel } from '@metad/contracts'
+import { ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import { CreateModelClientCommand, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { XpertFileMemoryService } from './file-memory.service.js'
 import { decideMemoryWriteback } from './file-memory.writeback.js'
 import { SEMANTIC_MEMORY_KINDS } from './memory-taxonomy.js'
+import { SandboxMemoryStore } from './sandbox-memory.store.js'
 import { MemoryScope } from './types.js'
 
 type FileMemoryWritebackSnapshot = {
-  tenantId: string
+  store: SandboxMemoryStore
   scope: MemoryScope
   messages: BaseMessage[]
   context: Pick<IAgentMiddlewareContext, 'userId' | 'conversationId'>
@@ -115,7 +116,7 @@ export class FileMemoryWritebackRunner {
       for (const semanticKind of SEMANTIC_MEMORY_KINDS) {
         const customPrompt = semanticKind === 'user' ? snapshot.profilePrompt : snapshot.qaPrompt
         try {
-          const candidates = await this.fileMemoryService.search(snapshot.tenantId, snapshot.scope, {
+          const candidates = await this.fileMemoryService.search(snapshot.store, snapshot.scope, {
             text: conversationText,
             semanticKinds: [semanticKind],
             userId: snapshot.context.userId,
@@ -128,7 +129,7 @@ export class FileMemoryWritebackRunner {
           const decision = await decideMemoryWriteback(model, semanticKind, snapshot.messages, candidates, customPrompt)
           if (decision.action === 'archive') {
             await this.fileMemoryService.applyGovernance(
-              snapshot.tenantId,
+              snapshot.store,
               snapshot.scope,
               decision.memoryId,
               'archive',
@@ -139,7 +140,7 @@ export class FileMemoryWritebackRunner {
               }
             )
           } else if (decision.action === 'upsert') {
-            await this.fileMemoryService.upsert(snapshot.tenantId, {
+            await this.fileMemoryService.upsert(snapshot.store, {
               scope: snapshot.scope,
               audience: decision.audience ?? undefined,
               ownerUserId: decision.audience === 'user' ? snapshot.context.userId : undefined,
@@ -194,7 +195,7 @@ export class FileMemoryWritebackRunner {
 
 function createScopeKey(snapshot: FileMemoryWritebackSnapshot) {
   return [
-    snapshot.tenantId,
+    snapshot.store.cacheKey,
     snapshot.scope.scopeType,
     snapshot.scope.scopeId,
     snapshot.context.userId
