@@ -1,19 +1,7 @@
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel, JsonSchemaObjectType } from '@xpert-ai/contracts'
 import { z } from 'zod/v3'
 
-export const FileMemorySystemIcon = `<?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="4" y="4" width="56" height="56" rx="10" fill="#1f3a5f"/>
-  <path fill="#8fd3ff" d="M18 17h18l10 10v20a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V21a4 4 0 0 1 4-4z"/>
-  <path fill="#dff4ff" d="M36 17v10h10z"/>
-  <path fill="#1f3a5f" d="M21 33h22v3H21zm0 7h18v3H21z"/>
-  <circle cx="23" cy="24" r="3" fill="#ffce70"/>
-  <circle cx="31" cy="24" r="3" fill="#ffce70"/>
-  <circle cx="39" cy="24" r="3" fill="#ffce70"/>
-</svg>`
-
 const writebackSchema = z.object({
-  enabled: z.boolean().optional(),
   waitPolicy: z.enum(['never_wait', 'soft_drain']).optional(),
   model: z.custom<ICopilotModel>((value) => Boolean(value)).optional(),
   qaPrompt: z.string().optional(),
@@ -21,7 +9,6 @@ const writebackSchema = z.object({
 })
 
 const recallSchema = z.object({
-  enabled: z.boolean().optional(),
   mode: z.enum(['hybrid_async', 'legacy_blocking']).optional(),
   model: z.custom<ICopilotModel>((value) => Boolean(value)).optional(),
   timeoutMs: z.number().int().positive().optional(),
@@ -30,7 +17,6 @@ const recallSchema = z.object({
 })
 
 export const fileMemorySystemMiddlewareOptionsSchema = z.object({
-  enableLogging: z.boolean().optional(),
   recall: recallSchema.optional(),
   writeback: writebackSchema.optional()
 })
@@ -45,13 +31,6 @@ export type FileMemorySystemMiddlewareOptions = z.infer<typeof fileMemorySystemM
 export const fileMemoryMiddlewareConfigSchema = {
   type: 'object',
   properties: {
-    enableLogging: {
-      type: 'boolean',
-      title: {
-        en_US: 'Enable Logging',
-        zh_Hans: '开启日志'
-      }
-    },
     recall: {
       type: 'object',
       title: {
@@ -59,13 +38,6 @@ export const fileMemoryMiddlewareConfigSchema = {
         zh_Hans: '自动召回'
       },
       properties: {
-        enabled: {
-          type: 'boolean',
-          title: {
-            en_US: 'Enabled',
-            zh_Hans: '启用'
-          }
-        },
         mode: {
           type: 'string',
           title: {
@@ -73,7 +45,22 @@ export const fileMemoryMiddlewareConfigSchema = {
             zh_Hans: '召回模式'
           },
           enum: ['hybrid_async', 'legacy_blocking'],
-          default: 'hybrid_async'
+          default: 'hybrid_async',
+          'x-ui': {
+            enumLabels: {
+              hybrid_async: {
+                en_US: 'Hybrid Async',
+                zh_Hans: '混合异步'
+              },
+              legacy_blocking: {
+                en_US: 'Legacy Blocking',
+                zh_Hans: '传统阻塞'
+              }
+            },
+            help: {
+              en_US: 'https://www.npmjs.com/package/@xpert-ai/plugin-file-memory?activeTab=readme'
+            }
+          }
         },
         model: {
           type: 'object',
@@ -115,6 +102,9 @@ export const fileMemoryMiddlewareConfigSchema = {
             span: 2
           }
         }
+      },
+      'x-ui': {
+        span: 2,
       }
     },
     writeback: {
@@ -124,13 +114,6 @@ export const fileMemoryMiddlewareConfigSchema = {
         zh_Hans: '自动写回'
       },
       properties: {
-        enabled: {
-          type: 'boolean',
-          title: {
-            en_US: 'Enabled',
-            zh_Hans: '启用'
-          }
-        },
         waitPolicy: {
           type: 'string',
           title: {
@@ -138,7 +121,19 @@ export const fileMemoryMiddlewareConfigSchema = {
             zh_Hans: '结束等待策略'
           },
           enum: ['never_wait', 'soft_drain'],
-          default: 'never_wait'
+          default: 'never_wait',
+          'x-ui': {
+            enumLabels: {
+              never_wait: {
+                en_US: 'Never Wait',
+                zh_Hans: '从不等待'
+              },
+              soft_drain: {
+                en_US: 'Soft Drain',
+                zh_Hans: '软性等待'
+              }
+            }
+          }
         },
         model: {
           type: 'object',
@@ -176,7 +171,13 @@ export const fileMemoryMiddlewareConfigSchema = {
             span: 2
           }
         }
+      },
+      'x-ui': {
+        span: 2,
       }
     }
+  },
+  'x-ui': {
+    cols: 2
   }
-} as const
+} as JsonSchemaObjectType

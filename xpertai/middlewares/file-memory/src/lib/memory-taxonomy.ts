@@ -1,7 +1,9 @@
-import { LongTermMemoryTypeEnum } from '@metad/contracts'
+import { LongTermMemoryTypeEnum } from '@xpert-ai/contracts'
 
 export const SEMANTIC_MEMORY_KINDS = ['user', 'feedback', 'project', 'reference'] as const
 export type SemanticMemoryKind = (typeof SEMANTIC_MEMORY_KINDS)[number]
+export const MEMORY_LAYER_DIRECTORY_NAMES = ['private', 'shared'] as const
+export type MemoryLayerDirectoryName = (typeof MEMORY_LAYER_DIRECTORY_NAMES)[number]
 
 export const WRITE_MEMORY_TYPES = [
   LongTermMemoryTypeEnum.PROFILE,
@@ -161,6 +163,10 @@ export function resolveMemoryDirectoryName(params: {
   return params.semanticKind ?? (params.kind ? String(params.kind) : 'reference')
 }
 
+export function isMemoryLayerDirectoryName(value: unknown): value is MemoryLayerDirectoryName {
+  return typeof value === 'string' && MEMORY_LAYER_DIRECTORY_NAMES.includes(value as MemoryLayerDirectoryName)
+}
+
 export function normalizeWriteMemoryType(type: WriteMemoryType) {
   if (isSemanticMemoryKind(type)) {
     return {
@@ -278,6 +284,24 @@ export function inferRelativeMemoryPath(filePath: string) {
   const parts = normalized.split('/').filter(Boolean)
   const filename = parts.at(-1)
   const directory = parts.at(-2)
+  const layer = parts.at(-3)
+  if (!filename) {
+    return filePath
+  }
+  if (layer && directory && isMemoryLayerDirectoryName(layer) && getSupportedMemoryDirectoryNames().includes(directory)) {
+    return `${layer}/${directory}/${filename}`
+  }
+  if (directory && getSupportedMemoryDirectoryNames().includes(directory)) {
+    return `${directory}/${filename}`
+  }
+  return filename
+}
+
+export function inferLayerRelativeMemoryPath(filePath: string) {
+  const normalized = filePath.replace(/\\/g, '/')
+  const parts = normalized.split('/').filter(Boolean)
+  const filename = parts.at(-1)
+  const directory = parts.at(-2)
   if (!filename) {
     return filePath
   }
@@ -295,7 +319,8 @@ function inferSemanticKindFromText(params: {
   tags?: string[] | null
   relativePath?: string | null
 }) {
-  const explicitDirectory = params.relativePath?.split('/')[0]
+  const relativeParts = params.relativePath?.split('/').filter(Boolean) ?? []
+  const explicitDirectory = isMemoryLayerDirectoryName(relativeParts[0]) ? relativeParts[1] : relativeParts[0]
   if (explicitDirectory && isSemanticMemoryKind(explicitDirectory)) {
     return explicitDirectory
   }

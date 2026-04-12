@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { FileMemoryPluginModule } from './lib/file-memory.module.js'
+import { FileMemorySystemIcon } from './lib/types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -18,12 +19,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    level: 'system',
     category: 'middleware',
     displayName: 'File Memory Runtime',
     description: 'Single-plugin file memory runtime with recall and writeback middleware.',
     keywords: ['memory', 'file-memory', 'middleware', 'runtime'],
-    author: 'XpertAI Team'
+    author: 'XpertAI Team',
+    icon: {
+      type: 'svg',
+      value: FileMemorySystemIcon
+    }
   },
   config: {
     schema: ConfigSchema

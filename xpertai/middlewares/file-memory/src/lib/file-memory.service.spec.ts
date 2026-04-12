@@ -7,7 +7,7 @@ const mockLongTermMemoryTypeEnum = {
   QA: 'qa'
 }
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   __esModule: true,
   LongTermMemoryTypeEnum: {
     PROFILE: 'profile',
@@ -16,14 +16,17 @@ jest.mock('@metad/contracts', () => ({
 }))
 
 import { XpertFileMemoryService } from './file-memory.service.js'
+import { FileMemoryLayerResolver } from './layer-resolver.js'
 
 describe('XpertFileMemoryService freshness alignment', () => {
   let tempDir: string
   let service: XpertFileMemoryService
+  let store: { cacheKey: string }
   let fileRepository: {
     listFiles: jest.Mock
     readFile: jest.Mock
     writeFile: jest.Mock
+    getMtimeMs: jest.Mock
   }
   let writePolicy: {
     resolveAudience: jest.Mock
@@ -45,23 +48,21 @@ describe('XpertFileMemoryService freshness alignment', () => {
 
   beforeEach(async () => {
     tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'file-memory-service-'))
-    await Promise.all([
-      fsPromises.mkdir(path.join(tempDir, mockLongTermMemoryTypeEnum.PROFILE), { recursive: true }),
-      fsPromises.mkdir(path.join(tempDir, mockLongTermMemoryTypeEnum.QA), { recursive: true })
-    ])
-
-    const layerResolver = {
-      resolveScope: jest.fn(),
-      resolveVisibleLayers: jest.fn().mockReturnValue([layer]),
-      resolveScopeDirectory: jest.fn().mockReturnValue(tempDir),
-      resolveLayerDirectory: jest.fn().mockReturnValue(tempDir)
+    store = {
+      cacheKey: 'test-store'
     }
+
     fileRepository = {
       listFiles: jest.fn().mockResolvedValue([]),
-      readFile: jest.fn((filePath: string) => fsPromises.readFile(filePath, 'utf8')),
-      writeFile: jest.fn(async (filePath: string, content: string) => {
-        await fsPromises.mkdir(path.dirname(filePath), { recursive: true })
-        await fsPromises.writeFile(filePath, content, 'utf8')
+      readFile: jest.fn((_store: unknown, filePath: string) => fsPromises.readFile(resolveFsPath(tempDir, filePath), 'utf8')),
+      writeFile: jest.fn(async (_store: unknown, filePath: string, content: string) => {
+        const fsPath = resolveFsPath(tempDir, filePath)
+        await fsPromises.mkdir(path.dirname(fsPath), { recursive: true })
+        await fsPromises.writeFile(fsPath, content, 'utf8')
+      }),
+      getMtimeMs: jest.fn(async (_store: unknown, filePath: string) => {
+        const stat = await fsPromises.stat(resolveFsPath(tempDir, filePath))
+        return stat.mtimeMs
       })
     }
 
@@ -84,7 +85,7 @@ describe('XpertFileMemoryService freshness alignment', () => {
     }
 
     service = new XpertFileMemoryService(
-      layerResolver as any,
+      new FileMemoryLayerResolver(),
       fileRepository as any,
       recallPlanner as any,
       writePolicy as any
@@ -97,18 +98,20 @@ describe('XpertFileMemoryService freshness alignment', () => {
   })
 
   it('keeps old active memories recall-eligible and adds a Claude Code style staleness note from mtime', async () => {
-    const filePath = path.join(tempDir, mockLongTermMemoryTypeEnum.PROFILE, 'old-memory.md')
+    const filePath = path.posix.join('xperts', 'xpert-1', 'shared', mockLongTermMemoryTypeEnum.PROFILE, 'old-memory.md')
     const oldTime = new Date(Date.now() - 5 * 86_400_000)
 
-    await writeMemoryFile(filePath, {
+    await writeMemoryFile(tempDir, filePath, {
       title: 'Deployment checklist',
       summary: 'Critical deployment notes',
       updatedAt: new Date().toISOString()
     })
-    await fsPromises.utimes(filePath, oldTime, oldTime)
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    await fsPromises.utimes(resolveFsPath(tempDir, filePath), oldTime, oldTime)
+    fileRepository.listFiles.mockImplementation(async (_store: unknown, targetLayer: typeof layer) =>
+      targetLayer.audience === 'shared' ? [filePath] : []
+    )
 
-    const recall = await service.buildRuntimeRecall('tenant-1', layer.scope, {
+    const recall = await service.buildRuntimeRecall(store as any, layer.scope, {
       query: 'deployment',
       userId: 'u1'
     })
@@ -122,16 +125,18 @@ describe('XpertFileMemoryService freshness alignment', () => {
   })
 
   it('builds the first-answer summary digest with the local summary selector only', async () => {
-    const filePath = path.join(tempDir, mockLongTermMemoryTypeEnum.PROFILE, 'digest-memory.md')
+    const filePath = path.posix.join('xperts', 'xpert-1', 'shared', mockLongTermMemoryTypeEnum.PROFILE, 'digest-memory.md')
 
-    await writeMemoryFile(filePath, {
+    await writeMemoryFile(tempDir, filePath, {
       title: '饮食偏好',
       summary: '张三爱吃麦当劳',
       updatedAt: new Date().toISOString()
     })
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    fileRepository.listFiles.mockImplementation(async (_store: unknown, targetLayer: typeof layer) =>
+      targetLayer.audience === 'shared' ? [filePath] : []
+    )
 
-    const digest = await service.buildRuntimeSummaryDigest('tenant-1', layer.scope, {
+    const digest = await service.buildRuntimeSummaryDigest(store as any, layer.scope, {
       query: '张三爱吃什么',
       userId: 'u1'
     })
@@ -140,19 +145,22 @@ describe('XpertFileMemoryService freshness alignment', () => {
     expect(recallPlanner.selectAsyncRecallHeaders).not.toHaveBeenCalled()
     expect(digest).toHaveLength(1)
     expect(digest[0].summary).toBe('张三爱吃麦当劳')
+    expect(digest[0].relativePath).toBe('shared/profile/digest-memory.md')
   })
 
   it('uses file mtime rather than updatedAt when deciding whether to show a staleness note', async () => {
-    const filePath = path.join(tempDir, mockLongTermMemoryTypeEnum.PROFILE, 'fresh-memory.md')
+    const filePath = path.posix.join('xperts', 'xpert-1', 'shared', mockLongTermMemoryTypeEnum.PROFILE, 'fresh-memory.md')
 
-    await writeMemoryFile(filePath, {
+    await writeMemoryFile(tempDir, filePath, {
       title: 'Fresh preference',
       summary: 'Recently touched file',
       updatedAt: '2020-01-01T00:00:00.000Z'
     })
-    fileRepository.listFiles.mockResolvedValue([filePath])
+    fileRepository.listFiles.mockImplementation(async (_store: unknown, targetLayer: typeof layer) =>
+      targetLayer.audience === 'shared' ? [filePath] : []
+    )
 
-    const recall = await service.buildRuntimeRecall('tenant-1', layer.scope, {
+    const recall = await service.buildRuntimeRecall(store as any, layer.scope, {
       query: 'preference',
       userId: 'u1'
     })
@@ -164,10 +172,48 @@ describe('XpertFileMemoryService freshness alignment', () => {
     expect(recall.details[0].content).not.toContain('This memory is')
   })
 
+  it('filters private memories by ownerUserId inside the shared private layer directory', async () => {
+    const ownFilePath = path.posix.join('xperts', 'xpert-1', 'private', 'user', 'my-style.md')
+    const otherFilePath = path.posix.join('xperts', 'xpert-1', 'private', 'user', 'other-style.md')
+
+    await Promise.all([
+      writeMemoryFile(tempDir, ownFilePath, {
+        title: '我的偏好',
+        summary: '回答要简洁',
+        updatedAt: new Date().toISOString(),
+        audience: 'user',
+        ownerUserId: 'u1'
+      }),
+      writeMemoryFile(tempDir, otherFilePath, {
+        title: '别人的偏好',
+        summary: '回答要非常详细',
+        updatedAt: new Date().toISOString(),
+        audience: 'user',
+        ownerUserId: 'u2'
+      })
+    ])
+
+    fileRepository.listFiles.mockImplementation(async (_store: unknown, targetLayer: typeof layer) => {
+      if (targetLayer.audience === 'user') {
+        return [ownFilePath, otherFilePath]
+      }
+      return []
+    })
+
+    const digest = await service.buildRuntimeSummaryDigest(store as any, layer.scope, {
+      query: '我的回答偏好',
+      userId: 'u1'
+    })
+
+    expect(digest).toHaveLength(1)
+    expect(digest[0].title).toBe('我的偏好')
+    expect(digest[0].relativePath).toBe('private/user/my-style.md')
+  })
+
   it('writes new semantic memories into semantic directories', async () => {
     fileRepository.listFiles.mockImplementation(async () => [])
 
-    const record = await service.upsert('tenant-1', {
+    const record = await service.upsert(store as any, {
       scope: layer.scope,
       audience: 'shared',
       kind: mockLongTermMemoryTypeEnum.QA as any,
@@ -178,21 +224,24 @@ describe('XpertFileMemoryService freshness alignment', () => {
     })
 
     expect(record.semanticKind).toBe('project')
-    expect(record.relativePath.startsWith('project/')).toBe(true)
-    expect(record.filePath.includes(`${path.sep}project${path.sep}`)).toBe(true)
+    expect(record.relativePath.startsWith('shared/project/')).toBe(true)
+    expect(record.filePath).toContain('xperts/xpert-1/shared/project/')
 
-    const raw = await fsPromises.readFile(record.filePath, 'utf8')
+    const raw = await fsPromises.readFile(resolveFsPath(tempDir, record.filePath), 'utf8')
     expect(raw).toContain('semanticKind: project')
     expect(raw).toContain('## 项目信息')
   })
 })
 
 async function writeMemoryFile(
+  tempDir: string,
   filePath: string,
   options: {
     title: string
     summary: string
     updatedAt: string
+    audience?: 'user' | 'shared'
+    ownerUserId?: string
   }
 ) {
   const file = [
@@ -200,7 +249,8 @@ async function writeMemoryFile(
     'id: memory-1',
     'scopeType: xpert',
     'scopeId: xpert-1',
-    'audience: shared',
+    `audience: ${options.audience ?? 'shared'}`,
+    options.ownerUserId ? `ownerUserId: ${options.ownerUserId}` : '',
     'kind: profile',
     'status: active',
     `title: ${options.title}`,
@@ -218,7 +268,15 @@ async function writeMemoryFile(
     '',
     '## Profile',
     'Always mention the deployment checklist.'
-  ].join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 
-  await fsPromises.writeFile(filePath, file, 'utf8')
+  const fsPath = resolveFsPath(tempDir, filePath)
+  await fsPromises.mkdir(path.dirname(fsPath), { recursive: true })
+  await fsPromises.writeFile(fsPath, file, 'utf8')
+}
+
+function resolveFsPath(tempDir: string, filePath: string) {
+  return path.join(tempDir, ...filePath.split('/'))
 }

@@ -5,7 +5,7 @@ const mockLongTermMemoryTypeEnum = {
   QA: 'qa'
 }
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   __esModule: true,
   LongTermMemoryTypeEnum: {
     PROFILE: 'profile',
