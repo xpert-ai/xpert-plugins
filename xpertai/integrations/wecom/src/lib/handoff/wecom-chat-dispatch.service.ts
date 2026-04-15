@@ -1,4 +1,4 @@
-import { LanguagesEnum } from '@metad/contracts'
+import { LanguagesEnum, TChatRequest } from '@metad/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import {
   AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -105,6 +105,10 @@ export class WeComChatDispatchService {
     this.logger.debug(
       `Build WeCom dispatch message runId=${runId} xpertId=${xpertId} sessionKey=${sessionKey} integration=${wecomMessage.integrationId}`
     )
+    const request = this.buildChatRequest({
+      conversationId,
+      input: textInput
+    })
 
     return {
       id: runId,
@@ -118,15 +122,7 @@ export class WeComChatDispatchService {
       enqueuedAt: Date.now(),
       traceId: runId,
       payload: {
-        request: {
-          action: 'send',
-          ...(conversationId ? { conversationId } : {}),
-          message: {
-            input: {
-              input: textInput ?? ''
-            }
-          }
-        },
+        request,
         options: {
           xpertId,
           from: 'wecom',
@@ -186,5 +182,20 @@ export class WeComChatDispatchService {
     }
     const text = value.trim()
     return text || undefined
+  }
+
+  private buildChatRequest(params: {
+    conversationId?: string
+    input?: string
+  }): TChatRequest {
+    return {
+      action: 'send',
+      ...(params.conversationId ? { conversationId: params.conversationId } : {}),
+      message: {
+        input: {
+          input: params.input ?? ''
+        }
+      }
+    } as unknown as TChatRequest
   }
 }
