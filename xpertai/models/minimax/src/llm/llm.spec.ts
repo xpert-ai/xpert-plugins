@@ -172,6 +172,59 @@ describe('MiniMaxLargeLanguageModel', () => {
     );
   });
 
+  it('preserves answer text when a stream chunk contains both reasoning_details and content', async () => {
+    const model = llm.getChatModel(
+      createCopilotModel('MiniMax-M2.7-highspeed', {
+        streaming: true,
+        max_tokens: 256
+      })
+    ) as PatchedChatModel;
+
+    model.completionWithRetry = async () =>
+      (async function* () {
+        yield {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: 'assistant',
+                reasoning_details: [
+                  {
+                    id: 'reasoning-text-1',
+                    type: 'reasoning.text',
+                    text: '先分析'
+                  }
+                ],
+                content: '最终'
+              }
+            }
+          ]
+        };
+
+        yield {
+          choices: [
+            {
+              index: 0,
+              delta: {
+                content: '回答'
+              },
+              finish_reason: 'stop'
+            }
+          ],
+          model: 'MiniMax-M2.7-highspeed'
+        };
+      })();
+
+    model._getEstimatedTokenCountFromPrompt = async () => 0;
+    model._getNumTokensFromGenerations = async () => 0;
+
+    const result = await model._generate([new HumanMessage('你好')]);
+
+    expect(result.generations[0]?.text).toBe('最终回答');
+    expect(result.generations[0]?.message.content).toBe('最终回答');
+    expect(result.generations[0]?.message.additional_kwargs?.reasoning_content).toBe('先分析');
+  });
+
   it('falls back to extracting mixed think tags when reasoning_split is absent', async () => {
     const model = llm.getChatModel(
       createCopilotModel('MiniMax-M2.7-highspeed', {

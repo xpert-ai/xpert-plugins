@@ -206,6 +206,7 @@ class MiniMaxChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
     messageChunk.additional_kwargs ??= {};
 
     const choiceIndex = rawResponse.choices?.[0]?.index ?? 0;
+    let reasoningContent = '';
 
     if ('reasoning_details' in delta) {
       const reasoningText = extractReasoningText(delta.reasoning_details);
@@ -225,28 +226,34 @@ class MiniMaxChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
       messageChunk.additional_kwargs['reasoning_details'] = delta.reasoning_details;
 
       if (incrementalReasoning) {
-        messageChunk.additional_kwargs['reasoning_content'] = incrementalReasoning;
-      } else {
-        delete messageChunk.additional_kwargs['reasoning_content'];
+        reasoningContent += incrementalReasoning;
       }
-
-      messageChunk.content = '';
-      return messageChunk;
     }
 
     const rawContent = typeof delta.content === 'string' ? delta.content : '';
     if (!rawContent) {
+      if (reasoningContent) {
+        messageChunk.additional_kwargs['reasoning_content'] = reasoningContent;
+      } else {
+        delete messageChunk.additional_kwargs['reasoning_content'];
+      }
       return messageChunk;
     }
 
     const tagged = extractTaggedReasoning(rawContent, this.tagReasoningState.get(choiceIndex) ?? false);
     if (!tagged.handled) {
+      if (reasoningContent) {
+        messageChunk.additional_kwargs['reasoning_content'] = reasoningContent;
+      }
       return messageChunk;
     }
 
     this.tagReasoningState.set(choiceIndex, tagged.inReasoningMode);
     if (tagged.reasoning) {
-      messageChunk.additional_kwargs['reasoning_content'] = tagged.reasoning;
+      reasoningContent += tagged.reasoning;
+    }
+    if (reasoningContent) {
+      messageChunk.additional_kwargs['reasoning_content'] = reasoningContent;
     } else {
       delete messageChunk.additional_kwargs['reasoning_content'];
     }
