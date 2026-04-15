@@ -1,5 +1,5 @@
 import { HumanMessage } from '@langchain/core/messages'
-import { ChatOpenAI } from '@langchain/openai'
+import { ChatOpenAI, OpenAIClient } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
@@ -10,6 +10,8 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'
 import {
+  getSupportedOpenAIReasoningEfforts,
+  normalizeOpenAIReasoningEffort,
   OpenAICredentials,
   OpenAIModelOptions,
   shouldEnableResponseFormat,
@@ -17,6 +19,11 @@ import {
   toCredentialKwargs
 } from '../types.js'
 import { OpenAIProviderStrategy } from '../provider.strategy.js'
+import { OpenAIReasoningResponsesModel } from './reasoning.js'
+
+type OpenAIReasoningRequest = Omit<OpenAIClient.Reasoning, 'effort'> & {
+  effort?: OpenAIModelOptions['reasoning_effort']
+}
 
 @Injectable()
 export class OpenAILargeLanguageModel extends LargeLanguageModel {
@@ -42,6 +49,21 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
     }
   }
 
+  private getReasoningOptions(model: string, reasoningEffort?: OpenAIModelOptions['reasoning_effort']) {
+    if (!getSupportedOpenAIReasoningEfforts(model)) {
+      return undefined
+    }
+
+    return {
+      ...(reasoningEffort ? { effort: reasoningEffort } : {}),
+      summary: 'auto' as const
+    }
+  }
+
+  private toLangChainReasoning(reasoning?: OpenAIReasoningRequest) {
+    return reasoning as OpenAIClient.Reasoning | undefined
+  }
+
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
     const { handleLLMTokens } = options ?? {}
     const { copilot } = copilotModel
@@ -57,6 +79,9 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
       params.configuration?.baseURL,
       model
     )
+    const reasoningEffort = normalizeOpenAIReasoningEffort(model, modelOptions?.reasoning_effort)
+    const reasoning = this.getReasoningOptions(model, reasoningEffort)
+    const langChainReasoning = this.toLangChainReasoning(reasoning)
     const supportsResponseFormat = shouldEnableResponseFormat(params.configuration?.baseURL, model)
     const responseFormat =
       supportsResponseFormat && modelOptions?.response_format
@@ -75,9 +100,12 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
         presencePenalty: modelOptions?.presence_penalty,
         maxRetries: modelOptions?.maxRetries,
         useResponsesApi: true,
-        reasoning: modelOptions?.reasoning_effort
-          ? { effort: modelOptions.reasoning_effort }
-          : undefined,
+        reasoning: langChainReasoning,
+        responses: new OpenAIReasoningResponsesModel({
+          ...params,
+          model,
+          reasoning: langChainReasoning
+        }),
         streamUsage: streaming,
       },
       isNil

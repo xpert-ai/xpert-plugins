@@ -45,15 +45,16 @@ parameter_rules:
       en_US: Reasoning Effort
     type: string
     required: false
-    default: medium
+    default: none
     options:
-      - minimal
+      - none
       - low
       - medium
       - high
+      - xhigh
     help:
-      zh_Hans: 控制模型推理的深度。high 提供最深度的推理，minimal 适合更快的响应。
-      en_US: Controls how much reasoning effort the model uses. high provides the deepest reasoning, while minimal favors faster responses.
+      zh_Hans: 控制模型推理的深度。none 为默认值，xhigh 提供最深推理但通常延迟更高。
+      en_US: Controls how much reasoning effort the model uses. none is the default, while xhigh provides the deepest reasoning at higher latency.
   - name: frequency_penalty
     use_template: frequency_penalty
     default: 0

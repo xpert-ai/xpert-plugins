@@ -11,6 +11,29 @@ import {
   toCredentialKwargs,
 } from './types.js'
 
+const OpenAIValidationModels = ['gpt-5.4', 'gpt-5', 'gpt-5.2'] as const
+
+const OpenAIValidationFallbackPatterns = [
+  'model is not supported',
+  'unsupported model',
+  'does not exist',
+  'unknown model',
+  'invalid model',
+  'unrecognized model',
+  'no such model',
+  'not found',
+  'not available',
+] as const
+
+function shouldRetryWithNextValidationModel(error: unknown): boolean {
+  if (!(error instanceof CredentialsValidateFailedError)) {
+    return false
+  }
+
+  const message = error.message.toLowerCase()
+  return OpenAIValidationFallbackPatterns.some((pattern) => message.includes(pattern))
+}
+
 @Injectable()
 @AIModelProviderStrategy(OpenAIProvider)
 export class OpenAIProviderStrategy extends ModelProvider {
@@ -26,16 +49,39 @@ export class OpenAIProviderStrategy extends ModelProvider {
   }
 
   async validateProviderCredentials(credentials: OpenAICredentials): Promise<void> {
-    try {
-      const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
-      await modelInstance.validateCredentials('gpt-5', credentials)
-    } catch (ex: any) {
-      if (ex instanceof CredentialsValidateFailedError) {
-        throw ex
-      } else {
-        this.logger.error(`${this.getProviderSchema().provider}: credentials verification failed`, ex.stack)
-        throw ex
+    const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
+    let lastError: unknown
+
+    for (const model of OpenAIValidationModels) {
+      try {
+        await modelInstance.validateCredentials(model, credentials)
+        return
+      } catch (ex: unknown) {
+        lastError = ex
+
+        if (!shouldRetryWithNextValidationModel(ex)) {
+          if (ex instanceof CredentialsValidateFailedError) {
+            throw ex
+          } else {
+            this.logger.error(`${this.getProviderSchema().provider}: credentials verification failed`, (ex as any)?.stack)
+            throw ex
+          }
+        }
+
+        this.logger.warn(
+          `${this.getProviderSchema().provider}: validation model '${model}' unavailable, trying next candidate`
+        )
       }
+    }
+
+    if (lastError instanceof CredentialsValidateFailedError) {
+      throw lastError
+    } else {
+      this.logger.error(
+        `${this.getProviderSchema().provider}: credentials verification failed`,
+        (lastError as any)?.stack
+      )
+      throw lastError
     }
   }
 }

@@ -44,8 +44,20 @@ describe('OpenAILargeLanguageModel', () => {
     expect(params.temperature).toBe(0.4)
     expect(params.top_p).toBe(0.7)
     expect(params.max_output_tokens).toBe(1024)
-    expect(params.reasoning).toEqual({ effort: 'high' })
+    expect(params.reasoning).toEqual({ effort: 'high', summary: 'auto' })
     expect(params.text?.format).toEqual({ type: 'json_object' })
+  })
+
+  it('normalizes legacy GPT-5.4 reasoning values to the official enum', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('gpt-5.4', {
+        reasoning_effort: 'minimal',
+      })
+    )
+
+    const params = (model as any).invocationParams()
+
+    expect(params.reasoning).toEqual({ effort: 'none', summary: 'auto' })
   })
 
   it('suppresses unsupported GPT-5 Pro parameters on the official endpoint', () => {
@@ -54,7 +66,7 @@ describe('OpenAILargeLanguageModel', () => {
         temperature: 0.4,
         top_p: 0.7,
         response_format: 'json_object',
-        reasoning_effort: 'minimal',
+        reasoning_effort: 'low',
       })
     )
 
@@ -62,8 +74,20 @@ describe('OpenAILargeLanguageModel', () => {
 
     expect(params.temperature).toBeUndefined()
     expect(params.top_p).toBeUndefined()
-    expect(params.reasoning).toEqual({ effort: 'minimal' })
+    expect(params.reasoning).toEqual({ effort: 'medium', summary: 'auto' })
     expect(params.text?.format).toBeUndefined()
+  })
+
+  it('normalizes legacy Codex reasoning values to the supported enum', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('gpt-5.3-codex', {
+        reasoning_effort: 'minimal',
+      })
+    )
+
+    const params = (model as any).invocationParams()
+
+    expect(params.reasoning).toEqual({ effort: 'low', summary: 'auto' })
   })
 
   it('keeps auto sampling disabled for custom endpoints', () => {
