@@ -32,6 +32,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
     "test": "jest",
     "prepack": "node ./scripts/copy-assets.mjs"
   },

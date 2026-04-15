@@ -19,7 +19,35 @@ export interface OpenAICredentials {
 	sampling_parameters?: 'auto' | 'enabled' | 'disabled'
 }
 
-export type OpenAIReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
+export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
+const OpenAIReasoningEffortScale: readonly OpenAIReasoningEffort[] = [
+	'none',
+	'minimal',
+	'low',
+	'medium',
+	'high',
+	'xhigh',
+]
+
+const OpenAIReasoningEffortProfiles = [
+	{
+		pattern: /^gpt-5$/,
+		supported: ['minimal', 'low', 'medium', 'high'] as const,
+	},
+	{
+		pattern: /^gpt-5\.(2|4)$/,
+		supported: ['none', 'low', 'medium', 'high', 'xhigh'] as const,
+	},
+	{
+		pattern: /^gpt-5\.[23]-codex$/,
+		supported: ['low', 'medium', 'high', 'xhigh'] as const,
+	},
+	{
+		pattern: /^gpt-5\.(2|4)-pro$/,
+		supported: ['medium', 'high', 'xhigh'] as const,
+	},
+] as const
 
 export interface OpenAIModelOptions extends CommonChatModelParameters {
 	streaming?: boolean
@@ -73,6 +101,48 @@ export function isOpenAIOfficialBaseUrl(baseURL?: string): boolean {
 
 export function isOpenAIGPT5ProModel(model?: string): boolean {
 	return !!model?.trim() && OpenAIGPT5ProModelPattern.test(model.trim())
+}
+
+export function getSupportedOpenAIReasoningEfforts(
+	model?: string
+): readonly OpenAIReasoningEffort[] | undefined {
+	if (!model?.trim()) {
+		return undefined
+	}
+
+	return OpenAIReasoningEffortProfiles.find(({ pattern }) => pattern.test(model.trim()))?.supported
+}
+
+export function normalizeOpenAIReasoningEffort(
+	model?: string,
+	effort?: OpenAIReasoningEffort
+): OpenAIReasoningEffort | undefined {
+	if (!effort) {
+		return undefined
+	}
+
+	const supported = getSupportedOpenAIReasoningEfforts(model)
+	if (!supported?.length) {
+		return undefined
+	}
+
+	if (supported.includes(effort)) {
+		return effort
+	}
+
+	const requestedIndex = OpenAIReasoningEffortScale.indexOf(effort)
+	if (requestedIndex === -1) {
+		return supported[0]
+	}
+
+	return supported.reduce((closest, candidate) => {
+		const candidateIndex = OpenAIReasoningEffortScale.indexOf(candidate)
+		const closestIndex = OpenAIReasoningEffortScale.indexOf(closest)
+		const candidateDistance = Math.abs(candidateIndex - requestedIndex)
+		const closestDistance = Math.abs(closestIndex - requestedIndex)
+
+		return candidateDistance < closestDistance ? candidate : closest
+	})
 }
 
 export function shouldEnableSamplingParameters(
