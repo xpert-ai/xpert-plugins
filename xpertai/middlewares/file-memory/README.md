@@ -1,4 +1,4 @@
-# File Memory System Middleware
+# XpertAI Plugin: File Memory Middleware
 
 `@xpert-ai/plugin-file-memory` is a sandbox-only durable memory middleware for XpertAI agents.
 
@@ -227,13 +227,13 @@ pnpm install
 Run focused tests:
 
 ```bash
-pnpm exec jest --config middlewares/file-memory-system/jest.config.cjs --runInBand --watchman=false
+pnpm exec jest --config middlewares/file-memory/jest.config.cjs --runInBand --watchman=false
 ```
 
 Run a type check:
 
 ```bash
-pnpm exec tsc -p middlewares/file-memory-system/tsconfig.json --noEmit
+pnpm exec tsc -p middlewares/file-memory/tsconfig.json --noEmit
 ```
 
 ## License

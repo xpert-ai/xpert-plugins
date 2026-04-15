@@ -1,4 +1,4 @@
-# File Memory System 中间件
+# XpertAI 插件: File Memory 中间件
 
 `@xpert-ai/plugin-file-memory` 是一个 `sandbox-only` 的 durable memory 中间件。
 
@@ -241,13 +241,13 @@ layer 级索引文件位置：
 在 `xpertai/` workspace 根目录执行：
 
 ```bash
-pnpm exec jest --config middlewares/file-memory-system/jest.config.cjs --runInBand --watchman=false
+pnpm exec jest --config middlewares/file-memory/jest.config.cjs --runInBand --watchman=false
 ```
 
 类型检查：
 
 ```bash
-pnpm exec tsc -p middlewares/file-memory-system/tsconfig.json --noEmit
+pnpm exec tsc -p middlewares/file-memory/tsconfig.json --noEmit
 ```
 
 ## License
