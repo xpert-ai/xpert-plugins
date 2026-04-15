@@ -1,0 +1,102 @@
+model: glm-5.1
+label:
+  en_US: GLM-5.1
+  zh_Hans: GLM-5.1
+model_type: llm
+features:
+  - multi-tool-call
+  - agent-thought
+  - stream-tool-call
+  - structured-output
+model_properties:
+  mode: chat
+  context_size: 200000
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+    default: 1.0
+    min: 0.0
+    max: 1.0
+    help:
+      zh_Hans: 采样温度，控制输出的随机性。值越大，输出越随机；值越小，输出越确定。
+      en_US: Sampling temperature, controls the randomness of the output. Higher values make output more random, lower values make it more deterministic.
+  - name: top_p
+    use_template: top_p
+    default: 0.95
+    min: 0.0
+    max: 1.0
+    help:
+      zh_Hans: 核采样参数，控制输出的多样性。
+      en_US: Nucleus sampling parameter, controls output diversity.
+  - name: max_tokens
+    use_template: max_tokens
+    default: 32768
+    min: 1
+    max: 131072
+    help:
+      zh_Hans: 最大输出 token 数量。GLM-5.1 支持最大 128K 输出。
+      en_US: Maximum number of output tokens. GLM-5.1 supports up to 128K output.
+  - name: frequency_penalty
+    label:
+      zh_Hans: 频率惩罚
+      en_US: Frequency Penalty
+    type: float
+    default: 0
+    min: -2.0
+    max: 2.0
+    help:
+      zh_Hans: 降低重复内容的出现频率。
+      en_US: Reduces repetition in the output.
+  - name: thinking
+    label:
+      zh_Hans: 推理模式
+      en_US: Thinking Mode
+    type: string
+    required: false
+    options:
+      - enabled
+      - disabled
+    help:
+      zh_Hans: 启用思维链推理模式，默认开启，适合复杂问题求解。
+      en_US: Enable chain-of-thought reasoning mode. It is enabled by default for complex problem solving.
+  - name: clear_thinking
+    label:
+      zh_Hans: 清除思维上下文
+      en_US: Clear Thinking
+    type: boolean
+    required: false
+    default: true
+    help:
+      zh_Hans: 设为 false 可在多轮对话中保留思维上下文（preserved thinking 模式）。
+      en_US: Set to false to retain thinking context across turns (preserved thinking mode).
+  - name: tool_stream
+    type: boolean
+    required: false
+    default: false
+    label:
+      zh_Hans: 流式工具调用
+      en_US: Stream Tool Calls
+    help:
+      zh_Hans: 以增量方式返回工具调用参数，适合长参数或多工具调用场景。
+      en_US: Stream tool call arguments incrementally for long arguments or multi-tool-call scenarios.
+  - name: web_search
+    type: boolean
+    label:
+      zh_Hans: 联网搜索
+      en_US: Web Search
+    default: false
+    help:
+      zh_Hans: 模型内置互联网搜索服务，启用后模型会参考搜索结果生成文本。仅标准 API 端点支持。
+      en_US: Built-in web search service. When enabled, the model may reference search results. Only supported on the standard API endpoint.
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    help:
+      zh_Hans: 指定模型必须输出的格式。
+      en_US: Specifying the format that the model must output.
+    required: false
+    options:
+      - text
+      - json_object
