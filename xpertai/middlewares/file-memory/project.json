@@ -1,22 +1,22 @@
 {
   "name": "@xpert-ai/plugin-file-memory",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "middlewares/file-memory-system/src",
+  "sourceRoot": "middlewares/file-memory/src",
   "projectType": "library",
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "middlewares/file-memory-system/dist",
-        "main": "middlewares/file-memory-system/src/index.ts",
-        "rootDir": "middlewares/file-memory-system/src",
-        "tsConfig": "middlewares/file-memory-system/tsconfig.lib.json",
+        "outputPath": "middlewares/file-memory/dist",
+        "main": "middlewares/file-memory/src/index.ts",
+        "rootDir": "middlewares/file-memory/src",
+        "tsConfig": "middlewares/file-memory/tsconfig.lib.json",
         "generatePackageJson": false,
         "assets": [
           {
             "glob": "**/*.md",
-            "input": "middlewares/file-memory-system/src",
+            "input": "middlewares/file-memory/src",
             "output": "./"
           }
         ]
