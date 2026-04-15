@@ -1,4 +1,4 @@
-import { LanguagesEnum, TChatOptions } from '@metad/contracts'
+import { LanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import { AgentChatCallbackEnvelopePayload, defineChannelMessageType } from '@xpert-ai/plugin-sdk'
 
 export const WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
@@ -43,13 +43,7 @@ export interface WeComChatStreamCallbackPayload extends AgentChatCallbackEnvelop
 }
 
 export interface WeComChatHandoffPayload extends Record<string, unknown> {
-  request: {
-    input: {
-      input: string
-    }
-    conversationId?: string
-    confirm?: boolean
-  }
+  request: TChatRequest
   options: TChatOptions & {
     xpertId: string
     from: string

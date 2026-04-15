@@ -119,10 +119,13 @@ export class WeComChatDispatchService {
       traceId: runId,
       payload: {
         request: {
-          input: {
-            input: textInput
-          },
-          conversationId
+          action: 'send',
+          ...(conversationId ? { conversationId } : {}),
+          message: {
+            input: {
+              input: textInput ?? ''
+            }
+          }
         },
         options: {
           xpertId,
