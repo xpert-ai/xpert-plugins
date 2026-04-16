@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const moduleFilename = fileURLToPath(import.meta.url)
+const moduleDir = dirname(moduleFilename)
 
-export const iconImage = `data:image/png;base64,${readFileSync(join(__dirname, '../_assets/icon.png')).toString('base64')}`
+export const iconImage = `data:image/png;base64,${readFileSync(join(moduleDir, '../_assets/icon.png')).toString('base64')}`
 
 export const INTEGRATION_WECOM = 'wecom'
 export const INTEGRATION_WECOM_LONG = 'wecom_long'

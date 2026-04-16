@@ -20,6 +20,7 @@ import { normalizeConversationUserKey, resolveConversationUserKey } from './conv
 import { TIntegrationWeComOptions } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { WeComConversationBindingEntity } from './entities/wecom-conversation-binding.entity.js'
+import { WeComTriggerStrategy } from './workflow/wecom-trigger.strategy.js'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -48,6 +49,7 @@ export class WeComConversationService {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly wecomChannel: WeComChannelStrategy,
+    private readonly wecomTriggerStrategy: WeComTriggerStrategy,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     @InjectRepository(WeComConversationBindingEntity)
@@ -65,8 +67,7 @@ export class WeComConversationService {
 
   private async getWeComTriggerStrategy(): Promise<WeComTriggerService> {
     if (!this._wecomTriggerStrategy) {
-      const { WeComTriggerStrategy } = await import('./workflow/wecom-trigger.strategy.js')
-      this._wecomTriggerStrategy = this.pluginContext.resolve(WeComTriggerStrategy)
+      this._wecomTriggerStrategy = this.wecomTriggerStrategy
     }
     return this._wecomTriggerStrategy
   }
