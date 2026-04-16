@@ -1,12 +1,11 @@
+/**
+ * adds a docblock pointing Jest's loader at the new ts config, keeping the rest of the file untouched.
+ *
+ * @jest-config-loader-options {"project":"tsconfig.jest.json"}
+ */
 /* eslint-disable */
 import { readFileSync } from 'fs'
-import { dirname, join } from 'path'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const swcJestConfig = JSON.parse(readFileSync(join(__dirname, '.spec.swcrc'), 'utf-8'))
+const swcJestConfig = JSON.parse(readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'))
 
 swcJestConfig.swcrc = false
 
