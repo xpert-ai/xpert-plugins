@@ -8,6 +8,7 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 
 export const OpenAIProvider = 'openai'
 export const OpenAIDefaultBaseUrl = 'https://api.openai.com/v1'
+export const OpenAIResponsesMinOutputTokens = 16
 const OpenAIApiVersionPath = '/v1'
 const OpenAIOfficialHost = 'api.openai.com'
 
@@ -174,6 +175,18 @@ export function shouldEnableResponseFormat(
 	}
 
 	return !isOpenAIGPT5ProModel(model)
+}
+
+export function normalizeOpenAIMaxTokens(maxTokens?: number, baseURL?: string): number | undefined {
+	if (maxTokens == null) {
+		return undefined
+	}
+
+	if (!isOpenAIOfficialBaseUrl(baseURL)) {
+		return maxTokens
+	}
+
+	return Math.max(maxTokens, OpenAIResponsesMinOutputTokens)
 }
 
 export function toCredentialKwargs(credentials: OpenAICredentials) {

@@ -2,9 +2,11 @@ import { OpenAIBaseInput } from '@langchain/openai'
 import {
   isOpenAIOfficialBaseUrl,
   isOpenAIGPT5ProModel,
+  normalizeOpenAIMaxTokens,
   normalizeOpenAIBaseUrl,
   OpenAICredentials,
   OpenAIDefaultBaseUrl,
+  OpenAIResponsesMinOutputTokens,
   shouldEnableResponseFormat,
   shouldEnableSamplingParameters,
   toCredentialKwargs
@@ -66,5 +68,14 @@ describe('OpenAI credential kwargs', () => {
     expect(shouldEnableResponseFormat('https://api.openai.com/v1', 'gpt-5.4')).toBe(true)
     expect(shouldEnableResponseFormat('https://api.openai.com/v1', 'gpt-5.4-pro')).toBe(false)
     expect(shouldEnableResponseFormat('https://gateway.example.com/v1', 'gpt-5.4-pro')).toBe(true)
+  })
+
+  it('clamps official OpenAI max_tokens to the Responses API minimum', () => {
+    expect(normalizeOpenAIMaxTokens(5, 'https://api.openai.com/v1')).toBe(OpenAIResponsesMinOutputTokens)
+    expect(normalizeOpenAIMaxTokens(64, 'https://api.openai.com/v1')).toBe(64)
+  })
+
+  it('keeps custom-endpoint max_tokens unchanged', () => {
+    expect(normalizeOpenAIMaxTokens(5, 'https://gateway.example.com/v1')).toBe(5)
   })
 })

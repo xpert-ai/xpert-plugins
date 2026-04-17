@@ -11,9 +11,11 @@ import {
 import { isNil, omitBy } from 'lodash-es'
 import {
   getSupportedOpenAIReasoningEfforts,
+  normalizeOpenAIMaxTokens,
   normalizeOpenAIReasoningEffort,
   OpenAICredentials,
   OpenAIModelOptions,
+  OpenAIResponsesMinOutputTokens,
   shouldEnableResponseFormat,
   shouldEnableSamplingParameters,
   toCredentialKwargs
@@ -39,7 +41,7 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
       const chatModel = new ChatOpenAI({
         ...params,
         model,
-        maxTokens: 5,
+        maxTokens: OpenAIResponsesMinOutputTokens,
         useResponsesApi: true,
       })
       const messages = [new HumanMessage('Hello')]
@@ -94,7 +96,7 @@ export class OpenAILargeLanguageModel extends LargeLanguageModel {
         model,
         streaming,
         temperature: supportsSamplingParams ? (modelOptions?.temperature ?? 1) : undefined,
-        maxTokens: modelOptions?.max_tokens,
+        maxTokens: normalizeOpenAIMaxTokens(modelOptions?.max_tokens, params.configuration?.baseURL),
         topP: supportsSamplingParams ? modelOptions?.top_p : undefined,
         frequencyPenalty: modelOptions?.frequency_penalty,
         presencePenalty: modelOptions?.presence_penalty,

@@ -1,3 +1,95 @@
+jest.mock('@metad/contracts', () => ({
+  AiModelTypeEnum: {
+    LLM: 'llm'
+  }
+}))
+
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  AIModelProviderStrategy: () => () => undefined,
+  CredentialsValidateFailedError: class extends Error {},
+  getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),
+  ModelProvider: class {},
+  LargeLanguageModel: class {
+    constructor(readonly modelProvider: unknown, readonly modelType: unknown) {}
+
+    createHandleUsageCallbacks() {
+      return []
+    }
+
+    createHandleLLMErrorCallbacks() {
+      return {}
+    }
+
+    getModelProfile() {
+      return {}
+    }
+  }
+}))
+
+jest.mock('@langchain/openai', () => {
+  class MockChatOpenAI {
+    private params: Record<string, any>
+
+    constructor(params: Record<string, any>) {
+      this.params = { ...params }
+    }
+
+    invocationParams() {
+      const params = { ...this.params }
+
+      if (params.maxTokens !== undefined) {
+        params.max_output_tokens = params.maxTokens
+        delete params.maxTokens
+      }
+
+      if (params.topP !== undefined) {
+        params.top_p = params.topP
+        delete params.topP
+      }
+
+      if (params.frequencyPenalty !== undefined) {
+        params.frequency_penalty = params.frequencyPenalty
+        delete params.frequencyPenalty
+      }
+
+      if (params.presencePenalty !== undefined) {
+        params.presence_penalty = params.presencePenalty
+        delete params.presencePenalty
+      }
+
+      return params
+    }
+
+    withConfig(config: Record<string, any>) {
+      if (config.response_format) {
+        return new MockChatOpenAI({
+          ...this.params,
+          text: {
+            format: config.response_format
+          }
+        })
+      }
+
+      return new MockChatOpenAI(this.params)
+    }
+
+    invoke = jest.fn().mockResolvedValue({
+      content: 'Test response',
+      role: 'assistant'
+    })
+  }
+
+  class MockChatOpenAIResponses {
+    constructor(_params: Record<string, any>) {}
+  }
+
+  return {
+    ChatOpenAI: MockChatOpenAI,
+    ChatOpenAIResponses: MockChatOpenAIResponses,
+    OpenAIClient: {}
+  }
+})
+
 import { ICopilotModel } from '@metad/contracts'
 import { OpenAIProviderStrategy } from '../provider.strategy.js'
 import { OpenAILargeLanguageModel } from './llm.js'
@@ -46,6 +138,18 @@ describe('OpenAILargeLanguageModel', () => {
     expect(params.max_output_tokens).toBe(1024)
     expect(params.reasoning).toEqual({ effort: 'high', summary: 'auto' })
     expect(params.text?.format).toEqual({ type: 'json_object' })
+  })
+
+  it('clamps official OpenAI max_tokens below the Responses API minimum', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('gpt-5.4', {
+        max_tokens: 5,
+      })
+    )
+
+    const params = (model as any).invocationParams()
+
+    expect(params.max_output_tokens).toBe(16)
   })
 
   it('normalizes legacy GPT-5.4 reasoning values to the official enum', () => {
