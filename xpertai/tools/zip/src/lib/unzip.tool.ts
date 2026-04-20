@@ -7,6 +7,7 @@ import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as iconv from 'iconv-lite'
 import { TFileInfo } from './types.js'
+import { ensureDirectoryUrl } from './url.js'
 
 export function decodeFileName(bytes: Uint8Array | Buffer | string[]): string {
   try {
@@ -174,12 +175,17 @@ function isZipFile(fileName: string) {
   return ZIP_FILE_REGEX.test(fileName)
 }
 
+function createUnzipToolResult(message: string, files: TFileInfo[] = []): [string, { files: TFileInfo[] }] {
+  return [message, { files }]
+}
+
 /**
  * Properly encode file path for use in URLs
  * Encodes each path segment separately to handle special characters
  * Normalizes path separators to forward slashes for URLs
  */
 function encodeFileUrl(relativePath: string, baseUrl: string): string {
+  const normalizedBaseUrl = ensureDirectoryUrl(baseUrl)
   // Normalize path separators to forward slashes (Windows compatibility)
   const normalizedPath = relativePath.replace(/\\/g, '/')
   // Split the path into segments, filter out empty segments, and encode each one
@@ -188,7 +194,7 @@ function encodeFileUrl(relativePath: string, baseUrl: string): string {
     .filter((segment) => segment !== '')
     .map((segment) => encodeURIComponent(segment))
   const encodedPath = segments.join('/')
-  return new URL(encodedPath, baseUrl).href
+  return new URL(encodedPath, normalizedBaseUrl).href
 }
 
 async function extractZipEntries(
@@ -294,7 +300,7 @@ export function buildUnzipTool() {
           // download file from URL to workspace
           const downloadResponse = await fetch(fileUrl)
           if (!downloadResponse.ok) {
-            return `Error: Failed to download file from URL: ${downloadResponse.statusText}`
+            return createUnzipToolResult(`Error: Failed to download file from URL: ${downloadResponse.statusText}`)
           }
           const arrayBuffer = await downloadResponse.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
@@ -315,7 +321,7 @@ export function buildUnzipTool() {
               fileName = path.basename(filePath)
             }
           } catch (error) {
-            return `Error: Failed to read file from path: ${getErrorMessage(error)}`
+            return createUnzipToolResult(`Error: Failed to read file from path: ${getErrorMessage(error)}`)
           }
         }
 
@@ -342,7 +348,7 @@ export function buildUnzipTool() {
         }
 
         // Start recursive extraction, do not keep intermediate zip files
-        const baseUrl = currentState?.[`sys`]?.['workspace_url']
+        const baseUrl = ensureDirectoryUrl(currentState?.[`sys`]?.['workspace_url'])
         // Encode subPath for URL to handle special characters in zip file name
         const encodedSubPath = subPath ? encodeURIComponent(subPath) + '/' : ''
         const results = await extractZipEntries(
@@ -358,17 +364,21 @@ export function buildUnzipTool() {
           throw new Error('Zip file is empty or contains only directories')
         }
 
-        return [
+        return createUnzipToolResult(
           `Extracted ${results.length} files from zip file: ${fileName || 'unknown'}`,
-          {
-            files: results
-          }
-        ]
+          results
+        )
       } catch (error) {
-        if (error instanceof Error && error.message.includes('corrupted')) {
-          throw new Error('Not a valid zip file provided')
+        const errorMessage = getErrorMessage(error)
+        const normalizedErrorMessage = errorMessage.toLowerCase()
+        if (
+          normalizedErrorMessage.includes('corrupted') ||
+          normalizedErrorMessage.includes('central directory') ||
+          normalizedErrorMessage.includes('end of data')
+        ) {
+          return createUnzipToolResult('Error extracting zip file: Not a valid zip file provided')
         }
-        return 'Error extracting zip file: ' + getErrorMessage(error)
+        return createUnzipToolResult('Error extracting zip file: ' + errorMessage)
       }
     },
     {

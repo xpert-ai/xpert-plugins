@@ -31,22 +31,16 @@ describe('ZipTool', () => {
   })
 
   it('should create a zip file from multiple files', async () => {
-    const input = {
+    const message = await callTool(zipTool, {
       files: [
         { name: 'file1.txt', content: 'Content 1' },
         { name: 'file2.txt', content: 'Content 2' }
       ],
       fileName: 'test.zip'
-    }
-    console.log('\n[ZIP TEST 1] 压缩多个文件')
-    console.log('输入参数:', JSON.stringify(input, null, 2))
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
+    })
+    const parsedResult = message.artifact
 
-    const parsedResult = JSON.parse(result as string)
-    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
-    
+    expect(message.content).toBe('Created zip file: test.zip')
     expect(parsedResult.files).toBeDefined()
     expect(parsedResult.files).toHaveLength(1)
     expect(parsedResult.files[0].mimeType).toBe('application/zip')
@@ -54,86 +48,81 @@ describe('ZipTool', () => {
     expect(parsedResult.files[0].extension).toBe('zip')
     expect(parsedResult.files[0].filePath).toContain('test.zip')
     expect(parsedResult.files[0].fileUrl).toContain('test.zip')
+
+    const zipBuffer = await fs.readFile(parsedResult.files[0].filePath)
+    const createdZip = await JSZip.loadAsync(zipBuffer)
+    expect(await createdZip.file('file1.txt')?.async('string')).toBe('Content 1')
+    expect(await createdZip.file('file2.txt')?.async('string')).toBe('Content 2')
+  })
+
+  it('should preserve the workspace user segment when workspace_url has no trailing slash', async () => {
+    mockedGetCurrentTaskInput.mockReturnValue({
+      sys: {
+        volume: workspacePath,
+        workspace_url: 'http://localhost:3000/api/sandbox/volume/user/user-1'
+      }
+    })
+
+    const message = await callTool(zipTool, {
+      files: [{ name: 'file1.txt', content: 'Content 1' }],
+      fileName: 'test.zip'
+    })
+
+    const parsedResult = message.artifact
+    expect(parsedResult.files[0].fileUrl).toBe('http://localhost:3000/api/sandbox/volume/user/user-1/test.zip')
   })
 
   it('should use default filename if not provided', async () => {
-    const input = {
-      files: [
-        { name: 'file1.txt', content: 'Content 1' }
-      ]
-    }
-    console.log('\n[ZIP TEST 2] 使用默认文件名')
-    console.log('输入参数:', JSON.stringify(input, null, 2))
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
+    const message = await callTool(zipTool, {
+      files: [{ name: 'file1.txt', content: 'Content 1' }]
+    })
+    const parsedResult = message.artifact
 
-    const parsedResult = JSON.parse(result as string)
-    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
-    
+    expect(message.content).toBe('Created zip file: files.zip')
     expect(parsedResult.files[0].fileName).toBe('files.zip')
   })
 
   it('should add .zip extension if missing', async () => {
-    const input = {
-      files: [
-        { name: 'file1.txt', content: 'Content 1' }
-      ],
+    const message = await callTool(zipTool, {
+      files: [{ name: 'file1.txt', content: 'Content 1' }],
       fileName: 'archive'
-    }
-    console.log('\n[ZIP TEST 3] 自动添加.zip扩展名')
-    console.log('输入参数:', JSON.stringify(input, null, 2))
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
+    })
+    const parsedResult = message.artifact
 
-    const parsedResult = JSON.parse(result as string)
-    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
-    
+    expect(message.content).toBe('Created zip file: archive.zip')
     expect(parsedResult.files[0].fileName).toBe('archive.zip')
   })
 
   it('should handle Buffer content', async () => {
-    const input = {
-      files: [
-        { name: 'file1.bin', content: Buffer.from('Binary content') }
-      ],
+    const message = await callTool(zipTool, {
+      files: [{ name: 'file1.bin', content: Buffer.from('Binary content') }],
       fileName: 'test.zip'
-    }
-    console.log('\n[ZIP TEST 4] 处理Buffer内容')
-    console.log('输入参数:', { files: [{ name: 'file1.bin', content: '<Buffer>' }], fileName: 'test.zip' })
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
+    })
+    const parsedResult = message.artifact
 
-    const parsedResult = JSON.parse(result as string)
-    console.log('解析后输出:', JSON.stringify(parsedResult, null, 2))
-    
     expect(parsedResult.files).toBeDefined()
     expect(parsedResult.files).toHaveLength(1)
     expect(parsedResult.files[0].fileName).toBe('test.zip')
   })
 
   it('should return error for empty files array', async () => {
-    const input = { files: [] }
-    console.log('\n[ZIP TEST 5] 空文件数组错误')
-    console.log('输入参数:', JSON.stringify(input, null, 2))
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
-
-    expect(result).toContain('Error: No files provided')
+    const message = await callTool(zipTool, { files: [] })
+    expect(message.content).toContain('Error creating zip file: No files provided')
+    expect(message.artifact.files).toEqual([])
   })
 
   it('should return error when no valid input provided', async () => {
-    const input = {}
-    console.log('\n[ZIP TEST 6] 无有效输入错误')
-    console.log('输入参数:', JSON.stringify(input, null, 2))
-    
-    const result = await zipTool.invoke(input)
-    console.log('输出结果:', result)
-
-    expect(result).toContain('Error: No files provided')
+    const message = await callTool(zipTool, {})
+    expect(message.content).toContain('Error creating zip file: No files provided')
+    expect(message.artifact.files).toEqual([])
   })
 })
 
+async function callTool(tool: ReturnType<typeof buildZipTool>, parameters: Record<string, unknown>) {
+  return tool.invoke({
+    id: '123',
+    name: 'zip',
+    type: 'tool_call',
+    args: parameters
+  })
+}

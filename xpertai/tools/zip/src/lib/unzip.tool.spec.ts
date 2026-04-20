@@ -114,12 +114,14 @@ describe('UnzipTool', () => {
       content: Buffer.from('not a zip file')
     })
 
-    expect(message.content).toContain('Error')
+    expect(message.content).toContain('Not a valid zip file provided')
+    expect(message.artifact.files).toEqual([])
   })
 
   it('should return error for missing content', async () => {
     const message = await callTool(unzipTool, {})
-    expect(message.content).toContain('Error: No file provided')
+    expect(message.content).toContain('Error extracting zip file: No file provided')
+    expect(message.artifact.files).toEqual([])
   })
 
   it('should return error for empty zip file', async () => {
@@ -132,7 +134,8 @@ describe('UnzipTool', () => {
       content: zipBuffer
     })
 
-    expect(message.content).toContain('Error: Zip file is empty or contains only directories')
+    expect(message.content).toContain('Error extracting zip file: Zip file is empty or contains only directories')
+    expect(message.artifact.files).toEqual([])
   })
 
   it('should recursively extract nested zip files', async () => {
@@ -150,8 +153,6 @@ describe('UnzipTool', () => {
     })
 
     const parsedResult = message.artifact
-
-    console.log(parsedResult)
 
     // 查找嵌套文件，路径可能是 nested/inner.txt
     const nestedFile = parsedResult.files.find(
@@ -357,50 +358,75 @@ describe('UnzipTool', () => {
     expect(await fs.readFile(file2.filePath, 'utf8')).toBe('Content 2')
   })
 
-  it('should correctly encode fileUrl when zip filename contains special characters', async () => {
-    const fixturePath = path.join(
-        process.cwd(),
-        '__fixtures__/杨洵.zip'
-      );
-    // Test with zip file name containing special characters
+  it('should extract a local zip file whose filename contains non-ASCII characters', async () => {
+    const fixturePath = path.join(workspacePath, '示例压缩包.zip')
+    const zip = new JSZip()
+    zip.file('说明.txt', '本地路径解压')
+    await fs.writeFile(fixturePath, await zip.generateAsync({ type: 'nodebuffer' }))
+
     const message = await callTool(unzipTool, {
       filePath: fixturePath
     })
 
-    console.log(message)
+    const parsedResult = message.artifact
+    expect(parsedResult.files).toHaveLength(1)
+    expect(parsedResult.files[0].fileName).toBe('说明.txt')
+    expect(parsedResult.files[0].fileUrl).toContain('%E7%A4%BA%E4%BE%8B%E5%8E%8B%E7%BC%A9%E5%8C%85')
+    expect(await fs.readFile(parsedResult.files[0].filePath, 'utf8')).toBe('本地路径解压')
+  })
+
+  it('should preserve the workspace user segment when workspace_url has no trailing slash', async () => {
+    mockedGetCurrentTaskInput.mockReturnValue({
+      sys: {
+        workspace_path: workspacePath,
+        volume: workspacePath,
+        workspace_url: 'http://localhost:3000/api/sandbox/volume/user/user-1'
+      }
+    })
+
+    const zip = new JSZip()
+    zip.file('doc.txt', 'Hello world')
+
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+    const message = await callTool(unzipTool, {
+      content: zipBuffer,
+      fileName: 'files-123.zip'
+    })
+
+    const parsedResult = message.artifact
+    expect(parsedResult.files).toHaveLength(1)
+    expect(parsedResult.files[0].fileUrl).toBe('http://localhost:3000/api/sandbox/volume/user/user-1/files-123/doc.txt')
   })
 })
 
-async function callTool(tool, parameters) {
-  const message = await tool.invoke({
+async function callTool(tool: ReturnType<typeof buildUnzipTool>, parameters: Record<string, unknown>) {
+  return tool.invoke({
     id: '123',
     name: 'tool-name',
     type: 'tool_call',
     args: parameters
   })
-
-  return message
 }
 
 describe('decodeFileName', () => {
   it('should decode UTF-8 correctly', () => {
-    const buffer = Buffer.from('Hello World', 'utf-8');
-    expect(decodeFileName(buffer)).toBe('Hello World');
-  });
+    const buffer = Buffer.from('Hello World', 'utf-8')
+    expect(decodeFileName(buffer)).toBe('Hello World')
+  })
 
   it('should decode GBK correctly', () => {
     // "你好" in GBK
-    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3]);
-    expect(decodeFileName(buffer)).toBe('你好');
-  });
+    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3])
+    expect(decodeFileName(buffer)).toBe('你好')
+  })
 
   it('should fallback to GBK when UTF-8 fails', () => {
     // "你好" in GBK: c4 e3 ba c3
-    // In UTF-8, 0xc4 is invalid start byte or continuation? 
+    // In UTF-8, 0xc4 is invalid start byte or continuation?
     // 0xC4 is 11000100. It expects 1 continuation byte.
     // 0xE3 is 11100011. It expects 2 continuation bytes.
     // So this sequence is likely invalid UTF-8 or produces replacement chars.
-    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3]);
-    expect(decodeFileName(buffer)).toBe('你好');
-  });
-});
+    const buffer = Buffer.from([0xc4, 0xe3, 0xba, 0xc3])
+    expect(decodeFileName(buffer)).toBe('你好')
+  })
+})
