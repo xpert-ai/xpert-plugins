@@ -8,5 +8,5 @@
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "include": ["jest.config.ts"]
+  "include": []
 }

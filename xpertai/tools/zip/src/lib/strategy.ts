@@ -1,3 +1,4 @@
+import { IconType } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { BuiltinToolset, IToolsetStrategy, ToolsetStrategy } from '@xpert-ai/plugin-sdk'
 import { Zip, icon } from './types.js'
@@ -8,7 +9,6 @@ import { ZipToolset } from './toolset.js'
 @Injectable()
 @ToolsetStrategy(Zip)
 export class ZipStrategy implements IToolsetStrategy<any> {
-
   meta = {
     author: 'Xpert AI',
     tags: ['zip', 'compression', 'archive', 'tool'],
@@ -22,7 +22,8 @@ export class ZipStrategy implements IToolsetStrategy<any> {
       zh_Hans: '将多个文件压缩为 zip 文件，并从 zip 归档中提取文件。'
     },
     icon: {
-      svg: icon,
+      type: 'svg' as IconType,
+      value: icon,
       color: '#ff0099'
     },
     configSchema: {
@@ -36,16 +37,12 @@ export class ZipStrategy implements IToolsetStrategy<any> {
     // No validation needed
     return Promise.resolve()
   }
-  
+
   async create(config: any): Promise<BuiltinToolset> {
     return new ZipToolset(config)
   }
 
   createTools() {
-    return [
-      buildZipTool(),
-      buildUnzipTool()
-    ]
+    return [buildZipTool(), buildUnzipTool()]
   }
 }
-

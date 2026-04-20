@@ -2,28 +2,33 @@ import { tool } from '@langchain/core/tools'
 import { getCurrentTaskInput } from '@langchain/langgraph'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
-import JSZip from 'jszip';
+import JSZip from 'jszip'
 import * as path from 'path'
 import * as fs from 'fs/promises'
-import { TFileInfo } from './types.js';
+import { TFileInfo } from './types.js'
+import { ensureDirectoryUrl } from './url.js'
+
+function createZipToolResult(message: string, files: TFileInfo[] = []): [string, { files: TFileInfo[] }] {
+  return [message, { files }]
+}
 
 export function buildZipTool() {
   return tool(
     async (input) => {
       try {
         const { files, fileName } = input
-        
+
         const currentState = getCurrentTaskInput()
         const workspacePath = currentState?.[`sys`]?.['volume'] ?? '/tmp/xpert'
-        const baseUrl = currentState?.[`sys`]?.['workspace_url'] ?? 'http://localhost:3000'
+        const baseUrl = ensureDirectoryUrl(currentState?.[`sys`]?.['workspace_url'] ?? 'http://localhost:3000/')
 
         // Validate files input
-        if ((!files || !Array.isArray(files) || files.length === 0) ) {
-          throw new Error("No files provided")
+        if (!files || !Array.isArray(files) || files.length === 0) {
+          throw new Error('No files provided')
         }
 
         const zip = new JSZip()
-        
+
         // Add files from array
         if (files && Array.isArray(files) && files.length > 0) {
           for (const file of files) {
@@ -36,40 +41,37 @@ export function buildZipTool() {
 
         // Generate zip file
         const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
-        
+
         // Determine output file name: ensure it ends with .zip
-        const outputFileName = fileName?.endsWith('.zip') 
-          ? fileName 
-          : `${fileName || 'files'}.zip`
+        const outputFileName = fileName?.endsWith('.zip') ? fileName : `${fileName || 'files'}.zip`
 
         // Prepare response paths
         const responseFilePath = path.join(workspacePath, outputFileName)
         const responseFileUrl = new URL(outputFileName, baseUrl).href
-        
+
         // Ensure directory exists
         await fs.mkdir(path.dirname(responseFilePath), { recursive: true })
-        
+
         // Save the zip file to disk
         try {
           await fs.writeFile(responseFilePath, zipBuffer)
         } catch (writeError) {
-          return `Error: Failed to write zip file: ${getErrorMessage(writeError)} - Path: ${responseFilePath}`
+          return createZipToolResult(
+            `Error: Failed to write zip file: ${getErrorMessage(writeError)} - Path: ${responseFilePath}`
+          )
         }
-        
-        return [
-          `Created zip file: ${outputFileName}`,
+
+        return createZipToolResult(`Created zip file: ${outputFileName}`, [
           {
-            files: [{
-              mimeType: 'application/zip',
-              fileName: outputFileName,
-              filePath: responseFilePath,
-              fileUrl: responseFileUrl,
-              extension: 'zip'
-            } as TFileInfo]
-          }
-        ]
+            mimeType: 'application/zip',
+            fileName: outputFileName,
+            filePath: responseFilePath,
+            fileUrl: responseFileUrl,
+            extension: 'zip'
+          } as TFileInfo
+        ])
       } catch (error) {
-        return "Error creating zip file: " + getErrorMessage(error)
+        return createZipToolResult('Error creating zip file: ' + getErrorMessage(error))
       }
     },
     {
