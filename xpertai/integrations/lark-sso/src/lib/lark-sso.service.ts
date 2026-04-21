@@ -8,26 +8,26 @@ import {
   type SsoBindingPermissionService
 } from '@xpert-ai/plugin-sdk'
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import type { LarkIdentityPluginConfig } from './plugin-config.js'
+import type { LarkSsoPluginConfig } from './plugin-config.js'
 import { LarkOAuthService } from './lark-oauth.service.js'
 import { LarkStateService } from './lark-state.service.js'
 import {
-  isLarkIdentityError,
+  isLarkSsoError,
   LARK_AUTH_LOGIN_PATH,
   LARK_AUTH_SSO_CONFIRM_PATH,
-  LARK_IDENTITY_CALLBACK_PATH,
-  LARK_IDENTITY_PROVIDER,
+  LARK_SSO_CALLBACK_PATH,
+  LARK_SSO_PROVIDER,
   LARK_SIGN_IN_SUCCESS_PATH,
-  type LarkIdentityBindState,
-  LarkIdentityBindingProfile,
-  LarkIdentityCallbackResult,
-  LarkIdentityError,
-  type LarkIdentityLoginState,
-  LarkIdentityState
+  type LarkSsoBindState,
+  LarkSsoBindingProfile,
+  LarkSsoCallbackResult,
+  LarkSsoError,
+  type LarkSsoLoginState,
+  LarkSsoState
 } from './types.js'
 import {
-  LARK_IDENTITY_PLUGIN_CONFIG,
-  LARK_IDENTITY_PLUGIN_CONTEXT
+  LARK_SSO_PLUGIN_CONFIG,
+  LARK_SSO_PLUGIN_CONTEXT
 } from './tokens.js'
 
 type StartBindInput = {
@@ -56,18 +56,18 @@ type CallbackInput = {
 const DEFAULT_LOGIN_ERROR_MESSAGE = 'Feishu sign-in failed. Please try again.'
 
 @Injectable()
-export class LarkIdentityService {
-  private readonly logger = new Logger(LarkIdentityService.name)
+export class LarkSsoService {
+  private readonly logger = new Logger(LarkSsoService.name)
   private _boundIdentityLoginPermissionService?: BoundIdentityLoginPermissionService
   private _ssoBindingPermissionService?: SsoBindingPermissionService
 
   constructor(
     private readonly oauthService: LarkOAuthService,
     private readonly stateService: LarkStateService,
-    @Inject(LARK_IDENTITY_PLUGIN_CONTEXT)
+    @Inject(LARK_SSO_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
-    @Inject(LARK_IDENTITY_PLUGIN_CONFIG)
-    private readonly config: LarkIdentityPluginConfig
+    @Inject(LARK_SSO_PLUGIN_CONFIG)
+    private readonly config: LarkSsoPluginConfig
   ) {}
 
   private get boundIdentityLoginPermissionService(): BoundIdentityLoginPermissionService {
@@ -90,10 +90,10 @@ export class LarkIdentityService {
 
   startBind(input: StartBindInput): string {
     if (!input.userId) {
-      throw new LarkIdentityError('current_user_required', 'Current Xpert user is required for binding.')
+      throw new LarkSsoError('current_user_required', 'Current Xpert user is required for binding.')
     }
     if (!input.tenantId) {
-      throw new LarkIdentityError('tenant_required', 'tenantId is required for binding.')
+      throw new LarkSsoError('tenant_required', 'tenantId is required for binding.')
     }
 
     const returnTo = this.validateReturnTo(input.returnTo)
@@ -114,7 +114,7 @@ export class LarkIdentityService {
 
   startLogin(input: StartLoginInput): string {
     if (!input.tenantId) {
-      throw new LarkIdentityError('tenant_required', 'tenantId is required for login.')
+      throw new LarkSsoError('tenant_required', 'tenantId is required for login.')
     }
 
     const returnTo = this.validateReturnTo(input.returnTo)
@@ -132,20 +132,20 @@ export class LarkIdentityService {
     })
   }
 
-  async handleCallback(input: CallbackInput): Promise<LarkIdentityCallbackResult> {
-    let verifiedState: LarkIdentityState | null = null
+  async handleCallback(input: CallbackInput): Promise<LarkSsoCallbackResult> {
+    let verifiedState: LarkSsoState | null = null
 
     try {
       verifiedState = this.resolveState(input.state)
 
       if (input.oauthError) {
         const reason = input.oauthErrorDescription?.trim() || input.oauthError
-        throw new LarkIdentityError('oauth_failed', `Feishu OAuth failed: ${reason}`)
+        throw new LarkSsoError('oauth_failed', `Feishu OAuth failed: ${reason}`)
       }
 
       const code = input.code?.trim()
       if (!code) {
-        throw new LarkIdentityError('oauth_failed', 'Feishu OAuth callback is missing code.')
+        throw new LarkSsoError('oauth_failed', 'Feishu OAuth callback is missing code.')
       }
 
       const redirectUri = this.resolveCallbackUrl(input.requestBaseUrl)
@@ -155,10 +155,10 @@ export class LarkIdentityService {
       })
       const oauthProfile = await this.oauthService.fetchUserProfile(accessToken)
       if (!oauthProfile.unionId) {
-        throw new LarkIdentityError('union_id_missing', 'Feishu OAuth profile did not include union_id.')
+        throw new LarkSsoError('union_id_missing', 'Feishu OAuth profile did not include union_id.')
       }
 
-      const bindingProfile: LarkIdentityBindingProfile = {
+      const bindingProfile: LarkSsoBindingProfile = {
         unionId: oauthProfile.unionId,
         openId: oauthProfile.openId,
         appId: this.config.appId,
@@ -167,8 +167,8 @@ export class LarkIdentityService {
       }
 
       return verifiedState.mode === 'bind'
-        ? await this.handleBindCallback(verifiedState as LarkIdentityBindState, bindingProfile)
-        : await this.handleLoginCallback(verifiedState as LarkIdentityLoginState, bindingProfile)
+        ? await this.handleBindCallback(verifiedState as LarkSsoBindState, bindingProfile)
+        : await this.handleLoginCallback(verifiedState as LarkSsoLoginState, bindingProfile)
     } catch (error) {
       const loginErrorLocation = this.buildLoginErrorRedirectLocation(
         error,
@@ -188,23 +188,23 @@ export class LarkIdentityService {
     }
   }
 
-  private resolveState(stateToken?: string): LarkIdentityState {
+  private resolveState(stateToken?: string): LarkSsoState {
     try {
       return this.stateService.verifyState(stateToken?.trim() ?? '')
     } catch (error) {
-      if (isLarkIdentityError(error)) {
+      if (isLarkSsoError(error)) {
         throw error
       }
-      throw new LarkIdentityError('state_invalid', 'Invalid OAuth state.', 400, error)
+      throw new LarkSsoError('state_invalid', 'Invalid OAuth state.', 400, error)
     }
   }
 
   private async handleBindCallback(
-    state: LarkIdentityBindState,
-    profile: LarkIdentityBindingProfile
-  ): Promise<LarkIdentityCallbackResult> {
+    state: LarkSsoBindState,
+    profile: LarkSsoBindingProfile
+  ): Promise<LarkSsoCallbackResult> {
     const pendingBinding = await this.ssoBindingPermissionService.createPendingBinding({
-      provider: LARK_IDENTITY_PROVIDER,
+      provider: LARK_SSO_PROVIDER,
       subjectId: profile.unionId,
       tenantId: state.tenantId,
       organizationId: state.organizationId ?? null,
@@ -223,11 +223,11 @@ export class LarkIdentityService {
   }
 
   private async handleLoginCallback(
-    state: LarkIdentityLoginState,
-    profile: LarkIdentityBindingProfile
-  ): Promise<LarkIdentityCallbackResult> {
+    state: LarkSsoLoginState,
+    profile: LarkSsoBindingProfile
+  ): Promise<LarkSsoCallbackResult> {
     const tokens = await this.boundIdentityLoginPermissionService.loginWithBoundIdentity({
-      provider: LARK_IDENTITY_PROVIDER,
+      provider: LARK_SSO_PROVIDER,
       subjectId: profile.unionId,
       tenantId: state.tenantId,
       organizationId: state.organizationId ?? null
@@ -235,7 +235,7 @@ export class LarkIdentityService {
 
     if (!tokens) {
       const pendingBinding = await this.ssoBindingPermissionService.createPendingBinding({
-        provider: LARK_IDENTITY_PROVIDER,
+        provider: LARK_SSO_PROVIDER,
         subjectId: profile.unionId,
         tenantId: state.tenantId,
         organizationId: state.organizationId ?? null,
@@ -289,7 +289,7 @@ export class LarkIdentityService {
 
   private buildLoginErrorRedirectLocation(
     error: unknown,
-    verifiedState: LarkIdentityState | null,
+    verifiedState: LarkSsoState | null,
     stateToken?: string
   ): string | null {
     const loginState =
@@ -305,7 +305,7 @@ export class LarkIdentityService {
 
     const normalizedError = this.normalizeLoginError(error)
     const params = new URLSearchParams({
-      ssoProvider: LARK_IDENTITY_PROVIDER,
+      ssoProvider: LARK_SSO_PROVIDER,
       ssoError: normalizedError.code,
       ssoMessage: normalizedError.message
     })
@@ -321,7 +321,7 @@ export class LarkIdentityService {
     code: string
     message: string
   } {
-    if (isLarkIdentityError(error)) {
+    if (isLarkSsoError(error)) {
       return {
         code: error.code,
         message: error.message
@@ -329,7 +329,7 @@ export class LarkIdentityService {
     }
 
     this.logger.error(
-      `Unexpected lark identity login error: ${(error as { message?: string })?.message || String(error)}`
+      `Unexpected lark sso login error: ${(error as { message?: string })?.message || String(error)}`
     )
     return {
       code: 'oauth_failed',
@@ -337,7 +337,7 @@ export class LarkIdentityService {
     }
   }
 
-  private extractUnverifiedStateMode(stateToken?: string): LarkIdentityState['mode'] | null {
+  private extractUnverifiedStateMode(stateToken?: string): LarkSsoState['mode'] | null {
     const encodedPayload = stateToken?.split('.')[1]
     if (!encodedPayload) {
       return null
@@ -367,11 +367,11 @@ export class LarkIdentityService {
     try {
       targetUrl = new URL(normalized)
     } catch (error) {
-      throw new LarkIdentityError('return_to_invalid', 'returnTo must be a relative path or an absolute URL.', 400, error)
+      throw new LarkSsoError('return_to_invalid', 'returnTo must be a relative path or an absolute URL.', 400, error)
     }
 
     if (!this.config.publicBaseUrl) {
-      throw new LarkIdentityError(
+      throw new LarkSsoError(
         'return_to_invalid',
         'Absolute returnTo requires publicBaseUrl to be configured.'
       )
@@ -379,7 +379,7 @@ export class LarkIdentityService {
 
     const publicOrigin = new URL(this.config.publicBaseUrl).origin
     if (targetUrl.origin !== publicOrigin) {
-      throw new LarkIdentityError(
+      throw new LarkSsoError(
         'return_to_invalid',
         'Absolute returnTo must share the same origin as publicBaseUrl.'
       )
@@ -390,7 +390,7 @@ export class LarkIdentityService {
 
   private resolveCallbackUrl(requestBaseUrl: string): string {
     const baseUrl = this.config.publicBaseUrl || requestBaseUrl
-    return new URL(LARK_IDENTITY_CALLBACK_PATH, this.ensureTrailingSlash(baseUrl)).toString()
+    return new URL(LARK_SSO_CALLBACK_PATH, this.ensureTrailingSlash(baseUrl)).toString()
   }
 
   private ensureTrailingSlash(baseUrl: string): string {

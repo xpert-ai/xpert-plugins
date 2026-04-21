@@ -3,9 +3,9 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   runWithRequestContext: jest.fn((_req: unknown, _res: unknown, next: () => void) => next())
 }))
 
-import { LarkIdentityController } from './lark-identity.controller.js'
+import { LarkSsoController } from './lark-sso.controller.js'
 
-describe('LarkIdentityController', () => {
+describe('LarkSsoController', () => {
   function createResponse() {
     const json = jest.fn()
     const statusJson = jest.fn()
@@ -21,7 +21,7 @@ describe('LarkIdentityController', () => {
     const identityService = {
       startLogin: jest.fn().mockReturnValue('https://open.feishu.cn/open-apis/authen/v1/index')
     }
-    const controller = new LarkIdentityController(identityService as any)
+    const controller = new LarkSsoController(identityService as any)
     const response = createResponse()
 
     await controller.loginStart(
@@ -47,7 +47,7 @@ describe('LarkIdentityController', () => {
   })
 
   it('returns tenant_required when the host did not inject tenant context', async () => {
-    const controller = new LarkIdentityController({
+    const controller = new LarkSsoController({
       startLogin: jest.fn()
     } as any)
     const response = createResponse()

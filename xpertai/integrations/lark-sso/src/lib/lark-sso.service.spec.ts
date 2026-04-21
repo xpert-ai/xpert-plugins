@@ -7,10 +7,10 @@ import {
   BOUND_IDENTITY_LOGIN_PERMISSION_SERVICE_TOKEN,
   SSO_BINDING_PERMISSION_SERVICE_TOKEN
 } from '@xpert-ai/plugin-sdk'
-import { LarkIdentityService } from './lark-identity.service.js'
-import { LarkIdentityError } from './types.js'
+import { LarkSsoService } from './lark-sso.service.js'
+import { LarkSsoError } from './types.js'
 
-describe('LarkIdentityService', () => {
+describe('LarkSsoService', () => {
   function createUnsignedStateToken(payload: Record<string, unknown>) {
     const encodedHeader = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' }), 'utf8').toString('base64url')
     const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
@@ -86,7 +86,7 @@ describe('LarkIdentityService', () => {
         })
     }
 
-    const service = new LarkIdentityService(
+    const service = new LarkSsoService(
       oauthService as any,
       stateService as any,
       pluginContext as any,
@@ -259,7 +259,7 @@ describe('LarkIdentityService', () => {
   it('redirects login state_invalid errors without trusting returnUrl from an unverified state', async () => {
     const { service } = createFixture({
       verifyState: jest.fn(() => {
-        throw new LarkIdentityError('state_invalid', 'Invalid OAuth state.')
+        throw new LarkSsoError('state_invalid', 'Invalid OAuth state.')
       })
     })
 
@@ -290,7 +290,7 @@ describe('LarkIdentityService', () => {
   it('keeps bind callback state errors as API errors', async () => {
     const { service } = createFixture({
       verifyState: jest.fn(() => {
-        throw new LarkIdentityError('state_invalid', 'Invalid OAuth state.')
+        throw new LarkSsoError('state_invalid', 'Invalid OAuth state.')
       })
     })
 
@@ -377,7 +377,7 @@ describe('LarkIdentityService', () => {
         returnTo: 'https://evil.example.com/pwn',
         requestBaseUrl: 'https://runtime.example.com'
       })
-    ).toThrow(LarkIdentityError)
+    ).toThrow(LarkSsoError)
 
     expect(() =>
       service.startLogin({

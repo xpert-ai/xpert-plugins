@@ -18,15 +18,15 @@ const OptionalUrlSchema = z.preprocess(
   z.string().url().optional()
 )
 
-export const LarkIdentityPluginConfigSchema = z.object({
+export const LarkSsoPluginConfigSchema = z.object({
   appId: RequiredStringSchema,
   appSecret: RequiredStringSchema,
   publicBaseUrl: OptionalUrlSchema
 })
 
-export type LarkIdentityPluginConfig = z.infer<typeof LarkIdentityPluginConfigSchema>
+export type LarkSsoPluginConfig = z.infer<typeof LarkSsoPluginConfigSchema>
 
-export const LarkIdentityPluginConfigFormSchema: JsonSchemaObjectType = {
+export const LarkSsoPluginConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
     appId: {
@@ -36,8 +36,8 @@ export const LarkIdentityPluginConfigFormSchema: JsonSchemaObjectType = {
         zh_Hans: '应用 ID'
       },
       description: {
-        en_US: 'Feishu app id used only by the identity plugin.',
-        zh_Hans: '仅供身份插件使用的飞书应用 ID。'
+        en_US: 'Feishu app id used only by the SSO plugin.',
+        zh_Hans: '仅供 SSO 插件使用的飞书应用 ID。'
       } as any
     },
     appSecret: {

@@ -1,5 +1,5 @@
 import { LarkStateService } from './lark-state.service.js'
-import { LarkIdentityError } from './types.js'
+import { LarkSsoError } from './types.js'
 
 describe('LarkStateService', () => {
   beforeEach(() => {
@@ -60,7 +60,7 @@ describe('LarkStateService', () => {
       'utf8'
     ).toString('base64url')
 
-    expect(() => service.verifyState(parts.join('.'))).toThrow(LarkIdentityError)
+    expect(() => service.verifyState(parts.join('.'))).toThrow(LarkSsoError)
     expect(() => service.verifyState(parts.join('.'))).toThrow(/signature/i)
   })
 
@@ -78,11 +78,11 @@ describe('LarkStateService', () => {
 
     jest.setSystemTime(new Date('2026-04-14T00:11:00.000Z'))
 
-    expect(() => service.verifyState(state)).toThrow(LarkIdentityError)
+    expect(() => service.verifyState(state)).toThrow(LarkSsoError)
     try {
       service.verifyState(state)
     } catch (error) {
-      expect((error as LarkIdentityError).code).toBe('state_expired')
+      expect((error as LarkSsoError).code).toBe('state_expired')
     }
   })
 })

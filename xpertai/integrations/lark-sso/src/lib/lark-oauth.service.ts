@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import type { LarkIdentityPluginConfig } from './plugin-config.js'
-import { LARK_IDENTITY_PLUGIN_CONFIG } from './tokens.js'
-import { LarkIdentityError, type LarkOAuthProfile } from './types.js'
+import type { LarkSsoPluginConfig } from './plugin-config.js'
+import { LARK_SSO_PLUGIN_CONFIG } from './tokens.js'
+import { LarkSsoError, type LarkOAuthProfile } from './types.js'
 
 const FEISHU_AUTHORIZE_URL = 'https://accounts.feishu.cn/open-apis/authen/v1/authorize'
 const FEISHU_ACCESS_TOKEN_URL = 'https://open.feishu.cn/open-apis/authen/v2/oauth/token'
@@ -12,8 +12,8 @@ export class LarkOAuthService {
   private readonly logger = new Logger(LarkOAuthService.name)
 
   constructor(
-    @Inject(LARK_IDENTITY_PLUGIN_CONFIG)
-    private readonly config: LarkIdentityPluginConfig
+    @Inject(LARK_SSO_PLUGIN_CONFIG)
+    private readonly config: LarkSsoPluginConfig
   ) {}
 
   buildAuthorizeUrl(options: { redirectUri: string; state: string }): string {
@@ -49,7 +49,7 @@ export class LarkOAuthService {
     const payload = this.unwrapPayload(response)
     const accessToken = this.readString(payload, ['access_token'])
     if (!accessToken) {
-      throw new LarkIdentityError('oauth_failed', 'Feishu OAuth token response did not include access_token.')
+      throw new LarkSsoError('oauth_failed', 'Feishu OAuth token response did not include access_token.')
     }
 
     return accessToken
@@ -84,7 +84,7 @@ export class LarkOAuthService {
     try {
       response = await fetch(url, init)
     } catch (error) {
-      throw new LarkIdentityError('oauth_failed', 'Failed to reach Feishu OAuth endpoint.', 400, error)
+      throw new LarkSsoError('oauth_failed', 'Failed to reach Feishu OAuth endpoint.', 400, error)
     }
 
     let responseText = ''
@@ -94,7 +94,7 @@ export class LarkOAuthService {
       if (isTokenEndpoint) {
         this.logger.error('[lark-oauth] token response body could not be read.')
       }
-      throw new LarkIdentityError('oauth_failed', 'Failed to read Feishu OAuth response body.', 400, error)
+      throw new LarkSsoError('oauth_failed', 'Failed to read Feishu OAuth response body.', 400, error)
     }
 
     let json: unknown
@@ -106,7 +106,7 @@ export class LarkOAuthService {
           `[lark-oauth] token response is not JSON status=${response.status} body=${this.truncateForLog(responseText)}`
         )
       }
-      throw new LarkIdentityError('oauth_failed', 'Feishu OAuth response is not valid JSON.', 400, error)
+      throw new LarkSsoError('oauth_failed', 'Feishu OAuth response is not valid JSON.', 400, error)
     }
 
     if (!response.ok) {
@@ -118,7 +118,7 @@ export class LarkOAuthService {
       const message =
         this.readString(json, ['error_description', 'msg', 'message']) ??
         `Feishu OAuth request failed with HTTP ${response.status}.`
-      throw new LarkIdentityError('oauth_failed', message)
+      throw new LarkSsoError('oauth_failed', message)
     }
 
     if (this.readNumber(json, ['code']) && this.readNumber(json, ['code']) !== 0) {
@@ -130,7 +130,7 @@ export class LarkOAuthService {
       const message =
         this.readString(json, ['error_description', 'msg', 'message']) ??
         'Feishu OAuth returned a non-zero code.'
-      throw new LarkIdentityError('oauth_failed', message)
+      throw new LarkSsoError('oauth_failed', message)
     }
 
     return this.asRecord(json)

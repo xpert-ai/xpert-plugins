@@ -49,7 +49,7 @@
     "projectsRelationship": "independent",
     "projects": [
       "@xpert-ai/plugin-lark",
-      "@xpert-ai/plugin-lark-identity",
+      "@xpert-ai/plugin-lark-sso",
       "@xpert-ai/plugin-firecrawl",
       "@xpert-ai/plugin-mineru",
       "@xpert-ai/plugin-dify",

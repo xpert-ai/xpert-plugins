@@ -1,22 +1,22 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { Inject, Injectable } from '@nestjs/common'
-import type { LarkIdentityPluginConfig } from './plugin-config.js'
-import { LARK_IDENTITY_PLUGIN_CONFIG } from './tokens.js'
+import type { LarkSsoPluginConfig } from './plugin-config.js'
+import { LARK_SSO_PLUGIN_CONFIG } from './tokens.js'
 import {
-  LarkIdentityError,
-  LarkIdentityState,
-  LarkIdentityStateInput,
-  LarkIdentityStateSchema
+  LarkSsoError,
+  LarkSsoState,
+  LarkSsoStateInput,
+  LarkSsoStateSchema
 } from './types.js'
 
 @Injectable()
 export class LarkStateService {
   constructor(
-    @Inject(LARK_IDENTITY_PLUGIN_CONFIG)
-    private readonly config: LarkIdentityPluginConfig
+    @Inject(LARK_SSO_PLUGIN_CONFIG)
+    private readonly config: LarkSsoPluginConfig
   ) {}
 
-  createState(payload: LarkIdentityStateInput): string {
+  createState(payload: LarkSsoStateInput): string {
     const issuedAt = Math.floor(Date.now() / 1000)
     const tokenPayload = {
       ...payload,
@@ -35,17 +35,17 @@ export class LarkStateService {
     return `${unsignedToken}.${this.sign(unsignedToken)}`
   }
 
-  verifyState(token: string): LarkIdentityState {
+  verifyState(token: string): LarkSsoState {
     const parts = token.split('.')
     if (parts.length !== 3) {
-      throw new LarkIdentityError('state_invalid', 'Invalid OAuth state token.')
+      throw new LarkSsoError('state_invalid', 'Invalid OAuth state token.')
     }
 
     const [encodedHeader, encodedPayload, signature] = parts
     const unsignedToken = `${encodedHeader}.${encodedPayload}`
     const decodedHeader = this.decodeSegment<{ alg?: string }>(encodedHeader)
     if (decodedHeader.alg !== 'HS256') {
-      throw new LarkIdentityError('state_invalid', 'Unsupported OAuth state algorithm.')
+      throw new LarkSsoError('state_invalid', 'Unsupported OAuth state algorithm.')
     }
 
     const expectedSignature = this.sign(unsignedToken)
@@ -55,17 +55,17 @@ export class LarkStateService {
       signatureBuffer.length !== expectedBuffer.length ||
       !timingSafeEqual(signatureBuffer, expectedBuffer)
     ) {
-      throw new LarkIdentityError('state_invalid', 'OAuth state signature is invalid.')
+      throw new LarkSsoError('state_invalid', 'OAuth state signature is invalid.')
     }
 
-    const payload = LarkIdentityStateSchema.safeParse(this.decodeSegment(encodedPayload))
+    const payload = LarkSsoStateSchema.safeParse(this.decodeSegment(encodedPayload))
     if (!payload.success) {
-      throw new LarkIdentityError('state_invalid', 'OAuth state payload is invalid.')
+      throw new LarkSsoError('state_invalid', 'OAuth state payload is invalid.')
     }
 
     const now = Math.floor(Date.now() / 1000)
     if (payload.data.exp <= now) {
-      throw new LarkIdentityError('state_expired', 'OAuth state has expired.')
+      throw new LarkSsoError('state_expired', 'OAuth state has expired.')
     }
 
     return payload.data
@@ -85,7 +85,7 @@ export class LarkStateService {
     try {
       return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as T
     } catch (error) {
-      throw new LarkIdentityError('state_invalid', 'OAuth state payload cannot be decoded.', 400, error)
+      throw new LarkSsoError('state_invalid', 'OAuth state payload cannot be decoded.', 400, error)
     }
   }
 }

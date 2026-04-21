@@ -7,7 +7,7 @@
       "path": "./integrations/lark"
     },
     {
-      "path": "./integrations/lark-identity"
+      "path": "./integrations/lark-sso"
     },
     {
       "path": "./integrations/firecrawl"

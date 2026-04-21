@@ -2,11 +2,11 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   SSOProviderStrategyKey: () => (target: unknown) => target
 }))
 
-import { LarkSSOProviderStrategy } from './lark-sso-provider.strategy.js'
+import { LarkSsoProviderStrategy } from './lark-sso-provider.strategy.js'
 
-describe('LarkSSOProviderStrategy', () => {
+describe('LarkSsoProviderStrategy', () => {
   it('returns null when required config is missing', () => {
-    const strategy = new LarkSSOProviderStrategy({
+    const strategy = new LarkSsoProviderStrategy({
       appId: '',
       appSecret: 'secret'
     } as any)
@@ -21,7 +21,7 @@ describe('LarkSSOProviderStrategy', () => {
   })
 
   it('returns a render-ready descriptor when config is valid', () => {
-    const strategy = new LarkSSOProviderStrategy({
+    const strategy = new LarkSsoProviderStrategy({
       appId: 'cli_xxx',
       appSecret: 'secret'
     } as any)

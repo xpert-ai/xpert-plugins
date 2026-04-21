@@ -1,7 +1,7 @@
 import type { IUser } from '@metad/contracts'
 import { Controller, Get, Query, Request, Response, SetMetadata } from '@nestjs/common'
-import { LarkIdentityService } from './lark-identity.service.js'
-import { isLarkIdentityError, LarkIdentityError } from './types.js'
+import { LarkSsoService } from './lark-sso.service.js'
+import { isLarkSsoError, LarkSsoError } from './types.js'
 
 const Public = () => SetMetadata('isPublic', true)
 
@@ -21,8 +21,8 @@ type ResponseLike = {
 }
 
 @Controller('lark-identity')
-export class LarkIdentityController {
-  constructor(private readonly identityService: LarkIdentityService) {}
+export class LarkSsoController {
+  constructor(private readonly identityService: LarkSsoService) {}
 
   @Get('bind/start')
   async bindStart(
@@ -33,7 +33,7 @@ export class LarkIdentityController {
     try {
       const user = this.resolveCurrentUser(req)
       if (!user?.id) {
-        throw new LarkIdentityError('current_user_required', 'Current Xpert user is missing.')
+        throw new LarkSsoError('current_user_required', 'Current Xpert user is missing.')
       }
 
       const tenantId = this.resolveTenantId(req, user)
@@ -114,7 +114,7 @@ export class LarkIdentityController {
       this.getFirstHeader(req.headers['tenant-id']) ??
       this.getFirstHeader(req.headers['Tenant-Id'])
     if (!tenantId) {
-      throw new LarkIdentityError('tenant_required', 'tenantId is missing from the current request context.')
+      throw new LarkSsoError('tenant_required', 'tenantId is missing from the current request context.')
     }
     return tenantId
   }
@@ -124,7 +124,7 @@ export class LarkIdentityController {
       this.getFirstHeader(req.headers['tenant-id']) ??
       this.getFirstHeader(req.headers['Tenant-Id'])
     if (!tenantId) {
-      throw new LarkIdentityError('tenant_required', 'tenantId is missing from the current request context.')
+      throw new LarkSsoError('tenant_required', 'tenantId is missing from the current request context.')
     }
     return tenantId
   }
@@ -156,7 +156,7 @@ export class LarkIdentityController {
       this.getFirstHeader(req.headers.host)
 
     if (!host) {
-      throw new LarkIdentityError('oauth_failed', 'Unable to resolve request host for Lark identity callback URL.')
+      throw new LarkSsoError('oauth_failed', 'Unable to resolve request host for Lark SSO callback URL.')
     }
 
     return `${protocol}://${host}`
@@ -185,7 +185,7 @@ export class LarkIdentityController {
   }
 
   private handleError(res: ResponseLike, error: unknown) {
-    if (isLarkIdentityError(error)) {
+    if (isLarkSsoError(error)) {
       res.status(error.status).json({
         success: false,
         code: error.code,
@@ -197,7 +197,7 @@ export class LarkIdentityController {
     res.status(500).json({
       success: false,
       code: 'internal_error',
-      message: (error as Error)?.message || 'Unexpected Lark identity error.'
+      message: (error as Error)?.message || 'Unexpected Lark SSO error.'
     })
   }
 }

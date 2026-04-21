@@ -1,8 +1,8 @@
-# Lark Identity Plugin
+# Lark SSO Plugin
 
 - Chinese guide: [README.zh-CN.md](./README.zh-CN.md)
 
-`@xpert-ai/plugin-lark-identity` provides two identity flows for Feishu/Lark:
+`@xpert-ai/plugin-lark-sso` provides Feishu/Lark account binding and SSO flows:
 
 - bind a logged-in Xpert user to a Feishu identity
 - sign in through Feishu SSO by resolving that binding first
@@ -17,7 +17,7 @@ This plugin is intended to run as a `system` plugin. Configure it once at the ho
 
 ## Plugin Config
 
-- `appId`: Feishu app id used only by this identity plugin
+- `appId`: Feishu app id used only by this SSO plugin
 - `appSecret`: Feishu app secret used for OAuth and JWT state signing
 - `publicBaseUrl`: optional public origin used for callback URL generation and same-origin `returnTo` validation
 

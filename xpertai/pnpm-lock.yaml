@@ -535,7 +535,7 @@ importers:
         specifier: ^1.0.17
         version: 1.0.17
 
-  integrations/lark-identity:
+  integrations/lark-sso:
     dependencies:
       '@metad/contracts':
         specifier: ^3.9.0-beta.0

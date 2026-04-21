@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 const swcConfigCandidates = [
-  path.resolve(process.cwd(), 'integrations/lark-identity/.spec.swcrc'),
+  path.resolve(process.cwd(), 'integrations/lark-sso/.spec.swcrc'),
   path.resolve(process.cwd(), '.spec.swcrc'),
   '.spec.swcrc',
 ];
@@ -16,7 +16,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 export default {
-  displayName: '@xpert-ai/plugin-lark-identity',
+  displayName: '@xpert-ai/plugin-lark-sso',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {

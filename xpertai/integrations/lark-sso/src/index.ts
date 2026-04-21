@@ -2,15 +2,15 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
-import { LarkIdentityPluginModule } from './lib/lark-identity.module.js'
+import { LarkSsoPluginModule } from './lib/lark-sso.module.js'
 import {
-  LarkIdentityPluginConfigFormSchema,
-  LarkIdentityPluginConfigSchema
+  LarkSsoPluginConfigFormSchema,
+  LarkSsoPluginConfigSchema
 } from './lib/plugin-config.js'
-import { larkIdentityIcon } from './lib/types.js'
+import { larkSsoIcon } from './lib/types.js'
 import {
-  LARK_IDENTITY_PLUGIN_CONFIG,
-  LARK_IDENTITY_PLUGIN_CONTEXT
+  LARK_SSO_PLUGIN_CONFIG,
+  LARK_SSO_PLUGIN_CONTEXT
 } from './lib/tokens.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -28,18 +28,18 @@ const plugin: XpertPlugin = {
     category: 'integration',
     icon: {
       type: 'svg',
-      value: larkIdentityIcon,
+      value: larkSsoIcon,
       color: '#0F766E'
     },
-    displayName: 'Lark Identity',
+    displayName: 'Lark SSO',
     description:
-      'Adds Feishu/Lark identity binding and binding-first SSO login for Xpert.',
+      'Adds Feishu/Lark SSO login and account binding flows for Xpert.',
     keywords: ['lark', 'feishu', 'identity', 'sso', 'account binding'],
     author: 'XpertAI Team'
   },
   config: {
-    schema: LarkIdentityPluginConfigSchema,
-    formSchema: LarkIdentityPluginConfigFormSchema
+    schema: LarkSsoPluginConfigSchema,
+    formSchema: LarkSsoPluginConfigFormSchema
   },
   permissions: [
     {
@@ -54,21 +54,21 @@ const plugin: XpertPlugin = {
     }
   ] as any,
   register(ctx) {
-    ctx.logger.log('register lark identity plugin')
+    ctx.logger.log('register lark sso plugin')
     return {
-      module: LarkIdentityPluginModule,
+      module: LarkSsoPluginModule,
       global: true,
       providers: [
-        { provide: LARK_IDENTITY_PLUGIN_CONTEXT, useValue: ctx },
-        { provide: LARK_IDENTITY_PLUGIN_CONFIG, useValue: ctx.config }
+        { provide: LARK_SSO_PLUGIN_CONTEXT, useValue: ctx },
+        { provide: LARK_SSO_PLUGIN_CONFIG, useValue: ctx.config }
       ]
     }
   },
   async onStart(ctx) {
-    ctx.logger.log('lark identity plugin started')
+    ctx.logger.log('lark sso plugin started')
   },
   async onStop(ctx) {
-    ctx.logger.log('lark identity plugin stopped')
+    ctx.logger.log('lark sso plugin stopped')
   }
 }
 

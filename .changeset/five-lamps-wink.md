@@ -1,8 +1,8 @@
 ---
-'@xpert-ai/plugin-lark-identity': minor
+'@xpert-ai/plugin-lark-sso': minor
 ---
 
-Add the Feishu/Lark identity plugin for Xpert SSO rollout.
+Add the Feishu/Lark SSO plugin for Xpert SSO rollout.
 
 - introduce system-level Feishu SSO login and account binding flows
 - route bound users through direct SSO sign-in and unbound users into the host binding flow

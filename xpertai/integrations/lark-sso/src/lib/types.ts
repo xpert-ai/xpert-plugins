@@ -16,7 +16,7 @@ const OptionalStringSchema = z.preprocess(
   z.string().min(1).optional()
 )
 
-export const larkIdentityIcon = `
+export const larkSsoIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
   <rect width="96" height="96" rx="24" fill="#0F766E"/>
   <path d="M25 26h30c9.941 0 18 8.059 18 18v5H48c-9.941 0-18-8.059-18-18v-5Z" fill="#5EEAD4"/>
@@ -25,15 +25,15 @@ export const larkIdentityIcon = `
 </svg>
 `.trim()
 
-export const LARK_IDENTITY_PROVIDER = 'lark'
-export const LARK_IDENTITY_CALLBACK_PATH = '/api/lark-identity/callback'
-export const LARK_IDENTITY_LOGIN_START_PATH = '/api/lark-identity/login/start'
-export const LARK_IDENTITY_PROVIDER_ICON_PATH = '/assets/images/destinations/feishu.png'
+export const LARK_SSO_PROVIDER = 'lark'
+export const LARK_SSO_CALLBACK_PATH = '/api/lark-identity/callback'
+export const LARK_SSO_LOGIN_START_PATH = '/api/lark-identity/login/start'
+export const LARK_SSO_PROVIDER_ICON_PATH = '/assets/images/destinations/feishu.png'
 export const LARK_AUTH_LOGIN_PATH = '/auth/login'
 export const LARK_AUTH_SSO_CONFIRM_PATH = '/auth/sso-confirm'
 export const LARK_SIGN_IN_SUCCESS_PATH = '/sign-in/success'
 
-export const LarkIdentityBindStateSchema = z.object({
+export const LarkSsoBindStateSchema = z.object({
   mode: z.literal('bind'),
   tenantId: RequiredStringSchema,
   organizationId: OptionalStringSchema,
@@ -44,7 +44,7 @@ export const LarkIdentityBindStateSchema = z.object({
   exp: z.number().int()
 })
 
-export const LarkIdentityLoginStateSchema = z.object({
+export const LarkSsoLoginStateSchema = z.object({
   mode: z.literal('login'),
   tenantId: RequiredStringSchema,
   organizationId: OptionalStringSchema,
@@ -54,18 +54,18 @@ export const LarkIdentityLoginStateSchema = z.object({
   exp: z.number().int()
 })
 
-export const LarkIdentityStateSchema = z.discriminatedUnion('mode', [
-  LarkIdentityBindStateSchema,
-  LarkIdentityLoginStateSchema
+export const LarkSsoStateSchema = z.discriminatedUnion('mode', [
+  LarkSsoBindStateSchema,
+  LarkSsoLoginStateSchema
 ])
 
-export type LarkIdentityState = z.infer<typeof LarkIdentityStateSchema>
-export type LarkIdentityBindState = z.infer<typeof LarkIdentityBindStateSchema>
-export type LarkIdentityLoginState = z.infer<typeof LarkIdentityLoginStateSchema>
+export type LarkSsoState = z.infer<typeof LarkSsoStateSchema>
+export type LarkSsoBindState = z.infer<typeof LarkSsoBindStateSchema>
+export type LarkSsoLoginState = z.infer<typeof LarkSsoLoginStateSchema>
 
-export type LarkIdentityStateInput =
-  | Omit<z.infer<typeof LarkIdentityBindStateSchema>, 'iat' | 'exp'>
-  | Omit<z.infer<typeof LarkIdentityLoginStateSchema>, 'iat' | 'exp'>
+export type LarkSsoStateInput =
+  | Omit<z.infer<typeof LarkSsoBindStateSchema>, 'iat' | 'exp'>
+  | Omit<z.infer<typeof LarkSsoLoginStateSchema>, 'iat' | 'exp'>
 
 export type LarkOAuthProfile = {
   unionId: string | null
@@ -74,7 +74,7 @@ export type LarkOAuthProfile = {
   avatarUrl: string | null
 }
 
-export type LarkIdentityBindingProfile = {
+export type LarkSsoBindingProfile = {
   unionId: string
   openId: string | null
   appId: string
@@ -82,7 +82,7 @@ export type LarkIdentityBindingProfile = {
   avatarUrl: string | null
 }
 
-export type LarkIdentityCallbackResult =
+export type LarkSsoCallbackResult =
   | {
       type: 'redirect'
       status: 302
@@ -94,7 +94,7 @@ export type LarkIdentityCallbackResult =
       body: Record<string, unknown>
     }
 
-export const LARK_IDENTITY_ERROR_STATUS = {
+export const LARK_SSO_ERROR_STATUS = {
   binding_conflict: 409,
   binding_not_found: 404,
   current_user_required: 401,
@@ -106,20 +106,20 @@ export const LARK_IDENTITY_ERROR_STATUS = {
   union_id_missing: 400
 } as const
 
-export type LarkIdentityErrorCode = keyof typeof LARK_IDENTITY_ERROR_STATUS
+export type LarkSsoErrorCode = keyof typeof LARK_SSO_ERROR_STATUS
 
-export class LarkIdentityError extends Error {
+export class LarkSsoError extends Error {
   constructor(
-    readonly code: LarkIdentityErrorCode,
+    readonly code: LarkSsoErrorCode,
     message: string,
-    readonly status = LARK_IDENTITY_ERROR_STATUS[code],
+    readonly status = LARK_SSO_ERROR_STATUS[code],
     override readonly cause?: unknown
   ) {
     super(message)
-    this.name = 'LarkIdentityError'
+    this.name = 'LarkSsoError'
   }
 }
 
-export function isLarkIdentityError(error: unknown): error is LarkIdentityError {
-  return error instanceof LarkIdentityError
+export function isLarkSsoError(error: unknown): error is LarkSsoError {
+  return error instanceof LarkSsoError
 }
