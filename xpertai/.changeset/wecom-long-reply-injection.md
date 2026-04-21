@@ -1,3 +1,4 @@
+---
 "@xpert-ai/plugin-wecom": patch
 ---
 
