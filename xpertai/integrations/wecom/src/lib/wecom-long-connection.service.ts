@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { createRequire } from 'module'
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
+import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import express from 'express'
 import { IIntegration, IUser } from '@metad/contracts'
 import {
@@ -83,6 +83,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
   constructor(
     @Inject(WECOM_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
+    @Inject(forwardRef(() => WeComChannelStrategy))
     private readonly wecomChannel: WeComChannelStrategy,
     private readonly conversationService: WeComConversationService
   ) {}
