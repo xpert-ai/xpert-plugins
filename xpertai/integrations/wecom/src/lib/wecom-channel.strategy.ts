@@ -65,7 +65,6 @@ type WeComLongConnectionClient = {
 @ChatChannel('wecom')
 export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptions, TWeComEvent> {
   private readonly logger = new Logger(WeComChannelStrategy.name)
-  private _longConnection!: WeComLongConnectionClient
 
   @Inject(CACHE_MANAGER)
   private readonly cacheManager: Cache
@@ -74,7 +73,9 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
 
   constructor(
     @Inject(WECOM_PLUGIN_CONTEXT)
-    private readonly pluginContext: PluginContext
+    private readonly pluginContext: PluginContext,
+    @Inject(WECOM_LONG_CONNECTION_SERVICE)
+    private readonly longConnectionService: WeComLongConnectionClient
   ) {}
 
   private get integrationPermissionService(): IntegrationPermissionService {
@@ -85,10 +86,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   }
 
   private get longConnection(): WeComLongConnectionClient {
-    if (!this._longConnection) {
-      this._longConnection = this.pluginContext.resolve(WECOM_LONG_CONNECTION_SERVICE) as WeComLongConnectionClient
-    }
-    return this._longConnection
+    return this.longConnectionService
   }
 
   meta: TChatChannelMeta = {
