@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
   CHAT_CHANNEL_TEXT_LIMITS,
   ChatChannel,
@@ -74,7 +74,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   constructor(
     @Inject(WECOM_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
-    @Inject(WECOM_LONG_CONNECTION_SERVICE)
+    @Inject(forwardRef(() => WECOM_LONG_CONNECTION_SERVICE))
     private readonly longConnectionService: WeComLongConnectionClient
   ) {}
 
