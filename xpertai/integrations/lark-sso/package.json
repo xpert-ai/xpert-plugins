@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins"
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "xpertai/integrations/lark-sso"
   },
   "type": "module",
   "main": "./dist/index.js",
