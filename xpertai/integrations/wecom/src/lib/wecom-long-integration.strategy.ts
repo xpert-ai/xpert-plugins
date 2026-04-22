@@ -1,7 +1,11 @@
 import { IIntegration, TIntegrationProvider } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
-import { iconImage, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions } from './types.js'
+import {
+  iconImage,
+  INTEGRATION_WECOM_LONG,
+  TIntegrationWeComLongOptions
+} from './types.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
 
 @Injectable()
@@ -115,6 +119,58 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
     return null
   }
 
+  async onUpdate(
+    previous: IIntegration<TIntegrationWeComLongOptions>,
+    current: IIntegration<TIntegrationWeComLongOptions>
+  ): Promise<void> {
+    const wasLongConnection = previous.provider === INTEGRATION_WECOM_LONG
+    const isStillLongConnection = current.provider === INTEGRATION_WECOM_LONG
+
+    if (wasLongConnection && !isStillLongConnection) {
+      await this.longConnection.disconnect(previous.id, {
+        clearStatus: true
+      })
+      return
+    }
+
+    if (!isStillLongConnection) {
+      return
+    }
+
+    const previousEnabled = this.isEnabled(previous)
+    const currentEnabled = this.isEnabled(current)
+    const previousXpertId = this.normalizeString(previous.options?.xpertId)
+    const currentXpertId = this.normalizeString(current.options?.xpertId)
+
+    if (!currentEnabled) {
+      await this.longConnection.disconnect(current.id, {
+        reason: 'integration_disabled'
+      })
+      return
+    }
+
+    if (!currentXpertId) {
+      await this.longConnection.disconnect(current.id, {
+        reason: 'xpert_unbound'
+      })
+      return
+    }
+
+    if (!previousEnabled || !previousXpertId) {
+      await this.longConnection.reconnect(current.id)
+    }
+  }
+
+  async onDelete(integration: IIntegration<TIntegrationWeComLongOptions>): Promise<void> {
+    if (integration.provider !== INTEGRATION_WECOM_LONG) {
+      return
+    }
+
+    await this.longConnection.disconnect(integration.id, {
+      clearStatus: true
+    })
+  }
+
   async validateConfig(
     config: TIntegrationWeComLongOptions,
     integration?: IIntegration<TIntegrationWeComLongOptions>
@@ -129,13 +185,26 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
     const integrationId = integration?.id?.trim()
     if (integrationId) {
       try {
-        await this.longConnection.connectWithConfig({
-          integrationId,
-          botId: config.botId,
-          secret: config.secret,
-          wsOrigin: config.wsOrigin,
-          timeoutMs: config.timeoutMs
-        })
+        const enabled = this.isEnabled(integration)
+        const xpertId = this.normalizeString(config.xpertId)
+
+        if (!enabled) {
+          await this.longConnection.disconnect(integrationId, {
+            reason: 'integration_disabled'
+          })
+        } else if (!xpertId) {
+          await this.longConnection.disconnect(integrationId, {
+            reason: 'xpert_unbound'
+          })
+        } else {
+          await this.longConnection.connectWithConfig({
+            integrationId,
+            botId: config.botId,
+            secret: config.secret,
+            wsOrigin: config.wsOrigin,
+            timeoutMs: config.timeoutMs
+          })
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         this.logger.warn(`[wecom-long] auto connect on save failed integration=${integrationId}: ${message}`)
@@ -147,5 +216,20 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       websocketUrl: 'wss://openws.work.weixin.qq.com',
       mode: 'long_connection'
     }
+  }
+
+  private isEnabled(integration?: IIntegration<TIntegrationWeComLongOptions> | null): boolean {
+    if (!integration || typeof integration !== 'object') {
+      return true
+    }
+    return (integration as unknown as Record<string, unknown>).enabled !== false
+  }
+
+  private normalizeString(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null
+    }
+    const text = value.trim()
+    return text || null
   }
 }
