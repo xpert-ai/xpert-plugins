@@ -26,6 +26,7 @@ import {
   TIntegrationWeComOptions,
   TWeComEvent
 } from './types.js'
+import { convertMarkdownToWeComMarkdown } from './wecom-markdown.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const RESPONSE_URL_CACHE_TTL_MS = 60 * 60 * 1000
@@ -119,6 +120,31 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     media: false,
     textChunkLimit: CHAT_CHANNEL_TEXT_LIMITS['wecom'] || 2000,
     streamingUpdate: false
+  }
+
+  resolveConnectionMode(
+    integration: Pick<IIntegration<TIntegrationWeComOptions>, 'provider'> | TIntegrationWeComOptions | null | undefined
+  ): 'webhook' | 'long_connection' {
+    if (!integration || typeof integration !== 'object') {
+      return 'webhook'
+    }
+
+    if ('provider' in integration) {
+      return this.normalizeProvider(integration.provider) === INTEGRATION_WECOM_LONG ? 'long_connection' : 'webhook'
+    }
+
+    const options = integration as TIntegrationWeComOptions
+    return this.normalizeString(options.botId) && this.normalizeString(options.secret) ? 'long_connection' : 'webhook'
+  }
+
+  async readIntegrationById(id: string): Promise<IIntegration<TIntegrationWeComOptions> | null> {
+    if (!id) {
+      return null
+    }
+
+    return this.integrationPermissionService.read<IIntegration<TIntegrationWeComOptions>>(id, {
+      relations: ['tenant']
+    })
   }
 
   createEventHandler(
@@ -268,6 +294,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     const integration = await this.readIntegration(params.integrationId)
     const provider = this.normalizeProvider(integration.provider)
     const timeoutMs = this.normalizeTimeout(params.timeoutMs, this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS))
+    const payload = this.normalizeOutboundPayload(params.payload)
 
     const context = await this.resolveRobotContext({
       integrationId: integration.id,
@@ -294,14 +321,14 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
         }
       }
 
-      return this.sendToResponseUrlPayload(context.responseUrl, params.payload, timeoutMs)
+      return this.sendToResponseUrlPayload(context.responseUrl, payload, timeoutMs)
     }
 
     if (context.reqId) {
       await this.longConnection.sendRespondMessage({
         integrationId: context.integrationId,
         reqId: context.reqId,
-        body: params.payload,
+        body: payload,
         timeoutMs
       })
       return {
@@ -321,7 +348,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     await this.longConnection.sendActiveMessage({
       integrationId: context.integrationId,
       chatId: targetChatId,
-      body: params.payload,
+      body: payload,
       timeoutMs
     })
 
@@ -921,12 +948,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   }
 
   private async readIntegration(integrationId: string): Promise<IIntegration<TIntegrationWeComOptions>> {
-    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWeComOptions>>(
-      integrationId,
-      {
-        relations: ['tenant']
-      }
-    )
+    const integration = await this.readIntegrationById(integrationId)
 
     if (!integration) {
       throw new Error(`Integration ${integrationId} not found`)
@@ -1034,6 +1056,32 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       return null
     }
     return value as Record<string, unknown>
+  }
+
+  private normalizeOutboundPayload(payload: Record<string, unknown>): Record<string, unknown> {
+    const payloadRecord = this.normalizeRecord(payload)
+    if (!payloadRecord) {
+      return payload
+    }
+
+    const msgType = typeof payloadRecord.msgtype === 'string' ? payloadRecord.msgtype.trim().toLowerCase() : ''
+    if (msgType !== 'markdown') {
+      return payload
+    }
+
+    const markdownPayload = this.normalizeRecord(payloadRecord.markdown)
+    const content = typeof markdownPayload?.content === 'string' ? markdownPayload.content : null
+    if (content == null) {
+      return payload
+    }
+
+    return {
+      ...payloadRecord,
+      markdown: {
+        ...(markdownPayload ?? {}),
+        content: convertMarkdownToWeComMarkdown(content)
+      }
+    }
   }
 
   private normalizeMentions(value: unknown): Array<{ id: string; name?: string }> | undefined {

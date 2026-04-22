@@ -18,6 +18,7 @@ import { WeComTriggerStrategy } from './workflow/wecom-trigger.strategy.js'
 import { WeComLongIntegrationStrategy } from './wecom-long-integration.strategy.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
 import { WECOM_LONG_CONNECTION_SERVICE } from './tokens.js'
+import { WeComIntegrationViewProvider } from './views/index.js'
 
 @XpertServerPlugin({
   imports: [
@@ -33,6 +34,7 @@ import { WECOM_LONG_CONNECTION_SERVICE } from './tokens.js'
     WeComLongIntegrationStrategy,
     WeComTriggerStrategy,
     WeComLongConnectionService,
+    WeComIntegrationViewProvider,
     WeComChatDispatchService,
     WeComChatRunStateService,
     WeComChatStreamCallbackProcessor,

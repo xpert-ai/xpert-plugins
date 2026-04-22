@@ -8,7 +8,7 @@ import {
   ProcessResult
 } from '@xpert-ai/plugin-sdk'
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
-import { messageContentText } from '@metad/contracts'
+import { filterMessageText } from '@metad/contracts'
 import { ChatWeComMessage } from '../message.js'
 import { WeComConversationService } from '../conversation.service.js'
 import { WeComChannelStrategy } from '../wecom-channel.strategy.js'
@@ -166,7 +166,7 @@ export class WeComChatStreamCallbackProcessor implements IHandoffProcessor<WeCom
     }
 
     if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
-      const textDelta = this.normalizeStreamText(messageContentText(eventPayload.data))
+      const textDelta = this.normalizeStreamTextDelta(filterMessageText(eventPayload.data) ?? '')
       if (textDelta) {
         state.responseMessageContent += textDelta
       }
@@ -192,7 +192,7 @@ export class WeComChatStreamCallbackProcessor implements IHandoffProcessor<WeCom
 
   private async completeRun(state: WeComChatRunState): Promise<void> {
     const message = this.createWeComMessage(state.context)
-    const streamText = this.normalizeStreamText(state.responseMessageContent)
+    const streamText = this.normalizeFinalStreamText(state.responseMessageContent)
     const finalText = streamText || `[企业微信回复]\n${state.context?.conversationId ? `会话ID: ${state.context.conversationId}` : '已处理完成。'}`
 
     await message.reply(finalText)
@@ -222,11 +222,15 @@ export class WeComChatStreamCallbackProcessor implements IHandoffProcessor<WeCom
     )
   }
 
-  private normalizeStreamText(value: unknown): string {
+  private normalizeStreamTextDelta(value: unknown): string {
     if (typeof value !== 'string') {
       return ''
     }
-    return value.replace(/\r/g, '').trim()
+    return value.replace(/\r/g, '')
+  }
+
+  private normalizeFinalStreamText(value: unknown): string {
+    return this.normalizeStreamTextDelta(value).trim()
   }
 
   private extractConversationId(data: unknown): string | undefined {

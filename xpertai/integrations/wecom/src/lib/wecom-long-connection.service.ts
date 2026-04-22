@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { createRequire } from 'module'
-import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
+import { hostname } from 'os'
+import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import express from 'express'
 import { IIntegration, IUser } from '@metad/contracts'
 import {
@@ -17,18 +18,47 @@ import { WECOM_PLUGIN_CONTEXT } from './tokens.js'
 import {
   INTEGRATION_WECOM_LONG,
   TIntegrationWeComLongOptions,
-  TIntegrationWeComOptions
+  TIntegrationWeComOptions,
+  TWeComLongDisabledReason,
+  TWeComLongRuntimeState,
+  TWeComRuntimeStatus
 } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
+import {
+  classifyWeComLongConnectionError,
+  getWeComLongConnectionLockKey,
+  getWeComLongConnectionOwnerKey,
+  getWeComLongConnectionRegistryKey,
+  getWeComLongConnectionStatusKey
+} from './wecom-long-connection.utils.js'
 
 const require = createRequire(import.meta.url)
 
-type LongSessionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+type RedisLike = {
+  set?: (...args: any[]) => Promise<any>
+  get?: (key: string) => Promise<string | null>
+  del?: (...keys: string[]) => Promise<any>
+  sadd?: (key: string, ...members: string[]) => Promise<any>
+  sAdd?: (key: string, members: string[] | string) => Promise<any>
+  srem?: (key: string, ...members: string[]) => Promise<any>
+  sRem?: (key: string, members: string[] | string) => Promise<any>
+  smembers?: (key: string) => Promise<string[]>
+  sMembers?: (key: string) => Promise<string[]>
+  sismember?: (key: string, member: string) => Promise<number | boolean>
+  sIsMember?: (key: string, member: string) => Promise<number | boolean>
+  hset?: (key: string, ...args: string[]) => Promise<any>
+  hSet?: (key: string, value: Record<string, string>) => Promise<any>
+  hgetall?: (key: string) => Promise<Record<string, string>>
+  hGetAll?: (key: string) => Promise<Record<string, string>>
+  expire?: (key: string, seconds: number) => Promise<any>
+  eval?: (...args: any[]) => Promise<any>
+}
 
 type PendingRequest = {
   resolve: (value: Record<string, unknown>) => void
   reject: (reason: unknown) => void
   timer: NodeJS.Timeout
+  command: string
 }
 
 type WeComLongSession = {
@@ -38,26 +68,25 @@ type WeComLongSession = {
   wsOrigin: string | null
   timeoutMs: number
   shouldRun: boolean
-  state: LongSessionState
-  connectedAt?: number
-  disconnectedAt?: number
-  lastError?: string
+  state: TWeComLongRuntimeState
+  lockId?: string | null
+  ownerInstanceId?: string | null
+  connectedAt?: number | null
+  disconnectedAt?: number | null
+  lastCallbackAt?: number | null
+  lastPingAt?: number | null
+  lastError?: string | null
   reconnectAttempts: number
+  failureCount: number
+  nextReconnectAt?: number | null
+  disabledReason?: TWeComLongDisabledReason | null
   websocket: any | null
   pingTimer: NodeJS.Timeout | null
+  watchdogTimer: NodeJS.Timeout | null
+  renewTimer: NodeJS.Timeout | null
   reconnectTimer: NodeJS.Timeout | null
   pendingRequests: Map<string, PendingRequest>
-}
-
-export type WeComLongConnectionStatus = {
-  integrationId: string
-  state: LongSessionState
-  connected: boolean
-  shouldRun: boolean
-  connectedAt?: number
-  disconnectedAt?: number
-  reconnectAttempts: number
-  lastError?: string
+  pingFailureCount: number
 }
 
 type WeComLongCommandResult = {
@@ -67,18 +96,41 @@ type WeComLongCommandResult = {
   raw: Record<string, unknown>
 }
 
+export type WeComLongConnectionStatus = {
+  integrationId: string
+  state: 'disconnected' | 'connecting' | 'connected' | 'error'
+  connected: boolean
+  shouldRun: boolean
+  connectedAt?: number
+  disconnectedAt?: number
+  reconnectAttempts: number
+  lastError?: string
+  disabledReason?: TWeComLongDisabledReason | null
+}
+
+const REDIS_CLIENT_TOKEN = 'REDIS_CLIENT'
 const WECOM_LONG_WS_URL = 'wss://openws.work.weixin.qq.com'
 const DEFAULT_TIMEOUT_MS = 10000
 const MIN_TIMEOUT_MS = 1000
 const MAX_TIMEOUT_MS = 120000
 const PING_INTERVAL_MS = 30 * 1000
-const MAX_RECONNECT_DELAY_MS = 30 * 1000
+const WATCHDOG_INTERVAL_MS = 30 * 1000
+const WATCHDOG_STALE_MS = PING_INTERVAL_MS * 3
+const LOCK_TTL_MS = 45_000
+const RENEW_INTERVAL_MS = 15_000
+const DEFAULT_RETRY_MS = 5_000
+const MAX_RETRY_MS = 30_000
+const MAX_UNRECOVERABLE_FAILURES = 3
+const MAX_PING_FAILURES = 2
+const INITIAL_CONNECT_TIMEOUT_MS = 10_000
 
 @Injectable()
-export class WeComLongConnectionService implements OnModuleDestroy {
+export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WeComLongConnectionService.name)
+  private readonly instanceId = `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`
   private readonly sessions = new Map<string, WeComLongSession>()
   private _integrationPermissionService: IntegrationPermissionService
+  private _redis: RedisLike | null | undefined
 
   constructor(
     @Inject(WECOM_PLUGIN_CONTEXT)
@@ -95,29 +147,66 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     return this._integrationPermissionService
   }
 
-  async onModuleDestroy(): Promise<void> {
-    const tasks = [...this.sessions.keys()].map((integrationId) => this.disconnect(integrationId))
-    await Promise.allSettled(tasks)
+  private get redis(): RedisLike | null {
+    if (this._redis === undefined) {
+      try {
+        this._redis = this.pluginContext.resolve(REDIS_CLIENT_TOKEN) as RedisLike
+      } catch {
+        this._redis = null
+      }
+    }
+    return this._redis
   }
 
-  async connect(integrationId: string): Promise<WeComLongConnectionStatus> {
-    const integration = await this.readLongIntegration(integrationId)
-    const botId = this.normalizeString(integration.options?.botId)
-    const secret = this.normalizeString(integration.options?.secret)
-    const wsOrigin = this.normalizeString(integration.options?.wsOrigin)
+  async onModuleInit(): Promise<void> {
+    const integrationIds = await this.loadBootstrapIntegrationIds()
+    this.logger.debug(`[wecom-long] bootstrapping long connection sessions for integrations: [${integrationIds.join(', ')}]`)
+    await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId)))
+  }
 
-    if (!botId || !secret) {
-      throw new Error(`Integration ${integrationId} missing botId/secret`)
+  async onModuleDestroy(): Promise<void> {
+    await Promise.allSettled([...this.sessions.values()].map((session) => this.stopSession(session, true)))
+  }
+
+  async connect(integrationId: string): Promise<TWeComRuntimeStatus> {
+    const integration = await this.safeReadLongIntegration(integrationId)
+    if (!integration) {
+      await this.dropMissingIntegration(integrationId)
+      return this.readStoredStatus(integrationId)
     }
 
-    const timeoutMs = this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS)
-    return this.connectWithConfig({
-      integrationId,
-      botId,
-      secret,
-      wsOrigin,
-      timeoutMs
-    })
+    const skipReason = this.resolveRestoreSkipReason(integration)
+    if (skipReason) {
+      await this.unregisterIntegration(integrationId)
+      await this.removeSession(integrationId)
+      await this.writeDetachedStatus(integrationId, skipReason, {
+        shouldRun: false,
+        lastError:
+          skipReason === 'integration_disabled'
+            ? 'Integration is disabled'
+            : skipReason === 'xpert_unbound'
+              ? 'Xpert is unbound'
+              : 'Restore skipped'
+      })
+      return this.readStoredStatus(integrationId)
+    }
+
+    await this.registerIntegration(integrationId)
+    const session = this.ensureSession(integration)
+
+    if (session.state === 'unhealthy') {
+      await this.writeStatus(session)
+      return this.buildStatus(session)
+    }
+
+    if (session.state === 'connected' && this.isSocketOpen(session.websocket)) {
+      this.refreshSessionState(session)
+      await this.writeStatus(session)
+      return this.buildStatus(session)
+    }
+
+    await this.startSession(session)
+    return this.buildStatus(session)
   }
 
   async connectWithConfig(params: {
@@ -126,7 +215,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     secret: string
     wsOrigin?: string | null
     timeoutMs?: number
-  }): Promise<WeComLongConnectionStatus> {
+  }): Promise<TWeComRuntimeStatus> {
     const integrationId = this.normalizeString(params.integrationId)
     const botId = this.normalizeString(params.botId)
     const secret = this.normalizeString(params.secret)
@@ -140,6 +229,8 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     }
 
     const timeoutMs = this.normalizeTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS)
+    await this.registerIntegration(integrationId)
+
     const existing = this.sessions.get(integrationId)
     const shouldRestart =
       !!existing &&
@@ -147,80 +238,142 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       (existing.botId !== botId || existing.secret !== secret || existing.wsOrigin !== wsOrigin)
 
     if (shouldRestart) {
-      await this.disconnect(integrationId)
+      await this.disconnect(integrationId, {
+        reason: 'runtime_error',
+        unregister: false
+      })
     }
 
     const session = this.ensureSession({
-      integrationId,
-      botId,
-      secret,
-      wsOrigin,
-      timeoutMs
-    })
-
-    if (session.state === 'connected') {
-      session.shouldRun = true
-      return this.buildStatus(session)
-    }
+      id: integrationId,
+      tenantId: '',
+      organizationId: '',
+      provider: INTEGRATION_WECOM_LONG,
+      options: {
+        botId,
+        secret,
+        wsOrigin: wsOrigin || undefined,
+        timeoutMs
+      }
+    } as IIntegration<TIntegrationWeComLongOptions>)
 
     session.shouldRun = true
 
-    await this.connectSession(session)
+    if (session.state === 'unhealthy') {
+      this.resetSessionForReconnect(session)
+      await this.writeStatus(session)
+      await this.stopSession(session, true)
+      await this.startSession(session)
+      return this.buildStatus(session)
+    }
+
+    if (session.state === 'connected' && this.isSocketOpen(session.websocket)) {
+      await this.writeStatus(session)
+      return this.buildStatus(session)
+    }
+
+    await this.startSession(session)
     return this.buildStatus(session)
   }
 
-  async disconnect(integrationId: string): Promise<WeComLongConnectionStatus> {
-    const session = this.sessions.get(integrationId)
-    if (!session) {
-      return {
-        integrationId,
-        state: 'disconnected',
-        connected: false,
-        shouldRun: false,
-        reconnectAttempts: 0
-      }
+  async reconnect(integrationId: string): Promise<TWeComRuntimeStatus> {
+    const integration = await this.safeReadLongIntegration(integrationId)
+    if (!integration) {
+      await this.dropMissingIntegration(integrationId)
+      return this.readStoredStatus(integrationId)
     }
 
-    session.shouldRun = false
-    this.clearPingTimer(session)
-    this.clearReconnectTimer(session)
-
-    for (const [reqId, pending] of session.pendingRequests.entries()) {
-      clearTimeout(pending.timer)
-      pending.reject(new Error(`Long connection is closing (integration=${integrationId}, reqId=${reqId})`))
-    }
-    session.pendingRequests.clear()
-
-    if (session.websocket) {
-      try {
-        session.websocket.close()
-      } catch (error) {
-        this.logger.warn(
-          `[wecom-long] close socket failed integration=${integrationId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        )
-      }
-      session.websocket = null
+    const skipReason = this.resolveRestoreSkipReason(integration)
+    if (skipReason) {
+      await this.disconnect(integrationId, {
+        reason: skipReason,
+        unregister: true
+      })
+      return this.readStoredStatus(integrationId)
     }
 
-    session.state = 'disconnected'
-    session.disconnectedAt = Date.now()
-
+    await this.registerIntegration(integrationId)
+    const session = this.ensureSession(integration)
+    this.resetSessionForReconnect(session)
+    await this.writeStatus(session)
+    await this.stopSession(session, true)
+    await this.startSession(session)
     return this.buildStatus(session)
   }
 
-  async status(integrationId: string): Promise<WeComLongConnectionStatus> {
+  async disconnect(
+    integrationId: string,
+    options?: {
+      reason?: TWeComLongDisabledReason | null
+      unregister?: boolean
+      clearStatus?: boolean
+    }
+  ): Promise<TWeComRuntimeStatus> {
+    const reason = options?.reason ?? 'manual_disconnect'
+    const unregister = options?.unregister !== false
+    const clearStatus = options?.clearStatus === true
+
+    if (unregister) {
+      await this.unregisterIntegration(integrationId)
+    }
+
+    const session = this.sessions.get(integrationId)
+    if (session) {
+      session.shouldRun = false
+      session.disabledReason = reason
+      session.nextReconnectAt = null
+      session.ownerInstanceId = null
+      session.disconnectedAt = Date.now()
+      session.state = 'idle'
+      session.lastError = session.lastError ?? this.describeDisabledReason(reason)
+      await this.stopSession(session, true)
+      this.sessions.delete(integrationId)
+    }
+
+    if (clearStatus) {
+      await this.clearStatus(integrationId)
+      return this.buildDetachedStatus(integrationId)
+    }
+
+    await this.writeDetachedStatus(integrationId, reason, {
+      shouldRun: false,
+      lastError: reason ? this.describeDisabledReason(reason) : null,
+      lastDisconnectedAt: Date.now()
+    })
+
+    return this.readStoredStatus(integrationId)
+  }
+
+  async status(integrationId: string): Promise<TWeComRuntimeStatus> {
+    const integration = await this.safeReadLongIntegration(integrationId)
+    if (!integration) {
+      await this.dropMissingIntegration(integrationId)
+      return this.readStoredStatus(integrationId)
+    }
+
+    const skipReason = this.resolveRestoreSkipReason(integration)
+    if (skipReason) {
+      await this.unregisterIntegration(integrationId)
+      await this.removeSession(integrationId)
+      await this.writeDetachedStatus(integrationId, skipReason, {
+        shouldRun: false,
+        lastError: this.describeDisabledReason(skipReason)
+      })
+      return this.readStoredStatus(integrationId)
+    }
+
     const session = this.sessions.get(integrationId)
     if (!session) {
-      return {
-        integrationId,
-        state: 'disconnected',
-        connected: false,
-        shouldRun: false,
-        reconnectAttempts: 0
+      if (await this.isRegistered(integrationId)) {
+        void this.connect(integrationId).catch((error) => {
+          this.logger.warn(`[wecom-long] lazy connect failed integration=${integrationId}: ${this.stringifyError(error)}`)
+        })
       }
+      return this.readStoredStatus(integrationId)
     }
+
+    this.refreshSessionState(session)
+    await this.writeStatus(session)
     return this.buildStatus(session)
   }
 
@@ -309,59 +462,95 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     }
   }
 
-  private ensureSession(params: {
-    integrationId: string
-    botId: string
-    secret: string
-    wsOrigin: string | null
-    timeoutMs: number
-  }): WeComLongSession {
-    const existing = this.sessions.get(params.integrationId)
+  private ensureSession(integration: IIntegration<TIntegrationWeComLongOptions>): WeComLongSession {
+    const botId = this.normalizeString(integration.options?.botId)
+    const secret = this.normalizeString(integration.options?.secret)
+    if (!botId || !secret) {
+      throw new Error(`Integration ${integration.id} missing botId/secret`)
+    }
+
+    const existing = this.sessions.get(integration.id)
     if (existing) {
-      existing.botId = params.botId
-      existing.secret = params.secret
-      existing.wsOrigin = params.wsOrigin
-      existing.timeoutMs = params.timeoutMs
+      existing.botId = botId
+      existing.secret = secret
+      existing.wsOrigin = this.normalizeString(integration.options?.wsOrigin)
+      existing.timeoutMs = this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS)
       return existing
     }
 
     const created: WeComLongSession = {
-      integrationId: params.integrationId,
-      botId: params.botId,
-      secret: params.secret,
-      wsOrigin: params.wsOrigin,
-      timeoutMs: params.timeoutMs,
+      integrationId: integration.id,
+      botId,
+      secret,
+      wsOrigin: this.normalizeString(integration.options?.wsOrigin),
+      timeoutMs: this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS),
       shouldRun: false,
-      state: 'disconnected',
+      state: 'idle',
+      lockId: null,
+      ownerInstanceId: null,
+      connectedAt: null,
+      disconnectedAt: null,
+      lastCallbackAt: null,
+      lastPingAt: null,
+      lastError: null,
       reconnectAttempts: 0,
+      failureCount: 0,
+      nextReconnectAt: null,
+      disabledReason: null,
       websocket: null,
       pingTimer: null,
+      watchdogTimer: null,
+      renewTimer: null,
       reconnectTimer: null,
-      pendingRequests: new Map()
+      pendingRequests: new Map(),
+      pingFailureCount: 0
     }
 
-    this.sessions.set(params.integrationId, created)
+    this.sessions.set(integration.id, created)
     return created
   }
 
-  private async connectSession(session: WeComLongSession): Promise<void> {
-    if (session.state === 'connecting' || session.state === 'connected') {
+  private async startSession(session: WeComLongSession): Promise<void> {
+    if (session.state === 'connecting' || session.state === 'connected' || session.state === 'unhealthy') {
+      await this.writeStatus(session)
       return
     }
 
-    const WebSocketImpl = this.resolveWebSocketImpl()
+    if (!session.shouldRun) {
+      session.state = 'idle'
+      await this.writeStatus(session)
+      return
+    }
 
+    const lockKey = getWeComLongConnectionLockKey({ botId: session.botId })
+    const ownerKey = getWeComLongConnectionOwnerKey({ botId: session.botId })
+    const lockId = await this.acquireLock(lockKey, LOCK_TTL_MS)
+    if (!lockId) {
+      session.state = 'retrying'
+      session.disabledReason = 'lease_conflict'
+      session.lastError = 'Waiting for long-connection ownership from another instance'
+      session.ownerInstanceId = await this.readOwnerInstanceId(ownerKey)
+      this.scheduleReconnect(session, DEFAULT_RETRY_MS)
+      await this.writeStatus(session)
+      return
+    }
+
+    session.lockId = lockId
+    session.ownerInstanceId = this.instanceId
     session.state = 'connecting'
-    session.lastError = undefined
+    session.lastError = null
+    session.disabledReason = null
+    session.nextReconnectAt = null
+    await this.writeOwner(session, ownerKey)
+    await this.writeStatus(session)
 
     let websocket: any = null
     try {
+      const WebSocketImpl = this.resolveWebSocketImpl()
       const options = session.wsOrigin ? { origin: session.wsOrigin } : undefined
       websocket = new WebSocketImpl(WECOM_LONG_WS_URL, options)
     } catch (error) {
-      session.state = 'error'
-      session.lastError = error instanceof Error ? error.message : String(error)
-      this.scheduleReconnect(session)
+      await this.handleStartFailure(session, error)
       throw error
     }
 
@@ -374,47 +563,55 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       }
       this.handleIncomingMessage(session, text).catch((error) => {
         this.logger.error(
-          `[wecom-long] handle incoming failed integration=${session.integrationId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `[wecom-long] handle incoming failed integration=${session.integrationId}: ${this.stringifyError(error)}`,
           error instanceof Error ? error.stack : undefined
         )
       })
     })
 
     websocket.on('close', () => {
-      this.handleSocketClosed(session)
+      void this.handleSocketClosed(session)
     })
 
     websocket.on('error', (error: unknown) => {
-      const message =
-        (error instanceof Error ? error.message : null) ||
-        this.normalizeString((error as any)?.message) ||
-        'websocket error'
+      const message = this.stringifyError(error) || 'websocket error'
       session.lastError = message
       this.logger.warn(`[wecom-long] socket error integration=${session.integrationId}: ${message}`)
     })
 
-    await this.waitForOpen(session)
+    try {
+      await this.waitForOpen(session)
 
-    const subscribeReqId = randomUUID()
-    await this.sendCommand(session.integrationId, {
-      cmd: 'aibot_subscribe',
-      reqId: subscribeReqId,
-      useProvidedReqId: true,
-      allowConnecting: true,
-      timeoutMs: session.timeoutMs,
-      body: {
-        bot_id: session.botId,
-        secret: session.secret
-      }
-    })
+      const subscribeReqId = randomUUID()
+      await this.sendCommand(session.integrationId, {
+        cmd: 'aibot_subscribe',
+        reqId: subscribeReqId,
+        useProvidedReqId: true,
+        allowConnecting: true,
+        timeoutMs: session.timeoutMs,
+        body: {
+          bot_id: session.botId,
+          secret: session.secret
+        }
+      })
 
-    session.state = 'connected'
-    session.connectedAt = Date.now()
-    session.reconnectAttempts = 0
-    this.startPing(session)
-    this.logger.log(`[wecom-long] connected integration=${session.integrationId}`)
+      session.state = 'connected'
+      session.connectedAt = Date.now()
+      session.disconnectedAt = null
+      session.reconnectAttempts = 0
+      session.failureCount = 0
+      session.pingFailureCount = 0
+      session.disabledReason = null
+      session.lastError = null
+      session.nextReconnectAt = null
+      await this.writeStatus(session)
+      this.startRenew(session)
+      this.startPing(session)
+      this.startWatchdog(session)
+      this.logger.log(`[wecom-long] connected integration=${session.integrationId}`)
+    } catch (error) {
+      await this.handleStartFailure(session, error)
+    }
   }
 
   private async waitForOpen(session: WeComLongSession): Promise<void> {
@@ -423,11 +620,11 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       throw new Error('WebSocket not initialized')
     }
 
-    if (websocket.readyState === 1) {
+    if (this.isSocketOpen(websocket)) {
       return
     }
 
-    const timeoutMs = session.timeoutMs
+    const timeoutMs = session.timeoutMs || INITIAL_CONNECT_TIMEOUT_MS
     await new Promise<void>((resolve, reject) => {
       let resolved = false
       let timer: NodeJS.Timeout
@@ -449,11 +646,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
         resolved = true
         cleanup()
         clearTimeout(timer)
-        const message =
-          (event instanceof Error ? event.message : null) ||
-          this.normalizeString((event as any)?.message) ||
-          'websocket open failed'
-        reject(new Error(message))
+        reject(new Error(this.stringifyError(event) || 'websocket open failed'))
       }
 
       const cleanup = () => {
@@ -482,8 +675,48 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     })
   }
 
-  private handleSocketClosed(session: WeComLongSession): void {
+  private async handleStartFailure(session: WeComLongSession, error: unknown): Promise<void> {
+    const classification = classifyWeComLongConnectionError(error)
+    session.lastError = classification.reason
+    session.connectedAt = null
+    session.ownerInstanceId = null
+
+    if (!classification.recoverable) {
+      session.failureCount += 1
+    }
+
+    if (!classification.recoverable && session.failureCount >= MAX_UNRECOVERABLE_FAILURES) {
+      session.state = 'unhealthy'
+      session.disabledReason = classification.disabledReason
+      session.nextReconnectAt = null
+      session.shouldRun = false
+      await this.unregisterIntegration(session.integrationId)
+      await this.stopSession(session, true)
+      await this.writeStatus(session)
+      this.logger.error(
+        `[wecom-long] unhealthy integration=${session.integrationId} bot=${session.botId}: ${session.lastError}`
+      )
+      return
+    }
+
+    session.state = 'retrying'
+    session.disabledReason = classification.disabledReason
+    await this.stopSession(session, true)
+    this.scheduleReconnect(session, DEFAULT_RETRY_MS)
+    await this.writeStatus(session)
+    this.logger.warn(
+      `[wecom-long] connect failed integration=${session.integrationId} recoverable=${classification.recoverable}: ${session.lastError}`
+    )
+  }
+
+  private async handleSocketClosed(session: WeComLongSession): Promise<void> {
+    if (this.sessions.get(session.integrationId) !== session) {
+      return
+    }
+
     this.clearPingTimer(session)
+    this.clearWatchdogTimer(session)
+    this.clearRenewTimer(session)
     for (const [reqId, pending] of session.pendingRequests.entries()) {
       clearTimeout(pending.timer)
       pending.reject(new Error(`Socket closed before response (reqId=${reqId})`))
@@ -491,32 +724,43 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     session.pendingRequests.clear()
 
     session.websocket = null
+    const previousLockId = session.lockId
+    session.lockId = null
+    session.ownerInstanceId = null
+    if (previousLockId) {
+      await this.releaseLock(getWeComLongConnectionLockKey({ botId: session.botId }), previousLockId)
+      await this.clearOwner(session)
+    }
     session.disconnectedAt = Date.now()
     if (session.shouldRun) {
-      session.state = 'error'
-      this.scheduleReconnect(session)
+      session.state = 'retrying'
+      session.disabledReason = session.disabledReason || 'runtime_error'
+      this.scheduleReconnect(session, DEFAULT_RETRY_MS)
+      await this.writeStatus(session)
       this.logger.warn(`[wecom-long] disconnected integration=${session.integrationId}, schedule reconnect`)
       return
     }
 
-    session.state = 'disconnected'
+    session.state = 'idle'
+    await this.writeStatus(session)
     this.logger.log(`[wecom-long] disconnected integration=${session.integrationId}`)
   }
 
-  private scheduleReconnect(session: WeComLongSession): void {
-    if (!session.shouldRun) {
-      return
-    }
-    if (session.reconnectTimer) {
+  private scheduleReconnect(session: WeComLongSession, delayOverrideMs?: number): void {
+    if (!session.shouldRun || session.state === 'unhealthy' || session.reconnectTimer) {
       return
     }
 
+    session.state = 'retrying'
     session.reconnectAttempts += 1
-    const delay = Math.min(1000 * Math.pow(2, session.reconnectAttempts - 1), MAX_RECONNECT_DELAY_MS)
+    const delay =
+      delayOverrideMs ??
+      Math.min(1000 * Math.pow(2, Math.max(session.reconnectAttempts - 1, 0)), MAX_RETRY_MS)
+    session.nextReconnectAt = Date.now() + delay
     session.reconnectTimer = setTimeout(() => {
       session.reconnectTimer = null
-      this.connectSession(session).catch((error) => {
-        session.lastError = error instanceof Error ? error.message : String(error)
+      void this.startSession(session).catch((error) => {
+        session.lastError = this.stringifyError(error)
         this.logger.warn(
           `[wecom-long] reconnect failed integration=${session.integrationId}: ${session.lastError}`
         )
@@ -532,19 +776,72 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     }
   }
 
+  private startRenew(session: WeComLongSession): void {
+    this.clearRenewTimer(session)
+    session.renewTimer = setInterval(() => {
+      void this.renewOwnership(session)
+    }, RENEW_INTERVAL_MS)
+  }
+
+  private clearRenewTimer(session: WeComLongSession): void {
+    if (session.renewTimer) {
+      clearInterval(session.renewTimer)
+      session.renewTimer = null
+    }
+  }
+
+  private async renewOwnership(session: WeComLongSession): Promise<void> {
+    if (!session.lockId) {
+      return
+    }
+
+    const lockKey = getWeComLongConnectionLockKey({ botId: session.botId })
+    const ownerKey = getWeComLongConnectionOwnerKey({ botId: session.botId })
+    const renewed = await this.renewLock(lockKey, session.lockId, LOCK_TTL_MS)
+    if (!renewed) {
+      session.lastError = 'Lost long-connection ownership'
+      session.disabledReason = 'lease_conflict'
+      await this.stopSession(session, true)
+      this.scheduleReconnect(session, DEFAULT_RETRY_MS)
+      await this.writeStatus(session)
+      return
+    }
+
+    await this.writeOwner(session, ownerKey)
+    this.refreshSessionState(session)
+    await this.writeStatus(session)
+  }
+
   private startPing(session: WeComLongSession): void {
     this.clearPingTimer(session)
     session.pingTimer = setInterval(() => {
       this.sendCommand(session.integrationId, {
         cmd: 'ping',
         timeoutMs: Math.min(3000, session.timeoutMs)
-      }).catch((error) => {
-        this.logger.warn(
-          `[wecom-long] ping failed integration=${session.integrationId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        )
       })
+        .then(async () => {
+          session.lastPingAt = Date.now()
+          session.pingFailureCount = 0
+          await this.writeStatus(session)
+        })
+        .catch((error) => {
+          session.lastError = this.stringifyError(error)
+          session.pingFailureCount += 1
+          this.logger.warn(
+            `[wecom-long] ping failed integration=${session.integrationId}: ${session.lastError}`
+          )
+          if (session.pingFailureCount < MAX_PING_FAILURES || !session.websocket) {
+            return
+          }
+
+          try {
+            session.disabledReason = 'runtime_error'
+            session.websocket.terminate?.()
+            session.websocket.close?.()
+          } catch {
+            //
+          }
+        })
     }, PING_INTERVAL_MS)
   }
 
@@ -552,6 +849,45 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     if (session.pingTimer) {
       clearInterval(session.pingTimer)
       session.pingTimer = null
+    }
+  }
+
+  private startWatchdog(session: WeComLongSession): void {
+    this.clearWatchdogTimer(session)
+    session.watchdogTimer = setInterval(() => {
+      if (session.state !== 'connected') {
+        return
+      }
+
+      if (!this.isSocketOpen(session.websocket)) {
+        session.lastError = 'Long connection websocket is no longer open'
+        session.disabledReason = 'runtime_error'
+        try {
+          session.websocket?.terminate?.()
+          session.websocket?.close?.()
+        } catch {
+          //
+        }
+        return
+      }
+
+      if (session.lastPingAt && Date.now() - session.lastPingAt > WATCHDOG_STALE_MS) {
+        session.lastError = 'Long connection ping heartbeat is stale'
+        session.disabledReason = 'runtime_error'
+        try {
+          session.websocket?.terminate?.()
+          session.websocket?.close?.()
+        } catch {
+          //
+        }
+      }
+    }, WATCHDOG_INTERVAL_MS)
+  }
+
+  private clearWatchdogTimer(session: WeComLongSession): void {
+    if (session.watchdogTimer) {
+      clearInterval(session.watchdogTimer)
+      session.watchdogTimer = null
     }
   }
 
@@ -596,6 +932,9 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       return
     }
 
+    session.lastCallbackAt = Date.now()
+    await this.writeStatus(session)
+
     if (reqId) {
       this.sendAck(session, reqId)
     }
@@ -605,7 +944,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
 
   private sendAck(session: WeComLongSession, reqId: string): void {
     const websocket = session.websocket
-    if (!websocket || websocket.readyState !== 1) {
+    if (!websocket || !this.isSocketOpen(websocket)) {
       return
     }
 
@@ -621,9 +960,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       )
     } catch (error) {
       this.logger.warn(
-        `[wecom-long] ack failed integration=${session.integrationId}, reqId=${reqId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `[wecom-long] ack failed integration=${session.integrationId}, reqId=${reqId}: ${this.stringifyError(error)}`
       )
     }
   }
@@ -730,7 +1067,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       ? await this.ensureSessionReady(integrationId)
       : await this.ensureConnected(integrationId)
     const websocket = session.websocket
-    if (!websocket || websocket.readyState !== 1) {
+    if (!websocket || !this.isSocketOpen(websocket)) {
       throw new Error(`Long connection is not ready for integration ${integrationId}`)
     }
 
@@ -751,7 +1088,8 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       session.pendingRequests.set(reqId, {
         resolve,
         reject,
-        timer
+        timer,
+        command: params.cmd
       })
     })
 
@@ -807,17 +1145,502 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     return session
   }
 
-  private buildStatus(session: WeComLongSession): WeComLongConnectionStatus {
+  private refreshSessionState(session: WeComLongSession): void {
+    if (this.isSocketOpen(session.websocket)) {
+      session.state = 'connected'
+      session.disabledReason = null
+      session.nextReconnectAt = null
+      return
+    }
+
+    if (session.websocket && session.state === 'connected') {
+      session.state = 'retrying'
+      session.disabledReason = session.disabledReason || 'runtime_error'
+      session.nextReconnectAt = Date.now() + DEFAULT_RETRY_MS
+    }
+  }
+
+  private resetSessionForReconnect(session: WeComLongSession): void {
+    session.failureCount = 0
+    session.reconnectAttempts = 0
+    session.pingFailureCount = 0
+    session.disabledReason = null
+    session.lastError = null
+    session.nextReconnectAt = null
+    session.state = 'idle'
+    session.shouldRun = true
+  }
+
+  private async stopSession(session: WeComLongSession, clearOwnership: boolean): Promise<void> {
+    this.clearPingTimer(session)
+    this.clearWatchdogTimer(session)
+    this.clearRenewTimer(session)
+    this.clearReconnectTimer(session)
+
+    for (const [reqId, pending] of session.pendingRequests.entries()) {
+      clearTimeout(pending.timer)
+      pending.reject(new Error(`Long connection is closing (integration=${session.integrationId}, reqId=${reqId})`))
+    }
+    session.pendingRequests.clear()
+
+    const websocket = session.websocket
+    session.websocket = null
+    if (websocket) {
+      try {
+        websocket.terminate?.()
+        websocket.close?.()
+      } catch (error) {
+        this.logger.warn(
+          `[wecom-long] close socket failed integration=${session.integrationId}: ${this.stringifyError(error)}`
+        )
+      }
+    }
+
+    if (clearOwnership && session.lockId) {
+      await this.releaseLock(getWeComLongConnectionLockKey({ botId: session.botId }), session.lockId)
+      session.lockId = null
+      session.ownerInstanceId = null
+      await this.clearOwner(session)
+    }
+  }
+
+  private async registerIntegration(integrationId: string): Promise<void> {
+    const redis = this.redis
+    if (!redis) {
+      return
+    }
+    const registryKey = getWeComLongConnectionRegistryKey()
+    if (typeof redis.sadd === 'function') {
+      await redis.sadd(registryKey, integrationId)
+      return
+    }
+    if (typeof redis.sAdd === 'function') {
+      await redis.sAdd(registryKey, integrationId)
+    }
+  }
+
+  private async unregisterIntegration(integrationId: string): Promise<void> {
+    const redis = this.redis
+    if (!redis) {
+      return
+    }
+    const registryKey = getWeComLongConnectionRegistryKey()
+    if (typeof redis.srem === 'function') {
+      await redis.srem(registryKey, integrationId)
+      return
+    }
+    if (typeof redis.sRem === 'function') {
+      await redis.sRem(registryKey, integrationId)
+    }
+  }
+
+  private async isRegistered(integrationId: string): Promise<boolean> {
+    const redis = this.redis
+    if (!redis) {
+      return false
+    }
+    const registryKey = getWeComLongConnectionRegistryKey()
+    if (typeof redis.sismember === 'function') {
+      return Boolean(await redis.sismember(registryKey, integrationId))
+    }
+    if (typeof redis.sIsMember === 'function') {
+      return Boolean(await redis.sIsMember(registryKey, integrationId))
+    }
+    const members = await this.loadRegistry()
+    return members.includes(integrationId)
+  }
+
+  private async loadRegistry(): Promise<string[]> {
+    const redis = this.redis
+    if (!redis) {
+      return []
+    }
+    const registryKey = getWeComLongConnectionRegistryKey()
+    if (typeof redis.smembers === 'function') {
+      return (await redis.smembers(registryKey)) ?? []
+    }
+    if (typeof redis.sMembers === 'function') {
+      return (await redis.sMembers(registryKey)) ?? []
+    }
+    return []
+  }
+
+  private async loadBootstrapIntegrationIds(): Promise<string[]> {
+    try {
+      const findAll = (
+        this.integrationPermissionService as unknown as {
+          findAll?: (
+            options?: Record<string, unknown>
+          ) => Promise<{ items?: Array<IIntegration<TIntegrationWeComLongOptions>> }>
+        }
+      ).findAll
+
+      if (!findAll) {
+        return this.loadRegistry()
+      }
+
+      const result = await findAll({
+        where: {
+          provider: INTEGRATION_WECOM_LONG
+        },
+        relations: ['tenant']
+      })
+      const items = (result?.items ?? []).filter((item) => !this.resolveRestoreSkipReason(item))
+      for (const item of items) {
+        await this.registerIntegration(item.id)
+      }
+      return items.map((item) => item.id)
+    } catch (error) {
+      this.logger.warn(`[wecom-long] load from integration service failed: ${this.stringifyError(error)}`)
+    }
+
+    return this.loadRegistry()
+  }
+
+  private async writeOwner(session: WeComLongSession, ownerKey: string): Promise<void> {
+    const redis = this.redis
+    if (!redis || typeof redis.set !== 'function') {
+      return
+    }
+
+    const value = JSON.stringify({
+      instanceId: this.instanceId,
+      integrationId: session.integrationId,
+      botId: session.botId
+    })
+    await this.setWithTtl(ownerKey, value, LOCK_TTL_MS)
+  }
+
+  private async readOwnerInstanceId(ownerKey: string): Promise<string | null> {
+    const redis = this.redis
+    if (!redis || typeof redis.get !== 'function') {
+      return null
+    }
+    const value = await redis.get(ownerKey)
+    if (!value) {
+      return null
+    }
+    try {
+      const payload = JSON.parse(value) as Record<string, unknown>
+      return this.normalizeString(payload.instanceId)
+    } catch {
+      return null
+    }
+  }
+
+  private async clearOwner(session: WeComLongSession): Promise<void> {
+    await this.redis?.del?.(getWeComLongConnectionOwnerKey({ botId: session.botId }))
+  }
+
+  private async writeStatus(session: WeComLongSession): Promise<void> {
+    const redis = this.redis
+    if (!redis) {
+      return
+    }
+
+    const payload = {
+      state: session.state,
+      connectionMode: 'long_connection',
+      connected: session.state === 'connected' ? 'true' : 'false',
+      shouldRun: session.shouldRun ? 'true' : 'false',
+      ownerInstanceId: session.ownerInstanceId || '',
+      lastConnectedAt: session.connectedAt ? String(session.connectedAt) : '',
+      lastDisconnectedAt: session.disconnectedAt ? String(session.disconnectedAt) : '',
+      lastCallbackAt: session.lastCallbackAt ? String(session.lastCallbackAt) : '',
+      lastPingAt: session.lastPingAt ? String(session.lastPingAt) : '',
+      lastError: session.lastError || '',
+      failureCount: String(session.failureCount ?? 0),
+      reconnectAttempts: String(session.reconnectAttempts ?? 0),
+      nextReconnectAt: session.nextReconnectAt ? String(session.nextReconnectAt) : '',
+      disabledReason: session.disabledReason || ''
+    }
+
+    const statusKey = getWeComLongConnectionStatusKey(session.integrationId)
+    if (typeof redis.hset === 'function') {
+      await redis.hset(statusKey, ...Object.entries(payload).flat())
+    } else if (typeof redis.hSet === 'function') {
+      await redis.hSet(statusKey, payload)
+    }
+    if (typeof redis.expire === 'function') {
+      await redis.expire(statusKey, 60 * 60 * 24)
+    }
+  }
+
+  private async writeDetachedStatus(
+    integrationId: string,
+    reason: TWeComLongDisabledReason | null,
+    overrides?: {
+      shouldRun?: boolean
+      lastError?: string | null
+      lastConnectedAt?: number | null
+      lastDisconnectedAt?: number | null
+      lastCallbackAt?: number | null
+      lastPingAt?: number | null
+      reconnectAttempts?: number
+      failureCount?: number
+      nextReconnectAt?: number | null
+    }
+  ): Promise<void> {
+    const redis = this.redis
+    if (!redis) {
+      return
+    }
+
+    const payload = {
+      state: 'idle',
+      connectionMode: 'long_connection',
+      connected: 'false',
+      shouldRun: overrides?.shouldRun ? 'true' : 'false',
+      ownerInstanceId: '',
+      lastConnectedAt: overrides?.lastConnectedAt ? String(overrides.lastConnectedAt) : '',
+      lastDisconnectedAt: overrides?.lastDisconnectedAt ? String(overrides.lastDisconnectedAt) : '',
+      lastCallbackAt: overrides?.lastCallbackAt ? String(overrides.lastCallbackAt) : '',
+      lastPingAt: overrides?.lastPingAt ? String(overrides.lastPingAt) : '',
+      lastError: overrides?.lastError || '',
+      failureCount: String(overrides?.failureCount ?? 0),
+      reconnectAttempts: String(overrides?.reconnectAttempts ?? 0),
+      nextReconnectAt: overrides?.nextReconnectAt ? String(overrides.nextReconnectAt) : '',
+      disabledReason: reason || ''
+    }
+
+    const statusKey = getWeComLongConnectionStatusKey(integrationId)
+    if (typeof redis.hset === 'function') {
+      await redis.hset(statusKey, ...Object.entries(payload).flat())
+    } else if (typeof redis.hSet === 'function') {
+      await redis.hSet(statusKey, payload)
+    }
+    if (typeof redis.expire === 'function') {
+      await redis.expire(statusKey, 60 * 60 * 24)
+    }
+  }
+
+  private async clearStatus(integrationId: string): Promise<void> {
+    await this.redis?.del?.(getWeComLongConnectionStatusKey(integrationId))
+  }
+
+  private async dropMissingIntegration(integrationId: string): Promise<void> {
+    await this.unregisterIntegration(integrationId)
+    await this.removeSession(integrationId)
+    await this.clearStatus(integrationId)
+  }
+
+  private async removeSession(integrationId: string): Promise<void> {
+    const session = this.sessions.get(integrationId)
+    if (!session) {
+      return
+    }
+    await this.stopSession(session, true)
+    this.sessions.delete(integrationId)
+  }
+
+  private async readStoredStatus(integrationId: string): Promise<TWeComRuntimeStatus> {
+    const redis = this.redis
+    const statusKey = getWeComLongConnectionStatusKey(integrationId)
+    const data =
+      (redis && typeof redis.hgetall === 'function'
+        ? await redis.hgetall(statusKey)
+        : redis && typeof redis.hGetAll === 'function'
+          ? await redis.hGetAll(statusKey)
+          : {}) ?? {}
+
+    if (!Object.keys(data).length) {
+      return this.buildDetachedStatus(integrationId)
+    }
+
+    return {
+      integrationId,
+      connectionMode: 'long_connection',
+      connected: data.connected === 'true',
+      shouldRun: data.shouldRun === 'true',
+      state: (data.state as TWeComLongRuntimeState) || 'idle',
+      ownerInstanceId: data.ownerInstanceId || null,
+      lastConnectedAt: data.lastConnectedAt ? Number(data.lastConnectedAt) : null,
+      lastDisconnectedAt: data.lastDisconnectedAt ? Number(data.lastDisconnectedAt) : null,
+      lastCallbackAt: data.lastCallbackAt ? Number(data.lastCallbackAt) : null,
+      lastPingAt: data.lastPingAt ? Number(data.lastPingAt) : null,
+      lastError: data.lastError || null,
+      failureCount: data.failureCount ? Number(data.failureCount) : 0,
+      reconnectAttempts: data.reconnectAttempts ? Number(data.reconnectAttempts) : 0,
+      nextReconnectAt: data.nextReconnectAt ? Number(data.nextReconnectAt) : null,
+      disabledReason: (data.disabledReason as TWeComLongDisabledReason) || null
+    }
+  }
+
+  private buildStatus(session: WeComLongSession): TWeComRuntimeStatus {
     return {
       integrationId: session.integrationId,
-      state: session.state,
+      connectionMode: 'long_connection',
       connected: session.state === 'connected',
       shouldRun: session.shouldRun,
-      connectedAt: session.connectedAt,
-      disconnectedAt: session.disconnectedAt,
+      state: session.state,
+      ownerInstanceId: session.ownerInstanceId ?? null,
+      lastConnectedAt: session.connectedAt ?? null,
+      lastDisconnectedAt: session.disconnectedAt ?? null,
+      lastCallbackAt: session.lastCallbackAt ?? null,
+      lastPingAt: session.lastPingAt ?? null,
+      lastError: session.lastError ?? null,
+      failureCount: session.failureCount,
       reconnectAttempts: session.reconnectAttempts,
-      lastError: session.lastError
+      nextReconnectAt: session.nextReconnectAt ?? null,
+      disabledReason: session.disabledReason ?? null
     }
+  }
+
+  private buildDetachedStatus(
+    integrationId: string,
+    overrides?: Partial<TWeComRuntimeStatus>
+  ): TWeComRuntimeStatus {
+    return {
+      integrationId,
+      connectionMode: 'long_connection',
+      connected: false,
+      shouldRun: false,
+      state: 'idle',
+      ownerInstanceId: null,
+      lastConnectedAt: null,
+      lastDisconnectedAt: null,
+      lastCallbackAt: null,
+      lastPingAt: null,
+      lastError: null,
+      failureCount: 0,
+      reconnectAttempts: 0,
+      nextReconnectAt: null,
+      disabledReason: null,
+      ...overrides
+    }
+  }
+
+  private async safeReadLongIntegration(
+    integrationId: string
+  ): Promise<IIntegration<TIntegrationWeComLongOptions> | null> {
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWeComLongOptions>>(
+      integrationId,
+      {
+        relations: ['tenant']
+      }
+    )
+
+    if (!integration || integration.provider !== INTEGRATION_WECOM_LONG) {
+      return null
+    }
+
+    return integration
+  }
+
+  private async readLongIntegration(integrationId: string): Promise<IIntegration<TIntegrationWeComLongOptions>> {
+    const integration = await this.safeReadLongIntegration(integrationId)
+    if (!integration) {
+      throw new Error(`Integration ${integrationId} not found`)
+    }
+    return integration
+  }
+
+  private resolveRestoreSkipReason(
+    integration: IIntegration<TIntegrationWeComLongOptions>
+  ): TWeComLongDisabledReason | null {
+    const enabled = (integration as unknown as Record<string, unknown>)?.enabled
+    if (enabled === false) {
+      return 'integration_disabled'
+    }
+
+    if (!this.normalizeString(integration.options?.xpertId)) {
+      return 'xpert_unbound'
+    }
+
+    return null
+  }
+
+  private describeDisabledReason(reason: TWeComLongDisabledReason | null): string | null {
+    switch (reason) {
+      case 'manual_disconnect':
+        return 'Long connection was disconnected manually'
+      case 'integration_disabled':
+        return 'Integration is disabled'
+      case 'xpert_unbound':
+        return 'Xpert is unbound'
+      case 'config_invalid':
+        return 'Long connection configuration is invalid'
+      case 'lease_conflict':
+        return 'Long connection ownership is held by another instance'
+      case 'runtime_error':
+        return 'Long connection runtime error'
+      case 'restore_skipped':
+        return 'Long connection restore was skipped'
+      default:
+        return null
+    }
+  }
+
+  private async acquireLock(key: string, ttlMs: number): Promise<string | null> {
+    const redis = this.redis
+    if (!redis || typeof redis.set !== 'function') {
+      return randomUUID()
+    }
+
+    const lockId = randomUUID()
+    const result = await redis.set(key, lockId, { PX: ttlMs, NX: true })
+    return result === 'OK' ? lockId : null
+  }
+
+  private async renewLock(key: string, lockId: string, ttlMs: number): Promise<boolean> {
+    const redis = this.redis
+    if (!redis || typeof redis.eval !== 'function') {
+      return true
+    }
+
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1]
+      then
+        return redis.call("pexpire", KEYS[1], ARGV[2])
+      else
+        return 0
+      end
+    `
+    const result = await this.evalRedisScript(redis, script, [key], [lockId, String(ttlMs)])
+    return result === 1
+  }
+
+  private async releaseLock(key: string, lockId: string): Promise<boolean> {
+    const redis = this.redis
+    if (!redis || typeof redis.eval !== 'function') {
+      return true
+    }
+
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1]
+      then
+        return redis.call("del", KEYS[1])
+      else
+        return 0
+      end
+    `
+    const result = await this.evalRedisScript(redis, script, [key], [lockId])
+    return result === 1
+  }
+
+  private async setWithTtl(key: string, value: string, ttlMs: number): Promise<void> {
+    const redis = this.redis
+    if (!redis || typeof redis.set !== 'function') {
+      return
+    }
+    await redis.set(key, value, { PX: ttlMs })
+  }
+
+  private async evalRedisScript(
+    redis: RedisLike,
+    script: string,
+    keys: string[],
+    args: string[]
+  ): Promise<any> {
+    try {
+      return await redis.eval?.(script, keys.length, ...keys, ...args)
+    } catch {
+      return await redis.eval?.(script, { keys, arguments: args })
+    }
+  }
+
+  private isSocketOpen(websocket: any | null | undefined): boolean {
+    return websocket?.readyState === 1
   }
 
   private resolveWebSocketImpl(): any {
@@ -829,8 +1652,7 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       }
       return WebSocketImpl
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Cannot load 'ws' dependency: ${message}`)
+      throw new Error(`Cannot load 'ws' dependency: ${this.stringifyError(error)}`)
     }
   }
 
@@ -877,25 +1699,6 @@ export class WeComLongConnectionService implements OnModuleDestroy {
     return ''
   }
 
-  private async readLongIntegration(integrationId: string): Promise<IIntegration<TIntegrationWeComLongOptions>> {
-    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWeComLongOptions>>(
-      integrationId,
-      {
-        relations: ['tenant']
-      }
-    )
-
-    if (!integration) {
-      throw new Error(`Integration ${integrationId} not found`)
-    }
-
-    if (integration.provider !== INTEGRATION_WECOM_LONG) {
-      throw new Error(`Integration ${integrationId} is not provider '${INTEGRATION_WECOM_LONG}'`)
-    }
-
-    return integration
-  }
-
   private normalizeString(value: unknown): string | null {
     if (typeof value !== 'string') {
       return null
@@ -917,5 +1720,19 @@ export class WeComLongConnectionService implements OnModuleDestroy {
       return fallback
     }
     return Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, Math.floor(timeout)))
+  }
+
+  private stringifyError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message
+    }
+    if (typeof error === 'string') {
+      return error
+    }
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
   }
 }

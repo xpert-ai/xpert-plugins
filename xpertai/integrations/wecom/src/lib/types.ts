@@ -46,6 +46,51 @@ export type TIntegrationWeComOptions = {
   agentId?: number
 }
 
+export type TWeComConnectionMode = 'webhook' | 'long_connection'
+
+export type TWeComLongRuntimeState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+
+export type TWeComLongDisabledReason =
+  | 'manual_disconnect'
+  | 'integration_disabled'
+  | 'xpert_unbound'
+  | 'config_invalid'
+  | 'lease_conflict'
+  | 'runtime_error'
+  | 'restore_skipped'
+
+export type TWeComRuntimeStatus = {
+  integrationId: string
+  connectionMode: TWeComConnectionMode
+  connected: boolean
+  state: TWeComLongRuntimeState
+  shouldRun?: boolean
+  ownerInstanceId?: string | null
+  lastConnectedAt?: number | null
+  lastDisconnectedAt?: number | null
+  lastError?: string | null
+  failureCount?: number
+  reconnectAttempts?: number
+  nextReconnectAt?: number | null
+  disabledReason?: TWeComLongDisabledReason | null
+  lastCallbackAt?: number | null
+  lastPingAt?: number | null
+}
+
+export type TWeComLegacyLongConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+export type TWeComLegacyLongConnectionStatus = {
+  integrationId: string
+  state: TWeComLegacyLongConnectionState
+  connected: boolean
+  shouldRun: boolean
+  connectedAt?: number
+  disconnectedAt?: number
+  reconnectAttempts: number
+  lastError?: string
+  disabledReason?: TWeComLongDisabledReason | null
+}
+
 export type TWeComEvent = {
   msgType?: string
   eventType?: string
