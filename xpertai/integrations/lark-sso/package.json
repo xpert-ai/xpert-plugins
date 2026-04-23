@@ -1,9 +1,10 @@
 {
-  "name": "@xpert-ai/plugin-ragflow",
+  "name": "@xpert-ai/plugin-lark-sso",
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins"
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "xpertai/integrations/lark-sso"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -25,15 +26,21 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.8.4",
     "zod": "3.25.67",
-    "chalk": "4.1.2",
-    "@nestjs/config": "^4.0.2",
-    "@metad/contracts": "^3.8.3",
+    "@xpert-ai/plugin-sdk": "^3.9.0",
+    "@xpert-ai/contracts": "^3.9.0",
     "@nestjs/common": "^11.1.6",
-    "axios": "^1.12.2",
-    "@langchain/core": "0.3.72",
-    "lodash-es": "4.17.21"
+    "@nestjs/core": "^11.1.6",
+    "chalk": "4.1.2",
+    "express": "4.21.2"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
   }
 }

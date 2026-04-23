@@ -42,7 +42,6 @@ This middleware stores its detection window in agent state, so the signal surviv
 
 | Field | Type | Description | Default |
 | ----- | ---- | ----------- | ------- |
-| `enabled` | `boolean` | Enable or disable the middleware. | `true` |
 | `warnThreshold` | `number` | Repeated-batch count that schedules a warning for the next model turn. | `3` |
 | `hardLimit` | `number` | Repeated-batch count that triggers hard-stop or error handling. | `5` |
 | `windowSize` | `number` | Number of recent tracked batches kept in state. Must be at least `hardLimit`. | `20` |
