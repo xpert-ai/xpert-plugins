@@ -15,6 +15,7 @@ import {
   JumpToTarget,
 } from '@xpert-ai/plugin-sdk'
 import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@metad/contracts'
+import type { Subscriber } from 'rxjs'
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'
 import { DEFAULT_VOLATILE_ARG_KEYS, LoopGuardFailureMode, LoopGuardIcon, LoopGuardRule } from './types.js'
@@ -27,7 +28,6 @@ const DEFAULT_WINDOW_SIZE = 20
 const LOOP_RULES = ['batch_repeat'] as const
 
 const loopGuardSchema = z.object({
-  enabled: z.boolean().optional().default(true),
   warnThreshold: z.number().int().min(1).max(HIT_WINDOW_MAX).optional(),
   hardLimit: z.number().int().min(1).max(HIT_WINDOW_MAX).optional(),
   windowSize: z.number().int().min(1).max(HIT_WINDOW_MAX).optional(),
@@ -39,7 +39,6 @@ const loopGuardSchema = z.object({
 export type LoopGuardMiddlewareConfig = InferInteropZodInput<typeof loopGuardSchema>
 
 type ResolvedLoopGuardConfig = {
-  enabled: boolean
   warnThreshold: number
   hardLimit: number
   windowSize: number
@@ -87,18 +86,6 @@ type ToolBatchSummary = {
 }
 
 const configSchemaProperties: JsonSchemaObjectType['properties'] = {
-  enabled: {
-    type: 'boolean',
-    default: true,
-    title: {
-      en_US: 'Enabled',
-      zh_Hans: '启用',
-    },
-    description: {
-      en_US: 'Turn loop detection on or off.',
-      zh_Hans: '启用或关闭循环检测。',
-    },
-  },
   warnThreshold: {
     type: 'number',
     minimum: 1,
@@ -207,6 +194,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function hasSubscriber(value: unknown): value is Subscriber<unknown> {
+  return isRecord(value) && typeof value.next === 'function'
+}
+
 function hashText(value: string): string {
   return createHash('md5').update(value).digest('hex').slice(0, 16)
 }
@@ -298,7 +289,6 @@ function normalizeConfig(config: z.infer<typeof loopGuardSchema>): ResolvedLoopG
   }
 
   return {
-    enabled: config.enabled,
     warnThreshold,
     hardLimit,
     windowSize,
@@ -431,17 +421,50 @@ export class LoopGuardMiddleware implements IAgentMiddlewareStrategy<LoopGuardMi
 
     const config = normalizeConfig(parsed.data)
     const jumpTargets: JumpToTarget[] = ['end']
+    let runtimeSubscriber: Subscriber<unknown> | null = null
+
+    const assignRuntimeSubscriber = (runtimeLike: unknown) => {
+      if (!isRecord(runtimeLike) || !isRecord(runtimeLike['configurable'])) {
+        return
+      }
+
+      const subscriber = runtimeLike['configurable']['subscriber']
+      if (hasSubscriber(subscriber)) {
+        runtimeSubscriber = subscriber
+      }
+    }
+
+    const emitVisibleHardStopMessage = (message: string) => {
+      if (!runtimeSubscriber) {
+        return
+      }
+
+      try {
+        runtimeSubscriber.next({
+          data: {
+            type: 'message',
+            data: message,
+          },
+        } as any)
+      } catch {
+        // Ignore callback pipeline availability errors so loop termination still succeeds.
+      }
+    }
 
     return {
       name: 'LoopGuardMiddleware',
       stateSchema: loopGuardStateSchema,
       beforeAgent: {
-        hook: async (state: LoopGuardState & AgentBuiltInState) => getBaseState(state, config),
+        hook: async (state: LoopGuardState & AgentBuiltInState, runtime) => {
+          assignRuntimeSubscriber(runtime)
+          return getBaseState(state, config)
+        },
       },
       beforeModel: {
-        hook: async (state: LoopGuardState & AgentBuiltInState) => {
+        hook: async (state: LoopGuardState & AgentBuiltInState, runtime) => {
+          assignRuntimeSubscriber(runtime)
           const pendingWarning = state.loopDetectionPendingWarning
-          if (!config.enabled || !pendingWarning?.message) {
+          if (!pendingWarning?.message) {
             return undefined
           }
 
@@ -457,12 +480,9 @@ export class LoopGuardMiddleware implements IAgentMiddlewareStrategy<LoopGuardMi
       },
       afterModel: {
         canJumpTo: jumpTargets,
-        hook: async (state: LoopGuardState & AgentBuiltInState) => {
+        hook: async (state: LoopGuardState & AgentBuiltInState, runtime) => {
+          assignRuntimeSubscriber(runtime)
           const baseState = getBaseState(state, config)
-          if (!config.enabled) {
-            return baseState
-          }
-
           const messages = Array.isArray(state.messages) ? state.messages : []
           const lastMessage = messages[messages.length - 1]
           if (!isAIMessage(lastMessage) || !Array.isArray(lastMessage.tool_calls) || lastMessage.tool_calls.length === 0) {
@@ -499,6 +519,9 @@ export class LoopGuardMiddleware implements IAgentMiddlewareStrategy<LoopGuardMi
             }
 
             if (config.onLoop === 'end') {
+              const hardStopMessage = buildHardStopMessage(batch, count, config)
+              emitVisibleHardStopMessage(hardStopMessage)
+
               return {
                 loopDetectionWindow,
                 loopDetectionWarned,
@@ -506,7 +529,7 @@ export class LoopGuardMiddleware implements IAgentMiddlewareStrategy<LoopGuardMi
                 messages: [
                   cloneAIMessage(lastMessage, { tool_calls: [] }),
                   new AIMessage({
-                    content: buildHardStopMessage(batch, count, config),
+                    content: hardStopMessage,
                   }),
                 ],
                 jumpTo: 'end' as const,

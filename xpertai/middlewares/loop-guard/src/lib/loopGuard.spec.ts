@@ -30,6 +30,14 @@ describe('LoopGuardMiddleware', () => {
       content,
     })
 
+  const createRuntime = () => ({
+    configurable: {
+      subscriber: {
+        next: jest.fn(),
+      },
+    },
+  })
+
   const createBatch = (
     aiId: string,
     calls: Array<{ id: string; name: string; args: Record<string, unknown> }>
@@ -175,6 +183,48 @@ describe('LoopGuardMiddleware', () => {
     expect(lastMessage.tool_calls ?? []).toEqual([])
   })
 
+  it('emits a visible message event when hard stop ends the run', async () => {
+    const { middleware } = await createMiddleware({
+      warnThreshold: 2,
+      hardLimit: 3,
+      windowSize: 3,
+      onLoop: 'end',
+    })
+    const runtime = createRuntime()
+
+    const batch1 = createBatch('ai-1', [{ id: 'call-1', name: 'search', args: { query: 'alpha' } }])
+    const first = await middleware.afterModel?.hook?.({
+      messages: [batch1],
+      loopDetectionWindow: [],
+      loopDetectionWarned: [],
+    }, runtime as any)
+
+    const batch2 = createBatch('ai-2', [{ id: 'call-2', name: 'search', args: { query: 'alpha' } }])
+    const second = await middleware.afterModel?.hook?.({
+      ...first,
+      messages: [batch1, createToolResult('call-1', 'search', 'ok'), batch2],
+    }, runtime as any)
+
+    const batch3 = createBatch('ai-3', [{ id: 'call-3', name: 'search', args: { query: 'alpha' } }])
+    await middleware.afterModel?.hook?.({
+      ...second,
+      messages: [
+        batch1,
+        createToolResult('call-1', 'search', 'ok'),
+        batch2,
+        createToolResult('call-2', 'search', 'ok'),
+        batch3,
+      ],
+    }, runtime as any)
+
+    expect(runtime.configurable.subscriber.next).toHaveBeenCalledWith({
+      data: {
+        type: 'message',
+        data: expect.stringContaining('Stopped because'),
+      },
+    })
+  })
+
   it('keeps continue mode as warning-only even after the hard limit is reached', async () => {
     const { middleware } = await createMiddleware({
       warnThreshold: 2,
@@ -228,9 +278,10 @@ describe('LoopGuardMiddleware', () => {
     expect(second?.jumpTo).toBe('end')
   })
 
-  it('rejects removed legacy compatibility and debug fields', async () => {
+  it('rejects removed enabled, legacy compatibility, and debug fields', async () => {
     await expect(
       createMiddleware({
+        enabled: false,
         maxRepeatedCalls: 2,
         maxRepeatedFailures: 2,
         detectSameResult: true,
