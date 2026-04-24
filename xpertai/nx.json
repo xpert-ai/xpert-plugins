@@ -100,7 +100,7 @@
       "@xpert-ai/plugin-file-memory"
     ],
     "version": {
-      "preVersionCommand": "npx nx run-many -t build"
+      "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
     }
   },
   "targetDefaults": {
