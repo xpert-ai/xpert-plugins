@@ -1,8 +1,7 @@
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'
 import { InvalidToolCall, ToolCall } from '@langchain/core/messages/tool'
-import { Inject, Injectable, Logger } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
+import { Injectable, Logger } from '@nestjs/common'
 import {
   AgentBuiltInState,
   AgentMiddlewareStrategy,
@@ -10,10 +9,8 @@ import {
   IAgentMiddlewareStrategy,
   ModelRequest,
   WrapModelCallHandler,
-  WrapWorkflowNodeExecutionCommand,
 } from '@xpert-ai/plugin-sdk'
 import {
-  IXpertAgentExecution,
   JSONValue,
   JsonSchemaObjectType,
   TAgentMiddlewareMeta,
@@ -279,9 +276,6 @@ const toModelResultError = (message: AIMessage): Error | null => {
 @Injectable()
 @AgentMiddlewareStrategy('ModelRetryMiddleware')
 export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
-  @Inject(CommandBus)
-  private readonly commandBus: CommandBus
-
   private readonly logger = new Logger(ModelRetryMiddleware.name)
 
   readonly meta: TAgentMiddlewareMeta = {
@@ -401,50 +395,31 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     context: IAgentMiddlewareContext
   ): Promise<AIMessage> {
     const configurable = request.runtime?.configurable as TAgentRunnableConfigurable | undefined
-    if (!this.commandBus || !configurable) {
+    if (!configurable) {
       return handler(request)
     }
 
     const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-    let retryResult: AIMessage | undefined
-
-    await this.commandBus.execute<
-      WrapWorkflowNodeExecutionCommand<AIMessage>,
-      { output?: string | JSONValue; state: AIMessage }
-    >(
-      new WrapWorkflowNodeExecutionCommand<AIMessage>(
-        async (
-          execution: Partial<IXpertAgentExecution>
-        ): Promise<{ output?: string | JSONValue; state: AIMessage }> => {
-          void execution
-          retryResult = await this.invokeModel(request, handler, context)
-          return {
-            state: retryResult,
-            output: retryResult.content as JSONValue,
-          }
-        },
-        {
-          execution: {
-            category: 'workflow',
-            type: WorkflowNodeTypeEnum.MIDDLEWARE,
-            inputs: {},
-            parentId: executionId,
-            threadId: thread_id,
-            checkpointNs: checkpoint_ns,
-            checkpointId: checkpoint_id,
-            agentKey: context.node.key,
-            title: context.node.title,
-          },
-          subscriber,
-        }
-      )
-    )
-
-    if (!retryResult) {
-      throw new Error('Retry model execution failed to return a result')
-    }
-
-    return retryResult
+    return (context as any).runtime.wrapWorkflowNodeExecution(async () => {
+      const retryResult = await this.invokeModel(request, handler, context)
+      return {
+        state: retryResult,
+        output: retryResult.content as JSONValue,
+      }
+    }, {
+      execution: {
+        category: 'workflow',
+        type: WorkflowNodeTypeEnum.MIDDLEWARE,
+        inputs: {},
+        parentId: executionId,
+        threadId: thread_id,
+        checkpointNs: checkpoint_ns,
+        checkpointId: checkpoint_id,
+        agentKey: context.node.key,
+        title: context.node.title,
+      },
+      subscriber,
+    })
   }
 
   private async invokeModel(

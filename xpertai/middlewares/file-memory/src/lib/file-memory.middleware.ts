@@ -17,11 +17,9 @@ import {
   TChatEventMessage
 } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
-  CreateModelClientCommand,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
   Runtime
@@ -136,7 +134,6 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
 
   constructor(
     private readonly fileMemoryService: XpertFileMemoryService,
-    private readonly commandBus: CommandBus,
     private readonly writebackRunner: FileMemoryWritebackRunner
   ) {}
 
@@ -193,8 +190,14 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
     let warnedWritebackModelMissing = false
     let warnedRecallModelMissing = false
     let recallModelPromise: Promise<BaseChatModel> | null = null
+    let writebackModelPromise: Promise<BaseChatModel> | null = null
     let currentSandbox: TSandboxConfigurable | null = null
     let currentStore: SandboxMemoryStore | null = null
+    const middlewareRuntime = (context as IAgentMiddlewareContext & {
+      runtime?: {
+        createModelClient<T>(model: ICopilotModel, options?: { usageCallback?: () => void }): Promise<T>
+      }
+    }).runtime
 
     const requireMemoryStore = (runtimeLike: unknown, reason: string) => {
       const sandbox = extractSandboxConfig(runtimeLike) ?? currentSandbox
@@ -221,11 +224,12 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         return null
       }
       if (!recallModelPromise) {
-        recallModelPromise = this.commandBus.execute(
-          new CreateModelClientCommand<BaseChatModel>(recallConfig.model as ICopilotModel, {
-            usageCallback: () => undefined
-          })
-        )
+        if (!middlewareRuntime) {
+          throw new Error('Middleware runtime is unavailable for recall model creation.')
+        }
+        recallModelPromise = middlewareRuntime.createModelClient<BaseChatModel>(recallConfig.model as ICopilotModel, {
+          usageCallback: () => undefined
+        })
       }
       return recallModelPromise
     }
@@ -244,6 +248,24 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         return false
       }
       return true
+    }
+
+    const getWritebackModel = async () => {
+      if (!ensureWritebackConfigured()) {
+        return null
+      }
+      if (!writebackModelPromise) {
+        if (!middlewareRuntime) {
+          throw new Error('Middleware runtime is unavailable for writeback model creation.')
+        }
+        writebackModelPromise = middlewareRuntime.createModelClient<BaseChatModel>(
+          writebackConfig!.model as ICopilotModel,
+          {
+            usageCallback: () => undefined
+          }
+        )
+      }
+      return writebackModelPromise
     }
 
     const updateSurfaceStateFromRecall = (recall: MemoryRuntimeRecallResult) => {
@@ -803,7 +825,13 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
               userId: context.userId,
               conversationId: context.conversationId
             },
-            model: writebackConfig!.model as ICopilotModel,
+            getModel: async () => {
+              const model = await getWritebackModel()
+              if (!model) {
+                throw new Error('File memory writeback model is not configured')
+              }
+              return model
+            },
             qaPrompt: writebackConfig?.qaPrompt,
             profilePrompt: writebackConfig?.profilePrompt,
             enableLogging

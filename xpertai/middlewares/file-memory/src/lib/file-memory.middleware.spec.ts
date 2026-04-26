@@ -21,9 +21,6 @@ jest.mock('@langchain/core/callbacks/dispatch', () => ({
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   __esModule: true,
   AgentMiddlewareStrategy: () => (target: unknown) => target,
-  CreateModelClientCommand: class CreateModelClientCommand {
-    constructor(public readonly model: unknown, public readonly options: unknown) {}
-  },
   resolveSandboxBackend: jest.fn((sandbox?: { backend?: unknown } | null) => sandbox?.backend ?? null)
 }))
 
@@ -83,7 +80,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const deferred = createDeferred<any>()
     service.buildRuntimeRecall.mockReturnValue(deferred.promise)
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -133,7 +130,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const deferred = createDeferred<any>()
     service.buildRuntimeRecall.mockReturnValue(deferred.promise)
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -195,7 +192,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     const deferred = createDeferred<any>()
     service.buildRuntimeRecall.mockReturnValue(deferred.promise)
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -242,7 +239,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       softDrain: jest.fn().mockResolvedValue(undefined)
     }
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, writebackRunner as any)
+    const strategy = new FileMemorySystemMiddleware(service as any, writebackRunner as any)
     const middleware = await strategy.createMiddleware(
       {
         writeback: {
@@ -268,7 +265,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       softDrain: jest.fn().mockResolvedValue(undefined)
     }
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, writebackRunner as any)
+    const strategy = new FileMemorySystemMiddleware(service as any, writebackRunner as any)
     const middleware = await strategy.createMiddleware(
       {
         writeback: {
@@ -290,7 +287,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
 
   it('describes search_recall_memories as a last-resort exact lookup tool', async () => {
     const service = createServiceMock()
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -304,7 +301,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
 
   it('describes write_memory with Chinese-on-disk language rules', async () => {
     const service = createServiceMock()
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -332,7 +329,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
       }
     })
 
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -351,7 +348,7 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
 
   it('fails middleware creation when sandbox feature is disabled', async () => {
     const service = createServiceMock()
-    const strategy = new FileMemorySystemMiddleware(service as any, { execute: jest.fn() } as any, {
+    const strategy = new FileMemorySystemMiddleware(service as any, {
       enqueue: jest.fn(),
       softDrain: jest.fn()
     } as any)
@@ -376,6 +373,10 @@ function createContext() {
     xpertId: 'xpert-1',
     workspaceId: null,
     conversationId: 'conversation-1',
+    runtime: {
+      createModelClient: jest.fn(),
+      wrapWorkflowNodeExecution: jest.fn()
+    },
     xpertFeatures: {
       sandbox: {
         enabled: true

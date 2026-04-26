@@ -4,15 +4,12 @@ import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/
 import { ToolCall } from '@langchain/core/messages/tool'
 import { BaseLanguageModel } from '@langchain/core/language_models/base'
 import { ICopilotModel, JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable, WorkflowNodeTypeEnum } from '@metad/contracts'
-import { Inject, Injectable } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
+import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
-  CreateModelClientCommand,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  WrapWorkflowNodeExecutionCommand,
 } from '@xpert-ai/plugin-sdk'
 import {
   ActionValues,
@@ -698,9 +695,6 @@ function sortByActionPriority(rules: CompiledRule[]): CompiledRule[] {
 @Injectable()
 @AgentMiddlewareStrategy(MIDDLEWARE_NAME)
 export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<AgentBehaviorMonitorConfig> {
-  @Inject(CommandBus)
-  private readonly commandBus: CommandBus
-
   readonly meta: TAgentMiddlewareMeta = {
     name: MIDDLEWARE_NAME,
     label: {
@@ -1003,6 +997,7 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       stopMessage = message
       allowFinalModelResponseAfterStop = true
     }
+    const middlewareRuntime = context.runtime
 
     const bumpCounter = (counter: Map<string, number[]>, key: string, windowSeconds: number) => {
       const now = Date.now()
@@ -1014,18 +1009,16 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
     }
 
     const ensureJudgeModel = async (rule: CompiledRule): Promise<BaseLanguageModel | null> => {
-      if (!rule.judgeModel || !this.commandBus) {
+      if (!rule.judgeModel) {
         return null
       }
 
       if (!judgeModelCache.has(rule.id)) {
         judgeModelCache.set(
           rule.id,
-          this.commandBus.execute(
-            new CreateModelClientCommand<BaseLanguageModel>(buildInternalModelConfig(rule.judgeModel), {
-              usageCallback: () => {},
-            }),
-          ),
+          middlewareRuntime.createModelClient<BaseLanguageModel>(buildInternalModelConfig(rule.judgeModel), {
+            usageCallback: () => {},
+          }),
         )
       }
 
@@ -1248,7 +1241,7 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       }
 
       const configurable = runtimeConfigurable
-      if (!configurable?.thread_id || !configurable.executionId || !this.commandBus) {
+      if (!configurable?.thread_id || !configurable.executionId) {
         return
       }
 
@@ -1261,26 +1254,24 @@ export class AgentBehaviorMonitorMiddleware implements IAgentMiddlewareStrategy<
       })
       await runWithWrapWorkflowFallback(
         async () => {
-          await this.commandBus.execute(
-            new WrapWorkflowNodeExecutionCommand(writeSnapshot, {
-              execution: {
-                category: 'workflow',
-                type: WorkflowNodeTypeEnum.MIDDLEWARE,
-                title: `${context.node.title ?? MIDDLEWARE_NAME} Audit`,
-                inputs: {
-                  middleware: MIDDLEWARE_NAME,
-                  totalHits: snapshot.summary.totalHits,
-                  terminated: snapshot.summary.terminated,
-                },
-                parentId: configurable.executionId,
-                threadId: configurable.thread_id,
-                checkpointNs: configurable.checkpoint_ns,
-                checkpointId: configurable.checkpoint_id,
-                agentKey: context.node.key,
+          await middlewareRuntime.wrapWorkflowNodeExecution(writeSnapshot, {
+            execution: {
+              category: 'workflow',
+              type: WorkflowNodeTypeEnum.MIDDLEWARE,
+              title: `${context.node.title ?? MIDDLEWARE_NAME} Audit`,
+              inputs: {
+                middleware: MIDDLEWARE_NAME,
+                totalHits: snapshot.summary.totalHits,
+                terminated: snapshot.summary.terminated,
               },
-              subscriber: configurable.subscriber,
-            }),
-          )
+              parentId: configurable.executionId,
+              threadId: configurable.thread_id,
+              checkpointNs: configurable.checkpoint_ns,
+              checkpointId: configurable.checkpoint_id,
+              agentKey: context.node.key,
+            },
+            subscriber: configurable.subscriber,
+          })
           return undefined
         },
         async () => {
