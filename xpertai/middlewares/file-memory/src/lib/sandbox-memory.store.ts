@@ -56,7 +56,15 @@ export class SandboxMemoryStore {
 
   async listMarkdownFiles(directory: string) {
     const baseDir = this.resolvePath(directory)
-    const entries = await this.backend.globInfo('*.md', baseDir)
+    let entries
+    try {
+      entries = await this.backend.globInfo('*.md', baseDir)
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        return []
+      }
+      throw error
+    }
     return entries
       .filter((entry) => !entry.is_dir && typeof entry.path === 'string' && entry.path.endsWith('.md'))
       .map((entry) => normalizeRelativePath(directory, entry.path))
@@ -119,6 +127,14 @@ function createFileError(code: 'ENOENT', message: string) {
   const error = new Error(message) as NodeJS.ErrnoException
   error.code = code
   return error
+}
+
+function isMissingPathError(error: unknown) {
+  if (error && typeof error === 'object' && 'code' in error && (error as { code?: unknown }).code === 'ENOENT') {
+    return true
+  }
+
+  return error instanceof Error && /not found/i.test(error.message)
 }
 
 export function resolveSandboxMemoryStore(

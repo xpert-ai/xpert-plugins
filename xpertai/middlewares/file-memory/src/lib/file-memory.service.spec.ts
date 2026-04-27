@@ -93,6 +93,7 @@ describe('XpertFileMemoryService freshness alignment', () => {
   })
 
   afterEach(async () => {
+    jest.useRealTimers()
     await fsPromises.rm(tempDir, { recursive: true, force: true })
     jest.restoreAllMocks()
   })
@@ -230,6 +231,59 @@ describe('XpertFileMemoryService freshness alignment', () => {
     const raw = await fsPromises.readFile(resolveFsPath(tempDir, record.filePath), 'utf8')
     expect(raw).toContain('semanticKind: project')
     expect(raw).toContain('## 项目信息')
+  })
+
+  it('returns an optimistic record before deferred layer refresh runs', async () => {
+    jest.useFakeTimers()
+    fileRepository.listFiles.mockImplementation(async () => [])
+
+    const updateIndexSpy = jest.spyOn(service as any, 'updateIndexForLayer')
+
+    const record = await service.upsert(store as any, {
+      scope: layer.scope,
+      audience: 'shared',
+      kind: mockLongTermMemoryTypeEnum.PROFILE as any,
+      semanticKind: 'user' as any,
+      title: '用户姓名',
+      content: '王体温',
+      createdBy: 'u1'
+    })
+
+    expect(record.title).toBe('用户姓名')
+    expect(record.relativePath.startsWith('shared/user/')).toBe(true)
+    expect(updateIndexSpy).not.toHaveBeenCalled()
+
+    await jest.runOnlyPendingTimersAsync()
+
+    expect(updateIndexSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not interrupt writes when deferred layer refresh fails', async () => {
+    jest.useFakeTimers()
+    fileRepository.listFiles.mockRejectedValue(new Error('backend not ready'))
+
+    const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined)
+
+    await expect(
+      service.upsert(store as any, {
+        scope: layer.scope,
+        audience: 'shared',
+        kind: mockLongTermMemoryTypeEnum.PROFILE as any,
+        semanticKind: 'user' as any,
+        title: '用户姓名',
+        content: '王体温',
+        createdBy: 'u1'
+      })
+    ).resolves.toMatchObject({
+      title: '用户姓名',
+      content: '王体温'
+    })
+
+    await jest.runOnlyPendingTimersAsync()
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('deferred upsert layer refresh failed')
+    )
   })
 })
 

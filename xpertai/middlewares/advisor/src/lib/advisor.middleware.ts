@@ -13,19 +13,15 @@ import {
 import { tool } from '@langchain/core/tools'
 import { Command } from '@langchain/langgraph'
 import { type ICopilotModel, type TAgentMiddlewareMeta, type TMessageComponentStep } from '@xpert-ai/contracts'
-import { Inject, Injectable } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
+import { Injectable } from '@nestjs/common'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/chatkit-types'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
-  CreateModelClientCommand,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
-import { ADVISOR_PLUGIN_CONTEXT } from './tokens.js'
 import {
   ADVISOR_METADATA_KEY,
   ADVISOR_MIDDLEWARE_NAME,
@@ -72,11 +68,6 @@ const INTERNAL_ADVISOR_INVOKE_OPTIONS = {
 @Injectable()
 @AgentMiddlewareStrategy(ADVISOR_MIDDLEWARE_NAME)
 export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<AdvisorPluginConfig>> {
-  constructor(
-    @Inject(ADVISOR_PLUGIN_CONTEXT)
-    private readonly pluginContext: PluginContext<Partial<AdvisorPluginConfig>>
-  ) {}
-
   readonly meta: TAgentMiddlewareMeta = {
     name: ADVISOR_MIDDLEWARE_NAME,
     label: {
@@ -98,7 +89,7 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
 
   createMiddleware(
     options: Partial<AdvisorPluginConfig>,
-    _context: IAgentMiddlewareContext
+    context: IAgentMiddlewareContext
   ): AgentMiddleware {
     const config = resolveConfig(options)
 
@@ -112,11 +103,11 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
 
     const getAdvisorModel = async () => {
       if (!advisorModelPromise) {
-        const commandBus = this.pluginContext.resolve(CommandBus)
-        advisorModelPromise = commandBus.execute(
-          new CreateModelClientCommand<BaseChatModel>(buildInternalModelConfig(config.advisorModel, config), {
+        advisorModelPromise = context.runtime.createModelClient<BaseChatModel>(
+          buildInternalModelConfig(config.advisorModel, config),
+          {
             usageCallback: () => undefined
-          })
+          }
         )
       }
       return advisorModelPromise

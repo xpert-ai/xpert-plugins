@@ -1,9 +1,7 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { BaseMessage, isAIMessage, isHumanMessage, isToolMessage } from '@langchain/core/messages'
-import { ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
-import { CreateModelClientCommand, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
+import { IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { XpertFileMemoryService } from './file-memory.service.js'
 import { decideMemoryWriteback } from './file-memory.writeback.js'
 import { SEMANTIC_MEMORY_KINDS } from './memory-taxonomy.js'
@@ -15,7 +13,7 @@ type FileMemoryWritebackSnapshot = {
   scope: MemoryScope
   messages: BaseMessage[]
   context: Pick<IAgentMiddlewareContext, 'userId' | 'conversationId'>
-  model: ICopilotModel
+  getModel: () => Promise<BaseChatModel>
   qaPrompt?: string
   profilePrompt?: string
   enableLogging?: boolean
@@ -33,12 +31,8 @@ const MAX_WRITEBACK_ERROR_LOG_CHARS = 500
 export class FileMemoryWritebackRunner {
   private readonly logger = new Logger(FileMemoryWritebackRunner.name)
   private readonly slots = new Map<string, RunnerSlot>()
-  private readonly modelPromises = new Map<string, Promise<BaseChatModel>>()
 
-  constructor(
-    private readonly fileMemoryService: XpertFileMemoryService,
-    private readonly commandBus: CommandBus
-  ) {}
+  constructor(private readonly fileMemoryService: XpertFileMemoryService) {}
 
   enqueue(snapshot: FileMemoryWritebackSnapshot) {
     const key = createScopeKey(snapshot)
@@ -103,7 +97,7 @@ export class FileMemoryWritebackRunner {
 
   private async processSnapshot(key: string, snapshot: FileMemoryWritebackSnapshot) {
     try {
-      const model = await this.getWritebackModel(snapshot.model)
+      const model = await snapshot.getModel()
       const conversationText = formatConversationForSearch(snapshot.messages)
       if (!conversationText) {
         return
@@ -176,20 +170,6 @@ export class FileMemoryWritebackRunner {
         `[FileMemorySystem] background writeback failed for ${key}: ${summarizeWritebackError(error)}`
       )
     }
-  }
-
-  private getWritebackModel(modelConfig: ICopilotModel) {
-    const key = JSON.stringify(modelConfig)
-    let promise = this.modelPromises.get(key)
-    if (!promise) {
-      promise = this.commandBus.execute(
-        new CreateModelClientCommand<BaseChatModel>(modelConfig, {
-          usageCallback: () => undefined
-        })
-      )
-      this.modelPromises.set(key, promise)
-    }
-    return promise
   }
 }
 

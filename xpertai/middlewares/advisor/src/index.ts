@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { AdvisorPluginModule } from './lib/advisor.module.js'
-import { ADVISOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 import {
   AdvisorPluginConfigFormSchema,
   AdvisorPluginConfigSchema,
@@ -41,8 +40,7 @@ const plugin: XpertPlugin = {
     ctx.logger.log('register advisor middleware plugin')
     return {
       module: AdvisorPluginModule,
-      global: true,
-      providers: [{ provide: ADVISOR_PLUGIN_CONTEXT, useValue: ctx }]
+      global: true
     }
   },
   async onStart(ctx) {
@@ -55,6 +53,5 @@ const plugin: XpertPlugin = {
 
 export * from './lib/advisor.middleware.js'
 export * from './lib/advisor.module.js'
-export * from './lib/tokens.js'
 export * from './lib/advisor.types.js'
 export default plugin
