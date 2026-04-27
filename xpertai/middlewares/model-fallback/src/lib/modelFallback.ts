@@ -1,16 +1,13 @@
 import { z } from "zod/v3";
 import { z as z4 } from "zod/v4";
-import { Inject, Injectable } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
+import { Injectable } from "@nestjs/common";
 import {
   AgentMiddlewareStrategy,
   IAgentMiddlewareStrategy,
   AgentBuiltInState,
-  CreateModelClientCommand,
   IAgentMiddlewareContext,
   ModelRequest,
   WrapModelCallHandler,
-  WrapWorkflowNodeExecutionCommand,
 } from "@xpert-ai/plugin-sdk";
 import {
   TAgentMiddlewareMeta,
@@ -20,7 +17,6 @@ import {
   TAgentRunnableConfigurable,
   WorkflowNodeTypeEnum,
   JSONValue,
-  IXpertAgentExecution,
 } from "@metad/contracts";
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { AIMessage } from "@langchain/core/messages";
@@ -50,10 +46,6 @@ const modelFallbackSchema = z.object({
 @Injectable()
 @AgentMiddlewareStrategy("ModelFallbackMiddleware")
 export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
-  
-  @Inject(CommandBus)
-  private readonly commandBus: CommandBus;
-
   readonly meta: TAgentMiddlewareMeta = {
     name: "ModelFallbackMiddleware",
     label: {
@@ -148,45 +140,26 @@ export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
 
             const configurable = request.runtime.configurable as TAgentRunnableConfigurable
             const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-            
-            // Store the result to return it after execution tracking
-            let fallbackResult: AIMessage;
-            
-            // Wrap the handler call to match WrapWorkflowNodeExecutionCommand's expected signature
-            const wrappedFallbackCall = async (
-              execution: Partial<IXpertAgentExecution>
-            ): Promise<{ output?: JSONValue; state: AIMessage }> => {
-              // Execution parameter is required by WrapWorkflowNodeExecutionCommand signature
-              void execution;
-              
-              const fallbackModelInstance = await this.commandBus.execute<
-                CreateModelClientCommand<BaseLanguageModel>,
-                BaseLanguageModel
-              >(
-                new CreateModelClientCommand<BaseLanguageModel>(fallbackModel, {
-                  usageCallback: (event) => {
-                    console.log(
-                      `[Middleware ModelFallback] Model ${fallbackModel.model} Usage:`,
-                      event
-                    );
-                  },
-                })
-              );
+            const fallbackResult = await context.runtime.wrapWorkflowNodeExecution(async () => {
+              const fallbackModelInstance = await context.runtime.createModelClient<BaseLanguageModel>(fallbackModel, {
+                usageCallback: (event) => {
+                  console.log(
+                    `[Middleware ModelFallback] Model ${fallbackModel.model} Usage:`,
+                    event
+                  );
+                },
+              });
 
-              fallbackResult = await handler({
+              const result = await handler({
                 ...request,
                 model: fallbackModelInstance,
               });
 
               return {
-                state: fallbackResult,
-                output: fallbackResult.content as JSONValue
+                state: result,
+                output: result.content as JSONValue
               };
-            };
-            
-            await this.commandBus.execute(new WrapWorkflowNodeExecutionCommand<AIMessage>(
-              wrappedFallbackCall,
-              {
+            }, {
               execution: {
                 category: 'workflow',
                 type: WorkflowNodeTypeEnum.MIDDLEWARE,
@@ -199,12 +172,7 @@ export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
                 title: context.node.title
               },
               subscriber
-            }))
-            
-            // Return the result after execution tracking completes
-            if (!fallbackResult) {
-              throw new Error('Fallback model execution failed to return a result');
-            }
+            })
             return fallbackResult;
           } catch (error) {
             lastException = error as Error;

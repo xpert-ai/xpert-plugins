@@ -5,15 +5,12 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager'
 import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs'
 import type { JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
-import { Inject, Injectable } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
+import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
-  CreateModelClientCommand,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  WrapWorkflowNodeExecutionCommand,
 } from '@xpert-ai/plugin-sdk'
 import {
   CompiledSensitiveRule,
@@ -1012,9 +1009,6 @@ async function runWithWrapWorkflowFallback<T>(
 @Injectable()
 @AgentMiddlewareStrategy(SENSITIVE_FILTER_MIDDLEWARE_NAME)
 export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<SensitiveFilterConfig> {
-  @Inject(CommandBus)
-  private readonly commandBus: CommandBus
-
   readonly meta: TAgentMiddlewareMeta = {
     name: SENSITIVE_FILTER_MIDDLEWARE_NAME,
     label: {
@@ -1293,6 +1287,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
   }
 
   private createRuleModeMiddleware(config: RuleModeConfig, context: IAgentMiddlewareContext): AgentMiddleware {
+    const middlewareRuntime = context.runtime
     const caseSensitive = config.caseSensitive ?? false
     const normalize = config.normalize ?? true
     const wecomConfig = resolveRuntimeWecomConfig(config.wecom)
@@ -1390,7 +1385,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
     const persistAuditSnapshot = async () => {
       const configurable = runtimeConfigurable
-      if (!configurable?.thread_id || !configurable.executionId || !this.commandBus) {
+      if (!configurable?.thread_id || !configurable.executionId) {
         return
       }
 
@@ -1405,24 +1400,22 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
       await runWithWrapWorkflowFallback(
         async () => {
-          await this.commandBus.execute(
-            new WrapWorkflowNodeExecutionCommand(writeSnapshot, {
-              execution: {
-                category: 'workflow',
-                type: 'middleware',
-                title: `${context.node.title} Audit`,
-                inputs: {
-                  mode: snapshot.mode,
-                  total: snapshot.summary.total,
-                },
-                parentId: executionId,
-                threadId: thread_id,
-                checkpointNs: checkpoint_ns,
-                checkpointId: checkpoint_id,
-                agentKey: context.node.key,
+          await middlewareRuntime.wrapWorkflowNodeExecution(writeSnapshot, {
+            execution: {
+              category: 'workflow',
+              type: 'middleware',
+              title: `${context.node.title} Audit`,
+              inputs: {
+                mode: snapshot.mode,
+                total: snapshot.summary.total,
               },
-            }),
-          )
+              parentId: executionId,
+              threadId: thread_id,
+              checkpointNs: checkpoint_ns,
+              checkpointId: checkpoint_id,
+              agentKey: context.node.key,
+            },
+          })
           return undefined
         },
         async () => {
@@ -1628,6 +1621,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
   }
 
   private createLlmModeMiddleware(config: LlmModeConfig, context: IAgentMiddlewareContext): AgentMiddleware {
+    const middlewareRuntime = context.runtime
     const llmDraftConfig = config.llm
     const wecomConfig = resolveRuntimeWecomConfig(config.wecom)
     let resolvedLlmConfig: ResolvedLlmConfig | null = null
@@ -1644,13 +1638,11 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
     const ensureModel = async (): Promise<BaseLanguageModel> => {
       const llmConfig = getLlmConfig()
       if (!modelPromise) {
-        modelPromise = this.commandBus.execute(
-          new CreateModelClientCommand<BaseLanguageModel>(buildInternalModelConfig(llmConfig.model), {
-            usageCallback: () => {
-              //
-            },
-          }),
-        )
+        modelPromise = middlewareRuntime.createModelClient<BaseLanguageModel>(buildInternalModelConfig(llmConfig.model), {
+          usageCallback: () => {
+            //
+          },
+        })
       }
       return modelPromise
     }
@@ -1753,7 +1745,7 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
     const persistAuditSnapshot = async () => {
       const configurable = runtimeConfigurable
-      if (!configurable?.thread_id || !configurable.executionId || !this.commandBus) {
+      if (!configurable?.thread_id || !configurable.executionId) {
         return
       }
 
@@ -1768,24 +1760,22 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
       await runWithWrapWorkflowFallback(
         async () => {
-          await this.commandBus.execute(
-            new WrapWorkflowNodeExecutionCommand(writeSnapshot, {
-              execution: {
-                category: 'workflow',
-                type: 'middleware',
-                title: `${context.node.title} Audit`,
-                inputs: {
-                  mode: snapshot.mode,
-                  total: snapshot.summary.total,
-                },
-                parentId: executionId,
-                threadId: thread_id,
-                checkpointNs: checkpoint_ns,
-                checkpointId: checkpoint_id,
-                agentKey: context.node.key,
+          await middlewareRuntime.wrapWorkflowNodeExecution(writeSnapshot, {
+            execution: {
+              category: 'workflow',
+              type: 'middleware',
+              title: `${context.node.title} Audit`,
+              inputs: {
+                mode: snapshot.mode,
+                total: snapshot.summary.total,
               },
-            }),
-          )
+              parentId: executionId,
+              threadId: thread_id,
+              checkpointNs: checkpoint_ns,
+              checkpointId: checkpoint_id,
+              agentKey: context.node.key,
+            },
+          })
           return undefined
         },
         async () => {
@@ -1889,31 +1879,29 @@ export class SensitiveFilterMiddleware implements IAgentMiddlewareStrategy<Sensi
 
       await runWithWrapWorkflowFallback(
         async () => {
-          await this.commandBus.execute(
-            new WrapWorkflowNodeExecutionCommand(async () => {
-              const decision = await parseCore()
-              trackedDecision = decision
-              return {
-                state: decision as Record<string, unknown>,
-                output: undefined,
-              }
-            }, {
-              execution: {
-                category: 'workflow',
-                type: 'middleware',
-                inputs: {
-                  phase,
-                  text,
-                },
-                parentId: executionId,
-                threadId: thread_id,
-                checkpointNs: checkpoint_ns,
-                checkpointId: checkpoint_id,
-                agentKey: context.node.key,
-                title: context.node.title,
+          await middlewareRuntime.wrapWorkflowNodeExecution(async () => {
+            const decision = await parseCore()
+            trackedDecision = decision
+            return {
+              state: decision as Record<string, unknown>,
+              output: undefined,
+            }
+          }, {
+            execution: {
+              category: 'workflow',
+              type: 'middleware',
+              inputs: {
+                phase,
+                text,
               },
-            }),
-          )
+              parentId: executionId,
+              threadId: thread_id,
+              checkpointNs: checkpoint_ns,
+              checkpointId: checkpoint_id,
+              agentKey: context.node.key,
+              title: context.node.title,
+            },
+          })
           return undefined
         },
         async () => {

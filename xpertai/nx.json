@@ -49,6 +49,7 @@
     "projectsRelationship": "independent",
     "projects": [
       "@xpert-ai/plugin-lark",
+      "@xpert-ai/plugin-lark-sso",
       "@xpert-ai/plugin-firecrawl",
       "@xpert-ai/plugin-mineru",
       "@xpert-ai/plugin-dify",
@@ -99,7 +100,7 @@
       "@xpert-ai/plugin-file-memory"
     ],
     "version": {
-      "preVersionCommand": "npx nx run-many -t build"
+      "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
     }
   },
   "targetDefaults": {

@@ -1,8 +1,7 @@
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'
 import { InvalidToolCall, ToolCall } from '@langchain/core/messages/tool'
-import { Inject, Injectable, Logger } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
+import { Injectable, Logger } from '@nestjs/common'
 import {
   AgentBuiltInState,
   AgentMiddlewareStrategy,
@@ -10,10 +9,8 @@ import {
   IAgentMiddlewareStrategy,
   ModelRequest,
   WrapModelCallHandler,
-  WrapWorkflowNodeExecutionCommand,
 } from '@xpert-ai/plugin-sdk'
 import {
-  IXpertAgentExecution,
   JSONValue,
   JsonSchemaObjectType,
   TAgentMiddlewareMeta,
@@ -279,9 +276,6 @@ const toModelResultError = (message: AIMessage): Error | null => {
 @Injectable()
 @AgentMiddlewareStrategy('ModelRetryMiddleware')
 export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
-  @Inject(CommandBus)
-  private readonly commandBus: CommandBus
-
   private readonly logger = new Logger(ModelRetryMiddleware.name)
 
   readonly meta: TAgentMiddlewareMeta = {
@@ -339,17 +333,19 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
         handler: WrapModelCallHandler
       ): Promise<AIMessage> => {
         const logScope = this.buildLogScope(context, request)
+        const startedAt = Date.now()
         try {
           return await this.invokeModel(request, handler, context)
         } catch (error) {
           let lastError = normalizeError(error)
+          let retryable = shouldRetryError(lastError, retryConfig)
           this.logger.warn(
-            `Initial model call failed${logScope}. ${this.formatError(lastError)}`
+            `Model call failed${logScope}. phase=initial attempt=1/${totalAllowedAttempts} retryable=${retryable} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
           )
 
-          if (!shouldRetryError(lastError, retryConfig) || retryConfig.maxRetries === 0) {
+          if (!retryable || retryConfig.maxRetries === 0) {
             this.logger.error(
-              `Model retry stopped${logScope}. attemptsMade=1/${totalAllowedAttempts} retryable=${shouldRetryError(lastError, retryConfig)} onFailure=${retryConfig.onFailure}. ${this.formatError(lastError)}`
+              `Model retry stopped${logScope}. phase=initial attemptsMade=1/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
             )
             return handleFailure(lastError, 1)
           }
@@ -358,7 +354,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
             const attemptsMade = retryAttempt + 1
             const delay = calculateRetryDelay(retryConfig, retryAttempt - 1)
             this.logger.warn(
-              `Scheduling model retry${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts} delayMs=${delay}`
+              `Scheduling model retry${logScope}. phase=retry-scheduled attempt=${attemptsMade}/${totalAllowedAttempts} nextDelayMs=${delay} elapsedMs=${Date.now() - startedAt}`
             )
             if (delay > 0) {
               await sleep(delay)
@@ -367,22 +363,22 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
             try {
               const result = await this.executeTrackedRetry(request, handler, context)
               this.logger.log(
-                `Model retry succeeded${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts}`
+                `Model retry succeeded${logScope}. phase=retry-succeeded attempt=${attemptsMade}/${totalAllowedAttempts} elapsedMs=${Date.now() - startedAt}`
               )
               return result
             } catch (retryError) {
               lastError = normalizeError(retryError)
-              const retryable = shouldRetryError(lastError, retryConfig)
+              retryable = shouldRetryError(lastError, retryConfig)
 
               if (!retryable || retryAttempt === retryConfig.maxRetries) {
                 this.logger.error(
-            `Model retry exhausted${logScope}. attemptsMade=${attemptsMade}/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure}. ${this.formatError(lastError)}`
+                  `Model retry exhausted${logScope}. phase=retry-exhausted attemptsMade=${attemptsMade}/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
                 )
                 return handleFailure(lastError, attemptsMade)
               }
 
               this.logger.warn(
-                `Model retry attempt failed${logScope}. attempt=${attemptsMade}/${totalAllowedAttempts}. ${this.formatError(lastError)}`
+                `Model retry attempt failed${logScope}. phase=retry-failed attempt=${attemptsMade}/${totalAllowedAttempts} retryable=${retryable} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
               )
             }
           }
@@ -399,50 +395,31 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     context: IAgentMiddlewareContext
   ): Promise<AIMessage> {
     const configurable = request.runtime?.configurable as TAgentRunnableConfigurable | undefined
-    if (!this.commandBus || !configurable) {
+    if (!configurable) {
       return handler(request)
     }
 
     const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-    let retryResult: AIMessage | undefined
-
-    await this.commandBus.execute<
-      WrapWorkflowNodeExecutionCommand<AIMessage>,
-      { output?: string | JSONValue; state: AIMessage }
-    >(
-      new WrapWorkflowNodeExecutionCommand<AIMessage>(
-        async (
-          execution: Partial<IXpertAgentExecution>
-        ): Promise<{ output?: string | JSONValue; state: AIMessage }> => {
-          void execution
-          retryResult = await this.invokeModel(request, handler, context)
-          return {
-            state: retryResult,
-            output: retryResult.content as JSONValue,
-          }
-        },
-        {
-          execution: {
-            category: 'workflow',
-            type: WorkflowNodeTypeEnum.MIDDLEWARE,
-            inputs: {},
-            parentId: executionId,
-            threadId: thread_id,
-            checkpointNs: checkpoint_ns,
-            checkpointId: checkpoint_id,
-            agentKey: context.node.key,
-            title: context.node.title,
-          },
-          subscriber,
-        }
-      )
-    )
-
-    if (!retryResult) {
-      throw new Error('Retry model execution failed to return a result')
-    }
-
-    return retryResult
+    return context.runtime.wrapWorkflowNodeExecution(async () => {
+      const retryResult = await this.invokeModel(request, handler, context)
+      return {
+        state: retryResult,
+        output: retryResult.content as JSONValue,
+      }
+    }, {
+      execution: {
+        category: 'workflow',
+        type: WorkflowNodeTypeEnum.MIDDLEWARE,
+        inputs: {},
+        parentId: executionId,
+        threadId: thread_id,
+        checkpointNs: checkpoint_ns,
+        checkpointId: checkpoint_id,
+        agentKey: context.node.key,
+        title: context.node.title,
+      },
+      subscriber,
+    })
   }
 
   private async invokeModel(
@@ -465,20 +442,131 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     const configurable = request?.runtime?.configurable as
       | Partial<TAgentRunnableConfigurable>
       | undefined
+    const modelInfo = this.extractModelInfo(request?.model)
 
     const segments = [
       context.xpertId ? `xpertId=${context.xpertId}` : null,
       context.agentKey ? `agentKey=${context.agentKey}` : null,
       context.conversationId ? `conversationId=${context.conversationId}` : null,
       context.node?.key ? `nodeKey=${context.node.key}` : null,
+      context.node?.title ? `nodeTitle=${JSON.stringify(context.node.title)}` : null,
       configurable?.executionId ? `executionId=${configurable.executionId}` : null,
+      configurable?.thread_id ? `threadId=${configurable.thread_id}` : null,
+      configurable?.checkpoint_ns ? `checkpointNs=${configurable.checkpoint_ns}` : null,
+      configurable?.checkpoint_id ? `checkpointId=${configurable.checkpoint_id}` : null,
+      modelInfo.provider ? `provider=${modelInfo.provider}` : null,
+      modelInfo.model ? `model=${modelInfo.model}` : null,
+      request?.toolChoice ? `toolChoice=${this.formatToolChoice(request.toolChoice)}` : null,
+      Array.isArray(request?.tools) ? `toolCount=${request.tools.length}` : null,
+      Array.isArray(request?.messages) ? `messageCount=${request.messages.length}` : null,
+      request?.systemMessage ? 'hasSystemMessage=true' : null,
     ].filter(Boolean)
 
     return segments.length > 0 ? ` [${segments.join(' ')}]` : ''
   }
 
+  private extractModelInfo(model: unknown): { provider?: string; model?: string } {
+    if (!isRecord(model)) {
+      return {}
+    }
+
+    const provider = this.pickString(model, [
+      'provider',
+      'providerName',
+      '_provider',
+      '_providerName',
+    ])
+
+    const modelName = this.pickString(model, [
+      'model',
+      'modelName',
+      '_model',
+      '_modelName',
+    ])
+
+    return {
+      provider: provider ?? model.constructor?.name,
+      model: modelName,
+    }
+  }
+
+  private pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
+    for (const key of keys) {
+      const value = source[key]
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value
+      }
+    }
+
+    return undefined
+  }
+
+  private formatToolChoice(
+    toolChoice: ModelRequest<AgentBuiltInState>['toolChoice']
+  ): string {
+    if (typeof toolChoice === 'string') {
+      return toolChoice
+    }
+
+    const functionName = toolChoice?.function?.name
+    return functionName ? `function:${functionName}` : 'function'
+  }
+
   private formatError(error: Error): string {
     const errorType = error.name || error.constructor.name || 'Error'
-    return `${errorType}: ${error.message}`
+    const errorStatusCode = this.extractErrorStatusCode(error)
+    const segments = [
+      `errorName=${errorType}`,
+      errorStatusCode != null ? `errorStatusCode=${errorStatusCode}` : null,
+      `errorMessage=${JSON.stringify(error.message)}`,
+    ].filter(Boolean)
+
+    return segments.join(' ')
+  }
+
+  private extractErrorStatusCode(error: Error): number | undefined {
+    const candidate = error as Error & {
+      status?: unknown
+      statusCode?: unknown
+      response?: { status?: unknown } | null
+      cause?: {
+        status?: unknown
+        statusCode?: unknown
+        response?: { status?: unknown } | null
+      } | null
+    }
+
+    const values = [
+      candidate.status,
+      candidate.statusCode,
+      candidate.response?.status,
+      candidate.cause?.status,
+      candidate.cause?.statusCode,
+      candidate.cause?.response?.status,
+    ]
+
+    for (const value of values) {
+      const statusCode = this.toStatusCode(value)
+      if (statusCode != null) {
+        return statusCode
+      }
+    }
+
+    return undefined
+  }
+
+  private toStatusCode(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.trunc(value)
+    }
+
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) {
+        return Math.trunc(parsed)
+      }
+    }
+
+    return undefined
   }
 }

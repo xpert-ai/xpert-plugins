@@ -1,31 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-jest.mock('@xpert-ai/plugin-sdk', () => {
-  class WrapWorkflowNodeExecutionCommand {
-    fuc: any
-    params: any
-
-    constructor(fuc: any, params: any) {
-      this.fuc = fuc
-      this.params = params
-    }
-  }
-
-  class CreateModelClientCommand {
-    copilotModel: any
-    options: any
-
-    constructor(copilotModel: any, options: any) {
-      this.copilotModel = copilotModel
-      this.options = options
-    }
-  }
-
-  return {
-    AgentMiddlewareStrategy: () => () => null,
-    WrapWorkflowNodeExecutionCommand,
-    CreateModelClientCommand,
-  }
-})
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  AgentMiddlewareStrategy: () => () => null,
+}))
 
 jest.mock('@metad/contracts', () => ({
   WorkflowNodeTypeEnum: {
@@ -35,16 +11,25 @@ jest.mock('@metad/contracts', () => ({
 
 import { AIMessage } from '@langchain/core/messages'
 import { Logger } from '@nestjs/common'
-import { calculateRetryDelay } from './retry'
+import { calculateRetryDelay } from './retry.js'
 const { ModelRetryMiddleware } = require('./modelRetry')
 
 describe('ModelRetryMiddleware', () => {
-  const createContext = () => ({
+  const createRuntimeApi = () => ({
+    createModelClient: jest.fn(),
+    wrapWorkflowNodeExecution: jest.fn().mockImplementation(async (run: any) => {
+      const result = await run({ id: 'retry-exec-1' })
+      return result.state
+    }),
+  })
+
+  const createContext = (runtime = createRuntimeApi()) => ({
     tenantId: 'tenant-1',
     userId: 'user-1',
     xpertId: 'xpert-1',
     node: { key: 'node-1', title: 'Model Retry', type: 'middleware', entity: { type: 'middleware' } },
     tools: new Map(),
+    runtime,
   })
 
   const createRuntime = () => ({
@@ -67,17 +52,9 @@ describe('ModelRetryMiddleware', () => {
 
   async function createMiddleware(config: any) {
     const strategy = new ModelRetryMiddleware()
-    strategy.commandBus = {
-      execute: jest.fn().mockImplementation(async (command: any) => {
-        if (typeof command?.fuc === 'function') {
-          return command.fuc({ id: 'retry-exec-1' })
-        }
-        return undefined
-      }),
-    }
-
-    const middleware = await strategy.createMiddleware(config, createContext())
-    return { strategy, middleware }
+    const runtimeApi = createRuntimeApi()
+    const middleware = await strategy.createMiddleware(config, createContext(runtimeApi))
+    return { strategy, middleware, runtimeApi }
   }
 
   afterEach(() => {
@@ -85,18 +62,18 @@ describe('ModelRetryMiddleware', () => {
   })
 
   it('passes through when the first model call succeeds', async () => {
-    const { strategy, middleware } = await createMiddleware({})
+    const { middleware, runtimeApi } = await createMiddleware({})
     const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
 
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(1)
-    expect(strategy.commandBus.execute).not.toHaveBeenCalled()
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
     expect(result?.content).toBe('ok')
   })
 
   it('retries a failed model call and tracks the retry attempt', async () => {
-    const { strategy, middleware } = await createMiddleware({
+    const { middleware, runtimeApi } = await createMiddleware({
       maxRetries: 2,
       initialDelayMs: 0,
       jitter: false,
@@ -109,12 +86,12 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(strategy.commandBus.execute).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
     expect(result?.content).toBe('recovered')
   })
 
   it('retries when the model returns finish_reason network_error', async () => {
-    const { strategy, middleware } = await createMiddleware({
+    const { middleware, runtimeApi } = await createMiddleware({
       maxRetries: 2,
       initialDelayMs: 0,
       jitter: false,
@@ -135,13 +112,13 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(strategy.commandBus.execute).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
     expect(result?.content).toBe('recovered after network error')
   })
 
   it('retries when the model returns empty content without tool calls or invalid tool calls', async () => {
     const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
-    const { strategy, middleware } = await createMiddleware({
+    const { middleware, runtimeApi } = await createMiddleware({
       maxRetries: 2,
       initialDelayMs: 0,
       jitter: false,
@@ -166,18 +143,16 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(strategy.commandBus.execute).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
     expect(result?.content).toBe('recovered after empty model response')
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ai_message: expect.stringContaining('"model_name":"glm-5"'),
-      }),
-      expect.stringContaining('Model returned empty content, tool calls, and invalid tool calls')
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('ModelEmptyResponseError')
     )
   })
 
   it('does not retry empty content when invalid_tool_calls are present', async () => {
-    const { strategy, middleware } = await createMiddleware({})
+    const { middleware, runtimeApi } = await createMiddleware({})
     const handler = jest.fn().mockResolvedValue(
       new AIMessage({
         content: '',
@@ -195,13 +170,13 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(1)
-    expect(strategy.commandBus.execute).not.toHaveBeenCalled()
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
     expect(result).toBeInstanceOf(AIMessage)
     expect(result?.content).toBe('')
   })
 
   it('returns an AIMessage immediately for non-retryable errors in continue mode', async () => {
-    const { strategy, middleware } = await createMiddleware({
+    const { middleware, runtimeApi } = await createMiddleware({
       retryAllErrors: false,
       retryableErrorNames: ['RateLimitError'],
       initialDelayMs: 0,
@@ -211,7 +186,7 @@ describe('ModelRetryMiddleware', () => {
 
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
-    expect(strategy.commandBus.execute).not.toHaveBeenCalled()
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
     expect(result).toBeInstanceOf(AIMessage)
     expect(result?.content).toContain('failed after 1 attempt')
   })

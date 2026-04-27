@@ -51,14 +51,24 @@ const MAX_RECALL_BYTES_PER_TURN = 20 * 1024
 const MAX_RECALL_BYTES_PER_SESSION = 60 * 1024
 const MAX_SELECTED_TOTAL = 5
 const MAX_RUNTIME_SUMMARY_ITEMS = 5
+const DEFERRED_LAYER_REFRESH_DELAY_MS = 300
 const MEMORY_CONTEXT_SECTION_HEADING = '补充上下文'
 const MEMORY_CONTEXT_SECTION_PATTERN = /\n##\s+(?:Context|上下文|补充上下文)\s*\n([\s\S]*)$/i
+
+type DeferredLayerRefreshSlot = {
+  timer?: NodeJS.Timeout
+  running: boolean
+  pending: boolean
+  store: SandboxMemoryStore
+  layer: MemoryLayer
+}
 
 @Injectable()
 export class XpertFileMemoryService {
   private readonly logger = new Logger(XpertFileMemoryService.name)
   private readonly entrypointCache = new Map<string, string>()
   private readonly headerManifestCache = new Map<string, MemoryRecordHeader[]>()
+  private readonly deferredLayerRefreshes = new Map<string, DeferredLayerRefreshSlot>()
 
   constructor(
     private readonly layerResolver: FileMemoryLayerResolver,
@@ -329,8 +339,8 @@ export class XpertFileMemoryService {
 
     await this.fileRepository.writeFile(store, filePath, serializeMemoryFile(frontmatter, normalized.body))
     this.invalidateLayerCaches(store, layer)
-    await this.updateIndexForLayer(store, layer)
-    return this.readRecord(store, filePath, layer)
+    this.scheduleDeferredLayerRefresh(store, layer, 'upsert')
+    return createOptimisticRecord(frontmatter, normalized, filePath, layer)
   }
 
   async applyGovernance(
@@ -361,8 +371,11 @@ export class XpertFileMemoryService {
 
     await this.fileRepository.writeFile(store, record.filePath, serializeMemoryFile(frontmatter, record.body))
     this.invalidateLayerCaches(store, layer)
-    await this.updateIndexForLayer(store, layer)
-    return this.readRecord(store, record.filePath, layer)
+    this.scheduleDeferredLayerRefresh(store, layer, 'governance')
+    return {
+      ...record,
+      ...frontmatter
+    }
   }
 
   private async listRecords(
@@ -474,6 +487,63 @@ export class XpertFileMemoryService {
     const cacheKey = this.layerCacheKey(store, layer)
     this.entrypointCache.delete(cacheKey)
     this.headerManifestCache.delete(cacheKey)
+  }
+
+  private scheduleDeferredLayerRefresh(store: SandboxMemoryStore, layer: MemoryLayer, trigger: 'upsert' | 'governance') {
+    const cacheKey = this.layerCacheKey(store, layer)
+    const existing = this.deferredLayerRefreshes.get(cacheKey)
+    const slot: DeferredLayerRefreshSlot = existing ?? {
+      running: false,
+      pending: false,
+      store,
+      layer
+    }
+
+    slot.store = store
+    slot.layer = layer
+    slot.pending = true
+
+    if (slot.timer) {
+      clearTimeout(slot.timer)
+    }
+
+    slot.timer = setTimeout(() => {
+      slot.timer = undefined
+      void this.flushDeferredLayerRefresh(cacheKey, trigger)
+    }, DEFERRED_LAYER_REFRESH_DELAY_MS)
+    slot.timer.unref?.()
+
+    this.deferredLayerRefreshes.set(cacheKey, slot)
+  }
+
+  private async flushDeferredLayerRefresh(cacheKey: string, trigger: 'upsert' | 'governance') {
+    const slot = this.deferredLayerRefreshes.get(cacheKey)
+    if (!slot) {
+      return
+    }
+
+    if (slot.running) {
+      slot.pending = true
+      return
+    }
+
+    slot.running = true
+
+    try {
+      while (slot.pending) {
+        slot.pending = false
+        await this.updateIndexForLayer(slot.store, slot.layer)
+      }
+    } catch (error) {
+      this.logger.warn(
+        `[FileMemorySystem] deferred ${trigger} layer refresh failed for ${cacheKey}: ${getErrorMessage(error)}`
+      )
+    } finally {
+      slot.running = false
+      if (!slot.pending && !slot.timer) {
+        this.deferredLayerRefreshes.delete(cacheKey)
+      }
+    }
   }
 
   private async readHeaderManifest(store: SandboxMemoryStore, layer: MemoryLayer) {
@@ -815,6 +885,40 @@ function normalizeRecordValue(
     content,
     context,
     body: formatBody(semanticKind, title, content, context)
+  }
+}
+
+function createOptimisticRecord(
+  frontmatter: MemoryRecordFrontmatter,
+  normalized: ReturnType<typeof normalizeRecordValue>,
+  filePath: string,
+  layer: MemoryLayer
+): MemoryRecord {
+  const relativePath = inferRelativeMemoryPath(filePath)
+  const mtimeMs = Date.now()
+
+  return {
+    ...frontmatter,
+    layerLabel: layer.layerLabel,
+    filePath,
+    relativePath,
+    mtimeMs,
+    body: normalized.body,
+    content: normalized.content,
+    context: normalized.context,
+    value:
+      frontmatter.kind === LongTermMemoryTypeEnum.QA
+        ? ({
+            memoryId: frontmatter.id,
+            question: frontmatter.title,
+            answer: normalized.content,
+            ...(normalized.context ? { context: normalized.context } : {})
+          } as TMemoryQA)
+        : ({
+            memoryId: frontmatter.id,
+            profile: normalized.content,
+            ...(normalized.context ? { context: normalized.context } : {})
+          } as TMemoryUserProfile)
   }
 }
 

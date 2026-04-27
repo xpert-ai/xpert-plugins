@@ -1,16 +1,13 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
-  CreateModelClientCommand: class CreateModelClientCommand<T = unknown> {
-    constructor(
-      public readonly modelConfig: unknown,
-      public readonly options?: unknown
-    ) {}
-  }
 }))
 
 jest.mock('@xpert-ai/contracts', () => ({
   AiModelTypeEnum: {
     LLM: 'LLM'
+  },
+  WorkflowNodeTypeEnum: {
+    MIDDLEWARE: 'middleware'
   }
 }))
 
@@ -27,11 +24,12 @@ jest.mock('@xpert-ai/chatkit-types', () => ({
   }
 }))
 
+import type { AgentMiddlewareRuntimeApi, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { Command } from '@langchain/langgraph'
-import { CommandBus } from '@nestjs/cqrs'
 import { ChatMessageEventTypeEnum } from '@xpert-ai/chatkit-types'
+import { WorkflowNodeTypeEnum } from '@xpert-ai/contracts'
 import { AdvisorMiddleware } from './advisor.middleware.js'
 import { AdvisorPluginConfigFormSchema } from './advisor.types.js'
 
@@ -40,19 +38,47 @@ describe('AdvisorMiddleware', () => {
     jest.clearAllMocks()
   })
 
+  function createRuntimeApi() {
+    return {
+      createModelClient: jest.fn(),
+      wrapWorkflowNodeExecution: jest.fn()
+    } satisfies AgentMiddlewareRuntimeApi
+  }
+
+  function createContext(runtimeApi: AgentMiddlewareRuntimeApi): IAgentMiddlewareContext {
+    return {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      node: {
+        id: 'advisor-node-id',
+        key: 'advisor-node',
+        title: 'Advisor',
+        type: WorkflowNodeTypeEnum.MIDDLEWARE,
+        provider: 'AdvisorMiddleware'
+      },
+      tools: new Map(),
+      runtime: runtimeApi
+    }
+  }
+
+  function invokeLifecycleHook<TState, TRuntime>(
+    hook:
+      | ((state: TState, runtime: TRuntime) => unknown)
+      | { hook: (state: TState, runtime: TRuntime) => unknown }
+      | undefined,
+    state: TState,
+    runtime: TRuntime
+  ) {
+    if (!hook) {
+      return undefined
+    }
+    return typeof hook === 'function' ? hook(state, runtime) : hook.hook(state, runtime)
+  }
+
   function createSubject(options: Record<string, unknown> = {}) {
-    const commandBus = {
-      execute: jest.fn()
-    }
-    const pluginContext = {
-      resolve: jest.fn((token: unknown) => {
-        if (token === CommandBus) {
-          return commandBus
-        }
-        return undefined
-      })
-    }
-    const strategy = new AdvisorMiddleware(pluginContext as any)
+    const runtimeApi = createRuntimeApi()
+    const strategy = new AdvisorMiddleware()
     const middleware = strategy.createMiddleware(
       {
         advisorModel: {
@@ -60,12 +86,11 @@ describe('AdvisorMiddleware', () => {
         },
         ...options
       },
-      {} as any
+      createContext(runtimeApi)
     )
 
     return {
-      commandBus,
-      pluginContext,
+      runtimeApi,
       strategy,
       middleware
     }
@@ -78,12 +103,9 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('validates advisorModel when enabled', () => {
-    const pluginContext = {
-      resolve: jest.fn()
-    }
-    const strategy = new AdvisorMiddleware(pluginContext as any)
+    const strategy = new AdvisorMiddleware()
 
-    expect(() => strategy.createMiddleware({}, {} as any)).toThrow(
+    expect(() => strategy.createMiddleware({}, createContext(createRuntimeApi()))).toThrow(
       'advisorModel is required when advisor middleware is enabled'
     )
   })
@@ -91,7 +113,7 @@ describe('AdvisorMiddleware', () => {
   it('resets the run counter in beforeAgent', async () => {
     const { middleware } = createSubject()
 
-    const result = await middleware.beforeAgent?.({ advisorRunUses: 9, advisorSessionUses: 4 } as any, {} as any)
+    const result = await invokeLifecycleHook(middleware.beforeAgent, { advisorRunUses: 9, advisorSessionUses: 4 }, {})
 
     expect(result).toEqual({
       advisorRunUses: 0
@@ -228,13 +250,13 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('returns a command with updated usage counters after advisor execution', async () => {
-    const { commandBus, middleware } = createSubject()
+    const { runtimeApi, middleware } = createSubject()
     const invoke = jest.fn().mockResolvedValue(
       new AIMessage({
         content: 'Check the parser branch first, then add a fallback.'
       })
     )
-    commandBus.execute.mockResolvedValue({
+    runtimeApi.createModelClient.mockResolvedValue({
       invoke
     })
 
@@ -258,7 +280,7 @@ describe('AdvisorMiddleware', () => {
       jest.fn() as any
     )
 
-    expect(commandBus.execute).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.createModelClient).toHaveBeenCalledTimes(1)
     expect(invoke).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
@@ -292,9 +314,9 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('emits a fail event when the advisor model call throws', async () => {
-    const { commandBus, middleware } = createSubject()
+    const { runtimeApi, middleware } = createSubject()
     const invoke = jest.fn().mockRejectedValue(new Error('network unavailable'))
-    commandBus.execute.mockResolvedValue({
+    runtimeApi.createModelClient.mockResolvedValue({
       invoke
     })
 
@@ -340,7 +362,7 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('curates forwarded context and strips advisor tool calls and tool results when configured', async () => {
-    const { commandBus, middleware } = createSubject({
+    const { runtimeApi, middleware } = createSubject({
       context: {
         includeSystemPrompt: false,
         includeToolResults: false,
@@ -349,7 +371,7 @@ describe('AdvisorMiddleware', () => {
       }
     })
     const invoke = jest.fn().mockResolvedValue(new AIMessage('Use the generic adapter boundary.'))
-    commandBus.execute.mockResolvedValue({
+    runtimeApi.createModelClient.mockResolvedValue({
       invoke
     })
 
@@ -415,7 +437,7 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('keeps only tool results that still match the sanitized AI tool calls', async () => {
-    const { commandBus, middleware } = createSubject({
+    const { runtimeApi, middleware } = createSubject({
       context: {
         includeSystemPrompt: false,
         includeToolResults: true,
@@ -424,7 +446,7 @@ describe('AdvisorMiddleware', () => {
       }
     })
     const invoke = jest.fn().mockResolvedValue(new AIMessage('Keep the valid search context only.'))
-    commandBus.execute.mockResolvedValue({
+    runtimeApi.createModelClient.mockResolvedValue({
       invoke
     })
 
@@ -504,7 +526,7 @@ describe('AdvisorMiddleware', () => {
   })
 
   it('drops orphan tool results after tail truncation', async () => {
-    const { commandBus, middleware } = createSubject({
+    const { runtimeApi, middleware } = createSubject({
       context: {
         includeSystemPrompt: false,
         includeToolResults: true,
@@ -513,7 +535,7 @@ describe('AdvisorMiddleware', () => {
       }
     })
     const invoke = jest.fn().mockResolvedValue(new AIMessage('No invalid tool history was forwarded.'))
-    commandBus.execute.mockResolvedValue({
+    runtimeApi.createModelClient.mockResolvedValue({
       invoke
     })
 
