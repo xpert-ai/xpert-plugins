@@ -103,7 +103,7 @@ export class AdvisorMiddleware implements IAgentMiddlewareStrategy<Partial<Advis
 
     const getAdvisorModel = async () => {
       if (!advisorModelPromise) {
-        advisorModelPromise = ((context as any).runtime as any).createModelClient(
+        advisorModelPromise = context.runtime.createModelClient<BaseChatModel>(
           buildInternalModelConfig(config.advisorModel, config),
           {
             usageCallback: () => undefined

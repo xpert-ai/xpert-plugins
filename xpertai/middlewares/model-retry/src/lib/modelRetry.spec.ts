@@ -11,7 +11,7 @@ jest.mock('@metad/contracts', () => ({
 
 import { AIMessage } from '@langchain/core/messages'
 import { Logger } from '@nestjs/common'
-import { calculateRetryDelay } from './retry'
+import { calculateRetryDelay } from './retry.js'
 const { ModelRetryMiddleware } = require('./modelRetry')
 
 describe('ModelRetryMiddleware', () => {

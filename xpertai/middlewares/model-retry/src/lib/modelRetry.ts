@@ -400,7 +400,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     }
 
     const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-    return (context as any).runtime.wrapWorkflowNodeExecution(async () => {
+    return context.runtime.wrapWorkflowNodeExecution(async () => {
       const retryResult = await this.invokeModel(request, handler, context)
       return {
         state: retryResult,

@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.8.1",
+    "@xpert-ai/plugin-sdk": "^3.9.1",
     "chalk": "4.1.2",
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",

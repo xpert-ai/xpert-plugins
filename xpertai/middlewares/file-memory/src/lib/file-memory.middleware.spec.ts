@@ -11,6 +11,9 @@ jest.mock('@xpert-ai/contracts', () => ({
   LongTermMemoryTypeEnum: {
     PROFILE: 'profile',
     QA: 'qa'
+  },
+  WorkflowNodeTypeEnum: {
+    MIDDLEWARE: 'middleware'
   }
 }))
 
@@ -24,6 +27,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   resolveSandboxBackend: jest.fn((sandbox?: { backend?: unknown } | null) => sandbox?.backend ?? null)
 }))
 
+import type { AgentMiddlewareRuntimeApi, IAgentMiddlewareContext, Runtime } from '@xpert-ai/plugin-sdk'
+import { WorkflowNodeTypeEnum } from '@xpert-ai/contracts'
 import { FileMemorySystemMiddleware } from './file-memory.middleware.js'
 
 describe('FileMemorySystemMiddleware hybrid recall flow', () => {
@@ -96,9 +101,9 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     )
     const runtime = createRuntime()
 
-    await middleware.beforeAgent?.({
+    await invokeLifecycleHook(middleware.beforeAgent, {
       input: 'deployment rollback'
-    } as any, runtime as any)
+    }, runtime)
 
     const handler = jest.fn().mockResolvedValue('ok')
     const wrapPromise = middleware.wrapModelCall!(
@@ -146,9 +151,9 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     )
     const runtime = createRuntime()
 
-    await middleware.beforeAgent?.({
+    await invokeLifecycleHook(middleware.beforeAgent, {
       input: 'deployment rollback'
-    } as any, runtime as any)
+    }, runtime)
 
     const firstHandler = jest.fn().mockResolvedValue('first')
     await middleware.wrapModelCall!(
@@ -208,9 +213,9 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     )
     const runtime = createRuntime()
 
-    await middleware.beforeAgent?.({
+    await invokeLifecycleHook(middleware.beforeAgent, {
       input: 'deployment rollback'
-    } as any, runtime as any)
+    }, runtime)
 
     const handler = jest.fn().mockResolvedValue('ok')
     const wrapPromise = middleware.wrapModelCall!(
@@ -250,9 +255,9 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     )
     const runtime = createRuntime()
 
-    await middleware.afterAgent?.({
+    await invokeLifecycleHook(middleware.afterAgent, {
       messages: [new HumanMessage('remember my preference')]
-    } as any, runtime as any)
+    }, runtime)
 
     expect(writebackRunner.enqueue).toHaveBeenCalledTimes(1)
     expect(writebackRunner.softDrain).not.toHaveBeenCalled()
@@ -277,9 +282,9 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
     )
     const runtime = createRuntime()
 
-    await middleware.afterAgent?.({
+    await invokeLifecycleHook(middleware.afterAgent, {
       messages: [new HumanMessage('remember my preference')]
-    } as any, runtime as any)
+    }, runtime)
 
     expect(writebackRunner.enqueue).toHaveBeenCalledTimes(1)
     expect(writebackRunner.softDrain).toHaveBeenCalledWith('job-1', 1_500)
@@ -366,18 +371,45 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
   })
 })
 
-function createContext() {
+function createRuntimeApi(): AgentMiddlewareRuntimeApi {
+  return {
+    createModelClient: jest.fn(),
+    wrapWorkflowNodeExecution: jest.fn()
+  }
+}
+
+function createContext(): IAgentMiddlewareContext {
   return {
     tenantId: 'tenant-1',
     userId: 'u1',
     xpertId: 'xpert-1',
     workspaceId: null,
     conversationId: 'conversation-1',
-    runtime: {
-      createModelClient: jest.fn(),
-      wrapWorkflowNodeExecution: jest.fn()
+    node: {
+      id: 'file-memory-node-id',
+      key: 'file-memory-node',
+      title: 'File Memory',
+      type: WorkflowNodeTypeEnum.MIDDLEWARE,
+      provider: 'FileMemorySystemMiddleware'
     },
+    tools: new Map(),
+    runtime: createRuntimeApi(),
     xpertFeatures: {
+      opener: {
+        enabled: false,
+        message: '',
+        questions: []
+      },
+      suggestion: {
+        enabled: false,
+        prompt: ''
+      },
+      textToSpeech: {
+        enabled: false
+      },
+      speechToText: {
+        enabled: false
+      },
       sandbox: {
         enabled: true
       }
@@ -532,7 +564,7 @@ function createRecord(id: string, title: string, body: string) {
   }
 }
 
-function createRuntime() {
+function createRuntime(): Runtime {
   return {
     configurable: {
       sandbox: {
@@ -540,6 +572,20 @@ function createRuntime() {
       }
     }
   }
+}
+
+function invokeLifecycleHook<TState, TRuntime>(
+  hook:
+    | ((state: TState, runtime: TRuntime) => unknown)
+    | { hook: (state: TState, runtime: TRuntime) => unknown }
+    | undefined,
+  state: TState,
+  runtime: TRuntime
+) {
+  if (!hook) {
+    return undefined
+  }
+  return typeof hook === 'function' ? hook(state, runtime) : hook.hook(state, runtime)
 }
 
 function createSandboxBackend() {

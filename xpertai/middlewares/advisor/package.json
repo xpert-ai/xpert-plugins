@@ -35,6 +35,6 @@
   },
   "peerDependencies": {
     "@xpert-ai/contracts": "^3.9.0-beta.1",
-    "@xpert-ai/plugin-sdk": "^3.9.0-beta.1"
+    "@xpert-ai/plugin-sdk": "^3.9.1"
   }
 }

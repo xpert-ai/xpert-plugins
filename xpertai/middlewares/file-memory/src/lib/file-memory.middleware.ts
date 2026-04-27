@@ -193,11 +193,7 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
     let writebackModelPromise: Promise<BaseChatModel> | null = null
     let currentSandbox: TSandboxConfigurable | null = null
     let currentStore: SandboxMemoryStore | null = null
-    const middlewareRuntime = (context as IAgentMiddlewareContext & {
-      runtime?: {
-        createModelClient<T>(model: ICopilotModel, options?: { usageCallback?: () => void }): Promise<T>
-      }
-    }).runtime
+    const middlewareRuntime = context.runtime
 
     const requireMemoryStore = (runtimeLike: unknown, reason: string) => {
       const sandbox = extractSandboxConfig(runtimeLike) ?? currentSandbox
@@ -224,9 +220,6 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         return null
       }
       if (!recallModelPromise) {
-        if (!middlewareRuntime) {
-          throw new Error('Middleware runtime is unavailable for recall model creation.')
-        }
         recallModelPromise = middlewareRuntime.createModelClient<BaseChatModel>(recallConfig.model as ICopilotModel, {
           usageCallback: () => undefined
         })
@@ -255,9 +248,6 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
         return null
       }
       if (!writebackModelPromise) {
-        if (!middlewareRuntime) {
-          throw new Error('Middleware runtime is unavailable for writeback model creation.')
-        }
         writebackModelPromise = middlewareRuntime.createModelClient<BaseChatModel>(
           writebackConfig!.model as ICopilotModel,
           {

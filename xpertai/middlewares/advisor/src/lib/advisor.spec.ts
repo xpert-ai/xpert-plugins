@@ -5,6 +5,9 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 jest.mock('@xpert-ai/contracts', () => ({
   AiModelTypeEnum: {
     LLM: 'LLM'
+  },
+  WorkflowNodeTypeEnum: {
+    MIDDLEWARE: 'middleware'
   }
 }))
 
@@ -21,10 +24,12 @@ jest.mock('@xpert-ai/chatkit-types', () => ({
   }
 }))
 
+import type { AgentMiddlewareRuntimeApi, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { Command } from '@langchain/langgraph'
 import { ChatMessageEventTypeEnum } from '@xpert-ai/chatkit-types'
+import { WorkflowNodeTypeEnum } from '@xpert-ai/contracts'
 import { AdvisorMiddleware } from './advisor.middleware.js'
 import { AdvisorPluginConfigFormSchema } from './advisor.types.js'
 
@@ -37,7 +42,38 @@ describe('AdvisorMiddleware', () => {
     return {
       createModelClient: jest.fn(),
       wrapWorkflowNodeExecution: jest.fn()
+    } satisfies AgentMiddlewareRuntimeApi
+  }
+
+  function createContext(runtimeApi: AgentMiddlewareRuntimeApi): IAgentMiddlewareContext {
+    return {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      node: {
+        id: 'advisor-node-id',
+        key: 'advisor-node',
+        title: 'Advisor',
+        type: WorkflowNodeTypeEnum.MIDDLEWARE,
+        provider: 'AdvisorMiddleware'
+      },
+      tools: new Map(),
+      runtime: runtimeApi
     }
+  }
+
+  function invokeLifecycleHook<TState, TRuntime>(
+    hook:
+      | ((state: TState, runtime: TRuntime) => unknown)
+      | { hook: (state: TState, runtime: TRuntime) => unknown }
+      | undefined,
+    state: TState,
+    runtime: TRuntime
+  ) {
+    if (!hook) {
+      return undefined
+    }
+    return typeof hook === 'function' ? hook(state, runtime) : hook.hook(state, runtime)
   }
 
   function createSubject(options: Record<string, unknown> = {}) {
@@ -50,9 +86,7 @@ describe('AdvisorMiddleware', () => {
         },
         ...options
       },
-      {
-        runtime: runtimeApi
-      } as any
+      createContext(runtimeApi)
     )
 
     return {
@@ -71,7 +105,7 @@ describe('AdvisorMiddleware', () => {
   it('validates advisorModel when enabled', () => {
     const strategy = new AdvisorMiddleware()
 
-    expect(() => strategy.createMiddleware({}, { runtime: createRuntimeApi() } as any)).toThrow(
+    expect(() => strategy.createMiddleware({}, createContext(createRuntimeApi()))).toThrow(
       'advisorModel is required when advisor middleware is enabled'
     )
   })
@@ -79,7 +113,7 @@ describe('AdvisorMiddleware', () => {
   it('resets the run counter in beforeAgent', async () => {
     const { middleware } = createSubject()
 
-    const result = await middleware.beforeAgent?.({ advisorRunUses: 9, advisorSessionUses: 4 } as any, {} as any)
+    const result = await invokeLifecycleHook(middleware.beforeAgent, { advisorRunUses: 9, advisorSessionUses: 4 }, {})
 
     expect(result).toEqual({
       advisorRunUses: 0
