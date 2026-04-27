@@ -9,6 +9,14 @@ export interface WeComChatRunState {
   sourceMessageId: string
   nextSequence: number
   responseMessageContent: string
+  terminalError?: string
+  runCreatedAt: number
+  firstCallbackAt?: number
+  firstVisibleTextAt?: number
+  firstVisiblePushAt?: number
+  lastVisiblePushAt?: number
+  desiredVisiblePushContent?: string
+  lastVisiblePushContent?: string
   context: WeComChatCallbackContext
   pendingEvents: Record<string, WeComChatStreamCallbackPayload>
 }
