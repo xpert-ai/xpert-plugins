@@ -1,13 +1,4 @@
-import {
-  TIntegrationWeComLongOptions,
-  TWeComLongDisabledReason
-} from './types.js'
-
-export type TWeComLongConnectionErrorClassification = {
-  recoverable: boolean
-  disabledReason: Extract<TWeComLongDisabledReason, 'config_invalid' | 'runtime_error'>
-  reason: string
-}
+import { TWeComLongDisabledReason } from './types.js'
 
 const UNRECOVERABLE_PATTERNS = [
   'missing botid/secret',
@@ -63,15 +54,11 @@ export function getWeComLongConnectionRegistryKey(): string {
   return 'wecom:ws:registry'
 }
 
-export function getWeComLongConnectionLockKey(
-  options: Pick<TIntegrationWeComLongOptions, 'botId'>
-): string {
+export function getWeComLongConnectionLockKey(options?: { botId?: string | null }): string {
   return `wecom:ws:bot:${String(options?.botId || 'unknown').trim() || 'unknown'}`
 }
 
-export function getWeComLongConnectionOwnerKey(
-  options: Pick<TIntegrationWeComLongOptions, 'botId'>
-): string {
+export function getWeComLongConnectionOwnerKey(options?: { botId?: string | null }): string {
   return `wecom:ws:bot-owner:${String(options?.botId || 'unknown').trim() || 'unknown'}`
 }
 
@@ -79,9 +66,11 @@ export function getWeComLongConnectionStatusKey(integrationId: string): string {
   return `wecom:ws:status:${integrationId}`
 }
 
-export function classifyWeComLongConnectionError(
-  error: unknown
-): TWeComLongConnectionErrorClassification {
+export function classifyWeComLongConnectionError(error: unknown): {
+  recoverable: boolean
+  disabledReason: TWeComLongDisabledReason
+  reason: string
+} {
   const message = toReasonMessage(error)
   const normalized = message.toLowerCase()
 

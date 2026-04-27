@@ -19,9 +19,10 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import type { IIntegration } from '@metad/contracts'
+import { WeComConversationService } from '../conversation.service.js'
 import { WeComChannelStrategy } from '../wecom-channel.strategy.js'
 import { WeComLongConnectionService } from '../wecom-long-connection.service.js'
-import { TIntegrationWeComLongOptions } from '../types.js'
+import { INTEGRATION_WECOM, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions } from '../types.js'
 import { WeComIntegrationViewProvider } from './wecom-integration-view.provider.js'
 
 type WeComViewHostContext = {
@@ -36,7 +37,7 @@ type WeComViewHostContext = {
 }
 
 describe('WeComIntegrationViewProvider', () => {
-  function createContext(provider = 'wecom_long'): WeComViewHostContext {
+  function createContext(provider = INTEGRATION_WECOM_LONG): WeComViewHostContext {
     return {
       tenantId: 'tenant-1',
       organizationId: 'org-1',
@@ -55,22 +56,21 @@ describe('WeComIntegrationViewProvider', () => {
     }
   }
 
-  function createIntegration() {
+  function createIntegration(provider = INTEGRATION_WECOM_LONG) {
     return {
       id: 'integration-1',
-      provider: 'wecom_long',
+      provider,
       name: '企微机器人',
       options: {
         botId: 'bot-1',
         secret: 'secret-1',
-        xpertId: 'xpert-1',
         preferLanguage: 'zh-Hans'
       }
     } as IIntegration<TIntegrationWeComLongOptions>
   }
 
-  function createFixture() {
-    const integration = createIntegration()
+  function createFixture(providerValue = INTEGRATION_WECOM_LONG) {
+    const integration = createIntegration(providerValue)
     const longConnectionService = {
       status: jest.fn().mockResolvedValue({
         integrationId: 'integration-1',
@@ -92,13 +92,32 @@ describe('WeComIntegrationViewProvider', () => {
     const wecomChannel = {
       readIntegrationById: jest.fn().mockResolvedValue(integration)
     }
+    const conversationService = {
+      listBindingsByIntegration: jest.fn().mockResolvedValue({
+        items: [
+          {
+            id: 'binding-1',
+            chatType: 'group',
+            chatId: 'chat-1',
+            senderId: 'sender-1',
+            xpertId: 'xpert-1',
+            conversationId: 'conversation-1',
+            updatedAt: new Date('2026-04-03T00:00:00.000Z')
+          }
+        ],
+        total: 1
+      }),
+      restartConversationBinding: jest.fn().mockResolvedValue(undefined)
+    }
 
     return {
       longConnectionService,
       wecomChannel,
+      conversationService,
       provider: new WeComIntegrationViewProvider(
         longConnectionService as unknown as WeComLongConnectionService,
-        wecomChannel as unknown as WeComChannelStrategy
+        wecomChannel as unknown as WeComChannelStrategy,
+        conversationService as unknown as WeComConversationService
       )
     }
   }
@@ -107,20 +126,58 @@ describe('WeComIntegrationViewProvider', () => {
     jest.restoreAllMocks()
   })
 
-  it('supports only wecom long integration hosts', () => {
+  it('supports both wecom and wecom long integration hosts', () => {
     const { provider } = createFixture()
 
-    expect(provider.supports(createContext('wecom_long'))).toBe(true)
-    expect(provider.supports(createContext('wecom'))).toBe(false)
+    expect(provider.supports(createContext(INTEGRATION_WECOM_LONG))).toBe(true)
+    expect(provider.supports(createContext(INTEGRATION_WECOM))).toBe(true)
+    expect(provider.supports(createContext('slack'))).toBe(false)
   })
 
-  it('declares only a status tab for integration detail main tabs', () => {
-    const { provider } = createFixture()
+  it('declares only status and conversations tabs for long connection integrations', () => {
+    const { provider } = createFixture(INTEGRATION_WECOM_LONG)
 
     expect(provider.getViewManifests(createContext(), 'detail.main_tabs').map((manifest) => manifest.key)).toEqual([
-      'status'
+      'status',
+      'conversations'
     ])
     expect(provider.getViewManifests(createContext(), 'detail.sidebar')).toEqual([])
+  })
+
+  it('declares only conversations tab for webhook integrations', () => {
+    const { provider } = createFixture(INTEGRATION_WECOM)
+
+    expect(
+      provider.getViewManifests(createContext(INTEGRATION_WECOM), 'detail.main_tabs').map((manifest) => manifest.key)
+    ).toEqual(['conversations'])
+  })
+
+  it('marks conversation timestamp columns as datetime', () => {
+    const { provider } = createFixture(INTEGRATION_WECOM_LONG)
+    const manifests = provider.getViewManifests(createContext(INTEGRATION_WECOM_LONG), 'detail.main_tabs')
+    const conversationsManifest = manifests.find((manifest) => manifest.key === 'conversations')
+
+    expect(conversationsManifest?.view).toEqual(
+      expect.objectContaining({
+        columns: expect.arrayContaining([expect.objectContaining({ key: 'updatedAt', dataType: 'datetime' })])
+      })
+    )
+  })
+
+  it('declares a row action for restarting conversations', () => {
+    const { provider } = createFixture(INTEGRATION_WECOM_LONG)
+
+    const conversationsManifest = provider
+      .getViewManifests(createContext(INTEGRATION_WECOM_LONG), 'detail.main_tabs')
+      .find((manifest) => manifest.key === 'conversations')
+
+    expect(conversationsManifest?.actions).toEqual([
+      expect.objectContaining({
+        key: 'restart_conversation',
+        placement: 'row',
+        actionType: 'invoke'
+      })
+    ])
   })
 
   it('loads status data from runtime status and integration metadata', async () => {
@@ -140,6 +197,32 @@ describe('WeComIntegrationViewProvider', () => {
         reconnectAttempts: 2,
         disabledReason: null
       }
+    })
+  })
+
+  it('loads conversations data through conversation service', async () => {
+    const { provider, conversationService } = createFixture()
+
+    await expect(provider.getViewData(createContext(), 'conversations', {})).resolves.toEqual({
+      items: [
+        {
+          id: 'binding-1',
+          chatType: 'group',
+          chatId: 'chat-1',
+          senderId: 'sender-1',
+          xpertId: 'xpert-1',
+          conversationId: 'conversation-1',
+          updatedAt: '2026-04-03T00:00:00.000Z'
+        }
+      ],
+      total: 1
+    })
+    expect(conversationService.listBindingsByIntegration).toHaveBeenCalledWith('integration-1', {
+      page: undefined,
+      pageSize: undefined,
+      search: undefined,
+      sortBy: undefined,
+      sortDirection: null
     })
   })
 
@@ -165,5 +248,40 @@ describe('WeComIntegrationViewProvider', () => {
       refresh: true
     })
     expect(longConnectionService.disconnect).toHaveBeenCalledWith('integration-1')
+  })
+
+  it('restarts a conversation through the row action and refreshes the view', async () => {
+    const { provider, conversationService } = createFixture()
+
+    await expect(
+      provider.executeViewAction(createContext(), 'conversations', 'restart_conversation', {
+        targetId: 'binding-1'
+      })
+    ).resolves.toEqual({
+      success: true,
+      message: {
+        en_US: 'New conversation started. Please continue asking.',
+        zh_Hans: '已开启新会话，请继续提问'
+      },
+      refresh: true
+    })
+
+    expect(conversationService.restartConversationBinding).toHaveBeenCalledWith('integration-1', 'binding-1')
+  })
+
+  it('fails row action when targetId is missing', async () => {
+    const { provider, conversationService } = createFixture()
+
+    await expect(
+      provider.executeViewAction(createContext(), 'conversations', 'restart_conversation', {})
+    ).resolves.toEqual({
+      success: false,
+      message: {
+        en_US: 'Missing conversation target',
+        zh_Hans: '缺少可重置的会话目标'
+      }
+    })
+
+    expect(conversationService.restartConversationBinding).not.toHaveBeenCalled()
   })
 })

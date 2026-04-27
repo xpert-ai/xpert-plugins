@@ -1,6 +1,4 @@
 /**
- * adds a docblock pointing Jest's loader at the new ts config, keeping the rest of the file untouched.
- *
  * @jest-config-loader-options {"project":"tsconfig.jest.json"}
  */
 /* eslint-disable */

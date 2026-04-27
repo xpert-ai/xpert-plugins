@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const moduleFilename = fileURLToPath(import.meta.url)
-const moduleDir = dirname(moduleFilename)
+const __filename = fileURLToPath(import.meta.url)
+const moduleDir = dirname(__filename)
 
 export const iconImage = `data:image/png;base64,${readFileSync(join(moduleDir, '../_assets/icon.png')).toString('base64')}`
 
@@ -14,7 +14,6 @@ export const INTEGRATION_WECOM_LONG = 'wecom_long'
 export type TIntegrationWeComShortOptions = {
   token: string
   encodingAesKey: string
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
 }
@@ -23,7 +22,6 @@ export type TIntegrationWeComLongOptions = {
   botId: string
   secret: string
   wsOrigin?: string
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
 }
@@ -37,7 +35,6 @@ export type TIntegrationWeComOptions = {
   secret?: string
   wsOrigin?: string
   // shared
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
   // deprecated openapi fields (kept only for backward compatibility with saved integrations)
