@@ -19,13 +19,9 @@ import {
 import { type Cache } from 'cache-manager'
 import { IIntegration } from '@metad/contracts'
 import { WECOM_LONG_CONNECTION_SERVICE, WECOM_PLUGIN_CONTEXT } from './tokens.js'
-import {
-  iconImage,
-  INTEGRATION_WECOM,
-  INTEGRATION_WECOM_LONG,
-  TIntegrationWeComOptions,
-  TWeComEvent
-} from './types.js'
+import { iconImage, INTEGRATION_WECOM, INTEGRATION_WECOM_LONG, TIntegrationWeComOptions, TWeComEvent } from './types.js'
+import { buildWeComRestartConversationCard } from './wecom-conversation-action-card.js'
+import { formatWeComConversationErrorText } from './wecom-conversation-text.js'
 import { convertMarkdownToWeComMarkdown } from './wecom-markdown.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
@@ -58,6 +54,17 @@ type WeComLongConnectionClient = {
     integrationId: string
     chatId: string
     body: Record<string, unknown>
+    timeoutMs?: number
+  }) => Promise<{ reqId: string; errcode: number; errmsg: string; raw: Record<string, unknown> }>
+  sendReplyStream: (params: {
+    integrationId: string
+    reqId: string
+    streamId: string
+    content: string
+    finish?: boolean
+    msgItem?: Array<Record<string, unknown>>
+    feedback?: Record<string, unknown>
+    nonBlocking?: boolean
     timeoutMs?: number
   }) => Promise<{ reqId: string; errcode: number; errmsg: string; raw: Record<string, unknown> }>
 }
@@ -102,7 +109,6 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
         encodingAesKey: { type: 'string', description: '短连接回调 EncodingAESKey' },
         botId: { type: 'string', description: '长连接 Bot ID' },
         secret: { type: 'string', description: '长连接 Secret' },
-        xpertId: { type: 'string', description: '默认数字专家 ID' },
         timeoutMs: { type: 'number', description: '发送超时（毫秒）' }
       },
       required: []
@@ -188,12 +194,22 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
 
       const message = this.parseInboundMessage(event, ctx)
       if (!message) {
+        if (event.msgType === 'event' || event.eventType) {
+          this.logger.debug(
+            `[wecom-event] ignore non-message event integration=${ctx.integration.id} eventType=${
+              event.eventType || 'unknown'
+            } chatId=${event.chatId || 'empty'} senderId=${event.senderId || 'empty'} reqId=${event.reqId || 'empty'}`
+          )
+          res.status(200).send('success')
+          return
+        }
+
         this.logger.warn(
           `[wecom-event] drop event integration=${ctx.integration.id} cmd=${event.cmd || 'n/a'} msgType=${
             event.msgType || 'unknown'
-          } chatId=${event.chatId || 'empty'} senderId=${event.senderId || 'empty'} reqId=${event.reqId || 'empty'} contentLen=${
-            event.content?.length || 0
-          }`
+          } chatId=${event.chatId || 'empty'} senderId=${event.senderId || 'empty'} reqId=${
+            event.reqId || 'empty'
+          } contentLen=${event.content?.length || 0}`
         )
         res.status(200).send('success')
         return
@@ -209,7 +225,10 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     }
   }
 
-  parseInboundMessage(event: TWeComEvent, _ctx: TChatEventContext<TIntegrationWeComOptions>): TChatInboundMessage | null {
+  parseInboundMessage(
+    event: TWeComEvent,
+    _ctx: TChatEventContext<TIntegrationWeComOptions>
+  ): TChatInboundMessage | null {
     const senderId = this.normalizeString(event.senderId)
     const chatId = this.normalizeString(event.chatId) || senderId
 
@@ -232,7 +251,10 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   }
 
   async sendText(ctx: TChatContext, content: string): Promise<TChatSendResult> {
-    const timeoutMs = this.normalizeTimeout((ctx.integration.options as TIntegrationWeComOptions)?.timeoutMs, DEFAULT_TIMEOUT_MS)
+    const timeoutMs = this.normalizeTimeout(
+      (ctx.integration.options as TIntegrationWeComOptions)?.timeoutMs,
+      DEFAULT_TIMEOUT_MS
+    )
     const raw = (ctx as Record<string, unknown>)?.raw
     const responseUrl = this.extractResponseUrl(raw)
     const reqId = this.extractReqId(raw)
@@ -254,6 +276,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     integrationId: string,
     params: {
       chatId?: string
+      chatType?: 'private' | 'group' | 'channel' | 'thread'
       senderId?: string
       responseUrl?: string
       reqId?: string
@@ -272,6 +295,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     return this.sendRobotPayload({
       integrationId,
       chatId: params.chatId,
+      chatType: params.chatType,
       senderId: params.senderId,
       responseUrl: params.responseUrl,
       reqId: params.reqId,
@@ -284,16 +308,21 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   async sendRobotPayload(params: {
     integrationId: string
     chatId?: string | null
+    chatType?: 'private' | 'group' | 'channel' | 'thread' | null
     senderId?: string | null
     responseUrl?: string | null
     reqId?: string | null
     preferConversationContext?: boolean
+    preferActiveMessage?: boolean
     timeoutMs?: number
     payload: Record<string, unknown>
   }): Promise<TChatSendResult> {
     const integration = await this.readIntegration(params.integrationId)
     const provider = this.normalizeProvider(integration.provider)
-    const timeoutMs = this.normalizeTimeout(params.timeoutMs, this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS))
+    const timeoutMs = this.normalizeTimeout(
+      params.timeoutMs,
+      this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS)
+    )
     const payload = this.normalizeOutboundPayload(params.payload)
 
     const context = await this.resolveRobotContext({
@@ -324,6 +353,32 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       return this.sendToResponseUrlPayload(context.responseUrl, payload, timeoutMs)
     }
 
+    if (params.preferActiveMessage === true) {
+      const targetChatId = this.resolveActiveMessageTarget({
+        chatId: context.chatId,
+        chatType: params.chatType,
+        senderId: context.senderId
+      })
+      if (!targetChatId) {
+        return {
+          success: false,
+          error: '当前会话缺少可用机器人上下文（response_url/req_id/chat）'
+        }
+      }
+
+      await this.longConnection.sendActiveMessage({
+        integrationId: context.integrationId,
+        chatId: targetChatId,
+        body: payload,
+        timeoutMs
+      })
+
+      return {
+        success: true,
+        messageId: randomUUID()
+      }
+    }
+
     if (context.reqId) {
       await this.longConnection.sendRespondMessage({
         integrationId: context.integrationId,
@@ -337,7 +392,11 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       }
     }
 
-    const targetChatId = context.chatId || context.senderId
+    const targetChatId = this.resolveActiveMessageTarget({
+      chatId: context.chatId,
+      chatType: params.chatType,
+      senderId: context.senderId
+    })
     if (!targetChatId) {
       return {
         success: false,
@@ -358,18 +417,90 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     }
   }
 
+  async sendReplyStreamByIntegrationId(
+    integrationId: string,
+    params: {
+      chatId?: string | null
+      senderId?: string | null
+      responseUrl?: string | null
+      reqId?: string | null
+      preferConversationContext?: boolean
+      streamId?: string | null
+      content: string
+      finish?: boolean
+      msgItem?: Array<Record<string, unknown>>
+      feedback?: Record<string, unknown>
+      nonBlocking?: boolean
+      timeoutMs?: number
+    }
+  ): Promise<TChatSendResult> {
+    const integration = await this.readIntegration(integrationId)
+    const provider = this.normalizeProvider(integration.provider)
+    const timeoutMs = this.normalizeTimeout(
+      params.timeoutMs,
+      this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS)
+    )
+
+    const context = await this.resolveRobotContext({
+      integrationId: integration.id,
+      provider,
+      senderId: params.senderId,
+      chatId: params.chatId,
+      responseUrl: params.responseUrl,
+      reqId: params.reqId,
+      allowLatestFallback: params.preferConversationContext !== false
+    })
+
+    if (!context || context.provider !== INTEGRATION_WECOM_LONG || !context.reqId) {
+      return {
+        success: false,
+        error: '当前会话缺少可用机器人上下文（req_id）'
+      }
+    }
+
+    const streamId = this.normalizeString(params.streamId)
+    if (!streamId) {
+      return {
+        success: false,
+        error: 'Missing streamId for WeCom replyStream'
+      }
+    }
+
+    const result = await this.longConnection.sendReplyStream({
+      integrationId: context.integrationId,
+      reqId: context.reqId,
+      streamId,
+      content: convertMarkdownToWeComMarkdown(params.content),
+      finish: params.finish === true,
+      msgItem: params.msgItem,
+      feedback: params.feedback,
+      nonBlocking: params.nonBlocking === true,
+      timeoutMs
+    })
+
+    return {
+      success: true,
+      messageId: streamId,
+      ...(result.raw?.skipped === true ? { skipped: true } : {})
+    } as TChatSendResult & { skipped?: boolean }
+  }
+
   async updateRobotTemplateCard(params: {
     integrationId: string
     templateCard: Record<string, unknown>
     senderId?: string | null
     chatId?: string | null
+    chatType?: 'private' | 'group' | 'channel' | 'thread' | null
     responseUrl?: string | null
     reqId?: string | null
     timeoutMs?: number
   }): Promise<TChatSendResult> {
     const integration = await this.readIntegration(params.integrationId)
     const provider = this.normalizeProvider(integration.provider)
-    const timeoutMs = this.normalizeTimeout(params.timeoutMs, this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS))
+    const timeoutMs = this.normalizeTimeout(
+      params.timeoutMs,
+      this.normalizeTimeout(integration.options?.timeoutMs, DEFAULT_TIMEOUT_MS)
+    )
 
     const context = await this.resolveRobotContext({
       integrationId: integration.id,
@@ -585,16 +716,19 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     params: {
       integrationId: string
       chatId?: string
+      chatType?: 'private' | 'group' | 'channel' | 'thread'
       senderId?: string
       responseUrl?: string
       reqId?: string
     },
     error: unknown
   ): Promise<void> {
+    const integration = await this.readIntegration(params.integrationId)
     const message = error instanceof Error ? error.message : String(error)
-    const content = `[企业微信对话异常]\n${message}`
+    const content = formatWeComConversationErrorText(integration.options?.preferLanguage, message)
     const result = await this.sendTextByIntegrationId(params.integrationId, {
       chatId: params.chatId,
+      chatType: params.chatType,
       senderId: params.senderId,
       responseUrl: params.responseUrl,
       reqId: params.reqId,
@@ -603,7 +737,33 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     })
 
     if (!result.success) {
-      this.logger.warn(`[wecom-error-message] failed integration=${params.integrationId} error=${result.error || 'unknown'}`)
+      this.logger.warn(
+        `[wecom-error-message] failed integration=${params.integrationId} error=${result.error || 'unknown'}`
+      )
+      return
+    }
+
+    const cardResult = await this.sendRobotPayload({
+      integrationId: params.integrationId,
+      chatId: params.chatId,
+      chatType: params.chatType,
+      senderId: params.senderId,
+      responseUrl: params.responseUrl,
+      reqId: params.reqId,
+      preferConversationContext: true,
+      preferActiveMessage: true,
+      payload: {
+        msgtype: 'template_card',
+        template_card: buildWeComRestartConversationCard(integration.options?.preferLanguage)
+      }
+    })
+
+    if (!cardResult.success) {
+      this.logger.warn(
+        `[wecom-error-message] failed to send restart card integration=${params.integrationId} error=${
+          cardResult.error || 'unknown'
+        }`
+      )
     }
   }
 
@@ -639,9 +799,12 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     const mixedPayload = this.normalizeRecord(payloadRecord.mixed || payloadRecord.Mixed)
     const responsePayload = this.normalizeRecord(payloadRecord.response || payloadRecord.Response)
 
-    const msgType = this.normalizeString(payloadRecord.MsgType || payloadRecord.msgType || payloadRecord.msgtype) || undefined
+    const msgType =
+      this.normalizeString(payloadRecord.MsgType || payloadRecord.msgType || payloadRecord.msgtype) || undefined
     const eventType =
-      this.normalizeString(payloadRecord.Event || payloadRecord.event || payloadRecord.EventType || payloadRecord.eventType) || undefined
+      this.normalizeString(
+        payloadRecord.Event || payloadRecord.event || payloadRecord.EventType || payloadRecord.eventType
+      ) || undefined
     const cmd = this.normalizeString(payloadRecord.cmd) || undefined
     const reqId = this.normalizeString(payloadRecord.req_id || payloadRecord.reqId) || undefined
 
@@ -690,14 +853,16 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       undefined
 
     const timestamp = this.normalizeTimestamp(
-      payloadRecord.CreateTime || payloadRecord.createTime || payloadRecord.create_time || payloadRecord.timestamp || Date.now()
+      payloadRecord.CreateTime ||
+        payloadRecord.createTime ||
+        payloadRecord.create_time ||
+        payloadRecord.timestamp ||
+        Date.now()
     )
 
     const mentions = this.normalizeMentions(payloadRecord.mentions || payloadRecord.Mentions || payloadRecord.atUsers)
     const chatType = this.normalizeChatType(
-      payloadRecord.ChatType || payloadRecord.chatType || payloadRecord.chattype || payloadRecord.conversationType,
-      resolvedChatId || null,
-      senderId
+      payloadRecord.ChatType || payloadRecord.chatType || payloadRecord.chattype || payloadRecord.conversationType
     )
 
     if (!content && msgType !== 'text') {
@@ -794,7 +959,12 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   }
 
   private async shouldSkipDuplicatedEvent(integrationId: string, event: TWeComEvent): Promise<boolean> {
-    const dedupeId = [integrationId, event.messageId || event.reqId || 'no-id', event.chatId || 'no-chat', event.timestamp || 0].join(':')
+    const dedupeId = [
+      integrationId,
+      event.messageId || event.reqId || 'no-id',
+      event.chatId || 'no-chat',
+      event.timestamp || 0
+    ].join(':')
     const cacheKey = `wecom:dedupe:${dedupeId}`
     const existed = await this.cacheManager.get<string>(cacheKey)
     if (existed) {
@@ -832,7 +1002,11 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       return
     }
 
-    await this.cacheManager.set(this.responseUrlCacheKey(integrationId, senderId, chatId), responseUrl, RESPONSE_URL_CACHE_TTL_MS)
+    await this.cacheManager.set(
+      this.responseUrlCacheKey(integrationId, senderId, chatId),
+      responseUrl,
+      RESPONSE_URL_CACHE_TTL_MS
+    )
     await this.cacheManager.set(
       this.latestResponseContextCacheKey(integrationId),
       {
@@ -844,11 +1018,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     )
   }
 
-  private async getCachedResponseUrl(
-    integrationId: string,
-    senderId: string,
-    chatId: string
-  ): Promise<string | null> {
+  private async getCachedResponseUrl(integrationId: string, senderId: string, chatId: string): Promise<string | null> {
     if (!integrationId || !senderId || !chatId) {
       return null
     }
@@ -884,12 +1054,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     }
   }
 
-  private async cacheReqId(
-    integrationId: string,
-    senderId: string,
-    chatId: string,
-    reqId: string
-  ): Promise<void> {
+  private async cacheReqId(integrationId: string, senderId: string, chatId: string, reqId: string): Promise<void> {
     if (!integrationId || !senderId || !chatId || !reqId) {
       return
     }
@@ -906,11 +1071,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     )
   }
 
-  private async getCachedReqId(
-    integrationId: string,
-    senderId: string,
-    chatId: string
-  ): Promise<string | null> {
+  private async getCachedReqId(integrationId: string, senderId: string, chatId: string): Promise<string | null> {
     if (!integrationId || !senderId || !chatId) {
       return null
     }
@@ -1014,8 +1175,12 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
         },
         FromUserName: this.matchXmlTag(text, 'FromUserName') || this.matchXmlTag(text, 'fromUserName'),
         ChatId: this.matchXmlTag(text, 'ChatId') || this.matchXmlTag(text, 'chatId'),
-        chatid: this.matchXmlTag(text, 'chatid') || this.matchXmlTag(text, 'ChatId') || this.matchXmlTag(text, 'chatId'),
-        chattype: this.matchXmlTag(text, 'chattype') || this.matchXmlTag(text, 'ChatType') || this.matchXmlTag(text, 'chatType'),
+        chatid:
+          this.matchXmlTag(text, 'chatid') || this.matchXmlTag(text, 'ChatId') || this.matchXmlTag(text, 'chatId'),
+        chattype:
+          this.matchXmlTag(text, 'chattype') ||
+          this.matchXmlTag(text, 'ChatType') ||
+          this.matchXmlTag(text, 'chatType'),
         response_url:
           this.matchXmlTag(text, 'response_url') ||
           this.matchXmlTag(text, 'ResponseUrl') ||
@@ -1024,7 +1189,9 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
         msgid: this.matchXmlTag(text, 'msgid') || this.matchXmlTag(text, 'MsgId') || this.matchXmlTag(text, 'msgId'),
         CreateTime: this.matchXmlTag(text, 'CreateTime') || this.matchXmlTag(text, 'createTime'),
         create_time:
-          this.matchXmlTag(text, 'create_time') || this.matchXmlTag(text, 'CreateTime') || this.matchXmlTag(text, 'createTime')
+          this.matchXmlTag(text, 'create_time') ||
+          this.matchXmlTag(text, 'CreateTime') ||
+          this.matchXmlTag(text, 'createTime')
       }
     }
 
@@ -1116,8 +1283,11 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     return mentions.length ? mentions : undefined
   }
 
-  private normalizeChatType(value: unknown, chatId: string | null, senderId: string | null): TChatInboundMessage['chatType'] {
+  private normalizeChatType(value: unknown): TChatInboundMessage['chatType'] {
     const type = this.normalizeString(value)?.toLowerCase()
+    if (type === 'single' || type === 'private' || type === 'direct') {
+      return 'private'
+    }
     if (type === 'group' || type === 'chatroom') {
       return 'group'
     }
@@ -1127,10 +1297,23 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     if (type === 'thread') {
       return 'thread'
     }
-    if (chatId && senderId && chatId !== senderId) {
-      return 'group'
-    }
     return 'private'
+  }
+
+  private resolveActiveMessageTarget(params: {
+    chatId?: string | null
+    chatType?: 'private' | 'group' | 'channel' | 'thread' | null
+    senderId?: string | null
+  }): string | null {
+    const chatType = params.chatType
+    const chatId = this.normalizeString(params.chatId)
+    const senderId = this.normalizeString(params.senderId)
+
+    if (chatType === 'private') {
+      return senderId || chatId || null
+    }
+
+    return chatId || senderId || null
   }
 
   private extractMixedTextContent(mixedPayload: Record<string, unknown> | null): string | null {
@@ -1187,7 +1370,11 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   private isValidWeComAIBotResponseUrl(url: string): boolean {
     try {
       const parsed = new URL(url)
-      return parsed.protocol === 'https:' && parsed.hostname === 'qyapi.weixin.qq.com' && parsed.pathname === '/cgi-bin/aibot/response'
+      return (
+        parsed.protocol === 'https:' &&
+        parsed.hostname === 'qyapi.weixin.qq.com' &&
+        parsed.pathname === '/cgi-bin/aibot/response'
+      )
     } catch {
       return false
     }

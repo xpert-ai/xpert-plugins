@@ -29,12 +29,10 @@ function convertMarkdownSegment(segment: string): string {
         result.push('')
       }
       result.push(...convertMarkdownTableBlock(tableLines))
-
       const nextLine = lines[nextIndex]
       if (typeof nextLine === 'string' && nextLine.trim() !== '') {
         result.push('')
       }
-
       index = nextIndex - 1
       continue
     }
@@ -102,9 +100,7 @@ function normalizeInlineMarkdown(content: string): string {
     return ''
   }
 
-  return content
-    .replace(/__(.+?)__/g, '**$1**')
-    .replace(/\*\*\s+(.+?)\s+\*\*/g, '**$1**')
+  return content.replace(/__(.+?)__/g, '**$1**').replace(/\*\*\s+(.+?)\s+\*\*/g, '**$1**')
 }
 
 function isMarkdownTableBlockStart(lines: string[], index: number): boolean {
@@ -114,12 +110,11 @@ function isMarkdownTableBlockStart(lines: string[], index: number): boolean {
 
   const headerLine = lines[index]
   const separatorLine = lines[index + 1]
-
   return headerLine.includes('|') && isMarkdownTableSeparator(separatorLine)
 }
 
 function consumeMarkdownTableBlock(lines: string[], startIndex: number): { lines: string[]; nextIndex: number } {
-  const block: string[] = [lines[startIndex], lines[startIndex + 1]]
+  const block = [lines[startIndex], lines[startIndex + 1]]
   let index = startIndex + 2
 
   while (index < lines.length) {
@@ -146,7 +141,9 @@ function convertMarkdownTableBlock(lines: string[]): string[] {
   }
 
   const columnCount = Math.max(headerRow.length, ...dataRows.map((row) => row.length))
-  const headers = Array.from({ length: columnCount }, (_, index) => normalizeInlineMarkdown(headerRow[index] || `Column ${index + 1}`))
+  const headers = Array.from({ length: columnCount }, (_, index) =>
+    normalizeInlineMarkdown(headerRow[index] || `Column ${index + 1}`)
+  )
 
   return dataRows.map((row) => {
     const cells = Array.from({ length: columnCount }, (_, index) => normalizeInlineMarkdown(row[index] || ''))
@@ -200,9 +197,7 @@ function normalizeLineEndings(value: string): string {
 }
 
 function collapseBlankLines(value: string): string {
-  return value
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+\n/g, '\n')
+  return value.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n')
 }
 
 function extractFencedCodeBlocks(content: string): { content: string; blocks: string[] } {
@@ -220,7 +215,7 @@ function extractFencedCodeBlocks(content: string): { content: string; blocks: st
 }
 
 function restoreFencedCodeBlocks(content: string, blocks: string[]): string {
-  return content.replace(/@@WECOM_CODE_BLOCK_(\d+)@@/g, (_match, indexText: string) => {
+  return content.replace(/@@WECOM_CODE_BLOCK_(\d+)@@/g, (_match, indexText) => {
     const index = Number.parseInt(indexText, 10)
     return Number.isInteger(index) && blocks[index] ? blocks[index] : ''
   })

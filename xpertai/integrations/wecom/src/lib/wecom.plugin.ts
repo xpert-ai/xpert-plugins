@@ -15,10 +15,12 @@ import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { WeComTriggerBindingEntity } from './entities/wecom-trigger-binding.entity.js'
 import { WeComConversationBindingEntity } from './entities/wecom-conversation-binding.entity.js'
 import { WeComTriggerStrategy } from './workflow/wecom-trigger.strategy.js'
+import { WeComTriggerAggregationService } from './workflow/wecom-trigger-aggregation.service.js'
+import { WeComTriggerFlushProcessor } from './workflow/wecom-trigger-flush.processor.js'
 import { WeComLongIntegrationStrategy } from './wecom-long-integration.strategy.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
 import { WECOM_LONG_CONNECTION_SERVICE } from './tokens.js'
-import { WeComIntegrationViewProvider } from './views/index.js'
+import { WeComIntegrationViewProvider } from './views/wecom-integration-view.provider.js'
 
 @XpertServerPlugin({
   imports: [
@@ -33,11 +35,14 @@ import { WeComIntegrationViewProvider } from './views/index.js'
     WeComIntegrationStrategy,
     WeComLongIntegrationStrategy,
     WeComTriggerStrategy,
+    WeComTriggerAggregationService,
+    WeComTriggerFlushProcessor,
     WeComLongConnectionService,
     WeComIntegrationViewProvider,
     WeComChatDispatchService,
     WeComChatRunStateService,
     WeComChatStreamCallbackProcessor,
+    WeComIntegrationViewProvider,
     WeComTokenStrategy,
     WeComNotifyMiddleware,
     {
