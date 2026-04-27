@@ -58,21 +58,6 @@ export class WeComIntegrationStrategy implements IntegrationStrategy<TIntegratio
             component: 'password'
           }
         },
-        xpertId: {
-          type: 'string',
-          title: {
-            en_US: 'Xpert',
-            zh_Hans: '数字专家'
-          },
-          description: {
-            en_US: 'Choose a corresponding digital expert',
-            zh_Hans: '选择一个对应的数字专家'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/xpert/select-options'
-          }
-        },
         preferLanguage: {
           type: 'string',
           title: {

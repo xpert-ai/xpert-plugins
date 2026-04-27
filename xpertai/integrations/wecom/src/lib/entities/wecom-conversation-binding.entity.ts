@@ -31,6 +31,9 @@ export class WeComConversationBindingEntity {
   @Column({ length: 36 })
   conversationId: string
 
+  @Column({ type: 'timestamptz', nullable: true })
+  lastActiveAt?: Date
+
   @Column({ nullable: true, length: 36 })
   tenantId?: string
 

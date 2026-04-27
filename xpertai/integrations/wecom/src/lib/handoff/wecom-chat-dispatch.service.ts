@@ -1,5 +1,6 @@
-import { LanguagesEnum, TChatRequest } from '@metad/contracts'
+import { LanguagesEnum, TChatRequest, TChatRequest } from '@metad/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { generateReqId } from '@wecom/aibot-node-sdk'
 import {
   AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
   AgentChatDispatchPayload,
@@ -11,6 +12,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'crypto'
 import { ChatWeComMessage } from '../message.js'
+import { getWeComThinkingAckText } from '../wecom-conversation-text.js'
 import { WECOM_PLUGIN_CONTEXT } from '../tokens.js'
 import { DispatchWeComChatPayload } from './commands/dispatch-wecom-chat.command.js'
 import { WeComChatCallbackContext, WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE } from './wecom-chat.types.js'
@@ -45,6 +47,7 @@ export class WeComChatDispatchService {
   }
 
   async buildDispatchMessage(input: TWeComChatDispatchInput): Promise<HandoffMessage<AgentChatDispatchPayload>> {
+    const buildStartedAt = Date.now()
     const {
       xpertId,
       wecomMessage,
@@ -78,33 +81,89 @@ export class WeComChatDispatchService {
       channel_source: 'wecom_webhook',
       integrationId: wecomMessage.integrationId,
       chatId: wecomMessage.chatId,
+      chatType: wecomMessage.chatType,
       chat_id: wecomMessage.chatId,
+      chat_type: wecomMessage.chatType,
       senderId: wecomMessage.senderId,
       sender_id: wecomMessage.senderId,
       responseUrl: wecomMessage.responseUrl,
       response_url: wecomMessage.responseUrl,
-      preferLanguage: wecomMessage.language,
+      reqId: wecomMessage.reqId,
+      req_id: wecomMessage.reqId,
+      responseStrategy: 'final_text',
+      streamId: undefined,
+      preferLanguage: language,
       conversationUserKey: conversationUserKey || undefined,
       conversationId: conversationId || undefined,
       message: {
         id: wecomMessage.id || undefined,
         messageId: wecomMessage.messageId || undefined,
+        streamId: wecomMessage.streamId,
         status: wecomMessage.status,
-        language: wecomMessage.language
+        language
       }
     }
 
+    if (wecomMessage.reqId) {
+      const streamId = generateReqId('stream')
+      const thinkingAckStartedAt = Date.now()
+      this.logger.debug(
+        `[wecom-dispatch] thinking ack start integration=${wecomMessage.integrationId} chatId=${wecomMessage.chatId} reqId=${
+          wecomMessage.reqId
+        } streamId=${streamId}`
+      )
+      try {
+        wecomMessage.streamId = streamId
+        await wecomMessage.replyStream(getWeComThinkingAckText(language), false)
+        callbackContext.responseStrategy = 'reply_stream'
+        callbackContext.streamId = streamId
+        callbackContext.message = {
+          ...callbackContext.message,
+          id: wecomMessage.id || undefined,
+          messageId: wecomMessage.messageId || undefined,
+          streamId,
+          status: wecomMessage.status
+        }
+        this.logger.debug(
+          `[wecom-dispatch] thinking ack sent integration=${wecomMessage.integrationId} chatId=${wecomMessage.chatId} reqId=${
+            wecomMessage.reqId
+          } streamId=${streamId} elapsedMs=${Date.now() - thinkingAckStartedAt}`
+        )
+      } catch (error) {
+        wecomMessage.streamId = undefined
+        this.logger.warn(
+          `[wecom-dispatch] failed to send thinking ack integration=${wecomMessage.integrationId} chatId=${
+            wecomMessage.chatId
+          } reqId=${wecomMessage.reqId} streamId=${streamId} elapsedMs=${Date.now() - thinkingAckStartedAt}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
+    }
+
+    const runCreatedAt = Date.now()
     await this.runStateService.save({
       sourceMessageId: runId,
       nextSequence: 1,
       responseMessageContent: '',
+      runCreatedAt,
+      desiredVisiblePushContent: '',
+      lastVisiblePushContent: '',
       context: callbackContext,
       pendingEvents: {}
     })
 
     this.logger.debug(
-      `Build WeCom dispatch message runId=${runId} xpertId=${xpertId} sessionKey=${sessionKey} integration=${wecomMessage.integrationId}`
+      `[wecom-dispatch] build dispatch message runId=${runId} xpertId=${xpertId} sessionKey=${sessionKey} integration=${
+        wecomMessage.integrationId
+      } responseStrategy=${callbackContext.responseStrategy} reqId=${wecomMessage.reqId || 'n/a'} streamId=${
+        callbackContext.streamId || 'n/a'
+      } elapsedMs=${runCreatedAt - buildStartedAt}`
     )
+    const request = this.buildChatRequest({
+      conversationId,
+      input: textInput
+    })
     const request = this.buildChatRequest({
       conversationId,
       input: textInput
@@ -122,6 +181,7 @@ export class WeComChatDispatchService {
       enqueuedAt: Date.now(),
       traceId: runId,
       payload: {
+        request,
         request,
         options: {
           xpertId,
@@ -141,12 +201,16 @@ export class WeComChatDispatchService {
           channel_source: 'wecom_webhook',
           integrationId: wecomMessage.integrationId,
           chatId: wecomMessage.chatId,
+          chatType: wecomMessage.chatType,
           chat_id: wecomMessage.chatId,
+          chat_type: wecomMessage.chatType,
           senderId: wecomMessage.senderId,
           sender_id: wecomMessage.senderId,
           channelUserId: wecomMessage.senderId,
           ...(wecomMessage.responseUrl ? { response_url: wecomMessage.responseUrl } : {}),
-          ...(wecomMessage.responseUrl ? { responseUrl: wecomMessage.responseUrl } : {})
+          ...(wecomMessage.responseUrl ? { responseUrl: wecomMessage.responseUrl } : {}),
+          ...(wecomMessage.reqId ? { req_id: wecomMessage.reqId } : {}),
+          ...(wecomMessage.reqId ? { reqId: wecomMessage.reqId } : {})
         },
         callback: {
           messageType: WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
@@ -182,6 +246,18 @@ export class WeComChatDispatchService {
     }
     const text = value.trim()
     return text || undefined
+  }
+
+  private buildChatRequest(params: { conversationId?: string; input?: string }): TChatRequest {
+    return {
+      action: 'send',
+      ...(params.conversationId ? { conversationId: params.conversationId } : {}),
+      message: {
+        input: {
+          input: params.input ?? ''
+        }
+      }
+    } as unknown as TChatRequest
   }
 
   private buildChatRequest(params: {

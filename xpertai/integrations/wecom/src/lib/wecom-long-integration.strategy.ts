@@ -69,21 +69,6 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
             zh_Hans: '可选。为 WebSocket 握手设置 Origin 头（用于兼容部分网络策略）。'
           }
         },
-        xpertId: {
-          type: 'string',
-          title: {
-            en_US: 'Xpert',
-            zh_Hans: '数字专家'
-          },
-          description: {
-            en_US: 'Choose a corresponding digital expert',
-            zh_Hans: '选择一个对应的数字专家'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/xpert/select-options'
-          }
-        },
         preferLanguage: {
           type: 'string',
           title: {
@@ -139,8 +124,12 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
 
     const previousEnabled = this.isEnabled(previous)
     const currentEnabled = this.isEnabled(current)
-    const previousXpertId = this.normalizeString(previous.options?.xpertId)
-    const currentXpertId = this.normalizeString(current.options?.xpertId)
+    const previousHasRoutingTarget = await this.longConnection.hasRoutingTarget({
+      integrationId: previous.id
+    })
+    const currentHasRoutingTarget = await this.longConnection.hasRoutingTarget({
+      integrationId: current.id
+    })
 
     if (!currentEnabled) {
       await this.longConnection.disconnect(current.id, {
@@ -149,14 +138,14 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       return
     }
 
-    if (!currentXpertId) {
+    if (!currentHasRoutingTarget) {
       await this.longConnection.disconnect(current.id, {
         reason: 'xpert_unbound'
       })
       return
     }
 
-    if (!previousEnabled || !previousXpertId) {
+    if (!previousEnabled || !previousHasRoutingTarget) {
       await this.longConnection.reconnect(current.id)
     }
   }
@@ -186,13 +175,15 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
     if (integrationId) {
       try {
         const enabled = this.isEnabled(integration)
-        const xpertId = this.normalizeString(config.xpertId)
+        const hasRoutingTarget = await this.longConnection.hasRoutingTarget({
+          integrationId
+        })
 
         if (!enabled) {
           await this.longConnection.disconnect(integrationId, {
             reason: 'integration_disabled'
           })
-        } else if (!xpertId) {
+        } else if (!hasRoutingTarget) {
           await this.longConnection.disconnect(integrationId, {
             reason: 'xpert_unbound'
           })
@@ -223,13 +214,5 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       return true
     }
     return (integration as unknown as Record<string, unknown>).enabled !== false
-  }
-
-  private normalizeString(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null
-    }
-    const text = value.trim()
-    return text || null
   }
 }

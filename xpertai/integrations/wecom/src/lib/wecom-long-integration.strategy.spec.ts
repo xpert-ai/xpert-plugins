@@ -12,8 +12,7 @@ describe('WeComLongIntegrationStrategy', () => {
       enabled: true,
       options: {
         botId: 'bot-1',
-        secret: 'secret-1',
-        xpertId: 'xpert-1'
+        secret: 'secret-1'
       },
       ...overrides
     } as IIntegration<TIntegrationWeComLongOptions>
@@ -21,6 +20,7 @@ describe('WeComLongIntegrationStrategy', () => {
 
   function createFixture() {
     const longConnection = {
+      hasRoutingTarget: jest.fn().mockResolvedValue(true),
       connectWithConfig: jest.fn().mockResolvedValue(undefined),
       reconnect: jest.fn().mockResolvedValue(undefined),
       disconnect: jest.fn().mockResolvedValue(undefined)
@@ -46,14 +46,27 @@ describe('WeComLongIntegrationStrategy', () => {
     })
   })
 
-  it('disconnects runtime with xpert_unbound reason when xpert is removed', async () => {
+  it('disconnects runtime with xpert_unbound reason when trigger binding is missing', async () => {
     const { strategy, longConnection } = createFixture()
+    longConnection.hasRoutingTarget.mockResolvedValue(false)
 
     await strategy.onUpdate(createIntegration(), createIntegration({ options: { botId: 'bot-1', secret: 'secret-1' } }))
 
     expect(longConnection.disconnect).toHaveBeenCalledWith('integration-1', {
       reason: 'xpert_unbound'
     })
+  })
+
+  it('keeps runtime restorable when trigger binding provides the routing target', async () => {
+    const { strategy, longConnection } = createFixture()
+    longConnection.hasRoutingTarget
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+
+    await strategy.onUpdate(createIntegration(), createIntegration({ options: { botId: 'bot-1', secret: 'secret-1' } }))
+
+    expect(longConnection.disconnect).not.toHaveBeenCalled()
+    expect(longConnection.reconnect).not.toHaveBeenCalled()
   })
 
   it('reconnects runtime when integration becomes restorable again', async () => {
@@ -75,5 +88,33 @@ describe('WeComLongIntegrationStrategy', () => {
     expect(longConnection.disconnect).toHaveBeenCalledWith('integration-1', {
       clearStatus: true
     })
+  })
+
+  it('connects with config when trigger binding satisfies the routing target', async () => {
+    const { strategy, longConnection } = createFixture()
+    longConnection.hasRoutingTarget.mockResolvedValue(true)
+
+    await strategy.validateConfig(
+      {
+        botId: 'bot-1',
+        secret: 'secret-1'
+      },
+      createIntegration({ options: { botId: 'bot-1', secret: 'secret-1' } })
+    )
+
+    expect(longConnection.connectWithConfig).toHaveBeenCalledWith({
+      integrationId: 'integration-1',
+      botId: 'bot-1',
+      secret: 'secret-1',
+      wsOrigin: undefined,
+      timeoutMs: undefined
+    })
+    expect(longConnection.disconnect).not.toHaveBeenCalled()
+  })
+
+  it('does not expose xpertId in the long-connection integration schema', () => {
+    const { strategy } = createFixture()
+
+    expect((strategy.meta.schema?.properties as Record<string, unknown>)?.xpertId).toBeUndefined()
   })
 })
