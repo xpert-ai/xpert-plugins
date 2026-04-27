@@ -1,7 +1,11 @@
 import { IIntegration, TIntegrationProvider } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
-import { iconImage, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions } from './types.js'
+import {
+  iconImage,
+  INTEGRATION_WECOM_LONG,
+  TIntegrationWeComLongOptions
+} from './types.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
 
 @Injectable()
@@ -65,21 +69,6 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
             zh_Hans: '可选。为 WebSocket 握手设置 Origin 头（用于兼容部分网络策略）。'
           }
         },
-        xpertId: {
-          type: 'string',
-          title: {
-            en_US: 'Xpert',
-            zh_Hans: '数字专家'
-          },
-          description: {
-            en_US: 'Choose a corresponding digital expert',
-            zh_Hans: '选择一个对应的数字专家'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/xpert/select-options'
-          }
-        },
         preferLanguage: {
           type: 'string',
           title: {
@@ -115,6 +104,62 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
     return null
   }
 
+  async onUpdate(
+    previous: IIntegration<TIntegrationWeComLongOptions>,
+    current: IIntegration<TIntegrationWeComLongOptions>
+  ): Promise<void> {
+    const wasLongConnection = previous.provider === INTEGRATION_WECOM_LONG
+    const isStillLongConnection = current.provider === INTEGRATION_WECOM_LONG
+
+    if (wasLongConnection && !isStillLongConnection) {
+      await this.longConnection.disconnect(previous.id, {
+        clearStatus: true
+      })
+      return
+    }
+
+    if (!isStillLongConnection) {
+      return
+    }
+
+    const previousEnabled = this.isEnabled(previous)
+    const currentEnabled = this.isEnabled(current)
+    const previousHasRoutingTarget = await this.longConnection.hasRoutingTarget({
+      integrationId: previous.id
+    })
+    const currentHasRoutingTarget = await this.longConnection.hasRoutingTarget({
+      integrationId: current.id
+    })
+
+    if (!currentEnabled) {
+      await this.longConnection.disconnect(current.id, {
+        reason: 'integration_disabled'
+      })
+      return
+    }
+
+    if (!currentHasRoutingTarget) {
+      await this.longConnection.disconnect(current.id, {
+        reason: 'xpert_unbound'
+      })
+      return
+    }
+
+    if (!previousEnabled || !previousHasRoutingTarget) {
+      await this.longConnection.reconnect(current.id)
+    }
+  }
+
+  async onDelete(integration: IIntegration<TIntegrationWeComLongOptions>): Promise<void> {
+    if (integration.provider !== INTEGRATION_WECOM_LONG) {
+      return
+    }
+
+    await this.longConnection.disconnect(integration.id, {
+      clearStatus: true
+    })
+  }
+
   async validateConfig(
     config: TIntegrationWeComLongOptions,
     integration?: IIntegration<TIntegrationWeComLongOptions>
@@ -129,13 +174,28 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
     const integrationId = integration?.id?.trim()
     if (integrationId) {
       try {
-        await this.longConnection.connectWithConfig({
-          integrationId,
-          botId: config.botId,
-          secret: config.secret,
-          wsOrigin: config.wsOrigin,
-          timeoutMs: config.timeoutMs
+        const enabled = this.isEnabled(integration)
+        const hasRoutingTarget = await this.longConnection.hasRoutingTarget({
+          integrationId
         })
+
+        if (!enabled) {
+          await this.longConnection.disconnect(integrationId, {
+            reason: 'integration_disabled'
+          })
+        } else if (!hasRoutingTarget) {
+          await this.longConnection.disconnect(integrationId, {
+            reason: 'xpert_unbound'
+          })
+        } else {
+          await this.longConnection.connectWithConfig({
+            integrationId,
+            botId: config.botId,
+            secret: config.secret,
+            wsOrigin: config.wsOrigin,
+            timeoutMs: config.timeoutMs
+          })
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         this.logger.warn(`[wecom-long] auto connect on save failed integration=${integrationId}: ${message}`)
@@ -147,5 +207,12 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       websocketUrl: 'wss://openws.work.weixin.qq.com',
       mode: 'long_connection'
     }
+  }
+
+  private isEnabled(integration?: IIntegration<TIntegrationWeComLongOptions> | null): boolean {
+    if (!integration || typeof integration !== 'object') {
+      return true
+    }
+    return (integration as unknown as Record<string, unknown>).enabled !== false
   }
 }
