@@ -1,4 +1,6 @@
 import { HumanMessage } from '@langchain/core/messages'
+import { Command } from '@langchain/langgraph'
+import { Logger } from '@nestjs/common'
 
 jest.mock('@xpert-ai/contracts', () => ({
   __esModule: true,
@@ -316,6 +318,43 @@ describe('FileMemorySystemMiddleware hybrid recall flow', () => {
 
     expect(writeTool.description).toContain('Durable memory should be saved in Chinese except unavoidable technical proper nouns')
     expect(writeTool.description).toContain('Do not mix English prose into otherwise Chinese memory text')
+  })
+
+  it('logs Command tool outputs without treating them as ToolMessages', async () => {
+    const loggerSpy = jest.spyOn(Logger, 'isLevelEnabled').mockReturnValue(true)
+    try {
+      const service = createServiceMock()
+      const strategy = new FileMemorySystemMiddleware(service, {
+        enqueue: jest.fn(),
+        softDrain: jest.fn()
+      })
+      const middleware = await strategy.createMiddleware({}, createContext())
+      const runtime = createRuntime()
+      const command = new Command({
+        update: {
+          todos: [],
+          messages: []
+        }
+      })
+      const handler = jest.fn().mockResolvedValue(command)
+
+      await expect(
+        middleware.wrapToolCall!(
+          {
+            tool: { name: 'write_todos' },
+            toolCall: {
+              id: 'tool-call-1',
+              name: 'write_todos',
+              args: { todos: [] }
+            },
+            runtime
+          },
+          handler
+        )
+      ).resolves.toBe(command)
+    } finally {
+      loggerSpy.mockRestore()
+    }
   })
 
   it('formats query and exact lookup results with canonical follow-up guidance', async () => {
