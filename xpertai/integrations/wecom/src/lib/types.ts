@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const moduleDir = dirname(__filename)
 
-export const iconImage = `data:image/png;base64,${readFileSync(join(__dirname, '../_assets/icon.png')).toString('base64')}`
+export const iconImage = `data:image/png;base64,${readFileSync(join(moduleDir, '../_assets/icon.png')).toString('base64')}`
 
 export const INTEGRATION_WECOM = 'wecom'
 export const INTEGRATION_WECOM_LONG = 'wecom_long'
@@ -14,7 +14,6 @@ export const INTEGRATION_WECOM_LONG = 'wecom_long'
 export type TIntegrationWeComShortOptions = {
   token: string
   encodingAesKey: string
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
 }
@@ -23,7 +22,6 @@ export type TIntegrationWeComLongOptions = {
   botId: string
   secret: string
   wsOrigin?: string
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
 }
@@ -37,13 +35,57 @@ export type TIntegrationWeComOptions = {
   secret?: string
   wsOrigin?: string
   // shared
-  xpertId?: string
   preferLanguage?: 'en' | 'zh-Hans'
   timeoutMs?: number
   // deprecated openapi fields (kept only for backward compatibility with saved integrations)
   corpId?: string
   corpSecret?: string
   agentId?: number
+}
+
+export type TWeComConnectionMode = 'webhook' | 'long_connection'
+
+export type TWeComLongRuntimeState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+
+export type TWeComLongDisabledReason =
+  | 'manual_disconnect'
+  | 'integration_disabled'
+  | 'xpert_unbound'
+  | 'config_invalid'
+  | 'lease_conflict'
+  | 'runtime_error'
+  | 'restore_skipped'
+
+export type TWeComRuntimeStatus = {
+  integrationId: string
+  connectionMode: TWeComConnectionMode
+  connected: boolean
+  state: TWeComLongRuntimeState
+  shouldRun?: boolean
+  ownerInstanceId?: string | null
+  lastConnectedAt?: number | null
+  lastDisconnectedAt?: number | null
+  lastError?: string | null
+  failureCount?: number
+  reconnectAttempts?: number
+  nextReconnectAt?: number | null
+  disabledReason?: TWeComLongDisabledReason | null
+  lastCallbackAt?: number | null
+  lastPingAt?: number | null
+}
+
+export type TWeComLegacyLongConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+export type TWeComLegacyLongConnectionStatus = {
+  integrationId: string
+  state: TWeComLegacyLongConnectionState
+  connected: boolean
+  shouldRun: boolean
+  connectedAt?: number
+  disconnectedAt?: number
+  reconnectAttempts: number
+  lastError?: string
+  disabledReason?: TWeComLongDisabledReason | null
 }
 
 export type TWeComEvent = {

@@ -1,6 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
@@ -13,12 +12,20 @@ import {
 import { type Cache } from 'cache-manager'
 import { IIntegration } from '@metad/contracts'
 import { Repository } from 'typeorm'
-import { DispatchWeComChatCommand, DispatchWeComChatPayload } from './handoff/commands/dispatch-wecom-chat.command.js'
 import { ChatWeComMessage } from './message.js'
 import { WECOM_PLUGIN_CONTEXT } from './tokens.js'
-import { normalizeConversationUserKey, resolveConversationUserKey } from './conversation-user-key.js'
+import {
+  normalizeConversationUserKey,
+  parseConversationUserKey,
+  resolveConversationUserKey
+} from './conversation-user-key.js'
 import { TIntegrationWeComOptions } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
+import {
+  getWeComAvailableTriggerMissingText,
+  getWeComNewConversationStartedText,
+  getWeComTriggerBindingMissingText
+} from './wecom-conversation-text.js'
 import { WeComConversationBindingEntity } from './entities/wecom-conversation-binding.entity.js'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
@@ -36,7 +43,40 @@ type WeComTriggerService = {
     executorUserId?: string
     endUserId?: string
   }) => Promise<boolean>
-  getBoundXpertId?: (integrationId: string) => Promise<string | null>
+  getBinding?: (integrationId: string) => Promise<{
+    xpertId: string
+    sessionTimeoutSeconds?: number
+    summaryWindowSeconds?: number
+  } | null>
+  clearBufferedConversation?: (conversationUserKey: string) => Promise<void>
+}
+
+type WeComConversationBindingState = {
+  conversationId: string
+  lastActiveAt?: Date
+}
+
+export type WeComConversationBindingListItem = {
+  id: string
+  chatType: string | null
+  chatId: string | null
+  senderId: string | null
+  xpertId: string
+  conversationId: string
+  updatedAt: Date | null
+}
+
+export type WeComConversationBindingListQuery = {
+  page?: number
+  pageSize?: number
+  search?: string | null
+  sortBy?: string | null
+  sortDirection?: 'asc' | 'desc' | null
+}
+
+export type WeComConversationBindingListResult = {
+  items: WeComConversationBindingListItem[]
+  total: number
 }
 
 @Injectable()
@@ -46,7 +86,6 @@ export class WeComConversationService {
   private _wecomTriggerStrategy: WeComTriggerService
 
   constructor(
-    private readonly commandBus: CommandBus,
     private readonly wecomChannel: WeComChannelStrategy,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
@@ -71,7 +110,10 @@ export class WeComConversationService {
     return this._wecomTriggerStrategy
   }
 
-  async getConversation(conversationUserKey: string, xpertId: string): Promise<string | undefined> {
+  async getConversationState(
+    conversationUserKey: string,
+    xpertId: string
+  ): Promise<WeComConversationBindingState | undefined> {
     const normalizedUserKey = normalizeConversationUserKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationUserKey(xpertId)
     if (!normalizedUserKey || !normalizedXpertId) {
@@ -79,9 +121,18 @@ export class WeComConversationService {
     }
 
     const key = this.getConversationCacheKey(normalizedUserKey, normalizedXpertId)
-    const cachedConversationId = await this.cacheManager.get<string>(key)
-    if (cachedConversationId) {
-      return cachedConversationId
+    const cachedValue = await this.cacheManager.get<{
+      conversationId?: unknown
+      lastActiveAt?: unknown
+    }>(key)
+    if (cachedValue && typeof cachedValue === 'object') {
+      const cachedConversationId = normalizeConversationUserKey(cachedValue.conversationId)
+      if (cachedConversationId) {
+        return {
+          conversationId: cachedConversationId,
+          lastActiveAt: this.normalizeDate(cachedValue.lastActiveAt)
+        }
+      }
     }
 
     const binding = await this.conversationBindingRepository.findOne({
@@ -95,11 +146,25 @@ export class WeComConversationService {
       return undefined
     }
 
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, conversationId)
-    return conversationId
+    const lastActiveAt = this.normalizeDate(binding?.lastActiveAt) ?? this.normalizeDate(binding?.updatedAt)
+    await this.cacheConversation(normalizedUserKey, normalizedXpertId, conversationId, lastActiveAt)
+    return {
+      conversationId,
+      lastActiveAt: lastActiveAt ?? undefined
+    }
   }
 
-  async setConversation(conversationUserKey: string, xpertId: string, conversationId: string): Promise<void> {
+  async getConversation(conversationUserKey: string, xpertId: string): Promise<string | undefined> {
+    const state = await this.getConversationState(conversationUserKey, xpertId)
+    return state?.conversationId
+  }
+
+  async setConversation(
+    conversationUserKey: string,
+    xpertId: string,
+    conversationId: string,
+    lastActiveAt: Date = new Date()
+  ): Promise<void> {
     const normalizedUserKey = normalizeConversationUserKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationUserKey(xpertId)
     const normalizedConversationId = normalizeConversationUserKey(conversationId)
@@ -107,7 +172,13 @@ export class WeComConversationService {
       return
     }
 
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, normalizedConversationId)
+    const resolvedLastActiveAt = this.normalizeDate(lastActiveAt) ?? new Date()
+    await this.cacheConversation(
+      normalizedUserKey,
+      normalizedXpertId,
+      normalizedConversationId,
+      resolvedLastActiveAt
+    )
 
     const userId = this.resolveUserIdFromConversationUserKey(normalizedUserKey)
     const bindingContext = this.resolveBindingContext()
@@ -117,12 +188,47 @@ export class WeComConversationService {
         conversationUserKey: normalizedUserKey,
         xpertId: normalizedXpertId,
         conversationId: normalizedConversationId,
+        lastActiveAt: resolvedLastActiveAt,
         tenantId: bindingContext.tenantId ?? null,
         organizationId: bindingContext.organizationId ?? null,
         createdById: bindingContext.createdById ?? null,
         updatedById: bindingContext.updatedById ?? null
       },
       userId ? ['userId'] : ['conversationUserKey', 'xpertId']
+    )
+  }
+
+  async touchConversation(
+    conversationUserKey: string,
+    xpertId: string,
+    lastActiveAt: Date = new Date()
+  ): Promise<void> {
+    const normalizedUserKey = normalizeConversationUserKey(conversationUserKey)
+    const normalizedXpertId = normalizeConversationUserKey(xpertId)
+    if (!normalizedUserKey || !normalizedXpertId) {
+      return
+    }
+
+    const existing = await this.getConversationState(normalizedUserKey, normalizedXpertId)
+    if (!existing?.conversationId) {
+      return
+    }
+
+    const resolvedLastActiveAt = this.normalizeDate(lastActiveAt) ?? new Date()
+    await this.cacheConversation(
+      normalizedUserKey,
+      normalizedXpertId,
+      existing.conversationId,
+      resolvedLastActiveAt
+    )
+    await this.conversationBindingRepository.update(
+      {
+        conversationUserKey: normalizedUserKey,
+        xpertId: normalizedXpertId
+      },
+      {
+        lastActiveAt: resolvedLastActiveAt
+      }
     )
   }
 
@@ -135,6 +241,85 @@ export class WeComConversationService {
 
     await this.cacheManager.del(this.getConversationCacheKey(normalizedUserKey, normalizedXpertId))
     await this.removeConversationBindingFromStore(normalizedUserKey, normalizedXpertId)
+  }
+
+  async restartConversationBinding(integrationId: string, bindingId: string): Promise<void> {
+    const normalizedIntegrationId = normalizeConversationUserKey(integrationId)
+    const normalizedBindingId = normalizeConversationUserKey(bindingId)
+    if (!normalizedIntegrationId || !normalizedBindingId) {
+      throw new Error('缺少可重置的会话目标。')
+    }
+
+    const binding = await this.conversationBindingRepository.findOne({
+      where: {
+        id: normalizedBindingId
+      }
+    })
+    if (!binding) {
+      throw new Error('该会话不存在或已被重置。')
+    }
+
+    const parsedConversationUserKey = parseConversationUserKey(binding.conversationUserKey)
+    if (!parsedConversationUserKey) {
+      throw new Error('该会话已不可重置。')
+    }
+    if (parsedConversationUserKey.integrationId !== normalizedIntegrationId) {
+      throw new Error('该会话不属于当前企业微信集成。')
+    }
+
+    await this.clearConversation(binding.conversationUserKey, binding.xpertId)
+
+    const triggerStrategy = await this.getWeComTriggerStrategy()
+    if (typeof triggerStrategy.clearBufferedConversation === 'function') {
+      await triggerStrategy.clearBufferedConversation(binding.conversationUserKey)
+    }
+  }
+
+  async listBindingsByIntegration(
+    integrationId: string,
+    query: WeComConversationBindingListQuery = {}
+  ): Promise<WeComConversationBindingListResult> {
+    const normalizedIntegrationId = normalizeConversationUserKey(integrationId)
+    if (!normalizedIntegrationId) {
+      return {
+        items: [],
+        total: 0
+      }
+    }
+
+    const bindings = await this.conversationBindingRepository.find({
+      order: {
+        updatedAt: 'DESC'
+      }
+    })
+
+    const normalizedSearch = this.normalizeListSearch(query.search)
+    const filtered = bindings
+      .map((binding) => this.toBindingListItem(binding, normalizedIntegrationId))
+      .filter((binding): binding is WeComConversationBindingListItem => Boolean(binding))
+      .filter((binding) => {
+        if (!normalizedSearch) {
+          return true
+        }
+
+        return [
+          binding.chatType,
+          binding.chatId,
+          binding.senderId,
+          binding.xpertId,
+          binding.conversationId
+        ].some((value) => this.normalizeListSearch(value)?.includes(normalizedSearch))
+      })
+
+    const sorted = this.sortBindingListItems(filtered, query.sortBy, query.sortDirection)
+    const pageSize = this.normalizePositiveInt(query.pageSize) ?? 10
+    const page = this.normalizePositiveInt(query.page) ?? 1
+    const start = Math.max(0, (page - 1) * pageSize)
+
+    return {
+      items: sorted.slice(start, start + pageSize),
+      total: sorted.length
+    }
   }
 
   async handleMessage(message: TChatInboundMessage, ctx: TChatEventContext<TIntegrationWeComOptions>): Promise<void> {
@@ -169,8 +354,10 @@ export class WeComConversationService {
       {
         integrationId: integration.id,
         chatId: message.chatId,
+        chatType: message.chatType,
         senderId: message.senderId,
         responseUrl: this.resolveResponseUrl(message.raw),
+        reqId: this.resolveReqId(message.raw),
         wecomChannel: this.wecomChannel
       },
       {
@@ -182,18 +369,61 @@ export class WeComConversationService {
     const tenantId = integration.tenantId || ctx.tenantId
     const organizationId = integration.organizationId || ctx.organizationId
     const triggerStrategy = await this.getWeComTriggerStrategy()
-    const triggerBoundXpertId = normalizeConversationUserKey(
-      typeof triggerStrategy.getBoundXpertId === 'function'
-        ? await triggerStrategy.getBoundXpertId(integration.id)
+    const triggerBinding =
+      typeof triggerStrategy.getBinding === 'function'
+        ? await triggerStrategy.getBinding(integration.id)
         : null
-    )
-    const triggerConversationId =
-      conversationUserKey && triggerBoundXpertId
-        ? await this.getConversation(conversationUserKey, triggerBoundXpertId)
-        : undefined
+    const triggerBoundXpertId = normalizeConversationUserKey(triggerBinding?.xpertId)
+    if (!triggerBoundXpertId) {
+      this.logger.warn(
+        `[wecom-conversation] trigger binding missing integrationId=${integration.id} chatId=${message.chatId} senderId=${
+          message.senderId || 'n/a'
+        }`
+      )
+      await this.wecomChannel.errorMessage(
+        {
+          integrationId: integration.id,
+          chatId: message.chatId,
+          chatType: message.chatType,
+          senderId: message.senderId,
+          responseUrl: this.resolveResponseUrl(message.raw),
+          reqId: this.resolveReqId(message.raw)
+        },
+        new Error(getWeComTriggerBindingMissingText(integration.options?.preferLanguage))
+      )
+      return
+    }
+
+    const newSessionCommand = this.parseNewSessionCommand(input)
+    if (newSessionCommand.matched && conversationUserKey) {
+      await this.clearConversation(conversationUserKey, triggerBoundXpertId)
+      if (typeof triggerStrategy.clearBufferedConversation === 'function') {
+        await triggerStrategy.clearBufferedConversation(conversationUserKey)
+      }
+
+      if (!newSessionCommand.input) {
+        await wecomMessage.reply(getWeComNewConversationStartedText(wecomMessage.language))
+        return
+      }
+    }
+
+    let triggerConversationId: string | undefined
+    if (conversationUserKey && !newSessionCommand.matched) {
+      const currentConversation = await this.getConversationState(conversationUserKey, triggerBoundXpertId)
+      const sessionTimeoutMs = this.resolveSessionTimeoutMs(triggerBinding?.sessionTimeoutSeconds)
+      if (currentConversation?.conversationId) {
+        if (this.isConversationExpired(currentConversation.lastActiveAt, sessionTimeoutMs)) {
+          await this.clearConversation(conversationUserKey, triggerBoundXpertId)
+        } else {
+          triggerConversationId = currentConversation.conversationId
+          await this.touchConversation(conversationUserKey, triggerBoundXpertId)
+        }
+      }
+    }
+
     const handledByTrigger = await triggerStrategy.handleInboundMessage({
       integrationId: integration.id,
-      input,
+      input: newSessionCommand.matched ? newSessionCommand.input : input,
       wecomMessage,
       conversationId: triggerConversationId,
       conversationUserKey: conversationUserKey || undefined,
@@ -208,50 +438,22 @@ export class WeComConversationService {
       )
       return
     }
-    this.logger.debug(
-      `[wecom-conversation] trigger miss, fallback to integration xpertId integrationId=${integration.id} chatId=${message.chatId}`
+    this.logger.warn(
+      `[wecom-conversation] trigger dispatch miss integrationId=${integration.id} chatId=${message.chatId} senderId=${
+        message.senderId || 'n/a'
+      }`
     )
-
-    const xpertId = normalizeConversationUserKey(integration.options?.xpertId)
-    if (!xpertId) {
-      this.logger.warn(
-        `[wecom-conversation] fallback xpertId missing integrationId=${integration.id} chatId=${message.chatId} senderId=${message.senderId || 'n/a'}`
-      )
-      await this.wecomChannel.errorMessage(
-        {
-          integrationId: integration.id,
-          chatId: message.chatId,
-          senderId: message.senderId,
-          responseUrl: this.resolveResponseUrl(message.raw)
-        },
-        new Error('No xpertId configured for this WeCom integration. Please configure xpertId first.')
-      )
-      return
-    }
-
-    const fallbackConversationId =
-      conversationUserKey && xpertId
-        ? await this.getConversation(conversationUserKey, xpertId)
-        : undefined
-
-    await this.dispatchToWeComChat({
-      xpertId,
-      input,
-      wecomMessage,
-      conversationId: fallbackConversationId,
-      conversationUserKey: conversationUserKey || undefined,
-      tenantId,
-      organizationId,
-      executorUserId,
-      endUserId: message.senderId
-    })
-    this.logger.debug(
-      `[wecom-conversation] dispatched by fallback xpertId integrationId=${integration.id} xpertId=${xpertId} chatId=${message.chatId}`
+    await this.wecomChannel.errorMessage(
+      {
+        integrationId: integration.id,
+        chatId: message.chatId,
+        chatType: message.chatType,
+        senderId: message.senderId,
+        responseUrl: this.resolveResponseUrl(message.raw),
+        reqId: this.resolveReqId(message.raw)
+      },
+      new Error(getWeComAvailableTriggerMissingText(integration.options?.preferLanguage))
     )
-  }
-
-  private async dispatchToWeComChat(payload: DispatchWeComChatPayload): Promise<ChatWeComMessage> {
-    return this.commandBus.execute(new DispatchWeComChatCommand(payload))
   }
 
   private normalizeInputText(value: unknown): string {
@@ -278,6 +480,25 @@ export class WeComConversationService {
     return value || undefined
   }
 
+  private resolveReqId(raw: unknown): string | undefined {
+    if (!raw || typeof raw !== 'object') {
+      return undefined
+    }
+    const record = raw as Record<string, unknown>
+    const direct =
+      (typeof record.req_id === 'string' ? record.req_id : undefined) ||
+      (typeof record.reqId === 'string' ? record.reqId : undefined) ||
+      (typeof record.ReqId === 'string' ? record.ReqId : undefined)
+    const nested =
+      typeof (record.headers as Record<string, unknown> | undefined)?.req_id === 'string'
+        ? ((record.headers as Record<string, unknown>).req_id as string)
+        : typeof (record.headers as Record<string, unknown> | undefined)?.reqId === 'string'
+          ? ((record.headers as Record<string, unknown>).reqId as string)
+          : undefined
+    const value = (direct || nested || '').trim()
+    return value || undefined
+  }
+
   private resolveExecutionUserId(integration?: {
     createdById?: string
     updatedById?: string
@@ -299,11 +520,7 @@ export class WeComConversationService {
   }
 
   private resolveUserIdFromConversationUserKey(conversationUserKey: string): string | null {
-    const segments = conversationUserKey.split(':')
-    if (segments.length < 3) {
-      return null
-    }
-    return normalizeConversationUserKey(segments[segments.length - 1])
+    return parseConversationUserKey(conversationUserKey)?.senderId ?? null
   }
 
   private resolveBindingContext(): {
@@ -327,10 +544,18 @@ export class WeComConversationService {
   private async cacheConversation(
     conversationUserKey: string,
     xpertId: string,
-    conversationId: string
+    conversationId: string,
+    lastActiveAt?: Date | null
   ): Promise<void> {
     const key = this.getConversationCacheKey(conversationUserKey, xpertId)
-    await this.cacheManager.set(key, conversationId, CACHE_TTL_MS)
+    await this.cacheManager.set(
+      key,
+      {
+        conversationId,
+        lastActiveAt: lastActiveAt?.toISOString()
+      },
+      CACHE_TTL_MS
+    )
   }
 
   private async removeConversationBindingFromStore(conversationUserKey: string, xpertId: string): Promise<void> {
@@ -338,5 +563,148 @@ export class WeComConversationService {
       conversationUserKey,
       xpertId
     })
+  }
+
+  private toBindingListItem(
+    binding: WeComConversationBindingEntity,
+    integrationId: string
+  ): WeComConversationBindingListItem | null {
+    const bindingId = normalizeConversationUserKey(binding.id)
+    const parsed = parseConversationUserKey(binding.conversationUserKey)
+    if (!bindingId || !parsed || parsed.integrationId !== integrationId) {
+      return null
+    }
+
+    return {
+      id: bindingId,
+      chatType: this.resolveChatType(parsed.chatId, parsed.senderId),
+      chatId: parsed.chatId,
+      senderId: parsed.senderId,
+      xpertId: binding.xpertId,
+      conversationId: binding.conversationId,
+      updatedAt: this.normalizeDate(binding.lastActiveAt) ?? this.normalizeDate(binding.updatedAt) ?? null
+    }
+  }
+
+  private sortBindingListItems(
+    items: WeComConversationBindingListItem[],
+    sortBy?: string | null,
+    sortDirection?: 'asc' | 'desc' | null
+  ): WeComConversationBindingListItem[] {
+    const key =
+      sortBy === 'chatType' ||
+      sortBy === 'chatId' ||
+      sortBy === 'senderId' ||
+      sortBy === 'xpertId' ||
+      sortBy === 'conversationId' ||
+      sortBy === 'updatedAt'
+        ? sortBy
+        : 'updatedAt'
+    const direction = sortDirection === 'asc' ? 'asc' : 'desc'
+
+    return [...items].sort((left, right) => {
+      const factor = direction === 'asc' ? 1 : -1
+      if (key === 'updatedAt') {
+        const leftTime = left.updatedAt?.getTime() ?? 0
+        const rightTime = right.updatedAt?.getTime() ?? 0
+        return factor * (leftTime - rightTime)
+      }
+
+      const leftValue =
+        key === 'chatType'
+          ? left.chatType ?? ''
+          : key === 'chatId'
+            ? left.chatId ?? ''
+            : key === 'senderId'
+              ? left.senderId ?? ''
+              : key === 'xpertId'
+                ? left.xpertId
+                : left.conversationId
+      const rightValue =
+        key === 'chatType'
+          ? right.chatType ?? ''
+          : key === 'chatId'
+            ? right.chatId ?? ''
+            : key === 'senderId'
+              ? right.senderId ?? ''
+              : key === 'xpertId'
+                ? right.xpertId
+                : right.conversationId
+      return factor * leftValue.localeCompare(rightValue)
+    })
+  }
+
+  private resolveChatType(chatId?: string | null, senderId?: string | null): string | null {
+    const normalizedChatId = normalizeConversationUserKey(chatId)
+    const normalizedSenderId = normalizeConversationUserKey(senderId)
+    if (!normalizedChatId || !normalizedSenderId) {
+      return null
+    }
+
+    return normalizedChatId !== normalizedSenderId ? 'group' : 'private'
+  }
+
+  private normalizeListSearch(value: unknown): string | null {
+    const normalized = normalizeConversationUserKey(value)
+    return normalized ? normalized.toLocaleLowerCase() : null
+  }
+
+  private normalizePositiveInt(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+      return value
+    }
+
+    return null
+  }
+
+  private normalizeDate(value: unknown): Date | undefined {
+    if (!value) {
+      return undefined
+    }
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? undefined : value
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const date = new Date(value)
+      return Number.isNaN(date.getTime()) ? undefined : date
+    }
+    return undefined
+  }
+
+  private resolveSessionTimeoutMs(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value) * 1000
+    }
+    return 3600 * 1000
+  }
+
+  private isConversationExpired(lastActiveAt: Date | undefined, sessionTimeoutMs: number): boolean {
+    if (!lastActiveAt) {
+      return false
+    }
+    return Date.now() - lastActiveAt.getTime() > sessionTimeoutMs
+  }
+
+  private parseNewSessionCommand(input: string): { matched: boolean; input: string } {
+    const trimmedInput = input.trim()
+    if (!trimmedInput.startsWith('/new')) {
+      return {
+        matched: false,
+        input
+      }
+    }
+
+    const nextCharacter = trimmedInput.charAt('/new'.length)
+    if (nextCharacter && !/\s/.test(nextCharacter)) {
+      return {
+        matched: false,
+        input
+      }
+    }
+
+    return {
+      matched: true,
+      input: trimmedInput.slice('/new'.length).trim()
+    }
   }
 }

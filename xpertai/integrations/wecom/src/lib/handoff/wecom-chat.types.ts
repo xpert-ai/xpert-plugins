@@ -1,15 +1,12 @@
 import { LanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
 import { AgentChatCallbackEnvelopePayload, defineChannelMessageType } from '@xpert-ai/plugin-sdk'
 
-export const WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
-  'wecom',
-  'chat_stream_event',
-  1
-)
+export const WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType('wecom', 'chat_stream_event', 1)
 
 export interface WeComChatMessageSnapshot {
   id?: string
   messageId?: string
+  streamId?: string
   status?: string
   language?: string
 }
@@ -27,11 +24,17 @@ export interface WeComChatCallbackContext extends Record<string, unknown> {
   channel_source?: string
   integrationId: string
   chatId: string
+  chatType?: 'private' | 'group' | 'channel' | 'thread'
   senderId?: string
   chat_id?: string
+  chat_type?: 'private' | 'group' | 'channel' | 'thread'
   sender_id?: string
   responseUrl?: string
   response_url?: string
+  reqId?: string
+  req_id?: string
+  streamId?: string
+  responseStrategy?: 'final_text' | 'reply_stream'
   preferLanguage?: string
   conversationUserKey?: string
   conversationId?: string
@@ -59,11 +62,15 @@ export interface WeComChatHandoffPayload extends Record<string, unknown> {
     channel_source?: string
     integrationId?: string
     chatId?: string
+    chatType?: 'private' | 'group' | 'channel' | 'thread'
     chat_id?: string
+    chat_type?: 'private' | 'group' | 'channel' | 'thread'
     senderId?: string
     sender_id?: string
     channelUserId?: string
     responseUrl?: string
     response_url?: string
+    reqId?: string
+    req_id?: string
   }
 }

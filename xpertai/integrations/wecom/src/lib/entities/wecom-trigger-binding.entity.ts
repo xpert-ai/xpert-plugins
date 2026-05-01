@@ -22,6 +22,12 @@ export class WeComTriggerBindingEntity {
   @Column({ length: 36 })
   xpertId: string
 
+  @Column({ type: 'integer', default: 3600 })
+  sessionTimeoutSeconds: number
+
+  @Column({ type: 'integer', default: 0 })
+  summaryWindowSeconds: number
+
   @Column({ nullable: true, length: 36 })
   tenantId?: string
 

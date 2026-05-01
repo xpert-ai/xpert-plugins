@@ -1,3 +1,6 @@
+/**
+ * @jest-config-loader-options {"project":"tsconfig.jest.json"}
+ */
 /* eslint-disable */
 import { readFileSync } from 'fs';
 
@@ -13,6 +16,10 @@ export default {
   testEnvironment: 'node',
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
+  },
+  moduleNameMapper: {
+    '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts',
+    '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',

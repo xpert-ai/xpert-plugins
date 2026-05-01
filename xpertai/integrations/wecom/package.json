@@ -26,6 +26,7 @@
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
+    "@wecom/aibot-node-sdk": "^1.0.6",
     "tslib": "^2.3.0",
     "ws": "^8.18.0"
   },
