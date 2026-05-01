@@ -74,7 +74,7 @@ describe('FileMemoryRecallPlanner', () => {
     expect(selected.headers.map((item) => item.id)).toEqual([])
   })
 
-  it('returns async model selection within the wait budget without passing an abort signal', async () => {
+  it('returns async model selection with an isolated internal runnable config', async () => {
     const planner = new FileMemoryRecallPlanner()
     const invoke = jest.fn().mockResolvedValue({
       selectedIds: ['2']
@@ -88,9 +88,8 @@ describe('FileMemoryRecallPlanner', () => {
     expect(selected.strategy).toBe('model')
     expect(selected.headers.map((item) => item.id)).toEqual(['2'])
     expect(invoke).toHaveBeenCalledTimes(1)
-    expect(model.withConfig).toHaveBeenCalledWith(createInternalRunnableConfig('file-memory-recall-selector'))
-    expect(invoke.mock.calls[0]).toHaveLength(1)
-    expect(invoke.mock.calls[0][1]).toBeUndefined()
+    expect(model.withConfig).not.toHaveBeenCalled()
+    expect(invoke.mock.calls[0][1]).toEqual(createInternalRunnableConfig('file-memory-recall-selector'))
     const modelMessages = invoke.mock.calls[0][0]
     expect(modelMessages[0].content).toContain('The main model already sees lightweight memory summaries elsewhere')
     expect(modelMessages[0].content).toContain('Only include memories that you are confident will be helpful beyond the lightweight summary')
@@ -187,7 +186,7 @@ describe('FileMemoryRecallPlanner', () => {
     expect(selected.strategy).toBe('fallback')
     expect(selected.headers.map((item) => item.id)[0]).toBe('2')
     expect(selected.headers.map((item) => item.id)).toContain('2')
-    expect(invoke.mock.calls[0]).toHaveLength(1)
+    expect(invoke.mock.calls[0][1]).toEqual(createInternalRunnableConfig('file-memory-recall-selector'))
 
     lateResolve?.({ selectedIds: ['1'] })
     await Promise.resolve()
@@ -277,6 +276,7 @@ function createModelMock(invoke: jest.Mock) {
   return {
     withConfig,
     withStructuredOutput: jest.fn().mockReturnValue({
+      invoke,
       withConfig
     })
   }

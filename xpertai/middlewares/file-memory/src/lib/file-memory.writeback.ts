@@ -151,8 +151,7 @@ async function invokeWriteDecision(model: BaseChatModel, messages: BaseMessage[]
   try {
     return await model
       .withStructuredOutput(MEMORY_WRITE_DECISION_SCHEMA)
-      .withConfig(createInternalRunnableConfig('file-memory-writeback-decision'))
-      .invoke(messages)
+      .invoke(messages, createInternalRunnableConfig('file-memory-writeback-decision'))
   } catch (error) {
     const recovered = recoverDecisionFromParserError(error)
     if (recovered) {

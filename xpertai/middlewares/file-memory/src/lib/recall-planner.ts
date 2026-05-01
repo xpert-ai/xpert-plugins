@@ -306,14 +306,16 @@ export class FileMemoryRecallPlanner implements MemoryRecallPlanner {
       .then(() =>
         chatModel
           .withStructuredOutput(schema)
-          .withConfig(createInternalRunnableConfig('file-memory-recall-selector'))
-          .invoke([
-            { role: 'system', content: options.prompt },
-            {
-              role: 'human',
-              content: humanInput
-            }
-          ])
+          .invoke(
+            [
+              { role: 'system', content: options.prompt },
+              {
+                role: 'human',
+                content: humanInput
+              }
+            ],
+            createInternalRunnableConfig('file-memory-recall-selector')
+          )
       )
       .then(
         (result): SelectorOutcome => ({
