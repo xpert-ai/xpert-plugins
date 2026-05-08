@@ -59,7 +59,7 @@ npm install @xpert-ai/plugin-playwright-cli
 ## Runtime Behavior
 
 - On first use, the middleware checks `/workspace/.xpert/.playwright-cli-bootstrap.json` to determine whether the sandbox is already bootstrapped.
-- If bootstrap is missing or outdated, it installs `@playwright/cli`, installs Chromium via `playwright-cli install chromium`, writes skill assets, and refreshes the stamp file.
+- If bootstrap is missing or outdated, it installs `@playwright/cli`, installs Chromium via `playwright-cli install-browser chromium`, writes skill assets, and refreshes the stamp file.
 - A managed config is written to `/workspace/.xpert/playwright-cli/cli.config.json` and is automatically injected into `playwright-cli open` commands when the command does not already specify `--browser` or `--config`.
 - The middleware appends a system prompt that tells the agent to:
   - use `playwright-cli` rather than `playwright` or `npx playwright`

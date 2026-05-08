@@ -83,7 +83,7 @@ describe('PlaywrightBootstrapService', () => {
     // Verify browser install command
     expect(execute).toHaveBeenNthCalledWith(
       3,
-      'playwright-cli install chromium'
+      'playwright-cli install-browser chromium'
     )
 
     // stamp check + npm install + browser install + bootstrap asset writes + stamp write

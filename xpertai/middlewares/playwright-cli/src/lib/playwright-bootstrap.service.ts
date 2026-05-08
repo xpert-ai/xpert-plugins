@@ -157,7 +157,7 @@ export class PlaywrightBootstrapService {
     }
 
     // 2. Install Chromium browser for playwright-cli
-    const browserResult = await backend.execute('playwright-cli install chromium')
+    const browserResult = await backend.execute('playwright-cli install-browser chromium')
     if (browserResult?.exitCode !== 0) {
       throw new Error(`Playwright browser install failed: ${browserResult?.output || 'Unknown error'}`)
     }
