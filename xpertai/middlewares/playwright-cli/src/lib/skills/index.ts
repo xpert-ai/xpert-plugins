@@ -30,7 +30,7 @@ const SKILL_FILES = [
  * into the sandbox container.
  *
  * @param skillsDir - The target directory inside the sandbox where
- *   skill files will be written, e.g. `/workspace/.xpert/skills/playwright-cli`.
+ *   skill files will be written, e.g. `/tmp/xpert-playwright-cli/skills`.
  */
 export function getSkillAssets(skillsDir: string): PlaywrightSkillAsset[] {
   return SKILL_FILES.map(({ name, src }) => ({

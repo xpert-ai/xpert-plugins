@@ -7,6 +7,7 @@ import { PlaywrightBootstrapService } from './playwright-bootstrap.service.js'
 import {
   DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH,
   DEFAULT_PLAYWRIGHT_CLI_VERSION,
+  DEFAULT_PLAYWRIGHT_RUNTIME_DIR,
   DEFAULT_PLAYWRIGHT_SKILLS_DIR,
   DEFAULT_PLAYWRIGHT_STAMP_PATH,
   PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION
@@ -51,7 +52,7 @@ describe('PlaywrightBootstrapService', () => {
     expect(config.skillsDir).toBe('/middleware/skills')
   })
 
-  it('installs @playwright/cli globally and writes skill assets via execute (absolute paths)', async () => {
+  it('installs @playwright/cli into the sandbox runtime and writes skill assets via execute (absolute paths)', async () => {
     const service = new PlaywrightBootstrapService({
       resolve: jest.fn().mockReturnValue({
         cliVersion: '0.1.1',
@@ -77,13 +78,13 @@ describe('PlaywrightBootstrapService', () => {
     // Verify npm install command
     expect(execute).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("npm install -g @playwright/cli@'0.1.1'")
+      expect.stringContaining(`npm install -g --prefix '${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}' @playwright/cli@'0.1.1'`)
     )
 
     // Verify browser install command
     expect(execute).toHaveBeenNthCalledWith(
       3,
-      'playwright-cli install chromium'
+      runtimePlaywrightCommand('playwright-cli install-browser chromium')
     )
 
     // stamp check + npm install + browser install + bootstrap asset writes + stamp write
@@ -120,9 +121,9 @@ describe('PlaywrightBootstrapService', () => {
         exitCode: 0,
         truncated: false
       })
-      // which playwright-cli
+      // sandbox-local binary check
       .mockResolvedValueOnce({
-        output: '/usr/local/bin/playwright-cli',
+        output: '',
         exitCode: 0,
         truncated: false
       })
@@ -131,7 +132,10 @@ describe('PlaywrightBootstrapService', () => {
 
     expect(result).toEqual({ output: 'already bootstrapped', exitCode: 0, truncated: false })
     expect(execute).toHaveBeenCalledTimes(2)
-    expect(execute).toHaveBeenNthCalledWith(2, 'which playwright-cli 2>/dev/null')
+    expect(execute).toHaveBeenNthCalledWith(
+      2,
+      `test -x '${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}/bin/playwright-cli'`
+    )
   })
 
   it('refreshes managed bootstrap assets when the stamp is from an older schema version', async () => {
@@ -151,9 +155,9 @@ describe('PlaywrightBootstrapService', () => {
         exitCode: 0,
         truncated: false
       })
-      // which playwright-cli
+      // sandbox-local binary check
       .mockResolvedValueOnce({
-        output: '/usr/local/bin/playwright-cli',
+        output: '',
         exitCode: 0,
         truncated: false
       })
@@ -169,7 +173,7 @@ describe('PlaywrightBootstrapService', () => {
     expect(allCalls.some((cmd: string) => cmd.includes(DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH))).toBe(true)
     expect(allCalls.some((cmd: string) => cmd.includes('"channel": "chromium"'))).toBe(true)
     expect(allCalls.some((cmd: string) => cmd.includes(DEFAULT_PLAYWRIGHT_STAMP_PATH))).toBe(true)
-    expect(allCalls.some((cmd: string) => cmd.includes('npm install -g @playwright/cli'))).toBe(false)
+    expect(allCalls.some((cmd: string) => cmd.includes('npm install -g --prefix'))).toBe(false)
   })
 
   it('re-bootstraps when stamp matches but CLI binary is missing (container restarted)', async () => {
@@ -190,7 +194,7 @@ describe('PlaywrightBootstrapService', () => {
         exitCode: 0,
         truncated: false
       })
-      // which playwright-cli - not found
+      // sandbox-local binary check - not found
       .mockResolvedValueOnce({ output: '', exitCode: 1, truncated: false })
       // npm install
       .mockResolvedValueOnce({ output: 'added 1 package', exitCode: 0, truncated: false })
@@ -202,7 +206,7 @@ describe('PlaywrightBootstrapService', () => {
     await service.ensureBootstrap({ execute } as any)
 
     // Should have proceeded to re-install
-    expect(execute).toHaveBeenNthCalledWith(3, expect.stringContaining('npm install -g @playwright/cli'))
+    expect(execute).toHaveBeenNthCalledWith(3, expect.stringContaining('npm install -g --prefix'))
   })
 
   it('re-bootstraps when stamp has a different version', async () => {
@@ -225,7 +229,7 @@ describe('PlaywrightBootstrapService', () => {
 
     expect(execute).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("npm install -g @playwright/cli@'0.2.0'")
+      expect.stringContaining(`npm install -g --prefix '${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}' @playwright/cli@'0.2.0'`)
     )
   })
 
@@ -293,10 +297,10 @@ describe('PlaywrightBootstrapService', () => {
     const service = new PlaywrightBootstrapService()
 
     expect(service.injectManagedConfig('playwright-cli open https://example.com')).toBe(
-      `playwright-cli open https://example.com --config='${DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH}'`
+      runtimePlaywrightCommand(`playwright-cli open https://example.com --config='${DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH}'`)
     )
     expect(service.injectManagedConfig('npx playwright-cli open')).toBe(
-      `npx playwright-cli open --config='${DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH}'`
+      runtimePlaywrightCommand(`playwright-cli open --config='${DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH}'`)
     )
   })
 
@@ -304,10 +308,10 @@ describe('PlaywrightBootstrapService', () => {
     const service = new PlaywrightBootstrapService()
 
     expect(service.injectManagedConfig('playwright-cli open --browser=firefox')).toBe(
-      'playwright-cli open --browser=firefox'
+      runtimePlaywrightCommand('playwright-cli open --browser=firefox')
     )
     expect(service.injectManagedConfig('playwright-cli open --config=/tmp/custom.json')).toBe(
-      'playwright-cli open --config=/tmp/custom.json'
+      runtimePlaywrightCommand('playwright-cli open --config=/tmp/custom.json')
     )
   })
 
@@ -345,3 +349,7 @@ describe('PlaywrightBootstrapService', () => {
     expect(execute).toHaveBeenCalledTimes(3 + bootstrapAssetCount + 1)
   })
 })
+
+function runtimePlaywrightCommand(command: string) {
+  return `PATH='${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}/bin':$PATH ${command}`
+}
