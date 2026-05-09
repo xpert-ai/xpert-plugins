@@ -24,6 +24,7 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     thinking_budget?: number
     tool_stream?: boolean
     enable_search?: boolean
+    enable_context_cache?: boolean
     response_format?: 'text' | 'json_object'
 }
 
