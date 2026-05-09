@@ -10,7 +10,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { ViewImageMiddleware } from './view-image.middleware.js'
 import { ViewImageService } from './view-image.service.js'
-import { ViewImagePluginConfigFormSchema } from './view-image.types.js'
+import { ViewImageMiddlewareConfigFormSchema } from './view-image.types.js'
 
 const ONE_BY_ONE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jYVwAAAAASUVORK5CYII=',
@@ -100,7 +100,40 @@ describe('ViewImageMiddleware', () => {
   it('exposes the view image config schema on middleware meta', () => {
     const { strategy } = createSubject()
 
-    expect(strategy.meta.configSchema).toEqual(ViewImagePluginConfigFormSchema)
+    expect(strategy.meta.configSchema).toEqual(ViewImageMiddlewareConfigFormSchema)
+    const compressionPercent = strategy.meta.configSchema?.properties?.compressionPercent as any
+    expect(compressionPercent?.['x-ui']).toEqual(
+      expect.objectContaining({
+        component: 'slider'
+      })
+    )
+    expect(compressionPercent?.description?.zh_Hans).toContain('不是目标文件体积比例')
+    expect(compressionPercent?.description?.en_US).toContain('not a target file-size percentage')
+  })
+
+  it('passes the resolved compression percent config into tool creation and model request preparation', async () => {
+    const backend = createBackend()
+    const request = createRequest([], backend)
+    const preparedRequest = {
+      request,
+      cleanupKeys: ['thread-1:agent-1:call_view_image_1']
+    }
+    const service = {
+      resolveMiddlewareConfig: jest.fn().mockReturnValue({ compressionPercent: 50 }),
+      createTool: jest.fn().mockReturnValue({ name: 'view_image' }),
+      prepareModelRequest: jest.fn().mockResolvedValue(preparedRequest),
+      finalizePreparedBatches: jest.fn()
+    } as unknown as ViewImageService
+    const strategy = new ViewImageMiddleware(service)
+    const middleware = strategy.createMiddleware({ compressionPercent: 50 }, {} as any)
+    const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
+
+    await middleware.wrapModelCall?.(request as any, handler)
+
+    expect((service as any).resolveMiddlewareConfig).toHaveBeenCalledWith({ compressionPercent: 50 })
+    expect((service as any).createTool).toHaveBeenCalledWith({ compressionPercent: 50 })
+    expect((service as any).prepareModelRequest).toHaveBeenCalledWith(request, backend, { compressionPercent: 50 })
+    expect((service as any).finalizePreparedBatches).toHaveBeenCalledWith(preparedRequest.cleanupKeys)
   })
 
   it('adds the system prompt and injects a temporary HumanMessage with image content', async () => {

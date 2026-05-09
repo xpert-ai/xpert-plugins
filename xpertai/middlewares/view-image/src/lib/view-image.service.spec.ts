@@ -3,7 +3,8 @@ jest.mock('@metad/contracts', () => ({
 }))
 
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
-import { ViewImageService } from './view-image.service.js'
+import { buildViewImageResizeOptions, ViewImageService } from './view-image.service.js'
+import { DEFAULT_VIEW_IMAGE_COMPRESSION_PERCENT } from './view-image.types.js'
 
 const ONE_BY_ONE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jYVwAAAAASUVORK5CYII=',
@@ -73,6 +74,39 @@ describe('ViewImageService', () => {
       })
     )
     expect(result.content).toContain('The system will attach them automatically')
+  })
+
+  it('resolves middleware config with the default compression percent', () => {
+    expect(service.resolveMiddlewareConfig({})).toEqual({
+      compressionPercent: DEFAULT_VIEW_IMAGE_COMPRESSION_PERCENT
+    })
+  })
+
+  it('resolves middleware config with a custom compression percent', () => {
+    expect(service.resolveMiddlewareConfig({ compressionPercent: 50 })).toEqual({
+      compressionPercent: 50
+    })
+  })
+
+  it('rejects invalid middleware compression percent values', () => {
+    expect(() => service.resolveMiddlewareConfig({ compressionPercent: -1 })).toThrow()
+    expect(() => service.resolveMiddlewareConfig({ compressionPercent: 101 })).toThrow()
+  })
+
+  it('builds resize options from the configured compression percent', () => {
+    expect(buildViewImageResizeOptions(1200, 800, 50)).toEqual({
+      width: 600,
+      height: 400,
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+    expect(buildViewImageResizeOptions(800, 600, 100)).toBeNull()
+    expect(buildViewImageResizeOptions(1200, 800, 0)).toEqual({
+      width: 1,
+      height: 1,
+      fit: 'inside',
+      withoutEnlargement: true
+    })
   })
 
   it('loads an absolute image path that stays inside the current working directory', async () => {
@@ -183,7 +217,7 @@ describe('ViewImageService', () => {
           metadataOnlyToolMessage
         ],
         tools: [],
-        state: {},
+        state: { messages: [] },
         runtime: createRunConfig(backend, 'call_view_image_3') as any,
         systemMessage: new SystemMessage('base prompt')
       },
@@ -285,7 +319,7 @@ describe('ViewImageService', () => {
           toolMessage
         ],
         tools: [],
-        state: {},
+        state: { messages: [] },
         runtime: {
           configurable: {
             thread_id: 'thread-1',
