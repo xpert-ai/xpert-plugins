@@ -11,14 +11,14 @@ import {
 import { ViewImageIcon } from './types.js'
 import {
   VIEW_IMAGE_MIDDLEWARE_NAME,
-  type ViewImagePluginConfig,
-  ViewImagePluginConfigFormSchema
+  type ViewImageMiddlewareConfig,
+  ViewImageMiddlewareConfigFormSchema
 } from './view-image.types.js'
 import { ViewImageService } from './view-image.service.js'
 
 @Injectable()
 @AgentMiddlewareStrategy(VIEW_IMAGE_MIDDLEWARE_NAME)
-export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<ViewImagePluginConfig>> {
+export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<ViewImageMiddlewareConfig>> {
   constructor(private readonly viewImageService: ViewImageService) {}
 
   meta: TAgentMiddlewareMeta = {
@@ -37,14 +37,15 @@ export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<Vie
       type: 'svg',
       value: ViewImageIcon
     },
-    configSchema: ViewImagePluginConfigFormSchema
+    configSchema: ViewImageMiddlewareConfigFormSchema
   }
 
   createMiddleware(
-    _options: Partial<ViewImagePluginConfig>,
+    options: Partial<ViewImageMiddlewareConfig>,
     _context: IAgentMiddlewareContext
   ): AgentMiddleware {
-    const viewImageTool = this.viewImageService.createTool()
+    const config = this.viewImageService.resolveMiddlewareConfig(options)
+    const viewImageTool = this.viewImageService.createTool(config)
 
     return {
       name: VIEW_IMAGE_MIDDLEWARE_NAME,
@@ -55,7 +56,7 @@ export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<Vie
           return handler(request)
         }
 
-        const prepared = await this.viewImageService.prepareModelRequest(request, backend)
+        const prepared = await this.viewImageService.prepareModelRequest(request, backend, config)
         try {
           return await handler(prepared.request)
         } finally {

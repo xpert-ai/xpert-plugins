@@ -18,12 +18,13 @@ import { z } from 'zod'
 import {
   DEFAULT_SANDBOX_ROOT,
   DEFAULT_VIEW_IMAGE_CACHE_TTL_MS,
-  DEFAULT_VIEW_IMAGE_MAX_EDGE,
   DEFAULT_VIEW_IMAGE_MAX_IMAGE_BYTES,
   DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL,
   VIEW_IMAGE_ALLOWED_MIME_TYPES,
   VIEW_IMAGE_METADATA_KEY,
   VIEW_IMAGE_TOOL_NAME,
+  type ViewImageMiddlewareConfig,
+  ViewImageMiddlewareConfigSchema,
   type ViewImagePluginConfig,
   type ViewedImageBatch,
   type ViewedImageBatchMetadata,
@@ -70,6 +71,10 @@ export class ViewImageService {
     return ViewImagePluginConfigSchema.parse(config ?? {})
   }
 
+  resolveMiddlewareConfig(config?: Partial<ViewImageMiddlewareConfig>): ViewImageMiddlewareConfig {
+    return ViewImageMiddlewareConfigSchema.parse(config ?? {})
+  }
+
   buildSystemPrompt(): string {
     return [
       '<skill>',
@@ -82,7 +87,7 @@ export class ViewImageService {
     ].join('\n')
   }
 
-  createTool(): DynamicStructuredTool {
+  createTool(config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()): DynamicStructuredTool {
     return tool(
       async (input, runConfig) => {
         const backend = getSandboxBackendFromConfig(runConfig)
@@ -95,7 +100,7 @@ export class ViewImageService {
         const toolCallId = getToolCallIdFromConfig(runConfig) ?? VIEW_IMAGE_TOOL_NAME
         const workingDirectory = this.resolveVisibleWorkingDirectory(runConfig?.configurable, backend)
         const targets = normalizeTargets(input.path)
-        const items = await this.loadViewedImageItems(backend, targets, workingDirectory)
+        const items = await this.loadViewedImageItems(backend, targets, workingDirectory, config)
         const batch: ViewedImageBatch = {
           toolCallId,
           createdAt: new Date().toISOString(),
@@ -128,7 +133,8 @@ export class ViewImageService {
 
   async prepareModelRequest<TState extends Record<string, unknown>>(
     request: ModelRequest<TState>,
-    backend: ViewImageSandbox
+    backend: ViewImageSandbox,
+    config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
   ): Promise<PreparedModelRequest<TState>> {
     this.pruneExpiredBatches()
 
@@ -165,7 +171,8 @@ export class ViewImageService {
           readyToolCallSet.toolMessagesById.get(toolCall.id as string) ?? null,
           request.runtime?.configurable,
           backend,
-          workingDirectory
+          workingDirectory,
+          config
         )
       )
     )
@@ -217,10 +224,11 @@ export class ViewImageService {
   async loadViewedImageItems(
     backend: ViewImageSandbox,
     targets: string[],
-    workingDirectory: string
+    workingDirectory: string,
+    config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
   ): Promise<ViewedImageItem[]> {
     const resolvedTargets = targets.map((target) => resolveImageTarget(target, workingDirectory))
-    return this.loadViewedImageItemsFromTargets(backend, resolvedTargets)
+    return this.loadViewedImageItemsFromTargets(backend, resolvedTargets, config)
   }
 
   resolveVisibleWorkingDirectory(
@@ -245,7 +253,8 @@ export class ViewImageService {
     toolMessage: ToolMessage | null,
     configurable: TAgentRunnableConfigurable | Record<string, unknown> | undefined,
     backend: ViewImageSandbox,
-    workingDirectory: string
+    workingDirectory: string,
+    config: ViewImageMiddlewareConfig
   ): Promise<ViewedImageBatch | null> {
     const cacheKey = this.buildPendingBatchKey(configurable, toolCallId)
     const cachedBatch = this.pendingViewedImageBatches.get(cacheKey)
@@ -272,12 +281,17 @@ export class ViewImageService {
       createdAt: metadata.createdAt,
       items: await this.loadViewedImageItemsFromTargets(
         backend,
-        metadata.items.map((item) => resolveStoredImageTarget(item, workingDirectory))
+        metadata.items.map((item) => resolveStoredImageTarget(item, workingDirectory)),
+        config
       )
     }
   }
 
-  private async loadViewedImageItemsFromTargets(backend: ViewImageSandbox, targets: ResolvedImageTarget[]): Promise<ViewedImageItem[]> {
+  private async loadViewedImageItemsFromTargets(
+    backend: ViewImageSandbox,
+    targets: ResolvedImageTarget[],
+    config: ViewImageMiddlewareConfig
+  ): Promise<ViewedImageItem[]> {
     const downloads = await backend.downloadFiles(targets.map(({ downloadPath }) => downloadPath))
     if (!Array.isArray(downloads) || downloads.length !== targets.length) {
       throw new Error('Sandbox backend returned an unexpected response for `view_image`.')
@@ -314,7 +328,7 @@ export class ViewImageService {
         )
       }
 
-      const prepared = await prepareImageForModel(originalBuffer)
+      const prepared = await prepareImageForModel(originalBuffer, config)
       items.push({
         target: targetInfo.target,
         resolvedPath: targetInfo.resolvedPath,
@@ -354,6 +368,7 @@ export class ViewImageService {
       }
     }
   }
+
 }
 
 function buildToolSuccessMessage(items: ViewedImageItem[]) {
@@ -549,7 +564,7 @@ function detectImageMimeType(buffer: Buffer): (typeof VIEW_IMAGE_ALLOWED_MIME_TY
   return null
 }
 
-async function prepareImageForModel(buffer: Buffer): Promise<PreparedImage> {
+async function prepareImageForModel(buffer: Buffer, config: ViewImageMiddlewareConfig): Promise<PreparedImage> {
   try {
     const specifier = 'sharp'
     const sharpModule = await import(specifier)
@@ -565,23 +580,39 @@ async function prepareImageForModel(buffer: Buffer): Promise<PreparedImage> {
     const width = typeof metadata.width === 'number' ? metadata.width : undefined
     const height = typeof metadata.height === 'number' ? metadata.height : undefined
 
-    let pipeline = image
-    if (width && height && Math.max(width, height) > DEFAULT_VIEW_IMAGE_MAX_EDGE) {
-      pipeline = image.resize({
-        width: DEFAULT_VIEW_IMAGE_MAX_EDGE,
-        height: DEFAULT_VIEW_IMAGE_MAX_EDGE,
-        fit: 'inside',
-        withoutEnlargement: true
-      })
+    const resizeOptions = buildViewImageResizeOptions(width, height, config.compressionPercent)
+    if (!resizeOptions) {
+      return {
+        buffer,
+        width,
+        height
+      }
     }
 
     return {
-      buffer: await pipeline.toBuffer(),
+      buffer: await image.resize(resizeOptions).toBuffer(),
       width,
       height
     }
   } catch {
     return { buffer }
+  }
+}
+
+export function buildViewImageResizeOptions(
+  width: number | undefined,
+  height: number | undefined,
+  compressionPercent: number
+) {
+  if (!width || !height || compressionPercent >= 100) {
+    return null
+  }
+
+  return {
+    width: Math.max(1, Math.round(width * compressionPercent / 100)),
+    height: Math.max(1, Math.round(height * compressionPercent / 100)),
+    fit: 'inside' as const,
+    withoutEnlargement: true
   }
 }
 

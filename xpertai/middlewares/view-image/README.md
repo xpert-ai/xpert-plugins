@@ -33,11 +33,18 @@ When the tool succeeds, the middleware appends a temporary multimodal `HumanMess
 - a short text note
 - one `image_url` block per loaded image
 
+## Configuration
+
+Configure these options on the `ViewImageMiddleware` node:
+
+- `compressionPercent`: width/height scaling percentage before attaching images to the model. Defaults to `100`, which keeps the original dimensions. For example, `50` makes width and height 50% of the original dimensions; the final file size in KB/MB may be higher or lower than 50% because it depends on image content and encoding.
+
 ## Limits
 
 - At most 3 images per tool call
 - Allowed MIME types: `image/png`, `image/jpeg`, `image/webp`
 - Maximum raw file size per image: 10 MB
+- Attached image dimensions default to 100% of the original dimensions and can be reduced with `compressionPercent`
 - Paths must stay inside the current sandbox working directory
 
 ## Validation
