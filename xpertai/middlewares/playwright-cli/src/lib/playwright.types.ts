@@ -3,12 +3,13 @@ import { z } from 'zod'
 
 export const PLAYWRIGHT_CLI_SKILL_MIDDLEWARE_NAME = 'PlaywrightCLISkill'
 export const DEFAULT_PLAYWRIGHT_CLI_VERSION = 'latest'
-export const DEFAULT_PLAYWRIGHT_SKILLS_DIR = '/workspace/.xpert/skills/playwright-cli'
-export const DEFAULT_PLAYWRIGHT_STAMP_PATH = '/workspace/.xpert/.playwright-cli-bootstrap.json'
-export const DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH = '/workspace/.xpert/playwright-cli/cli.config.json'
-export const DEFAULT_PLAYWRIGHT_RUNTIME_DIR = '/workspace/.xpert/pw-runtime'
+export const DEFAULT_PLAYWRIGHT_SANDBOX_DIR = '/tmp/xpert-playwright-cli'
+export const DEFAULT_PLAYWRIGHT_SKILLS_DIR = `${DEFAULT_PLAYWRIGHT_SANDBOX_DIR}/skills`
+export const DEFAULT_PLAYWRIGHT_STAMP_PATH = `${DEFAULT_PLAYWRIGHT_SANDBOX_DIR}/bootstrap.json`
+export const DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH = `${DEFAULT_PLAYWRIGHT_SANDBOX_DIR}/cli.config.json`
+export const DEFAULT_PLAYWRIGHT_RUNTIME_DIR = `${DEFAULT_PLAYWRIGHT_SANDBOX_DIR}/runtime`
 export const DEFAULT_PLAYWRIGHT_OPEN_TIMEOUT_SEC = 15
-export const PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION = 1
+export const PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION = 2
 
 export const PlaywrightConfigSchema = z.object({
   cliVersion: z.string().min(1).default(DEFAULT_PLAYWRIGHT_CLI_VERSION),
