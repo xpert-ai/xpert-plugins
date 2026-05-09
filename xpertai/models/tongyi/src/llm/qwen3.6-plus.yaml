@@ -101,16 +101,6 @@ parameter_rules:
     help:
       zh_Hans: 思考过程的最大长度，只在思考模式为 true 时生效。
       en_US: The maximum length of the thinking process, only effective when thinking mode is true.
-  - name: enable_context_cache
-    required: false
-    type: boolean
-    default: false
-    label:
-      zh_Hans: 上下文缓存
-      en_US: Context Cache
-    help:
-      zh_Hans: 开启后，为稳定的系统提示词添加显式上下文缓存标记。
-      en_US: Add explicit context cache control to stable system prompts.
   - name: response_format
     label:
       zh_Hans: 回复格式

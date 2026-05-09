@@ -49,7 +49,6 @@ type TongyiChatCompletionRequest = {
 
 type TongyiCacheFields = {
   model?: string
-  enabled?: boolean
 }
 
 function hasOwn(value: object, key: string) {
@@ -110,7 +109,6 @@ export function applyTongyiExplicitCache<TRequest extends TongyiChatCompletionRe
 ): TRequest {
   const model = request?.model ?? fields?.model
   if (
-    fields?.enabled !== true ||
     !model ||
     !TONGYI_EXPLICIT_CACHE_MODELS.has(model) ||
     !Array.isArray(request?.messages)
@@ -210,14 +208,12 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
       }
     })
 
-    if (modelCredentials?.enable_context_cache === true) {
-      const originalCompletionWithRetry = chatModel.completionWithRetry.bind(chatModel)
+    const originalCompletionWithRetry = chatModel.completionWithRetry.bind(chatModel)
 
-      chatModel.completionWithRetry = (async (request, requestOptions) => {
-        const requestWithExplicitCache = applyTongyiExplicitCache(request, { model, enabled: true })
-        return originalCompletionWithRetry(requestWithExplicitCache, requestOptions)
-      }) as typeof chatModel.completionWithRetry
-    }
+    chatModel.completionWithRetry = (async (request, requestOptions) => {
+      const requestWithExplicitCache = applyTongyiExplicitCache(request, { model })
+      return originalCompletionWithRetry(requestWithExplicitCache, requestOptions)
+    }) as typeof chatModel.completionWithRetry
 
     return chatModel
   }

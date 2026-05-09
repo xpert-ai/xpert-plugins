@@ -9,7 +9,7 @@ describe('applyTongyiExplicitCache', () => {
     'deepseek-v3.2',
     'glm-5.1'
   ])(
-    'adds ephemeral cache control to %s system text content when enabled',
+    'adds ephemeral cache control to %s system text content',
     (model) => {
       const request = {
         model,
@@ -19,7 +19,7 @@ describe('applyTongyiExplicitCache', () => {
         ]
       }
 
-      const patched = applyTongyiExplicitCache(request, { model, enabled: true })
+      const patched = applyTongyiExplicitCache(request, { model })
 
       expect(patched).not.toBe(request)
       expect(request.messages[0].content).toBe('Long stable system prompt')
@@ -33,22 +33,13 @@ describe('applyTongyiExplicitCache', () => {
     }
   )
 
-  it('does not change supported models when disabled', () => {
-    const request = {
-      model: 'qwen3.6-plus',
-      messages: [{ role: 'system', content: 'Long stable system prompt' }]
-    }
-
-    expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-plus' })).toBe(request)
-  })
-
-  it('does not change other models even when enabled', () => {
+  it('does not change other models', () => {
     const request = {
       model: 'qwen-turbo',
       messages: [{ role: 'system', content: 'Long stable system prompt' }]
     }
 
-    expect(applyTongyiExplicitCache(request, { model: 'qwen-turbo', enabled: true })).toBe(request)
+    expect(applyTongyiExplicitCache(request, { model: 'qwen-turbo' })).toBe(request)
   })
 
   it('does not add duplicate cache control', () => {
@@ -68,6 +59,6 @@ describe('applyTongyiExplicitCache', () => {
       ]
     }
 
-    expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-plus', enabled: true })).toBe(request)
+    expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-plus' })).toBe(request)
   })
 })

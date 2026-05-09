@@ -2,8 +2,8 @@
 '@xpert-ai/plugin-tongyi': patch
 ---
 
-Add an opt-in context cache parameter for supported Tongyi-compatible chat models.
+Enable explicit context cache control for supported Tongyi-compatible chat models.
 
-- Expose a `Context Cache` toggle in supported model parameter panels.
-- Apply explicit ephemeral cache control only when the toggle is enabled.
-- Keep existing model behavior unchanged by default.
+- Apply ephemeral cache control to stable system prompts for supported models.
+- Keep model parameter schemas unchanged.
+- Avoid duplicate cache markers when a request already contains cache control.
