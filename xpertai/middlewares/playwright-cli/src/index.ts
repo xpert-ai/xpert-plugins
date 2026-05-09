@@ -23,7 +23,7 @@ const plugin: XpertPlugin = {
       value: PlaywrightIcon
     },
     displayName: 'Playwright CLI',
-    description: 'Installs @playwright/cli globally in the sandbox and provides embedded skills for browser automation.',
+    description: 'Installs @playwright/cli in the sandbox runtime and provides embedded skills for browser automation.',
     keywords: ['playwright', 'cli', 'browser', 'automation'],
     author: 'XpertAI Team'
   },

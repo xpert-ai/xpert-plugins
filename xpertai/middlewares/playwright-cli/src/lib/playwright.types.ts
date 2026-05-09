@@ -6,6 +6,7 @@ export const DEFAULT_PLAYWRIGHT_CLI_VERSION = 'latest'
 export const DEFAULT_PLAYWRIGHT_SKILLS_DIR = '/workspace/.xpert/skills/playwright-cli'
 export const DEFAULT_PLAYWRIGHT_STAMP_PATH = '/workspace/.xpert/.playwright-cli-bootstrap.json'
 export const DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH = '/workspace/.xpert/playwright-cli/cli.config.json'
+export const DEFAULT_PLAYWRIGHT_RUNTIME_DIR = '/workspace/.xpert/pw-runtime'
 export const DEFAULT_PLAYWRIGHT_OPEN_TIMEOUT_SEC = 15
 export const PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION = 1
 
@@ -26,8 +27,8 @@ export const PlaywrightConfigFormSchema: JsonSchemaObjectType = {
         zh_Hans: 'CLI 版本'
       },
       description: {
-        en_US: 'The @playwright/cli version to install globally in the sandbox (e.g. "latest" or "0.1.1").',
-        zh_Hans: '在 sandbox 中全局安装的 @playwright/cli 版本（如 "latest" 或 "0.1.1"）。'
+        en_US: 'The @playwright/cli version to install in the sandbox runtime (e.g. "latest" or "0.1.1").',
+        zh_Hans: '在 sandbox runtime 中安装的 @playwright/cli 版本（如 "latest" 或 "0.1.1"）。'
       },
       default: DEFAULT_PLAYWRIGHT_CLI_VERSION
     },

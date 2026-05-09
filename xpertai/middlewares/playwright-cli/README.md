@@ -4,7 +4,7 @@
 
 ## Key Features
 
-- Bootstraps `@playwright/cli` globally inside the sandbox on first use.
+- Bootstraps `@playwright/cli` inside a sandbox-writable runtime prefix on first use.
 - Installs the Chromium browser runtime required by `playwright-cli`.
 - Writes embedded skill assets (`SKILL.md` plus reference docs) into the sandbox for agent self-guidance.
 - Appends a Playwright-specific system prompt so the agent uses `sandbox_shell` with `playwright-cli` instead of unsupported alternatives.
@@ -53,7 +53,7 @@ npm install @xpert-ai/plugin-playwright-cli
 
 | Field | Type | Description | Default |
 | ----- | ---- | ----------- | ------- |
-| `cliVersion` | string | Version of `@playwright/cli` to install globally in the sandbox. | `"latest"` |
+| `cliVersion` | string | Version of `@playwright/cli` to install in the sandbox runtime. | `"latest"` |
 | `skillsDir` | string | Path inside the sandbox where `SKILL.md` and reference files are written. | `"/workspace/.xpert/skills/playwright-cli"` |
 
 ## Runtime Behavior
