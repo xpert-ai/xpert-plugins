@@ -89,16 +89,6 @@ parameter_rules:
     help:
       zh_Hans: 以增量方式返回工具调用参数，适合长参数或多工具调用场景。
       en_US: Stream tool call arguments incrementally for long arguments or multi-tool-call scenarios.
-  - name: enable_context_cache
-    required: false
-    type: boolean
-    default: false
-    label:
-      zh_Hans: 上下文缓存
-      en_US: Context Cache
-    help:
-      zh_Hans: 开启后，为稳定的系统提示词添加显式上下文缓存标记。
-      en_US: Add explicit context cache control to stable system prompts.
   - name: response_format
     label:
       zh_Hans: 回复格式

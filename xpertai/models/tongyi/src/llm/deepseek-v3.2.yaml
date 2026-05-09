@@ -57,16 +57,6 @@ parameter_rules:
     help:
       zh_Hans: 模型内置了互联网搜索服务，该参数控制模型在生成文本时是否参考使用互联网搜索结果。
       en_US: The model has a built-in Internet search service. This parameter controls whether the model refers to Internet search results when generating text.
-  - name: enable_context_cache
-    required: false
-    type: boolean
-    default: false
-    label:
-      zh_Hans: 上下文缓存
-      en_US: Context Cache
-    help:
-      zh_Hans: 开启后，为稳定的系统提示词添加显式上下文缓存标记。
-      en_US: Add explicit context cache control to stable system prompts.
   - name: response_format
     label:
       zh_Hans: 回复格式
