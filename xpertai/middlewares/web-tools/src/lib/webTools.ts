@@ -25,6 +25,15 @@ const SEARCH_TIMEOUT = 25_000
 const EXA_MCP_ENDPOINT = 'https://mcp.exa.ai/mcp'
 const USER_AGENT = 'Mozilla/5.0 (compatible; XpertBot/1.0)'
 
+export type WebSearchSource = {
+  title: string
+  url: string
+  content?: string
+  description?: string
+  publishedDate?: string
+  author?: string
+}
+
 const webFetchSchema = z.object({
   url: z.string().url().describe('The URL to fetch content from'),
   format: z
@@ -68,6 +77,56 @@ function htmlToText(html: string): string {
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
   return text.slice(0, maxLen) + '\n\n[Content truncated]'
+}
+
+function normalizeSearchField(value: string | undefined): string | undefined {
+  const normalized = value?.trim()
+  if (!normalized || normalized.toUpperCase() === 'N/A') return undefined
+  return normalized
+}
+
+function readExaLineField(section: string, label: string): string | undefined {
+  const match = new RegExp(`^${label}:\\s*(.*)$`, 'im').exec(section)
+  return normalizeSearchField(match?.[1])
+}
+
+function readExaBlockField(section: string, label: string): string | undefined {
+  const match = new RegExp(`^${label}:\\s*`, 'im').exec(section)
+  if (!match) return undefined
+
+  const bodyStart = match.index + match[0].length
+  const rest = section.slice(bodyStart)
+  const nextFieldIndex = rest.search(
+    /\n(?:Title|URL|Published|Author|Highlights|Text):\s*/i
+  )
+  const value = nextFieldIndex >= 0 ? rest.slice(0, nextFieldIndex) : rest
+  return normalizeSearchField(value)
+}
+
+export function parseExaWebSearchText(text: string): WebSearchSource[] {
+  return text
+    .split(/\n\s*---\s*\n/g)
+    .flatMap((section) => {
+      const title = readExaLineField(section, 'Title')
+      const url = readExaLineField(section, 'URL')
+      if (!title || !url) return []
+
+      const content =
+        readExaBlockField(section, 'Highlights') ??
+        readExaBlockField(section, 'Text')
+      const publishedDate = readExaLineField(section, 'Published')
+      const author = readExaLineField(section, 'Author')
+
+      return [
+        {
+          title,
+          url,
+          ...(content ? { content } : {}),
+          ...(publishedDate ? { publishedDate } : {}),
+          ...(author ? { author } : {})
+        }
+      ]
+    })
 }
 
 async function fetchUrl(
@@ -243,6 +302,7 @@ export class WebToolsMiddleware implements IAgentMiddlewareStrategy {
         const toolCall = getToolCallFromConfig(config)
         try {
           const result = await searchExa(query, numResults ?? 5, type ?? 'auto')
+          const sources = parseExaWebSearchText(result)
           dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, {
             id: toolCall?.id,
             category: 'Computer',
@@ -250,7 +310,13 @@ export class WebToolsMiddleware implements IAgentMiddlewareStrategy {
             toolset: WEB_TOOLS_MIDDLEWARE_NAME,
             tool: 'web_search',
             title: 'Web Search',
-            message: query
+            message: query,
+            input: {
+              query,
+              numResults: numResults ?? 5,
+              type: type ?? 'auto'
+            },
+            data: sources
           }).catch(() => {/* ignore dispatch errors */})
           return result
         } catch (err) {
