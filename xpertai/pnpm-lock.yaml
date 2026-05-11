@@ -793,6 +793,42 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
+  middlewares/codexpert-connector:
+    dependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
+      '@metad/contracts':
+        specifier: ^3.8.0
+        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.17.5
+        version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@3.25.67)
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^11.0.0
+        version: 11.0.0(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.28(@sap/hana-client@2.27.23)(babel-plugin-macros@3.1.0)(ioredis@5.9.3)(mysql2@3.17.5(@types/node@20.19.9))(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.19))(@types/node@20.19.9)(typescript@5.9.3)))
+      '@xpert-ai/chatkit-types':
+        specifier: ^0.0.12
+        version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.8.0
+        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+      chalk:
+        specifier: 4.1.2
+        version: 4.1.2
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+      typeorm:
+        specifier: ^0.3.20
+        version: 0.3.28(@sap/hana-client@2.27.23)(babel-plugin-macros@3.1.0)(ioredis@5.9.3)(mysql2@3.17.5(@types/node@20.19.9))(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.19))(@types/node@20.19.9)(typescript@5.9.3))
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   middlewares/context-editing:
     dependencies:
       '@langchain/core':
