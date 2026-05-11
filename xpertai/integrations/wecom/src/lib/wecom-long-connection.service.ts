@@ -179,14 +179,14 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
     this.logger.debug(
       `[wecom-long] bootstrapping long connection sessions for integrations: [${integrationIds.join(', ')}]`
     )
-    await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId)))
+    await Promise.allSettled(integrationIds.map((integrationId) => this.connect(integrationId, { autoRestore: true })))
   }
 
   async onModuleDestroy(): Promise<void> {
     await Promise.allSettled([...this.sessions.values()].map((session) => this.stopSession(session, true)))
   }
 
-  async connect(integrationId: string): Promise<TWeComRuntimeStatus> {
+  async connect(integrationId: string, options?: { autoRestore?: boolean }): Promise<TWeComRuntimeStatus> {
     const integration = await this.safeReadLongIntegration(integrationId)
     if (!integration) {
       await this.dropMissingIntegration(integrationId)
@@ -198,19 +198,24 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
       await this.unregisterIntegration(integrationId)
       await this.removeSession(integrationId)
       await this.writeDetachedStatus(integrationId, skipReason, {
-            shouldRun: false,
-            lastError:
-          skipReason === 'integration_disabled'
-            ? 'Integration is disabled'
-            : skipReason === 'xpert_unbound'
-            ? 'WeCom trigger binding is missing'
-            : 'Restore skipped'
+        shouldRun: false,
+        lastError: this.describeDisabledReason(skipReason) ?? 'Restore skipped'
       })
       return this.readStoredStatus(integrationId)
     }
 
+    if (options?.autoRestore) {
+      const persistentStopReason = await this.resolvePersistentAutoRestoreStopReason(integrationId)
+      if (persistentStopReason) {
+        await this.unregisterIntegration(integrationId)
+        await this.removeSession(integrationId)
+        return this.readStoredStatus(integrationId)
+      }
+    }
+
     await this.registerIntegration(integrationId)
     const session = this.ensureSession(integration)
+    session.shouldRun = true
 
     if (session.state === 'unhealthy') {
       await this.writeStatus(session)
@@ -1597,7 +1602,7 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
       const evaluatedItems = await Promise.all(
         (result?.items ?? []).map(async (item) => ({
           item,
-          skipReason: await this.resolveRestoreSkipReason(item)
+          skipReason: await this.resolveAutoBootstrapSkipReason(item)
         }))
       )
       const items = evaluatedItems.filter(({ skipReason }) => !skipReason).map(({ item }) => item)
@@ -1875,8 +1880,35 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
     if (!hasRoutingTarget) {
       return 'xpert_unbound'
     }
-
     return null
+  }
+
+  private async resolveAutoBootstrapSkipReason(
+    integration: IIntegration<TIntegrationWeComLongOptions>
+  ): Promise<TWeComLongDisabledReason | null> {
+    const restoreSkipReason = await this.resolveRestoreSkipReason(integration)
+    if (restoreSkipReason) {
+      return restoreSkipReason
+    }
+    return this.resolvePersistentAutoRestoreStopReason(integration.id)
+  }
+
+  private async resolvePersistentAutoRestoreStopReason(
+    integrationId: string
+  ): Promise<TWeComLongDisabledReason | null> {
+    const storedStatus = await this.readStoredStatus(integrationId)
+    const disabledReason = storedStatus.disabledReason ?? null
+    return this.isAutoRestoreBlockedReason(disabledReason) ? disabledReason : null
+  }
+
+  private isAutoRestoreBlockedReason(reason: TWeComLongDisabledReason | null): boolean {
+    return (
+      reason === 'manual_disconnect' ||
+      reason === 'integration_disabled' ||
+      reason === 'xpert_unbound' ||
+      reason === 'config_invalid' ||
+      reason === 'restore_skipped'
+    )
   }
 
   private describeDisabledReason(reason: TWeComLongDisabledReason | null): string | null {

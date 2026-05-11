@@ -150,7 +150,49 @@ describe('WeComLongConnectionService', () => {
 
     await service.onModuleInit()
 
-    expect(connectSpy).toHaveBeenCalledWith('integration-1')
+    expect(connectSpy).toHaveBeenCalledWith('integration-1', { autoRestore: true })
+  })
+
+  it('marks restored integrations as runnable before starting the session', async () => {
+    const { service, integration } = createFixture()
+    const startSessionSpy = jest.spyOn(service as any, 'startSession').mockImplementation(async (session) => {
+      expect(session.integrationId).toBe(integration.id)
+      expect(session.shouldRun).toBe(true)
+    })
+
+    await service.connect(integration.id)
+
+    expect(startSessionSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not bootstrap a manually disconnected integration on module init', async () => {
+    const { service, integration } = createFixture()
+    ;(service as any).ensureSession(integration)
+    await service.disconnect(integration.id)
+    const startSessionSpy = jest.spyOn(service as any, 'startSession').mockResolvedValue(undefined)
+
+    await service.onModuleInit()
+
+    expect(startSessionSpy).not.toHaveBeenCalled()
+    await expect(service.status(integration.id)).resolves.toMatchObject({
+      state: 'idle',
+      shouldRun: false,
+      disabledReason: 'manual_disconnect'
+    })
+  })
+
+  it('allows explicit connect to recover a manually disconnected integration', async () => {
+    const { service, integration } = createFixture()
+    ;(service as any).ensureSession(integration)
+    await service.disconnect(integration.id)
+    const startSessionSpy = jest.spyOn(service as any, 'startSession').mockImplementation(async (session) => {
+      expect(session.integrationId).toBe(integration.id)
+      expect(session.shouldRun).toBe(true)
+    })
+
+    await service.connect(integration.id)
+
+    expect(startSessionSpy).toHaveBeenCalledTimes(1)
   })
 
   it('treats trigger binding as a valid routing target during bootstrap', async () => {
@@ -186,7 +228,7 @@ describe('WeComLongConnectionService', () => {
 
     await service.onModuleInit()
 
-    expect(connectSpy).toHaveBeenCalledWith('integration-1')
+    expect(connectSpy).toHaveBeenCalledWith('integration-1', { autoRestore: true })
   })
 
   it('hasRoutingTarget depends only on persisted trigger bindings', async () => {
