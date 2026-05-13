@@ -50,10 +50,6 @@ export class PlaywrightCLISkillMiddleware implements IAgentMiddlewareStrategy<Pa
     return {
       name: PLAYWRIGHT_CLI_SKILL_MIDDLEWARE_NAME,
       tools: [],
-      beforeAgent: async (_state, runtime) => {
-        const backend = getSandboxBackend(runtime)
-        await this.playwrightBootstrapService.ensureBootstrap(backend, config)
-      },
       wrapModelCall: async (request, handler) => {
         const backend = getSandboxBackend(request.runtime)
         if (!backend) {
@@ -80,13 +76,19 @@ export class PlaywrightCLISkillMiddleware implements IAgentMiddlewareStrategy<Pa
         }
 
         const command = getSandboxShellCommand(request)
-        if (!this.playwrightBootstrapService.isPlaywrightCommand(command)) {
+        const isPlaywrightCommand = this.playwrightBootstrapService.isPlaywrightCommand(command)
+        const shouldBootstrap = isPlaywrightCommand || isPlaywrightSkillFileReadCommand(command, config.skillsDir)
+        if (!shouldBootstrap) {
           return handler(request)
         }
 
         const backend = getSandboxBackend(request.runtime)
         if (backend) {
           await this.playwrightBootstrapService.ensureBootstrap(backend, config)
+        }
+
+        if (!isPlaywrightCommand) {
+          return handler(request)
         }
 
         let args = getSandboxShellArgs(request)
@@ -141,6 +143,19 @@ function getSandboxShellArgs(request: ToolCallRequest<AgentBuiltInState>) {
     return null
   }
   return args as Record<string, unknown>
+}
+
+function isPlaywrightSkillFileReadCommand(command: string, skillsDir: string) {
+  if (!command || !skillsDir || !/\bcat\b/.test(command)) {
+    return false
+  }
+
+  const normalizedSkillsDir = skillsDir.replace(/\/+$/, '')
+  const skillPaths = [skillsDir, normalizedSkillsDir]
+    .filter(Boolean)
+    .flatMap((dir) => [`${dir}/SKILL.md`, `${dir}/references/`])
+
+  return [...new Set(skillPaths)].some((skillPath) => command.includes(skillPath))
 }
 
 function getPlaywrightOpenTimeout(timeoutSec: unknown) {
