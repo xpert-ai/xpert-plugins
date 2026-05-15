@@ -387,8 +387,11 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
 
     const session = this.sessions.get(integrationId)
     if (!session) {
-      if (await this.isRegistered(integrationId)) {
-        void this.connect(integrationId).catch((error) => {
+      const persistentStopReason = await this.resolvePersistentAutoRestoreStopReason(integrationId)
+      if (persistentStopReason) {
+        await this.unregisterIntegration(integrationId)
+      } else {
+        void this.connect(integrationId, { autoRestore: true }).catch((error) => {
           this.logger.warn(
             `[wecom-long] lazy connect failed integration=${integrationId}: ${this.stringifyError(error)}`
           )

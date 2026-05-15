@@ -231,6 +231,19 @@ describe('WeComLongConnectionService', () => {
     expect(connectSpy).toHaveBeenCalledWith('integration-1', { autoRestore: true })
   })
 
+  it('lazy restores a restorable integration from status when the redis registry is empty', async () => {
+    const { service, integration } = createFixture()
+    const startSessionSpy = jest.spyOn(service as any, 'startSession').mockImplementation(async (session) => {
+      expect(session.integrationId).toBe(integration.id)
+      expect(session.shouldRun).toBe(true)
+    })
+
+    await service.status(integration.id)
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(startSessionSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('hasRoutingTarget depends only on persisted trigger bindings', async () => {
     const { service, triggerBindingRepository } = createFixture()
     triggerBindingRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
