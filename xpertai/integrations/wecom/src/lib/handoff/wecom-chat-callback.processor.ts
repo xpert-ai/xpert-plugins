@@ -7,7 +7,7 @@ import {
   ProcessResult
 } from '@xpert-ai/plugin-sdk'
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
-import { filterMessageText, XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { XpertAgentExecutionStatusEnum } from '@metad/contracts'
 import { ChatWeComMessage } from '../message.js'
 import { WeComConversationService } from '../conversation.service.js'
 import {
@@ -25,6 +25,78 @@ import { WeComChatRunState, WeComChatRunStateService } from './wecom-chat-run-st
 
 const STREAM_RETRY_DELAY_MS = 200
 const STREAM_UPDATE_WINDOW_MS = 2000
+
+type WeComMessageTextContent = {
+  type?: unknown
+  text?: unknown
+  id?: unknown
+}
+
+function getWeComTextStreamId(content: unknown): string | undefined {
+  if (!content || typeof content !== 'object') {
+    return undefined
+  }
+  const id = (content as WeComMessageTextContent).id
+  return typeof id === 'string' && id ? id : undefined
+}
+
+function shouldJoinWeComTextWithoutSeparator(
+  previousStreamId: string | undefined,
+  currentStreamId: string | undefined
+): boolean {
+  return !!previousStreamId && previousStreamId === currentStreamId
+}
+
+function appendWeComMessagePlainText(accumulator: string, incoming: string, joinWithoutSeparator: boolean): string {
+  if (!accumulator) {
+    return incoming
+  }
+  if (!incoming || /^\s/.test(incoming) || joinWithoutSeparator) {
+    return `${accumulator}${incoming}`
+  }
+  if (!/[\s\n]$/.test(accumulator)) {
+    return `${accumulator}\n${incoming}`
+  }
+  return `${accumulator}${incoming}`
+}
+
+function filterWeComMessageTextItem(content: unknown): string {
+  if (typeof content === 'string') {
+    return content
+  }
+  if (content && typeof content === 'object' && (content as WeComMessageTextContent).type === 'text') {
+    const text = (content as WeComMessageTextContent).text
+    return typeof text === 'string' ? text : ''
+  }
+  return ''
+}
+
+function filterWeComMessageText(content: unknown): string | null {
+  if (typeof content === 'string') {
+    return content
+  }
+
+  if (Array.isArray(content)) {
+    let result = ''
+    let previousStreamId: string | undefined
+    for (const item of content) {
+      const nextText = filterWeComMessageTextItem(item)
+      if (!nextText) {
+        continue
+      }
+      const streamId = getWeComTextStreamId(item)
+      result = appendWeComMessagePlainText(
+        result,
+        nextText,
+        shouldJoinWeComTextWithoutSeparator(previousStreamId, streamId)
+      )
+      previousStreamId = streamId
+    }
+    return result || null
+  }
+
+  return filterWeComMessageTextItem(content) || null
+}
 
 @Injectable()
 @HandoffProcessorStrategy(WECOM_CHAT_STREAM_CALLBACK_MESSAGE_TYPE, {
@@ -206,7 +278,7 @@ export class WeComChatStreamCallbackProcessor implements IHandoffProcessor<WeCom
     }
 
     if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
-      const filteredText = filterMessageText(eventPayload.data) ?? ''
+      const filteredText = filterWeComMessageText(eventPayload.data) ?? ''
       const textDelta = this.normalizeStreamTextDelta(filteredText)
       if (textDelta) {
         state.firstVisibleTextAt ||= Date.now()
