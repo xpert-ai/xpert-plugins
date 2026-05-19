@@ -304,6 +304,14 @@ describe('PlaywrightBootstrapService', () => {
     )
   })
 
+  it('resolves playwright-cli through the sandbox runtime binary without a PATH prefix', () => {
+    const service = new PlaywrightBootstrapService()
+    const command = service.injectManagedConfig('playwright-cli screenshot')
+
+    expect(command).toBe(runtimePlaywrightCommand('playwright-cli screenshot'))
+    expect(command).not.toContain('PATH=')
+  })
+
   it('does not inject the managed config when browser or config is already specified', () => {
     const service = new PlaywrightBootstrapService()
 
@@ -351,5 +359,8 @@ describe('PlaywrightBootstrapService', () => {
 })
 
 function runtimePlaywrightCommand(command: string) {
-  return `PATH='${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}/bin':$PATH ${command}`
+  return command.replace(
+    /\bplaywright-cli\b/,
+    `'${DEFAULT_PLAYWRIGHT_RUNTIME_DIR}/bin/playwright-cli'`
+  )
 }

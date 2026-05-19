@@ -115,16 +115,14 @@ export class PlaywrightBootstrapService {
   }
 
   injectManagedConfig(command: string, configPath = this.getManagedConfigPath()): string {
-    const commandWithRuntimePath = this.injectPlaywrightRuntimePath(command)
+    const commandWithManagedConfig = this.shouldInjectManagedConfig(command)
+      ? command.replace(
+        PLAYWRIGHT_OPEN_COMMAND_PATTERN,
+        (match) => `${match} --config=${shellQuote(configPath)}`
+      )
+      : command
 
-    if (!this.shouldInjectManagedConfig(commandWithRuntimePath)) {
-      return commandWithRuntimePath
-    }
-
-    return commandWithRuntimePath.replace(
-      PLAYWRIGHT_OPEN_COMMAND_PATTERN,
-      (match) => `${match} --config=${shellQuote(configPath)}`
-    )
+    return this.injectPlaywrightRuntimePath(commandWithManagedConfig)
   }
 
   async ensureBootstrap(backend: PlaywrightBootstrapBackend, config = this.resolveConfig()) {
@@ -196,10 +194,9 @@ export class PlaywrightBootstrapService {
   }
 
   private injectPlaywrightRuntimePath(command: string): string {
-    const commandPrefix = `PATH=${shellQuote(path.join(this.getPlaywrightCliRuntimeDir(), 'bin'))}:$PATH`
     return command.replace(
       /\b(?:npx\s+@playwright\/cli|npx\s+playwright-cli|playwright-cli)\b/,
-      `${commandPrefix} playwright-cli`
+      shellQuote(this.getPlaywrightCliBinaryPath())
     )
   }
 
