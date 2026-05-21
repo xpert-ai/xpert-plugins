@@ -164,6 +164,9 @@
     },
     {
       "path": "./integrations/gitcode"
+    },
+    {
+      "path": "./integrations/modelscope"
     }
   ]
 }
