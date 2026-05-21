@@ -50,6 +50,7 @@
     "projects": [
       "@xpert-ai/plugin-lark",
       "@xpert-ai/plugin-lark-sso",
+      "@xpert-ai/plugin-gitcode",
       "@xpert-ai/plugin-firecrawl",
       "@xpert-ai/plugin-mineru",
       "@xpert-ai/plugin-dify",
