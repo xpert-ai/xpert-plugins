@@ -13,6 +13,7 @@ import { GitCodeIcon, GitCodeSkillRepositoryOptions } from './types.js'
 const GITCODE_SKILL_SOURCE_PROVIDER = 'gitcode'
 const GITCODE_API_BASE_URL = 'https://api.gitcode.com/api/v5'
 const DEFAULT_BRANCH = 'main'
+const INSTALL_FILE_DOWNLOAD_CONCURRENCY = 5
 
 type GitCodeRepositoryIdentity = {
   owner: string
@@ -171,14 +172,16 @@ export class GitCodeSkillSourceProvider implements ISkillSourceProvider {
     await mkdir(skillRoot, { recursive: true })
 
     try {
-      await Promise.all(
-        selectedFiles.map(async (file) => {
+      await mapWithConcurrency(
+        selectedFiles,
+        INSTALL_FILE_DOWNLOAD_CONCURRENCY,
+        async (file) => {
           const filePathInSkill = stripPathPrefix(file.path, skillPrefix)
           const targetPath = join(skillRoot, filePathInSkill)
           await mkdir(dirname(targetPath), { recursive: true })
           const content = await fetchGitCodeRawFile(index.repository as ISkillRepository, file.path, branch)
           await writeFile(targetPath, content)
-        })
+        }
       )
       return relative(installDir, skillRoot)
     } catch (error) {
@@ -457,4 +460,23 @@ function stripPathPrefix(filePath: string, parentPath: string) {
     return ''
   }
   return normalizedFilePath.slice(normalizedParentPath.length + 1)
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<void>
+): Promise<void> {
+  const workerCount = Math.max(1, Math.min(concurrency, items.length))
+  let nextIndex = 0
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex
+        nextIndex += 1
+        await mapper(items[index], index)
+      }
+    })
+  )
 }

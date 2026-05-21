@@ -177,6 +177,55 @@ describe('GitCode skill source provider', () => {
     await expect(readFile(join(installDir, relativePath, 'scripts/run.py'), 'utf8')).resolves.toBe('print("weather")')
   })
 
+  it('limits concurrent downloads when installing a large skill package', async () => {
+    const installDir = await mkdtemp(join(tmpdir(), 'gitcode-large-skill-install-'))
+    tempDirs.push(installDir)
+    let activeRawRequests = 0
+    let maxActiveRawRequests = 0
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.gitcode.com/api/v5/repos/acme/skills-repo/file_list')) {
+        return jsonResponse({
+          files: Array.from({ length: 7 }, (_, index) => ({
+            path: `skills/weather/file-${index}.txt`,
+            type: 'file'
+          }))
+        })
+      }
+
+      if (url.includes('/raw/skills%2Fweather%2Ffile-')) {
+        activeRawRequests += 1
+        maxActiveRawRequests = Math.max(maxActiveRawRequests, activeRawRequests)
+        await delay(10)
+        activeRawRequests -= 1
+        return textResponse('content')
+      }
+
+      throw new Error(`Unexpected request: ${url}`)
+    })
+
+    const provider = new GitCodeSkillSourceProvider()
+    await provider.installSkillPackage(
+      {
+        repositoryId: 'repo-1',
+        skillPath: 'weather',
+        skillId: 'weather',
+        repository: {
+          id: 'repo-1',
+          name: 'acme/skills-repo',
+          provider: 'gitcode',
+          options: {
+            url: 'https://gitcode.com/acme/skills-repo',
+            path: 'skills'
+          }
+        }
+      } as any,
+      installDir
+    )
+
+    expect(maxActiveRawRequests).toBeLessThanOrEqual(5)
+  })
+
   it('does not index nested skill directories when a parent directory already contains SKILL.md', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.startsWith('https://api.gitcode.com/api/v5/repos/acme/skills-repo/file_list')) {
@@ -243,4 +292,8 @@ function textResponse(data: string) {
     text: async () => data,
     json: async () => JSON.parse(data)
   }
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
