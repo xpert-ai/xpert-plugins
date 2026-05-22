@@ -265,6 +265,8 @@ describe('PlaywrightBootstrapService', () => {
     expect(prompt).toContain('/workspace/.xpert/skills/playwright-cli/SKILL.md')
     expect(prompt).toContain('/workspace/.xpert/skills/playwright-cli/references/')
     expect(prompt).toContain(DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH)
+    expect(prompt).toContain('Run one `playwright-cli` command per `sandbox_shell` call')
+    expect(prompt).toContain('Do not chain multiple `playwright-cli` commands')
   })
 
   it('detects playwright-cli commands correctly', () => {

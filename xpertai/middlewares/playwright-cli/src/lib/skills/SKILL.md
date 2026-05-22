@@ -23,6 +23,10 @@ playwright-cli screenshot
 playwright-cli close
 ```
 
+## sandbox_shell usage
+
+Run one `playwright-cli` command per `sandbox_shell` call. Do not chain multiple `playwright-cli` commands with `&&`, `;`, or `|`; use separate `sandbox_shell` calls so each command can be prepared and rewritten correctly.
+
 ## Commands
 
 ### Core

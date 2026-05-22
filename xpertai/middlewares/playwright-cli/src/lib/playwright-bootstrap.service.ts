@@ -83,6 +83,7 @@ export class PlaywrightBootstrapService {
       'Use headless mode only (do not pass `--headed`).',
       'Prefer non-interactive CLI flows: snapshots, screenshots, clicks, fills, evals, test runs.',
       'Do not use `codegen`, UI mode, or `show`.',
+      'Run one `playwright-cli` command per `sandbox_shell` call. Do not chain multiple `playwright-cli` commands with `&&`, `;`, or `|`; use separate `sandbox_shell` calls so each command can be prepared and rewritten correctly.',
       '',
       'TIMEOUT GUIDELINES for sandbox_shell with playwright-cli:',
       '- `playwright-cli open` and `playwright-cli open <url>` are long-running processes that keep the browser alive. A short timeout is enforced automatically — the browser opens immediately and the output is returned within seconds.',
