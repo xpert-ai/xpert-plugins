@@ -67,6 +67,8 @@ interface TaskResultOptions {
   language?: string;
 }
 
+type SelfHostedFileField = 'files' | 'file';
+
 interface MineruTaskResult {
   code: number;
   msg: string;
@@ -500,54 +502,23 @@ export class MinerUClient {
   ): Promise<MineruSelfHostedTaskResult> {
     const parseUrl = this.buildApiUrl('file_parse');
     this.logger.debug(`Sending parse request to: ${parseUrl}, file: ${fileName}`);
-    
-    const form = new FormData();
-    
-    // Create file read stream (file existence is already validated in createSelfHostedTask)
-    try {
-      form.append(
-        'files',
-        fs.createReadStream(filePath),
-        {
-          filename: fileName,
-        },
-      );
-    } catch (error) {
-      this.logger.error(`Failed to create read stream for file: ${filePath}`, error instanceof Error ? error.stack : error);
-      throw new Error(`Failed to read file: ${filePath}. ${error instanceof Error ? error.message : String(error)}`);
-    }
-    // form.append('files', fileBuffer, { filename: fileName, contentType: contentType || 'application/pdf' });
-    form.append('parse_method', options.parseMethod ?? 'auto');
-    form.append('return_md', 'true');
-    form.append('return_model_output', 'false');
-    form.append('return_content_list', 'true');
-    // form.append('lang_list', JSON.stringify(this.buildLanguageList(options.language)));
-    form.append('return_images', 'true');
-    form.append('backend', options.backend ?? options.modelVersion ?? 'pipeline');
-    form.append('formula_enable', this.booleanToString(options.enableFormula ?? true));
-    form.append('table_enable', this.booleanToString(options.enableTable ?? true));
-    form.append('return_middle_json', this.booleanToString(options.returnMiddleJson ?? false));
-    if (options.serverUrl) {
-      form.append('server_url', options.serverUrl);
-    }
 
-    const headers = {
-      ...this.getSelfHostedHeaders(),
-      ...form.getHeaders(),
-    };
-
-    const response = await axios.post(parseUrl, form, {
-      headers,
-      maxBodyLength: Infinity,
-      validateStatus: () => true,
-    });
+    let response = await this.postSelfHostedParse(parseUrl, filePath, fileName, options, 'files');
 
     if (this.isSelfHostedApiV1(response)) {
       return this.invokeSelfHostedParseV1(filePath, fileName, options);
     }
 
+    if (this.isSelfHostedFileInputMissing(response)) {
+      this.logger.debug('Retrying MinerU self-hosted parse with singular file field');
+      response = await this.postSelfHostedParse(parseUrl, filePath, fileName, options, 'file');
+      if (this.isSelfHostedApiV1(response)) {
+        return this.invokeSelfHostedParseV1(filePath, fileName, options);
+      }
+    }
+
     if (response.status === 400) {
-      const errorMessage = getErrorMessage(response.data);
+      const errorMessage = this.getResponseErrorMessage(response);
       this.logger.error(`MinerU self-hosted parse failed with 400: ${errorMessage}`, JSON.stringify(response.data));
       throw new BadRequestException(
         `MinerU self-hosted parse failed: ${response.status} ${errorMessage}`
@@ -582,20 +553,75 @@ export class MinerUClient {
     return this.normalizeSelfHostedResponse(response.data);
   }
 
+  private async postSelfHostedParse(
+    parseUrl: string,
+    filePath: string,
+    fileName: string,
+    options: CreateTaskOptions,
+    fileField: SelfHostedFileField,
+  ): Promise<AxiosResponse> {
+    const form = this.createSelfHostedParseForm(filePath, fileName, options, fileField);
+    const headers = {
+      ...this.getSelfHostedHeaders(),
+      ...form.getHeaders(),
+    };
+
+    return axios.post(parseUrl, form, {
+      headers,
+      maxBodyLength: Infinity,
+      validateStatus: () => true,
+    });
+  }
+
+  private createSelfHostedParseForm(
+    filePath: string,
+    fileName: string,
+    options: CreateTaskOptions,
+    fileField: SelfHostedFileField,
+  ): FormData {
+    const form = this.createSelfHostedFileForm(filePath, fileName, fileField);
+    form.append('parse_method', options.parseMethod ?? 'auto');
+    form.append('return_md', 'true');
+    form.append('return_model_output', 'false');
+    form.append('return_content_list', 'true');
+    // form.append('lang_list', JSON.stringify(this.buildLanguageList(options.language)));
+    form.append('return_images', 'true');
+    form.append('backend', options.backend ?? options.modelVersion ?? 'pipeline');
+    form.append('formula_enable', this.booleanToString(options.enableFormula ?? true));
+    form.append('table_enable', this.booleanToString(options.enableTable ?? true));
+    form.append('return_middle_json', this.booleanToString(options.returnMiddleJson ?? false));
+    if (options.serverUrl) {
+      form.append('server_url', options.serverUrl);
+    }
+    return form;
+  }
+
+  private createSelfHostedFileForm(filePath: string, fileName: string, fileField: SelfHostedFileField): FormData {
+    const form = new FormData();
+
+    try {
+      form.append(
+        fileField,
+        fs.createReadStream(filePath),
+        {
+          filename: fileName,
+        },
+      );
+    } catch (error) {
+      this.logger.error(`Failed to create read stream for file: ${filePath}`, error instanceof Error ? error.stack : error);
+      throw new Error(`Failed to read file: ${filePath}. ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    return form;
+  }
+
   private async invokeSelfHostedParseV1(
     filePath: string,
     fileName: string,
     options: CreateTaskOptions,
   ): Promise<MineruSelfHostedTaskResult> {
     const parseUrl = this.buildApiUrl('file_parse');
-    const form = new FormData();
-    form.append(
-      'files',
-      fs.createReadStream(filePath),
-      {
-        filename: fileName,
-      },
-    );
+    const form = this.createSelfHostedFileForm(filePath, fileName, 'file');
 
     const params = {
       parse_method: options.parseMethod ?? 'auto',
@@ -650,6 +676,24 @@ export class MinerUClient {
       const loc = item?.loc;
       return item?.type === 'missing' && Array.isArray(loc) && loc[0] === 'body' && loc[1] === 'file';
     });
+  }
+
+  private isSelfHostedFileInputMissing(response: AxiosResponse): boolean {
+    if (response.status !== 400) {
+      return false;
+    }
+
+    const errorMessage = this.getResponseErrorMessage(response);
+    return errorMessage.includes('Must provide either file or file_path') || errorMessage.includes('file or file_path');
+  }
+
+  private getResponseErrorMessage(response: AxiosResponse): string {
+    const directMessage = getErrorMessage(response.data);
+    if (directMessage) {
+      return directMessage;
+    }
+
+    return response.statusText;
   }
 
   private normalizeSelfHostedResponse(payload: any): MineruSelfHostedTaskResult {

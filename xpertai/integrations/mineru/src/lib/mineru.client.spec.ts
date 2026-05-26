@@ -94,6 +94,21 @@ const isConnectionRefused = (error: any): boolean => {
   return Boolean(error.cause && error.cause.code === 'ECONNREFUSED');
 };
 
+const getFormFieldNames = (form: unknown): string[] => {
+  if (!form || typeof form !== 'object' || !('_streams' in form)) {
+    return [];
+  }
+
+  const streams = (form as { _streams?: unknown })._streams;
+  if (!Array.isArray(streams)) {
+    return [];
+  }
+
+  return streams
+    .filter((stream): stream is string => typeof stream === 'string')
+    .flatMap((stream) => [...stream.matchAll(/name="([^"]+)"/g)].map((match) => match[1]));
+};
+
 describe('MinerUClient', () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -410,6 +425,58 @@ describe('MinerUClient', () => {
     expect(result.sourceUrl).toBe(sourceUrl);
   });
 
+  it('should retry self-hosted parse with singular file field when required', async () => {
+    const { instance: configService } = createConfigServiceMock();
+    const client = new MinerUClient(configService, {
+      integration: {
+        options: {
+          apiUrl: 'http://127.0.0.1:9000',
+          serverType: 'self-hosted',
+        },
+      },
+      fileSystem: {
+        fullPath: (filePath: string) => filePath,
+      } as XpFileSystem,
+    });
+
+    const missingFileResponse = {
+      data: {
+        error: 'Must provide either file or file_path',
+      },
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {},
+      config: {},
+    } as AxiosResponse;
+    const parseResponse = {
+      data: {
+        md_content: '# Parsed',
+        content_list: [],
+        images: {},
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as AxiosResponse;
+
+    const postSpy = jest
+      .spyOn(axios, 'post')
+      .mockResolvedValueOnce(missingFileResponse)
+      .mockResolvedValueOnce(parseResponse);
+
+    const { taskId } = await client.createTask({
+      url: 'https://example.com/local.pdf',
+      filePath: sampleDocumentPath,
+      fileName: 'local.pdf',
+    });
+
+    expect(client.getSelfHostedTask(taskId)?.mdContent).toBe('# Parsed');
+    expect(postSpy).toHaveBeenCalledTimes(2);
+    expect(getFormFieldNames(postSpy.mock.calls[0]?.[1])).toContain('files');
+    expect(getFormFieldNames(postSpy.mock.calls[1]?.[1])).toContain('file');
+  });
+
   it('should derive self-hosted mode from environment settings', async () => {
     const configValues = {
       [ENV_MINERU_SERVER_TYPE]: 'self-hosted',
@@ -417,18 +484,11 @@ describe('MinerUClient', () => {
       [ENV_MINERU_API_TOKEN]: 'local-token',
     };
     const { instance: configService } = createConfigServiceMock(configValues);
-    const client = new MinerUClient(configService);
-
-    const downloadResponse = {
-      data: Buffer.from('pdf-file'),
-      headers: {
-        'content-type': 'application/pdf',
-      },
-      status: 200,
-      statusText: 'OK',
-      config: {},
-      request: {},
-    } as AxiosResponse;
+    const client = new MinerUClient(configService, {
+      fileSystem: {
+        fullPath: (filePath: string) => filePath,
+      } as XpFileSystem,
+    });
 
     const parseResponse = {
       data: {
@@ -442,14 +502,15 @@ describe('MinerUClient', () => {
       config: {},
     } as AxiosResponse;
 
-    const getSpy = jest.spyOn(axios, 'get').mockResolvedValueOnce(downloadResponse);
     const postSpy = jest.spyOn(axios, 'post').mockResolvedValueOnce(parseResponse);
 
-    const { taskId } = await client.createTask({ url: 'https://example.com/local.pdf' });
-    const result = await client.getTaskResult(taskId);
+    const { taskId } = await client.createTask({
+      url: 'https://example.com/local.pdf',
+      filePath: sampleDocumentPath,
+    });
+    const result = client.getSelfHostedTask(taskId);
 
-    expect(result.mdContent).toBe('# Local');
-    expect(getSpy).toHaveBeenCalledWith('https://example.com/local.pdf', expect.objectContaining({ responseType: 'arraybuffer' }));
+    expect(result?.mdContent).toBe('# Local');
     expect(postSpy).toHaveBeenCalledWith(
       'http://127.0.0.1:9000/file_parse',
       expect.any(FormData),
