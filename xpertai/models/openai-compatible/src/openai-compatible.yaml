@@ -291,6 +291,15 @@ model_credential_schema:
           value: llm
       default: '\n\n'
       type: text-input
+    - variable: customBodyParams
+      label:
+        zh_Hans: 自定义 Body 参数
+        en_US: Custom Body Params
+      type: custom-body-params
+      required: false
+      show_on:
+        - variable: __model_type
+          value: llm
     - variable: voices
       show_on:
         - variable: __model_type
