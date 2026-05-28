@@ -31,6 +31,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {

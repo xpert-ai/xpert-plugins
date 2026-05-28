@@ -32,7 +32,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
   }
 
   async validateCredentials(model: string, credentials: OpenAICompatModelCredentials): Promise<void> {
-    const params = toCredentialKwargs(credentials, model)
+    const params = toCredentialKwargs(credentials, model, { includeCustomBodyParams: true })
 
     try {
       const chatModel = this.createChatModel({
@@ -72,13 +72,18 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       ...(credentials ?? {}),
       ...(runtimeEnableThinking !== undefined ? { enable_thinking: toBoolean(runtimeEnableThinking) } : {})
     } as OpenAICompatModelCredentials
-    const params = toCredentialKwargs(runtimeCredentials, copilotModel.model)
+    const params = toCredentialKwargs(runtimeCredentials, copilotModel.model, { includeCustomBodyParams: true })
+    const modelOptions = copilotModel.options ?? {}
 
     return this.createChatModel({
       ...params,
-      streaming: copilotModel.options?.['streaming'] ?? this.canSteaming(params.model),
-      temperature: copilotModel.options?.['temperature'] ?? 0,
-      maxTokens: copilotModel.options?.['max_tokens'],
+      streaming: modelOptions['streaming'] ?? this.canSteaming(params.model),
+      temperature: modelOptions['temperature'] ?? 0,
+      maxTokens: modelOptions['max_tokens'],
+      topP: modelOptions['top_p'] ?? params.topP,
+      frequencyPenalty: modelOptions['frequency_penalty'],
+      presencePenalty: modelOptions['presence_penalty'],
+      maxRetries: modelOptions['maxRetries'] ?? runtimeCredentials.maxRetries,
       streamUsage: false,
       verbose: options?.verbose,
       callbacks: [...this.createHandleUsageCallbacks(copilot, params.model, runtimeCredentials, handleLLMTokens)]
