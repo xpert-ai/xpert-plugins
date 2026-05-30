@@ -48,19 +48,11 @@ describe('PlaywrightCLISkillMiddleware', () => {
     expect(strategy.meta.configSchema).toEqual(PlaywrightConfigFormSchema)
   })
 
-  it('bootstraps the sandbox in beforeAgent when a backend is available', async () => {
-    const backend = { execute: jest.fn() }
+  it('does not bootstrap the sandbox before the agent starts', () => {
     const { middleware, playwrightBootstrapService } = createSubject()
 
-    await middleware.beforeAgent?.({} as any, {
-      configurable: {
-        sandbox: {
-          backend
-        }
-      }
-    } as any)
-
-    expect(playwrightBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend, defaultConfig)
+    expect(middleware.beforeAgent).toBeUndefined()
+    expect(playwrightBootstrapService.ensureBootstrap).not.toHaveBeenCalled()
   })
 
   it('appends the Playwright prompt to the system message when sandbox is enabled', async () => {
@@ -129,6 +121,39 @@ describe('PlaywrightCLISkillMiddleware', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
+  it('bootstraps before reading the Playwright skill file', async () => {
+    const backend = { execute: jest.fn() }
+    const { middleware, playwrightBootstrapService } = createSubject()
+    const handler = jest.fn().mockResolvedValue({} as any)
+    playwrightBootstrapService.isPlaywrightCommand.mockReturnValue(false)
+
+    await middleware.wrapToolCall?.(
+      {
+        tool: { name: 'sandbox_shell' },
+        toolCall: {
+          id: 'tool-call-skill',
+          name: 'sandbox_shell',
+          args: {
+            command: `cat ${DEFAULT_PLAYWRIGHT_SKILLS_DIR}/SKILL.md`
+          }
+        },
+        state: {} as any,
+        runtime: {
+          configurable: {
+            sandbox: {
+              backend
+            }
+          }
+        } as any
+      },
+      handler
+    )
+
+    expect(playwrightBootstrapService.ensureBootstrap).toHaveBeenCalledWith(backend, defaultConfig)
+    expect(playwrightBootstrapService.injectManagedConfig).not.toHaveBeenCalled()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
   it('passes middleware options through to the bootstrap service', async () => {
     const backend = { execute: jest.fn() }
     const middlewareConfig = {
@@ -137,10 +162,6 @@ describe('PlaywrightCLISkillMiddleware', () => {
     }
     const { middleware, playwrightBootstrapService } = createSubject(middlewareConfig)
     const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
-
-    await middleware.beforeAgent?.({} as any, {
-      configurable: { sandbox: { backend } }
-    } as any)
 
     await middleware.wrapModelCall?.(
       {
@@ -154,6 +175,24 @@ describe('PlaywrightCLISkillMiddleware', () => {
         systemMessage: new SystemMessage('base prompt')
       },
       handler
+    )
+
+    await middleware.wrapToolCall?.(
+      {
+        tool: { name: 'sandbox_shell' },
+        toolCall: {
+          id: 'tool-call-config',
+          name: 'sandbox_shell',
+          args: {
+            command: 'playwright-cli --version'
+          }
+        },
+        state: {} as any,
+        runtime: {
+          configurable: { sandbox: { backend } }
+        } as any
+      },
+      jest.fn().mockResolvedValue({})
     )
 
     expect(playwrightBootstrapService.resolveConfig).toHaveBeenCalledWith(middlewareConfig)

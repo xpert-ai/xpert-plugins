@@ -3,6 +3,7 @@ import {
   BaseMessage,
   HumanMessage,
   SystemMessage,
+  isBaseMessage,
   isAIMessage,
   isHumanMessage,
   isToolMessage
@@ -1379,5 +1380,5 @@ function stringifyScalar(value: unknown) {
 }
 
 function isLoggedToolMessage(value: unknown): value is BaseMessage & { artifact?: unknown; name?: string } {
-  return Boolean(value && typeof value === 'object' && isToolMessage(value as BaseMessage))
+  return isBaseMessage(value) && isToolMessage(value)
 }

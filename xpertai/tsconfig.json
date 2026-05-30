@@ -161,6 +161,12 @@
     },
     {
       "path": "./middlewares/advisor"
+    },
+    {
+      "path": "./integrations/gitcode"
+    },
+    {
+      "path": "./integrations/modelscope"
     }
   ]
 }

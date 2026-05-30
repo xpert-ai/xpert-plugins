@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-openai",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "OpenAI GPT-5 model plugin for XpertAI platform using Responses API",
   "author": {
     "name": "XpertAI",
@@ -32,6 +32,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
     "test": "jest",
     "prepack": "node ./scripts/copy-assets.mjs"
   },

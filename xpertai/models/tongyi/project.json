@@ -1,0 +1,32 @@
+{
+  "name": "@xpert-ai/plugin-tongyi",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "models/tongyi/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "models/tongyi/dist",
+        "main": "models/tongyi/src/index.ts",
+        "rootDir": "models/tongyi/src",
+        "tsConfig": "models/tongyi/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.yaml",
+            "input": "models/tongyi/src",
+            "output": "./"
+          },
+          {
+            "glob": "**/*.svg",
+            "input": "models/tongyi/src/_assets",
+            "output": "./_assets"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

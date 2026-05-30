@@ -23,6 +23,7 @@ export interface ZhipuaiModelOptions extends CommonChatModelParameters {
 	frequency_penalty?: number
 	thinking?: 'enabled' | 'disabled'
 	clear_thinking?: boolean
+	tool_stream?: boolean
 	web_search?: boolean
 	response_format?: 'text' | 'json_object'
 }

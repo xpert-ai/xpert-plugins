@@ -4,6 +4,7 @@ jest.mock('./lib/view-image.module.js', () => ({
 
 import plugin from './index.js'
 import { ViewImagePluginModule } from './lib/view-image.module.js'
+import { ViewImagePluginConfigFormSchema } from './lib/view-image.types.js'
 
 describe('plugin-view-image', () => {
   it('exports plugin metadata and a loadable module', () => {
@@ -25,5 +26,10 @@ describe('plugin-view-image', () => {
     expect(plugin.meta.keywords).toContain('image')
     expect(plugin.meta.keywords).toContain('vision')
     expect(plugin.meta.keywords).toContain('middleware')
+  })
+
+  it('keeps plugin-level configuration empty', () => {
+    expect(plugin.config?.formSchema).toEqual(ViewImagePluginConfigFormSchema)
+    expect(plugin.config?.formSchema.properties).toEqual({})
   })
 })

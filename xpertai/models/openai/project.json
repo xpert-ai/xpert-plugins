@@ -1,0 +1,32 @@
+{
+  "name": "@xpert-ai/plugin-openai",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "models/openai/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "models/openai/dist",
+        "main": "models/openai/src/index.ts",
+        "rootDir": "models/openai/src",
+        "tsConfig": "models/openai/tsconfig.lib.json",
+        "generatePackageJson": false,
+        "assets": [
+          {
+            "glob": "**/*.yaml",
+            "input": "models/openai/src",
+            "output": "./"
+          },
+          {
+            "glob": "**/*.svg",
+            "input": "models/openai/src/_assets",
+            "output": "./_assets"
+          }
+        ]
+      }
+    }
+  },
+  "tags": []
+}

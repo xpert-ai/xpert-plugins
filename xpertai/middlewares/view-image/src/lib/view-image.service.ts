@@ -18,12 +18,13 @@ import { z } from 'zod'
 import {
   DEFAULT_SANDBOX_ROOT,
   DEFAULT_VIEW_IMAGE_CACHE_TTL_MS,
-  DEFAULT_VIEW_IMAGE_MAX_EDGE,
   DEFAULT_VIEW_IMAGE_MAX_IMAGE_BYTES,
   DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL,
   VIEW_IMAGE_ALLOWED_MIME_TYPES,
   VIEW_IMAGE_METADATA_KEY,
   VIEW_IMAGE_TOOL_NAME,
+  type ViewImageMiddlewareConfig,
+  ViewImageMiddlewareConfigSchema,
   type ViewImagePluginConfig,
   type ViewedImageBatch,
   type ViewedImageBatchMetadata,
@@ -70,19 +71,23 @@ export class ViewImageService {
     return ViewImagePluginConfigSchema.parse(config ?? {})
   }
 
+  resolveMiddlewareConfig(config?: Partial<ViewImageMiddlewareConfig>): ViewImageMiddlewareConfig {
+    return ViewImageMiddlewareConfigSchema.parse(config ?? {})
+  }
+
   buildSystemPrompt(): string {
     return [
       '<skill>',
-      'When the user asks about an image file in the sandbox workspace, call `view_image` before reasoning about the image contents.',
+      'When the user asks about an image file in the sandbox workspace root, call `view_image` before reasoning about the image contents.',
       'Pass multiple image paths in one `view_image` call when you already know all files you need.',
       'You may also call `view_image` multiple times in the same step when discovery is incremental.',
-      'Prefer relative paths from the sandbox working directory. Absolute paths are only supported when they still point to files inside that same working directory.',
+      'Prefer relative paths from the sandbox workspace root, such as `sessions/thread/files/page.png`. Absolute `/workspace/...` paths and `workspace://...` paths are supported when they stay inside that same workspace root.',
       'Do not guess what an image contains unless it has been loaded with `view_image`.',
       '</skill>'
     ].join('\n')
   }
 
-  createTool(): DynamicStructuredTool {
+  createTool(config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()): DynamicStructuredTool {
     return tool(
       async (input, runConfig) => {
         const backend = getSandboxBackendFromConfig(runConfig)
@@ -93,9 +98,9 @@ export class ViewImageService {
         this.pruneExpiredBatches()
 
         const toolCallId = getToolCallIdFromConfig(runConfig) ?? VIEW_IMAGE_TOOL_NAME
-        const workingDirectory = this.resolveVisibleWorkingDirectory(runConfig?.configurable, backend)
-        const targets = normalizeTargets(input.path)
-        const items = await this.loadViewedImageItems(backend, targets, workingDirectory)
+        const workspaceRoot = this.resolveVisibleWorkspaceRoot(runConfig?.configurable, backend)
+        const targets = normalizeTargets(input)
+        const items = await this.loadViewedImageItems(backend, targets, workspaceRoot, config)
         const batch: ViewedImageBatch = {
           toolCallId,
           createdAt: new Date().toISOString(),
@@ -120,7 +125,7 @@ export class ViewImageService {
       {
         name: VIEW_IMAGE_TOOL_NAME,
         description:
-          'Load one or more image files from the sandbox workspace so the next model step can inspect them. Use this before answering questions about image files by path.',
+          'Load one or more image files from the sandbox workspace root so the next model step can inspect them. Use this before answering questions about workspace image files by path.',
         schema: ViewImageToolInputSchema
       }
     )
@@ -128,7 +133,8 @@ export class ViewImageService {
 
   async prepareModelRequest<TState extends Record<string, unknown>>(
     request: ModelRequest<TState>,
-    backend: ViewImageSandbox
+    backend: ViewImageSandbox,
+    config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
   ): Promise<PreparedModelRequest<TState>> {
     this.pruneExpiredBatches()
 
@@ -157,7 +163,7 @@ export class ViewImageService {
       this.buildPendingBatchKey(request.runtime?.configurable, toolCall.id as string)
     )
 
-    const workingDirectory = this.resolveVisibleWorkingDirectory(request.runtime?.configurable, backend)
+    const workspaceRoot = this.resolveVisibleWorkspaceRoot(request.runtime?.configurable, backend)
     const batches = await Promise.all(
       viewImageToolCalls.map((toolCall) =>
         this.resolveViewedImageBatch(
@@ -165,7 +171,8 @@ export class ViewImageService {
           readyToolCallSet.toolMessagesById.get(toolCall.id as string) ?? null,
           request.runtime?.configurable,
           backend,
-          workingDirectory
+          workspaceRoot,
+          config
         )
       )
     )
@@ -217,22 +224,28 @@ export class ViewImageService {
   async loadViewedImageItems(
     backend: ViewImageSandbox,
     targets: string[],
-    workingDirectory: string
+    workspaceRoot: string,
+    config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
   ): Promise<ViewedImageItem[]> {
-    const resolvedTargets = targets.map((target) => resolveImageTarget(target, workingDirectory))
-    return this.loadViewedImageItemsFromTargets(backend, resolvedTargets)
+    const resolvedTargets = targets.map((target) => resolveImageTarget(target, workspaceRoot))
+    return this.loadViewedImageItemsFromTargets(backend, resolvedTargets, config)
   }
 
-  resolveVisibleWorkingDirectory(
+  resolveVisibleWorkspaceRoot(
     configurable: TAgentRunnableConfigurable | Record<string, unknown> | undefined,
     backend: ViewImageSandbox
   ): string {
-    const configured = normalizeWorkingDirectory(getSandboxWorkingDirectory(configurable))
+    const workspaceRoot = normalizeWorkspaceRoot(getSandboxWorkspaceRoot(configurable))
+    if (workspaceRoot) {
+      return workspaceRoot
+    }
+
+    const configured = normalizeWorkspaceRoot(getSandboxWorkingDirectory(configurable))
     if (configured) {
       return configured
     }
 
-    const backendWorkingDirectory = normalizeWorkingDirectory(backend.workingDirectory)
+    const backendWorkingDirectory = normalizeWorkspaceRoot(backend.workingDirectory)
     if (backendWorkingDirectory) {
       return backendWorkingDirectory
     }
@@ -240,12 +253,20 @@ export class ViewImageService {
     return DEFAULT_SANDBOX_ROOT
   }
 
+  resolveVisibleWorkingDirectory(
+    configurable: TAgentRunnableConfigurable | Record<string, unknown> | undefined,
+    backend: ViewImageSandbox
+  ): string {
+    return this.resolveVisibleWorkspaceRoot(configurable, backend)
+  }
+
   private async resolveViewedImageBatch(
     toolCallId: string,
     toolMessage: ToolMessage | null,
     configurable: TAgentRunnableConfigurable | Record<string, unknown> | undefined,
     backend: ViewImageSandbox,
-    workingDirectory: string
+    workspaceRoot: string,
+    config: ViewImageMiddlewareConfig
   ): Promise<ViewedImageBatch | null> {
     const cacheKey = this.buildPendingBatchKey(configurable, toolCallId)
     const cachedBatch = this.pendingViewedImageBatches.get(cacheKey)
@@ -272,12 +293,17 @@ export class ViewImageService {
       createdAt: metadata.createdAt,
       items: await this.loadViewedImageItemsFromTargets(
         backend,
-        metadata.items.map((item) => resolveStoredImageTarget(item, workingDirectory))
+        metadata.items.map((item) => resolveStoredImageTarget(item, workspaceRoot)),
+        config
       )
     }
   }
 
-  private async loadViewedImageItemsFromTargets(backend: ViewImageSandbox, targets: ResolvedImageTarget[]): Promise<ViewedImageItem[]> {
+  private async loadViewedImageItemsFromTargets(
+    backend: ViewImageSandbox,
+    targets: ResolvedImageTarget[],
+    config: ViewImageMiddlewareConfig
+  ): Promise<ViewedImageItem[]> {
     const downloads = await backend.downloadFiles(targets.map(({ downloadPath }) => downloadPath))
     if (!Array.isArray(downloads) || downloads.length !== targets.length) {
       throw new Error('Sandbox backend returned an unexpected response for `view_image`.')
@@ -314,7 +340,7 @@ export class ViewImageService {
         )
       }
 
-      const prepared = await prepareImageForModel(originalBuffer)
+      const prepared = await prepareImageForModel(originalBuffer, config)
       items.push({
         target: targetInfo.target,
         resolvedPath: targetInfo.resolvedPath,
@@ -354,6 +380,7 @@ export class ViewImageService {
       }
     }
   }
+
 }
 
 function buildToolSuccessMessage(items: ViewedImageItem[]) {
@@ -374,76 +401,131 @@ function getSandboxBackendFromConfig(runConfig?: RunnableConfig) {
   return null
 }
 
-function normalizeTargets(value: z.infer<typeof ViewImageToolInputSchema>['path']) {
-  const items = Array.isArray(value) ? value : [value]
-  const normalized = items.map((item) => item.trim()).filter(Boolean)
+function normalizeTargets(input: z.infer<typeof ViewImageToolInputSchema>) {
+  const normalized = [
+    ...normalizeTargetValue(input.path),
+    ...normalizeTargetValue(input.paths)
+  ]
+  const uniqueTargets = Array.from(new Set(normalized))
 
-  if (normalized.length === 0) {
+  if (uniqueTargets.length === 0) {
     throw new Error('`view_image` requires at least one non-empty image path.')
   }
 
-  if (normalized.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
+  if (uniqueTargets.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
     throw new Error(
       `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Pass fewer files in one request.`
     )
   }
 
-  return Array.from(new Set(normalized))
+  return uniqueTargets
 }
 
-function resolveImageTarget(target: string, workingDirectory: string): ResolvedImageTarget {
+function normalizeTargetValue(value: z.infer<typeof ViewImageToolInputSchema>['path']) {
+  if (value === undefined) {
+    return []
+  }
+
+  const items = Array.isArray(value) ? value : [value]
+  return items.flatMap((item) => expandTargetString(item))
+}
+
+function expandTargetString(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return []
+  }
+
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(trimmed)
+    } catch {
+      throw new Error('`view_image` JSON array path input must be a valid JSON string array.')
+    }
+
+    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) {
+      throw new Error('`view_image` JSON array path input must contain only strings.')
+    }
+
+    return parsed.map((item) => item.trim()).filter(Boolean)
+  }
+
+  return [trimmed]
+}
+
+function resolveImageTarget(target: string, workspaceRoot: string): ResolvedImageTarget {
   if (target.includes('\u0000')) {
     throw new Error('Image paths cannot contain NUL bytes.')
   }
 
-  if (target.startsWith('workspace://')) {
+  if (target.startsWith('attachment://')) {
     throw new Error(
-      '`workspace://` paths are not supported by this V1 middleware. Use a relative path or an absolute path inside the current sandbox working directory instead.'
+      '`attachment://` paths are not supported by `view_image`. Use a workspace file path after the attachment is projected into the sandbox workspace.'
     )
   }
 
-  if (target.startsWith('attachment://')) {
-    throw new Error('`attachment://` paths are not supported by this V1 middleware.')
+  const workspaceTarget = normalizeWorkspaceUriTarget(target)
+  if (!workspaceTarget) {
+    throw new Error('`view_image` requires a non-empty workspace image path.')
   }
 
-  const resolvedPath = path.isAbsolute(target)
-    ? path.normalize(target)
-    : path.resolve(path.normalize(workingDirectory), target)
+  if (hasUnsupportedUriScheme(workspaceTarget)) {
+    throw new Error(
+      'Remote or virtual image paths are not supported by `view_image`. Use a file path inside the sandbox workspace root.'
+    )
+  }
 
-  if (!isWithinWorkingDirectory(resolvedPath, workingDirectory)) {
-    throw new Error(buildOutsideWorkingDirectoryMessage(target))
+  const resolvedPath = path.isAbsolute(workspaceTarget)
+    ? path.normalize(workspaceTarget)
+    : path.resolve(path.normalize(workspaceRoot), workspaceTarget)
+
+  if (!isWithinWorkspaceRoot(resolvedPath, workspaceRoot)) {
+    throw new Error(buildOutsideWorkspaceRootMessage(target))
   }
 
   return {
     target,
     resolvedPath,
-    downloadPath: toDownloadPath(path.normalize(workingDirectory), resolvedPath),
+    downloadPath: toDownloadPath(path.normalize(workspaceRoot), resolvedPath),
     fileName: path.basename(resolvedPath)
   }
 }
 
-function resolveStoredImageTarget(item: ViewedImageBatchMetadata['items'][number], workingDirectory: string): ResolvedImageTarget {
-  const resolvedPath = normalizeResolvedPath(item.resolvedPath, workingDirectory)
-  if (!isWithinWorkingDirectory(resolvedPath, workingDirectory)) {
-    throw new Error(buildOutsideWorkingDirectoryMessage(item.target))
+function resolveStoredImageTarget(item: ViewedImageBatchMetadata['items'][number], workspaceRoot: string): ResolvedImageTarget {
+  const resolvedPath = normalizeResolvedPath(item.resolvedPath, workspaceRoot)
+  if (!isWithinWorkspaceRoot(resolvedPath, workspaceRoot)) {
+    throw new Error(buildOutsideWorkspaceRootMessage(item.target))
   }
 
   return {
     target: item.target,
     resolvedPath,
-    downloadPath: toDownloadPath(path.normalize(workingDirectory), resolvedPath),
+    downloadPath: toDownloadPath(path.normalize(workspaceRoot), resolvedPath),
     fileName: path.basename(resolvedPath)
   }
 }
 
-function toDownloadPath(workingDirectory: string, resolvedPath: string) {
-  const relativePath = path.relative(workingDirectory, resolvedPath)
+function normalizeWorkspaceUriTarget(target: string) {
+  if (!target.startsWith('workspace://')) {
+    return target
+  }
+
+  return target.slice('workspace://'.length).replace(/^\/+/, '')
+}
+
+function hasUnsupportedUriScheme(target: string) {
+  return /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(target)
+}
+
+function toDownloadPath(workspaceRoot: string, resolvedPath: string) {
+  const relativePath = path.relative(workspaceRoot, resolvedPath)
   if (!relativePath || relativePath === '.') {
     return path.basename(resolvedPath)
   }
 
   if (relativePath === '..' || relativePath.startsWith('../') || path.isAbsolute(relativePath)) {
-    throw new Error(buildOutsideWorkingDirectoryMessage(resolvedPath))
+    throw new Error(buildOutsideWorkspaceRootMessage(resolvedPath))
   }
 
   return relativePath
@@ -487,7 +569,27 @@ function getSandboxWorkingDirectory(configurable: TAgentRunnableConfigurable | R
   return typeof workingDirectory === 'string' ? workingDirectory : null
 }
 
-function normalizeWorkingDirectory(value: unknown): string | null {
+function getSandboxWorkspaceRoot(configurable: TAgentRunnableConfigurable | Record<string, unknown> | undefined) {
+  const sandbox = configurable?.['sandbox']
+  if (!sandbox || typeof sandbox !== 'object') {
+    return null
+  }
+
+  const workspaceRoot = (sandbox as Record<string, unknown>)['workspaceRoot']
+  if (typeof workspaceRoot === 'string') {
+    return workspaceRoot
+  }
+
+  const workspaceBinding = (sandbox as Record<string, unknown>)['workspaceBinding']
+  if (!workspaceBinding || typeof workspaceBinding !== 'object' || Array.isArray(workspaceBinding)) {
+    return null
+  }
+
+  const bindingWorkspaceRoot = (workspaceBinding as Record<string, unknown>)['workspaceRoot']
+  return typeof bindingWorkspaceRoot === 'string' ? bindingWorkspaceRoot : null
+}
+
+function normalizeWorkspaceRoot(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null
   }
@@ -501,22 +603,22 @@ function normalizeWorkingDirectory(value: unknown): string | null {
   return path.isAbsolute(normalized) ? normalized : path.resolve(DEFAULT_SANDBOX_ROOT, normalized)
 }
 
-function normalizeResolvedPath(value: string, workingDirectory: string) {
+function normalizeResolvedPath(value: string, workspaceRoot: string) {
   const trimmed = value.trim()
   if (!trimmed) {
     throw new Error('Stored `view_image` metadata is missing a resolved path.')
   }
 
-  return path.isAbsolute(trimmed) ? path.normalize(trimmed) : path.resolve(path.normalize(workingDirectory), trimmed)
+  return path.isAbsolute(trimmed) ? path.normalize(trimmed) : path.resolve(path.normalize(workspaceRoot), trimmed)
 }
 
-function isWithinWorkingDirectory(targetPath: string, workingDirectory: string) {
-  const relativePath = path.relative(path.normalize(workingDirectory), path.normalize(targetPath))
+function isWithinWorkspaceRoot(targetPath: string, workspaceRoot: string) {
+  const relativePath = path.relative(path.normalize(workspaceRoot), path.normalize(targetPath))
   return relativePath === '' || (!relativePath.startsWith('../') && relativePath !== '..' && !path.isAbsolute(relativePath))
 }
 
-function buildOutsideWorkingDirectoryMessage(target: string) {
-  return `Path "${target}" is outside the current sandbox working directory.`
+function buildOutsideWorkspaceRootMessage(target: string) {
+  return `Path "${target}" is outside the current sandbox workspace root.`
 }
 
 function detectImageMimeType(buffer: Buffer): (typeof VIEW_IMAGE_ALLOWED_MIME_TYPES)[number] | null {
@@ -549,7 +651,7 @@ function detectImageMimeType(buffer: Buffer): (typeof VIEW_IMAGE_ALLOWED_MIME_TY
   return null
 }
 
-async function prepareImageForModel(buffer: Buffer): Promise<PreparedImage> {
+async function prepareImageForModel(buffer: Buffer, config: ViewImageMiddlewareConfig): Promise<PreparedImage> {
   try {
     const specifier = 'sharp'
     const sharpModule = await import(specifier)
@@ -565,23 +667,39 @@ async function prepareImageForModel(buffer: Buffer): Promise<PreparedImage> {
     const width = typeof metadata.width === 'number' ? metadata.width : undefined
     const height = typeof metadata.height === 'number' ? metadata.height : undefined
 
-    let pipeline = image
-    if (width && height && Math.max(width, height) > DEFAULT_VIEW_IMAGE_MAX_EDGE) {
-      pipeline = image.resize({
-        width: DEFAULT_VIEW_IMAGE_MAX_EDGE,
-        height: DEFAULT_VIEW_IMAGE_MAX_EDGE,
-        fit: 'inside',
-        withoutEnlargement: true
-      })
+    const resizeOptions = buildViewImageResizeOptions(width, height, config.compressionPercent)
+    if (!resizeOptions) {
+      return {
+        buffer,
+        width,
+        height
+      }
     }
 
     return {
-      buffer: await pipeline.toBuffer(),
+      buffer: await image.resize(resizeOptions).toBuffer(),
       width,
       height
     }
   } catch {
     return { buffer }
+  }
+}
+
+export function buildViewImageResizeOptions(
+  width: number | undefined,
+  height: number | undefined,
+  compressionPercent: number
+) {
+  if (!width || !height || compressionPercent >= 100) {
+    return null
+  }
+
+  return {
+    width: Math.max(1, Math.round(width * compressionPercent / 100)),
+    height: Math.max(1, Math.round(height * compressionPercent / 100)),
+    fit: 'inside' as const,
+    withoutEnlargement: true
   }
 }
 
@@ -665,7 +783,7 @@ function buildDownloadErrorMessage(target: string, error: string) {
     case 'is_directory':
       return `Path "${target}" is a directory, not an image file.`
     case 'invalid_path':
-      return `Path "${target}" is not allowed in the current sandbox working directory.`
+      return `Path "${target}" is not allowed in the current sandbox workspace root.`
     default:
       return `Failed to read image "${target}".`
   }

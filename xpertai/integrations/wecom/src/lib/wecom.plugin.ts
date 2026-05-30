@@ -38,6 +38,7 @@ import { WeComIntegrationViewProvider } from './views/wecom-integration-view.pro
     WeComTriggerAggregationService,
     WeComTriggerFlushProcessor,
     WeComLongConnectionService,
+    WeComIntegrationViewProvider,
     WeComChatDispatchService,
     WeComChatRunStateService,
     WeComChatStreamCallbackProcessor,

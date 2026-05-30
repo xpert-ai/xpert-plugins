@@ -2,6 +2,9 @@ provider: tongyi
 label:
   zh_Hans: 通义千问
   en_US: TONGYI
+description:
+  zh_Hans: 阿里云百炼提供的对话、文本嵌入、语音识别、重排和语音合成模型。
+  en_US: Models from Alibaba Cloud DashScope for chat, text embedding, speech-to-text, rerank, and text-to-speech.
 icon_small:
   en_US: icon_s_en.svg
 icon_large:

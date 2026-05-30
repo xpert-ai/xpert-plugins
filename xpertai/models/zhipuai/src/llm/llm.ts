@@ -53,6 +53,7 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
         modelKwargs: omitBy(
           {
             web_search: modelCredentials?.web_search,
+            tool_stream: modelCredentials?.tool_stream,
             response_format: modelCredentials?.response_format
               ? { type: modelCredentials.response_format }
               : undefined,

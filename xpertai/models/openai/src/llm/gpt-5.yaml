@@ -26,7 +26,7 @@ parameter_rules:
   - name: max_tokens
     use_template: max_tokens
     default: 32768
-    min: 1
+    min: 16
     max: 128000
     help:
       zh_Hans: 最大输出 token 数量。GPT-5 支持最大 128K 输出。

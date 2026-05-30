@@ -136,6 +136,46 @@ Optional runtime context:
 - Long-connection integrations use websocket session context from the active AI Bot connection.
 - If no valid robot context is available, the middleware returns a context-missing error instead of falling back to application OpenAPI sending.
 
+### Long-connection reconnect policy
+
+Automatic restore is allowed only when all of these conditions are true:
+
+- The integration provider is `wecom_long`.
+- The integration is enabled.
+- A routing target exists from a persisted trigger binding.
+- The connection was not persistently stopped by a user or by a terminal system state.
+
+States that should reconnect:
+
+| Situation | Expected behavior | Notes |
+| --- | --- | --- |
+| API process restarts after a normal active long connection | Reconnect automatically | The previous runtime should be restored only if it was not manually disconnected. |
+| Runtime websocket closes while `shouldRun=true` | Reconnect automatically | Covers network drops, WebSocket close, ping failure, timeout, and temporary gateway errors. |
+| Another API instance owns the same bot lease | Stay in `retrying` and retry | `lease_conflict` means this instance is waiting for ownership; it is not a terminal stop state. |
+| User clicks `Reconnect` | Reconnect explicitly | This action may restart a connection from `manual_disconnect` or `runtime_error`. |
+
+States that should not reconnect automatically:
+
+| Stop reason | Expected behavior | Notes |
+| --- | --- | --- |
+| `manual_disconnect` | Do not restore on API restart | Manual disconnect is a persistent user intent and must not rely only on in-memory session state. |
+| `integration_disabled` | Do not reconnect | The integration must be enabled before any runtime is started. |
+| `xpert_unbound` | Do not reconnect | A long connection without a routing target cannot process inbound messages safely. |
+| `config_invalid` | Do not reconnect after terminal failure | Covers invalid Bot ID, Secret, auth, permissions, or other unrecoverable configuration errors. |
+| Integration deleted or provider is not `wecom_long` | Do not reconnect | Registry and runtime state should be cleaned up. |
+
+Runtime state meanings:
+
+| State | Meaning |
+| --- | --- |
+| `idle` | No active websocket is running. This can be a valid stopped state when `shouldRun=false`. |
+| `connecting` | A websocket is being opened and authenticated. |
+| `connected` | The websocket is authenticated and available for callbacks or replies. |
+| `retrying` | The runtime intends to keep running and is waiting for retry, reconnect, or lease ownership. |
+| `unhealthy` | The runtime reached a terminal failure and should not reconnect without an explicit user action or valid configuration save. |
+
+`shouldRun` records the runtime intent. `shouldRun=true` means transient disconnects should be retried. `shouldRun=false` means the service must stay stopped until an explicit `Reconnect` action or a valid configuration save starts it again. `disabledReason` records why the service stopped; `manual_disconnect`, `integration_disabled`, `xpert_unbound`, and terminal `config_invalid` must survive API restarts.
+
 ## Local Build
 
 ```bash

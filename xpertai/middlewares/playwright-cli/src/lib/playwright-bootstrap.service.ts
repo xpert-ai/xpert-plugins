@@ -9,6 +9,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common'
 import {
   DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH,
   DEFAULT_PLAYWRIGHT_CLI_VERSION,
+  DEFAULT_PLAYWRIGHT_RUNTIME_DIR,
   DEFAULT_PLAYWRIGHT_SKILLS_DIR,
   DEFAULT_PLAYWRIGHT_STAMP_PATH,
   PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION,
@@ -63,9 +64,17 @@ export class PlaywrightBootstrapService {
     return DEFAULT_PLAYWRIGHT_MANAGED_CONFIG_PATH
   }
 
+  getPlaywrightCliRuntimeDir(): string {
+    return DEFAULT_PLAYWRIGHT_RUNTIME_DIR
+  }
+
+  getPlaywrightCliBinaryPath(): string {
+    return path.join(this.getPlaywrightCliRuntimeDir(), 'bin', 'playwright-cli')
+  }
+
   buildSystemPrompt(config = this.resolveConfig()): string {
     return [
-      'The `playwright-cli` command (from @playwright/cli) is globally installed in the sandbox.',
+      'The `playwright-cli` command (from @playwright/cli) is available in the sandbox runtime.',
       'IMPORTANT: Use the `playwright-cli` command, NOT `playwright` or `npx playwright`. They are different tools.',
       'Always run browser automation via the `sandbox_shell` tool using the `playwright-cli` command.',
       `Before your first use, read the skill file at \`${config.skillsDir}/SKILL.md\` with \`cat ${config.skillsDir}/SKILL.md\` to learn all available commands and usage patterns.`,
@@ -74,6 +83,7 @@ export class PlaywrightBootstrapService {
       'Use headless mode only (do not pass `--headed`).',
       'Prefer non-interactive CLI flows: snapshots, screenshots, clicks, fills, evals, test runs.',
       'Do not use `codegen`, UI mode, or `show`.',
+      'Run one `playwright-cli` command per `sandbox_shell` call. Do not chain multiple `playwright-cli` commands with `&&`, `;`, or `|`; use separate `sandbox_shell` calls so each command can be prepared and rewritten correctly.',
       '',
       'TIMEOUT GUIDELINES for sandbox_shell with playwright-cli:',
       '- `playwright-cli open` and `playwright-cli open <url>` are long-running processes that keep the browser alive. A short timeout is enforced automatically — the browser opens immediately and the output is returned within seconds.',
@@ -106,14 +116,14 @@ export class PlaywrightBootstrapService {
   }
 
   injectManagedConfig(command: string, configPath = this.getManagedConfigPath()): string {
-    if (!this.shouldInjectManagedConfig(command)) {
-      return command
-    }
+    const commandWithManagedConfig = this.shouldInjectManagedConfig(command)
+      ? command.replace(
+        PLAYWRIGHT_OPEN_COMMAND_PATTERN,
+        (match) => `${match} --config=${shellQuote(configPath)}`
+      )
+      : command
 
-    return command.replace(
-      PLAYWRIGHT_OPEN_COMMAND_PATTERN,
-      (match) => `${match} --config=${shellQuote(configPath)}`
-    )
+    return this.injectPlaywrightRuntimePath(commandWithManagedConfig)
   }
 
   async ensureBootstrap(backend: PlaywrightBootstrapBackend, config = this.resolveConfig()) {
@@ -134,9 +144,11 @@ export class PlaywrightBootstrapService {
         const stamp = JSON.parse(stampContent) as PlaywrightBootstrapStamp
         if (stamp.cliVersion === config.cliVersion) {
           // Stamp matches, but verify the CLI binary actually exists
-          // (container may have restarted, losing globally installed packages)
-          const whichResult = await backend.execute('which playwright-cli 2>/dev/null')
-          if (whichResult?.exitCode === 0 && whichResult?.output?.trim()) {
+          // (container may have restarted, losing sandbox-local packages)
+          const binaryCheck = await backend.execute(
+            `test -x ${shellQuote(this.getPlaywrightCliBinaryPath())}`
+          )
+          if (binaryCheck?.exitCode === 0) {
             if (stamp.bootstrapVersion !== PLAYWRIGHT_BOOTSTRAP_SCHEMA_VERSION) {
               await this.writeAssets(backend, bootstrapAssets)
               await this.writeStamp(backend, config.cliVersion)
@@ -149,15 +161,18 @@ export class PlaywrightBootstrapService {
       }
     }
 
-    // 1. Install @playwright/cli globally
-    const installCmd = `npm install -g @playwright/cli@${shellQuote(config.cliVersion)}`
+    // 1. Install @playwright/cli into a sandbox-writable npm prefix
+    const installCmd =
+      `npm install -g --prefix ${shellQuote(this.getPlaywrightCliRuntimeDir())} @playwright/cli@${shellQuote(config.cliVersion)}`
     const installResult = await backend.execute(installCmd)
     if (installResult?.exitCode !== 0) {
       throw new Error(`Playwright CLI install failed: ${installResult?.output || 'Unknown error'}`)
     }
 
     // 2. Install Chromium browser for playwright-cli
-    const browserResult = await backend.execute('playwright-cli install chromium')
+    const browserResult = await backend.execute(
+      this.injectPlaywrightRuntimePath('playwright-cli install-browser chromium')
+    )
     if (browserResult?.exitCode !== 0) {
       throw new Error(`Playwright browser install failed: ${browserResult?.output || 'Unknown error'}`)
     }
@@ -176,6 +191,13 @@ export class PlaywrightBootstrapService {
       this.isPlaywrightOpenCommand(command) &&
       !/--browser(?:=|\s)/.test(command) &&
       !/--config(?:=|\s)/.test(command)
+    )
+  }
+
+  private injectPlaywrightRuntimePath(command: string): string {
+    return command.replace(
+      /\b(?:npx\s+@playwright\/cli|npx\s+playwright-cli|playwright-cli)\b/,
+      shellQuote(this.getPlaywrightCliBinaryPath())
     )
   }
 

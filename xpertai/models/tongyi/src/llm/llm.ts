@@ -6,6 +6,139 @@ import { isNil, omitBy } from 'lodash-es'
 import { toCredentialKwargs, TongyiCredentials, TongyiModelCredentials } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
+const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
+  'qwen3.6-max-preview',
+  'qwen3-max-preview',
+  'qwen3-max',
+  'qwen3.6-plus',
+  'qwen3.5-plus',
+  'qwen3.5-plus-2026-04-20',
+  'qwen-plus',
+  'qwen3.6-flash',
+  'qwen3.5-flash',
+  'qwen-flash',
+  'qwen3-coder-plus',
+  'qwen3-coder-flash',
+  'qwen3-vl-plus',
+  'qwen3-vl-flash',
+  'deepseek-v3.2',
+  'kimi-k2.6',
+  'kimi-k2.5',
+  'glm-5.1'
+])
+const TONGYI_EXPLICIT_CACHE_CONTROL = { type: 'ephemeral' } as const
+
+type TongyiContentPart = {
+  type?: unknown
+  text?: unknown
+  cache_control?: unknown
+  cacheControl?: unknown
+}
+
+type TongyiMessageContent = string | TongyiContentPart[] | null | undefined
+
+type TongyiChatCompletionMessage = {
+  role?: string
+  content?: TongyiMessageContent
+}
+
+type TongyiChatCompletionRequest = {
+  model?: string
+  messages?: TongyiChatCompletionMessage[]
+}
+
+type TongyiCacheFields = {
+  model?: string
+}
+
+function hasOwn(value: object, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function isObject(value: unknown): value is object {
+  return value !== null && typeof value === 'object'
+}
+
+function withTongyiCacheControlContent(content: TongyiMessageContent):
+  | { changed: true; content: TongyiContentPart[] }
+  | { changed: false; content: TongyiMessageContent } {
+  if (typeof content === 'string') {
+    if (!content) {
+      return { changed: false, content }
+    }
+
+    return {
+      changed: true,
+      content: [
+        {
+          type: 'text',
+          text: content,
+          cache_control: { ...TONGYI_EXPLICIT_CACHE_CONTROL }
+        }
+      ]
+    }
+  }
+
+  if (!Array.isArray(content)) {
+    return { changed: false, content }
+  }
+
+  if (content.some((part) => isObject(part) && (hasOwn(part, 'cache_control') || hasOwn(part, 'cacheControl')))) {
+    return { changed: false, content }
+  }
+
+  for (let index = content.length - 1; index >= 0; index--) {
+    const part = content[index]
+    if (isObject(part) && part.type === 'text' && typeof part.text === 'string' && part.text.length > 0) {
+      const nextContent = content.slice()
+      nextContent[index] = {
+        ...part,
+        cache_control: { ...TONGYI_EXPLICIT_CACHE_CONTROL }
+      }
+
+      return { changed: true, content: nextContent }
+    }
+  }
+
+  return { changed: false, content }
+}
+
+export function applyTongyiExplicitCache<TRequest extends TongyiChatCompletionRequest>(
+  request: TRequest,
+  fields?: TongyiCacheFields
+): TRequest {
+  const model = request?.model ?? fields?.model
+  if (
+    !model ||
+    !TONGYI_EXPLICIT_CACHE_MODELS.has(model) ||
+    !Array.isArray(request?.messages)
+  ) {
+    return request
+  }
+
+  const targetIndex = request.messages.findIndex((message) => message?.role === 'system')
+  if (targetIndex < 0) {
+    return request
+  }
+
+  const targetMessage = request.messages[targetIndex]
+  const cacheableContent = withTongyiCacheControlContent(targetMessage?.content)
+  if (!cacheableContent.changed) {
+    return request
+  }
+
+  const messages = request.messages.slice()
+  messages[targetIndex] = {
+    ...targetMessage,
+    content: cacheableContent.content
+  }
+
+  return {
+    ...request,
+    messages
+  }
+}
+
 @Injectable()
 export class TongyiLargeLanguageModel extends LargeLanguageModel {
   readonly #logger = new Logger(TongyiLargeLanguageModel.name)
@@ -50,7 +183,11 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
           {
             enable_thinking: modelCredentials?.enable_thinking,
             thinking_budget: modelCredentials?.thinking_budget,
-            enable_search: modelCredentials?.enable_search
+            tool_stream: modelCredentials?.tool_stream,
+            enable_search: modelCredentials?.enable_search,
+            response_format: modelCredentials?.response_format
+              ? { type: modelCredentials.response_format }
+              : undefined
           },
           isNil
         ),
@@ -59,7 +196,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
       isNil
     )
 
-    return new ChatOAICompatReasoningModel({
+    const chatModel = new ChatOAICompatReasoningModel({
       ...fields,
       verbose: options?.verbose,
       callbacks: [
@@ -70,5 +207,14 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
         profile: this.getModelProfile(model, credentials)
       }
     })
+
+    const originalCompletionWithRetry = chatModel.completionWithRetry.bind(chatModel)
+
+    chatModel.completionWithRetry = (async (request, requestOptions) => {
+      const requestWithExplicitCache = applyTongyiExplicitCache(request, { model })
+      return originalCompletionWithRetry(requestWithExplicitCache, requestOptions)
+    }) as typeof chatModel.completionWithRetry
+
+    return chatModel
   }
 }

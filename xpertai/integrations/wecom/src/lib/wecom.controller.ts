@@ -33,6 +33,8 @@ import {
   decryptWeComMessage,
   INTEGRATION_WECOM,
   INTEGRATION_WECOM_LONG,
+  TWeComLongDisabledReason,
+  TWeComLegacyLongConnectionStatus,
   TIntegrationWeComOptions,
   verifyWeComSignature,
 } from './types.js'
@@ -294,7 +296,7 @@ export class WeComHooksController {
   @Post('long/:id/connect')
   async connectLong(@Param('id') integrationId: string) {
     try {
-      return await this.longConnection.connect(integrationId)
+      return this.toLegacyLongStatus(await this.longConnection.connect(integrationId))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       throw new BadRequestException(`WeCom long connect failed: ${message}`)
@@ -304,7 +306,7 @@ export class WeComHooksController {
   @Post('long/:id/disconnect')
   async disconnectLong(@Param('id') integrationId: string) {
     try {
-      return await this.longConnection.disconnect(integrationId)
+      return this.toLegacyLongStatus(await this.longConnection.disconnect(integrationId))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       throw new BadRequestException(`WeCom long disconnect failed: ${message}`)
@@ -314,10 +316,46 @@ export class WeComHooksController {
   @Get('long/:id/status')
   async statusLong(@Param('id') integrationId: string) {
     try {
-      return await this.longConnection.status(integrationId)
+      return this.toLegacyLongStatus(await this.longConnection.status(integrationId))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       throw new BadRequestException(`WeCom long status failed: ${message}`)
+    }
+  }
+
+  @Get('long/:id/runtime-status')
+  async getRuntimeStatus(@Param('id') integrationId: string) {
+    const integration = await this.readLongIntegration(integrationId)
+    const runtimeStatus = await this.longConnection.status(integrationId)
+    return {
+      ...runtimeStatus,
+      capabilities: this.wecomChannel.capabilities,
+      integrationName: this.toSafeString(integration.name),
+      botId: this.toSafeString(integration.options?.botId)
+    }
+  }
+
+  @Post('long/:id/runtime-status/reconnect')
+  async reconnectRuntimeStatus(@Param('id') integrationId: string) {
+    const integration = await this.readLongIntegration(integrationId)
+    const runtimeStatus = await this.longConnection.reconnect(integrationId)
+    return {
+      ...runtimeStatus,
+      capabilities: this.wecomChannel.capabilities,
+      integrationName: this.toSafeString(integration.name),
+      botId: this.toSafeString(integration.options?.botId)
+    }
+  }
+
+  @Post('long/:id/runtime-status/disconnect')
+  async disconnectRuntimeStatus(@Param('id') integrationId: string) {
+    const integration = await this.readLongIntegration(integrationId)
+    const runtimeStatus = await this.longConnection.disconnect(integrationId)
+    return {
+      ...runtimeStatus,
+      capabilities: this.wecomChannel.capabilities,
+      integrationName: this.toSafeString(integration.name),
+      botId: this.toSafeString(integration.options?.botId)
     }
   }
 
@@ -346,6 +384,49 @@ export class WeComHooksController {
       )
     }
     return integration
+  }
+
+  private async readLongIntegration(integrationId: string): Promise<IIntegration<TIntegrationWeComOptions>> {
+    const integration = await this.readIntegration(integrationId)
+    if (integration.provider !== INTEGRATION_WECOM_LONG) {
+      throw new BadRequestException(
+        `Integration ${integrationId} is not long connection provider '${INTEGRATION_WECOM_LONG}'`
+      )
+    }
+    return integration
+  }
+
+  private toLegacyLongStatus(status: {
+    integrationId: string
+    state: 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+    connected: boolean
+    shouldRun?: boolean
+    lastConnectedAt?: number | null
+    lastDisconnectedAt?: number | null
+    reconnectAttempts?: number
+    lastError?: string | null
+    disabledReason?: TWeComLongDisabledReason | string | null
+  }): TWeComLegacyLongConnectionStatus {
+    const legacyState =
+      status.state === 'connected'
+        ? 'connected'
+        : status.state === 'connecting'
+          ? 'connecting'
+          : status.state === 'idle'
+            ? 'disconnected'
+            : 'error'
+
+    return {
+      integrationId: status.integrationId,
+      state: legacyState,
+      connected: status.connected,
+      shouldRun: status.shouldRun === true,
+      connectedAt: status.lastConnectedAt ?? undefined,
+      disconnectedAt: status.lastDisconnectedAt ?? undefined,
+      reconnectAttempts: status.reconnectAttempts ?? 0,
+      lastError: this.toSafeString(status.lastError) || undefined,
+      disabledReason: (this.toSafeString(status.disabledReason) || null) as TWeComLongDisabledReason | null
+    }
   }
 
   private async fetchProviderSelectOptions(

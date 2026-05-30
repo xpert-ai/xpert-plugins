@@ -4,7 +4,7 @@
 
 ## Key Features
 
-- Bootstraps `@playwright/cli` globally inside the sandbox on first use.
+- Bootstraps `@playwright/cli` inside a sandbox-writable runtime prefix on first use.
 - Installs the Chromium browser runtime required by `playwright-cli`.
 - Writes embedded skill assets (`SKILL.md` plus reference docs) into the sandbox for agent self-guidance.
 - Appends a Playwright-specific system prompt so the agent uses `sandbox_shell` with `playwright-cli` instead of unsupported alternatives.
@@ -44,7 +44,7 @@ npm install @xpert-ai/plugin-playwright-cli
      "type": "PlaywrightCLISkill",
      "options": {
        "cliVersion": "latest",
-       "skillsDir": "/workspace/.xpert/skills/playwright-cli"
+       "skillsDir": "/tmp/xpert-playwright-cli/skills"
      }
    }
    ```
@@ -53,14 +53,14 @@ npm install @xpert-ai/plugin-playwright-cli
 
 | Field | Type | Description | Default |
 | ----- | ---- | ----------- | ------- |
-| `cliVersion` | string | Version of `@playwright/cli` to install globally in the sandbox. | `"latest"` |
-| `skillsDir` | string | Path inside the sandbox where `SKILL.md` and reference files are written. | `"/workspace/.xpert/skills/playwright-cli"` |
+| `cliVersion` | string | Version of `@playwright/cli` to install in the sandbox runtime. | `"latest"` |
+| `skillsDir` | string | Path inside the sandbox where `SKILL.md` and reference files are written. | `"/tmp/xpert-playwright-cli/skills"` |
 
 ## Runtime Behavior
 
-- On first use, the middleware checks `/workspace/.xpert/.playwright-cli-bootstrap.json` to determine whether the sandbox is already bootstrapped.
-- If bootstrap is missing or outdated, it installs `@playwright/cli`, installs Chromium via `playwright-cli install chromium`, writes skill assets, and refreshes the stamp file.
-- A managed config is written to `/workspace/.xpert/playwright-cli/cli.config.json` and is automatically injected into `playwright-cli open` commands when the command does not already specify `--browser` or `--config`.
+- On first use, the middleware checks `/tmp/xpert-playwright-cli/bootstrap.json` to determine whether the sandbox is already bootstrapped.
+- If bootstrap is missing or outdated, it installs `@playwright/cli`, installs Chromium via `playwright-cli install-browser chromium`, writes skill assets, and refreshes the stamp file.
+- A managed config is written to `/tmp/xpert-playwright-cli/cli.config.json` and is automatically injected into `playwright-cli open` commands when the command does not already specify `--browser` or `--config`.
 - The middleware appends a system prompt that tells the agent to:
   - use `playwright-cli` rather than `playwright` or `npx playwright`
   - read the sandbox skill file before first use

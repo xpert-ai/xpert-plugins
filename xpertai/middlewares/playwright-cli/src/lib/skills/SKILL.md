@@ -23,6 +23,10 @@ playwright-cli screenshot
 playwright-cli close
 ```
 
+## sandbox_shell usage
+
+Run one `playwright-cli` command per `sandbox_shell` call. Do not chain multiple `playwright-cli` commands with `&&`, `;`, or `|`; use separate `sandbox_shell` calls so each command can be prepared and rewritten correctly.
+
 ## Commands
 
 ### Core
@@ -216,7 +220,7 @@ playwright-cli kill-all
 
 ## Local installation
 
-In some cases user might want to install playwright-cli locally. If running globally available `playwright-cli` binary fails, use `npx playwright-cli` to run the commands. For example:
+The middleware installs and resolves a managed `playwright-cli` binary for this sandbox. If a human explicitly asks to try the package through npx, use `npx playwright-cli`:
 
 ```bash
 npx playwright-cli open https://example.com
