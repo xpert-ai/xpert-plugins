@@ -16,7 +16,7 @@ const ONE_BY_ONE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jYVwAAAAASUVORK5CYII=',
   'base64'
 )
-const DEFAULT_WORKING_DIRECTORY = '/workspace/reports'
+const DEFAULT_WORKSPACE_ROOT = '/workspace'
 
 describe('ViewImageMiddleware', () => {
   function createBackend() {
@@ -35,7 +35,7 @@ describe('ViewImageMiddleware', () => {
   function createRuntime(
     backend: ReturnType<typeof createBackend>,
     toolCallId = 'call_view_image_1',
-    workingDirectory = DEFAULT_WORKING_DIRECTORY
+    workspaceRoot = DEFAULT_WORKSPACE_ROOT
   ) {
     return {
       configurable: {
@@ -44,7 +44,10 @@ describe('ViewImageMiddleware', () => {
         tool_call_id: toolCallId,
         sandbox: {
           backend,
-          workingDirectory
+          workingDirectory: workspaceRoot,
+          workspaceBinding: {
+            workspaceRoot
+          }
         },
         copilotModel: {
           options: {
@@ -167,7 +170,7 @@ describe('ViewImageMiddleware', () => {
     const forwardedRequest = handler.mock.calls[0][0]
     expect(forwardedRequest.systemMessage).toEqual(
       new SystemMessage({
-        content: expect.stringContaining('call `view_image`')
+        content: expect.stringContaining('sandbox workspace root')
       })
     )
     expect(forwardedRequest.messages).toHaveLength(3)

@@ -91,12 +91,15 @@ export const ViewedImageBatchMetadataSchema = z.object({
 
 export type ViewedImageBatchMetadata = z.infer<typeof ViewedImageBatchMetadataSchema>
 
+const ViewImageToolPathValueSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+
 export const ViewImageToolInputSchema = z.object({
-  path: z
-    .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
-    .describe(
-      'Sandbox image path or paths. Prefer relative paths from the sandbox working directory. Absolute paths are only supported when they still refer to files inside that same working directory. Pass multiple paths in one call when you need to inspect multiple images.'
-    )
+  path: ViewImageToolPathValueSchema.optional().describe(
+    'Sandbox workspace image path or paths. Prefer relative paths from the sandbox workspace root, for example `sessions/thread/files/page.png`. Absolute paths are only supported when they still refer to files inside that same workspace root. JSON string arrays are accepted for compatibility.'
+  ),
+  paths: ViewImageToolPathValueSchema.optional().describe(
+    'Alias for `path` when passing one or more sandbox workspace image paths.'
+  )
 })
 
 export type ViewImageToolInput = z.infer<typeof ViewImageToolInputSchema>
