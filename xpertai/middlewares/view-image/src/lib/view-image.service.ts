@@ -182,15 +182,17 @@ export class ViewImageService {
       return { request: nextRequest, cleanupKeys: [] }
     }
 
-    const items = batches.flatMap((batch) => (batch as ViewedImageBatch).items)
-    if (items.length === 0) {
-      return { request: nextRequest, cleanupKeys }
+    const resolvedBatches = batches as ViewedImageBatch[]
+    const oversizedBatch = resolvedBatches.find((batch) => batch.items.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL)
+    if (oversizedBatch) {
+      throw new Error(
+        `\`${VIEW_IMAGE_TOOL_NAME}\` call "${oversizedBatch.toolCallId}" loaded ${oversizedBatch.items.length} images, exceeding the per-call limit of ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images.`
+      )
     }
 
-    if (items.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
-      throw new Error(
-        `The current model step has ${items.length} images loaded via \`${VIEW_IMAGE_TOOL_NAME}\`, exceeding the limit of ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per step.`
-      )
+    const items = resolvedBatches.flatMap((batch) => batch.items)
+    if (items.length === 0) {
+      return { request: nextRequest, cleanupKeys }
     }
 
     const attachmentMessage = new HumanMessage({
