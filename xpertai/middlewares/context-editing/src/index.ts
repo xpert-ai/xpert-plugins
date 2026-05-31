@@ -42,6 +42,11 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     displayName: 'Context Editing Middleware (Deprecated)',
     description:
       'Deprecated: 使用内置上下文编辑中间件功能。A middleware that automatically prunes tool results to manage context size. This middleware applies a sequence of edits when the total input token count exceeds configured thresholds.',
+    deprecated: true,
+    deprecationMessage: {
+      en_US: 'Use the built-in context editing middleware feature instead.',
+      zh_Hans: '推荐使用内置上下文编辑中间件功能。',
+    },
     keywords: ['context', 'editing', 'middleware'],
     author: 'XpertAI Team',
   },

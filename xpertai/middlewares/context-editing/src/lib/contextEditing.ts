@@ -25,7 +25,7 @@ import {
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
 } from "@xpert-ai/plugin-sdk";
-import { TAgentMiddlewareMeta } from "@metad/contracts";
+import type { TAgentMiddlewareMeta } from "@xpert-ai/contracts";
 import { countTokensApproximately } from "./utils.js";
 import {
   getProfileLimits,
@@ -535,6 +535,11 @@ export class ContextEditingMiddleware implements IAgentMiddlewareStrategy {
     label: {
       en_US: "Context Editing Middleware (Deprecated)",
       zh_Hans: "上下文编辑中间件（已废弃）",
+    },
+    deprecated: true,
+    deprecationMessage: {
+      en_US: "Use the built-in context editing middleware feature instead.",
+      zh_Hans: "推荐使用内置上下文编辑中间件功能。",
     },
     icon: {
       type: "svg",

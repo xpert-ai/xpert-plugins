@@ -144,6 +144,11 @@ export class FileMemorySystemMiddleware implements IAgentMiddlewareStrategy {
       en_US: 'File Memory System (Deprecated)',
       zh_Hans: '文件记忆系统（已废弃）'
     },
+    deprecated: true,
+    deprecationMessage: {
+      en_US: 'Use the built-in file memory middleware feature instead.',
+      zh_Hans: '推荐使用内置文件记忆中间件功能。'
+    },
     description: {
       en_US:
         'Deprecated: use the built-in file memory middleware feature instead. Single-plugin file memory runtime with middleware tools, selective recall and after-agent writeback.',
