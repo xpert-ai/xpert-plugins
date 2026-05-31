@@ -1,12 +1,12 @@
 # Xpert Plugin: Model Fallback Middleware
 
-`@xpert-ai/plugin-model-fallback` retries failed model calls with alternative models in sequence. It wraps agent LLM invocations so outages, throttling, or quality issues on the primary model can be absorbed automatically while preserving execution tracking and usage metrics.
+`@xpert-ai/plugin-model-fallback` retries failed model calls with alternative models in sequence. It wraps agent LLM invocations so outages, throttling, or quality issues on the primary model can be absorbed automatically while preserving usage metrics and lightweight middleware progress events.
 
 ## Key Features
 
 - Ordered fallback chain: try primary once, then cycle through `fallbackModels` until one succeeds.
 - Works with any configured LLM (`ICopilotModel`) and reuses Xpert’s `CreateModelClientCommand` for provider-specific setup and usage reporting.
-- Keeps execution telemetry by wrapping each fallback attempt in `WrapWorkflowNodeExecutionCommand`.
+- Emits lightweight middleware events for fallback progress without creating child agent/workflow executions.
 - Surfaces the last failure if all models are exhausted so callers can handle errors explicitly.
 - Opt-in middleware (non-global) that plugs into the Xpert agent pipeline.
 
@@ -18,7 +18,7 @@ pnpm add @xpert-ai/plugin-model-fallback
 npm install @xpert-ai/plugin-model-fallback
 ```
 
-> **Note**: Ensure the host already provides `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@langchain/core@^0.3`, `zod`, `chalk`, and `@metad/contracts` as peer/runtime dependencies.
+> **Note**: Ensure the host already provides `@xpert-ai/plugin-sdk@^4`, `@xpert-ai/contracts@^3.10`, `@nestjs/common@^11`, `@langchain/core@^0.3`, `zod`, and `chalk` as peer/runtime dependencies.
 
 ## Quick Start
 
@@ -59,7 +59,7 @@ npm install @xpert-ai/plugin-model-fallback
 ## Behavior Notes
 
 - The primary model is attempted once; any thrown error triggers the fallback loop. Success short-circuits remaining fallbacks.
-- Each fallback attempt creates its own model client via `CreateModelClientCommand` and is wrapped by `WrapWorkflowNodeExecutionCommand` so usage and workflow telemetry stay intact.
+- Each fallback attempt creates its own model client via `CreateModelClientCommand` and reports progress through `middleware_event` chat events.
 - If every fallback fails, the middleware rethrows the last encountered error to the caller.
 - Environment hooks (e.g., `FORCE_MODEL_ERROR`) can be used during testing to simulate failures before the fallback sequence.
 

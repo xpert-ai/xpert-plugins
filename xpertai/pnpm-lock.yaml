@@ -54,14 +54,14 @@ importers:
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/contracts':
-        specifier: ^3.9.0-beta.3
-        version: 3.9.0-beta.3(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+        specifier: ^3.10.0
+        version: 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/ocap-core':
         specifier: ^3.9.0-beta.2
         version: 3.9.0-beta.2(@xpert-ai/store@3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.9.1
-        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+        specifier: ^4.0.0
+        version: 4.0.0(013e1f426e6c3c0367ad41d7780b13c0)
       '@xpert-ai/store':
         specifier: ^3.9.0-beta.1
         version: 3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2)
@@ -673,7 +673,7 @@ importers:
         version: 4.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.8.4
-        version: 3.9.0(899dc4fc6495635b951ed001752cf0ac)
+        version: 3.9.0(013e1f426e6c3c0367ad41d7780b13c0)
       axios:
         specifier: ^1.12.2
         version: 1.13.5
@@ -812,7 +812,7 @@ importers:
         version: 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.9.1
-        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+        version: 3.9.1(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -840,15 +840,15 @@ importers:
       '@langchain/core':
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
-      '@metad/contracts':
-        specifier: ^3.7.0
-        version: 3.8.0(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts':
+        specifier: ^3.10.0
+        version: 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.7.0
-        version: 3.8.0(5b6cb9473c3c677685faa518f2dd20ba)
+        specifier: ^4.0.0
+        version: 4.0.0(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -886,11 +886,11 @@ importers:
         specifier: ^0.0.12
         version: 0.0.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/contracts':
-        specifier: ^3.9.0-beta.1
-        version: 3.9.0-beta.1(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+        specifier: ^3.10.0
+        version: 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.9.1
-        version: 3.9.1(0a524530e5d0b6329332c015573b88bd)
+        specifier: ^4.0.0
+        version: 4.0.0(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -1005,15 +1005,15 @@ importers:
       '@langchain/core':
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
-      '@metad/contracts':
-        specifier: ^3.8.1
-        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts':
+        specifier: ^3.10.0
+        version: 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.9.1
-        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+        specifier: ^4.0.0
+        version: 4.0.0(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -1029,18 +1029,18 @@ importers:
       '@langchain/core':
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
-      '@metad/contracts':
-        specifier: ^3.8.1
-        version: 3.8.3(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))(signal-polyfill@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs':
         specifier: ^11.0.3
         version: 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts':
+        specifier: ^3.10.0
+        version: 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/plugin-sdk':
-        specifier: ^3.9.1
-        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+        specifier: ^4.0.0
+        version: 4.0.0(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -1076,7 +1076,7 @@ importers:
         version: 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@xpert-ai/plugin-sdk':
         specifier: ^3.9.1
-        version: 3.9.1(899dc4fc6495635b951ed001752cf0ac)
+        version: 3.9.1(013e1f426e6c3c0367ad41d7780b13c0)
       chalk:
         specifier: 4.1.2
         version: 4.1.2
@@ -3962,14 +3962,20 @@ packages:
       '@a2ui/lit': ^0.8.1
       '@langchain/core': ^1.0.2
 
+  '@xpert-ai/chatkit-types@0.3.11':
+    resolution: {integrity: sha512-4f1SQU1lhFLVZ1dw+ruapaqnHKd4XjZ2r6hPS2BrYEFwZbk4wjIN7Cy6a+SC9xuhsqt3wFBpwG0LvYlmdwpwAQ==}
+    peerDependencies:
+      '@a2ui/lit': ^0.8.1
+      '@langchain/core': ^1.0.2
+
+  '@xpert-ai/contracts@3.10.0':
+    resolution: {integrity: sha512-p4FzCReJvIOuimtitnv8MuBt4di8IxLCB7e2XcWdj0A4foKcQc9PpDUWSJntQlNhGnDphZOhhg6veCaP8iSZ6A==}
+
   '@xpert-ai/contracts@3.9.0':
     resolution: {integrity: sha512-CgbGZKEkwLT/6read99KI1G+zDyI6U797S40DetEsHvZK9s7bBp0OHxZvf6xqcGWABJjZsF8ZxDfNNdbFzyjdw==}
 
   '@xpert-ai/contracts@3.9.0-beta.1':
     resolution: {integrity: sha512-XIITMyTc87V7t3T+iaTAeSIwuVRIG9xFd8KymD7x3ua+7NVXHf38zTy6tz5u4shcG1eEIWZlTEytfMwW1c7YUA==}
-
-  '@xpert-ai/contracts@3.9.0-beta.3':
-    resolution: {integrity: sha512-bucy/CQcsa2RhTqGvXou8cvuxVJzoq+xFmSF66ipnFa7G2gd8kGctcUTh7fZJsAPrFFaPMjago6SF1YNh8axhA==}
 
   '@xpert-ai/ocap-core@3.9.0-beta.2':
     resolution: {integrity: sha512-QpGjpbfYOdOiYNx3yLpqjXH1Rd6BJWrfvgOw7W9Cqya2QjZLEOw6xKrGIxXzQ+hmGDsMtcbIRDWA5DKcZEADyw==}
@@ -4073,6 +4079,26 @@ packages:
 
   '@xpert-ai/plugin-sdk@3.9.1':
     resolution: {integrity: sha512-j2RjXb6XIpzKFbuWly4PCySt5VTYgrj+BhJAwM54enmKS5CmlfDbwPBhIOj+YErTf8oHwpTThl+G3Gn/ZynRTw==}
+    peerDependencies:
+      '@langchain/core': '*'
+      '@nestjs/common': '*'
+      '@nestjs/core': '*'
+      '@nestjs/cqrs': '*'
+      '@xpert-ai/contracts': workspace:*
+      '@xpert-ai/ocap-core': workspace:*
+      ajv: '*'
+      i18next: '*'
+      i18next-fs-backend: '*'
+      json-schema: '*'
+      jsonwebtoken: '*'
+      lodash-es: '*'
+      passport-jwt: '*'
+      rxjs: '*'
+      yaml: '*'
+      zod: '*'
+
+  '@xpert-ai/plugin-sdk@4.0.0':
+    resolution: {integrity: sha512-r+y/QM5cYE+geWCDo6OYrWXbGxh0PrQCpGJ5LRMgLq2R+LFxUUQzLctq3QvwhrxsQcNw6jcsU+sJ2ujRbZPHwQ==}
     peerDependencies:
       '@langchain/core': '*'
       '@nestjs/common': '*'
@@ -10782,6 +10808,18 @@ snapshots:
       '@a2ui/lit': 0.8.1(signal-polyfill@0.2.2)
       '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
 
+  '@xpert-ai/chatkit-types@0.3.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))':
+    dependencies:
+      '@a2ui/lit': 0.8.1(signal-polyfill@0.2.2)
+      '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
+
+  '@xpert-ai/contracts@3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))':
+    dependencies:
+      '@xpert-ai/chatkit-types': 0.3.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+    transitivePeerDependencies:
+      - '@a2ui/lit'
+      - '@langchain/core'
+
   '@xpert-ai/contracts@3.9.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))':
     dependencies:
       '@xpert-ai/chatkit-types': 0.0.17(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
@@ -10790,13 +10828,6 @@ snapshots:
       - '@langchain/core'
 
   '@xpert-ai/contracts@3.9.0-beta.1(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))':
-    dependencies:
-      '@xpert-ai/chatkit-types': 0.0.17(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
-    transitivePeerDependencies:
-      - '@a2ui/lit'
-      - '@langchain/core'
-
-  '@xpert-ai/contracts@3.9.0-beta.3(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))':
     dependencies:
       '@xpert-ai/chatkit-types': 0.0.17(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
     transitivePeerDependencies:
@@ -10952,13 +10983,13 @@ snapshots:
       yaml: 2.8.2
       zod: 3.25.67
 
-  '@xpert-ai/plugin-sdk@3.9.0(457b84fe7f5b5a0492e663e4528518ab)':
+  '@xpert-ai/plugin-sdk@3.9.0(013e1f426e6c3c0367ad41d7780b13c0)':
     dependencies:
       '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@nestjs/common': 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@xpert-ai/contracts': 3.9.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/contracts': 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/ocap-core': 3.9.0-beta.2(@xpert-ai/store@3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
       ajv: 8.18.0
       i18next: 25.6.0(typescript@5.9.3)
@@ -10972,13 +11003,13 @@ snapshots:
       yaml: 2.8.2
       zod: 3.25.67
 
-  '@xpert-ai/plugin-sdk@3.9.0(899dc4fc6495635b951ed001752cf0ac)':
+  '@xpert-ai/plugin-sdk@3.9.0(457b84fe7f5b5a0492e663e4528518ab)':
     dependencies:
       '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@nestjs/common': 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@xpert-ai/contracts': 3.9.0-beta.3(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/contracts': 3.9.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/ocap-core': 3.9.0-beta.2(@xpert-ai/store@3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
       ajv: 8.18.0
       i18next: 25.6.0(typescript@5.9.3)
@@ -11012,6 +11043,26 @@ snapshots:
       path: 0.12.7
       rxjs: 7.8.2
       stream: 0.0.3
+      yaml: 2.8.2
+      zod: 3.25.67
+
+  '@xpert-ai/plugin-sdk@3.9.1(013e1f426e6c3c0367ad41d7780b13c0)':
+    dependencies:
+      '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
+      '@nestjs/common': 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@xpert-ai/contracts': 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/ocap-core': 3.9.0-beta.2(@xpert-ai/store@3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
+      ajv: 8.18.0
+      i18next: 25.6.0(typescript@5.9.3)
+      i18next-fs-backend: 2.6.0
+      js-tiktoken: 1.0.21
+      json-schema: 0.4.0
+      jsonwebtoken: 9.0.3
+      lodash-es: 4.17.21
+      passport-jwt: 4.0.1
+      rxjs: 7.8.2
       yaml: 2.8.2
       zod: 3.25.67
 
@@ -11055,13 +11106,13 @@ snapshots:
       yaml: 2.8.2
       zod: 3.25.67
 
-  '@xpert-ai/plugin-sdk@3.9.1(899dc4fc6495635b951ed001752cf0ac)':
+  '@xpert-ai/plugin-sdk@4.0.0(013e1f426e6c3c0367ad41d7780b13c0)':
     dependencies:
       '@langchain/core': 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67))
       '@nestjs/common': 11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs': 11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@xpert-ai/contracts': 3.9.0-beta.3(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
+      '@xpert-ai/contracts': 3.10.0(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.19.0)(zod@3.25.67)))
       '@xpert-ai/ocap-core': 3.9.0-beta.2(@xpert-ai/store@3.9.0-beta.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0)
       ajv: 8.18.0
       i18next: 25.6.0(typescript@5.9.3)

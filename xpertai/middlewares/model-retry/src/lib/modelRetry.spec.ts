@@ -3,12 +3,6 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => null,
 }))
 
-jest.mock('@metad/contracts', () => ({
-  WorkflowNodeTypeEnum: {
-    MIDDLEWARE: 'middleware',
-  },
-}))
-
 import { AIMessage } from '@langchain/core/messages'
 import { Logger } from '@nestjs/common'
 import { calculateRetryDelay } from './retry.js'
@@ -21,6 +15,7 @@ describe('ModelRetryMiddleware', () => {
       const result = await run({ id: 'retry-exec-1' })
       return result.state
     }),
+    emitMiddlewareEvent: jest.fn().mockResolvedValue(undefined),
   })
 
   const createContext = (runtime = createRuntimeApi()) => ({
@@ -72,7 +67,7 @@ describe('ModelRetryMiddleware', () => {
     expect(result?.content).toBe('ok')
   })
 
-  it('retries a failed model call and tracks the retry attempt', async () => {
+  it('retries a failed model call and emits retry events without child execution', async () => {
     const { middleware, runtimeApi } = await createMiddleware({
       maxRetries: 2,
       initialDelayMs: 0,
@@ -86,7 +81,19 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
+    expect(runtimeApi.emitMiddlewareEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        middlewareName: 'ModelRetryMiddleware',
+        middlewareKey: 'node-1',
+        title: 'Model retry',
+        phase: 'retry_succeeded',
+        status: 'success',
+        executionId: 'exec-1',
+        threadId: 'thread-1',
+      })
+    )
+    expect(runtimeApi.emitMiddlewareEvent.mock.calls.some(([event]) => 'agentKey' in event)).toBe(false)
     expect(result?.content).toBe('recovered')
   })
 
@@ -112,7 +119,13 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
+    expect(runtimeApi.emitMiddlewareEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: 'retry_succeeded',
+        status: 'success',
+      })
+    )
     expect(result?.content).toBe('recovered after network error')
   })
 
@@ -143,7 +156,13 @@ describe('ModelRetryMiddleware', () => {
     const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
 
     expect(handler).toHaveBeenCalledTimes(2)
-    expect(runtimeApi.wrapWorkflowNodeExecution).toHaveBeenCalledTimes(1)
+    expect(runtimeApi.wrapWorkflowNodeExecution).not.toHaveBeenCalled()
+    expect(runtimeApi.emitMiddlewareEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: 'retry_succeeded',
+        status: 'success',
+      })
+    )
     expect(result?.content).toBe('recovered after empty model response')
     expect(warnSpy).toHaveBeenNthCalledWith(
       1,

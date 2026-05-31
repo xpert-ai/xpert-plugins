@@ -9,14 +9,13 @@ import {
   IAgentMiddlewareStrategy,
   ModelRequest,
   WrapModelCallHandler,
+  type AgentMiddlewareEvent,
 } from '@xpert-ai/plugin-sdk'
-import {
-  JSONValue,
+import type {
   JsonSchemaObjectType,
   TAgentMiddlewareMeta,
   TAgentRunnableConfigurable,
-  WorkflowNodeTypeEnum,
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { AIMessage } from '@langchain/core/messages'
 import { ModelRetryIcon } from './types.js'
 import {
@@ -273,6 +272,19 @@ const toModelResultError = (message: AIMessage): Error | null => {
   return error
 }
 
+type ModelRetryEventPhase =
+  | 'retry_scheduled'
+  | 'retry_started'
+  | 'retry_succeeded'
+  | 'retry_failed'
+
+type ModelRetryMiddlewareEvent = AgentMiddlewareEvent & {
+  phase: ModelRetryEventPhase
+  status: NonNullable<AgentMiddlewareEvent['status']>
+  message: string
+  data?: Record<string, unknown>
+}
+
 @Injectable()
 @AgentMiddlewareStrategy('ModelRetryMiddleware')
 export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
@@ -356,19 +368,63 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
             this.logger.warn(
               `Scheduling model retry${logScope}. phase=retry-scheduled attempt=${attemptsMade}/${totalAllowedAttempts} nextDelayMs=${delay} elapsedMs=${Date.now() - startedAt}`
             )
+            await this.emitMiddlewareEvent(context, request, {
+              phase: 'retry_scheduled',
+              status: 'running',
+              message: `Scheduling model retry attempt ${attemptsMade}/${totalAllowedAttempts}`,
+              data: {
+                attempt: attemptsMade,
+                totalAttempts: totalAllowedAttempts,
+                delayMs: delay,
+                elapsedMs: Date.now() - startedAt,
+              },
+            })
             if (delay > 0) {
               await sleep(delay)
             }
 
+            await this.emitMiddlewareEvent(context, request, {
+              phase: 'retry_started',
+              status: 'running',
+              message: `Retrying model call, attempt ${attemptsMade}/${totalAllowedAttempts}`,
+              data: {
+                attempt: attemptsMade,
+                totalAttempts: totalAllowedAttempts,
+                elapsedMs: Date.now() - startedAt,
+              },
+            })
+
             try {
-              const result = await this.executeTrackedRetry(request, handler, context)
+              const result = await this.invokeModel(request, handler, context)
               this.logger.log(
                 `Model retry succeeded${logScope}. phase=retry-succeeded attempt=${attemptsMade}/${totalAllowedAttempts} elapsedMs=${Date.now() - startedAt}`
               )
+              await this.emitMiddlewareEvent(context, request, {
+                phase: 'retry_succeeded',
+                status: 'success',
+                message: `Model retry succeeded, attempt ${attemptsMade}/${totalAllowedAttempts}`,
+                data: {
+                  attempt: attemptsMade,
+                  totalAttempts: totalAllowedAttempts,
+                  elapsedMs: Date.now() - startedAt,
+                },
+              })
               return result
             } catch (retryError) {
               lastError = normalizeError(retryError)
               retryable = shouldRetryError(lastError, retryConfig)
+              await this.emitMiddlewareEvent(context, request, {
+                phase: 'retry_failed',
+                status: 'fail',
+                message: `Model retry failed, attempt ${attemptsMade}/${totalAllowedAttempts}`,
+                error: this.serializeError(lastError),
+                data: {
+                  attempt: attemptsMade,
+                  totalAttempts: totalAllowedAttempts,
+                  retryable,
+                  elapsedMs: Date.now() - startedAt,
+                },
+              })
 
               if (!retryable || retryAttempt === retryConfig.maxRetries) {
                 this.logger.error(
@@ -389,37 +445,37 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     }
   }
 
-  private async executeTrackedRetry(
+  private async emitMiddlewareEvent(
+    context: IAgentMiddlewareContext,
     request: ModelRequest<AgentBuiltInState>,
-    handler: WrapModelCallHandler,
-    context: IAgentMiddlewareContext
-  ): Promise<AIMessage> {
-    const configurable = request.runtime?.configurable as TAgentRunnableConfigurable | undefined
-    if (!configurable) {
-      return handler(request)
-    }
+    event: ModelRetryMiddlewareEvent
+  ) {
+    const emit = context.runtime.emitMiddlewareEvent
+    if (typeof emit !== 'function') return
 
-    const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-    return context.runtime.wrapWorkflowNodeExecution(async () => {
-      const retryResult = await this.invokeModel(request, handler, context)
-      return {
-        state: retryResult,
-        output: retryResult.content as JSONValue,
+    const configurable = request.runtime?.configurable as
+      | Partial<TAgentRunnableConfigurable>
+      | undefined
+
+    try {
+      const payload: AgentMiddlewareEvent = {
+        middlewareName: 'ModelRetryMiddleware',
+        middlewareKey: context.node?.key,
+        title: 'Model retry',
+        ...event,
+        ...(typeof configurable?.executionId === 'string'
+          ? { executionId: configurable.executionId }
+          : {}),
+        ...(typeof configurable?.thread_id === 'string'
+          ? { threadId: configurable.thread_id }
+          : {}),
       }
-    }, {
-      execution: {
-        category: 'workflow',
-        type: WorkflowNodeTypeEnum.MIDDLEWARE,
-        inputs: {},
-        parentId: executionId,
-        threadId: thread_id,
-        checkpointNs: checkpoint_ns,
-        checkpointId: checkpoint_id,
-        agentKey: context.node.key,
-        title: context.node.title,
-      },
-      subscriber,
-    })
+      await emit.call(context.runtime, payload)
+    } catch (error) {
+      this.logger.debug(
+        `Failed to emit model retry middleware event: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
   }
 
   private async invokeModel(
@@ -522,6 +578,15 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     ].filter(Boolean)
 
     return segments.join(' ')
+  }
+
+  private serializeError(error: Error) {
+    const statusCode = this.extractErrorStatusCode(error)
+    return {
+      name: error.name || error.constructor.name || 'Error',
+      message: error.message,
+      ...(statusCode != null ? { statusCode } : {}),
+    }
   }
 
   private extractErrorStatusCode(error: Error): number | undefined {
