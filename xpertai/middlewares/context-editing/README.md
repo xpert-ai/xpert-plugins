@@ -1,5 +1,7 @@
 # Xpert Plugin: Context Editing Middleware
 
+> **Deprecated**: Use the built-in context editing middleware feature instead.
+
 `@xpert-ai/plugin-context-editing` adds automatic context pruning to [Xpert AI](https://github.com/xpert-ai/xpert) agents. The middleware wraps LangChain chat requests and mirrors Anthropic-style context editing: once the dialog grows past a threshold, older tool outputs are cleared or collapsed so the model stays within its input window.
 
 ## Key Features
