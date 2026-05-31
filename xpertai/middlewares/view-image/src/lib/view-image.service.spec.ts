@@ -83,7 +83,9 @@ describe('ViewImageService', () => {
     const tool = service.createTool()
 
     expect(tool.description).toContain('at most 3 images per call')
+    expect(tool.description).toContain('separate model steps')
     expect(service.buildSystemPrompt()).toContain('Pass at most 3 image paths')
+    expect(service.buildSystemPrompt()).toContain('Do not load more than 3 images total in the same model step')
     expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png'] }).success).toBe(true)
     expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
       false
@@ -311,70 +313,6 @@ describe('ViewImageService', () => {
 
     expect(backend.downloadFiles).toHaveBeenCalledWith(['one.png', 'two.png', 'three.png'])
     expect((result.metadata?.view_image as { items: unknown[] }).items).toHaveLength(3)
-  })
-
-  it('allows multiple same-step view_image calls when each call stays within the per-call limit', async () => {
-    const backend = {
-      workingDirectory: '/tmp/local-sandbox',
-      downloadFiles: jest.fn(async (paths: string[]) =>
-        paths.map((filePath) => ({
-          path: filePath,
-          content: ONE_BY_ONE_PNG,
-          error: null
-        }))
-      )
-    }
-    const tool = service.createTool()
-    const firstToolMessage = (await tool.invoke(
-      { path: ['one.png', 'two.png', 'three.png'] },
-      createRunConfig(backend, 'call_view_image_batch_1')
-    )) as ToolMessage
-    const secondToolMessage = (await tool.invoke(
-      { path: 'four.png' },
-      createRunConfig(backend, 'call_view_image_batch_2')
-    )) as ToolMessage
-
-    const prepared = await service.prepareModelRequest(
-      {
-        model: {} as any,
-        messages: [
-          new AIMessage({
-            content: '',
-            tool_calls: [
-              {
-                id: 'call_view_image_batch_1',
-                name: 'view_image',
-                args: {
-                  path: ['one.png', 'two.png', 'three.png']
-                }
-              },
-              {
-                id: 'call_view_image_batch_2',
-                name: 'view_image',
-                args: {
-                  path: 'four.png'
-                }
-              }
-            ]
-          }),
-          firstToolMessage,
-          secondToolMessage
-        ],
-        tools: [],
-        state: { messages: [] },
-        runtime: createRunConfig(backend, 'call_view_image_batch_2') as any,
-        systemMessage: new SystemMessage('base prompt')
-      },
-      backend
-    )
-
-    const attachmentMessage = prepared.request.messages[3] as HumanMessage
-    expect(attachmentMessage).toBeInstanceOf(HumanMessage)
-    expect(Array.isArray(attachmentMessage.content)).toBe(true)
-    const imageBlocks = (attachmentMessage.content as Array<{ type: string }>).filter(
-      (item) => item.type === 'image_url'
-    )
-    expect(imageBlocks).toHaveLength(4)
   })
 
   it('rebuilds injectable images from tool metadata with a safe download path when in-memory cache is unavailable', async () => {

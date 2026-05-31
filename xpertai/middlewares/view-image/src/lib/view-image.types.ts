@@ -103,10 +103,10 @@ const ViewImageToolPathValueSchema = z.union([
 
 export const ViewImageToolInputSchema = z.object({
   path: ViewImageToolPathValueSchema.optional().describe(
-    `Sandbox workspace image path or paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Prefer relative paths from the sandbox workspace root, for example \`sessions/thread/files/page.png\`. Absolute paths are only supported when they still refer to files inside that same workspace root. JSON string arrays are accepted for compatibility. Split larger image sets into multiple view_image calls.`
+    `Sandbox workspace image path or paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step. Prefer relative paths from the sandbox workspace root, for example \`sessions/thread/files/page.png\`. Absolute paths are only supported when they still refer to files inside that same workspace root. JSON string arrays are accepted for compatibility. Load ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1}+ known images across separate model steps, not multiple same-step view_image calls.`
   ),
   paths: ViewImageToolPathValueSchema.optional().describe(
-    `Alias for \`path\` when passing one or more sandbox workspace image paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call.`
+    `Alias for \`path\` when passing one or more sandbox workspace image paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step.`
   )
 })
 
