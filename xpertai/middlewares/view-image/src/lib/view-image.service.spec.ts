@@ -10,8 +10,8 @@ const ONE_BY_ONE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jYVwAAAAASUVORK5CYII=',
   'base64'
 )
-const DEFAULT_WORKING_DIRECTORY = '/workspace/reports'
-const HOST_WORKING_DIRECTORY = '/Users/test/data/reports'
+const DEFAULT_WORKSPACE_ROOT = '/workspace'
+const HOST_WORKSPACE_ROOT = '/Users/test/data'
 
 describe('ViewImageService', () => {
   const service = new ViewImageService()
@@ -19,7 +19,7 @@ describe('ViewImageService', () => {
   function createRunConfig(
     backend: { workingDirectory: string; downloadFiles: jest.Mock },
     toolCallId: string,
-    workingDirectory = DEFAULT_WORKING_DIRECTORY
+    workspaceRoot = DEFAULT_WORKSPACE_ROOT
   ) {
     return {
       configurable: {
@@ -28,7 +28,10 @@ describe('ViewImageService', () => {
         tool_call_id: toolCallId,
         sandbox: {
           backend,
-          workingDirectory
+          workingDirectory: workspaceRoot,
+          workspaceBinding: {
+            workspaceRoot
+          }
         },
         copilotModel: {
           options: {
@@ -39,7 +42,7 @@ describe('ViewImageService', () => {
     }
   }
 
-  it('loads a relative sandbox image inside the configured working directory', async () => {
+  it('loads a relative sandbox image inside the configured workspace root', async () => {
     const backend = {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn().mockResolvedValue([
@@ -54,7 +57,7 @@ describe('ViewImageService', () => {
 
     const result = (await tool.invoke(
       { path: 'chart.png' },
-      createRunConfig(backend, 'call_view_image_1', HOST_WORKING_DIRECTORY)
+      createRunConfig(backend, 'call_view_image_1', HOST_WORKSPACE_ROOT)
     )) as ToolMessage
 
     expect(result).toBeInstanceOf(ToolMessage)
@@ -65,7 +68,7 @@ describe('ViewImageService', () => {
         items: [
           expect.objectContaining({
             target: 'chart.png',
-            resolvedPath: `${HOST_WORKING_DIRECTORY}/chart.png`,
+            resolvedPath: `${HOST_WORKSPACE_ROOT}/chart.png`,
             downloadPath: 'chart.png',
             fileName: 'chart.png',
             mimeType: 'image/png'
@@ -83,6 +86,9 @@ describe('ViewImageService', () => {
     expect(service.buildSystemPrompt()).toContain('Pass at most 3 image paths')
     expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png'] }).success).toBe(true)
     expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
+      false
+    )
+    expect(ViewImageToolInputSchema.safeParse({ paths: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
       false
     )
   })
@@ -120,12 +126,12 @@ describe('ViewImageService', () => {
     })
   })
 
-  it('loads an absolute image path that stays inside the current working directory', async () => {
+  it('loads an absolute image path that stays inside the sandbox workspace root', async () => {
     const backend = {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn().mockResolvedValue([
         {
-          path: 'charts/chart.png',
+          path: 'sessions/thread-1/files/page-1.png',
           content: ONE_BY_ONE_PNG,
           error: null
         }
@@ -134,22 +140,88 @@ describe('ViewImageService', () => {
     const tool = service.createTool()
 
     const result = (await tool.invoke(
-      { path: '/workspace/reports/charts/chart.png' },
+      { path: '/workspace/sessions/thread-1/files/page-1.png' },
       createRunConfig(backend, 'call_view_image_abs')
     )) as ToolMessage
 
-    expect(backend.downloadFiles).toHaveBeenCalledWith(['charts/chart.png'])
+    expect(backend.downloadFiles).toHaveBeenCalledWith(['sessions/thread-1/files/page-1.png'])
     expect(result.metadata?.view_image).toEqual(
       expect.objectContaining({
         items: [
           expect.objectContaining({
-            target: '/workspace/reports/charts/chart.png',
-            resolvedPath: '/workspace/reports/charts/chart.png',
-            downloadPath: 'charts/chart.png'
+            target: '/workspace/sessions/thread-1/files/page-1.png',
+            resolvedPath: '/workspace/sessions/thread-1/files/page-1.png',
+            downloadPath: 'sessions/thread-1/files/page-1.png'
           })
         ]
       })
     )
+  })
+
+  it('prefers workspaceBinding.workspaceRoot over sandbox workingDirectory', async () => {
+    const backend = {
+      workingDirectory: '/tmp/local-sandbox',
+      downloadFiles: jest.fn().mockResolvedValue([
+        {
+          path: 'sessions/thread-1/files/page-1.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        }
+      ])
+    }
+    const tool = service.createTool()
+
+    await tool.invoke(
+      { path: '/workspace/sessions/thread-1/files/page-1.png' },
+      {
+        configurable: {
+          thread_id: 'thread-1',
+          agentKey: 'agent-1',
+          tool_call_id: 'call_view_image_workspace_root_priority',
+          sandbox: {
+            backend,
+            workingDirectory: '/workspace/reports',
+            workspaceBinding: {
+              workspaceRoot: DEFAULT_WORKSPACE_ROOT
+            }
+          }
+        }
+      }
+    )
+
+    expect(backend.downloadFiles).toHaveBeenCalledWith(['sessions/thread-1/files/page-1.png'])
+  })
+
+  it('loads relative and workspace URI paths from the sandbox workspace root', async () => {
+    const backend = {
+      workingDirectory: '/tmp/local-sandbox',
+      downloadFiles: jest.fn().mockResolvedValue([
+        {
+          path: 'sessions/thread-1/files/page-1.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        },
+        {
+          path: 'sessions/thread-1/files/page-2.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        }
+      ])
+    }
+    const tool = service.createTool()
+
+    const result = (await tool.invoke(
+      {
+        path: ['sessions/thread-1/files/page-1.png', 'workspace://sessions/thread-1/files/page-2.png']
+      },
+      createRunConfig(backend, 'call_view_image_workspace_uri')
+    )) as ToolMessage
+
+    expect(backend.downloadFiles).toHaveBeenCalledWith([
+      'sessions/thread-1/files/page-1.png',
+      'sessions/thread-1/files/page-2.png'
+    ])
+    expect((result.metadata?.view_image as { items: unknown[] }).items).toHaveLength(2)
   })
 
   it('supports loading multiple images in a single tool call', async () => {
@@ -177,6 +249,68 @@ describe('ViewImageService', () => {
 
     expect(backend.downloadFiles).toHaveBeenCalledWith(['one.png', 'two.png'])
     expect((result.metadata?.view_image as { items: unknown[] }).items).toHaveLength(2)
+  })
+
+  it('supports the paths alias', async () => {
+    const backend = {
+      workingDirectory: '/tmp/local-sandbox',
+      downloadFiles: jest.fn().mockResolvedValue([
+        {
+          path: 'one.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        },
+        {
+          path: 'two.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        }
+      ])
+    }
+    const tool = service.createTool()
+
+    const result = (await tool.invoke(
+      { paths: ['one.png', 'two.png'] },
+      createRunConfig(backend, 'call_view_image_paths_alias')
+    )) as ToolMessage
+
+    expect(backend.downloadFiles).toHaveBeenCalledWith(['one.png', 'two.png'])
+    expect((result.metadata?.view_image as { items: unknown[] }).items).toHaveLength(2)
+  })
+
+  it('supports JSON string arrays and path plus paths deduplication', async () => {
+    const backend = {
+      workingDirectory: '/tmp/local-sandbox',
+      downloadFiles: jest.fn().mockResolvedValue([
+        {
+          path: 'one.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        },
+        {
+          path: 'two.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        },
+        {
+          path: 'three.png',
+          content: ONE_BY_ONE_PNG,
+          error: null
+        }
+      ])
+    }
+    const tool = service.createTool()
+
+    const result = (await tool.invoke(
+      {
+        path: JSON.stringify(['one.png', 'two.png']),
+        paths: ['two.png', 'three.png']
+      },
+      createRunConfig(backend, 'call_view_image_json_array')
+    )) as ToolMessage
+
+    expect(backend.downloadFiles).toHaveBeenCalledWith(['one.png', 'two.png', 'three.png'])
+    expect((result.metadata?.view_image as { items: unknown[] }).items).toHaveLength(3)
   })
 
   it('rebuilds injectable images from tool metadata with a safe download path when in-memory cache is unavailable', async () => {
@@ -258,7 +392,7 @@ describe('ViewImageService', () => {
     )
   })
 
-  it('rejects absolute paths outside the current working directory', async () => {
+  it('rejects absolute paths outside the current sandbox workspace root', async () => {
     const backend = {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn()
@@ -266,12 +400,12 @@ describe('ViewImageService', () => {
     const tool = service.createTool()
 
     await expect(
-      tool.invoke({ path: '/workspace/shared/plan.png' }, createRunConfig(backend, 'call_view_image_5'))
-    ).rejects.toThrow('outside the current sandbox working directory')
+      tool.invoke({ path: '/workspace-alt/shared/plan.png' }, createRunConfig(backend, 'call_view_image_5'))
+    ).rejects.toThrow('outside the current sandbox workspace root')
     expect(backend.downloadFiles).not.toHaveBeenCalled()
   })
 
-  it('rejects relative paths outside the current working directory', async () => {
+  it('rejects relative paths outside the current sandbox workspace root', async () => {
     const backend = {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn()
@@ -280,7 +414,35 @@ describe('ViewImageService', () => {
 
     await expect(
       tool.invoke({ path: '../../secrets/plan.png' }, createRunConfig(backend, 'call_view_image_6'))
-    ).rejects.toThrow('outside the current sandbox working directory')
+    ).rejects.toThrow('outside the current sandbox workspace root')
+    expect(backend.downloadFiles).not.toHaveBeenCalled()
+  })
+
+  it('rejects attachment URIs, invalid JSON arrays, and too many images', async () => {
+    const backend = {
+      workingDirectory: '/tmp/local-sandbox',
+      downloadFiles: jest.fn()
+    }
+    const tool = service.createTool()
+
+    await expect(
+      tool.invoke({ path: 'attachment://file-1' }, createRunConfig(backend, 'call_view_image_attachment'))
+    ).rejects.toThrow('attachment://')
+    await expect(
+      tool.invoke({ path: "['one.png']" }, createRunConfig(backend, 'call_view_image_bad_json'))
+    ).rejects.toThrow('valid JSON string array')
+    await expect(
+      tool.invoke({ path: 'https://example.com/one.png' }, createRunConfig(backend, 'call_view_image_remote_url'))
+    ).rejects.toThrow('Remote or virtual image paths are not supported')
+    await expect(
+      tool.invoke(
+        {
+          path: ['one.png', 'two.png'],
+          paths: ['two.png', 'three.png', 'four.png']
+        },
+        createRunConfig(backend, 'call_view_image_too_many')
+      )
+    ).rejects.toThrow('accepts at most 3 images')
     expect(backend.downloadFiles).not.toHaveBeenCalled()
   })
 
@@ -305,7 +467,10 @@ describe('ViewImageService', () => {
           tool_call_id: 'call_view_image_7',
           sandbox: {
             backend,
-            workingDirectory: DEFAULT_WORKING_DIRECTORY
+            workingDirectory: DEFAULT_WORKSPACE_ROOT,
+            workspaceBinding: {
+              workspaceRoot: DEFAULT_WORKSPACE_ROOT
+            }
           }
         }
       }
@@ -337,7 +502,10 @@ describe('ViewImageService', () => {
             agentKey: 'agent-1',
             sandbox: {
               backend,
-              workingDirectory: DEFAULT_WORKING_DIRECTORY
+              workingDirectory: DEFAULT_WORKSPACE_ROOT,
+              workspaceBinding: {
+                workspaceRoot: DEFAULT_WORKSPACE_ROOT
+              }
             }
           }
         } as any,
