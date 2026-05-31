@@ -93,9 +93,17 @@ export type ViewedImageBatchMetadata = z.infer<typeof ViewedImageBatchMetadataSc
 
 export const ViewImageToolInputSchema = z.object({
   path: z
-    .union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+    .union([
+      z.string().min(1),
+      z
+        .array(z.string().min(1))
+        .min(1)
+        .max(DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL, {
+          message: `view_image accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call.`
+        })
+    ])
     .describe(
-      'Sandbox image path or paths. Prefer relative paths from the sandbox working directory. Absolute paths are only supported when they still refer to files inside that same working directory. Pass multiple paths in one call when you need to inspect multiple images.'
+      `Sandbox image path or paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Prefer relative paths from the sandbox working directory. Absolute paths are only supported when they still refer to files inside that same working directory. Split larger image sets into multiple view_image calls.`
     )
 })
 

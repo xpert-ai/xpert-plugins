@@ -79,7 +79,8 @@ export class ViewImageService {
     return [
       '<skill>',
       'When the user asks about an image file in the sandbox workspace, call `view_image` before reasoning about the image contents.',
-      'Pass multiple image paths in one `view_image` call when you already know all files you need.',
+      `Pass at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} image paths in one \`view_image\` call when you already know the files you need.`,
+      `Split larger image sets into multiple \`view_image\` calls with ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} or fewer images each.`,
       'You may also call `view_image` multiple times in the same step when discovery is incremental.',
       'Prefer relative paths from the sandbox working directory. Absolute paths are only supported when they still point to files inside that same working directory.',
       'Do not guess what an image contains unless it has been loaded with `view_image`.',
@@ -125,7 +126,7 @@ export class ViewImageService {
       {
         name: VIEW_IMAGE_TOOL_NAME,
         description:
-          'Load one or more image files from the sandbox workspace so the next model step can inspect them. Use this before answering questions about image files by path.',
+          `Load one or more image files from the sandbox workspace so the next model step can inspect them. Use this before answering questions about image files by path. Accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call; split larger image sets into multiple calls.`,
         schema: ViewImageToolInputSchema
       }
     )
@@ -399,7 +400,7 @@ function normalizeTargets(value: z.infer<typeof ViewImageToolInputSchema>['path'
 
   if (normalized.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
     throw new Error(
-      `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Pass fewer files in one request.`
+      `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Split image paths into multiple calls with ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} or fewer images each.`
     )
   }
 
