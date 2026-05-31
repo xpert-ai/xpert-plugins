@@ -43,6 +43,6 @@
     "@nestjs/cqrs": "^11.0.3",
     "@xpert-ai/chatkit-types": "^0.0.12",
     "@xpert-ai/contracts": "^3.10.0",
-    "@xpert-ai/plugin-sdk": "^4.0.0"
+    "@xpert-ai/plugin-sdk": "^3.10.0"
   }
 }
