@@ -1,5 +1,7 @@
 # XpertAI Plugin: File Memory Middleware
 
+> **Deprecated**: Use the built-in file memory middleware feature instead.
+
 `@xpert-ai/plugin-file-memory` is a sandbox-only durable memory middleware for XpertAI agents.
 
 It stores memories as Markdown files, injects lightweight memory context during runtime, exposes explicit read/write tools, and performs optional asynchronous writeback after the agent finishes.

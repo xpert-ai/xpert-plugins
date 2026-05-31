@@ -19,6 +19,10 @@ export default {
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts',
     '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts'
   },
+  moduleNameMapper: {
+    '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts',
+    '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts',
+  },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
   testTimeout: 30000

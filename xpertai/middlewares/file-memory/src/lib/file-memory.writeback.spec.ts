@@ -18,7 +18,7 @@ import { decideMemoryWriteback } from './file-memory.writeback.js'
 import { createInternalRunnableConfig } from './internal-runnable-config.js'
 
 describe('decideMemoryWriteback', () => {
-  it('invokes the writeback selector as an internal nostream runnable', async () => {
+  it('invokes the writeback selector with an isolated internal runnable config', async () => {
     const invoke = jest.fn().mockResolvedValue({
       action: 'upsert',
       semanticKind: 'user',
@@ -36,6 +36,7 @@ describe('decideMemoryWriteback', () => {
     })
     const model = {
       withStructuredOutput: jest.fn().mockReturnValue({
+        invoke,
         withConfig
       })
     }
@@ -48,8 +49,9 @@ describe('decideMemoryWriteback', () => {
       undefined
     )
 
-    expect(withConfig).toHaveBeenCalledWith(createInternalRunnableConfig('file-memory-writeback-decision'))
+    expect(withConfig).not.toHaveBeenCalled()
     expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke.mock.calls[0][1]).toEqual(createInternalRunnableConfig('file-memory-writeback-decision'))
     const promptMessages = invoke.mock.calls[0][0]
     expect(String(promptMessages[promptMessages.length - 1].content)).toContain(
       'Write title, content, context, tags, and reason in Simplified Chinese by default.'

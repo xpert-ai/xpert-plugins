@@ -20,8 +20,9 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     name: packageJson.name,
     version: packageJson.version,
     category: 'middleware',
-    displayName: 'File Memory Runtime',
-    description: 'Single-plugin file memory runtime with recall and writeback middleware.',
+    displayName: 'File Memory Runtime (Deprecated)',
+    description:
+      'Deprecated: 使用内置文件记忆中间件功能。Single-plugin file memory runtime with recall and writeback middleware.',
     keywords: ['memory', 'file-memory', 'middleware', 'runtime'],
     author: 'XpertAI Team',
     icon: {

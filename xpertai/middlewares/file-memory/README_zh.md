@@ -1,5 +1,7 @@
 # XpertAI 插件: File Memory 中间件
 
+> **已废弃**：推荐使用内置文件记忆中间件功能。
+
 `@xpert-ai/plugin-file-memory` 是一个 `sandbox-only` 的 durable memory 中间件。
 
 它负责把记忆落成 Markdown 文件，并在 Agent 运行时完成：
