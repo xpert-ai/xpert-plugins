@@ -109,18 +109,39 @@ pnpm plugin:reinstall:local \
 
 若 `XPERT_PLUGIN_CONFIG_JSON` 为空，去掉 `--config "$XPERT_PLUGIN_CONFIG_JSON"`。`plugin:reinstall:local` 会自动构建插件；如需跳过构建，可加 `--skip-build`。
 
-系统级插件使用 `XPERT_INSTALL_SCOPE=global` 和超级管理员 token。当前部分本地 Xpert host 不能用 `--org-id global`，此时应直接调用 `POST /api/plugin`，且不要携带 `organization-id` / `x-scope-level` 头：
+#### 系统级插件
+
+系统级插件使用 `XPERT_INSTALL_SCOPE=global` 和超级管理员登录 JWT。注意：
+
+- `XPERT_TOKEN` 必须是平台登录 JWT，且 token payload 中的 `role` 为 `SUPER_ADMIN`。API key 或不透明 bearer token 可能能认证普通接口，但不能通过 system plugin 安装 guard。
+- 可以从浏览器 Network 中复制 header 值 `Bearer <jwt>` 或只复制 `<jwt>`。如果复制了整行 `Authorization: Bearer <jwt>`，执行 curl 前要剥掉 `Authorization:`；传给 host 脚本时建议只保留 `<jwt>` 或 `Bearer <jwt>`。
+- 当前部分本地 Xpert host 的 `plugin:install:local` / `plugin:reinstall:local` 脚本强制组织级 header，不适合安装 `meta.level=system` 的插件。此时应直接调用 `POST /api/plugin`，不要携带 `organization-id`，并使用 tenant/global scope。
+- 如果安装失败发生在卸载旧实例之后，`/api/plugin/by-names` 可能暂时查不到该插件。修正 token、scope 或 config 后重新调用安装接口即可。
 
 ```sh
+AUTH_HEADER="${XPERT_TOKEN#Authorization: }"
+case "$AUTH_HEADER" in
+  Bearer\ *) ;;
+  *) AUTH_HEADER="Bearer $AUTH_HEADER" ;;
+esac
+
 curl -X POST "${XPERT_API_URL%/}/api/plugin" \
-  -H "Authorization: Bearer $XPERT_TOKEN" \
+  -H "Authorization: $AUTH_HEADER" \
   -H "Content-Type: application/json" \
+  -H "tenant-id: $XPERT_TENANT_ID" \
+  -H "x-scope-level: tenant" \
   --data "{
     \"pluginName\": \"$XPERT_PLUGIN_NAME\",
     \"source\": \"code\",
     \"sourceConfig\": { \"workspacePath\": \"$PLUGIN_DIR\" },
     \"config\": $XPERT_PLUGIN_CONFIG_JSON
   }"
+```
+
+不同插件的配置结构不同。安装 Sites 时不要复用 Sales Ontology 的 `dataXpert` 配置；Sites 配置应使用：
+
+```json
+{"hosting":{"publicBaseUrl":"http://localhost:3000/api/xpert-sites","defaultAccessMode":"workspace_all"}}
 ```
 
 ## 发布流程
@@ -184,3 +205,5 @@ pnpm --filter ./apps/sales-ontology publish --access public --publish-branch mai
 - 路径或导入报错：确认子包 `tsconfig.json` 的 `extends` 指向根的 `tsconfig.base.json`，且 `rootDir` 为 `src`。
 - 构建输出缺失：确保子包有 `src/index.ts`，并在 package.json 中 `files` 包含 `dist`。
 - 版本/权限异常：检查子包 `publishConfig.access` 与实际发布命令是否一致。
+- 系统级插件接口安装失败：确认 `XPERT_TOKEN` 是 `SUPER_ADMIN` 登录 JWT，接口请求没有 `organization-id` header，且 `x-scope-level` 为 `tenant` 或未显式设置组织级 scope。
+- 插件配置无效：确认 `XPERT_PLUGIN_CONFIG_JSON` 是当前插件的 config schema，不要把其他插件的示例配置混用。

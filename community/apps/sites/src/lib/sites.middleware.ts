@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { tool } from '@langchain/core/tools'
-import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -11,26 +11,19 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { SITES_FEATURE, SITES_ICON, SITES_MIDDLEWARE_NAME } from './constants.js'
-import { buildSitesDeploymentPreviewEvent, SitesService } from './sites.service.js'
+import { SitesService } from './sites.service.js'
 import type {
   CreateSitesProjectInput,
   DeploySitesVersionInput,
   SaveSitesVersionInput,
   SitesAccessMode,
   SitesEnvironmentValueInput,
+  SitesSourceReadOptions,
   SitesScope,
-  SitesSourceFile
 } from './types.js'
 
 const accessModeSchema = z.enum(['admins_only', 'workspace_all', 'custom'])
 const storageShapeSchema = z.enum(['static', 'd1', 'r2', 'd1_r2', 'workspace_auth', 'external_auth'])
-
-const sourceFileSchema = z.object({
-  path: z.string().min(1).describe('Relative source file path such as index.html, styles.css, or app.js.'),
-  content: z.string().min(1).describe('Complete file content.'),
-  language: z.string().optional(),
-  role: z.enum(['entry', 'style', 'script', 'asset', 'config']).optional()
-})
 
 const createProjectSchema = z.object({
   name: z.string().min(1).describe('Human-readable Sites project name.'),
@@ -42,7 +35,7 @@ const createProjectSchema = z.object({
   d1Binding: z.string().nullable().optional(),
   r2Binding: z.string().nullable().optional(),
   authMode: z.enum(['none', 'workspace', 'external']).optional(),
-  sourcePath: z.string().optional(),
+  sourcePath: z.string().optional().describe('Sandbox source directory for the site, such as /workspace/sites/my-site.'),
   prompt: z.string().optional().describe('Original user request for the site.')
 })
 
@@ -53,7 +46,7 @@ const saveVersionSchema = z.object({
   prompt: z.string().optional().describe('Prompt or change request used to generate the deployable artifact.'),
   title: z.string().optional(),
   description: z.string().optional(),
-  files: z.array(sourceFileSchema).optional().describe('Complete source files to save. Omit to let the plugin generate a site artifact from the prompt.'),
+  sourcePath: z.string().optional().describe('Sandbox source directory to snapshot. Omit only when the project already has sourcePath.'),
   sourceCommit: z.string().optional(),
   storageShape: storageShapeSchema.optional()
 })
@@ -141,20 +134,14 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       {
         name: 'sites_create_project',
         description:
-          'Create a Sites project with access mode, storage bindings, and hosting metadata. This does not publish a production deployment.',
+          'Create a Sites project with access mode, storage bindings, hosting metadata, and an optional sandbox sourcePath. This does not publish a production deployment.',
         schema: createProjectSchema
       }
     )
 
     const saveVersionTool = tool(
-      async (input: z.infer<typeof saveVersionSchema>) => {
-        const version = await this.service.saveVersion(
-          {
-            ...input,
-            files: input.files as SitesSourceFile[] | undefined
-          } as SaveSitesVersionInput,
-          scope
-        )
+      async (input: z.infer<typeof saveVersionSchema>, config) => {
+        const version = await this.service.saveVersion(input as SaveSitesVersionInput, scope, sourceReadOptionsFromConfig(config))
         return stringify({
           message:
             'Sites version was saved as a reviewable deployment candidate. Inspect it before calling sites_deploy_version.',
@@ -169,7 +156,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       {
         name: 'sites_save_version',
         description:
-          'Save a deployable Sites version without making it live. Use this stage for review before deployment.',
+          'Snapshot source files from a sandbox sourcePath and save a deployable Sites version without making it live. Create and edit source files with SandboxFile tools first; do not pass source code to this tool.',
         schema: saveVersionSchema
       }
     )
@@ -177,7 +164,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     const deployVersionTool = tool(
       async (input: z.infer<typeof deployVersionSchema>) => {
         const deployment = await this.service.deployVersion(input, scope)
-        const event = buildSitesDeploymentPreviewEvent({ deployment })
+        const event = await this.service.buildDeploymentPreviewEvent({ deployment })
         return stringify({
           message: 'Sites version was deployed to production.',
           projectId: deployment.projectId,
@@ -198,15 +185,13 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     )
 
     const createAndDeployTool = tool(
-      async (input: z.infer<typeof createAndDeploySchema>) => {
+      async (input: z.infer<typeof createAndDeploySchema>, config) => {
         const result = await this.service.createAndDeploy(
-          {
-            ...input,
-            files: input.files as SitesSourceFile[] | undefined
-          } as CreateSitesProjectInput & SaveSitesVersionInput & DeploySitesVersionInput,
-          scope
+          input as CreateSitesProjectInput & SaveSitesVersionInput & DeploySitesVersionInput,
+          scope,
+          sourceReadOptionsFromConfig(config)
         )
-        const event = buildSitesDeploymentPreviewEvent(result)
+        const event = await this.service.buildDeploymentPreviewEvent(result)
         return stringify({
           message: 'Sites project was created, saved as a version, and deployed.',
           projectId: result.project.id,
@@ -222,7 +207,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       {
         name: 'sites_create_and_deploy',
         description:
-          'Convenience tool for demos or explicit publish requests: create a project, save a version, and deploy it in one call.',
+          'Convenience tool for explicit publish requests: create a project, snapshot files from sandbox sourcePath, save a version, and deploy it in one call. Create and edit source files with SandboxFile tools before calling this.',
         schema: createAndDeploySchema
       }
     )
@@ -356,4 +341,14 @@ function scopeFromContext(context: IAgentMiddlewareContext): SitesScope {
 
 function stringify(result: unknown) {
   return JSON.stringify(result)
+}
+
+function sourceReadOptionsFromConfig(config: unknown): SitesSourceReadOptions {
+  const configurable = (config as { configurable?: TAgentRunnableConfigurable } | undefined)?.configurable
+  const sandbox = configurable?.sandbox
+  const sandboxBackend = sandbox?.backend as SitesSourceReadOptions['sandboxBackend'] | undefined
+  return {
+    sandboxBackend,
+    workingDirectory: sandboxBackend?.workingDirectory || sandbox?.workingDirectory
+  }
 }

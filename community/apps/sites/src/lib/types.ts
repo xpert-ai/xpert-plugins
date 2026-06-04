@@ -19,6 +19,30 @@ export interface SitesSourceFile {
   role?: 'entry' | 'style' | 'script' | 'asset' | 'config'
 }
 
+export interface SitesSandboxFileInfo {
+  path: string
+  is_dir?: boolean
+  size?: number
+  modified_at?: string
+}
+
+export interface SitesSandboxFileDownload {
+  path: string
+  content?: Uint8Array | ArrayBuffer | string | null
+  error?: string | null
+}
+
+export interface SitesSandboxSourceReader {
+  workingDirectory?: string
+  globInfo(pattern: string, path?: string): Promise<SitesSandboxFileInfo[]> | SitesSandboxFileInfo[]
+  downloadFiles(paths: string[]): Promise<SitesSandboxFileDownload[]> | SitesSandboxFileDownload[]
+}
+
+export interface SitesSourceReadOptions {
+  sandboxBackend?: SitesSandboxSourceReader
+  workingDirectory?: string
+}
+
 export interface SitesHostingConfig {
   project_id?: string
   d1?: string | null
@@ -47,7 +71,7 @@ export interface SaveSitesVersionInput {
   prompt?: string
   title?: string
   description?: string
-  files?: SitesSourceFile[]
+  sourcePath?: string
   sourceCommit?: string
   storageShape?: SitesStorageShape
 }
@@ -90,9 +114,11 @@ export interface SerializedSitesProject {
   audience?: SitesAccessMode
   customAudience?: string[]
   storageShape?: SitesStorageShape
+  sourcePath?: string
   hostingConfig?: SitesHostingConfig
   currentDeploymentId?: string
   currentDeploymentUrl?: string
+  currentDeploymentPreviewUrl?: string
   versionCount?: number
   deploymentCount?: number
   updatedAt?: Date

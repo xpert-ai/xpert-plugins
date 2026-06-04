@@ -7,6 +7,7 @@ export const SITES_REMOTE_ENTRY_KEY = 'sites-workbench'
 export const SITES_TEMPLATE_PROVIDER_KEY = 'sitesTemplates'
 export const WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE = 'workbench.browser.preview'
 export const WORKBENCH_BROWSER_OPEN_CLIENT_COMMAND = 'workbench.browser.open'
+export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 

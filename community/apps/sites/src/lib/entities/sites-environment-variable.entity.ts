@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 
-@Entity('sites_environment_variable')
+@Entity('plugin_sites_environment_variable')
 @Index(['tenantId', 'organizationId', 'assistantId', 'projectId'])
 @Index(['tenantId', 'organizationId', 'projectId', 'key'])
 export class SitesEnvironmentVariable {

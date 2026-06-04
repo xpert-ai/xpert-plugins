@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common'
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
-import { dirname, join } from 'path'
+import { dirname, extname, join } from 'path'
 import { fileURLToPath } from 'url'
 import {
   I18nObject,
@@ -25,9 +25,11 @@ import {
   XPERT_RUNTIME_CAPABILITIES_TOKEN
 } from '@xpert-ai/plugin-sdk'
 import {
+  ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
   AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
   SITES_FEATURE,
+  SITES_ICON,
   SITES_MIDDLEWARE_TOOL_NAMES,
   SITES_PLUGIN_NAME,
   SITES_PROVIDER_KEY,
@@ -35,34 +37,52 @@ import {
   SITES_VIEW_KEY,
   WORKBENCH_BROWSER_OPEN_CLIENT_COMMAND
 } from './constants.js'
-import { buildSitesDeploymentPreviewEvent, SitesService } from './sites.service.js'
-import type { SitesAccessMode, SitesScope, SitesSourceFile, SitesStorageShape } from './types.js'
+import { SitesService } from './sites.service.js'
+import { siteTemplateGalleryItems } from './sites.templates.js'
+import type { SitesAccessMode, SitesScope, SitesStorageShape } from './types.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const requireFromHere = createRequire(__filename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
-const VIEW_ICON = {
-  type: 'font',
-  value: 'ri-window-line'
+const SITES_VIEW_ICON = {
+  type: 'svg',
+  value: SITES_ICON,
+  alt: 'Sites'
 } satisfies IconDefinition
-const VIEW_ICON_MANIFEST_VALUE = VIEW_ICON as unknown as string
+const SITES_VIEW_ICON_MANIFEST_VALUE = SITES_VIEW_ICON as unknown as string
+const TEMPLATE_PREVIEW_IMAGE_FILES: Record<string, string[]> = {
+  onboardingHub: ['sites-onboarding-hub.png', 'onboarding-hub.jpg', 'onboarding-hub.jpeg', 'onboarding-hub.png', 'onboarding-hub.webp'],
+  enablementHub: ['sites-enablement-hub.png', 'enablement-hub.jpg', 'enablement-hub.jpeg', 'enablement-hub.png', 'enablement-hub.webp'],
+  pulseDashboard: ['sites-pulse-dashboard.png', 'pulse-dashboard.jpg', 'pulse-dashboard.jpeg', 'pulse-dashboard.png', 'pulse-dashboard.webp'],
+  sparkboard: ['sites-idea-intake.jpg', 'sparkboard.jpg', 'sparkboard.jpeg', 'sparkboard.png', 'sparkboard.webp'],
+  launchCal: ['sites-launch-cal.jpg', 'launch-cal.jpg', 'launch-cal.jpeg', 'launch-cal.png', 'launch-cal.webp'],
+  eventPlanningHub: ['sites-event-planning-hub.jpg', 'event-planning-hub.jpg', 'event-planning-hub.jpeg', 'event-planning-hub.png', 'event-planning-hub.webp']
+}
+const TEMPLATE_PREVIEW_IMAGE_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp'
+}
 
 const createSiteInputSchema = {
   type: 'object',
   properties: {
     name: { type: 'string', title: text('Name', '名称') },
+    sourcePath: { type: 'string', title: text('Source Path', '源码目录') },
     prompt: { type: 'string', title: text('Prompt', '提示词') },
     storageShape: { type: 'string', title: text('Storage', '存储形态') },
     accessMode: { type: 'string', title: text('Access', '访问权限') }
   },
-  required: ['name', 'prompt']
+  required: ['name', 'sourcePath']
 } satisfies JsonSchemaObjectType
 
 const saveVersionInputSchema = {
   type: 'object',
   properties: {
     projectId: { type: 'string', title: text('Project', '项目') },
+    sourcePath: { type: 'string', title: text('Source Path', '源码目录') },
     prompt: { type: 'string', title: text('Prompt', '提示词') },
     title: { type: 'string', title: text('Version Title', '版本标题') }
   }
@@ -120,9 +140,9 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
     return [
       {
         key: SITES_VIEW_KEY,
-        title: text('Sites', 'Sites 站点'),
+        title: text('Sites', '站点'),
         description: text('Create, save, deploy, and inspect hosted Sites projects.', '创建、保存、发布和查看托管站点项目。'),
-        icon: VIEW_ICON_MANIFEST_VALUE,
+        icon: SITES_VIEW_ICON_MANIFEST_VALUE,
         hostType: 'agent',
         slot,
         order: fixed ? 40 : 30,
@@ -136,9 +156,9 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
                 fixed: true,
                 menu: {
                   enabled: true,
-                  label: text('Sites', 'Sites'),
+                  label: text('Sites', '站点'),
                   order: 40,
-                  icon: VIEW_ICON_MANIFEST_VALUE
+                  icon: SITES_VIEW_ICON_MANIFEST_VALUE
                 }
               }
             }
@@ -202,6 +222,14 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
             description: text(
               'Open the generated Sites deployment in the Workbench browser tab.',
               '在 Workbench 浏览器标签页中打开生成的 Sites 发布页面。'
+            )
+          },
+          {
+            key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
+            label: text('Send Prompt to Assistant', '发送提示词给助手'),
+            description: text(
+              'Send a selected Sites template prompt to the current Assistant ChatKit.',
+              '将选中的 Sites 模板提示词发送给当前 Assistant ChatKit。'
             )
           }
         ],
@@ -287,13 +315,16 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
     const appScript = await readFile(join(__dirname, 'remote-components', SITES_REMOTE_ENTRY_KEY, 'app.js'), 'utf8')
     const react = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
+    const templatePreviews = await readTemplatePreviewImages()
+    const templatePreviewScript = `globalThis.__XPERT_SITES_TEMPLATE_PREVIEWS__ = ${JSON.stringify(templatePreviews)};\n`
+    const templatePromptScript = `globalThis.__XPERT_SITES_TEMPLATE_PROMPTS__ = ${JSON.stringify(siteTemplateGalleryItems)};\n`
     return {
       html: renderRemoteReactIframeHtml({
         title: 'Sites',
         lang: 'zh-Hans',
         reactUmd: react,
         reactDomUmd: reactDom,
-        appScript
+        appScript: `${templatePreviewScript}${templatePromptScript}${appScript}`
       }),
       contentType: 'text/html; charset=utf-8'
     }
@@ -331,33 +362,26 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
       }
       if (actionKey === 'create_site') {
         const input = request.input ?? {}
-        const data = await this.service.createAndDeploy(
+        const data = await this.service.createProject(
           {
             name: getStringInput(input, 'name') ?? 'Untitled Site',
-            prompt: getStringInput(input, 'prompt') ?? 'Create a concise internal site.',
+            prompt: getStringInput(input, 'prompt'),
             storageShape: getStringInput(input, 'storageShape') as SitesStorageShape,
-            accessMode: getStringInput(input, 'accessMode') as SitesAccessMode
+            audience: getStringInput(input, 'accessMode') as SitesAccessMode,
+            sourcePath: getStringInput(input, 'sourcePath')
           },
           scope
         )
-        const event = buildSitesDeploymentPreviewEvent(data)
         return {
-          ...success('Site created and deployed', '站点已创建并发布'),
-          data: event ? { ...data, event } : data
+          ...success('Site project created. Use the Sites assistant to save a version from its sandbox sourcePath.', '站点项目已创建。请通过 Sites 助手从沙箱源码目录保存版本。'),
+          data: { project: data, projectId: data.id }
         }
       }
       if (actionKey === 'save_version') {
-        const input = request.input ?? {}
-        const data = await this.service.saveVersion(
-          {
-            projectId: getStringInput(input, 'projectId') ?? getStringParameter(request.parameters, 'projectId') ?? request.targetId,
-            prompt: getStringInput(input, 'prompt'),
-            title: getStringInput(input, 'title'),
-            files: readFilesInput(input)
-          },
-          scope
+        return failure(
+          'Save versions from the Sites assistant after writing source files with SandboxFile tools.',
+          '请在 Sites 助手中使用 SandboxFile 工具写入源码后保存版本。'
         )
-        return { ...success('Version saved', '版本已保存'), data }
       }
       if (actionKey === 'deploy_version') {
         const input = request.input ?? {}
@@ -369,7 +393,7 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
           },
           scope
         )
-        const event = buildSitesDeploymentPreviewEvent({ deployment: data })
+        const event = await this.service.buildDeploymentPreviewEvent({ deployment: data })
         return { ...success('Version deployed', '版本已发布'), data: event ? { ...data, event } : data }
       }
       if (actionKey === 'change_access') {
@@ -456,11 +480,6 @@ function readStringArrayInput(input: Record<string, unknown> | null | undefined,
   return undefined
 }
 
-function readFilesInput(input: Record<string, unknown> | null | undefined): SitesSourceFile[] | undefined {
-  const value = input?.['files']
-  return Array.isArray(value) ? (value as SitesSourceFile[]) : undefined
-}
-
 function success(en_US: string, zh_Hans: string): XpertViewActionResult {
   return {
     success: true,
@@ -479,4 +498,26 @@ function failure(en_US: string, zh_Hans: string): XpertViewActionResult {
 function readPackageFile(packageName: string, relativePath: string) {
   const packageRoot = dirname(requireFromHere.resolve(`${packageName}/package.json`))
   return readFile(join(packageRoot, relativePath), 'utf8')
+}
+
+async function readTemplatePreviewImages() {
+  const baseDir = join(__dirname, 'remote-components', SITES_REMOTE_ENTRY_KEY, 'assets', 'templates')
+  const images: Record<string, string> = {}
+
+  for (const [key, fileNames] of Object.entries(TEMPLATE_PREVIEW_IMAGE_FILES)) {
+    for (const fileName of fileNames) {
+      try {
+        const buffer = await readFile(join(baseDir, fileName))
+        const mimeType = TEMPLATE_PREVIEW_IMAGE_MIME[extname(fileName).toLowerCase()]
+        if (mimeType) {
+          images[key] = `data:${mimeType};base64,${buffer.toString('base64')}`
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return images
 }

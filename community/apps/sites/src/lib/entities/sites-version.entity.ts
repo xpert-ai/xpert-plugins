@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { SitesSourceFile, SitesStorageShape, SitesVersionStatus } from '../types.js'
 
-@Entity('sites_version')
+@Entity('plugin_sites_version')
 @Index(['tenantId', 'organizationId', 'assistantId', 'projectId'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 export class SitesVersion {

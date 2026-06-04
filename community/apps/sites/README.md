@@ -24,4 +24,5 @@ Local deployments default to:
 http://localhost:3000/api/xpert-sites/<site-slug>
 ```
 
-Override with `XPERT_SITES_PUBLIC_BASE_URL` when the API is hosted elsewhere.
+In production, Sites derives this base from the xpert-pro backend `API_BASE_URL`
+environment variable and appends `/api/xpert-sites`.

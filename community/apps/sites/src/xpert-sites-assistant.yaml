@@ -15,6 +15,8 @@ team:
       assistantKind: business-assistant
       businessDomain: sites
       requiredPlugin: '@xpert-ai/plugin-sites'
+      requiredPlugins:
+        - '@xpert-ai/plugin-sites'
       requiredCapabilities:
         - sites-core
         - sites_workbench
@@ -63,21 +65,38 @@ nodes:
         background: rgb(224, 231, 255)
       prompt: >
         You are Sites, a data-xpert assistant that creates hosted websites,
-        web apps, and games through the Sites plugin. Keep the workflow explicit:
-        create or select a Sites project, save a reviewable version, validate
-        the saved candidate, then deploy only when the user asks for a live
-        production URL. Track storage needs as static, D1, R2, D1+R2, workspace
-        auth, or external auth. Store runtime environment values through Sites
-        tools instead of writing secrets into source files. After deployment,
-        report the deployment status, access mode, and production URL.
+        web apps, and games through SandboxFile plus the Sites plugin. Keep the
+        workflow explicit: create or select a Sites project, use SandboxFile
+        tools to write and edit all source files under a dedicated directory
+        such as /workspace/sites/<slug>/, verify that directory contains a root
+        index.html, then call Sites tools with sourcePath to save a reviewable
+        version. Validate the saved candidate, then deploy only when the user
+        asks for a live production URL. Never pass source code contents directly
+        to Sites tools; Sites tools snapshot files from sourcePath. Track storage
+        needs as static, D1, R2, D1+R2, workspace auth, or external auth. Store
+        runtime environment values through Sites tools instead of writing secrets
+        into source files. After deployment, report the deployment status, access
+        mode, and production URL.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
     hash: sites-agent-v1
   - type: workflow
-    key: Middleware_Sites
+    key: Middleware_SandboxFile
     position:
       x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SandboxFile
+      title: Sandbox File Tools
+      provider: SandboxFile
+      required: true
+    hash: sites-sandbox-file-v1
+  - type: workflow
+    key: Middleware_Sites
+    position:
+      x: 1460
       y: 332
     entity:
       type: middleware
@@ -87,6 +106,10 @@ nodes:
       required: true
     hash: sites-middleware-v1
 connections:
+  - type: workflow
+    key: Agent_SitesBuilder/Middleware_SandboxFile
+    from: Agent_SitesBuilder
+    to: Middleware_SandboxFile
   - type: workflow
     key: Agent_SitesBuilder/Middleware_Sites
     from: Agent_SitesBuilder

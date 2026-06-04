@@ -1,7 +1,12 @@
-import { createHash, randomUUID } from 'crypto'
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto'
+import { posix } from 'path'
+import { TextDecoder } from 'util'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
+import { PermissionsEnum, RolesEnum } from '@xpert-ai/contracts'
+import type { IUser } from '@xpert-ai/contracts'
+import { RequestContext } from '@xpert-ai/plugin-sdk'
 import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesVersion } from './entities/index.js'
 import { SITES_PLUGIN_NAME, WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE } from './constants.js'
 import type {
@@ -12,14 +17,60 @@ import type {
   SitesAccessMode,
   SitesEnvironmentValueInput,
   SitesHostingConfig,
+  SitesSandboxFileInfo,
   SitesScope,
   SitesSourceFile,
+  SitesSourceReadOptions,
   SitesStorageShape,
   WorkbenchBrowserPreviewEvent
 } from './types.js'
 
-const DEFAULT_PUBLIC_BASE_URL = 'http://localhost:3000/api/xpert-sites'
+const DEFAULT_BACKEND_BASE_URL = 'http://localhost:3000'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SITES_PREVIEW_TOKEN_AUDIENCE = 'sites-preview'
+const SITES_PREVIEW_TOKEN_PARAM = 'xpert_sites_preview'
+const SITES_PREVIEW_TOKEN_SUBJECT = 'sites-preview-url'
+const SITES_PREVIEW_TOKEN_TTL_MS = 60 * 60 * 1000
+const SITE_SOURCE_MAX_FILES = 100
+const SITE_SOURCE_MAX_FILE_BYTES = 512 * 1024
+const SITE_SOURCE_MAX_TOTAL_BYTES = 5 * 1024 * 1024
+const SITE_SOURCE_ALLOWED_EXTENSIONS = new Set([
+  '.html',
+  '.css',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.svg',
+  '.txt',
+  '.md',
+  '.webmanifest'
+])
+const SITE_SOURCE_EXCLUDED_SEGMENTS = new Set([
+  '.git',
+  '.cache',
+  '.next',
+  '.nuxt',
+  '.turbo',
+  '.vite',
+  'coverage',
+  'node_modules'
+])
+
+type SandboxSourceCandidate = {
+  absolutePath: string
+  relativePath: string
+  size?: number
+}
+
+type SitesPreviewTokenPayload = {
+  aud: typeof SITES_PREVIEW_TOKEN_AUDIENCE
+  deploymentId: string
+  exp: number
+  projectId: string
+  sub: typeof SITES_PREVIEW_TOKEN_SUBJECT
+  versionId: string
+}
 
 @Injectable()
 export class SitesService {
@@ -76,10 +127,11 @@ export class SitesService {
     }
   }
 
-  async saveVersion(input: SaveSitesVersionInput, scope: SitesScope) {
+  async saveVersion(input: SaveSitesVersionInput, scope: SitesScope, sourceOptions?: SitesSourceReadOptions) {
     const project = await this.resolveProjectForVersion(input, scope)
     const versionNumber = (await this.versionRepository.count({ where: this.scopedWhere(scope, { projectId: project.id }) })) + 1
-    const files = sanitizeSourceFiles(input.files?.length ? input.files : generateSiteFiles(project, input))
+    const source = await readSandboxSourceFiles(input.sourcePath ?? project.sourcePath, sourceOptions)
+    const files = sanitizeSourceFiles(source.files)
     const previewHtml = buildPreviewHtml(files, project, input)
     const artifactDigest = digest(JSON.stringify({ files, previewHtml }))
     const status = previewHtml.trim() ? 'saved' : 'build_failed'
@@ -107,6 +159,7 @@ export class SitesService {
 
     await this.projectRepository.save({
       ...project,
+      sourcePath: source.sourcePath,
       status: status === 'saved' ? 'version_saved' : project.status
     })
 
@@ -156,7 +209,11 @@ export class SitesService {
     return deployment
   }
 
-  async createAndDeploy(input: CreateSitesProjectInput & SaveSitesVersionInput & DeploySitesVersionInput, scope: SitesScope) {
+  async createAndDeploy(
+    input: CreateSitesProjectInput & SaveSitesVersionInput & DeploySitesVersionInput,
+    scope: SitesScope,
+    sourceOptions?: SitesSourceReadOptions
+  ) {
     const project =
       input.projectId || input.slug
         ? await this.resolveProjectForVersion(input, scope)
@@ -165,7 +222,7 @@ export class SitesService {
               name: input.name ?? input.title ?? 'Untitled Site',
               slug: input.slug,
               description: input.description,
-              audience: input.accessMode,
+              audience: input.accessMode ?? input.audience,
               customAudience: input.customAudience,
               storageShape: input.storageShape,
               d1Binding: input.d1Binding,
@@ -182,17 +239,18 @@ export class SitesService {
         prompt: input.prompt,
         title: input.title,
         description: input.description,
-        files: input.files,
+        sourcePath: input.sourcePath ?? project.sourcePath,
         sourceCommit: input.sourceCommit,
         storageShape: input.storageShape
       },
-      scope
+      scope,
+      sourceOptions
     )
     const deployment = await this.deployVersion(
       {
         projectId: project.id,
         versionId: version.id,
-        accessMode: input.accessMode,
+        accessMode: input.accessMode ?? input.audience,
         customAudience: input.customAudience
       },
       scope
@@ -218,7 +276,11 @@ export class SitesService {
       this.countByProject(scope, this.deploymentRepository)
     ])
 
-    return filtered.map((project) => serializeProject(project, versionCounts.get(project.id ?? '') ?? 0, deploymentCounts.get(project.id ?? '') ?? 0))
+    const serialized = filtered.map((project) =>
+      serializeProject(project, versionCounts.get(project.id ?? '') ?? 0, deploymentCounts.get(project.id ?? '') ?? 0)
+    )
+    await this.attachCurrentDeploymentPreviewUrls(serialized)
+    return serialized
   }
 
   async inspectProject(scope: SitesScope, projectId?: string) {
@@ -238,8 +300,11 @@ export class SitesService {
       })
     ])
 
+    const serializedProject = serializeProject(project, versions.length, deployments.length)
+    await this.attachCurrentDeploymentPreviewUrls([serializedProject])
+
     return {
-      project: serializeProject(project, versions.length, deployments.length),
+      project: serializedProject,
       versions: versions.map(serializeVersion),
       deployments: deployments.map(serializeDeployment),
       environmentValues: environmentValues.map(serializeEnvironmentValue)
@@ -327,38 +392,57 @@ export class SitesService {
     })
   }
 
-  async findDeploymentSite(deploymentIdOrSlug: string) {
-    const deployment = UUID_PATTERN.test(deploymentIdOrSlug)
-      ? await this.deploymentRepository.findOne({
-          where: { id: deploymentIdOrSlug }
-        })
-      : null
-    const projects = deployment
-      ? []
-      : await this.projectRepository.find({
-          where: { slug: deploymentIdOrSlug },
-          select: ['id']
-        })
-    const projectIds = projects.map((project) => project.id).filter((id): id is string => !!id)
-    const deploymentRecord =
-      deployment ??
-      (projectIds.length
-        ? await this.deploymentRepository.findOne({
-            where: { projectId: In(projectIds) },
-            order: { createdAt: 'DESC' }
-          })
-        : null)
-    if (!deploymentRecord) {
+  async findDeploymentSite(deploymentIdOrSlug: string, options: { previewToken?: string } = {}) {
+    const deploymentRecords = await this.findDeploymentCandidates(deploymentIdOrSlug)
+    if (!deploymentRecords.length) {
       throw new NotFoundException('Sites deployment was not found')
     }
-    const version = await this.versionRepository.findOne({ where: { id: deploymentRecord.versionId } })
-    if (!version?.previewHtml) {
-      throw new NotFoundException('Sites deployment artifact was not found')
+
+    const accessContext = resolveCurrentSitesAccessContext()
+    const previewToken = optionalString(options.previewToken)
+    for (const deploymentRecord of deploymentRecords) {
+      const [project, version] = await Promise.all([
+        this.projectRepository.findOne({ where: { id: deploymentRecord.projectId } }),
+        this.versionRepository.findOne({ where: { id: deploymentRecord.versionId } })
+      ])
+      if (!project || !version?.previewHtml) {
+        continue
+      }
+      if (!canAccessDeployment(project, deploymentRecord, accessContext) && !verifySitesPreviewToken(previewToken, project, version, deploymentRecord)) {
+        continue
+      }
+      return {
+        deployment: serializeDeployment(deploymentRecord),
+        html: version.previewHtml
+      }
     }
-    return {
-      deployment: serializeDeployment(deploymentRecord),
-      html: version.previewHtml
+
+    if (!accessContext.userId) {
+      throw new UnauthorizedException('Login is required to access this Sites deployment')
     }
+    throw new ForbiddenException('You do not have access to this Sites deployment')
+  }
+
+  private async findDeploymentCandidates(deploymentIdOrSlug: string) {
+    const normalized = normalizeRequiredString(deploymentIdOrSlug, 'deploymentIdOrSlug')
+    if (UUID_PATTERN.test(normalized)) {
+      const deployment = await this.deploymentRepository.findOne({ where: { id: normalized } })
+      return deployment ? [deployment] : []
+    }
+
+    const projects = await this.projectRepository.find({
+      where: { slug: normalized },
+      select: ['id']
+    })
+    const projectIds = projects.map((project) => project.id).filter((id): id is string => !!id)
+    if (!projectIds.length) {
+      return []
+    }
+
+    return this.deploymentRepository.find({
+      where: { projectId: In(projectIds) },
+      order: { createdAt: 'DESC' }
+    })
   }
 
   private async resolveProjectForVersion(input: SaveSitesVersionInput, scope: SitesScope) {
@@ -456,21 +540,250 @@ export class SitesService {
 
   private scopedWhere(scope: SitesScope, extra: Record<string, unknown> = {}) {
     return {
-      tenantId: scope.tenantId,
-      organizationId: scope.organizationId ?? undefined,
+      tenantId: normalizeRequiredString(scope.tenantId, 'tenantId'),
+      organizationId: normalizeRequiredString(scope.organizationId ?? undefined, 'organizationId'),
       assistantId: scope.assistantId,
       ...extra
     }
   }
 
+  async buildDeploymentPreviewEvent(input: { deployment: SitesDeployment; project?: SitesProject; version?: SitesVersion }) {
+    const deployment = input.deployment
+    if (!deployment) {
+      return null
+    }
+    const [project, version] = await Promise.all([
+      input.project ? Promise.resolve(input.project) : this.projectRepository.findOne({ where: { id: deployment.projectId } }),
+      input.version ? Promise.resolve(input.version) : this.versionRepository.findOne({ where: { id: deployment.versionId } })
+    ])
+
+    if (!project || !version) {
+      return buildSitesDeploymentPreviewEvent({ deployment })
+    }
+
+    const previewUrl = buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
+    return buildSitesDeploymentPreviewEvent({
+      project,
+      version,
+      deployment,
+      url: previewUrl,
+      displayUrl: deployment.deploymentUrl
+    })
+  }
+
+  private async attachCurrentDeploymentPreviewUrls(projects: SerializedSitesProject[]) {
+    const deploymentIds = projects.map((project) => optionalString(project.currentDeploymentId)).filter((id): id is string => !!id)
+    if (!deploymentIds.length) {
+      return
+    }
+
+    const deployments = await this.deploymentRepository.find({ where: { id: In(deploymentIds) } })
+    const deploymentsById = new Map(deployments.map((deployment) => [deployment.id, deployment]))
+    const versionIds = deployments.map((deployment) => optionalString(deployment.versionId)).filter((id): id is string => !!id)
+    const versions = versionIds.length ? await this.versionRepository.find({ where: { id: In(versionIds) } }) : []
+    const versionsById = new Map(versions.map((version) => [version.id, version]))
+
+    for (const project of projects) {
+      const deployment = project.currentDeploymentId ? deploymentsById.get(project.currentDeploymentId) : undefined
+      const version = deployment?.versionId ? versionsById.get(deployment.versionId) : undefined
+      if (deployment && version) {
+        project.currentDeploymentPreviewUrl = buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
+      }
+    }
+  }
+
   private scopeCreate(scope: SitesScope) {
     return {
-      tenantId: scope.tenantId,
-      organizationId: scope.organizationId ?? undefined,
+      tenantId: normalizeRequiredString(scope.tenantId, 'tenantId'),
+      organizationId: normalizeRequiredString(scope.organizationId ?? undefined, 'organizationId'),
       createdById: scope.userId ?? undefined,
       assistantId: scope.assistantId ?? undefined,
       conversationId: scope.conversationId ?? undefined
     }
+  }
+}
+
+type SitesAccessContext = {
+  user: IUser | null
+  userId: string | null
+  tenantId: string | null
+  organizationId: string | null
+  organizationIds: Set<string>
+  audienceKeys: Set<string>
+  canCrossOrganizations: boolean
+  isAdmin: boolean
+}
+
+function resolveCurrentSitesAccessContext(): SitesAccessContext {
+  const user = RequestContext.currentUser() ?? null
+  const userId = optionalString(RequestContext.currentUserId()) ?? optionalString(user?.id) ?? null
+  const tenantId = optionalString(RequestContext.currentTenantId()) ?? optionalString(user?.tenantId) ?? null
+  const organizationId = optionalString(RequestContext.getOrganizationId()) ?? null
+  const organizationIds = collectOrganizationIds(user, organizationId)
+  const audienceKeys = collectAudienceKeys(user, organizationIds)
+  const canCrossOrganizations =
+    safeHasRoles([RolesEnum.SUPER_ADMIN]) ||
+    safeHasAnyPermission([PermissionsEnum.SUPER_ADMIN_EDIT, PermissionsEnum.ALL_ORG_VIEW, PermissionsEnum.ALL_ORG_EDIT])
+  const isAdmin =
+    canCrossOrganizations ||
+    safeHasRoles([RolesEnum.ADMIN]) ||
+    safeHasAnyPermission([
+      PermissionsEnum.ORG_USERS_VIEW,
+      PermissionsEnum.ORG_USERS_EDIT
+    ])
+
+  return {
+    user,
+    userId,
+    tenantId,
+    organizationId,
+    organizationIds,
+    audienceKeys,
+    canCrossOrganizations,
+    isAdmin
+  }
+}
+
+function canAccessDeployment(project: SitesProject, deployment: SitesDeployment, context: SitesAccessContext) {
+  if (!context.userId) {
+    return false
+  }
+
+  const sameTenant = belongsToSameTenant(project, deployment, context)
+  if (!sameTenant) {
+    return false
+  }
+
+  const sameOrganization = belongsToSameOrganization(project, deployment, context)
+  const owner = isDeploymentOwner(project, deployment, context)
+  const admin = context.isAdmin && sameOrganization
+  const accessMode = deployment.accessMode ?? project.audience ?? 'admins_only'
+
+  if (accessMode === 'workspace_all') {
+    return sameOrganization
+  }
+
+  if (accessMode === 'custom') {
+    return owner || admin || (sameOrganization && matchesCustomAudience(project, deployment, context))
+  }
+
+  return owner || admin
+}
+
+function belongsToSameTenant(project: SitesProject, deployment: SitesDeployment, context: SitesAccessContext) {
+  const tenantId = optionalString(deployment.tenantId) ?? optionalString(project.tenantId)
+  return !tenantId || context.tenantId === tenantId
+}
+
+function belongsToSameOrganization(project: SitesProject, deployment: SitesDeployment, context: SitesAccessContext) {
+  const organizationId = optionalString(deployment.organizationId) ?? optionalString(project.organizationId)
+  if (!organizationId) {
+    return true
+  }
+  return context.organizationId === organizationId || context.organizationIds.has(organizationId) || context.canCrossOrganizations
+}
+
+function isDeploymentOwner(project: SitesProject, deployment: SitesDeployment, context: SitesAccessContext) {
+  return !!context.userId && [project.createdById, deployment.createdById].some((value) => optionalString(value) === context.userId)
+}
+
+function matchesCustomAudience(project: SitesProject, deployment: SitesDeployment, context: SitesAccessContext) {
+  const audience = [...(project.customAudience ?? []), ...(deployment.customAudience ?? [])]
+  if (!audience.length) {
+    return false
+  }
+  return audience.some((item) => context.audienceKeys.has(normalizeAudienceKey(item)))
+}
+
+function collectOrganizationIds(user: IUser | null, currentOrganizationId: string | null) {
+  const organizationIds = new Set<string>()
+  if (currentOrganizationId) {
+    organizationIds.add(currentOrganizationId)
+  }
+
+  const organizations = Array.isArray(user?.organizations) ? user.organizations : []
+  for (const membership of organizations) {
+    if (membership && membership.isActive !== false && membership.organizationId) {
+      organizationIds.add(membership.organizationId)
+    }
+  }
+  return organizationIds
+}
+
+function collectAudienceKeys(user: IUser | null, organizationIds: Set<string>) {
+  const keys = new Set<string>()
+  addAudienceKey(keys, user?.id)
+  addAudienceKey(keys, user?.email)
+  addAudienceKey(keys, user?.username)
+  addAudienceKey(keys, user?.employeeId)
+  addAudienceKey(keys, user?.roleId)
+
+  if (user?.id) addAudienceKey(keys, `user:${user.id}`)
+  if (user?.email) addAudienceKey(keys, `email:${user.email}`)
+  if (user?.username) addAudienceKey(keys, `username:${user.username}`)
+  if (user?.employeeId) addAudienceKey(keys, `employee:${user.employeeId}`)
+  if (user?.roleId) addAudienceKey(keys, `role:${user.roleId}`)
+  if (user?.role?.name) {
+    addAudienceKey(keys, user.role.name)
+    addAudienceKey(keys, `role:${user.role.name}`)
+  }
+
+  for (const organizationId of organizationIds) {
+    addAudienceKey(keys, organizationId)
+    addAudienceKey(keys, `org:${organizationId}`)
+    addAudienceKey(keys, `organization:${organizationId}`)
+  }
+
+  for (const group of readUserGroups(user)) {
+    if (typeof group === 'string') {
+      addAudienceKey(keys, group)
+      addAudienceKey(keys, `group:${group}`)
+      continue
+    }
+    if (group && typeof group === 'object') {
+      const record = group as Record<string, unknown>
+      const id = optionalString(record['id']) ?? optionalString(record['groupId']) ?? optionalString(record['userGroupId'])
+      const name = optionalString(record['name'])
+      addAudienceKey(keys, id)
+      addAudienceKey(keys, name)
+      if (id) addAudienceKey(keys, `group:${id}`)
+      if (name) addAudienceKey(keys, `group:${name}`)
+    }
+  }
+
+  return keys
+}
+
+function readUserGroups(user: IUser | null): unknown[] {
+  const record = user as Record<string, unknown> | null
+  const values = [record?.['groups'], record?.['userGroups'], record?.['groupIds'], record?.['userGroupIds']]
+  return values.flatMap((value) => (Array.isArray(value) ? value : []))
+}
+
+function addAudienceKey(keys: Set<string>, value: unknown) {
+  const key = normalizeAudienceKey(value)
+  if (key) {
+    keys.add(key)
+  }
+}
+
+function normalizeAudienceKey(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : ''
+}
+
+function safeHasRoles(roles: RolesEnum[]) {
+  try {
+    return RequestContext.hasRoles(roles)
+  } catch {
+    return false
+  }
+}
+
+function safeHasAnyPermission(permissions: PermissionsEnum[]) {
+  try {
+    return RequestContext.hasAnyPermission(permissions)
+  } catch {
+    return false
   }
 }
 
@@ -526,7 +839,7 @@ export function buildSitesDeploymentPreviewEvent(
     type: WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE,
     source: SITES_PLUGIN_NAME,
     url,
-    displayUrl: url,
+    displayUrl: optionalString(input.displayUrl) ?? url,
     ...(projectId ? { projectId } : {}),
     ...(versionId ? { versionId } : {}),
     ...(deploymentId ? { deploymentId } : {}),
@@ -537,8 +850,126 @@ export function buildSitesDeploymentPreviewEvent(
   }
 }
 
+function createSitesPreviewToken(
+  project: Pick<SitesProject, 'id'> | Pick<SerializedSitesProject, 'id'>,
+  version: Pick<SitesVersion, 'artifactDigest' | 'id'>,
+  deployment: Pick<SitesDeployment, 'id' | 'projectId' | 'versionId'>
+) {
+  const payload: SitesPreviewTokenPayload = {
+    aud: SITES_PREVIEW_TOKEN_AUDIENCE,
+    deploymentId: normalizeRequiredString(deployment.id, 'deploymentId'),
+    exp: Math.floor((Date.now() + SITES_PREVIEW_TOKEN_TTL_MS) / 1000),
+    projectId: normalizeRequiredString(project.id, 'projectId'),
+    sub: SITES_PREVIEW_TOKEN_SUBJECT,
+    versionId: normalizeRequiredString(version.id, 'versionId')
+  }
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload))
+  return `${encodedPayload}.${signSitesPreviewTokenPayload(encodedPayload, version)}`
+}
+
+function verifySitesPreviewToken(
+  token: string | undefined,
+  project: Pick<SitesProject, 'id'>,
+  version: Pick<SitesVersion, 'artifactDigest' | 'id'>,
+  deployment: Pick<SitesDeployment, 'id' | 'projectId' | 'versionId'>
+) {
+  const normalizedToken = optionalString(token)
+  if (!normalizedToken) {
+    return false
+  }
+
+  const [encodedPayload, signature, ...extra] = normalizedToken.split('.')
+  if (!encodedPayload || !signature || extra.length) {
+    return false
+  }
+
+  if (!safeEqualString(signature, signSitesPreviewTokenPayload(encodedPayload, version))) {
+    return false
+  }
+
+  const payload = decodeSitesPreviewTokenPayload(encodedPayload)
+  if (!payload) {
+    return false
+  }
+
+  return (
+    payload.aud === SITES_PREVIEW_TOKEN_AUDIENCE &&
+    payload.sub === SITES_PREVIEW_TOKEN_SUBJECT &&
+    payload.projectId === project.id &&
+    payload.versionId === version.id &&
+    payload.deploymentId === deployment.id &&
+    payload.exp > Math.floor(Date.now() / 1000)
+  )
+}
+
+function buildSitesPreviewUrl(deploymentUrl: string | undefined, token: string) {
+  const url = new URL(normalizeRequiredString(deploymentUrl, 'deploymentUrl'))
+  const marker = '/xpert-sites/'
+  if (!url.pathname.includes('/xpert-sites/preview/')) {
+    const markerIndex = url.pathname.indexOf(marker)
+    if (markerIndex >= 0) {
+      url.pathname = `${url.pathname.slice(0, markerIndex + marker.length)}preview/${url.pathname.slice(markerIndex + marker.length)}`
+    }
+  }
+  url.searchParams.set(SITES_PREVIEW_TOKEN_PARAM, token)
+  return url.toString()
+}
+
+function signSitesPreviewTokenPayload(encodedPayload: string, version: Pick<SitesVersion, 'artifactDigest'>) {
+  return createHmac('sha256', getSitesPreviewTokenSecret(version)).update(encodedPayload).digest('base64url')
+}
+
+function getSitesPreviewTokenSecret(version: Pick<SitesVersion, 'artifactDigest'>) {
+  return (
+    optionalString(process.env['XPERT_SITES_PREVIEW_TOKEN_SECRET']) ??
+    optionalString(process.env['JWT_SECRET']) ??
+    optionalString(process.env['EXPRESS_SESSION_SECRET']) ??
+    normalizeRequiredString(version.artifactDigest, 'artifactDigest')
+  )
+}
+
+function decodeSitesPreviewTokenPayload(encodedPayload: string): SitesPreviewTokenPayload | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as SitesPreviewTokenPayload
+    if (
+      parsed &&
+      parsed.aud === SITES_PREVIEW_TOKEN_AUDIENCE &&
+      parsed.sub === SITES_PREVIEW_TOKEN_SUBJECT &&
+      typeof parsed.deploymentId === 'string' &&
+      typeof parsed.projectId === 'string' &&
+      typeof parsed.versionId === 'string' &&
+      typeof parsed.exp === 'number'
+    ) {
+      return parsed
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function base64UrlEncode(value: string) {
+  return Buffer.from(value, 'utf8').toString('base64url')
+}
+
+function safeEqualString(left: string, right: string) {
+  const leftBuffer = Buffer.from(left)
+  const rightBuffer = Buffer.from(right)
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
+}
+
 function getPublicBaseUrl() {
-  return (process.env['XPERT_SITES_PUBLIC_BASE_URL'] ?? DEFAULT_PUBLIC_BASE_URL).replace(/\/+$/, '')
+  return buildSitesPublicBaseUrl(process.env['API_BASE_URL'] ?? DEFAULT_BACKEND_BASE_URL)
+}
+
+function buildSitesPublicBaseUrl(backendBaseUrl: string) {
+  const raw = normalizeRequiredString(backendBaseUrl, 'API_BASE_URL')
+  const parsed = new URL(raw.startsWith('//') ? `http:${raw}` : raw)
+  const pathname = parsed.pathname.replace(/\/+$/, '')
+  parsed.pathname = `${pathname.endsWith('/api') ? pathname.slice(0, -4) : pathname}/api/xpert-sites`
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.toString().replace(/\/+$/, '')
 }
 
 function normalizeRequiredString(value: string | undefined, field: string) {
@@ -607,10 +1038,211 @@ function buildHostingConfig(input: {
   }
 }
 
+async function readSandboxSourceFiles(sourcePathInput: string | undefined, sourceOptions?: SitesSourceReadOptions) {
+  const backend = sourceOptions?.sandboxBackend
+  if (!backend) {
+    throw new BadRequestException(
+      'Sandbox backend is required to save a Sites version. Create source files with SandboxFile tools, then call Sites with sourcePath.'
+    )
+  }
+
+  const workingDirectory = sourceOptions?.workingDirectory ?? backend.workingDirectory
+  const sourcePath = resolveSandboxSourcePath(sourcePathInput, workingDirectory)
+  const entries = await Promise.resolve(backend.globInfo('**/*', sourcePath))
+  const files = selectSandboxSourceFiles(entries, sourcePath, workingDirectory)
+  const downloads = await Promise.resolve(backend.downloadFiles(files.map((file) => file.absolutePath)))
+  const downloadsByPath = new Map(downloads.map((download) => [normalizeSandboxPath(download.path), download]))
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let totalBytes = 0
+
+  const sourceFiles = files.map((file) => {
+    const download = downloadsByPath.get(normalizeSandboxPath(file.absolutePath))
+    if (!download || download.error || download.content == null) {
+      throw new BadRequestException(`Unable to read Sites source file "${file.relativePath}": ${download?.error ?? 'missing_content'}`)
+    }
+    const content = decodeSourceContent(download.content, decoder, file.relativePath)
+    const size = Buffer.byteLength(content, 'utf8')
+    if (size > SITE_SOURCE_MAX_FILE_BYTES) {
+      throw new BadRequestException(`Sites source file "${file.relativePath}" exceeds the ${SITE_SOURCE_MAX_FILE_BYTES} byte limit`)
+    }
+    totalBytes += size
+    if (totalBytes > SITE_SOURCE_MAX_TOTAL_BYTES) {
+      throw new BadRequestException(`Sites source directory exceeds the ${SITE_SOURCE_MAX_TOTAL_BYTES} byte total limit`)
+    }
+    return {
+      path: file.relativePath,
+      content,
+      language: inferSourceLanguage(file.relativePath),
+      role: inferSourceRole(file.relativePath)
+    } satisfies SitesSourceFile
+  })
+
+  return {
+    sourcePath,
+    files: sourceFiles
+  }
+}
+
+function selectSandboxSourceFiles(entries: SitesSandboxFileInfo[], sourcePath: string, workingDirectory?: string) {
+  const selected = entries
+    .filter((entry) => !entry.is_dir)
+    .map((entry): SandboxSourceCandidate | undefined => resolveSandboxSourceCandidate(entry, sourcePath, workingDirectory))
+    .filter((entry): entry is SandboxSourceCandidate => Boolean(entry))
+    .filter((entry) => isSupportedSourceFile(entry.relativePath))
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+
+  if (!selected.length) {
+    throw new BadRequestException(
+      'Sites sourcePath does not contain supported static source files. Create a root index.html plus optional .css, .js, .mjs, .json, .svg, .txt, .md, or .webmanifest files under sourcePath.'
+    )
+  }
+  if (selected.length > SITE_SOURCE_MAX_FILES) {
+    throw new BadRequestException(`Sites sourcePath contains ${selected.length} supported files; the limit is ${SITE_SOURCE_MAX_FILES}`)
+  }
+  const oversized = selected.find((entry) => typeof entry.size === 'number' && entry.size > SITE_SOURCE_MAX_FILE_BYTES)
+  if (oversized) {
+    throw new BadRequestException(`Sites source file "${oversized.relativePath}" exceeds the ${SITE_SOURCE_MAX_FILE_BYTES} byte limit`)
+  }
+  if (!selected.some((entry) => entry.relativePath === 'index.html')) {
+    throw new BadRequestException('Sites sourcePath must contain a root index.html file')
+  }
+  return selected
+}
+
+function resolveSandboxSourceCandidate(
+  entry: SitesSandboxFileInfo,
+  sourcePath: string,
+  workingDirectory?: string
+): SandboxSourceCandidate | undefined {
+  const normalizedPath = normalizeSandboxPath(entry.path)
+  let absolutePath: string
+  let relativePath: string | undefined
+
+  if (posix.isAbsolute(normalizedPath)) {
+    absolutePath = normalizedPath
+    relativePath = relativeSandboxPath(absolutePath, sourcePath)
+  } else {
+    const workingRoot = optionalString(workingDirectory)
+    if (workingRoot) {
+      const resolvedFromWorkingRoot = posix.resolve(normalizeSandboxPath(workingRoot), normalizedPath)
+      const relativeFromWorkingRoot = relativeSandboxPath(resolvedFromWorkingRoot, sourcePath)
+      if (relativeFromWorkingRoot) {
+        absolutePath = resolvedFromWorkingRoot
+        relativePath = relativeFromWorkingRoot
+        return typeof entry.size === 'number' ? { absolutePath, relativePath, size: entry.size } : { absolutePath, relativePath }
+      }
+    }
+    try {
+      relativePath = normalizeArtifactPath(normalizedPath)
+      absolutePath = posix.join(sourcePath, relativePath)
+    } catch {
+      return undefined
+    }
+  }
+
+  if (!relativePath) {
+    return undefined
+  }
+
+  return typeof entry.size === 'number' ? { absolutePath, relativePath, size: entry.size } : { absolutePath, relativePath }
+}
+
+function resolveSandboxSourcePath(sourcePathInput: string | undefined, workingDirectory?: string) {
+  const sourcePath = optionalString(sourcePathInput)
+  if (!sourcePath) {
+    throw new BadRequestException('sourcePath is required to save a Sites version')
+  }
+
+  const normalizedSourcePath = normalizeSandboxPath(sourcePath)
+  if (posix.isAbsolute(normalizedSourcePath)) {
+    return posix.normalize(normalizedSourcePath)
+  }
+
+  const normalizedWorkingDirectory = optionalString(workingDirectory)
+  if (!normalizedWorkingDirectory) {
+    throw new BadRequestException('Relative sourcePath requires a sandbox working directory')
+  }
+  const workingRoot = posix.normalize(normalizeSandboxPath(normalizedWorkingDirectory))
+  const resolved = posix.resolve(workingRoot, normalizedSourcePath)
+  const relativeToWorkingRoot = posix.relative(workingRoot, resolved)
+  if (relativeToWorkingRoot === '..' || relativeToWorkingRoot.startsWith('../')) {
+    throw new BadRequestException('sourcePath must stay inside the sandbox working directory')
+  }
+  return resolved
+}
+
+function relativeSandboxPath(filePath: string, sourcePath: string) {
+  const relativePath = posix.relative(normalizeSandboxPath(sourcePath), normalizeSandboxPath(filePath))
+  if (!relativePath || relativePath === '.' || relativePath === '..' || relativePath.startsWith('../')) {
+    return undefined
+  }
+  return normalizeArtifactPath(relativePath)
+}
+
+function normalizeSandboxPath(value: string) {
+  return posix.normalize(value.replace(/\\/g, '/'))
+}
+
+function normalizeArtifactPath(value: string) {
+  const normalized = posix.normalize(value.replace(/\\/g, '/').replace(/^\.\/+/, ''))
+  if (!normalized || normalized === '.' || posix.isAbsolute(normalized) || normalized === '..' || normalized.startsWith('../')) {
+    throw new BadRequestException(`Invalid Sites source file path "${value}"`)
+  }
+  return normalized
+}
+
+function isSupportedSourceFile(relativePath: string) {
+  const segments = relativePath.split('/')
+  if (segments.some((segment) => SITE_SOURCE_EXCLUDED_SEGMENTS.has(segment))) {
+    return false
+  }
+  return SITE_SOURCE_ALLOWED_EXTENSIONS.has(posix.extname(relativePath).toLowerCase())
+}
+
+function decodeSourceContent(content: Uint8Array | ArrayBuffer | string, decoder: TextDecoder, relativePath: string) {
+  if (typeof content === 'string') {
+    assertTextSource(content, relativePath)
+    return content
+  }
+  try {
+    const text = decoder.decode(content instanceof Uint8Array ? content : new Uint8Array(content))
+    assertTextSource(text, relativePath)
+    return text
+  } catch {
+    throw new BadRequestException(`Sites source file "${relativePath}" must be valid UTF-8 text`)
+  }
+}
+
+function assertTextSource(content: string, relativePath: string) {
+  if (content.includes('\u0000')) {
+    throw new BadRequestException(`Sites source file "${relativePath}" appears to be binary; only text static assets are supported`)
+  }
+}
+
+function inferSourceLanguage(path: string) {
+  const extension = posix.extname(path).toLowerCase()
+  if (extension === '.html') return 'html'
+  if (extension === '.css') return 'css'
+  if (extension === '.js' || extension === '.mjs' || extension === '.cjs') return 'javascript'
+  if (extension === '.json' || extension === '.webmanifest') return 'json'
+  if (extension === '.svg') return 'svg'
+  if (extension === '.md') return 'markdown'
+  return 'text'
+}
+
+function inferSourceRole(path: string): SitesSourceFile['role'] {
+  const extension = posix.extname(path).toLowerCase()
+  if (path === 'index.html') return 'entry'
+  if (extension === '.css') return 'style'
+  if (extension === '.js' || extension === '.mjs' || extension === '.cjs') return 'script'
+  if (extension === '.json' || extension === '.webmanifest') return 'config'
+  return 'asset'
+}
+
 function sanitizeSourceFiles(files: SitesSourceFile[]) {
   const normalized = files
     .map((file) => ({
-      path: optionalString(file.path) ?? 'index.html',
+      path: normalizeArtifactPath(optionalString(file.path) ?? 'index.html'),
       content: typeof file.content === 'string' ? file.content : '',
       language: optionalString(file.language),
       role: file.role
@@ -619,127 +1251,28 @@ function sanitizeSourceFiles(files: SitesSourceFile[]) {
   if (!normalized.length) {
     throw new BadRequestException('At least one source file with content is required')
   }
+  if (!normalized.some((file) => file.path === 'index.html')) {
+    throw new BadRequestException('Sites sourcePath must contain a root index.html file')
+  }
   return normalized
 }
 
-function generateSiteFiles(project: SitesProject, input: SaveSitesVersionInput): SitesSourceFile[] {
-  const title = escapeHtml(input.title ?? project.name ?? 'Untitled Site')
-  const prompt = input.prompt?.trim() || project.description || 'A focused internal site created by the Sites plugin.'
-  const theme = pickTheme(prompt)
-  const cards = extractCards(prompt)
-  const statePanel = project.storageShape && project.storageShape !== 'static'
-  const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <main class="site-shell">
-      <section class="hero">
-        <p class="eyebrow">${escapeHtml(storageShapeLabel(project.storageShape))}</p>
-        <h1>${title}</h1>
-        <p class="lead">${escapeHtml(prompt.slice(0, 260))}</p>
-        <div class="hero-actions">
-          <a href="#workspace" class="button primary">Open workspace</a>
-          <a href="#status" class="button secondary">Deployment status</a>
-        </div>
-      </section>
-      <section id="workspace" class="workspace">
-        ${cards
-          .map(
-            (card, index) => `<article class="panel">
-          <span class="panel-index">${String(index + 1).padStart(2, '0')}</span>
-          <h2>${escapeHtml(card.title)}</h2>
-          <p>${escapeHtml(card.body)}</p>
-        </article>`
-          )
-          .join('\n        ')}
-      </section>
-      <section id="status" class="status">
-        <div>
-          <p class="eyebrow">Production deployment</p>
-          <h2>${escapeHtml(project.name ?? 'Site')} is live</h2>
-          <p>This version was saved first, then deployed from the approved artifact.</p>
-        </div>
-        ${
-          statePanel
-            ? `<div class="state-box">
-          <strong>Storage bindings</strong>
-          <span>D1: ${escapeHtml(project.hostingConfig?.d1 ?? 'not requested')}</span>
-          <span>R2: ${escapeHtml(project.hostingConfig?.r2 ?? 'not requested')}</span>
-        </div>`
-            : ''
-        }
-      </section>
-    </main>
-    <script src="./app.js"></script>
-  </body>
-</html>`
-  const css = `:root {
-  color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: ${theme.background};
-  color: #172026;
-}
-* { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; }
-.site-shell { min-height: 100vh; }
-.hero {
-  min-height: 68vh;
-  display: grid;
-  align-content: center;
-  gap: 22px;
-  padding: clamp(32px, 6vw, 88px);
-  background:
-    linear-gradient(115deg, rgba(255,255,255,.92), rgba(255,255,255,.58)),
-    linear-gradient(135deg, ${theme.primary}, ${theme.secondary});
-}
-.eyebrow { margin: 0; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 700; color: ${theme.accent}; }
-h1 { max-width: 980px; margin: 0; font-size: clamp(42px, 8vw, 96px); line-height: .95; letter-spacing: 0; }
-.lead { max-width: 760px; margin: 0; font-size: clamp(18px, 2.3vw, 25px); line-height: 1.45; color: #31424f; }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-.button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; border-radius: 8px; text-decoration: none; font-weight: 700; }
-.button.primary { color: white; background: #172026; }
-.button.secondary { color: #172026; border: 1px solid rgba(23,32,38,.24); background: rgba(255,255,255,.62); }
-.workspace { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: #d9e1e7; padding: 1px; }
-.panel { min-height: 240px; display: grid; align-content: start; gap: 18px; padding: 28px; background: #ffffff; }
-.panel-index { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: ${theme.primary}; color: #102027; font-weight: 800; }
-.panel h2, .status h2 { margin: 0; font-size: clamp(24px, 3vw, 36px); letter-spacing: 0; }
-.panel p, .status p { margin: 0; color: #51616d; line-height: 1.6; }
-.status { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 360px); gap: 24px; align-items: center; padding: clamp(32px, 6vw, 76px); background: #f7fafc; }
-.state-box { display: grid; gap: 10px; padding: 22px; border: 1px solid #d6e0e8; border-radius: 8px; background: white; }
-@media (max-width: 720px) {
-  .status { grid-template-columns: 1fr; }
-  .hero { min-height: 72vh; }
-}`
-  const js = `document.querySelectorAll('a[href^="#"]').forEach((link) => {
-  link.addEventListener('click', (event) => {
-    const target = document.querySelector(link.getAttribute('href'))
-    if (!target) return
-    event.preventDefault()
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-})`
-  return [
-    { path: 'index.html', content: html, language: 'html', role: 'entry' },
-    { path: 'styles.css', content: css, language: 'css', role: 'style' },
-    { path: 'app.js', content: js, language: 'javascript', role: 'script' }
-  ]
-}
-
 function buildPreviewHtml(files: SitesSourceFile[], project: SitesProject, input: SaveSitesVersionInput) {
-  const index = files.find((file) => file.path.endsWith('index.html')) ?? files[0]
+  const index = files.find((file) => file.path === 'index.html') ?? files[0]
   let html = index.content
   const cssFiles = files.filter((file) => file.path.endsWith('.css'))
-  const jsFiles = files.filter((file) => file.path.endsWith('.js'))
+  const jsFiles = files.filter((file) => ['.js', '.mjs', '.cjs'].some((extension) => file.path.endsWith(extension)))
   for (const file of cssFiles) {
-    html = html.replace(new RegExp(`<link[^>]+href=["']\\./?${escapeRegExp(file.path)}["'][^>]*>`, 'g'), `<style>\n${file.content}\n</style>`)
+    html = html.replace(
+      new RegExp(`<link\\b(?=[^>]*\\bhref=["']${staticFileReferencePattern(file.path)}["'])[^>]*>`, 'g'),
+      `<style>\n${file.content}\n</style>`
+    )
   }
   for (const file of jsFiles) {
-    html = html.replace(new RegExp(`<script[^>]+src=["']\\./?${escapeRegExp(file.path)}["'][^>]*>\\s*</script>`, 'g'), `<script>\n${file.content}\n</script>`)
+    html = html.replace(
+      new RegExp(`<script\\b(?=[^>]*\\bsrc=["']${staticFileReferencePattern(file.path)}["'])[^>]*>\\s*</script>`, 'g'),
+      `<script>\n${file.content}\n</script>`
+    )
   }
   if (!html.includes('</body>')) {
     html += `\n<!-- ${escapeHtml(input.prompt ?? project.name ?? 'Sites deployment')} -->`
@@ -747,43 +1280,8 @@ function buildPreviewHtml(files: SitesSourceFile[], project: SitesProject, input
   return html
 }
 
-function pickTheme(prompt: string) {
-  const lower = prompt.toLowerCase()
-  if (lower.includes('game') || lower.includes('score')) {
-    return { primary: '#a7f3d0', secondary: '#fef08a', accent: '#047857', background: '#f8fafc' }
-  }
-  if (lower.includes('dashboard') || lower.includes('operations')) {
-    return { primary: '#bfdbfe', secondary: '#d9f99d', accent: '#1d4ed8', background: '#f8fafc' }
-  }
-  if (lower.includes('portfolio') || lower.includes('showcase')) {
-    return { primary: '#fde68a', secondary: '#bae6fd', accent: '#b45309', background: '#fffdf5' }
-  }
-  return { primary: '#c7d2fe', secondary: '#bbf7d0', accent: '#4338ca', background: '#f8fafc' }
-}
-
-function extractCards(prompt: string) {
-  const sentences = prompt
-    .split(/[.;\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-  const fallback = [
-    'Create and review a saved version before publishing.',
-    'Track the intended audience and access mode for each deployment.',
-    'Keep runtime values outside the source artifact.'
-  ]
-  return (sentences.length ? sentences : fallback).slice(0, 4).map((sentence, index) => ({
-    title: ['Experience', 'Workflow', 'Data', 'Launch'][index] ?? `Part ${index + 1}`,
-    body: sentence
-  }))
-}
-
-function storageShapeLabel(shape: SitesStorageShape | undefined) {
-  if (shape === 'd1') return 'D1 durable data'
-  if (shape === 'r2') return 'R2 file storage'
-  if (shape === 'd1_r2') return 'D1 and R2 storage'
-  if (shape === 'workspace_auth') return 'Workspace authenticated'
-  if (shape === 'external_auth') return 'Authentication enabled'
-  return 'Static site'
+function staticFileReferencePattern(path: string) {
+  return `(?:\\./|/)?${escapeRegExp(path)}(?:[?#][^"']*)?`
 }
 
 function serializeProject(project: SitesProject, versionCount = 0, deploymentCount = 0): SerializedSitesProject {
@@ -796,6 +1294,7 @@ function serializeProject(project: SitesProject, versionCount = 0, deploymentCou
     audience: project.audience,
     customAudience: project.customAudience,
     storageShape: project.storageShape,
+    sourcePath: project.sourcePath,
     hostingConfig: project.hostingConfig,
     currentDeploymentId: project.currentDeploymentId,
     currentDeploymentUrl: project.currentDeploymentUrl,

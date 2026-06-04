@@ -4,6 +4,10 @@
   const BROWSER_PREVIEW_EVENT_TYPE = 'workbench.browser.preview'
   const SITES_PLUGIN_NAME = '@xpert-ai/plugin-sites'
   const WORKBENCH_BROWSER_OPEN_CLIENT_COMMAND = 'workbench.browser.open'
+  const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
+  const SITE_TEMPLATE_KEYS = ['onboardingHub', 'enablementHub', 'pulseDashboard', 'sparkboard', 'launchCal', 'eventPlanningHub']
+  const TEMPLATE_PREVIEW_IMAGES = globalThis.__XPERT_SITES_TEMPLATE_PREVIEWS__ || {}
+  const TEMPLATE_PROMPTS = Array.isArray(globalThis.__XPERT_SITES_TEMPLATE_PROMPTS__) ? globalThis.__XPERT_SITES_TEMPLATE_PROMPTS__ : []
   const h = React.createElement
   let instanceId = null
   let requestSequence = 0
@@ -22,6 +26,51 @@
       site: 'Site',
       sharedWith: 'Shared with',
       settings: 'Settings',
+      templates: {
+        title: 'Templates',
+        subtitle: 'Pull up ready-made site patterns',
+        expand: 'Show templates',
+        collapse: 'Hide templates',
+        prompt: 'Prompt',
+        builtWith: 'Built with',
+        model: 'Model',
+        techStack: 'Tech stack',
+        useCase: 'Use case',
+        type: 'Type',
+        copyPrompt: 'Copy prompt',
+        copied: 'Prompt copied',
+        try: 'Try',
+        trying: 'Sending...',
+        sent: 'Prompt sent to Assistant',
+        sendFailed: 'Assistant ChatKit did not accept the prompt.',
+        close: 'Close template prompt',
+        items: {
+          onboardingHub: {
+            title: 'Onboarding Hub',
+            description: 'A first-week onboarding dashboard with progress, meetings, tasks, and resources.'
+          },
+          enablementHub: {
+            title: 'Enablement Hub',
+            description: 'A searchable enablement library with featured learning paths, updates, and guides.'
+          },
+          pulseDashboard: {
+            title: 'Pulse Dashboard',
+            description: 'An executive KPI dashboard with trends, targets, metric health, and drill-ins.'
+          },
+          sparkboard: {
+            title: 'Sparkboard',
+            description: 'An employee idea board for sharing, voting, filtering, and ranking proposals.'
+          },
+          launchCal: {
+            title: 'Launch Cal',
+            description: 'A product launch calendar with planning filters, risk signals, and detail panels.'
+          },
+          eventPlanningHub: {
+            title: 'Event Planning Hub',
+            description: 'An event operations hub for requests, templates, upcoming dates, and approvals.'
+          }
+        }
+      },
       back: 'Back',
       yourWorkspace: 'Your workspace',
       ownersAndAdmins: 'Owner/Admins',
@@ -45,6 +94,7 @@
         storage: 'Storage',
         access: 'Access',
         prompt: 'Prompt',
+        sourcePath: 'Source path',
         version: 'Version',
         environment: 'Environment',
         d1: 'D1',
@@ -119,6 +169,51 @@
       site: '站点',
       sharedWith: '共享给',
       settings: '设置',
+      templates: {
+        title: '模板',
+        subtitle: '上拉查看可直接参考的站点模板',
+        expand: '展开模板',
+        collapse: '收起模板',
+        prompt: '提示词',
+        builtWith: '构建方式',
+        model: '模型',
+        techStack: '技术栈',
+        useCase: '使用场景',
+        type: '类型',
+        copyPrompt: '复制提示词',
+        copied: '提示词已复制',
+        try: '试用',
+        trying: '发送中...',
+        sent: '提示词已发送给助手',
+        sendFailed: 'Assistant ChatKit 未接受该提示词。',
+        close: '关闭模板提示词',
+        items: {
+          onboardingHub: {
+            title: 'Onboarding Hub',
+            description: '首周入职看板，包含进度、会议、任务和资源入口。'
+          },
+          enablementHub: {
+            title: 'Enablement Hub',
+            description: '可搜索的赋能资料库，包含学习路径、更新和指南。'
+          },
+          pulseDashboard: {
+            title: 'Pulse Dashboard',
+            description: '高管 KPI 看板，展示趋势、目标、指标健康和详情。'
+          },
+          sparkboard: {
+            title: 'Sparkboard',
+            description: '员工想法看板，用于提交、投票、筛选和排序提案。'
+          },
+          launchCal: {
+            title: 'Launch Cal',
+            description: '产品发布日历，包含规划筛选、风险信号和详情面板。'
+          },
+          eventPlanningHub: {
+            title: 'Event Planning Hub',
+            description: '活动运营中心，管理请求、模板、日期和审批。'
+          }
+        }
+      },
       back: '返回',
       yourWorkspace: '你的工作区',
       ownersAndAdmins: '所有者/管理员',
@@ -142,6 +237,7 @@
         storage: '存储',
         access: '访问权限',
         prompt: '提示词',
+        sourcePath: '源码目录',
         version: '版本',
         environment: '环境变量',
         d1: 'D1',
@@ -327,7 +423,8 @@
   }
 
   async function openDeploymentPreview(url, data) {
-    const event = buildDeploymentPreviewEvent(Object.assign({}, data || {}, { url, displayUrl: url }))
+    const displayUrl = readString(data || {}, 'displayUrl') || url
+    const event = buildDeploymentPreviewEvent(Object.assign({}, data || {}, { url, displayUrl }))
     if (!event) {
       return
     }
@@ -384,10 +481,10 @@
     const deployment = isObject(data.deployment) ? data.deployment : data
     const url =
       readString(data, 'url') ||
-      readString(data, 'displayUrl') ||
       readString(data, 'previewUrl') ||
       readString(data, 'deploymentUrl') ||
-      readString(deployment, 'deploymentUrl')
+      readString(deployment, 'deploymentUrl') ||
+      readString(data, 'displayUrl')
     if (!url) {
       return null
     }
@@ -396,7 +493,7 @@
       type: BROWSER_PREVIEW_EVENT_TYPE,
       source: SITES_PLUGIN_NAME,
       url,
-      displayUrl: url
+      displayUrl: readString(data, 'displayUrl') || readString(data, 'deploymentUrl') || readString(deployment, 'deploymentUrl') || url
     }
     assignString(event, 'projectId', readString(data, 'projectId') || readString(deployment, 'projectId') || readString(project, 'id'))
     assignString(event, 'versionId', readString(data, 'versionId') || readString(deployment, 'versionId') || readString(version, 'id'))
@@ -428,6 +525,56 @@
     if (typeof value === 'number') {
       target[key] = value
     }
+  }
+
+  function getTemplatePromptItem(key, locale) {
+    const item = TEMPLATE_PROMPTS.find((entry) => entry && entry.key === key)
+    const fallbackPrompt = `Build a static internal site for the ${key} template. Create files under /workspace/sites/${String(key || 'site').replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`).replace(/^-/, '')}/ with a root index.html, then save and deploy it with the Sites tools.`
+    const merged = Object.assign(
+      {
+        key,
+        prompt: { en_US: fallbackPrompt },
+        builtWith: { en_US: 'Sites in XpertAI', zh_Hans: 'XpertAI Sites' },
+        model: 'GPT-5.5',
+        techStack: { en_US: 'Static HTML/CSS/JS', zh_Hans: '静态 HTML/CSS/JS' },
+        useCase: { en_US: 'Internal Tools', zh_Hans: '内部工具' },
+        type: { en_US: 'App', zh_Hans: '应用' }
+      },
+      item || {}
+    )
+    return Object.assign({}, merged, {
+      prompt: resolveI18nText(merged.prompt, locale, fallbackPrompt),
+      builtWith: resolveI18nText(merged.builtWith, locale, 'Sites in XpertAI'),
+      model: resolveI18nText(merged.model, locale, 'GPT-5.5'),
+      techStack: resolveI18nText(merged.techStack, locale, 'Static HTML/CSS/JS'),
+      useCase: resolveI18nText(merged.useCase, locale, 'Internal Tools'),
+      type: resolveI18nText(merged.type, locale, 'App')
+    })
+  }
+
+  function resolveI18nText(value, locale, fallback) {
+    if (typeof value === 'string') return value
+    if (isObject(value)) {
+      return readString(value, locale || 'en_US') || readString(value, 'en_US') || fallback || ''
+    }
+    return fallback || ''
+  }
+
+  async function copyText(value) {
+    const text = String(value || '')
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
   }
 
   function statusLabel(locale, value) {
@@ -487,6 +634,8 @@
     const [versionPrompt, setVersionPrompt] = React.useState('')
     const [envDraft, setEnvDraft] = React.useState({ key: '', value: '', secret: false })
     const [viewMode, setViewMode] = React.useState('list')
+    const [templatesOpen, setTemplatesOpen] = React.useState(true)
+    const [selectedTemplateKey, setSelectedTemplateKey] = React.useState('')
     const locale = normalizeLocale(context && context.locale)
     const t = React.useCallback((key, params) => translate(locale, key, params), [locale])
 
@@ -504,7 +653,18 @@
 
     React.useEffect(() => {
       reportResize()
-    }, [data, loading, busy, notice, draft, versionPrompt, envDraft, viewMode])
+    }, [data, loading, busy, notice, draft, versionPrompt, envDraft, viewMode, templatesOpen, selectedTemplateKey])
+
+    React.useEffect(() => {
+      if (!selectedTemplateKey) return
+      function onKeyDown(event) {
+        if (event.key === 'Escape') {
+          setSelectedTemplateKey('')
+        }
+      }
+      window.addEventListener('keydown', onKeyDown)
+      return () => window.removeEventListener('keydown', onKeyDown)
+    }, [selectedTemplateKey])
 
     async function loadData(nextQuery) {
       setLoading(true)
@@ -569,6 +729,49 @@
       void loadData(nextQuery)
     }
 
+    async function copyTemplatePrompt(item) {
+      try {
+        await copyText(item && item.prompt)
+        setNotice({ type: 'success', message: t('templates.copied') })
+        notify('success', t('templates.copied'))
+      } catch (error) {
+        const message = error.message || t('actionFailed')
+        setNotice({ type: 'error', message })
+      }
+    }
+
+    async function tryTemplatePrompt(item) {
+      if (!item || !item.prompt) return
+      const busyKey = `try_template:${item.key}`
+      setBusy(busyKey)
+      setNotice(null)
+      try {
+        const payload = {
+          text: item.prompt,
+          clientMessageId: `${SITES_PLUGIN_NAME}:template:${item.key}:${Date.now()}`,
+          state: {
+            source: SITES_PLUGIN_NAME,
+            templateKey: item.key,
+            templateTitle: t(`templates.items.${item.key}.title`)
+          }
+        }
+        const response = await invokeClientCommand(ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, payload)
+        const result = response.result || {}
+        if (result.success === false) {
+          throw new Error(result.message || t('templates.sendFailed'))
+        }
+        setNotice({ type: 'success', message: t('templates.sent') })
+        notify('success', t('templates.sent'))
+        setSelectedTemplateKey('')
+      } catch (error) {
+        const message = error.message || t('templates.sendFailed')
+        setNotice({ type: 'error', message })
+        notify('error', message)
+      } finally {
+        setBusy('')
+      }
+    }
+
     const items = data.items || []
     const deployedItems = items.filter(isDeployedProject)
     const meta = data.meta || {}
@@ -577,6 +780,7 @@
     const deployments = meta.deployments || []
     const environmentValues = meta.environmentValues || []
     const latestVersion = versions[0]
+    const selectedTemplate = selectedTemplateKey ? getTemplatePromptItem(selectedTemplateKey, locale) : null
     function renderHeader() {
       return h('header', { className: 'topbar', key: 'topbar' }, [
         h('div', { className: 'topbar-title', key: 'title' }, [
@@ -610,6 +814,175 @@
             ? deployedItems.map(renderSiteRow)
             : [h('div', { className: 'empty-list', key: 'empty' }, loading ? t('loading') : t('noDeployedSites'))]
         )
+      ])
+    }
+
+    function renderTemplateDrawer() {
+      const cards = SITE_TEMPLATE_KEYS.map((key, index) => ({
+        key,
+        index,
+        title: t(`templates.items.${key}.title`),
+        description: t(`templates.items.${key}.description`),
+        previewSrc: TEMPLATE_PREVIEW_IMAGES[key]
+      }))
+      return h('section', { className: `template-drawer ${templatesOpen ? 'open' : 'collapsed'}`, key: 'templates' }, [
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'template-drawer-handle',
+            'aria-expanded': templatesOpen,
+            onClick: () => setTemplatesOpen((value) => !value),
+            key: 'handle'
+          },
+          [
+            h('span', { className: 'drawer-grip', key: 'grip', 'aria-hidden': true }),
+            h('span', { className: 'drawer-title', key: 'title' }, [
+              h('strong', { key: 'strong' }, t('templates.title')),
+              h('span', { key: 'subtitle' }, t('templates.subtitle'))
+            ]),
+            h('span', { className: 'drawer-count', key: 'count' }, String(cards.length)),
+            icon(templatesOpen ? 'chevron-down' : 'chevron-up', 'chevron')
+          ]
+        ),
+        h(
+          'div',
+          { className: 'template-drawer-body', key: 'body', 'aria-hidden': templatesOpen ? undefined : true },
+          h(
+            'div',
+            { className: 'template-grid', key: 'grid' },
+            cards.map((item) => renderTemplateCard(item))
+          )
+        )
+      ])
+    }
+
+    function renderTemplateCard(item) {
+      return h('article', {
+        className: 'template-card',
+        key: item.key,
+        role: 'button',
+        tabIndex: 0,
+        onClick: () => setSelectedTemplateKey(item.key),
+        onKeyDown: (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            setSelectedTemplateKey(item.key)
+          }
+        }
+      }, [
+        item.previewSrc ? renderTemplateImage(item) : renderTemplatePlaceholder(item.index),
+        h('h3', { key: 'title' }, item.title),
+        h('p', { key: 'description' }, item.description)
+      ])
+    }
+
+    function renderTemplateDialog(item) {
+      if (!item) return null
+      const title = t(`templates.items.${item.key}.title`)
+      const tryBusy = busy === `try_template:${item.key}`
+      const facts = [
+        [t('templates.model'), item.model],
+        [t('templates.techStack'), item.techStack],
+        [t('templates.useCase'), item.useCase],
+        [t('templates.type'), item.type]
+      ]
+      return h(
+        'div',
+        {
+          className: 'template-dialog-overlay',
+          role: 'presentation',
+          onClick: () => setSelectedTemplateKey(''),
+          key: 'template-dialog'
+        },
+        h(
+          'section',
+          {
+            className: 'template-dialog',
+            role: 'dialog',
+            'aria-modal': true,
+            'aria-label': title,
+            onClick: (event) => event.stopPropagation()
+          },
+          [
+            h('div', { className: 'template-dialog-main', key: 'main' }, [
+              h('div', { className: 'template-dialog-heading', key: 'heading' }, [
+                h('h2', { key: 'title' }, t('templates.prompt')),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'icon-button',
+                    onClick: () => setSelectedTemplateKey(''),
+                    title: t('templates.close'),
+                    'aria-label': t('templates.close'),
+                    key: 'close'
+                  },
+                  icon('close')
+                )
+              ]),
+              h('div', { className: 'prompt-box', key: 'prompt' }, [
+                h('pre', { key: 'text' }, item.prompt),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'prompt-copy-button icon-button',
+                    onClick: () => copyTemplatePrompt(item),
+                    title: t('templates.copyPrompt'),
+                    'aria-label': t('templates.copyPrompt'),
+                    key: 'copy'
+                  },
+                  icon('copy')
+                )
+              ]),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'template-try-action primary-action',
+                  onClick: () => tryTemplatePrompt(item),
+                  disabled: tryBusy,
+                  key: 'try'
+                },
+                buttonContent('external', tryBusy ? t('templates.trying') : t('templates.try'))
+              )
+            ]),
+            h('aside', { className: 'template-dialog-meta', key: 'meta' }, [
+              h('div', { className: 'meta-section', key: 'built' }, [
+                h('span', { key: 'label' }, t('templates.builtWith')),
+                h('strong', { key: 'value' }, item.builtWith)
+              ]),
+              facts.map(([label, value]) =>
+                h('div', { className: 'meta-section', key: label }, [
+                  h('span', { key: 'label' }, label),
+                  h('strong', { key: 'value' }, value || '-')
+                ])
+              )
+            ])
+          ]
+        )
+      )
+    }
+
+    function renderTemplateImage(item) {
+      return h(
+        'div',
+        { className: 'template-preview has-image', key: 'preview', 'aria-hidden': true },
+        h('img', { src: item.previewSrc, alt: '', loading: 'lazy' })
+      )
+    }
+
+    function renderTemplatePlaceholder(index) {
+      return h('div', { className: `template-preview placeholder-${index % 3}`, key: 'preview', 'aria-hidden': true }, [
+        h('span', { className: 'placeholder-top', key: 'top' }),
+        h('span', { className: 'placeholder-side', key: 'side' }),
+        h('span', { className: 'placeholder-hero', key: 'hero' }),
+        h('span', { className: 'placeholder-card card-a', key: 'card-a' }),
+        h('span', { className: 'placeholder-card card-b', key: 'card-b' }),
+        h('span', { className: 'placeholder-card card-c', key: 'card-c' }),
+        h('span', { className: 'placeholder-line line-a', key: 'line-a' }),
+        h('span', { className: 'placeholder-line line-b', key: 'line-b' })
       ])
     }
 
@@ -659,7 +1032,8 @@
                 type: 'button',
                 key: 'preview',
                 onClick: () =>
-                  openDeploymentPreview(item.currentDeploymentUrl, {
+                  openDeploymentPreview(item.currentDeploymentPreviewUrl || item.currentDeploymentUrl, {
+                    displayUrl: item.currentDeploymentUrl,
                     projectId: item.id,
                     deploymentId: item.currentDeploymentId,
                     slug: item.slug,
@@ -703,6 +1077,7 @@
             h('dl', { className: 'facts', key: 'facts' }, [
               fact(t('labels.access'), accessLabel(locale, project.audience)),
               fact(t('labels.storage'), storageLabel(locale, project.storageShape)),
+              fact(t('labels.sourcePath'), project.sourcePath || t('none')),
               fact(t('labels.d1'), project.hostingConfig && project.hostingConfig.d1 ? project.hostingConfig.d1 : t('none')),
               fact(t('labels.r2'), project.hostingConfig && project.hostingConfig.r2 ? project.hostingConfig.r2 : t('none'))
             ]),
@@ -720,7 +1095,8 @@
                     type: 'button',
                     key: 'preview',
                     onClick: () =>
-                      openDeploymentPreview(project.currentDeploymentUrl, {
+                      openDeploymentPreview(project.currentDeploymentPreviewUrl || project.currentDeploymentUrl, {
+                        displayUrl: project.currentDeploymentUrl,
                         projectId: project.id,
                         deploymentId: project.currentDeploymentId,
                         slug: project.slug,
@@ -813,7 +1189,9 @@
     return h('div', { className: 'sites-app' }, [
       renderHeader(),
       notice && h('div', { className: `notice ${notice.type}`, key: 'notice' }, notice.message),
-      viewMode === 'detail' ? renderDetail() : renderList()
+      viewMode === 'detail' ? renderDetail() : renderList(),
+      viewMode === 'list' && renderTemplateDrawer(),
+      viewMode === 'list' && selectedTemplate && renderTemplateDialog(selectedTemplate)
     ])
   }
 
@@ -933,6 +1311,12 @@
       back: 'M7.82843 10.9999H20V12.9999H7.82843L13.1924 18.3638L11.7782 19.778L4 11.9999L11.7782 4.22168L13.1924 5.63589L7.82843 10.9999Z',
       building:
         'M21 20H23V22H1V20H3V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V20ZM19 20V4H5V20H19ZM8 11H11V13H8V11ZM8 7H11V9H8V7ZM8 15H11V17H8V15ZM13 15H16V17H13V15ZM13 11H16V13H13V11ZM13 7H16V9H13V7Z',
+      'chevron-down': 'M12 13.1716L17.6569 7.51472L19.0711 8.92893L12 16L4.92893 8.92893L6.34315 7.51472L12 13.1716Z',
+      'chevron-up': 'M12 10.8284L6.34315 16.4853L4.92893 15.0711L12 8L19.0711 15.0711L17.6569 16.4853L12 10.8284Z',
+      close:
+        'M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z',
+      copy:
+        'M7 7V3C7 2.44772 7.44772 2 8 2H20C20.5523 2 21 2.44772 21 3V17C21 17.5523 20.5523 18 20 18H16V21C16 21.5523 15.5523 22 15 22H4C3.44772 22 3 21.5523 3 21V8C3 7.44772 3.44772 7 4 7H7ZM9 7H15C15.5523 7 16 7.44772 16 8V16H19V4H9V7ZM5 9V20H14V9H5Z',
       external:
         'M10 6V8H5V19H16V14H18V20C18 20.5523 17.5523 21 17 21H4C3.44772 21 3 20.5523 3 20V7C3 6.44772 3.44772 6 4 6H10ZM21 3V11H19L18.9999 6.413L11.2071 14.2071L9.79289 12.7929L17.5849 5H13V3H21Z',
       key: 'M10.7577 11.8281L18.6066 3.97919L20.0208 5.3934L18.6066 6.80761L21.0815 9.28249L19.6673 10.6967L17.1924 8.22183L15.7782 9.63604L17.8995 11.7574L16.4853 13.1716L14.364 11.0503L12.1719 13.2423C13.4581 15.1837 13.246 17.8251 11.5355 19.5355C9.58291 21.4882 6.41709 21.4882 4.46447 19.5355C2.51184 17.5829 2.51184 14.4171 4.46447 12.4645C6.17493 10.754 8.81633 10.5419 10.7577 11.8281ZM10.1213 18.1213C11.2929 16.9497 11.2929 15.0503 10.1213 13.8787C8.94975 12.7071 7.05025 12.7071 5.87868 13.8787C4.70711 15.0503 4.70711 16.9497 5.87868 18.1213C7.05025 19.2929 8.94975 19.2929 10.1213 18.1213Z',
@@ -984,8 +1368,8 @@
         --sites-radius-md: var(--xui-radius-md, 8px);
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; min-height: 100%; background: transparent; color: var(--sites-text); font-family: var(--xui-font-family, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); }
-      .sites-app { min-height: 100vh; }
+      html, body { margin: 0; min-height: 100%; color: var(--sites-text); font-family: var(--xui-font-family, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); }
+      .sites-app { min-height: 100vh; display: flex; flex-direction: column; }
       .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--sites-border); background: transparent; }
       .topbar-title { min-width: 0; display: flex; align-items: center; gap: 8px; }
       .app-menu-icon { width: 30px; height: 30px; border: 1px solid var(--sites-border); border-radius: var(--sites-radius-sm); display: inline-flex; align-items: center; justify-content: center; color: var(--sites-primary); background: color-mix(in srgb, var(--sites-primary) 8%, transparent); flex: 0 0 auto; }
@@ -993,7 +1377,7 @@
       h1, h2 { margin: 0; letter-spacing: 0; }
       h1 { font-size: 19px; line-height: 1.2; }
       h2 { font-size: 18px; line-height: 1.25; }
-      .content { padding: 12px; display: grid; gap: 12px; align-content: start; }
+      .content { flex: 1 1 auto; min-height: 0; padding: 12px; display: grid; gap: 12px; align-content: start; }
       .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: var(--xui-font-size-xs, 12px); font-weight: 800; color: var(--sites-muted); text-transform: uppercase; letter-spacing: 0; }
       .section-heading.small { margin-top: 12px; }
       .muted, .empty, .blank, .empty-list { color: var(--sites-muted); }
@@ -1002,7 +1386,7 @@
       .status.version_saved { color: var(--sites-warning); border-color: color-mix(in srgb, var(--sites-warning) 35%, var(--sites-border)); }
       .status.archived { color: var(--sites-muted); }
       .create-band, .project-detail, .operations, .table-section, .blank { border: 1px solid var(--sites-border); border-radius: var(--sites-radius-md); background: transparent; color: var(--sites-text); padding: 12px; }
-      .sites-list-page { padding: 14px 18px 24px; }
+      .sites-list-page { flex: 1 1 auto; min-height: 0; padding: 14px 18px 16px; }
       .site-list-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(140px, auto); gap: 18px; padding: 0 0 8px; border-bottom: 1px solid var(--sites-border); color: var(--sites-muted); font-size: var(--xui-font-size-xs, 12px); font-weight: 600; }
       .site-list { display: grid; }
       .site-list-row { display: grid; grid-template-columns: 124px minmax(0, 1fr) minmax(180px, 260px) minmax(140px, auto); gap: 18px; align-items: center; min-height: 98px; padding: 12px 0; border-bottom: 1px solid color-mix(in srgb, var(--sites-border) 80%, transparent); }
@@ -1030,6 +1414,54 @@
       .list-preview-action { min-width: 88px; gap: 5px; font-size: var(--xui-font-size-button, 13px); }
       .settings-button { color: var(--sites-muted); }
       .empty-list { min-height: 150px; display: grid; place-items: center; border-bottom: 1px solid var(--sites-border); font-weight: 700; }
+      .template-drawer { position: sticky; bottom: 0; z-index: 2; flex: 0 0 auto; margin: 0 18px; border: 1px solid var(--sites-border); border-bottom: 0; border-radius: 14px 14px 0 0; background: color-mix(in srgb, var(--sites-surface) 92%, transparent); overflow: hidden; }
+      .template-drawer-handle { width: 100%; min-height: 42px; border: 0; border-radius: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 24px; align-items: center; gap: 10px; padding: 6px 12px; background: transparent; color: var(--sites-text); text-align: left; }
+      .template-drawer-handle:hover { color: var(--sites-primary); }
+      .drawer-grip { width: 28px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--sites-muted) 42%, transparent); justify-self: center; }
+      .drawer-title { min-width: 0; display: grid; gap: 1px; }
+      .drawer-title strong { font-size: var(--xui-font-size-sm, 13px); line-height: 1.15; }
+      .drawer-title span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sites-muted); font-size: var(--xui-font-size-xs, 12px); line-height: 1.2; font-weight: 600; }
+      .drawer-count { min-width: 24px; height: 22px; border: 1px solid var(--sites-border); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: var(--sites-muted); font-size: var(--xui-font-size-xs, 12px); font-weight: 800; }
+      .template-drawer-body { max-height: 490px; overflow: hidden; padding: 10px 12px 14px; border-top: 1px solid color-mix(in srgb, var(--sites-border) 70%, transparent); transition: max-height 180ms ease, padding 180ms ease, border-color 180ms ease; }
+      .template-drawer.collapsed .template-drawer-body { max-height: 0; padding-top: 0; padding-bottom: 0; border-top-color: transparent; }
+      .template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+      .template-card { min-width: 0; border-radius: var(--sites-radius-md); cursor: pointer; outline: none; }
+      .template-card:hover h3, .template-card:focus-visible h3 { color: var(--sites-primary); }
+      .template-card:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--sites-primary) 70%, transparent); }
+      .template-card h3 { margin: 8px 0 4px; font-size: var(--xui-font-size-md, 15px); line-height: 1.18; letter-spacing: 0; }
+      .template-card p { margin: 0; color: var(--sites-muted); font-size: var(--xui-font-size-sm, 13px); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .template-preview { position: relative; height: 116px; border: 1px solid var(--sites-border); border-radius: var(--sites-radius-md); overflow: hidden; background: color-mix(in srgb, var(--sites-surface) 86%, transparent); }
+      .template-preview.has-image { background: color-mix(in srgb, var(--sites-surface) 92%, transparent); }
+      .template-preview img { width: 100%; height: 100%; display: block; object-fit: cover; }
+      .template-preview span { position: absolute; display: block; border-radius: 5px; background: color-mix(in srgb, var(--sites-muted) 16%, transparent); }
+      .placeholder-top { left: 10px; right: 10px; top: 8px; height: 10px; border-radius: 999px; }
+      .placeholder-side { left: 10px; top: 26px; bottom: 10px; width: 26px; }
+      .placeholder-hero { left: 44px; right: 10px; top: 26px; height: 26px; }
+      .placeholder-card { top: 59px; height: 22px; }
+      .placeholder-card.card-a { left: 44px; width: 27%; }
+      .placeholder-card.card-b { left: calc(44px + 30%); width: 24%; }
+      .placeholder-card.card-c { right: 10px; width: 19%; }
+      .placeholder-line { height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--sites-primary) 24%, transparent); }
+      .placeholder-line.line-a { left: 14px; top: 34px; width: 16px; }
+      .placeholder-line.line-b { left: 14px; top: 47px; width: 16px; }
+      .placeholder-1 .placeholder-hero, .placeholder-1 .placeholder-line { background: color-mix(in srgb, var(--sites-success) 28%, transparent); }
+      .placeholder-2 .placeholder-hero, .placeholder-2 .placeholder-line { background: color-mix(in srgb, var(--sites-warning) 28%, transparent); }
+      .template-dialog-overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, Canvas 64%, transparent); }
+      .template-dialog { width: min(1120px, 100%); max-height: min(760px, calc(100dvh - 48px)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 14px; color: var(--sites-text); }
+      .template-dialog-main, .template-dialog-meta { min-width: 0; border: 1px solid var(--sites-border); border-radius: 18px; background: var(--sites-surface); color: var(--sites-surface-foreground); }
+      .template-dialog-main { padding: 24px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 14px; }
+      .template-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .template-dialog-heading h2 { font-size: 19px; }
+      .prompt-box { position: relative; min-height: 240px; max-height: 430px; overflow: auto; border: 1px solid var(--sites-border); border-radius: var(--sites-radius-md); background: color-mix(in srgb, var(--sites-surface) 94%, var(--sites-muted) 6%); }
+      .prompt-box pre { margin: 0; padding: 20px 48px 20px 20px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--sites-surface-foreground); font: 500 14px/1.55 var(--xui-font-family-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace); letter-spacing: 0; }
+      .prompt-copy-button { position: sticky; top: 10px; float: right; margin: 10px 10px 0 0; background: color-mix(in srgb, var(--sites-surface) 90%, transparent); color: var(--sites-muted); }
+      .template-try-action { justify-self: start; min-width: 112px; gap: 6px; }
+      .template-dialog-meta { padding: 24px; display: grid; align-content: start; gap: 0; }
+      .meta-section { display: grid; gap: 12px; padding: 20px 0; border-bottom: 1px solid color-mix(in srgb, var(--sites-border) 70%, transparent); }
+      .meta-section:first-child { padding-top: 0; }
+      .meta-section span { color: var(--sites-muted); font-size: var(--xui-font-size-sm, 14px); line-height: 1.3; }
+      .meta-section strong { justify-self: start; border-radius: 999px; padding: 4px 10px; background: color-mix(in srgb, var(--sites-muted) 9%, transparent); font-size: var(--xui-font-size-sm, 14px); line-height: 1.2; font-weight: 650; }
+      .meta-section:first-child strong { padding: 0; border-radius: 0; background: transparent; font-size: var(--xui-font-size-md, 16px); }
       .form-grid { display: grid; grid-template-columns: minmax(160px, 1fr) 140px 150px; gap: 8px; }
       .field { display: grid; gap: 4px; font-size: var(--xui-font-size-xs, 12px); font-weight: 800; color: var(--sites-muted); text-transform: uppercase; letter-spacing: 0; }
       .field.wide { margin-top: 8px; }
@@ -1071,7 +1503,19 @@
         .site-row-actions { flex-wrap: wrap; }
         .site-title-button { font-size: var(--xui-font-size-md, 15px); }
         .site-list-meta { font-size: var(--xui-font-size-sm, 13px); }
+        .template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .template-drawer { margin-inline: 12px; }
+        .template-dialog { grid-template-columns: 1fr; overflow: auto; }
+        .template-dialog-main { min-height: 520px; }
         .detail-grid, .form-grid, .env-grid, .deployment-preview-row { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 560px) {
+        .template-grid { grid-template-columns: 1fr; }
+        .template-drawer-handle { grid-template-columns: 22px minmax(0, 1fr) auto 22px; padding-inline: 10px; }
+        .template-dialog-overlay { padding: 10px; align-items: start; }
+        .template-dialog { max-height: calc(100dvh - 20px); }
+        .template-dialog-main, .template-dialog-meta { border-radius: 14px; padding: 16px; }
+        .prompt-box pre { font-size: 13px; padding: 16px 42px 16px 16px; }
       }
     `
     document.head.appendChild(style)
