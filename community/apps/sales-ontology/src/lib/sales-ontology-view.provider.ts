@@ -45,7 +45,6 @@ const VIEW_ICON = {
   type: 'font',
   value: 'ri-line-chart-line'
 } satisfies IconDefinition
-const VIEW_ICON_MANIFEST_VALUE = VIEW_ICON as unknown as string
 
 const reviewProposalInputSchema = {
   type: 'object',
@@ -169,7 +168,7 @@ export class SalesOntologyViewProvider implements IXpertViewExtensionProvider {
           'Review Sales Ontology perceptions, suggestions, and governed action proposals.',
           '查看 Sales Ontology 感知、建议和受控动作草案。'
         ),
-        icon: VIEW_ICON_MANIFEST_VALUE,
+        icon: VIEW_ICON,
         hostType: 'agent',
         slot,
         order: fixed ? 30 : 20,
@@ -185,7 +184,7 @@ export class SalesOntologyViewProvider implements IXpertViewExtensionProvider {
                   enabled: true,
                   label: text('Sales Ontology', 'Sales Ontology'),
                   order: 30,
-                  icon: VIEW_ICON_MANIFEST_VALUE
+                  icon: VIEW_ICON
                 }
               }
             }
