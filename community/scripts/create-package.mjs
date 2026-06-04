@@ -2,7 +2,7 @@
 import { mkdir, writeFile, access } from 'fs/promises';
 import path from 'path';
 
-const scopes = new Set(['tools', 'middlewares', 'models', 'packages']);
+const scopes = new Set(['apps', 'tools', 'middlewares', 'models', 'packages']);
 
 function parseArgs() {
   const args = {};
@@ -16,7 +16,7 @@ function parseArgs() {
 }
 
 function usage() {
-  console.error('Usage: pnpm create:package --scope <tools|middlewares|models|packages> --name <package-name> [--description "text"] [--public]');
+  console.error('Usage: pnpm create:package --scope <apps|tools|middlewares|models|packages> --name <package-name> [--description "text"] [--public]');
 }
 
 async function ensureNotExists(target) {
