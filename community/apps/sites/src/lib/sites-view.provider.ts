@@ -50,7 +50,6 @@ const SITES_VIEW_ICON = {
   value: SITES_ICON,
   alt: 'Sites'
 } satisfies IconDefinition
-const SITES_VIEW_ICON_MANIFEST_VALUE = SITES_VIEW_ICON as unknown as string
 const TEMPLATE_PREVIEW_IMAGE_FILES: Record<string, string[]> = {
   onboardingHub: ['sites-onboarding-hub.png', 'onboarding-hub.jpg', 'onboarding-hub.jpeg', 'onboarding-hub.png', 'onboarding-hub.webp'],
   enablementHub: ['sites-enablement-hub.png', 'enablement-hub.jpg', 'enablement-hub.jpeg', 'enablement-hub.png', 'enablement-hub.webp'],
@@ -142,7 +141,7 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
         key: SITES_VIEW_KEY,
         title: text('Sites', '站点'),
         description: text('Create, save, deploy, and inspect hosted Sites projects.', '创建、保存、发布和查看托管站点项目。'),
-        icon: SITES_VIEW_ICON_MANIFEST_VALUE,
+        icon: SITES_VIEW_ICON,
         hostType: 'agent',
         slot,
         order: fixed ? 40 : 30,
@@ -158,7 +157,7 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
                   enabled: true,
                   label: text('Sites', '站点'),
                   order: 40,
-                  icon: SITES_VIEW_ICON_MANIFEST_VALUE
+                  icon: SITES_VIEW_ICON
                 }
               }
             }
