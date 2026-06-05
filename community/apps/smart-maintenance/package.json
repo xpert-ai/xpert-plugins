@@ -1,0 +1,25 @@
+{
+  "name": "@xpert-ai/plugin-smart-maintenance",
+  "version": "0.0.1",
+  "private": true,
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "*",
+    "@nestjs/core": "*",
+    "@nestjs/typeorm": "*",
+    "@xpert-ai/contracts": "workspace:*",
+    "@xpert-ai/plugin-sdk": "workspace:*",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "*",
+    "xlsx": "^0.18.5",
+    "zod": "3.25.67"
+  }
+}
