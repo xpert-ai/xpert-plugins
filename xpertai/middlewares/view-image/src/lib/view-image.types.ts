@@ -91,14 +91,22 @@ export const ViewedImageBatchMetadataSchema = z.object({
 
 export type ViewedImageBatchMetadata = z.infer<typeof ViewedImageBatchMetadataSchema>
 
-const ViewImageToolPathValueSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])
+const ViewImageToolPathValueSchema = z.union([
+  z.string().min(1),
+  z
+    .array(z.string().min(1))
+    .min(1)
+    .max(DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL, {
+      message: `view_image accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call.`
+    })
+])
 
 export const ViewImageToolInputSchema = z.object({
   path: ViewImageToolPathValueSchema.optional().describe(
-    'Sandbox workspace image path or paths. Prefer relative paths from the sandbox workspace root, for example `sessions/thread/files/page.png`. Absolute paths are only supported when they still refer to files inside that same workspace root. JSON string arrays are accepted for compatibility.'
+    `Sandbox workspace image path or paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step. Prefer relative paths from the sandbox workspace root, for example \`sessions/thread/files/page.png\`. Absolute paths are only supported when they still refer to files inside that same workspace root. JSON string arrays are accepted for compatibility. Load ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1}+ known images across separate model steps, not multiple same-step view_image calls.`
   ),
   paths: ViewImageToolPathValueSchema.optional().describe(
-    'Alias for `path` when passing one or more sandbox workspace image paths.'
+    `Alias for \`path\` when passing one or more sandbox workspace image paths, with at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step.`
   )
 })
 

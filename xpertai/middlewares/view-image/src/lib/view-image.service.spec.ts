@@ -4,7 +4,7 @@ jest.mock('@metad/contracts', () => ({
 
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { buildViewImageResizeOptions, ViewImageService } from './view-image.service.js'
-import { DEFAULT_VIEW_IMAGE_COMPRESSION_PERCENT } from './view-image.types.js'
+import { DEFAULT_VIEW_IMAGE_COMPRESSION_PERCENT, ViewImageToolInputSchema } from './view-image.types.js'
 
 const ONE_BY_ONE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jYVwAAAAASUVORK5CYII=',
@@ -77,6 +77,22 @@ describe('ViewImageService', () => {
       })
     )
     expect(result.content).toContain('The system will attach them automatically')
+  })
+
+  it('exposes the 3-image per-call limit in the tool contract', () => {
+    const tool = service.createTool()
+
+    expect(tool.description).toContain('at most 3 images per call')
+    expect(tool.description).toContain('separate model steps')
+    expect(service.buildSystemPrompt()).toContain('Pass at most 3 image paths')
+    expect(service.buildSystemPrompt()).toContain('Do not load more than 3 images total in the same model step')
+    expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png'] }).success).toBe(true)
+    expect(ViewImageToolInputSchema.safeParse({ path: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
+      false
+    )
+    expect(ViewImageToolInputSchema.safeParse({ paths: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
+      false
+    )
   })
 
   it('resolves middleware config with the default compression percent', () => {

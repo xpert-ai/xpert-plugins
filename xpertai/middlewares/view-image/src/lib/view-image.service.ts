@@ -79,8 +79,9 @@ export class ViewImageService {
     return [
       '<skill>',
       'When the user asks about an image file in the sandbox workspace root, call `view_image` before reasoning about the image contents.',
-      'Pass multiple image paths in one `view_image` call when you already know all files you need.',
-      'You may also call `view_image` multiple times in the same step when discovery is incremental.',
+      `Pass at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} image paths in one \`view_image\` call when you already know the files you need.`,
+      `Do not load more than ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images total in the same model step. If you need ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1} or more known images, load the next batch in a later model step after using the current images.`,
+      `You may call \`view_image\` multiple times in the same step only when discovery is incremental and the total loaded images for that step stays at ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} or fewer.`,
       'Prefer relative paths from the sandbox workspace root, such as `sessions/thread/files/page.png`. Absolute `/workspace/...` paths and `workspace://...` paths are supported when they stay inside that same workspace root.',
       'Do not guess what an image contains unless it has been loaded with `view_image`.',
       '</skill>'
@@ -125,7 +126,7 @@ export class ViewImageService {
       {
         name: VIEW_IMAGE_TOOL_NAME,
         description:
-          'Load one or more image files from the sandbox workspace root so the next model step can inspect them. Use this before answering questions about workspace image files by path.',
+          `Load one or more image files from the sandbox workspace root so the next model step can inspect them. Use this before answering questions about workspace image files by path. Accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step; load ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1}+ known images across separate model steps, not multiple same-step calls.`,
         schema: ViewImageToolInputSchema
       }
     )
@@ -188,7 +189,7 @@ export class ViewImageService {
 
     if (items.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
       throw new Error(
-        `The current model step has ${items.length} images loaded via \`${VIEW_IMAGE_TOOL_NAME}\`, exceeding the limit of ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per step.`
+        `The current model step has ${items.length} images loaded via \`${VIEW_IMAGE_TOOL_NAME}\`, exceeding the limit of ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per step. Load additional images in a later model step.`
       )
     }
 
@@ -414,7 +415,7 @@ function normalizeTargets(input: z.infer<typeof ViewImageToolInputSchema>) {
 
   if (uniqueTargets.length > DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL) {
     throw new Error(
-      `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Pass fewer files in one request.`
+      `\`view_image\` accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call. Load additional images in a later model step.`
     )
   }
 
