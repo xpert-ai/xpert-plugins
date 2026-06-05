@@ -1,0 +1,1013 @@
+{
+  "schema": "smart-maintenance-service-data",
+  "version": "2026.06.03-demo",
+  "generatedAt": "2026-06-03T17:30:00+08:00",
+  "description": "智能维保工作台完整演示服务数据，包含客户、项目、场所、设备、故障、部门、岗位、人员、备件与工单种子数据。",
+  "customers": [
+    {
+      "code": "customer-east-hq",
+      "name": "博雅电力",
+      "shortName": "博雅电力",
+      "industry": "总部园区",
+      "contactName": "张三",
+      "contactPhone": "13800000001",
+      "status": "active"
+    },
+    {
+      "code": "customer-yuanfan",
+      "name": "远帆科技集团",
+      "shortName": "远帆科技",
+      "industry": "科技办公",
+      "contactName": "李四",
+      "contactPhone": "13800000002",
+      "status": "active"
+    },
+    {
+      "code": "customer-wansheng",
+      "name": "万胜智能",
+      "shortName": "万胜智能",
+      "industry": "智能制造",
+      "contactName": "王五",
+      "contactPhone": "13800000003",
+      "status": "active"
+    }
+  ],
+  "projects": [
+    {
+      "code": "project-east-weekly",
+      "customerCode": "customer-east-hq",
+      "name": "总部园区一周巡检",
+      "serviceType": "inspection",
+      "servicePeriod": "2026-01-01 至 2026-12-31",
+      "status": "active"
+    },
+    {
+      "code": "project-east-annual",
+      "customerCode": "customer-east-hq",
+      "name": "总部大厦年度维保",
+      "serviceType": "repair",
+      "servicePeriod": "2026-01-01 至 2026-12-31",
+      "status": "active"
+    },
+    {
+      "code": "project-yuanfan-office",
+      "customerCode": "customer-yuanfan",
+      "name": "远帆办公楼设备维保",
+      "serviceType": "repair",
+      "servicePeriod": "2026-03-01 至 2027-02-28",
+      "status": "active"
+    },
+    {
+      "code": "project-wansheng-line2",
+      "customerCode": "customer-wansheng",
+      "name": "二号生产线设备巡检",
+      "serviceType": "inspection",
+      "servicePeriod": "2026-01-15 至 2026-12-31",
+      "status": "active"
+    }
+  ],
+  "locations": [
+    {
+      "code": "loc-east-a-3f",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-weekly",
+      "name": "A区3楼办公区",
+      "type": "办公楼层",
+      "address": "上海市浦东新区博雅总部A区3楼"
+    },
+    {
+      "code": "loc-east-b2-3f-meeting",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-annual",
+      "name": "2号楼3层会议室",
+      "type": "会议空间",
+      "address": "上海市浦东新区博雅总部2号楼3层"
+    },
+    {
+      "code": "loc-east-b1-elevator-2",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-annual",
+      "name": "1号楼电梯2号",
+      "type": "垂直交通",
+      "address": "上海市浦东新区博雅总部1号楼"
+    },
+    {
+      "code": "loc-east-parking-b",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-weekly",
+      "name": "地下停车场B区",
+      "type": "停车场",
+      "address": "上海市浦东新区博雅总部地下B区"
+    },
+    {
+      "code": "loc-yuanfan-finance-2f",
+      "customerCode": "customer-yuanfan",
+      "projectCode": "project-yuanfan-office",
+      "name": "二楼财务室",
+      "type": "办公房间",
+      "address": "深圳市南山区远帆科技园2楼"
+    },
+    {
+      "code": "loc-yuanfan-b1-lobby",
+      "customerCode": "customer-yuanfan",
+      "projectCode": "project-yuanfan-office",
+      "name": "B座一楼大厅",
+      "type": "大堂入口",
+      "address": "深圳市南山区远帆科技园B座1楼"
+    },
+    {
+      "code": "loc-wansheng-line2",
+      "customerCode": "customer-wansheng",
+      "projectCode": "project-wansheng-line2",
+      "name": "生产线2号区域",
+      "type": "生产区域",
+      "address": "苏州市工业园区万胜智能工厂2号线"
+    },
+    {
+      "code": "loc-wansheng-cold-storage",
+      "customerCode": "customer-wansheng",
+      "projectCode": "project-wansheng-line2",
+      "name": "冷链仓储区",
+      "type": "仓储区域",
+      "address": "苏州市工业园区万胜智能冷链仓"
+    }
+  ],
+  "deviceTypes": [
+    {
+      "code": "central_ac",
+      "label": "中央空调",
+      "category": "暖通",
+      "maintenanceLevel": "specialist"
+    },
+    {
+      "code": "elevator",
+      "label": "电梯",
+      "category": "特种设备",
+      "maintenanceLevel": "vendor"
+    },
+    {
+      "code": "lighting_system",
+      "label": "照明系统",
+      "category": "强电",
+      "maintenanceLevel": "onsite"
+    },
+    {
+      "code": "water_supply",
+      "label": "给排水",
+      "category": "水电",
+      "maintenanceLevel": "onsite"
+    },
+    {
+      "code": "access_control_system",
+      "label": "门禁系统",
+      "category": "弱电",
+      "maintenanceLevel": "onsite"
+    },
+    {
+      "code": "printer",
+      "label": "打印机",
+      "category": "办公设备",
+      "maintenanceLevel": "it"
+    },
+    {
+      "code": "network",
+      "label": "网络设备",
+      "category": "IT",
+      "maintenanceLevel": "it"
+    },
+    {
+      "code": "freezer",
+      "label": "冷柜",
+      "category": "冷链设备",
+      "maintenanceLevel": "specialist"
+    },
+    {
+      "code": "packing_machine",
+      "label": "包装机",
+      "category": "生产设备",
+      "maintenanceLevel": "equipment"
+    }
+  ],
+  "devices": [
+    {
+      "code": "AC-A3-001",
+      "label": "A区3楼中央空调",
+      "deviceType": "中央空调",
+      "deviceTypeCode": "central_ac",
+      "location": "A区3楼办公区",
+      "locationCode": "loc-east-a-3f",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-weekly",
+      "model": "GMV-560WM",
+      "manufacturer": "格力",
+      "serialNo": "GL20240103001",
+      "status": "running"
+    },
+    {
+      "code": "AC-B2-3F-001",
+      "label": "2号楼3层会议室中央空调",
+      "deviceType": "中央空调",
+      "deviceTypeCode": "central_ac",
+      "location": "2号楼3层会议室",
+      "locationCode": "loc-east-b2-3f-meeting",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-annual",
+      "model": "GMV-450WM",
+      "manufacturer": "格力",
+      "serialNo": "GL20240308008",
+      "status": "running"
+    },
+    {
+      "code": "ELV-B1-02",
+      "label": "1号楼2号客梯",
+      "deviceType": "电梯",
+      "deviceTypeCode": "elevator",
+      "location": "1号楼电梯2号",
+      "locationCode": "loc-east-b1-elevator-2",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-annual",
+      "model": "XO-REGEN-M",
+      "manufacturer": "奥的斯",
+      "serialNo": "OT2023010202",
+      "status": "running"
+    },
+    {
+      "code": "LIGHT-B-PARKING",
+      "label": "地下停车场B区照明回路",
+      "deviceType": "照明系统",
+      "deviceTypeCode": "lighting_system",
+      "location": "地下停车场B区",
+      "locationCode": "loc-east-parking-b",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-weekly",
+      "model": "LED-220V-48",
+      "manufacturer": "雷士",
+      "serialNo": "LS20240212003",
+      "status": "running"
+    },
+    {
+      "code": "WATER-B1-5F",
+      "label": "1号楼5层卫生间供水系统",
+      "deviceType": "给排水",
+      "deviceTypeCode": "water_supply",
+      "location": "1号楼5层卫生间",
+      "locationCode": "loc-east-b1-5f-restroom",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-annual",
+      "model": "WPS-80",
+      "manufacturer": "南方泵业",
+      "serialNo": "NF20230505007",
+      "status": "running"
+    },
+    {
+      "code": "PRT-F2-002",
+      "label": "二楼财务室打印机",
+      "deviceType": "打印机",
+      "deviceTypeCode": "printer",
+      "location": "二楼财务室",
+      "locationCode": "loc-yuanfan-finance-2f",
+      "customerCode": "customer-yuanfan",
+      "projectCode": "project-yuanfan-office",
+      "model": "LaserJet MFP M428",
+      "manufacturer": "HP",
+      "serialNo": "HP20231022002",
+      "status": "running"
+    },
+    {
+      "code": "DOOR-B1-001",
+      "label": "B座一楼门禁",
+      "deviceType": "门禁系统",
+      "deviceTypeCode": "access_control_system",
+      "location": "B座一楼大厅",
+      "locationCode": "loc-yuanfan-b1-lobby",
+      "customerCode": "customer-yuanfan",
+      "projectCode": "project-yuanfan-office",
+      "model": "ACR-300",
+      "manufacturer": "海康威视",
+      "serialNo": "HK20231201009",
+      "status": "running"
+    },
+    {
+      "code": "NET-3F-CORE",
+      "label": "三楼核心交换机",
+      "deviceType": "网络设备",
+      "deviceTypeCode": "network",
+      "location": "A区3楼办公区",
+      "locationCode": "loc-east-a-3f",
+      "customerCode": "customer-east-hq",
+      "projectCode": "project-east-weekly",
+      "model": "S5735-L48T4X",
+      "manufacturer": "华为",
+      "serialNo": "HW20240120005",
+      "status": "running"
+    },
+    {
+      "code": "FREEZER-CS-008",
+      "label": "冷链仓8号冷柜",
+      "deviceType": "冷柜",
+      "deviceTypeCode": "freezer",
+      "location": "冷链仓储区",
+      "locationCode": "loc-wansheng-cold-storage",
+      "customerCode": "customer-wansheng",
+      "projectCode": "project-wansheng-line2",
+      "model": "DW-40L",
+      "manufacturer": "海尔生物",
+      "serialNo": "HR20240506008",
+      "status": "running"
+    },
+    {
+      "code": "PACK-L2-003",
+      "label": "2号线3号包装机",
+      "deviceType": "包装机",
+      "deviceTypeCode": "packing_machine",
+      "location": "生产线2号区域",
+      "locationCode": "loc-wansheng-line2",
+      "customerCode": "customer-wansheng",
+      "projectCode": "project-wansheng-line2",
+      "model": "PK-860",
+      "manufacturer": "永创智能",
+      "serialNo": "YC20240415003",
+      "status": "running"
+    }
+  ],
+  "faultCategories": [
+    {
+      "code": "cooling",
+      "label": "制冷异常",
+      "deviceTypeCode": "central_ac",
+      "defaultUrgency": "high",
+      "keywords": ["不制冷", "温度高", "E4"]
+    },
+    {
+      "code": "mechanical_noise",
+      "label": "机械异响",
+      "deviceTypeCode": "elevator",
+      "defaultUrgency": "high",
+      "keywords": ["异响", "震动", "轿厢"]
+    },
+    {
+      "code": "lighting_fault",
+      "label": "照明故障",
+      "deviceTypeCode": "lighting_system",
+      "defaultUrgency": "medium",
+      "keywords": ["不亮", "闪烁", "照度不足"]
+    },
+    {
+      "code": "water_pressure",
+      "label": "水压异常",
+      "deviceTypeCode": "water_supply",
+      "defaultUrgency": "medium",
+      "keywords": ["水小", "无水", "压力低"]
+    },
+    {
+      "code": "card_reader",
+      "label": "刷卡异常",
+      "deviceTypeCode": "access_control_system",
+      "defaultUrgency": "medium",
+      "keywords": ["刷卡无反应", "无法通行", "读卡失败"]
+    },
+    {
+      "code": "power",
+      "label": "无法开机",
+      "deviceTypeCode": "printer",
+      "defaultUrgency": "medium",
+      "keywords": ["不开机", "无电源", "启动失败"]
+    },
+    {
+      "code": "network",
+      "label": "网络异常",
+      "deviceTypeCode": "network",
+      "defaultUrgency": "high",
+      "keywords": ["断网", "丢包", "交换机告警"]
+    },
+    {
+      "code": "temperature_alarm",
+      "label": "温度报警",
+      "deviceTypeCode": "freezer",
+      "defaultUrgency": "high",
+      "keywords": ["温度升高", "报警", "冷柜"]
+    },
+    {
+      "code": "mechanical",
+      "label": "机械故障",
+      "deviceTypeCode": "packing_machine",
+      "defaultUrgency": "high",
+      "keywords": ["卡料", "停机", "传动异常"]
+    },
+    {
+      "code": "other",
+      "label": "其他故障",
+      "deviceTypeCode": "",
+      "defaultUrgency": "low",
+      "keywords": ["其他", "待确认"]
+    }
+  ],
+  "departments": [
+    {
+      "code": "hvac",
+      "label": "暖通维修组",
+      "managerName": "周主管",
+      "phone": "13800001001",
+      "coverage": ["中央空调", "冷柜"]
+    },
+    {
+      "code": "strong_current",
+      "label": "强电维修组",
+      "managerName": "吴主管",
+      "phone": "13800001002",
+      "coverage": ["照明系统", "配电"]
+    },
+    {
+      "code": "water_electric",
+      "label": "水电维修组",
+      "managerName": "郑主管",
+      "phone": "13800001003",
+      "coverage": ["给排水", "阀门"]
+    },
+    {
+      "code": "weak_current",
+      "label": "弱电运维组",
+      "managerName": "钱主管",
+      "phone": "13800001004",
+      "coverage": ["门禁系统", "监控设备"]
+    },
+    {
+      "code": "it_support",
+      "label": "IT支持组",
+      "managerName": "孙主管",
+      "phone": "13800001005",
+      "coverage": ["打印机", "网络设备"]
+    },
+    {
+      "code": "equipment",
+      "label": "设备维修组",
+      "managerName": "李主管",
+      "phone": "13800001006",
+      "coverage": ["包装机", "生产设备"]
+    }
+  ],
+  "roles": [
+    {
+      "code": "hvac_engineer",
+      "label": "空调维修工程师",
+      "departmentCode": "hvac",
+      "skills": ["中央空调", "制冷异常", "压缩机保护"]
+    },
+    {
+      "code": "cold_chain_engineer",
+      "label": "冷链维修工程师",
+      "departmentCode": "hvac",
+      "skills": ["冷柜", "温度报警", "制冷系统"]
+    },
+    {
+      "code": "elevator_engineer",
+      "label": "电梯维保工程师",
+      "departmentCode": "equipment",
+      "skills": ["电梯", "机械异响", "安全回路"]
+    },
+    {
+      "code": "strong_current_engineer",
+      "label": "强电工程师",
+      "departmentCode": "strong_current",
+      "skills": ["照明系统", "配电箱", "回路排查"]
+    },
+    {
+      "code": "water_electric_engineer",
+      "label": "水电工程师",
+      "departmentCode": "water_electric",
+      "skills": ["给排水", "水压异常", "阀门"]
+    },
+    {
+      "code": "weak_current_engineer",
+      "label": "弱电工程师",
+      "departmentCode": "weak_current",
+      "skills": ["门禁系统", "读卡器", "控制器"]
+    },
+    {
+      "code": "it_ops_engineer",
+      "label": "IT运维工程师",
+      "departmentCode": "it_support",
+      "skills": ["打印机", "网络设备", "交换机"]
+    },
+    {
+      "code": "equipment_technician",
+      "label": "设备维修技师",
+      "departmentCode": "equipment",
+      "skills": ["包装机", "机械故障", "传动部件"]
+    }
+  ],
+  "personnel": [
+    {
+      "code": "staff-li",
+      "name": "李工",
+      "departmentCode": "hvac",
+      "roleCode": "hvac_engineer",
+      "roleName": "空调维修工程师",
+      "phone": "13900002001",
+      "skillTags": ["中央空调", "制冷异常", "控制面板"],
+      "currentLoad": 2,
+      "status": "available"
+    },
+    {
+      "code": "staff-chen",
+      "name": "陈工",
+      "departmentCode": "hvac",
+      "roleCode": "cold_chain_engineer",
+      "roleName": "冷链维修工程师",
+      "phone": "13900002002",
+      "skillTags": ["冷柜", "制冷系统", "温度报警"],
+      "currentLoad": 1,
+      "status": "available"
+    },
+    {
+      "code": "staff-zhou",
+      "name": "周工",
+      "departmentCode": "equipment",
+      "roleCode": "elevator_engineer",
+      "roleName": "电梯维保工程师",
+      "phone": "13900002003",
+      "skillTags": ["电梯", "机械异响", "轿厢"],
+      "currentLoad": 3,
+      "status": "busy"
+    },
+    {
+      "code": "staff-wu",
+      "name": "吴工",
+      "departmentCode": "strong_current",
+      "roleCode": "strong_current_engineer",
+      "roleName": "强电工程师",
+      "phone": "13900002004",
+      "skillTags": ["照明系统", "配电", "回路排查"],
+      "currentLoad": 1,
+      "status": "available"
+    },
+    {
+      "code": "staff-zheng",
+      "name": "郑工",
+      "departmentCode": "water_electric",
+      "roleCode": "water_electric_engineer",
+      "roleName": "水电工程师",
+      "phone": "13900002005",
+      "skillTags": ["给排水", "过滤器", "阀门"],
+      "currentLoad": 2,
+      "status": "available"
+    },
+    {
+      "code": "staff-qian",
+      "name": "钱工",
+      "departmentCode": "weak_current",
+      "roleCode": "weak_current_engineer",
+      "roleName": "弱电工程师",
+      "phone": "13900002006",
+      "skillTags": ["门禁系统", "读卡器", "网络模块"],
+      "currentLoad": 2,
+      "status": "available"
+    },
+    {
+      "code": "staff-sun",
+      "name": "孙工",
+      "departmentCode": "it_support",
+      "roleCode": "it_ops_engineer",
+      "roleName": "IT运维工程师",
+      "phone": "13900002007",
+      "skillTags": ["打印机", "交换机", "网络异常"],
+      "currentLoad": 1,
+      "status": "available"
+    },
+    {
+      "code": "staff-zhao",
+      "name": "赵工",
+      "departmentCode": "equipment",
+      "roleCode": "equipment_technician",
+      "roleName": "设备维修技师",
+      "phone": "13900002008",
+      "skillTags": ["包装机", "机械故障", "传动部件"],
+      "currentLoad": 2,
+      "status": "available"
+    }
+  ],
+  "parts": [
+    {
+      "code": "temperature_sensor",
+      "label": "温度传感器",
+      "deviceType": "中央空调",
+      "deviceTypeCode": "central_ac",
+      "spec": "NTC-10K",
+      "unit": "个",
+      "stockQty": 24,
+      "safetyStock": 6
+    },
+    {
+      "code": "control_panel",
+      "label": "控制面板",
+      "deviceType": "中央空调",
+      "deviceTypeCode": "central_ac",
+      "spec": "GMV-MODBUS",
+      "unit": "块",
+      "stockQty": 8,
+      "safetyStock": 2
+    },
+    {
+      "code": "compressor_protector",
+      "label": "压缩机保护器",
+      "deviceType": "中央空调",
+      "deviceTypeCode": "central_ac",
+      "spec": "CP-380V",
+      "unit": "个",
+      "stockQty": 10,
+      "safetyStock": 2
+    },
+    {
+      "code": "led_tube",
+      "label": "LED灯管",
+      "deviceType": "照明系统",
+      "deviceTypeCode": "lighting_system",
+      "spec": "T8-18W",
+      "unit": "支",
+      "stockQty": 120,
+      "safetyStock": 30
+    },
+    {
+      "code": "led_driver",
+      "label": "驱动电源",
+      "deviceType": "照明系统",
+      "deviceTypeCode": "lighting_system",
+      "spec": "48W",
+      "unit": "个",
+      "stockQty": 30,
+      "safetyStock": 8
+    },
+    {
+      "code": "water_filter",
+      "label": "过滤器滤芯",
+      "deviceType": "给排水",
+      "deviceTypeCode": "water_supply",
+      "spec": "DN40",
+      "unit": "只",
+      "stockQty": 18,
+      "safetyStock": 5
+    },
+    {
+      "code": "valve_assembly",
+      "label": "阀门组件",
+      "deviceType": "给排水",
+      "deviceTypeCode": "water_supply",
+      "spec": "DN50",
+      "unit": "套",
+      "stockQty": 12,
+      "safetyStock": 3
+    },
+    {
+      "code": "access_card_reader",
+      "label": "门禁读卡器",
+      "deviceType": "门禁系统",
+      "deviceTypeCode": "access_control_system",
+      "spec": "IC/ID双频",
+      "unit": "个",
+      "stockQty": 14,
+      "safetyStock": 4
+    },
+    {
+      "code": "network_module",
+      "label": "网络模块",
+      "deviceType": "网络设备",
+      "deviceTypeCode": "network",
+      "spec": "SFP-GE-LX",
+      "unit": "个",
+      "stockQty": 20,
+      "safetyStock": 5
+    },
+    {
+      "code": "toner",
+      "label": "打印机硒鼓",
+      "deviceType": "打印机",
+      "deviceTypeCode": "printer",
+      "spec": "CF228A",
+      "unit": "支",
+      "stockQty": 16,
+      "safetyStock": 4
+    },
+    {
+      "code": "freezer_fan",
+      "label": "冷柜风机",
+      "deviceType": "冷柜",
+      "deviceTypeCode": "freezer",
+      "spec": "24V DC",
+      "unit": "个",
+      "stockQty": 6,
+      "safetyStock": 2
+    },
+    {
+      "code": "packing_belt",
+      "label": "包装机同步带",
+      "deviceType": "包装机",
+      "deviceTypeCode": "packing_machine",
+      "spec": "HTD-800",
+      "unit": "条",
+      "stockQty": 9,
+      "safetyStock": 3
+    }
+  ],
+  "serviceTypes": [
+    {
+      "code": "repair",
+      "label": "设备维修",
+      "description": "面向故障报修和现场修复"
+    },
+    {
+      "code": "inspection",
+      "label": "巡检排查",
+      "description": "面向周期巡检、异常排查和预防性维护"
+    },
+    {
+      "code": "after_sales",
+      "label": "售后支持",
+      "description": "面向厂商售后或外部服务商协同"
+    },
+    {
+      "code": "other",
+      "label": "其他服务",
+      "description": "无法归类时使用，需人工确认服务边界"
+    }
+  ],
+  "urgencies": [
+    {
+      "code": "low",
+      "label": "低",
+      "responseSlaMinutes": 480,
+      "description": "不影响核心业务，可在当日内处理"
+    },
+    {
+      "code": "medium",
+      "label": "中",
+      "responseSlaMinutes": 120,
+      "description": "影响部分人员或局部区域，需要尽快排查"
+    },
+    {
+      "code": "high",
+      "label": "高",
+      "responseSlaMinutes": 30,
+      "description": "影响核心业务、存在安全风险或可能造成损失"
+    }
+  ],
+  "businessContexts": [
+    {
+      "code": "east-hq",
+      "label": "华东总部园区",
+      "customerCode": "customer-east-hq",
+      "primaryProjectCode": "project-east-weekly"
+    },
+    {
+      "code": "yuanfan-office",
+      "label": "远帆办公楼",
+      "customerCode": "customer-yuanfan",
+      "primaryProjectCode": "project-yuanfan-office"
+    },
+    {
+      "code": "wansheng-factory",
+      "label": "万胜智能工厂",
+      "customerCode": "customer-wansheng",
+      "primaryProjectCode": "project-wansheng-line2"
+    }
+  ],
+  "similarCases": [
+    {
+      "code": "case-ac-e4",
+      "title": "中央空调E4报警导致不制冷",
+      "deviceTypeCode": "central_ac",
+      "faultCategoryCode": "cooling",
+      "solution": "检查出风口温度、冷凝器风机和控制面板，必要时更换温度传感器。"
+    },
+    {
+      "code": "case-door-card-reader",
+      "title": "门禁读卡器刷卡无反应",
+      "deviceTypeCode": "access_control_system",
+      "faultCategoryCode": "card_reader",
+      "solution": "检查读卡器供电、控制器在线状态和网络模块。"
+    },
+    {
+      "code": "case-freezer-temperature",
+      "title": "冷柜温度持续升高",
+      "deviceTypeCode": "freezer",
+      "faultCategoryCode": "temperature_alarm",
+      "solution": "检查门封、冷凝器散热、风机运行和制冷剂状态。"
+    }
+  ],
+  "workOrderSeeds": [
+    {
+      "workOrderNo": "MT-20260603-0001",
+      "status": "pending_confirmation",
+      "sourceType": "agent_chat",
+      "title": "A区3楼中央空调不制冷并显示E4",
+      "originalContent": "A区3楼中央空调不制冷，面板显示E4，今天办公室温度很高，影响员工办公，请尽快处理。",
+      "customerName": "博雅电力",
+      "projectName": "总部园区一周巡检",
+      "siteName": "A区3楼办公区",
+      "reporterName": "张三",
+      "reporterDepartment": "行政部",
+      "reporterContact": "13800000001",
+      "deviceType": "中央空调",
+      "deviceName": "A区3楼中央空调",
+      "deviceNo": "AC-A3-001",
+      "faultCategory": "制冷异常",
+      "faultPhenomenon": "不制冷",
+      "faultCode": "E4",
+      "location": "出风口和控制面板",
+      "impactScope": "A区3楼办公区",
+      "urgency": "high",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "aiDiagnosis": "可能为温度传感器异常、冷凝器散热不良或控制面板故障。",
+      "possibleCauses": ["温度传感器异常", "冷凝器散热不良", "控制面板故障"],
+      "suggestedAction": "检查出风温度、冷凝器风机和控制面板报警记录。",
+      "aiConfidence": 0.92,
+      "recommendedDepartment": "暖通维修组",
+      "recommendedRole": "空调维修工程师",
+      "recommendedPerson": "李工",
+      "recommendedDispatchAdvice": "建议李工优先现场处理，携带温度传感器和控制面板。",
+      "suggestedParts": ["温度传感器", "控制面板"],
+      "hasMultipleIssues": false,
+      "similarWorkOrders": [
+        {
+          "workOrderNo": "MT-20260516-0007",
+          "title": "冷却泵输出口温度异常",
+          "status": "processed"
+        }
+      ],
+      "createdAt": "2026-06-03T10:30:00+08:00"
+    },
+    {
+      "workOrderNo": "MT-20260603-0002",
+      "status": "needs_supplement",
+      "sourceType": "workbench_form",
+      "title": "2号楼3层会议室出水口温度偏高",
+      "originalContent": "2号楼3层会议室空调出水口温度偏高，已经开到最低温仍然降不下来。",
+      "customerName": "博雅电力",
+      "projectName": "总部大厦年度维保",
+      "siteName": "2号楼3层会议室",
+      "reporterName": "赵六",
+      "reporterDepartment": "会务部",
+      "reporterContact": "13800000006",
+      "deviceType": "中央空调",
+      "deviceName": "2号楼3层会议室中央空调",
+      "deviceNo": "AC-B2-3F-001",
+      "faultCategory": "制冷异常",
+      "faultPhenomenon": "出水口温度偏高",
+      "location": "会议室空调出水口",
+      "impactScope": "2号楼3层会议室",
+      "urgency": "medium",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "completenessTips": ["请补充当前面板报警代码或现场照片"],
+      "aiDiagnosis": "疑似冷媒循环或水阀开度异常，需要现场确认报警代码。",
+      "possibleCauses": ["水阀开度不足", "温度传感器漂移", "冷媒循环异常"],
+      "suggestedAction": "补充报警代码后安排暖通工程师现场排查。",
+      "aiConfidence": 0.78,
+      "recommendedDepartment": "暖通维修组",
+      "recommendedRole": "空调维修工程师",
+      "recommendedPerson": "李工",
+      "suggestedParts": ["温度传感器"],
+      "hasMultipleIssues": false,
+      "createdAt": "2026-06-03T10:45:00+08:00"
+    },
+    {
+      "workOrderNo": "MT-20260603-0003",
+      "status": "processing",
+      "sourceType": "agent_chat",
+      "title": "B座一楼门禁刷卡无反应",
+      "originalContent": "B座一楼门禁刷卡没有反应，员工早高峰进入受影响。",
+      "customerName": "远帆科技集团",
+      "projectName": "远帆办公楼设备维保",
+      "siteName": "B座一楼大厅",
+      "reporterName": "钱七",
+      "reporterDepartment": "前台",
+      "reporterContact": "13800000007",
+      "deviceType": "门禁系统",
+      "deviceName": "B座一楼门禁",
+      "deviceNo": "DOOR-B1-001",
+      "faultCategory": "刷卡异常",
+      "faultPhenomenon": "刷卡无反应",
+      "location": "大厅入口",
+      "impactScope": "B座一楼通行",
+      "urgency": "medium",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "aiDiagnosis": "可能是读卡器供电、控制器通讯或网络模块异常。",
+      "possibleCauses": ["读卡器供电异常", "网络模块异常", "控制器离线"],
+      "suggestedAction": "检查读卡器供电、控制器在线状态和网络模块。",
+      "aiConfidence": 0.84,
+      "recommendedDepartment": "弱电运维组",
+      "recommendedRole": "弱电工程师",
+      "recommendedPerson": "钱工",
+      "recommendedDispatchAdvice": "安排钱工现场核查门禁控制器并携带读卡器备件。",
+      "suggestedParts": ["门禁读卡器", "网络模块"],
+      "confirmedDepartment": "弱电运维组",
+      "confirmedRole": "弱电工程师",
+      "confirmedPerson": "钱工",
+      "processingRemark": "先恢复门禁通行，再排查控制器日志。",
+      "createdAt": "2026-06-03T09:40:00+08:00"
+    },
+    {
+      "workOrderNo": "MT-20260603-0004",
+      "status": "processed",
+      "sourceType": "workbench_form",
+      "title": "地下停车场B区照明大面积闪烁",
+      "originalContent": "地下停车场B区多组灯管闪烁，夜间影响车辆通行。",
+      "customerName": "博雅电力",
+      "projectName": "总部园区一周巡检",
+      "siteName": "地下停车场B区",
+      "reporterName": "孙八",
+      "reporterDepartment": "安保部",
+      "reporterContact": "13800000008",
+      "deviceType": "照明系统",
+      "deviceName": "地下停车场B区照明回路",
+      "deviceNo": "LIGHT-B-PARKING",
+      "faultCategory": "照明故障",
+      "faultPhenomenon": "灯管闪烁",
+      "location": "B区车道入口",
+      "impactScope": "停车场B区车道",
+      "urgency": "medium",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "aiDiagnosis": "驱动电源老化或回路接触不良导致闪烁。",
+      "possibleCauses": ["驱动电源老化", "接线端子松动", "灯管寿命到期"],
+      "suggestedAction": "检查照明回路接线并更换异常驱动电源。",
+      "aiConfidence": 0.88,
+      "recommendedDepartment": "强电维修组",
+      "recommendedRole": "强电工程师",
+      "recommendedPerson": "吴工",
+      "suggestedParts": ["LED灯管", "驱动电源"],
+      "processingResult": "fixed",
+      "processingSummary": "更换2个驱动电源并紧固回路接线，照明恢复稳定。",
+      "processedAt": "2026-06-03T11:20:00+08:00",
+      "createdAt": "2026-06-03T08:55:00+08:00"
+    },
+    {
+      "workOrderNo": "MT-20260603-0005",
+      "status": "pending_confirmation",
+      "sourceType": "agent_chat",
+      "title": "冷链仓8号冷柜温度持续升高",
+      "originalContent": "冷链仓8号冷柜从早上开始温度持续升高并报警，里面有待发货物料，请优先处理。",
+      "customerName": "万胜智能",
+      "projectName": "二号生产线设备巡检",
+      "siteName": "冷链仓储区",
+      "reporterName": "陈九",
+      "reporterDepartment": "仓储部",
+      "reporterContact": "13800000009",
+      "deviceType": "冷柜",
+      "deviceName": "冷链仓8号冷柜",
+      "deviceNo": "FREEZER-CS-008",
+      "faultCategory": "温度报警",
+      "faultPhenomenon": "温度持续升高",
+      "location": "8号冷柜",
+      "impactScope": "冷链待发货物料",
+      "urgency": "high",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "aiDiagnosis": "可能为冷凝器散热不良、风机异常或门封漏冷。",
+      "possibleCauses": ["冷凝器散热不良", "冷柜风机异常", "门封漏冷"],
+      "suggestedAction": "先转移温控敏感物料，再检查冷凝器、风机和门封。",
+      "aiConfidence": 0.9,
+      "recommendedDepartment": "暖通维修组",
+      "recommendedRole": "冷链维修工程师",
+      "recommendedPerson": "陈工",
+      "suggestedParts": ["冷柜风机"],
+      "hasMultipleIssues": false,
+      "createdAt": "2026-06-03T11:05:00+08:00"
+    },
+    {
+      "workOrderNo": "MT-20260603-0006",
+      "status": "pending_confirmation",
+      "sourceType": "agent_chat",
+      "title": "包装机卡料并伴随异响",
+      "originalContent": "2号线3号包装机连续卡料，还有明显异响，产线速度已经降下来了。",
+      "customerName": "万胜智能",
+      "projectName": "二号生产线设备巡检",
+      "siteName": "生产线2号区域",
+      "reporterName": "刘十",
+      "reporterDepartment": "生产部",
+      "reporterContact": "13800000010",
+      "deviceType": "包装机",
+      "deviceName": "2号线3号包装机",
+      "deviceNo": "PACK-L2-003",
+      "faultCategory": "机械故障",
+      "faultPhenomenon": "卡料并伴随异响",
+      "location": "进料传动段",
+      "impactScope": "2号生产线产能",
+      "urgency": "high",
+      "serviceType": "repair",
+      "needOnsite": true,
+      "aiDiagnosis": "AI检测到卡料和异响两个故障事项，第一版生成一张综合工单并提示人工必要时拆分。",
+      "possibleCauses": ["传动同步带磨损", "导向件偏移", "轴承异常"],
+      "suggestedAction": "停机检查传动段、导向件和同步带张力。",
+      "aiConfidence": 0.87,
+      "recommendedDepartment": "设备维修组",
+      "recommendedRole": "设备维修技师",
+      "recommendedPerson": "赵工",
+      "suggestedParts": ["包装机同步带"],
+      "hasMultipleIssues": true,
+      "multipleIssueTip": "本次报修包含卡料和机械异响两个事项，第一版仅生成综合工单，建议审核员必要时线下拆分。",
+      "createdAt": "2026-06-03T11:18:00+08:00"
+    }
+  ]
+}
