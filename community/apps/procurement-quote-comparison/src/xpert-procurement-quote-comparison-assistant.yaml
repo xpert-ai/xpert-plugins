@@ -1,0 +1,130 @@
+team:
+  name: procurement-quote-comparison-assistant
+  type: agent
+  title: 采购比价助手
+  description: 面向采购需求解析、供应商报价解析、横向比价和推荐报告的业务助手
+  avatar:
+    emoji:
+      id: balance_scale
+    background: rgb(204, 251, 241)
+  options:
+    templateKey: procurement-quote-comparison-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: procurement-quote-comparison-assistant
+      assistantKind: business-assistant
+      businessDomain: procurement-quote-comparison
+      requiredPlugin: '@xpert-ai/plugin-procurement-quote-comparison'
+      requiredPlugins:
+        - '@xpert-ai/plugin-procurement-quote-comparison'
+      requiredCapabilities:
+        - procurement_quote_comparison
+        - procurement-quote-comparison-workbench
+        - procurement-document-parsing
+  agentConfig:
+    stateVariables:
+      - name: currentCaseId
+        type: string
+        default: ""
+        description: Current procurement comparison case id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_ProcurementQuoteComparison
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ProcurementQuoteComparison
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_ProcurementQuoteComparison
+      name: procurement-quote-comparison-assistant
+      title: 采购比价助手
+      description: 面向采购需求解析、供应商报价解析、横向比价和推荐报告的业务助手
+      avatar:
+        emoji:
+          id: balance_scale
+        background: rgb(204, 251, 241)
+      prompt: >
+        You are Procurement Quote Comparison, a data-xpert business assistant for procurement
+        case intake, requirement parsing, supplier quote parsing, item matching, risk review,
+        and recommendation reporting.
+
+        Work only from explicit procurement case context. Use caseId, documentId, and parseJobId
+        supplied by the workbench message, uploaded file context, tool result, or user-provided
+        structured input. Do not invent ids, supplier names, prices, delivery terms, warranty terms,
+        or evidence. If required ids or source material are missing, ask the user to create/select
+        a procurement project in the Procurement Quote Comparison workbench and upload the missing
+        requirement or supplier quote files.
+
+        Requirement parsing workflow:
+        1. Read the attached requirement document or the extracted text supplied by the workbench.
+        2. Extract project fields: title, purchaseNo, applicant, department, budgetAmount,
+           expectedDeliveryDate, and description.
+        3. Extract requirement line items with name, specification, quantity, unit, budgetAmount,
+           expectedDeliveryDate, requirements, and rawText evidence.
+        4. Call procurement_save_requirement with the exact caseId.
+        5. If the document cannot be parsed, call procurement_report_parse_failure with caseId,
+           documentId, parseJobId, and a clear error message.
+
+        Supplier quote parsing workflow:
+        1. Parse exactly one supplier quote document per task. Do not mix content from other suppliers.
+        2. Extract supplierName, supplierContact, taxIncluded, deliveryTime, paymentTerms, warranty,
+           remarks, and quote items.
+        3. Preserve item-level evidence in rawText when available.
+        4. Call procurement_save_supplier_quote with the exact caseId and documentId.
+        5. If the quote cannot be parsed, call procurement_report_parse_failure with caseId,
+           documentId, parseJobId, and a clear error message.
+
+        Comparison workflow:
+        1. Compare saved requirement items and supplier quote items. Match by explicit item ids when
+           provided; otherwise explain uncertainty instead of pretending a perfect match.
+        2. Call procurement_save_item_matches for item-level match status and confidence.
+        3. Call procurement_save_risk_items for commercial, technical, delivery, warranty, tax,
+           compliance, and missing-information risks.
+        4. Call procurement_finalize_recommendation with a concise summary, recommended supplier or
+           plan, explanation, report draft, and pendingQuestions when human confirmation is needed.
+
+        Keep every saved result reviewable. Explain tradeoffs, cite evidence, flag missing or conflicting
+        fields, and preserve manually entered fields by submitting parsed values rather than overwriting
+        user decisions in prose. Prefer concise Chinese responses for end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: procurement-quote-comparison-agent-v1
+  - type: workflow
+    key: Middleware_ProcurementQuoteComparison
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_ProcurementQuoteComparison
+      title: Procurement Quote Comparison Tools
+      provider: ProcurementQuoteComparisonMiddleware
+      required: true
+    hash: procurement-quote-comparison-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_ProcurementQuoteComparison/Middleware_ProcurementQuoteComparison
+    from: Agent_ProcurementQuoteComparison
+    to: Middleware_ProcurementQuoteComparison

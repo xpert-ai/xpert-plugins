@@ -7,8 +7,10 @@ import {
   PROCUREMENT_QUOTE_COMPARISON_MIDDLEWARE_NAME,
   PROCUREMENT_QUOTE_COMPARISON_PLUGIN_NAME,
   PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY,
+  PROCUREMENT_QUOTE_COMPARISON_TEMPLATE_PROVIDER_KEY,
   PROCUREMENT_QUOTE_COMPARISON_VIEW_KEY
 } from './lib/constants.js'
+import { procurementQuoteComparisonTemplates } from './lib/procurement-quote-comparison.templates.js'
 
 const ConfigSchema = z.object({})
 
@@ -24,7 +26,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         capabilities: [
           PROCUREMENT_QUOTE_COMPARISON_FEATURE,
           'procurement-quote-comparison-workbench',
-          'procurement-document-parsing'
+          'procurement-document-parsing',
+          'procurement-quote-comparison-assistant-template'
         ],
         marketplace: {
           contents: [
@@ -72,12 +75,20 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               displayName: 'Procurement Quote Comparison Tools',
               description:
                 'Assistant middleware tools for saving requirement parsing, supplier quotes, item matches, risks, and recommendations.'
+            },
+            {
+              type: 'assistant-template',
+              name: 'procurement-quote-comparison-assistant',
+              displayName: 'Procurement Quote Comparison Assistant Template',
+              description:
+                'Prebuilt assistant workflow template for procurement requirement parsing, supplier quote comparison, risk review, and recommendation reporting.'
             }
           ]
         },
         runtime: {
           middlewareProviders: [PROCUREMENT_QUOTE_COMPARISON_MIDDLEWARE_NAME],
-          viewProviders: [PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY]
+          viewProviders: [PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY],
+          templateProviders: [PROCUREMENT_QUOTE_COMPARISON_TEMPLATE_PROVIDER_KEY]
         }
       }
     },
@@ -90,12 +101,13 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     displayName: 'Procurement Quote Comparison',
     description:
       'Create procurement comparison cases, parse requirements and supplier quotes with an Xpert, and expose a project workbench view.',
-    keywords: ['procurement', 'quote-comparison', 'middleware', 'view-extension', 'remote-component'],
+    keywords: ['procurement', 'quote-comparison', 'middleware', 'view-extension', 'remote-component', 'assistant-template'],
     author: 'XpertAI Team'
   },
   config: {
     schema: ConfigSchema
   },
+  templates: procurementQuoteComparisonTemplates,
   register(ctx) {
     ctx.logger.log('register procurement quote comparison plugin')
     return { module: ProcurementQuoteComparisonPlugin, global: true }
@@ -116,3 +128,4 @@ export * from './lib/procurement-quote-comparison.plugin.js'
 export * from './lib/procurement-quote-comparison.service.js'
 export * from './lib/procurement-quote-comparison.middleware.js'
 export * from './lib/procurement-quote-comparison-view.provider.js'
+export * from './lib/procurement-quote-comparison.templates.js'

@@ -9,6 +9,7 @@ export const SMART_MAINTENANCE_REVIEW_PUBLIC_VIEW_KEY = `${SMART_MAINTENANCE_PRO
 export const SMART_MAINTENANCE_REMOTE_ENTRY_KEY = 'smart-maintenance'
 export const SMART_MAINTENANCE_FEATURE = 'smart_maintenance'
 export const SMART_MAINTENANCE_MIDDLEWARE_NAME = 'SmartMaintenanceMiddleware'
+export const SMART_MAINTENANCE_TEMPLATE_PROVIDER_KEY = 'smartMaintenanceTemplates'
 export const SMART_MAINTENANCE_SAVE_TOOL_NAME = 'smart_maintenance_save_generated_work_order'
 export const SMART_MAINTENANCE_IMPORT_SERVICE_DATA_TOOL_NAME = 'smart_maintenance_import_service_data'
 export const SMART_MAINTENANCE_GET_CATALOG_TOOL_NAME = 'smart_maintenance_get_catalog'
