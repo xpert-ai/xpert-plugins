@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
@@ -12,7 +15,6 @@ import {
   SALES_ONTOLOGY_FEATURE,
   SALES_ONTOLOGY_ICON,
   SALES_ONTOLOGY_MIDDLEWARE_NAME,
-  SALES_ONTOLOGY_PLUGIN_NAME,
   SALES_ONTOLOGY_PROVIDER_KEY,
   SALES_ONTOLOGY_SCENARIO_LEARNING_MIDDLEWARE_NAME,
   SALES_ONTOLOGY_TEMPLATE_PROVIDER_KEY,
@@ -21,12 +23,19 @@ import {
 import { SalesOntologyPlugin } from './lib/sales-ontology.plugin.js'
 import { salesOntologyTemplates } from './lib/sales-ontology.templates.js'
 
+const moduleDir = dirname(fileURLToPath(import.meta.url))
+
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
+
 const ConfigSchema = SalesOntologyPluginConfigSchema
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: SALES_ONTOLOGY_PLUGIN_NAME,
-    version: '0.0.1',
+    name: packageJson.name,
+    version: packageJson.version,
     level: 'system',
     targetApps: ['data-xpert'],
     targetAppMeta: {

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { z } from 'zod/v3'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
@@ -10,19 +12,25 @@ import {
   SMART_MAINTENANCE_FEATURE,
   SMART_MAINTENANCE_ICON,
   SMART_MAINTENANCE_MIDDLEWARE_NAME,
-  SMART_MAINTENANCE_PLUGIN_NAME,
   SMART_MAINTENANCE_PROVIDER_KEY,
   SMART_MAINTENANCE_TEMPLATE_PROVIDER_KEY,
   SMART_MAINTENANCE_WORKBENCH_VIEW_KEY
 } from './lib/constants'
 import { smartMaintenanceTemplates } from './lib/smart-maintenance.templates'
 
+const moduleDir = __dirname
+
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
+
 const ConfigSchema = SmartMaintenancePluginConfigSchema
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: SMART_MAINTENANCE_PLUGIN_NAME,
-    version: '0.0.1',
+    name: packageJson.name,
+    version: packageJson.version,
     level: 'organization',
     targetApps: ['data-xpert'],
     targetAppMeta: {
