@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-procurement-quote-comparison",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Procurement quote comparison app plugin for creating procurement cases, parsing requirements and supplier quotes, and reviewing AI recommendations.",
   "author": {
     "name": "XpertAI",
