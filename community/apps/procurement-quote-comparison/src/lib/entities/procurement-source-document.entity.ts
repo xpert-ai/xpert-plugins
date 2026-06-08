@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementDocumentExtractionStatus, ProcurementDocumentRole, ProcurementDocumentStatus } from '../types.js'
 
-@Entity('procurement_source_document')
+@Entity('plugin_procurement_source_document')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementSourceDocument {
   @PrimaryGeneratedColumn('uuid')

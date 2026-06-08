@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 
-@Entity('procurement_supplier_quote')
+@Entity('plugin_procurement_supplier_quote')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementSupplierQuote {
   @PrimaryGeneratedColumn('uuid')

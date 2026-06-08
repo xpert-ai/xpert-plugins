@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
-@Entity('sales_ontology_decision_effect')
+@Entity('plugin_sales_ontology_decision_effect')
 @Index(['tenantId', 'organizationId', 'assistantId', 'decisionId'])
 export class SalesOntologyDecisionEffect {
   @PrimaryGeneratedColumn('uuid')

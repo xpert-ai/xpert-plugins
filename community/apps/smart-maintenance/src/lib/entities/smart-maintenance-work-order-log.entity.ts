@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedCol
 import type { SmartMaintenanceLogAction } from '../types'
 import type { SmartMaintenanceWorkOrder } from './smart-maintenance-work-order.entity'
 
-@Entity('smart_maintenance_work_order_log')
+@Entity('plugin_smart_maintenance_work_order_log')
 @Index(['tenantId', 'organizationId', 'workOrderId', 'createdAt'])
 export class SmartMaintenanceWorkOrderLog {
   @PrimaryGeneratedColumn('uuid')

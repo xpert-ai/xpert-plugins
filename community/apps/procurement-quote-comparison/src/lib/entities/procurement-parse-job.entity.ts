@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementParseJobStatus, ProcurementParseJobType } from '../types.js'
 
-@Entity('procurement_parse_job')
+@Entity('plugin_procurement_parse_job')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementParseJob {
   @PrimaryGeneratedColumn('uuid')

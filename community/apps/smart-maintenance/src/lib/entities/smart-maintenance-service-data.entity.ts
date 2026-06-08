@@ -5,7 +5,7 @@ import type {
   SmartMaintenanceServiceDataSummary
 } from '../types'
 
-@Entity('smart_maintenance_service_data')
+@Entity('plugin_smart_maintenance_service_data')
 @Index(['tenantId', 'organizationId', 'importedAt'])
 export class SmartMaintenanceServiceData {
   @PrimaryGeneratedColumn('uuid')

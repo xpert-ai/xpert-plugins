@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { SalesOntologyPriority } from '../types.js'
 
-@Entity('sales_ontology_notification')
+@Entity('plugin_sales_ontology_notification')
 @Index(['tenantId', 'organizationId', 'assistantId', 'userId'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'read'])
 export class SalesOntologyNotification {

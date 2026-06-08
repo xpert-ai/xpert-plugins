@@ -8,7 +8,8 @@
     "create:package": "node ./scripts/create-package.mjs",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
-    "test": "pnpm -r run test",
+    "check:entity-names": "node ./scripts/check-entity-names.mjs",
+    "test": "pnpm run check:entity-names && pnpm -r run test",
     "release:publish": "pnpm -r --if-present run build && pnpm exec changeset publish"
   },
   "devDependencies": {

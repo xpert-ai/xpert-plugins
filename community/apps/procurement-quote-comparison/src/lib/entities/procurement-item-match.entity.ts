@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementMatchStatus } from '../types.js'
 
-@Entity('procurement_item_match')
+@Entity('plugin_procurement_item_match')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementItemMatch {
   @PrimaryGeneratedColumn('uuid')

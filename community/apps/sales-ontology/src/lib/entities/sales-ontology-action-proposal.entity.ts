@@ -5,7 +5,7 @@ import type {
   SalesOntologyPriority
 } from '../types.js'
 
-@Entity('sales_ontology_action_proposal')
+@Entity('plugin_sales_ontology_action_proposal')
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'entityTypeCode', 'entityExternalKey'])
 export class SalesOntologyActionProposal {

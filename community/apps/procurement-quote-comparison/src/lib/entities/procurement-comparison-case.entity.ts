@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementComparisonStatus, ProcurementFieldConflict } from '../types.js'
 
-@Entity('procurement_comparison_case')
+@Entity('plugin_procurement_comparison_case')
 @Index(['tenantId', 'organizationId', 'projectId'])
 @Index(['tenantId', 'organizationId', 'purchaseNo'])
 export class ProcurementComparisonCase {

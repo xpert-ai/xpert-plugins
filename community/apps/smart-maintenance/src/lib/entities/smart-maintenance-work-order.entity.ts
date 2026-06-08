@@ -10,7 +10,7 @@ import type {
 } from '../types'
 import type { SmartMaintenanceWorkOrderLog } from './smart-maintenance-work-order-log.entity'
 
-@Entity('smart_maintenance_work_order')
+@Entity('plugin_smart_maintenance_work_order')
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'workOrderNo'])
 @Index(['tenantId', 'organizationId', 'deviceType', 'location', 'createdAt'])

@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { ProcurementRiskSeverity } from '../types.js'
 
-@Entity('procurement_risk_item')
+@Entity('plugin_procurement_risk_item')
 @Index(['tenantId', 'organizationId', 'projectId', 'caseId'])
 export class ProcurementRiskItem {
   @PrimaryGeneratedColumn('uuid')
