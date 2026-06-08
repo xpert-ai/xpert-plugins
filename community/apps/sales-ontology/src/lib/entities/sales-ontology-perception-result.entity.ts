@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { SalesOntologyEvidence } from '../types.js'
 
-@Entity('sales_ontology_perception_result')
+@Entity('plugin_sales_ontology_perception_result')
 @Index(['tenantId', 'organizationId', 'assistantId', 'entityTypeCode', 'entityExternalKey'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'runId'])
 export class SalesOntologyPerceptionResult {

@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { SalesOntologyPriority } from '../types.js'
 
-@Entity('sales_ontology_reminder')
+@Entity('plugin_sales_ontology_reminder')
 @Index(['tenantId', 'organizationId', 'assistantId', 'userId'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 export class SalesOntologyReminder {

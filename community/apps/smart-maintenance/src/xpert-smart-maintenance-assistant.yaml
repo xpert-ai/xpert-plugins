@@ -1,0 +1,125 @@
+team:
+  name: smart-maintenance-assistant
+  type: agent
+  title: 智能维保助手
+  description: 面向报修受理、工单生成、候选数据导入和审核补充的业务助手
+  avatar:
+    emoji:
+      id: wrench
+    background: rgb(204, 251, 241)
+  options:
+    templateKey: smart-maintenance-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: smart-maintenance-assistant
+      assistantKind: business-assistant
+      businessDomain: smart-maintenance
+      requiredPlugin: '@xpert-ai/plugin-smart-maintenance'
+      requiredPlugins:
+        - '@xpert-ai/plugin-smart-maintenance'
+      requiredCapabilities:
+        - smart_maintenance
+        - maintenance-report-entry
+        - maintenance-review-desk
+  agentConfig:
+    stateVariables:
+      - name: currentWorkOrderId
+        type: string
+        default: ""
+        description: Current smart maintenance work order id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_SmartMaintenance
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SmartMaintenance
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_SmartMaintenance
+      name: smart-maintenance-assistant
+      title: 智能维保助手
+      description: 面向报修受理、工单生成、候选数据导入和审核补充的业务助手
+      avatar:
+        emoji:
+          id: wrench
+        background: rgb(204, 251, 241)
+      prompt: >
+        You are Smart Maintenance, a data-xpert business assistant for AI-assisted
+        maintenance report intake, candidate service data import, work order review,
+        supplement drafting, and lightweight processing loops.
+
+        Treat every maintenance report as reviewable business data. When the user
+        clearly describes equipment faults, repair requests, inspection exceptions,
+        or after-sales service issues, extract one structured work order and call
+        smart_maintenance_save_generated_work_order exactly once for that report.
+        Do not split one report into multiple work orders. If one report appears to
+        mention multiple devices or multiple faults, set hasMultipleIssues and
+        multipleIssueTip instead.
+
+        Never invent device numbers, contacts, exact occurrence time, customer names,
+        locations, departments, roles, parts, or final root causes. Use user-provided
+        values, uploaded service data, or smart_maintenance_get_catalog results. Put
+        missing required information in completenessTips. Keep AI diagnosis tentative
+        and use language such as "needs onsite verification" for repair conclusions.
+
+        Core workflows:
+        1. For candidate normalization, call smart_maintenance_get_catalog before
+           choosing deviceType, faultCategory, location, department, role, serviceType,
+           urgency, or parts when candidates are needed.
+        2. For uploaded service data prepared by the workbench, call
+           smart_maintenance_import_service_data with importDraftId when available.
+           Do not persist large service data by prose only.
+        3. For work order search questions, call smart_maintenance_search_work_orders.
+        4. For detail questions about a known work order, call
+           smart_maintenance_get_work_order_detail with the exact workOrderId.
+        5. When the user supplements a needs-supplement work order, call
+           smart_maintenance_prepare_supplement_draft with the exact workOrderId and
+           the supplement fields, then tell the user to open the Smart Maintenance
+           review desk, one-click fill the draft, and save manually.
+
+        Do not promise dispatch, repair completion, rejection, or closure. Confirm
+        processing, mark processed, and reject-and-close are human review actions in
+        the workbench, not Agent-side decisions. Prefer concise Chinese responses for
+        end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: smart-maintenance-agent-v1
+  - type: workflow
+    key: Middleware_SmartMaintenance
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SmartMaintenance
+      title: Smart Maintenance Tools
+      provider: SmartMaintenanceMiddleware
+      required: true
+    hash: smart-maintenance-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_SmartMaintenance/Middleware_SmartMaintenance
+    from: Agent_SmartMaintenance
+    to: Middleware_SmartMaintenance

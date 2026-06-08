@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { SalesOntologyRunStatus, SalesOntologyRunType, SalesOntologyEvidence } from '../types.js'
 
-@Entity('sales_ontology_decision_run')
+@Entity('plugin_sales_ontology_decision_run')
 @Index(['tenantId', 'organizationId', 'assistantId', 'runType'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 export class SalesOntologyDecisionRun {

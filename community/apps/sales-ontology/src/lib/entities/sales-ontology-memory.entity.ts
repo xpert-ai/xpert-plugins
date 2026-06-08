@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
-@Entity('sales_ontology_memory')
+@Entity('plugin_sales_ontology_memory')
 @Index(['tenantId', 'organizationId', 'assistantId', 'memoryType'])
 export class SalesOntologyMemory {
   @PrimaryGeneratedColumn('uuid')

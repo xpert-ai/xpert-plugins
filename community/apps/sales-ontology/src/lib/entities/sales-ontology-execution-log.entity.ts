@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
-@Entity('sales_ontology_execution_log')
+@Entity('plugin_sales_ontology_execution_log')
 @Index(['tenantId', 'organizationId', 'assistantId', 'proposalId'])
 export class SalesOntologyExecutionLog {
   @PrimaryGeneratedColumn('uuid')
