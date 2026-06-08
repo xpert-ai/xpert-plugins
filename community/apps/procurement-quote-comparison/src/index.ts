@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { ProcurementQuoteComparisonPlugin } from './lib/procurement-quote-comparison.plugin.js'
@@ -5,19 +8,25 @@ import {
   PROCUREMENT_ICON,
   PROCUREMENT_QUOTE_COMPARISON_FEATURE,
   PROCUREMENT_QUOTE_COMPARISON_MIDDLEWARE_NAME,
-  PROCUREMENT_QUOTE_COMPARISON_PLUGIN_NAME,
   PROCUREMENT_QUOTE_COMPARISON_PROVIDER_KEY,
   PROCUREMENT_QUOTE_COMPARISON_TEMPLATE_PROVIDER_KEY,
   PROCUREMENT_QUOTE_COMPARISON_VIEW_KEY
 } from './lib/constants.js'
 import { procurementQuoteComparisonTemplates } from './lib/procurement-quote-comparison.templates.js'
 
+const moduleDir = dirname(fileURLToPath(import.meta.url))
+
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
+
 const ConfigSchema = z.object({})
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: PROCUREMENT_QUOTE_COMPARISON_PLUGIN_NAME,
-    version: '0.0.1',
+    name: packageJson.name,
+    version: packageJson.version,
     level: 'system',
     targetApps: ['data-xpert'],
     targetAppMeta: {

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { SitesPluginConfigFormSchema, SitesPluginConfigSchema, readSitesPluginEnvDefaults } from './lib/sites.config.js'
@@ -5,7 +8,6 @@ import {
   SITES_FEATURE,
   SITES_ICON,
   SITES_MIDDLEWARE_NAME,
-  SITES_PLUGIN_NAME,
   SITES_PROVIDER_KEY,
   SITES_TEMPLATE_PROVIDER_KEY,
   SITES_VIEW_KEY
@@ -13,12 +15,19 @@ import {
 import { SitesPlugin } from './lib/sites.plugin.js'
 import { sitesTemplates } from './lib/sites.templates.js'
 
+const moduleDir = dirname(fileURLToPath(import.meta.url))
+
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
+
 const ConfigSchema = SitesPluginConfigSchema
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: SITES_PLUGIN_NAME,
-    version: '0.0.1',
+    name: packageJson.name,
+    version: packageJson.version,
     level: 'system',
     targetApps: ['data-xpert'],
     targetAppMeta: {
