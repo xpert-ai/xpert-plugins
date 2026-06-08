@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-smart-maintenance",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Smart maintenance app plugin for AI-assisted maintenance report intake, work order review, service data import, and lightweight processing loops.",
   "author": {
     "name": "XpertAI",
