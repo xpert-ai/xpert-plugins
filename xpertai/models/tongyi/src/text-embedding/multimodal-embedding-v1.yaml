@@ -1,5 +1,5 @@
 # for more details, please refer to https://help.aliyun.com/zh/model-studio/getting-started/models#3383780daf8hw
-model: text-embedding-v4
+model: multimodal-embedding-v1
 model_type: text-embedding
 model_properties:
   context_size: 8192
@@ -8,3 +8,5 @@ pricing:
   input: "0.0005"
   unit: "0.001"
   currency: RMB
+features:
+  - vision

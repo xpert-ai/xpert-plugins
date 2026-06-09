@@ -1,23 +1,43 @@
-# for more details, please refer to https://help.aliyun.com/zh/model-studio/qwen-tts
 model: qwen3-tts-flash
 model_type: tts
 model_properties:
-  default_voice: 'Ethan'
+  default_voice: 'Cherry'
   voices:
-    - mode: "Ethan"
-      language: [ "zh-Hans", "en-US" ]
     - mode: "Cherry"
-      language: [ "zh-Hans", "en-US" ]
+      name: "芊悦"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
     - mode: "Serena"
-      language: [ "zh-Hans", "en-US" ]
+      name: "苏瑶"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Ethan"
+      name: "晨煦"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
     - mode: "Chelsie"
-      language: [ "zh-Hans", "en-US" ]
-    - mode: "Dylan"
-      language: [ "zh-Hans", "en-US" ]
-    - mode: "Jada"
-      language: [ "zh-Hans", "en-US" ]
-    - mode: "Sunny"
-      language: [ "zh-Hans", "en-US" ]
-  word_limit: 7000
-  audio_type: 'wav'
+      name: "千雪"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Momo"
+      name: "茉兔"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Vivian"
+      name: "十三"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Moon"
+      name: "月白"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Maia"
+      name: "四月"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Kai"
+      name: "凯"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+    - mode: "Nofish"
+      name: "不吃鱼"
+      language: [ "zh-Hans", "en-US", "fr-FR", "de-DE", "ru-RU", "it-IT", "es-ES", "pt-PT", "ja-JP", "ko-KR" ]
+  word_limit: 512
+  audio_type: 'mp3'
   max_workers: 5
+pricing:
+  input: '1'
+  output: '0'
+  unit: '0.0001'
+  currency: RMB
