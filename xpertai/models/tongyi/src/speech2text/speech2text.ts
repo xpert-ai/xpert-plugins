@@ -6,6 +6,7 @@ import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { SpeechToTextModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
+import { getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
 
 @Injectable()
 export class TongyiSpeech2TextModel extends SpeechToTextModel {
@@ -18,9 +19,11 @@ export class TongyiSpeech2TextModel extends SpeechToTextModel {
 	}
 
 	override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions): BaseChatModel {
+		const credentials = copilotModel.copilot.modelProvider.credentials as TongyiCredentials
 		return new Speech2TextChatModel({
-			apiKey: (copilotModel.copilot.modelProvider.credentials as { dashscope_api_key: string }).dashscope_api_key,
-			model: copilotModel.model
+			apiKey: credentials.dashscope_api_key,
+			model: copilotModel.model,
+			baseUrl: getTongyiHttpBaseUrl(credentials)
 		})
 	}
 }
@@ -28,6 +31,7 @@ export class TongyiSpeech2TextModel extends SpeechToTextModel {
 export interface ChatTongyiSpeech2TextInput extends BaseChatModelParams {
 	apiKey?: string
 	model: string
+	baseUrl?: string
 }
 
 export class Speech2TextChatModel extends BaseChatModel {
@@ -54,10 +58,12 @@ export class Speech2TextChatModel extends BaseChatModel {
 		const humanMessage = messages[messages.length - 1]
 		const fileUrls = (<{ url: string }[]>humanMessage.content).map((_) => _.url)
 		const languageHints = ['zh', 'en']
+		const model = this.fields?.model || 'paraformer-v2'
+		const baseUrl = this.fields?.baseUrl || TongyiDefaultHttpBaseUrl
 
-		const taskId = await submitTask(this.apiKey, fileUrls, languageHints)
+		const taskId = await submitTask(this.apiKey, baseUrl, model, fileUrls, languageHints)
 		if (taskId) {
-			const result = await waitForComplete(taskId, this.apiKey)
+			const result = await waitForComplete(taskId, this.apiKey, baseUrl)
 			const content = await processTranscriptions(result)
 			return {
 				generations: content.map((text) => ({
@@ -71,8 +77,8 @@ export class Speech2TextChatModel extends BaseChatModel {
 	}
 }
 
-async function submitTask(apiKey: string, fileUrls: string[], languageHints: string[]): Promise<string | null> {
-	const serviceUrl = 'https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription'
+async function submitTask(apiKey: string, baseUrl: string, model: string, fileUrls: string[], languageHints: string[]): Promise<string | null> {
+	const serviceUrl = joinTongyiApiUrl(baseUrl, '/services/audio/asr/transcription')
 	const response = await fetch(serviceUrl, {
 		method: 'POST',
 		headers: {
@@ -81,7 +87,7 @@ async function submitTask(apiKey: string, fileUrls: string[], languageHints: str
 			'X-DashScope-Async': 'enable'
 		},
 		body: JSON.stringify({
-			model: 'paraformer-v2',
+			model,
 			input: { file_urls: fileUrls },
 			parameters: {
 				channel_id: [0],
@@ -99,8 +105,8 @@ async function submitTask(apiKey: string, fileUrls: string[], languageHints: str
 	return data.output.task_id
 }
 
-async function waitForComplete(taskId: string, apiKey: string): Promise<{ transcription_url: string }[]> {
-	const serviceUrl = `https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`
+async function waitForComplete(taskId: string, apiKey: string, baseUrl: string): Promise<{ transcription_url: string }[]> {
+	const serviceUrl = joinTongyiApiUrl(baseUrl, `/tasks/${taskId}`)
 	const headers = {
 		Authorization: `Bearer ${apiKey}`,
 		'Content-Type': 'application/json',
