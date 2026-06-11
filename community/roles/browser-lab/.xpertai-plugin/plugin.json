@@ -1,0 +1,142 @@
+{
+  "name": "@xpert-ai/community-browser-lab",
+  "version": "0.1.0",
+  "description": "XpertAI Browser style Xpert plugin bundle with skills, MCP, app descriptors, hooks, assets, and runtime tools.",
+  "author": "XpertAI Team",
+  "homepage": "https://xpertai.cn",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "xpertai",
+    "browser",
+    "mcp",
+    "skills",
+    "hooks"
+  ],
+  "skills": "./skills",
+  "mcpServers": "./mcp.json",
+  "apps": "./apps",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "XpertAI Browser Lab",
+    "shortDescription": "Browser research workflows inspired by the XpertAI Browser plugin.",
+    "longDescription": "A full Xpert plugin bundle that demonstrates XpertAI-style skills, MCP servers, app descriptors, lifecycle hooks, assets, marketplace policy, and default prompt metadata.",
+    "developerName": "XpertAI Team",
+    "category": "tools",
+    "capabilities": [
+      "browser-research",
+      "page-evidence",
+      "ui-verification"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Use XpertAI Browser Lab to plan safe browser verification.",
+      "Extract links and summarize page evidence from this snapshot."
+    ],
+    "composerIcon": "./assets/composer-icon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": [
+      "./assets/screenshot.svg"
+    ]
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": "."
+  },
+  "assets": {
+    "composerIcon": "./assets/composer-icon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": [
+      "./assets/screenshot.svg"
+    ]
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "tool",
+        "skill",
+        "mcp-server",
+        "app",
+        "hook",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "browser-research",
+        "page-evidence",
+        "ui-verification"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "browser-research",
+            "displayName": "Browser Research Skill",
+            "description": "Guides agents through evidence-first browser inspection and safe UI verification.",
+            "tags": [
+              "skill",
+              "browser-research"
+            ]
+          },
+          {
+            "type": "tool",
+            "name": "browser-lab",
+            "displayName": "XpertAI Browser Lab Toolset",
+            "description": "Plan browser work, extract page links, and summarize page observations.",
+            "operations": [
+              {
+                "name": "xpertai_browser_plan",
+                "displayName": "Plan browser work",
+                "access": "read"
+              },
+              {
+                "name": "xpertai_browser_extract_links",
+                "displayName": "Extract page links",
+                "access": "read"
+              },
+              {
+                "name": "xpertai_browser_summarize_observation",
+                "displayName": "Summarize observation",
+                "access": "read"
+              }
+            ]
+          },
+          {
+            "type": "app",
+            "name": "browser-session",
+            "displayName": "XpertAI Browser Session",
+            "description": "Declares the browser session connector requirement with first-use authorization.",
+            "tags": [
+              "connector",
+              "on-first-use"
+            ]
+          },
+          {
+            "type": "hook",
+            "name": "hooks",
+            "displayName": "Browser Safety Hooks",
+            "description": "Runs session-start and pre-tool-use command hooks in the agent middleware pipeline.",
+            "tags": [
+              "hooks",
+              "middleware"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "browser-research-assistant",
+            "displayName": "Browser Research Assistant",
+            "description": "Assistant template for evidence-first browser research."
+          }
+        ]
+      }
+    }
+  },
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/browser-lab"
+}

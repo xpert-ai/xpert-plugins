@@ -4,3 +4,4 @@ packages:
   - middlewares/*
   - models/*
   - packages/*
+  - roles/*

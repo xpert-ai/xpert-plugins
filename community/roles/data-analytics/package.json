@@ -1,0 +1,72 @@
+{
+  "name": "@xpert-ai/community-data-analytics",
+  "version": "0.1.34",
+  "description": "Analyze product usage, investigate metric movements, prepare KPI reports, build high-quality dashboards and notebooks, create source-backed semantic layers, guide first-run analytics setup, and generate analytics-grade report apps.",
+  "author": "XpertAI",
+  "license": "MIT",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/data-analytics",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/roles/data-analytics"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "skills",
+    "assets",
+    "README.md",
+    ".app.json",
+    ".mcp.json",
+    "mcp",
+    "LICENSE",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

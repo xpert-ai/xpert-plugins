@@ -1,0 +1,31 @@
+{
+  "mcp_servers": {
+    "browser-lab": {
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/mcp/browser-lab-mcp.js"],
+      "env": {
+        "XPERT_PLUGIN_DATA": "${PLUGIN_DATA}"
+      },
+      "policy": {
+        "enabled": true,
+        "defaultToolsApprovalMode": "prompt",
+        "enabledTools": [
+          "xpertai_browser_plan",
+          "xpertai_browser_extract_links",
+          "xpertai_browser_summarize_observation"
+        ],
+        "tools": {
+          "xpertai_browser_plan": {
+            "approvalMode": "approve"
+          },
+          "xpertai_browser_extract_links": {
+            "approvalMode": "prompt"
+          },
+          "xpertai_browser_summarize_observation": {
+            "approvalMode": "approve"
+          }
+        }
+      }
+    }
+  }
+}
