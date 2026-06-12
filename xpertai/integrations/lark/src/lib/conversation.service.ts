@@ -1551,8 +1551,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		const normalizedLegacyConversationUserKey = normalizeConversationUserKey(legacyConversationUserKey)
 		if (
 			this.shouldAllowLegacyFallbackForScope(scopeKey) &&
-			normalizedLegacyConversationUserKey &&
-			normalizedLegacyConversationUserKey !== scopeKey
+			normalizedLegacyConversationUserKey
 		) {
 			await this.conversationBindingRepository.delete({
 				conversationUserKey: normalizedLegacyConversationUserKey,
@@ -1839,7 +1838,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			integrationId: ctx.integration.id,
 			senderOpenId: action.userId
 		})
-		const historicalBinding =
+		let historicalBinding =
 			(action.chatId ? await this.getLatestConversationBindingByChatId(ctx.integration.id, action.chatId) : null) ??
 			(principalKey ? await this.getLatestConversationBindingByPrincipalKey(principalKey) : null) ??
 			(await this.getLatestConversationBindingByUserId(action.userId, ctx.integration.id))
@@ -1847,6 +1846,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		const configuredXpertId = boundXpertId ?? normalizeConversationUserKey(ctx.integration.options?.xpertId)
 		if (this.shouldPurgeBindingForConfiguredXpert(historicalBinding, ctx.integration.id, configuredXpertId)) {
 			await this.purgeBindingSession(historicalBinding, historicalBinding?.scopeKey ?? legacyConversationUserKey, legacyConversationUserKey)
+			historicalBinding = null
 		}
 		const latestBinding = this.shouldPreferHistoricalBinding(
 			historicalBinding,
