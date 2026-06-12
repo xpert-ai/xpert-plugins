@@ -1,9 +1,10 @@
-import { LarkGroupWindow } from '../../types.js'
+import { LarkGroupWindow, LarkInboundFile } from '../../types.js'
 import { ChatLarkMessage } from '../../message.js'
 
 export type DispatchLarkChatPayload = {
 	xpertId: string
 	input?: string
+	files?: LarkInboundFile[]
 	larkMessage: ChatLarkMessage
 	options?: {
 		confirm?: boolean

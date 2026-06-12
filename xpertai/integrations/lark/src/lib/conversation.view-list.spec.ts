@@ -86,6 +86,7 @@ describe('LarkConversationService listBindingsByIntegration', () => {
       { execute: jest.fn() } as unknown as CommandBus,
       { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as Cache,
       {} as unknown as LarkChannelStrategy,
+      { getMessageResource: jest.fn() } as any,
       {} as unknown as LarkRecipientDirectoryService,
       {} as unknown as LarkGroupMentionWindowService,
       conversationBindingRepository as unknown as Repository<LarkConversationBindingEntity>,

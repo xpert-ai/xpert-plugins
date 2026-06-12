@@ -380,6 +380,20 @@ describe('LarkConversationService', () => {
 			interactiveMessage: jest.fn().mockResolvedValue({ data: { message_id: 'generated-lark-message-id' } }),
 			resolveUserNameByOpenId: jest.fn().mockResolvedValue(null)
 		}
+		const contextToolService = {
+			getMessageResource: jest.fn().mockResolvedValue({
+				item: {
+					messageId: 'om_image_1',
+					fileKey: 'img_1',
+					type: 'image',
+					name: 'photo.png',
+					mimeType: 'image/png',
+					size: 3,
+					contentEncoding: 'base64',
+					contentBase64: 'YWJj'
+				}
+			})
+		}
 		const recipientDirectoryService = {
 			buildKey: jest.fn().mockImplementation(({ integrationId, chatType, chatId, senderOpenId }) => {
 				if (!integrationId) {
@@ -401,6 +415,7 @@ describe('LarkConversationService', () => {
 			commandBus as any,
 			cache as any,
 			larkChannel as any,
+			contextToolService as any,
 			recipientDirectoryService as any,
 			groupMentionWindowService as any,
 			conversationBindingRepository as any,
@@ -412,6 +427,7 @@ describe('LarkConversationService', () => {
 			service,
 			commandBus,
 			larkChannel,
+			contextToolService,
 			integrationPermissionService,
 			larkTriggerStrategy,
 			recipientDirectoryService,
@@ -576,6 +592,47 @@ describe('LarkConversationService', () => {
 		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
 		expect(dispatchCommands).toHaveLength(1)
 		expect(dispatchCommands[0].input.options?.fromEndUserId).toBe('mapped-user-1')
+	})
+
+	it('processMessage forwards inbound image messages as vision files', async () => {
+		const { service, commandBus, contextToolService } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'creator-user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			message: {
+				message: {
+					message_id: 'om_image_1',
+					message_type: 'image',
+					content: JSON.stringify({ image_key: 'img_1' })
+				}
+			}
+		} as any)
+
+		expect(contextToolService.getMessageResource).toHaveBeenCalledWith({
+			integrationId: 'integration-1',
+			messageId: 'om_image_1',
+			fileKey: 'img_1',
+			type: 'image',
+			contentMode: 'base64'
+		})
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBeUndefined()
+		expect(dispatchCommands[0].input.files).toEqual([
+			{
+				fileUrl: 'data:image/png;base64,YWJj',
+				mimeType: 'image/png',
+				originalName: 'photo.png',
+				fileKey: 'img_1'
+			}
+		])
 	})
 
 	it('setConversation persists to binding table and resolves latest by open_id', async () => {
@@ -1318,6 +1375,31 @@ describe('LarkConversationService', () => {
 		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
 		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
+	})
+
+	it('processMessage does not download image files when trigger scope rejects inbound sender', async () => {
+		const { service, contextToolService } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: false,
+			triggerMatches: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_blocked_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					message_id: 'om_image_1',
+					message_type: 'image',
+					content: JSON.stringify({ image_key: 'img_1' })
+				}
+			}
+		} as any)
+
+		expect(contextToolService.getMessageResource).not.toHaveBeenCalled()
 	})
 
 	it('processMessage clears typing reaction before returning on trigger mismatch', async () => {
