@@ -184,6 +184,43 @@ describe('WeComChatDispatchService', () => {
     expect(runStateService.save).toHaveBeenCalledTimes(1)
   })
 
+  it('buildDispatchMessage forwards image files through the chat request', async () => {
+    mockRequestContext({
+      userId: 'request-user-id',
+      language: 'zh-Hans'
+    })
+    const { service } = createFixture()
+    const wecomMessage = createWeComMessage({
+      reqId: 'req-1'
+    })
+    const files = [
+      {
+        fileUrl: 'data:image/png;base64,YWJj',
+        mimeType: 'image/png',
+        originalName: 'photo.png',
+        fileKey: 'wecom-image-0'
+      }
+    ]
+
+    const message = await service.buildDispatchMessage({
+      xpertId: 'xpert-1',
+      input: '',
+      files,
+      wecomMessage,
+      tenantId: 'tenant-1'
+    } as any)
+
+    expect((message.payload as any).request).toEqual({
+      action: 'send',
+      message: {
+        input: {
+          input: '',
+          files
+        }
+      }
+    })
+  })
+
   it('falls back to final_text when reqId is missing', async () => {
     mockRequestContext()
     const { service, runStateService } = createFixture()

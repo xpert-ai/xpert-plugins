@@ -52,6 +52,7 @@ export class WeComChatDispatchService {
       xpertId,
       wecomMessage,
       input: textInput,
+      files,
       conversationId,
       conversationUserKey,
       tenantId,
@@ -162,7 +163,8 @@ export class WeComChatDispatchService {
     )
     const request = this.buildChatRequest({
       conversationId,
-      input: textInput
+      input: textInput,
+      files
     })
 
     return {
@@ -243,13 +245,14 @@ export class WeComChatDispatchService {
     return text || undefined
   }
 
-  private buildChatRequest(params: { conversationId?: string; input?: string }): TChatRequest {
+  private buildChatRequest(params: { conversationId?: string; input?: string; files?: TWeComChatDispatchInput['files'] }): TChatRequest {
     return {
       action: 'send',
       ...(params.conversationId ? { conversationId: params.conversationId } : {}),
       message: {
         input: {
-          input: params.input ?? ''
+          input: params.input ?? '',
+          ...(params.files?.length ? { files: params.files } : {})
         }
       }
     } as unknown as TChatRequest

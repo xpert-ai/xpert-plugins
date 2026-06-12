@@ -20,6 +20,7 @@ import {
   resolveConversationUserKey
 } from './conversation-user-key.js'
 import { TIntegrationWeComOptions } from './types.js'
+import type { WeComInboundFile } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import {
   getWeComAvailableTriggerMissingText,
@@ -36,6 +37,7 @@ type WeComTriggerService = {
   handleInboundMessage: (params: {
     integrationId: string
     input?: string
+    files?: WeComInboundFile[]
     wecomMessage: ChatWeComMessage
     conversationId?: string
     conversationUserKey?: string
@@ -337,7 +339,8 @@ export class WeComConversationService {
     }
 
     const input = this.normalizeInputText(message.content)
-    if (!input) {
+    const files = this.resolveInboundFiles(message)
+    if (!input && !files.length) {
       this.logger.debug(`Skip empty WeCom message integration=${integration.id} chatId=${message.chatId}`)
       return
     }
@@ -425,6 +428,7 @@ export class WeComConversationService {
     const handledByTrigger = await triggerStrategy.handleInboundMessage({
       integrationId: integration.id,
       input: newSessionCommand.matched ? newSessionCommand.input : input,
+      files,
       wecomMessage,
       conversationId: triggerConversationId,
       conversationUserKey: conversationUserKey || undefined,
@@ -462,6 +466,17 @@ export class WeComConversationService {
       return ''
     }
     return value.trim()
+  }
+
+  private resolveInboundFiles(message: TChatInboundMessage): WeComInboundFile[] {
+    const files = (message as unknown as { files?: unknown }).files
+    if (!Array.isArray(files)) {
+      return []
+    }
+
+    return files.filter((file): file is WeComInboundFile => {
+      return Boolean(file && typeof file === 'object' && typeof file.fileUrl === 'string' && file.fileUrl.trim())
+    })
   }
 
   private resolveResponseUrl(raw: unknown): string | undefined {
