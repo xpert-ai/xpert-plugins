@@ -18,6 +18,7 @@ import { type Cache } from 'cache-manager'
 import { Repository } from 'typeorm'
 import { ChatLarkMessage } from './message.js'
 import { buildLarkSpeakerContextInput } from './lark-agent-prompt.js'
+import { LarkContextToolService } from './lark-context-tool.service.js'
 import { getLarkInboundIdentityMetadata } from './lark-inbound-identity.service.js'
 import {
 	normalizeConversationUserKey,
@@ -29,7 +30,7 @@ import {
 import { translate } from './i18n.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { DispatchLarkChatCommand, DispatchLarkChatPayload } from './handoff/commands/dispatch-lark-chat.command.js'
-import { extractLarkSemanticMessage } from './lark-message-semantics.js'
+import { extractLarkSemanticMessage, unwrapLarkEventPayload } from './lark-message-semantics.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
@@ -39,6 +40,7 @@ import {
 	isLarkCardActionValue,
 	isRejectAction,
 	LarkGroupWindow,
+	LarkInboundFile,
 	LARK_TYPING_REACTION_EMOJI_TYPE,
 	LarkSemanticMessage,
 	RecipientDirectory,
@@ -52,6 +54,11 @@ import { LarkGroupMentionWindowService } from './lark-group-mention-window.servi
 
 type LarkConversationQueueJob = ChatLarkContext<TLarkEvent> & {
 	tenantId?: string
+}
+
+type LarkInboundImageRef = {
+	messageId: string
+	fileKey: string
 }
 
 type LarkTriggerService = {
@@ -72,6 +79,7 @@ type LarkTriggerService = {
 	handleInboundMessage: (params: {
 		integrationId: string
 		input?: string
+		files?: LarkInboundFile[]
 		larkMessage: ChatLarkMessage
 		options?: {
 			confirm?: boolean
@@ -178,6 +186,7 @@ export class LarkConversationService implements OnModuleDestroy {
 
 	public static readonly prefix = 'lark:chat'
 	private static readonly cacheTtlMs = 60 * 10 * 1000
+	private static readonly maxInlineImageBytes = 10 * 1024 * 1024
 
 	private scopeQueues: Map<string, Queue<LarkConversationQueueJob>> = new Map()
 
@@ -186,6 +195,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		@Inject(CACHE_MANAGER)
 		private readonly cacheManager: Cache,
 		private readonly larkChannel: LarkChannelStrategy,
+		private readonly contextToolService: LarkContextToolService,
 		private readonly recipientDirectoryService: LarkRecipientDirectoryService,
 		private readonly groupMentionWindowService: LarkGroupMentionWindowService,
 		@InjectRepository(LarkConversationBindingEntity)
@@ -305,6 +315,80 @@ export class LarkConversationService implements OnModuleDestroy {
 
 	private withSpeakerContext(input: string | undefined, senderName: string | null, chatType?: string | null): string | undefined {
 		return buildLarkSpeakerContextInput(input, senderName, chatType)
+	}
+
+	private async resolveInboundImageFiles(params: {
+		integrationId: string
+		message?: unknown
+	}): Promise<LarkInboundFile[]> {
+		const refs = this.extractInboundImageRefs(params.message)
+		if (!refs.length) {
+			return []
+		}
+
+		const files: LarkInboundFile[] = []
+		for (const ref of refs) {
+			const result = await this.contextToolService.getMessageResource({
+				integrationId: params.integrationId,
+				messageId: ref.messageId,
+				fileKey: ref.fileKey,
+				type: 'image',
+				contentMode: 'base64'
+			})
+			const item = result.item
+			if (!item.contentBase64) {
+				throw new Error(`Lark image resource "${ref.fileKey}" did not return inline content`)
+			}
+			if (!item.mimeType?.startsWith('image/')) {
+				throw new Error(`Lark image resource "${ref.fileKey}" returned non-image mime type "${item.mimeType ?? 'unknown'}"`)
+			}
+			if (typeof item.size === 'number' && item.size > LarkConversationService.maxInlineImageBytes) {
+				throw new Error(
+					`Lark image resource "${ref.fileKey}" is too large (${item.size} bytes). Maximum size is ${LarkConversationService.maxInlineImageBytes} bytes.`
+				)
+			}
+
+			files.push({
+				fileUrl: `data:${item.mimeType};base64,${item.contentBase64}`,
+				mimeType: item.mimeType,
+				originalName: item.name ?? `${ref.fileKey}${this.resolveImageExtension(item.mimeType)}`,
+				fileKey: ref.fileKey
+			})
+		}
+
+		return files
+	}
+
+	private extractInboundImageRefs(message: unknown): LarkInboundImageRef[] {
+		const payload = unwrapLarkEventPayload(message)
+		const inboundMessage = payload?.message
+		if (!inboundMessage || inboundMessage.message_type !== 'image') {
+			return []
+		}
+
+		const messageId = normalizeNonEmptyString(inboundMessage.message_id)
+		if (!messageId) {
+			return []
+		}
+
+		const content = safeJsonRecord(inboundMessage.content)
+		const fileKey = normalizeNonEmptyString(content?.image_key)
+		return fileKey ? [{ messageId, fileKey }] : []
+	}
+
+	private resolveImageExtension(mimeType?: string): string {
+		switch (mimeType) {
+			case 'image/jpeg':
+				return '.jpg'
+			case 'image/png':
+				return '.png'
+			case 'image/webp':
+				return '.webp'
+			case 'image/gif':
+				return '.gif'
+			default:
+				return ''
+		}
 	}
 
 	private resolveReplyToMessageId(
@@ -1217,9 +1301,20 @@ export class LarkConversationService implements OnModuleDestroy {
 				senderOpenId
 			}))
 		const dispatchInput =
-			options.groupWindow && text
-				? text
-				: this.withSpeakerContext(text, senderName, options.chatType)
+			options.groupWindow && text ? text : this.withSpeakerContext(text, senderName, options.chatType)
+		let resolvedFiles: LarkInboundFile[] | undefined
+		const getDispatchFiles = async () => {
+			if (resolvedFiles) {
+				return resolvedFiles
+			}
+			resolvedFiles = options.files?.length
+				? options.files
+				: await this.resolveInboundImageFiles({
+						integrationId,
+						message
+				  })
+			return resolvedFiles
+		}
 		const fallbackXpertId = integration.options?.xpertId
 		const boundTriggerBinding = await this.getBoundTriggerBinding(integrationId)
 		const {
@@ -1332,6 +1427,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			return await this.dispatchToLarkChat({
 				xpertId: targetXpertId,
 				input: dispatchInput,
+				files: await getDispatchFiles(),
 				larkMessage,
 				options: dispatchOptions
 			})
@@ -1340,6 +1436,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		const handledByTrigger = await larkTriggerStrategy.handleInboundMessage({
 			integrationId,
 			input: useDispatchInputForTrigger ? dispatchInput : text,
+			files: await getDispatchFiles(),
 			larkMessage,
 			options: {
 				...dispatchOptions,
@@ -1354,6 +1451,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			return await this.dispatchToLarkChat({
 				xpertId: fallbackXpertId,
 				input: dispatchInput,
+				files: await getDispatchFiles(),
 				larkMessage,
 				options: dispatchOptions
 			})
@@ -1551,8 +1649,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		const normalizedLegacyConversationUserKey = normalizeConversationUserKey(legacyConversationUserKey)
 		if (
 			this.shouldAllowLegacyFallbackForScope(scopeKey) &&
-			normalizedLegacyConversationUserKey &&
-			normalizedLegacyConversationUserKey !== scopeKey
+			normalizedLegacyConversationUserKey
 		) {
 			await this.conversationBindingRepository.delete({
 				conversationUserKey: normalizedLegacyConversationUserKey,
@@ -1839,7 +1936,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			integrationId: ctx.integration.id,
 			senderOpenId: action.userId
 		})
-		const historicalBinding =
+		let historicalBinding =
 			(action.chatId ? await this.getLatestConversationBindingByChatId(ctx.integration.id, action.chatId) : null) ??
 			(principalKey ? await this.getLatestConversationBindingByPrincipalKey(principalKey) : null) ??
 			(await this.getLatestConversationBindingByUserId(action.userId, ctx.integration.id))
@@ -1847,6 +1944,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		const configuredXpertId = boundXpertId ?? normalizeConversationUserKey(ctx.integration.options?.xpertId)
 		if (this.shouldPurgeBindingForConfiguredXpert(historicalBinding, ctx.integration.id, configuredXpertId)) {
 			await this.purgeBindingSession(historicalBinding, historicalBinding?.scopeKey ?? legacyConversationUserKey, legacyConversationUserKey)
+			historicalBinding = null
 		}
 		const latestBinding = this.shouldPreferHistoricalBinding(
 			historicalBinding,
@@ -1953,4 +2051,26 @@ function normalizeListPositiveInt(value: unknown): number | null {
 	}
 
 	return null
+}
+
+function normalizeNonEmptyString(value: unknown): string | null {
+	if (typeof value !== 'string') {
+		return null
+	}
+
+	const normalized = value.trim()
+	return normalized.length ? normalized : null
+}
+
+function safeJsonRecord(value: unknown): Record<string, unknown> | null {
+	if (typeof value !== 'string') {
+		return null
+	}
+
+	try {
+		const parsed = JSON.parse(value)
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+	} catch {
+		return null
+	}
 }

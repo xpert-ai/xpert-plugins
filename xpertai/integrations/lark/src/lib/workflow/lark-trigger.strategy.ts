@@ -15,7 +15,7 @@ import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
-import type { LarkGroupWindow, TIntegrationLarkOptions } from '../types.js'
+import type { LarkGroupWindow, LarkInboundFile, TIntegrationLarkOptions } from '../types.js'
 import { iconImage } from '../types.js'
 import { LarkTriggerBindingEntity } from '../entities/lark-trigger-binding.entity.js'
 import {
@@ -594,6 +594,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 	async handleInboundMessage(params: {
 		integrationId: string
 		input?: string
+		files?: LarkInboundFile[]
 		larkMessage: ChatLarkMessage
 		options?: TLarkInboundDispatchOptions
 	}): Promise<boolean> {
@@ -630,6 +631,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			await this.dispatchService.enqueueDispatch({
 				xpertId: binding.xpertId,
 				input: params.input,
+				files: params.files,
 				larkMessage: params.larkMessage,
 				options: dispatchOptions
 			})
@@ -639,6 +641,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		const handoffMessage = await this.dispatchService.buildDispatchMessage({
 			xpertId: binding.xpertId,
 			input: params.input,
+			files: params.files,
 			larkMessage: params.larkMessage,
 			options: dispatchOptions
 		})

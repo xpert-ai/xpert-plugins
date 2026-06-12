@@ -1,8 +1,10 @@
 import { ChatWeComMessage } from '../../message.js'
+import type { WeComInboundFile } from '../../types.js'
 
 export type DispatchWeComChatPayload = {
   xpertId: string
-  input: string
+  input?: string
+  files?: WeComInboundFile[]
   wecomMessage: ChatWeComMessage
   conversationId?: string
   conversationUserKey?: string
