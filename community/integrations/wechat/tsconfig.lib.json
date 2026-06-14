@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true,
+    "customConditions": ["@xpert-plugins-starter/source"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noImplicitAny": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "strictNullChecks": false,
+    "target": "es2022",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": false,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "useDefineForClassFields": false
+  },
+  "include": ["src/**/*.ts"],
+  "references": [],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/lib/remote-components/**/src/**/*.ts",
+    "src/lib/remote-components/**/src/**/*.tsx"
+  ]
+}
