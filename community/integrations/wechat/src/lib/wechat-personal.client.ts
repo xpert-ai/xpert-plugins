@@ -5,8 +5,10 @@ import {
   normalizeBaseUrl,
   normalizeString,
   normalizeTimeoutMs,
+  normalizeWechatPersonalConnectionMode,
   TIntegrationWechatPersonalOptions
 } from './types.js'
+import { WechatPersonalTunnelBrokerService } from './wechat-personal-tunnel-broker.service.js'
 
 export interface WechatPersonalSendTextInput {
   uuid: string
@@ -24,25 +26,34 @@ export interface WechatPersonalSendResult {
 
 @Injectable()
 export class WechatPersonalClient {
+  constructor(private readonly tunnelBroker?: WechatPersonalTunnelBrokerService) {}
+
   async sendText(
     integration: IIntegration<TIntegrationWechatPersonalOptions>,
     input: WechatPersonalSendTextInput
   ): Promise<WechatPersonalSendResult> {
     const options = integration.options || ({} as TIntegrationWechatPersonalOptions)
-    const primary = await this.postJson(integration, this.buildV2Url(options, 'message/sendtext'), {
-      uuid: input.uuid,
-      contactid: input.contactId,
-      textcontent: input.content,
-      atusers: input.atUsers ?? []
-    })
+    const primary = await this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/sendtext'),
+      this.buildV2Path(options, 'message/sendtext'),
+      {
+        uuid: input.uuid,
+        contactid: input.contactId,
+        textcontent: input.content,
+        atusers: input.atUsers ?? []
+      }
+    )
 
     if (primary.success || options.fallbackToLegacySendText === false) {
       return primary
     }
 
+    const legacyPath = `/message/SendTextMessage?key=${encodeURIComponent(input.uuid)}`
     const legacy = await this.postJson(
       integration,
-      `${normalizeBaseUrl(options.baseUrl)}/message/SendTextMessage?key=${encodeURIComponent(input.uuid)}`,
+      `${normalizeBaseUrl(options.baseUrl)}${legacyPath}`,
+      legacyPath,
       {
         MsgItem: [
           {
@@ -72,9 +83,11 @@ export class WechatPersonalClient {
     enabled?: boolean
   }): Promise<WechatPersonalSendResult> {
     const baseUrl = normalizeBaseUrl(params.integration.options?.baseUrl)
+    const path = `/message/SetCallback?key=${encodeURIComponent(params.uuid)}`
     return this.postJson(
       params.integration,
-      `${baseUrl}/message/SetCallback?key=${encodeURIComponent(params.uuid)}`,
+      `${baseUrl}${path}`,
+      path,
       {
         CallbackURL: params.callbackUrl,
         Enabled: params.enabled !== false
@@ -88,16 +101,27 @@ export class WechatPersonalClient {
     return `${baseUrl}${apiVersion}${path.replace(/^\/+/, '')}`
   }
 
+  private buildV2Path(options: TIntegrationWechatPersonalOptions, path: string): string {
+    const apiVersion = normalizeApiVersion(options.apiVersion)
+    return `${apiVersion}${path.replace(/^\/+/, '')}`
+  }
+
   private async postJson(
     integration: IIntegration<TIntegrationWechatPersonalOptions>,
     url: string,
+    tunnelPath: string,
     body: Record<string, unknown>
   ): Promise<WechatPersonalSendResult> {
     const options = integration.options || ({} as TIntegrationWechatPersonalOptions)
+    const connectionMode = normalizeWechatPersonalConnectionMode(options.connectionMode)
+    if (connectionMode === 'reverse_tunnel') {
+      return this.postJsonViaTunnel(integration, tunnelPath, body)
+    }
+
     if (!normalizeBaseUrl(options.baseUrl)) {
       return {
         success: false,
-        error: 'wx2.0 baseUrl is required'
+        error: 'wx2.0 baseUrl is required for direct_http mode'
       }
     }
 
@@ -118,29 +142,7 @@ export class WechatPersonalClient {
         body: JSON.stringify(body),
         signal: controller.signal
       })
-      const payload = await this.readPayload(response)
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `wx2.0 HTTP ${response.status}`,
-          raw: payload
-        }
-      }
-
-      const code = this.resolveResponseCode(payload)
-      if (typeof code === 'number' && code !== 0 && code !== 200) {
-        return {
-          success: false,
-          error: this.resolveResponseText(payload) || `wx2.0 returned code ${code}`,
-          raw: payload
-        }
-      }
-
-      return {
-        success: true,
-        messageId: this.resolveMessageId(payload),
-        raw: payload
-      }
+      return this.resolveHttpResult(response.status, response.ok, await response.text().catch(() => ''))
     } catch (error) {
       return {
         success: false,
@@ -151,8 +153,53 @@ export class WechatPersonalClient {
     }
   }
 
-  private async readPayload(response: Response): Promise<unknown> {
-    const text = await response.text().catch(() => '')
+  private async postJsonViaTunnel(
+    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<WechatPersonalSendResult> {
+    const options = integration.options || ({} as TIntegrationWechatPersonalOptions)
+    const clientId = normalizeString(options.tunnelClientId)
+    if (!clientId) {
+      return {
+        success: false,
+        error: 'wechat reverse tunnel client id is required'
+      }
+    }
+    if (!this.tunnelBroker) {
+      return {
+        success: false,
+        error: 'wechat reverse tunnel broker is unavailable'
+      }
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      const token = normalizeString(options.apiToken)
+      if (token) {
+        headers.token = token
+      }
+
+      const response = await this.tunnelBroker.sendHttpRequest({
+        clientId,
+        method: 'POST',
+        path,
+        headers,
+        body: JSON.stringify(body),
+        timeoutMs: normalizeTimeoutMs(options.timeoutMs)
+      })
+      return this.resolveHttpResult(response.status, response.status >= 200 && response.status < 300, response.text)
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  private parsePayload(text: string): unknown {
     if (!text) {
       return null
     }
@@ -160,6 +207,32 @@ export class WechatPersonalClient {
       return JSON.parse(text)
     } catch {
       return text
+    }
+  }
+
+  private resolveHttpResult(status: number, ok: boolean, text: string): WechatPersonalSendResult {
+    const payload = this.parsePayload(text)
+    if (!ok) {
+      return {
+        success: false,
+        error: `wx2.0 HTTP ${status}`,
+        raw: payload
+      }
+    }
+
+    const code = this.resolveResponseCode(payload)
+    if (typeof code === 'number' && code !== 0 && code !== 200) {
+      return {
+        success: false,
+        error: this.resolveResponseText(payload) || `wx2.0 returned code ${code}`,
+        raw: payload
+      }
+    }
+
+    return {
+      success: true,
+      messageId: this.resolveMessageId(payload),
+      raw: payload
     }
   }
 

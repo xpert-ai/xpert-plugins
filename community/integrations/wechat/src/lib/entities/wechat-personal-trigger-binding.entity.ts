@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import type { WechatPersonalGroupTriggerMode } from '../types.js'
+import type { WechatPersonalChatFilterMode, WechatPersonalGroupTriggerMode } from '../types.js'
 
 @Entity(WechatPersonalTriggerBindingEntity.tableName)
 @Index('plugin_wechat_personal_trigger_binding_integration_uq', ['integrationId'], { unique: true })
@@ -21,6 +21,27 @@ export class WechatPersonalTriggerBindingEntity {
 
   @Column({ type: 'integer', default: 0 })
   summaryWindowSeconds: number
+
+  @Column({ type: 'varchar', length: 32, default: 'all' })
+  chatFilterMode: WechatPersonalChatFilterMode
+
+  @Column({ type: 'simple-array', nullable: true })
+  allowedContactIds?: string[]
+
+  @Column({ type: 'simple-array', nullable: true })
+  blockedContactIds?: string[]
+
+  @Column({ type: 'simple-array', nullable: true })
+  allowedGroupIds?: string[]
+
+  @Column({ type: 'simple-array', nullable: true })
+  blockedGroupIds?: string[]
+
+  @Column({ type: 'simple-array', nullable: true })
+  allowedSenderIds?: string[]
+
+  @Column({ type: 'simple-array', nullable: true })
+  blockedSenderIds?: string[]
 
   @Column({ type: 'varchar', length: 32, default: 'mention_or_keywords' })
   groupTriggerMode: WechatPersonalGroupTriggerMode

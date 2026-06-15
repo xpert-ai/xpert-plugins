@@ -33,12 +33,30 @@
 
 首版只处理文本消息和文本回复，不发送图片、文件、语音，也不把流式 token 实时推送到微信。
 
+## 回复格式
+
+个人微信普通聊天没有企业微信机器人那种原生 `markdown` 消息类型。本插件仍声明普通文本能力，Agent 最终回复会通过 wx2.0 `sendtext` 发送。
+
+为了避免把 `**加粗**`、`# 标题`、Markdown 表格等标记原样发给微信用户，插件会在出站前把常见 Markdown 降级为微信友好的纯文本：
+
+- 标题、加粗、斜体、删除线等标记会被移除，保留文本内容。
+- 链接会转换为 `文本: URL`。
+- 代码块会去掉围栏，保留代码内容。
+- 表格会转换为普通分隔文本。
+
+因此，Assistant prompt 仍建议直接生成简洁自然的微信纯文本。需要图片、文件、链接卡片等富媒体体验时，应基于 wx2.0 的对应消息类型另行扩展，而不是把个人微信通道声明为 Markdown 通道。
+
 ## 前置条件
 
-1. wx2.0 服务已启动，并且 Xpert 后端可以访问它的 HTTP 地址。
+1. wx2.0 服务已启动。
 2. Xpert 后端配置了可被 wx2.0 访问的 `API_BASE_URL`。
 3. 插件已安装并启用。
 4. 已创建或准备创建一个使用 `wechat-personal-admin-assistant` 或 `wechat-personal-user-assistant` 模板的 Agent。
+
+出站回复有两种连接方式：
+
+- `direct_http`：Xpert 后端可以直接访问 wx2.0 HTTP 地址。
+- `reverse_tunnel`：wx2.0 在内网，Xpert 无法直接访问它；推荐在 wx2.0 所在机器运行 sidecar。wx2.0 连接本机 sidecar 的 raw TCP 端口，sidecar 再通过 WSS 连接 Xpert 插件，由插件通过这条长连接转发本地 HTTP API 调用。
 
 `API_BASE_URL` 很重要。它决定 wx2.0 收到消息后回调到哪里。
 
@@ -66,7 +84,9 @@ API_BASE_URL=http://127.0.0.1:3000
 
 | 字段 | 是否必填 | 建议值 | 说明 |
 | --- | --- | --- | --- |
-| wx2.0 服务地址 | 是 | `http://127.0.0.1:8058` | Xpert 后端主动调用 wx2.0 发消息的地址。生产环境请填写 Xpert 后端可访问的 wx2.0 地址。 |
+| 连接方式 | 否 | `direct_http` 或 `reverse_tunnel` | Xpert 到 wx2.0 的出站调用方式。 |
+| wx2.0 服务地址 | direct_http 必填 | `http://127.0.0.1:8058` | Xpert 后端主动调用 wx2.0 发消息的地址。生产环境请填写 Xpert 后端可访问的 wx2.0 地址。 |
+| 隧道客户端 ID | reverse_tunnel 必填 | 随机高熵字符串 | 需与 wx2.0 `MsgClientInfo.Id` 一致，用于识别主动连接到 Xpert 的本地实例。 |
 | API 版本前缀 | 否 | `/v1/` | 用于拼出发送接口 `{baseUrl}/{apiVersion}message/sendtext`。 |
 | 请求超时（毫秒） | 否 | `10000` | Xpert 调 wx2.0 的 HTTP 超时时间。 |
 | API Token | 否 | 留空 | 仅当 wx2.0 启用 token 校验时填写。插件会作为 `token` header 发送。 |
@@ -77,10 +97,24 @@ API_BASE_URL=http://127.0.0.1:3000
 | 忽略自己发出的消息 | 否 | 开启 | 避免自己或机器人发出的消息再次触发 Agent。 |
 | 失败时回退旧发送接口 | 否 | 开启 | `/v1/message/sendtext` 失败时尝试旧接口。 |
 
-最小可用配置：
+direct_http 最小可用配置：
 
 ```text
+连接方式: direct_http
 wx2.0 服务地址: http://127.0.0.1:8058
+API 版本前缀: /v1/
+请求超时: 10000
+首选语言: zh-Hans
+群聊触发方式: mention_or_keywords
+忽略自己发出的消息: 开启
+失败时回退旧发送接口: 开启
+```
+
+reverse_tunnel 最小可用配置：
+
+```text
+连接方式: reverse_tunnel
+隧道客户端 ID: <高熵随机字符串>
 API 版本前缀: /v1/
 请求超时: 10000
 首选语言: zh-Hans
@@ -140,6 +174,100 @@ curl -X POST "http://127.0.0.1:8058/message/SetCallback?key=<uuid>" \
 
 Workbench 中也提供生成 SetCallback curl 和注册回调的操作。
 
+## 配置反向隧道
+
+当 Xpert 部署在外网，而 wx2.0 部署在个人网络中且没有公网 HTTP 地址时，建议使用 `reverse_tunnel`。
+
+插件级配置示例：
+
+```json
+{
+  "tunnelWsPath": "/api/wechat-personal/tunnel/ws",
+  "tunnelHeartbeatIntervalMs": 30000,
+  "tunnelClientTimeoutMs": 90000
+}
+```
+
+插件服务端不再启动 raw TCP broker，也不需要在插件配置里设置 `tcpHost` / `tcpPort`。Xpert 插件只通过 WSS 接收 sidecar 连接。WSS 入口默认启用，不再需要配置 `enabled` 开关。
+
+推荐使用 sidecar 模式。这里的部署边界是：
+
+- Xpert 插件运行在 Xpert 后端内，只需要通过已有 HTTPS/WSS 入口暴露 WebSocket endpoint。
+- sidecar 运行在 wx2.0 所在客户端机器上，和 wx2.0 处在同一个本地网络环境。
+- wx2.0 不直接连接公网 WSS；它仍连接本机 raw TCP `127.0.0.1:8088`。
+- sidecar 负责把 wx2.0 的 raw TCP 隧道帧转发到 Xpert 插件的 WSS 长连接。
+
+```text
+wx2.0 -> 127.0.0.1:8088 sidecar -> wss://your-xpert-api.example.com/api/wechat-personal/tunnel/ws/<tunnelClientId> -> Xpert 插件
+```
+
+这种模式不需要在 Xpert 服务器额外暴露公网 TCP `8088`。其中 `127.0.0.1:8088` 是 wx2.0 所在客户端机器上的 sidecar 本地监听端口，不是 Xpert 插件服务端端口。
+
+系统集成中选择：
+
+```text
+连接方式: reverse_tunnel
+隧道客户端 ID: <与 wx2.0 MsgClientInfo.Id 一致>
+```
+
+sidecar 最直接的启动命令如下。该命令默认在本机监听 `127.0.0.1:8088`：
+
+```sh
+node scripts/wechat-tunnel-sidecar.mjs \
+  --api-url https://your-xpert-api.example.com \
+  --client-id <系统集成里的 tunnelClientId>
+```
+
+排查连接问题时可加 `--verbose`，sidecar 会打印 WSS 握手成功、连接关闭，以及隧道帧类型摘要：
+
+```sh
+node scripts/wechat-tunnel-sidecar.mjs \
+  --api-url https://your-xpert-api.example.com \
+  --client-id <系统集成里的 tunnelClientId> \
+  --verbose
+```
+
+如需显式指定本地监听地址和端口：
+
+```sh
+node scripts/wechat-tunnel-sidecar.mjs \
+  --api-url https://your-xpert-api.example.com \
+  --client-id <系统集成里的 tunnelClientId> \
+  --listen-host 127.0.0.1 \
+  --listen-port 8088
+```
+
+也可以直接传完整 WSS 地址：
+
+```sh
+node scripts/wechat-tunnel-sidecar.mjs \
+  --xpert-url "wss://your-xpert-api.example.com/api/wechat-personal/tunnel/ws/<系统集成里的 tunnelClientId>"
+```
+
+然后在 wx2.0 配置中设置为连接本机 sidecar：
+
+```json
+{
+  "ForwardServerInfo": {
+    "Url": "127.0.0.1",
+    "TcpPort": 8088,
+    "HttpPort": 8099
+  },
+  "MsgClientInfo": {
+    "Id": "<系统集成里的 tunnelClientId>",
+    "Name": "wechat-local"
+  }
+}
+```
+
+保存并重启 wx2.0 与 sidecar 后，Workbench 的“配置”页会显示 tunnel broker 是否启用、WSS 地址、sidecar 本地监听、目标 clientId、连接状态、最近心跳、bindings 数量和最近错误。
+
+安全注意：
+
+- tunnel 协议本身没有 TLS 和鉴权，生产环境必须使用高熵 `tunnelClientId`。
+- sidecar 模式建议使用 `wss://`，由现有 HTTPS 入口提供 TLS。
+- 多副本 Xpert 部署时，v1 要求 sidecar WSS 连接和出站调用落在同一个 API 实例；需要多副本无状态转发时，应引入专用 broker 或 Redis pub/sub。
+
 ## 配置 Assistant
 
 插件内置两个模板，按角色选择：
@@ -174,6 +302,11 @@ wechat-personal-user-assistant
    - `integrationId`: 选择刚创建的个人微信集成。
    - `sessionTimeoutSeconds`: 默认 `3600`。
    - `summaryWindowSeconds`: 默认 `0`，表示收到消息立即派发。
+   - `chatFilterMode`: 默认 `all`。如只回复群消息，设置为 `group_only`。
+   - `allowedGroupIds`: 可选，仅回复指定群，例如 `["12345@chatroom"]`。
+   - `blockedGroupIds`: 可选，排除指定群。
+   - `allowedContactIds` / `blockedContactIds`: 可选，按 `contactId` 过滤私聊联系人或群。
+   - `allowedSenderIds` / `blockedSenderIds`: 可选，按群内发言人或私聊发送人过滤。
    - `groupTriggerMode`: 推荐 `mention_or_keywords`。
    - `groupKeywords`: 按需配置。
 
@@ -181,6 +314,31 @@ wechat-personal-user-assistant
    - `integrationId`: 选择同一个个人微信集成。
 
 发布或启用 Assistant 后，插件会把该集成绑定到当前 Agent。
+
+## 消息过滤规则
+
+插件支持在系统集成配置和 `wechat_personal` trigger 配置中设置过滤规则。两层规则会同时生效，实际可触发范围取交集：
+
+| 字段 | 行为 |
+| --- | --- |
+| `chatFilterMode` | `all`、`private_only`、`group_only`。用于限制只处理全部、私聊或群聊。 |
+| `allowedContactIds` | contactId 白名单。私聊时是好友 wxid；群聊时是群 roomId。非空时只处理这些会话。 |
+| `blockedContactIds` | contactId 黑名单。命中后不回复。 |
+| `allowedGroupIds` | 群 roomId 白名单，例如 `12345@chatroom`。只对群聊生效。 |
+| `blockedGroupIds` | 群 roomId 黑名单。只对群聊生效。 |
+| `allowedSenderIds` | 发送人 wxid 白名单。群聊中用于限制某些群成员。 |
+| `blockedSenderIds` | 发送人 wxid 黑名单。 |
+
+常见配置：
+
+```yaml
+chatFilterMode: group_only
+allowedGroupIds:
+  - 12345@chatroom
+  - 67890@chatroom
+```
+
+这表示只回复这两个群里的消息。群消息是否最终触发 Agent，还会继续受 `groupTriggerMode` 和 `groupKeywords` 控制。
 
 ## 群聊触发方式
 

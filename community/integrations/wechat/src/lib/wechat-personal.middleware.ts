@@ -151,7 +151,7 @@ export class WechatPersonalRuntimeMiddleware
           {
             name: WECHAT_PERSONAL_GET_RUNTIME_STATUS_TOOL_NAME,
             description:
-              'Get Personal WeChat runtime status: callback URLs, trigger binding, summary counts, recent accounts and recent errors. Use for setup and operations questions.',
+              'Get Personal WeChat runtime status: callback URLs, tunnel connection state, trigger binding, summary counts, recent accounts and recent errors. Use for setup and operations questions.',
             schema: runtimeStatusSchema
           }
         ),

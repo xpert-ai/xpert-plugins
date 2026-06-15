@@ -90,4 +90,105 @@ describe('WechatPersonalClient', () => {
       ]
     })
   })
+
+  it('maps reverse tunnel sendText to wx2.0 v2 sendtext path and body', async () => {
+    const tunnelBroker = {
+      sendHttpRequest: jest.fn(async () => ({
+        status: 200,
+        headers: {},
+        body: Buffer.from(JSON.stringify({ code: 0, data: { newmsgid: 'msg-1' } })),
+        text: JSON.stringify({ code: 0, data: { newmsgid: 'msg-1' } })
+      }))
+    }
+
+    const result = await new WechatPersonalClient(tunnelBroker as any).sendText(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1',
+          apiVersion: '/v1/',
+          apiToken: 'token-1'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: 'hello',
+        atUsers: ['wxid_1']
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'msg-1' }))
+    expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        method: 'POST',
+        path: '/v1/message/sendtext',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          token: 'token-1'
+        }),
+        body: JSON.stringify({
+          uuid: 'uuid-1',
+          contactid: 'wxid_friend',
+          textcontent: 'hello',
+          atusers: ['wxid_1']
+        })
+      })
+    )
+  })
+
+  it('falls back to the legacy path through reverse tunnel when v2 sendtext fails', async () => {
+    const tunnelBroker = {
+      sendHttpRequest: jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 200,
+          headers: {},
+          body: Buffer.from(JSON.stringify({ code: 500, message: 'failed' })),
+          text: JSON.stringify({ code: 500, message: 'failed' })
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          headers: {},
+          body: Buffer.from(JSON.stringify({ code: 0, data: { newmsgid: 'msg-legacy' } })),
+          text: JSON.stringify({ code: 0, data: { newmsgid: 'msg-legacy' } })
+        })
+    }
+
+    const result = await new WechatPersonalClient(tunnelBroker as any).sendText(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: 'hello'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'msg-legacy' }))
+    expect(tunnelBroker.sendHttpRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        clientId: 'client-1',
+        path: '/message/SendTextMessage?key=uuid-1',
+        body: JSON.stringify({
+          MsgItem: [
+            {
+              ToUserName: 'wxid_friend',
+              TextContent: 'hello',
+              MsgType: 1,
+              AtWxIDList: []
+            }
+          ]
+        })
+      })
+    )
+  })
 })

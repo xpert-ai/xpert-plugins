@@ -28,6 +28,7 @@ import {
   WechatPersonalInboundEvent
 } from './types.js'
 import { WechatPersonalClient } from './wechat-personal.client.js'
+import { formatWechatPersonalOutgoingText } from './wechat-personal-text-format.js'
 
 const DEFAULT_TEXT_LIMIT = 4000
 
@@ -60,12 +61,18 @@ export class WechatPersonalChannelStrategy
     configSchema: {
       type: 'object',
       properties: {
-        baseUrl: { type: 'string', description: 'wx2.0 HTTP base URL' },
+        connectionMode: {
+          type: 'string',
+          enum: ['direct_http', 'reverse_tunnel'],
+          description: 'Outbound connection mode, default direct_http'
+        },
+        baseUrl: { type: 'string', description: 'wx2.0 HTTP base URL, required in direct_http mode' },
+        tunnelClientId: { type: 'string', description: 'MsgClientInfo.Id, required in reverse_tunnel mode' },
         apiVersion: { type: 'string', description: 'wx2.0 v2 API prefix, default /v1/' },
         apiToken: { type: 'string', description: 'Optional wx2.0 token header' },
         timeoutMs: { type: 'number', description: 'Outbound wx2.0 request timeout in milliseconds' }
       },
-      required: ['baseUrl']
+      required: []
     }
   }
 
@@ -179,7 +186,7 @@ export class WechatPersonalChannelStrategy
 
     const uuid = normalizeString(params.uuid)
     const contactId = normalizeString(params.contactId)
-    const content = normalizeString(params.content)
+    const content = formatWechatPersonalOutgoingText(normalizeString(params.content))
     if (!uuid || !contactId || !content) {
       return {
         success: false,

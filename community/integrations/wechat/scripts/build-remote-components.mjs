@@ -72,6 +72,27 @@ async function validateSources(sourceDir) {
   )
 }
 
+function reactShimPlugin(componentName) {
+  const sourceDir = join(remoteRoot, componentName, 'src')
+  const shims = new Map([
+    ['react', join(sourceDir, 'react-shim.ts')],
+    ['react-dom', join(sourceDir, 'react-dom-shim.ts')],
+    ['react-dom/client', join(sourceDir, 'react-dom-client-shim.ts')],
+    ['react/jsx-runtime', join(sourceDir, 'react-jsx-runtime-shim.ts')],
+    ['react/jsx-dev-runtime', join(sourceDir, 'react-jsx-runtime-shim.ts')]
+  ])
+
+  return {
+    name: 'xpert-react-global-shims',
+    setup(buildApi) {
+      buildApi.onResolve({ filter: /^(react|react-dom|react-dom\/client|react\/jsx-runtime|react\/jsx-dev-runtime)$/ }, (args) => {
+        const path = shims.get(args.path)
+        return path ? { path } : undefined
+      })
+    }
+  }
+}
+
 async function bundleComponent(componentName) {
   const componentDir = join(remoteRoot, componentName)
   const sourceDir = join(componentDir, 'src')
@@ -85,13 +106,19 @@ async function bundleComponent(componentName) {
     format: 'iife',
     platform: 'browser',
     target: ['es2020'],
+    conditions: ['@xpert-plugins-starter/source', 'production'],
     write: false,
     logLevel: 'silent',
     legalComments: 'none',
     jsxFactory: 'h',
     jsxFragment: 'React.Fragment',
+    plugins: [reactShimPlugin(componentName)],
     banner: {
       js: ';'
+    },
+    define: {
+      'process.env.NODE_ENV': '"production"',
+      'process.env.IS_PREACT': '"false"'
     }
   })
   const output = result.outputFiles?.[0]

@@ -41,6 +41,9 @@ describe('WechatPersonalConversationService duplicate detection', () => {
     return new WechatPersonalConversationService(
       {} as any,
       {} as any,
+      {
+        getStatus: jest.fn(() => ({ connected: false, bindingCount: 0, bindings: [] }))
+      } as any,
       {} as any,
       {} as any,
       {} as any,
@@ -109,5 +112,31 @@ describe('WechatPersonalConversationService duplicate detection', () => {
         createdAt: expect.any(FindOperator)
       })
     })
+  })
+
+  it('guards concurrent dual callbacks before the message log is committed', () => {
+    const service = createService(jest.fn())
+    const legacyEvent = {
+      ...baseEvent,
+      source: 'legacy_callback' as const,
+      messageId: '622368768'
+    }
+    const webhookEvent = {
+      ...baseEvent,
+      source: 'message_webhook' as const,
+      messageId: '1981963849618395083'
+    }
+
+    const legacyKeys = (service as any).buildInboundDedupeKeys('integration-1', legacyEvent)
+    const webhookKeys = (service as any).buildInboundDedupeKeys('integration-1', webhookEvent)
+    const releaseLock = (service as any).releaseInboundDedupeLock.bind(service)
+
+    expect(legacyKeys.some((key: string) => webhookKeys.includes(key))).toBe(true)
+    expect((service as any).acquireInboundDedupeLock(legacyKeys)).toBe(true)
+    expect((service as any).acquireInboundDedupeLock(webhookKeys)).toBe(false)
+
+    releaseLock(legacyKeys)
+    expect((service as any).acquireInboundDedupeLock(webhookKeys)).toBe(true)
+    releaseLock(webhookKeys)
   })
 })

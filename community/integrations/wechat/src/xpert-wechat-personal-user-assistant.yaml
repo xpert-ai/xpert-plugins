@@ -79,8 +79,9 @@ nodes:
         and log administration requests. Do not use them for ordinary replies. Your final answer is
         automatically sent back to WeChat by the plugin after the Agent finishes.
 
-        Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Avoid markdown
-        tables unless explicitly requested, because the reply is sent as plain WeChat text.
+        Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Use plain,
+        WeChat-friendly text instead of Markdown formatting. Avoid markdown tables, decorative headings,
+        and heavy bullet nesting because the reply is sent as a normal personal WeChat text message.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
@@ -99,6 +100,13 @@ nodes:
         enabled: true
         sessionTimeoutSeconds: 3600
         summaryWindowSeconds: 0
+        chatFilterMode: all
+        allowedContactIds: []
+        blockedContactIds: []
+        allowedGroupIds: []
+        blockedGroupIds: []
+        allowedSenderIds: []
+        blockedSenderIds: []
         groupTriggerMode: mention_or_keywords
         integrationId: ""
     hash: wechat-personal-user-trigger-v1

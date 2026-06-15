@@ -4,6 +4,8 @@ import { DiscoveryModule } from '@nestjs/core'
 import { WechatPersonalController } from './wechat-personal.controller.js'
 import { WechatPersonalConversationService } from './conversation.service.js'
 import { WechatPersonalClient } from './wechat-personal.client.js'
+import { WechatPersonalTunnelBrokerService } from './wechat-personal-tunnel-broker.service.js'
+import { WechatPersonalWebsocketTunnelService } from './wechat-personal-websocket-tunnel.service.js'
 import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strategy.js'
 import { WechatPersonalIntegrationStrategy } from './wechat-personal-integration.strategy.js'
 import {
@@ -36,6 +38,8 @@ const entities = [
   imports: [DiscoveryModule, TypeOrmModule.forFeature(entities)],
   entities,
   providers: [
+    WechatPersonalTunnelBrokerService,
+    WechatPersonalWebsocketTunnelService,
     WechatPersonalClient,
     WechatPersonalConversationService,
     WechatPersonalChannelStrategy,
@@ -51,6 +55,8 @@ const entities = [
   ],
   controllers: [WechatPersonalController],
   exports: [
+    WechatPersonalTunnelBrokerService,
+    WechatPersonalWebsocketTunnelService,
     WechatPersonalClient,
     WechatPersonalChannelStrategy,
     WechatPersonalIntegrationStrategy,

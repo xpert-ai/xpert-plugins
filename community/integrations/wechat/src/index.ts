@@ -24,7 +24,11 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
   version: string
 }
 
-const ConfigSchema = z.object({})
+const ConfigSchema = z.object({
+  tunnelWsPath: z.string().default('/api/wechat-personal/tunnel/ws'),
+  tunnelHeartbeatIntervalMs: z.number().int().positive().default(30000),
+  tunnelClientTimeoutMs: z.number().int().positive().default(90000)
+})
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
@@ -150,6 +154,9 @@ export * from './lib/conversation-user-key.js'
 export * from './lib/conversation.service.js'
 export * from './lib/wechat-personal-channel.strategy.js'
 export * from './lib/wechat-personal.client.js'
+export * from './lib/wechat-personal-text-format.js'
+export * from './lib/wechat-personal-tunnel-broker.service.js'
+export * from './lib/wechat-personal-websocket-tunnel.service.js'
 export * from './lib/wechat-personal.controller.js'
 export * from './lib/wechat-personal-integration.strategy.js'
 export * from './lib/wechat-personal.middleware.js'

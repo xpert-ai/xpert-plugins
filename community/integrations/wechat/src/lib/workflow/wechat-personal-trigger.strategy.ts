@@ -20,7 +20,13 @@ import { WechatPersonalTriggerBindingEntity } from '../entities/wechat-personal-
 import { WechatPersonalChatDispatchInput, WechatPersonalChatDispatchService } from '../handoff/wechat-personal-chat-dispatch.service.js'
 import { WechatPersonalMessage } from '../message.js'
 import { WECHAT_PERSONAL_PLUGIN_CONTEXT } from '../tokens.js'
-import { normalizeGroupTriggerMode, normalizeKeywords, TIntegrationWechatPersonalOptions } from '../types.js'
+import {
+  normalizeChatFilterMode,
+  normalizeGroupTriggerMode,
+  normalizeIdList,
+  normalizeKeywords,
+  TIntegrationWechatPersonalOptions
+} from '../types.js'
 import { WechatPersonalChannelStrategy } from '../wechat-personal-channel.strategy.js'
 import {
   WECHAT_PERSONAL_TRIGGER_FLUSH_MESSAGE_TYPE,
@@ -97,6 +103,83 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
             zh_Hans: '窗口内收到的连续文本会合并后再发送给 Agent。'
           },
           default: DEFAULT_SUMMARY_WINDOW_SECONDS
+        },
+        chatFilterMode: {
+          type: 'string',
+          title: {
+            en_US: 'Chat Filter Mode',
+            zh_Hans: '会话过滤方式'
+          },
+          enum: ['all', 'private_only', 'group_only'],
+          default: 'all'
+        },
+        allowedContactIds: {
+          type: 'array',
+          title: {
+            en_US: 'Allowed Contact IDs',
+            zh_Hans: '允许的联系人/群 ID'
+          },
+          description: {
+            en_US: 'Optional allowlist for contactId. Applies to private contact ids and group room ids.',
+            zh_Hans: '可选 contactId 白名单，适用于私聊联系人 ID 和群 roomId。'
+          },
+          items: {
+            type: 'string'
+          }
+        },
+        blockedContactIds: {
+          type: 'array',
+          title: {
+            en_US: 'Blocked Contact IDs',
+            zh_Hans: '排除的联系人/群 ID'
+          },
+          items: {
+            type: 'string'
+          }
+        },
+        allowedGroupIds: {
+          type: 'array',
+          title: {
+            en_US: 'Allowed Group IDs',
+            zh_Hans: '允许的群 ID'
+          },
+          description: {
+            en_US: 'Optional group room id allowlist. Example: 12345@chatroom.',
+            zh_Hans: '可选群 roomId 白名单。例如：12345@chatroom。'
+          },
+          items: {
+            type: 'string'
+          }
+        },
+        blockedGroupIds: {
+          type: 'array',
+          title: {
+            en_US: 'Blocked Group IDs',
+            zh_Hans: '排除的群 ID'
+          },
+          items: {
+            type: 'string'
+          }
+        },
+        allowedSenderIds: {
+          type: 'array',
+          title: {
+            en_US: 'Allowed Sender IDs',
+            zh_Hans: '允许的发送人 ID'
+          },
+          items: {
+            type: 'string'
+          }
+        },
+        blockedSenderIds: {
+          type: 'array',
+          title: {
+            en_US: 'Blocked Sender IDs',
+            zh_Hans: '排除的发送人 ID'
+          },
+          items: {
+            type: 'string'
+          }
         },
         groupTriggerMode: {
           type: 'string',
@@ -248,6 +331,13 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
           config.summaryWindowSeconds,
           DEFAULT_SUMMARY_WINDOW_SECONDS
         ),
+        chatFilterMode: normalizeChatFilterMode(config.chatFilterMode),
+        allowedContactIds: normalizeIdList(config.allowedContactIds),
+        blockedContactIds: normalizeIdList(config.blockedContactIds),
+        allowedGroupIds: normalizeIdList(config.allowedGroupIds),
+        blockedGroupIds: normalizeIdList(config.blockedGroupIds),
+        allowedSenderIds: normalizeIdList(config.allowedSenderIds),
+        blockedSenderIds: normalizeIdList(config.blockedSenderIds),
         groupTriggerMode: normalizeGroupTriggerMode(config.groupTriggerMode),
         groupKeywords: normalizeKeywords(config.groupKeywords),
         tenantId: context.tenantId ?? null,

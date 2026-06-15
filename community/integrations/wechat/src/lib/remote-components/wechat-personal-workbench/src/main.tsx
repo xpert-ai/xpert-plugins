@@ -1,4 +1,24 @@
 import { React, ReactDOM, h } from './vendor'
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Textarea,
+  installShadcnThemeVars
+} from '@xpert-ai/plugin-shadcn-ui'
 import { injectStyles } from './styles'
 import { createTranslator, TranslationKey } from './i18n'
 import {
@@ -13,6 +33,8 @@ import {
   setRuntimeText,
   startRemoteBridge
 } from './runtime'
+
+installShadcnThemeVars({ styleId: 'wechat-personal-workbench-shadcn-ui-vars' })
 
 type TabKey = 'dashboard' | 'accounts' | 'conversations' | 'messages' | 'config' | 'logs'
 type TableKey = 'accounts' | 'conversations' | 'messages' | 'logs'
@@ -30,6 +52,27 @@ type PagedTableState = {
 
 const DEFAULT_TABLE_PAGE_SIZE = 20
 const TABLE_KEYS: TableKey[] = ['accounts', 'conversations', 'messages', 'logs']
+const SELECT_EMPTY_VALUE = '__all__'
+const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
+  disabled: 'disabled',
+  dispatched: 'dispatched',
+  error: 'error',
+  failed: 'failed',
+  group: 'groupChat',
+  inbound: 'inbound',
+  info: 'infoLevel',
+  offline: 'offline',
+  online: 'online',
+  outbound: 'outbound',
+  private: 'privateChat',
+  private_only: 'privateOnly',
+  received: 'received',
+  sent: 'sent',
+  skipped: 'skipped',
+  system: 'system',
+  group_only: 'groupOnly',
+  unknown: 'unknown'
+}
 
 function createTableState(): PagedTableState {
   return {
@@ -223,6 +266,7 @@ function App() {
   const messages = data?.messages || []
   const logs = data?.logs || messages
   const config = data?.config || {}
+  const tunnel = data?.tunnel || null
   const dashboard = React.useMemo(() => buildDashboard(data), [data])
   const accountTable = withFallbackTable(tablePages.accounts, accounts)
   const conversationTable = withFallbackTable(tablePages.conversations, conversations)
@@ -245,8 +289,7 @@ function App() {
           <span>{t('appSubtitle')}</span>
         </div>
         <div className="wxp-actions">
-          <input
-            className="xui-input"
+          <Input
             value={search}
             placeholder={t('searchPlaceholder')}
             onChange={(event: any) => setSearch(event.target.value)}
@@ -256,9 +299,9 @@ function App() {
               }
             }}
           />
-          <button className="xui-button" disabled={busy} onClick={() => reload()}>
+          <Button disabled={busy} onClick={() => reload()}>
             {busy ? t('refreshing') : t('refresh')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -272,7 +315,7 @@ function App() {
       </div>
 
       {tab === 'dashboard' && (
-        <DashboardView dashboard={dashboard} summary={summary} isOrganizationScope={isOrganizationScope} t={t} />
+        <DashboardView dashboard={dashboard} summary={summary} tunnel={tunnel} isOrganizationScope={isOrganizationScope} t={t} />
       )}
       {tab === 'accounts' && (
         <AccountsView
@@ -314,6 +357,7 @@ function App() {
           config={config}
           callback={callback}
           integrations={integrations}
+          tunnel={tunnel}
           isOrganizationScope={isOrganizationScope}
           draft={draft}
           setDraft={setDraft}
@@ -351,6 +395,9 @@ function DashboardView(props: any) {
         <Stat label={t('conversation')} value={summary.conversationCount || 0} />
         <Stat label={t('message')} value={summary.recentMessageCount || 0} />
         <Stat label={t('error')} value={summary.errorCount || 0} />
+        {props.tunnel && (
+          <Stat label={t('tunnelStatus')} value={tunnelStatusLabel(props.tunnel, t)} helper={props.tunnel.wsUrl || ''} />
+        )}
       </div>
 
       <div className="wxp-dashboard-grid">
@@ -383,29 +430,30 @@ function DashboardView(props: any) {
             <div className="wxp-calendar-controls">
               <label className="wxp-calendar-filter">
                 <span>{t('accountFilter')}</span>
-                <select
-                  className="xui-input"
-                  value={calendarAccount}
-                  onChange={(event: any) => setCalendarAccount(event.target.value)}
-                >
-                  <option value="all">{t('allAccounts')}</option>
+                <Select value={calendarAccount} onValueChange={(value: string) => setCalendarAccount(value)}>
+                  <SelectTrigger aria-label={t('accountFilter')}>
+                    <SelectValue placeholder={t('allAccounts')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('allAccounts')}</SelectItem>
                   {dashboard.accountOptions.map((account: any) => (
-                    <option key={account.value} value={account.value}>
+                    <SelectItem key={account.value} value={account.value}>
                       {account.label}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                  </SelectContent>
+                </Select>
               </label>
               <div className="wxp-segmented">
-                <button className={calendarMode === 'daily' ? 'active' : ''} onClick={() => setCalendarMode('daily')}>
+                <Button variant={calendarMode === 'daily' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCalendarMode('daily')}>
                   {t('calendarDaily')}
-                </button>
-                <button className={calendarMode === 'weekly' ? 'active' : ''} onClick={() => setCalendarMode('weekly')}>
+                </Button>
+                <Button variant={calendarMode === 'weekly' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCalendarMode('weekly')}>
                   {t('calendarWeekly')}
-                </button>
-                <button className={calendarMode === 'cumulative' ? 'active' : ''} onClick={() => setCalendarMode('cumulative')}>
+                </Button>
+                <Button variant={calendarMode === 'cumulative' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCalendarMode('cumulative')}>
                   {t('calendarCumulative')}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -449,11 +497,11 @@ function DashboardView(props: any) {
         </section>
         <section className="wxp-analytics-panel">
           <PanelTitle title={t('recentFailures')} meta={t('needsAttention')} />
-          <ActivityList items={dashboard.recentFailures} emptyText={t('noRecentFailures')} />
+          <ActivityList items={dashboard.recentFailures} emptyText={t('noRecentFailures')} t={t} />
         </section>
         <section className="wxp-analytics-panel">
           <PanelTitle title={t('latestActivity')} meta={t('basedOnRecentLogs')} />
-          <ActivityList items={dashboard.latestActivity} emptyText={t('noRuntimeLogs')} />
+          <ActivityList items={dashboard.latestActivity} emptyText={t('noRuntimeLogs')} t={t} />
         </section>
       </div>
     </section>
@@ -475,12 +523,12 @@ function AccountsView(props: any) {
                   <code>{integration.callbackConfig?.globalWebhookUrl || ''}</code>
                 </div>
                 <div className="wxp-actions">
-                  <button className="xui-button xui-button-sm" onClick={() => copyText(integration.callbackConfig?.globalWebhookUrl, props.t)}>
+                  <Button variant="outline" size="sm" onClick={() => copyText(integration.callbackConfig?.globalWebhookUrl, props.t)}>
                     {props.t('copyUrl')}
-                  </button>
-                  <button className="xui-button xui-button-sm" onClick={() => copyText(integration.callbackConfig?.setCallbackCurlTemplate, props.t)}>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => copyText(integration.callbackConfig?.setCallbackCurlTemplate, props.t)}>
                     {props.t('copySetCallbackCurl')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -492,12 +540,12 @@ function AccountsView(props: any) {
               <code>{props.callback.globalWebhookUrl || ''}</code>
             </div>
             <div className="wxp-actions">
-              <button className="xui-button" onClick={() => copyText(props.callback.globalWebhookUrl, props.t)}>
+              <Button variant="outline" onClick={() => copyText(props.callback.globalWebhookUrl, props.t)}>
                 {props.t('copyUrl')}
-              </button>
-              <button className="xui-button" onClick={() => copyText(props.callback.setCallbackCurlTemplate, props.t)}>
+              </Button>
+              <Button variant="outline" onClick={() => copyText(props.callback.setCallbackCurlTemplate, props.t)}>
                 {props.t('copySetCallbackCurl')}
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -512,12 +560,12 @@ function AccountsView(props: any) {
           props.onTableChange({ page: 1, search: '', filters: {} })
         }}
       >
-        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder="integrationId" {...filter} />}
-        <TextFilter field="uuid" placeholder="uuid" {...filter} />
+        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
+        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <SelectFilter
           field="status"
           label={props.t('status')}
-          options={['online', 'offline', 'unknown', 'disabled', 'error']}
+          options={translatedOptions(['online', 'offline', 'unknown', 'disabled', 'error'], props.t)}
           {...filter}
         />
         <SelectFilter
@@ -530,10 +578,10 @@ function AccountsView(props: any) {
           {...filter}
         />
       </TableFilters>
-      <Table
+      <DataTable
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
-          'uuid',
+          props.t('uuid'),
           props.t('ownerWxid'),
           props.t('status'),
           props.t('lastCallback'),
@@ -549,17 +597,17 @@ function AccountsView(props: any) {
           ...(props.isOrganizationScope ? [code(account.integrationId)] : []),
           code(account.uuid),
           display(account.ownerWxid || account.displayName),
-          pill(account.status || (account.enabled === false ? 'disabled' : 'unknown')),
+          translatedPill(account.status || (account.enabled === false ? 'disabled' : 'unknown'), props.t),
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
           <div className="xui-actions">
-            <button className="xui-button xui-button-sm" onClick={() => props.onRegister(account)}>
+            <Button variant="outline" size="sm" onClick={() => props.onRegister(account)}>
               {props.t('registerCallback')}
-            </button>
-            <button className="xui-button xui-button-sm" onClick={() => props.onToggle(account, account.enabled === false)}>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => props.onToggle(account, account.enabled === false)}>
               {account.enabled === false ? props.t('enable') : props.t('disable')}
-            </button>
+            </Button>
           </div>
         ]}
       />
@@ -582,7 +630,7 @@ function ConversationsView(props: any) {
           props.onTableChange({ page: 1, search: '', filters: {} })
         }}
       >
-        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder="integrationId" {...filter} />}
+        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
         <SelectFilter
           field="chatType"
           label={props.t('type')}
@@ -592,19 +640,19 @@ function ConversationsView(props: any) {
           ]}
           {...filter}
         />
-        <TextFilter field="uuid" placeholder="uuid" {...filter} />
+        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
         <TextFilter field="senderId" placeholder={props.t('sender')} {...filter} />
       </TableFilters>
-      <Table
+      <DataTable
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('type'),
-          'uuid',
+          props.t('uuid'),
           props.t('contact'),
           props.t('sender'),
-          'xpert',
-          'conversationId',
+          props.t('xpert'),
+          props.t('conversationId'),
           props.t('updatedAt'),
           props.t('action')
         ]}
@@ -614,16 +662,16 @@ function ConversationsView(props: any) {
         emptyText={props.t('noConversationBindings')}
         renderRow={(item: any) => [
           ...(props.isOrganizationScope ? [code(item.integrationId)] : []),
-          pill(item.chatType),
+          translatedPill(item.chatType, props.t),
           code(item.uuid),
           code(item.contactId),
           code(item.senderId),
           code(item.xpertId),
           code(item.conversationId),
           time(item.updatedAt),
-          <button className="xui-button xui-button-sm" onClick={() => props.onReset(item)}>
+          <Button variant="outline" size="sm" onClick={() => props.onReset(item)}>
             {props.t('reset')}
-          </button>
+          </Button>
         ]}
       />
       <Pagination table={props.table} t={props.t} onChange={props.onTableChange} />
@@ -645,9 +693,9 @@ function MessagesView(props: any) {
           props.onTableChange({ page: 1, search: '', filters: {} })
         }}
       >
-        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder="integrationId" {...filter} />}
-        <SelectFilter field="direction" label={props.t('direction')} options={['inbound', 'outbound', 'system']} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={['received', 'dispatched', 'sent', 'skipped', 'failed']} {...filter} />
+        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
+        <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed'], props.t)} {...filter} />
         <SelectFilter
           field="chatType"
           label={props.t('type')}
@@ -657,15 +705,15 @@ function MessagesView(props: any) {
           ]}
           {...filter}
         />
-        <TextFilter field="uuid" placeholder="uuid" {...filter} />
+        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>
-      <Table
+      <DataTable
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('direction'),
           props.t('status'),
-          'uuid',
+          props.t('uuid'),
           props.t('contact'),
           props.t('sender'),
           props.t('content'),
@@ -679,8 +727,8 @@ function MessagesView(props: any) {
         emptyText={props.t('noMessageLogs')}
         renderRow={(item: any) => [
           ...(props.isOrganizationScope ? [code(item.integrationId)] : []),
-          pill(item.direction),
-          pill(item.status),
+          translatedPill(item.direction, props.t),
+          translatedPill(item.status, props.t),
           code(item.uuid),
           code(item.contactId),
           code(item.senderId),
@@ -691,9 +739,9 @@ function MessagesView(props: any) {
           display(item.error),
           time(item.createdAt),
           item.direction === 'outbound' ? (
-            <button className="xui-button xui-button-sm" onClick={() => props.onResend(item)}>
+            <Button variant="outline" size="sm" onClick={() => props.onResend(item)}>
               {props.t('resend')}
-            </button>
+            </Button>
           ) : (
             ''
           )
@@ -705,14 +753,24 @@ function MessagesView(props: any) {
 }
 
 function ConfigView(props: any) {
-  const keywords = Array.isArray(props.config.groupKeywords) ? props.config.groupKeywords.join(', ') : ''
+  const keywords = formatList(props.config.groupKeywords)
   return (
     <section className="wxp-config">
       <div className="wxp-panel">
         <h3>{props.isOrganizationScope ? props.t('integrations') : props.t('runtimeConfig')}</h3>
         {props.isOrganizationScope ? (
-          <Table
-            headers={[props.t('integration'), props.t('account'), props.t('conversation'), props.t('message'), props.t('error'), 'baseUrl']}
+          <DataTable
+            headers={[
+              props.t('integration'),
+              props.t('account'),
+              props.t('conversation'),
+              props.t('message'),
+              props.t('error'),
+              props.t('connectionMode'),
+              props.t('chatFilterMode'),
+              props.t('tunnelClientId'),
+              props.t('tunnelStatus')
+            ]}
             rows={props.integrations || []}
             loadingText={props.t('loading')}
             emptyText={props.t('noIntegrations')}
@@ -722,55 +780,99 @@ function ConfigView(props: any) {
               String(integration.conversationCount || 0),
               String(integration.recentMessageCount || 0),
               String(integration.errorCount || 0),
-              display(integration.config?.baseUrl)
+              connectionModeLabel(integration.config?.connectionMode, props.t),
+              chatFilterModeLabel(integration.config?.chatFilterMode, props.t),
+              code(integration.config?.tunnelClientId || integration.config?.baseUrl),
+              tunnelStatusLabel(integration.tunnel, props.t)
             ]}
           />
         ) : (
           <>
-            {kv('baseUrl', props.config.baseUrl)}
-            {kv('apiVersion', props.config.apiVersion)}
-            {kv('timeoutMs', props.config.timeoutMs)}
-            {kv('preferLanguage', props.config.preferLanguage)}
-            {kv('groupTriggerMode', props.config.groupTriggerMode)}
-            {kv('groupKeywords', keywords)}
-            {kv('ignoreSelfMessages', String(props.config.ignoreSelfMessages))}
-            {kv('fallbackToLegacySendText', String(props.config.fallbackToLegacySendText))}
+            {kv(props.t('connectionMode'), connectionModeLabel(props.config.connectionMode, props.t))}
+            {kv(props.t('baseUrl'), props.config.baseUrl)}
+            {kv(props.t('tunnelClientId'), props.config.tunnelClientId)}
+            {kv(props.t('apiVersion'), props.config.apiVersion)}
+            {kv(props.t('timeoutMs'), props.config.timeoutMs)}
+            {kv(props.t('preferLanguage'), props.config.preferLanguage)}
+            {kv(props.t('chatFilterMode'), chatFilterModeLabel(props.config.chatFilterMode, props.t))}
+            {kv(props.t('allowedContactIds'), formatList(props.config.allowedContactIds))}
+            {kv(props.t('blockedContactIds'), formatList(props.config.blockedContactIds))}
+            {kv(props.t('allowedGroupIds'), formatList(props.config.allowedGroupIds))}
+            {kv(props.t('blockedGroupIds'), formatList(props.config.blockedGroupIds))}
+            {kv(props.t('allowedSenderIds'), formatList(props.config.allowedSenderIds))}
+            {kv(props.t('blockedSenderIds'), formatList(props.config.blockedSenderIds))}
+            {kv(props.t('groupTriggerMode'), props.config.groupTriggerMode)}
+            {kv(props.t('groupKeywords'), keywords)}
+            {kv(props.t('ignoreSelfMessages'), String(props.config.ignoreSelfMessages))}
+            {kv(props.t('fallbackToLegacySendText'), String(props.config.fallbackToLegacySendText))}
           </>
         )}
       </div>
+      <TunnelPanel tunnel={props.tunnel} t={props.t} />
       <div className="wxp-panel">
         <h3>{props.t('manualSend')}</h3>
         {props.isOrganizationScope && (
-          <input
-            className="xui-input"
-            placeholder="integrationId"
+          <Input
+            placeholder={props.t('integrationId')}
             value={props.draft.integrationId}
             onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { integrationId: event.target.value }))}
           />
         )}
-        <input
-          className="xui-input"
-          placeholder="uuid"
+        <Input
+          placeholder={props.t('uuid')}
           value={props.draft.uuid}
           onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { uuid: event.target.value }))}
         />
-        <input
-          className="xui-input"
-          placeholder="contactId"
+        <Input
+          placeholder={props.t('contactId')}
           value={props.draft.contactId}
           onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { contactId: event.target.value }))}
         />
-        <textarea
-          className="xui-textarea"
+        <Textarea
           placeholder={props.t('sendTextPlaceholder')}
           value={props.draft.content}
           onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { content: event.target.value }))}
         />
-        <button className="xui-button xui-button-primary" onClick={props.onSend}>
+        <Button onClick={props.onSend}>
           {props.t('send')}
-        </button>
+        </Button>
       </div>
     </section>
+  )
+}
+
+function TunnelPanel(props: any) {
+  const tunnel = props.tunnel || {}
+  const setup = tunnel.setup || {}
+  const settingJson = setup.settingJson || ''
+  const sidecar = setup.sidecar || {}
+  return (
+    <div className="wxp-panel wxp-tunnel-panel">
+      <div className="wxp-panel-title">
+        <strong>{props.t('tunnelSetup')}</strong>
+        {settingJson && (
+          <Button variant="outline" size="sm" onClick={() => copyText(settingJson, props.t)}>
+            {props.t('copyTunnelConfig')}
+          </Button>
+        )}
+      </div>
+      <div className="wxp-tunnel-grid">
+        {kv(props.t('tunnelStatus'), tunnelStatusLabel(tunnel, props.t))}
+        {kv(props.t('tunnelClientId'), tunnel.clientId)}
+        {kv(props.t('tunnelLastSeen'), time(tunnel.lastSeenAt))}
+        {kv(props.t('tunnelBindings'), tunnel.bindingCount)}
+        {kv(props.t('sidecarWebsocketUrl'), sidecar.websocketUrl)}
+        {kv(props.t('sidecarLocalListen'), sidecar.listenHost && sidecar.listenPort ? `${sidecar.listenHost}:${sidecar.listenPort}` : '')}
+      </div>
+      <div>
+        <span className="xui-muted">{props.t('tunnelConfigSnippet')}</span>
+        <pre>{settingJson || '-'}</pre>
+      </div>
+      <div>
+        <span className="xui-muted">{props.t('sidecarCommand')}</span>
+        <pre>{sidecar.command || '-'}</pre>
+      </div>
+    </div>
   )
 }
 
@@ -788,7 +890,7 @@ function LogsView(props: any) {
           props.onTableChange({ page: 1, search: '', filters: {} })
         }}
       >
-        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder="integrationId" {...filter} />}
+        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
         <SelectFilter
           field="level"
           label={props.t('level')}
@@ -798,17 +900,17 @@ function LogsView(props: any) {
           ]}
           {...filter}
         />
-        <SelectFilter field="direction" label={props.t('direction')} options={['inbound', 'outbound', 'system']} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={['received', 'dispatched', 'sent', 'skipped', 'failed']} {...filter} />
-        <TextFilter field="uuid" placeholder="uuid" {...filter} />
+        <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed'], props.t)} {...filter} />
+        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>
-      <Table
+      <DataTable
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('level'),
           props.t('phase'),
-          'uuid',
+          props.t('uuid'),
           props.t('contact'),
           props.t('contentOrError'),
           props.t('time')
@@ -819,8 +921,8 @@ function LogsView(props: any) {
         emptyText={props.t('noRuntimeLogs')}
         renderRow={(item: any) => [
           ...(props.isOrganizationScope ? [code(item.integrationId)] : []),
-          pill(item.error || item.status === 'failed' ? 'error' : 'info'),
-          pill(`${item.direction}:${item.status}`),
+          translatedPill(item.error || item.status === 'failed' ? 'error' : 'info', props.t),
+          <Badge variant={badgeVariant(item.status)}>{phaseLabel(item, props.t)}</Badge>,
           code(item.uuid),
           code(item.contactId),
           display(item.error || clip(item.content, 120)),
@@ -832,22 +934,23 @@ function LogsView(props: any) {
   )
 }
 
-function Stat(props: { label: string; value: unknown }) {
+function Stat(props: { label: string; value: unknown; helper?: string }) {
   return (
-    <div className="wxp-stat">
+    <Card className="wxp-stat">
       <span>{props.label}</span>
       <strong>{String(props.value)}</strong>
-    </div>
+      {props.helper && <small>{props.helper}</small>}
+    </Card>
   )
 }
 
 function Metric(props: { label: string; value: unknown; helper?: string; tone?: 'normal' | 'danger' }) {
   return (
-    <div className={props.tone === 'danger' ? 'wxp-metric wxp-metric-danger' : 'wxp-metric'}>
+    <Card className={props.tone === 'danger' ? 'wxp-metric wxp-metric-danger' : 'wxp-metric'}>
       <span>{props.label}</span>
       <strong>{String(props.value)}</strong>
       {props.helper && <small>{props.helper}</small>}
-    </div>
+    </Card>
   )
 }
 
@@ -1098,7 +1201,7 @@ function RankList(props: { items: Array<{ label: string; count: number; detail?:
   )
 }
 
-function ActivityList(props: { items: any[]; emptyText: string }) {
+function ActivityList(props: { items: any[]; emptyText: string; t: Translator }) {
   if (!props.items.length) {
     return <div className="xui-empty">{props.emptyText}</div>
   }
@@ -1107,8 +1210,8 @@ function ActivityList(props: { items: any[]; emptyText: string }) {
       {props.items.map((item) => (
         <div className="wxp-activity-row" key={item.id || `${item.messageId}:${item.createdAt}`}>
           <div>
-            {pill(item.direction)}
-            {pill(item.status)}
+            {translatedPill(item.direction, props.t)}
+            {translatedPill(item.status, props.t)}
           </div>
           <strong>{clip(item.error || item.content || item.payloadSummary, 120) || '-'}</strong>
           <small>
@@ -1122,9 +1225,13 @@ function ActivityList(props: { items: any[]; emptyText: string }) {
 
 function TabButton(props: { tabKey: TabKey; label: string; active: TabKey; setTab: (key: TabKey) => void }) {
   return (
-    <button className={props.tabKey === props.active ? 'active' : ''} onClick={() => props.setTab(props.tabKey)}>
+    <Button
+      variant="ghost"
+      className={props.tabKey === props.active ? 'active' : ''}
+      onClick={() => props.setTab(props.tabKey)}
+    >
       {props.label}
-    </button>
+    </Button>
   )
 }
 
@@ -1138,8 +1245,7 @@ function TableFilters(props: {
 }) {
   return (
     <div className="wxp-table-filters">
-      <input
-        className="xui-input"
+      <Input
         value={displayText(props.draft.search)}
         placeholder={props.t('tableSearchPlaceholder')}
         onChange={(event: any) => props.setDraft({ ...props.draft, search: event.target.value })}
@@ -1151,9 +1257,9 @@ function TableFilters(props: {
       />
       {props.children}
       <div className="wxp-filter-actions">
-        <button className="xui-button xui-button-sm" onClick={props.onReset}>
+        <Button variant="outline" size="sm" onClick={props.onReset}>
           {props.t('resetFilters')}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -1166,8 +1272,7 @@ function TextFilter(props: {
   setDraft: (draft: Record<string, unknown>) => void
 }) {
   return (
-    <input
-      className="xui-input"
+    <Input
       value={displayText(props.draft[props.field])}
       placeholder={props.placeholder}
       onChange={(event: any) => props.setDraft({ ...props.draft, [props.field]: event.target.value })}
@@ -1184,12 +1289,11 @@ function SelectFilter(props: {
   commitDraft?: (draft: Record<string, unknown>) => void
 }) {
   return (
-    <select
-      className="xui-input"
-      aria-label={props.label}
-      value={displayText(props.draft[props.field])}
-      onChange={(event: any) => {
-        const nextDraft = { ...props.draft, [props.field]: event.target.value }
+    <Select
+      value={displayText(props.draft[props.field]) || SELECT_EMPTY_VALUE}
+      onValueChange={(value: string) => {
+        const normalizedValue = value === SELECT_EMPTY_VALUE ? '' : value
+        const nextDraft = { ...props.draft, [props.field]: normalizedValue }
         if (props.commitDraft) {
           props.commitDraft(nextDraft)
           return
@@ -1197,16 +1301,21 @@ function SelectFilter(props: {
         props.setDraft(nextDraft)
       }}
     >
-      <option value="">{props.label}</option>
+      <SelectTrigger aria-label={props.label}>
+        <SelectValue placeholder={props.label} />
+      </SelectTrigger>
+      <SelectContent>
+      <SelectItem value={SELECT_EMPTY_VALUE}>{props.label}</SelectItem>
       {props.options.map((option) => {
         const item = typeof option === 'string' ? { value: option, label: option } : option
         return (
-          <option key={item.value} value={item.value}>
+          <SelectItem key={item.value} value={item.value}>
             {item.label}
-          </option>
+          </SelectItem>
         )
       })}
-    </select>
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -1219,40 +1328,43 @@ function Pagination(props: { table: PagedTableState; t: Translator; onChange: (p
       </span>
       <label>
         <span>{props.t('pageSize')}</span>
-        <select
-          className="xui-input"
-          value={props.table.pageSize}
-          onChange={(event: any) => props.onChange({ page: 1, pageSize: Number(event.target.value) })}
-        >
+        <Select value={String(props.table.pageSize)} onValueChange={(value: string) => props.onChange({ page: 1, pageSize: Number(value) })}>
+          <SelectTrigger aria-label={props.t('pageSize')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
           {[10, 20, 50, 100].map((value) => (
-            <option key={value} value={value}>
+            <SelectItem key={value} value={String(value)}>
               {value}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+          </SelectContent>
+        </Select>
       </label>
-      <button
-        className="xui-button xui-button-sm"
+      <Button
+        variant="outline"
+        size="sm"
         disabled={props.table.busy || props.table.page <= 1}
         onClick={() => props.onChange({ page: Math.max(1, props.table.page - 1) })}
       >
         {props.t('previousPage')}
-      </button>
+      </Button>
       <strong>
         {props.table.page} / {totalPages}
       </strong>
-      <button
-        className="xui-button xui-button-sm"
+      <Button
+        variant="outline"
+        size="sm"
         disabled={props.table.busy || props.table.page >= totalPages}
         onClick={() => props.onChange({ page: props.table.page + 1 })}
       >
         {props.t('nextPage')}
-      </button>
+      </Button>
     </div>
   )
 }
 
-function Table(props: {
+function DataTable(props: {
   headers: string[]
   rows: any[]
   renderRow: (row: any) => any[]
@@ -1267,27 +1379,27 @@ function Table(props: {
     return <div className="xui-empty">{props.emptyText}</div>
   }
   return (
-    <div className="xui-table-wrap">
+    <ScrollArea className="wxp-table-wrap">
       {props.loading && <div className="wxp-table-loading">{props.loadingText || '...'}</div>}
-      <table className="xui-table">
-        <thead>
-          <tr>
+      <ShadcnTable className="wxp-data-table">
+        <TableHeader>
+          <TableRow>
             {props.headers.map((header) => (
-              <th key={header}>{header}</th>
+              <TableHead key={header}>{header}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {props.rows.map((row) => (
-            <tr key={row.id || row.uuid || row.conversationId}>
+            <TableRow key={row.id || row.uuid || row.conversationId}>
               {props.renderRow(row).map((cell, index) => (
-                <td key={index}>{cell}</td>
+                <TableCell key={index}>{cell}</TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </ShadcnTable>
+    </ScrollArea>
   )
 }
 
@@ -1309,7 +1421,66 @@ function display(value: unknown) {
 }
 
 function pill(value: unknown) {
-  return <span className="xui-pill">{displayText(value) || '-'}</span>
+  return <Badge variant={badgeVariant(value)}>{displayText(value) || '-'}</Badge>
+}
+
+function translatedPill(value: unknown, t: Translator) {
+  return <Badge variant={badgeVariant(value)}>{translateValue(value, t) || '-'}</Badge>
+}
+
+function translatedOptions(values: string[], t: Translator) {
+  return values.map((value) => ({
+    value,
+    label: translateValue(value, t)
+  }))
+}
+
+function translateValue(value: unknown, t: Translator) {
+  const text = displayText(value)
+  if (!text) {
+    return ''
+  }
+  const normalized = text.replace(/[^a-zA-Z0-9]+/g, '_')
+  const key = TRANSLATABLE_VALUE_KEYS[normalized]
+  return key ? t(key) : text
+}
+
+function badgeVariant(value: unknown): 'default' | 'secondary' | 'success' | 'warning' | 'destructive' {
+  const text = displayText(value).toLowerCase()
+  if (['sent', 'dispatched', 'received', 'online', 'connected', 'outbound'].includes(text)) {
+    return 'success'
+  }
+  if (['failed', 'error', 'disabled', 'offline', 'disconnected'].includes(text)) {
+    return 'destructive'
+  }
+  if (['skipped', 'unknown', 'system'].includes(text)) {
+    return 'warning'
+  }
+  return 'secondary'
+}
+
+function phaseLabel(item: any, t: Translator) {
+  const direction = translateValue(item?.direction, t)
+  const status = translateValue(item?.status, t)
+  return [direction, status].filter(Boolean).join(':') || '-'
+}
+
+function connectionModeLabel(value: unknown, t: Translator) {
+  return value === 'reverse_tunnel' ? t('reverseTunnel') : t('directHttp')
+}
+
+function chatFilterModeLabel(value: unknown, t: Translator) {
+  if (value === 'private_only') {
+    return t('privateOnly')
+  }
+  if (value === 'group_only') {
+    return t('groupOnly')
+  }
+  return t('allChats')
+}
+
+function tunnelStatusLabel(tunnel: any, t: Translator) {
+  return tunnel?.connected ? t('connected') : t('disconnected')
 }
 
 function time(value: unknown) {
@@ -1333,6 +1504,15 @@ function displayText(value: unknown) {
     return ''
   }
   return String(value)
+}
+
+function formatList(value: unknown) {
+  const items = Array.isArray(value)
+    ? value.map((item) => displayText(item).trim()).filter(Boolean)
+    : typeof value === 'string'
+      ? value.split(/[,\n，]/).map((item) => item.trim()).filter(Boolean)
+      : []
+  return items.length ? items.join(', ') : ''
 }
 
 function useTableFilterDraft(table: PagedTableState, onTableChange: (patch: Partial<PagedTableState>) => void) {

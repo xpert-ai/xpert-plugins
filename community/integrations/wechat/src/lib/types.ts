@@ -7,13 +7,25 @@ export type WechatPersonalGroupTriggerMode =
   | 'keywords'
   | 'off'
 
+export type WechatPersonalConnectionMode = 'direct_http' | 'reverse_tunnel'
+export type WechatPersonalChatFilterMode = 'all' | 'private_only' | 'group_only'
+
 export interface TIntegrationWechatPersonalOptions {
-  baseUrl: string
+  connectionMode?: WechatPersonalConnectionMode
+  baseUrl?: string
+  tunnelClientId?: string
   apiVersion?: string
   timeoutMs?: number
   apiToken?: string
   preferLanguage?: 'en' | 'zh-Hans'
   callbackSecret?: string
+  chatFilterMode?: WechatPersonalChatFilterMode
+  allowedContactIds?: string[] | string
+  blockedContactIds?: string[] | string
+  allowedGroupIds?: string[] | string
+  blockedGroupIds?: string[] | string
+  allowedSenderIds?: string[] | string
+  blockedSenderIds?: string[] | string
   groupTriggerMode?: WechatPersonalGroupTriggerMode
   groupKeywords?: string[]
   ignoreSelfMessages?: boolean
@@ -73,6 +85,14 @@ export function normalizeBaseUrl(value: unknown): string {
   return value.trim().replace(/\/+$/, '')
 }
 
+export function normalizeWechatPersonalConnectionMode(value: unknown): WechatPersonalConnectionMode {
+  return value === 'reverse_tunnel' ? 'reverse_tunnel' : 'direct_http'
+}
+
+export function normalizeChatFilterMode(value: unknown): WechatPersonalChatFilterMode {
+  return value === 'private_only' || value === 'group_only' ? value : 'all'
+}
+
 export function normalizeTimeoutMs(value: unknown, defaultValue = 10000): number {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return Math.floor(value)
@@ -129,6 +149,10 @@ export function normalizeKeywords(value: unknown): string[] {
   return []
 }
 
+export function normalizeIdList(value: unknown): string[] {
+  return Array.from(new Set(normalizeKeywords(value)))
+}
+
 export function normalizeWechatPersonalInboundPayload(payload: unknown): WechatPersonalInboundEvent | null {
   const record = asRecord(payload)
   if (!record) {
@@ -150,10 +174,22 @@ export function shouldDispatchWechatPersonalMessage(
   event: WechatPersonalInboundEvent,
   options?: Pick<
     TIntegrationWechatPersonalOptions,
-    'ignoreSelfMessages' | 'groupTriggerMode' | 'groupKeywords'
+    | 'ignoreSelfMessages'
+    | 'chatFilterMode'
+    | 'allowedContactIds'
+    | 'blockedContactIds'
+    | 'allowedGroupIds'
+    | 'blockedGroupIds'
+    | 'allowedSenderIds'
+    | 'blockedSenderIds'
+    | 'groupTriggerMode'
+    | 'groupKeywords'
   >
 ): WechatPersonalDispatchableMessage | null {
   if ((options?.ignoreSelfMessages ?? true) && event.isSelf) {
+    return null
+  }
+  if (!matchesWechatPersonalMessageFilter(event, options)) {
     return null
   }
   if (!isTextLikeMessage(event.msgType)) {
@@ -205,6 +241,61 @@ export function shouldDispatchWechatPersonalMessage(
   }
 
   return null
+}
+
+export function matchesWechatPersonalMessageFilter(
+  event: WechatPersonalInboundEvent,
+  options?: Pick<
+    TIntegrationWechatPersonalOptions,
+    | 'chatFilterMode'
+    | 'allowedContactIds'
+    | 'blockedContactIds'
+    | 'allowedGroupIds'
+    | 'blockedGroupIds'
+    | 'allowedSenderIds'
+    | 'blockedSenderIds'
+  > | null
+): boolean {
+  const mode = normalizeChatFilterMode(options?.chatFilterMode)
+  if (mode === 'private_only' && event.chatType !== 'private') {
+    return false
+  }
+  if (mode === 'group_only' && event.chatType !== 'group') {
+    return false
+  }
+
+  const contactId = normalizeString(event.contactId)
+  const senderId = normalizeString(event.senderId)
+  const allowedContactIds = normalizeIdList(options?.allowedContactIds)
+  const blockedContactIds = normalizeIdList(options?.blockedContactIds)
+  const allowedSenderIds = normalizeIdList(options?.allowedSenderIds)
+  const blockedSenderIds = normalizeIdList(options?.blockedSenderIds)
+
+  if (allowedContactIds.length && !allowedContactIds.includes(contactId)) {
+    return false
+  }
+  if (blockedContactIds.includes(contactId)) {
+    return false
+  }
+  if (allowedSenderIds.length && !allowedSenderIds.includes(senderId)) {
+    return false
+  }
+  if (blockedSenderIds.includes(senderId)) {
+    return false
+  }
+
+  if (event.chatType === 'group') {
+    const allowedGroupIds = normalizeIdList(options?.allowedGroupIds)
+    const blockedGroupIds = normalizeIdList(options?.blockedGroupIds)
+    if (allowedGroupIds.length && !allowedGroupIds.includes(contactId)) {
+      return false
+    }
+    if (blockedGroupIds.includes(contactId)) {
+      return false
+    }
+  }
+
+  return true
 }
 
 export function summarizePayload(payload: unknown, maxLength = 4000): string {
