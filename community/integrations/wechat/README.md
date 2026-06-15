@@ -188,18 +188,20 @@ Workbench 中也提供生成 SetCallback curl 和注册回调的操作。
 }
 ```
 
-插件服务端不再启动 raw TCP broker，也不需要在插件配置里设置 `tcpHost` / `tcpPort`。Xpert 插件只通过 WSS 接收 sidecar 连接。WSS 入口默认启用，不再需要配置 `enabled` 开关。
+插件服务端不再启动 raw TCP broker，也不需要在插件配置里设置 `tcpHost` / `tcpPort`。Xpert 插件通过 NestJS `@WebSocketGateway` 暴露 Socket.IO over WebSocket 通道接收 sidecar 连接，入口默认启用，不再需要配置 `enabled` 开关。`tunnelWsPath` 建议保持默认值，sidecar 会使用该地址作为 Socket.IO namespace。
 
 推荐使用 sidecar 模式。这里的部署边界是：
 
-- Xpert 插件运行在 Xpert 后端内，只需要通过已有 HTTPS/WSS 入口暴露 WebSocket endpoint。
+- Xpert 插件运行在 Xpert 后端内，只需要通过已有 HTTPS/WSS 入口暴露 Socket.IO gateway。
 - sidecar 运行在 wx2.0 所在客户端机器上，和 wx2.0 处在同一个本地网络环境。
-- wx2.0 不直接连接公网 WSS；它仍连接本机 raw TCP `127.0.0.1:8088`。
-- sidecar 负责把 wx2.0 的 raw TCP 隧道帧转发到 Xpert 插件的 WSS 长连接。
+- wx2.0 不直接连接公网长连接；它仍连接本机 raw TCP `127.0.0.1:8088`。
+- sidecar 负责把 wx2.0 的 raw TCP 隧道帧转发到 Xpert 插件的 Socket.IO 长连接。
 
 ```text
-wx2.0 -> 127.0.0.1:8088 sidecar -> wss://your-xpert-api.example.com/api/wechat-personal/tunnel/ws/<tunnelClientId> -> Xpert 插件
+wx2.0 -> 127.0.0.1:8088 sidecar -> Socket.IO WebSocket namespace /api/wechat-personal/tunnel/ws/<tunnelClientId> -> Xpert 插件
 ```
+
+生产反向代理需要放行宿主已有的 Socket.IO/Engine.IO WebSocket upgrade 路径（通常是 `/socket.io/`）；`/api/wechat-personal/tunnel/ws/<tunnelClientId>` 是 Socket.IO namespace，不是普通 HTTP route。
 
 这种模式不需要在 Xpert 服务器额外暴露公网 TCP `8088`。其中 `127.0.0.1:8088` 是 wx2.0 所在客户端机器上的 sidecar 本地监听端口，不是 Xpert 插件服务端端口。
 
@@ -218,7 +220,7 @@ node scripts/wechat-tunnel-sidecar.mjs \
   --client-id <系统集成里的 tunnelClientId>
 ```
 
-排查连接问题时可加 `--verbose`，sidecar 会打印 WSS 握手成功、连接关闭，以及隧道帧类型摘要：
+排查连接问题时可加 `--verbose`，sidecar 会打印 Socket.IO 连接成功、连接关闭，以及隧道帧类型摘要：
 
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
@@ -237,7 +239,7 @@ node scripts/wechat-tunnel-sidecar.mjs \
   --listen-port 8088
 ```
 
-也可以直接传完整 WSS 地址：
+也可以直接传完整地址。注意该地址由 sidecar 使用 `socket.io-client` 连接，不是给普通 WebSocket 客户端直接使用的裸 WebSocket API：
 
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
@@ -260,12 +262,12 @@ node scripts/wechat-tunnel-sidecar.mjs \
 }
 ```
 
-保存并重启 wx2.0 与 sidecar 后，Workbench 的“配置”页会显示 tunnel broker 是否启用、WSS 地址、sidecar 本地监听、目标 clientId、连接状态、最近心跳、bindings 数量和最近错误。
+保存并重启 wx2.0 与 sidecar 后，Workbench 的“配置”页会显示 tunnel broker 是否启用、Socket.IO 地址、sidecar 本地监听、目标 clientId、连接状态、最近心跳、bindings 数量和最近错误。
 
 安全注意：
 
 - tunnel 协议本身没有 TLS 和鉴权，生产环境必须使用高熵 `tunnelClientId`。
-- sidecar 模式建议使用 `wss://`，由现有 HTTPS 入口提供 TLS。
+- sidecar 模式建议使用 HTTPS/WSS 入口，由现有 HTTPS 入口提供 TLS。
 - 多副本 Xpert 部署时，v1 要求 sidecar WSS 连接和出站调用落在同一个 API 实例；需要多副本无状态转发时，应引入专用 broker 或 Redis pub/sub。
 
 ## 配置 Assistant

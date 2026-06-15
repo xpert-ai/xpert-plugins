@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
-import { randomBytes, createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import net from 'node:net'
-import tls from 'node:tls'
 import process from 'node:process'
+import { io } from 'socket.io-client'
 
 const DEFAULT_LISTEN_HOST = '127.0.0.1'
 const DEFAULT_LISTEN_PORT = 8088
-const WEBSOCKET_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
 function printUsage() {
   console.log(`Wechat tunnel sidecar.
@@ -127,10 +125,10 @@ async function main() {
     const localAddress = `${localSocket.remoteAddress || 'unknown'}:${localSocket.remotePort || 0}`
     console.log(`[wechat-sidecar] local connection ${localAddress}`)
     localSocket.pause()
-    connectWebSocket(tunnelUrl, extraHeaders)
+    connectSocketIo(tunnelUrl, extraHeaders)
       .then((remote) => {
         remoteSockets.add(remote)
-        console.log(`[wechat-sidecar] websocket connected ${tunnelUrl.toString()}`)
+        console.log(`[wechat-sidecar] socket.io connected ${tunnelUrl.toString()}`)
         localSocket.resume()
         localSocket.on('data', (chunk) => {
           logTunnelFrames('wx2.0 -> xpert', chunk, verbose)
@@ -237,14 +235,19 @@ function summarizeTunnelFrames(chunk) {
   return summaries
 }
 
-function connectWebSocket(url, extraHeaders = {}) {
+function connectSocketIo(url, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
-    const key = randomBytes(16).toString('base64')
-    const port = Number(url.port || (url.protocol === 'wss:' ? 443 : 80))
-    const socket = url.protocol === 'wss:'
-      ? tls.connect({ host: url.hostname, port, servername: url.hostname })
-      : net.connect({ host: url.hostname, port })
-    let handshakeBuffer = Buffer.alloc(0)
+    const socketUrl = normalizeSocketIoUrl(url)
+    const clientId = extractClientIdFromTunnelUrl(url)
+    const socket = io(socketUrl.toString(), {
+      transports: ['websocket'],
+      forceNew: true,
+      reconnection: false,
+      timeout: 15000,
+      extraHeaders,
+      auth: clientId ? { clientId } : undefined,
+      query: clientId ? { clientId } : undefined
+    })
     let done = false
 
     const fail = (error) => {
@@ -252,194 +255,86 @@ function connectWebSocket(url, extraHeaders = {}) {
         return
       }
       done = true
-      socket.destroy()
+      socket.disconnect()
       reject(error)
     }
 
-    socket.once('error', fail)
+    socket.once('connect_error', fail)
     socket.once('connect', () => {
-      const path = `${url.pathname || '/'}${url.search || ''}`
-      const headers = {
-        Host: url.host,
-        Upgrade: 'websocket',
-        Connection: 'Upgrade',
-        'Sec-WebSocket-Key': key,
-        'Sec-WebSocket-Version': '13',
-        ...extraHeaders
-      }
-      const request = [
-        `GET ${path} HTTP/1.1`,
-        ...Object.entries(headers).map(([name, value]) => `${name}: ${value}`),
-        '\r\n'
-      ].join('\r\n')
-      socket.write(request)
-    })
-    socket.on('data', function onHandshakeData(chunk) {
-      handshakeBuffer = Buffer.concat([handshakeBuffer, chunk])
-      const headerEnd = handshakeBuffer.indexOf('\r\n\r\n')
-      if (headerEnd < 0) {
-        return
-      }
-      socket.off('data', onHandshakeData)
-      const headerText = handshakeBuffer.subarray(0, headerEnd).toString('utf8')
-      const rest = handshakeBuffer.subarray(headerEnd + 4)
-      const lines = headerText.split(/\r\n/)
-      if (!/^HTTP\/1\.[01] 101\b/.test(lines[0] || '')) {
-        fail(new Error(`unexpected websocket response: ${lines[0] || 'empty response'}`))
-        return
-      }
-      const headers = parseHttpResponseHeaders(lines.slice(1))
-      const expectedAccept = createHash('sha1').update(`${key}${WEBSOCKET_GUID}`).digest('base64')
-      if ((headers['sec-websocket-accept'] || '') !== expectedAccept) {
-        fail(new Error('invalid websocket accept header'))
+      if (done) {
         return
       }
       done = true
-      const remote = new WebSocketRawClient(socket)
-      if (rest.byteLength) {
-        remote.accept(rest)
-      }
-      resolve(remote)
+      socket.off('connect_error', fail)
+      resolve(new SocketIoTunnelClient(socket))
     })
   })
 }
 
-function parseHttpResponseHeaders(lines) {
-  const headers = {}
-  for (const line of lines) {
-    const index = line.indexOf(':')
-    if (index > 0) {
-      headers[line.slice(0, index).trim().toLowerCase()] = line.slice(index + 1).trim()
-    }
+function normalizeSocketIoUrl(url) {
+  const normalized = new URL(url.toString())
+  if (normalized.protocol === 'ws:') {
+    normalized.protocol = 'http:'
+  } else if (normalized.protocol === 'wss:') {
+    normalized.protocol = 'https:'
   }
-  return headers
+  return normalized
 }
 
-class WebSocketRawClient extends EventEmitter {
-  buffer = Buffer.alloc(0)
+function extractClientIdFromTunnelUrl(url) {
+  const parts = (url.pathname || '').split('/').filter(Boolean)
+  const clientId = parts.at(-1)
+  if (!clientId || clientId === 'ws') {
+    return ''
+  }
+  return decodeURIComponent(clientId)
+}
+
+class SocketIoTunnelClient extends EventEmitter {
   closed = false
 
   constructor(socket) {
     super()
     this.socket = socket
-    socket.on('data', (chunk) => this.accept(chunk))
-    socket.on('error', (error) => this.emit('error', error))
-    socket.on('close', () => {
+    socket.on('tunnel', (chunk) => this.emit('data', toBuffer(chunk)))
+    socket.on('connect_error', (error) => this.emit('error', error))
+    socket.on('disconnect', (reason) => {
       this.closed = true
+      if (reason && reason !== 'io client disconnect') {
+        this.emit('error', new Error(reason))
+      }
       this.emit('close')
     })
   }
 
   send(chunk) {
-    if (!this.closed && !this.socket.destroyed) {
-      this.socket.write(encodeWebSocketFrame(chunk, 0x2, true))
+    if (!this.closed && this.socket.connected) {
+      this.socket.emit('tunnel', chunk)
     }
   }
 
   close() {
-    if (!this.closed && !this.socket.destroyed) {
-      this.socket.write(encodeWebSocketFrame(Buffer.alloc(0), 0x8, true))
-      this.socket.destroy()
-    }
-  }
-
-  accept(chunk) {
-    this.buffer = Buffer.concat([this.buffer, chunk])
-    while (this.buffer.byteLength >= 2) {
-      const frame = decodeOneWebSocketFrame(this.buffer)
-      if (!frame) {
-        return
-      }
-      this.buffer = frame.rest
-      if (frame.opcode === 0x8) {
-        this.close()
-        return
-      }
-      if (frame.opcode === 0x9) {
-        this.socket.write(encodeWebSocketFrame(frame.payload, 0xa, true))
-        continue
-      }
-      if (frame.opcode === 0x2 || frame.opcode === 0x1 || frame.opcode === 0x0) {
-        this.emit('data', frame.payload)
-      }
+    if (!this.closed) {
+      this.closed = true
+      this.socket.disconnect()
     }
   }
 }
 
-function decodeOneWebSocketFrame(buffer) {
-  const first = buffer[0]
-  const second = buffer[1]
-  const opcode = first & 0x0f
-  const masked = Boolean(second & 0x80)
-  let length = second & 0x7f
-  let offset = 2
-  if (length === 126) {
-    if (buffer.byteLength < offset + 2) {
-      return null
-    }
-    length = buffer.readUInt16BE(offset)
-    offset += 2
-  } else if (length === 127) {
-    if (buffer.byteLength < offset + 8) {
-      return null
-    }
-    const bigintLength = buffer.readBigUInt64BE(offset)
-    if (bigintLength > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new Error('websocket frame is too large')
-    }
-    length = Number(bigintLength)
-    offset += 8
+function toBuffer(data) {
+  if (Buffer.isBuffer(data)) {
+    return data
   }
-  const maskOffset = offset
-  if (masked) {
-    offset += 4
+  if (data instanceof ArrayBuffer) {
+    return Buffer.from(data)
   }
-  if (buffer.byteLength < offset + length) {
-    return null
+  if (ArrayBuffer.isView(data)) {
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength)
   }
-  const payload = Buffer.from(buffer.subarray(offset, offset + length))
-  if (masked) {
-    const mask = buffer.subarray(maskOffset, maskOffset + 4)
-    for (let index = 0; index < payload.byteLength; index += 1) {
-      payload[index] ^= mask[index % 4]
-    }
+  if (typeof data === 'string') {
+    return Buffer.from(data, 'base64')
   }
-  return {
-    opcode,
-    payload,
-    rest: buffer.subarray(offset + length)
-  }
-}
-
-function encodeWebSocketFrame(payload, opcode, masked) {
-  const length = payload.byteLength
-  const lengthBytes = length < 126 ? 0 : length <= 0xffff ? 2 : 8
-  const maskBytes = masked ? 4 : 0
-  const frame = Buffer.allocUnsafe(2 + lengthBytes + maskBytes + length)
-  frame[0] = 0x80 | opcode
-  let offset = 2
-  if (length < 126) {
-    frame[1] = (masked ? 0x80 : 0) | length
-  } else if (length <= 0xffff) {
-    frame[1] = (masked ? 0x80 : 0) | 126
-    frame.writeUInt16BE(length, offset)
-    offset += 2
-  } else {
-    frame[1] = (masked ? 0x80 : 0) | 127
-    frame.writeBigUInt64BE(BigInt(length), offset)
-    offset += 8
-  }
-  if (masked) {
-    const mask = randomBytes(4)
-    mask.copy(frame, offset)
-    offset += 4
-    for (let index = 0; index < payload.byteLength; index += 1) {
-      frame[offset + index] = payload[index] ^ mask[index % 4]
-    }
-  } else {
-    payload.copy(frame, offset)
-  }
-  return frame
+  return Buffer.alloc(0)
 }
 
 main().catch((error) => {

@@ -9,7 +9,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { Public } from './decorators.js'
-import { WECHAT_PERSONAL_PROVIDER_KEY } from './constants.js'
+import { WECHAT_PERSONAL_ICON, WECHAT_PERSONAL_PROVIDER_KEY } from './constants.js'
 import { WECHAT_PERSONAL_PLUGIN_CONTEXT } from './tokens.js'
 import { WechatPersonalConversationService } from './conversation.service.js'
 import { TIntegrationWechatPersonalOptions, normalizeString } from './types.js'
@@ -17,9 +17,7 @@ import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strateg
 
 type HttpRequestLike = {
   user?: unknown
-  protocol?: string
   headers?: Record<string, unknown>
-  get?: (name: string) => string | undefined
 }
 
 @Controller('wechat-personal')
@@ -98,8 +96,8 @@ export class WechatPersonalController {
   }
 
   @Get('integration-select-options')
-  async getIntegrationSelectOptions(@Request() req: HttpRequestLike, @Query('keyword') keyword?: string) {
-    const options = await this.fetchProviderSelectOptions(req, WECHAT_PERSONAL_PROVIDER_KEY)
+  async getIntegrationSelectOptions(@Query('keyword') keyword?: string) {
+    const options = await this.listWechatPersonalSelectOptions()
     const normalizedKeyword = this.toSafeString(keyword).toLowerCase()
     if (!normalizedKeyword) {
       return options
@@ -189,6 +187,30 @@ export class WechatPersonalController {
     return integration
   }
 
+  private async listWechatPersonalSelectOptions(): Promise<
+    Array<{ value: string; label: string; description?: string; icon?: string }>
+  > {
+    const result = await this.integrationPermissionService.findAll<IIntegration<TIntegrationWechatPersonalOptions>>({
+      where: {
+        provider: WECHAT_PERSONAL_PROVIDER_KEY
+      },
+      order: {
+        updatedAt: 'DESC'
+      },
+      take: 100
+    })
+
+    return (result.items ?? [])
+      .filter((integration) => integration?.provider === WECHAT_PERSONAL_PROVIDER_KEY)
+      .map((integration) => ({
+        value: this.toSafeString(integration.id),
+        label: this.toSafeString(integration.name) || this.toSafeString(integration.id),
+        description: this.toSafeString(integration.description) || undefined,
+        icon: WECHAT_PERSONAL_ICON
+      }))
+      .filter((item) => Boolean(item.value))
+  }
+
   private verifyCallbackSecret(
     integration: IIntegration<TIntegrationWechatPersonalOptions>,
     req: HttpRequestLike,
@@ -204,67 +226,6 @@ export class WechatPersonalController {
       this.toSafeString(req.headers['x-xpert-callback-secret'])
     if (provided !== expected) {
       throw new BadRequestException('Invalid personal WeChat callback secret')
-    }
-  }
-
-  private async fetchProviderSelectOptions(
-    req: HttpRequestLike,
-    provider: string
-  ): Promise<Array<{ value: string; label: string; description?: string; icon?: string }>> {
-    try {
-      const host = this.toSafeString(req.get('host'))
-      if (!host) {
-        return []
-      }
-
-      const protocol = this.toSafeString(req.protocol) || 'http'
-      const url = new URL(`${protocol}://${host}/api/integration/select-options`)
-      url.searchParams.set('provider', provider)
-
-      const headers: Record<string, string> = {}
-      const authorization = this.toSafeString(req.headers?.authorization)
-      const organizationId = this.toSafeString(req.headers?.['organization-id'])
-      const tenantId = this.toSafeString(req.headers?.['tenant-id'])
-      const language = this.toSafeString(req.headers?.language)
-
-      if (authorization) {
-        headers.authorization = authorization
-      }
-      if (organizationId) {
-        headers['organization-id'] = organizationId
-      }
-      if (tenantId) {
-        headers['tenant-id'] = tenantId
-      }
-      if (language) {
-        headers.language = language
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers
-      })
-      if (!response.ok) {
-        return []
-      }
-
-      const payload = (await response.json().catch(() => null)) as unknown
-      if (!Array.isArray(payload)) {
-        return []
-      }
-
-      return payload
-        .map((item) => (item && typeof item === 'object' ? (item as Record<string, unknown>) : null))
-        .filter((item): item is Record<string, unknown> => Boolean(item))
-        .map((item) => ({
-          value: this.toSafeString(item.value),
-          label: this.toSafeString(item.label) || this.toSafeString(item.value),
-          description: this.toSafeString(item.description) || undefined,
-          icon: this.toSafeString(item.icon) || undefined
-        }))
-        .filter((item) => Boolean(item.value))
-    } catch {
-      return []
     }
   }
 
