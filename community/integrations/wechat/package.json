@@ -40,7 +40,7 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@xpert-ai/contracts": "^3.11.0",
-    "@xpert-ai/plugin-sdk": "^3.11.0",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
     "cache-manager": "^7.2.0",
     "react": ">=18",
     "react-dom": ">=18",
