@@ -1,0 +1,216 @@
+{
+  "name": "@xpert-ai/community-product-design",
+  "version": "0.1.41",
+  "description": "The Product Design plugin is built for turning early ideas into prototypes teams can review. It starts design and build work by confirming the brief, then helps teams explore product directions, audit user flows, prototype from a live URL, and make static screenshots interactive.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/product-design",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/product-design",
+  "license": "MIT",
+  "keywords": [
+    "prototype",
+    "frontend",
+    "ux-research",
+    "ux-audit",
+    "accessibility-audit",
+    "research",
+    "context-gathering",
+    "ideation",
+    "image-generation",
+    "prototype"
+  ],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Product Design",
+    "shortDescription": "Explore and prototype ideas",
+    "longDescription": "Turn early ideas into prototypes teams can review. Explore product directions, audit user flows, research user friction, prototype from a live URL, and make static screenshots interactive. Start with a written brief, URL, screenshot, or existing design, then compare visual directions before building.\n\nUse available browser, Figma, Canva, image generation, and hosting tools to gather references, create concepts, review the result, and carry the work forward with your team.",
+    "developerName": "XpertAI",
+    "category": "Design",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Help me get started",
+      "Turn this product idea into three visual directions",
+      "Clone this URL into an editable prototype"
+    ],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "brandColor": "#FF66AD",
+    "screenshots": []
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "community/roles/product-design"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "screenshots": []
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "prototype",
+        "frontend",
+        "ux-research",
+        "ux-audit",
+        "accessibility-audit",
+        "research",
+        "context-gathering",
+        "ideation"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "audit",
+            "displayName": "Audit",
+            "description": "Audit workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "design-qa",
+            "displayName": "Design Qa",
+            "description": "Design Qa workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "get-context",
+            "displayName": "Get Context",
+            "description": "Get Context workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "ideate",
+            "displayName": "Ideate",
+            "description": "Ideate workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "image-to-code",
+            "displayName": "Image To Code",
+            "description": "Image To Code workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "index",
+            "displayName": "Index",
+            "description": "Index workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "prototype",
+            "displayName": "Prototype",
+            "description": "Prototype workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "research",
+            "displayName": "Research",
+            "description": "Research workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "share",
+            "displayName": "Share",
+            "description": "Share workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "url-to-code",
+            "displayName": "Url To Code",
+            "description": "Url To Code workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "user-context",
+            "displayName": "User Context",
+            "description": "User Context workflow skill.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "sites",
+            "displayName": "Sites",
+            "description": "Workspace app connector requirement for Product Design.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "product-design-assistant",
+            "displayName": "Product Design Assistant",
+            "description": "Assistant template for Product Design workflows."
+          }
+        ]
+      }
+    }
+  }
+}

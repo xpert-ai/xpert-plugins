@@ -1,0 +1,76 @@
+{
+  "name": "@xpert-ai/community-browser-lab",
+  "version": "0.1.0",
+  "description": "XpertAI Browser style Xpert plugin bundle with skills, MCP, app descriptors, hooks, assets, and runtime tools.",
+  "author": "XpertAI Team",
+  "license": "AGPL-3.0",
+  "homepage": "https://xpertai.cn",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/roles/browser-lab"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "skills",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "mcp.json",
+    "mcp",
+    "apps",
+    "hooks",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "zod": "3.25.67",
+    "@langchain/core": ">=0.3.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67",
+    "@langchain/core": "0.3.72",
+    "@types/jest": "^29.5.14"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

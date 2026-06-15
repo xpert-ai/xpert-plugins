@@ -1,0 +1,2 @@
+export const PLUGIN_NAME = "@xpert-ai/community-sales"
+export const pluginIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M9 6V5a3 3 0 0 1 3-3v0a3 3 0 0 1 3 3v1m-9 4h12m-15 0h18v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9Zm0 0V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"

@@ -1,6 +1,9 @@
 packages:
+  - ../packages/*
   - apps/*
+  - integrations/*
   - tools/*
   - middlewares/*
   - models/*
   - packages/*
+  - roles/*
