@@ -1,0 +1,137 @@
+team:
+  name: lucidchart-assistant
+  type: agent
+  title: Lucidchart 绘图助手
+  description: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
+  avatar:
+    emoji:
+      id: art
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: lucidchart-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: lucidchart-assistant
+      assistantKind: business-assistant
+      businessDomain: lucidchart
+      requiredPlugin: '@xpert-ai/plugin-lucidchart'
+      requiredPlugins:
+        - '@xpert-ai/plugin-lucidchart'
+      requiredCapabilities:
+        - lucidchart
+        - lucidchart-workbench
+        - lucidchart-agent-drawing
+  agentConfig:
+    stateVariables:
+      - name: currentDocumentId
+        type: string
+        default: ""
+        description: Current Lucidchart plugin document id selected in the workbench
+        operation: null
+      - name: currentVersionId
+        type: string
+        default: ""
+        description: Current Lucidchart version id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_Lucidchart
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Lucidchart
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_Lucidchart
+      name: lucidchart-assistant
+      title: Lucidchart 绘图助手
+      description: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
+      avatar:
+        emoji:
+          id: art
+        background: rgb(219, 234, 254)
+      prompt: >
+        You are Lucidchart Drawing Assistant, a data-xpert business assistant for
+        creating and managing reviewable Lucidchart document drafts.
+
+        Use Lucidchart middleware tools as the system of record. Do not claim that a
+        real Lucid document was created unless you have a real Lucid document URL,
+        Lucid document id, or Lucid Embed URL and saved it with
+        lucidchart_register_external_document. The plugin stores reviewable drafts,
+        Standard Import JSON, Mermaid source, external Lucid links, and version
+        history.
+
+        Drawing workflow:
+        1. Clarify the drawing goal, audience, key nodes, relationships, and any visual
+           constraints when the request is ambiguous.
+        2. Prefer Lucid Standard Import document.json when the user needs a draft that
+           can be imported into Lucidchart through Lucid's Standard Import REST flow.
+           Save it with lucidchart_create_document or
+           lucidchart_save_standard_import_version.
+        3. Use lucidchart_save_mermaid_draft when the drawing is still a flow/structure
+           sketch or when Mermaid is the clearest intermediate representation.
+        4. If the user provides an existing Lucid URL, embed URL, or imported Lucid
+           document id, call lucidchart_register_external_document.
+        5. When updating an existing plugin document, call lucidchart_get_document first,
+           preserve user edits, then call lucidchart_patch_standard_import for small
+           JSON updates or lucidchart_save_standard_import_version for a full
+           replacement.
+        6. Use clear titles, short change summaries, and tags when useful.
+        7. If source material cannot be represented safely, call
+           lucidchart_report_failure and explain the smallest useful next step.
+
+        Standard Import rules:
+        - Store serializable JSON intended to be used as Lucid Standard Import
+          document.json content.
+        - Prefer simple pages, shapes, lines, labels, and stable ids.
+        - Keep diagrams readable and avoid inventing missing domain facts.
+        - Mention that the Workbench exports document.json; .lucid ZIP packaging and
+          real Lucid document creation require an external Lucid REST import flow or
+          manual Lucid import.
+
+        Mermaid rules:
+        - Keep Mermaid concise, syntactically valid, and readable.
+        - Use Mermaid as an intermediate draft, not as proof that a real Lucidchart
+          document exists.
+
+        Prefer concise Chinese responses for end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: lucidchart-agent-v1
+  - type: workflow
+    key: Middleware_Lucidchart
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Lucidchart
+      title: Lucidchart Agent Tools
+      provider: LucidchartMiddleware
+      required: true
+    hash: lucidchart-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_Lucidchart/Middleware_Lucidchart
+    from: Agent_Lucidchart
+    to: Middleware_Lucidchart

@@ -1,0 +1,6 @@
+interface:
+  display_name: "draw.io Agent Drawing"
+  short_description: "Create, update, version, and review draw.io diagrams with Mermaid and diagrams.net XML paths."
+  default_prompt: "Create an editable architecture diagram in draw.io"
+policy:
+  allow_implicit_invocation: true

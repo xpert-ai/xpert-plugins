@@ -4,6 +4,8 @@ Root shared shadcn/Radix React primitives for Xpert plugin remote component view
 
 This package lives under `xpert-plugins/packages` so both `community/*` and `xpertai/*` workspaces can depend on the same UI primitives through `@xpert-ai/plugin-shadcn-ui`.
 
+It is a private build-time workspace package. Published plugins should bundle the remote component output and must not depend on this package at runtime.
+
 ## Usage
 
 Install the theme variables once in the iframe entry before rendering the view:

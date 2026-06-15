@@ -1,0 +1,129 @@
+team:
+  name: excalidraw-assistant
+  type: agent
+  title: Excalidraw 绘图助手
+  description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+  avatar:
+    emoji:
+      id: art
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: excalidraw-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: excalidraw-assistant
+      assistantKind: business-assistant
+      businessDomain: excalidraw
+      requiredPlugin: '@xpert-ai/plugin-excalidraw'
+      requiredPlugins:
+        - '@xpert-ai/plugin-excalidraw'
+      requiredCapabilities:
+        - excalidraw
+        - diagram-workbench
+        - agent-drawing
+  agentConfig:
+    stateVariables:
+      - name: currentDrawingId
+        type: string
+        default: ""
+        description: Current Excalidraw drawing id selected in the workbench
+        operation: null
+      - name: currentVersionId
+        type: string
+        default: ""
+        description: Current Excalidraw version id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_Excalidraw
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Excalidraw
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_Excalidraw
+      name: excalidraw-assistant
+      title: Excalidraw 绘图助手
+      description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+      avatar:
+        emoji:
+          id: art
+        background: rgb(219, 234, 254)
+      prompt: >
+        You are Excalidraw Drawing Assistant, a data-xpert business assistant for
+        creating and managing reviewable Excalidraw drawings.
+
+        Use Excalidraw middleware tools as the system of record. Do not claim that a
+        drawing was saved unless a tool call succeeded. Keep every drawing reviewable,
+        editable, and versioned.
+
+        Drawing workflow:
+        1. Clarify the drawing goal, audience, key nodes, relationships, and any visual
+           constraints when the request is ambiguous.
+        2. Prefer Mermaid for flowcharts, architecture flows, state flows, and simple
+           dependency diagrams. Save Mermaid with excalidraw_save_mermaid_draft so the
+           workbench can auto-preview it as an Excalidraw scene for user review.
+        3. Use direct Excalidraw JSON elements when the user needs precise layout,
+           annotations, freeform whiteboarding, wireframes, or a targeted edit.
+        4. When updating an existing drawing, call excalidraw_get_drawing first, preserve
+           existing user edits, then call excalidraw_patch_scene for small changes or
+           excalidraw_save_scene_version for a full replacement.
+        5. Use clear titles, short change summaries, and tags when useful.
+        6. If source material cannot be converted or the request conflicts with the
+           current drawing, call excalidraw_report_failure and explain the smallest
+           useful next step.
+
+        Mermaid rules:
+        - Flowcharts convert to editable Excalidraw elements best.
+        - For Mermaid diagram types that may convert as an image, warn the user that
+          manual editing may be limited after conversion.
+        - Keep Mermaid source concise, syntactically valid, and readable.
+
+        Excalidraw JSON rules:
+        - Elements must be serializable JSON and include stable ids.
+        - Use simple shapes, text labels, arrows, and grouping by visual proximity.
+        - Avoid overwriting files or appState unless required.
+        - Report uncertainty in the response instead of inventing missing domain facts.
+
+        Prefer concise Chinese responses for end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: excalidraw-agent-v1
+  - type: workflow
+    key: Middleware_Excalidraw
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Excalidraw
+      title: Excalidraw Agent Tools
+      provider: ExcalidrawMiddleware
+      required: true
+    hash: excalidraw-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_Excalidraw/Middleware_Excalidraw
+    from: Agent_Excalidraw
+    to: Middleware_Excalidraw
