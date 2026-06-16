@@ -8,6 +8,8 @@ export type TWechatPersonalTriggerConfig = {
   integrationId: string
   sessionTimeoutSeconds?: number
   summaryWindowSeconds?: number
+  historyContextLimit?: number
+  ignoreSelfMessages?: boolean
   chatFilterMode?: WechatPersonalChatFilterMode
   allowedContactIds?: string[] | string
   blockedContactIds?: string[] | string

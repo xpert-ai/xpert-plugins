@@ -28,18 +28,22 @@ describe('WechatPersonalIntegrationStrategy', () => {
     expect(source).toContain('extensionViews: [WECHAT_PERSONAL_INTEGRATION_VIEW_EXTENSION]')
   })
 
-  it('declares direct HTTP and reverse tunnel integration configuration', () => {
+  it('declares direct HTTP and reverse tunnel integration configuration without inbound trigger policy fields', () => {
     const source = readStrategySource()
 
     expect(source).toContain('connectionMode')
     expect(source).toContain('direct_http')
     expect(source).toContain('reverse_tunnel')
     expect(source).toContain('tunnelClientId')
-    expect(source).toContain('chatFilterMode')
-    expect(source).toContain('allowedGroupIds')
-    expect(source).toContain('blockedGroupIds')
-    expect(source).toContain('allowedSenderIds')
-    expect(source).toContain('blockedSenderIds')
+    expect(source).toContain('outboundQueue')
+    expect(source).toContain('fallbackToLegacySendText')
     expect(source).toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
+    expect(source).not.toContain('chatFilterMode: {')
+    expect(source).not.toContain('allowedGroupIds: {')
+    expect(source).not.toContain('blockedGroupIds: {')
+    expect(source).not.toContain('allowedSenderIds: {')
+    expect(source).not.toContain('blockedSenderIds: {')
+    expect(source).not.toContain('ignoreSelfMessages: {')
+    expect(source).not.toContain('groupTriggerMode: {')
   })
 })

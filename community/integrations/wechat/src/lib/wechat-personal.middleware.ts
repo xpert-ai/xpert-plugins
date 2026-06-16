@@ -14,10 +14,15 @@ import {
   WECHAT_PERSONAL_GET_CALLBACK_CONFIG_TOOL_NAME,
   WECHAT_PERSONAL_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_PERSONAL_ICON,
+  WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_LIST_ACCOUNTS_TOOL_NAME,
   WECHAT_PERSONAL_LIST_CONVERSATIONS_TOOL_NAME,
+  WECHAT_PERSONAL_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_MIDDLEWARE_NAME,
+  WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME,
+  WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
+  WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_PERSONAL_RUNTIME_FEATURE,
   WECHAT_PERSONAL_SEARCH_MESSAGE_LOGS_TOOL_NAME,
@@ -27,6 +32,7 @@ import {
 import { normalizeString } from './types.js'
 import { WechatPersonalConversationService } from './conversation.service.js'
 import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strategy.js'
+import { WechatPersonalOutboundQueueService } from './wechat-personal-outbound-queue.service.js'
 
 type WechatPersonalRuntimeMiddlewareOptions = {
   integrationId?: string
@@ -59,10 +65,28 @@ const listConversationsSchema = z.object({
 const searchMessageLogsSchema = z.object({
   integrationId: integrationField,
   direction: z.enum(['inbound', 'outbound', 'system']).optional().describe('Message direction filter.'),
-  status: z.enum(['received', 'dispatched', 'sent', 'skipped', 'failed']).optional().describe('Message status filter.'),
+  status: z.enum(['received', 'dispatched', 'queued', 'deferred', 'sending', 'sent', 'skipped', 'failed', 'paused', 'cancelled', 'context_reset']).optional().describe('Message status filter.'),
   search: z.string().optional().describe('Keyword for contact, sender, message id, content, error or conversation id.'),
   page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
   pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
+})
+
+const listOutboundQueueSchema = z.object({
+  integrationId: integrationField,
+  status: z.enum(['queued', 'deferred', 'sending', 'paused', 'failed', 'cancelled', 'sent']).optional().describe('Outbound queue status filter.'),
+  search: z.string().optional().describe('Keyword for uuid, contact id, queue job id, content or error.'),
+  page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
+  pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
+})
+
+const queueItemSchema = z.object({
+  integrationId: integrationField,
+  logId: z.string().min(1).describe('Outbound message log id returned by wechat_personal_list_outbound_queue.')
+})
+
+const outboundAccountSchema = z.object({
+  integrationId: integrationField,
+  uuid: z.string().min(1).describe('wx2.0 account uuid/key.')
 })
 
 const resetConversationSchema = z.object({
@@ -125,7 +149,8 @@ export class WechatPersonalRuntimeMiddleware
 
   constructor(
     private readonly conversationService: WechatPersonalConversationService,
-    private readonly wechatChannel: WechatPersonalChannelStrategy
+    private readonly wechatChannel: WechatPersonalChannelStrategy,
+    private readonly outboundQueue: WechatPersonalOutboundQueueService
   ) {}
 
   createMiddleware(
@@ -249,6 +274,34 @@ export class WechatPersonalRuntimeMiddleware
           async (input) =>
             this.safeJson(async () => {
               const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+              const query = {
+                search: input.search,
+                page: input.page,
+                pageSize: input.pageSize,
+                direction: 'outbound' as const,
+                status: input.status,
+                filters: { queueOnly: !input.status || ['queued', 'deferred', 'sending', 'paused'].includes(input.status) }
+              }
+              return this.success(
+                integrationId
+                  ? 'Personal WeChat outbound queue was listed.'
+                  : 'Organization Personal WeChat outbound queue was listed.',
+                integrationId
+                  ? await this.conversationService.searchMessageLogs(integrationId, query)
+                  : await this.conversationService.searchOrganizationMessageLogs(query)
+              )
+            }),
+          {
+            name: WECHAT_PERSONAL_LIST_OUTBOUND_QUEUE_TOOL_NAME,
+            description:
+              'List queued, deferred, sending, paused, failed, cancelled or sent outbound Personal WeChat messages by message log id and queue job id.',
+            schema: listOutboundQueueSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            this.safeJson(async () => {
+              const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
               if (!integrationId) {
                 return this.missingIntegrationId()
               }
@@ -262,6 +315,42 @@ export class WechatPersonalRuntimeMiddleware
             description:
               'Reset one Personal WeChat conversation binding by binding id so the next inbound message starts a fresh Agent conversation.',
             schema: resetConversationSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            this.safeJson(async () => {
+              const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+              if (!integrationId) {
+                return this.missingIntegrationId()
+              }
+              const result = await this.outboundQueue.cancelOutboundQueueItem(integrationId, input.logId)
+              return result.success
+                ? this.success('Personal WeChat outbound queue item was cancelled.', result)
+                : this.error(result.message || 'Personal WeChat outbound queue item could not be cancelled.', result)
+            }),
+          {
+            name: WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
+            description: 'Cancel one queued/deferred Personal WeChat outbound message by outbound message log id.',
+            schema: queueItemSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            this.safeJson(async () => {
+              const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+              if (!integrationId) {
+                return this.missingIntegrationId()
+              }
+              const result = await this.outboundQueue.retryOutboundQueueItem(integrationId, input.logId)
+              return result.success
+                ? this.success('Personal WeChat outbound queue item was retried.', result)
+                : this.error(result.message || 'Personal WeChat outbound queue item could not be retried.', result)
+            }),
+          {
+            name: WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
+            description: 'Retry one failed, cancelled or paused Personal WeChat outbound message by outbound message log id.',
+            schema: queueItemSchema
           }
         ),
         tool(
@@ -314,6 +403,40 @@ export class WechatPersonalRuntimeMiddleware
             description:
               'Enable or disable inbound processing for one wx2.0 personal WeChat account already seen by this integration.',
             schema: setAccountEnabledSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            this.safeJson(async () => {
+              const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+              if (!integrationId) {
+                return this.missingIntegrationId()
+              }
+              await this.outboundQueue.pauseOutboundAccount(integrationId, input.uuid)
+              return this.success('Personal WeChat outbound account was paused.', { uuid: input.uuid })
+            }),
+          {
+            name: WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
+            description:
+              'Pause outbound sending for one wx2.0 personal WeChat account. Existing queued messages are marked paused until resumed.',
+            schema: outboundAccountSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            this.safeJson(async () => {
+              const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+              if (!integrationId) {
+                return this.missingIntegrationId()
+              }
+              const resumed = await this.outboundQueue.resumeOutboundAccount(integrationId, input.uuid)
+              return this.success('Personal WeChat outbound account was resumed.', { uuid: input.uuid, resumed })
+            }),
+          {
+            name: WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
+            description:
+              'Resume outbound sending for one wx2.0 personal WeChat account and requeue paused messages.',
+            schema: outboundAccountSchema
           }
         )
       ]

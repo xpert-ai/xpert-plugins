@@ -93,6 +93,44 @@ function reactShimPlugin(componentName) {
   }
 }
 
+function resolveWorkspaceSourcePackage(packageName, relativeEntry) {
+  try {
+    return requireFromPackage.resolve(packageName)
+  } catch {
+    // Continue with monorepo source fallbacks below.
+  }
+
+  let current = packageRoot
+  for (let depth = 0; depth < 8; depth += 1) {
+    const candidate = join(current, relativeEntry)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+    const parent = dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
+  return null
+}
+
+function workspaceSourcePackagePlugin() {
+  const shadcnUiEntry = resolveWorkspaceSourcePackage(
+    '@xpert-ai/plugin-shadcn-ui',
+    join('packages', 'shadcn-ui', 'src', 'index.ts')
+  )
+
+  return {
+    name: 'xpert-workspace-source-packages',
+    setup(buildApi) {
+      if (shadcnUiEntry) {
+        buildApi.onResolve({ filter: /^@xpert-ai\/plugin-shadcn-ui$/ }, () => ({ path: shadcnUiEntry }))
+      }
+    }
+  }
+}
+
 async function bundleComponent(componentName) {
   const componentDir = join(remoteRoot, componentName)
   const sourceDir = join(componentDir, 'src')
@@ -112,7 +150,7 @@ async function bundleComponent(componentName) {
     legalComments: 'none',
     jsxFactory: 'h',
     jsxFragment: 'React.Fragment',
-    plugins: [reactShimPlugin(componentName)],
+    plugins: [workspaceSourcePackagePlugin(), reactShimPlugin(componentName)],
     banner: {
       js: ';'
     },

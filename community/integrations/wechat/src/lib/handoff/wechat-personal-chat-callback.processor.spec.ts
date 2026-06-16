@@ -62,7 +62,12 @@ describe('WechatPersonalChatCallbackProcessor', () => {
 
   function createProcessor() {
     const wechatChannel = {
-      sendTextByIntegrationId: jest.fn(async () => ({ success: true, messageId: 'sent-1' }))
+      sendTextByIntegrationId: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        queueJobId: 'job-1',
+        outboundLogId: 'log-1'
+      }))
     }
     const conversationService = {
       setConversation: jest.fn(async () => undefined),
@@ -114,26 +119,15 @@ describe('WechatPersonalChatCallbackProcessor', () => {
     expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledWith('integration-1', {
       uuid: 'uuid-1',
       contactId: 'wxid_friend',
-      content: finalText
+      content: finalText,
+      context: expect.objectContaining({
+        integrationId: 'integration-1',
+        conversationId: 'conversation-1'
+      }),
+      source: 'agent_callback'
     })
-    expect(conversationService.setConversation).toHaveBeenCalledWith(
-      'integration-1:uuid-1:wxid_friend:wxid_friend',
-      'xpert-1',
-      'conversation-1',
-      undefined,
-      expect.objectContaining({
-        tenantId: 'tenant-1',
-        organizationId: 'org-1'
-      })
-    )
-    expect(conversationService.logOutbound).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({ integrationId: 'integration-1' }),
-        content: finalText,
-        status: 'sent',
-        messageId: 'sent-1'
-      })
-    )
+    expect(conversationService.setConversation).not.toHaveBeenCalled()
+    expect(conversationService.logOutbound).not.toHaveBeenCalled()
     await expect(runStateService.get(sourceMessageId)).resolves.toBeNull()
   })
 })

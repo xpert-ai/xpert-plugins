@@ -10,6 +10,36 @@ export type WechatPersonalGroupTriggerMode =
 export type WechatPersonalConnectionMode = 'direct_http' | 'reverse_tunnel'
 export type WechatPersonalChatFilterMode = 'all' | 'private_only' | 'group_only'
 
+export type WechatPersonalOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
+
+export interface WechatPersonalOutboundQueueOptions {
+  enabled?: boolean
+  initialDelayMs?: number
+  globalMinIntervalMs?: number
+  perAccountMinIntervalMs?: number
+  perContactMinIntervalMs?: number
+  perAccountMaxPerMinute?: number
+  perAccountMaxPerHour?: number
+  perAccountMaxPerDay?: number
+  perContactMaxPerHour?: number
+  maxPendingPerAccount?: number
+  maxPendingPerContact?: number
+  maxAttempts?: number
+  retryBackoffMs?: number[]
+  lockTtlMs?: number
+  overflowAction?: WechatPersonalOutboundOverflowAction
+  failureGuard?: {
+    threshold?: number
+    windowSeconds?: number
+    action?: 'pause_until_manual_resume'
+  }
+  quietHours?: Array<{
+    start: string
+    end: string
+    timezone?: string
+  }>
+}
+
 export interface TIntegrationWechatPersonalOptions {
   connectionMode?: WechatPersonalConnectionMode
   baseUrl?: string
@@ -19,6 +49,12 @@ export interface TIntegrationWechatPersonalOptions {
   apiToken?: string
   preferLanguage?: 'en' | 'zh-Hans'
   callbackSecret?: string
+  fallbackToLegacySendText?: boolean
+  outboundQueue?: WechatPersonalOutboundQueueOptions
+}
+
+export interface WechatPersonalInboundTriggerOptions {
+  ignoreSelfMessages?: boolean
   chatFilterMode?: WechatPersonalChatFilterMode
   allowedContactIds?: string[] | string
   blockedContactIds?: string[] | string
@@ -27,9 +63,7 @@ export interface TIntegrationWechatPersonalOptions {
   allowedSenderIds?: string[] | string
   blockedSenderIds?: string[] | string
   groupTriggerMode?: WechatPersonalGroupTriggerMode
-  groupKeywords?: string[]
-  ignoreSelfMessages?: boolean
-  fallbackToLegacySendText?: boolean
+  groupKeywords?: string[] | string
 }
 
 export interface WechatPersonalInboundEvent {
@@ -96,6 +130,22 @@ export function normalizeChatFilterMode(value: unknown): WechatPersonalChatFilte
 export function normalizeTimeoutMs(value: unknown, defaultValue = 10000): number {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return Math.floor(value)
+  }
+  return defaultValue
+}
+
+export function normalizePositiveInt(value: unknown, defaultValue: number, maxValue = Number.MAX_SAFE_INTEGER): number {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.min(Math.floor(numeric), maxValue)
+  }
+  return defaultValue
+}
+
+export function normalizeNonNegativeInt(value: unknown, defaultValue: number, maxValue = Number.MAX_SAFE_INTEGER): number {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return Math.min(Math.floor(numeric), maxValue)
   }
   return defaultValue
 }
@@ -172,19 +222,7 @@ export function normalizeWechatPersonalInboundPayload(payload: unknown): WechatP
 
 export function shouldDispatchWechatPersonalMessage(
   event: WechatPersonalInboundEvent,
-  options?: Pick<
-    TIntegrationWechatPersonalOptions,
-    | 'ignoreSelfMessages'
-    | 'chatFilterMode'
-    | 'allowedContactIds'
-    | 'blockedContactIds'
-    | 'allowedGroupIds'
-    | 'blockedGroupIds'
-    | 'allowedSenderIds'
-    | 'blockedSenderIds'
-    | 'groupTriggerMode'
-    | 'groupKeywords'
-  >
+  options?: WechatPersonalInboundTriggerOptions
 ): WechatPersonalDispatchableMessage | null {
   if ((options?.ignoreSelfMessages ?? true) && event.isSelf) {
     return null
@@ -246,7 +284,7 @@ export function shouldDispatchWechatPersonalMessage(
 export function matchesWechatPersonalMessageFilter(
   event: WechatPersonalInboundEvent,
   options?: Pick<
-    TIntegrationWechatPersonalOptions,
+    WechatPersonalInboundTriggerOptions,
     | 'chatFilterMode'
     | 'allowedContactIds'
     | 'blockedContactIds'

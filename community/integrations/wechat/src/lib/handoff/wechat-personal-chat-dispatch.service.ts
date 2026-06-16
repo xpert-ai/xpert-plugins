@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { LanguagesEnum, TChatRequest } from '@xpert-ai/contracts'
+import { LanguagesEnum, STATE_VARIABLE_HUMAN, TChatRequest } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import {
   AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -61,7 +61,6 @@ export class WechatPersonalChatDispatchService {
       xpertId,
       wechatMessage,
       input: textInput,
-      conversationId,
       conversationUserKey,
       tenantId,
       organizationId,
@@ -74,7 +73,6 @@ export class WechatPersonalChatDispatchService {
       `wechat-personal:${wechatMessage.integrationId}:system`
     const runId = `wechat-personal-chat-${randomUUID()}`
     const sessionKey =
-      conversationId ||
       conversationUserKey ||
       `${wechatMessage.integrationId}:${wechatMessage.uuid}:${wechatMessage.contactId}:${wechatMessage.senderId || ''}`
     const language = (wechatMessage.language || RequestContext.getLanguageCode() || 'zh-Hans') as LanguagesEnum
@@ -104,7 +102,6 @@ export class WechatPersonalChatDispatchService {
       responseStrategy: 'final_text',
       preferLanguage: language,
       conversationUserKey: conversationUserKey || undefined,
-      conversationId: conversationId || undefined,
       message: {
         id: wechatMessage.id || undefined,
         messageId: wechatMessage.messageId || undefined,
@@ -139,8 +136,8 @@ export class WechatPersonalChatDispatchService {
       traceId: runId,
       payload: {
         request: this.buildChatRequest({
-          conversationId,
-          input: textInput
+          input: textInput,
+          contactId: wechatMessage.contactId
         }),
         options: {
           xpertId,
@@ -177,7 +174,6 @@ export class WechatPersonalChatDispatchService {
             ...(organizationId ? { organizationId } : {}),
             ...(resolvedExecutorUserId ? { userId: resolvedExecutorUserId } : {}),
             ...(language ? { language } : {}),
-            ...(conversationId ? { conversationId } : {}),
             source: 'api',
             handoffQueue: 'integration',
             requestedLane: 'main',
@@ -190,7 +186,6 @@ export class WechatPersonalChatDispatchService {
         ...(organizationId ? { organizationId } : {}),
         ...(resolvedExecutorUserId ? { userId: resolvedExecutorUserId } : {}),
         ...(language ? { language } : {}),
-        ...(conversationId ? { conversationId } : {}),
         source: 'api',
         requestedLane: 'main',
         handoffQueue: 'realtime',
@@ -199,13 +194,28 @@ export class WechatPersonalChatDispatchService {
     }
   }
 
-  private buildChatRequest(params: { conversationId?: string; input?: string }): TChatRequest {
+  private buildChatRequest(params: { input?: string; contactId?: string }): TChatRequest {
+    const input = params.input ?? ''
+    const contactId = this.normalizeString(params.contactId)
+    const contactState = contactId
+      ? {
+          contactId
+        }
+      : {}
+
     return {
       action: 'send',
-      ...(params.conversationId ? { conversationId: params.conversationId } : {}),
       message: {
         input: {
-          input: params.input ?? ''
+          input,
+          ...contactState
+        }
+      },
+      state: {
+        ...contactState,
+        [STATE_VARIABLE_HUMAN]: {
+          input,
+          ...contactState
         }
       }
     } as unknown as TChatRequest

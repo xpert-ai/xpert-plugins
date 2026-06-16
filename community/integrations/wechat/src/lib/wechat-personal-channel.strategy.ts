@@ -28,6 +28,11 @@ import {
   WechatPersonalInboundEvent
 } from './types.js'
 import { WechatPersonalClient } from './wechat-personal.client.js'
+import {
+  WechatPersonalOutboundQueueInput,
+  WechatPersonalOutboundQueueService,
+  WechatPersonalQueuedSendResult
+} from './wechat-personal-outbound-queue.service.js'
 import { formatWechatPersonalOutgoingText } from './wechat-personal-text-format.js'
 
 const DEFAULT_TEXT_LIMIT = 4000
@@ -42,6 +47,7 @@ export class WechatPersonalChannelStrategy
 
   constructor(
     private readonly client: WechatPersonalClient,
+    private readonly outboundQueue: WechatPersonalOutboundQueueService,
     @Inject(WECHAT_PERSONAL_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -70,7 +76,11 @@ export class WechatPersonalChannelStrategy
         tunnelClientId: { type: 'string', description: 'MsgClientInfo.Id, required in reverse_tunnel mode' },
         apiVersion: { type: 'string', description: 'wx2.0 v2 API prefix, default /v1/' },
         apiToken: { type: 'string', description: 'Optional wx2.0 token header' },
-        timeoutMs: { type: 'number', description: 'Outbound wx2.0 request timeout in milliseconds' }
+        timeoutMs: { type: 'number', description: 'Outbound wx2.0 request timeout in milliseconds' },
+        outboundQueue: {
+          type: 'object',
+          description: 'Redis-backed outbound queue and rate-limit settings'
+        }
       },
       required: []
     }
@@ -174,9 +184,9 @@ export class WechatPersonalChannelStrategy
       contactId?: string | null
       content: string
       atUsers?: string[] | null
-    }
-  ): Promise<TChatSendResult> {
-    const integration = await this.readIntegration(params.uuid ? integrationId : '')
+    } & Pick<WechatPersonalOutboundQueueInput, 'context' | 'source'>
+  ): Promise<WechatPersonalQueuedSendResult> {
+    const integration = await this.readIntegration(integrationId)
     if (!integration) {
       return {
         success: false,
@@ -194,18 +204,29 @@ export class WechatPersonalChannelStrategy
       }
     }
 
-    const result = await this.client.sendText(integration, {
+    if (integration.options?.outboundQueue?.enabled === false) {
+      const result = await this.client.sendText(integration, {
+        uuid,
+        contactId,
+        content,
+        atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : []
+      })
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error
+      }
+    }
+
+    return this.outboundQueue.enqueueText(integration, {
       uuid,
       contactId,
       content,
-      atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : []
+      atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : [],
+      context: params.context,
+      source: params.source
     })
-
-    return {
-      success: result.success,
-      messageId: result.messageId,
-      error: result.error
-    }
   }
 
   async registerCallback(params: {

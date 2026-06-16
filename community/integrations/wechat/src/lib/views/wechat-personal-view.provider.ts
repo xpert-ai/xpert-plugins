@@ -34,6 +34,7 @@ import {
 import { WechatPersonalConversationService } from '../conversation.service.js'
 import type { WechatPersonalWorkbenchTableKey, WechatPersonalWorkbenchTableQuery } from '../conversation.service.js'
 import { WechatPersonalChannelStrategy } from '../wechat-personal-channel.strategy.js'
+import { WechatPersonalOutboundQueueService } from '../wechat-personal-outbound-queue.service.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(__filename)
@@ -55,7 +56,8 @@ const WECHAT_PERSONAL_VIEW_ICON_FOR_SDK = WECHAT_PERSONAL_VIEW_ICON as unknown a
 export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
   constructor(
     private readonly conversationService: WechatPersonalConversationService,
-    private readonly wechatChannel: WechatPersonalChannelStrategy
+    private readonly wechatChannel: WechatPersonalChannelStrategy,
+    private readonly outboundQueue: WechatPersonalOutboundQueueService
   ) {}
 
   supports(context: XpertResolvedViewHostContext) {
@@ -169,6 +171,30 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
             key: 'resend_message',
             label: text('Resend AI Reply', '重发 AI 回复'),
             icon: 'ri-repeat-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'cancel_queue_item',
+            label: text('Cancel Queue Item', '取消队列消息'),
+            icon: 'ri-close-circle-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'retry_queue_item',
+            label: text('Retry Queue Item', '重试队列消息'),
+            icon: 'ri-restart-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'pause_outbound_account',
+            label: text('Pause Outbound Account', '暂停账号出站'),
+            icon: 'ri-pause-circle-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'resume_outbound_account',
+            label: text('Resume Outbound Account', '恢复账号出站'),
+            icon: 'ri-play-circle-line',
             actionType: 'invoke'
           },
           {
@@ -320,12 +346,13 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
           uuid: requireStringInput(request.input, 'uuid', 'Account uuid is required.'),
           contactId: requireStringInput(request.input, 'contactId', 'Contact id is required.'),
           content: requireStringInput(request.input, 'content', 'Text content is required.'),
-          atUsers: getStringArrayInput(request.input, 'atUsers')
+          atUsers: getStringArrayInput(request.input, 'atUsers'),
+          source: 'manual'
         })
         if (!result.success) {
           return failure(result.error || 'Send text failed', result.error || '发送文本失败')
         }
-        return success('Text sent', '文本已发送')
+        return success(result.queued ? 'Text queued' : 'Text sent', result.queued ? '文本已入队' : '文本已发送')
       }
 
       if (actionKey === 'resend_message') {
@@ -334,6 +361,38 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
           return failure(result.error || 'Resend failed', result.error || '重发失败')
         }
         return success('AI reply resent', 'AI 回复已重发')
+      }
+
+      if (actionKey === 'cancel_queue_item') {
+        const result = await this.outboundQueue.cancelOutboundQueueItem(integrationId, request.targetId || getStringInput(request.input, 'id'))
+        if (!result.success) {
+          return failure(result.message || 'Cancel failed', result.message || '取消失败')
+        }
+        return success('Queue item cancelled', '队列消息已取消')
+      }
+
+      if (actionKey === 'retry_queue_item') {
+        const result = await this.outboundQueue.retryOutboundQueueItem(integrationId, request.targetId || getStringInput(request.input, 'id'))
+        if (!result.success) {
+          return failure(result.message || 'Retry failed', result.message || '重试失败')
+        }
+        return success('Queue item retried', '队列消息已重新入队')
+      }
+
+      if (actionKey === 'pause_outbound_account') {
+        await this.outboundQueue.pauseOutboundAccount(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.')
+        )
+        return success('Outbound account paused', '账号出站已暂停')
+      }
+
+      if (actionKey === 'resume_outbound_account') {
+        const resumed = await this.outboundQueue.resumeOutboundAccount(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.')
+        )
+        return success('Outbound account resumed', `账号出站已恢复，已重新入队 ${resumed} 条消息`)
       }
 
       if (actionKey === 'set_account_enabled') {
@@ -408,7 +467,9 @@ function normalizeViewParameters(parameters: unknown): Record<string, unknown> {
 
 function getTableKey(parameters?: Record<string, unknown> | null): WechatPersonalWorkbenchTableKey | null {
   const value = getStringProperty(parameters, 'table')
-  return value === 'accounts' || value === 'conversations' || value === 'messages' || value === 'logs' ? value : null
+  return value === 'accounts' || value === 'conversations' || value === 'messages' || value === 'queue' || value === 'logs'
+    ? value
+    : null
 }
 
 function getTableQuery(

@@ -13,6 +13,8 @@ describe('wechatPersonalTemplates', () => {
     expect(userTemplate).toContain('from: wechat_personal')
     expect(userTemplate).toContain('sessionTimeoutSeconds: 3600')
     expect(userTemplate).toContain('summaryWindowSeconds: 0')
+    expect(userTemplate).toContain('historyContextLimit: 20')
+    expect(userTemplate).toContain('ignoreSelfMessages: true')
     expect(userTemplate).toContain('chatFilterMode: all')
     expect(userTemplate).toContain('allowedGroupIds: []')
     expect(userTemplate).toContain('blockedGroupIds: []')
