@@ -11,7 +11,7 @@ export type WechatPersonalMessageStatus =
   | 'end'
   | 'error'
 
-type WechatPersonalMessageChannel = Pick<WechatPersonalChannelStrategy, 'sendTextByIntegrationId'>
+type WechatPersonalMessageChannel = Pick<WechatPersonalChannelStrategy, 'sendReplyByIntegrationId'>
 
 export interface WechatPersonalMessageFields {
   id?: string
@@ -94,7 +94,7 @@ export class WechatPersonalMessage extends Serializable implements Required<Wech
   }
 
   async reply(content: string): Promise<void> {
-    const result = await this.chatContext.wechatChannel.sendTextByIntegrationId(this.integrationId, {
+    const result = await this.chatContext.wechatChannel.sendReplyByIntegrationId(this.integrationId, {
       uuid: this.uuid,
       contactId: this.contactId,
       content,

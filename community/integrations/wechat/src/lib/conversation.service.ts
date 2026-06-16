@@ -17,6 +17,7 @@ import {
   resolveWechatPersonalConversationUserKey
 } from './conversation-user-key.js'
 import {
+  normalizeString,
   summarizePayload,
   shouldDispatchWechatPersonalMessage,
   TIntegrationWechatPersonalOptions,
@@ -478,6 +479,7 @@ export class WechatPersonalConversationService {
     status: WechatPersonalMessageLogStatus
     messageId?: string
     error?: string
+    payloadSummary?: string
   }): Promise<void> {
     const context = params.context
     const bindingContext = this.resolveBindingContext()
@@ -493,6 +495,7 @@ export class WechatPersonalConversationService {
       direction: 'outbound',
       status: params.status,
       content: params.content,
+      payloadSummary: params.payloadSummary,
       error: params.error,
       sentAt: params.status === 'sent' ? new Date() : undefined,
       xpertId: context.xpertId,
@@ -576,15 +579,24 @@ export class WechatPersonalConversationService {
         })
 
     if (!target?.uuid || !target.contactId || !target.content) {
-      throw new Error('没有可重发的 AI 文本回复。')
+      throw new Error('没有可重发的 AI 出站回复。')
     }
 
-    const result = await this.wechatChannel.sendTextByIntegrationId(normalizedIntegrationId, {
-      uuid: target.uuid,
-      contactId: target.contactId,
-      content: target.content,
-      source: 'resend'
-    })
+    const payload = this.parseOutboundPayloadSummary(target.payloadSummary)
+    const result =
+      payload?.type === 'image'
+        ? await this.wechatChannel.sendImageByIntegrationId(normalizedIntegrationId, {
+            uuid: target.uuid,
+            contactId: target.contactId,
+            imageUrl: normalizeString(payload.imageUrl) || target.content,
+            source: 'resend'
+          })
+        : await this.wechatChannel.sendTextByIntegrationId(normalizedIntegrationId, {
+            uuid: target.uuid,
+            contactId: target.contactId,
+            content: target.content,
+            source: 'resend'
+          })
     if (!result.queued) {
       await this.messageLogRepository.save({
         integrationId: normalizedIntegrationId,
@@ -597,6 +609,7 @@ export class WechatPersonalConversationService {
         direction: 'outbound',
         status: result.success ? 'sent' : 'failed',
         content: target.content,
+        payloadSummary: target.payloadSummary,
         error: result.error,
         xpertId: target.xpertId,
         conversationId: target.conversationId,
@@ -1925,6 +1938,18 @@ export class WechatPersonalConversationService {
     return {
       matched: true,
       input: trimmedInput.slice('/new'.length).trim()
+    }
+  }
+
+  private parseOutboundPayloadSummary(payloadSummary?: string): Record<string, unknown> | null {
+    if (!payloadSummary) {
+      return null
+    }
+    try {
+      const payload = JSON.parse(payloadSummary)
+      return payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>) : null
+    } catch {
+      return null
     }
   }
 

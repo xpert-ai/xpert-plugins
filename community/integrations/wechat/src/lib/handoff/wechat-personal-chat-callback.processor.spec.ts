@@ -62,11 +62,21 @@ describe('WechatPersonalChatCallbackProcessor', () => {
 
   function createProcessor() {
     const wechatChannel = {
-      sendTextByIntegrationId: jest.fn(async () => ({
+      sendReplyByIntegrationId: jest.fn(async () => ({
         success: true,
         queued: true,
         queueJobId: 'job-1',
-        outboundLogId: 'log-1'
+        outboundLogId: 'log-1',
+        items: [
+          {
+            type: 'text',
+            content: '完整的微信回复',
+            success: true,
+            queued: true,
+            queueJobId: 'job-1',
+            outboundLogId: 'log-1'
+          }
+        ]
       }))
     }
     const conversationService = {
@@ -116,7 +126,7 @@ describe('WechatPersonalChatCallbackProcessor', () => {
     await processor.process({ payload: messageEnd } as any, {} as any)
     await processor.process({ payload: complete } as any, {} as any)
 
-    expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledWith('integration-1', {
+    expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith('integration-1', {
       uuid: 'uuid-1',
       contactId: 'wxid_friend',
       content: finalText,
@@ -129,5 +139,78 @@ describe('WechatPersonalChatCallbackProcessor', () => {
     expect(conversationService.setConversation).not.toHaveBeenCalled()
     expect(conversationService.logOutbound).not.toHaveBeenCalled()
     await expect(runStateService.get(sourceMessageId)).resolves.toBeNull()
+  })
+
+  it('logs every directly sent mixed reply part when the queue is disabled', async () => {
+    const { processor, wechatChannel, conversationService } = createProcessor()
+    const sourceMessageId = 'wechat-personal-chat-run-2'
+    ;(wechatChannel.sendReplyByIntegrationId as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      queued: false,
+      items: [
+        {
+          type: 'text',
+          content: '文字',
+          success: true,
+          messageId: 'text-1',
+          payloadSummary: JSON.stringify({ type: 'text', source: 'agent_callback' })
+        },
+        {
+          type: 'image',
+          content: 'https://example.com/a.png',
+          success: true,
+          messageId: 'image-1',
+          payloadSummary: JSON.stringify({
+            type: 'image',
+            source: 'agent_callback',
+            imageUrl: 'https://example.com/a.png'
+          })
+        }
+      ]
+    })
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.EVENT,
+              event: ChatMessageEventTypeEnum.ON_MESSAGE_END,
+              data: {
+                content: '文字\n\n![图](https://example.com/a.png)'
+              }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: { kind: 'complete', sourceMessageId, sequence: 2 } } as any, {} as any)
+
+    expect(conversationService.logOutbound).toHaveBeenCalledTimes(2)
+    expect(conversationService.logOutbound).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        content: '文字',
+        messageId: 'text-1',
+        payloadSummary: JSON.stringify({ type: 'text', source: 'agent_callback' })
+      })
+    )
+    expect(conversationService.logOutbound).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        content: 'https://example.com/a.png',
+        messageId: 'image-1',
+        payloadSummary: JSON.stringify({
+          type: 'image',
+          source: 'agent_callback',
+          imageUrl: 'https://example.com/a.png'
+        })
+      })
+    )
   })
 })

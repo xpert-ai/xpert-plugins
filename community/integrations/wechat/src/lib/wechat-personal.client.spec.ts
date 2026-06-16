@@ -191,4 +191,124 @@ describe('WechatPersonalClient', () => {
       })
     )
   })
+
+  it('maps sendImage to wx2.0 v2 sendimage body', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      return new Response(JSON.stringify({ code: 0, data: { newmsgid: 'img-1' } }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+
+    const result = await new WechatPersonalClient().sendImage(
+      {
+        id: 'integration-1',
+        options: {
+          baseUrl: 'http://127.0.0.1:8058',
+          apiVersion: '/v1/'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageContent: 'base64-image'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'img-1' }))
+    expect(calls[0].url).toBe('http://127.0.0.1:8058/v1/message/sendimage')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      uuid: 'uuid-1',
+      contactid: 'wxid_friend',
+      imagecontent: 'base64-image'
+    })
+  })
+
+  it('falls back to legacy endpoint when primary sendimage fails', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      if (calls.length === 1) {
+        return new Response(JSON.stringify({ code: 500, message: 'failed' }), {
+          status: 200
+        })
+      }
+      return new Response(JSON.stringify({ code: 0, data: { newmsgid: 'img-legacy' } }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+
+    const result = await new WechatPersonalClient().sendImage(
+      {
+        id: 'integration-1',
+        options: {
+          baseUrl: 'http://127.0.0.1:8058'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageContent: 'base64-image'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'img-legacy' }))
+    expect(calls[1].url).toBe('http://127.0.0.1:8058/message/SendImageMessage?key=uuid-1')
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({
+      MsgItem: [
+        {
+          ToUserName: 'wxid_friend',
+          ImageContent: 'base64-image',
+          MsgType: 2
+        }
+      ]
+    })
+  })
+
+  it('maps reverse tunnel sendImage to wx2.0 v2 sendimage path and body', async () => {
+    const tunnelBroker = {
+      sendHttpRequest: jest.fn(async () => ({
+        status: 200,
+        headers: {},
+        body: Buffer.from(JSON.stringify({ code: 0, data: { newmsgid: 'img-1' } })),
+        text: JSON.stringify({ code: 0, data: { newmsgid: 'img-1' } })
+      }))
+    }
+
+    const result = await new WechatPersonalClient(tunnelBroker as any).sendImage(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1',
+          apiVersion: '/v1/',
+          apiToken: 'token-1'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageContent: 'base64-image'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'img-1' }))
+    expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        method: 'POST',
+        path: '/v1/message/sendimage',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          token: 'token-1'
+        }),
+        body: JSON.stringify({
+          uuid: 'uuid-1',
+          contactid: 'wxid_friend',
+          imagecontent: 'base64-image'
+        })
+      })
+    )
+  })
 })

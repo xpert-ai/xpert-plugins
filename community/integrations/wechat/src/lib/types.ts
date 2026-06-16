@@ -50,6 +50,7 @@ export interface TIntegrationWechatPersonalOptions {
   preferLanguage?: 'en' | 'zh-Hans'
   callbackSecret?: string
   fallbackToLegacySendText?: boolean
+  fallbackToLegacySendImage?: boolean
   outboundQueue?: WechatPersonalOutboundQueueOptions
 }
 
