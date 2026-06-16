@@ -1,7 +1,18 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 
 export type WechatPersonalMessageDirection = 'inbound' | 'outbound' | 'system'
-export type WechatPersonalMessageLogStatus = 'received' | 'dispatched' | 'sent' | 'skipped' | 'failed'
+export type WechatPersonalMessageLogStatus =
+  | 'received'
+  | 'dispatched'
+  | 'queued'
+  | 'deferred'
+  | 'sending'
+  | 'sent'
+  | 'skipped'
+  | 'failed'
+  | 'paused'
+  | 'cancelled'
+  | 'context_reset'
 
 @Entity(WechatPersonalMessageLogEntity.tableName)
 @Index('plugin_wechat_personal_message_log_message_idx', ['integrationId', 'messageId', 'direction'])
@@ -31,6 +42,9 @@ export class WechatPersonalMessageLogEntity {
   @Column({ nullable: true, length: 64 })
   messageId?: string
 
+  @Column({ nullable: true, length: 128 })
+  queueJobId?: string
+
   @Column({ nullable: true, length: 32 })
   chatType?: 'private' | 'group'
 
@@ -57,6 +71,12 @@ export class WechatPersonalMessageLogEntity {
 
   @Column({ nullable: true, length: 512 })
   conversationUserKey?: string
+
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledAt?: Date
+
+  @Column({ type: 'timestamptz', nullable: true })
+  sentAt?: Date
 
   @Column({ nullable: true, length: 36 })
   tenantId?: string

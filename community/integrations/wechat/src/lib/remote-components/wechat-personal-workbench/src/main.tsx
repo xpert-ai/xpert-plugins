@@ -36,8 +36,8 @@ import {
 
 installShadcnThemeVars({ styleId: 'wechat-personal-workbench-shadcn-ui-vars' })
 
-type TabKey = 'dashboard' | 'accounts' | 'conversations' | 'messages' | 'config' | 'logs'
-type TableKey = 'accounts' | 'conversations' | 'messages' | 'logs'
+type TabKey = 'dashboard' | 'accounts' | 'conversations' | 'messages' | 'queue' | 'config' | 'logs'
+type TableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs'
 type Translator = (key: TranslationKey) => string
 type PagedTableState = {
   items: any[]
@@ -51,10 +51,11 @@ type PagedTableState = {
 }
 
 const DEFAULT_TABLE_PAGE_SIZE = 20
-const TABLE_KEYS: TableKey[] = ['accounts', 'conversations', 'messages', 'logs']
+const TABLE_KEYS: TableKey[] = ['accounts', 'conversations', 'messages', 'queue', 'logs']
 const SELECT_EMPTY_VALUE = '__all__'
 const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   disabled: 'disabled',
+  deferred: 'deferred',
   dispatched: 'dispatched',
   error: 'error',
   failed: 'failed',
@@ -64,11 +65,16 @@ const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   offline: 'offline',
   online: 'online',
   outbound: 'outbound',
+  paused: 'paused',
   private: 'privateChat',
   private_only: 'privateOnly',
+  queued: 'queued',
   received: 'received',
   sent: 'sent',
+  sending: 'sending',
   skipped: 'skipped',
+  cancelled: 'cancelled',
+  context_reset: 'context_reset',
   system: 'system',
   group_only: 'groupOnly',
   unknown: 'unknown'
@@ -264,6 +270,7 @@ function App() {
   const accounts = data?.accounts || []
   const conversations = data?.conversations || []
   const messages = data?.messages || []
+  const queue = data?.queue || []
   const logs = data?.logs || messages
   const config = data?.config || {}
   const tunnel = data?.tunnel || null
@@ -271,6 +278,7 @@ function App() {
   const accountTable = withFallbackTable(tablePages.accounts, accounts)
   const conversationTable = withFallbackTable(tablePages.conversations, conversations)
   const messageTable = withFallbackTable(tablePages.messages, messages)
+  const queueTable = withFallbackTable(tablePages.queue, queue)
   const logTable = withFallbackTable(tablePages.logs, logs)
 
   if (data?.missingIntegration) {
@@ -310,6 +318,7 @@ function App() {
         <TabButton tabKey="accounts" label={t('account')} active={tab} setTab={setTab} />
         <TabButton tabKey="conversations" label={t('conversation')} active={tab} setTab={setTab} />
         <TabButton tabKey="messages" label={t('message')} active={tab} setTab={setTab} />
+        <TabButton tabKey="queue" label={t('queue')} active={tab} setTab={setTab} />
         <TabButton tabKey="config" label={t('config')} active={tab} setTab={setTab} />
         <TabButton tabKey="logs" label={t('logs')} active={tab} setTab={setTab} />
       </div>
@@ -363,6 +372,19 @@ function App() {
           setDraft={setDraft}
           t={t}
           onSend={() => runAction('send_text', null, draft)}
+        />
+      )}
+      {tab === 'queue' && (
+        <QueueView
+          queue={queue}
+          table={queueTable}
+          isOrganizationScope={isOrganizationScope}
+          t={t}
+          onTableChange={(patch: Partial<PagedTableState>) => loadTable('queue', patch)}
+          onCancel={(item: any) => runAction('cancel_queue_item', item.id, { id: item.id, integrationId: item.integrationId })}
+          onRetry={(item: any) => runAction('retry_queue_item', item.id, { id: item.id, integrationId: item.integrationId })}
+          onPause={(item: any) => runAction('pause_outbound_account', item.uuid, { uuid: item.uuid, integrationId: item.integrationId })}
+          onResume={(item: any) => runAction('resume_outbound_account', item.uuid, { uuid: item.uuid, integrationId: item.integrationId })}
         />
       )}
       {tab === 'logs' && (
@@ -695,7 +717,7 @@ function MessagesView(props: any) {
       >
         {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
         <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
         <SelectFilter
           field="chatType"
           label={props.t('type')}
@@ -752,8 +774,81 @@ function MessagesView(props: any) {
   )
 }
 
+function QueueView(props: any) {
+  const filter = useTableFilterDraft(props.table, props.onTableChange)
+  return (
+    <section className="wxp-panel">
+      <TableFilters
+        draft={filter.draft}
+        setDraft={filter.setDraft}
+        commitDraft={filter.commitDraft}
+        t={props.t}
+        onReset={() => {
+          filter.reset()
+          props.onTableChange({ page: 1, search: '', filters: {} })
+        }}
+      >
+        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
+        <SelectFilter
+          field="status"
+          label={props.t('status')}
+          options={translatedOptions(['queued', 'deferred', 'sending', 'paused', 'failed', 'cancelled', 'sent'], props.t)}
+          {...filter}
+        />
+        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
+        <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
+      </TableFilters>
+      <DataTable
+        headers={[
+          ...(props.isOrganizationScope ? [props.t('integration')] : []),
+          props.t('status'),
+          props.t('uuid'),
+          props.t('contact'),
+          props.t('queueJobId'),
+          props.t('scheduledAt'),
+          props.t('sentAt'),
+          props.t('contentOrError'),
+          props.t('action')
+        ]}
+        rows={props.table.items}
+        loading={props.table.busy}
+        loadingText={props.t('loading')}
+        emptyText={props.t('noQueueItems')}
+        renderRow={(item: any) => [
+          ...(props.isOrganizationScope ? [code(item.integrationId)] : []),
+          translatedPill(item.status, props.t),
+          code(item.uuid),
+          code(item.contactId),
+          code(item.queueJobId),
+          time(item.scheduledAt),
+          time(item.sentAt),
+          display(item.error || clip(item.content, 120)),
+          <div className="xui-actions">
+            {['queued', 'deferred', 'paused'].includes(item.status) && (
+              <Button variant="outline" size="sm" onClick={() => props.onCancel(item)}>
+                {props.t('cancel')}
+              </Button>
+            )}
+            {['failed', 'cancelled', 'paused'].includes(item.status) && (
+              <Button variant="outline" size="sm" onClick={() => props.onRetry(item)}>
+                {props.t('retry')}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => props.onPause(item)}>
+              {props.t('pause')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => props.onResume(item)}>
+              {props.t('resume')}
+            </Button>
+          </div>
+        ]}
+      />
+      <Pagination table={props.table} t={props.t} onChange={props.onTableChange} />
+    </section>
+  )
+}
+
 function ConfigView(props: any) {
-  const keywords = formatList(props.config.groupKeywords)
   return (
     <section className="wxp-config">
       <div className="wxp-panel">
@@ -767,7 +862,6 @@ function ConfigView(props: any) {
               props.t('message'),
               props.t('error'),
               props.t('connectionMode'),
-              props.t('chatFilterMode'),
               props.t('tunnelClientId'),
               props.t('tunnelStatus')
             ]}
@@ -781,7 +875,6 @@ function ConfigView(props: any) {
               String(integration.recentMessageCount || 0),
               String(integration.errorCount || 0),
               connectionModeLabel(integration.config?.connectionMode, props.t),
-              chatFilterModeLabel(integration.config?.chatFilterMode, props.t),
               code(integration.config?.tunnelClientId || integration.config?.baseUrl),
               tunnelStatusLabel(integration.tunnel, props.t)
             ]}
@@ -794,16 +887,6 @@ function ConfigView(props: any) {
             {kv(props.t('apiVersion'), props.config.apiVersion)}
             {kv(props.t('timeoutMs'), props.config.timeoutMs)}
             {kv(props.t('preferLanguage'), props.config.preferLanguage)}
-            {kv(props.t('chatFilterMode'), chatFilterModeLabel(props.config.chatFilterMode, props.t))}
-            {kv(props.t('allowedContactIds'), formatList(props.config.allowedContactIds))}
-            {kv(props.t('blockedContactIds'), formatList(props.config.blockedContactIds))}
-            {kv(props.t('allowedGroupIds'), formatList(props.config.allowedGroupIds))}
-            {kv(props.t('blockedGroupIds'), formatList(props.config.blockedGroupIds))}
-            {kv(props.t('allowedSenderIds'), formatList(props.config.allowedSenderIds))}
-            {kv(props.t('blockedSenderIds'), formatList(props.config.blockedSenderIds))}
-            {kv(props.t('groupTriggerMode'), props.config.groupTriggerMode)}
-            {kv(props.t('groupKeywords'), keywords)}
-            {kv(props.t('ignoreSelfMessages'), String(props.config.ignoreSelfMessages))}
             {kv(props.t('fallbackToLegacySendText'), String(props.config.fallbackToLegacySendText))}
           </>
         )}
@@ -901,7 +984,7 @@ function LogsView(props: any) {
           {...filter}
         />
         <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
         <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>
@@ -1467,16 +1550,6 @@ function phaseLabel(item: any, t: Translator) {
 
 function connectionModeLabel(value: unknown, t: Translator) {
   return value === 'reverse_tunnel' ? t('reverseTunnel') : t('directHttp')
-}
-
-function chatFilterModeLabel(value: unknown, t: Translator) {
-  if (value === 'private_only') {
-    return t('privateOnly')
-  }
-  if (value === 'group_only') {
-    return t('groupOnly')
-  }
-  return t('allChats')
 }
 
 function tunnelStatusLabel(tunnel: any, t: Translator) {

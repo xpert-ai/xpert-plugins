@@ -27,10 +27,12 @@
   "scripts": {
     "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "test": "jest --config jest.config.ts --runInBand",
-    "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "tsc -b tsconfig.lib.json --pretty false && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
+    "bullmq": "^5.78.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.3.0"
   },
@@ -64,7 +66,6 @@
     "@types/node": "^20.19.9",
     "@xpert-ai/chatkit-types": "^0.3.13",
     "@xpert-ai/contracts": "^3.11.0",
-    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.10.1",
     "cache-manager": "^7.2.0",
     "echarts": "5.5.0",

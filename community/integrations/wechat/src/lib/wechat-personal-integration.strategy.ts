@@ -15,10 +15,6 @@ import {
 import {
   normalizeApiVersion,
   normalizeBaseUrl,
-  normalizeChatFilterMode,
-  normalizeGroupTriggerMode,
-  normalizeIdList,
-  normalizeKeywords,
   normalizeString,
   normalizeTimeoutMs,
   normalizeWechatPersonalConnectionMode,
@@ -209,124 +205,6 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
             component: 'password'
           }
         },
-        chatFilterMode: {
-          type: 'string',
-          title: {
-            en_US: 'Chat Filter Mode',
-            zh_Hans: '会话过滤方式'
-          },
-          enum: ['all', 'private_only', 'group_only'],
-          enumLabels: {
-            all: {
-              en_US: 'All chats',
-              zh_Hans: '全部会话'
-            },
-            private_only: {
-              en_US: 'Private chats only',
-              zh_Hans: '仅私聊'
-            },
-            group_only: {
-              en_US: 'Group chats only',
-              zh_Hans: '仅群聊'
-            }
-          },
-          default: 'all'
-        },
-        allowedContactIds: {
-          type: 'array',
-          title: {
-            en_US: 'Allowed Contact IDs',
-            zh_Hans: '允许的联系人/群 ID'
-          },
-          description: {
-            en_US: 'Optional allowlist for contactId. Applies to private contact ids and group room ids.',
-            zh_Hans: '可选 contactId 白名单，适用于私聊联系人 ID 和群 roomId。'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        blockedContactIds: {
-          type: 'array',
-          title: {
-            en_US: 'Blocked Contact IDs',
-            zh_Hans: '排除的联系人/群 ID'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        allowedGroupIds: {
-          type: 'array',
-          title: {
-            en_US: 'Allowed Group IDs',
-            zh_Hans: '允许的群 ID'
-          },
-          description: {
-            en_US: 'Optional group room id allowlist. Example: 12345@chatroom.',
-            zh_Hans: '可选群 roomId 白名单。例如：12345@chatroom。'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        blockedGroupIds: {
-          type: 'array',
-          title: {
-            en_US: 'Blocked Group IDs',
-            zh_Hans: '排除的群 ID'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        allowedSenderIds: {
-          type: 'array',
-          title: {
-            en_US: 'Allowed Sender IDs',
-            zh_Hans: '允许的发送人 ID'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        blockedSenderIds: {
-          type: 'array',
-          title: {
-            en_US: 'Blocked Sender IDs',
-            zh_Hans: '排除的发送人 ID'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        groupTriggerMode: {
-          type: 'string',
-          title: {
-            en_US: 'Group Trigger Mode',
-            zh_Hans: '群聊触发方式'
-          },
-          enum: ['mention_or_keywords', 'all', 'mentions', 'keywords', 'off'],
-          default: 'mention_or_keywords'
-        },
-        groupKeywords: {
-          type: 'array',
-          title: {
-            en_US: 'Group Keywords',
-            zh_Hans: '群聊关键词'
-          },
-          items: {
-            type: 'string'
-          }
-        },
-        ignoreSelfMessages: {
-          type: 'boolean',
-          title: {
-            en_US: 'Ignore Self Messages',
-            zh_Hans: '忽略自己发出的消息'
-          },
-          default: true
-        },
         fallbackToLegacySendText: {
           type: 'boolean',
           title: {
@@ -334,6 +212,119 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
             zh_Hans: '失败时回退旧发送接口'
           },
           default: true
+        },
+        outboundQueue: {
+          type: 'object',
+          title: {
+            en_US: 'Outbound Queue Rules',
+            zh_Hans: '出站队列规则'
+          },
+          description: {
+            en_US: 'Redis-backed delayed sending, rate limits, quiet hours, retry and pause protection.',
+            zh_Hans: '基于 Redis 的延迟发送、限速、静默时段、重试和暂停保护。'
+          },
+          properties: {
+            enabled: {
+              type: 'boolean',
+              title: {
+                en_US: 'Enable Outbound Queue',
+                zh_Hans: '启用出站队列'
+              },
+              default: true
+            },
+            initialDelayMs: {
+              type: 'number',
+              title: {
+                en_US: 'Initial Delay (ms)',
+                zh_Hans: '初始延迟（毫秒）'
+              },
+              default: 3000
+            },
+            globalMinIntervalMs: {
+              type: 'number',
+              title: {
+                en_US: 'Global Min Interval (ms)',
+                zh_Hans: '全局最小间隔（毫秒）'
+              },
+              description: {
+                en_US: 'Minimum interval between any two outbound sends across this plugin queue.',
+                zh_Hans: '该插件出站队列中任意两条消息成功发送之间的最小间隔。'
+              },
+              default: 3000
+            },
+            perAccountMinIntervalMs: {
+              type: 'number',
+              title: {
+                en_US: 'Per Account Min Interval (ms)',
+                zh_Hans: '单账号最小间隔（毫秒）'
+              },
+              default: 10000
+            },
+            perContactMinIntervalMs: {
+              type: 'number',
+              title: {
+                en_US: 'Per Contact Min Interval (ms)',
+                zh_Hans: '单联系人最小间隔（毫秒）'
+              },
+              default: 20000
+            },
+            perAccountMaxPerMinute: {
+              type: 'number',
+              title: {
+                en_US: 'Per Account Max / Minute',
+                zh_Hans: '单账号每分钟上限'
+              },
+              default: 6
+            },
+            perAccountMaxPerHour: {
+              type: 'number',
+              title: {
+                en_US: 'Per Account Max / Hour',
+                zh_Hans: '单账号每小时上限'
+              },
+              default: 80
+            },
+            perAccountMaxPerDay: {
+              type: 'number',
+              title: {
+                en_US: 'Per Account Max / Day',
+                zh_Hans: '单账号每日上限'
+              },
+              default: 500
+            },
+            perContactMaxPerHour: {
+              type: 'number',
+              title: {
+                en_US: 'Per Contact Max / Hour',
+                zh_Hans: '单联系人每小时上限'
+              },
+              default: 20
+            },
+            maxPendingPerAccount: {
+              type: 'number',
+              title: {
+                en_US: 'Max Pending / Account',
+                zh_Hans: '单账号最大积压'
+              },
+              default: 100
+            },
+            maxPendingPerContact: {
+              type: 'number',
+              title: {
+                en_US: 'Max Pending / Contact',
+                zh_Hans: '单联系人最大积压'
+              },
+              default: 20
+            },
+            maxAttempts: {
+              type: 'number',
+              title: {
+                en_US: 'Max Attempts',
+                zh_Hans: '最大重试次数'
+              },
+              default: 4
+            }
+          }
         }
       },
       required: [],
@@ -373,17 +364,11 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
 
     config.apiVersion = normalizeApiVersion(config.apiVersion)
     config.timeoutMs = normalizeTimeoutMs(config.timeoutMs)
-    config.chatFilterMode = normalizeChatFilterMode(config.chatFilterMode)
-    config.allowedContactIds = normalizeIdList(config.allowedContactIds)
-    config.blockedContactIds = normalizeIdList(config.blockedContactIds)
-    config.allowedGroupIds = normalizeIdList(config.allowedGroupIds)
-    config.blockedGroupIds = normalizeIdList(config.blockedGroupIds)
-    config.allowedSenderIds = normalizeIdList(config.allowedSenderIds)
-    config.blockedSenderIds = normalizeIdList(config.blockedSenderIds)
-    config.groupTriggerMode = normalizeGroupTriggerMode(config.groupTriggerMode)
-    config.groupKeywords = normalizeKeywords(config.groupKeywords)
-    config.ignoreSelfMessages = config.ignoreSelfMessages !== false
     config.fallbackToLegacySendText = config.fallbackToLegacySendText !== false
+    config.outboundQueue = {
+      ...config.outboundQueue,
+      enabled: config.outboundQueue?.enabled !== false
+    }
 
     const apiBaseUrl = (process.env.API_BASE_URL || '').replace(/\/+$/, '')
     const integrationId = integration?.id || '<save_and_get_your_integration_id>'

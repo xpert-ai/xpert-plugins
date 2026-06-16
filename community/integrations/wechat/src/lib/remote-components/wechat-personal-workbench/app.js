@@ -888,7 +888,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     document.head.appendChild(style);
   }
 
-  // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../../xpertai/node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -903,7 +903,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return n;
   }
 
-  // ../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../../xpertai/node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var CLASS_PART_SEPARATOR = "-";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
@@ -3442,13 +3442,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3461,7 +3461,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     strokeLinejoin: "round"
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
   var Icon = forwardRef(
     ({
       color = "currentColor",
@@ -3493,7 +3493,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   );
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -3507,34 +3507,34 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Component2;
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("Check", __iconNode);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
   var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
   var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
   var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
   var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
   var Circle = createLucideIcon("Circle", __iconNode5);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
   var __iconNode6 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
   var X = createLucideIcon("X", __iconNode6);
 
-  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -3598,7 +3598,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     });
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -3634,7 +3634,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3844,7 +3844,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
   var jsxs = jsx;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContext2(rootComponentName, defaultContext) {
     const Context = createContext(defaultContext);
     Context.displayName = rootComponentName + "Context";
@@ -3921,7 +3921,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createScope;
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -3932,11 +3932,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4002,7 +4002,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return typeof value === "function";
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -4014,7 +4014,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [value]);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -4050,7 +4050,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return size4;
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_dc6e30df35507eb8a116c12c3da26e18/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4219,7 +4219,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
   var version2 = ReactDOMGlobal.version;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_9b6ae4cdaf3918ddbf0b21069e38e2ef/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4256,7 +4256,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_e21be6412c310c083d6755285c4c1ad9/node_modules/@radix-ui/react-checkbox/dist/index.mjs
   var CHECKBOX_NAME = "Checkbox";
   var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
   var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
@@ -4535,7 +4535,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   );
   Checkbox2.displayName = Checkbox.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4546,7 +4546,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -4555,7 +4555,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
   function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
     const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
     useEffect(() => {
@@ -4569,7 +4569,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [onEscapeKeyDown, ownerDocument]);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31___1202449cfd75d4d3d4e876187986c0d8/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4776,7 +4776,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_c97f9e7487f0abcea30d185973e4d237/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -4978,7 +4978,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_32b1caf40ac61f8d30d412d28d60b4ca/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -4989,7 +4989,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   });
   Portal.displayName = PORTAL_NAME;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5026,7 +5026,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return element;
   }
 
-  // ../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../../xpertai/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -5058,13 +5058,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5074,7 +5074,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref;
   }
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5101,7 +5101,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref.facade;
   }
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5132,7 +5132,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return callbackRef;
   }
 
-  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a) {
     return a;
   }
@@ -5218,7 +5218,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return medium;
   }
 
-  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5236,10 +5236,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return SideCar;
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5271,7 +5271,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     zeroRight: zeroRightClassName
   };
 
-  // ../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../../xpertai/node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5283,7 +5283,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return void 0;
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5329,7 +5329,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5342,7 +5342,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5353,7 +5353,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Sheet;
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5388,7 +5388,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5428,7 +5428,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -5447,7 +5447,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -5547,7 +5547,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shouldCancelScroll;
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -5718,17 +5718,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shadowParent;
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // ../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../../xpertai/node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -5849,7 +5849,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_ef5419b1d5914b6ed85fc377af02cd8c/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6222,7 +6222,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   DialogDescription2.displayName = Description.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+r_9d7b7379fb7a1e56af9d4a8d107ecba8/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
@@ -6286,14 +6286,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ];
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6422,7 +6422,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7139,7 +7139,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7295,7 +7295,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -7910,7 +7910,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     });
   };
 
-  // ../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8218,7 +8218,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_b34b7156178de4198a23e93f83c57da5/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8238,7 +8238,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   Arrow.displayName = NAME;
   var Root2 = Arrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_bd7668c1d3a757f9e8c97f0d7e635b5d/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8552,7 +8552,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Content2 = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31__@type_d783d3abe701a7f2fb2c68867b8f1f65/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -8763,7 +8763,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Root3 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_cc73edd868dbfc82392e3731b66f2e59/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -9575,7 +9575,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@typ_9dd0889a66ea847559fd572aaa20379b/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var DROPDOWN_MENU_NAME = "DropdownMenu";
   var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
     DROPDOWN_MENU_NAME,
@@ -9936,12 +9936,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Input.displayName = "Input";
 
-  // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types_11143bec678d1605a26ae97f1f701c82/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   function useStateMachine2(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -10682,7 +10682,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   ScrollBar.displayName = ScrollAreaScrollbar.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31__@ty_fbf0dd0d68bb58b2410fc7a153ed1d9c/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -10712,7 +10712,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   VisuallyHidden.displayName = NAME2;
   var Root5 = VisuallyHidden;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_b9232b5aa23e604443839e7a081b7527/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
   var SELECTION_KEYS2 = [" ", "Enter"];
   var SELECT_NAME = "Select";
@@ -12168,7 +12168,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   SidebarMenuButton.displayName = "SidebarMenuButton";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-slider/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_cfb70bb4d45c3eedb16b2d4d4cf80f46/node_modules/@radix-ui/react-slider/dist/index.mjs
   var PAGE_KEYS = ["PageUp", "PageDown"];
   var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
   var BACK_KEYS = {
@@ -12797,7 +12797,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   Slider2.displayName = Slider.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-switch/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_d2f9574497ecbe08e0e7c2298fb35dc1/node_modules/@radix-ui/react-switch/dist/index.mjs
   var SWITCH_NAME = "Switch";
   var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
   var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
@@ -13107,7 +13107,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   TableCaption.displayName = "TableCaption";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_769bbb0130198553b196f258bd99ab92/node_modules/@radix-ui/react-tabs/dist/index.mjs
   var TABS_NAME = "Tabs";
   var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
     createRovingFocusGroupScope
@@ -13316,7 +13316,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Textarea.displayName = "Textarea";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_02a5bba0cb45f3ddbe548efab47eabcc/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
     createPopperScope
   ]);
@@ -13922,6 +13922,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     calendarCumulative: "\u7D2F\u8BA1",
     calendarDaily: "\u6BCF\u65E5",
     calendarWeekly: "\u6BCF\u5468",
+    cancel: "\u53D6\u6D88",
+    cancelled: "\u5DF2\u53D6\u6D88",
     callbackGlobalWebhook: "\u5168\u5C40 webhook",
     chartLibraryUnavailable: "\u56FE\u8868\u5E93\u672A\u52A0\u8F7D\uFF0C\u8BF7\u5237\u65B0\u9875\u9762\u6216\u91CD\u542F Xpert \u670D\u52A1\u540E\u518D\u8BD5\u3002",
     chatFilterMode: "\u4F1A\u8BDD\u8FC7\u6EE4\u65B9\u5F0F",
@@ -13936,6 +13938,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     contentOrError: "\u5185\u5BB9/\u9519\u8BEF",
     contact: "contact",
     contactId: "contactId",
+    context_reset: "\u4E0A\u4E0B\u6587\u91CD\u7F6E",
     conversation: "\u4F1A\u8BDD",
     conversationId: "conversationId",
     copied: "\u5DF2\u590D\u5236",
@@ -13951,6 +13954,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disable: "\u505C\u7528",
     disabled: "\u5DF2\u505C\u7528",
     disconnected: "\u672A\u8FDE\u63A5",
+    deferred: "\u5DF2\u5EF6\u540E",
     dispatched: "\u5DF2\u5206\u53D1",
     enable: "\u542F\u7528",
     enabledOnly: "\u4EC5\u542F\u7528",
@@ -13987,6 +13991,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     noDashboardData: "\u6682\u65E0\u53EF\u5206\u6790\u6570\u636E",
     noIntegrations: "\u6682\u65E0\u4E2A\u4EBA\u5FAE\u4FE1\u96C6\u6210",
     noMessageLogs: "\u6682\u65E0\u6D88\u606F\u65E5\u5FD7",
+    noQueueItems: "\u6682\u65E0\u961F\u5217\u6D88\u606F",
     noRecentFailures: "\u6682\u65E0\u5931\u8D25\u8BB0\u5F55",
     noRuntimeLogs: "\u6682\u65E0\u8FD0\u884C\u65E5\u5FD7",
     needsAttention: "\u9700\u8981\u5173\u6CE8",
@@ -14006,6 +14011,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     previousPage: "\u4E0A\u4E00\u9875",
     privateChat: "\u79C1\u804A",
     privateOnly: "\u4EC5\u79C1\u804A",
+    pause: "\u6682\u505C",
+    paused: "\u5DF2\u6682\u505C",
+    queue: "\u961F\u5217",
+    queued: "\u5DF2\u5165\u961F",
+    queueJobId: "queueJobId",
     refresh: "\u5237\u65B0",
     refreshing: "\u5237\u65B0\u4E2D",
     registerCallback: "\u6CE8\u518C\u56DE\u8C03",
@@ -14014,6 +14024,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     remoteRequestFailed: "\u8FDC\u7A0B\u8BF7\u6C42\u5931\u8D25",
     requestTimeout: "\u8BF7\u6C42\u8D85\u65F6",
     resend: "\u91CD\u53D1",
+    resume: "\u6062\u590D",
+    retry: "\u91CD\u8BD5",
     reset: "\u91CD\u7F6E",
     resetFilters: "\u6E05\u7A7A\u7B5B\u9009",
     reverseTunnel: "\u53CD\u5411\u96A7\u9053",
@@ -14025,6 +14037,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     sender: "sender",
     senderId: "senderId",
     sent: "\u5DF2\u53D1\u9001",
+    sentAt: "\u53D1\u9001\u65F6\u95F4",
+    sending: "\u53D1\u9001\u4E2D",
+    scheduledAt: "\u8BA1\u5212\u65F6\u95F4",
     sidecarCommand: "Sidecar \u542F\u52A8\u547D\u4EE4",
     sidecarLocalListen: "Sidecar \u672C\u5730\u76D1\u542C",
     sidecarWebsocketUrl: "Sidecar WSS \u5730\u5740",
@@ -14076,6 +14091,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     calendarCumulative: "Cumulative",
     calendarDaily: "Daily",
     calendarWeekly: "Weekly",
+    cancel: "Cancel",
+    cancelled: "Cancelled",
     callbackGlobalWebhook: "Global webhook",
     chartLibraryUnavailable: "Chart library is unavailable. Refresh the page or restart the Xpert service.",
     chatFilterMode: "Chat filter mode",
@@ -14090,6 +14107,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     contentOrError: "Content / Error",
     contact: "contact",
     contactId: "contactId",
+    context_reset: "Context reset",
     conversation: "Conversations",
     conversationId: "conversationId",
     copied: "Copied",
@@ -14105,6 +14123,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disable: "Disable",
     disabled: "Disabled",
     disconnected: "Disconnected",
+    deferred: "Deferred",
     dispatched: "Dispatched",
     enable: "Enable",
     enabledOnly: "Enabled only",
@@ -14141,6 +14160,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     noDashboardData: "No analytics data yet",
     noIntegrations: "No personal WeChat integrations yet",
     noMessageLogs: "No message logs yet",
+    noQueueItems: "No queued messages yet",
     noRecentFailures: "No recent failures",
     noRuntimeLogs: "No runtime logs yet",
     needsAttention: "Needs attention",
@@ -14160,6 +14180,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     previousPage: "Previous",
     privateChat: "Private",
     privateOnly: "Private only",
+    pause: "Pause",
+    paused: "Paused",
+    queue: "Queue",
+    queued: "Queued",
+    queueJobId: "queueJobId",
     refresh: "Refresh",
     refreshing: "Refreshing",
     registerCallback: "Register callback",
@@ -14168,6 +14193,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     remoteRequestFailed: "Remote request failed",
     requestTimeout: "Request timed out",
     resend: "Resend",
+    resume: "Resume",
+    retry: "Retry",
     reset: "Reset",
     resetFilters: "Reset",
     reverseTunnel: "Reverse tunnel",
@@ -14179,6 +14206,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     sender: "sender",
     senderId: "senderId",
     sent: "Sent",
+    sentAt: "Sent at",
+    sending: "Sending",
+    scheduledAt: "Scheduled at",
     sidecarCommand: "Sidecar command",
     sidecarLocalListen: "Sidecar local listen",
     sidecarWebsocketUrl: "Sidecar WSS URL",
@@ -14365,10 +14395,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   // src/lib/remote-components/wechat-personal-workbench/src/main.tsx
   installShadcnThemeVars({ styleId: "wechat-personal-workbench-shadcn-ui-vars" });
   var DEFAULT_TABLE_PAGE_SIZE = 20;
-  var TABLE_KEYS = ["accounts", "conversations", "messages", "logs"];
+  var TABLE_KEYS = ["accounts", "conversations", "messages", "queue", "logs"];
   var SELECT_EMPTY_VALUE = "__all__";
   var TRANSLATABLE_VALUE_KEYS = {
     disabled: "disabled",
+    deferred: "deferred",
     dispatched: "dispatched",
     error: "error",
     failed: "failed",
@@ -14378,11 +14409,16 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     offline: "offline",
     online: "online",
     outbound: "outbound",
+    paused: "paused",
     private: "privateChat",
     private_only: "privateOnly",
+    queued: "queued",
     received: "received",
     sent: "sent",
+    sending: "sending",
     skipped: "skipped",
+    cancelled: "cancelled",
+    context_reset: "context_reset",
     system: "system",
     group_only: "groupOnly",
     unknown: "unknown"
@@ -14564,6 +14600,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const accounts = data?.accounts || [];
     const conversations = data?.conversations || [];
     const messages = data?.messages || [];
+    const queue = data?.queue || [];
     const logs = data?.logs || messages;
     const config = data?.config || {};
     const tunnel = data?.tunnel || null;
@@ -14571,6 +14608,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const accountTable = withFallbackTable(tablePages.accounts, accounts);
     const conversationTable = withFallbackTable(tablePages.conversations, conversations);
     const messageTable = withFallbackTable(tablePages.messages, messages);
+    const queueTable = withFallbackTable(tablePages.queue, queue);
     const logTable = withFallbackTable(tablePages.logs, logs);
     if (data?.missingIntegration) {
       return /* @__PURE__ */ h("div", { className: "wxp-app" }, /* @__PURE__ */ h("div", { className: "xui-notice" }, resolveMessage(data.message, context?.locale) || t("missingIntegrationFallback")));
@@ -14587,7 +14625,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       }
-    ), /* @__PURE__ */ h(Button, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "conversations", label: t("conversation"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab })), tab === "dashboard" && /* @__PURE__ */ h(DashboardView, { dashboard, summary, tunnel, isOrganizationScope, t }), tab === "accounts" && /* @__PURE__ */ h(
+    ), /* @__PURE__ */ h(Button, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "conversations", label: t("conversation"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "queue", label: t("queue"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab })), tab === "dashboard" && /* @__PURE__ */ h(DashboardView, { dashboard, summary, tunnel, isOrganizationScope, t }), tab === "accounts" && /* @__PURE__ */ h(
       AccountsView,
       {
         accounts,
@@ -14632,6 +14670,19 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         setDraft,
         t,
         onSend: () => runAction("send_text", null, draft)
+      }
+    ), tab === "queue" && /* @__PURE__ */ h(
+      QueueView,
+      {
+        queue,
+        table: queueTable,
+        isOrganizationScope,
+        t,
+        onTableChange: (patch) => loadTable("queue", patch),
+        onCancel: (item) => runAction("cancel_queue_item", item.id, { id: item.id, integrationId: item.integrationId }),
+        onRetry: (item) => runAction("retry_queue_item", item.id, { id: item.id, integrationId: item.integrationId }),
+        onPause: (item) => runAction("pause_outbound_account", item.uuid, { uuid: item.uuid, integrationId: item.integrationId }),
+        onResume: (item) => runAction("resume_outbound_account", item.uuid, { uuid: item.uuid, integrationId: item.integrationId })
       }
     ), tab === "logs" && /* @__PURE__ */ h(
       LogsView,
@@ -14823,7 +14874,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       },
       props.isOrganizationScope && /* @__PURE__ */ h(TextFilter, { field: "integrationId", placeholder: props.t("integrationId"), ...filter }),
       /* @__PURE__ */ h(SelectFilter, { field: "direction", label: props.t("direction"), options: translatedOptions(["inbound", "outbound", "system"], props.t), ...filter }),
-      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed"], props.t), ...filter }),
+      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
       /* @__PURE__ */ h(
         SelectFilter,
         {
@@ -14872,8 +14923,65 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       }
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
   }
+  function QueueView(props) {
+    const filter = useTableFilterDraft(props.table, props.onTableChange);
+    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h(
+      TableFilters,
+      {
+        draft: filter.draft,
+        setDraft: filter.setDraft,
+        commitDraft: filter.commitDraft,
+        t: props.t,
+        onReset: () => {
+          filter.reset();
+          props.onTableChange({ page: 1, search: "", filters: {} });
+        }
+      },
+      props.isOrganizationScope && /* @__PURE__ */ h(TextFilter, { field: "integrationId", placeholder: props.t("integrationId"), ...filter }),
+      /* @__PURE__ */ h(
+        SelectFilter,
+        {
+          field: "status",
+          label: props.t("status"),
+          options: translatedOptions(["queued", "deferred", "sending", "paused", "failed", "cancelled", "sent"], props.t),
+          ...filter
+        }
+      ),
+      /* @__PURE__ */ h(TextFilter, { field: "uuid", placeholder: props.t("uuid"), ...filter }),
+      /* @__PURE__ */ h(TextFilter, { field: "contactId", placeholder: props.t("contact"), ...filter })
+    ), /* @__PURE__ */ h(
+      DataTable,
+      {
+        headers: [
+          ...props.isOrganizationScope ? [props.t("integration")] : [],
+          props.t("status"),
+          props.t("uuid"),
+          props.t("contact"),
+          props.t("queueJobId"),
+          props.t("scheduledAt"),
+          props.t("sentAt"),
+          props.t("contentOrError"),
+          props.t("action")
+        ],
+        rows: props.table.items,
+        loading: props.table.busy,
+        loadingText: props.t("loading"),
+        emptyText: props.t("noQueueItems"),
+        renderRow: (item) => [
+          ...props.isOrganizationScope ? [code(item.integrationId)] : [],
+          translatedPill(item.status, props.t),
+          code(item.uuid),
+          code(item.contactId),
+          code(item.queueJobId),
+          time(item.scheduledAt),
+          time(item.sentAt),
+          display(item.error || clip(item.content, 120)),
+          /* @__PURE__ */ h("div", { className: "xui-actions" }, ["queued", "deferred", "paused"].includes(item.status) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onCancel(item) }, props.t("cancel")), ["failed", "cancelled", "paused"].includes(item.status) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onRetry(item) }, props.t("retry")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onPause(item) }, props.t("pause")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onResume(item) }, props.t("resume")))
+        ]
+      }
+    ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
+  }
   function ConfigView(props) {
-    const keywords = formatList(props.config.groupKeywords);
     return /* @__PURE__ */ h("section", { className: "wxp-config" }, /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.isOrganizationScope ? props.t("integrations") : props.t("runtimeConfig")), props.isOrganizationScope ? /* @__PURE__ */ h(
       DataTable,
       {
@@ -14884,7 +14992,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           props.t("message"),
           props.t("error"),
           props.t("connectionMode"),
-          props.t("chatFilterMode"),
           props.t("tunnelClientId"),
           props.t("tunnelStatus")
         ],
@@ -14898,12 +15005,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           String(integration.recentMessageCount || 0),
           String(integration.errorCount || 0),
           connectionModeLabel(integration.config?.connectionMode, props.t),
-          chatFilterModeLabel(integration.config?.chatFilterMode, props.t),
           code(integration.config?.tunnelClientId || integration.config?.baseUrl),
           tunnelStatusLabel(integration.tunnel, props.t)
         ]
       }
-    ) : /* @__PURE__ */ h(React.Fragment, null, kv(props.t("connectionMode"), connectionModeLabel(props.config.connectionMode, props.t)), kv(props.t("baseUrl"), props.config.baseUrl), kv(props.t("tunnelClientId"), props.config.tunnelClientId), kv(props.t("apiVersion"), props.config.apiVersion), kv(props.t("timeoutMs"), props.config.timeoutMs), kv(props.t("preferLanguage"), props.config.preferLanguage), kv(props.t("chatFilterMode"), chatFilterModeLabel(props.config.chatFilterMode, props.t)), kv(props.t("allowedContactIds"), formatList(props.config.allowedContactIds)), kv(props.t("blockedContactIds"), formatList(props.config.blockedContactIds)), kv(props.t("allowedGroupIds"), formatList(props.config.allowedGroupIds)), kv(props.t("blockedGroupIds"), formatList(props.config.blockedGroupIds)), kv(props.t("allowedSenderIds"), formatList(props.config.allowedSenderIds)), kv(props.t("blockedSenderIds"), formatList(props.config.blockedSenderIds)), kv(props.t("groupTriggerMode"), props.config.groupTriggerMode), kv(props.t("groupKeywords"), keywords), kv(props.t("ignoreSelfMessages"), String(props.config.ignoreSelfMessages)), kv(props.t("fallbackToLegacySendText"), String(props.config.fallbackToLegacySendText)))), /* @__PURE__ */ h(TunnelPanel, { tunnel: props.tunnel, t: props.t }), /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.t("manualSend")), props.isOrganizationScope && /* @__PURE__ */ h(
+    ) : /* @__PURE__ */ h(React.Fragment, null, kv(props.t("connectionMode"), connectionModeLabel(props.config.connectionMode, props.t)), kv(props.t("baseUrl"), props.config.baseUrl), kv(props.t("tunnelClientId"), props.config.tunnelClientId), kv(props.t("apiVersion"), props.config.apiVersion), kv(props.t("timeoutMs"), props.config.timeoutMs), kv(props.t("preferLanguage"), props.config.preferLanguage), kv(props.t("fallbackToLegacySendText"), String(props.config.fallbackToLegacySendText)))), /* @__PURE__ */ h(TunnelPanel, { tunnel: props.tunnel, t: props.t }), /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.t("manualSend")), props.isOrganizationScope && /* @__PURE__ */ h(
       Input,
       {
         placeholder: props.t("integrationId"),
@@ -14968,7 +15074,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         }
       ),
       /* @__PURE__ */ h(SelectFilter, { field: "direction", label: props.t("direction"), options: translatedOptions(["inbound", "outbound", "system"], props.t), ...filter }),
-      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed"], props.t), ...filter }),
+      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
       /* @__PURE__ */ h(TextFilter, { field: "uuid", placeholder: props.t("uuid"), ...filter }),
       /* @__PURE__ */ h(TextFilter, { field: "contactId", placeholder: props.t("contact"), ...filter })
     ), /* @__PURE__ */ h(
@@ -15325,15 +15431,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   function connectionModeLabel(value, t) {
     return value === "reverse_tunnel" ? t("reverseTunnel") : t("directHttp");
   }
-  function chatFilterModeLabel(value, t) {
-    if (value === "private_only") {
-      return t("privateOnly");
-    }
-    if (value === "group_only") {
-      return t("groupOnly");
-    }
-    return t("allChats");
-  }
   function tunnelStatusLabel(tunnel, t) {
     return tunnel?.connected ? t("connected") : t("disconnected");
   }
@@ -15356,10 +15453,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       return "";
     }
     return String(value);
-  }
-  function formatList(value) {
-    const items = Array.isArray(value) ? value.map((item) => displayText(item).trim()).filter(Boolean) : typeof value === "string" ? value.split(/[,\n，]/).map((item) => item.trim()).filter(Boolean) : [];
-    return items.length ? items.join(", ") : "";
   }
   function useTableFilterDraft(table, onTableChange) {
     const [draft, setDraft] = React.useState(() => ({

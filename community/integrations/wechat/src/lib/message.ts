@@ -98,7 +98,8 @@ export class WechatPersonalMessage extends Serializable implements Required<Wech
       uuid: this.uuid,
       contactId: this.contactId,
       content,
-      atUsers: this.chatContext.atUsers
+      atUsers: this.chatContext.atUsers,
+      source: 'message_reply'
     })
 
     if (!result.success) {

@@ -2,9 +2,6 @@ import type { ChecklistItem, IIntegration, TWorkflowTriggerMeta } from '@xpert-a
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
-  HANDOFF_PERMISSION_SERVICE_TOKEN,
-  HandoffMessage,
-  HandoffPermissionService,
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
   IWorkflowTriggerStrategy,
@@ -13,7 +10,6 @@ import {
   TWorkflowTriggerParams,
   WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
-import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import { WECHAT_PERSONAL_ICON, WECHAT_PERSONAL_PROVIDER_KEY } from '../constants.js'
 import { WechatPersonalTriggerBindingEntity } from '../entities/wechat-personal-trigger-binding.entity.js'
@@ -29,7 +25,7 @@ import {
 } from '../types.js'
 import { WechatPersonalChannelStrategy } from '../wechat-personal-channel.strategy.js'
 import {
-  WECHAT_PERSONAL_TRIGGER_FLUSH_MESSAGE_TYPE,
+  WechatPersonalTriggerAggregatePayload,
   WechatPersonalTriggerAggregationState,
   WechatPersonalTriggerFlushPayload
 } from './wechat-personal-trigger-aggregation.types.js'
@@ -38,6 +34,8 @@ import { TWechatPersonalTriggerConfig, WechatPersonalTrigger } from './wechat-pe
 
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
 const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
+const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
+const MAX_HISTORY_CONTEXT_LIMIT = 100
 
 type WechatPersonalTenantScope = {
   tenantId?: string | null
@@ -50,7 +48,6 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
   private readonly logger = new Logger(WechatPersonalTriggerStrategy.name)
   private readonly callbacks = new Map<string, (payload: any) => void>()
   private _integrationPermissionService: IntegrationPermissionService
-  private _handoffPermissionService: HandoffPermissionService
 
   readonly meta: TWorkflowTriggerMeta = {
     name: WechatPersonalTrigger,
@@ -95,14 +92,40 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         summaryWindowSeconds: {
           type: 'number',
           title: {
-            en_US: 'Summary Window (seconds)',
-            zh_Hans: '汇总时间（秒）'
+            en_US: 'Message Debounce Window (seconds)',
+            zh_Hans: '消息聚合/防抖时间（秒）'
           },
           description: {
             en_US: 'Messages received in this window are merged before dispatching to the agent.',
             zh_Hans: '窗口内收到的连续文本会合并后再发送给 Agent。'
           },
           default: DEFAULT_SUMMARY_WINDOW_SECONDS
+        },
+        historyContextLimit: {
+          type: 'number',
+          title: {
+            en_US: 'History Context Limit',
+            zh_Hans: '历史上下文条数'
+          },
+          description: {
+            en_US: 'Recent inbound messages and sent agent replies to prepend as context. Set to 0 to disable.',
+            zh_Hans: '作为上下文附加的最近入站消息和已发送 Agent 回复条数。设为 0 表示关闭。'
+          },
+          default: DEFAULT_HISTORY_CONTEXT_LIMIT,
+          minimum: 0,
+          maximum: MAX_HISTORY_CONTEXT_LIMIT
+        },
+        ignoreSelfMessages: {
+          type: 'boolean',
+          title: {
+            en_US: 'Ignore Self Messages',
+            zh_Hans: '忽略自己发出的消息'
+          },
+          description: {
+            en_US: 'Skip messages sent by the same wx2.0 account.',
+            zh_Hans: '跳过由同一个 wx2.0 账号自己发出的消息。'
+          },
+          default: true
         },
         chatFilterMode: {
           type: 'string',
@@ -227,13 +250,6 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
     return this._integrationPermissionService
   }
 
-  private get handoffPermissionService(): HandoffPermissionService {
-    if (!this._handoffPermissionService) {
-      this._handoffPermissionService = this.pluginContext.resolve(HANDOFF_PERMISSION_SERVICE_TOKEN)
-    }
-    return this._handoffPermissionService
-  }
-
   async validate(payload: TWorkflowTriggerParams<TWechatPersonalTriggerConfig>) {
     const { xpertId, node, config } = payload
     const items: ChecklistItem[] = []
@@ -331,6 +347,8 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
           config.summaryWindowSeconds,
           DEFAULT_SUMMARY_WINDOW_SECONDS
         ),
+        historyContextLimit: this.normalizeHistoryContextLimit(config.historyContextLimit),
+        ignoreSelfMessages: config.ignoreSelfMessages !== false,
         chatFilterMode: normalizeChatFilterMode(config.chatFilterMode),
         allowedContactIds: normalizeIdList(config.allowedContactIds),
         blockedContactIds: normalizeIdList(config.blockedContactIds),
@@ -418,8 +436,9 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
     integrationId: string
     input?: string
     wechatMessage: WechatPersonalMessage
-    conversationId?: string
     conversationUserKey?: string
+    historyContext?: string
+    currentInboundLogIds?: string[]
     tenantId: string
     organizationId?: string
     executorUserId?: string
@@ -448,9 +467,8 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         dispatchMode: 'immediate',
         dispatchPayload: {
           xpertId: binding.xpertId,
-          input: params.input || '',
+          input: this.composeDispatchInput(params.input || '', params.historyContext),
           wechatMessage: params.wechatMessage,
-          conversationId: params.conversationId,
           conversationUserKey: aggregateKey,
           tenantId: params.tenantId,
           organizationId: params.organizationId,
@@ -461,19 +479,18 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       return true
     }
 
-    const currentState = await this.aggregationService.get(aggregateKey)
-    const sameRoutingTarget =
-      currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
-    const nextVersion = (currentState?.version ?? 0) + 1
-    const aggregateState: WechatPersonalTriggerAggregationState = {
+    await this.aggregationService.enqueueAggregate({
       aggregateKey,
       integrationId: params.integrationId,
-      conversationUserKey: aggregateKey,
       xpertId: binding.xpertId,
-      version: nextVersion,
-      inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
-      lastMessageAt: Date.now(),
-      conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
+      input: params.input || '',
+      historyContext: params.historyContext,
+      currentInboundLogIds: params.currentInboundLogIds,
+      summaryWindowSeconds,
+      sessionTimeoutSeconds: this.normalizePositiveSeconds(
+        binding.sessionTimeoutSeconds,
+        DEFAULT_SESSION_TIMEOUT_SECONDS
+      ),
       tenantId: params.tenantId,
       organizationId: params.organizationId,
       executorUserId: params.executorUserId,
@@ -488,19 +505,58 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         language: params.wechatMessage.language,
         messageId: params.wechatMessage.messageId
       }
-    }
-
-    const ttlSeconds = Math.max(
-      DEFAULT_SESSION_TIMEOUT_SECONDS,
-      this.normalizePositiveSeconds(binding.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
-      summaryWindowSeconds * 3
-    )
-    await this.aggregationService.save(aggregateState, ttlSeconds)
-    await this.handoffPermissionService.enqueue(this.buildFlushMessage(aggregateState), {
-      delayMs: summaryWindowSeconds * 1000
     })
 
     return true
+  }
+
+  async processInboundAggregateJob(payload: WechatPersonalTriggerAggregatePayload): Promise<void> {
+    const aggregateKey = this.normalizeAggregateKey(payload.aggregateKey)
+    if (!aggregateKey) {
+      throw new Error('Missing aggregateKey in WeChat personal inbound aggregate payload')
+    }
+
+    const summaryWindowSeconds = this.normalizeNonNegativeSeconds(
+      payload.summaryWindowSeconds,
+      DEFAULT_SUMMARY_WINDOW_SECONDS
+    )
+    if (summaryWindowSeconds <= 0) {
+      return
+    }
+
+    await this.aggregationService.withAggregateLock(aggregateKey, async () => {
+      const currentState = await this.aggregationService.get(aggregateKey)
+      const sameRoutingTarget =
+        currentState?.integrationId === payload.integrationId && currentState?.xpertId === payload.xpertId
+      const nextVersion = (currentState?.version ?? 0) + 1
+      const aggregateState: WechatPersonalTriggerAggregationState = {
+        aggregateKey,
+        integrationId: payload.integrationId,
+        conversationUserKey: aggregateKey,
+        xpertId: payload.xpertId,
+        version: nextVersion,
+        inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), payload.input || ''],
+        currentInboundLogIds: [
+          ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
+          ...(payload.currentInboundLogIds ?? [])
+        ],
+        historyContext: sameRoutingTarget ? currentState?.historyContext ?? payload.historyContext : payload.historyContext,
+        lastMessageAt: Date.now(),
+        tenantId: payload.tenantId,
+        organizationId: payload.organizationId,
+        executorUserId: payload.executorUserId,
+        endUserId: payload.endUserId,
+        latestMessage: payload.latestMessage
+      }
+
+      const ttlSeconds = Math.max(
+        DEFAULT_SESSION_TIMEOUT_SECONDS,
+        this.normalizePositiveSeconds(payload.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
+        summaryWindowSeconds * 3
+      )
+      await this.aggregationService.save(aggregateState, ttlSeconds)
+      await this.aggregationService.enqueueFlush(aggregateState, summaryWindowSeconds * 1000)
+    })
   }
 
   async flushBufferedConversation(payload: WechatPersonalTriggerFlushPayload): Promise<boolean> {
@@ -520,7 +576,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       dispatchMode: `buffered version=${state.version}`,
       dispatchPayload: {
         xpertId: state.xpertId,
-        input: state.inputParts.join('\n'),
+        input: this.composeDispatchInput(state.inputParts.join('\n'), state.historyContext),
         wechatMessage: new WechatPersonalMessage(
           {
             integrationId: state.latestMessage.integrationId,
@@ -537,7 +593,6 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
             messageId: state.latestMessage.messageId
           }
         ),
-        conversationId: state.conversationId,
         conversationUserKey: state.conversationUserKey,
         tenantId: state.tenantId,
         organizationId: state.organizationId,
@@ -548,35 +603,6 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
 
     await this.aggregationService.clear(aggregateKey)
     return true
-  }
-
-  private buildFlushMessage(
-    state: WechatPersonalTriggerAggregationState
-  ): HandoffMessage<WechatPersonalTriggerFlushPayload> {
-    return {
-      id: `wechat-personal-trigger-flush-${randomUUID()}`,
-      type: WECHAT_PERSONAL_TRIGGER_FLUSH_MESSAGE_TYPE,
-      version: 1,
-      tenantId: state.tenantId,
-      sessionKey: state.aggregateKey,
-      businessKey: state.aggregateKey,
-      attempt: 1,
-      maxAttempts: 1,
-      enqueuedAt: Date.now(),
-      traceId: `${state.aggregateKey}:${state.version}`,
-      payload: {
-        aggregateKey: state.aggregateKey,
-        version: state.version
-      },
-      headers: {
-        ...(state.organizationId ? { organizationId: state.organizationId } : {}),
-        ...(state.executorUserId ? { userId: state.executorUserId } : {}),
-        source: 'api',
-        requestedLane: 'main',
-        handoffQueue: 'integration',
-        ...(state.integrationId ? { integrationId: state.integrationId } : {})
-      }
-    }
   }
 
   private async dispatchInboundMessage(params: {
@@ -652,6 +678,21 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       return Math.floor(value)
     }
     return defaultValue
+  }
+
+  private normalizeHistoryContextLimit(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      return Math.min(Math.floor(value), MAX_HISTORY_CONTEXT_LIMIT)
+    }
+    return DEFAULT_HISTORY_CONTEXT_LIMIT
+  }
+
+  private composeDispatchInput(input: string, historyContext?: string): string {
+    const history = typeof historyContext === 'string' ? historyContext.trim() : ''
+    if (!history) {
+      return input
+    }
+    return `${history}\n\n[本次用户消息]\n${input}`
   }
 
   private async removeBindingFromStore(integrationId: string, expectedXpertId?: string): Promise<void> {

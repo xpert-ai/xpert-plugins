@@ -22,7 +22,7 @@ import { WechatPersonalViewProvider } from './wechat-personal-view.provider.js'
 
 describe('WechatPersonalViewProvider', () => {
   function createProvider(conversationService: Record<string, unknown> = {}) {
-    return new WechatPersonalViewProvider(conversationService as any, {} as any)
+    return new WechatPersonalViewProvider(conversationService as any, {} as any, {} as any)
   }
 
   it('declares the workbench tab for personal WeChat integration hosts without feature activation', async () => {

@@ -22,6 +22,12 @@ export class WechatPersonalTriggerBindingEntity {
   @Column({ type: 'integer', default: 0 })
   summaryWindowSeconds: number
 
+  @Column({ type: 'integer', default: 20 })
+  historyContextLimit: number
+
+  @Column({ type: 'boolean', default: true })
+  ignoreSelfMessages: boolean
+
   @Column({ type: 'varchar', length: 32, default: 'all' })
   chatFilterMode: WechatPersonalChatFilterMode
 

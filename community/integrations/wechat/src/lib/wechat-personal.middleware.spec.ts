@@ -18,12 +18,17 @@ jest.mock('./wechat-personal-channel.strategy.js', () => ({
 }))
 
 import {
+  WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_GET_CALLBACK_CONFIG_TOOL_NAME,
   WECHAT_PERSONAL_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_PERSONAL_LIST_ACCOUNTS_TOOL_NAME,
   WECHAT_PERSONAL_LIST_CONVERSATIONS_TOOL_NAME,
+  WECHAT_PERSONAL_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_MIDDLEWARE_NAME,
+  WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME,
+  WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
+  WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_PERSONAL_RUNTIME_FEATURE,
   WECHAT_PERSONAL_SEARCH_MESSAGE_LOGS_TOOL_NAME,
@@ -33,8 +38,18 @@ import {
 import { WechatPersonalRuntimeMiddleware } from './wechat-personal.middleware.js'
 
 describe('WechatPersonalRuntimeMiddleware', () => {
+  function createMiddleware(conversationService: Record<string, unknown> = {}, wechatChannel: Record<string, unknown> = {}) {
+    const outboundQueue = {
+      cancelOutboundQueueItem: jest.fn(async () => ({ success: true })),
+      retryOutboundQueueItem: jest.fn(async () => ({ success: true })),
+      pauseOutboundAccount: jest.fn(async () => undefined),
+      resumeOutboundAccount: jest.fn(async () => 0)
+    }
+    return new WechatPersonalRuntimeMiddleware(conversationService as any, wechatChannel as any, outboundQueue as any)
+  }
+
   it('exposes runtime features for agent view discovery', () => {
-    const middleware = new WechatPersonalRuntimeMiddleware({} as any, {} as any)
+    const middleware = createMiddleware()
 
     expect(middleware.meta.name).toBe(WECHAT_PERSONAL_MIDDLEWARE_NAME)
     expect(middleware.meta.features).toEqual(
@@ -44,7 +59,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
 
   it('registers Personal WeChat management tools', async () => {
     const middleware = await Promise.resolve(
-      new WechatPersonalRuntimeMiddleware({} as any, {} as any).createMiddleware(
+      createMiddleware().createMiddleware(
         { integrationId: 'integration-1' },
         {
           node: {
@@ -61,6 +76,11 @@ describe('WechatPersonalRuntimeMiddleware', () => {
         WECHAT_PERSONAL_GET_RUNTIME_STATUS_TOOL_NAME,
         WECHAT_PERSONAL_LIST_ACCOUNTS_TOOL_NAME,
         WECHAT_PERSONAL_LIST_CONVERSATIONS_TOOL_NAME,
+        WECHAT_PERSONAL_LIST_OUTBOUND_QUEUE_TOOL_NAME,
+        WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
+        WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
+        WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
+        WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
         WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME,
         WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
         WECHAT_PERSONAL_SEARCH_MESSAGE_LOGS_TOOL_NAME,
@@ -75,7 +95,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       getRuntimeStatus: jest.fn(async () => ({ summary: { accountCount: 1 } }))
     }
     const middleware = await Promise.resolve(
-      new WechatPersonalRuntimeMiddleware(conversationService as any, {} as any).createMiddleware(
+      createMiddleware(conversationService).createMiddleware(
         {},
         {
           xpertId: 'xpert-1',
@@ -115,7 +135,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       }))
     }
     const middleware = await Promise.resolve(
-      new WechatPersonalRuntimeMiddleware(conversationService as any, {} as any).createMiddleware(
+      createMiddleware(conversationService).createMiddleware(
         {},
         {
           xpertId: 'xpert-admin',

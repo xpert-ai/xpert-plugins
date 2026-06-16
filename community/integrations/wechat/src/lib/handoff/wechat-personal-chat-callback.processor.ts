@@ -267,15 +267,6 @@ export class WechatPersonalChatCallbackProcessor implements IHandoffProcessor<We
   private async completeRun(state: WechatPersonalChatRunState): Promise<void> {
     const context = state.context
     const finalText = this.normalizeFinalText(state.finalMessageContent || state.responseMessageContent)
-    if (context.conversationUserKey && context.xpertId && context.conversationId) {
-      await this.conversationService.setConversation(
-        context.conversationUserKey,
-        context.xpertId,
-        context.conversationId,
-        undefined,
-        context
-      )
-    }
 
     if (!finalText) {
       this.logger.debug(
@@ -287,15 +278,19 @@ export class WechatPersonalChatCallbackProcessor implements IHandoffProcessor<We
     const result = await this.wechatChannel.sendTextByIntegrationId(context.integrationId, {
       uuid: context.uuid,
       contactId: context.contactId,
-      content: finalText
-    })
-    await this.conversationService.logOutbound({
-      context,
       content: finalText,
-      status: result.success ? 'sent' : 'failed',
-      messageId: result.messageId,
-      error: result.error
+      context,
+      source: 'agent_callback'
     })
+    if (!result.queued) {
+      await this.conversationService.logOutbound({
+        context,
+        content: finalText,
+        status: result.success ? 'sent' : 'failed',
+        messageId: result.messageId,
+        error: result.error
+      })
+    }
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to send WeChat personal reply')
@@ -315,7 +310,9 @@ export class WechatPersonalChatCallbackProcessor implements IHandoffProcessor<We
     await this.wechatChannel.sendTextByIntegrationId(context.integrationId, {
       uuid: context.uuid,
       contactId: context.contactId,
-      content: fallback
+      content: fallback,
+      context,
+      source: 'agent_callback'
     })
   }
 

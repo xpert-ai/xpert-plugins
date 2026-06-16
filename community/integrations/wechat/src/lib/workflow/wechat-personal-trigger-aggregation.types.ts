@@ -1,11 +1,3 @@
-import { defineChannelMessageType } from '@xpert-ai/plugin-sdk'
-
-export const WECHAT_PERSONAL_TRIGGER_FLUSH_MESSAGE_TYPE = defineChannelMessageType(
-  'wechat_personal',
-  'trigger_flush',
-  1
-)
-
 export interface WechatPersonalTriggerFlushPayload extends Record<string, unknown> {
   aggregateKey: string
   version: number
@@ -29,8 +21,25 @@ export interface WechatPersonalTriggerAggregationState {
   xpertId: string
   version: number
   inputParts: string[]
+  currentInboundLogIds?: string[]
+  historyContext?: string
   lastMessageAt: number
-  conversationId?: string
+  tenantId: string
+  organizationId?: string
+  executorUserId?: string
+  endUserId?: string
+  latestMessage: WechatPersonalTriggerAggregationMessageContext
+}
+
+export interface WechatPersonalTriggerAggregatePayload extends Record<string, unknown> {
+  aggregateKey: string
+  integrationId: string
+  xpertId: string
+  input?: string
+  historyContext?: string
+  currentInboundLogIds?: string[]
+  summaryWindowSeconds: number
+  sessionTimeoutSeconds: number
   tenantId: string
   organizationId?: string
   executorUserId?: string
