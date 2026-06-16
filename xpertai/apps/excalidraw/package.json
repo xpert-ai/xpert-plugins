@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Excalidraw app plugin for agent-created diagrams, reviewable drawing versions, Mermaid drafts, and an editable workbench.",
   "author": {
     "name": "XpertAI",
@@ -41,7 +41,7 @@
     "lint": "echo \"(todo) add lint\"",
     "test": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
+    "prepack": "npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {
