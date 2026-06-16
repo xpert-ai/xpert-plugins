@@ -3,8 +3,14 @@ import {
   Badge,
   Button,
   Check,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Download,
   FileJson,
+  Image,
   Input,
   PanelLeftClose,
   PanelLeftOpen,
@@ -29,6 +35,10 @@ import {
   SidebarRail,
   SidebarTitle,
   SidebarTrigger,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Textarea,
   Upload,
   installShadcnThemeVars
@@ -52,6 +62,7 @@ import {
 } from './runtime'
 
 type StatusFilter = '' | 'draft' | 'reviewed' | 'archived'
+type DocumentKind = 'diagram' | 'flowchart' | 'architecture' | 'process' | 'wireframe' | 'orgchart' | 'network' | 'other'
 type DocumentRecord = Record<string, any>
 type DocumentVersion = Record<string, any>
 type DetailPayload = {
@@ -88,6 +99,10 @@ type StandardImportPreviewModel = {
   lines: PreviewLine[]
   viewBox: string
 }
+type JsonParseResult = {
+  value: Record<string, unknown> | null
+  error: string | null
+}
 
 const DEFAULT_MERMAID = `flowchart TD
   A[User Request] --> B[Agent Plans Lucidchart Draft]
@@ -118,6 +133,8 @@ const LUCIDCHART_MUTATION_TOOL_NAMES = new Set([
   'lucidchart_report_failure'
 ])
 
+const DOCUMENT_KINDS: DocumentKind[] = ['diagram', 'flowchart', 'architecture', 'process', 'wireframe', 'orgchart', 'network', 'other']
+
 installShadcnThemeVars({ styleId: 'lucidchart-workbench-shadcn-ui-vars' })
 injectStyles()
 
@@ -130,8 +147,14 @@ function App() {
   const [status, setStatus] = React.useState<StatusFilter>('')
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
+  const [newDialogOpen, setNewDialogOpen] = React.useState(false)
   const [newTitle, setNewTitle] = React.useState('')
   const [newDescription, setNewDescription] = React.useState('')
+  const [newKind, setNewKind] = React.useState<DocumentKind>('diagram')
+  const [metadataTitle, setMetadataTitle] = React.useState('')
+  const [metadataDescription, setMetadataDescription] = React.useState('')
+  const [metadataKind, setMetadataKind] = React.useState<DocumentKind>('diagram')
+  const [metadataDirty, setMetadataDirty] = React.useState(false)
   const [changeSummary, setChangeSummary] = React.useState('')
   const [assistantPrompt, setAssistantPrompt] = React.useState('')
   const [standardImportText, setStandardImportText] = React.useState(() => stringifyJson(createDefaultStandardImport('Untitled')))
@@ -140,8 +163,10 @@ function App() {
   const [lucidDocumentUrl, setLucidDocumentUrl] = React.useState('')
   const [embedUrl, setEmbedUrl] = React.useState('')
   const [previewUrl, setPreviewUrl] = React.useState('')
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
-  const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
+  const [mainTab, setMainTab] = React.useState('preview')
+  const [inspectorTab, setInspectorTab] = React.useState('info')
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(() => isCompactViewport())
+  const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(() => isCompactViewport())
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const contextRef = React.useRef<any>(null)
   const selectedIdRef = React.useRef('')
@@ -186,7 +211,7 @@ function App() {
     post('ready')
   }, [])
 
-  React.useEffect(reportResize, [documents, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed])
+  React.useEffect(reportResize, [documents, detail, busy, dirty, metadataDirty, mainTab, inspectorTab, leftPanelCollapsed, rightPanelCollapsed])
 
   function hydratePayload(payload: any) {
     if (!payload) {
@@ -212,6 +237,11 @@ function App() {
     setChangeSummary('')
     const version = payload.currentVersion || null
     const title = payload.item?.title || t('untitled')
+    const nextKind = normalizeDocumentKind(payload.item?.kind)
+    setMetadataTitle(title)
+    setMetadataDescription(typeof payload.item?.description === 'string' ? payload.item.description : '')
+    setMetadataKind(nextKind)
+    setMetadataDirty(false)
     const standardImport = isObject(version?.standardImport) ? version?.standardImport : createDefaultStandardImport(title)
     const nextText = stringifyJson(standardImport)
     setStandardImportText(nextText)
@@ -308,19 +338,40 @@ function App() {
     }
   }
 
+  function hasUnsavedChanges() {
+    return dirty || metadataDirty
+  }
+
+  function confirmDiscardUnsavedChanges() {
+    return !hasUnsavedChanges() || window.confirm(t('discardUnsavedChanges'))
+  }
+
+  async function selectDocumentWithGuard(documentId: string) {
+    if (documentId === selectedIdRef.current) {
+      return
+    }
+    if (!confirmDiscardUnsavedChanges()) {
+      return
+    }
+    await selectDocument(documentId)
+  }
+
   async function createDocument() {
     const title = newTitle.trim() || t('untitled')
     setBusy(true)
     try {
       const response = await executeAction('create_document', null, {
         title,
-        description: newDescription
+        description: newDescription,
+        kind: newKind
       })
       const result = getResponsePayload(response)
       notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('documentCreated'))
       const documentId = result?.item?.id || result?.data?.item?.id
       setNewTitle('')
       setNewDescription('')
+      setNewKind('diagram')
+      setNewDialogOpen(false)
       setChangeSummary('')
       if (documentId) {
         await reloadList()
@@ -335,26 +386,53 @@ function App() {
     }
   }
 
+  async function updateDocumentMetadata() {
+    if (!selectedId) {
+      notify('warning', t('noDocument'))
+      return
+    }
+    const title = metadataTitle.trim()
+    if (!title) {
+      notify('warning', t('titleRequired'))
+      return
+    }
+    setBusy(true)
+    try {
+      const response = await executeAction('update_document_metadata', selectedId, {
+        documentId: selectedId,
+        title,
+        description: metadataDescription,
+        kind: metadataKind,
+        changeSummary: changeSummary.trim() || undefined
+      })
+      const result = getResponsePayload(response)
+      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('metadataSaved'))
+      setMetadataDirty(false)
+      setChangeSummary('')
+      await selectDocument(selectedId)
+      await reloadList()
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function saveStandardImport() {
     if (!selectedId) {
       notify('warning', t('noDocument'))
       return
     }
-    let standardImport: Record<string, unknown>
-    try {
-      standardImport = JSON.parse(standardImportText)
-      if (!isObject(standardImport)) {
-        throw new Error(t('invalidJson'))
-      }
-    } catch (error) {
-      notify('error', `${t('invalidJson')}: ${getErrorMessage(error)}`)
+    const parsed = parseStandardImportDocument(standardImportText)
+    if (parsed.error || !parsed.value) {
+      notify('error', `${t('invalidJson')}: ${parsed.error || t('unknownError')}`)
       return
     }
     setBusy(true)
     try {
       const response = await executeAction('save_standard_import_version', selectedId, {
         documentId: selectedId,
-        standardImport,
+        standardImport: parsed.value,
         mermaidSource: mermaidSource.trim() || undefined,
         lucidDocumentId: lucidDocumentId.trim() || undefined,
         lucidDocumentUrl: lucidDocumentUrl.trim() || undefined,
@@ -385,8 +463,9 @@ function App() {
     try {
       const response = await executeAction('save_mermaid_draft', selectedId || null, {
         documentId: selectedId || undefined,
-        title: newTitle.trim() || detail?.item?.title || t('untitled'),
-        description: newDescription,
+        title: metadataTitle.trim() || detail?.item?.title || t('untitled'),
+        description: metadataDescription,
+        kind: metadataKind,
         mermaidSource: source,
         changeSummary: changeSummary.trim() || undefined
       })
@@ -406,7 +485,7 @@ function App() {
   }
 
   async function registerExternalDocument() {
-    if (!selectedId && !newTitle.trim()) {
+    if (!selectedId && !metadataTitle.trim()) {
       notify('warning', t('noDocument'))
       return
     }
@@ -414,8 +493,9 @@ function App() {
     try {
       const response = await executeAction('register_external_document', selectedId || null, {
         documentId: selectedId || undefined,
-        title: newTitle.trim() || detail?.item?.title || t('untitled'),
-        description: newDescription,
+        title: metadataTitle.trim() || detail?.item?.title || t('untitled'),
+        description: metadataDescription,
+        kind: metadataKind,
         lucidDocumentId: lucidDocumentId.trim() || undefined,
         lucidDocumentUrl: lucidDocumentUrl.trim() || undefined,
         embedUrl: embedUrl.trim() || undefined,
@@ -442,6 +522,9 @@ function App() {
     if (!selectedId || !versionId) {
       return
     }
+    if (!confirmDiscardUnsavedChanges()) {
+      return
+    }
     setBusy(true)
     try {
       const response = await executeAction('restore_version', selectedId, {
@@ -462,6 +545,9 @@ function App() {
 
   async function archiveDocument() {
     if (!selectedId) {
+      return
+    }
+    if (!confirmDiscardUnsavedChanges() || !window.confirm(t('confirmArchive'))) {
       return
     }
     setBusy(true)
@@ -532,6 +618,12 @@ function App() {
 
   async function importFile(file: File | null) {
     if (!file) {
+      return
+    }
+    if (hasUnsavedChanges() && !window.confirm(t('discardUnsavedChanges'))) {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
     setBusy(true)
@@ -617,15 +709,52 @@ function App() {
   }
 
   function exportJson() {
-    try {
-      const parsed = JSON.parse(standardImportText)
-      downloadBlob(
-        new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' }),
-        `${detail?.item?.title || 'document'}.json`
-      )
-    } catch (error) {
-      notify('error', `${t('invalidJson')}: ${getErrorMessage(error)}`)
+    const parsed = parseStandardImportDocument(standardImportText)
+    if (parsed.error || !parsed.value) {
+      notify('error', `${t('invalidJson')}: ${parsed.error || t('unknownError')}`)
+      return
     }
+    downloadBlob(
+      new Blob([JSON.stringify(parsed.value, null, 2)], { type: 'application/json' }),
+      `${detail?.item?.title || 'document'}.json`
+    )
+  }
+
+  function formatStandardImportJson() {
+    const parsed = parseStandardImportDocument(standardImportText)
+    if (parsed.error || !parsed.value) {
+      notify('error', `${t('invalidJson')}: ${parsed.error || t('unknownError')}`)
+      return
+    }
+    updateStandardImportText(stringifyJson(parsed.value))
+  }
+
+  function revertStandardImportJson() {
+    const title = detail?.item?.title || t('untitled')
+    const standardImport = isObject(currentVersion?.standardImport) ? currentVersion.standardImport : createDefaultStandardImport(title)
+    updateStandardImportText(stringifyJson(standardImport))
+  }
+
+  function updateMetadataTitle(nextTitle: string) {
+    setMetadataTitle(nextTitle)
+    setMetadataDirty(true)
+  }
+
+  function updateMetadataDescription(nextDescription: string) {
+    setMetadataDescription(nextDescription)
+    setMetadataDirty(true)
+  }
+
+  function updateMetadataKind(nextKind: DocumentKind) {
+    setMetadataKind(nextKind)
+    setMetadataDirty(true)
+  }
+
+  function openNewDocumentDialog() {
+    if (!confirmDiscardUnsavedChanges()) {
+      return
+    }
+    setNewDialogOpen(true)
   }
 
   const currentVersion = detail?.currentVersion || null
@@ -633,8 +762,11 @@ function App() {
   const embeddableUrl = embedUrl.trim()
   const imagePreviewUrl = previewUrl.trim()
   const lucidOpenUrl = embeddableUrl || lucidDocumentUrl.trim()
+  const standardImportParse = React.useMemo(() => parseStandardImportDocument(standardImportText), [standardImportText])
   const standardImportPreview = React.useMemo(() => createStandardImportPreview(standardImportText), [standardImportText])
-  const canSave = Boolean(selectedId && dirty && !busy)
+  const isJsonValid = Boolean(standardImportParse.value && !standardImportParse.error)
+  const canSave = Boolean(selectedId && dirty && !busy && isJsonValid)
+  const currentTitle = detail?.item?.title || t('untitled')
   const shellClassName = `lw-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
   const previewBadge = embeddableUrl
     ? t('embedPreview')
@@ -646,6 +778,39 @@ function App() {
 
   return (
     <div className={shellClassName}>
+      <Dialog open={newDialogOpen} onOpenChange={setNewDialogOpen}>
+        <DialogContent className="lw-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('newDocument')}</DialogTitle>
+          </DialogHeader>
+          <div className="lw-dialog-stack">
+            <Input value={newTitle} placeholder={t('title')} onChange={(event: any) => setNewTitle(event.target.value)} />
+            <Textarea value={newDescription} placeholder={t('description')} onChange={(event: any) => setNewDescription(event.target.value)} />
+            <Select value={newKind} onValueChange={(value: string) => setNewKind(normalizeDocumentKind(value))}>
+              <SelectTrigger aria-label={t('kind')}>
+                <SelectValue placeholder={t('kind')} />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_KINDS.map((kind) => (
+                  <SelectItem value={kind} key={kind}>
+                    {t(kind)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setNewDialogOpen(false)}>
+              {t('cancel')}
+            </Button>
+            <Button type="button" disabled={busy} onClick={createDocument}>
+              <Plus className="lw-button-icon" aria-hidden="true" />
+              {t('create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Sidebar className="lw-sidebar" side="left" collapsed={leftPanelCollapsed}>
         <SidebarHeader>
           <SidebarTrigger
@@ -703,10 +868,10 @@ function App() {
               <SidebarMenu>
                 {documents.map((document) => (
                   <SidebarMenuItem key={document.id}>
-                    <SidebarMenuButton type="button" active={document.id === selectedId} onClick={() => selectDocument(document.id)}>
+                    <SidebarMenuButton type="button" active={document.id === selectedId} onClick={() => selectDocumentWithGuard(document.id)}>
                       <span className="lw-item-title">{document.title || t('untitled')}</span>
                       <span className="lw-item-meta">
-                        v{document.currentVersionNumber || 0} · {t((document.status || 'draft') as TranslationKey)}
+                        v{document.currentVersionNumber || 0} · {t((document.status || 'draft') as TranslationKey)} · {t(normalizeDocumentKind(document.kind))}
                       </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -720,10 +885,22 @@ function App() {
       <main className="lw-main">
         <div className="lw-toolbar">
           <div className="lw-toolbar-title">
-            <Input className="lw-title-input" value={newTitle} placeholder={t('title')} onChange={(event: any) => setNewTitle(event.target.value)} />
+            <div className="lw-title-text">{selectedId ? currentTitle : t('workbenchTitle')}</div>
+            <div className="lw-title-meta">
+              {selectedId ? (
+                <>
+                  <Badge variant="secondary">{t(documentStatus as TranslationKey)}</Badge>
+                  <Badge variant="secondary">v{detail?.item?.currentVersionNumber || 0}</Badge>
+                  <Badge variant="secondary">{t(normalizeDocumentKind(detail?.item?.kind))}</Badge>
+                  {currentVersion?.sourceType ? <Badge variant="secondary">{currentVersion.sourceType}</Badge> : null}
+                </>
+              ) : (
+                <span>{t('noDocument')}</span>
+              )}
+            </div>
           </div>
           <div className="lw-toolbar-actions">
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={createDocument}>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={openNewDocumentDialog}>
               <Plus className="lw-button-icon" aria-hidden="true" />
               {t('newDocument')}
             </Button>
@@ -735,7 +912,7 @@ function App() {
               <Upload className="lw-button-icon" aria-hidden="true" />
               {t('import')}
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportJson}>
+            <Button type="button" variant="outline" size="sm" disabled={!selectedId || !isJsonValid} onClick={exportJson}>
               <Download className="lw-button-icon" aria-hidden="true" />
               {t('exportJson')}
             </Button>
@@ -744,7 +921,7 @@ function App() {
               {t('openLucid')}
             </Button>
             <Badge className="lw-status" variant={dirty ? 'warning' : 'secondary'}>
-              {dirty ? t('dirty') : t('saved')}
+              {hasUnsavedChanges() ? t('dirty') : t('saved')}
             </Badge>
           </div>
           <input
@@ -758,27 +935,85 @@ function App() {
         <div className="lw-stage">
           {selectedId || detail?.item ? (
             <div className="lw-editor-pane">
-              <div className="lw-editor-header">
-                <Badge variant="secondary">{t('standardImport')}</Badge>
-                {currentVersion?.sourceType ? <Badge variant="secondary">{currentVersion.sourceType}</Badge> : null}
-                <Badge variant={embeddableUrl || imagePreviewUrl || standardImportPreview ? 'success' : 'secondary'}>{previewBadge}</Badge>
-              </div>
-              <div className="lw-visual-frame">
-                {embeddableUrl ? (
-                  <iframe title="Lucidchart embed" src={embeddableUrl} />
-                ) : imagePreviewUrl ? (
-                  <img src={imagePreviewUrl} alt={t('imagePreview')} />
-                ) : standardImportPreview ? (
-                  <StandardImportPreview model={standardImportPreview} />
-                ) : (
-                  <div className="lw-embed-empty">{t('previewUnavailable')}</div>
-                )}
-              </div>
-              <Textarea
-                className="lw-json-editor"
-                value={standardImportText}
-                onChange={(event: any) => updateStandardImportText(event.target.value)}
-              />
+              <Tabs className="lw-tabs" value={mainTab} onValueChange={(value: string) => setMainTab(value)}>
+                <div className="lw-editor-header">
+                  <TabsList>
+                    <TabsTrigger value="preview">
+                      <Image className="lw-button-icon" aria-hidden="true" />
+                      {t('preview')}
+                    </TabsTrigger>
+                    <TabsTrigger value="json">
+                      <FileJson className="lw-button-icon" aria-hidden="true" />
+                      {t('json')}
+                    </TabsTrigger>
+                    <TabsTrigger value="mermaid">{t('mermaid')}</TabsTrigger>
+                    <TabsTrigger value="links">{t('links')}</TabsTrigger>
+                  </TabsList>
+                  <Badge variant={embeddableUrl || imagePreviewUrl || standardImportPreview ? 'success' : 'secondary'}>{previewBadge}</Badge>
+                </div>
+
+                <TabsContent className="lw-tab-content" value="preview">
+                  <div className="lw-visual-frame">
+                    {embeddableUrl ? (
+                      <iframe title="Lucidchart embed" src={embeddableUrl} />
+                    ) : imagePreviewUrl ? (
+                      <img src={imagePreviewUrl} alt={t('imagePreview')} />
+                    ) : standardImportPreview ? (
+                      <StandardImportPreview model={standardImportPreview} />
+                    ) : (
+                      <div className="lw-embed-empty">{t('previewUnavailable')}</div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent className="lw-tab-content lw-json-tab" value="json">
+                  <div className="lw-tab-toolbar">
+                    <div className="lw-inline-badges">
+                      <Badge variant={isJsonValid ? 'success' : 'warning'}>{isJsonValid ? t('jsonValid') : t('jsonInvalid')}</Badge>
+                      {standardImportParse.error ? <span className="lw-muted">{standardImportParse.error}</span> : null}
+                    </div>
+                    <div className="lw-inline-actions">
+                      <Button type="button" variant="outline" size="sm" disabled={!isJsonValid} onClick={formatStandardImportJson}>
+                        {t('formatJson')}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={revertStandardImportJson}>
+                        <RotateCcw className="lw-button-icon" aria-hidden="true" />
+                        {t('revertJson')}
+                      </Button>
+                    </div>
+                  </div>
+                  <Textarea className="lw-json-editor" value={standardImportText} onChange={(event: any) => updateStandardImportText(event.target.value)} />
+                </TabsContent>
+
+                <TabsContent className="lw-tab-content lw-form-tab" value="mermaid">
+                  <section className="lw-section">
+                    <div className="lw-section-title">{t('mermaid')}</div>
+                    <Textarea className="lw-tall-textarea" value={mermaidSource} onChange={(event: any) => updateMermaidSource(event.target.value)} />
+                    <div className="lw-muted">{t('standardImportNotice')}</div>
+                    <div className="lw-inline-actions">
+                      <Button type="button" disabled={busy || !mermaidSource.trim()} onClick={saveMermaidDraft}>
+                        <Save className="lw-button-icon" aria-hidden="true" />
+                        {t('saveMermaid')}
+                      </Button>
+                    </div>
+                  </section>
+                </TabsContent>
+
+                <TabsContent className="lw-tab-content lw-form-tab" value="links">
+                  <section className="lw-section">
+                    <div className="lw-section-title">{t('externalDocument')}</div>
+                    <Input value={lucidDocumentUrl} placeholder={t('lucidDocumentUrl')} onChange={(event: any) => updateLucidDocumentUrl(event.target.value)} />
+                    <Input value={embedUrl} placeholder={t('embedUrl')} onChange={(event: any) => updateEmbedUrl(event.target.value)} />
+                    <Input value={lucidDocumentId} placeholder={t('lucidDocumentId')} onChange={(event: any) => updateLucidDocumentId(event.target.value)} />
+                    <Input value={previewUrl} placeholder={t('previewUrl')} onChange={(event: any) => updatePreviewUrl(event.target.value)} />
+                    <div className="lw-inline-actions">
+                      <Button type="button" disabled={busy || (!lucidDocumentId.trim() && !lucidDocumentUrl.trim() && !embedUrl.trim())} onClick={registerExternalDocument}>
+                        {t('registerExternal')}
+                      </Button>
+                    </div>
+                  </section>
+                </TabsContent>
+              </Tabs>
             </div>
           ) : (
             <div className="lw-empty">{t('noDocument')}</div>
@@ -789,28 +1024,7 @@ function App() {
       <Sidebar className="lw-inspector" side="right" collapsed={rightPanelCollapsed}>
         <SidebarHeader>
           {!rightPanelCollapsed ? (
-            <>
-              <div className="lw-inspector-actions">
-                {documentStatus === 'archived' ? (
-                  <Badge variant="secondary">{t('archived')}</Badge>
-                ) : documentStatus === 'reviewed' ? (
-                  <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId} onClick={() => setDocumentReviewStatus('draft')}>
-                    <RotateCcw className="lw-button-icon" aria-hidden="true" />
-                    {t('backToDraft')}
-                  </Button>
-                ) : (
-                  <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId} onClick={() => setDocumentReviewStatus('reviewed')}>
-                    <Check className="lw-button-icon" aria-hidden="true" />
-                    {t('markReviewed')}
-                  </Button>
-                )}
-                <Button type="button" variant="destructiveOutline" size="sm" disabled={busy || !selectedId || documentStatus === 'archived'} onClick={archiveDocument}>
-                  <Archive className="lw-button-icon" aria-hidden="true" />
-                  {t('archive')}
-                </Button>
-              </div>
-              <SidebarTitle className="lw-sidebar-title-truncate">{detail?.item?.title || t('inspector')}</SidebarTitle>
-            </>
+            <SidebarTitle className="lw-sidebar-title-truncate">{detail?.item?.title || t('inspector')}</SidebarTitle>
           ) : null}
           <SidebarTrigger
             className="lw-sidebar-trigger-right"
@@ -828,72 +1042,117 @@ function App() {
         ) : (
           <SidebarContent>
             <ScrollArea className="lw-inspector-scroll">
-              <div className="lw-inspector-stack">
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('changeSummary')}</div>
-                  <Input value={changeSummary} placeholder={t('changeSummary')} onChange={(event: any) => setChangeSummary(event.target.value)} />
-                </section>
+              <Tabs className="lw-inspector-tabs" value={inspectorTab} onValueChange={(value: string) => setInspectorTab(value)}>
+                <TabsList className="lw-inspector-tabs-list">
+                  <TabsTrigger value="info">{t('info')}</TabsTrigger>
+                  <TabsTrigger value="versions">{t('versions')}</TabsTrigger>
+                  <TabsTrigger value="activity">{t('activity')}</TabsTrigger>
+                  <TabsTrigger value="assistant">{t('assistant')}</TabsTrigger>
+                </TabsList>
 
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('versions')}</div>
-                  {(detail?.versions || []).map((version) => (
-                    <div className="lw-version" key={version.id}>
-                      <div>
-                        <div>v{version.versionNumber}</div>
-                        <div className="lw-muted">{version.sourceType || 'workbench'}</div>
-                      </div>
-                      <Button
-                        className="lw-version-action"
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        title={t('restore')}
-                        aria-label={`${t('restore')} v${version.versionNumber}`}
-                        disabled={busy}
-                        onClick={() => restoreVersion(version.id)}
-                      >
-                        <RotateCcw className="lw-button-icon" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  ))}
-                </section>
+                <TabsContent className="lw-inspector-stack" value="info">
+                  <section className="lw-section">
+                    <div className="lw-section-title">{t('documentInfo')}</div>
+                    <Input value={metadataTitle} placeholder={t('title')} onChange={(event: any) => updateMetadataTitle(event.target.value)} />
+                    <Textarea value={metadataDescription} placeholder={t('description')} onChange={(event: any) => updateMetadataDescription(event.target.value)} />
+                    <Select value={metadataKind} onValueChange={(value: string) => updateMetadataKind(normalizeDocumentKind(value))}>
+                      <SelectTrigger aria-label={t('kind')}>
+                        <SelectValue placeholder={t('kind')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOCUMENT_KINDS.map((kind) => (
+                          <SelectItem value={kind} key={kind}>
+                            {t(kind)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </section>
 
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('mermaid')}</div>
-                  <Textarea value={mermaidSource} onChange={(event: any) => updateMermaidSource(event.target.value)} />
-                  <div className="lw-muted">{t('standardImportNotice')}</div>
+                  <section className="lw-section">
+                    <div className="lw-section-title">{t('changeSummary')}</div>
+                    <Input value={changeSummary} placeholder={t('changeSummary')} onChange={(event: any) => setChangeSummary(event.target.value)} />
+                  </section>
+
                   <div className="lw-inline-actions">
-                    <Button type="button" size="sm" disabled={busy || !mermaidSource.trim()} onClick={saveMermaidDraft}>
-                      {t('saveMermaid')}
+                    <Button type="button" disabled={busy || !selectedId || !metadataDirty} onClick={updateDocumentMetadata}>
+                      <Save className="lw-button-icon" aria-hidden="true" />
+                      {t('saveMetadata')}
+                    </Button>
+                    {documentStatus === 'archived' ? (
+                      <Badge variant="secondary">{t('archived')}</Badge>
+                    ) : documentStatus === 'reviewed' ? (
+                      <Button type="button" variant="outline" disabled={busy || !selectedId} onClick={() => setDocumentReviewStatus('draft')}>
+                        <RotateCcw className="lw-button-icon" aria-hidden="true" />
+                        {t('backToDraft')}
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" disabled={busy || !selectedId} onClick={() => setDocumentReviewStatus('reviewed')}>
+                        <Check className="lw-button-icon" aria-hidden="true" />
+                        {t('markReviewed')}
+                      </Button>
+                    )}
+                    <Button type="button" variant="destructiveOutline" disabled={busy || !selectedId || documentStatus === 'archived'} onClick={archiveDocument}>
+                      <Archive className="lw-button-icon" aria-hidden="true" />
+                      {t('archive')}
                     </Button>
                   </div>
-                </section>
+                </TabsContent>
 
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('externalDocument')}</div>
-                  <Input value={lucidDocumentUrl} placeholder={t('lucidDocumentUrl')} onChange={(event: any) => updateLucidDocumentUrl(event.target.value)} />
-                  <Input value={embedUrl} placeholder={t('embedUrl')} onChange={(event: any) => updateEmbedUrl(event.target.value)} />
-                  <Input value={lucidDocumentId} placeholder={t('lucidDocumentId')} onChange={(event: any) => updateLucidDocumentId(event.target.value)} />
-                  <Input value={previewUrl} placeholder={t('previewUrl')} onChange={(event: any) => updatePreviewUrl(event.target.value)} />
-                  <Button type="button" size="sm" disabled={busy || (!lucidDocumentId.trim() && !lucidDocumentUrl.trim() && !embedUrl.trim())} onClick={registerExternalDocument}>
-                    {t('registerExternal')}
-                  </Button>
-                </section>
+                <TabsContent className="lw-inspector-stack" value="versions">
+                  {(detail?.versions || []).length ? (
+                    (detail?.versions || []).map((version) => (
+                      <div className="lw-version" key={version.id}>
+                        <div>
+                          <div>v{version.versionNumber}</div>
+                          <div className="lw-muted">{version.sourceType || 'workbench'}</div>
+                          {version.changeSummary ? <div className="lw-muted">{version.changeSummary}</div> : null}
+                        </div>
+                        <Button
+                          className="lw-version-action"
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title={t('restore')}
+                          aria-label={`${t('restore')} v${version.versionNumber}`}
+                          disabled={busy}
+                          onClick={() => restoreVersion(version.id)}
+                        >
+                          <RotateCcw className="lw-button-icon" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="lw-empty-state">{t('noVersions')}</div>
+                  )}
+                </TabsContent>
 
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('drawingRequest')}</div>
-                  <Textarea value={assistantPrompt} placeholder={t('drawingRequest')} onChange={(event: any) => setAssistantPrompt(event.target.value)} />
-                  <Button type="button" disabled={busy || !assistantPrompt.trim()} onClick={sendAssistantPrompt}>
-                    <Send className="lw-button-icon" aria-hidden="true" />
-                    {t('askAssistant')}
-                  </Button>
-                </section>
+                <TabsContent className="lw-inspector-stack" value="activity">
+                  {(detail?.logs || []).length ? (
+                    (detail?.logs || []).map((log) => (
+                      <div className="lw-log" key={log.id || `${log.action}-${log.createdAt}`}>
+                        <div className="lw-log-title">{formatLogTitle(log)}</div>
+                        <div className="lw-muted">{formatDateTime(log.createdAt)}</div>
+                        {log.message ? <div className="lw-log-message">{log.message}</div> : null}
+                        {log.errorMessage ? <div className="lw-log-error">{log.errorMessage}</div> : null}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="lw-empty-state">{t('noActivity')}</div>
+                  )}
+                </TabsContent>
 
-                <section className="lw-section">
-                  <div className="lw-section-title">{t('description')}</div>
-                  <Textarea value={newDescription} placeholder={t('description')} onChange={(event: any) => setNewDescription(event.target.value)} />
-                </section>
-              </div>
+                <TabsContent className="lw-inspector-stack" value="assistant">
+                  <section className="lw-section">
+                    <div className="lw-section-title">{t('drawingRequest')}</div>
+                    <Textarea className="lw-tall-textarea" value={assistantPrompt} placeholder={t('drawingRequest')} onChange={(event: any) => setAssistantPrompt(event.target.value)} />
+                    <Button type="button" disabled={busy || !assistantPrompt.trim()} onClick={sendAssistantPrompt}>
+                      <Send className="lw-button-icon" aria-hidden="true" />
+                      {t('askAssistant')}
+                    </Button>
+                  </section>
+                </TabsContent>
+              </Tabs>
             </ScrollArea>
           </SidebarContent>
         )}
@@ -958,6 +1217,46 @@ function firstString(...values: unknown[]) {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function parseStandardImportDocument(source: string): JsonParseResult {
+  try {
+    const parsed = JSON.parse(source)
+    if (!isObject(parsed)) {
+      return { value: null, error: 'Expected a JSON object.' }
+    }
+    return { value: parsed, error: null }
+  } catch (error) {
+    return {
+      value: null,
+      error: error instanceof Error && error.message ? error.message : 'Invalid JSON.'
+    }
+  }
+}
+
+function normalizeDocumentKind(value: unknown): DocumentKind {
+  return DOCUMENT_KINDS.includes(value as DocumentKind) ? (value as DocumentKind) : 'diagram'
+}
+
+function formatDateTime(value: unknown) {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(String(value))
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+  return date.toLocaleString()
+}
+
+function formatLogTitle(log: Record<string, unknown>) {
+  const action = typeof log.action === 'string' && log.action.trim() ? log.action.trim() : 'activity'
+  const actor = typeof log.actorType === 'string' && log.actorType.trim() ? log.actorType.trim() : ''
+  return actor ? `${action} · ${actor}` : action
+}
+
+function isCompactViewport() {
+  return typeof window !== 'undefined' && window.innerWidth < 1040
 }
 
 function StandardImportPreview({ model }: { model: StandardImportPreviewModel }) {

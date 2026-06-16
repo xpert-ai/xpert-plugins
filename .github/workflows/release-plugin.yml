@@ -131,8 +131,19 @@ jobs:
           rm -rf .changeset
           ln -s "${{ matrix.workspace }}/.changeset" .changeset
 
-      - name: Create release PR or publish
+      - name: Detect release mode
         if: steps.decide.outputs.run == 'true'
+        id: release_mode
+        shell: bash
+        run: |
+          if find "${{ matrix.workspace }}/.changeset" -maxdepth 1 -type f -name "*.md" ! -name "README.md" | grep -q .; then
+            echo "mode=version" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=publish" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release PR
+        if: steps.decide.outputs.run == 'true' && steps.release_mode.outputs.mode == 'version'
         id: changesets
         uses: changesets/action@v1
         with:
@@ -141,7 +152,44 @@ jobs:
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"
           version: pnpm -C ${{ matrix.workspace }} exec changeset version
-          publish: pnpm -C ${{ matrix.workspace }} run release:publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish packages
+        if: steps.decide.outputs.run == 'true' && steps.release_mode.outputs.mode == 'publish'
+        shell: bash
+        run: |
+          before_tags="$(mktemp)"
+          after_tags="$(mktemp)"
+          new_tags="$(mktemp)"
+          git tag | sort > "$before_tags"
+
+          pnpm -C ${{ matrix.workspace }} run release:publish
+
+          if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            changed_package_files="$(git diff --name-only --diff-filter=ACMRT HEAD^ HEAD -- "${{ matrix.workspace }}" | grep '/package.json$' || true)"
+            if [ -n "$changed_package_files" ]; then
+              {
+                while IFS= read -r package_file; do
+                  node -e 'const fs = require("node:fs"); const packageFile = process.argv[1]; const pkg = JSON.parse(fs.readFileSync(packageFile, "utf8")); if (pkg.private !== true && pkg.name && pkg.version) console.log(`${pkg.name}@${pkg.version}`);' "$package_file"
+                done <<< "$changed_package_files"
+              } | sort -u | while IFS= read -r tag; do
+                if [ -n "$tag" ] && ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+                  git tag "$tag"
+                fi
+              done
+            fi
+          fi
+
+          git tag | sort > "$after_tags"
+          comm -13 "$before_tags" "$after_tags" > "$new_tags"
+          if [ -s "$new_tags" ]; then
+            while IFS= read -r tag; do
+              git push origin "refs/tags/$tag"
+            done < "$new_tags"
+          else
+            echo "No new git tags to push."
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/${{ matrix.workspace }}/.npmrc

@@ -21,8 +21,8 @@ export function injectStyles() {
       --lw-rail-width: var(--xps-sidebar-rail-width, 44px);
       --lw-panel-header-height: 2.5rem;
       --lw-left-width: minmax(var(--lw-rail-width), clamp(240px, 20vw, 300px));
-      --lw-right-width: var(--lw-rail-width);
-      --lw-right-panel-width: min(360px, calc(100vw - var(--lw-rail-width) - 96px));
+      --lw-right-panel-width: clamp(300px, 24vw, 380px);
+      --lw-right-width: var(--lw-right-panel-width);
       width: 100%;
       height: 100vh;
       min-height: 720px;
@@ -42,28 +42,22 @@ export function injectStyles() {
     .lw-inspector.xps-sidebar {
       position: relative;
       z-index: 30;
-      overflow: visible;
+      overflow: hidden;
     }
     .lw-inspector[aria-expanded="true"] > .xps-sidebar-header,
     .lw-inspector[aria-expanded="true"] > .xps-sidebar-content {
-      position: absolute;
-      right: 0;
-      width: var(--lw-right-panel-width);
-      max-width: calc(100vw - 16px);
-      z-index: 31;
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      z-index: 1;
       background: var(--xps-card);
       border-left: 1px solid var(--xps-border);
-      border-right: 1px solid var(--xps-border);
-      box-shadow: -12px 0 28px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
     }
     .lw-inspector[aria-expanded="true"] > .xps-sidebar-header {
-      top: 0;
       min-height: var(--lw-panel-header-height);
       border-bottom: 1px solid var(--xps-border);
     }
     .lw-inspector[aria-expanded="true"] > .xps-sidebar-content {
-      top: var(--lw-panel-header-height);
-      bottom: 0;
       min-height: 0;
       overflow: hidden;
     }
@@ -77,7 +71,7 @@ export function injectStyles() {
     }
     .lw-toolbar {
       display: grid;
-      grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+      grid-template-columns: minmax(220px, 1fr) auto;
       align-items: center;
       gap: 8px 10px;
       min-height: 48px;
@@ -87,7 +81,30 @@ export function injectStyles() {
       min-width: 0;
       overflow: visible;
     }
-    .lw-toolbar-title { min-width: 0; }
+    .lw-toolbar-title {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .lw-title-text {
+      min-width: 0;
+      color: var(--xps-foreground);
+      font-size: 16px;
+      font-weight: 750;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .lw-title-meta {
+      min-width: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      color: var(--xps-muted-foreground);
+      font-size: 12px;
+    }
     .lw-toolbar-actions {
       min-width: 0;
       display: flex;
@@ -97,7 +114,16 @@ export function injectStyles() {
     }
     .lw-toolbar-actions .xps-button,
     .lw-toolbar-actions .xps-badge { flex: 0 0 auto; }
-    .lw-title-input { width: 100%; }
+    .lw-dialog-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .lw-dialog .xps-textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
     .lw-button-icon {
       width: 1rem;
       height: 1rem;
@@ -144,22 +170,72 @@ export function injectStyles() {
     .lw-editor-pane {
       min-height: 0;
       height: 100%;
-      display: grid;
-      grid-template-rows: auto minmax(160px, 34vh) minmax(0, 1fr);
-      gap: 10px;
+      display: flex;
+      flex-direction: column;
       padding: 12px;
       overflow: hidden;
+    }
+    .lw-tabs {
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .lw-editor-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
       min-width: 0;
+      flex-wrap: wrap;
     }
-    .lw-editor-header .xps-badge:last-child {
-      margin-left: auto;
+    .lw-editor-header .xps-tabs-list {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-x: auto;
+      justify-content: flex-start;
+    }
+    .lw-editor-header .xps-tabs-trigger {
+      flex: 0 0 auto;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .lw-tab-content {
+      min-height: 0;
+      flex: 1 1 auto;
+      margin-top: 0;
+      overflow: hidden;
+    }
+    .lw-tab-content[data-state="inactive"] {
+      display: none;
+    }
+    .lw-json-tab {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .lw-form-tab {
+      overflow: auto;
+      padding: 2px;
+    }
+    .lw-tab-toolbar {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .lw-inline-badges {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .lw-visual-frame {
+      height: 100%;
       min-height: 0;
       border: 1px solid var(--xps-border);
       border-radius: var(--xps-radius);
@@ -238,6 +314,10 @@ export function injectStyles() {
       white-space: pre;
       overflow: auto;
     }
+    .lw-tall-textarea.xps-textarea {
+      min-height: 240px;
+      resize: vertical;
+    }
     .lw-status {
       margin-left: auto;
       flex: 0 0 auto;
@@ -266,6 +346,27 @@ export function injectStyles() {
       height: 100%;
       flex: 1 1 auto;
     }
+    .lw-inspector-tabs {
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .lw-inspector-tabs-list {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 10px 10px 0;
+      width: calc(100% - 20px);
+      overflow-x: auto;
+      justify-content: flex-start;
+      background: var(--xps-card);
+    }
+    .lw-inspector-tabs-list .xps-tabs-trigger {
+      flex: 1 0 auto;
+      min-width: 0;
+      white-space: nowrap;
+    }
     .lw-inspector-stack {
       padding: 10px 12px 10px 10px;
       display: flex;
@@ -273,6 +374,10 @@ export function injectStyles() {
       gap: 10px;
       min-width: 0;
       max-width: 100%;
+      margin-top: 0;
+    }
+    .lw-inspector-stack[data-state="inactive"] {
+      display: none;
     }
     .lw-section {
       display: flex;
@@ -290,6 +395,10 @@ export function injectStyles() {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+    }
+    .lw-inline-actions .xps-button {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     .lw-version {
       border: 1px solid var(--xps-border);
@@ -320,6 +429,33 @@ export function injectStyles() {
       padding: 0;
       justify-self: end;
     }
+    .lw-log {
+      border: 1px solid var(--xps-border);
+      border-radius: var(--xps-radius);
+      background: color-mix(in srgb, var(--xps-card) 96%, var(--xps-muted) 4%);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .lw-log-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--xps-foreground);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .lw-log-message,
+    .lw-log-error {
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .lw-log-error {
+      color: var(--xps-destructive, #dc2626);
+    }
     .lw-inspector .xps-input,
     .lw-inspector .xps-textarea,
     .lw-inspector .xps-scroll-area,
@@ -345,18 +481,74 @@ export function injectStyles() {
       justify-content: center;
       color: var(--xps-muted-foreground);
     }
+    .lw-empty-state {
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--xps-muted-foreground);
+      text-align: center;
+      padding: 16px;
+    }
     .lw-hidden-file { display: none; }
     @media (max-width: 1040px) {
       .lw-shell,
       .lw-shell.left-collapsed,
       .lw-shell.right-collapsed {
+        --lw-left-panel-width: min(320px, calc(100vw - var(--lw-rail-width) - 32px));
         --lw-left-width: var(--lw-rail-width);
         --lw-right-width: var(--lw-rail-width);
         --lw-right-panel-width: min(320px, calc(100vw - var(--lw-rail-width) - 32px));
         grid-template-columns: var(--lw-left-width) minmax(0, 1fr) var(--lw-right-width);
       }
+      .lw-sidebar.xps-sidebar,
+      .lw-inspector.xps-sidebar {
+        overflow: visible;
+        z-index: 40;
+      }
+      .lw-sidebar[aria-expanded="true"] > .xps-sidebar-header,
+      .lw-sidebar[aria-expanded="true"] > .xps-sidebar-content {
+        position: absolute;
+        left: 0;
+        width: var(--lw-left-panel-width);
+        max-width: calc(100vw - 16px);
+        z-index: 41;
+        background: var(--xps-card);
+        border-right: 1px solid var(--xps-border);
+        box-shadow: 12px 0 28px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
+      }
+      .lw-sidebar[aria-expanded="true"] > .xps-sidebar-header {
+        top: 0;
+      }
+      .lw-sidebar[aria-expanded="true"] > .xps-sidebar-content {
+        top: var(--lw-panel-header-height);
+        bottom: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .lw-inspector[aria-expanded="true"] > .xps-sidebar-header,
+      .lw-inspector[aria-expanded="true"] > .xps-sidebar-content {
+        position: absolute;
+        right: 0;
+        width: var(--lw-right-panel-width);
+        max-width: calc(100vw - 16px);
+        z-index: 41;
+        background: var(--xps-card);
+        border-left: 1px solid var(--xps-border);
+        box-shadow: -12px 0 28px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
+      }
+      .lw-inspector[aria-expanded="true"] > .xps-sidebar-header {
+        top: 0;
+      }
+      .lw-inspector[aria-expanded="true"] > .xps-sidebar-content {
+        top: var(--lw-panel-header-height);
+        bottom: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
       .lw-sidebar .xps-sidebar-content,
       .lw-inspector-scroll { display: none; }
+      .lw-sidebar[aria-expanded="true"] .xps-sidebar-content,
       .lw-inspector[aria-expanded="true"] .lw-inspector-scroll { display: block; }
       .lw-sidebar .xps-sidebar-header .xps-sidebar-title,
       .lw-sidebar .xps-sidebar-header .xps-badge,
@@ -371,9 +563,6 @@ export function injectStyles() {
     @media (max-width: 920px) {
       .lw-toolbar {
         grid-template-columns: minmax(0, 1fr);
-      }
-      .lw-editor-pane {
-        grid-template-rows: auto minmax(120px, 28vh) minmax(0, 1fr);
       }
       .lw-status { margin-left: 0; }
     }

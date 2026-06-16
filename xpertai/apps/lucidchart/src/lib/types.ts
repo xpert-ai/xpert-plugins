@@ -28,6 +28,7 @@ export type LucidchartActionType =
   | 'status_updated'
   | 'version_restored'
   | 'document_archived'
+  | 'metadata_updated'
   | 'failure_reported'
 
 export interface LucidchartScope {
@@ -109,6 +110,14 @@ export interface UpdateLucidchartDocumentStatusInput {
   documentId: string
   status: LucidchartDocumentStatus
   reason?: string
+}
+
+export interface UpdateLucidchartDocumentMetadataInput {
+  documentId: string
+  title: string
+  description?: string
+  kind?: LucidchartDocumentKind
+  changeSummary?: string
 }
 
 export interface ReportLucidchartFailureInput {

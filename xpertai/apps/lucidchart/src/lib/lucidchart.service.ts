@@ -15,6 +15,7 @@ import type {
   SaveLucidchartMermaidDraftInput,
   SaveLucidchartStandardImportVersionInput,
   SearchLucidchartDocumentsInput,
+  UpdateLucidchartDocumentMetadataInput,
   UpdateLucidchartDocumentStatusInput
 } from './types.js'
 
@@ -370,6 +371,38 @@ export class LucidchartService {
     return {
       success: true,
       message: 'Lucidchart document status was updated.',
+      item: updated
+    }
+  }
+
+  async updateDocumentMetadata(scope: LucidchartScope, input: UpdateLucidchartDocumentMetadataInput) {
+    const document = await this.requireDocument(scope, input.documentId)
+    const title = normalizeRequired(input.title, 'Lucidchart document title is required.')
+    const updated = await this.documentRepository.save({
+      ...document,
+      title,
+      description: normalizeNullableText(input.description),
+      kind: input.kind ?? document.kind ?? 'diagram',
+      lastEditedById: scope.userId ?? null,
+      lastEditedAt: new Date()
+    })
+
+    await this.writeLog(scope, {
+      documentId: document.id,
+      versionId: document.currentVersionId,
+      action: 'metadata_updated',
+      actorType: 'user',
+      message: normalizeOptional(input.changeSummary) ?? 'Lucidchart document metadata was updated.',
+      snapshot: {
+        title: updated.title,
+        description: updated.description,
+        kind: updated.kind
+      }
+    })
+
+    return {
+      success: true,
+      message: 'Lucidchart document metadata was updated.',
       item: updated
     }
   }
