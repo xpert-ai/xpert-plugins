@@ -167,7 +167,8 @@ export class LarkChatDispatchService {
 			activeMessageId: activeMessage?.id,
 			state,
 			options: input.options,
-			input: input.input
+			input: input.input,
+			files: input.files
 		})
 
 		return {
@@ -262,14 +263,16 @@ export class LarkChatDispatchService {
 
 	private buildChatState(input: TLarkChatDispatchInput): Record<string, any> {
 		const { larkMessage } = input
-		return {
-			...(input.input !== undefined
+		const files = Array.isArray(input.files) && input.files.length > 0 ? input.files : undefined
+		const humanInput =
+			input.input !== undefined || files
 				? {
-						[STATE_VARIABLE_HUMAN]: {
-							input: input.input
-						}
-					}
-				: {}),
+						input: input.input ?? '',
+						...(files ? { files } : {})
+				  }
+				: undefined
+		return {
+			...(humanInput ? { [STATE_VARIABLE_HUMAN]: humanInput } : {}),
 			lark_conversation_context_current_chat_id: larkMessage.chatId ?? '',
 			lark_conversation_context_current_chat_type: (larkMessage['chatType'] as string | undefined) ?? '',
 			lark_conversation_context_current_sender_open_id: larkMessage.senderOpenId ?? '',
@@ -300,6 +303,7 @@ export class LarkChatDispatchService {
 		state: Record<string, any>
 		options?: TLarkChatDispatchInput['options']
 		input?: string
+		files?: TLarkChatDispatchInput['files']
 	}): TChatRequest {
 		if (params.options?.confirm || params.options?.reject) {
 			if (!params.conversationId) {
@@ -324,7 +328,8 @@ export class LarkChatDispatchService {
 			...(params.conversationId ? { conversationId: params.conversationId } : {}),
 			message: {
 				input: {
-					input: params.input ?? ''
+					input: params.input ?? '',
+					...(params.files?.length ? { files: params.files } : {})
 				}
 			},
 			state: params.state

@@ -99,10 +99,18 @@ export type TWeComEvent = {
   senderId: string
   senderName?: string
   content: string
+  files?: WeComInboundFile[]
   responseUrl?: string
   timestamp: number
   mentions?: Array<{ id: string; name?: string }>
   raw?: unknown
+}
+
+export type WeComInboundFile = {
+  fileUrl: string
+  mimeType?: string
+  originalName?: string
+  fileKey?: string
 }
 
 export function computeWeComSignature(params: {

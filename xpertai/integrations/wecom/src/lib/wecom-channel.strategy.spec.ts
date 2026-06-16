@@ -144,6 +144,55 @@ describe('WeComChannelStrategy', () => {
     )
   })
 
+  it('parses image-only webhook events when files are present', () => {
+    const { strategy } = createFixture()
+    const files = [
+      {
+        fileUrl: 'data:image/png;base64,YWJj',
+        mimeType: 'image/png',
+        originalName: 'photo.png',
+        fileKey: 'wecom-image-0'
+      }
+    ]
+
+    const event = strategy.normalizeWebhookEvent({
+      msgtype: 'image',
+      msgid: 'msg-1',
+      chatid: 'chat-1',
+      chattype: 'single',
+      from: {
+        userid: 'sender-1'
+      },
+      files
+    } as any)
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        msgType: 'image',
+        chatId: 'chat-1',
+        senderId: 'sender-1',
+        content: '',
+        files
+      })
+    )
+
+    const message = strategy.parseInboundMessage(event!, {
+      integration: {
+        id: 'integration-1'
+      }
+    } as any)
+
+    expect(message).toEqual(
+      expect.objectContaining({
+        chatId: 'chat-1',
+        senderId: 'sender-1',
+        content: '',
+        contentType: 'image',
+        files
+      })
+    )
+  })
+
   it('routes restart cards through active send using senderId for private long connections', async () => {
     const { strategy } = createFixture()
 

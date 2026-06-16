@@ -7,7 +7,7 @@ features:
   - agent-thought
 model_properties:
   mode: chat
-  context_size: 4096
+  context_size: 16384
 parameter_rules:
   - name: source_lang
     label:
@@ -212,13 +212,22 @@ parameter_rules:
       - Western Persian
   - name: domains
     label:
-      zh_Hans: 领域提示(只支持英文)
+      zh_Hans: 领域提示 (只支持英文)
       en_US: Domain Tips
     help:
       en_US: If you want the style of the translation to be more in line with the characteristics of a particular domain, you can describe your domain in a piece of natural language text and provide it to the big model as a hint.
       zh_Hans: 如果您希望翻译的风格更符合某个领域的特性，如法律、政务领域翻译用语应当严肃正式，社交领域用语应当口语化，可以用一段自然语言文本描述您的领域，将其提供给大模型作为提示。
     type: text
     required: false
+  - name: extra_headers
+    required: false
+    type: string
+    label:
+      zh_Hans: 额外请求头，Json字符串格式
+      en_US: Extra Headers
+    help:
+      zh_Hans: 以 JSON 字符串格式输入额外的 HTTP 请求头，这些请求头将包含在 API 请求中。
+      en_US: Enter extra HTTP headers in JSON string format, which will be included in the API request.
 pricing:
   input: '0.0018'
   output: '0.0054'

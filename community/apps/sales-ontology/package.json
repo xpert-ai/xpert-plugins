@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-sales-ontology",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "description": "Sales Ontology business decision app plugin for data-xpert ontology, Assistant tools, and Workbench action governance.",
   "author": {
     "name": "XpertAI",
