@@ -33,6 +33,7 @@ import {
   TWeComLongRuntimeState,
   TWeComRuntimeStatus
 } from './types.js'
+import type { WeComInboundFile } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { WeComTriggerBindingEntity } from './entities/wecom-trigger-binding.entity.js'
 import {
@@ -110,6 +111,15 @@ type WeComLongCommandResult = {
   raw: Record<string, unknown>
 }
 
+type WeComInboundImageRef = {
+  url: string
+  aesKey: string
+}
+
+type WeComImageMimeType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+type WeComDownloadClient = Pick<WSClient, 'downloadFile'>
+
 export type WeComLongConnectionStatus = {
   integrationId: string
   state: 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -142,6 +152,7 @@ const INITIAL_CONNECT_TIMEOUT_MS = 10_000
 export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WeComLongConnectionService.name)
   private readonly instanceId = `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`
+  private static readonly maxInlineImageBytes = 10 * 1024 * 1024
   private readonly sessions = new Map<string, WeComLongSession>()
   private _integrationPermissionService: IntegrationPermissionService
   private _redis: RedisLike | null | undefined
@@ -772,7 +783,7 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
 
     session.lastCallbackAt = Date.now()
     await this.writeStatus(session)
-    await this.handleCallbackFrame(session, frame as unknown as Record<string, unknown>)
+    await this.handleCallbackFrame(session, frame as unknown as Record<string, unknown>, client)
   }
 
   private async handleEnterChatEvent(session: WeComLongSession, client: WSClient, frame: WsFrame): Promise<void> {
@@ -1218,7 +1229,170 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
     }
   }
 
-  private async handleCallbackFrame(session: WeComLongSession, frame: Record<string, unknown>): Promise<void> {
+  private async resolveInboundImageFiles(
+    body: Record<string, unknown>,
+    client: WeComDownloadClient
+  ): Promise<WeComInboundFile[]> {
+    const refs = this.extractInboundImageRefs(body)
+    if (!refs.length) {
+      return []
+    }
+
+    const files: WeComInboundFile[] = []
+    for (const [index, ref] of refs.entries()) {
+      const downloaded = (await client.downloadFile(ref.url, ref.aesKey)) as {
+        buffer?: unknown
+        filename?: unknown
+      }
+      const buffer = this.normalizeBuffer(downloaded?.buffer)
+      if (!buffer?.length) {
+        throw new Error(`WeCom image file "${ref.url}" did not return content`)
+      }
+      if (buffer.length > WeComLongConnectionService.maxInlineImageBytes) {
+        throw new Error(
+          `WeCom image file "${ref.url}" is too large (${buffer.length} bytes). Maximum size is ${WeComLongConnectionService.maxInlineImageBytes} bytes.`
+        )
+      }
+
+      const mimeType = this.detectImageMimeType(buffer)
+      if (!mimeType) {
+        throw new Error(`WeCom image file "${ref.url}" returned unsupported image content`)
+      }
+
+      files.push({
+        fileUrl: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        mimeType,
+        originalName:
+          this.normalizeString(downloaded?.filename) ?? `wecom-image-${index}${this.resolveImageExtension(mimeType)}`,
+        fileKey: `wecom-image-${index}`
+      })
+    }
+
+    return files
+  }
+
+  private extractInboundImageRefs(body: Record<string, unknown>): WeComInboundImageRef[] {
+    const msgType = this.normalizeString(body.msgtype || body.msgType || body.MsgType)
+    const refs: WeComInboundImageRef[] = []
+
+    if (msgType === 'image') {
+      const image = this.normalizeRecord(body.image || body.Image)
+      const ref = this.extractInboundImageRef(image)
+      if (ref) {
+        refs.push(ref)
+      }
+      return refs
+    }
+
+    if (msgType !== 'mixed') {
+      return refs
+    }
+
+    const mixed = this.normalizeRecord(body.mixed || body.Mixed)
+    const rawItems =
+      (Array.isArray(mixed?.msg_item) && mixed?.msg_item) ||
+      (Array.isArray(mixed?.msgItem) && mixed?.msgItem) ||
+      (Array.isArray(mixed?.MsgItem) && mixed?.MsgItem) ||
+      []
+
+    for (const rawItem of rawItems) {
+      const item = this.normalizeRecord(rawItem)
+      const itemMsgType = this.normalizeString(item?.msgtype || item?.msgType || item?.MsgType)
+      if (itemMsgType !== 'image') {
+        continue
+      }
+
+      const image = this.normalizeRecord(item?.image || item?.Image)
+      const ref = this.extractInboundImageRef(image)
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+
+    return refs
+  }
+
+  private extractInboundImageRef(image: Record<string, unknown> | null): WeComInboundImageRef | null {
+    if (!image) {
+      return null
+    }
+
+    const url = this.normalizeString(image.url)
+    const aesKey = this.normalizeString(image.aeskey) || this.normalizeString(image.aesKey)
+    if (!url || !aesKey) {
+      return null
+    }
+
+    return {
+      url,
+      aesKey
+    }
+  }
+
+  private normalizeBuffer(value: unknown): Buffer | null {
+    if (Buffer.isBuffer(value)) {
+      return value
+    }
+    if (value instanceof ArrayBuffer) {
+      return Buffer.from(value)
+    }
+    if (ArrayBuffer.isView(value)) {
+      return Buffer.from(value.buffer, value.byteOffset, value.byteLength)
+    }
+    return null
+  }
+
+  private detectImageMimeType(buffer: Buffer): WeComImageMimeType | null {
+    if (
+      buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0d &&
+      buffer[5] === 0x0a &&
+      buffer[6] === 0x1a &&
+      buffer[7] === 0x0a
+    ) {
+      return 'image/png'
+    }
+    if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return 'image/jpeg'
+    }
+
+    const firstSixBytes = buffer.subarray(0, 6).toString('ascii')
+    if (firstSixBytes === 'GIF87a' || firstSixBytes === 'GIF89a') {
+      return 'image/gif'
+    }
+    if (
+      buffer.length >= 12 &&
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return 'image/webp'
+    }
+
+    return null
+  }
+
+  private resolveImageExtension(mimeType: WeComImageMimeType): string {
+    switch (mimeType) {
+      case 'image/jpeg':
+        return '.jpg'
+      case 'image/png':
+        return '.png'
+      case 'image/webp':
+        return '.webp'
+      case 'image/gif':
+        return '.gif'
+    }
+  }
+
+  private async handleCallbackFrame(
+    session: WeComLongSession,
+    frame: Record<string, unknown>,
+    client?: WeComDownloadClient
+  ): Promise<void> {
     const integration = await this.readLongIntegration(session.integrationId)
     const contextUser = (RequestContext.currentUser() as IUser) ?? {
       id: `wecom-long:${integration.id}:system`,
@@ -1239,6 +1413,7 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
     const body = this.normalizeRecord(frame.body) || {}
     const headers = this.normalizeRecord(frame.headers)
     const reqId = this.normalizeString(headers?.req_id) || this.normalizeString(headers?.reqId)
+    const files = client ? await this.resolveInboundImageFiles(body, client) : []
 
     const eventPayload: Record<string, unknown> = {
       ...body,
@@ -1246,6 +1421,7 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
       req_id: reqId,
       reqId,
       headers,
+      ...(files.length ? { files } : {}),
       raw_frame: frame
     }
 

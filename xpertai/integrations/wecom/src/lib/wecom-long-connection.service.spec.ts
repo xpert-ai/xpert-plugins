@@ -103,11 +103,31 @@ describe('WeComLongConnectionService', () => {
         throw new Error(`Unknown token: ${token}`)
       })
     }
+    const conversationService = {
+      handleMessage: jest.fn().mockResolvedValue(undefined)
+    }
+    const wecomChannel = {
+      createEventHandler: jest.fn((_ctx, handlers) => async (req, res) => {
+        const body = req.body as Record<string, any>
+        await handlers.onMessage(
+          {
+            content: body.content ?? '',
+            chatId: body.chatid,
+            chatType: body.chattype === 'single' ? 'private' : 'group',
+            senderId: body.from?.userid,
+            raw: body,
+            files: body.files
+          } as any,
+          _ctx
+        )
+        res.status(200).send('success')
+      })
+    }
 
     const service = new WeComLongConnectionService(
       pluginContext as any,
-      {} as WeComChannelStrategy,
-      {} as WeComConversationService,
+      wecomChannel as any as WeComChannelStrategy,
+      conversationService as any as WeComConversationService,
       triggerBindingRepository as any
     )
 
@@ -116,7 +136,9 @@ describe('WeComLongConnectionService', () => {
       redis,
       integrationPermissionService,
       integration,
-      triggerBindingRepository
+      triggerBindingRepository,
+      wecomChannel,
+      conversationService
     }
   }
 
@@ -515,6 +537,60 @@ describe('WeComLongConnectionService', () => {
               question: '/new'
             })
           ])
+        })
+      })
+    )
+  })
+
+  it('downloads image callback files before dispatching the inbound message', async () => {
+    const { service, integration, conversationService } = createFixture()
+    const session = (service as any).ensureSession(integration)
+    const client = {
+      downloadFile: jest.fn().mockResolvedValue({
+        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+        filename: 'photo.png'
+      })
+    }
+    session.client = client as any
+
+    await (service as any).handleClientCallbackFrame(session, client, {
+      cmd: 'aibot_msg_callback',
+      headers: {
+        req_id: 'req-image-1'
+      },
+      body: {
+        msgid: 'msg-1',
+        msgtype: 'image',
+        chattype: 'single',
+        chatid: 'chat-1',
+        from: {
+          userid: 'sender-1'
+        },
+        image: {
+          url: 'https://wecom.example/image',
+          aeskey: 'aes-key-1'
+        }
+      }
+    })
+
+    expect(client.downloadFile).toHaveBeenCalledWith('https://wecom.example/image', 'aes-key-1')
+    expect(conversationService.handleMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '',
+        chatId: 'chat-1',
+        senderId: 'sender-1',
+        files: [
+          expect.objectContaining({
+            fileUrl: expect.stringMatching(/^data:image\/png;base64,/),
+            mimeType: 'image/png',
+            originalName: 'photo.png',
+            fileKey: 'wecom-image-0'
+          })
+        ]
+      }),
+      expect.objectContaining({
+        integration: expect.objectContaining({
+          id: 'integration-1'
         })
       })
     )

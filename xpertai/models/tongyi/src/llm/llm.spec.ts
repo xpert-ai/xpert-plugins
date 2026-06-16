@@ -1,4 +1,4 @@
-import { applyTongyiExplicitCache } from './llm.js'
+import { applyTongyiExplicitCache, toTongyiConfigurationWithExtraHeaders } from './llm.js'
 
 describe('applyTongyiExplicitCache', () => {
   it.each([
@@ -60,5 +60,38 @@ describe('applyTongyiExplicitCache', () => {
     }
 
     expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-plus' })).toBe(request)
+  })
+})
+
+describe('toTongyiConfigurationWithExtraHeaders', () => {
+  it('keeps the original configuration when extra headers are empty', () => {
+    const configuration = {
+      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    }
+
+    expect(toTongyiConfigurationWithExtraHeaders(configuration, '')).toBe(configuration)
+    expect(toTongyiConfigurationWithExtraHeaders(configuration, '   ')).toBe(configuration)
+    expect(toTongyiConfigurationWithExtraHeaders(configuration, undefined)).toBe(configuration)
+  })
+
+  it('adds parsed extra headers only when configured', () => {
+    const configuration = {
+      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    }
+
+    expect(
+      toTongyiConfigurationWithExtraHeaders(configuration, '{"x-dashscope-workspace":"workspace-1"}')
+    ).toEqual({
+      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      defaultHeaders: {
+        'x-dashscope-workspace': 'workspace-1'
+      }
+    })
+  })
+
+  it('rejects extra headers that would override core request headers', () => {
+    expect(() =>
+      toTongyiConfigurationWithExtraHeaders({}, '{"Authorization":"Bearer other"}')
+    ).toThrow("Extra header 'Authorization' is reserved")
   })
 })

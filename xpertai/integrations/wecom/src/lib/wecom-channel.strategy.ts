@@ -231,8 +231,10 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
   ): TChatInboundMessage | null {
     const senderId = this.normalizeString(event.senderId)
     const chatId = this.normalizeString(event.chatId) || senderId
+    const files = this.normalizeInboundFiles(event.files)
+    const content = typeof event.content === 'string' ? event.content : ''
 
-    if (!chatId || !senderId || !event.content) {
+    if (!chatId || !senderId || (!content && !files.length)) {
       return null
     }
 
@@ -242,12 +244,23 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       chatType: event.chatType || 'private',
       senderId,
       senderName: event.senderName,
-      content: event.content,
-      contentType: 'text',
+      content,
+      contentType: event.msgType === 'image' ? 'image' : 'text',
       mentions: event.mentions,
       timestamp: event.timestamp || Date.now(),
-      raw: event.raw ?? event
+      raw: event.raw ?? event,
+      ...(files.length ? { files } : {})
     }
+  }
+
+  private normalizeInboundFiles(value: unknown): NonNullable<TWeComEvent['files']> {
+    if (!Array.isArray(value)) {
+      return []
+    }
+
+    return value.filter((item): item is NonNullable<TWeComEvent['files']>[number] => {
+      return Boolean(item && typeof item === 'object' && typeof item.fileUrl === 'string' && item.fileUrl.trim())
+    })
   }
 
   async sendText(ctx: TChatContext, content: string): Promise<TChatSendResult> {
@@ -864,6 +877,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
     const chatType = this.normalizeChatType(
       payloadRecord.ChatType || payloadRecord.chatType || payloadRecord.chattype || payloadRecord.conversationType
     )
+    const files = this.normalizeInboundFiles(payloadRecord.files || payloadRecord.Files)
 
     if (!content && msgType !== 'text') {
       return {
@@ -877,6 +891,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
         senderId: senderId || '',
         senderName,
         content: '',
+        ...(files.length ? { files } : {}),
         responseUrl,
         timestamp,
         mentions,
@@ -895,6 +910,7 @@ export class WeComChannelStrategy implements IChatChannel<TIntegrationWeComOptio
       senderId: senderId || '',
       senderName,
       content: content || '',
+      ...(files.length ? { files } : {}),
       responseUrl,
       timestamp,
       mentions,

@@ -475,6 +475,7 @@ export type ChatLarkContext<T = any> = {
 	legacyConversationUserKey?: string
 	message?: T
 	input?: string
+	files?: LarkInboundFile[]
 	replyToMessageId?: string
 	semanticMessage?: LarkSemanticMessage
 	recipientDirectoryKey?: string
@@ -482,6 +483,13 @@ export type ChatLarkContext<T = any> = {
 	groupWindowId?: string
 	typingReaction?: LarkMessageReactionRef
 	botMentioned?: boolean
+}
+
+export type LarkInboundFile = {
+	fileUrl: string
+	mimeType?: string
+	originalName?: string
+	fileKey?: string
 }
 
 export type TLarkEventMention = {

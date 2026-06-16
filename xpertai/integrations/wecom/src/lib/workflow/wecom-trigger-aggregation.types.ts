@@ -1,4 +1,5 @@
 import { defineChannelMessageType } from '@xpert-ai/plugin-sdk'
+import type { WeComInboundFile } from '../types.js'
 
 export const WECOM_TRIGGER_FLUSH_MESSAGE_TYPE = defineChannelMessageType('wecom', 'trigger_flush', 1)
 
@@ -24,6 +25,7 @@ export interface WeComTriggerAggregationState {
   xpertId: string
   version: number
   inputParts: string[]
+  files?: WeComInboundFile[]
   lastMessageAt: number
   conversationId?: string
   tenantId: string

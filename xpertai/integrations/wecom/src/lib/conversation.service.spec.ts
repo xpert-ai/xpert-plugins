@@ -119,6 +119,7 @@ describe('WeComConversationService', () => {
 
     const service = new WeComConversationService(
       wecomChannel as any,
+      wecomTriggerStrategy as any,
       cacheManager as any,
       conversationBindingRepository as any,
       pluginContext as any
@@ -171,9 +172,49 @@ describe('WeComConversationService', () => {
       })
     )
     expect(wecomTriggerStrategy.handleInboundMessage.mock.calls[0][0].wecomMessage.reqId).toBe('req-1')
-    expect(pluginContext.resolve).toHaveBeenCalledTimes(2)
+    expect(pluginContext.resolve).toHaveBeenCalledTimes(1)
     expect(pluginContext.resolve).toHaveBeenCalledWith(INTEGRATION_PERMISSION_SERVICE_TOKEN)
-    expect(pluginContext.resolve).toHaveBeenCalledWith(WeComTriggerStrategy)
+  })
+
+  it('forwards image-only files to the trigger strategy', async () => {
+    jest.spyOn(RequestContext, 'currentUserId').mockReturnValue('request-user-id' as any)
+
+    const { service, wecomTriggerStrategy } = createFixture()
+    const files = [
+      {
+        fileUrl: 'data:image/png;base64,YWJj',
+        mimeType: 'image/png',
+        originalName: 'photo.png',
+        fileKey: 'wecom-image-0'
+      }
+    ]
+
+    await service.handleMessage(
+      {
+        content: '',
+        chatId: 'chat-1',
+        senderId: 'sender-1',
+        raw: {
+          req_id: 'req-1'
+        },
+        files
+      } as any,
+      {
+        integration: {
+          id: 'integration-1'
+        },
+        tenantId: 'tenant-1',
+        organizationId: 'organization-1'
+      } as any
+    )
+
+    expect(wecomTriggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        input: '',
+        files
+      })
+    )
   })
 
   it('starts a new session and replies with a fixed prompt for bare /new', async () => {

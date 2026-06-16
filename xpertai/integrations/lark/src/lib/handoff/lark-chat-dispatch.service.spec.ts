@@ -1,3 +1,11 @@
+jest.mock('@xpert-ai/plugin-sdk', () => {
+	const { createLarkPluginSdkMock } = require('../../../../../test-utils/larkPluginSdkMock.cjs')
+	return createLarkPluginSdkMock(jest, {
+		AGENT_CHAT_DISPATCH_MESSAGE_TYPE: 'agent.chat.dispatch',
+		HANDOFF_PERMISSION_SERVICE_TOKEN: 'HANDOFF_PERMISSION_SERVICE_TOKEN'
+	})
+})
+
 import {
 	HANDOFF_PERMISSION_SERVICE_TOKEN,
 	RequestContext
@@ -212,10 +220,12 @@ describe('LarkChatDispatchService', () => {
 			},
 			lark_conversation_context_current_chat_id: 'chat-1',
 			lark_conversation_context_current_chat_type: 'group',
+			lark_conversation_context_current_sender_name: '',
 			lark_conversation_context_current_sender_open_id: 'ou_sender_1',
 			lark_current_context: {
 				chatId: 'chat-1',
 				chatType: 'group',
+				senderName: '',
 				senderOpenId: 'ou_sender_1'
 			},
 			recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
@@ -266,6 +276,35 @@ describe('LarkChatDispatchService', () => {
 			'reaction-1'
 		)
 		expect(callOrder).toEqual(['delete', 'update'])
+	})
+
+	it('buildDispatchMessage forwards image files through request and human state', async () => {
+		mockRequestContext()
+		const { service } = createFixture()
+		const larkMessage = createLarkMessage()
+		const files = [
+			{
+				fileUrl: 'data:image/png;base64,YWJj',
+				mimeType: 'image/png',
+				originalName: 'photo.png',
+				fileKey: 'img_1'
+			}
+		]
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			files,
+			larkMessage: larkMessage as any
+		})
+
+		expect((message.payload as any).request.message.input).toEqual({
+			input: '',
+			files
+		})
+		expect((message.payload as any).request.state.human).toEqual({
+			input: '',
+			files
+		})
 	})
 
 	it('buildDispatchMessage continues when deleting typing reaction fails', async () => {

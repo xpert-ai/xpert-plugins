@@ -5,7 +5,7 @@ import { BaseDocumentCompressor } from '@langchain/core/retrievers/document_comp
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { IRerank, RerankModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import { TongyiCredentials } from '../types.js'
+import { getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 @Injectable()
@@ -18,7 +18,8 @@ export class TongyiRerankModel extends RerankModel {
 		const credentials = copilotModel.copilot.modelProvider.credentials as TongyiCredentials
 		return new TongyiRerank({
 			apiKey: credentials.dashscope_api_key,
-			model: copilotModel.model
+			model: copilotModel.model,
+			baseUrl: getTongyiHttpBaseUrl(credentials)
 		})
 	}
 }
@@ -27,13 +28,17 @@ export class TongyiRerank extends BaseDocumentCompressor implements IRerank {
 	private readonly model: string
 	private readonly topN: number
 	private readonly apiKey: string
-	private readonly url = 'https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank'
+	private readonly url: string
 
-	constructor(fields: { apiKey: string; model: string; topN?: number }) {
+	constructor(fields: { apiKey: string; model: string; topN?: number; baseUrl?: string }) {
 		super()
 		this.apiKey = fields.apiKey
 		this.model = fields.model || 'gte-rerank-v2'
 		this.topN = fields.topN || 3
+		this.url = joinTongyiApiUrl(
+			fields.baseUrl || TongyiDefaultHttpBaseUrl,
+			'/services/rerank/text-rerank/text-rerank'
+		)
 	}
 
 	async compressDocuments(
@@ -77,9 +82,11 @@ export class TongyiRerank extends BaseDocumentCompressor implements IRerank {
 
 		const data = await response.json() as { output?: { results?: { index: number; relevance_score: number }[] } }
 		const results = data.output?.results || []
-		return results.map((item) => ({
-			index: item.index,
-			relevanceScore: item.relevance_score
-		}))
+		return results
+			.map((item) => ({
+				index: item.index,
+				relevanceScore: item.relevance_score
+			}))
+			.filter((item) => options.scoreThreshold == null || item.relevanceScore >= options.scoreThreshold)
 	}
 }
