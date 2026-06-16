@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lucidchart",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lucidchart app plugin for agent-created Standard Import drafts, Lucid document references, reviewable versions, and a workbench.",
   "author": {
     "name": "XpertAI",
