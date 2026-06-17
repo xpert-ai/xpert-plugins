@@ -58,11 +58,19 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     )
   })
 
-  it('defines scheduleTargets in the middleware config schema', () => {
+  it('keeps scheduled send parameters in runtime state instead of middleware config targets', () => {
     const middleware = createMiddleware()
     const configSchema = middleware.meta.configSchema as { properties?: Record<string, unknown> }
+    const runtime = middleware.createMiddleware(
+      { integrationId: 'integration-1', toolMode: 'user' },
+      { node: { options: {} } } as any
+    ) as any
+    const shape = runtime.stateSchema.shape as Record<string, unknown>
 
-    expect(configSchema.properties?.scheduleTargets).toBeDefined()
+    expect(configSchema.properties?.scheduleTargets).toBeUndefined()
+    expect((middleware.meta as { scheduleTarget?: unknown }).scheduleTarget).toBeUndefined()
+    expect(shape.wechatPersonalScheduleUuid).toBeDefined()
+    expect(shape.wechatPersonalScheduleContactId).toBeDefined()
   })
 
   it('registers Personal WeChat management tools', async () => {
@@ -205,7 +213,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     )
   })
 
-  it('sends proactive messages only to configured schedule targets', async () => {
+  it('rejects manually supplied scheduled send parameters without runtime state injection', async () => {
     const conversationService = {
       findOutboundByIdempotencyKey: jest.fn(async () => null),
       logOutbound: jest.fn(async () => undefined)
@@ -235,17 +243,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       createMiddleware(conversationService, wechatChannel).createMiddleware(
         {
           integrationId: 'integration-1',
-          toolMode: 'user',
-          scheduleTargets: [
-            {
-              id: 'morning-news-group',
-              name: '早报群',
-              uuid: 'uuid-1',
-              contactId: 'room@chatroom',
-              chatType: 'group',
-              atUsers: ['wxid_member']
-            }
-          ]
+          toolMode: 'user'
         },
         {
           xpertId: 'xpert-1',
@@ -264,44 +262,28 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     ) as any
     const result = JSON.parse(
       await sendTool.handler({
-        targetId: 'morning-news-group',
         content: '早报',
-        idempotencyKey: 'daily-news:2026-06-16'
+        idempotencyKey: 'daily-news:2026-06-16',
+        __wechatPersonalRuntimeSend: {
+          uuid: 'uuid-1',
+          contactId: 'room@chatroom',
+          chatType: 'group',
+          atUsers: ['wxid_member']
+        }
       })
     )
 
-    expect(conversationService.findOutboundByIdempotencyKey).toHaveBeenCalledWith(
-      'integration-1',
-      'daily-news:2026-06-16'
-    )
-    expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith(
-      'integration-1',
-      expect.objectContaining({
-        uuid: 'uuid-1',
-        contactId: 'room@chatroom',
-        content: '早报',
-        atUsers: ['wxid_member'],
-        source: 'scheduled_agent',
-        idempotencyKey: 'daily-news:2026-06-16',
-        context: expect.objectContaining({
-          xpertId: 'xpert-1',
-          tenantId: 'tenant-1',
-          channelSource: 'wechat_personal_agent_tool'
-        })
-      })
-    )
+    expect(conversationService.findOutboundByIdempotencyKey).not.toHaveBeenCalled()
+    expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()
     expect(result).toEqual(
       expect.objectContaining({
-        success: true,
-        data: expect.objectContaining({
-          targetId: 'morning-news-group',
-          outboundLogId: 'outbound-log-1'
-        })
+        success: false,
+        message: 'Personal WeChat scheduled send parameters were not provided in runtime state.'
       })
     )
   })
 
-  it('uses scheduled send target and idempotency key from runtime state', async () => {
+  it('uses scheduled send parameters and idempotency key from runtime state', async () => {
     const conversationService = {
       findOutboundByIdempotencyKey: jest.fn(async () => null),
       logOutbound: jest.fn(async () => undefined)
@@ -318,16 +300,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       createMiddleware(conversationService, wechatChannel).createMiddleware(
         {
           integrationId: 'integration-1',
-          toolMode: 'user',
-          scheduleTargets: [
-            {
-              id: 'daily-news',
-              name: '每日新闻群',
-              uuid: 'uuid-1',
-              contactId: 'daily@chatroom',
-              atUsers: ['wxid_default']
-            }
-          ]
+          toolMode: 'user'
         },
         {
           xpertId: 'xpert-1',
@@ -358,14 +331,11 @@ describe('WechatPersonalRuntimeMiddleware', () => {
           tool: sendTool,
           state: {
             xpertTaskSchedule: {
-              target: {
-                type: 'WechatPersonalRuntimeMiddleware',
-                nodeKey: 'Middleware_WechatPersonalRuntime',
-                targetId: 'daily-news'
-              },
-              idempotencyKey: 'daily-news:2026-06-16',
-              atUsers: ['wxid_state']
-            }
+              idempotencyKey: 'daily-news:2026-06-16'
+            },
+            wechatPersonalScheduleUuid: 'uuid-1',
+            wechatPersonalScheduleContactId: 'daily@chatroom',
+            wechatPersonalScheduleAtUsers: ['wxid_state']
           },
           runtime: {}
         } as any,
@@ -377,9 +347,15 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       expect.objectContaining({
         toolCall: expect.objectContaining({
           args: expect.objectContaining({
-            targetId: 'daily-news',
             idempotencyKey: 'daily-news:2026-06-16',
-            atUsers: ['wxid_state']
+            atUsers: ['wxid_state'],
+            __wechatPersonalRuntimeSend: expect.objectContaining({
+              uuid: 'uuid-1',
+              contactId: 'daily@chatroom',
+              chatType: 'group',
+              atUsers: ['wxid_state']
+            }),
+            __wechatPersonalRuntimeSendToken: expect.any(String)
           })
         })
       })
@@ -395,34 +371,33 @@ describe('WechatPersonalRuntimeMiddleware', () => {
         uuid: 'uuid-1',
         contactId: 'daily@chatroom',
         content: '今日新闻',
-        atUsers: ['wxid_default', 'wxid_state'],
+        atUsers: ['wxid_state'],
         source: 'scheduled_agent',
-        idempotencyKey: 'daily-news:2026-06-16'
+        idempotencyKey: 'daily-news:2026-06-16',
+        context: expect.objectContaining({
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          channelSource: 'wechat_personal_agent_tool'
+        })
       })
     )
     expect(result).toEqual(
       expect.objectContaining({
         success: true,
         data: expect.objectContaining({
-          targetId: 'daily-news'
+          uuid: 'uuid-1',
+          contactId: 'daily@chatroom'
         })
       })
     )
   })
 
-  it('adds scheduled-send guidance when runtime state selects a target', async () => {
+  it('adds scheduled-send guidance when runtime state includes send parameters', async () => {
     const middleware = await Promise.resolve(
       createMiddleware().createMiddleware(
         {
           integrationId: 'integration-1',
-          toolMode: 'user',
-          scheduleTargets: [
-            {
-              id: 'daily-news',
-              uuid: 'uuid-1',
-              contactId: 'daily@chatroom'
-            }
-          ]
+          toolMode: 'user'
         },
         {
           node: {
@@ -438,12 +413,10 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       {
         state: {
           xpertTaskSchedule: {
-            target: {
-              nodeKey: 'Middleware_WechatPersonalRuntime',
-              targetId: 'daily-news'
-            },
             idempotencyKey: 'daily-news:2026-06-16'
-          }
+          },
+          wechatPersonalScheduleUuid: 'uuid-1',
+          wechatPersonalScheduleContactId: 'daily@chatroom'
         },
         systemMessage: { content: 'base' },
         messages: [],
@@ -454,7 +427,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     )
 
     expect(content).toContain('base')
-    expect(content).toContain('Target id: daily-news')
+    expect(content).toContain('trusted Personal WeChat scheduled-send parameters')
     expect(content).toContain(WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME)
   })
 
@@ -473,14 +446,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
       createMiddleware(conversationService, wechatChannel).createMiddleware(
         {
           integrationId: 'integration-1',
-          toolMode: 'user',
-          scheduleTargets: [
-            {
-              id: 'morning-news-group',
-              uuid: 'uuid-1',
-              contactId: 'room@chatroom'
-            }
-          ]
+          toolMode: 'user'
         },
         {
           node: {
@@ -493,12 +459,30 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     const sendTool = (middleware.tools ?? []).find(
       (item: any) => item.name === WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME
     ) as any
+    const toolHandler = jest.fn(async (request) => sendTool.handler(request.toolCall.args))
     const result = JSON.parse(
-      await sendTool.handler({
-        targetId: 'morning-news-group',
-        content: '早报',
-        idempotencyKey: 'daily-news:2026-06-16'
-      })
+      `${await middleware.wrapToolCall?.(
+        {
+          toolCall: {
+            id: 'tool-call-1',
+            name: WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME,
+            type: 'tool_call',
+            args: {
+              content: '早报'
+            }
+          },
+          tool: sendTool,
+          state: {
+            xpertTaskSchedule: {
+              idempotencyKey: 'daily-news:2026-06-16'
+            },
+            wechatPersonalScheduleUuid: 'uuid-1',
+            wechatPersonalScheduleContactId: 'room@chatroom'
+          },
+          runtime: {}
+        } as any,
+        toolHandler as any
+      )}`
     )
 
     expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()

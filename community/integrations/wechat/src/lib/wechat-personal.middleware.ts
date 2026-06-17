@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { randomUUID } from 'node:crypto'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -47,31 +48,31 @@ import type { WechatPersonalChatCallbackContext } from './handoff/wechat-persona
 type WechatPersonalRuntimeMiddlewareOptions = {
   integrationId?: string
   toolMode?: WechatPersonalRuntimeToolMode
-  scheduleTargets?: WechatPersonalScheduleTarget[]
 }
 
 type WechatPersonalRuntimeToolMode = 'admin' | 'user'
 
 type WechatPersonalScheduleState = {
-  targetId?: string
+  uuid?: string
+  contactId?: string
+  chatType?: 'private' | 'group'
   idempotencyKey?: string
   atUsers: string[]
-  targetOptions?: Record<string, unknown>
 }
 
 const XPERT_TASK_SCHEDULE_RUNTIME_STATE_KEY = 'xpertTaskSchedule'
 
-type WechatPersonalScheduleTarget = {
-  id?: string
-  name?: string
+type WechatPersonalScheduleSendParams = {
   uuid?: string
   contactId?: string
   chatType?: 'private' | 'group'
   atUsers?: string[]
 }
 
-type NormalizedWechatPersonalSendTarget = Required<Pick<WechatPersonalScheduleTarget, 'id' | 'uuid' | 'contactId'>> &
-  Omit<WechatPersonalScheduleTarget, 'id' | 'uuid' | 'contactId'>
+type NormalizedWechatPersonalSendParams = Required<Pick<WechatPersonalScheduleSendParams, 'uuid' | 'contactId'>> &
+  Omit<WechatPersonalScheduleSendParams, 'uuid' | 'contactId'> & {
+    chatType: 'private' | 'group'
+  }
 
 const integrationField = z.string().optional().describe('Personal WeChat integration id. Defaults to the middleware node option.')
 
@@ -146,52 +147,18 @@ const wechatPersonalScheduleStateSchema = z
   .object({
     xpertTaskSchedule: z
       .object({
-        target: z
-          .object({
-            type: z.string().optional(),
-            nodeKey: z.string().optional(),
-            targetId: z.string().optional(),
-            name: z.string().optional(),
-            channel: z.string().optional(),
-            options: z.record(z.unknown()).optional()
-          })
-          .optional(),
-        targetId: z.string().optional(),
-        idempotencyKey: z.string().optional(),
-        targetOptions: z.record(z.unknown()).optional(),
-        atUsers: z.array(z.string()).optional()
+        idempotencyKey: z.string().optional()
       })
       .optional(),
-    wechatPersonalScheduleTargetId: z.string().optional(),
-    wechatPersonalScheduleIdempotencyKey: z.string().optional(),
-    wechatPersonalScheduleAtUsers: z.array(z.string()).optional(),
-    wechatPersonalSchedule: z
-      .object({
-        targetId: z.string().optional(),
-        idempotencyKey: z.string().optional(),
-        atUsers: z.array(z.string()).optional()
-      })
-      .optional(),
-    wechatPersonal: z
-      .object({
-        schedule: z
-          .object({
-            targetId: z.string().optional(),
-            idempotencyKey: z.string().optional(),
-            atUsers: z.array(z.string()).optional()
-          })
-          .optional()
-      })
-      .optional()
+    wechatPersonalScheduleUuid: z.string().min(1).describe('wx2.0 账号 UUID'),
+    wechatPersonalScheduleContactId: z.string().min(1).describe('联系人或群 ID'),
+    wechatPersonalScheduleChatType: z.enum(['private', 'group']).optional().describe('会话类型'),
+    wechatPersonalScheduleAtUsers: z.array(z.string()).optional().describe('默认 @ 用户')
   })
   .passthrough()
 
 const sendMessageSchema = z.object({
   integrationId: integrationField,
-  targetId: z
-    .string()
-    .optional()
-    .describe('Configured schedule target id from middleware scheduleTargets. Optional when injected by scheduler state.'),
   content: z
     .string()
     .min(1)
@@ -201,7 +168,19 @@ const sendMessageSchema = z.object({
     .string()
     .optional()
     .describe('Stable scheduler/run key. If an outbound log already exists for this key, no duplicate send is made.'),
-  __scheduleTargetOptions: z.record(z.unknown()).optional()
+  __wechatPersonalRuntimeSend: z
+    .object({
+      uuid: z.string().min(1),
+      contactId: z.string().min(1),
+      chatType: z.enum(['private', 'group']).optional(),
+      atUsers: z.array(z.string()).optional()
+    })
+    .describe('Internal middleware-injected scheduled send parameters. Do not set manually.')
+    .optional(),
+  __wechatPersonalRuntimeSendToken: z
+    .string()
+    .describe('Internal middleware injection token. Do not set manually.')
+    .optional()
 })
 
 const WECHAT_PERSONAL_ADMIN_TOOL_NAMES = new Set([
@@ -224,122 +203,60 @@ const WECHAT_PERSONAL_USER_TOOL_NAMES = new Set([
   WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME
 ])
 
+const WECHAT_PERSONAL_RUNTIME_MIDDLEWARE_META: TAgentMiddlewareMeta = {
+  name: WECHAT_PERSONAL_MIDDLEWARE_NAME,
+  label: {
+    en_US: 'Personal WeChat Runtime',
+    zh_Hans: '个人微信运行时'
+  },
+  description: {
+    en_US: 'Expose Personal WeChat workbench discovery and runtime management tools to an assistant.',
+    zh_Hans: '为助手暴露个人微信工作台发现能力和运行时管理工具。'
+  },
+  icon: {
+    type: 'svg',
+    value: WECHAT_PERSONAL_ICON,
+    color: '#16a34a'
+  },
+  features: [WECHAT_PERSONAL_FEATURE, WECHAT_PERSONAL_RUNTIME_FEATURE, WECHAT_PERSONAL_WORKBENCH_FEATURE],
+  configSchema: {
+    type: 'object',
+    properties: {
+      toolMode: {
+        type: 'string',
+        enum: ['admin', 'user'],
+        title: {
+          en_US: 'Tool Mode',
+          zh_Hans: '工具模式'
+        },
+        description: {
+          en_US: 'admin exposes operational tools; user exposes only controlled proactive sending.',
+          zh_Hans: 'admin 暴露运维管理工具；user 只暴露受控主动发送工具。'
+        },
+        default: 'user'
+      } as any,
+      integrationId: {
+        type: 'string',
+        title: {
+          en_US: 'Personal WeChat Integration',
+          zh_Hans: '个人微信集成'
+        },
+        'x-ui': {
+          component: 'remoteSelect',
+          selectUrl: '/api/wechat-personal/integration-select-options'
+        } as any
+      }
+    },
+    required: []
+  }
+}
+
 @Injectable()
 @AgentMiddlewareStrategy(WECHAT_PERSONAL_MIDDLEWARE_NAME)
 export class WechatPersonalRuntimeMiddleware
   implements IAgentMiddlewareStrategy<WechatPersonalRuntimeMiddlewareOptions>
 {
-  readonly meta: TAgentMiddlewareMeta = {
-    name: WECHAT_PERSONAL_MIDDLEWARE_NAME,
-    label: {
-      en_US: 'Personal WeChat Runtime',
-      zh_Hans: '个人微信运行时'
-    },
-    description: {
-      en_US: 'Expose Personal WeChat workbench discovery and runtime management tools to an assistant.',
-      zh_Hans: '为助手暴露个人微信工作台发现能力和运行时管理工具。'
-    },
-    icon: {
-      type: 'svg',
-      value: WECHAT_PERSONAL_ICON,
-      color: '#16a34a'
-    },
-    features: [WECHAT_PERSONAL_FEATURE, WECHAT_PERSONAL_RUNTIME_FEATURE, WECHAT_PERSONAL_WORKBENCH_FEATURE],
-    configSchema: {
-      type: 'object',
-      properties: {
-        toolMode: {
-          type: 'string',
-          enum: ['admin', 'user'],
-          title: {
-            en_US: 'Tool Mode',
-            zh_Hans: '工具模式'
-          },
-          description: {
-            en_US: 'admin exposes operational tools; user exposes only controlled proactive sending.',
-            zh_Hans: 'admin 暴露运维管理工具；user 只暴露受控主动发送工具。'
-          },
-          default: 'user'
-        } as any,
-        integrationId: {
-          type: 'string',
-          title: {
-            en_US: 'Personal WeChat Integration',
-            zh_Hans: '个人微信集成'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/wechat-personal/integration-select-options'
-          } as any
-        },
-        scheduleTargets: {
-          type: 'array',
-          title: {
-            en_US: 'Schedule Targets',
-            zh_Hans: '定时发送目标'
-          },
-          description: {
-            en_US:
-              'Pre-approved WeChat contacts or groups that platform scheduled tasks and user-mode Agent tools may send to. Use stable ids such as morning-news-group.',
-            zh_Hans: '允许平台定时任务和用户模式 Agent 工具主动发送到的微信好友或群。请使用稳定 ID，例如 morning-news-group。'
-          },
-          items: {
-            type: 'object',
-            required: ['id', 'uuid', 'contactId'],
-            properties: {
-              id: {
-                type: 'string',
-                title: {
-                  en_US: 'Target ID',
-                  zh_Hans: '目标 ID'
-                }
-              },
-              name: {
-                type: 'string',
-                title: {
-                  en_US: 'Display Name',
-                  zh_Hans: '显示名称'
-                }
-              },
-              uuid: {
-                type: 'string',
-                title: {
-                  en_US: 'wx2.0 Account UUID',
-                  zh_Hans: 'wx2.0 账号 UUID'
-                }
-              },
-              contactId: {
-                type: 'string',
-                title: {
-                  en_US: 'Contact or Group ID',
-                  zh_Hans: '联系人或群 ID'
-                }
-              },
-              chatType: {
-                type: 'string',
-                enum: ['private', 'group'],
-                title: {
-                  en_US: 'Chat Type',
-                  zh_Hans: '会话类型'
-                }
-              },
-              atUsers: {
-                type: 'array',
-                title: {
-                  en_US: 'Default @ Users',
-                  zh_Hans: '默认 @ 用户'
-                },
-                items: {
-                  type: 'string'
-                }
-              }
-            }
-          }
-        } as any
-      },
-      required: []
-    }
-  }
+  readonly meta: TAgentMiddlewareMeta = WECHAT_PERSONAL_RUNTIME_MIDDLEWARE_META
 
   constructor(
     private readonly conversationService: WechatPersonalConversationService,
@@ -352,6 +269,7 @@ export class WechatPersonalRuntimeMiddleware
     context: IAgentMiddlewareContext
   ): PromiseOrValue<AgentMiddleware> {
     const toolMode = this.resolveToolMode(options, context)
+    const runtimeSendToken = randomUUID()
     const tools = [
       tool(
         async (input) =>
@@ -498,9 +416,12 @@ export class WechatPersonalRuntimeMiddleware
             if (!integrationId) {
               return this.missingIntegrationId()
             }
-            const target = this.resolveSendTarget(input.targetId, options, context, input.__scheduleTargetOptions)
-            if (!target) {
-              return this.error(`Personal WeChat schedule target "${normalizeString(input.targetId) || ''}" was not configured.`)
+            const sendParams =
+              input.__wechatPersonalRuntimeSendToken === runtimeSendToken
+                ? this.normalizeRuntimeSendParams(input.__wechatPersonalRuntimeSend)
+                : null
+            if (!sendParams) {
+              return this.error('Personal WeChat scheduled send parameters were not provided in runtime state.')
             }
             const idempotencyKey = normalizeString(input.idempotencyKey)
             if (idempotencyKey) {
@@ -511,12 +432,12 @@ export class WechatPersonalRuntimeMiddleware
             }
 
             const source: WechatPersonalOutboundSource = idempotencyKey ? 'scheduled_agent' : 'agent_tool'
-            const outboundContext = this.buildOutboundToolContext(context, integrationId, target, idempotencyKey)
+            const outboundContext = this.buildOutboundToolContext(context, integrationId, sendParams, idempotencyKey)
             const result = await this.wechatChannel.sendReplyByIntegrationId(integrationId, {
-              uuid: target.uuid,
-              contactId: target.contactId,
+              uuid: sendParams.uuid,
+              contactId: sendParams.contactId,
               content: input.content,
-              atUsers: this.mergeAtUsers(target.atUsers, input.atUsers),
+              atUsers: this.mergeAtUsers(sendParams.atUsers, input.atUsers),
               context: outboundContext,
               source,
               idempotencyKey
@@ -527,10 +448,9 @@ export class WechatPersonalRuntimeMiddleware
             }
 
             const data = {
-              targetId: target.id,
-              targetName: target.name,
-              uuid: target.uuid,
-              contactId: target.contactId,
+              uuid: sendParams.uuid,
+              contactId: sendParams.contactId,
+              chatType: sendParams.chatType,
               ...result
             }
             return result.success
@@ -540,7 +460,7 @@ export class WechatPersonalRuntimeMiddleware
         {
           name: WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME,
           description:
-            'Send a proactive Personal WeChat message to a preconfigured schedule target. Use for scheduled Agent jobs such as daily news. Always pass a stable idempotencyKey for scheduled runs.',
+            'Send a proactive Personal WeChat message using trusted scheduled task state. Use for scheduled Agent jobs such as daily news.',
           schema: sendMessageSchema
         }
       ),
@@ -691,17 +611,16 @@ export class WechatPersonalRuntimeMiddleware
       stateSchema: wechatPersonalScheduleStateSchema,
       tools: this.filterTools(tools, toolMode),
       wrapModelCall: async (request, handler) => {
-        const runtimeScheduleState = this.resolveScheduleState(request.state, context)
-        if (toolMode !== 'user' || !runtimeScheduleState.targetId) {
+        const runtimeScheduleState = this.resolveScheduleState(request.state)
+        if (toolMode !== 'user' || !runtimeScheduleState.uuid || !runtimeScheduleState.contactId) {
           return handler(request)
         }
 
         const guidance = [
-          'This run includes a trusted Personal WeChat scheduled-send target in runtime state.',
-          `Target id: ${runtimeScheduleState.targetId}.`,
+          'This run includes trusted Personal WeChat scheduled-send parameters in runtime state.',
           runtimeScheduleState.idempotencyKey ? `Idempotency key: ${runtimeScheduleState.idempotencyKey}.` : '',
           `After drafting the scheduled message, call ${WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME} with the final markdown content.`,
-          'Do not invent or expose uuid/contactId; the middleware resolves the configured schedule target from runtime state.'
+          'Do not expose uuid/contactId in the user-facing message; the middleware injects those parameters into the send tool from runtime state.'
         ].filter(Boolean).join('\n')
         const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
         const content = [baseContent, guidance].filter(Boolean).join('\n\n')
@@ -717,12 +636,11 @@ export class WechatPersonalRuntimeMiddleware
           return handler(request)
         }
 
-        const runtimeScheduleState = this.resolveScheduleState(request.state, context)
+        const runtimeScheduleState = this.resolveScheduleState(request.state)
         if (
-          !runtimeScheduleState.targetId &&
+          (!runtimeScheduleState.uuid || !runtimeScheduleState.contactId) &&
           !runtimeScheduleState.idempotencyKey &&
-          !runtimeScheduleState.atUsers.length &&
-          !runtimeScheduleState.targetOptions
+          !runtimeScheduleState.atUsers.length
         ) {
           return handler(request)
         }
@@ -731,20 +649,22 @@ export class WechatPersonalRuntimeMiddleware
         const args = {
           ...input
         } as Record<string, unknown>
-        const targetId = normalizeString(args.targetId) || runtimeScheduleState.targetId
         const idempotencyKey = normalizeString(args.idempotencyKey) || runtimeScheduleState.idempotencyKey
         const atUsers = this.mergeAtUsers(runtimeScheduleState.atUsers, args.atUsers)
-        if (targetId) {
-          args.targetId = targetId
-        }
         if (idempotencyKey) {
           args.idempotencyKey = idempotencyKey
         }
         if (atUsers.length) {
           args.atUsers = atUsers
         }
-        if (runtimeScheduleState.targetOptions) {
-          args.__scheduleTargetOptions = runtimeScheduleState.targetOptions
+        if (runtimeScheduleState.uuid && runtimeScheduleState.contactId) {
+          args.__wechatPersonalRuntimeSend = {
+            uuid: runtimeScheduleState.uuid,
+            contactId: runtimeScheduleState.contactId,
+            ...(runtimeScheduleState.chatType ? { chatType: runtimeScheduleState.chatType } : {}),
+            ...(runtimeScheduleState.atUsers.length ? { atUsers: runtimeScheduleState.atUsers } : {})
+          }
+          args.__wechatPersonalRuntimeSendToken = runtimeSendToken
         }
 
         return handler({
@@ -789,98 +709,45 @@ export class WechatPersonalRuntimeMiddleware
     return xpertId ? this.conversationService.getBoundIntegrationIdForXpert(xpertId) : null
   }
 
-  private resolveSendTarget(
-    inputTargetId: unknown,
-    options: WechatPersonalRuntimeMiddlewareOptions,
-    context: IAgentMiddlewareContext,
-    runtimeTargetOptions?: unknown
-  ): NormalizedWechatPersonalSendTarget | null {
-    const targetId = normalizeString(inputTargetId)
-    if (!targetId) {
-      return null
-    }
-    const nodeOptions = context.node?.options as WechatPersonalRuntimeMiddlewareOptions | undefined
-    const targets = [
-      ...this.normalizeSendTargets(nodeOptions?.scheduleTargets),
-      ...this.normalizeSendTargets(options?.scheduleTargets),
-      ...this.normalizeSendTargets(runtimeTargetOptions ? [runtimeTargetOptions] : [])
-    ]
-    return targets.find((target) => target.id === targetId) ?? null
-  }
-
-  private resolveScheduleState(
-    state: unknown,
-    context?: IAgentMiddlewareContext
-  ): WechatPersonalScheduleState {
+  private resolveScheduleState(state: unknown): WechatPersonalScheduleState {
     const root = this.asRecord(state)
     const genericSchedule = this.asRecord(root?.[XPERT_TASK_SCHEDULE_RUNTIME_STATE_KEY])
-    const genericTarget = this.asRecord(genericSchedule?.target)
-    const genericNodeKey = normalizeString(genericTarget?.nodeKey)
-    const currentNodeKey = normalizeString(context?.node?.key)
-    const useGenericSchedule = !genericNodeKey || !currentNodeKey || genericNodeKey === currentNodeKey
-    const genericTargetId = useGenericSchedule
-      ? normalizeString(genericTarget?.targetId) || normalizeString(genericSchedule?.targetId)
-      : ''
-    const genericIdempotencyKey = useGenericSchedule ? normalizeString(genericSchedule?.idempotencyKey) : ''
-    const genericAtUsers = useGenericSchedule ? this.normalizeStringList(genericSchedule?.atUsers) : []
-    const genericTargetOptions = useGenericSchedule
-      ? this.asRecord(genericTarget?.options) ?? this.asRecord(genericSchedule?.targetOptions)
-      : undefined
+    const genericIdempotencyKey = normalizeString(genericSchedule?.idempotencyKey)
 
-    const flatTargetId = normalizeString(root?.wechatPersonalScheduleTargetId)
-    const flatIdempotencyKey = normalizeString(root?.wechatPersonalScheduleIdempotencyKey)
+    const flatUuid = normalizeString(root?.wechatPersonalScheduleUuid)
+    const flatContactId = normalizeString(root?.wechatPersonalScheduleContactId)
+    const flatChatType = this.normalizeChatType(root?.wechatPersonalScheduleChatType)
     const flatAtUsers = this.normalizeStringList(root?.wechatPersonalScheduleAtUsers)
 
-    const schedule = this.asRecord(root?.wechatPersonalSchedule)
-    const nestedTargetId = normalizeString(schedule?.targetId)
-    const nestedIdempotencyKey = normalizeString(schedule?.idempotencyKey)
-    const nestedAtUsers = this.normalizeStringList(schedule?.atUsers)
-
-    const wechatPersonal = this.asRecord(root?.wechatPersonal)
-    const namespacedSchedule = this.asRecord(wechatPersonal?.schedule)
-    const namespacedTargetId = normalizeString(namespacedSchedule?.targetId)
-    const namespacedIdempotencyKey = normalizeString(namespacedSchedule?.idempotencyKey)
-    const namespacedAtUsers = this.normalizeStringList(namespacedSchedule?.atUsers)
-
     return {
-      targetId: genericTargetId || nestedTargetId || namespacedTargetId || flatTargetId,
-      idempotencyKey: genericIdempotencyKey || nestedIdempotencyKey || namespacedIdempotencyKey || flatIdempotencyKey,
-      atUsers: Array.from(new Set([...genericAtUsers, ...nestedAtUsers, ...namespacedAtUsers, ...flatAtUsers])),
-      ...(genericTargetOptions ? { targetOptions: genericTargetOptions } : {})
+      uuid: flatUuid,
+      contactId: flatContactId,
+      chatType: flatChatType || (flatContactId.endsWith('@chatroom') ? 'group' : 'private'),
+      idempotencyKey: genericIdempotencyKey,
+      atUsers: flatAtUsers
     }
   }
 
-  private normalizeSendTargets(value: unknown): NormalizedWechatPersonalSendTarget[] {
-    if (!Array.isArray(value)) {
-      return []
+  private normalizeRuntimeSendParams(value: unknown): NormalizedWechatPersonalSendParams | null {
+    const record = this.asRecord(value)
+    if (!record) {
+      return null
     }
-    return value.flatMap((item) => {
-      const record = this.asRecord(item)
-      if (!record) {
-        return []
-      }
-      const id = normalizeString(record.id)
-      const uuid = normalizeString(record.uuid)
-      const contactId = normalizeString(record.contactId)
-      if (!id || !uuid || !contactId) {
-        return []
-      }
-      const chatType = record.chatType === 'private' || record.chatType === 'group'
-        ? record.chatType
-        : contactId.endsWith('@chatroom')
-          ? 'group'
-          : 'private'
-      return [
-        {
-          id,
-          uuid,
-          contactId,
-          name: normalizeString(record.name) || id,
-          chatType,
-          atUsers: this.normalizeStringList(record.atUsers)
-        }
-      ]
-    })
+    const uuid = normalizeString(record.uuid)
+    const contactId = normalizeString(record.contactId)
+    if (!uuid || !contactId) {
+      return null
+    }
+    return {
+      uuid,
+      contactId,
+      chatType: this.normalizeChatType(record.chatType) || (contactId.endsWith('@chatroom') ? 'group' : 'private'),
+      atUsers: this.normalizeStringList(record.atUsers)
+    }
+  }
+
+  private normalizeChatType(value: unknown): 'private' | 'group' | undefined {
+    return value === 'private' || value === 'group' ? value : undefined
   }
 
   private mergeAtUsers(...values: unknown[]): string[] {
@@ -897,7 +764,7 @@ export class WechatPersonalRuntimeMiddleware
   private buildOutboundToolContext(
     context: IAgentMiddlewareContext,
     integrationId: string,
-    target: NormalizedWechatPersonalSendTarget,
+    sendParams: NormalizedWechatPersonalSendParams,
     idempotencyKey?: string
   ): WechatPersonalChatCallbackContext {
     const rawContext = context as unknown as Record<string, unknown>
@@ -910,15 +777,15 @@ export class WechatPersonalRuntimeMiddleware
       channelSource: 'wechat_personal_agent_tool',
       channel_source: 'wechat_personal_agent_tool',
       integrationId,
-      uuid: target.uuid,
-      contactId: target.contactId,
-      contact_id: target.contactId,
-      chatId: target.contactId,
-      chat_id: target.contactId,
-      chatType: target.chatType,
-      chat_type: target.chatType,
-      senderId: target.contactId,
-      sender_id: target.contactId,
+      uuid: sendParams.uuid,
+      contactId: sendParams.contactId,
+      contact_id: sendParams.contactId,
+      chatId: sendParams.contactId,
+      chat_id: sendParams.contactId,
+      chatType: sendParams.chatType,
+      chat_type: sendParams.chatType,
+      senderId: sendParams.contactId,
+      sender_id: sendParams.contactId,
       responseStrategy: 'final_text',
       message: {
         messageId: idempotencyKey ? `agent-tool:${idempotencyKey}` : undefined,
