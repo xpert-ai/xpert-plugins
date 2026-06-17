@@ -55,6 +55,9 @@ export class WechatPersonalTriggerBindingEntity {
   @Column({ type: 'simple-array', nullable: true })
   groupKeywords?: string[]
 
+  @Column({ type: 'simple-array', nullable: true })
+  mentionFallbackNames?: string[]
+
   @Column({ nullable: true, length: 36 })
   tenantId?: string
 

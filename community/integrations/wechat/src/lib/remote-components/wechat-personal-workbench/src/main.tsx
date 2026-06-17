@@ -822,7 +822,7 @@ function QueueView(props: any) {
           code(item.queueJobId),
           time(item.scheduledAt),
           time(item.sentAt),
-          display(item.error || clip(item.content, 120)),
+          <QueueContentCell item={item} t={props.t} />,
           <div className="xui-actions">
             {['queued', 'deferred', 'paused'].includes(item.status) && (
               <Button variant="outline" size="sm" onClick={() => props.onCancel(item)}>
@@ -845,6 +845,34 @@ function QueueView(props: any) {
       />
       <Pagination table={props.table} t={props.t} onChange={props.onTableChange} />
     </section>
+  )
+}
+
+function QueueContentCell(props: { item: any; t: Translator }) {
+  const item = props.item || {}
+  const payload = parseJsonRecord(item.payloadSummary)
+  const hasError = Boolean(displayText(item.error))
+  const type = payload?.type === 'image' ? 'image' : 'text'
+  const summary = hasError ? queueErrorSummary(item.error, props.t) : queueContentSummary(item.content, payload, props.t)
+  const meta = queueContentMeta(payload, props.t)
+  const detail = queueContentDetail(item, payload, props.t)
+
+  return (
+    <div className={hasError ? 'wxp-message-cell wxp-message-cell-error' : 'wxp-message-cell'}>
+      <div className="wxp-message-cell-head">
+        <Badge variant={hasError ? 'destructive' : 'secondary'}>
+          {hasError ? props.t('error') : type === 'image' ? props.t('imageMessage') : props.t('textMessage')}
+        </Badge>
+        {meta && <small>{meta}</small>}
+      </div>
+      <strong title={displayText(hasError ? item.error : item.content)}>{summary || '-'}</strong>
+      {detail && (
+        <details>
+          <summary>{hasError ? props.t('errorDetail') : props.t('contentDetail')}</summary>
+          <pre>{detail}</pre>
+        </details>
+      )}
+    </div>
   )
 }
 
@@ -1577,6 +1605,87 @@ function displayText(value: unknown) {
     return ''
   }
   return String(value)
+}
+
+function normalizeText(value: unknown) {
+  return displayText(value).replace(/\s+/g, ' ').trim()
+}
+
+function parseJsonRecord(value: unknown): Record<string, unknown> | null {
+  const text = displayText(value)
+  if (!text) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+function queueErrorSummary(value: unknown, t: Translator) {
+  const text = normalizeText(value)
+  if (!text) {
+    return ''
+  }
+  if (/reverse tunnel client/i.test(text) && /not connected/i.test(text)) {
+    const clientId = text.match(/client\s+"([^"]+)"/i)?.[1]
+    return [t('reverseTunnelNotConnected'), clientId ? clip(clientId, 36) : ''].filter(Boolean).join(': ')
+  }
+  if (text === 'paused_by_user') {
+    return t('pausedByUser')
+  }
+  if (text === 'cancelled_by_user') {
+    return t('cancelledByUser')
+  }
+  if (text === 'account_disabled') {
+    return t('accountDisabled')
+  }
+  return clip(text, 180)
+}
+
+function queueContentSummary(content: unknown, payload: Record<string, unknown> | null, t: Translator) {
+  const text = normalizeText(content)
+  if (payload?.type === 'image') {
+    return [t('imageMessage'), formatUrlSummary(text)].filter(Boolean).join(' · ')
+  }
+  return clip(text, 180)
+}
+
+function queueContentMeta(payload: Record<string, unknown> | null, t: Translator) {
+  if (!payload) {
+    return ''
+  }
+  const parts = [
+    payload.source ? `${t('source')}: ${clip(payload.source, 24)}` : '',
+    payload.idempotencyKey ? `${t('idempotencyKey')}: ${clip(payload.idempotencyKey, 30)}` : '',
+    Array.isArray(payload.atUsers) && payload.atUsers.length ? `${t('atUsers')}: ${payload.atUsers.length}` : ''
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+function queueContentDetail(item: any, payload: Record<string, unknown> | null, t: Translator) {
+  const sections = [
+    displayText(item.error) ? `${t('originalError')}:\n${displayText(item.error)}` : '',
+    displayText(item.content) ? `${t('messageContent')}:\n${displayText(item.content)}` : '',
+    payload ? `${t('messageMetadata')}:\n${JSON.stringify(payload, null, 2)}` : ''
+  ].filter(Boolean)
+  return sections.join('\n\n')
+}
+
+function formatUrlSummary(value: unknown) {
+  const text = displayText(value)
+  if (!text) {
+    return ''
+  }
+  try {
+    const url = new URL(text)
+    const path = `${url.pathname}${url.search}`
+    return clip(`${url.host}${path}`, 90)
+  } catch {
+    return clip(text, 90)
+  }
 }
 
 function formatList(value: unknown) {

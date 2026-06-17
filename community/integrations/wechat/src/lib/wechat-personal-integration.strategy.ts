@@ -213,6 +213,14 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
           },
           default: true
         },
+        fallbackToLegacySendImage: {
+          type: 'boolean',
+          title: {
+            en_US: 'Fallback to Legacy SendImage',
+            zh_Hans: '图片失败时回退旧发送接口'
+          },
+          default: true
+        },
         outboundQueue: {
           type: 'object',
           title: {
@@ -365,6 +373,7 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
     config.apiVersion = normalizeApiVersion(config.apiVersion)
     config.timeoutMs = normalizeTimeoutMs(config.timeoutMs)
     config.fallbackToLegacySendText = config.fallbackToLegacySendText !== false
+    config.fallbackToLegacySendImage = config.fallbackToLegacySendImage !== false
     config.outboundQueue = {
       ...config.outboundQueue,
       enabled: config.outboundQueue?.enabled !== false

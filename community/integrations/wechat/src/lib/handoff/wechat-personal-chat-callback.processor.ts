@@ -275,21 +275,25 @@ export class WechatPersonalChatCallbackProcessor implements IHandoffProcessor<We
       return
     }
 
-    const result = await this.wechatChannel.sendTextByIntegrationId(context.integrationId, {
+    const result = await this.wechatChannel.sendReplyByIntegrationId(context.integrationId, {
       uuid: context.uuid,
       contactId: context.contactId,
       content: finalText,
       context,
       source: 'agent_callback'
     })
-    if (!result.queued) {
-      await this.conversationService.logOutbound({
-        context,
-        content: finalText,
-        status: result.success ? 'sent' : 'failed',
-        messageId: result.messageId,
-        error: result.error
-      })
+    const loggableItems = !result.queued ? result.items : result.success ? [] : result.items.filter((item) => !item.queued)
+    if (loggableItems.length) {
+      for (const item of loggableItems) {
+        await this.conversationService.logOutbound({
+          context,
+          content: item.content || finalText,
+          status: item.success ? 'sent' : 'failed',
+          messageId: item.messageId,
+          error: item.error,
+          payloadSummary: item.payloadSummary
+        })
+      }
     }
 
     if (!result.success) {

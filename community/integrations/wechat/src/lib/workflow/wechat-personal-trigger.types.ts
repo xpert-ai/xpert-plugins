@@ -19,4 +19,5 @@ export type TWechatPersonalTriggerConfig = {
   blockedSenderIds?: string[] | string
   groupTriggerMode?: WechatPersonalGroupTriggerMode
   groupKeywords?: string[] | string
+  mentionFallbackNames?: string[] | string
 }

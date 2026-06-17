@@ -50,6 +50,7 @@ export interface TIntegrationWechatPersonalOptions {
   preferLanguage?: 'en' | 'zh-Hans'
   callbackSecret?: string
   fallbackToLegacySendText?: boolean
+  fallbackToLegacySendImage?: boolean
   outboundQueue?: WechatPersonalOutboundQueueOptions
 }
 
@@ -64,6 +65,7 @@ export interface WechatPersonalInboundTriggerOptions {
   blockedSenderIds?: string[] | string
   groupTriggerMode?: WechatPersonalGroupTriggerMode
   groupKeywords?: string[] | string
+  mentionFallbackNames?: string[] | string
 }
 
 export interface WechatPersonalInboundEvent {
@@ -259,7 +261,7 @@ export function shouldDispatchWechatPersonalMessage(
     }
   }
 
-  const mentioned = isMentioned(event)
+  const mentioned = isMentioned(event, normalizeMentionFallbackNames(options?.mentionFallbackNames))
   const keyword = matchKeyword(input, normalizeKeywords(options?.groupKeywords))
 
   if ((mode === 'mentions' || mode === 'mention_or_keywords') && mentioned) {
@@ -458,21 +460,101 @@ function matchKeyword(input: string, keywords: string[]): string | null {
   return keywords.find((keyword) => lowered.includes(keyword.toLowerCase())) || null
 }
 
-function isMentioned(event: WechatPersonalInboundEvent): boolean {
-  const rawText = summarizePayload(event.raw, 2000)
+function normalizeMentionFallbackNames(value: unknown): string[] {
+  return Array.from(
+    new Set(
+      normalizeKeywords(value)
+        .map((name) => name.replace(/^@+/, '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function isMentioned(event: WechatPersonalInboundEvent, fallbackNames: string[]): boolean {
   const ownerWxid = normalizeString(event.ownerWxid)
-  if (ownerWxid && rawText.includes(ownerWxid) && /atuserlist|atuser|@/i.test(rawText)) {
+  if (ownerWxid && extractAtUserList(event.raw).includes(ownerWxid)) {
     return true
   }
   const content = `${event.content}\n${event.displayText || ''}`
   if (ownerWxid && content.includes(`@${ownerWxid}`)) {
     return true
   }
-  return /(^|\s)@[^\s]{1,32}/.test(content)
+  return hasConfiguredMentionName(content, fallbackNames)
 }
 
 function stripLeadingMention(input: string): string {
   return input.replace(/^@[^\s]+\s*/, '').trim() || input
+}
+
+function hasConfiguredMentionName(content: string, names: string[]): boolean {
+  if (!names.length) {
+    return false
+  }
+  const lowered = content.toLowerCase()
+  return names.some((name) => {
+    const token = `@${name}`.toLowerCase()
+    let index = lowered.indexOf(token)
+    while (index >= 0) {
+      const next = content[index + token.length]
+      if (!next || /[\s,，.。:：;；!！?？)）]/.test(next)) {
+        return true
+      }
+      index = lowered.indexOf(token, index + 1)
+    }
+    return false
+  })
+}
+
+function extractAtUserList(raw: Record<string, unknown>): string[] {
+  const values: string[] = []
+  collectAtUserValues(raw, values)
+  return Array.from(
+    new Set(
+      values
+        .flatMap((value) => {
+          const xmlMatch =
+            value.match(/<atuserlist><!\[CDATA\[([\s\S]*?)\]\]><\/atuserlist>/i) ||
+            value.match(/<atuserlist>([\s\S]*?)<\/atuserlist>/i)
+          const text = xmlMatch?.[1] || value
+          return text.split(/[,\s;；，]+/)
+        })
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function collectAtUserValues(value: unknown, output: string[]): void {
+  if (typeof value === 'string') {
+    if (/<atuserlist/i.test(value)) {
+      output.push(value)
+    }
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectAtUserValues(item, output)
+    }
+    return
+  }
+  const record = asRecord(value)
+  if (!record) {
+    return
+  }
+  for (const [key, item] of Object.entries(record)) {
+    if (/^(atuserlist|at_user_list|atusers?|beatusers?)$/i.test(key)) {
+      if (Array.isArray(item)) {
+        output.push(...item.map((entry) => normalizeString(entry)).filter(Boolean))
+      } else {
+        const text = normalizeString(item)
+        if (text) {
+          output.push(text)
+        }
+      }
+      continue
+    }
+    collectAtUserValues(item, output)
+  }
 }
 
 function normalizeContactName(record: Dict | null): string | undefined {

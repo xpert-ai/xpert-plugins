@@ -94,7 +94,8 @@ nodes:
       title: Personal WeChat Runtime Tools
       provider: WechatPersonalRuntimeMiddleware
       required: true
-      options: {}
+      options:
+        toolMode: admin
     hash: wechat-personal-admin-middleware-v1
 connections:
   - type: workflow

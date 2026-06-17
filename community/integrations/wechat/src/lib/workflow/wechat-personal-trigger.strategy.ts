@@ -222,6 +222,21 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
           items: {
             type: 'string'
           }
+        },
+        mentionFallbackNames: {
+          type: 'array',
+          title: {
+            en_US: 'Mention Fallback Names',
+            zh_Hans: '@ 昵称兜底名称'
+          },
+          description: {
+            en_US:
+              'Optional display names used only when wx2.0 does not provide atuserlist. Example: bot nickname in the group.',
+            zh_Hans: '可选，仅在 wx2.0 未提供 atuserlist 时用于匹配 @ 昵称，例如机器人在群里的显示名。'
+          },
+          items: {
+            type: 'string'
+          }
         }
       },
       required: ['enabled', 'integrationId']
@@ -358,6 +373,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         blockedSenderIds: normalizeIdList(config.blockedSenderIds),
         groupTriggerMode: normalizeGroupTriggerMode(config.groupTriggerMode),
         groupKeywords: normalizeKeywords(config.groupKeywords),
+        mentionFallbackNames: normalizeKeywords(config.mentionFallbackNames),
         tenantId: context.tenantId ?? null,
         organizationId: context.organizationId ?? null,
         createdById: context.createdById ?? null,

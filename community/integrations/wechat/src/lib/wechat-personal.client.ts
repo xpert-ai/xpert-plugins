@@ -17,6 +17,12 @@ export interface WechatPersonalSendTextInput {
   atUsers?: string[]
 }
 
+export interface WechatPersonalSendImageInput {
+  uuid: string
+  contactId: string
+  imageContent: string
+}
+
 export interface WechatPersonalSendResult {
   success: boolean
   messageId?: string
@@ -61,6 +67,52 @@ export class WechatPersonalClient {
             TextContent: input.content,
             MsgType: 1,
             AtWxIDList: input.atUsers ?? []
+          }
+        ]
+      }
+    )
+
+    if (!legacy.success) {
+      return {
+        ...legacy,
+        error: `${primary.error || 'primary send failed'}; fallback: ${legacy.error || 'legacy send failed'}`
+      }
+    }
+
+    return legacy
+  }
+
+  async sendImage(
+    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    input: WechatPersonalSendImageInput
+  ): Promise<WechatPersonalSendResult> {
+    const options = integration.options || ({} as TIntegrationWechatPersonalOptions)
+    const primary = await this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/sendimage'),
+      this.buildV2Path(options, 'message/sendimage'),
+      {
+        uuid: input.uuid,
+        contactid: input.contactId,
+        imagecontent: input.imageContent
+      }
+    )
+
+    if (primary.success || options.fallbackToLegacySendImage === false) {
+      return primary
+    }
+
+    const legacyPath = `/message/SendImageMessage?key=${encodeURIComponent(input.uuid)}`
+    const legacy = await this.postJson(
+      integration,
+      `${normalizeBaseUrl(options.baseUrl)}${legacyPath}`,
+      legacyPath,
+      {
+        MsgItem: [
+          {
+            ToUserName: input.contactId,
+            ImageContent: input.imageContent,
+            MsgType: 2
           }
         ]
       }

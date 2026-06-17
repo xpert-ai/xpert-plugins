@@ -8,7 +8,8 @@ import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strateg
 describe('WechatPersonalChannelStrategy', () => {
   function createStrategy(options: Record<string, unknown> = {}) {
     const client = {
-      sendText: jest.fn(async () => ({ success: true, messageId: 'sent-1' }))
+      sendText: jest.fn(async () => ({ success: true, messageId: 'sent-1' })),
+      sendImage: jest.fn(async () => ({ success: true, messageId: 'image-1' }))
     }
     const outboundQueue = {
       enqueueText: jest.fn(async () => ({
@@ -17,6 +18,13 @@ describe('WechatPersonalChannelStrategy', () => {
         queueJobId: 'job-1',
         outboundLogId: 'log-1',
         scheduledAt: '2026-06-16T00:00:00.000Z'
+      })),
+      enqueueImage: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        queueJobId: 'job-image-1',
+        outboundLogId: 'log-image-1',
+        scheduledAt: '2026-06-16T00:00:01.000Z'
       }))
     }
     const integration = {
@@ -84,6 +92,114 @@ describe('WechatPersonalChannelStrategy', () => {
         uuid: 'uuid-1',
         contactId: 'wxid_friend',
         content: 'Direct send'
+      })
+    )
+  })
+
+  it('splits Agent markdown image replies and enqueues parts in order', async () => {
+    const { strategy, outboundQueue, integration } = createStrategy()
+
+    await expect(
+      strategy.sendReplyByIntegrationId('integration-1', {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: `文字一
+
+![图](https://example.com/a.png)
+
+文字二`,
+        source: 'agent_callback'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        items: [
+          expect.objectContaining({ type: 'text', content: '文字一' }),
+          expect.objectContaining({ type: 'image', content: 'https://example.com/a.png' }),
+          expect.objectContaining({ type: 'text', content: '文字二' })
+        ]
+      })
+    )
+
+    expect(outboundQueue.enqueueText).toHaveBeenNthCalledWith(
+      1,
+      integration,
+      expect.objectContaining({
+        content: '文字一',
+        source: 'agent_callback'
+      })
+    )
+    expect(outboundQueue.enqueueImage).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        imageUrl: 'https://example.com/a.png',
+        source: 'agent_callback'
+      })
+    )
+    expect(outboundQueue.enqueueText).toHaveBeenNthCalledWith(
+      2,
+      integration,
+      expect.objectContaining({
+        content: '文字二',
+        source: 'agent_callback'
+      })
+    )
+  })
+
+  it('supports sendMedia for image URLs', async () => {
+    const { strategy, outboundQueue, integration } = createStrategy()
+
+    await expect(
+      strategy.sendMedia(
+        {
+          integration,
+          chatId: 'wxid_friend',
+          uuid: 'uuid-1'
+        } as any,
+        {
+          type: 'image',
+          url: 'https://example.com/a.png'
+        }
+      )
+    ).resolves.toEqual(expect.objectContaining({ success: true, queued: true }))
+
+    expect(outboundQueue.enqueueImage).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageUrl: 'https://example.com/a.png'
+      })
+    )
+  })
+
+  it('treats markdown links to image resources as image replies', async () => {
+    const { strategy, outboundQueue, integration } = createStrategy()
+
+    await expect(
+      strategy.sendReplyByIntegrationId('integration-1', {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: '插件管理界面：[截图](http://localhost:3333/api/images/plugin.png)',
+        source: 'agent_callback'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        items: [
+          expect.objectContaining({ type: 'text', content: '插件管理界面：' }),
+          expect.objectContaining({ type: 'image', content: 'http://localhost:3333/api/images/plugin.png' })
+        ]
+      })
+    )
+
+    expect(outboundQueue.enqueueImage).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        imageUrl: 'http://localhost:3333/api/images/plugin.png',
+        source: 'agent_callback'
       })
     )
   })

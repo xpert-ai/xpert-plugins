@@ -32,6 +32,7 @@ import {
   WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_PERSONAL_RUNTIME_FEATURE,
   WECHAT_PERSONAL_SEARCH_MESSAGE_LOGS_TOOL_NAME,
+  WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME,
   WECHAT_PERSONAL_SET_ACCOUNT_ENABLED_TOOL_NAME,
   WECHAT_PERSONAL_WORKBENCH_FEATURE
 } from './constants.js'
@@ -57,12 +58,28 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     )
   })
 
+  it('keeps scheduled send parameters in runtime state instead of middleware config targets', () => {
+    const middleware = createMiddleware()
+    const configSchema = middleware.meta.configSchema as { properties?: Record<string, unknown> }
+    const runtime = middleware.createMiddleware(
+      { integrationId: 'integration-1', toolMode: 'user' },
+      { node: { options: {} } } as any
+    ) as any
+    const shape = runtime.stateSchema.shape as Record<string, unknown>
+
+    expect(configSchema.properties?.scheduleTargets).toBeUndefined()
+    expect((middleware.meta as { scheduleTarget?: unknown }).scheduleTarget).toBeUndefined()
+    expect(shape.wechatPersonalScheduleUuid).toBeDefined()
+    expect(shape.wechatPersonalScheduleContactId).toBeDefined()
+  })
+
   it('registers Personal WeChat management tools', async () => {
     const middleware = await Promise.resolve(
       createMiddleware().createMiddleware(
-        { integrationId: 'integration-1' },
+        { integrationId: 'integration-1', toolMode: 'admin' },
         {
           node: {
+            key: 'Middleware_WechatPersonalRuntime',
             options: {}
           }
         } as any
@@ -87,6 +104,38 @@ describe('WechatPersonalRuntimeMiddleware', () => {
         WECHAT_PERSONAL_SET_ACCOUNT_ENABLED_TOOL_NAME
       ].sort()
     )
+    expect((middleware.tools ?? []).map((item: any) => item.name)).not.toContain(WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME)
+  })
+
+  it('defaults to user tool mode when no explicit mode is configured', async () => {
+    const middleware = await Promise.resolve(
+      createMiddleware().createMiddleware(
+        { integrationId: 'integration-1' },
+        {
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME])
+  })
+
+  it('registers only controlled send tool for user-facing assistants', async () => {
+    const middleware = await Promise.resolve(
+      createMiddleware().createMiddleware(
+        { integrationId: 'integration-1', toolMode: 'user' },
+        {
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME])
+    expect(middleware.stateSchema).toBeDefined()
   })
 
   it('resolves integration id from the assistant trigger binding for runtime tools', async () => {
@@ -96,7 +145,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     }
     const middleware = await Promise.resolve(
       createMiddleware(conversationService).createMiddleware(
-        {},
+        { toolMode: 'admin' },
         {
           xpertId: 'xpert-1',
           node: {
@@ -136,7 +185,7 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     }
     const middleware = await Promise.resolve(
       createMiddleware(conversationService).createMiddleware(
-        {},
+        { toolMode: 'admin' },
         {
           xpertId: 'xpert-admin',
           node: {
@@ -159,6 +208,291 @@ describe('WechatPersonalRuntimeMiddleware', () => {
         data: expect.objectContaining({
           scope: 'organization',
           summary: expect.objectContaining({ integrationCount: 2 })
+        })
+      })
+    )
+  })
+
+  it('rejects manually supplied scheduled send parameters without runtime state injection', async () => {
+    const conversationService = {
+      findOutboundByIdempotencyKey: jest.fn(async () => null),
+      logOutbound: jest.fn(async () => undefined)
+    }
+    const wechatChannel = {
+      sendReplyByIntegrationId: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        outboundLogId: 'outbound-log-1',
+        items: [
+          {
+            type: 'text',
+            success: true,
+            queued: true,
+            outboundLogId: 'outbound-log-1',
+            content: '早报',
+            payloadSummary: JSON.stringify({
+              type: 'text',
+              source: 'scheduled_agent',
+              idempotencyKey: 'daily-news:2026-06-16'
+            })
+          }
+        ]
+      }))
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService, wechatChannel).createMiddleware(
+        {
+          integrationId: 'integration-1',
+          toolMode: 'user'
+        },
+        {
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const sendTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME
+    ) as any
+    const result = JSON.parse(
+      await sendTool.handler({
+        content: '早报',
+        idempotencyKey: 'daily-news:2026-06-16',
+        __wechatPersonalRuntimeSend: {
+          uuid: 'uuid-1',
+          contactId: 'room@chatroom',
+          chatType: 'group',
+          atUsers: ['wxid_member']
+        }
+      })
+    )
+
+    expect(conversationService.findOutboundByIdempotencyKey).not.toHaveBeenCalled()
+    expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        message: 'Personal WeChat scheduled send parameters were not provided in runtime state.'
+      })
+    )
+  })
+
+  it('uses scheduled send parameters and idempotency key from runtime state', async () => {
+    const conversationService = {
+      findOutboundByIdempotencyKey: jest.fn(async () => null),
+      logOutbound: jest.fn(async () => undefined)
+    }
+    const wechatChannel = {
+      sendReplyByIntegrationId: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        outboundLogId: 'outbound-log-1',
+        items: []
+      }))
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService, wechatChannel).createMiddleware(
+        {
+          integrationId: 'integration-1',
+          toolMode: 'user'
+        },
+        {
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+    const sendTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME
+    ) as any
+    const toolHandler = jest.fn(async (request) => sendTool.handler(request.toolCall.args))
+    const result = JSON.parse(
+      `${await middleware.wrapToolCall?.(
+        {
+          toolCall: {
+            id: 'tool-call-1',
+            name: WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME,
+            type: 'tool_call',
+            args: {
+              content: '今日新闻'
+            }
+          },
+          tool: sendTool,
+          state: {
+            xpertTaskSchedule: {
+              idempotencyKey: 'daily-news:2026-06-16'
+            },
+            wechatPersonalScheduleUuid: 'uuid-1',
+            wechatPersonalScheduleContactId: 'daily@chatroom',
+            wechatPersonalScheduleAtUsers: ['wxid_state']
+          },
+          runtime: {}
+        } as any,
+        toolHandler as any
+      )}`
+    )
+
+    expect(toolHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: expect.objectContaining({
+            idempotencyKey: 'daily-news:2026-06-16',
+            atUsers: ['wxid_state'],
+            __wechatPersonalRuntimeSend: expect.objectContaining({
+              uuid: 'uuid-1',
+              contactId: 'daily@chatroom',
+              chatType: 'group',
+              atUsers: ['wxid_state']
+            }),
+            __wechatPersonalRuntimeSendToken: expect.any(String)
+          })
+        })
+      })
+    )
+
+    expect(conversationService.findOutboundByIdempotencyKey).toHaveBeenCalledWith(
+      'integration-1',
+      'daily-news:2026-06-16'
+    )
+    expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'daily@chatroom',
+        content: '今日新闻',
+        atUsers: ['wxid_state'],
+        source: 'scheduled_agent',
+        idempotencyKey: 'daily-news:2026-06-16',
+        context: expect.objectContaining({
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          channelSource: 'wechat_personal_agent_tool'
+        })
+      })
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          uuid: 'uuid-1',
+          contactId: 'daily@chatroom'
+        })
+      })
+    )
+  })
+
+  it('adds scheduled-send guidance when runtime state includes send parameters', async () => {
+    const middleware = await Promise.resolve(
+      createMiddleware().createMiddleware(
+        {
+          integrationId: 'integration-1',
+          toolMode: 'user'
+        },
+        {
+          node: {
+            key: 'Middleware_WechatPersonalRuntime',
+            options: {}
+          }
+        } as any
+      )
+    )
+    const handler = jest.fn(async (request) => request.systemMessage?.content)
+
+    const content = await middleware.wrapModelCall?.(
+      {
+        state: {
+          xpertTaskSchedule: {
+            idempotencyKey: 'daily-news:2026-06-16'
+          },
+          wechatPersonalScheduleUuid: 'uuid-1',
+          wechatPersonalScheduleContactId: 'daily@chatroom'
+        },
+        systemMessage: { content: 'base' },
+        messages: [],
+        tools: [],
+        runtime: {}
+      } as any,
+      handler as any
+    )
+
+    expect(content).toContain('base')
+    expect(content).toContain('trusted Personal WeChat scheduled-send parameters')
+    expect(content).toContain(WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME)
+  })
+
+  it('skips proactive sends when idempotency key already exists', async () => {
+    const conversationService = {
+      findOutboundByIdempotencyKey: jest.fn(async () => ({
+        id: 'outbound-log-existing',
+        status: 'queued',
+        queueJobId: 'queue-job-1'
+      }))
+    }
+    const wechatChannel = {
+      sendReplyByIntegrationId: jest.fn()
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService, wechatChannel).createMiddleware(
+        {
+          integrationId: 'integration-1',
+          toolMode: 'user'
+        },
+        {
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const sendTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME
+    ) as any
+    const toolHandler = jest.fn(async (request) => sendTool.handler(request.toolCall.args))
+    const result = JSON.parse(
+      `${await middleware.wrapToolCall?.(
+        {
+          toolCall: {
+            id: 'tool-call-1',
+            name: WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME,
+            type: 'tool_call',
+            args: {
+              content: '早报'
+            }
+          },
+          tool: sendTool,
+          state: {
+            xpertTaskSchedule: {
+              idempotencyKey: 'daily-news:2026-06-16'
+            },
+            wechatPersonalScheduleUuid: 'uuid-1',
+            wechatPersonalScheduleContactId: 'room@chatroom'
+          },
+          runtime: {}
+        } as any,
+        toolHandler as any
+      )}`
+    )
+
+    expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          duplicate: true,
+          outboundLogId: 'outbound-log-existing',
+          status: 'queued'
         })
       })
     )

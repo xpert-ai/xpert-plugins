@@ -31,7 +31,12 @@ import {
   WechatPersonalOutboundQueueOptions
 } from './types.js'
 import { WechatPersonalChatCallbackContext } from './handoff/wechat-personal-chat.types.js'
-import { WechatPersonalClient, WechatPersonalSendTextInput } from './wechat-personal.client.js'
+import { fetchWechatPersonalImageAsBase64 } from './wechat-personal-image.js'
+import {
+  WechatPersonalClient,
+  WechatPersonalSendResult,
+  WechatPersonalSendTextInput
+} from './wechat-personal.client.js'
 
 export type WechatPersonalOutboundQueueJobData = {
   integrationId: string
@@ -50,10 +55,58 @@ export type WechatPersonalQueuedSendResult = {
   error?: string
 }
 
-export type WechatPersonalOutboundQueueInput = WechatPersonalSendTextInput & {
+export type WechatPersonalOutboundSource =
+  | 'agent_callback'
+  | 'agent_tool'
+  | 'manual'
+  | 'resend'
+  | 'message_reply'
+  | 'scheduled_agent'
+
+export type WechatPersonalOutboundQueueTextInput = WechatPersonalSendTextInput & {
+  type?: 'text'
   context?: WechatPersonalChatCallbackContext
-  source?: 'agent_callback' | 'manual' | 'resend' | 'message_reply'
+  source?: WechatPersonalOutboundSource
+  idempotencyKey?: string
 }
+
+export type WechatPersonalOutboundQueueImageInput = {
+  type: 'image'
+  uuid: string
+  contactId: string
+  imageUrl: string
+  context?: WechatPersonalChatCallbackContext
+  source?: WechatPersonalOutboundSource
+  idempotencyKey?: string
+}
+
+export type WechatPersonalOutboundQueueInput =
+  | WechatPersonalOutboundQueueTextInput
+  | WechatPersonalOutboundQueueImageInput
+
+type WechatPersonalQueuedPayload =
+  | {
+      type: 'text'
+      source: WechatPersonalOutboundSource
+      atUsers: string[]
+      idempotencyKey?: string
+    }
+  | {
+      type: 'image'
+      source: WechatPersonalOutboundSource
+      imageUrl: string
+      idempotencyKey?: string
+    }
+
+type WechatPersonalResolvedQueuedPayload =
+  | {
+      type: 'text'
+      atUsers: string[]
+    }
+  | {
+      type: 'image'
+      imageUrl: string
+    }
 
 type RedisLike = {
   get(key: string): Promise<string | null>
@@ -123,15 +176,14 @@ export class WechatPersonalOutboundQueueService {
 
   async enqueueText(
     integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    input: WechatPersonalOutboundQueueInput
+    input: WechatPersonalOutboundQueueTextInput
   ): Promise<WechatPersonalQueuedSendResult> {
-    const options = this.resolveOptions(integration.options?.outboundQueue, integration.options)
-    const scope = this.resolveTenantScope(integration, input.context)
     const normalizedInput = {
       uuid: normalizeString(input.uuid),
       contactId: normalizeString(input.contactId),
       content: normalizeString(input.content),
-      atUsers: Array.isArray(input.atUsers) ? input.atUsers.map((item) => normalizeString(item)).filter(Boolean) : []
+      atUsers: Array.isArray(input.atUsers) ? input.atUsers.map((item) => normalizeString(item)).filter(Boolean) : [],
+      idempotencyKey: normalizeString(input.idempotencyKey)
     }
     if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.content) {
       return {
@@ -140,7 +192,64 @@ export class WechatPersonalOutboundQueueService {
       }
     }
 
-    const blocked = await this.assertCanQueue(integration.id, normalizedInput.uuid, normalizedInput.contactId, options, scope)
+    return this.enqueueOutbound(integration, {
+      uuid: normalizedInput.uuid,
+      contactId: normalizedInput.contactId,
+      content: normalizedInput.content,
+      context: input.context,
+      payload: {
+        type: 'text',
+        source: input.source || 'message_reply',
+        atUsers: normalizedInput.atUsers,
+        ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
+      }
+    })
+  }
+
+  async enqueueImage(
+    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    input: WechatPersonalOutboundQueueImageInput
+  ): Promise<WechatPersonalQueuedSendResult> {
+    const normalizedInput = {
+      uuid: normalizeString(input.uuid),
+      contactId: normalizeString(input.contactId),
+      imageUrl: normalizeString(input.imageUrl),
+      idempotencyKey: normalizeString(input.idempotencyKey)
+    }
+    if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.imageUrl) {
+      return {
+        success: false,
+        error: '发送微信图片缺少 uuid/contactId/imageUrl。'
+      }
+    }
+
+    return this.enqueueOutbound(integration, {
+      uuid: normalizedInput.uuid,
+      contactId: normalizedInput.contactId,
+      content: normalizedInput.imageUrl,
+      context: input.context,
+      payload: {
+        type: 'image',
+        source: input.source || 'message_reply',
+        imageUrl: normalizedInput.imageUrl,
+        ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
+      }
+    })
+  }
+
+  private async enqueueOutbound(
+    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    input: {
+      uuid: string
+      contactId: string
+      content: string
+      context?: WechatPersonalChatCallbackContext
+      payload: WechatPersonalQueuedPayload
+    }
+  ): Promise<WechatPersonalQueuedSendResult> {
+    const options = this.resolveOptions(integration.options?.outboundQueue, integration.options)
+    const scope = this.resolveTenantScope(integration, input.context)
+    const blocked = await this.assertCanQueue(integration.id, input.uuid, input.contactId, options, scope)
     if (blocked) {
       return blocked
     }
@@ -149,18 +258,15 @@ export class WechatPersonalOutboundQueueService {
     const scheduledAt = new Date(Date.now() + options.initialDelayMs)
     const log = await this.messageLogRepository.save({
       integrationId: integration.id,
-      uuid: normalizedInput.uuid,
+      uuid: input.uuid,
       ownerWxid: input.context?.ownerWxid,
-      contactId: normalizedInput.contactId,
+      contactId: input.contactId,
       senderId: input.context?.senderId,
       chatType: input.context?.chatType,
       direction: 'outbound',
       status: 'queued',
-      content: normalizedInput.content,
-      payloadSummary: JSON.stringify({
-        source: input.source || 'message_reply',
-        atUsers: normalizedInput.atUsers
-      }),
+      content: input.content,
+      payloadSummary: JSON.stringify(input.payload),
       xpertId: input.context?.xpertId,
       conversationId: input.context?.conversationId,
       conversationUserKey: input.context?.conversationUserKey,
@@ -284,14 +390,9 @@ export class WechatPersonalOutboundQueueService {
         queueJobId: String(job.id),
         error: null
       })
-      const result = await this.client.sendText(integration, {
-        uuid: log.uuid,
-        contactId: log.contactId,
-        content: log.content || '',
-        atUsers: this.parseAtUsers(log.payloadSummary)
-      })
+      const result = await this.sendQueuedLog(integration, log)
       if (!result.success) {
-        throw new Error(result.error || 'wx2.0 sendtext failed')
+        throw new Error(result.error || 'wx2.0 outbound send failed')
       }
 
       const sentAt = new Date()
@@ -771,16 +872,63 @@ export class WechatPersonalOutboundQueueService {
     )
   }
 
-  private parseAtUsers(payloadSummary?: string): string[] {
+  private async sendQueuedLog(
+    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    log: WechatPersonalMessageLogEntity
+  ): Promise<WechatPersonalSendResult> {
+    const payload = this.resolveQueuedPayload(log)
+    if (payload.type === 'image') {
+      const image = await fetchWechatPersonalImageAsBase64(payload.imageUrl, {
+        timeoutMs: integration.options?.timeoutMs
+      })
+      return this.client.sendImage(integration, {
+        uuid: log.uuid,
+        contactId: log.contactId,
+        imageContent: image.imageContent
+      })
+    }
+
+    return this.client.sendText(integration, {
+      uuid: log.uuid,
+      contactId: log.contactId,
+      content: log.content || '',
+      atUsers: payload.atUsers
+    })
+  }
+
+  private resolveQueuedPayload(log: WechatPersonalMessageLogEntity): WechatPersonalResolvedQueuedPayload {
+    const payload = this.parsePayloadSummary(log.payloadSummary)
+    if (payload?.type === 'image') {
+      return {
+        type: 'image',
+        imageUrl: normalizeString(payload.imageUrl) || normalizeString(log.content)
+      }
+    }
+
+    return {
+      type: 'text',
+      atUsers: this.parseAtUsers(payload)
+    }
+  }
+
+  private parsePayloadSummary(payloadSummary?: string): Record<string, unknown> | null {
     if (!payloadSummary) {
-      return []
+      return null
     }
     try {
-      const payload = JSON.parse(payloadSummary) as { atUsers?: unknown }
-      return Array.isArray(payload.atUsers) ? payload.atUsers.map((item) => normalizeString(item)).filter(Boolean) : []
+      const payload = JSON.parse(payloadSummary)
+      return payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>) : null
     } catch {
+      return null
+    }
+  }
+
+  private parseAtUsers(payload?: Record<string, unknown> | null): string[] {
+    if (!payload) {
       return []
     }
+    const value = payload.atUsers
+    return Array.isArray(value) ? value.map((item) => normalizeString(item)).filter(Boolean) : []
   }
 
   private resolveOptions(

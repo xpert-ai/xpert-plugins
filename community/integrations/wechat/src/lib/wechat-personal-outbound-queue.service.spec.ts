@@ -14,6 +14,12 @@ import {
 } from './wechat-personal-outbound-queue.service.js'
 
 describe('WechatPersonalOutboundQueueService', () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
   const integration = {
     id: 'integration-1',
     provider: WECHAT_PERSONAL_PROVIDER_KEY,
@@ -50,7 +56,8 @@ describe('WechatPersonalOutboundQueueService', () => {
 
   function createService(options: { redis?: ReturnType<typeof createRedis>; integrationRead?: jest.Mock } = {}) {
     const client = {
-      sendText: jest.fn(async () => ({ success: true, messageId: 'wx-msg-1' }))
+      sendText: jest.fn(async () => ({ success: true, messageId: 'wx-msg-1' })),
+      sendImage: jest.fn(async () => ({ success: true, messageId: 'wx-img-1' }))
     }
     const redis = options.redis ?? createRedis()
     const outboundQueue = {
@@ -145,6 +152,11 @@ describe('WechatPersonalOutboundQueueService', () => {
         contactId: 'wxid_friend',
         direction: 'outbound',
         status: 'queued',
+        payloadSummary: JSON.stringify({
+          type: 'text',
+          source: 'message_reply',
+          atUsers: []
+        }),
         scheduledAt: expect.any(Date)
       })
     )
@@ -157,6 +169,45 @@ describe('WechatPersonalOutboundQueueService', () => {
       expect.objectContaining({
         jobId: expect.stringMatching(/^plugin_wechat_personal_outbound-/),
         delay: expect.any(Number),
+        attempts: 2
+      })
+    )
+  })
+
+  it('creates an outbound image log with a typed payload', async () => {
+    const { service, outboundQueue, messageLogRepository } = createService()
+
+    const result = await service.enqueueImage(integration as any, {
+      type: 'image',
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      imageUrl: 'https://example.com/a.png'
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        outboundLogId: 'log-1'
+      })
+    )
+    expect(messageLogRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'https://example.com/a.png',
+        payloadSummary: JSON.stringify({
+          type: 'image',
+          source: 'message_reply',
+          imageUrl: 'https://example.com/a.png'
+        })
+      })
+    )
+    expect(outboundQueue.add).toHaveBeenCalledWith(
+      WECHAT_PERSONAL_OUTBOUND_SEND_TEXT_JOB,
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        outboundLogId: 'log-1'
+      }),
+      expect.objectContaining({
         attempts: 2
       })
     )
@@ -204,6 +255,44 @@ describe('WechatPersonalOutboundQueueService', () => {
     expect(accountRepository.update).toHaveBeenCalledWith(
       expect.objectContaining({ integrationId: 'integration-1', uuid: 'uuid-1' }),
       expect.objectContaining({ status: 'online', lastSendAt: expect.any(Date) })
+    )
+  })
+
+  it('downloads and sends an image job based on the typed payload', async () => {
+    globalThis.fetch = jest.fn(async () => {
+      return new Response(Buffer.from('image-bytes'), {
+        status: 200,
+        headers: {
+          'content-type': 'image/png'
+        }
+      })
+    }) as unknown as typeof fetch
+    const { service, client, messageLogRepository } = createService()
+    messageLogRepository.findOne.mockResolvedValueOnce(
+      createLog({
+        content: 'https://example.com/a.png',
+        payloadSummary: JSON.stringify({
+          type: 'image',
+          source: 'agent_callback',
+          imageUrl: 'https://example.com/a.png'
+        })
+      })
+    )
+
+    await service.processSendTextJob(createJob() as any)
+
+    expect(client.sendText).not.toHaveBeenCalled()
+    expect(client.sendImage).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageContent: Buffer.from('image-bytes').toString('base64')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'log-1' }),
+      expect.objectContaining({ status: 'sent', messageId: 'wx-img-1', sentAt: expect.any(Date) })
     )
   })
 
