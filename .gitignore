@@ -1,5 +1,6 @@
 .env*
 .artifacts
+.superpowers/
 node_modules
 dist
 coverage
