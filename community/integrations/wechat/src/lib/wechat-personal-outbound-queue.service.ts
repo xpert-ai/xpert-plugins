@@ -55,12 +55,19 @@ export type WechatPersonalQueuedSendResult = {
   error?: string
 }
 
-export type WechatPersonalOutboundSource = 'agent_callback' | 'manual' | 'resend' | 'message_reply'
+export type WechatPersonalOutboundSource =
+  | 'agent_callback'
+  | 'agent_tool'
+  | 'manual'
+  | 'resend'
+  | 'message_reply'
+  | 'scheduled_agent'
 
 export type WechatPersonalOutboundQueueTextInput = WechatPersonalSendTextInput & {
   type?: 'text'
   context?: WechatPersonalChatCallbackContext
   source?: WechatPersonalOutboundSource
+  idempotencyKey?: string
 }
 
 export type WechatPersonalOutboundQueueImageInput = {
@@ -70,6 +77,7 @@ export type WechatPersonalOutboundQueueImageInput = {
   imageUrl: string
   context?: WechatPersonalChatCallbackContext
   source?: WechatPersonalOutboundSource
+  idempotencyKey?: string
 }
 
 export type WechatPersonalOutboundQueueInput =
@@ -81,11 +89,13 @@ type WechatPersonalQueuedPayload =
       type: 'text'
       source: WechatPersonalOutboundSource
       atUsers: string[]
+      idempotencyKey?: string
     }
   | {
       type: 'image'
       source: WechatPersonalOutboundSource
       imageUrl: string
+      idempotencyKey?: string
     }
 
 type WechatPersonalResolvedQueuedPayload =
@@ -172,7 +182,8 @@ export class WechatPersonalOutboundQueueService {
       uuid: normalizeString(input.uuid),
       contactId: normalizeString(input.contactId),
       content: normalizeString(input.content),
-      atUsers: Array.isArray(input.atUsers) ? input.atUsers.map((item) => normalizeString(item)).filter(Boolean) : []
+      atUsers: Array.isArray(input.atUsers) ? input.atUsers.map((item) => normalizeString(item)).filter(Boolean) : [],
+      idempotencyKey: normalizeString(input.idempotencyKey)
     }
     if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.content) {
       return {
@@ -189,7 +200,8 @@ export class WechatPersonalOutboundQueueService {
       payload: {
         type: 'text',
         source: input.source || 'message_reply',
-        atUsers: normalizedInput.atUsers
+        atUsers: normalizedInput.atUsers,
+        ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
       }
     })
   }
@@ -201,7 +213,8 @@ export class WechatPersonalOutboundQueueService {
     const normalizedInput = {
       uuid: normalizeString(input.uuid),
       contactId: normalizeString(input.contactId),
-      imageUrl: normalizeString(input.imageUrl)
+      imageUrl: normalizeString(input.imageUrl),
+      idempotencyKey: normalizeString(input.idempotencyKey)
     }
     if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.imageUrl) {
       return {
@@ -218,7 +231,8 @@ export class WechatPersonalOutboundQueueService {
       payload: {
         type: 'image',
         source: input.source || 'message_reply',
-        imageUrl: normalizedInput.imageUrl
+        imageUrl: normalizedInput.imageUrl,
+        ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
       }
     })
   }

@@ -223,7 +223,7 @@ export class WechatPersonalChannelStrategy
       contactId?: string | null
       content: string
       atUsers?: string[] | null
-    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source'>
+    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
   ): Promise<WechatPersonalReplySendResult> {
     const parts = parseWechatPersonalOutgoingContent(params.content)
     if (!parts.length) {
@@ -243,7 +243,8 @@ export class WechatPersonalChannelStrategy
               contactId: params.contactId,
               imageUrl: part.imageUrl,
               context: params.context,
-              source: params.source
+              source: params.source,
+              idempotencyKey: params.idempotencyKey
             })
           : await this.sendTextByIntegrationId(integrationId, {
               uuid: params.uuid,
@@ -251,10 +252,11 @@ export class WechatPersonalChannelStrategy
               content: part.content,
               atUsers: params.atUsers,
               context: params.context,
-              source: params.source
+              source: params.source,
+              idempotencyKey: params.idempotencyKey
             })
 
-      const item = this.toReplyPartResult(part, result, params.source)
+      const item = this.toReplyPartResult(part, result, params.source, params.idempotencyKey)
       items.push(item)
       if (!result.success) {
         return {
@@ -286,7 +288,7 @@ export class WechatPersonalChannelStrategy
       contactId?: string | null
       content: string
       atUsers?: string[] | null
-    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source'>
+    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
   ): Promise<WechatPersonalQueuedSendResult> {
     const integration = await this.readIntegration(integrationId)
     if (!integration) {
@@ -327,7 +329,8 @@ export class WechatPersonalChannelStrategy
       content,
       atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : [],
       context: params.context,
-      source: params.source
+      source: params.source,
+      idempotencyKey: params.idempotencyKey
     })
   }
 
@@ -338,7 +341,7 @@ export class WechatPersonalChannelStrategy
       contactId?: string | null
       imageUrl?: string | null
       imageContent?: string | null
-    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source'>
+    } & Pick<WechatPersonalOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
   ): Promise<WechatPersonalQueuedSendResult> {
     const integration = await this.readIntegration(integrationId)
     if (!integration) {
@@ -395,7 +398,8 @@ export class WechatPersonalChannelStrategy
       contactId,
       imageUrl,
       context: params.context,
-      source: params.source
+      source: params.source,
+      idempotencyKey: params.idempotencyKey
     })
   }
 
@@ -440,18 +444,21 @@ export class WechatPersonalChannelStrategy
   private toReplyPartResult(
     part: WechatPersonalOutgoingContentPart,
     result: WechatPersonalQueuedSendResult,
-    source: WechatPersonalOutboundQueueTextInput['source']
+    source: WechatPersonalOutboundQueueTextInput['source'],
+    idempotencyKey?: string
   ): WechatPersonalReplyPartSendResult {
     const payloadSummary =
       part.type === 'image'
         ? JSON.stringify({
             type: 'image',
             source: source || 'message_reply',
-            imageUrl: part.imageUrl
+            imageUrl: part.imageUrl,
+            ...(idempotencyKey ? { idempotencyKey } : {})
           })
         : JSON.stringify({
             type: 'text',
-            source: source || 'message_reply'
+            source: source || 'message_reply',
+            ...(idempotencyKey ? { idempotencyKey } : {})
           })
 
     return {

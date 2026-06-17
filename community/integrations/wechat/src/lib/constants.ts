@@ -19,6 +19,7 @@ export const WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME = 'wechat_personal_res
 export const WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME = 'wechat_personal_register_callback'
 export const WECHAT_PERSONAL_SET_ACCOUNT_ENABLED_TOOL_NAME = 'wechat_personal_set_account_enabled'
 export const WECHAT_PERSONAL_LIST_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_personal_list_outbound_queue'
+export const WECHAT_PERSONAL_SEND_MESSAGE_TOOL_NAME = 'wechat_personal_send_message'
 export const WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_personal_cancel_outbound_queue_item'
 export const WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_personal_retry_outbound_queue_item'
 export const WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME = 'wechat_personal_pause_outbound_account'

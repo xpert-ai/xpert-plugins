@@ -118,7 +118,8 @@ describe('wechat personal inbound normalization', () => {
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
       sendusername: 'wxid_sender',
-      content: '@bot 帮我看一下',
+      content: '@小白龙 帮我看一下',
+      msgsource: '<msgsource><atuserlist><![CDATA[wxid_owner]]></atuserlist></msgsource>',
       newmsgid: '4005',
       msgtype: 1,
       isself: false
@@ -158,9 +159,11 @@ describe('wechat personal inbound normalization', () => {
     })
     const groupEvent = normalizeWechatPersonalInboundPayload({
       uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
       sendusername: 'wxid_sender',
-      content: '@bot hello',
+      content: '@小白龙 hello',
+      msgsource: '<msgsource><atuserlist>wxid_owner</atuserlist></msgsource>',
       newmsgid: '5002',
       msgtype: 1,
       isself: false
@@ -182,6 +185,37 @@ describe('wechat personal inbound normalization', () => {
         groupTriggerMode: 'mentions'
       })?.triggerReason
     ).toBe('mention')
+  })
+
+  it('only uses configured display names for loose @ mention fallback', () => {
+    const groupEvent = normalizeWechatPersonalInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      content: '@小白龙 帮我看一下',
+      newmsgid: '5003',
+      msgtype: 1,
+      isself: false
+    })
+
+    expect(
+      shouldDispatchWechatPersonalMessage(groupEvent, {
+        groupTriggerMode: 'mentions'
+      })
+    ).toBeNull()
+    const mention = shouldDispatchWechatPersonalMessage(groupEvent, {
+      groupTriggerMode: 'mentions',
+      mentionFallbackNames: ['小白龙']
+    })
+    expect(mention?.triggerReason).toBe('mention')
+    expect(mention?.input).toBe('帮我看一下')
+    expect(
+      shouldDispatchWechatPersonalMessage(groupEvent, {
+        groupTriggerMode: 'mentions',
+        mentionFallbackNames: ['小白']
+      })
+    ).toBeNull()
   })
 
   it('builds conversation key with group sender split', () => {

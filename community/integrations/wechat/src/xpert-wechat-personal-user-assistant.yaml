@@ -23,6 +23,12 @@ team:
         - wechat-personal-runtime
         - wechat-personal-workbench
   agentConfig:
+    stateVariables:
+      - name: xpertTaskSchedule
+        type: object
+        default: {}
+        description: Generic platform scheduled task runtime state. Contains selected target and idempotencyKey.
+        operation: null
     recursionLimit: 10000
   features:
     sandbox:
@@ -75,9 +81,11 @@ nodes:
         that needs external systems or permissions you do not have, explain what information or access is
         needed.
 
-        Personal WeChat runtime tools are available only for setup, status, callback, account, conversation,
-        and log administration requests. Do not use them for ordinary replies. Your final answer is
-        automatically sent back to WeChat by the plugin after the Agent finishes.
+        Your final answer is automatically sent back to the current WeChat conversation by the plugin after
+        the Agent finishes. Do not call tools for ordinary replies. Personal WeChat runtime tools in this
+        user assistant are limited to controlled proactive sending to preconfigured targets. When a scheduled
+        task injects xpertTaskSchedule in runtime state, draft the scheduled content and call
+        wechat_personal_send_message with that content; the middleware resolves the target from trusted state.
 
         Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Use plain,
         WeChat-friendly text instead of Markdown formatting. Avoid markdown tables, decorative headings,
@@ -110,6 +118,7 @@ nodes:
         allowedSenderIds: []
         blockedSenderIds: []
         groupTriggerMode: mention_or_keywords
+        mentionFallbackNames: []
         integrationId: ""
     hash: wechat-personal-user-trigger-v1
   - type: workflow
@@ -124,7 +133,9 @@ nodes:
       provider: WechatPersonalRuntimeMiddleware
       required: true
       options:
+        toolMode: user
         integrationId: ""
+        scheduleTargets: []
     hash: wechat-personal-user-middleware-v1
 connections:
   - type: workflow

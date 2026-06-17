@@ -77,6 +77,14 @@ export function injectStyles() {
 code { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; font-size: 11px; }
 details summary { cursor: pointer; color: var(--xui-color-foreground); }
 pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-muted); padding: 8px; white-space: pre-wrap; }
+.wxp-message-cell { display: grid; gap: 6px; min-width: 320px; max-width: 560px; }
+.wxp-message-cell-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.wxp-message-cell-head small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--xui-color-muted-foreground); font-size: 11px; }
+.wxp-message-cell strong { color: var(--xui-color-foreground); font-size: 12px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.wxp-message-cell details { min-width: 0; }
+.wxp-message-cell details summary { color: var(--xui-color-primary); font-size: 12px; font-weight: 600; }
+.wxp-message-cell pre { max-width: min(720px, 72vw); max-height: 260px; font-size: 11px; line-height: 1.5; }
+.wxp-message-cell-error { border-left: 3px solid var(--xui-color-destructive, var(--mat-sys-error)); padding-left: 8px; }
 .wxp-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }
 .wxp-kv { display: grid; gap: 3px; border-bottom: 1px solid var(--xui-color-border); padding: 7px 0; }
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }

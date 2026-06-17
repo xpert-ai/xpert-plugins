@@ -145,6 +145,7 @@ export type WechatPersonalRuntimeStatus = {
     ignoreSelfMessages: boolean
     groupTriggerMode: string
     groupKeywords: string[]
+    mentionFallbackNames: string[]
     updatedAt: Date | null
   } | null
   accounts: WechatPersonalAccountEntity[]
@@ -382,7 +383,8 @@ export class WechatPersonalConversationService {
         allowedSenderIds: binding.allowedSenderIds,
         blockedSenderIds: binding.blockedSenderIds,
         groupTriggerMode: binding.groupTriggerMode,
-        groupKeywords: binding.groupKeywords ?? []
+        groupKeywords: binding.groupKeywords ?? [],
+        mentionFallbackNames: binding.mentionFallbackNames ?? []
       })
       if (!dispatchable) {
         await this.updateLog(inboundLog.id, {
@@ -845,6 +847,7 @@ export class WechatPersonalConversationService {
             ignoreSelfMessages: triggerBinding.ignoreSelfMessages !== false,
             groupTriggerMode: triggerBinding.groupTriggerMode,
             groupKeywords: triggerBinding.groupKeywords ?? [],
+            mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
             updatedAt: this.normalizeDate(triggerBinding.updatedAt) ?? null
           }
         : null,
@@ -1112,6 +1115,28 @@ export class WechatPersonalConversationService {
     })
 
     return this.paginateItems(filtered, page, pageSize)
+  }
+
+  async findOutboundByIdempotencyKey(
+    integrationId: string,
+    idempotencyKey: string
+  ): Promise<WechatPersonalMessageLogEntity | null> {
+    const normalizedIntegrationId = normalizeConversationKey(integrationId)
+    const normalizedKey = normalizeString(idempotencyKey)
+    if (!normalizedIntegrationId || !normalizedKey) {
+      return null
+    }
+
+    const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
+    const logs = await this.messageLogRepository.find({
+      where: this.scopedWhere({ integrationId: normalizedIntegrationId, direction: 'outbound' as const }, scope),
+      order: { createdAt: 'DESC' },
+      take: 5000
+    })
+
+    return (
+      logs.find((log) => this.parseOutboundPayloadSummary(log.payloadSummary)?.idempotencyKey === normalizedKey) ?? null
+    )
   }
 
   async searchOrganizationMessageLogs(
