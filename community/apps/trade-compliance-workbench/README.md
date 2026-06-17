@@ -15,13 +15,13 @@ The Workbench exposes three pages inside one remote component:
 ## Build
 
 ```sh
-pnpm --filter @xpert-ai/plugin-trade-compliance-workbench build
+pnpm --filter @chenchaolong/plugin-trade-compliance-workbench build
 ```
 
 ## Test
 
 ```sh
-pnpm --filter @xpert-ai/plugin-trade-compliance-workbench test
+pnpm --filter @chenchaolong/plugin-trade-compliance-workbench test
 ```
 
 ## Lifecycle Validation
@@ -32,5 +32,5 @@ From the repository root:
 pnpm -C plugin-dev-harness build
 node plugin-dev-harness/dist/index.js \
   --workspace ./community/apps/trade-compliance-workbench \
-  --plugin @xpert-ai/plugin-trade-compliance-workbench
+  --plugin @chenchaolong/plugin-trade-compliance-workbench
 ```

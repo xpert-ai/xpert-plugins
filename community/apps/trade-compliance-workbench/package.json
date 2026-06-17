@@ -1,5 +1,5 @@
 {
-  "name": "@xpert-ai/plugin-trade-compliance-workbench",
+  "name": "@chenchaolong/plugin-trade-compliance-workbench",
   "version": "0.1.0",
   "description": "Trade Compliance Workbench app plugin for controlled goods review, supplier product management, and customs workbook generation.",
   "author": {
@@ -9,7 +9,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
     "directory": "community/apps/trade-compliance-workbench"
   },
   "bugs": {

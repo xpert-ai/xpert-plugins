@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first version of `@xpert-ai/plugin-trade-compliance-workbench` with three Workbench pages, shared review batches, product enrichment fallback, controlled goods warning matching, and customs workbook data generation.
+**Goal:** Build the first version of `@chenchaolong/plugin-trade-compliance-workbench` with three Workbench pages, shared review batches, product enrichment fallback, controlled goods warning matching, and customs workbook data generation.
 
 **Architecture:** Follow the existing `community/apps` app plugin pattern. The plugin exports an `XpertPlugin`, registers a Nest module with TypeORM entities, exposes Assistant middleware tools, contributes one Workbench view provider with a remote React iframe, and includes assistant template assets. Core business behavior lives in small pure helper modules with focused tests before service integration.
 
@@ -42,7 +42,7 @@
 - [ ] Create package scaffold by copying the structure used by `community/apps/procurement-quote-comparison`.
 - [ ] Add constants for provider key, middleware name, feature key, view key, template provider key, and tool names.
 - [ ] Add zod config with optional product enrichment API/MCP settings and template defaults.
-- [ ] Run `pnpm --filter @xpert-ai/plugin-trade-compliance-workbench test`; expected initial pass once files compile.
+- [ ] Run `pnpm --filter @chenchaolong/plugin-trade-compliance-workbench test`; expected initial pass once files compile.
 
 ### Task 2: Core Matching and Enrichment
 
@@ -116,10 +116,10 @@
 **Files:**
 - No new source files unless validation exposes issues.
 
-- [ ] Run `pnpm --filter @xpert-ai/plugin-trade-compliance-workbench build`.
-- [ ] Run `pnpm --filter @xpert-ai/plugin-trade-compliance-workbench test`.
+- [ ] Run `pnpm --filter @chenchaolong/plugin-trade-compliance-workbench build`.
+- [ ] Run `pnpm --filter @chenchaolong/plugin-trade-compliance-workbench test`.
 - [ ] Run `pnpm -C plugin-dev-harness build`.
-- [ ] Run `node plugin-dev-harness/dist/index.js --workspace ./community/apps/trade-compliance-workbench --plugin @xpert-ai/plugin-trade-compliance-workbench`.
+- [ ] Run `node plugin-dev-harness/dist/index.js --workspace ./community/apps/trade-compliance-workbench --plugin @chenchaolong/plugin-trade-compliance-workbench`.
 - [ ] Fix any lifecycle failures and rerun the failing command.
 
 ## Coverage Check
