@@ -214,7 +214,8 @@ export class TradeComplianceWorkbenchViewProvider implements IXpertViewExtension
 }
 
 async function readPackageFile(packageName: string, filePath: string) {
-  return readFile(requireFromHere.resolve(join(packageName, filePath)), 'utf8')
+  const packageRoot = dirname(requireFromHere.resolve(`${packageName}/package.json`))
+  return readFile(join(packageRoot, filePath), 'utf8')
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): TradeComplianceScope {
