@@ -21,7 +21,8 @@ import {
   normalizeGroupTriggerMode,
   normalizeIdList,
   normalizeKeywords,
-  TIntegrationWechatPersonalOptions
+  TIntegrationWechatPersonalOptions,
+  type WechatPersonalInboundFile
 } from '../types.js'
 import { WechatPersonalChannelStrategy } from '../wechat-personal-channel.strategy.js'
 import {
@@ -36,6 +37,7 @@ const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
 const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
 const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
 const MAX_HISTORY_CONTEXT_LIMIT = 100
+const IMAGE_ONLY_AGGREGATE_INPUT = '[理解图片]'
 
 type WechatPersonalTenantScope = {
   tenantId?: string | null
@@ -451,6 +453,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
   async handleInboundMessage(params: {
     integrationId: string
     input?: string
+    files?: WechatPersonalInboundFile[]
     wechatMessage: WechatPersonalMessage
     conversationUserKey?: string
     historyContext?: string
@@ -484,6 +487,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         dispatchPayload: {
           xpertId: binding.xpertId,
           input: this.composeDispatchInput(params.input || '', params.historyContext),
+          files: params.files,
           wechatMessage: params.wechatMessage,
           conversationUserKey: aggregateKey,
           tenantId: params.tenantId,
@@ -500,6 +504,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       integrationId: params.integrationId,
       xpertId: binding.xpertId,
       input: params.input || '',
+      files: params.files,
       historyContext: params.historyContext,
       currentInboundLogIds: params.currentInboundLogIds,
       summaryWindowSeconds,
@@ -552,6 +557,7 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         xpertId: payload.xpertId,
         version: nextVersion,
         inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), payload.input || ''],
+        files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(payload.files ?? [])],
         currentInboundLogIds: [
           ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
           ...(payload.currentInboundLogIds ?? [])
@@ -586,13 +592,22 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       return false
     }
 
+    const aggregatedInput = this.composeAggregatedInput(state.inputParts, state.files)
+    const dispatchInput = this.composeDispatchInput(aggregatedInput, state.historyContext)
+    this.logger.log(
+      `[wechat-personal-trigger] flush aggregate key=${aggregateKey} version=${state.version} aggregateInputPreview=${JSON.stringify(
+        this.previewText(aggregatedInput)
+      )} defaultImageInput=${aggregatedInput === IMAGE_ONLY_AGGREGATE_INPUT} files=${state.files?.length ?? 0}`
+    )
+
     await this.dispatchInboundMessage({
       integrationId: state.integrationId,
       xpertId: state.xpertId,
       dispatchMode: `buffered version=${state.version}`,
       dispatchPayload: {
         xpertId: state.xpertId,
-        input: this.composeDispatchInput(state.inputParts.join('\n'), state.historyContext),
+        input: dispatchInput,
+        files: state.files,
         wechatMessage: new WechatPersonalMessage(
           {
             integrationId: state.latestMessage.integrationId,
@@ -627,6 +642,13 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
     dispatchMode: string
     dispatchPayload: WechatPersonalChatDispatchInput
   }): Promise<void> {
+    this.logger.log(
+      `[wechat-personal-trigger] dispatch integrationId=${params.integrationId} xpertId=${params.xpertId} mode=${params.dispatchMode} inputLength=${
+        params.dispatchPayload.input?.length ?? 0
+      } inputPreview=${JSON.stringify(this.previewText(params.dispatchPayload.input ?? ''))} files=${
+        params.dispatchPayload.files?.length ?? 0
+      }`
+    )
     const callback = this.callbacks.get(params.integrationId)
     if (!callback) {
       this.logger.debug(
@@ -644,6 +666,11 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
         handoffMessage
       })
     )
+  }
+
+  private previewText(input: string): string {
+    const normalized = input.replace(/\s+/g, ' ').trim()
+    return normalized.length > 120 ? `${normalized.slice(0, 117)}...` : normalized
   }
 
   private async resolveBindingContext(integrationId: string): Promise<{
@@ -709,6 +736,16 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       return input
     }
     return `${history}\n\n[本次用户消息]\n${input}`
+  }
+
+  private composeAggregatedInput(inputParts: string[], files?: WechatPersonalInboundFile[]): string {
+    const input = (Array.isArray(inputParts) ? inputParts : [])
+      .map((part) => (typeof part === 'string' ? part : ''))
+      .join('\n')
+    if (input.trim()) {
+      return input
+    }
+    return Array.isArray(files) && files.length > 0 ? IMAGE_ONLY_AGGREGATE_INPUT : ''
   }
 
   private async removeBindingFromStore(integrationId: string, expectedXpertId?: string): Promise<void> {

@@ -39,6 +39,14 @@ describe('WechatPersonalChatDispatchService', () => {
     const message = await service.buildDispatchMessage({
       xpertId: 'xpert-1',
       input: '你好',
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+          mimeType: 'image/png',
+          originalName: 'wechat-image.png',
+          fileKey: 'file-key-1'
+        }
+      ],
       wechatMessage,
       conversationId: 'old-conversation-1',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
@@ -50,8 +58,21 @@ describe('WechatPersonalChatDispatchService', () => {
     expect((message.payload as any).request).toEqual({
       action: 'send',
       message: {
+        clientMessageId: 'wechat-personal:integration-1:uuid-1:msg-1',
         input: {
           input: '你好',
+          files: [
+            {
+              fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+              url: 'data:image/png;base64,iVBORw0KGgo=',
+              mimeType: 'image/png',
+              mimetype: 'image/png',
+              originalName: 'wechat-image.png',
+              name: 'wechat-image.png',
+              extension: 'png',
+              fileKey: 'file-key-1'
+            }
+          ],
           contactId: 'wxid_friend'
         }
       },
@@ -59,6 +80,18 @@ describe('WechatPersonalChatDispatchService', () => {
         contactId: 'wxid_friend',
         human: {
           input: '你好',
+          files: [
+            {
+              fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+              url: 'data:image/png;base64,iVBORw0KGgo=',
+              mimeType: 'image/png',
+              mimetype: 'image/png',
+              originalName: 'wechat-image.png',
+              name: 'wechat-image.png',
+              extension: 'png',
+              fileKey: 'file-key-1'
+            }
+          ],
           contactId: 'wxid_friend'
         }
       }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'reflect-metadata';
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -72,6 +72,7 @@ interface PluginSdkRuntimeLike {
   INTEGRATION_PERMISSION_SERVICE_TOKEN?: unknown;
   USER_PERMISSION_SERVICE_TOKEN?: unknown;
   HANDOFF_PERMISSION_SERVICE_TOKEN?: unknown;
+  SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN?: unknown;
   ANALYTICS_PERMISSION_SERVICE_TOKEN?: unknown;
   HANDOFF_QUEUE_SERVICE_TOKEN?: unknown;
 }
@@ -100,6 +101,14 @@ interface HarnessLogger {
   warn(message: string, meta?: unknown): void;
   error(message: string, meta?: unknown): void;
 }
+
+const PACKAGE_SEARCH_IGNORED_DIRS = new Set([
+  '.git',
+  '.turbo',
+  'coverage',
+  'dist',
+  'node_modules'
+]);
 
 function printUsage() {
   // Keep output short and explicit so CI logs stay easy to scan.
@@ -194,21 +203,105 @@ function resolveWorkspaceRoot(input: string): string {
   return workspaceRoot;
 }
 
-function loadNestRuntimeFromWorkspace(workspaceRoot: string): NestRuntimeLike {
+function resolvePackageRequireFromWorkspace(workspaceRoot: string, packageName: string) {
+  const workspacePackageJson = path.join(workspaceRoot, 'package.json');
+  const requireFromWorkspace = createRequire(workspacePackageJson);
+
+  try {
+    const packageJsonPath = requireFromWorkspace.resolve(`${packageName}/package.json`);
+    return {
+      packageJsonPath,
+      requireFromPackage: createRequire(packageJsonPath)
+    };
+  } catch {
+    const packageJsonPath = findPackageJsonByName(workspaceRoot, packageName);
+    return packageJsonPath
+      ? {
+          packageJsonPath,
+          requireFromPackage: createRequire(packageJsonPath)
+        }
+      : undefined;
+  }
+}
+
+function findPackageJsonByName(workspaceRoot: string, packageName: string): string | undefined {
+  const pending = [workspaceRoot];
+
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current) {
+      continue;
+    }
+
+    const packageJsonPath = path.join(current, 'package.json');
+    if (existsSync(packageJsonPath)) {
+      try {
+        const raw = readFileSync(packageJsonPath, 'utf8');
+        const parsed = JSON.parse(raw) as { name?: unknown };
+        if (parsed.name === packageName) {
+          return packageJsonPath;
+        }
+      } catch {
+        // Ignore malformed package files while scanning; the explicit loader will report errors later.
+      }
+    }
+
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || PACKAGE_SEARCH_IGNORED_DIRS.has(entry.name)) {
+        continue;
+      }
+      pending.push(path.join(current, entry.name));
+    }
+  }
+
+  return undefined;
+}
+
+function resolvePackageEntryFromPackageJson(packageJsonPath: string): string {
+  const packageDir = path.dirname(packageJsonPath);
+  const packageJson = readJsonObject(packageJsonPath);
+  const main = typeof packageJson.main === 'string' && packageJson.main
+    ? packageJson.main
+    : './index.js';
+  return path.resolve(packageDir, main);
+}
+
+function loadNestRuntimeFromWorkspace(workspaceRoot: string, pluginName: string): NestRuntimeLike {
   const workspacePackageJson = path.join(workspaceRoot, 'package.json');
   const requireFromWorkspace = createRequire(workspacePackageJson);
   let nestCore: unknown;
+  let runtimeSource = workspaceRoot;
 
   try {
     nestCore = requireFromWorkspace('@nestjs/core');
   } catch (error) {
-    throw new Error(
-      `Failed to load @nestjs/core from workspace '${workspaceRoot}': ${toErrorMessage(error)}`
-    );
+    const packageRequire = resolvePackageRequireFromWorkspace(workspaceRoot, pluginName);
+    try {
+      nestCore = packageRequire?.requireFromPackage('@nestjs/core');
+      if (packageRequire) {
+        runtimeSource = path.dirname(packageRequire.packageJsonPath);
+      }
+    } catch (pluginError) {
+      throw new Error(
+        `Failed to load @nestjs/core from workspace '${workspaceRoot}' or plugin '${pluginName}': ${toErrorMessage(error)}; ${toErrorMessage(pluginError)}`
+      );
+    }
+    if (!nestCore) {
+      throw new Error(
+        `Failed to load @nestjs/core from workspace '${workspaceRoot}' or plugin '${pluginName}': ${toErrorMessage(error)}`
+      );
+    }
   }
 
   if (!isPlainObject(nestCore)) {
-    throw new Error(`Invalid @nestjs/core export loaded from workspace '${workspaceRoot}'.`);
+    throw new Error(`Invalid @nestjs/core export loaded from '${runtimeSource}'.`);
   }
 
   const NestFactory = nestCore.NestFactory;
@@ -220,7 +313,7 @@ function loadNestRuntimeFromWorkspace(workspaceRoot: string): NestRuntimeLike {
     typeof NestFactory.createApplicationContext !== 'function'
   ) {
     throw new Error(
-      `Workspace '@nestjs/core' does not expose NestFactory.createApplicationContext and ModuleRef.`
+      `'@nestjs/core' loaded from '${runtimeSource}' does not expose NestFactory.createApplicationContext and ModuleRef.`
     );
   }
 
@@ -230,7 +323,10 @@ function loadNestRuntimeFromWorkspace(workspaceRoot: string): NestRuntimeLike {
   };
 }
 
-function loadPluginSdkRuntimeFromWorkspace(workspaceRoot: string): PluginSdkRuntimeLike | undefined {
+function loadPluginSdkRuntimeFromWorkspace(
+  workspaceRoot: string,
+  pluginName: string
+): PluginSdkRuntimeLike | undefined {
   const workspacePackageJson = path.join(workspaceRoot, 'package.json');
   const requireFromWorkspace = createRequire(workspacePackageJson);
 
@@ -238,7 +334,16 @@ function loadPluginSdkRuntimeFromWorkspace(workspaceRoot: string): PluginSdkRunt
     const pluginSdk = requireFromWorkspace('@xpert-ai/plugin-sdk');
     return isPlainObject(pluginSdk) ? pluginSdk as PluginSdkRuntimeLike : undefined;
   } catch {
-    return undefined;
+    const packageRequire = resolvePackageRequireFromWorkspace(workspaceRoot, pluginName);
+    if (!packageRequire) {
+      return undefined;
+    }
+    try {
+      const pluginSdk = packageRequire.requireFromPackage('@xpert-ai/plugin-sdk');
+      return isPlainObject(pluginSdk) ? pluginSdk as PluginSdkRuntimeLike : undefined;
+    } catch {
+      return undefined;
+    }
   }
 }
 
@@ -287,11 +392,11 @@ function createCacheMockModule(): DynamicModuleLike {
   };
 }
 
-function createPermissionServiceMocks(workspaceRoot: string): {
+function createPermissionServiceMocks(workspaceRoot: string, pluginName: string): {
   module?: DynamicModuleLike;
   fallbacks: Map<unknown, unknown>;
 } {
-  const runtime = loadPluginSdkRuntimeFromWorkspace(workspaceRoot);
+  const runtime = loadPluginSdkRuntimeFromWorkspace(workspaceRoot, pluginName);
   const fallbacks = new Map<unknown, unknown>();
   if (!runtime) {
     return { fallbacks };
@@ -302,7 +407,29 @@ function createPermissionServiceMocks(workspaceRoot: string): {
     findAll: async () => ({
       items: [],
       total: 0
-    })
+    }),
+    ensureWebhookCredential: async (id: string) => ({
+      token: `mock-webhook-secret-${id}`,
+      credential: {
+        id: `mock-webhook-credential-${id}`,
+        tokenHash: 'mock-token-hash',
+        tokenPrefix: 'pwh',
+        createdAt: new Date(0).toISOString(),
+        revokedAt: null
+      }
+    }),
+    rotateWebhookCredential: async (id: string) => ({
+      token: `mock-rotated-webhook-secret-${id}`,
+      credential: {
+        id: `mock-rotated-webhook-credential-${id}`,
+        tokenHash: 'mock-rotated-token-hash',
+        tokenPrefix: 'pwh',
+        createdAt: new Date(0).toISOString(),
+        rotatedAt: new Date(0).toISOString(),
+        revokedAt: null
+      }
+    }),
+    revokeWebhookCredential: async () => true
   };
   const userPermissionService = {
     read: async () => null,
@@ -311,6 +438,12 @@ function createPermissionServiceMocks(workspaceRoot: string): {
   const handoffPermissionService = {
     enqueue: async () => ({ id: 'mock-handoff-id' }),
     enqueueAndWait: async () => ({ status: 'completed' })
+  };
+  const speechToTextPermissionService = {
+    transcribe: async () => ({
+      text: 'mock speech transcription',
+      language: null
+    })
   };
   const analyticsPermissionService = {
     resolveChatBIModels: async () => [],
@@ -335,6 +468,7 @@ function createPermissionServiceMocks(workspaceRoot: string): {
   register(runtime.INTEGRATION_PERMISSION_SERVICE_TOKEN, integrationPermissionService);
   register(runtime.USER_PERMISSION_SERVICE_TOKEN, userPermissionService);
   register(runtime.HANDOFF_PERMISSION_SERVICE_TOKEN, handoffPermissionService);
+  register(runtime.SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN, speechToTextPermissionService);
   register(runtime.ANALYTICS_PERMISSION_SERVICE_TOKEN, analyticsPermissionService);
 
   if (!providers.length) {
@@ -385,9 +519,14 @@ async function loadPluginFromWorkspace(
   try {
     resolvedEntry = requireFromWorkspace.resolve(pluginName);
   } catch (error) {
-    throw new Error(
-      `Plugin resolve failed for '${pluginName}' from workspace '${workspaceRoot}': ${toErrorMessage(error)}`
-    );
+    const packageJsonPath = findPackageJsonByName(workspaceRoot, pluginName);
+    if (packageJsonPath) {
+      resolvedEntry = resolvePackageEntryFromPackageJson(packageJsonPath);
+    } else {
+      throw new Error(
+        `Plugin resolve failed for '${pluginName}' from workspace '${workspaceRoot}': ${toErrorMessage(error)}`
+      );
+    }
   }
 
   let moduleExports: unknown;
@@ -618,7 +757,7 @@ async function safeInvoke(
 async function run(): Promise<void> {
   const options = parseCliArgs(process.argv.slice(2));
   const workspaceRoot = resolveWorkspaceRoot(options.workspace);
-  const nestRuntime = loadNestRuntimeFromWorkspace(workspaceRoot);
+  const nestRuntime = loadNestRuntimeFromWorkspace(workspaceRoot, options.plugin);
   const { plugin, resolvedEntry } = await loadPluginFromWorkspace(workspaceRoot, options.plugin);
   const rawConfig = readConfig(options.configPath);
   const validatedConfig = validateConfigWithSchema(plugin, rawConfig);
@@ -632,7 +771,7 @@ async function run(): Promise<void> {
   console.log(`[plugin-dev-harness] mocks: ${options.enableMocks ? 'enabled' : 'disabled'}`);
 
   const permissionMocks = options.enableMocks
-    ? createPermissionServiceMocks(workspaceRoot)
+    ? createPermissionServiceMocks(workspaceRoot, options.plugin)
     : { fallbacks: new Map<unknown, unknown>() };
   const context = createPluginContext(
     pluginName,
@@ -656,7 +795,7 @@ async function run(): Promise<void> {
       if (permissionMocks.module) {
         rootImports.unshift(permissionMocks.module);
       }
-      const typeOrmMockModule = createTypeOrmMockModule(workspaceRoot);
+      const typeOrmMockModule = createTypeOrmMockModule(workspaceRoot, options.plugin);
       if (typeOrmMockModule) {
         rootImports.unshift(typeOrmMockModule);
       }

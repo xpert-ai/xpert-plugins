@@ -77,7 +77,7 @@ export class WechatPersonalChannelStrategy
   meta: TChatChannelMeta = {
     type: WECHAT_PERSONAL_CHANNEL_TYPE,
     label: '个人微信 / WeChat Personal',
-    description: 'wx2.0 personal WeChat webhook, text, and image reply bridge',
+    description: 'wx2.0 personal WeChat webhook, text/image/voice inbound, and text/image reply bridge',
     icon: WECHAT_PERSONAL_ICON,
     configSchema: {
       type: 'object',
@@ -177,7 +177,8 @@ export class WechatPersonalChannelStrategy
       senderId,
       senderName: event.senderName,
       content: event.content,
-      contentType: 'text',
+      contentType: event.messageKind === 'image' ? 'image' : event.messageKind === 'voice' ? 'voice' : 'text',
+      ...(event.files?.length ? { files: event.files } : {}),
       mentions: event.chatType === 'group' ? this.resolveMentions(event) : undefined,
       timestamp: event.timestamp || Date.now(),
       raw: event.rawPayload ?? event.raw ?? event

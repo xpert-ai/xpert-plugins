@@ -131,7 +131,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   },
   permissions: [
     { type: 'integration', service: WECHAT_PERSONAL_PROVIDER_KEY, operations: ['read', 'write'] },
-    { type: 'handoff', operations: ['enqueue'] }
+    { type: 'handoff', operations: ['enqueue'] },
+    { type: 'speech_to_text', operations: ['transcribe'] }
   ],
   templates: wechatPersonalTemplates,
   register(ctx) {

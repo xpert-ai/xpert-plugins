@@ -156,6 +156,18 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
             actionType: 'invoke'
           },
           {
+            key: 'rotate_webhook_credential',
+            label: text('Rotate Webhook Credential', '轮换回调凭据'),
+            icon: 'ri-key-2-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'revoke_webhook_credential',
+            label: text('Revoke Webhook Credential', '吊销回调凭据'),
+            icon: 'ri-lock-line',
+            actionType: 'invoke'
+          },
+          {
             key: 'restart_conversation',
             label: text('Restart Conversation', '重置会话'),
             icon: 'ri-restart-line',
@@ -325,10 +337,9 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
           return failure('Integration not found', '未找到个人微信集成')
         }
         const uuid = requireStringInput(request.input, 'uuid', 'Account uuid is required.')
-        const callbackConfig = this.conversationService.buildCallbackConfig(
-          integration.id,
-          integration.options?.callbackSecret
-        )
+        const callbackConfig = await this.conversationService.buildCallbackConfig(integration.id, {
+          requireActiveCredential: true
+        })
         const result = await this.wechatChannel.registerCallback({
           integrationId,
           uuid,
@@ -339,6 +350,16 @@ export class WechatPersonalViewProvider implements IXpertViewExtensionProvider {
           return failure(result.error || 'Register callback failed', result.error || '注册回调失败')
         }
         return success('Callback registered', '回调已注册')
+      }
+
+      if (actionKey === 'rotate_webhook_credential') {
+        await this.conversationService.rotateWebhookCredential(integrationId)
+        return success('Webhook credential rotated', '回调凭据已轮换')
+      }
+
+      if (actionKey === 'revoke_webhook_credential') {
+        await this.conversationService.revokeWebhookCredential(integrationId)
+        return success('Webhook credential revoked', '回调凭据已吊销')
       }
 
       if (actionKey === 'send_text') {

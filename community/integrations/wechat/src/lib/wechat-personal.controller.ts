@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Post, Query, Request } from '@nestjs/common'
-import { IIntegration, IUser } from '@xpert-ai/contracts'
+import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Post, Query, Request, UseGuards } from '@nestjs/common'
+import { IApiPrincipal, IIntegration } from '@xpert-ai/contracts'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
-  RequestContext,
+  PluginWebhookAuth,
+  PluginWebhookAuthGuard,
   runWithRequestContext,
   TChatEventContext,
   type PluginContext
@@ -18,6 +19,11 @@ import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strateg
 type HttpRequestLike = {
   user?: unknown
   headers?: Record<string, unknown>
+}
+
+type WechatPersonalWebhookPrincipalContext = {
+  user: IApiPrincipal
+  headers: Record<string, string>
 }
 
 @Controller('wechat-personal')
@@ -39,17 +45,21 @@ export class WechatPersonalController {
   }
 
   @Public()
+  @PluginWebhookAuth({
+    provider: WECHAT_PERSONAL_PROVIDER_KEY,
+    integrationParam: 'id',
+    secretQueryParam: 'secret'
+  })
+  @UseGuards(PluginWebhookAuthGuard)
   @Post('webhook/:id')
   @HttpCode(200)
   @Header('Content-Type', 'text/plain; charset=utf-8')
   async webhook(
     @Param('id') integrationId: string,
     @Request() req: HttpRequestLike,
-    @Body() body: unknown,
-    @Query('secret') querySecret?: string
+    @Body() body: unknown
   ): Promise<string> {
     const integration = await this.readWechatPersonalIntegration(integrationId)
-    this.verifyCallbackSecret(integration, req, querySecret)
 
     const payload = this.parseBodyToObject(body)
     if (!payload) {
@@ -66,24 +76,13 @@ export class WechatPersonalController {
       tenantId: integration.tenantId,
       organizationId: integration.organizationId
     }
-    const contextUser = RequestContext.currentUser() ?? (req.user as IUser) ?? {
-      id: `wechat-personal:${integration.id}:anonymous`,
-      tenantId: integration.tenantId,
-      organizationId: integration.organizationId
-    }
-    const requestHeaders: Record<string, string> = {
-      ['tenant-id']: integration.tenantId,
-      ['organization-id']: integration.organizationId
-    }
-    if (integration.options?.preferLanguage) {
-      requestHeaders.language = integration.options.preferLanguage
-    }
+    const principalContext = this.resolveGuardedWebhookPrincipalContext(req, integration)
 
     await new Promise<void>((resolve, reject) => {
       runWithRequestContext(
         {
-          user: contextUser,
-          headers: requestHeaders
+          user: principalContext.user,
+          headers: principalContext.headers
         },
         {},
         () => {
@@ -114,7 +113,7 @@ export class WechatPersonalController {
   @Get(':integrationId/callback-config')
   async getCallbackConfig(@Param('integrationId') integrationId: string) {
     const integration = await this.readWechatPersonalIntegration(integrationId)
-    return this.conversation.buildCallbackConfig(integration.id, integration.options?.callbackSecret)
+    return await this.conversation.buildCallbackConfig(integration.id)
   }
 
   @Post(':integrationId/accounts/:uuid/register-callback')
@@ -124,7 +123,9 @@ export class WechatPersonalController {
     @Body() body: { callbackUrl?: string; enabled?: boolean }
   ) {
     const integration = await this.readWechatPersonalIntegration(integrationId)
-    const callbackConfig = this.conversation.buildCallbackConfig(integration.id, integration.options?.callbackSecret)
+    const callbackConfig = await this.conversation.buildCallbackConfig(integration.id, {
+      requireActiveCredential: true
+    })
     const result = await this.wechatChannel.registerCallback({
       integrationId: integration.id,
       uuid,
@@ -211,22 +212,41 @@ export class WechatPersonalController {
       .filter((item) => Boolean(item.value))
   }
 
-  private verifyCallbackSecret(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+  private resolveGuardedWebhookPrincipalContext(
     req: HttpRequestLike,
-    querySecret?: string
-  ): void {
-    const expected = this.toSafeString(integration.options?.callbackSecret)
-    if (!expected) {
-      return
+    integration: IIntegration<TIntegrationWechatPersonalOptions>
+  ): WechatPersonalWebhookPrincipalContext {
+    const user = req.user as IApiPrincipal | undefined
+    if (!user?.apiKey) {
+      throw new BadRequestException('Personal WeChat webhook principal is required')
     }
-    const provided =
-      this.toSafeString(querySecret) ||
-      this.toSafeString(req.headers['x-wechat-callback-secret']) ||
-      this.toSafeString(req.headers['x-xpert-callback-secret'])
-    if (provided !== expected) {
-      throw new BadRequestException('Invalid personal WeChat callback secret')
+
+    const headers = this.resolveWebhookPrincipalHeaders(req, integration)
+    return {
+      user,
+      headers
     }
+  }
+
+  private resolveWebhookPrincipalHeaders(
+    req: HttpRequestLike,
+    integration: IIntegration<TIntegrationWechatPersonalOptions>
+  ): Record<string, string> {
+    const headers = req.headers ?? {}
+    const tenantId = this.toSafeString(headers['tenant-id']) || this.toSafeString(integration.tenantId)
+    const organizationId = this.toSafeString(headers['organization-id']) || this.toSafeString(integration.organizationId)
+    const principalHeaders: Record<string, string> = {
+      'tenant-id': tenantId,
+      'x-scope-level': organizationId ? 'organization' : 'tenant'
+    }
+    if (organizationId) {
+      principalHeaders['organization-id'] = organizationId
+    }
+    const language = this.toSafeString(headers.language) || this.toSafeString(integration.options?.preferLanguage)
+    if (language) {
+      principalHeaders.language = language
+    }
+    return principalHeaders
   }
 
   private parseBodyToObject(body: unknown): Record<string, unknown> | null {

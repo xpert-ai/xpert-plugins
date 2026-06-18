@@ -3,17 +3,6 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   defineChannelMessageType: (channel: string, key: string, version: number) => `channel.${channel}.${key}.v${version}`
 }))
 
-jest.mock('@xpert-ai/chatkit-types', () => ({
-  ChatMessageTypeEnum: {
-    MESSAGE: 'message',
-    EVENT: 'event'
-  },
-  ChatMessageEventTypeEnum: {
-    ON_CONVERSATION_START: 'on_conversation_start',
-    ON_MESSAGE_END: 'on_message_end'
-  }
-}))
-
 jest.mock('../wechat-personal-channel.strategy.js', () => ({
   WechatPersonalChannelStrategy: class WechatPersonalChannelStrategy {}
 }))
@@ -22,7 +11,7 @@ jest.mock('../conversation.service.js', () => ({
   WechatPersonalConversationService: class WechatPersonalConversationService {}
 }))
 
-import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
+import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/contracts'
 import { WechatPersonalChatCallbackProcessor } from './wechat-personal-chat-callback.processor.js'
 import {
   WechatPersonalChatRunState,

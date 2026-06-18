@@ -1,3 +1,5 @@
+import type { WechatPersonalInboundFile } from '../types.js'
+
 export interface WechatPersonalTriggerFlushPayload extends Record<string, unknown> {
   aggregateKey: string
   version: number
@@ -21,6 +23,7 @@ export interface WechatPersonalTriggerAggregationState {
   xpertId: string
   version: number
   inputParts: string[]
+  files?: WechatPersonalInboundFile[]
   currentInboundLogIds?: string[]
   historyContext?: string
   lastMessageAt: number
@@ -36,6 +39,7 @@ export interface WechatPersonalTriggerAggregatePayload extends Record<string, un
   integrationId: string
   xpertId: string
   input?: string
+  files?: WechatPersonalInboundFile[]
   historyContext?: string
   currentInboundLogIds?: string[]
   summaryWindowSeconds: number
