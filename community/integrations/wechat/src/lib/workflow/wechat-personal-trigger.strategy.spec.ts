@@ -49,7 +49,9 @@ describe('WechatPersonalTriggerStrategy', () => {
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
         historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
         ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only',
         ...bindingOverrides
       })
     }
@@ -84,6 +86,14 @@ describe('WechatPersonalTriggerStrategy', () => {
       strategy.handleInboundMessage({
         integrationId: 'integration-1',
         input: '本次消息',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            mimeType: 'image/png',
+            originalName: 'wechat-1.png',
+            fileKey: 'file-key-1'
+          }
+        ],
         wechatMessage,
         conversationId: 'old-conversation-1',
         conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
@@ -101,7 +111,15 @@ describe('WechatPersonalTriggerStrategy', () => {
     )
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        input: '[历史上下文]\n用户(wxid_friend): 之前消息\n\n[本次用户消息]\n本次消息'
+        input: '[历史上下文]\n用户(wxid_friend): 之前消息\n\n[本次用户消息]\n本次消息',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            mimeType: 'image/png',
+            originalName: 'wechat-1.png',
+            fileKey: 'file-key-1'
+          }
+        ]
       })
     )
   })
@@ -115,6 +133,14 @@ describe('WechatPersonalTriggerStrategy', () => {
       strategy.handleInboundMessage({
         integrationId: 'integration-1',
         input: '第一条',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,first',
+            mimeType: 'image/png',
+            originalName: 'first.png',
+            fileKey: 'first'
+          }
+        ],
         wechatMessage,
         conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
         historyContext: '[历史上下文]\n用户(wxid_friend): 更早消息',
@@ -130,6 +156,14 @@ describe('WechatPersonalTriggerStrategy', () => {
         integrationId: 'integration-1',
         xpertId: 'xpert-1',
         input: '第一条',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,first',
+            mimeType: 'image/png',
+            originalName: 'first.png',
+            fileKey: 'first'
+          }
+        ],
         currentInboundLogIds: ['inbound-log-1'],
         historyContext: '[历史上下文]\n用户(wxid_friend): 更早消息',
         summaryWindowSeconds: 5,
@@ -150,6 +184,14 @@ describe('WechatPersonalTriggerStrategy', () => {
       xpertId: 'xpert-1',
       version: 1,
       inputParts: ['第一条'],
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,first',
+          mimeType: 'image/png',
+          originalName: 'first.png',
+          fileKey: 'first'
+        }
+      ],
       currentInboundLogIds: ['inbound-log-1'],
       historyContext: '[历史上下文]\n用户(wxid_friend): 更早消息',
       lastMessageAt: Date.now(),
@@ -167,6 +209,14 @@ describe('WechatPersonalTriggerStrategy', () => {
         integrationId: 'integration-1',
         xpertId: 'xpert-1',
         input: '第二条',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,second',
+            mimeType: 'image/png',
+            originalName: 'second.png',
+            fileKey: 'second'
+          }
+        ],
         historyContext: '[不应覆盖的历史]',
         currentInboundLogIds: ['inbound-log-2'],
         summaryWindowSeconds: 5,
@@ -190,6 +240,20 @@ describe('WechatPersonalTriggerStrategy', () => {
       expect.objectContaining({
         version: 2,
         inputParts: ['第一条', '第二条'],
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,first',
+            mimeType: 'image/png',
+            originalName: 'first.png',
+            fileKey: 'first'
+          },
+          {
+            fileUrl: 'data:image/png;base64,second',
+            mimeType: 'image/png',
+            originalName: 'second.png',
+            fileKey: 'second'
+          }
+        ],
         currentInboundLogIds: ['inbound-log-1', 'inbound-log-2'],
         historyContext: '[历史上下文]\n用户(wxid_friend): 更早消息'
       }),
@@ -213,6 +277,14 @@ describe('WechatPersonalTriggerStrategy', () => {
       xpertId: 'xpert-1',
       version: 3,
       inputParts: ['第一条', '第二条'],
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,first',
+          mimeType: 'image/png',
+          originalName: 'first.png',
+          fileKey: 'first'
+        }
+      ],
       currentInboundLogIds: ['inbound-log-1', 'inbound-log-2'],
       historyContext: '[历史上下文]\nAgent: 之前回复',
       lastMessageAt: Date.now(),
@@ -238,7 +310,15 @@ describe('WechatPersonalTriggerStrategy', () => {
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        input: '[历史上下文]\nAgent: 之前回复\n\n[本次用户消息]\n第一条\n第二条'
+        input: '[历史上下文]\nAgent: 之前回复\n\n[本次用户消息]\n第一条\n第二条',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,first',
+            mimeType: 'image/png',
+            originalName: 'first.png',
+            fileKey: 'first'
+          }
+        ]
       })
     )
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
@@ -247,5 +327,99 @@ describe('WechatPersonalTriggerStrategy', () => {
       })
     )
     expect(aggregationService.clear).toHaveBeenCalledWith('integration-1:uuid-1:wxid_friend:wxid_friend')
+  })
+
+  it('uses a default human input for image-only debounced batches', async () => {
+    const { strategy, dispatchService, aggregationService } = createStrategy()
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 4,
+      inputParts: ['', '   '],
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,only-image',
+          mimeType: 'image/png',
+          originalName: 'only-image.png',
+          fileKey: 'only-image'
+        }
+      ],
+      currentInboundLogIds: ['inbound-log-3'],
+      historyContext: '[历史上下文]\nAgent: 之前回复',
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        language: 'zh-Hans',
+        messageId: 'msg-3'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 4
+      })
+    ).resolves.toBe(true)
+
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '[历史上下文]\nAgent: 之前回复\n\n[本次用户消息]\n[理解图片]',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,only-image',
+            mimeType: 'image/png',
+            originalName: 'only-image.png',
+            fileKey: 'only-image'
+          }
+        ]
+      })
+    )
+  })
+
+  it('flushes debounced voice transcripts as normal text input', async () => {
+    const { strategy, dispatchService, aggregationService } = createStrategy()
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 5,
+      inputParts: ['第一条语音转写', '第二条语音转写'],
+      files: [],
+      currentInboundLogIds: ['inbound-log-4', 'inbound-log-5'],
+      historyContext: undefined,
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        language: 'zh-Hans',
+        messageId: 'msg-4'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 5
+      })
+    ).resolves.toBe(true)
+
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '第一条语音转写\n第二条语音转写',
+        files: []
+      })
+    )
   })
 })

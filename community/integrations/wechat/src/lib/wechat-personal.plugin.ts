@@ -1,4 +1,4 @@
-import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
+import { PluginWebhookAuthGuard, XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { DiscoveryModule } from '@nestjs/core'
 import { BullModule } from '@nestjs/bullmq'
@@ -97,7 +97,8 @@ const entities = [
     WechatPersonalOutboundQueueService,
     WechatPersonalOutboundQueueProcessor,
     WechatPersonalRuntimeMiddleware,
-    WechatPersonalViewProvider
+    WechatPersonalViewProvider,
+    PluginWebhookAuthGuard
   ],
   controllers: [WechatPersonalController],
   exports: [

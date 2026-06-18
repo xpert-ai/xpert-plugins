@@ -1,6 +1,13 @@
 import { IIntegration, TIntegrationProvider } from '@xpert-ai/contracts'
-import { Injectable } from '@nestjs/common'
-import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  INTEGRATION_PERMISSION_SERVICE_TOKEN,
+  IntegrationPermissionService,
+  IntegrationStrategy,
+  IntegrationStrategyKey,
+  TIntegrationStrategyParams,
+  type PluginContext
+} from '@xpert-ai/plugin-sdk'
 import {
   WECHAT_PERSONAL_FEATURE,
   WECHAT_PERSONAL_ICON,
@@ -21,6 +28,7 @@ import {
   TIntegrationWechatPersonalOptions
 } from './types.js'
 import { WechatPersonalTunnelBrokerService } from './wechat-personal-tunnel-broker.service.js'
+import { WECHAT_PERSONAL_PLUGIN_CONTEXT } from './tokens.js'
 
 export const WECHAT_PERSONAL_CALLBACK_HINTS = [
   '推荐：wx2.0 config webhook.allMessagePushUrl / AllMsgPushUrl 指向 Xpert webhook URL',
@@ -58,6 +66,12 @@ type WechatPersonalIntegrationProviderMeta = TIntegrationProvider & {
     views?: WechatPersonalIntegrationViewExtensionMeta[]
   }
   extensionViews?: WechatPersonalIntegrationViewExtensionMeta[]
+  setup?: {
+    autoValidateOnLoad?: boolean
+    authorization?: {
+      requiresSavedIntegration?: boolean
+    }
+  }
 }
 
 const WECHAT_PERSONAL_INTEGRATION_VIEW_EXTENSION: WechatPersonalIntegrationViewExtensionMeta = {
@@ -74,7 +88,26 @@ const WECHAT_PERSONAL_INTEGRATION_VIEW_EXTENSION: WechatPersonalIntegrationViewE
 @Injectable()
 @IntegrationStrategyKey(WECHAT_PERSONAL_PROVIDER_KEY)
 export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TIntegrationWechatPersonalOptions> {
-  constructor(private readonly tunnelBroker: WechatPersonalTunnelBrokerService) {}
+  private _integrationPermissionService: IntegrationPermissionService | null = null
+
+  constructor(
+    private readonly tunnelBroker: WechatPersonalTunnelBrokerService,
+    @Inject(WECHAT_PERSONAL_PLUGIN_CONTEXT)
+    private readonly pluginContext: PluginContext
+  ) {}
+
+  private get integrationPermissionService(): IntegrationPermissionService | null {
+    if (this._integrationPermissionService) {
+      return this._integrationPermissionService
+    }
+
+    try {
+      this._integrationPermissionService = this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
+      return this._integrationPermissionService
+    } catch {
+      return null
+    }
+  }
 
   readonly meta: WechatPersonalIntegrationProviderMeta = {
     name: WECHAT_PERSONAL_PROVIDER_KEY,
@@ -108,6 +141,9 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
     },
     extensionViews: [WECHAT_PERSONAL_INTEGRATION_VIEW_EXTENSION],
     webhook: true,
+    setup: {
+      autoValidateOnLoad: true
+    },
     schema: {
       type: 'object',
       properties: {
@@ -190,20 +226,6 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
           },
           enum: ['en', 'zh-Hans'],
           default: 'zh-Hans'
-        },
-        callbackSecret: {
-          type: 'string',
-          title: {
-            en_US: 'Callback Secret',
-            zh_Hans: '回调密钥'
-          },
-          description: {
-            en_US: 'Optional secret passed by query secret or x-wechat-callback-secret header.',
-            zh_Hans: '可选，通过 query secret 或 x-wechat-callback-secret header 校验。'
-          },
-          'x-ui': {
-            component: 'password'
-          }
         },
         fallbackToLegacySendText: {
           type: 'boolean',
@@ -336,7 +358,7 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
         }
       },
       required: [],
-      secret: ['apiToken', 'callbackSecret']
+      secret: ['apiToken']
     }
   }
 
@@ -381,13 +403,10 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
 
     const apiBaseUrl = (process.env.API_BASE_URL || '').replace(/\/+$/, '')
     const integrationId = integration?.id || '<save_and_get_your_integration_id>'
-    const callbackSecret = config.callbackSecret?.trim()
-    const callbackUrl = `${apiBaseUrl}/api/wechat-personal/webhook/${integrationId}${
-      callbackSecret ? `?secret=${encodeURIComponent(callbackSecret)}` : ''
-    }`
-    const redactedCallbackUrl = `${apiBaseUrl}/api/wechat-personal/webhook/${integrationId}${
-      callbackSecret ? '?secret=***' : ''
-    }`
+    const webhookSecret = integration?.id ? await this.ensureWebhookSecret(integration.id, config) : null
+    const secretForUrl = webhookSecret || '<webhook-secret>'
+    const callbackUrl = `${apiBaseUrl}/api/wechat-personal/webhook/${integrationId}?secret=${encodeURIComponent(secretForUrl)}`
+    const redactedCallbackUrl = `${apiBaseUrl}/api/wechat-personal/webhook/${integrationId}?secret=***`
     const setup = this.tunnelBroker.buildSetupConfig(config.tunnelClientId, integration?.name || WECHAT_PERSONAL_PROVIDER_KEY)
 
     return {
@@ -417,5 +436,25 @@ export class WechatPersonalIntegrationStrategy implements IntegrationStrategy<TI
         settingJson: setup.settingJson
       }
     }
+  }
+
+  private async ensureWebhookSecret(
+    integrationId: string,
+    config: TIntegrationWechatPersonalOptions
+  ): Promise<string | null> {
+    const service = this.integrationPermissionService
+    const ensureWebhookCredential = service?.ensureWebhookCredential
+    if (typeof ensureWebhookCredential !== 'function') {
+      return null
+    }
+
+    const result = await ensureWebhookCredential.call(service, integrationId, {
+      provider: WECHAT_PERSONAL_PROVIDER_KEY
+    })
+    const token = normalizeString(result?.token)
+    if (result?.credential) {
+      config.webhookCredential = result.credential
+    }
+    return token || null
   }
 }

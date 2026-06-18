@@ -126,10 +126,10 @@ export function resolveMessage(message: any, locale?: unknown): string {
   if (typeof message === 'string') {
     return message
   }
-  if (String(locale || '').toLowerCase().startsWith('en')) {
-    return message.en_US || message.en || message.zh_Hans || message.zh_CN || ''
+  if (String(locale || '').toLowerCase().startsWith('zh')) {
+    return message.zh_Hans || message.zh_CN || message.en_US || message.en || ''
   }
-  return message.zh_Hans || message.zh_CN || message.en_US || message.en || ''
+  return message.en_US || message.en || message.zh_Hans || message.zh_CN || ''
 }
 
 export function getErrorMessage(error: any): string {
@@ -166,6 +166,13 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
 
     if (message.type === 'init') {
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
+      const manifest = isObject(message.manifest) ? message.manifest : null
+      console.info('[excalidraw-workbench] remote bridge init', {
+        instanceId,
+        hostEvents: manifest?.hostEvents,
+        viewKey: manifest?.key,
+        locale: message.locale
+      })
       currentContext = {
         manifest: message.manifest,
         payload: message.payload,
@@ -191,6 +198,7 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
     }
 
     if (message.type === 'hostEvent') {
+      console.info('[excalidraw-workbench] remote bridge hostEvent received', message.event)
       handleHostEvent(message.event)
       return
     }

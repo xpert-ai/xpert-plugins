@@ -4,6 +4,7 @@ export type WechatPersonalMessageDirection = 'inbound' | 'outbound' | 'system'
 export type WechatPersonalMessageLogStatus =
   | 'received'
   | 'dispatched'
+  | 'history_only'
   | 'queued'
   | 'deferred'
   | 'sending'
@@ -47,6 +48,9 @@ export class WechatPersonalMessageLogEntity {
 
   @Column({ nullable: true, length: 32 })
   chatType?: 'private' | 'group'
+
+  @Column({ type: 'boolean', default: false })
+  isSelf: boolean
 
   @Column({ length: 16 })
   direction: WechatPersonalMessageDirection

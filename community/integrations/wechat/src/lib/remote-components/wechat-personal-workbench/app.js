@@ -125,6 +125,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
     .xps-button:focus-visible,
     .xps-checkbox:focus-visible,
+    .xps-command-input:focus,
     .xps-dropdown-menu-item:focus,
     .xps-input:focus,
     .xps-select-trigger:focus,
@@ -722,6 +723,84 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       color: var(--xps-muted-foreground);
       font-size: 0.75rem;
     }
+
+    .xps-command {
+      width: 100%;
+      overflow: hidden;
+      border-radius: var(--xps-radius);
+      background: var(--xps-popover);
+      color: var(--xps-popover-foreground);
+    }
+    .xps-command-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--xps-border);
+      padding: 0 0.625rem;
+      color: var(--xps-muted-foreground);
+    }
+    .xps-command-input {
+      width: 100%;
+      height: 2.25rem;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--xps-foreground);
+      font-family: inherit;
+      font-size: var(--xps-control-font-size);
+    }
+    .xps-command-input::placeholder {
+      color: var(--xps-muted-foreground);
+    }
+    .xps-command-list {
+      max-height: 18rem;
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 0.25rem;
+    }
+    .xps-command-empty {
+      padding: 1.25rem 0.75rem;
+      color: var(--xps-muted-foreground);
+      text-align: center;
+      font-size: var(--xps-control-font-size);
+    }
+    .xps-command-group {
+      overflow: hidden;
+      padding: 0.25rem;
+    }
+    .xps-command-group [cmdk-group-heading] {
+      padding: 0.375rem 0.5rem;
+      color: var(--xps-muted-foreground);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .xps-command-item {
+      display: flex;
+      min-height: var(--xps-control-height);
+      cursor: pointer;
+      user-select: none;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: calc(var(--xps-radius) - 2px);
+      padding: 0.375rem 0.5rem;
+      color: var(--xps-foreground);
+      font-size: var(--xps-control-font-size);
+      outline: none;
+    }
+    .xps-command-item[data-selected="true"] {
+      background: var(--xps-accent);
+      color: var(--xps-accent-foreground);
+    }
+    .xps-command-item[data-disabled="true"] {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .xps-command-separator {
+      height: 1px;
+      margin: 0.25rem -0.25rem;
+      background: var(--xps-border);
+    }
+
     .xps-tabs-list {
       display: inline-flex;
       align-items: center;
@@ -888,7 +967,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     document.head.appendChild(style);
   }
 
-  // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../../xpertai/node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -903,7 +982,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return n;
   }
 
-  // ../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../../xpertai/node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var CLASS_PART_SEPARATOR = "-";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
@@ -1211,9 +1290,9 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
     let resolvedValue;
     let string = "";
-    for (let k = 0; k < mix.length; k++) {
-      if (mix[k]) {
-        if (resolvedValue = toValue(mix[k])) {
+    for (let k3 = 0; k3 < mix.length; k3++) {
+      if (mix[k3]) {
+        if (resolvedValue = toValue(mix[k3])) {
           string && (string += " ");
           string += resolvedValue;
         }
@@ -3442,13 +3521,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3461,7 +3540,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     strokeLinejoin: "round"
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
   var Icon = forwardRef(
     ({
       color = "currentColor",
@@ -3493,7 +3572,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   );
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -3507,34 +3586,41 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Component2;
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("Check", __iconNode);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
   var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
   var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
   var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
   var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
   var Circle = createLucideIcon("Circle", __iconNode5);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
   var __iconNode6 = [
+    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
+    ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
+  ];
+  var Search = createLucideIcon("Search", __iconNode6);
+
+  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
+  var __iconNode7 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
-  var X = createLucideIcon("X", __iconNode6);
+  var X = createLucideIcon("X", __iconNode7);
 
-  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -3598,7 +3684,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     });
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -3634,7 +3720,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3844,7 +3930,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
   var jsxs = jsx;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContext2(rootComponentName, defaultContext) {
     const Context = createContext(defaultContext);
     Context.displayName = rootComponentName + "Context";
@@ -3921,7 +4007,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createScope;
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -3932,11 +4018,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4002,7 +4088,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return typeof value === "function";
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -4014,7 +4100,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [value]);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -4050,7 +4136,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return size4;
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_dc6e30df35507eb8a116c12c3da26e18/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4219,7 +4305,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
   var version2 = ReactDOMGlobal.version;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_9b6ae4cdaf3918ddbf0b21069e38e2ef/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4256,7 +4342,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_e21be6412c310c083d6755285c4c1ad9/node_modules/@radix-ui/react-checkbox/dist/index.mjs
   var CHECKBOX_NAME = "Checkbox";
   var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
   var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
@@ -4535,7 +4621,34 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   );
   Checkbox2.displayName = Checkbox.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
+  var U = 1;
+  var Y = 0.9;
+  var H = 0.8;
+  var J = 0.17;
+  var p = 0.1;
+  var u = 0.999;
+  var $ = 0.9999;
+  var k = 0.99;
+  var m = /[\\\/_+.#"@\[\(\{&]/;
+  var B = /[\\\/_+.#"@\[\(\{&]/g;
+  var K = /[\s-]/;
+  var X2 = /[\s-]/g;
+  function G(_, C, h2, P2, A, f, O) {
+    if (f === C.length) return A === _.length ? U : k;
+    var T2 = `${A},${f}`;
+    if (O[T2] !== void 0) return O[T2];
+    for (var L2 = P2.charAt(f), c = h2.indexOf(L2, A), S = 0, E, N2, R, M; c >= 0; ) E = G(_, C, h2, P2, c + 1, f + 1, O), E > S && (c === A ? E *= U : m.test(_.charAt(c - 1)) ? (E *= H, R = _.slice(A, c - 1).match(B), R && A > 0 && (E *= Math.pow(u, R.length))) : K.test(_.charAt(c - 1)) ? (E *= Y, M = _.slice(A, c - 1).match(X2), M && A > 0 && (E *= Math.pow(u, M.length))) : (E *= J, A > 0 && (E *= Math.pow(u, c - A))), _.charAt(c) !== C.charAt(f) && (E *= $)), (E < p && h2.charAt(c - 1) === P2.charAt(f + 1) || P2.charAt(f + 1) === P2.charAt(f) && h2.charAt(c - 1) !== P2.charAt(f)) && (N2 = G(_, C, h2, P2, c + 1, f + 2, O), N2 * p > E && (E = N2 * p)), E > S && (S = E), c = h2.indexOf(L2, c + 1);
+    return O[T2] = S, S;
+  }
+  function D(_) {
+    return _.toLowerCase().replace(X2, " ");
+  }
+  function W(_, C, h2) {
+    return _ = h2 && h2.length > 0 ? `${_ + " " + h2.join(" ")}` : _, G(_, C, D(_), D(C), 0, 0, {});
+  }
+
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4546,7 +4659,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -4555,7 +4668,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
   function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
     const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
     useEffect(() => {
@@ -4569,7 +4682,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [onEscapeKeyDown, ownerDocument]);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31___1202449cfd75d4d3d4e876187986c0d8/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4776,7 +4889,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_c97f9e7487f0abcea30d185973e4d237/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -4978,7 +5091,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_32b1caf40ac61f8d30d412d28d60b4ca/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -4989,7 +5102,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   });
   Portal.displayName = PORTAL_NAME;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5026,12 +5139,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return element;
   }
 
-  // ../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../../xpertai/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
         s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        for (var p2 in s) if (Object.prototype.hasOwnProperty.call(s, p2)) t[p2] = s[p2];
       }
       return t;
     };
@@ -5039,12 +5152,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   };
   function __rest(s, e) {
     var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-      t[p] = s[p];
+    for (var p2 in s) if (Object.prototype.hasOwnProperty.call(s, p2) && e.indexOf(p2) < 0)
+      t[p2] = s[p2];
     if (s != null && typeof Object.getOwnPropertySymbols === "function")
-      for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-        if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-          t[p[i]] = s[p[i]];
+      for (var i = 0, p2 = Object.getOwnPropertySymbols(s); i < p2.length; i++) {
+        if (e.indexOf(p2[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p2[i]))
+          t[p2[i]] = s[p2[i]];
       }
     return t;
   }
@@ -5058,13 +5171,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5074,7 +5187,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref;
   }
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5101,7 +5214,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref.facade;
   }
 
-  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5132,7 +5245,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return callbackRef;
   }
 
-  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a) {
     return a;
   }
@@ -5218,7 +5331,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return medium;
   }
 
-  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5236,10 +5349,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return SideCar;
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5271,7 +5384,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     zeroRight: zeroRightClassName
   };
 
-  // ../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../../xpertai/node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5283,7 +5396,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return void 0;
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5329,7 +5442,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5342,7 +5455,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5353,7 +5466,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Sheet;
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5388,7 +5501,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5428,7 +5541,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -5447,7 +5560,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -5547,7 +5660,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shouldCancelScroll;
   };
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -5718,17 +5831,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shadowParent;
   }
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // ../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../../xpertai/node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -5849,7 +5962,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_ef5419b1d5914b6ed85fc377af02cd8c/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6144,12 +6257,392 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }, [MESSAGE, contentRef, descriptionId]);
     return null;
   };
+  var Root = Dialog;
   var Portal2 = DialogPortal;
   var Overlay = DialogOverlay;
   var Content = DialogContent;
   var Title = DialogTitle;
   var Description = DialogDescription;
   var Close = DialogClose;
+
+  // ../../../xpertai/node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/index.mjs
+  var N = '[cmdk-group=""]';
+  var Y2 = '[cmdk-group-items=""]';
+  var be = '[cmdk-group-heading=""]';
+  var le = '[cmdk-item=""]';
+  var ce = `${le}:not([aria-disabled="true"])`;
+  var Z = "cmdk-item-select";
+  var T = "data-value";
+  var Re = (r2, o, n) => W(r2, o, n);
+  var ue = createContext(void 0);
+  var K2 = () => useContext(ue);
+  var de = createContext(void 0);
+  var ee = () => useContext(de);
+  var fe = createContext(void 0);
+  var me = forwardRef((r2, o) => {
+    let n = L(() => {
+      var e, a;
+      return { search: "", value: (a = (e = r2.value) != null ? e : r2.defaultValue) != null ? a : "", selectedItemId: void 0, filtered: { count: 0, items: /* @__PURE__ */ new Map(), groups: /* @__PURE__ */ new Set() } };
+    }), u2 = L(() => /* @__PURE__ */ new Set()), c = L(() => /* @__PURE__ */ new Map()), d = L(() => /* @__PURE__ */ new Map()), f = L(() => /* @__PURE__ */ new Set()), p2 = pe(r2), { label: b, children: m2, value: R, onValueChange: x, filter: C, shouldFilter: S, loop: A, disablePointerSelection: ge = false, vimBindings: j = true, ...O } = r2, $2 = useId2(), q = useId2(), _ = useId2(), I = useRef(null), v = ke();
+    k2(() => {
+      if (R !== void 0) {
+        let e = R.trim();
+        n.current.value = e, E.emit();
+      }
+    }, [R]), k2(() => {
+      v(6, ne);
+    }, []);
+    let E = useMemo(() => ({ subscribe: (e) => (f.current.add(e), () => f.current.delete(e)), snapshot: () => n.current, setState: (e, a, s) => {
+      var i, l, g, y;
+      if (!Object.is(n.current[e], a)) {
+        if (n.current[e] = a, e === "search") J2(), z(), v(1, W2);
+        else if (e === "value") {
+          if (document.activeElement.hasAttribute("cmdk-input") || document.activeElement.hasAttribute("cmdk-root")) {
+            let h2 = document.getElementById(_);
+            h2 ? h2.focus() : (i = document.getElementById($2)) == null || i.focus();
+          }
+          if (v(7, () => {
+            var h2;
+            n.current.selectedItemId = (h2 = M()) == null ? void 0 : h2.id, E.emit();
+          }), s || v(5, ne), ((l = p2.current) == null ? void 0 : l.value) !== void 0) {
+            let h2 = a != null ? a : "";
+            (y = (g = p2.current).onValueChange) == null || y.call(g, h2);
+            return;
+          }
+        }
+        E.emit();
+      }
+    }, emit: () => {
+      f.current.forEach((e) => e());
+    } }), []), U2 = useMemo(() => ({ value: (e, a, s) => {
+      var i;
+      a !== ((i = d.current.get(e)) == null ? void 0 : i.value) && (d.current.set(e, { value: a, keywords: s }), n.current.filtered.items.set(e, te(a, s)), v(2, () => {
+        z(), E.emit();
+      }));
+    }, item: (e, a) => (u2.current.add(e), a && (c.current.has(a) ? c.current.get(a).add(e) : c.current.set(a, /* @__PURE__ */ new Set([e]))), v(3, () => {
+      J2(), z(), n.current.value || W2(), E.emit();
+    }), () => {
+      d.current.delete(e), u2.current.delete(e), n.current.filtered.items.delete(e);
+      let s = M();
+      v(4, () => {
+        J2(), (s == null ? void 0 : s.getAttribute("id")) === e && W2(), E.emit();
+      });
+    }), group: (e) => (c.current.has(e) || c.current.set(e, /* @__PURE__ */ new Set()), () => {
+      d.current.delete(e), c.current.delete(e);
+    }), filter: () => p2.current.shouldFilter, label: b || r2["aria-label"], getDisablePointerSelection: () => p2.current.disablePointerSelection, listId: $2, inputId: _, labelId: q, listInnerRef: I }), []);
+    function te(e, a) {
+      var i, l;
+      let s = (l = (i = p2.current) == null ? void 0 : i.filter) != null ? l : Re;
+      return e ? s(e, n.current.search, a) : 0;
+    }
+    function z() {
+      if (!n.current.search || p2.current.shouldFilter === false) return;
+      let e = n.current.filtered.items, a = [];
+      n.current.filtered.groups.forEach((i) => {
+        let l = c.current.get(i), g = 0;
+        l.forEach((y) => {
+          let h2 = e.get(y);
+          g = Math.max(h2, g);
+        }), a.push([i, g]);
+      });
+      let s = I.current;
+      V().sort((i, l) => {
+        var h2, F;
+        let g = i.getAttribute("id"), y = l.getAttribute("id");
+        return ((h2 = e.get(y)) != null ? h2 : 0) - ((F = e.get(g)) != null ? F : 0);
+      }).forEach((i) => {
+        let l = i.closest(Y2);
+        l ? l.appendChild(i.parentElement === l ? i : i.closest(`${Y2} > *`)) : s.appendChild(i.parentElement === s ? i : i.closest(`${Y2} > *`));
+      }), a.sort((i, l) => l[1] - i[1]).forEach((i) => {
+        var g;
+        let l = (g = I.current) == null ? void 0 : g.querySelector(`${N}[${T}="${encodeURIComponent(i[0])}"]`);
+        l == null || l.parentElement.appendChild(l);
+      });
+    }
+    function W2() {
+      let e = V().find((s) => s.getAttribute("aria-disabled") !== "true"), a = e == null ? void 0 : e.getAttribute(T);
+      E.setState("value", a || void 0);
+    }
+    function J2() {
+      var a, s, i, l;
+      if (!n.current.search || p2.current.shouldFilter === false) {
+        n.current.filtered.count = u2.current.size;
+        return;
+      }
+      n.current.filtered.groups = /* @__PURE__ */ new Set();
+      let e = 0;
+      for (let g of u2.current) {
+        let y = (s = (a = d.current.get(g)) == null ? void 0 : a.value) != null ? s : "", h2 = (l = (i = d.current.get(g)) == null ? void 0 : i.keywords) != null ? l : [], F = te(y, h2);
+        n.current.filtered.items.set(g, F), F > 0 && e++;
+      }
+      for (let [g, y] of c.current) for (let h2 of y) if (n.current.filtered.items.get(h2) > 0) {
+        n.current.filtered.groups.add(g);
+        break;
+      }
+      n.current.filtered.count = e;
+    }
+    function ne() {
+      var a, s, i;
+      let e = M();
+      e && (((a = e.parentElement) == null ? void 0 : a.firstChild) === e && ((i = (s = e.closest(N)) == null ? void 0 : s.querySelector(be)) == null || i.scrollIntoView({ block: "nearest" })), e.scrollIntoView({ block: "nearest" }));
+    }
+    function M() {
+      var e;
+      return (e = I.current) == null ? void 0 : e.querySelector(`${le}[aria-selected="true"]`);
+    }
+    function V() {
+      var e;
+      return Array.from(((e = I.current) == null ? void 0 : e.querySelectorAll(ce)) || []);
+    }
+    function X3(e) {
+      let s = V()[e];
+      s && E.setState("value", s.getAttribute(T));
+    }
+    function Q(e) {
+      var g;
+      let a = M(), s = V(), i = s.findIndex((y) => y === a), l = s[i + e];
+      (g = p2.current) != null && g.loop && (l = i + e < 0 ? s[s.length - 1] : i + e === s.length ? s[0] : s[i + e]), l && E.setState("value", l.getAttribute(T));
+    }
+    function re(e) {
+      let a = M(), s = a == null ? void 0 : a.closest(N), i;
+      for (; s && !i; ) s = e > 0 ? we(s, N) : De(s, N), i = s == null ? void 0 : s.querySelector(ce);
+      i ? E.setState("value", i.getAttribute(T)) : Q(e);
+    }
+    let oe = () => X3(V().length - 1), ie = (e) => {
+      e.preventDefault(), e.metaKey ? oe() : e.altKey ? re(1) : Q(1);
+    }, se = (e) => {
+      e.preventDefault(), e.metaKey ? X3(0) : e.altKey ? re(-1) : Q(-1);
+    };
+    return createElement(Primitive.div, { ref: o, tabIndex: -1, ...O, "cmdk-root": "", onKeyDown: (e) => {
+      var s;
+      (s = O.onKeyDown) == null || s.call(O, e);
+      let a = e.nativeEvent.isComposing || e.keyCode === 229;
+      if (!(e.defaultPrevented || a)) switch (e.key) {
+        case "n":
+        case "j": {
+          j && e.ctrlKey && ie(e);
+          break;
+        }
+        case "ArrowDown": {
+          ie(e);
+          break;
+        }
+        case "p":
+        case "k": {
+          j && e.ctrlKey && se(e);
+          break;
+        }
+        case "ArrowUp": {
+          se(e);
+          break;
+        }
+        case "Home": {
+          e.preventDefault(), X3(0);
+          break;
+        }
+        case "End": {
+          e.preventDefault(), oe();
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          let i = M();
+          if (i) {
+            let l = new Event(Z);
+            i.dispatchEvent(l);
+          }
+        }
+      }
+    } }, createElement("label", { "cmdk-label": "", htmlFor: U2.inputId, id: U2.labelId, style: Te }, b), B2(r2, (e) => createElement(de.Provider, { value: E }, createElement(ue.Provider, { value: U2 }, e))));
+  });
+  var he = forwardRef((r2, o) => {
+    var _, I;
+    let n = useId2(), u2 = useRef(null), c = useContext(fe), d = K2(), f = pe(r2), p2 = (I = (_ = f.current) == null ? void 0 : _.forceMount) != null ? I : c == null ? void 0 : c.forceMount;
+    k2(() => {
+      if (!p2) return d.item(n, c == null ? void 0 : c.id);
+    }, [p2]);
+    let b = ve(n, u2, [r2.value, r2.children, u2], r2.keywords), m2 = ee(), R = P((v) => v.value && v.value === b.current), x = P((v) => p2 || d.filter() === false ? true : v.search ? v.filtered.items.get(n) > 0 : true);
+    useEffect(() => {
+      let v = u2.current;
+      if (!(!v || r2.disabled)) return v.addEventListener(Z, C), () => v.removeEventListener(Z, C);
+    }, [x, r2.onSelect, r2.disabled]);
+    function C() {
+      var v, E;
+      S(), (E = (v = f.current).onSelect) == null || E.call(v, b.current);
+    }
+    function S() {
+      m2.setState("value", b.current, true);
+    }
+    if (!x) return null;
+    let { disabled: A, value: ge, onSelect: j, forceMount: O, keywords: $2, ...q } = r2;
+    return createElement(Primitive.div, { ref: composeRefs(u2, o), ...q, id: n, "cmdk-item": "", role: "option", "aria-disabled": !!A, "aria-selected": !!R, "data-disabled": !!A, "data-selected": !!R, onPointerMove: A || d.getDisablePointerSelection() ? void 0 : S, onClick: A ? void 0 : C }, r2.children);
+  });
+  var Ee = forwardRef((r2, o) => {
+    let { heading: n, children: u2, forceMount: c, ...d } = r2, f = useId2(), p2 = useRef(null), b = useRef(null), m2 = useId2(), R = K2(), x = P((S) => c || R.filter() === false ? true : S.search ? S.filtered.groups.has(f) : true);
+    k2(() => R.group(f), []), ve(f, p2, [r2.value, r2.heading, b]);
+    let C = useMemo(() => ({ id: f, forceMount: c }), [c]);
+    return createElement(Primitive.div, { ref: composeRefs(p2, o), ...d, "cmdk-group": "", role: "presentation", hidden: x ? void 0 : true }, n && createElement("div", { ref: b, "cmdk-group-heading": "", "aria-hidden": true, id: m2 }, n), B2(r2, (S) => createElement("div", { "cmdk-group-items": "", role: "group", "aria-labelledby": n ? m2 : void 0 }, createElement(fe.Provider, { value: C }, S))));
+  });
+  var ye = forwardRef((r2, o) => {
+    let { alwaysRender: n, ...u2 } = r2, c = useRef(null), d = P((f) => !f.search);
+    return !n && !d ? null : createElement(Primitive.div, { ref: composeRefs(c, o), ...u2, "cmdk-separator": "", role: "separator" });
+  });
+  var Se = forwardRef((r2, o) => {
+    let { onValueChange: n, ...u2 } = r2, c = r2.value != null, d = ee(), f = P((m2) => m2.search), p2 = P((m2) => m2.selectedItemId), b = K2();
+    return useEffect(() => {
+      r2.value != null && d.setState("search", r2.value);
+    }, [r2.value]), createElement(Primitive.input, { ref: o, ...u2, "cmdk-input": "", autoComplete: "off", autoCorrect: "off", spellCheck: false, "aria-autocomplete": "list", role: "combobox", "aria-expanded": true, "aria-controls": b.listId, "aria-labelledby": b.labelId, "aria-activedescendant": p2, id: b.inputId, type: "text", value: c ? r2.value : f, onChange: (m2) => {
+      c || d.setState("search", m2.target.value), n == null || n(m2.target.value);
+    } });
+  });
+  var Ce = forwardRef((r2, o) => {
+    let { children: n, label: u2 = "Suggestions", ...c } = r2, d = useRef(null), f = useRef(null), p2 = P((m2) => m2.selectedItemId), b = K2();
+    return useEffect(() => {
+      if (f.current && d.current) {
+        let m2 = f.current, R = d.current, x, C = new ResizeObserver(() => {
+          x = requestAnimationFrame(() => {
+            let S = m2.offsetHeight;
+            R.style.setProperty("--cmdk-list-height", S.toFixed(1) + "px");
+          });
+        });
+        return C.observe(m2), () => {
+          cancelAnimationFrame(x), C.unobserve(m2);
+        };
+      }
+    }, []), createElement(Primitive.div, { ref: composeRefs(d, o), ...c, "cmdk-list": "", role: "listbox", tabIndex: -1, "aria-activedescendant": p2, "aria-label": u2, id: b.listId }, B2(r2, (m2) => createElement("div", { ref: composeRefs(f, b.listInnerRef), "cmdk-list-sizer": "" }, m2)));
+  });
+  var xe = forwardRef((r2, o) => {
+    let { open: n, onOpenChange: u2, overlayClassName: c, contentClassName: d, container: f, ...p2 } = r2;
+    return createElement(Root, { open: n, onOpenChange: u2 }, createElement(Portal2, { container: f }, createElement(Overlay, { "cmdk-overlay": "", className: c }), createElement(Content, { "aria-label": r2.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
+  });
+  var Ie = forwardRef((r2, o) => P((u2) => u2.filtered.count === 0) ? createElement(Primitive.div, { ref: o, ...r2, "cmdk-empty": "", role: "presentation" }) : null);
+  var Pe = forwardRef((r2, o) => {
+    let { progress: n, children: u2, label: c = "Loading...", ...d } = r2;
+    return createElement(Primitive.div, { ref: o, ...d, "cmdk-loading": "", role: "progressbar", "aria-valuenow": n, "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": c }, B2(r2, (f) => createElement("div", { "aria-hidden": true }, f)));
+  });
+  var _e = Object.assign(me, { List: Ce, Item: he, Input: Se, Group: Ee, Separator: ye, Dialog: xe, Empty: Ie, Loading: Pe });
+  function we(r2, o) {
+    let n = r2.nextElementSibling;
+    for (; n; ) {
+      if (n.matches(o)) return n;
+      n = n.nextElementSibling;
+    }
+  }
+  function De(r2, o) {
+    let n = r2.previousElementSibling;
+    for (; n; ) {
+      if (n.matches(o)) return n;
+      n = n.previousElementSibling;
+    }
+  }
+  function pe(r2) {
+    let o = useRef(r2);
+    return k2(() => {
+      o.current = r2;
+    }), o;
+  }
+  var k2 = typeof window == "undefined" ? useEffect : useLayoutEffect;
+  function L(r2) {
+    let o = useRef();
+    return o.current === void 0 && (o.current = r2()), o;
+  }
+  function P(r2) {
+    let o = ee(), n = () => r2(o.snapshot());
+    return useSyncExternalStore(o.subscribe, n, n);
+  }
+  function ve(r2, o, n, u2 = []) {
+    let c = useRef(), d = K2();
+    return k2(() => {
+      var b;
+      let f = (() => {
+        var m2;
+        for (let R of n) {
+          if (typeof R == "string") return R.trim();
+          if (typeof R == "object" && "current" in R) return R.current ? (m2 = R.current.textContent) == null ? void 0 : m2.trim() : c.current;
+        }
+      })(), p2 = u2.map((m2) => m2.trim());
+      d.value(r2, f, p2), (b = o.current) == null || b.setAttribute(T, f), c.current = f;
+    }), c;
+  }
+  var ke = () => {
+    let [r2, o] = useState(), n = L(() => /* @__PURE__ */ new Map());
+    return k2(() => {
+      n.current.forEach((u2) => u2()), n.current = /* @__PURE__ */ new Map();
+    }, [r2]), (u2, c) => {
+      n.current.set(u2, c), o({});
+    };
+  };
+  function Me(r2) {
+    let o = r2.type;
+    return typeof o == "function" ? o(r2.props) : "render" in o ? o.render(r2.props) : r2;
+  }
+  function B2({ asChild: r2, children: o }, n) {
+    return r2 && isValidElement(o) ? cloneElement(Me(o), { ref: o.ref }, n(o.props.children)) : n(o);
+  }
+  var Te = { position: "absolute", width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: "0" };
+
+  // ../../../packages/shadcn-ui/src/components/command.tsx
+  var Command = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e, {
+      ref,
+      className: cn("xps-command", className),
+      ...props
+    })
+  );
+  Command.displayName = _e.displayName;
+  var CommandInput = forwardRef(
+    ({ className, ...props }, ref) => createElement(
+      "div",
+      { className: "xps-command-input-wrapper", "cmdk-input-wrapper": "" },
+      createElement(Search, { className: "xps-icon" }),
+      createElement(_e.Input, {
+        ref,
+        className: cn("xps-command-input", className),
+        ...props
+      })
+    )
+  );
+  CommandInput.displayName = _e.Input.displayName;
+  var CommandList = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e.List, {
+      ref,
+      className: cn("xps-command-list", className),
+      ...props
+    })
+  );
+  CommandList.displayName = _e.List.displayName;
+  var CommandEmpty = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e.Empty, {
+      ref,
+      className: cn("xps-command-empty", className),
+      ...props
+    })
+  );
+  CommandEmpty.displayName = _e.Empty.displayName;
+  var CommandGroup = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e.Group, {
+      ref,
+      className: cn("xps-command-group", className),
+      ...props
+    })
+  );
+  CommandGroup.displayName = _e.Group.displayName;
+  var CommandItem = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e.Item, {
+      ref,
+      className: cn("xps-command-item", className),
+      ...props
+    })
+  );
+  CommandItem.displayName = _e.Item.displayName;
+  var CommandSeparator = forwardRef(
+    ({ className, ...props }, ref) => createElement(_e.Separator, {
+      ref,
+      className: cn("xps-command-separator", className),
+      ...props
+    })
+  );
+  CommandSeparator.displayName = _e.Separator.displayName;
 
   // ../../../packages/shadcn-ui/src/components/dialog.tsx
   var DialogPortal2 = Portal2;
@@ -6222,7 +6715,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   DialogDescription2.displayName = Description.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+r_9d7b7379fb7a1e56af9d4a8d107ecba8/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
@@ -6286,14 +6779,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ];
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6422,7 +6915,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7139,7 +7632,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7198,11 +7691,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       if (element.matches(":popover-open")) {
         return true;
       }
-    } catch (_e) {
+    } catch (_e2) {
     }
     try {
       return element.matches(":modal");
-    } catch (_e) {
+    } catch (_e2) {
       return false;
     }
   }
@@ -7295,7 +7788,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // ../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -7326,10 +7819,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const {
       width,
       height,
-      $
+      $: $2
     } = getCssDimensions(domElement);
-    let x = ($ ? round(rect.width) : rect.width) / width;
-    let y = ($ ? round(rect.height) : rect.height) / height;
+    let x = ($2 ? round(rect.width) : rect.width) / width;
+    let y = ($2 ? round(rect.height) : rect.height) / height;
     if (!x || !Number.isFinite(x)) {
       x = 1;
     }
@@ -7809,7 +8302,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           // Handle <iframe>s
           root: root2.ownerDocument
         });
-      } catch (_e) {
+      } catch (_e2) {
         io = new IntersectionObserver(handleObserve, options);
       }
       io.observe(element);
@@ -7910,7 +8403,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     });
   };
 
-  // ../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../../xpertai/node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8218,7 +8711,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_b34b7156178de4198a23e93f83c57da5/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8238,7 +8731,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   Arrow.displayName = NAME;
   var Root2 = Arrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_bd7668c1d3a757f9e8c97f0d7e635b5d/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8552,7 +9045,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Content2 = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31__@type_d783d3abe701a7f2fb2c68867b8f1f65/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -8763,7 +9256,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Root3 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_cc73edd868dbfc82392e3731b66f2e59/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -9575,7 +10068,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@typ_9dd0889a66ea847559fd572aaa20379b/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var DROPDOWN_MENU_NAME = "DropdownMenu";
   var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
     DROPDOWN_MENU_NAME,
@@ -9936,12 +10429,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Input.displayName = "Input";
 
-  // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types_11143bec678d1605a26ae97f1f701c82/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   function useStateMachine2(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -10682,7 +11175,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   ScrollBar.displayName = ScrollAreaScrollbar.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31__@ty_fbf0dd0d68bb58b2410fc7a153ed1d9c/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -10712,7 +11205,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   VisuallyHidden.displayName = NAME2;
   var Root5 = VisuallyHidden;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_b9232b5aa23e604443839e7a081b7527/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
   var SELECTION_KEYS2 = [" ", "Enter"];
   var SELECT_NAME = "Select";
@@ -12168,7 +12661,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   SidebarMenuButton.displayName = "SidebarMenuButton";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-slider/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_cfb70bb4d45c3eedb16b2d4d4cf80f46/node_modules/@radix-ui/react-slider/dist/index.mjs
   var PAGE_KEYS = ["PageUp", "PageDown"];
   var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
   var BACK_KEYS = {
@@ -12797,7 +13290,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   Slider2.displayName = Slider.displayName;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-switch/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_d2f9574497ecbe08e0e7c2298fb35dc1/node_modules/@radix-ui/react-switch/dist/index.mjs
   var SWITCH_NAME = "Switch";
   var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
   var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
@@ -13107,7 +13600,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   TableCaption.displayName = "TableCaption";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_769bbb0130198553b196f258bd99ab92/node_modules/@radix-ui/react-tabs/dist/index.mjs
   var TABS_NAME = "Tabs";
   var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
     createRovingFocusGroupScope
@@ -13316,7 +13809,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Textarea.displayName = "Textarea";
 
-  // ../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_02a5bba0cb45f3ddbe548efab47eabcc/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
     createPopperScope
   ]);
@@ -13760,26 +14253,26 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     if (points.length <= 1) return points.slice();
     const upperHull = [];
     for (let i = 0; i < points.length; i++) {
-      const p = points[i];
+      const p2 = points[i];
       while (upperHull.length >= 2) {
         const q = upperHull[upperHull.length - 1];
         const r2 = upperHull[upperHull.length - 2];
-        if ((q.x - r2.x) * (p.y - r2.y) >= (q.y - r2.y) * (p.x - r2.x)) upperHull.pop();
+        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) upperHull.pop();
         else break;
       }
-      upperHull.push(p);
+      upperHull.push(p2);
     }
     upperHull.pop();
     const lowerHull = [];
     for (let i = points.length - 1; i >= 0; i--) {
-      const p = points[i];
+      const p2 = points[i];
       while (lowerHull.length >= 2) {
         const q = lowerHull[lowerHull.length - 1];
         const r2 = lowerHull[lowerHull.length - 2];
-        if ((q.x - r2.x) * (p.y - r2.y) >= (q.y - r2.y) * (p.x - r2.x)) lowerHull.pop();
+        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) lowerHull.pop();
         else break;
       }
-      lowerHull.push(p);
+      lowerHull.push(p2);
     }
     lowerHull.pop();
     if (upperHull.length === 1 && lowerHull.length === 1 && upperHull[0].x === lowerHull[0].x && upperHull[0].y === lowerHull[0].y) {
@@ -13965,6 +14458,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disconnected: "\u672A\u8FDE\u63A5",
     deferred: "\u5DF2\u5EF6\u540E",
     dispatched: "\u5DF2\u5206\u53D1",
+    history_only: "\u4EC5\u4F5C\u5386\u53F2",
     enable: "\u542F\u7528",
     enabledOnly: "\u4EC5\u542F\u7528",
     enabledState: "\u542F\u7528\u72B6\u6001",
@@ -14148,6 +14642,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disconnected: "Disconnected",
     deferred: "Deferred",
     dispatched: "Dispatched",
+    history_only: "History only",
     enable: "Enable",
     enabledOnly: "Enabled only",
     enabledState: "Enabled state",
@@ -14437,6 +14932,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disabled: "disabled",
     deferred: "deferred",
     dispatched: "dispatched",
+    history_only: "history_only",
     error: "error",
     failed: "failed",
     group: "groupChat",
@@ -14910,7 +15406,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       },
       props.isOrganizationScope && /* @__PURE__ */ h(TextFilter, { field: "integrationId", placeholder: props.t("integrationId"), ...filter }),
       /* @__PURE__ */ h(SelectFilter, { field: "direction", label: props.t("direction"), options: translatedOptions(["inbound", "outbound", "system"], props.t), ...filter }),
-      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
+      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "history_only", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
       /* @__PURE__ */ h(
         SelectFilter,
         {
@@ -15120,7 +15616,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         }
       ),
       /* @__PURE__ */ h(SelectFilter, { field: "direction", label: props.t("direction"), options: translatedOptions(["inbound", "outbound", "system"], props.t), ...filter }),
-      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
+      /* @__PURE__ */ h(SelectFilter, { field: "status", label: props.t("status"), options: translatedOptions(["received", "dispatched", "history_only", "sent", "skipped", "failed", "context_reset"], props.t), ...filter }),
       /* @__PURE__ */ h(TextFilter, { field: "uuid", placeholder: props.t("uuid"), ...filter }),
       /* @__PURE__ */ h(TextFilter, { field: "contactId", placeholder: props.t("contact"), ...filter })
     ), /* @__PURE__ */ h(

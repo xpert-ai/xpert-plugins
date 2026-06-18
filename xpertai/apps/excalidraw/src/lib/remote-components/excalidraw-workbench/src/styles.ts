@@ -24,7 +24,8 @@ export function injectStyles() {
     .exw-shell {
       --exw-rail-width: var(--xps-sidebar-rail-width, 44px);
       --exw-panel-header-height: 2.5rem;
-      --exw-left-width: minmax(var(--exw-rail-width), clamp(240px, 20vw, 300px));
+      --exw-left-panel-width: clamp(240px, 20vw, 300px);
+      --exw-left-width: minmax(var(--exw-rail-width), var(--exw-left-panel-width));
       --exw-right-width: var(--exw-rail-width);
       --exw-right-panel-width: min(320px, calc(100vw - var(--exw-rail-width) - 96px));
       width: 100%;
@@ -50,6 +51,11 @@ export function injectStyles() {
       min-width: 0;
       height: 100vh;
       min-height: 720px;
+    }
+    .exw-sidebar.xps-sidebar {
+      position: relative;
+      z-index: 30;
+      overflow: visible;
     }
     .exw-inspector.xps-sidebar {
       position: relative;
@@ -91,17 +97,40 @@ export function injectStyles() {
     .exw-sidebar-trigger-right {
       margin-left: auto;
     }
+    .exw-inspector-content {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .exw-inspector-panel-header {
+      flex: 0 0 auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-bottom: 1px solid var(--xps-border);
+      background: var(--xps-card);
+      min-width: 0;
+      max-width: 100%;
+    }
     .exw-inspector-actions {
       min-width: 0;
       flex: 0 0 auto;
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
     }
     .exw-inspector-actions .xps-button,
     .exw-inspector-actions .xps-badge {
       flex: 0 0 auto;
       white-space: nowrap;
+    }
+    .exw-versions-toggle-icon {
+      transition: transform 160ms ease;
+    }
+    .exw-versions-toggle-icon.is-open {
+      transform: rotate(180deg);
     }
     .exw-sidebar-controls {
       padding: 8px;
@@ -224,30 +253,70 @@ export function injectStyles() {
       border: 1px solid var(--xps-border);
       border-radius: var(--xps-radius);
       background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);
-      padding: 8px;
+      padding: 10px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) var(--xps-control-height);
-      align-items: center;
+      align-items: start;
       gap: 8px;
       width: 100%;
       min-width: 0;
       overflow: hidden;
+      min-height: 66px;
     }
-    .exw-version > div {
+    .exw-version-panel {
+      max-height: min(360px, 42vh);
+      overflow: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+      border: 1px solid var(--xps-border);
+      border-radius: var(--xps-radius);
+      background: color-mix(in srgb, var(--xps-card) 88%, var(--xps-muted) 12%);
+    }
+    .exw-version.is-current {
+      border-color: color-mix(in srgb, var(--xps-primary) 54%, var(--xps-border) 46%);
+      background: color-mix(in srgb, var(--xps-primary) 9%, var(--xps-card) 91%);
+    }
+    .exw-version-main {
       min-width: 0;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.24;
     }
-    .exw-version > div > div {
-      min-width: 0;
+    .exw-version-title {
+      color: var(--xps-foreground);
+      font-weight: 650;
+      font-size: 14px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .exw-version-meta {
+      color: var(--xps-muted-foreground);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .exw-version-summary {
+      color: var(--xps-muted-foreground);
+      font-size: 12px;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
     .exw-version-action.xps-button {
       width: var(--xps-control-height);
       height: var(--xps-control-height);
       padding: 0;
       justify-self: end;
+      align-self: start;
     }
     .exw-inspector .xps-input,
     .exw-inspector .xps-textarea,
@@ -284,6 +353,7 @@ export function injectStyles() {
       .exw-shell.left-collapsed.right-collapsed {
         --exw-left-width: var(--exw-rail-width);
         --exw-right-width: var(--exw-rail-width);
+        --exw-left-panel-width: min(300px, calc(100vw - var(--exw-rail-width) - 32px));
         --exw-right-panel-width: min(300px, calc(100vw - var(--exw-rail-width) - 32px));
         grid-template-columns: var(--exw-left-width) minmax(0, 1fr) var(--exw-right-width);
       }
@@ -291,16 +361,43 @@ export function injectStyles() {
       .exw-inspector:not([aria-expanded="false"]) {
         width: var(--exw-rail-width);
       }
-      .exw-sidebar .xps-sidebar-content,
+      .exw-sidebar[aria-expanded="true"] {
+        background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);
+      }
+      .exw-sidebar[aria-expanded="true"] > .xps-sidebar-header,
+      .exw-sidebar[aria-expanded="true"] > .xps-sidebar-content {
+        position: absolute;
+        left: 0;
+        width: var(--exw-left-panel-width);
+        max-width: calc(100vw - 16px);
+        z-index: 31;
+        background: var(--xps-card);
+        border-left: 1px solid var(--xps-border);
+        border-right: 1px solid var(--xps-border);
+        box-shadow: 12px 0 28px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
+      }
+      .exw-sidebar[aria-expanded="true"] > .xps-sidebar-header {
+        top: 0;
+        min-height: var(--exw-panel-header-height);
+        border-bottom: 1px solid var(--xps-border);
+      }
+      .exw-sidebar[aria-expanded="true"] > .xps-sidebar-content {
+        top: var(--exw-panel-header-height);
+        bottom: 0;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+      }
+      .exw-sidebar[aria-expanded="false"] .xps-sidebar-content,
       .exw-inspector-scroll {
         display: none;
       }
       .exw-inspector[aria-expanded="true"] .exw-inspector-scroll {
         display: block;
       }
-      .exw-sidebar .xps-sidebar-header .xps-sidebar-title,
-      .exw-sidebar .xps-sidebar-header .xps-badge,
-      .exw-sidebar .xps-sidebar-header .xps-button:not(.xps-sidebar-trigger),
+      .exw-sidebar[aria-expanded="false"] .xps-sidebar-header .xps-sidebar-title,
+      .exw-sidebar[aria-expanded="false"] .xps-sidebar-header .xps-badge,
+      .exw-sidebar[aria-expanded="false"] .xps-sidebar-header .xps-button:not(.xps-sidebar-trigger),
       .exw-inspector[aria-expanded="false"] .xps-sidebar-header .xps-sidebar-title,
       .exw-inspector[aria-expanded="false"] .xps-sidebar-header .xps-badge,
       .exw-inspector[aria-expanded="false"] .xps-sidebar-header .xps-button:not(.xps-sidebar-trigger) {

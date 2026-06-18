@@ -69,6 +69,7 @@ export function installShadcnThemeVars(options: InstallShadcnThemeVarsOptions = 
     }
     .xps-button:focus-visible,
     .xps-checkbox:focus-visible,
+    .xps-command-input:focus,
     .xps-dropdown-menu-item:focus,
     .xps-input:focus,
     .xps-select-trigger:focus,
@@ -666,6 +667,84 @@ export function installShadcnThemeVars(options: InstallShadcnThemeVarsOptions = 
       color: var(--xps-muted-foreground);
       font-size: 0.75rem;
     }
+
+    .xps-command {
+      width: 100%;
+      overflow: hidden;
+      border-radius: var(--xps-radius);
+      background: var(--xps-popover);
+      color: var(--xps-popover-foreground);
+    }
+    .xps-command-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--xps-border);
+      padding: 0 0.625rem;
+      color: var(--xps-muted-foreground);
+    }
+    .xps-command-input {
+      width: 100%;
+      height: 2.25rem;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--xps-foreground);
+      font-family: inherit;
+      font-size: var(--xps-control-font-size);
+    }
+    .xps-command-input::placeholder {
+      color: var(--xps-muted-foreground);
+    }
+    .xps-command-list {
+      max-height: 18rem;
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 0.25rem;
+    }
+    .xps-command-empty {
+      padding: 1.25rem 0.75rem;
+      color: var(--xps-muted-foreground);
+      text-align: center;
+      font-size: var(--xps-control-font-size);
+    }
+    .xps-command-group {
+      overflow: hidden;
+      padding: 0.25rem;
+    }
+    .xps-command-group [cmdk-group-heading] {
+      padding: 0.375rem 0.5rem;
+      color: var(--xps-muted-foreground);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .xps-command-item {
+      display: flex;
+      min-height: var(--xps-control-height);
+      cursor: pointer;
+      user-select: none;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: calc(var(--xps-radius) - 2px);
+      padding: 0.375rem 0.5rem;
+      color: var(--xps-foreground);
+      font-size: var(--xps-control-font-size);
+      outline: none;
+    }
+    .xps-command-item[data-selected="true"] {
+      background: var(--xps-accent);
+      color: var(--xps-accent-foreground);
+    }
+    .xps-command-item[data-disabled="true"] {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .xps-command-separator {
+      height: 1px;
+      margin: 0.25rem -0.25rem;
+      background: var(--xps-border);
+    }
+
     .xps-tabs-list {
       display: inline-flex;
       align-items: center;

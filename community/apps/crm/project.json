@@ -1,0 +1,54 @@
+{
+  "name": "crm",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/crm/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "generatorOptions": {
+        "packageRoot": "dist/{projectRoot}",
+        "currentVersionResolver": "git-tag"
+      }
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/crm",
+        "main": "apps/crm/src/index.ts",
+        "tsConfig": "apps/crm/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "apps/crm/src/lib/remote-components",
+            "glob": "**/*",
+            "output": "remote-components"
+          },
+          {
+            "input": "apps/crm/src/skills",
+            "glob": "**/*",
+            "output": "skills"
+          }
+        ],
+        "project": "apps/crm/package.json",
+        "compiler": "swc",
+        "format": ["cjs", "esm"],
+        "external": [
+          "@langchain/core",
+          "@nestjs/common",
+          "@nestjs/core",
+          "@nestjs/typeorm",
+          "@xpert-ai/contracts",
+          "@xpert-ai/plugin-sdk",
+          "typeorm",
+          "react",
+          "react-dom",
+          "yaml",
+          "zod"
+        ]
+      }
+    }
+  }
+}

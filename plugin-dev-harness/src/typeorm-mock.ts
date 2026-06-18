@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 interface DynamicModuleLike {
   module: unknown;
@@ -25,13 +26,75 @@ interface TypeOrmRuntimeLike {
   getEntityManagerToken?: (dataSource?: unknown) => unknown;
 }
 
+const PACKAGE_SEARCH_IGNORED_DIRS = new Set([
+  '.git',
+  '.turbo',
+  'coverage',
+  'dist',
+  'node_modules'
+]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function loadTypeOrmRuntimeFromWorkspace(workspaceRoot: string): TypeOrmRuntimeLike | undefined {
+function findPackageJsonByName(workspaceRoot: string, packageName: string): string | undefined {
+  const pending = [workspaceRoot];
+
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current) {
+      continue;
+    }
+
+    const packageJsonPath = path.join(current, 'package.json');
+    if (existsSync(packageJsonPath)) {
+      try {
+        const parsed = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: unknown };
+        if (parsed.name === packageName) {
+          return packageJsonPath;
+        }
+      } catch {
+        // Keep scanning; malformed package files are not relevant for mock discovery.
+      }
+    }
+
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || PACKAGE_SEARCH_IGNORED_DIRS.has(entry.name)) {
+        continue;
+      }
+      pending.push(path.join(current, entry.name));
+    }
+  }
+
+  return undefined;
+}
+
+function createRuntimeRequire(workspaceRoot: string, pluginName: string) {
   const workspacePackageJson = path.join(workspaceRoot, 'package.json');
   const requireFromWorkspace = createRequire(workspacePackageJson);
+
+  try {
+    requireFromWorkspace.resolve('typeorm');
+    return requireFromWorkspace;
+  } catch {
+    const packageJsonPath = findPackageJsonByName(workspaceRoot, pluginName);
+    return packageJsonPath ? createRequire(packageJsonPath) : requireFromWorkspace;
+  }
+}
+
+function loadTypeOrmRuntimeFromWorkspace(
+  workspaceRoot: string,
+  pluginName: string
+): TypeOrmRuntimeLike | undefined {
+  const requireFromWorkspace = createRuntimeRequire(workspaceRoot, pluginName);
 
   let typeormExports: unknown;
   try {
@@ -231,9 +294,10 @@ function createDataSourceMock() {
 }
 
 export function createTypeOrmMockModule(
-  workspaceRoot: string
+  workspaceRoot: string,
+  pluginName: string
 ): DynamicModuleLike | undefined {
-  const runtime = loadTypeOrmRuntimeFromWorkspace(workspaceRoot);
+  const runtime = loadTypeOrmRuntimeFromWorkspace(workspaceRoot, pluginName);
   if (!runtime) {
     return undefined;
   }

@@ -1,5 +1,6 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
+  SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN: Symbol('SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN'),
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,
@@ -15,6 +16,7 @@ jest.mock('./workflow/wechat-personal-trigger.strategy.js', () => ({
   WechatPersonalTriggerStrategy: class WechatPersonalTriggerStrategy {}
 }))
 
+import { SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
 import { FindOperator } from 'typeorm'
 import { WechatPersonalConversationService } from './conversation.service.js'
 import { WechatPersonalInboundEvent } from './types.js'
@@ -30,6 +32,7 @@ describe('WechatPersonalConversationService duplicate detection', () => {
     chatType: 'private',
     messageId: 'msg-1',
     msgType: 1,
+    messageKind: 'text',
     content: '你好',
     timestamp: Date.now(),
     isSelf: false,
@@ -39,6 +42,7 @@ describe('WechatPersonalConversationService duplicate detection', () => {
 
   function createService(count: jest.Mock) {
     return new WechatPersonalConversationService(
+      {} as any,
       {} as any,
       {} as any,
       {
@@ -114,6 +118,37 @@ describe('WechatPersonalConversationService duplicate detection', () => {
     })
   })
 
+  it('deduplicates contentless image callbacks by media signature', async () => {
+    const count = jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1)
+    const service = createService(count)
+    const imageEvent: WechatPersonalInboundEvent = {
+      ...baseEvent,
+      messageId: 'img-msg-1',
+      msgType: 3,
+      messageKind: 'image',
+      content: '<msg><img aeskey="download-token" /></msg>',
+      mediaSignature: 'image:uuid-1:img-msg-1:3:wxid_friend'
+    }
+
+    await expect((service as any).isDuplicateInbound('integration-1', imageEvent)).resolves.toBe(true)
+
+    expect(count).toHaveBeenCalledTimes(2)
+    expect(count).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        direction: 'inbound',
+        payloadSummary: expect.any(FindOperator),
+        createdAt: expect.any(FindOperator)
+      })
+    })
+
+    const keys = (service as any).buildInboundDedupeKeys('integration-1', imageEvent)
+    expect(keys.some((key: string) => key.includes('|media:'))).toBe(true)
+  })
+
   it('guards concurrent dual callbacks before the message log is committed', () => {
     const service = createService(jest.fn())
     const legacyEvent = {
@@ -153,6 +188,7 @@ describe('WechatPersonalConversationService fresh session history context', () =
     chatType: 'private',
     messageId: 'msg-1',
     msgType: 1,
+    messageKind: 'text',
     content: '新消息',
     timestamp: Date.now(),
     isSelf: false,
@@ -177,7 +213,8 @@ describe('WechatPersonalConversationService fresh session history context', () =
         id: 'integration-1',
         tenantId: 'tenant-1',
         organizationId: 'org-1',
-        options: {}
+        options: {},
+        ...overrides.integration
       })
     }
     const triggerStrategy = {
@@ -187,9 +224,12 @@ describe('WechatPersonalConversationService fresh session history context', () =
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
         historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
         ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only',
         chatFilterMode: 'all',
-        groupTriggerMode: 'mention_or_keywords'
+        groupTriggerMode: 'mention_or_keywords',
+        ...overrides.triggerBinding
       }),
       handleInboundMessage: jest.fn().mockResolvedValue(true),
       clearBufferedConversation: jest.fn().mockResolvedValue(undefined)
@@ -198,6 +238,40 @@ describe('WechatPersonalConversationService fresh session history context', () =
       findOne: jest.fn().mockResolvedValue(null),
       upsert: jest.fn().mockResolvedValue(undefined),
       update: jest.fn().mockResolvedValue(undefined)
+    }
+    const wechatClient = {
+      downloadImage: jest.fn().mockResolvedValue({
+        success: true,
+        file: {
+          fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+          url: 'data:image/png;base64,iVBORw0KGgo=',
+          mimeType: 'image/png',
+          mimetype: 'image/png',
+          originalName: 'wechat-image.png',
+          name: 'wechat-image.png',
+          fileKey: 'file-key-1',
+          size: 8,
+          extension: 'png'
+        }
+      }),
+      downloadVoice: jest.fn().mockResolvedValue({
+        success: true,
+        audio: {
+          data: Buffer.from('RIFF____WAVE'),
+          mimeType: 'audio/wav',
+          originalName: 'wechat-voice.wav',
+          fileKey: 'voice-key-1',
+          size: 12,
+          durationMs: 1000
+        }
+      }),
+      ...overrides.wechatClient
+    }
+    const speechToTextPermissionService = {
+      transcribe: jest.fn().mockResolvedValue({
+        text: '这是一条语音转写'
+      }),
+      ...overrides.speechToTextPermissionService
     }
     const messageLogRepository = {
       count: jest.fn().mockResolvedValue(0),
@@ -212,6 +286,7 @@ describe('WechatPersonalConversationService fresh session history context', () =
     }
     const service = new WechatPersonalConversationService(
       {} as any,
+      wechatClient as any,
       triggerStrategy as any,
       {
         getStatus: jest.fn(() => ({ connected: false, bindingCount: 0, bindings: [] }))
@@ -220,13 +295,19 @@ describe('WechatPersonalConversationService fresh session history context', () =
       { delete: jest.fn().mockResolvedValue(undefined) } as any,
       accountRepository as any,
       messageLogRepository as any,
-      { resolve: jest.fn(() => integrationPermissionService) } as any
+      {
+        resolve: jest.fn((token) =>
+          token === SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN ? speechToTextPermissionService : integrationPermissionService
+        )
+      } as any
     )
 
     return {
       service,
       integrationPermissionService,
       triggerStrategy,
+      wechatClient,
+      speechToTextPermissionService,
       accountRepository,
       messageLogRepository,
       ...overrides
@@ -264,6 +345,99 @@ describe('WechatPersonalConversationService fresh session history context', () =
       expect.objectContaining({
         historyContext: '[历史上下文]',
         currentInboundLogIds: ['inbound-log-1']
+      })
+    )
+  })
+
+  it('stores self private messages as history only under the real peer conversation key', async () => {
+    const { service, triggerStrategy, messageLogRepository } = createFullService()
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'self-msg-a',
+          ownerWxid: 'wxid_owner',
+          fromUser: 'wxid_owner',
+          toUser: 'wxid_friend_a',
+          contactId: 'wxid_owner',
+          senderId: 'wxid_owner',
+          chatId: 'wxid_owner',
+          content: '发给 A 的消息',
+          isSelf: true
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'history_only' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        contactId: 'wxid_friend_a',
+        senderId: 'wxid_friend_a',
+        chatType: 'private',
+        isSelf: true,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend_a:wxid_friend_a'
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'history_only',
+        content: '发给 A 的消息'
+      })
+    )
+  })
+
+  it('uses explicit historyContextWindowSeconds instead of sessionTimeoutSeconds', async () => {
+    const { service } = createFullService({
+      triggerBinding: {
+        sessionTimeoutSeconds: 60,
+        historyContextWindowSeconds: 7200
+      }
+    })
+    const historySpy = jest.spyOn(service as any, 'buildHistoryContext').mockResolvedValue(undefined)
+
+    await expect(
+      service.handleInboundEvent(baseEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(historySpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutSeconds: 7200
+      })
+    )
+  })
+
+  it('passes a zero history context window through to disable time filtering', async () => {
+    const { service } = createFullService({
+      triggerBinding: {
+        sessionTimeoutSeconds: 60,
+        historyContextWindowSeconds: 0
+      }
+    })
+    const historySpy = jest.spyOn(service as any, 'buildHistoryContext').mockResolvedValue(undefined)
+
+    await expect(
+      service.handleInboundEvent(baseEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(historySpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutSeconds: 0
       })
     )
   })
@@ -307,6 +481,373 @@ describe('WechatPersonalConversationService fresh session history context', () =
     )
   })
 
+  it('downloads inbound images and dispatches them as files with empty input', async () => {
+    const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService()
+    const imageRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'img-msg-1',
+      msgContent: '',
+      msgType: 3 as const,
+      fromUser: 'wxid_friend',
+      toUser: 'wxid_owner',
+      msgId: 123,
+      isSelf: false,
+      fileKey: 'file-key-1'
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'img-msg-1',
+          msgType: 3,
+          messageKind: 'image',
+          content: '',
+          displayText: '[图片]',
+          imageRef,
+          mediaSignature: 'image:uuid-1:img-msg-1:3:wxid_friend:wxid_friend:wxid_owner',
+          rawPayload: {
+            imgbuf: 'should-not-be-persisted',
+            content: ''
+          }
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(wechatClient.downloadImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'integration-1'
+      }),
+      imageRef
+    )
+    expect(messageLogRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: 'inbound',
+        content: '[图片]',
+        payloadSummary: expect.not.stringContaining('should-not-be-persisted')
+      })
+    )
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            url: 'data:image/png;base64,iVBORw0KGgo=',
+            mimeType: 'image/png',
+            mimetype: 'image/png',
+            originalName: 'wechat-image.png',
+            name: 'wechat-image.png',
+            fileKey: 'file-key-1',
+            size: 8,
+            extension: 'png'
+          }
+        ]
+      })
+    )
+  })
+
+  it('marks inbound image logs failed and skips Agent dispatch when download fails', async () => {
+    const { service, triggerStrategy, messageLogRepository } = createFullService({
+      wechatClient: {
+        downloadImage: jest.fn().mockResolvedValue({
+          success: false,
+          error: 'download failed'
+        })
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'img-msg-2',
+          msgType: 3,
+          messageKind: 'image',
+          content: '',
+          displayText: '',
+          imageRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'img-msg-2',
+            msgContent: '',
+            msgType: 3
+          },
+          mediaSignature: 'image:uuid-1:img-msg-2:3:wxid_friend'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: false, reason: 'image_download_failed' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'inbound-log-1'
+      }),
+      expect.objectContaining({
+        status: 'failed',
+        xpertId: 'xpert-1',
+        error: expect.stringContaining('inbound_image_download_failed')
+      })
+    )
+  })
+
+  it('transcribes private voice messages and dispatches the transcript as human input', async () => {
+    const { service, triggerStrategy, wechatClient, speechToTextPermissionService, messageLogRepository } = createFullService({
+      integration: {
+        createdById: '11111111-1111-4111-8111-111111111111'
+      }
+    })
+    const voiceRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'voice-msg-1',
+      msgContent: '<msg><voicemsg /></msg>',
+      msgType: 34 as const,
+      fromUser: 'wxid_friend',
+      toUser: 'wxid_owner',
+      msgId: 234,
+      isSelf: false,
+      fileKey: 'voice-key-1'
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'voice-msg-1',
+          msgType: 34,
+          messageKind: 'voice',
+          content: '<msg><voicemsg /></msg>',
+          displayText: '[语音]',
+          voiceRef,
+          mediaSignature: 'voice:uuid-1:voice-msg-1:34:wxid_friend:wxid_friend:wxid_owner',
+          rawPayload: {
+            voicebuf: 'should-not-be-persisted',
+            content: '<msg><voicemsg /></msg>'
+          }
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(wechatClient.downloadVoice).toHaveBeenCalledWith(expect.objectContaining({ id: 'integration-1' }), voiceRef)
+    expect(speechToTextPermissionService.transcribe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        xpertId: 'xpert-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        file: expect.objectContaining({
+          data: Buffer.from('RIFF____WAVE'),
+          originalName: 'wechat-voice.wav',
+          mimeType: 'audio/wav',
+          size: 12
+        })
+      })
+    )
+    expect(speechToTextPermissionService.transcribe.mock.calls[0]?.[0]).not.toHaveProperty('userId')
+    expect(messageLogRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: 'inbound',
+        content: '[语音]',
+        payloadSummary: expect.not.stringContaining('should-not-be-persisted')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        content: '这是一条语音转写',
+        payloadSummary: expect.stringContaining('这是一条语音转写')
+      })
+    )
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '这是一条语音转写',
+        files: undefined
+      })
+    )
+  })
+
+  it('marks inbound voice logs failed and skips Agent dispatch when transcription fails', async () => {
+    const { service, triggerStrategy, messageLogRepository } = createFullService({
+      speechToTextPermissionService: {
+        transcribe: jest.fn().mockRejectedValue(new Error('stt unavailable'))
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'voice-msg-2',
+          msgType: 34,
+          messageKind: 'voice',
+          content: '<msg><voicemsg /></msg>',
+          displayText: '[语音]',
+          voiceRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'voice-msg-2',
+            msgContent: '<msg><voicemsg /></msg>',
+            msgType: 34
+          },
+          mediaSignature: 'voice:uuid-1:voice-msg-2:34:wxid_friend'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: false, reason: 'voice_transcription_failed' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'inbound-log-1'
+      }),
+      expect.objectContaining({
+        status: 'failed',
+        xpertId: 'xpert-1',
+        error: expect.stringContaining('inbound_voice_transcription_failed')
+      })
+    )
+  })
+
+  it('surfaces structured speech-to-text host errors in inbound voice logs', async () => {
+    const error = new Error('Bad Request') as Error & { getResponse: () => Record<string, unknown> }
+    error.getResponse = () => ({
+      code: 'xpert_principal_xpert_not_found',
+      message: 'Target Xpert was not found for principal initialization.',
+      xpertId: 'xpert-1',
+      remediation: 'Check the WeChat binding target Xpert and organization scope.'
+    })
+    const { service, triggerStrategy, messageLogRepository } = createFullService({
+      speechToTextPermissionService: {
+        transcribe: jest.fn().mockRejectedValue(error)
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'voice-msg-principal-missing',
+          msgType: 34,
+          messageKind: 'voice',
+          content: '<msg><voicemsg /></msg>',
+          displayText: '[语音]',
+          voiceRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'voice-msg-principal-missing',
+            msgContent: '<msg><voicemsg /></msg>',
+            msgType: 34
+          },
+          mediaSignature: 'voice:uuid-1:voice-msg-principal-missing:34:wxid_friend'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: false, reason: 'voice_transcription_failed' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'inbound-log-1'
+      }),
+      expect.objectContaining({
+        status: 'failed',
+        xpertId: 'xpert-1',
+        error: expect.stringContaining('xpert_principal_xpert_not_found')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'inbound-log-1'
+      }),
+      expect.objectContaining({
+        error: expect.stringContaining('principal initialization')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'inbound-log-1'
+      }),
+      expect.objectContaining({
+        error: expect.stringContaining('xpertId=xpert-1')
+      })
+    )
+  })
+
+  it('uses transcribed voice text for group keyword trigger policy', async () => {
+    const { service, triggerStrategy, wechatClient } = createFullService({
+      triggerBinding: {
+        groupTriggerMode: 'keywords',
+        groupKeywords: ['总结']
+      },
+      speechToTextPermissionService: {
+        transcribe: jest.fn().mockResolvedValue({
+          text: '请总结这张图里的内容'
+        })
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          contactId: 'room@chatroom',
+          chatId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          messageId: 'voice-msg-3',
+          msgType: 34,
+          messageKind: 'voice',
+          content: '<msg><voicemsg /></msg>',
+          displayText: '[语音]',
+          voiceRef: {
+            uuid: 'uuid-1',
+            contactId: 'room@chatroom',
+            newMsgId: 'voice-msg-3',
+            msgContent: '<msg><voicemsg /></msg>',
+            msgType: 34
+          },
+          mediaSignature: 'voice:uuid-1:voice-msg-3:34:room@chatroom'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(wechatClient.downloadVoice).toHaveBeenCalled()
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '请总结这张图里的内容'
+      })
+    )
+  })
+
   it('formats only previous dispatched inbound and sent outbound logs as history context', async () => {
     const query = createQueryBuilder([
       {
@@ -324,6 +865,14 @@ describe('WechatPersonalConversationService fresh session history context', () =
         senderId: 'wxid_friend',
         content: '上一轮用户消息',
         createdAt: new Date('2026-06-16T02:58:00.000Z')
+      },
+      {
+        id: 'self-1',
+        direction: 'inbound',
+        status: 'history_only',
+        senderId: 'wxid_friend',
+        content: '用户自己补充的背景',
+        createdAt: new Date('2026-06-16T02:58:30.000Z')
       }
     ])
     const { service, messageLogRepository } = createFullService()
@@ -357,7 +906,7 @@ describe('WechatPersonalConversationService fresh session history context', () =
     expect(query.andWhere).toHaveBeenCalledWith(
       expect.stringContaining('log.status = :outboundStatus'),
       expect.objectContaining({
-        inboundStatus: 'dispatched',
+        inboundStatuses: ['dispatched', 'history_only'],
         outboundStatus: 'sent'
       })
     )
@@ -367,7 +916,25 @@ describe('WechatPersonalConversationService fresh session history context', () =
     expect(query.limit).toHaveBeenCalledWith(20)
     expect(context).toContain('[历史上下文')
     expect(context).toContain('用户(wxid_friend): 上一轮用户消息')
+    expect(context).toContain('用户(wxid_friend): 用户自己补充的背景')
     expect(context).toContain('Agent: 上一轮 Agent 回复')
+  })
+
+  it('does not add a history time filter when historyContextWindowSeconds is 0', async () => {
+    const query = createQueryBuilder([])
+    const { service, messageLogRepository } = createFullService()
+    messageLogRepository.createQueryBuilder.mockReturnValueOnce(query)
+
+    await (service as any).buildHistoryContext({
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      limit: 20,
+      timeoutSeconds: 0,
+      before: createdAt
+    })
+
+    expect(query.andWhere).not.toHaveBeenCalledWith('log.createdAt > :historySince', expect.anything())
   })
 
   it('disables history context when historyContextLimit is 0', async () => {

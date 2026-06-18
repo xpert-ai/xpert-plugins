@@ -23,8 +23,10 @@ import {
   WECHAT_PERSONAL_MIDDLEWARE_NAME,
   WECHAT_PERSONAL_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME,
+  WECHAT_PERSONAL_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_PERSONAL_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
+  WECHAT_PERSONAL_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_PERSONAL_RUNTIME_FEATURE,
   WECHAT_PERSONAL_SEARCH_MESSAGE_LOGS_TOOL_NAME,
@@ -44,6 +46,7 @@ import {
 } from './wechat-personal-outbound-queue.service.js'
 import type { WechatPersonalMessageLogEntity } from './entities/index.js'
 import type { WechatPersonalChatCallbackContext } from './handoff/wechat-personal-chat.types.js'
+import { resolveWechatPersonalConversationIdentity } from './conversation-user-key.js'
 
 type WechatPersonalRuntimeMiddlewareOptions = {
   integrationId?: string
@@ -101,7 +104,7 @@ const listConversationsSchema = z.object({
 const searchMessageLogsSchema = z.object({
   integrationId: integrationField,
   direction: z.enum(['inbound', 'outbound', 'system']).optional().describe('Message direction filter.'),
-  status: z.enum(['received', 'dispatched', 'queued', 'deferred', 'sending', 'sent', 'skipped', 'failed', 'paused', 'cancelled', 'context_reset']).optional().describe('Message status filter.'),
+  status: z.enum(['received', 'dispatched', 'history_only', 'queued', 'deferred', 'sending', 'sent', 'skipped', 'failed', 'paused', 'cancelled', 'context_reset']).optional().describe('Message status filter.'),
   search: z.string().optional().describe('Keyword for contact, sender, message id, content, error or conversation id.'),
   page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
   pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
@@ -196,6 +199,8 @@ const WECHAT_PERSONAL_ADMIN_TOOL_NAMES = new Set([
   WECHAT_PERSONAL_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_PERSONAL_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_PERSONAL_REGISTER_CALLBACK_TOOL_NAME,
+  WECHAT_PERSONAL_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
+  WECHAT_PERSONAL_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_PERSONAL_SET_ACCOUNT_ENABLED_TOOL_NAME
 ])
 
@@ -296,6 +301,44 @@ export class WechatPersonalRuntimeMiddleware
           this.safeJson(async () => {
             const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
             if (!integrationId) {
+              return this.missingIntegrationId()
+            }
+            return this.success(
+              'Personal WeChat webhook credential was rotated.',
+              await this.conversationService.rotateWebhookCredential(integrationId)
+            )
+          }),
+        {
+          name: WECHAT_PERSONAL_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
+          description:
+            'Rotate the opaque webhook credential for a Personal WeChat integration. The previous callback URL becomes invalid; use the returned callback config to update wx2.0.',
+          schema: callbackConfigSchema
+        }
+      ),
+      tool(
+        async (input) =>
+          this.safeJson(async () => {
+            const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+            if (!integrationId) {
+              return this.missingIntegrationId()
+            }
+            await this.conversationService.revokeWebhookCredential(integrationId)
+            return this.success('Personal WeChat webhook credential was revoked.', {
+              integrationId
+            })
+          }),
+        {
+          name: WECHAT_PERSONAL_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
+          description:
+            'Revoke the active Personal WeChat webhook credential. wx2.0 callbacks using the old URL will be rejected until a credential is rotated and the callback URL is updated.',
+          schema: callbackConfigSchema
+        }
+      ),
+      tool(
+        async (input) =>
+          this.safeJson(async () => {
+            const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
+            if (!integrationId) {
               return this.success(
                 'Organization Personal WeChat callback configurations were returned.',
                 (await this.conversationService.getOrganizationWorkbenchData({ pageSize: 1 })).integrations?.map(
@@ -313,7 +356,7 @@ export class WechatPersonalRuntimeMiddleware
             }
             return this.success(
               'Personal WeChat callback configuration was returned.',
-              this.conversationService.buildCallbackConfig(integration.id, integration.options?.callbackSecret)
+              await this.conversationService.buildCallbackConfig(integration.id)
             )
           }),
         {
@@ -530,10 +573,9 @@ export class WechatPersonalRuntimeMiddleware
             if (!integration) {
               return this.error(`Personal WeChat integration "${integrationId}" was not found.`)
             }
-            const callbackConfig = this.conversationService.buildCallbackConfig(
-              integration.id,
-              integration.options?.callbackSecret
-            )
+            const callbackConfig = await this.conversationService.buildCallbackConfig(integration.id, {
+              requireActiveCredential: true
+            })
             const result = await this.wechatChannel.registerCallback({
               integrationId: integration.id,
               uuid: input.uuid,
@@ -792,6 +834,25 @@ export class WechatPersonalRuntimeMiddleware
         status: 'tool_send'
       }
     } as WechatPersonalChatCallbackContext
+    const identity = resolveWechatPersonalConversationIdentity({
+      integrationId,
+      uuid: sendParams.uuid,
+      contactId: sendParams.contactId,
+      senderId: sendParams.contactId,
+      chatType: sendParams.chatType,
+      isSelf: false
+    })
+    if (identity) {
+      outboundContext.contactId = identity.contactId
+      outboundContext.contact_id = identity.contactId
+      outboundContext.chatId = identity.contactId
+      outboundContext.chat_id = identity.contactId
+      outboundContext.chatType = identity.chatType
+      outboundContext.chat_type = identity.chatType
+      outboundContext.senderId = identity.senderId
+      outboundContext.sender_id = identity.senderId
+      outboundContext.conversationUserKey = identity.conversationUserKey
+    }
     const tenantId = normalizeString(rawContext.tenantId)
     if (tenantId) {
       outboundContext.tenantId = tenantId

@@ -6,7 +6,7 @@ import {
   ProcessContext,
   ProcessResult
 } from '@xpert-ai/plugin-sdk'
-import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
+import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/contracts'
 import { WechatPersonalChannelStrategy } from '../wechat-personal-channel.strategy.js'
 import { WechatPersonalConversationService } from '../conversation.service.js'
 import {
@@ -304,6 +304,9 @@ export class WechatPersonalChatCallbackProcessor implements IHandoffProcessor<We
   private async failRun(state: WechatPersonalChatRunState, error: unknown): Promise<void> {
     const context = state.context
     const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Agent execution failed'
+    this.logger.warn(
+      `[wechat-personal-callback] agent run failed source=${state.sourceMessageId} integration=${context.integrationId} contact=${context.contactId} error=${message}`
+    )
     await this.conversationService.logOutbound({
       context,
       content: '',

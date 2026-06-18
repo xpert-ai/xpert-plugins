@@ -1,0 +1,6 @@
+export * from './crm-object-definition.entity'
+export * from './crm-field-definition.entity'
+export * from './crm-relation-definition.entity'
+export * from './crm-record.entity'
+export * from './crm-view-definition.entity'
+export * from './crm-activity.entity'

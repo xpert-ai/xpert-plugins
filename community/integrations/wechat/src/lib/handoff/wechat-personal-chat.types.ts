@@ -1,4 +1,3 @@
-import { LanguagesEnum, TChatOptions, TChatRequest } from '@xpert-ai/contracts'
 import { AgentChatCallbackEnvelopePayload, defineChannelMessageType } from '@xpert-ai/plugin-sdk'
 
 export const WECHAT_PERSONAL_CHAT_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
@@ -45,34 +44,4 @@ export interface WechatPersonalChatCallbackContext extends Record<string, unknow
 
 export interface WechatPersonalChatCallbackPayload extends AgentChatCallbackEnvelopePayload {
   context?: WechatPersonalChatCallbackContext
-}
-
-export interface WechatPersonalChatHandoffPayload extends Record<string, unknown> {
-  request: TChatRequest
-  options: TChatOptions & {
-    xpertId: string
-    from: string
-    fromEndUserId: string
-    tenantId: string
-    organizationId?: string
-    user?: any
-    language?: LanguagesEnum
-    channelType?: string
-    wechatPersonalConversation?: boolean
-    wechat_personal_conversation?: boolean
-    channelSource?: string
-    channel_source?: string
-    integrationId?: string
-    uuid?: string
-    ownerWxid?: string
-    contactId?: string
-    contact_id?: string
-    chatId?: string
-    chat_id?: string
-    chatType?: 'private' | 'group'
-    chat_type?: 'private' | 'group'
-    senderId?: string
-    sender_id?: string
-    channelUserId?: string
-  }
 }
