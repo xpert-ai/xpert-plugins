@@ -17,5 +17,6 @@ export {
   RotateCcw,
   Save,
   Send,
+  Trash2,
   Upload
 } from 'lucide-react'

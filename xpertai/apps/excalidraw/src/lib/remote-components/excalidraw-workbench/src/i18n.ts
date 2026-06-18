@@ -16,6 +16,15 @@ export type TranslationKey =
   | 'versions'
   | 'restore'
   | 'archive'
+  | 'delete'
+  | 'deleteDrawing'
+  | 'deleteVersion'
+  | 'deleteDrawingTitle'
+  | 'deleteDrawingDescription'
+  | 'deleteVersionTitle'
+  | 'deleteVersionDescription'
+  | 'cancel'
+  | 'confirmDelete'
   | 'markReviewed'
   | 'backToDraft'
   | 'mermaid'
@@ -39,6 +48,7 @@ export type TranslationKey =
   | 'convertFailed'
   | 'agentDrawingUpdated'
   | 'agentDrawingUpdatedWithLocalChanges'
+  | 'sceneDataInvalid'
   | 'mermaidAutoPreviewed'
   | 'mermaidAutoSaved'
   | 'mermaidAutoChangeSummary'
@@ -68,6 +78,15 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     versions: '版本',
     restore: '恢复',
     archive: '归档',
+    delete: '删除',
+    deleteDrawing: '删除图形',
+    deleteVersion: '删除版本',
+    deleteDrawingTitle: '确认删除图形',
+    deleteDrawingDescription: '此操作会物理删除该图形、全部版本和日志记录，无法撤销。',
+    deleteVersionTitle: '确认删除版本',
+    deleteVersionDescription: '此操作会物理删除该版本记录及关联日志，无法撤销。',
+    cancel: '取消',
+    confirmDelete: '确认删除',
     markReviewed: '标记已审核',
     backToDraft: '退回草稿',
     mermaid: 'Mermaid',
@@ -91,6 +110,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     convertFailed: 'Mermaid 转换失败',
     agentDrawingUpdated: 'Agent 绘图结果已刷新',
     agentDrawingUpdatedWithLocalChanges: 'Agent 已更新图形，但当前画布有未保存改动，未自动覆盖。',
+    sceneDataInvalid: '图形数据异常，已降级为空白画布以避免页面崩溃',
     mermaidAutoPreviewed: 'Mermaid 草稿已自动转换为预览',
     mermaidAutoSaved: 'Mermaid 转换结果已自动保存',
     mermaidAutoChangeSummary: '自动保存 Mermaid 转换结果',
@@ -119,6 +139,15 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     versions: 'Versions',
     restore: 'Restore',
     archive: 'Archive',
+    delete: 'Delete',
+    deleteDrawing: 'Delete drawing',
+    deleteVersion: 'Delete version',
+    deleteDrawingTitle: 'Delete drawing?',
+    deleteDrawingDescription: 'This will permanently delete this drawing, all versions, and activity logs. This cannot be undone.',
+    deleteVersionTitle: 'Delete version?',
+    deleteVersionDescription: 'This will permanently delete this version record and related activity logs. This cannot be undone.',
+    cancel: 'Cancel',
+    confirmDelete: 'Delete',
     markReviewed: 'Mark reviewed',
     backToDraft: 'Back to draft',
     mermaid: 'Mermaid',
@@ -142,6 +171,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     convertFailed: 'Mermaid conversion failed',
     agentDrawingUpdated: 'Agent drawing result refreshed',
     agentDrawingUpdatedWithLocalChanges: 'Agent updated this drawing, but unsaved canvas changes were kept.',
+    sceneDataInvalid: 'Invalid scene data was replaced with a blank canvas to keep the page running.',
     mermaidAutoPreviewed: 'Mermaid draft auto-converted for preview.',
     mermaidAutoSaved: 'Mermaid conversion auto-saved',
     mermaidAutoChangeSummary: 'Auto-saved Mermaid conversion',

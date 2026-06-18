@@ -152,6 +152,8 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           { key: 'mark_reviewed', label: text('Mark Reviewed', '标记已审核'), icon: 'ri-check-line', actionType: 'invoke' },
           { key: 'mark_draft', label: text('Move Back to Draft', '退回草稿'), icon: 'ri-edit-line', actionType: 'invoke' },
           { key: 'archive_drawing', label: text('Archive Drawing', '归档图形'), icon: 'ri-archive-line', actionType: 'invoke' },
+          { key: 'delete_drawing', label: text('Delete Drawing', '删除图形'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
+          { key: 'delete_version', label: text('Delete Version', '删除版本'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
           {
             key: 'import_scene_file',
             label: text('Import Excalidraw File', '导入 Excalidraw 文件'),
@@ -296,6 +298,26 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         })
         return {
           ...success('Drawing archived', '图形已归档'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'delete_drawing') {
+        const result = await this.service.deleteDrawing(scope, requireDrawingId(request))
+        return {
+          ...success('Drawing deleted', '图形已删除'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'delete_version') {
+        const result = await this.service.deleteVersion(
+          scope,
+          requireDrawingId(request),
+          requireStringInput(request.input, 'versionId', 'Version id is required.')
+        )
+        return {
+          ...success('Drawing version deleted', '图形版本已删除'),
           data: result
         }
       }
@@ -507,7 +529,7 @@ function buildAgentDrawPrompt(prompt: string, drawingId?: string, locale?: unkno
 用户绘图需求：
 ${prompt}
 
-请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 excalidraw_save_mermaid_draft。需要精确布局或自由图形时，复杂图先调用 excalidraw_create_drawing 创建空图，再调用 excalidraw_add_elements 按单个元素或小批量逐步添加；仅在明确要整体替换时才调用 excalidraw_save_scene_version。更新已有图形前先调用 excalidraw_get_drawing 获取摘要；需要具体元素时再用 includeScene=true、versionNumber/versionId 和 elementOffset/elementLimit 分页获取。`
+请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 excalidraw_save_mermaid_draft。需要精确布局或自由图形时，复杂图先调用 excalidraw_create_drawing 创建空图，再调用 excalidraw_add_elements 按单个元素或小批量逐步添加；仅在明确要整体替换时才调用 excalidraw_save_scene_version。更新已有图形前先调用 excalidraw_get_drawing 获取摘要；需要元素列表时用 includeScene=true、versionNumber/versionId 和 elementOffset/elementLimit 获取轻量元素引用；需要完整元素、appState、文件或 Mermaid 源码时再调用 excalidraw_get_scene_item 并指定 itemType。`
   }
 
   const context = drawingId
@@ -518,7 +540,7 @@ ${prompt}
 User drawing request:
 ${prompt}
 
-First decide whether the request is better as a Mermaid draft. For flowcharts, architecture flows, and state flows, call excalidraw_save_mermaid_draft. For precise layout or freeform diagrams, create complex drawings in stages: call excalidraw_create_drawing without elements, then call excalidraw_add_elements with one element or a small batch at a time. Call excalidraw_save_scene_version only when a full scene replacement is intentional. Before updating an existing drawing, call excalidraw_get_drawing for compact metadata; request exact elements only with includeScene=true, versionNumber/versionId, and elementOffset/elementLimit pagination.`
+First decide whether the request is better as a Mermaid draft. For flowcharts, architecture flows, and state flows, call excalidraw_save_mermaid_draft. For precise layout or freeform diagrams, create complex drawings in stages: call excalidraw_create_drawing without elements, then call excalidraw_add_elements with one element or a small batch at a time. Call excalidraw_save_scene_version only when a full scene replacement is intentional. Before updating an existing drawing, call excalidraw_get_drawing for compact metadata; request lightweight element refs with includeScene=true, versionNumber/versionId, and elementOffset/elementLimit pagination. Fetch exact elements, appState, files, or Mermaid source with excalidraw_get_scene_item and an explicit itemType.`
 }
 
 function htmlLangFromLocale(locale: unknown) {

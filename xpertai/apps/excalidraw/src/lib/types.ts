@@ -9,6 +9,7 @@ export type ExcalidrawVersionSource =
   | 'import'
   | 'restore'
 export type ExcalidrawActorType = 'agent' | 'user' | 'system'
+export type ExcalidrawSceneItemType = 'element' | 'appState' | 'file' | 'mermaidSource'
 export type ExcalidrawActionType =
   | 'drawing_created'
   | 'version_saved'
@@ -90,6 +91,15 @@ export interface GetExcalidrawDrawingInput {
   includeFiles?: boolean
   elementOffset?: number
   elementLimit?: number
+}
+
+export interface GetExcalidrawSceneItemInput {
+  drawingId: string
+  itemType: ExcalidrawSceneItemType
+  versionId?: string
+  versionNumber?: number
+  elementId?: string
+  fileId?: string
 }
 
 export interface UpdateExcalidrawDrawingStatusInput {

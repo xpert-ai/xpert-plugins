@@ -1,12 +1,14 @@
-import type { GetExcalidrawDrawingInput } from './types.js'
+import type { GetExcalidrawDrawingInput, GetExcalidrawSceneItemInput } from './types.js'
 
-const DEFAULT_VERSION_LIMIT = 5
+const DEFAULT_VERSION_LIMIT = 3
 const MAX_VERSION_LIMIT = 20
 const DEFAULT_LOG_LIMIT = 5
 const MAX_LOG_LIMIT = 20
-const DEFAULT_ELEMENT_LIMIT = 200
-const MAX_ELEMENT_LIMIT = 1000
-const TEXT_PREVIEW_LIMIT = 600
+const DEFAULT_ELEMENT_LIMIT = 50
+const MAX_ELEMENT_LIMIT = 200
+const TEXT_PREVIEW_LIMIT = 240
+const ELEMENT_TEXT_PREVIEW_LIMIT = 120
+const MERMAID_PREVIEW_LIMIT = 300
 
 export function stringifyAgentToolResult(value: unknown) {
   return JSON.stringify(pruneUndefined(value))
@@ -21,8 +23,8 @@ export function summarizeDrawingMutationResult(result: Record<string, any>, fall
   const drawingId =
     readString(result.drawingId) ??
     drawing?.id ??
-    summarizedCurrentVersion?.drawingId ??
-    summarizedVersion?.drawingId
+    readString(currentVersion?.drawingId) ??
+    readString(result.version?.drawingId)
   const versionId = readString(result.versionId) ?? summarizedVersion?.id ?? summarizedCurrentVersion?.id
   const versionNumber =
     readFiniteNumber(result.versionNumber) ?? summarizedVersion?.versionNumber ?? summarizedCurrentVersion?.versionNumber
@@ -80,6 +82,7 @@ export function buildAgentDrawingResponse(
   const logs = Array.isArray(payload.logs) ? payload.logs : []
   const versionLimit = boundedInt(input.versionLimit, DEFAULT_VERSION_LIMIT, 1, MAX_VERSION_LIMIT)
   const logLimit = boundedInt(input.logLimit, DEFAULT_LOG_LIMIT, 1, MAX_LOG_LIMIT)
+  const scenePayload = input.includeScene && sceneVersion ? buildScenePayload(sceneVersion, input) : undefined
 
   return pruneUndefined({
     item: summarizeDrawingItem(payload.item),
@@ -92,10 +95,57 @@ export function buildAgentDrawingResponse(
     logsReturned: input.includeLogs ? Math.min(logs.length, logLimit) : undefined,
     totalLogs: input.includeLogs ? logs.length : undefined,
     summary: payload.summary,
-    scene: input.includeScene && sceneVersion ? buildScenePayload(sceneVersion, input) : undefined,
+    scene: scenePayload,
     nextActions: input.includeScene
-      ? undefined
-      : 'Call excalidraw_get_drawing with includeScene=true and a versionNumber or versionId when exact elements or geometry are needed.'
+      ? scenePayload?.nextActions
+      : 'Use version id or versionNumber from currentVersion/versions. Call excalidraw_get_drawing with includeScene=true for paged element refs; call excalidraw_get_scene_item for a full element, appState, file, or Mermaid source.'
+  })
+}
+
+export function buildAgentSceneItemResponse(
+  version: Record<string, any>,
+  input: GetExcalidrawSceneItemInput
+) {
+  const elements = Array.isArray(version.elements) ? version.elements : []
+  const files = isPlainObject(version.files) ? version.files : {}
+  const versionRef = summarizeVersion(version)
+
+  if (input.itemType === 'element') {
+    const element = elements.find((candidate) => readString(candidate?.id) === input.elementId)
+    return pruneUndefined({
+      itemType: input.itemType,
+      drawingId: version.drawingId ?? input.drawingId,
+      version: versionRef,
+      elementId: input.elementId,
+      element
+    })
+  }
+
+  if (input.itemType === 'file') {
+    const fileId = input.fileId
+    return pruneUndefined({
+      itemType: input.itemType,
+      drawingId: version.drawingId ?? input.drawingId,
+      version: versionRef,
+      fileId,
+      file: fileId ? files[fileId] : undefined
+    })
+  }
+
+  if (input.itemType === 'appState') {
+    return pruneUndefined({
+      itemType: input.itemType,
+      drawingId: version.drawingId ?? input.drawingId,
+      version: versionRef,
+      appState: isPlainObject(version.appState) ? version.appState : {}
+    })
+  }
+
+  return pruneUndefined({
+    itemType: input.itemType,
+    drawingId: version.drawingId ?? input.drawingId,
+    version: versionRef,
+    mermaidSource: typeof version.mermaidSource === 'string' ? version.mermaidSource : null
   })
 }
 
@@ -128,15 +178,12 @@ export function summarizeVersion(version: Record<string, any> | null | undefined
   const mermaidSource = typeof version.mermaidSource === 'string' ? version.mermaidSource : ''
   return pruneUndefined({
     id: version.id,
-    drawingId: version.drawingId,
     versionNumber: version.versionNumber,
     sourceType: version.sourceType,
     changeSummary: previewText(version.changeSummary),
     elementCount: elements.length,
     fileCount: Object.keys(files).length,
-    hasMermaidSource: Boolean(mermaidSource),
-    mermaidSourceLength: mermaidSource ? mermaidSource.length : undefined,
-    createdAt: formatDateValue(version.createdAt)
+    hasMermaidSource: Boolean(mermaidSource)
   })
 }
 
@@ -163,6 +210,8 @@ function buildScenePayload(version: Record<string, any>, input: GetExcalidrawDra
   const limit = boundedInt(input.elementLimit, DEFAULT_ELEMENT_LIMIT, 1, MAX_ELEMENT_LIMIT)
   const returnedElements = elements.slice(offset, offset + limit)
   const files = isPlainObject(version.files) ? version.files : {}
+  const appState = isPlainObject(version.appState) ? version.appState : {}
+  const mermaidSource = typeof version.mermaidSource === 'string' ? version.mermaidSource : ''
   return pruneUndefined({
     version: summarizeVersion(version),
     elementOffset: offset,
@@ -170,11 +219,67 @@ function buildScenePayload(version: Record<string, any>, input: GetExcalidrawDra
     returnedElementCount: returnedElements.length,
     totalElementCount: elements.length,
     hasMoreElements: offset + returnedElements.length < elements.length,
-    elements: returnedElements,
-    appState: isPlainObject(version.appState) ? version.appState : {},
-    files: input.includeFiles ? files : undefined,
-    filesOmitted: !input.includeFiles && Object.keys(files).length > 0 ? true : undefined,
-    mermaidSource: typeof version.mermaidSource === 'string' ? version.mermaidSource : undefined
+    elementFields: ['id', 'type', 'isDeleted', 'x', 'y', 'width', 'height', 'textPreview', 'fileId', 'containerId', 'frameId', 'groupIds'],
+    elements: returnedElements.map((element) => summarizeElementRef(element)),
+    appState: summarizeAppState(appState),
+    files: Object.entries(files).map(([fileId, file]) => summarizeFileRef(fileId, file)),
+    mermaidSource: mermaidSource
+      ? {
+          length: mermaidSource.length,
+          preview: mermaidSource.length > MERMAID_PREVIEW_LIMIT ? `${mermaidSource.slice(0, MERMAID_PREVIEW_LIMIT)}...` : mermaidSource
+        }
+      : undefined,
+    nextActions: 'Use excalidraw_get_scene_item with itemType=element and elementId for full element JSON; itemType=appState for full appState; itemType=file and fileId for file payload; itemType=mermaidSource for full Mermaid source.'
+  })
+}
+
+function summarizeElementRef(element: unknown) {
+  if (!isPlainObject(element)) {
+    return undefined
+  }
+  const type = readString(element.type)
+  return pruneUndefined({
+    id: readString(element.id),
+    type,
+    isDeleted: element.isDeleted === true ? true : undefined,
+    x: readFiniteDecimal(element.x),
+    y: readFiniteDecimal(element.y),
+    width: readFiniteDecimal(element.width),
+    height: readFiniteDecimal(element.height),
+    textPreview: type === 'text' ? previewText(element.text, ELEMENT_TEXT_PREVIEW_LIMIT) : undefined,
+    fileId: type === 'image' ? readString(element.fileId) : undefined,
+    containerId: readString(element.containerId),
+    frameId: readString(element.frameId),
+    groupIds: Array.isArray(element.groupIds) && element.groupIds.length
+      ? element.groupIds.filter((value) => typeof value === 'string').slice(0, 5)
+      : undefined,
+    pointsCount: Array.isArray(element.points) ? element.points.length : undefined,
+    boundElementIds: Array.isArray(element.boundElements)
+      ? element.boundElements
+        .map((boundElement) => isPlainObject(boundElement) ? readString(boundElement.id) : undefined)
+        .filter(Boolean)
+        .slice(0, 10)
+      : undefined
+  })
+}
+
+function summarizeAppState(appState: Record<string, unknown>) {
+  return pruneUndefined({
+    keys: Object.keys(appState).slice(0, 30),
+    theme: readString(appState.theme),
+    viewBackgroundColor: readString(appState.viewBackgroundColor),
+    gridSize: readFiniteNumber(appState.gridSize)
+  })
+}
+
+function summarizeFileRef(fileId: string, file: unknown) {
+  const fileObject = isPlainObject(file) ? file : {}
+  const dataURL = typeof fileObject.dataURL === 'string' ? fileObject.dataURL : ''
+  return pruneUndefined({
+    id: fileId,
+    mimeType: readString(fileObject.mimeType),
+    created: fileObject.created,
+    dataURLLength: dataURL ? dataURL.length : undefined
   })
 }
 
@@ -183,7 +288,7 @@ function boundedInt(value: unknown, fallback: number, min: number, max: number) 
   return Math.max(min, Math.min(max, numeric))
 }
 
-function previewText(value: unknown) {
+function previewText(value: unknown, limit = TEXT_PREVIEW_LIMIT) {
   if (typeof value !== 'string') {
     return undefined
   }
@@ -191,7 +296,7 @@ function previewText(value: unknown) {
   if (!trimmed) {
     return undefined
   }
-  return trimmed.length > TEXT_PREVIEW_LIMIT ? `${trimmed.slice(0, TEXT_PREVIEW_LIMIT)}...` : trimmed
+  return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed
 }
 
 function formatDateValue(value: unknown) {
@@ -211,6 +316,10 @@ function readString(value: unknown) {
 
 function readFiniteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : undefined
+}
+
+function readFiniteDecimal(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 100) / 100 : undefined
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -162,6 +162,27 @@ describe('Excalidraw tool event refresh helpers', () => {
     })
   })
 
+  it('selects a target drawing when the dirty scene is safe to replace', () => {
+    const event = normalizeToolCompletedEvent({
+      toolName: 'excalidraw_create_drawing',
+      drawingId: 'drawing-created'
+    })
+
+    expect(decideToolEventRefresh(event, {
+      selectedDrawingId: 'drawing-empty',
+      isDirty: true,
+      canReplaceDirtyScene: true
+    })).toEqual({
+      shouldReloadList: true,
+      shouldSelectDrawing: true,
+      shouldNotify: true,
+      shouldQueueMermaidPreview: false,
+      shouldProtectDirtyScene: false,
+      shouldLoadProtectedDetail: false,
+      targetDrawingId: 'drawing-created'
+    })
+  })
+
   it('queues Mermaid preview only when the dirty canvas is not protected', () => {
     const event = normalizeToolCompletedEvent({
       toolName: 'excalidraw_save_mermaid_draft',

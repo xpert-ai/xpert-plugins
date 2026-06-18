@@ -26,7 +26,7 @@ Use this skill when an Agent needs to create, update, or manage reviewable Excal
 - Keep the scene understandable: title area, grouped sections, clear arrows, and short labels.
 - For complex diagrams, call `excalidraw_create_drawing` without elements first, then use `excalidraw_add_elements` with one element or a small logical batch at a time. This keeps a bad element from rejecting the whole drawing.
 - Prefer `excalidraw_patch_scene` for small edits and `excalidraw_save_scene_version` for full replacements.
-- `excalidraw_get_drawing` returns metadata by default. Use `includeScene=true` with `versionNumber` or `versionId` only when exact element JSON is required, and page large scenes with `elementOffset` and `elementLimit`.
+- `excalidraw_get_drawing` returns metadata by default and lightweight element refs when `includeScene=true`. Use `excalidraw_get_scene_item` with an explicit `itemType` to fetch full element JSON, appState, file payloads, or Mermaid source.
 - Do not overwrite `files` or `appState` unless the change requires it.
 
 ## Failure Reporting

@@ -69,7 +69,7 @@ export function normalizeToolCompletedEvent(event: unknown): NormalizedToolCompl
 
 export function decideToolEventRefresh(
   event: NormalizedToolCompletedEvent | null,
-  options: { selectedDrawingId?: string | null; isDirty?: boolean } = {}
+  options: { selectedDrawingId?: string | null; isDirty?: boolean; canReplaceDirtyScene?: boolean } = {}
 ): ToolEventRefreshDecision {
   if (!event?.isMutation) {
     return {
@@ -85,7 +85,7 @@ export function decideToolEventRefresh(
   const selectedDrawingId = cleanString(options.selectedDrawingId)
   // Do not guess a drawing target from the current selection or list order; missing ids only refresh metadata.
   const targetDrawingId = event.drawingId
-  const shouldProtectDirtyScene = Boolean(options.isDirty && selectedDrawingId && targetDrawingId)
+  const shouldProtectDirtyScene = Boolean(options.isDirty && !options.canReplaceDirtyScene && selectedDrawingId && targetDrawingId)
   return {
     shouldReloadList: true,
     shouldSelectDrawing: Boolean(targetDrawingId && !shouldProtectDirtyScene),

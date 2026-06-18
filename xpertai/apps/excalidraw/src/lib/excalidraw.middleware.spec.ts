@@ -13,7 +13,11 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   }
 }))
 
-import { EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME, EXCALIDRAW_CREATE_DRAWING_TOOL_NAME } from './constants.js'
+import {
+  EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+  EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME
+} from './constants.js'
 import { ExcalidrawMiddleware } from './excalidraw.middleware.js'
 
 describe('ExcalidrawMiddleware staged element tools', () => {
@@ -131,6 +135,46 @@ describe('ExcalidrawMiddleware staged element tools', () => {
     expect(result.versionId).toBe('version-2')
     expect(result.versionNumber).toBe(2)
     expect(result.version.elements).toBeUndefined()
+  })
+
+  it('registers excalidraw_get_scene_item and routes it through getSceneItemForAgent', async () => {
+    const getSceneItemForAgent = jest.fn(async (_scope, input) => ({
+      itemType: input.itemType,
+      drawingId: input.drawingId,
+      version: {
+        id: 'version-1',
+        versionNumber: input.versionNumber,
+        elementCount: 1
+      },
+      elementId: input.elementId,
+      element: {
+        id: input.elementId,
+        type: 'text',
+        text: 'Full text'
+      }
+    }))
+    const middleware = await new ExcalidrawMiddleware({ getSceneItemForAgent } as any).createMiddleware({}, testContext())
+
+    const getItemTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME) as any
+    expect(getItemTool).toBeTruthy()
+
+    const result = JSON.parse(await getItemTool.invoke({
+      drawingId: 'drawing-1',
+      itemType: 'element',
+      versionNumber: 1,
+      elementId: 'text-1'
+    }))
+
+    expect(getSceneItemForAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
+      expect.objectContaining({
+        drawingId: 'drawing-1',
+        itemType: 'element',
+        versionNumber: 1,
+        elementId: 'text-1'
+      })
+    )
+    expect(result.element.text).toBe('Full text')
   })
 })
 

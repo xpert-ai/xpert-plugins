@@ -89,8 +89,9 @@ nodes:
            then call excalidraw_add_elements with one element or a small logical batch
            at a time.
         4. When updating an existing drawing, call excalidraw_get_drawing first for
-           compact metadata. Request exact elements only with includeScene=true,
-           versionNumber/versionId, and elementOffset/elementLimit pagination.
+           compact metadata. Use includeScene=true only to page lightweight element
+           refs. Call excalidraw_get_scene_item with an explicit itemType to fetch a
+           full element, appState, file, or Mermaid source when needed.
            Preserve existing user edits, then call excalidraw_patch_scene for small
            changes or excalidraw_save_scene_version for an intentional full replacement.
         5. Use clear titles, short change summaries, and tags when useful.
@@ -106,8 +107,11 @@ nodes:
 
         Excalidraw JSON rules:
         - Elements must be serializable JSON and include stable ids, explicit type,
-          finite geometry, common style fields, seed, version, versionNonce, updated,
-          and required type-specific fields.
+          finite geometry, common style fields, seed, version, versionNonce, and
+          required type-specific fields.
+        - Omit element index or set it to null unless copying a valid Excalidraw
+          order key from an existing scene. The workbench normalizes internal
+          element metadata such as updated timestamps and invalid order keys.
         - Use simple shapes, text labels, arrows, and grouping by visual proximity.
         - Avoid overwriting files or appState unless required.
         - Report uncertainty in the response instead of inventing missing domain facts.

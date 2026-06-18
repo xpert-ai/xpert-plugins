@@ -9,12 +9,13 @@ import {
   normalizeExcalidrawScene,
   type NormalizedExcalidrawScene
 } from './excalidraw-scene.validation.js'
-import { buildAgentDrawingResponse } from './excalidraw-agent-response.js'
+import { buildAgentDrawingResponse, buildAgentSceneItemResponse } from './excalidraw-agent-response.js'
 import type {
   CreateExcalidrawDrawingInput,
   ExcalidrawActionType,
   ExcalidrawActorType,
   GetExcalidrawDrawingInput,
+  GetExcalidrawSceneItemInput,
   ExcalidrawScope,
   ExcalidrawSceneInput,
   ExcalidrawVersionSource,
@@ -304,6 +305,32 @@ export class ExcalidrawService {
     return buildAgentDrawingResponse(payload, input, sceneVersion)
   }
 
+  async getSceneItemForAgent(scope: ExcalidrawScope, input: GetExcalidrawSceneItemInput) {
+    const payload = await this.getDrawing(scope, input.drawingId)
+    const version = selectRequestedVersion(payload, input)
+    if (!version) {
+      throw new NotFoundException('Requested Excalidraw drawing version was not found.')
+    }
+    if (input.itemType === 'element') {
+      const elementId = normalizeRequired(input.elementId, 'Element id is required when itemType is element.')
+      const elements = Array.isArray(version.elements) ? version.elements : []
+      const element = elements.find((candidate) => readElementId(candidate) === elementId)
+      if (!element) {
+        throw new NotFoundException('Requested Excalidraw element was not found.')
+      }
+      return buildAgentSceneItemResponse(version, { ...input, elementId })
+    }
+    if (input.itemType === 'file') {
+      const fileId = normalizeRequired(input.fileId, 'File id is required when itemType is file.')
+      const files = isPlainObject(version.files) ? version.files : {}
+      if (!isPlainObject(files[fileId])) {
+        throw new NotFoundException('Requested Excalidraw file was not found.')
+      }
+      return buildAgentSceneItemResponse(version, { ...input, fileId })
+    }
+    return buildAgentSceneItemResponse(version, input)
+  }
+
   async getWorkbenchData(scope: ExcalidrawScope, query: SearchExcalidrawDrawingsInput & { drawingId?: string } = {}) {
     if (query.drawingId) {
       return this.getDrawing(scope, query.drawingId)
@@ -341,6 +368,68 @@ export class ExcalidrawService {
       success: true,
       message: 'Excalidraw drawing status was updated.',
       item: updated
+    }
+  }
+
+  async deleteDrawing(scope: ExcalidrawScope, drawingId: string) {
+    const drawing = await this.requireDrawing(scope, drawingId)
+    const scopedDrawingId = drawing.id as string
+
+    await this.logRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId }))
+    await this.versionRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId }))
+    await this.drawingRepository.delete(scopedWhere(scope, { id: scopedDrawingId }))
+
+    return {
+      success: true,
+      message: 'Excalidraw drawing was deleted.',
+      drawingId: scopedDrawingId
+    }
+  }
+
+  async deleteVersion(scope: ExcalidrawScope, drawingId: string, versionId: string) {
+    const drawing = await this.requireDrawing(scope, drawingId)
+    const scopedDrawingId = drawing.id as string
+    const normalizedVersionId = normalizeRequired(versionId, 'Version id is required.')
+    const version = await this.versionRepository.findOne({
+      where: scopedWhere(scope, { id: normalizedVersionId, drawingId: scopedDrawingId })
+    })
+    if (!version) {
+      throw new NotFoundException('Excalidraw drawing version was not found.')
+    }
+
+    await this.logRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId, versionId: normalizedVersionId }))
+    await this.versionRepository.delete(scopedWhere(scope, { id: normalizedVersionId, drawingId: scopedDrawingId }))
+
+    const remainingVersions = await this.versionRepository.find({
+      where: scopedWhere(scope, { drawingId: scopedDrawingId }),
+      order: {
+        versionNumber: 'DESC'
+      }
+    })
+    const shouldReplaceCurrentVersion = drawing.currentVersionId === normalizedVersionId
+    const nextCurrentVersion = shouldReplaceCurrentVersion ? (remainingVersions[0] ?? null) : null
+    const updatedDrawing = shouldReplaceCurrentVersion
+      ? {
+          ...drawing,
+          currentVersionId: nextCurrentVersion?.id ?? null,
+          currentVersionNumber: nextCurrentVersion?.versionNumber ?? 0,
+          lastEditedById: scope.userId ?? null,
+          lastEditedAt: new Date()
+        }
+      : {
+          ...drawing,
+          lastEditedById: scope.userId ?? null,
+          lastEditedAt: new Date()
+        }
+    await this.drawingRepository.save(updatedDrawing)
+
+    return {
+      success: true,
+      message: 'Excalidraw drawing version was deleted.',
+      drawing: await this.getDrawing(scope, scopedDrawingId),
+      deletedVersionId: normalizedVersionId,
+      currentVersionId: shouldReplaceCurrentVersion ? (nextCurrentVersion?.id ?? null) : drawing.currentVersionId,
+      currentVersionNumber: shouldReplaceCurrentVersion ? (nextCurrentVersion?.versionNumber ?? 0) : (drawing.currentVersionNumber ?? 0)
     }
   }
 
@@ -510,7 +599,7 @@ function scopedCreate(scope: ExcalidrawScope): ScopedEntity & { createdById?: st
   }
 }
 
-function selectRequestedVersion(payload: Record<string, any>, input: GetExcalidrawDrawingInput) {
+function selectRequestedVersion(payload: Record<string, any>, input: { versionId?: string; versionNumber?: number }) {
   const versions = Array.isArray(payload.versions) ? payload.versions : []
   if (input.versionId) {
     const version = versions.find((candidate) => candidate.id === input.versionId)

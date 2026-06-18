@@ -19,6 +19,7 @@ export const EXCALIDRAW_PATCH_SCENE_TOOL_NAME = 'excalidraw_patch_scene'
 export const EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME = 'excalidraw_save_mermaid_draft'
 export const EXCALIDRAW_SEARCH_DRAWINGS_TOOL_NAME = 'excalidraw_search_drawings'
 export const EXCALIDRAW_GET_DRAWING_TOOL_NAME = 'excalidraw_get_drawing'
+export const EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME = 'excalidraw_get_scene_item'
 export const EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME = 'excalidraw_update_drawing_status'
 export const EXCALIDRAW_REPORT_FAILURE_TOOL_NAME = 'excalidraw_report_failure'
 
@@ -30,6 +31,7 @@ export const EXCALIDRAW_MIDDLEWARE_TOOL_NAMES = [
   EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
   EXCALIDRAW_SEARCH_DRAWINGS_TOOL_NAME,
   EXCALIDRAW_GET_DRAWING_TOOL_NAME,
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
   EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME,
   EXCALIDRAW_REPORT_FAILURE_TOOL_NAME
 ] as const

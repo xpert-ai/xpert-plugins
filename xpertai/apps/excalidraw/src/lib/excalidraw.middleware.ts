@@ -15,6 +15,7 @@ import {
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
   EXCALIDRAW_FEATURE,
   EXCALIDRAW_GET_DRAWING_TOOL_NAME,
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
   EXCALIDRAW_ICON,
   EXCALIDRAW_MIDDLEWARE_NAME,
   EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
@@ -108,15 +109,25 @@ const searchDrawingsSchema = z.object({
 
 const getDrawingSchema = z.object({
   drawingId: z.string().min(1),
-  includeScene: z.boolean().optional().describe('Set true only when exact Excalidraw elements/geometry are needed. Scene data can be large.'),
-  versionId: z.string().optional().describe('Specific version id to fetch when includeScene is true or when inspecting an older version.'),
-  versionNumber: z.number().int().min(1).optional().describe('Specific version number to fetch when includeScene is true or when inspecting an older version.'),
-  versionLimit: z.number().int().min(1).max(20).optional().describe('Number of version metadata rows to return. Default 5, max 20.'),
+  includeScene: z.boolean().optional().describe('Set true to fetch paged lightweight element refs for one version. Full elements are returned by excalidraw_get_scene_item.'),
+  versionId: z.string().optional().describe('Specific version id to inspect. Use this to choose the scene version for includeScene or follow-up item reads.'),
+  versionNumber: z.number().int().min(1).optional().describe('Specific version number to inspect. Use this to choose the scene version for includeScene or follow-up item reads.'),
+  versionLimit: z.number().int().min(1).max(20).optional().describe('Number of lightweight version refs to return. Default 3, max 20.'),
   includeLogs: z.boolean().optional().describe('Set true only when recent action log metadata is needed. Log snapshots are not returned.'),
   logLimit: z.number().int().min(1).max(20).optional().describe('Number of recent log metadata rows to return. Default 5, max 20.'),
-  includeFiles: z.boolean().optional().describe('Set true only when file payloads are required. Omitted by default because files can be very large.'),
+  includeFiles: z.boolean().optional().describe('Deprecated compatibility flag. File payloads are not returned here; use excalidraw_get_scene_item with itemType=file and fileId.'),
   elementOffset: z.number().int().min(0).optional().describe('Element offset for paged scene retrieval when includeScene is true.'),
-  elementLimit: z.number().int().min(1).max(1000).optional().describe('Maximum elements to return when includeScene is true. Default 200, max 1000.')
+  elementLimit: z.number().int().min(1).max(200).optional().describe('Maximum lightweight element refs to return when includeScene is true. Default 50, max 200.')
+})
+
+const sceneItemTypeSchema = z.enum(['element', 'appState', 'file', 'mermaidSource'])
+const getSceneItemSchema = z.object({
+  drawingId: z.string().min(1),
+  itemType: sceneItemTypeSchema.describe('Explicit scene data type to retrieve.'),
+  versionId: z.string().optional().describe('Specific version id. Omit both versionId and versionNumber to use the current version.'),
+  versionNumber: z.number().int().min(1).optional().describe('Specific version number. Omit both versionId and versionNumber to use the current version.'),
+  elementId: z.string().optional().describe('Required when itemType is element.'),
+  fileId: z.string().optional().describe('Required when itemType is file.')
 })
 
 const updateDrawingStatusSchema = z.object({
@@ -243,8 +254,17 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_GET_DRAWING_TOOL_NAME,
             description:
-              'Get compact drawing metadata and recent version metadata. By default this does not return scene JSON. Set includeScene=true with versionNumber or versionId only when exact elements/geometry are needed; use elementOffset/elementLimit for large scenes and includeFiles only when file payloads are required.',
+              'Get compact drawing metadata, lightweight version refs, and optional paged lightweight element refs. This tool avoids full scene JSON. Use excalidraw_get_scene_item for full element JSON, appState, file payloads, or Mermaid source.',
             schema: getDrawingSchema
+          }
+        ),
+        tool(
+          async (input) => stringifyAgentToolResult(await this.service.getSceneItemForAgent(scope, input)),
+          {
+            name: EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+            description:
+              'Fetch one explicit full scene item from a drawing version. Use itemType=element with elementId for full element JSON, itemType=appState for full appState, itemType=file with fileId for a file payload, or itemType=mermaidSource for full Mermaid source.',
+            schema: getSceneItemSchema
           }
         ),
         tool(
