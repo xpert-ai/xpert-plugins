@@ -47,8 +47,8 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
   {
     key: EXCALIDRAW_TEMPLATE_KEY,
     name: 'Excalidraw Drawing Assistant',
-    title: 'Excalidraw 绘图助手',
-    description: '面向流程图、架构图、线框图和自由白板的 data-xpert 绘图助手模板。',
+    title: 'Excalidraw Drawing Assistant',
+    description: 'A data-xpert drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
     category: 'Excalidraw',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -78,13 +78,13 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
     order: 60,
     default: false,
     startPrompts: [
-      '请根据我的系统说明创建一张可编辑的架构图。',
-      '请把下面的流程描述转成 Excalidraw 图形，并保存 Mermaid 草稿。',
-      '请读取当前图形版本，根据我的反馈调整布局和标注。',
-      '请导入这段 Mermaid，并生成一版可在工作台里继续编辑的图。'
+      'Create an editable architecture diagram from my system description.',
+      'Convert the following process description into an Excalidraw drawing and save a Mermaid draft.',
+      'Read the current drawing version and adjust the layout and annotations based on my feedback.',
+      'Import this Mermaid source and create a version that can keep being edited in the workbench.'
     ],
-    releaseNotes: '创建 Excalidraw Agentic Drawing 业务助手。',
-    xpertName: 'Excalidraw 绘图助手',
+    releaseNotes: 'Created the Excalidraw Agentic Drawing business assistant.',
+    xpertName: 'Excalidraw Drawing Assistant',
     providerKey: EXCALIDRAW_TEMPLATE_PROVIDER_KEY
   } as XpertTemplateContribution
 ]

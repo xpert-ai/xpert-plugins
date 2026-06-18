@@ -4,6 +4,7 @@ import {
   exportToBlob,
   exportToSvg,
   serializeAsJSON,
+  restore,
   convertToExcalidrawElements
 } from '@excalidraw/excalidraw'
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw'
@@ -12,6 +13,7 @@ import {
   Badge,
   Button,
   Check,
+  ChevronDown,
   FileJson,
   Image,
   Input,
@@ -45,6 +47,17 @@ import {
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'
+import {
+  beginMermaidAutoSave,
+  createMermaidAutoSaveGuard,
+  createMermaidAutoSaveKey,
+  finishMermaidAutoSave
+} from './mermaid-auto-save'
+import {
+  decideToolEventRefresh,
+  normalizeToolCompletedEvent,
+  SAVE_MERMAID_DRAFT_TOOL_NAME
+} from './tool-event-refresh'
 import {
   executeAction,
   executeFileAction,
@@ -80,28 +93,6 @@ const DEFAULT_MERMAID = `flowchart TD
   E --> G[Human Review]
   F --> G`
 
-const SAVE_MERMAID_DRAFT_TOOL_NAME = 'excalidraw_save_mermaid_draft'
-
-const EXCALIDRAW_TOOL_NAMES = new Set([
-  'excalidraw_create_drawing',
-  'excalidraw_save_scene_version',
-  'excalidraw_patch_scene',
-  SAVE_MERMAID_DRAFT_TOOL_NAME,
-  'excalidraw_search_drawings',
-  'excalidraw_get_drawing',
-  'excalidraw_update_drawing_status',
-  'excalidraw_report_failure'
-])
-
-const EXCALIDRAW_MUTATION_TOOL_NAMES = new Set([
-  'excalidraw_create_drawing',
-  'excalidraw_save_scene_version',
-  'excalidraw_patch_scene',
-  SAVE_MERMAID_DRAFT_TOOL_NAME,
-  'excalidraw_update_drawing_status',
-  'excalidraw_report_failure'
-])
-
 const SCENE_APP_STATE_SIGNATURE_KEYS = [
   'viewBackgroundColor',
   'gridSize',
@@ -128,6 +119,7 @@ function App() {
   const [mermaidSource, setMermaidSource] = React.useState(DEFAULT_MERMAID)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
+  const [versionsOpen, setVersionsOpen] = React.useState(false)
   const [excalidrawTheme, setExcalidrawTheme] = React.useState<ExcalidrawTheme>(() => resolveExcalidrawTheme(null))
   const [api, setApi] = React.useState<any>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -136,14 +128,17 @@ function App() {
   const searchRef = React.useRef('')
   const statusRef = React.useRef<StatusFilter>('')
   const hostEventSequenceRef = React.useRef(0)
-  const pendingMermaidPreviewRef = React.useRef<{ versionId?: string; source: string } | null>(null)
+  const pendingMermaidPreviewRef = React.useRef<{ versionId?: string; source: string; autoSave?: boolean; autoSaveKey?: string } | null>(null)
+  const mermaidAutoSaveGuardRef = React.useRef(createMermaidAutoSaveGuard())
   const excalidrawThemeRef = React.useRef<ExcalidrawTheme>(excalidrawTheme)
   const themeSyncRef = React.useRef(false)
   const elementsRef = React.useRef<any[]>([])
   const appStateRef = React.useRef<Record<string, unknown>>({})
   const filesRef = React.useRef<Record<string, unknown>>({})
   const mermaidSourceRef = React.useRef(DEFAULT_MERMAID)
+  const dirtyRef = React.useRef(false)
   const savedSceneSignatureRef = React.useRef('')
+  const suppressedDetailSceneVersionRef = React.useRef<string | null>(null)
   const t = createTranslator(context?.locale)
 
   React.useEffect(() => {
@@ -165,6 +160,10 @@ function App() {
   React.useEffect(() => {
     statusRef.current = status
   }, [status])
+
+  React.useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty])
 
   React.useEffect(() => {
     excalidrawThemeRef.current = excalidrawTheme
@@ -215,7 +214,7 @@ function App() {
     post('ready')
   }, [])
 
-  React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed])
+  React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed, versionsOpen])
 
   React.useEffect(() => {
     if (!api) {
@@ -237,6 +236,11 @@ function App() {
     if (!api || !detail?.item) {
       return
     }
+    const suppressedVersionKey = suppressedDetailSceneVersionRef.current
+    if (suppressedVersionKey && suppressedVersionKey === sceneVersionKey(currentVersion)) {
+      suppressedDetailSceneVersionRef.current = null
+      return
+    }
     if (!currentVersion) {
       applyBlankScene({ clearMermaid: true })
       return
@@ -245,7 +249,20 @@ function App() {
     const pendingPreview = pendingMermaidPreviewRef.current
     if (pendingPreview && (!pendingPreview.versionId || pendingPreview.versionId === currentVersion.id)) {
       pendingMermaidPreviewRef.current = null
-      void previewMermaidSource(pendingPreview.source, { automatic: true })
+      void previewMermaidSource(pendingPreview.source, {
+        automatic: true,
+        autoSave: pendingPreview.autoSave,
+        autoSaveKey: pendingPreview.autoSaveKey
+      })
+      return
+    }
+    if (shouldAutoSaveMermaidVersion(currentVersion)) {
+      const autoSaveKey = createMermaidAutoSaveKey(currentVersion.id, currentVersion.mermaidSource)
+      void previewMermaidSource(currentVersion.mermaidSource, {
+        automatic: true,
+        autoSave: true,
+        autoSaveKey
+      })
     }
   }, [api, detail?.item?.id, detail?.currentVersion?.id])
 
@@ -263,6 +280,7 @@ function App() {
     if (payload.item) {
       setDetail(payload)
       setDirty(false)
+      setVersionsOpen(false)
       const drawingId = payload.item.id || ''
       selectedIdRef.current = drawingId
       setSelectedId(drawingId)
@@ -278,30 +296,88 @@ function App() {
   }
 
   async function reloadAfterHostEvent(event: unknown) {
-    const toolName = extractToolNameFromHostEvent(event)
-    if (toolName && !EXCALIDRAW_TOOL_NAMES.has(toolName)) {
+    const normalizedEvent = normalizeToolCompletedEvent(event)
+    console.info('[excalidraw-workbench] handling hostEvent', {
+      rawEvent: event,
+      normalizedEvent,
+      selectedId: selectedIdRef.current,
+      dirty: dirtyRef.current
+    })
+    const initialDecision = decideToolEventRefresh(normalizedEvent, {
+      selectedDrawingId: selectedIdRef.current,
+      isDirty: dirtyRef.current
+    })
+    if (!initialDecision.shouldReloadList) {
+      console.info('[excalidraw-workbench] hostEvent ignored', {
+        normalizedEvent,
+        decision: initialDecision
+      })
       return
     }
 
     const sequence = ++hostEventSequenceRef.current
-    const eventDrawingId = extractDrawingIdFromHostEvent(event)
     const items = await reloadList()
+    console.info('[excalidraw-workbench] hostEvent list reloaded', {
+      sequence,
+      currentSequence: hostEventSequenceRef.current,
+      itemCount: items.length,
+      targetDrawingId: normalizedEvent.drawingId
+    })
     if (sequence !== hostEventSequenceRef.current) {
+      // A newer tool event won the race; avoid applying an older scene after the list reload.
+      console.info('[excalidraw-workbench] hostEvent refresh skipped because a newer event arrived', {
+        sequence,
+        currentSequence: hostEventSequenceRef.current
+      })
       return
     }
 
-    const nextDrawingId = eventDrawingId ?? selectedIdRef.current ?? items[0]?.id
+    const decision = decideToolEventRefresh(normalizedEvent, {
+      selectedDrawingId: selectedIdRef.current,
+      isDirty: dirtyRef.current
+    })
+    console.info('[excalidraw-workbench] hostEvent refresh decision', decision)
     let selectedPayload: DetailPayload | null = null
-    if (nextDrawingId) {
-      selectedPayload = await selectDrawing(nextDrawingId)
-    }
-
-    if (toolName === SAVE_MERMAID_DRAFT_TOOL_NAME && selectedPayload?.currentVersion?.mermaidSource) {
-      queueMermaidPreview(selectedPayload.currentVersion)
+    if (decision.shouldProtectDirtyScene) {
+      // Preserve unsaved local canvas edits; only refresh version metadata unless applying is explicitly safe.
+      if (decision.shouldLoadProtectedDetail && decision.targetDrawingId) {
+        console.info('[excalidraw-workbench] loading detail without applying scene because canvas is dirty', {
+          drawingId: decision.targetDrawingId
+        })
+        selectedPayload = await loadDrawingDetail(decision.targetDrawingId, {
+          applyScene: false,
+          resetDirty: false,
+          closeVersions: false,
+          clearChangeSummary: false
+        })
+      }
+      const translate = createTranslator(contextRef.current?.locale)
+      notify('warning', translate('agentDrawingUpdatedWithLocalChanges'))
       return
     }
 
-    if (!toolName || EXCALIDRAW_MUTATION_TOOL_NAMES.has(toolName)) {
+    if (decision.shouldSelectDrawing && decision.targetDrawingId) {
+      console.info('[excalidraw-workbench] selecting drawing after hostEvent', {
+        drawingId: decision.targetDrawingId
+      })
+      selectedPayload = await selectDrawing(decision.targetDrawingId)
+      console.info('[excalidraw-workbench] selected drawing after hostEvent', {
+        drawingId: decision.targetDrawingId,
+        currentVersionId: selectedPayload?.currentVersion?.id,
+        currentVersionNumber: selectedPayload?.currentVersion?.versionNumber
+      })
+    }
+
+    if (decision.shouldQueueMermaidPreview && selectedPayload?.currentVersion?.mermaidSource) {
+      console.info('[excalidraw-workbench] queueing Mermaid auto-preview after hostEvent', {
+        drawingId: decision.targetDrawingId,
+        versionId: selectedPayload.currentVersion.id
+      })
+      queueMermaidPreview(selectedPayload.currentVersion, { autoSave: true })
+      return
+    }
+
+    if (decision.shouldNotify) {
       const translate = createTranslator(contextRef.current?.locale)
       notify('info', translate('agentDrawingUpdated'))
     }
@@ -322,6 +398,17 @@ function App() {
       })
       const payload = getResponsePayload(response) || {}
       const items = Array.isArray(payload.items) ? payload.items : []
+      console.info('[excalidraw-workbench] reloadList result', {
+        search: nextSearch,
+        status: nextStatus,
+        itemCount: items.length,
+        selectedId: selectedIdRef.current,
+        currentVersionNumbers: items.slice(0, 5).map((item) => ({
+          id: item?.id,
+          currentVersionNumber: item?.currentVersionNumber,
+          currentVersionId: item?.currentVersionId
+        }))
+      })
       setDrawings(items)
       if (!selectedIdRef.current && items[0]?.id) {
         await selectDrawing(items[0].id)
@@ -336,9 +423,25 @@ function App() {
   }
 
   async function selectDrawing(drawingId: string): Promise<DetailPayload | null> {
+    return loadDrawingDetail(drawingId, {
+      applyScene: true,
+      resetDirty: true,
+      closeVersions: true,
+      clearChangeSummary: true
+    })
+  }
+
+  async function loadDrawingDetail(
+    drawingId: string,
+    options: { applyScene?: boolean; resetDirty?: boolean; closeVersions?: boolean; clearChangeSummary?: boolean } = {}
+  ): Promise<DetailPayload | null> {
     if (!drawingId) {
       return null
     }
+    const applyScene = options.applyScene ?? true
+    const resetDirty = options.resetDirty ?? applyScene
+    const closeVersions = options.closeVersions ?? true
+    const clearChangeSummary = options.clearChangeSummary ?? true
     setBusy(true)
     try {
       const response = await requestData({
@@ -347,20 +450,39 @@ function App() {
         }
       })
       const payload = getResponsePayload(response) || {}
+      console.info('[excalidraw-workbench] loadDrawingDetail result', {
+        drawingId,
+        applyScene,
+        currentVersionId: payload.currentVersion?.id,
+        currentVersionNumber: payload.currentVersion?.versionNumber,
+        versionCount: Array.isArray(payload.versions) ? payload.versions.length : undefined
+      })
       selectedIdRef.current = drawingId
       setSelectedId(drawingId)
-      setDetail(payload)
-      setDirty(false)
-      setChangeSummary('')
-      if (payload.currentVersion?.mermaidSource) {
-        updateMermaidSource(payload.currentVersion.mermaidSource)
-      } else {
-        updateMermaidSource('')
+      if (!applyScene) {
+        suppressedDetailSceneVersionRef.current = sceneVersionKey(payload.currentVersion)
       }
-      if (api && payload.currentVersion) {
-        applyVersion(payload.currentVersion)
-      } else if (api) {
-        applyBlankScene({ clearMermaid: true })
+      setDetail(payload)
+      if (resetDirty) {
+        setDirty(false)
+      }
+      if (closeVersions) {
+        setVersionsOpen(false)
+      }
+      if (clearChangeSummary) {
+        setChangeSummary('')
+      }
+      if (applyScene) {
+        if (payload.currentVersion?.mermaidSource) {
+          updateMermaidSource(payload.currentVersion.mermaidSource)
+        } else {
+          updateMermaidSource('')
+        }
+        if (api && payload.currentVersion) {
+          applyVersion(payload.currentVersion)
+        } else if (api) {
+          applyBlankScene({ clearMermaid: true })
+        }
       }
       return payload
     } catch (error) {
@@ -408,14 +530,17 @@ function App() {
     }
   }
 
-  async function saveCurrentScene(sourceAction = 'save_scene_version') {
+  async function saveCurrentScene(
+    sourceAction = 'save_scene_version',
+    options: { force?: boolean; changeSummary?: string; silent?: boolean } = {}
+  ) {
     if (!selectedId) {
       notify('warning', t('noDrawing'))
-      return
+      return false
     }
-    if (!dirty) {
+    if (!options.force && !dirtyRef.current) {
       notify('info', t('saveNoChanges'))
-      return
+      return false
     }
     setBusy(true)
     try {
@@ -425,17 +550,21 @@ function App() {
         elements: scene.elements,
         appState: scene.appState,
         files: scene.files,
-        mermaidSource,
-        changeSummary: changeSummary.trim() || undefined
+        mermaidSource: mermaidSourceRef.current,
+        changeSummary: options.changeSummary ?? (changeSummary.trim() || undefined)
       })
       const result = getResponsePayload(response)
-      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
+      if (!options.silent) {
+        notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
+      }
       markCurrentSceneSaved()
       setChangeSummary('')
       await selectDrawing(selectedId)
       await reloadList()
+      return true
     } catch (error) {
       notify('error', getErrorMessage(error))
+      return false
     } finally {
       setBusy(false)
     }
@@ -515,7 +644,7 @@ function App() {
     await previewMermaidSource(mermaidSource)
   }
 
-  async function previewMermaidSource(sourceValue: string, options: { automatic?: boolean } = {}) {
+  async function previewMermaidSource(sourceValue: string, options: { automatic?: boolean; autoSave?: boolean; autoSaveKey?: string } = {}) {
     const source = sourceValue.trim()
     if (!source || !api) {
       return false
@@ -550,6 +679,20 @@ function App() {
       filesRef.current = files
       updateDirtyState(source)
       notify(options.automatic ? 'info' : 'success', options.automatic ? translate('mermaidAutoPreviewed') : translate('operationCompleted'))
+      if (options.autoSave && selectedIdRef.current) {
+        const autoSaveKey = options.autoSaveKey || createMermaidAutoSaveKey(undefined, source)
+        if (beginMermaidAutoSave(mermaidAutoSaveGuardRef.current, autoSaveKey)) {
+          const saved = await saveCurrentScene('save_converted_mermaid_scene', {
+            force: true,
+            silent: true,
+            changeSummary: translate('mermaidAutoChangeSummary')
+          })
+          finishMermaidAutoSave(mermaidAutoSaveGuardRef.current, autoSaveKey, saved)
+          if (saved) {
+            notify('success', translate('mermaidAutoSaved'))
+          }
+        }
+      }
       return true
     } catch (error) {
       notify('error', `${translate('convertFailed')}: ${getErrorMessage(error)}`)
@@ -559,14 +702,17 @@ function App() {
     }
   }
 
-  function queueMermaidPreview(version: DrawingVersion) {
+  function queueMermaidPreview(version: DrawingVersion, options: { autoSave?: boolean } = {}) {
     const source = typeof version.mermaidSource === 'string' ? version.mermaidSource.trim() : ''
     if (!source) {
       return
     }
+    const autoSaveKey = options.autoSave ? createMermaidAutoSaveKey(version.id, source) : undefined
     pendingMermaidPreviewRef.current = {
       versionId: typeof version.id === 'string' ? version.id : undefined,
-      source
+      source,
+      autoSave: options.autoSave,
+      autoSaveKey
     }
   }
 
@@ -631,10 +777,24 @@ function App() {
     }
   }
 
+  function sceneVersionKey(version: DrawingVersion | null | undefined) {
+    if (!version) {
+      return 'blank'
+    }
+    if (typeof version.id === 'string' && version.id.trim()) {
+      return `id:${version.id.trim()}`
+    }
+    if (typeof version.versionNumber === 'number' && Number.isFinite(version.versionNumber)) {
+      return `number:${Math.trunc(version.versionNumber)}`
+    }
+    return 'unknown'
+  }
+
   function applyVersion(version: DrawingVersion) {
-    const elements = Array.isArray(version.elements) ? version.elements : []
-    const appState = withHostThemeAppState(isObject(version.appState) ? version.appState : {}, excalidrawThemeRef.current)
-    const files = isObject(version.files) ? version.files : {}
+    const scene = restorePersistedScene(version, excalidrawThemeRef.current)
+    const elements = scene.elements
+    const appState = scene.appState
+    const files = scene.files
     const mermaid = typeof version.mermaidSource === 'string' ? version.mermaidSource : ''
     elementsRef.current = elements
     appStateRef.current = appState
@@ -757,16 +917,12 @@ function App() {
   }
 
   const currentVersion = detail?.currentVersion || null
+  const versionCount = detail?.versions?.length || 0
   const drawingStatus = (detail?.item?.status || 'draft') as StatusFilter
   const canSaveScene = Boolean(selectedId && dirty && !busy)
   const saveButtonTitle = !selectedId ? t('noDrawing') : dirty ? t('saveChanges') : t('saveNoChanges')
   const initialData = {
-    elements: currentVersion?.elements || [],
-    appState: withHostThemeAppState(
-      isObject(currentVersion?.appState) ? currentVersion?.appState : {},
-      excalidrawTheme
-    ),
-    files: currentVersion?.files || {}
+    ...restorePersistedScene(currentVersion, excalidrawTheme)
   }
   const shellClassName = `exw-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
 
@@ -923,7 +1079,26 @@ function App() {
       <Sidebar className="exw-inspector" side="right" collapsed={rightPanelCollapsed}>
         <SidebarHeader>
           {!rightPanelCollapsed ? (
-            <>
+            <SidebarTitle className="exw-sidebar-title-truncate">{detail?.item?.title || t('inspector')}</SidebarTitle>
+          ) : null}
+          <SidebarTrigger
+            className="exw-sidebar-trigger-right"
+            variant="ghost"
+            size="icon"
+            aria-label={rightPanelCollapsed ? t('expandInspector') : t('collapseInspector')}
+            title={rightPanelCollapsed ? t('expandInspector') : t('collapseInspector')}
+            onClick={() => setRightPanelCollapsed((value) => !value)}
+          >
+            {rightPanelCollapsed ? <PanelRightOpen className="exw-button-icon" aria-hidden="true" /> : <PanelRightClose className="exw-button-icon" aria-hidden="true" />}
+          </SidebarTrigger>
+        </SidebarHeader>
+        {rightPanelCollapsed ? (
+          <SidebarRail>
+            <span>{t('inspector')}</span>
+          </SidebarRail>
+        ) : (
+          <SidebarContent className="exw-inspector-content">
+            <div className="exw-inspector-panel-header">
               <div className="exw-inspector-actions">
                 {drawingStatus === 'archived' ? (
                   <Badge variant="secondary">{t('archived')}</Badge>
@@ -942,27 +1117,51 @@ function App() {
                   <Archive className="exw-button-icon" aria-hidden="true" />
                   {t('archive')}
                 </Button>
+                <Button
+                  className="exw-versions-toggle"
+                  type="button"
+                  variant={versionsOpen ? 'secondary' : 'outline'}
+                  size="sm"
+                  disabled={!selectedId || versionCount === 0}
+                  aria-expanded={versionsOpen}
+                  onClick={() => setVersionsOpen((value) => !value)}
+                >
+                  <ChevronDown className={`exw-button-icon exw-versions-toggle-icon ${versionsOpen ? 'is-open' : ''}`} aria-hidden="true" />
+                  {t('versions')}
+                  {currentVersion?.versionNumber ? ` v${currentVersion.versionNumber}` : ''}
+                </Button>
               </div>
-              <SidebarTitle className="exw-sidebar-title-truncate">{detail?.item?.title || t('inspector')}</SidebarTitle>
-            </>
-          ) : null}
-          <SidebarTrigger
-            className="exw-sidebar-trigger-right"
-            variant="ghost"
-            size="icon"
-            aria-label={rightPanelCollapsed ? t('expandInspector') : t('collapseInspector')}
-            title={rightPanelCollapsed ? t('expandInspector') : t('collapseInspector')}
-            onClick={() => setRightPanelCollapsed((value) => !value)}
-          >
-            {rightPanelCollapsed ? <PanelRightOpen className="exw-button-icon" aria-hidden="true" /> : <PanelRightClose className="exw-button-icon" aria-hidden="true" />}
-          </SidebarTrigger>
-        </SidebarHeader>
-        {rightPanelCollapsed ? (
-          <SidebarRail>
-            <span>{t('inspector')}</span>
-          </SidebarRail>
-        ) : (
-          <SidebarContent>
+              {versionsOpen ? (
+                <div className="exw-version-panel">
+                  {(detail?.versions || []).map((version) => {
+                    const isCurrentVersion = currentVersion?.id === version.id
+                    const versionTime = formatVersionTime(version, context?.locale)
+                    return (
+                      <div className={`exw-version ${isCurrentVersion ? 'is-current' : ''}`} key={version.id}>
+                        <div className="exw-version-main">
+                          <div className="exw-version-title">v{version.versionNumber}</div>
+                          <div className="exw-version-meta">{version.sourceType || 'workbench'}</div>
+                          {versionTime ? <div className="exw-version-meta">{versionTime}</div> : null}
+                          {version.changeSummary ? <div className="exw-version-summary">{version.changeSummary}</div> : null}
+                        </div>
+                        <Button
+                          className="exw-version-action"
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title={t('restore')}
+                          aria-label={`${t('restore')} v${version.versionNumber}`}
+                          disabled={busy || isCurrentVersion}
+                          onClick={() => restoreVersion(version.id)}
+                        >
+                          <RotateCcw className="exw-button-icon" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
             <ScrollArea className="exw-inspector-scroll">
               <div className="exw-inspector-stack">
                 <section className="exw-section">
@@ -972,30 +1171,6 @@ function App() {
                     placeholder={t('changeSummary')}
                     onChange={(event: any) => setChangeSummary(event.target.value)}
                   />
-                </section>
-
-                <section className="exw-section">
-                  <div className="exw-section-title">{t('versions')}</div>
-                  {(detail?.versions || []).map((version) => (
-                    <div className="exw-version" key={version.id}>
-                      <div>
-                        <div>v{version.versionNumber}</div>
-                        <div className="exw-muted">{version.sourceType || 'workbench'}</div>
-                      </div>
-                      <Button
-                        className="exw-version-action"
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        title={t('restore')}
-                        aria-label={`${t('restore')} v${version.versionNumber}`}
-                        disabled={busy}
-                        onClick={() => restoreVersion(version.id)}
-                      >
-                        <RotateCcw className="exw-button-icon" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  ))}
                 </section>
 
                 <section className="exw-section">
@@ -1047,6 +1222,79 @@ function App() {
       </Sidebar>
     </div>
   )
+}
+
+function restorePersistedScene(version: DrawingVersion | null | undefined, theme: ExcalidrawTheme) {
+  const fallbackAppState = withHostThemeAppState(isObject(version?.appState) ? version?.appState : {}, theme)
+  const fallbackScene = {
+    elements: Array.isArray(version?.elements) ? version?.elements : [],
+    appState: fallbackAppState,
+    files: isObject(version?.files) ? version?.files : {}
+  }
+  try {
+    const restored = restore(
+      {
+        elements: fallbackScene.elements as any,
+        appState: fallbackAppState as any,
+        files: fallbackScene.files as any
+      },
+      fallbackAppState as any,
+      null,
+      {
+        repairBindings: true
+      }
+    ) as any
+    return {
+      elements: Array.isArray(restored?.elements) ? restored.elements : fallbackScene.elements,
+      appState: withHostThemeAppState(isObject(restored?.appState) ? restored.appState : fallbackScene.appState, theme),
+      files: isObject(restored?.files) ? restored.files : fallbackScene.files
+    }
+  } catch {
+    return fallbackScene
+  }
+}
+
+function shouldAutoSaveMermaidVersion(version: DrawingVersion | null | undefined) {
+  return Boolean(
+    version?.sourceType === 'agent_mermaid'
+      && typeof version.mermaidSource === 'string'
+      && version.mermaidSource.trim()
+      && (!Array.isArray(version.elements) || version.elements.length === 0)
+  )
+}
+
+function formatVersionTime(version: DrawingVersion, locale: unknown) {
+  const value = version.createdAt ?? version.created_at ?? version.updatedAt ?? version.updated_at
+  const date = parseDateValue(value)
+  if (!date) {
+    return ''
+  }
+  try {
+    return new Intl.DateTimeFormat(resolveDateLocale(locale), {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date)
+  } catch {
+    return date.toLocaleString()
+  }
+}
+
+function parseDateValue(value: unknown): Date | null {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isFinite(date.getTime()) ? date : null
+  }
+  return null
+}
+
+function resolveDateLocale(locale: unknown) {
+  return String(locale || '').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US'
 }
 
 function withHostThemeAppState(appState: Record<string, unknown>, theme: ExcalidrawTheme) {
@@ -1233,163 +1481,6 @@ function normalizeJsonValue(value: unknown, seen = new WeakSet<object>()): unkno
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
-
-function extractToolNameFromHostEvent(event: unknown) {
-  for (const candidate of expandHostEventCandidates(event)) {
-    if (!isObject(candidate)) {
-      continue
-    }
-
-    const direct = readString(candidate, 'toolName') ?? readString(candidate, 'tool_name') ?? readString(candidate, 'name')
-    if (direct && EXCALIDRAW_TOOL_NAMES.has(direct)) {
-      return direct
-    }
-
-    const tool = candidate.tool
-    if (isObject(tool)) {
-      const toolName = readString(tool, 'name') ?? readString(tool, 'toolName') ?? readString(tool, 'tool_name')
-      if (toolName && EXCALIDRAW_TOOL_NAMES.has(toolName)) {
-        return toolName
-      }
-    }
-
-    const toolCall = candidate.toolCall ?? candidate.tool_call
-    if (isObject(toolCall)) {
-      const toolName =
-        readString(toolCall, 'name') ??
-        readString(toolCall, 'toolName') ??
-        readString(toolCall, 'tool_name') ??
-        (isObject(toolCall.function) ? readString(toolCall.function, 'name') : null)
-      if (toolName && EXCALIDRAW_TOOL_NAMES.has(toolName)) {
-        return toolName
-      }
-    }
-  }
-  return null
-}
-
-function extractDrawingIdFromHostEvent(event: unknown) {
-  for (const candidate of expandHostEventCandidates(event)) {
-    if (!isObject(candidate)) {
-      continue
-    }
-
-    const direct = readString(candidate, 'drawingId') ?? readString(candidate, 'drawing_id')
-    if (direct) {
-      return direct
-    }
-
-    if (isObject(candidate.item)) {
-      const itemId = readString(candidate.item, 'id')
-      if (itemId) {
-        return itemId
-      }
-    }
-
-    if (isObject(candidate.drawing)) {
-      const drawingId =
-        readString(candidate.drawing, 'drawingId') ??
-        readString(candidate.drawing, 'drawing_id') ??
-        readString(candidate.drawing, 'id') ??
-        (isObject(candidate.drawing.item) ? readString(candidate.drawing.item, 'id') : null)
-      if (drawingId) {
-        return drawingId
-      }
-    }
-
-    if (isObject(candidate.version)) {
-      const drawingId = readString(candidate.version, 'drawingId') ?? readString(candidate.version, 'drawing_id')
-      if (drawingId) {
-        return drawingId
-      }
-    }
-
-    if (isObject(candidate.log)) {
-      const drawingId = readString(candidate.log, 'drawingId') ?? readString(candidate.log, 'drawing_id')
-      if (drawingId) {
-        return drawingId
-      }
-    }
-  }
-  return null
-}
-
-function expandHostEventCandidates(event: unknown) {
-  const candidates: unknown[] = []
-  collectHostEventCandidates(event, candidates, 0, new WeakSet<object>())
-  return candidates
-}
-
-function collectHostEventCandidates(value: unknown, candidates: unknown[], depth: number, seen: WeakSet<object>) {
-  if (depth > 5 || value == null) {
-    return
-  }
-
-  const normalized = parseJsonLike(value)
-  if ((isObject(normalized) || Array.isArray(normalized)) && seen.has(normalized)) {
-    return
-  }
-  if (isObject(normalized) || Array.isArray(normalized)) {
-    seen.add(normalized)
-  }
-
-  candidates.push(normalized)
-
-  if (Array.isArray(normalized)) {
-    normalized.forEach((item) => collectHostEventCandidates(item, candidates, depth + 1, seen))
-    return
-  }
-
-  if (!isObject(normalized)) {
-    return
-  }
-
-  ;[
-    'payload',
-    'metadata',
-    'data',
-    'result',
-    'output',
-    'outputs',
-    'content',
-    'text',
-    'message',
-    'detail',
-    'response',
-    'toolResult',
-    'returnValue',
-    'artifact',
-    'tool',
-    'toolCall',
-    'tool_call',
-    'function',
-    'arguments',
-    'args',
-    'input'
-  ].forEach((key) => collectHostEventCandidates(normalized[key], candidates, depth + 1, seen))
-}
-
-function parseJsonLike(value: unknown) {
-  if (typeof value !== 'string') {
-    return value
-  }
-
-  const trimmed = value.trim()
-  if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
-    return value
-  }
-
-  try {
-    return JSON.parse(trimmed)
-  } catch {
-    return value
-  }
-}
-
-function readString(record: Record<string, unknown>, key: string) {
-  const value = record[key]
-  return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 function removeExcalidrawExtension(name: string) {

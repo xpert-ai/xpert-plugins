@@ -179,7 +179,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
   }
 
   async getRemoteComponentEntry(
-    _context: XpertResolvedViewHostContext,
+    context: XpertResolvedViewHostContext,
     viewKey: string,
     component: XpertRemoteComponentViewSchema['component']
   ): Promise<XpertRemoteComponentEntry> {
@@ -200,7 +200,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
     return {
       html: renderRemoteReactIframeHtml({
         title: 'Excalidraw Workbench',
-        lang: 'zh-Hans',
+        lang: htmlLangFromLocale(context.locale),
         reactUmd: react,
         reactDomUmd: reactDom,
         appScript,
@@ -323,7 +323,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           data: {
             commandKey: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
             payload: {
-              text: buildAgentDrawPrompt(prompt, getStringInput(request.input, 'drawingId'))
+              text: buildAgentDrawPrompt(prompt, getStringInput(request.input, 'drawingId'), context.locale)
             }
           },
           refresh: false
@@ -499,12 +499,32 @@ function removeExcalidrawExtension(name: string | undefined) {
   return normalized.replace(/\.excalidraw(?:\.json)?$/i, '').replace(/\.json$/i, '') || normalized
 }
 
-function buildAgentDrawPrompt(prompt: string, drawingId?: string) {
-  const context = drawingId ? `请更新当前 Excalidraw 图形 drawingId=${drawingId}。` : '请创建一张新的 Excalidraw 图形。'
-  return `${context}
+function buildAgentDrawPrompt(prompt: string, drawingId?: string, locale?: unknown) {
+  if (isChineseLocale(locale)) {
+    const context = drawingId ? `请更新当前 Excalidraw 图形 drawingId=${drawingId}。` : '请创建一张新的 Excalidraw 图形。'
+    return `${context}
 
 用户绘图需求：
 ${prompt}
 
-请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 excalidraw_save_mermaid_draft。需要精确布局或自由图形时，生成 Excalidraw elements 并调用 excalidraw_create_drawing、excalidraw_save_scene_version 或 excalidraw_patch_scene。更新已有图形前先调用 excalidraw_get_drawing。`
+请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 excalidraw_save_mermaid_draft。需要精确布局或自由图形时，复杂图先调用 excalidraw_create_drawing 创建空图，再调用 excalidraw_add_elements 按单个元素或小批量逐步添加；仅在明确要整体替换时才调用 excalidraw_save_scene_version。更新已有图形前先调用 excalidraw_get_drawing 获取摘要；需要具体元素时再用 includeScene=true、versionNumber/versionId 和 elementOffset/elementLimit 分页获取。`
+  }
+
+  const context = drawingId
+    ? `Update the current Excalidraw drawing drawingId=${drawingId}.`
+    : 'Create a new Excalidraw drawing.'
+  return `${context}
+
+User drawing request:
+${prompt}
+
+First decide whether the request is better as a Mermaid draft. For flowcharts, architecture flows, and state flows, call excalidraw_save_mermaid_draft. For precise layout or freeform diagrams, create complex drawings in stages: call excalidraw_create_drawing without elements, then call excalidraw_add_elements with one element or a small batch at a time. Call excalidraw_save_scene_version only when a full scene replacement is intentional. Before updating an existing drawing, call excalidraw_get_drawing for compact metadata; request exact elements only with includeScene=true, versionNumber/versionId, and elementOffset/elementLimit pagination.`
+}
+
+function htmlLangFromLocale(locale: unknown) {
+  return isChineseLocale(locale) ? 'zh-Hans' : 'en'
+}
+
+function isChineseLocale(locale: unknown) {
+  return String(locale || '').toLowerCase().startsWith('zh')
 }

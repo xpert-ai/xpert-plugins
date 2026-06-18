@@ -38,7 +38,10 @@ export type TranslationKey =
   | 'drawingCreated'
   | 'convertFailed'
   | 'agentDrawingUpdated'
+  | 'agentDrawingUpdatedWithLocalChanges'
   | 'mermaidAutoPreviewed'
+  | 'mermaidAutoSaved'
+  | 'mermaidAutoChangeSummary'
   | 'drawings'
   | 'inspector'
   | 'collapseDrawings'
@@ -87,7 +90,10 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     drawingCreated: '图形已创建',
     convertFailed: 'Mermaid 转换失败',
     agentDrawingUpdated: 'Agent 绘图结果已刷新',
-    mermaidAutoPreviewed: 'Mermaid 草稿已自动转换为预览，确认后请保存转换',
+    agentDrawingUpdatedWithLocalChanges: 'Agent 已更新图形，但当前画布有未保存改动，未自动覆盖。',
+    mermaidAutoPreviewed: 'Mermaid 草稿已自动转换为预览',
+    mermaidAutoSaved: 'Mermaid 转换结果已自动保存',
+    mermaidAutoChangeSummary: '自动保存 Mermaid 转换结果',
     drawings: '图形',
     inspector: '详情',
     collapseDrawings: '收起图形侧栏',
@@ -135,7 +141,10 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     drawingCreated: 'Drawing created',
     convertFailed: 'Mermaid conversion failed',
     agentDrawingUpdated: 'Agent drawing result refreshed',
-    mermaidAutoPreviewed: 'Mermaid draft auto-converted for preview. Save the conversion after review.',
+    agentDrawingUpdatedWithLocalChanges: 'Agent updated this drawing, but unsaved canvas changes were kept.',
+    mermaidAutoPreviewed: 'Mermaid draft auto-converted for preview.',
+    mermaidAutoSaved: 'Mermaid conversion auto-saved',
+    mermaidAutoChangeSummary: 'Auto-saved Mermaid conversion',
     drawings: 'Drawings',
     inspector: 'Inspector',
     collapseDrawings: 'Collapse drawings sidebar',
@@ -146,6 +155,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
 }
 
 export function createTranslator(locale?: unknown) {
-  const dictionary = String(locale || '').toLowerCase().startsWith('en') ? translations.en_US : translations.zh_Hans
+  const normalizedLocale = String(locale || '').toLowerCase()
+  const dictionary = normalizedLocale.startsWith('zh') ? translations.zh_Hans : translations.en_US
   return (key: TranslationKey) => dictionary[key] || translations.en_US[key] || key
 }

@@ -1,8 +1,8 @@
 team:
   name: excalidraw-assistant
   type: agent
-  title: Excalidraw 绘图助手
-  description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+  title: Excalidraw Drawing Assistant
+  description: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
   avatar:
     emoji:
       id: art
@@ -63,8 +63,8 @@ nodes:
     entity:
       key: Agent_Excalidraw
       name: excalidraw-assistant
-      title: Excalidraw 绘图助手
-      description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+      title: Excalidraw Drawing Assistant
+      description: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
       avatar:
         emoji:
           id: art
@@ -84,10 +84,15 @@ nodes:
            dependency diagrams. Save Mermaid with excalidraw_save_mermaid_draft so the
            workbench can auto-preview it as an Excalidraw scene for user review.
         3. Use direct Excalidraw JSON elements when the user needs precise layout,
-           annotations, freeform whiteboarding, wireframes, or a targeted edit.
-        4. When updating an existing drawing, call excalidraw_get_drawing first, preserve
-           existing user edits, then call excalidraw_patch_scene for small changes or
-           excalidraw_save_scene_version for a full replacement.
+           annotations, freeform whiteboarding, wireframes, or a targeted edit. For
+           complex diagrams, call excalidraw_create_drawing without initial elements,
+           then call excalidraw_add_elements with one element or a small logical batch
+           at a time.
+        4. When updating an existing drawing, call excalidraw_get_drawing first for
+           compact metadata. Request exact elements only with includeScene=true,
+           versionNumber/versionId, and elementOffset/elementLimit pagination.
+           Preserve existing user edits, then call excalidraw_patch_scene for small
+           changes or excalidraw_save_scene_version for an intentional full replacement.
         5. Use clear titles, short change summaries, and tags when useful.
         6. If source material cannot be converted or the request conflicts with the
            current drawing, call excalidraw_report_failure and explain the smallest
@@ -100,12 +105,14 @@ nodes:
         - Keep Mermaid source concise, syntactically valid, and readable.
 
         Excalidraw JSON rules:
-        - Elements must be serializable JSON and include stable ids.
+        - Elements must be serializable JSON and include stable ids, explicit type,
+          finite geometry, common style fields, seed, version, versionNonce, updated,
+          and required type-specific fields.
         - Use simple shapes, text labels, arrows, and grouping by visual proximity.
         - Avoid overwriting files or appState unless required.
         - Report uncertainty in the response instead of inventing missing domain facts.
 
-        Prefer concise Chinese responses for end users unless they ask otherwise.
+        Match the user's language. If the user's language is unclear, respond in English.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []

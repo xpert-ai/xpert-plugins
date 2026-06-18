@@ -2,10 +2,19 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ExcalidrawActionLog, ExcalidrawDrawing, ExcalidrawDrawingVersion } from './entities/index.js'
+import {
+  createStableJsonSignature,
+  ExcalidrawSceneValidationError,
+  isPlainObject,
+  normalizeExcalidrawScene,
+  type NormalizedExcalidrawScene
+} from './excalidraw-scene.validation.js'
+import { buildAgentDrawingResponse } from './excalidraw-agent-response.js'
 import type {
   CreateExcalidrawDrawingInput,
   ExcalidrawActionType,
   ExcalidrawActorType,
+  GetExcalidrawDrawingInput,
   ExcalidrawScope,
   ExcalidrawSceneInput,
   ExcalidrawVersionSource,
@@ -37,6 +46,16 @@ export class ExcalidrawService {
 
   async createDrawing(scope: ExcalidrawScope, input: CreateExcalidrawDrawingInput) {
     const title = normalizeRequired(input.title, 'Drawing title is required.')
+    const initialScene = hasSceneContent(input)
+      ? validateScene(
+          {
+            elements: input.elements,
+            appState: input.appState,
+            files: input.files
+          },
+          'Initial Excalidraw scene'
+        )
+      : null
     const drawing = await this.drawingRepository.save(
       this.drawingRepository.create({
         ...scopedCreate(scope),
@@ -63,12 +82,12 @@ export class ExcalidrawService {
       snapshot: { title, kind: drawing.kind, source: drawing.source }
     })
 
-    if (hasSceneContent(input)) {
+    if (initialScene) {
       await this.createVersion(scope, drawing, {
         sourceType: input.mermaidSource ? 'agent_mermaid' : 'agent_json',
-        elements: normalizeElements(input.elements),
-        appState: normalizeObject(input.appState),
-        files: normalizeObject(input.files),
+        elements: initialScene.elements,
+        appState: initialScene.appState,
+        files: initialScene.files,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         changeSummary: normalizeOptional(input.changeSummary) ?? 'Initial scene'
       })
@@ -81,9 +100,9 @@ export class ExcalidrawService {
     const drawing = await this.requireDrawing(scope, input.drawingId)
     const version = await this.createVersion(scope, drawing, {
       sourceType: input.sourceType ?? 'agent_json',
-      elements: normalizeElements(input.elements),
-      appState: normalizeObject(input.appState),
-      files: normalizeObject(input.files),
+      elements: input.elements,
+      appState: input.appState,
+      files: input.files,
       mermaidSource: normalizeNullableText(input.mermaidSource),
       changeSummary: normalizeOptional(input.changeSummary)
     })
@@ -99,20 +118,46 @@ export class ExcalidrawService {
   async patchScene(scope: ExcalidrawScope, input: PatchExcalidrawSceneInput) {
     const drawing = await this.requireDrawing(scope, input.drawingId)
     const currentVersion = await this.getCurrentVersion(scope, drawing)
-    const patchedElements = applyElementPatch(currentVersion?.elements ?? [], input)
+    const currentScene = validateScene(
+      {
+        elements: currentVersion?.elements,
+        appState: currentVersion?.appState,
+        files: currentVersion?.files
+      },
+      'Current Excalidraw scene'
+    )
+    const patch = applyElementPatch(currentScene.elements, input)
     const appState = {
-      ...(isPlainObject(currentVersion?.appState) ? currentVersion?.appState : {}),
+      ...currentScene.appState,
       ...(isPlainObject(input.appStatePatch) ? input.appStatePatch : {})
     }
+    const files = input.files === undefined ? currentScene.files : normalizeObject(input.files)
+    const mermaidSource =
+      input.mermaidSource === undefined
+        ? normalizeNullableText(currentVersion?.mermaidSource)
+        : normalizeNullableText(input.mermaidSource)
+    const beforeSignature = createStableJsonSignature({
+      elements: currentScene.elements,
+      appState: currentScene.appState,
+      files: currentScene.files,
+      mermaidSource: normalizeNullableText(currentVersion?.mermaidSource)
+    })
+    const afterSignature = createStableJsonSignature({
+      elements: patch.elements,
+      appState,
+      files,
+      mermaidSource
+    })
+    if (beforeSignature === afterSignature) {
+      throw new BadRequestException('Excalidraw scene patch did not change the current scene.')
+    }
+
     const version = await this.createVersion(scope, drawing, {
       sourceType: 'agent_patch',
-      elements: patchedElements,
+      elements: patch.elements,
       appState,
-      files: input.files === undefined ? normalizeObject(currentVersion?.files) : normalizeObject(input.files),
-      mermaidSource:
-        input.mermaidSource === undefined
-          ? normalizeNullableText(currentVersion?.mermaidSource)
-          : normalizeNullableText(input.mermaidSource),
+      files,
+      mermaidSource,
       changeSummary: normalizeOptional(input.changeSummary) ?? 'Agent patch'
     })
 
@@ -123,9 +168,12 @@ export class ExcalidrawService {
       actorType: 'agent',
       message: input.changeSummary,
       snapshot: {
-        addCount: input.addElements?.length ?? 0,
-        updateCount: input.updateElements?.length ?? 0,
-        deleteCount: input.deleteElementIds?.length ?? 0
+        addCount: patch.addedIds.length,
+        updateCount: patch.updatedIds.length,
+        deleteCount: patch.deletedIds.length,
+        addedIds: patch.addedIds,
+        updatedIds: patch.updatedIds,
+        deletedIds: patch.deletedIds
       }
     })
 
@@ -133,7 +181,15 @@ export class ExcalidrawService {
       success: true,
       message: 'Excalidraw scene patch was saved as a new version.',
       drawing: await this.getDrawing(scope, drawing.id as string),
-      version
+      version,
+      patch: {
+        addCount: patch.addedIds.length,
+        updateCount: patch.updatedIds.length,
+        deleteCount: patch.deletedIds.length,
+        addedIds: patch.addedIds,
+        updatedIds: patch.updatedIds,
+        deletedIds: patch.deletedIds
+      }
     }
   }
 
@@ -169,7 +225,7 @@ export class ExcalidrawService {
 
     return {
       success: true,
-      message: 'Mermaid draft was saved. Convert it in the Excalidraw workbench to make it editable.',
+      message: 'Mermaid draft was saved. The Excalidraw workbench will convert and save it as an editable version.',
       drawing: await this.getDrawing(scope, drawing.id as string),
       version
     }
@@ -242,6 +298,12 @@ export class ExcalidrawService {
     }
   }
 
+  async getDrawingForAgent(scope: ExcalidrawScope, input: GetExcalidrawDrawingInput) {
+    const payload = await this.getDrawing(scope, input.drawingId)
+    const sceneVersion = selectRequestedVersion(payload, input)
+    return buildAgentDrawingResponse(payload, input, sceneVersion)
+  }
+
   async getWorkbenchData(scope: ExcalidrawScope, query: SearchExcalidrawDrawingsInput & { drawingId?: string } = {}) {
     if (query.drawingId) {
       return this.getDrawing(scope, query.drawingId)
@@ -293,9 +355,9 @@ export class ExcalidrawService {
 
     const restored = await this.createVersion(scope, drawing, {
       sourceType: 'restore',
-      elements: normalizeElements(version.elements),
-      appState: normalizeObject(version.appState),
-      files: normalizeObject(version.files),
+      elements: version.elements,
+      appState: version.appState,
+      files: version.files,
       mermaidSource: normalizeNullableText(version.mermaidSource),
       changeSummary: normalizeOptional(changeSummary) ?? `Restored version ${version.versionNumber}`
     })
@@ -346,6 +408,7 @@ export class ExcalidrawService {
       changeSummary?: string
     }
   ) {
+    const scene = validateScene(input, `Excalidraw ${input.sourceType} scene`)
     const currentVersionNumber = drawing.currentVersionNumber ?? 0
     const versionNumber = currentVersionNumber + 1
     const version = await this.versionRepository.save(
@@ -354,9 +417,9 @@ export class ExcalidrawService {
         drawingId: drawing.id as string,
         versionNumber,
         sourceType: input.sourceType,
-        elements: normalizeElements(input.elements),
-        appState: normalizeObject(input.appState),
-        files: normalizeObject(input.files),
+        elements: scene.elements,
+        appState: scene.appState,
+        files: scene.files,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         changeSummary: normalizeOptional(input.changeSummary),
         createdById: scope.userId ?? null,
@@ -447,6 +510,25 @@ function scopedCreate(scope: ExcalidrawScope): ScopedEntity & { createdById?: st
   }
 }
 
+function selectRequestedVersion(payload: Record<string, any>, input: GetExcalidrawDrawingInput) {
+  const versions = Array.isArray(payload.versions) ? payload.versions : []
+  if (input.versionId) {
+    const version = versions.find((candidate) => candidate.id === input.versionId)
+    if (!version) {
+      throw new NotFoundException('Requested Excalidraw drawing version was not found.')
+    }
+    return version
+  }
+  if (input.versionNumber !== undefined) {
+    const version = versions.find((candidate) => candidate.versionNumber === input.versionNumber)
+    if (!version) {
+      throw new NotFoundException('Requested Excalidraw drawing version was not found.')
+    }
+    return version
+  }
+  return payload.currentVersion ?? versions[0] ?? null
+}
+
 function scopedWhere<T extends Record<string, unknown>>(scope: ExcalidrawScope, extra?: Partial<T>): Partial<T> {
   const where = {
     tenantId: scope.tenantId
@@ -487,10 +569,6 @@ function normalizeStringArray(values: string[] | undefined | null) {
   return normalized.length ? Array.from(new Set(normalized)) : undefined
 }
 
-function normalizeElements(elements: unknown[] | undefined | null) {
-  return Array.isArray(elements) ? elements : []
-}
-
 function normalizeObject(value: unknown) {
   return isPlainObject(value) ? value : {}
 }
@@ -499,28 +577,117 @@ function hasSceneContent(input: ExcalidrawSceneInput) {
   return Boolean((Array.isArray(input.elements) && input.elements.length > 0) || input.mermaidSource || input.appState || input.files)
 }
 
-function applyElementPatch(elements: unknown[], input: PatchExcalidrawSceneInput) {
-  const deleteIds = new Set(input.deleteElementIds ?? [])
-  const updates = new Map((input.updateElements ?? []).map((item) => [item.id, item]))
+function validateScene(
+  input: {
+    elements?: unknown[] | null
+    appState?: unknown
+    files?: unknown
+  },
+  context: string
+): NormalizedExcalidrawScene {
+  try {
+    return normalizeExcalidrawScene(input, { context })
+  } catch (error) {
+    if (error instanceof ExcalidrawSceneValidationError) {
+      throw new BadRequestException(error.message)
+    }
+    throw error
+  }
+}
+
+function applyElementPatch(elements: Record<string, unknown>[], input: PatchExcalidrawSceneInput) {
+  const currentIds = new Set(elements.map((element) => readElementId(element)).filter(isString))
+  const addElements = normalizePatchElements(input.addElements)
+  const updateElements = input.updateElements ?? []
+  const deleteElementIds = input.deleteElementIds ?? []
+  const addedIds = collectUniqueIds(addElements, 'addElements')
+  const updatedIds = collectUniqueStrings(
+    updateElements.map((item) => item.id),
+    'updateElements.id'
+  )
+  const deletedIds = collectUniqueStrings(deleteElementIds, 'deleteElementIds')
+
+  for (const id of updatedIds) {
+    if (!currentIds.has(id)) {
+      throw new BadRequestException(`Cannot update unknown Excalidraw element id "${id}".`)
+    }
+  }
+  for (const id of deletedIds) {
+    if (!currentIds.has(id)) {
+      throw new BadRequestException(`Cannot delete unknown Excalidraw element id "${id}".`)
+    }
+  }
+  for (const id of addedIds) {
+    if (currentIds.has(id)) {
+      throw new BadRequestException(`Cannot add duplicate Excalidraw element id "${id}".`)
+    }
+  }
+
+  const deleteIdSet = new Set(deletedIds)
+  const updates = new Map(updateElements.map((item) => [item.id, item]))
   const next = elements
-    .filter((element) => {
-      const id = readElementId(element)
-      return !id || !deleteIds.has(id)
-    })
+    .filter((element) => !deleteIdSet.has(readElementId(element) ?? ''))
     .map((element) => {
       const id = readElementId(element)
       const update = id ? updates.get(id) : null
-      return update && isPlainObject(element) ? { ...element, ...update } : element
+      if (!update) {
+        return element
+      }
+      if (update.type !== undefined && update.type !== element.type) {
+        throw new BadRequestException(`Cannot change Excalidraw element "${id}" type.`)
+      }
+      return { ...element, ...update, id }
     })
-  return [...next, ...normalizeElements(input.addElements)]
+
+  return {
+    elements: [...next, ...addElements],
+    addedIds,
+    updatedIds,
+    deletedIds
+  }
+}
+
+function normalizePatchElements(elements: unknown[] | undefined | null) {
+  return (Array.isArray(elements) ? elements : []).map((element, index) => {
+    if (!isPlainObject(element)) {
+      throw new BadRequestException(`addElements[${index}] must be an Excalidraw element object.`)
+    }
+    return element
+  })
+}
+
+function collectUniqueIds(elements: Record<string, unknown>[], label: string) {
+  return collectUniqueStrings(
+    elements.map((element, index) => {
+      const id = readElementId(element)
+      if (!id) {
+        throw new BadRequestException(`${label}[${index}].id is required.`)
+      }
+      return id
+    }),
+    `${label}.id`
+  )
+}
+
+function collectUniqueStrings(values: string[], label: string) {
+  const seen = new Set<string>()
+  const ids: string[] = []
+  for (const value of values) {
+    const normalized = normalizeOptional(value)
+    if (!normalized) {
+      throw new BadRequestException(`${label} contains an empty id.`)
+    }
+    if (seen.has(normalized)) {
+      throw new BadRequestException(`${label} contains duplicate id "${normalized}".`)
+    }
+    seen.add(normalized)
+    ids.push(normalized)
+  }
+  return ids
 }
 
 function readElementId(element: unknown) {
-  return isPlainObject(element) && typeof element.id === 'string' ? element.id : null
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+  return isPlainObject(element) && typeof element.id === 'string' ? element.id.trim() : null
 }
 
 function isString(value: unknown): value is string {

@@ -79,6 +79,19 @@ export interface SearchExcalidrawDrawingsInput {
   pageSize?: number
 }
 
+export interface GetExcalidrawDrawingInput {
+  drawingId: string
+  includeScene?: boolean
+  versionId?: string
+  versionNumber?: number
+  versionLimit?: number
+  includeLogs?: boolean
+  logLimit?: number
+  includeFiles?: boolean
+  elementOffset?: number
+  elementLimit?: number
+}
+
 export interface UpdateExcalidrawDrawingStatusInput {
   drawingId: string
   status: ExcalidrawDrawingStatus

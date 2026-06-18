@@ -14,6 +14,7 @@ export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 
 export const EXCALIDRAW_CREATE_DRAWING_TOOL_NAME = 'excalidraw_create_drawing'
 export const EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME = 'excalidraw_save_scene_version'
+export const EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME = 'excalidraw_add_elements'
 export const EXCALIDRAW_PATCH_SCENE_TOOL_NAME = 'excalidraw_patch_scene'
 export const EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME = 'excalidraw_save_mermaid_draft'
 export const EXCALIDRAW_SEARCH_DRAWINGS_TOOL_NAME = 'excalidraw_search_drawings'
@@ -24,6 +25,7 @@ export const EXCALIDRAW_REPORT_FAILURE_TOOL_NAME = 'excalidraw_report_failure'
 export const EXCALIDRAW_MIDDLEWARE_TOOL_NAMES = [
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
   EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
+  EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
   EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
   EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
   EXCALIDRAW_SEARCH_DRAWINGS_TOOL_NAME,
