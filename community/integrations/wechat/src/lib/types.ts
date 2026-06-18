@@ -12,6 +12,7 @@ export type WechatPersonalGroupTriggerMode =
 export type WechatPersonalConnectionMode = 'direct_http' | 'reverse_tunnel'
 export type WechatPersonalChatFilterMode = 'all' | 'private_only' | 'group_only'
 export type WechatPersonalInboundMessageKind = 'text' | 'image' | 'voice' | 'unsupported'
+export type WechatPersonalSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
 
 export type WechatPersonalOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
 
@@ -61,6 +62,7 @@ export interface TIntegrationWechatPersonalOptions {
 
 export interface WechatPersonalInboundTriggerOptions {
   ignoreSelfMessages?: boolean
+  selfMessagePolicy?: WechatPersonalSelfMessagePolicy
   chatFilterMode?: WechatPersonalChatFilterMode
   allowedContactIds?: string[] | string
   blockedContactIds?: string[] | string
@@ -130,6 +132,8 @@ export interface WechatPersonalInboundEvent {
   uuid: string
   ownerWxid?: string
   ownerName?: string
+  fromUser?: string
+  toUser?: string
   contactId: string
   contactName?: string
   senderId: string
@@ -193,6 +197,16 @@ export function normalizeWechatPersonalConnectionMode(value: unknown): WechatPer
 
 export function normalizeChatFilterMode(value: unknown): WechatPersonalChatFilterMode {
   return value === 'private_only' || value === 'group_only' ? value : 'all'
+}
+
+export function normalizeSelfMessagePolicy(
+  value: unknown,
+  legacyIgnoreSelfMessages?: unknown
+): WechatPersonalSelfMessagePolicy {
+  if (value === 'history_only' || value === 'ignore' || value === 'dispatch') {
+    return value
+  }
+  return legacyIgnoreSelfMessages === false ? 'dispatch' : 'history_only'
 }
 
 export function normalizeTimeoutMs(value: unknown, defaultValue = 10000): number {
@@ -292,17 +306,18 @@ export function shouldDispatchWechatPersonalMessage(
   event: WechatPersonalInboundEvent,
   options?: WechatPersonalInboundTriggerOptions
 ): WechatPersonalDispatchableMessage | null {
-  if ((options?.ignoreSelfMessages ?? true) && event.isSelf) {
+  const selfMessagePolicy = normalizeSelfMessagePolicy(options?.selfMessagePolicy, options?.ignoreSelfMessages)
+  if (event.isSelf && selfMessagePolicy !== 'dispatch') {
     return null
   }
   if (!matchesWechatPersonalMessageFilter(event, options)) {
     return null
   }
-  if (!isDispatchableMessageKind(event)) {
+  if (!isWechatPersonalDispatchableMessageKind(event)) {
     return null
   }
 
-  const input = normalizeAgentInput(event)
+  const input = normalizeWechatPersonalAgentInput(event)
   if (!input && event.messageKind !== 'image') {
     return null
   }
@@ -356,7 +371,8 @@ export function shouldAttemptWechatPersonalVoiceTranscription(
   if (event.messageKind !== 'voice') {
     return null
   }
-  if ((options?.ignoreSelfMessages ?? true) && event.isSelf) {
+  const selfMessagePolicy = normalizeSelfMessagePolicy(options?.selfMessagePolicy, options?.ignoreSelfMessages)
+  if (event.isSelf && selfMessagePolicy !== 'dispatch') {
     return null
   }
   if (!matchesWechatPersonalMessageFilter(event, options)) {
@@ -551,6 +567,8 @@ function normalizeLegacyCallback(wrapper: Dict, rawPayload: unknown): WechatPers
     source: 'legacy_callback',
     uuid,
     ownerWxid,
+    fromUser,
+    toUser,
     contactId,
     senderId,
     chatId: contactId,
@@ -649,6 +667,8 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatPers
     uuid,
     ownerWxid,
     ownerName: normalizeContactName(ownerInfo),
+    fromUser,
+    toUser,
     contactId,
     contactName: normalizeContactName(contactInfo),
     senderId,
@@ -670,7 +690,7 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatPers
   }
 }
 
-function normalizeAgentInput(event: WechatPersonalInboundEvent): string {
+export function normalizeWechatPersonalAgentInput(event: WechatPersonalInboundEvent): string {
   if (event.messageKind === 'image') {
     return ''
   }
@@ -712,7 +732,7 @@ function resolveInboundMessageKind(msgType: number | undefined): WechatPersonalI
   return 'unsupported'
 }
 
-function isDispatchableMessageKind(event: WechatPersonalInboundEvent): boolean {
+export function isWechatPersonalDispatchableMessageKind(event: WechatPersonalInboundEvent): boolean {
   return event.messageKind === 'text' || event.messageKind === 'image' || event.messageKind === 'voice'
 }
 

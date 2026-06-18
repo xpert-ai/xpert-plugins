@@ -263,6 +263,7 @@ export class WechatPersonalOutboundQueueService {
       contactId: input.contactId,
       senderId: input.context?.senderId,
       chatType: input.context?.chatType,
+      isSelf: false,
       direction: 'outbound',
       status: 'queued',
       content: input.content,

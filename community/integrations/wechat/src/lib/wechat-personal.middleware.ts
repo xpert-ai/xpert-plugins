@@ -46,6 +46,7 @@ import {
 } from './wechat-personal-outbound-queue.service.js'
 import type { WechatPersonalMessageLogEntity } from './entities/index.js'
 import type { WechatPersonalChatCallbackContext } from './handoff/wechat-personal-chat.types.js'
+import { resolveWechatPersonalConversationIdentity } from './conversation-user-key.js'
 
 type WechatPersonalRuntimeMiddlewareOptions = {
   integrationId?: string
@@ -103,7 +104,7 @@ const listConversationsSchema = z.object({
 const searchMessageLogsSchema = z.object({
   integrationId: integrationField,
   direction: z.enum(['inbound', 'outbound', 'system']).optional().describe('Message direction filter.'),
-  status: z.enum(['received', 'dispatched', 'queued', 'deferred', 'sending', 'sent', 'skipped', 'failed', 'paused', 'cancelled', 'context_reset']).optional().describe('Message status filter.'),
+  status: z.enum(['received', 'dispatched', 'history_only', 'queued', 'deferred', 'sending', 'sent', 'skipped', 'failed', 'paused', 'cancelled', 'context_reset']).optional().describe('Message status filter.'),
   search: z.string().optional().describe('Keyword for contact, sender, message id, content, error or conversation id.'),
   page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
   pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
@@ -833,6 +834,25 @@ export class WechatPersonalRuntimeMiddleware
         status: 'tool_send'
       }
     } as WechatPersonalChatCallbackContext
+    const identity = resolveWechatPersonalConversationIdentity({
+      integrationId,
+      uuid: sendParams.uuid,
+      contactId: sendParams.contactId,
+      senderId: sendParams.contactId,
+      chatType: sendParams.chatType,
+      isSelf: false
+    })
+    if (identity) {
+      outboundContext.contactId = identity.contactId
+      outboundContext.contact_id = identity.contactId
+      outboundContext.chatId = identity.contactId
+      outboundContext.chat_id = identity.contactId
+      outboundContext.chatType = identity.chatType
+      outboundContext.chat_type = identity.chatType
+      outboundContext.senderId = identity.senderId
+      outboundContext.sender_id = identity.senderId
+      outboundContext.conversationUserKey = identity.conversationUserKey
+    }
     const tenantId = normalizeString(rawContext.tenantId)
     if (tenantId) {
       outboundContext.tenantId = tenantId

@@ -57,6 +57,7 @@ const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   disabled: 'disabled',
   deferred: 'deferred',
   dispatched: 'dispatched',
+  history_only: 'history_only',
   error: 'error',
   failed: 'failed',
   group: 'groupChat',
@@ -717,7 +718,7 @@ function MessagesView(props: any) {
       >
         {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
         <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'history_only', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
         <SelectFilter
           field="chatType"
           label={props.t('type')}
@@ -1012,7 +1013,7 @@ function LogsView(props: any) {
           {...filter}
         />
         <SelectFilter field="direction" label={props.t('direction')} options={translatedOptions(['inbound', 'outbound', 'system'], props.t)} {...filter} />
-        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
+        <SelectFilter field="status" label={props.t('status')} options={translatedOptions(['received', 'dispatched', 'history_only', 'sent', 'skipped', 'failed', 'context_reset'], props.t)} {...filter} />
         <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>

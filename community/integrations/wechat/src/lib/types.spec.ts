@@ -6,7 +6,10 @@ import {
   shouldDispatchWechatPersonalMessage,
   summarizePayload
 } from './types.js'
-import { resolveWechatPersonalConversationUserKey } from './conversation-user-key.js'
+import {
+  resolveWechatPersonalConversationIdentity,
+  resolveWechatPersonalConversationUserKey
+} from './conversation-user-key.js'
 
 describe('wechat personal inbound normalization', () => {
   it('normalizes connection mode for backward compatible integrations', () => {
@@ -306,6 +309,9 @@ describe('wechat personal inbound normalization', () => {
     })
 
     expect(shouldDispatchWechatPersonalMessage({ ...base, isSelf: true })).toBeNull()
+    expect(shouldDispatchWechatPersonalMessage({ ...base, isSelf: true }, { ignoreSelfMessages: false })?.triggerReason).toBe(
+      'private'
+    )
     expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[图片]' })).toBeNull()
     expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[语音]' })).toBeNull()
     expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[语音]', displayText: '[语音]' })).toBeNull()
@@ -569,5 +575,74 @@ describe('wechat personal inbound normalization', () => {
         senderId: 'wxid_sender'
       })
     ).toBe('integration-1:uuid-1:room@chatroom:wxid_sender')
+  })
+
+  it('builds private self-message keys from the real peer contact', () => {
+    const keyA = resolveWechatPersonalConversationIdentity({
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_owner',
+      contactId: 'wxid_owner',
+      senderId: 'wxid_owner',
+      fromUser: 'wxid_owner',
+      toUser: 'wxid_friend_a',
+      chatType: 'private',
+      isSelf: true
+    })
+    const keyB = resolveWechatPersonalConversationIdentity({
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_owner',
+      contactId: 'wxid_owner',
+      senderId: 'wxid_owner',
+      fromUser: 'wxid_owner',
+      toUser: 'wxid_friend_b',
+      chatType: 'private',
+      isSelf: true
+    })
+
+    expect(keyA).toEqual(
+      expect.objectContaining({
+        contactId: 'wxid_friend_a',
+        senderId: 'wxid_friend_a',
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend_a:wxid_friend_a'
+      })
+    )
+    expect(keyB?.conversationUserKey).toBe('integration-1:uuid-1:wxid_friend_b:wxid_friend_b')
+    expect(keyA?.conversationUserKey).not.toBe(keyB?.conversationUserKey)
+  })
+
+  it('keeps group conversations split by room and sender including self messages', () => {
+    const senderA = resolveWechatPersonalConversationIdentity({
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_owner',
+      contactId: 'room@chatroom',
+      senderId: 'wxid_sender_a',
+      chatType: 'group',
+      isSelf: false
+    })
+    const senderB = resolveWechatPersonalConversationIdentity({
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_owner',
+      contactId: 'room@chatroom',
+      senderId: 'wxid_sender_b',
+      chatType: 'group',
+      isSelf: false
+    })
+    const self = resolveWechatPersonalConversationIdentity({
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_owner',
+      contactId: 'room@chatroom',
+      senderId: 'wxid_sender_from_payload',
+      chatType: 'group',
+      isSelf: true
+    })
+
+    expect(senderA?.conversationUserKey).toBe('integration-1:uuid-1:room@chatroom:wxid_sender_a')
+    expect(senderB?.conversationUserKey).toBe('integration-1:uuid-1:room@chatroom:wxid_sender_b')
+    expect(self?.conversationUserKey).toBe('integration-1:uuid-1:room@chatroom:wxid_owner')
   })
 })

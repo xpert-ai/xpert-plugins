@@ -416,10 +416,12 @@ wechat-personal-user-assistant
 
 1. `个人微信消息触发器`
    - `integrationId`: 选择刚创建的个人微信集成。
-   - `sessionTimeoutSeconds`: 默认 `3600`，用于限制历史上下文有效期。
+   - `sessionTimeoutSeconds`: 默认 `3600`，用于入站聚合状态和兼容旧配置；历史上下文时间范围优先使用 `historyContextWindowSeconds`。
    - `summaryWindowSeconds`: 默认 `0`，表示收到消息立即派发；大于 `0` 时会把同一会话键内连续消息聚合后再派发一次。
    - `historyContextLimit`: 默认 `20`，表示每次新 Agent session 会附带最近 20 条历史消息作为背景；设为 `0` 可关闭。
-   - `ignoreSelfMessages`: 默认开启，避免自己或机器人发出的消息再次触发 Agent。
+   - `historyContextWindowSeconds`: 默认 `3600`，只合并最近 1 小时内的历史消息；设为 `0` 表示不按时间过滤。
+   - `selfMessagePolicy`: 默认 `history_only`，当前账号自己发出的消息只写入对应微信会话历史，不触发 Agent；可设为 `ignore` 完全忽略，或 `dispatch` 兼容旧触发行为。
+   - `ignoreSelfMessages`: 兼容旧配置；未设置 `selfMessagePolicy` 且该值为 `false` 时等价于 `selfMessagePolicy: dispatch`。
    - `chatFilterMode`: 默认 `all`。如只回复群消息，设置为 `group_only`。
    - `allowedGroupIds`: 可选，仅回复指定群，例如 `["12345@chatroom"]`。
    - `blockedGroupIds`: 可选，排除指定群。
@@ -435,7 +437,7 @@ wechat-personal-user-assistant
 
 发布或启用 Assistant 后，插件会把该集成绑定到当前 Agent。
 
-入站消息派发采用 fresh session 模式：每个立即消息或聚合后的消息批次都会开启新的 Agent session，不会沿用旧 `conversationId`。插件会按 `integrationId + uuid + contactId + senderId` 查询同一会话键下的历史入站消息和已发送 Agent 回复，并把它们作为“历史上下文”拼入本次 user input。`/new` 会写入一条 `context_reset` 系统日志作为上下文边界，后续历史只从该边界之后开始。
+入站消息派发采用 fresh session 模式：每个立即消息或聚合后的消息批次都会开启新的 Agent session，不会沿用旧 `conversationId`。插件会按规范化后的 `integrationId + uuid + contactId + senderId` 查询同一会话键下的历史入站消息、当前账号自己发出的 `history_only` 消息和已发送 Agent 回复，并把它们作为“历史上下文”拼入本次 user input。历史还会受 `historyContextLimit`、`historyContextWindowSeconds` 和 `/new` 写入的 `context_reset` 边界限制。
 
 当 `summaryWindowSeconds > 0` 时，入站消息会投递到 Redis BullMQ 队列做防抖聚合：
 
@@ -526,7 +528,7 @@ Agent 生成 markdown 内容后只需要调用：
 
 过滤逻辑按下面顺序执行，任一步不满足都会跳过，不会派发给 Agent：
 
-1. 如果 `ignoreSelfMessages` 开启且 wx2.0 标记该消息为自己发出，则跳过。
+1. 如果 wx2.0 标记该消息为当前账号自己发出，先按 `selfMessagePolicy` 处理：`history_only` 写入同一规范化会话历史但不触发 Agent，`ignore` 跳过，`dispatch` 才继续尝试触发 Agent。
 2. 按 `chatFilterMode` 判断私聊/群聊范围。
 3. 按联系人/群/发送人 ID 的白名单和黑名单判断是否允许。
 4. 仅文本类消息、微信图片消息和微信语音消息继续处理。文本接受 `msgType` 为空、`0` 或 `1`；图片只接受 wx2.0 机器字段 `msgtype=3` / `msg_type=3`；语音只接受 wx2.0 机器字段 `msgtype=34` / `msg_type=34`。插件不会从 `[图片]`、`[语音]`、展示文本、文件名或其他偶然字段推断媒体类型。
@@ -537,7 +539,9 @@ Agent 生成 markdown 内容后只需要调用：
 
 | 字段 | 行为 |
 | --- | --- |
-| `ignoreSelfMessages` | 默认开启，忽略当前账号自己发送的消息。 |
+| `selfMessagePolicy` | `history_only`、`ignore`、`dispatch`。默认 `history_only`，自己发出的消息只作为同一微信会话的历史背景。 |
+| `ignoreSelfMessages` | 兼容旧字段。未设置 `selfMessagePolicy` 且值为 `false` 时映射为 `dispatch`。 |
+| `historyContextWindowSeconds` | 历史上下文时间窗口。默认 `3600`，设为 `0` 表示只按条数限制。 |
 | `chatFilterMode` | `all`、`private_only`、`group_only`。用于限制只处理全部、私聊或群聊。 |
 | `allowedContactIds` | contactId 白名单。私聊时是好友 wxid；群聊时是群 roomId。非空时只处理这些会话。 |
 | `blockedContactIds` | contactId 黑名单。命中后不回复。 |
@@ -615,7 +619,7 @@ integrationId:uuid:contactId:senderId
 
 含义：
 
-- 私聊：通常 `senderId` 与 `contactId` 一致。
+- 私聊：固定按真实对端联系人生成 `contactId:senderId = peerContactId:peerContactId`；即使当前账号自己发给不同好友，也会分别落到不同 key。
 - 群聊：按 `群 + 发言人` 拆分会话，避免多人共用同一个 Agent conversation。
 
 用户发送：

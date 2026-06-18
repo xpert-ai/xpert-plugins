@@ -1,4 +1,8 @@
-import { WechatPersonalChatFilterMode, WechatPersonalGroupTriggerMode } from '../types.js'
+import {
+  WechatPersonalChatFilterMode,
+  WechatPersonalGroupTriggerMode,
+  WechatPersonalSelfMessagePolicy
+} from '../types.js'
 import { WECHAT_PERSONAL_TRIGGER_KEY } from '../constants.js'
 
 export const WechatPersonalTrigger = WECHAT_PERSONAL_TRIGGER_KEY
@@ -9,7 +13,9 @@ export type TWechatPersonalTriggerConfig = {
   sessionTimeoutSeconds?: number
   summaryWindowSeconds?: number
   historyContextLimit?: number
+  historyContextWindowSeconds?: number
   ignoreSelfMessages?: boolean
+  selfMessagePolicy?: WechatPersonalSelfMessagePolicy
   chatFilterMode?: WechatPersonalChatFilterMode
   allowedContactIds?: string[] | string
   blockedContactIds?: string[] | string

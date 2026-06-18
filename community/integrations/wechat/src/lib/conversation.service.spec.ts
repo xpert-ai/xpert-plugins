@@ -224,7 +224,9 @@ describe('WechatPersonalConversationService fresh session history context', () =
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
         historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
         ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only',
         chatFilterMode: 'all',
         groupTriggerMode: 'mention_or_keywords',
         ...overrides.triggerBinding
@@ -343,6 +345,99 @@ describe('WechatPersonalConversationService fresh session history context', () =
       expect.objectContaining({
         historyContext: '[历史上下文]',
         currentInboundLogIds: ['inbound-log-1']
+      })
+    )
+  })
+
+  it('stores self private messages as history only under the real peer conversation key', async () => {
+    const { service, triggerStrategy, messageLogRepository } = createFullService()
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'self-msg-a',
+          ownerWxid: 'wxid_owner',
+          fromUser: 'wxid_owner',
+          toUser: 'wxid_friend_a',
+          contactId: 'wxid_owner',
+          senderId: 'wxid_owner',
+          chatId: 'wxid_owner',
+          content: '发给 A 的消息',
+          isSelf: true
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'history_only' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        contactId: 'wxid_friend_a',
+        senderId: 'wxid_friend_a',
+        chatType: 'private',
+        isSelf: true,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend_a:wxid_friend_a'
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'history_only',
+        content: '发给 A 的消息'
+      })
+    )
+  })
+
+  it('uses explicit historyContextWindowSeconds instead of sessionTimeoutSeconds', async () => {
+    const { service } = createFullService({
+      triggerBinding: {
+        sessionTimeoutSeconds: 60,
+        historyContextWindowSeconds: 7200
+      }
+    })
+    const historySpy = jest.spyOn(service as any, 'buildHistoryContext').mockResolvedValue(undefined)
+
+    await expect(
+      service.handleInboundEvent(baseEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(historySpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutSeconds: 7200
+      })
+    )
+  })
+
+  it('passes a zero history context window through to disable time filtering', async () => {
+    const { service } = createFullService({
+      triggerBinding: {
+        sessionTimeoutSeconds: 60,
+        historyContextWindowSeconds: 0
+      }
+    })
+    const historySpy = jest.spyOn(service as any, 'buildHistoryContext').mockResolvedValue(undefined)
+
+    await expect(
+      service.handleInboundEvent(baseEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(historySpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutSeconds: 0
       })
     )
   })
@@ -770,6 +865,14 @@ describe('WechatPersonalConversationService fresh session history context', () =
         senderId: 'wxid_friend',
         content: '上一轮用户消息',
         createdAt: new Date('2026-06-16T02:58:00.000Z')
+      },
+      {
+        id: 'self-1',
+        direction: 'inbound',
+        status: 'history_only',
+        senderId: 'wxid_friend',
+        content: '用户自己补充的背景',
+        createdAt: new Date('2026-06-16T02:58:30.000Z')
       }
     ])
     const { service, messageLogRepository } = createFullService()
@@ -803,7 +906,7 @@ describe('WechatPersonalConversationService fresh session history context', () =
     expect(query.andWhere).toHaveBeenCalledWith(
       expect.stringContaining('log.status = :outboundStatus'),
       expect.objectContaining({
-        inboundStatus: 'dispatched',
+        inboundStatuses: ['dispatched', 'history_only'],
         outboundStatus: 'sent'
       })
     )
@@ -813,7 +916,25 @@ describe('WechatPersonalConversationService fresh session history context', () =
     expect(query.limit).toHaveBeenCalledWith(20)
     expect(context).toContain('[历史上下文')
     expect(context).toContain('用户(wxid_friend): 上一轮用户消息')
+    expect(context).toContain('用户(wxid_friend): 用户自己补充的背景')
     expect(context).toContain('Agent: 上一轮 Agent 回复')
+  })
+
+  it('does not add a history time filter when historyContextWindowSeconds is 0', async () => {
+    const query = createQueryBuilder([])
+    const { service, messageLogRepository } = createFullService()
+    messageLogRepository.createQueryBuilder.mockReturnValueOnce(query)
+
+    await (service as any).buildHistoryContext({
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      limit: 20,
+      timeoutSeconds: 0,
+      before: createdAt
+    })
+
+    expect(query.andWhere).not.toHaveBeenCalledWith('log.createdAt > :historySince', expect.anything())
   })
 
   it('disables history context when historyContextLimit is 0', async () => {

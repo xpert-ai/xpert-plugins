@@ -21,6 +21,7 @@ import {
   normalizeGroupTriggerMode,
   normalizeIdList,
   normalizeKeywords,
+  normalizeSelfMessagePolicy,
   TIntegrationWechatPersonalOptions,
   type WechatPersonalInboundFile
 } from '../types.js'
@@ -36,6 +37,7 @@ import { TWechatPersonalTriggerConfig, WechatPersonalTrigger } from './wechat-pe
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
 const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
 const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
+const DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS = 3600
 const MAX_HISTORY_CONTEXT_LIMIT = 100
 const IMAGE_ONLY_AGGREGATE_INPUT = '[理解图片]'
 
@@ -117,6 +119,20 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
           minimum: 0,
           maximum: MAX_HISTORY_CONTEXT_LIMIT
         },
+        historyContextWindowSeconds: {
+          type: 'number',
+          title: {
+            en_US: 'History Context Window (seconds)',
+            zh_Hans: '历史上下文时间窗口（秒）'
+          },
+          description: {
+            en_US:
+              'Only messages newer than this window are prepended as context. Set to 0 to disable time filtering.',
+            zh_Hans: '只把该时间窗口内的消息附加为上下文。设为 0 表示不按时间过滤。'
+          },
+          default: DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS,
+          minimum: 0
+        },
         ignoreSelfMessages: {
           type: 'boolean',
           title: {
@@ -128,6 +144,20 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
             zh_Hans: '跳过由同一个 wx2.0 账号自己发出的消息。'
           },
           default: true
+        },
+        selfMessagePolicy: {
+          type: 'string',
+          title: {
+            en_US: 'Self Message Policy',
+            zh_Hans: '自己发出消息处理方式'
+          },
+          description: {
+            en_US:
+              'history_only stores messages from the current wx2.0 account as context without triggering the agent.',
+            zh_Hans: 'history_only 会把当前账号自己发出的消息写入历史上下文，但不触发 Agent。'
+          },
+          enum: ['history_only', 'ignore', 'dispatch'],
+          default: 'history_only'
         },
         chatFilterMode: {
           type: 'string',
@@ -365,7 +395,12 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
           DEFAULT_SUMMARY_WINDOW_SECONDS
         ),
         historyContextLimit: this.normalizeHistoryContextLimit(config.historyContextLimit),
+        historyContextWindowSeconds: this.normalizeHistoryContextWindowSeconds(
+          config.historyContextWindowSeconds,
+          config.sessionTimeoutSeconds
+        ),
         ignoreSelfMessages: config.ignoreSelfMessages !== false,
+        selfMessagePolicy: normalizeSelfMessagePolicy(config.selfMessagePolicy, config.ignoreSelfMessages),
         chatFilterMode: normalizeChatFilterMode(config.chatFilterMode),
         allowedContactIds: normalizeIdList(config.allowedContactIds),
         blockedContactIds: normalizeIdList(config.blockedContactIds),
@@ -728,6 +763,13 @@ export class WechatPersonalTriggerStrategy implements IWorkflowTriggerStrategy<T
       return Math.min(Math.floor(value), MAX_HISTORY_CONTEXT_LIMIT)
     }
     return DEFAULT_HISTORY_CONTEXT_LIMIT
+  }
+
+  private normalizeHistoryContextWindowSeconds(value: unknown, legacySessionTimeoutSeconds?: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      return Math.floor(value)
+    }
+    return this.normalizePositiveSeconds(legacySessionTimeoutSeconds, DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS)
   }
 
   private composeDispatchInput(input: string, historyContext?: string): string {

@@ -49,7 +49,9 @@ describe('WechatPersonalTriggerStrategy', () => {
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
         historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
         ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only',
         ...bindingOverrides
       })
     }

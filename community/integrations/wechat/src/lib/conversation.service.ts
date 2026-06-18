@@ -16,10 +16,15 @@ import { LessThan, Like, MoreThan, Repository } from 'typeorm'
 import {
   normalizeConversationKey,
   parseWechatPersonalConversationUserKey,
-  resolveWechatPersonalConversationUserKey
+  resolveWechatPersonalConversationIdentity,
+  type WechatPersonalConversationIdentity
 } from './conversation-user-key.js'
 import {
+  isWechatPersonalDispatchableMessageKind,
+  matchesWechatPersonalMessageFilter,
+  normalizeSelfMessagePolicy,
   normalizeString,
+  normalizeWechatPersonalAgentInput,
   summarizePayload,
   shouldAttemptWechatPersonalVoiceTranscription,
   shouldDispatchWechatPersonalMessage,
@@ -50,6 +55,7 @@ import { WechatPersonalChatCallbackContext } from './handoff/wechat-personal-cha
 const CACHE_TTL_MS = 10 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
+const DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS = 3600
 const MAX_HISTORY_CONTEXT_LIMIT = 100
 const HISTORY_CONTEXT_ITEM_MAX_CHARS = 1000
 const HISTORY_CONTEXT_TOTAL_MAX_CHARS = 12000
@@ -176,7 +182,9 @@ export type WechatPersonalRuntimeStatus = {
     sessionTimeoutSeconds: number
     summaryWindowSeconds: number
     historyContextLimit: number
+    historyContextWindowSeconds: number
     ignoreSelfMessages: boolean
+    selfMessagePolicy: string
     groupTriggerMode: string
     groupKeywords: string[]
     mentionFallbackNames: string[]
@@ -418,6 +426,7 @@ export class WechatPersonalConversationService {
 
       const triggerOptions: WechatPersonalInboundTriggerOptions = {
         ignoreSelfMessages: binding.ignoreSelfMessages !== false,
+        selfMessagePolicy: normalizeSelfMessagePolicy(binding.selfMessagePolicy, binding.ignoreSelfMessages),
         chatFilterMode: binding.chatFilterMode,
         allowedContactIds: binding.allowedContactIds,
         blockedContactIds: binding.blockedContactIds,
@@ -432,6 +441,52 @@ export class WechatPersonalConversationService {
 
       const executorUserId = this.resolveExecutionUserId(integration)
       let dispatchEvent = event
+      let conversationIdentity = this.resolveEventConversationIdentity(integration.id, dispatchEvent)
+      if (!conversationIdentity) {
+        await this.updateLog(inboundLog.id, {
+          status: 'skipped',
+          xpertId: binding.xpertId,
+          error: 'conversation_identity_missing'
+        }, eventScope)
+        return { handled: false, reason: 'conversation_identity_missing' }
+      }
+
+      await this.updateLog(inboundLog.id, {
+        xpertId: binding.xpertId,
+        contactId: conversationIdentity.contactId,
+        senderId: conversationIdentity.senderId,
+        chatType: conversationIdentity.chatType,
+        isSelf: dispatchEvent.isSelf,
+        conversationUserKey: conversationIdentity.conversationUserKey
+      }, eventScope)
+
+      const selfMessagePolicy = normalizeSelfMessagePolicy(binding.selfMessagePolicy, binding.ignoreSelfMessages)
+      if (dispatchEvent.isSelf && selfMessagePolicy === 'ignore') {
+        await this.updateLog(inboundLog.id, {
+          status: 'skipped',
+          error: 'self_message_ignored'
+        }, eventScope)
+        return { handled: false, reason: 'self_message_ignored' }
+      }
+
+      if (dispatchEvent.isSelf && selfMessagePolicy === 'history_only') {
+        if (!this.shouldStoreSelfHistory(dispatchEvent, triggerOptions)) {
+          await this.updateLog(inboundLog.id, {
+            status: 'skipped',
+            content: this.inboundLogContent(dispatchEvent),
+            error: 'filtered_by_trigger_policy'
+          }, eventScope)
+          return { handled: false, reason: 'filtered' }
+        }
+
+        await this.updateLog(inboundLog.id, {
+          status: 'history_only',
+          content: this.inboundLogContent(dispatchEvent),
+          error: undefined
+        }, eventScope)
+        return { handled: true, reason: 'history_only' }
+      }
+
       if (event.messageKind === 'voice') {
         const voiceDecision = shouldAttemptWechatPersonalVoiceTranscription(event, triggerOptions)
         if (!voiceDecision) {
@@ -462,7 +517,19 @@ export class WechatPersonalConversationService {
           ...event,
           content: voiceInputResult.input
         }
+        conversationIdentity = this.resolveEventConversationIdentity(integration.id, dispatchEvent)
+        if (!conversationIdentity) {
+          await this.updateLog(inboundLog.id, {
+            status: 'skipped',
+            error: 'conversation_identity_missing'
+          }, eventScope)
+          return { handled: false, reason: 'conversation_identity_missing' }
+        }
         await this.updateLog(inboundLog.id, {
+          contactId: conversationIdentity.contactId,
+          senderId: conversationIdentity.senderId,
+          chatType: conversationIdentity.chatType,
+          conversationUserKey: conversationIdentity.conversationUserKey,
           content: this.inboundLogContent(dispatchEvent),
           payloadSummary: summarizePayload({
             payload: event.rawPayload,
@@ -494,21 +561,16 @@ export class WechatPersonalConversationService {
       }
       const inboundFiles = inboundFilesResult.files
 
-      const conversationUserKey = resolveWechatPersonalConversationUserKey({
-        integrationId: integration.id,
-        uuid: dispatchEvent.uuid,
-        contactId: dispatchEvent.contactId,
-        senderId: dispatchEvent.senderId || dispatchEvent.contactId
-      })
+      const conversationUserKey = conversationIdentity.conversationUserKey
 
       const wechatMessage = new WechatPersonalMessage(
         {
           integrationId: integration.id,
           uuid: dispatchEvent.uuid,
           ownerWxid: dispatchEvent.ownerWxid,
-          contactId: dispatchEvent.contactId,
-          chatType: dispatchEvent.chatType,
-          senderId: dispatchEvent.senderId,
+          contactId: conversationIdentity.contactId,
+          chatType: conversationIdentity.chatType,
+          senderId: conversationIdentity.senderId,
           wechatChannel: this.wechatChannel
         },
         {
@@ -541,7 +603,10 @@ export class WechatPersonalConversationService {
             conversationUserKey,
             xpertId: binding.xpertId,
             limit: binding.historyContextLimit,
-            timeoutSeconds: binding.sessionTimeoutSeconds,
+            timeoutSeconds: this.normalizeHistoryContextWindowSeconds(
+              binding.historyContextWindowSeconds,
+              binding.sessionTimeoutSeconds
+            ),
             before: this.normalizeDate(inboundLog.createdAt) ?? new Date(),
             excludedLogIds: [inboundLog.id],
             scope: eventScope
@@ -558,7 +623,7 @@ export class WechatPersonalConversationService {
         tenantId: integration.tenantId || ctx.tenantId,
         organizationId: integration.organizationId || ctx.organizationId,
         executorUserId,
-        endUserId: dispatchEvent.senderId
+        endUserId: conversationIdentity.senderId
       })
 
       await this.updateLog(inboundLog.id, {
@@ -593,6 +658,7 @@ export class WechatPersonalConversationService {
       senderId: context.senderId,
       chatType: context.chatType,
       messageId: params.messageId,
+      isSelf: false,
       direction: 'outbound',
       status: params.status,
       content: params.content,
@@ -707,6 +773,7 @@ export class WechatPersonalConversationService {
         senderId: target.senderId,
         messageId: result.messageId,
         chatType: target.chatType,
+        isSelf: false,
         direction: 'outbound',
         status: result.success ? 'sent' : 'failed',
         content: target.content,
@@ -952,7 +1019,15 @@ export class WechatPersonalConversationService {
             sessionTimeoutSeconds: triggerBinding.sessionTimeoutSeconds,
             summaryWindowSeconds: triggerBinding.summaryWindowSeconds,
             historyContextLimit: triggerBinding.historyContextLimit ?? DEFAULT_HISTORY_CONTEXT_LIMIT,
+            historyContextWindowSeconds: this.normalizeHistoryContextWindowSeconds(
+              triggerBinding.historyContextWindowSeconds,
+              triggerBinding.sessionTimeoutSeconds
+            ),
             ignoreSelfMessages: triggerBinding.ignoreSelfMessages !== false,
+            selfMessagePolicy: normalizeSelfMessagePolicy(
+              triggerBinding.selfMessagePolicy,
+              triggerBinding.ignoreSelfMessages
+            ),
             groupTriggerMode: triggerBinding.groupTriggerMode,
             groupKeywords: triggerBinding.groupKeywords ?? [],
             mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
@@ -1533,6 +1608,7 @@ export class WechatPersonalConversationService {
       senderId: event.senderId,
       messageId: event.messageId,
       chatType: event.chatType,
+      isSelf: event.isSelf,
       direction: 'inbound',
       status,
       content: this.inboundLogContent(event),
@@ -1655,6 +1731,37 @@ export class WechatPersonalConversationService {
     return event.content
   }
 
+  private resolveEventConversationIdentity(
+    integrationId: string,
+    event: WechatPersonalInboundEvent
+  ): WechatPersonalConversationIdentity | undefined {
+    return resolveWechatPersonalConversationIdentity({
+      integrationId,
+      uuid: event.uuid,
+      ownerWxid: event.ownerWxid,
+      contactId: event.contactId,
+      senderId: event.senderId,
+      fromUser: event.fromUser,
+      toUser: event.toUser,
+      chatType: event.chatType,
+      isSelf: event.isSelf
+    })
+  }
+
+  private shouldStoreSelfHistory(
+    event: WechatPersonalInboundEvent,
+    options: WechatPersonalInboundTriggerOptions
+  ): boolean {
+    if (!matchesWechatPersonalMessageFilter(event, options)) {
+      return false
+    }
+    if (!isWechatPersonalDispatchableMessageKind(event)) {
+      return false
+    }
+    const input = normalizeWechatPersonalAgentInput(event)
+    return !!input || event.messageKind === 'image'
+  }
+
   private async markHistoryContextReset(
     integration: IIntegration<TIntegrationWechatPersonalOptions>,
     event: WechatPersonalInboundEvent,
@@ -1678,6 +1785,7 @@ export class WechatPersonalConversationService {
       senderId: event.senderId,
       messageId: event.messageId,
       chatType: event.chatType,
+      isSelf: event.isSelf,
       direction: 'system',
       status: 'context_reset',
       content: HISTORY_CONTEXT_RESET_CONTENT,
@@ -1738,10 +1846,10 @@ export class WechatPersonalConversationService {
       .andWhere('log.xpertId = :xpertId', { xpertId })
       .andWhere('log.createdAt < :before', { before })
       .andWhere(
-        '((log.direction = :inboundDirection AND log.status = :inboundStatus) OR (log.direction = :outboundDirection AND log.status = :outboundStatus))',
+        '((log.direction = :inboundDirection AND log.status IN (:...inboundStatuses)) OR (log.direction = :outboundDirection AND log.status = :outboundStatus))',
         {
           inboundDirection: 'inbound',
-          inboundStatus: 'dispatched',
+          inboundStatuses: ['dispatched', 'history_only'],
           outboundDirection: 'outbound',
           outboundStatus: 'sent'
         }
@@ -1764,8 +1872,8 @@ export class WechatPersonalConversationService {
       query.andWhere('log.createdAt > :resetAt', { resetAt })
     }
 
-    const timeoutSeconds = this.normalizePositiveNumber(params.timeoutSeconds)
-    if (timeoutSeconds) {
+    const timeoutSeconds = this.normalizeHistoryContextWindowSeconds(params.timeoutSeconds, undefined)
+    if (timeoutSeconds > 0) {
       query.andWhere('log.createdAt > :historySince', {
         historySince: new Date(before.getTime() - timeoutSeconds * 1000)
       })
@@ -1822,12 +1930,30 @@ export class WechatPersonalConversationService {
     return undefined
   }
 
+  private normalizeHistoryContextWindowSeconds(value: unknown, legacySessionTimeoutSeconds?: unknown): number {
+    const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      return Math.floor(numeric)
+    }
+    return this.normalizePositiveNumber(legacySessionTimeoutSeconds) ?? DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS
+  }
+
   private async updateLog(
     id: string,
     patch: Partial<
       Pick<
         WechatPersonalMessageLogEntity,
-        'status' | 'error' | 'xpertId' | 'conversationId' | 'conversationUserKey' | 'content' | 'payloadSummary'
+        | 'status'
+        | 'error'
+        | 'xpertId'
+        | 'conversationId'
+        | 'conversationUserKey'
+        | 'content'
+        | 'payloadSummary'
+        | 'contactId'
+        | 'senderId'
+        | 'chatType'
+        | 'isSelf'
       >
     >,
     scope?: WechatPersonalTenantScope | null
@@ -2105,6 +2231,7 @@ export class WechatPersonalConversationService {
     return [
       'received',
       'dispatched',
+      'history_only',
       'queued',
       'deferred',
       'sending',
