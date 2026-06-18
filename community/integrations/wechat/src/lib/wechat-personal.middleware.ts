@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
-import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import {
+  XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY,
+  XPERT_TASK_SCHEDULE_PROPERTY_PREFIX,
+  type TAgentMiddlewareMeta
+} from '@xpert-ai/contracts'
 import { randomUUID } from 'node:crypto'
 import {
   AgentMiddleware,
@@ -63,7 +67,10 @@ type WechatPersonalScheduleState = {
   atUsers: string[]
 }
 
-const XPERT_TASK_SCHEDULE_RUNTIME_STATE_KEY = 'xpertTaskSchedule'
+const WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}uuid`
+const WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}contact_id`
+const WECHAT_PERSONAL_SCHEDULE_CHAT_TYPE_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}chat_type`
+const WECHAT_PERSONAL_SCHEDULE_AT_USERS_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}at_users`
 
 type WechatPersonalScheduleSendParams = {
   uuid?: string
@@ -148,15 +155,10 @@ const setAccountEnabledSchema = z.object({
 
 const wechatPersonalScheduleStateSchema = z
   .object({
-    xpertTaskSchedule: z
-      .object({
-        idempotencyKey: z.string().optional()
-      })
-      .optional(),
-    wechatPersonalScheduleUuid: z.string().min(1).describe('wx2.0 账号 UUID'),
-    wechatPersonalScheduleContactId: z.string().min(1).describe('联系人或群 ID'),
-    wechatPersonalScheduleChatType: z.enum(['private', 'group']).optional().describe('会话类型'),
-    wechatPersonalScheduleAtUsers: z.array(z.string()).optional().describe('默认 @ 用户')
+    [WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY]: z.string().min(1).describe('wx2.0 账号 UUID'),
+    [WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY]: z.string().min(1).describe('联系人或群 ID'),
+    [WECHAT_PERSONAL_SCHEDULE_CHAT_TYPE_STATE_KEY]: z.enum(['private', 'group']).optional().describe('会话类型'),
+    [WECHAT_PERSONAL_SCHEDULE_AT_USERS_STATE_KEY]: z.array(z.string()).optional().describe('默认 @ 用户')
   })
   .passthrough()
 
@@ -753,20 +755,18 @@ export class WechatPersonalRuntimeMiddleware
 
   private resolveScheduleState(state: unknown): WechatPersonalScheduleState {
     const root = this.asRecord(state)
-    const genericSchedule = this.asRecord(root?.[XPERT_TASK_SCHEDULE_RUNTIME_STATE_KEY])
-    const genericIdempotencyKey = normalizeString(genericSchedule?.idempotencyKey)
-
-    const flatUuid = normalizeString(root?.wechatPersonalScheduleUuid)
-    const flatContactId = normalizeString(root?.wechatPersonalScheduleContactId)
-    const flatChatType = this.normalizeChatType(root?.wechatPersonalScheduleChatType)
-    const flatAtUsers = this.normalizeStringList(root?.wechatPersonalScheduleAtUsers)
+    const idempotencyKey = normalizeString(root?.[XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY])
+    const uuid = normalizeString(root?.[WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY])
+    const contactId = normalizeString(root?.[WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY])
+    const chatType = this.normalizeChatType(root?.[WECHAT_PERSONAL_SCHEDULE_CHAT_TYPE_STATE_KEY])
+    const atUsers = this.normalizeStringList(root?.[WECHAT_PERSONAL_SCHEDULE_AT_USERS_STATE_KEY])
 
     return {
-      uuid: flatUuid,
-      contactId: flatContactId,
-      chatType: flatChatType || (flatContactId.endsWith('@chatroom') ? 'group' : 'private'),
-      idempotencyKey: genericIdempotencyKey,
-      atUsers: flatAtUsers
+      uuid,
+      contactId,
+      chatType: chatType || (contactId.endsWith('@chatroom') ? 'group' : 'private'),
+      idempotencyKey,
+      atUsers
     }
   }
 

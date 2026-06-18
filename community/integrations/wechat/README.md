@@ -459,7 +459,7 @@ state: plugin_wechat_personal:trigger:aggregate:{integrationId}:{uuid}:{contactI
 
 推荐把定时规则放在 Xpert 平台的定时任务机制里：定时任务负责按计划触发 Agent，并把本次任务配置好的 middleware runtime state 传给 Agent；Agent 负责生成内容，然后调用 Personal WeChat Runtime Tools 暴露的 `wechat_personal_send_message`；middleware tool 再从 state 中读取微信发送参数并提交到出站队列。这样定时、审计、重试、模型运行和微信发送边界清晰，插件也不会自己内建一套独立 scheduler。
 
-定时任务 UI 在选择数字专家后，通过平台通用能力接口读取连接到 Agent 的 middleware `stateSchema`，并把 schema 渲染为任务的 runtime state 表单。用户在任务里填写的值会保存到 `runtimeState`，触发 Agent 时原样放进 chat request 的 `state`。
+定时任务 UI 在选择数字专家后，通过平台通用能力接口读取连接到 Agent 的 middleware `stateSchema`，并把其中以 `xpert_task_` 开头的属性渲染为任务的 runtime state 表单。用户在任务里填写的值会保存到 `runtimeState`，触发 Agent 时原样放进 chat request 的 `state`。
 
 配置要求：
 
@@ -471,23 +471,23 @@ state: plugin_wechat_personal:trigger:aggregate:{integrationId}:{uuid}:{contactI
 
 | UI 字段 | state 字段 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
-| wx2.0 账号 UUID | `wechatPersonalScheduleUuid` | 是 | wx2.0 中当前微信账号的 key/uuid。插件发送消息时会把它作为 `sendtext` / `sendimage` 的 `uuid`，旧接口回退时作为 `?key=<uuid>`。 |
-| 联系人或群 ID | `wechatPersonalScheduleContactId` | 是 | 真实微信接收方 ID。私聊通常是好友 `wxid` 或 wx2.0 返回的联系人 ID；群聊通常形如 `12345@chatroom`。 |
-| 会话类型 | `wechatPersonalScheduleChatType` | 否 | 标识接收方是 `private` 还是 `group`。未填写时插件会根据 `contactId` 是否以 `@chatroom` 结尾推断；发送仍以 `contactId` 为准。 |
-| 默认 @ 用户 | `wechatPersonalScheduleAtUsers` | 否 | 群聊文本消息默认 @ 的群成员 wxid 列表，会与 tool 入参中的 `atUsers` 合并去重后传给 wx2.0 的 `atusers` / `AtWxIDList`。这里只填 wxid，不填昵称；图片消息本身不携带 @。 |
+| wx2.0 账号 UUID | `xpert_task_uuid` | 是 | wx2.0 中当前微信账号的 key/uuid。插件发送消息时会把它作为 `sendtext` / `sendimage` 的 `uuid`，旧接口回退时作为 `?key=<uuid>`。 |
+| 联系人或群 ID | `xpert_task_contact_id` | 是 | 真实微信接收方 ID。私聊通常是好友 `wxid` 或 wx2.0 返回的联系人 ID；群聊通常形如 `12345@chatroom`。 |
+| 会话类型 | `xpert_task_chat_type` | 否 | 标识接收方是 `private` 还是 `group`。未填写时插件会根据 `contactId` 是否以 `@chatroom` 结尾推断；发送仍以 `contactId` 为准。 |
+| 默认 @ 用户 | `xpert_task_at_users` | 否 | 群聊文本消息默认 @ 的群成员 wxid 列表，会与 tool 入参中的 `atUsers` 合并去重后传给 wx2.0 的 `atusers` / `AtWxIDList`。这里只填 wxid，不填昵称；图片消息本身不携带 @。 |
 
 任务中保存的 runtime state 形如：
 
 ```json
 {
-  "wechatPersonalScheduleUuid": "SDmCf1k6wcW2",
-  "wechatPersonalScheduleContactId": "12345@chatroom",
-  "wechatPersonalScheduleChatType": "group",
-  "wechatPersonalScheduleAtUsers": ["wxid_member_1"]
+  "xpert_task_uuid": "SDmCf1k6wcW2",
+  "xpert_task_contact_id": "12345@chatroom",
+  "xpert_task_chat_type": "group",
+  "xpert_task_at_users": ["wxid_member_1"]
 }
 ```
 
-触发 Agent 时，平台会把任务的 `runtimeState` 合并进 chat request 的 `state`，并额外注入通用调度信息 `xpertTaskSchedule.idempotencyKey`：
+触发 Agent 时，平台会把任务的 `runtimeState` 合并进 chat request 的 `state`，并额外注入通用调度幂等键 `__idempotency_key`：
 
 ```json
 {
@@ -497,13 +497,11 @@ state: plugin_wechat_personal:trigger:aggregate:{integrationId}:{uuid}:{contactI
     }
   },
   "state": {
-    "wechatPersonalScheduleUuid": "SDmCf1k6wcW2",
-    "wechatPersonalScheduleContactId": "12345@chatroom",
-    "wechatPersonalScheduleChatType": "group",
-    "wechatPersonalScheduleAtUsers": ["wxid_member_1"],
-    "xpertTaskSchedule": {
-      "idempotencyKey": "xpert-task:<taskId>:2026-06-17T08:00"
-    }
+    "xpert_task_uuid": "SDmCf1k6wcW2",
+    "xpert_task_contact_id": "12345@chatroom",
+    "xpert_task_chat_type": "group",
+    "xpert_task_at_users": ["wxid_member_1"],
+    "__idempotency_key": "xpert-task:<taskId>:2026-06-17T08:00"
   }
 }
 ```
@@ -520,7 +518,7 @@ Agent 生成 markdown 内容后只需要调用：
 
 `content` 与普通 Agent final reply 一样按 markdown 处理：文本会清洗成微信友好纯文本，图片 URL 会下载后转为 base64 图片文件，再走 wx2.0 `sendimage`。主动发送复用同一条出站队列、限速、失败重试和 outbound log；不会绕过队列。
 
-平台会为定时任务生成稳定的 `xpertTaskSchedule.idempotencyKey`，插件会在发送前检查同一 integration 下是否已有相同 key 的 outbound log；存在时会跳过重复发送并返回已有日志状态。没有传 `idempotencyKey` 的主动发送会被记录为普通 `agent_tool` 来源，传了 key 的定时发送会记录为 `scheduled_agent` 来源。
+平台会为定时任务生成稳定的 `__idempotency_key`，插件会在发送前检查同一 integration 下是否已有相同 key 的 outbound log；存在时会跳过重复发送并返回已有日志状态。没有传 `__idempotency_key` 的主动发送会被记录为普通 `agent_tool` 来源，传了 key 的定时发送会记录为 `scheduled_agent` 来源。
 
 ## 消息过滤规则
 
