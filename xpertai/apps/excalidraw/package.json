@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Excalidraw app plugin for agent-created diagrams, reviewable drawing versions, Mermaid drafts, and an editable workbench.",
   "author": {
     "name": "XpertAI",
