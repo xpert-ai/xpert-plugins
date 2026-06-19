@@ -10,12 +10,12 @@
   - 单账号回调：`POST /message/SetCallback?key=<uuid>`。
 - 将消息规范化后派发给绑定的 Xpert Agent；可通过 trigger 配置进行防抖聚合、历史上下文注入和过滤。
 - 发送 Agent 最终回复中的文本和图片到微信。
-- 支持 Agent 主动发送到预配置微信联系人或群，可配合平台定时任务实现每日早报、巡检提醒等定时消息。
+- 支持 Agent 主动发送到预配置微信联系人或群；定时任务通过 `xpert_task_*` runtime state 注入接收方参数，可实现每日早报、巡检提醒等定时消息。
 - 支持 wx2.0 v2 文本/图片/媒体下载接口：`POST /v1/message/sendtext`、`POST /v1/message/sendimage`、`POST /v1/message/downloadfile`、`POST /v1/message/getmediafilechunk`。
 - 可选回退旧发送接口：`POST /message/SendTextMessage?key=<uuid>`、`POST /message/SendImageMessage?key=<uuid>`。
 - 提供 Personal WeChat Workbench，用于查看账号、会话、消息日志、配置和运行日志。
 - 提供 Agent middleware tools；管理员模式用于状态、回调、账号和队列运维，用户模式只提供受控主动发送。
-- 使用 Redis-backed BullMQ 管理入站聚合任务和出站消息队列，支持跨实例 job 分发、延迟调度、账号/联系人串行锁、暂停、取消和重试。
+- 使用 Redis-backed BullMQ 管理入站聚合任务和出站消息队列，支持跨实例 job 分发、延迟调度、账号/联系人串行锁、静默时段、暂停、取消和重试。
 - 提供两个 Assistant Template：
   - `wechat-personal-admin-assistant`：管理员模板，用于管理组织内所有个人微信集成。
   - `wechat-personal-user-assistant`：使用者模板，用于接收微信消息并自动回复。
@@ -134,6 +134,10 @@ REDIS_TLS=false
 | 同联系人小时上限 | 否 | `20` | 单联系人小时级发送上限。 |
 | 最大待发送积压 | 否 | 账号 `100` / 联系人 `20` | 积压超过限制时拒绝继续入队或暂停账号，避免无限堆积。 |
 | 最大重试次数 | 否 | `4` | 交给 BullMQ attempts/backoff 处理。 |
+| 重试退避（高级 JSON） | 否 | `[60000,300000,900000]` | BullMQ 固定退避毫秒数；当前发送 job 使用数组第一个值作为 fixed backoff。 |
+| 溢出处理（高级 JSON） | 否 | `pause_until_manual_resume` | 积压超限时默认暂停该账号出站；也可设为 `reject` 只拒绝本次入队。 |
+| 失败保护（高级 JSON） | 否 | `threshold: 5` / `windowSeconds: 900` | 同账号在窗口内连续最终失败达到阈值后暂停账号出站。 |
+| 静默时段（高级 JSON） | 否 | `[]` | 可配置多个 `{start,end,timezone}`，命中时发送 job 会延后到静默结束。 |
 
 direct_http 最小可用配置：
 
@@ -195,6 +199,40 @@ plugin_wechat_personal:lock:contact:{integrationId}:{uuid}:{contactId}
 ```
 
 限流计数、暂停状态、失败保护状态和下一次可发送时间也保存在 Redis 中，key 都以 `plugin_wechat_personal:` 开头。Redis 重启或 flush 会丢失待发送 job 和这些运行状态，因此生产环境必须使用持久化 Redis。
+
+出站队列的核心字段会出现在集成表单中；高级策略也可以通过 integration options JSON 配置：
+
+```json
+{
+  "outboundQueue": {
+    "retryBackoffMs": [60000, 300000, 900000],
+    "overflowAction": "pause_until_manual_resume",
+    "failureGuard": {
+      "threshold": 5,
+      "windowSeconds": 900,
+      "action": "pause_until_manual_resume"
+    },
+    "quietHours": [
+      {
+        "start": "23:00",
+        "end": "08:00",
+        "timezone": "Asia/Shanghai"
+      }
+    ]
+  }
+}
+```
+
+`quietHours` 使用 24 小时制 `HH:mm`。如果 `start < end`，表示同一天的静默窗口；如果 `start > end`，表示跨午夜窗口。`timezone` 可选，未填写时使用 Xpert 后端进程所在时区；无法识别的时区会回退到进程本地时区。
+
+测试或专用 worker 部署时，可以通过环境变量关闭队列 processor 自动启动：
+
+```sh
+WECHAT_PERSONAL_OUTBOUND_QUEUE_AUTORUN=false
+WECHAT_PERSONAL_INBOUND_QUEUE_AUTORUN=false
+```
+
+关闭后，入站聚合和出站发送 job 仍会写入 Redis，但当前进程不会自动消费这些 job，需要另一个启用 processor 的 Xpert 实例处理。
 
 ### 账号出站暂停与恢复
 
