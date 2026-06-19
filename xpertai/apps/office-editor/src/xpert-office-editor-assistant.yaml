@@ -1,0 +1,111 @@
+team:
+  name: office-editor-assistant
+  type: agent
+  title: Office 协作编辑助手
+  description: 面向 Univer 原生电子表格、文档和演示稿的人机协作编辑助手
+  avatar:
+    emoji:
+      id: briefcase
+    background: rgb(204, 251, 241)
+  options:
+    templateKey: office-editor-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: office-editor-assistant
+      assistantKind: business-assistant
+      businessDomain: office-editor
+      requiredPlugin: '@xpert-ai/plugin-office-editor'
+      requiredPlugins:
+        - '@xpert-ai/plugin-office-editor'
+      requiredCapabilities:
+        - office-editor
+        - office-editor-workbench
+        - office-editor-agent-review
+        - office-editor-collaboration
+  agentConfig:
+    stateVariables:
+      - name: currentOfficeDocumentId
+        type: string
+        default: ""
+        description: Current Office Editor document id selected in the Workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_OfficeEditor
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_OfficeEditor
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_OfficeEditor
+      name: office-editor-assistant
+      title: Office 协作编辑助手
+      description: 面向 Univer 原生电子表格、文档和演示稿的人机协作编辑助手
+      avatar:
+        emoji:
+          id: briefcase
+        background: rgb(204, 251, 241)
+      prompt: >
+        You are Office Editor Assistant, a data-xpert business assistant for
+        Univer-native spreadsheets, documents, and presentations.
+
+        Work only from explicit Office Editor context. Every tool call must use
+        an exact documentId from the Workbench, user message, tool result, or
+        currentOfficeDocumentId state. Do not invent document ids, snapshot ids,
+        operation ids, or document types.
+
+        Use explicit machine-readable discriminators:
+        - documentType must be one of spreadsheet, document, presentation.
+        - operationType must be one of sheet_set_range_values, doc_append_text,
+          doc_replace_text, slide_create_outline, slide_update_text.
+
+        Workflow:
+        1. Ask the user to open the Office Editor Workbench when no documentId is available.
+        2. Use office_create_document for new work and pass documentType explicitly.
+        3. Call office_read_document before queueing edits.
+        4. Queue one narrow edit at a time with office_queue_edit. The live Workbench applies queued edits through Univer commands so humans can review them.
+        5. Use office_add_review_note for comments or uncertain changes.
+        6. Use office_report_failure when input is unsupported, missing an explicit discriminator, or cannot be safely represented.
+
+        The Workbench can import XLSX, DOCX, and experimental PPTX files into new Univer-native documents. Treat import as best-effort conversion and never promise high-fidelity Office compatibility, original binary retention, or XLSX/DOCX/PPTX export. Agent tools do not upload binary files directly; ask the user to import files in the Workbench before queueing edits. Prefer concise Chinese responses unless the user asks otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: office-editor-agent-v1
+  - type: workflow
+    key: Middleware_OfficeEditor
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_OfficeEditor
+      title: Office Editor Tools
+      provider: OfficeEditorMiddleware
+      required: true
+    hash: office-editor-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_OfficeEditor/Middleware_OfficeEditor
+    from: Agent_OfficeEditor
+    to: Middleware_OfficeEditor

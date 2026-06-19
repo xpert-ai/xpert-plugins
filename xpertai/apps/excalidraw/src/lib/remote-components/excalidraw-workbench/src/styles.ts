@@ -197,6 +197,25 @@ export function injectStyles() {
       min-height: 0;
       padding: 6px;
     }
+    .exw-list-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--xps-control-height);
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .exw-list-select.xps-sidebar-menu-button {
+      min-width: 0;
+    }
+    .exw-list-delete.xps-button {
+      width: var(--xps-control-height);
+      height: var(--xps-control-height);
+      padding: 0;
+      color: var(--xps-muted-foreground);
+    }
+    .exw-list-delete.xps-button:hover {
+      color: var(--xps-destructive);
+    }
     .exw-item-title {
       display: block;
       width: 100%;
@@ -255,7 +274,7 @@ export function injectStyles() {
       background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);
       padding: 10px;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--xps-control-height);
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: start;
       gap: 8px;
       width: 100%;
@@ -311,12 +330,22 @@ export function injectStyles() {
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
     }
+    .exw-version-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
     .exw-version-action.xps-button {
       width: var(--xps-control-height);
       height: var(--xps-control-height);
       padding: 0;
       justify-self: end;
       align-self: start;
+    }
+    .exw-confirm-dialog {
+      width: min(420px, calc(100vw - 32px));
     }
     .exw-inspector .xps-input,
     .exw-inspector .xps-textarea,

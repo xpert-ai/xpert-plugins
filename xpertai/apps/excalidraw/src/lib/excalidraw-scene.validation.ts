@@ -34,6 +34,8 @@ const GENERIC_TYPES = new Set(['rectangle', 'diamond', 'ellipse', 'iframe', 'emb
 const COMMON_NUMBER_FIELDS = ['x', 'y', 'width', 'height', 'angle', 'strokeWidth', 'roughness', 'opacity', 'seed', 'version', 'versionNonce', 'updated']
 const COMMON_STRING_FIELDS = ['strokeColor', 'backgroundColor', 'fillStyle', 'strokeStyle']
 const LINEAR_TYPES = new Set(['arrow', 'line'])
+const ORDER_KEY_DIGITS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+const MIN_ORDER_KEY = `A${ORDER_KEY_DIGITS[0].repeat(26)}`
 const ARROWHEADS = new Set([
   'arrow',
   'bar',
@@ -58,7 +60,7 @@ export function normalizeExcalidrawScene(
   options: SceneValidationOptions = {}
 ): NormalizedExcalidrawScene {
   const issues: string[] = []
-  const elements = Array.isArray(input.elements) ? input.elements : []
+  const elements = normalizeExcalidrawElementsForPersistence(input.elements)
   const files = isPlainObject(input.files) ? input.files : {}
   const ids = new Set<string>()
 
@@ -77,6 +79,48 @@ export function normalizeExcalidrawScene(
     elements: elements as Record<string, unknown>[],
     appState: isPlainObject(input.appState) ? input.appState : {},
     files
+  }
+}
+
+export function normalizeExcalidrawElementsForPersistence(elements: unknown[] | undefined | null, fallbackUpdated = Date.now()) {
+  return (Array.isArray(elements) ? elements : []).map((element) => {
+    if (!isPlainObject(element)) {
+      return element
+    }
+    return normalizeExcalidrawElementMetadata(element, fallbackUpdated)
+  })
+}
+
+export function normalizeExcalidrawElementMetadata(
+  element: Record<string, unknown>,
+  fallbackUpdated = Date.now()
+): Record<string, unknown> {
+  const normalized = { ...element }
+  if (!isFiniteNumber(normalized.updated)) {
+    normalized.updated = fallbackUpdated
+  }
+
+  if (typeof normalized.index === 'string') {
+    const index = normalized.index.trim()
+    normalized.index = isValidExcalidrawOrderKey(index) ? index : null
+  } else if (normalized.index !== null) {
+    normalized.index = null
+  }
+
+  return normalized
+}
+
+export function isValidExcalidrawOrderKey(value: string) {
+  const key = value.trim()
+  if (!key || key === MIN_ORDER_KEY) {
+    return false
+  }
+  try {
+    const integerPart = readOrderKeyIntegerPart(key)
+    const fractionalPart = key.slice(integerPart.length)
+    return !fractionalPart.endsWith(ORDER_KEY_DIGITS[0])
+  } catch {
+    return false
   }
 }
 
@@ -321,10 +365,10 @@ function validateArrowhead(value: unknown, path: string, issues: string[]) {
 }
 
 function validateIndex(value: unknown, path: string, issues: string[]) {
-  if (value === null || typeof value === 'string') {
+  if (value === null || (typeof value === 'string' && isValidExcalidrawOrderKey(value))) {
     return
   }
-  issues.push(`${path} must be a string or null.`)
+  issues.push(`${path} must be a valid Excalidraw order key string or null.`)
 }
 
 function validateNullableString(value: unknown, path: string, issues: string[]) {
@@ -364,6 +408,24 @@ function isFiniteNumber(value: unknown): value is number {
 
 function readString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function readOrderKeyIntegerPart(key: string) {
+  const length = getOrderKeyIntegerLength(key[0])
+  if (length > key.length) {
+    throw new Error(`invalid order key: ${key}`)
+  }
+  return key.slice(0, length)
+}
+
+function getOrderKeyIntegerLength(head: string | undefined) {
+  if (head && head >= 'a' && head <= 'z') {
+    return head.charCodeAt(0) - 'a'.charCodeAt(0) + 2
+  }
+  if (head && head >= 'A' && head <= 'Z') {
+    return 'Z'.charCodeAt(0) - head.charCodeAt(0) + 2
+  }
+  throw new Error(`invalid order key head: ${head}`)
 }
 
 function normalizeJsonValue(value: unknown, seen = new WeakSet<object>()): unknown {

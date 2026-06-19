@@ -118,10 +118,14 @@ async function bundleComponent(componentName) {
   const cssOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.css'))
   return {
     outputPath: join(componentDir, 'app.js'),
-    text: jsOutput.text,
+    text: normalizeGeneratedOutput(jsOutput.text),
     cssOutputPath: join(componentDir, 'app.css'),
-    cssText: cssOutput ? cssOutput.text : ''
+    cssText: cssOutput ? normalizeGeneratedOutput(cssOutput.text) : ''
   }
+}
+
+function normalizeGeneratedOutput(text) {
+  return text.replace(/[ \t]+$/gm, '')
 }
 
 const outputs = await Promise.all(componentNames.map(bundleComponent))

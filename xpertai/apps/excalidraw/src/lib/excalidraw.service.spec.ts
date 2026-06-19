@@ -72,6 +72,22 @@ describe('ExcalidrawService patchScene', () => {
     ).rejects.toThrow(/duplicate/)
   })
 
+  it('normalizes agent element metadata when appending elements', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Patch target'
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      addElements: [baseElement({ id: 'rect-agent', updated: undefined, index: 'f9' })],
+      changeSummary: 'Agent append'
+    })
+
+    expect(result.version.elements[0].id).toBe('rect-agent')
+    expect(Number.isFinite(result.version.elements[0].updated)).toBe(true)
+    expect(result.version.elements[0].index).toBeNull()
+  })
+
   it('rejects no-op patches', async () => {
     const created = await service.createDrawing(testScope(), {
       title: 'Patch target',
@@ -115,20 +131,21 @@ describe('ExcalidrawService patchScene', () => {
     expect(result.item.id).toBe(created.item.id)
     expect(result.currentVersion.elementCount).toBe(2)
     expect(result.currentVersion.fileCount).toBe(1)
+    expect(result.currentVersion.drawingId).toBeUndefined()
     expect(result.scene).toBeUndefined()
     expect(result.versions[0].elements).toBeUndefined()
-    expect(result.nextActions).toContain('includeScene=true')
+    expect(result.nextActions).toContain('excalidraw_get_scene_item')
   })
 
-  it('returns a paged scene only when explicitly requested', async () => {
+  it('returns paged lightweight scene refs only when explicitly requested', async () => {
     const created = await service.createDrawing(testScope(), {
       title: 'Paged scene target',
       elements: [
         baseElement({ id: 'rect-1' }),
-        textElement({ id: 'text-1' }),
+        textElement({ id: 'text-1', text: 'A long label that should stay compact in the get drawing response' }),
         baseElement({ id: 'diamond-1', type: 'diamond', x: 220 })
       ],
-      appState: { viewBackgroundColor: '#fff' },
+      appState: { viewBackgroundColor: '#fff', collaborators: { heavy: true } },
       files: { file1: { id: 'file1', dataURL: 'data:image/png;base64,large' } }
     })
 
@@ -142,11 +159,58 @@ describe('ExcalidrawService patchScene', () => {
 
     expect(result.scene.version.versionNumber).toBe(1)
     expect(result.scene.elements.map((element: any) => element.id)).toEqual(['text-1'])
+    expect(result.scene.elements[0].textPreview).toContain('A long label')
+    expect(result.scene.elements[0].text).toBeUndefined()
     expect(result.scene.returnedElementCount).toBe(1)
     expect(result.scene.totalElementCount).toBe(3)
     expect(result.scene.hasMoreElements).toBe(true)
-    expect(result.scene.files).toBeUndefined()
-    expect(result.scene.filesOmitted).toBe(true)
+    expect(result.scene.appState.keys).toContain('viewBackgroundColor')
+    expect(result.scene.appState.collaborators).toBeUndefined()
+    expect(result.scene.files).toEqual([{ id: 'file1', dataURLLength: 27 }])
+    expect(result.scene.files[0].dataURL).toBeUndefined()
+    expect(result.scene.nextActions).toContain('excalidraw_get_scene_item')
+  })
+
+  it('returns full scene items through targeted item reads', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Scene item target',
+      elements: [baseElement({ id: 'rect-1' }), textElement({ id: 'text-1', text: 'Full text' })],
+      appState: { viewBackgroundColor: '#fff', customState: { nested: true } },
+      files: { file1: { id: 'file1', dataURL: 'data:image/png;base64,large' } },
+      mermaidSource: 'flowchart TD\n  A --> B'
+    })
+
+    const element = await service.getSceneItemForAgent(testScope(), {
+      drawingId: created.item.id,
+      itemType: 'element',
+      versionNumber: 1,
+      elementId: 'text-1'
+    })
+    expect(element.element.text).toBe('Full text')
+    expect(element.version.versionNumber).toBe(1)
+    expect(element.version.drawingId).toBeUndefined()
+
+    const appState = await service.getSceneItemForAgent(testScope(), {
+      drawingId: created.item.id,
+      itemType: 'appState',
+      versionNumber: 1
+    })
+    expect(appState.appState.customState).toEqual({ nested: true })
+
+    const file = await service.getSceneItemForAgent(testScope(), {
+      drawingId: created.item.id,
+      itemType: 'file',
+      versionNumber: 1,
+      fileId: 'file1'
+    })
+    expect(file.file.dataURL).toBe('data:image/png;base64,large')
+
+    const mermaid = await service.getSceneItemForAgent(testScope(), {
+      drawingId: created.item.id,
+      itemType: 'mermaidSource',
+      versionNumber: 1
+    })
+    expect(mermaid.mermaidSource).toContain('A --> B')
   })
 
   it('summarizes mutation results without returning scene payloads', async () => {
@@ -167,6 +231,60 @@ describe('ExcalidrawService patchScene', () => {
     expect(summary.version.elements).toBeUndefined()
     expect(summary.currentVersion.elements).toBeUndefined()
     expect(summary.patch.updateCount).toBe(1)
+  })
+
+  it('physically deletes a drawing with its versions and logs', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Delete target',
+      elements: [baseElement({ id: 'rect-1' })]
+    })
+    await service.saveSceneVersion(testScope(), {
+      drawingId: created.item.id,
+      elements: [baseElement({ id: 'rect-2', x: 40 })],
+      changeSummary: 'Second version'
+    })
+
+    expect(await drawings.find()).toHaveLength(1)
+    expect(await versions.find()).toHaveLength(2)
+    expect((await logs.find()).length).toBeGreaterThan(0)
+
+    const result = await service.deleteDrawing(testScope(), created.item.id)
+
+    expect(result.drawingId).toBe(created.item.id)
+    await expect(service.getDrawing(testScope(), created.item.id)).rejects.toThrow(/not found/i)
+    expect(await drawings.find()).toHaveLength(0)
+    expect(await versions.find()).toHaveLength(0)
+    expect(await logs.find()).toHaveLength(0)
+  })
+
+  it('physically deletes versions and promotes the latest remaining version', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Version delete target',
+      elements: [baseElement({ id: 'rect-1' })]
+    })
+    const firstVersionId = created.currentVersion.id
+    const second = await service.saveSceneVersion(testScope(), {
+      drawingId: created.item.id,
+      elements: [baseElement({ id: 'rect-2', x: 40 })],
+      changeSummary: 'Second version'
+    })
+
+    const afterSecondDelete = await service.deleteVersion(testScope(), created.item.id, second.version.id)
+
+    expect(afterSecondDelete.currentVersionId).toBe(firstVersionId)
+    expect(afterSecondDelete.currentVersionNumber).toBe(1)
+    expect(afterSecondDelete.drawing.currentVersion.id).toBe(firstVersionId)
+    expect(afterSecondDelete.drawing.versions.map((version: any) => version.versionNumber)).toEqual([1])
+    expect(await logs.find({ where: { versionId: second.version.id } })).toHaveLength(0)
+
+    const afterFirstDelete = await service.deleteVersion(testScope(), created.item.id, firstVersionId)
+
+    expect(afterFirstDelete.currentVersionId).toBeNull()
+    expect(afterFirstDelete.currentVersionNumber).toBe(0)
+    expect(afterFirstDelete.drawing.currentVersion).toBeNull()
+    expect(afterFirstDelete.drawing.item.currentVersionId).toBeNull()
+    expect(afterFirstDelete.drawing.item.currentVersionNumber).toBe(0)
+    expect(afterFirstDelete.drawing.versions).toHaveLength(0)
   })
 })
 
@@ -213,6 +331,15 @@ class MemoryRepository<T extends { id?: string }> {
 
   async findOne(options: { where?: Partial<T> } = {}) {
     return this.items.find((item) => matchesWhere(item, options.where)) ?? null
+  }
+
+  async delete(where: Partial<T> = {}) {
+    const beforeCount = this.items.length
+    this.items = this.items.filter((item) => !matchesWhere(item, where))
+    return {
+      affected: beforeCount - this.items.length,
+      raw: []
+    }
   }
 }
 

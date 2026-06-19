@@ -48,6 +48,23 @@ describe('normalizeExcalidrawScene', () => {
       })
     ).toThrow(/originalText must be a string/)
   })
+
+  it('fills missing updated timestamps and clears invalid order keys', () => {
+    const scene = normalizeExcalidrawScene({
+      elements: [baseElement({ updated: undefined, index: 'f9' })]
+    })
+
+    expect(Number.isFinite(scene.elements[0].updated)).toBe(true)
+    expect(scene.elements[0].index).toBeNull()
+  })
+
+  it('preserves valid Excalidraw order keys', () => {
+    const scene = normalizeExcalidrawScene({
+      elements: [baseElement({ index: 'a0' })]
+    })
+
+    expect(scene.elements[0].index).toBe('a0')
+  })
 })
 
 function baseElement(overrides: Record<string, unknown> = {}) {

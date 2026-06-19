@@ -14,6 +14,12 @@ import {
   Button,
   Check,
   ChevronDown,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   FileJson,
   Image,
   Input,
@@ -41,6 +47,7 @@ import {
   SidebarTitle,
   SidebarTrigger,
   Textarea,
+  Trash2,
   Upload,
   installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
@@ -58,6 +65,7 @@ import {
   normalizeToolCompletedEvent,
   SAVE_MERMAID_DRAFT_TOOL_NAME
 } from './tool-event-refresh'
+import { normalizeExcalidrawElementsForPersistence } from '../../../excalidraw-scene.validation'
 import {
   executeAction,
   executeFileAction,
@@ -83,6 +91,18 @@ type DetailPayload = {
   versions?: DrawingVersion[]
   logs?: any[]
 }
+type DeleteTarget =
+  | {
+      type: 'drawing'
+      drawingId: string
+      title: string
+    }
+  | {
+      type: 'version'
+      drawingId: string
+      versionId: string
+      versionNumber?: number
+    }
 
 const DEFAULT_MERMAID = `flowchart TD
   A[User Request] --> B[Agent Plans Diagram]
@@ -120,10 +140,12 @@ function App() {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
   const [versionsOpen, setVersionsOpen] = React.useState(false)
+  const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null)
   const [excalidrawTheme, setExcalidrawTheme] = React.useState<ExcalidrawTheme>(() => resolveExcalidrawTheme(null))
   const [api, setApi] = React.useState<any>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const contextRef = React.useRef<any>(null)
+  const detailRef = React.useRef<DetailPayload | null>(null)
   const selectedIdRef = React.useRef('')
   const searchRef = React.useRef('')
   const statusRef = React.useRef<StatusFilter>('')
@@ -154,6 +176,10 @@ function App() {
   }, [selectedId])
 
   React.useEffect(() => {
+    detailRef.current = detail
+  }, [detail])
+
+  React.useEffect(() => {
     searchRef.current = search
   }, [search])
 
@@ -172,6 +198,11 @@ function App() {
   React.useEffect(() => {
     mermaidSourceRef.current = mermaidSource
   }, [mermaidSource])
+
+  function setCurrentDetail(nextDetail: DetailPayload | null) {
+    detailRef.current = nextDetail
+    setDetail(nextDetail)
+  }
 
   React.useEffect(() => {
     const syncTheme = () => setExcalidrawTheme(resolveExcalidrawTheme(contextRef.current?.theme))
@@ -214,7 +245,7 @@ function App() {
     post('ready')
   }, [])
 
-  React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed, versionsOpen])
+  React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed, versionsOpen, deleteTarget])
 
   React.useEffect(() => {
     if (!api) {
@@ -223,13 +254,42 @@ function App() {
     const nextAppState = withHostThemeAppState(appStateRef.current, excalidrawTheme)
     appStateRef.current = nextAppState
     themeSyncRef.current = true
-    api.updateScene({
+    updateSceneSafely({
       appState: nextAppState
     })
     window.setTimeout(() => {
       themeSyncRef.current = false
     }, 0)
   }, [api, excalidrawTheme])
+
+  React.useEffect(() => {
+    const handleRecoverableSceneError = (error: unknown) => {
+      if (!isRecoverableSceneError(error)) {
+        return false
+      }
+      const translate = createTranslator(contextRef.current?.locale)
+      console.warn('[excalidraw-workbench] recovered from Excalidraw scene error', error)
+      notify('warning', translate('sceneDataInvalid'))
+      applyBlankScene({ clearMermaid: false })
+      return true
+    }
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (handleRecoverableSceneError(event.reason)) {
+        event.preventDefault()
+      }
+    }
+    const handleWindowError = (event: ErrorEvent) => {
+      if (handleRecoverableSceneError(event.error || event.message)) {
+        event.preventDefault()
+      }
+    }
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    window.addEventListener('error', handleWindowError)
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+      window.removeEventListener('error', handleWindowError)
+    }
+  }, [api])
 
   React.useEffect(() => {
     const currentVersion = detail?.currentVersion
@@ -278,7 +338,7 @@ function App() {
       return
     }
     if (payload.item) {
-      setDetail(payload)
+      setCurrentDetail(payload)
       setDirty(false)
       setVersionsOpen(false)
       const drawingId = payload.item.id || ''
@@ -297,16 +357,19 @@ function App() {
 
   async function reloadAfterHostEvent(event: unknown) {
     const normalizedEvent = normalizeToolCompletedEvent(event)
+    const refreshOptions = {
+      selectedDrawingId: selectedIdRef.current,
+      isDirty: dirtyRef.current,
+      canReplaceDirtyScene: canReplaceCurrentDirtyScene()
+    }
     console.info('[excalidraw-workbench] handling hostEvent', {
       rawEvent: event,
       normalizedEvent,
       selectedId: selectedIdRef.current,
-      dirty: dirtyRef.current
+      dirty: dirtyRef.current,
+      canReplaceDirtyScene: refreshOptions.canReplaceDirtyScene
     })
-    const initialDecision = decideToolEventRefresh(normalizedEvent, {
-      selectedDrawingId: selectedIdRef.current,
-      isDirty: dirtyRef.current
-    })
+    const initialDecision = decideToolEventRefresh(normalizedEvent, refreshOptions)
     if (!initialDecision.shouldReloadList) {
       console.info('[excalidraw-workbench] hostEvent ignored', {
         normalizedEvent,
@@ -334,7 +397,8 @@ function App() {
 
     const decision = decideToolEventRefresh(normalizedEvent, {
       selectedDrawingId: selectedIdRef.current,
-      isDirty: dirtyRef.current
+      isDirty: dirtyRef.current,
+      canReplaceDirtyScene: canReplaceCurrentDirtyScene()
     })
     console.info('[excalidraw-workbench] hostEvent refresh decision', decision)
     let selectedPayload: DetailPayload | null = null
@@ -462,7 +526,7 @@ function App() {
       if (!applyScene) {
         suppressedDetailSceneVersionRef.current = sceneVersionKey(payload.currentVersion)
       }
-      setDetail(payload)
+      setCurrentDetail(payload)
       if (resetDirty) {
         setDirty(false)
       }
@@ -511,7 +575,7 @@ function App() {
       if (drawingId) {
         selectedIdRef.current = drawingId
         setSelectedId(drawingId)
-        setDetail({
+        setCurrentDetail({
           item: drawingItem || { id: drawingId, title, currentVersionNumber: 0, status: 'draft' },
           currentVersion: null,
           versions: [],
@@ -602,8 +666,77 @@ function App() {
         drawingId: selectedId
       })
       notify('success', t('operationCompleted'))
-      setDetail(null)
+      setCurrentDetail(null)
       setSelectedId('')
+      await reloadList()
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function requestDeleteDrawing(drawing?: Drawing) {
+    const drawingId = drawing?.id || selectedId
+    if (!drawingId) {
+      return
+    }
+    setDeleteTarget({
+      type: 'drawing',
+      drawingId,
+      title: drawing?.title || detailRef.current?.item?.title || t('untitled')
+    })
+  }
+
+  function requestDeleteVersion(version: DrawingVersion) {
+    if (!selectedId || !version?.id) {
+      return
+    }
+    setDeleteTarget({
+      type: 'version',
+      drawingId: selectedId,
+      versionId: version.id,
+      versionNumber: version.versionNumber
+    })
+  }
+
+  async function confirmDeleteTarget() {
+    const target = deleteTarget
+    if (!target) {
+      return
+    }
+    setBusy(true)
+    try {
+      if (target.type === 'drawing') {
+        const response = await executeAction('delete_drawing', target.drawingId, {
+          drawingId: target.drawingId
+        })
+        const result = getResponsePayload(response)
+        notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
+        setDeleteTarget(null)
+        selectedIdRef.current = ''
+        setSelectedId('')
+        setCurrentDetail(null)
+        setVersionsOpen(false)
+        setDirty(false)
+        applyBlankScene({ clearMermaid: true })
+        await reloadList()
+        return
+      }
+
+      const response = await executeAction('delete_version', target.drawingId, {
+        drawingId: target.drawingId,
+        versionId: target.versionId
+      })
+      const result = getResponsePayload(response)
+      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
+      setDeleteTarget(null)
+      await loadDrawingDetail(target.drawingId, {
+        applyScene: true,
+        resetDirty: true,
+        closeVersions: false,
+        clearChangeSummary: false
+      })
       await reloadList()
     } catch (error) {
       notify('error', getErrorMessage(error))
@@ -666,12 +799,15 @@ function App() {
         theme: excalidrawThemeRef.current,
         viewBackgroundColor: defaultCanvasBackground(excalidrawThemeRef.current)
       }
-      api?.updateScene({
+      const applied = updateSceneSafely({
         elements,
         appState
-      })
+      }, { fallbackToBlank: true })
+      if (!applied) {
+        return false
+      }
       if (files && api?.addFiles) {
-        api.addFiles(Object.values(files))
+        addFilesSafely(files)
       }
       updateMermaidSource(source)
       elementsRef.current = elements as any[]
@@ -790,6 +926,49 @@ function App() {
     return 'unknown'
   }
 
+  function updateSceneSafely(scene: Record<string, unknown>, options: { fallbackToBlank?: boolean } = {}) {
+    if (!api) {
+      return false
+    }
+    try {
+      const result = api.updateScene(scene)
+      if (result && typeof result.then === 'function') {
+        void result.catch((error: unknown) => {
+          handleSceneApplicationError(error, options)
+        })
+      }
+      return true
+    } catch (error) {
+      handleSceneApplicationError(error, options)
+      return false
+    }
+  }
+
+  function addFilesSafely(files: Record<string, unknown>) {
+    if (!api?.addFiles || Object.keys(files).length === 0) {
+      return
+    }
+    try {
+      const result = api.addFiles(Object.values(files))
+      if (result && typeof result.then === 'function') {
+        void result.catch((error: unknown) => {
+          handleSceneApplicationError(error, { fallbackToBlank: false })
+        })
+      }
+    } catch (error) {
+      handleSceneApplicationError(error, { fallbackToBlank: false })
+    }
+  }
+
+  function handleSceneApplicationError(error: unknown, options: { fallbackToBlank?: boolean } = {}) {
+    const translate = createTranslator(contextRef.current?.locale)
+    console.warn('[excalidraw-workbench] failed to apply Excalidraw scene', error)
+    notify('warning', `${translate('sceneDataInvalid')}: ${getErrorMessage(error)}`)
+    if (options.fallbackToBlank) {
+      applyBlankScene({ clearMermaid: false })
+    }
+  }
+
   function applyVersion(version: DrawingVersion) {
     const scene = restorePersistedScene(version, excalidrawThemeRef.current)
     const elements = scene.elements
@@ -801,14 +980,15 @@ function App() {
     filesRef.current = files
     updateMermaidSource(mermaid)
     themeSyncRef.current = true
-    api?.updateScene({
+    const applied = updateSceneSafely({
       elements,
       appState,
       collaborators: new Map()
-    })
-    if (api?.addFiles && Object.keys(files).length > 0) {
-      api.addFiles(Object.values(files))
+    }, { fallbackToBlank: true })
+    if (!applied) {
+      return
     }
+    addFilesSafely(files)
     window.setTimeout(() => {
       themeSyncRef.current = false
     }, 0)
@@ -824,11 +1004,11 @@ function App() {
       updateMermaidSource('')
     }
     themeSyncRef.current = true
-    api?.updateScene({
+    updateSceneSafely({
       elements: [],
       appState,
       collaborators: new Map()
-    })
+    }, { fallbackToBlank: false })
     window.setTimeout(() => {
       themeSyncRef.current = false
     }, 0)
@@ -865,6 +1045,17 @@ function App() {
       mermaidOverride
     )
     setDirty(currentSceneSignature !== savedSceneSignatureRef.current)
+  }
+
+  function canReplaceCurrentDirtyScene() {
+    if (!dirtyRef.current) {
+      return true
+    }
+    return isBlankPersistedVersion(detailRef.current?.currentVersion) && isBlankSceneData(
+      elementsRef.current,
+      filesRef.current,
+      mermaidSourceRef.current
+    )
   }
 
   function currentSerializableScene() {
@@ -925,9 +1116,38 @@ function App() {
     ...restorePersistedScene(currentVersion, excalidrawTheme)
   }
   const shellClassName = `exw-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
+  const deleteDialogTitle =
+    deleteTarget?.type === 'version'
+      ? t('deleteVersionTitle')
+      : t('deleteDrawingTitle')
+  const deleteDialogDescription =
+    deleteTarget?.type === 'version'
+      ? `${t('deleteVersionDescription')}${deleteTarget.versionNumber ? ` v${deleteTarget.versionNumber}` : ''}`
+      : `${t('deleteDrawingDescription')}${deleteTarget?.title ? ` ${deleteTarget.title}` : ''}`
 
   return (
     <div className={shellClassName}>
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open: boolean) => {
+        if (!open && !busy) {
+          setDeleteTarget(null)
+        }
+      }}>
+        <DialogContent className="exw-confirm-dialog">
+          <DialogHeader>
+            <DialogTitle>{deleteDialogTitle}</DialogTitle>
+            <DialogDescription>{deleteDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setDeleteTarget(null)}>
+              {t('cancel')}
+            </Button>
+            <Button type="button" variant="destructive" disabled={busy} onClick={confirmDeleteTarget}>
+              <Trash2 className="exw-button-icon" aria-hidden="true" />
+              {t('confirmDelete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Sidebar className="exw-sidebar" side="left" collapsed={leftPanelCollapsed}>
         <SidebarHeader>
           <SidebarTrigger
@@ -987,12 +1207,26 @@ function App() {
               <SidebarMenu>
                 {drawings.map((drawing) => (
                   <SidebarMenuItem key={drawing.id}>
-                    <SidebarMenuButton type="button" active={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
-                      <span className="exw-item-title">{drawing.title || t('untitled')}</span>
-                      <span className="exw-item-meta">
-                        v{drawing.currentVersionNumber || 0} · {t((drawing.status || 'draft') as TranslationKey)}
-                      </span>
-                    </SidebarMenuButton>
+                    <div className="exw-list-row">
+                      <SidebarMenuButton className="exw-list-select" type="button" active={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
+                        <span className="exw-item-title">{drawing.title || t('untitled')}</span>
+                        <span className="exw-item-meta">
+                          v{drawing.currentVersionNumber || 0} · {t((drawing.status || 'draft') as TranslationKey)}
+                        </span>
+                      </SidebarMenuButton>
+                      <Button
+                        className="exw-list-delete"
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title={t('deleteDrawing')}
+                        aria-label={`${t('deleteDrawing')} ${drawing.title || t('untitled')}`}
+                        disabled={busy}
+                        onClick={() => requestDeleteDrawing(drawing)}
+                      >
+                        <Trash2 className="exw-button-icon" aria-hidden="true" />
+                      </Button>
+                    </div>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -1117,6 +1351,10 @@ function App() {
                   <Archive className="exw-button-icon" aria-hidden="true" />
                   {t('archive')}
                 </Button>
+                <Button type="button" variant="destructiveOutline" size="sm" disabled={busy || !selectedId} onClick={() => requestDeleteDrawing()}>
+                  <Trash2 className="exw-button-icon" aria-hidden="true" />
+                  {t('delete')}
+                </Button>
                 <Button
                   className="exw-versions-toggle"
                   type="button"
@@ -1144,18 +1382,32 @@ function App() {
                           {versionTime ? <div className="exw-version-meta">{versionTime}</div> : null}
                           {version.changeSummary ? <div className="exw-version-summary">{version.changeSummary}</div> : null}
                         </div>
-                        <Button
-                          className="exw-version-action"
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          title={t('restore')}
-                          aria-label={`${t('restore')} v${version.versionNumber}`}
-                          disabled={busy || isCurrentVersion}
-                          onClick={() => restoreVersion(version.id)}
-                        >
-                          <RotateCcw className="exw-button-icon" aria-hidden="true" />
-                        </Button>
+                        <div className="exw-version-actions">
+                          <Button
+                            className="exw-version-action"
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            title={t('restore')}
+                            aria-label={`${t('restore')} v${version.versionNumber}`}
+                            disabled={busy || isCurrentVersion}
+                            onClick={() => restoreVersion(version.id)}
+                          >
+                            <RotateCcw className="exw-button-icon" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            className="exw-version-action"
+                            type="button"
+                            variant="destructiveOutline"
+                            size="icon"
+                            title={t('deleteVersion')}
+                            aria-label={`${t('deleteVersion')} v${version.versionNumber}`}
+                            disabled={busy}
+                            onClick={() => requestDeleteVersion(version)}
+                          >
+                            <Trash2 className="exw-button-icon" aria-hidden="true" />
+                          </Button>
+                        </div>
                       </div>
                     )
                   })}
@@ -1226,8 +1478,9 @@ function App() {
 
 function restorePersistedScene(version: DrawingVersion | null | undefined, theme: ExcalidrawTheme) {
   const fallbackAppState = withHostThemeAppState(isObject(version?.appState) ? version?.appState : {}, theme)
+  const fallbackElements = normalizeExcalidrawElementsForPersistence(Array.isArray(version?.elements) ? version?.elements : [])
   const fallbackScene = {
-    elements: Array.isArray(version?.elements) ? version?.elements : [],
+    elements: fallbackElements,
     appState: fallbackAppState,
     files: isObject(version?.files) ? version?.files : {}
   }
@@ -1245,13 +1498,26 @@ function restorePersistedScene(version: DrawingVersion | null | undefined, theme
       }
     ) as any
     return {
-      elements: Array.isArray(restored?.elements) ? restored.elements : fallbackScene.elements,
+      elements: normalizeExcalidrawElementsForPersistence(Array.isArray(restored?.elements) ? restored.elements : fallbackScene.elements),
       appState: withHostThemeAppState(isObject(restored?.appState) ? restored.appState : fallbackScene.appState, theme),
       files: isObject(restored?.files) ? restored.files : fallbackScene.files
     }
-  } catch {
-    return fallbackScene
+  } catch (error) {
+    console.warn('[excalidraw-workbench] invalid persisted Excalidraw scene, falling back to blank scene', error)
+    return {
+      elements: [],
+      appState: fallbackAppState,
+      files: {}
+    }
   }
+}
+
+function isRecoverableSceneError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase()
+  return message.includes('order key')
+    || message.includes('invalid integer part')
+    || message.includes('trailing zero')
+    || message.includes('excalidraw scene')
 }
 
 function shouldAutoSaveMermaidVersion(version: DrawingVersion | null | undefined) {
@@ -1261,6 +1527,23 @@ function shouldAutoSaveMermaidVersion(version: DrawingVersion | null | undefined
       && version.mermaidSource.trim()
       && (!Array.isArray(version.elements) || version.elements.length === 0)
   )
+}
+
+function isBlankPersistedVersion(version: DrawingVersion | null | undefined) {
+  if (!version) {
+    return true
+  }
+  return isBlankSceneData(version.elements, version.files, version.mermaidSource)
+}
+
+function isBlankSceneData(elements: unknown, files: unknown, mermaidSource: unknown) {
+  return !hasVisibleElements(elements)
+    && !(isObject(files) && Object.keys(files).length > 0)
+    && !(typeof mermaidSource === 'string' && mermaidSource.trim())
+}
+
+function hasVisibleElements(elements: unknown) {
+  return Array.isArray(elements) && elements.some((element) => !isObject(element) || element.isDeleted !== true)
 }
 
 function formatVersionTime(version: DrawingVersion, locale: unknown) {
@@ -1499,4 +1782,30 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
-root.render(<App />)
+class WorkbenchErrorBoundary extends React.Component {
+  state = { error: null as Error | null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('[excalidraw-workbench] recovered from render crash', error)
+  }
+
+  render() {
+    if (this.state.error) {
+      return h('div', { className: 'exw-empty' }, [
+        h('strong', { key: 'title' }, '图形数据异常，页面已进入保护模式。'),
+        h('span', { key: 'body' }, 'Invalid drawing data was caught before the workbench could crash. Please choose another drawing or refresh.')
+      ])
+    }
+    return (this.props as any).children
+  }
+}
+
+root.render(
+  <WorkbenchErrorBoundary>
+    <App />
+  </WorkbenchErrorBoundary>
+)

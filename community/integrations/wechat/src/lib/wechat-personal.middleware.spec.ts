@@ -18,6 +18,10 @@ jest.mock('./wechat-personal-channel.strategy.js', () => ({
 }))
 
 import {
+  XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY,
+  XPERT_TASK_SCHEDULE_PROPERTY_PREFIX
+} from '@xpert-ai/contracts'
+import {
   WECHAT_PERSONAL_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PERSONAL_GET_CALLBACK_CONFIG_TOOL_NAME,
   WECHAT_PERSONAL_GET_RUNTIME_STATUS_TOOL_NAME,
@@ -39,6 +43,11 @@ import {
   WECHAT_PERSONAL_WORKBENCH_FEATURE
 } from './constants.js'
 import { WechatPersonalRuntimeMiddleware } from './wechat-personal.middleware.js'
+
+const WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}uuid`
+const WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}contact_id`
+const WECHAT_PERSONAL_SCHEDULE_CHAT_TYPE_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}chat_type`
+const WECHAT_PERSONAL_SCHEDULE_AT_USERS_STATE_KEY = `${XPERT_TASK_SCHEDULE_PROPERTY_PREFIX}at_users`
 
 describe('WechatPersonalRuntimeMiddleware', () => {
   function createMiddleware(conversationService: Record<string, unknown> = {}, wechatChannel: Record<string, unknown> = {}) {
@@ -71,8 +80,8 @@ describe('WechatPersonalRuntimeMiddleware', () => {
 
     expect(configSchema.properties?.scheduleTargets).toBeUndefined()
     expect((middleware.meta as { scheduleTarget?: unknown }).scheduleTarget).toBeUndefined()
-    expect(shape.wechatPersonalScheduleUuid).toBeDefined()
-    expect(shape.wechatPersonalScheduleContactId).toBeDefined()
+    expect(shape[WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY]).toBeDefined()
+    expect(shape[WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY]).toBeDefined()
   })
 
   it('registers Personal WeChat management tools', async () => {
@@ -334,12 +343,11 @@ describe('WechatPersonalRuntimeMiddleware', () => {
           },
           tool: sendTool,
           state: {
-            xpertTaskSchedule: {
-              idempotencyKey: 'daily-news:2026-06-16'
-            },
-            wechatPersonalScheduleUuid: 'uuid-1',
-            wechatPersonalScheduleContactId: 'daily@chatroom',
-            wechatPersonalScheduleAtUsers: ['wxid_state']
+            [XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY]: 'daily-news:2026-06-16',
+            [WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY]: 'uuid-1',
+            [WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY]: 'daily@chatroom',
+            [WECHAT_PERSONAL_SCHEDULE_CHAT_TYPE_STATE_KEY]: 'group',
+            [WECHAT_PERSONAL_SCHEDULE_AT_USERS_STATE_KEY]: ['wxid_state']
           },
           runtime: {}
         } as any,
@@ -416,11 +424,9 @@ describe('WechatPersonalRuntimeMiddleware', () => {
     const content = await middleware.wrapModelCall?.(
       {
         state: {
-          xpertTaskSchedule: {
-            idempotencyKey: 'daily-news:2026-06-16'
-          },
-          wechatPersonalScheduleUuid: 'uuid-1',
-          wechatPersonalScheduleContactId: 'daily@chatroom'
+          [XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY]: 'daily-news:2026-06-16',
+          [WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY]: 'uuid-1',
+          [WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY]: 'daily@chatroom'
         },
         systemMessage: { content: 'base' },
         messages: [],
@@ -477,11 +483,9 @@ describe('WechatPersonalRuntimeMiddleware', () => {
           },
           tool: sendTool,
           state: {
-            xpertTaskSchedule: {
-              idempotencyKey: 'daily-news:2026-06-16'
-            },
-            wechatPersonalScheduleUuid: 'uuid-1',
-            wechatPersonalScheduleContactId: 'room@chatroom'
+            [XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY]: 'daily-news:2026-06-16',
+            [WECHAT_PERSONAL_SCHEDULE_UUID_STATE_KEY]: 'uuid-1',
+            [WECHAT_PERSONAL_SCHEDULE_CONTACT_ID_STATE_KEY]: 'room@chatroom'
           },
           runtime: {}
         } as any,

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import type { DocxEditorDocumentStatus } from '../types.js'
+import type { DocxEditorDocumentStatus, DocxEditorWorkspaceCatalog } from '../types.js'
 
 @Entity('plugin_docx_editor_document')
 @Index(['tenantId', 'organizationId', 'projectId', 'status'])
@@ -50,14 +50,17 @@ export class DocxEditorDocument {
   @Column({ type: 'int', nullable: true })
   size?: number
 
-  @Column({ type: 'varchar', nullable: true })
-  fileAssetId?: string
+  @Column({ type: 'text', nullable: true })
+  workspaceFilePath?: string
+
+  @Column({ type: 'text', nullable: true })
+  workspaceFileUrl?: string
 
   @Column({ type: 'varchar', nullable: true })
-  fileId?: string
+  workspaceCatalog?: DocxEditorWorkspaceCatalog
 
   @Column({ type: 'varchar', nullable: true })
-  storageFileId?: string
+  workspaceScopeId?: string
 
   @Column({ type: 'varchar', nullable: true })
   currentVersionId?: string
