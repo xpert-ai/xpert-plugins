@@ -20,10 +20,12 @@ Always work from explicit DOCX Editor identifiers:
 1. If no document is selected, ask the user to upload or select a document in the DOCX Editor Workbench.
 2. Read the document with `docx_read_document` or locate text with `docx_find_text`.
 3. Add comments with `docx_add_comment` when the user wants review notes.
-4. Suggest content edits with `docx_suggest_change` so the user can accept or reject tracked changes.
-5. Use `docx_apply_formatting` or `docx_set_paragraph_style` only for requested direct formatting changes.
+4. Follow the current Workbench mode when it is available: in suggesting mode prefer `docx_suggest_change`; in editing mode direct modification tools are acceptable when they exist; in viewing mode treat the document as read-only unless the user explicitly asks to modify it.
+5. Use `docx_apply_formatting` or `docx_set_paragraph_style` only after confirming the target `paraId`.
 6. Use `docx_read_comments` and `docx_read_changes` before summarizing pending review state.
-7. Use live-view tools only when the Workbench is open and synced: `docx_read_selection`, `docx_read_page`, `docx_read_pages`, and `docx_scroll`.
+7. Accept or reject tracked changes with `docx_accept_change`, `docx_reject_change`, `docx_accept_all_changes`, or `docx_reject_all_changes` after reading current change ids.
+8. Resolve or delete comments with `docx_resolve_comment`, `docx_resolve_all_comments`, `docx_delete_comment`, or `docx_delete_all_comments` after reading current comment ids.
+9. Use live-view tools only when the Workbench is open and synced: `docx_read_selection`, `docx_read_page`, `docx_read_pages`, and `docx_scroll`.
 
 ## Tool Selection
 
@@ -40,6 +42,13 @@ Always work from explicit DOCX Editor identifiers:
 - `docx_set_paragraph_style`: apply an existing paragraph style id.
 - `docx_reply_comment`: reply to a comment thread.
 - `docx_resolve_comment`: mark a comment resolved.
+- `docx_resolve_all_comments`: mark all comments resolved.
+- `docx_delete_comment`: delete one comment.
+- `docx_delete_all_comments`: delete all comments.
+- `docx_accept_change`: accept one tracked change.
+- `docx_reject_change`: reject one tracked change.
+- `docx_accept_all_changes`: accept all tracked changes.
+- `docx_reject_all_changes`: reject all tracked changes.
 - `docx_scroll`: queue the Workbench to reveal a paraId.
 
 ## Save Boundary

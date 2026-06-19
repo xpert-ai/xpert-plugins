@@ -1,11 +1,22 @@
 import { DocxEditor, type DocxEditorRef, type EditorMode } from '@eigenpal/docx-editor-react'
 import '@eigenpal/docx-editor-react/styles.css'
 import { useDocxAgentTools } from '@eigenpal/docx-editor-agents/react'
+import enDocxEditorI18n from '@eigenpal/docx-editor-i18n/en'
+import zhCNDocxEditorI18n from '@eigenpal/docx-editor-i18n/zh-CN'
+import type { Translations } from '@eigenpal/docx-editor-i18n'
 import {
   Archive,
   Badge,
   Button,
   Check,
+  ChevronDown,
+  ChevronRight,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -54,6 +65,11 @@ import {
 
 type DocumentRecord = Record<string, any>
 type VersionRecord = Record<string, any>
+type PendingUpload = {
+  file: File
+  documentId: string
+  documentTitle: string
+}
 type DetailPayload = {
   item?: DocumentRecord
   currentVersion?: VersionRecord | null
@@ -61,6 +77,45 @@ type DetailPayload = {
   snapshot?: Record<string, any> | null
   operations?: Record<string, any>[]
 }
+type ApplyDetailPayloadOptions = {
+  preserveVersionExpanded?: boolean
+  preserveEditorBuffer?: boolean
+  preserveLiveState?: boolean
+}
+
+type SyncSnapshotOptions = {
+  notifyUser?: boolean
+  includeDocument?: boolean
+  includePages?: boolean
+}
+
+const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
+const ASSISTANT_CONTEXT_KEY = 'docxEditor'
+const READ_ONLY_HOST_EVENT_TOOL_NAMES = new Set([
+  'docx_read_document',
+  'docx_read_selection',
+  'docx_read_page',
+  'docx_read_pages',
+  'docx_find_text',
+  'docx_read_comments',
+  'docx_read_changes'
+])
+const METADATA_REFRESH_HOST_EVENT_TOOL_NAMES = new Set([
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment',
+  'docx_resolve_all_comments',
+  'docx_delete_comment',
+  'docx_delete_all_comments',
+  'docx_accept_change',
+  'docx_reject_change',
+  'docx_accept_all_changes',
+  'docx_reject_all_changes',
+  'docx_scroll'
+])
 
 installShadcnThemeVars({ styleId: 'docx-editor-workbench-shadcn-ui-vars' })
 injectStyles()
@@ -77,12 +132,19 @@ function App() {
   const [dirty, setDirty] = React.useState(false)
   const [assistantInstruction, setAssistantInstruction] = React.useState('')
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(false)
-  const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(false)
+  const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
+  const [versionListExpanded, setVersionListExpanded] = React.useState(false)
+  const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null)
   const editorRef = React.useRef<DocxEditorRef | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const assistantTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const selectedIdRef = React.useRef('')
   const detailRef = React.useRef<DetailPayload | null>(null)
+  const selectionContextRef = React.useRef<Record<string, any> | null>(null)
+  const selectionSnapshotTimerRef = React.useRef<number | null>(null)
+  const bridgeReadyRef = React.useRef(false)
   const t = createTranslator(context?.locale)
+  const docxEditorI18n = resolveDocxEditorI18n(context?.locale)
   const agentTools = useDocxAgentTools({
     editorRef,
     author: 'Xpert DOCX Assistant'
@@ -105,20 +167,47 @@ function App() {
   }, [detail])
 
   React.useEffect(() => {
+    if (selectedId && detail?.item) {
+      void updateAssistantContext()
+    } else {
+      void clearAssistantContext()
+    }
+  }, [selectedId, detail?.item?.id, detail?.currentVersion?.id, dirty, mode])
+
+  React.useEffect(() => {
     startRemoteBridge(
       (nextContext) => {
+        bridgeReadyRef.current = true
         setContext(nextContext)
         hydratePayload(nextContext.payload || null)
         setTimeout(() => reloadList(), 0)
       },
-      () => {
-        void reloadAfterHostEvent()
+      (event) => {
+        void handleHostEvent(event)
       }
     )
     post('ready')
+    return () => {
+      clearSelectionSnapshotTimer()
+      void clearAssistantContext()
+    }
   }, [])
 
-  React.useEffect(reportResize, [documents, detail, buffer, busy, dirty])
+  React.useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 1120px)')
+    if (!query) {
+      return
+    }
+    const syncPanelDefaults = () => {
+      setLeftPanelCollapsed(query.matches)
+      setRightPanelCollapsed(true)
+    }
+    syncPanelDefaults()
+    query.addEventListener('change', syncPanelDefaults)
+    return () => query.removeEventListener('change', syncPanelDefaults)
+  }, [])
+
+  React.useEffect(reportResize, [documents, detail, buffer, busy, dirty, versionListExpanded])
 
   React.useEffect(() => {
     void applyQueuedOperations()
@@ -140,14 +229,25 @@ function App() {
     }
   }
 
-  function applyDetailPayload(payload: DetailPayload) {
+  function applyDetailPayload(payload: DetailPayload, options?: ApplyDetailPayloadOptions) {
+    detailRef.current = payload
     setDetail(payload)
     const item = payload.item
     const version = payload.currentVersion
     const nextId = item?.id || ''
+    if (!options?.preserveVersionExpanded) {
+      setVersionListExpanded(false)
+    }
     selectedIdRef.current = nextId
     setSelectedId(nextId)
-    setDirty(false)
+    if (!options?.preserveLiveState) {
+      selectionContextRef.current = null
+      clearSelectionSnapshotTimer()
+      setDirty(false)
+    }
+    if (options?.preserveEditorBuffer) {
+      return
+    }
     if (version?.docxBase64) {
       setBuffer(base64ToArrayBuffer(version.docxBase64))
       setDocumentKey(`${nextId}:${version.id || version.versionNumber || Date.now()}`)
@@ -157,10 +257,41 @@ function App() {
     }
   }
 
+  async function handleHostEvent(event: unknown) {
+    const toolName = getHostEventToolName(event)
+    if (toolName && READ_ONLY_HOST_EVENT_TOOL_NAMES.has(toolName)) {
+      return
+    }
+    if (toolName && METADATA_REFRESH_HOST_EVENT_TOOL_NAMES.has(toolName)) {
+      await refreshAfterWorkbenchMutationEvent(event)
+      return
+    }
+    await reloadAfterHostEvent()
+  }
+
+  async function refreshAfterWorkbenchMutationEvent(event: unknown) {
+    const currentDocumentId = selectedIdRef.current
+    await reloadList()
+    if (!currentDocumentId) {
+      return
+    }
+    const eventDocumentId = getHostEventDocumentId(event)
+    if (eventDocumentId && eventDocumentId !== currentDocumentId) {
+      return
+    }
+    const response = await requestData({ parameters: { documentId: currentDocumentId } })
+    const payload = getResponsePayload(response)
+    applyDetailPayload(payload, {
+      preserveVersionExpanded: true,
+      preserveEditorBuffer: true,
+      preserveLiveState: true
+    })
+  }
+
   async function reloadAfterHostEvent() {
     await reloadList()
     if (selectedIdRef.current) {
-      await selectDocument(selectedIdRef.current)
+      await selectDocument(selectedIdRef.current, { force: true })
     }
   }
 
@@ -175,13 +306,20 @@ function App() {
     return items
   }
 
-  async function selectDocument(documentId: string) {
+  async function selectDocument(documentId: string, options?: { force?: boolean; toggleActive?: boolean }) {
     if (!documentId) {
+      return
+    }
+    const isCurrentDocument = documentId === selectedIdRef.current && detailRef.current?.item?.id === documentId
+    if (isCurrentDocument && !options?.force) {
+      if (options?.toggleActive) {
+        setVersionListExpanded((expanded) => !expanded)
+      }
       return
     }
     const response = await requestData({ parameters: { documentId } })
     const payload = getResponsePayload(response)
-    applyDetailPayload(payload)
+    applyDetailPayload(payload, { preserveVersionExpanded: isCurrentDocument })
   }
 
   async function createDocument() {
@@ -197,16 +335,51 @@ function App() {
   }
 
   async function uploadFile(file: File) {
+    if (selectedId) {
+      setPendingUpload({
+        file,
+        documentId: selectedId,
+        documentTitle: String(detail?.item?.title || detail?.item?.fileName || selectedId)
+      })
+      return
+    }
+
+    await uploadFileAsTarget(file, '')
+  }
+
+  async function confirmPendingUpload() {
+    const upload = pendingUpload
+    if (!upload) {
+      return
+    }
+    setPendingUpload(null)
+    await uploadFileAsTarget(upload.file, upload.documentId)
+  }
+
+  async function uploadPendingAsNewDocument() {
+    const upload = pendingUpload
+    if (!upload) {
+      return
+    }
+    setPendingUpload(null)
+    await uploadFileAsTarget(upload.file, '')
+  }
+
+  async function uploadFileAsTarget(file: File, targetDocumentId: string) {
     await runBusy(async () => {
       const response = await executeFileAction(
         'upload_docx',
-        selectedId || null,
-        { documentId: selectedId || undefined, title: file.name.replace(/\.docx$/i, ''), name: file.name },
+        targetDocumentId || null,
+        {
+          documentId: targetDocumentId || undefined,
+          title: targetDocumentId ? undefined : file.name.replace(/\.docx$/i, ''),
+          name: file.name
+        },
         null,
         file
       )
       const payload = getResponsePayload(response)?.data || getResponsePayload(response)
-      const documentId = payload?.document?.id || payload?.item?.id || payload?.id || selectedId
+      const documentId = payload?.document?.id || payload?.item?.id || payload?.id || targetDocumentId
       await reloadList()
       if (documentId) {
         await selectDocument(documentId)
@@ -245,20 +418,25 @@ function App() {
     })
   }
 
-  async function syncSnapshot() {
+  async function syncSnapshot(options: SyncSnapshotOptions = {}) {
     if (!selectedId || !editorRef.current) {
       return
     }
-    const readDocument = agentTools.executeToolCall('read_document', {})
-    const readComments = agentTools.executeToolCall('read_comments', {})
-    const readChanges = agentTools.executeToolCall('read_changes', {})
+    const includeDocument = options.includeDocument ?? true
+    const includePages = options.includePages ?? includeDocument
+    const readDocument = includeDocument ? agentTools.executeToolCall('read_document', {}) : null
+    const readComments = includeDocument ? agentTools.executeToolCall('read_comments', {}) : null
+    const readChanges = includeDocument ? agentTools.executeToolCall('read_changes', {}) : null
     const contextSnapshot = agentTools.getContext()
+    selectionContextRef.current = contextSnapshot
     const totalPages = contextSnapshot.totalPages || editorRef.current.getTotalPages?.() || 0
     const pages = []
-    for (let pageNumber = 1; pageNumber <= Math.min(totalPages, 20); pageNumber++) {
-      const page = agentTools.executeToolCall('read_page', { pageNumber })
-      if (page.success && page.data) {
-        pages.push(page.data)
+    if (includePages) {
+      for (let pageNumber = 1; pageNumber <= Math.min(totalPages, 20); pageNumber++) {
+        const page = agentTools.executeToolCall('read_page', { pageNumber })
+        if (page.success && page.data) {
+          pages.push(page.data)
+        }
       }
     }
     await executeAction(
@@ -267,18 +445,25 @@ function App() {
       {
         documentId: selectedId,
         versionId: detailRef.current?.currentVersion?.id,
-        contentText: typeof readDocument.data === 'string' ? readDocument.data : JSON.stringify(readDocument.data ?? ''),
-        paragraphCount: countParagraphLines(readDocument.data),
+        ...(includeDocument
+          ? {
+              contentText: typeof readDocument?.data === 'string' ? readDocument.data : JSON.stringify(readDocument?.data ?? ''),
+              paragraphCount: countParagraphLines(readDocument?.data),
+              comments: readComments?.data ?? [],
+              changes: readChanges?.data ?? []
+            }
+          : {}),
         totalPages,
         currentPage: contextSnapshot.currentPage || 0,
         selection: contextSnapshot.selection,
-        comments: readComments.data ?? [],
-        changes: readChanges.data ?? [],
-        pages
+        ...(includePages ? { pages } : {})
       },
       { documentId: selectedId }
     )
-    notify('success', t('synced'))
+    await updateAssistantContext()
+    if (options.notifyUser !== false) {
+      notify('success', t('synced'))
+    }
   }
 
   async function askAssistant() {
@@ -298,6 +483,11 @@ function App() {
         await invokeClientCommand(payload.commandKey, payload.payload)
       }
     })
+  }
+
+  function openReviewPanel() {
+    setRightPanelCollapsed(false)
+    setTimeout(() => assistantTextareaRef.current?.focus(), 0)
   }
 
   async function restoreVersion(versionId: string) {
@@ -325,8 +515,121 @@ function App() {
       setSelectedId('')
       setDetail(null)
       setBuffer(null)
+      await clearAssistantContext()
       await reloadList()
     })
+  }
+
+  function handleSelectionChange(selectionState: unknown) {
+    const contextSnapshot = safeGetAgentContext()
+    selectionContextRef.current = {
+      ...(contextSnapshot || {}),
+      selection: contextSnapshot?.selection ?? selectionState ?? null
+    }
+    void updateAssistantContext()
+    scheduleSelectionSnapshotSync()
+  }
+
+  function scheduleSelectionSnapshotSync() {
+    clearSelectionSnapshotTimer()
+    selectionSnapshotTimerRef.current = window.setTimeout(() => {
+      selectionSnapshotTimerRef.current = null
+      void syncSnapshot({ notifyUser: false, includeDocument: false, includePages: false }).catch((error) => {
+        console.warn('Failed to sync DOCX selection snapshot:', error)
+      })
+    }, 800)
+  }
+
+  function clearSelectionSnapshotTimer() {
+    if (selectionSnapshotTimerRef.current == null) {
+      return
+    }
+    window.clearTimeout(selectionSnapshotTimerRef.current)
+    selectionSnapshotTimerRef.current = null
+  }
+
+  function safeGetAgentContext() {
+    try {
+      return agentTools.getContext()
+    } catch {
+      return null
+    }
+  }
+
+  async function updateAssistantContext() {
+    if (!bridgeReadyRef.current) {
+      return
+    }
+    const payload = buildAssistantContextPayload()
+    if (!payload) {
+      await clearAssistantContext()
+      return
+    }
+
+    await invokeClientCommand(ASSISTANT_CONTEXT_COMMAND, payload).catch((error) => {
+      console.warn('Failed to update DOCX assistant context:', error)
+      return null
+    })
+  }
+
+  async function clearAssistantContext() {
+    if (!bridgeReadyRef.current) {
+      return
+    }
+    await invokeClientCommand(ASSISTANT_CONTEXT_COMMAND, {
+      key: ASSISTANT_CONTEXT_KEY,
+      clear: true
+    }).catch((error) => {
+      console.warn('Failed to clear DOCX assistant context:', error)
+      return null
+    })
+  }
+
+  function buildAssistantContextPayload() {
+    const documentId = selectedIdRef.current
+    const currentDetail = detailRef.current
+    const item = currentDetail?.item
+    if (!documentId || !item) {
+      return null
+    }
+
+    const currentVersion = currentDetail.currentVersion
+    const workspaceFilePath = stringValue(currentVersion?.workspaceFilePath) || stringValue(item.workspaceFilePath)
+    const versionId = stringValue(currentVersion?.id) || stringValue(item.currentVersionId)
+    const selectionContext = selectionContextRef.current || safeGetAgentContext()
+    const selection = summarizeSelection(selectionContext?.selection ?? currentDetail.snapshot?.selection)
+    const env: Record<string, string> = {
+      docxEditorDocumentId: documentId,
+      docxEditorMode: mode
+    }
+    if (versionId) {
+      env.docxEditorVersionId = versionId
+    }
+    if (workspaceFilePath) {
+      env.docxEditorWorkspaceFilePath = workspaceFilePath
+    }
+
+    return {
+      key: ASSISTANT_CONTEXT_KEY,
+      env,
+      context: {
+        currentDocument: {
+          documentId,
+          title: stringValue(item.title) || stringValue(item.fileName) || documentId,
+          fileName: stringValue(item.fileName),
+          currentVersionId: versionId,
+          currentVersionNumber: numberValue(item.currentVersionNumber) ?? numberValue(currentVersion?.versionNumber),
+          workspaceFilePath,
+          workspaceCatalog: stringValue(currentVersion?.workspaceCatalog) || stringValue(item.workspaceCatalog),
+          workspaceScopeId: stringValue(currentVersion?.workspaceScopeId) || stringValue(item.workspaceScopeId),
+          dirty,
+          mode,
+          selection,
+          currentPage: numberValue(selectionContext?.currentPage),
+          totalPages: numberValue(selectionContext?.totalPages)
+        }
+      }
+    }
   }
 
   async function applyQueuedOperations() {
@@ -365,12 +668,19 @@ function App() {
   }
 
   const currentVersionId = detail?.currentVersion?.id
-  const commentsCount = Array.isArray(detail?.snapshot?.comments) ? detail?.snapshot?.comments.length : 0
-  const changesCount = Array.isArray(detail?.snapshot?.changes) ? detail?.snapshot?.changes.length : 0
+  const reviewCounts = getReviewCounts(detail)
+  const commentsCount = reviewCounts.comments
+  const changesCount = reviewCounts.changes
   const operationsCount = detail?.operations?.length || 0
   const versions = detail?.versions || []
   const shellClass = `docx-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
-  const currentModeLabel = mode === 'suggesting' ? t('suggesting') : mode === 'viewing' ? t('viewing') : t('editing')
+  const currentDocumentTitle = detail?.item?.title || detail?.item?.fileName || (selectedId ? t('untitled') : t('noDocument'))
+  const currentVersionNumber = detail?.item?.currentVersionNumber || detail?.currentVersion?.versionNumber
+  const currentVersionMeta = [
+    currentVersionNumber ? `v${currentVersionNumber}` : '',
+    detail?.currentVersion?.source || '',
+    formatDate(detail?.currentVersion?.createdAt || detail?.item?.updatedAt)
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className={shellClass}>
@@ -400,32 +710,66 @@ function App() {
               <div className="docx-list-stack">
                 <section className="docx-section">
                   <div className="docx-section-title">{t('documents')}</div>
-                  <SidebarMenu>
-                    {documents.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton active={item.id === selectedId} onClick={() => selectDocument(item.id)}>
-                          <span className="docx-row-title">{item.title || item.fileName || 'Untitled'}</span>
-                          <span className="docx-row-meta">v{item.currentVersionNumber || 0} · {formatDate(item.updatedAt)}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </section>
-                <Separator />
-                <section className="docx-section">
-                  <div className="docx-section-title">{t('versions')}</div>
-                  <SidebarMenu>
-                    {versions.map((version) => (
-                      <SidebarMenuItem key={version.id}>
-                        <SidebarMenuButton active={version.id === currentVersionId} onClick={() => restoreVersion(version.id)}>
-                          <span className="docx-version-line">
-                            <span className="docx-row-title">v{version.versionNumber}</span>
-                            {version.id === currentVersionId ? <Check className="docx-button-icon" aria-hidden="true" /> : null}
-                          </span>
-                          <span className="docx-row-meta">{version.source || 'workbench'} · {formatDate(version.createdAt)}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                  <SidebarMenu className="docx-document-menu">
+                    {documents.map((item) => {
+                      const active = item.id === selectedId
+                      const title = item.title || item.fileName || 'Untitled'
+                      return (
+                        <SidebarMenuItem key={item.id} className={`docx-document-item ${active ? 'is-active' : ''}`}>
+                          <SidebarMenuButton
+                            className="docx-document-button"
+                            active={active}
+                            title={title}
+                            onClick={() => selectDocument(item.id, { toggleActive: true })}
+                          >
+                            <span className="docx-row-title">{title}</span>
+                            <span className="docx-row-meta">v{item.currentVersionNumber || 0} · {formatDate(item.updatedAt)}</span>
+                          </SidebarMenuButton>
+                          {active && versions.length ? (
+                            <div className="docx-version-nest" aria-label={t('versions')}>
+                              <button
+                                type="button"
+                                className="docx-version-toggle"
+                                aria-expanded={versionListExpanded}
+                                title={versionListExpanded ? t('collapseVersions') : t('expandVersions')}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setVersionListExpanded((expanded) => !expanded)
+                                }}
+                              >
+                                {versionListExpanded ? <ChevronDown className="docx-button-icon" aria-hidden="true" /> : <ChevronRight className="docx-button-icon" aria-hidden="true" />}
+                                <span>{t('versions')}</span>
+                                <span className="docx-version-count">{versions.length}</span>
+                              </button>
+                              {versionListExpanded ? (
+                                <div className="docx-version-menu">
+                                  {versions.map((version) => {
+                                    const versionActive = version.id === currentVersionId
+                                    return (
+                                      <button
+                                        key={version.id}
+                                        type="button"
+                                        className={`docx-version-button ${versionActive ? 'is-active' : ''}`}
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          void restoreVersion(version.id)
+                                        }}
+                                      >
+                                        <span className="docx-version-text">
+                                          <span className="docx-version-title">v{version.versionNumber}</span>
+                                          <span className="docx-version-meta">{version.source || 'workbench'} · {formatDate(version.createdAt)}</span>
+                                        </span>
+                                        {versionActive ? <Check className="docx-button-icon" aria-hidden="true" /> : null}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </SidebarMenuItem>
+                      )
+                    })}
                   </SidebarMenu>
                 </section>
               </div>
@@ -436,45 +780,49 @@ function App() {
       <main className="docx-main">
         <div className="docx-toolbar">
           <div className="docx-toolbar-title">
-            <div className="docx-brand">{t('title')}</div>
-            <Badge variant="secondary">{currentModeLabel}</Badge>
+            <div className="docx-brand">{currentDocumentTitle}</div>
+            {currentVersionMeta ? <div className="docx-toolbar-meta">{currentVersionMeta}</div> : null}
           </div>
           <div className="docx-toolbar-actions">
-            <Button variant="outline" size="sm" title={t('new')} disabled={busy} onClick={createDocument}>
-              <Plus className="docx-button-icon" aria-hidden="true" />
-              {t('new')}
-            </Button>
-            <Button variant="outline" size="sm" title={t('upload')} disabled={busy} onClick={() => fileInputRef.current?.click()}>
-              <Upload className="docx-button-icon" aria-hidden="true" />
-              {t('upload')}
-            </Button>
-            <Button size="sm" title={t('save')} disabled={!buffer || busy} onClick={() => saveVersion()}>
-              <Save className="docx-button-icon" aria-hidden="true" />
-              {t('save')}
-            </Button>
-            <Button variant="outline" size="sm" title={t('sync')} disabled={!buffer || busy} onClick={syncSnapshot}>
-              <RotateCcw className="docx-button-icon" aria-hidden="true" />
-              {t('sync')}
-            </Button>
-            <Select value={mode} onValueChange={(value) => setMode(value as EditorMode)}>
-              <SelectTrigger className="docx-mode-select" aria-label={t('mode')}>
-                <SelectValue placeholder={t('mode')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="editing">{t('editing')}</SelectItem>
-                <SelectItem value="suggesting">{t('suggesting')}</SelectItem>
-                <SelectItem value="viewing">{t('viewing')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Badge className="docx-status" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
-            <Button className="docx-toolbar-push" variant="outline" size="sm" title={t('ask')} disabled={!selectedId || busy} onClick={askAssistant}>
-              <Send className="docx-button-icon" aria-hidden="true" />
-              {t('ask')}
-            </Button>
-            <Button variant="destructiveOutline" size="sm" title={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
-              <Archive className="docx-button-icon" aria-hidden="true" />
-              {t('delete')}
-            </Button>
+            <div className="docx-toolbar-primary">
+              <Button variant="outline" size="sm" title={t('new')} disabled={busy} onClick={createDocument}>
+                <Plus className="docx-button-icon" aria-hidden="true" />
+                <span className="docx-action-label">{t('new')}</span>
+              </Button>
+              <Button variant="outline" size="sm" title={t('upload')} disabled={busy} onClick={() => fileInputRef.current?.click()}>
+                <Upload className="docx-button-icon" aria-hidden="true" />
+                <span className="docx-action-label">{t('upload')}</span>
+              </Button>
+              <Button size="sm" title={t('save')} disabled={!buffer || busy} onClick={() => saveVersion()}>
+                <Save className="docx-button-icon" aria-hidden="true" />
+                <span className="docx-action-label">{t('save')}</span>
+              </Button>
+              <Button variant="outline" size="sm" title={t('sync')} disabled={!buffer || busy} onClick={syncSnapshot}>
+                <RotateCcw className="docx-button-icon" aria-hidden="true" />
+                <span className="docx-action-label">{t('sync')}</span>
+              </Button>
+            </div>
+            <div className="docx-toolbar-secondary">
+              <Select value={mode} onValueChange={(value) => setMode(value as EditorMode)}>
+                <SelectTrigger className="docx-mode-select" aria-label={t('mode')}>
+                  <SelectValue placeholder={t('mode')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="editing">{t('editing')}</SelectItem>
+                  <SelectItem value="suggesting">{t('suggesting')}</SelectItem>
+                  <SelectItem value="viewing">{t('viewing')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Badge className="docx-status" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
+              <Button variant="outline" size="sm" title={t('openReview')} disabled={busy} onClick={openReviewPanel}>
+                <PanelRightOpen className="docx-button-icon" aria-hidden="true" />
+                <span className="docx-action-label">{t('ask')}</span>
+              </Button>
+              <span className="docx-toolbar-divider" aria-hidden="true" />
+              <Button className="docx-danger-action" variant="ghost" size="icon" title={t('delete')} aria-label={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
+                <Archive className="docx-button-icon" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
         <input
@@ -490,6 +838,41 @@ function App() {
             }
           }}
         />
+        <Dialog open={Boolean(pendingUpload)} onOpenChange={(open) => {
+          if (!open) {
+            setPendingUpload(null)
+          }
+        }}>
+          <DialogContent className="docx-upload-dialog">
+            <DialogHeader>
+              <DialogTitle>{t('confirmCurrentUploadTitle')}</DialogTitle>
+              <DialogDescription>{t('confirmCurrentUploadDescription')}</DialogDescription>
+            </DialogHeader>
+            <div className="docx-upload-dialog-body">
+              <div className="docx-upload-dialog-row">
+                <span>{t('confirmCurrentUploadDocument')}</span>
+                <strong>{pendingUpload?.documentTitle || ''}</strong>
+              </div>
+              <div className="docx-upload-dialog-row">
+                <span>{t('confirmCurrentUploadFile')}</span>
+                <strong>{pendingUpload?.file.name || ''}</strong>
+              </div>
+            </div>
+            <DialogFooter className="docx-upload-dialog-footer">
+              <Button variant="outline" disabled={busy} onClick={() => setPendingUpload(null)}>
+                {t('confirmCurrentUploadCancel')}
+              </Button>
+              <Button variant="outline" disabled={busy} onClick={() => void uploadPendingAsNewDocument()}>
+                <Plus className="docx-button-icon" aria-hidden="true" />
+                {t('confirmCurrentUploadNew')}
+              </Button>
+              <Button disabled={busy} onClick={() => void confirmPendingUpload()}>
+                <Upload className="docx-button-icon" aria-hidden="true" />
+                {t('confirmCurrentUploadCurrent')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="docx-editor-host">
           {buffer ? (
             <div className="docx-editor-frame">
@@ -499,13 +882,10 @@ function App() {
                 documentBuffer={buffer}
                 mode={mode}
                 author="Xpert DOCX Assistant"
+                i18n={docxEditorI18n}
                 documentName={detail?.item?.title || detail?.item?.fileName || 'Untitled.docx'}
                 onChange={() => setDirty(true)}
-                onSelectionChange={() => {
-                  if (!dirty) {
-                    return
-                  }
-                }}
+                onSelectionChange={handleSelectionChange}
                 onSave={(saved) => {
                   void executeAction('save_document_version', selectedId, {
                     documentId: selectedId,
@@ -564,14 +944,17 @@ function App() {
               <div className="docx-inspector-stack">
                 <section className="docx-section">
                   <div className="docx-section-title">{t('review')}</div>
-                  <div className="docx-stat"><span>{t('comments')}</span><Badge variant="secondary">{commentsCount}</Badge></div>
-                  <div className="docx-stat"><span>{t('changes')}</span><Badge variant="secondary">{changesCount}</Badge></div>
-                  <div className="docx-stat"><span>{t('operations')}</span><Badge variant="secondary">{operationsCount}</Badge></div>
+                  <div className="docx-review-summary">
+                    <div className="docx-review-metric"><span>{t('comments')}</span><strong>{commentsCount}</strong></div>
+                    <div className="docx-review-metric"><span>{t('changes')}</span><strong>{changesCount}</strong></div>
+                    <div className="docx-review-metric"><span>{t('operations')}</span><strong>{operationsCount}</strong></div>
+                  </div>
                 </section>
                 <Separator />
                 <section className="docx-section">
                   <div className="docx-section-title">{t('ask')}</div>
                   <Textarea
+                    ref={assistantTextareaRef}
                     className="docx-field"
                     value={assistantInstruction}
                     placeholder={t('assistantPlaceholder')}
@@ -613,12 +996,152 @@ function countParagraphLines(value: unknown) {
   return typeof value === 'string' ? value.split('\n').filter(Boolean).length : 0
 }
 
+function summarizeSelection(value: unknown) {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  return {
+    paraId: stringValue(value.paraId),
+    selectedText: truncateText(stringValue(value.selectedText), 800),
+    paragraphText: truncateText(stringValue(value.paragraphText), 1200),
+    before: truncateText(stringValue(value.before), 240),
+    after: truncateText(stringValue(value.after), 240)
+  }
+}
+
+function truncateText(value: string | undefined, maxLength: number) {
+  if (!value) {
+    return undefined
+  }
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function numberValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function getReviewCounts(detail: DetailPayload | null) {
+  const snapshotComments = Array.isArray(detail?.snapshot?.comments) ? detail.snapshot.comments.length : 0
+  const snapshotChanges = Array.isArray(detail?.snapshot?.changes) ? detail.snapshot.changes.length : 0
+  const operationCounts = getOperationReviewCounts(detail?.operations)
+  return {
+    comments: Math.max(snapshotComments, operationCounts.comments),
+    changes: Math.max(snapshotChanges, operationCounts.changes)
+  }
+}
+
+function getOperationReviewCounts(operations: Record<string, any>[] | undefined) {
+  let comments = 0
+  let changes = 0
+  for (const operation of operations ?? []) {
+    if (operation?.status !== 'applied') {
+      continue
+    }
+    const result = isRecord(operation.result) ? operation.result : null
+    if (result && result.success === false) {
+      continue
+    }
+    if (operation.toolName === 'docx_add_comment') {
+      comments += countReviewItems(result?.data, 'comments') || 1
+    } else if (operation.toolName === 'docx_suggest_change') {
+      changes += countReviewItems(result?.data, 'changes') || numberValue(result?.appliedCount) || 1
+    }
+  }
+  return { comments, changes }
+}
+
+function countReviewItems(data: unknown, key: string) {
+  if (Array.isArray(data)) {
+    return data.length
+  }
+  if (!isRecord(data)) {
+    return 0
+  }
+  const items = data[key]
+  return Array.isArray(items) ? items.length : 0
+}
+
+function getHostEventToolName(event: unknown) {
+  return firstString(
+    readPath(event, ['toolName']),
+    readPath(event, ['tool', 'name']),
+    readPath(event, ['data', 'toolName']),
+    readPath(event, ['data', 'tool', 'name']),
+    readPath(event, ['payload', 'toolName']),
+    readPath(event, ['payload', 'tool', 'name'])
+  )
+}
+
+function getHostEventDocumentId(event: unknown) {
+  const output = parseMaybeRecord(readPath(event, ['data', 'output'])) || parseMaybeRecord(readPath(event, ['payload', 'output']))
+  return firstString(
+    readPath(event, ['documentId']),
+    readPath(event, ['data', 'documentId']),
+    readPath(output, ['documentId']),
+    readPath(output, ['document', 'id']),
+    readPath(output, ['data', 'documentId']),
+    readPath(output, ['data', 'document', 'id']),
+    readPath(output, ['result', 'documentId']),
+    readPath(output, ['result', 'data', 'documentId']),
+    readPath(output, ['result', 'data', 'document', 'id'])
+  )
+}
+
+function readPath(value: unknown, path: string[]) {
+  let current = value
+  for (const key of path) {
+    if (!isRecord(current)) {
+      return undefined
+    }
+    current = current[key]
+  }
+  return current
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const nextValue = stringValue(value)
+    if (nextValue) {
+      return nextValue
+    }
+  }
+  return undefined
+}
+
+function parseMaybeRecord(value: unknown) {
+  if (isRecord(value)) {
+    return value
+  }
+  if (typeof value !== 'string' || !value.trim().startsWith('{')) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return isRecord(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
 function formatDate(value: unknown) {
   if (!value) {
     return ''
   }
   const date = new Date(String(value))
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
+}
+
+function resolveDocxEditorI18n(locale: unknown): Translations {
+  return String(locale || '').toLowerCase().startsWith('en') ? enDocxEditorI18n : zhCNDocxEditorI18n
 }
 
 const root = document.getElementById('root') || document.body.appendChild(document.createElement('div'))

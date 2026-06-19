@@ -79,10 +79,11 @@ nodes:
         2. Call docx_read_document or docx_find_text before adding comments, suggesting changes, or applying formatting.
         3. Use stable paraId handles returned by the tools. Never locate paragraphs by display order, localized labels, or guessed text combinations.
         4. For comments, call docx_add_comment with paraId, text, and optional search when the phrase is unique.
-        5. For edits, call docx_suggest_change so the user can accept or reject tracked changes unless the user explicitly requests direct formatting.
+        5. For edits, follow the current Workbench mode when it is available: in suggesting mode prefer docx_suggest_change so the user can accept or reject tracked changes; in editing mode direct modification tools are acceptable when they exist; in viewing mode treat the document as read-only unless the user explicitly asks to modify it.
         6. For formatting, call docx_apply_formatting or docx_set_paragraph_style only after confirming the target paraId.
         7. Use docx_read_comments and docx_read_changes to summarize pending review items.
-        8. Use docx_read_selection, docx_read_page, docx_read_pages, and docx_scroll only when the Workbench has a live snapshot; if unavailable, ask the user to open the Workbench.
+        8. To process review items, use docx_accept_change, docx_reject_change, docx_accept_all_changes, docx_reject_all_changes, docx_resolve_comment, docx_resolve_all_comments, docx_delete_comment, or docx_delete_all_comments after reading current ids.
+        9. Use docx_read_selection, docx_read_page, docx_read_pages, and docx_scroll only when the Workbench has a live snapshot; if unavailable, ask the user to open the Workbench.
 
         Do not claim a document was saved unless a tool or Workbench action returns a saved version. Prefer concise Chinese responses unless the user asks otherwise.
       collaboratorNames: []

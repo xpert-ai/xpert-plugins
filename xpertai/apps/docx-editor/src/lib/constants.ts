@@ -30,6 +30,13 @@ export const DOCX_EDITOR_TOOL_NAMES = [
   'docx_set_paragraph_style',
   'docx_reply_comment',
   'docx_resolve_comment',
+  'docx_resolve_all_comments',
+  'docx_delete_comment',
+  'docx_delete_all_comments',
+  'docx_accept_change',
+  'docx_reject_change',
+  'docx_accept_all_changes',
+  'docx_reject_all_changes',
   'docx_scroll'
 ] as const
 
@@ -39,8 +46,27 @@ export const DOCX_EDITOR_MUTATION_TOOL_NAMES = [
   'docx_apply_formatting',
   'docx_set_paragraph_style',
   'docx_reply_comment',
-  'docx_resolve_comment'
+  'docx_resolve_comment',
+  'docx_resolve_all_comments',
+  'docx_delete_comment',
+  'docx_delete_all_comments',
+  'docx_accept_change',
+  'docx_reject_change',
+  'docx_accept_all_changes',
+  'docx_reject_all_changes'
 ] as const
+
+export const DOCX_EDITOR_READ_ONLY_TOOL_NAMES = [
+  'docx_read_document',
+  'docx_read_selection',
+  'docx_read_page',
+  'docx_read_pages',
+  'docx_find_text',
+  'docx_read_comments',
+  'docx_read_changes'
+] as const
+
+export const DOCX_EDITOR_HOST_EVENT_TOOL_NAMES = [...DOCX_EDITOR_MUTATION_TOOL_NAMES, 'docx_scroll'] as const
 
 export const DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES = [
   'docx_read_selection',

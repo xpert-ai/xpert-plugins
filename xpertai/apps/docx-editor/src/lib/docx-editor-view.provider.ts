@@ -26,11 +26,11 @@ import {
   AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
   DOCX_EDITOR_FEATURE,
+  DOCX_EDITOR_HOST_EVENT_TOOL_NAMES,
   DOCX_EDITOR_ICON,
   DOCX_EDITOR_PLUGIN_NAME,
   DOCX_EDITOR_PROVIDER_KEY,
   DOCX_EDITOR_REMOTE_ENTRY_KEY,
-  DOCX_EDITOR_TOOL_NAMES,
   DOCX_EDITOR_VIEW_KEY,
   DOCX_EDITOR_WORKBENCH_CAPABILITY,
   PROJECT_DETAIL_SECTIONS_SLOT
@@ -128,10 +128,10 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
               event: 'assistant.tool.completed',
               filter: {
                 sources: ['chatkit'],
-                toolNames: [...DOCX_EDITOR_TOOL_NAMES]
+                toolNames: [...DOCX_EDITOR_HOST_EVENT_TOOL_NAMES]
               },
               action: {
-                type: 'refresh-and-forward',
+                type: 'forward',
                 debounceMs: 1000
               }
             }
@@ -141,6 +141,10 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           {
             key: 'assistant.chat.send_message',
             label: text('Send to Assistant Chat', '发送到 Assistant 对话')
+          },
+          {
+            key: 'assistant.context.set',
+            label: text('Set Assistant Context', '设置 Assistant 上下文')
           }
         ],
         actions: [
@@ -330,10 +334,7 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
         fileName,
         mimeType: file.mimetype ?? getStringInput(request.input, 'mimeType'),
         size: file.size,
-        docxBase64: file.buffer.toString('base64'),
-        fileAssetId: getStringInput(request.input, 'fileAssetId') ?? readFileStringProperty(file, 'fileAssetId'),
-        fileId: getStringInput(request.input, 'fileId') ?? readFileStringProperty(file, 'fileId'),
-        storageFileId: getStringInput(request.input, 'storageFileId') ?? readFileStringProperty(file, 'storageFileId')
+        docxBase64: file.buffer.toString('base64')
       })
       return {
         ...success('DOCX file uploaded', 'DOCX 文件已上传'),
@@ -435,22 +436,6 @@ function getStringParameter(parameters: XpertViewQuery['parameters'] | XpertView
 
 function getFileDisplayName(file: XpertViewFileActionFile, input: XpertViewActionRequest['input']) {
   return getStringInput(input, 'name') ?? file.originalname ?? 'uploaded.docx'
-}
-
-function readFileStringProperty(
-  file: XpertViewFileActionFile,
-  key: 'fileAssetId' | 'fileId' | 'storageFileId'
-) {
-  if (key === 'fileAssetId' && 'fileAssetId' in file && typeof file.fileAssetId === 'string') {
-    return file.fileAssetId
-  }
-  if (key === 'fileId' && 'fileId' in file && typeof file.fileId === 'string') {
-    return file.fileId
-  }
-  if (key === 'storageFileId' && 'storageFileId' in file && typeof file.storageFileId === 'string') {
-    return file.storageFileId
-  }
-  return undefined
 }
 
 function getActionErrorMessage(error: unknown, fallback: string) {
