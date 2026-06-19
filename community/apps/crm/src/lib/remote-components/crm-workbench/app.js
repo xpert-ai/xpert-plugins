@@ -915,7 +915,7 @@ var XpertCrmWorkbench = (() => {
     document.head.appendChild(style);
   }
 
-  // ../../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -930,7 +930,7 @@ var XpertCrmWorkbench = (() => {
     return n;
   }
 
-  // ../../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var CLASS_PART_SEPARATOR = "-";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
@@ -3469,13 +3469,13 @@ var XpertCrmWorkbench = (() => {
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3488,7 +3488,7 @@ var XpertCrmWorkbench = (() => {
     strokeLinejoin: "round"
   };
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
   var Icon = forwardRef(
     ({
       color = "currentColor",
@@ -3520,7 +3520,7 @@ var XpertCrmWorkbench = (() => {
     }
   );
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -3534,41 +3534,41 @@ var XpertCrmWorkbench = (() => {
     return Component2;
   };
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("Check", __iconNode);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
   var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
   var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
   var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
   var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
   var Circle = createLucideIcon("Circle", __iconNode5);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
   var __iconNode6 = [
     ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
     ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
   ];
   var Search = createLucideIcon("Search", __iconNode6);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
   var __iconNode7 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
   var X = createLucideIcon("X", __iconNode7);
 
-  // ../../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -3632,7 +3632,7 @@ var XpertCrmWorkbench = (() => {
     });
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -3668,7 +3668,7 @@ var XpertCrmWorkbench = (() => {
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3878,7 +3878,7 @@ var XpertCrmWorkbench = (() => {
   }
   var jsxs = jsx;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContext2(rootComponentName, defaultContext) {
     const Context = createContext(defaultContext);
     Context.displayName = rootComponentName + "Context";
@@ -3955,7 +3955,7 @@ var XpertCrmWorkbench = (() => {
     return createScope;
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -3966,11 +3966,11 @@ var XpertCrmWorkbench = (() => {
     };
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4036,7 +4036,7 @@ var XpertCrmWorkbench = (() => {
     return typeof value === "function";
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -4048,7 +4048,7 @@ var XpertCrmWorkbench = (() => {
     }, [value]);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -4084,7 +4084,7 @@ var XpertCrmWorkbench = (() => {
     return size4;
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_dc6e30df35507eb8a116c12c3da26e18/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4253,7 +4253,7 @@ var XpertCrmWorkbench = (() => {
   var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
   var version2 = ReactDOMGlobal.version;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_9b6ae4cdaf3918ddbf0b21069e38e2ef/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4290,7 +4290,7 @@ var XpertCrmWorkbench = (() => {
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_e21be6412c310c083d6755285c4c1ad9/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
   var CHECKBOX_NAME = "Checkbox";
   var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
   var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
@@ -4569,7 +4569,7 @@ var XpertCrmWorkbench = (() => {
   );
   Checkbox2.displayName = Checkbox.displayName;
 
-  // ../../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
   var U = 1;
   var Y = 0.9;
   var H = 0.8;
@@ -4596,7 +4596,7 @@ var XpertCrmWorkbench = (() => {
     return _ = h && h.length > 0 ? `${_ + " " + h.join(" ")}` : _, G(_, C, D(_), D(C), 0, 0, {});
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4607,7 +4607,7 @@ var XpertCrmWorkbench = (() => {
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -4616,7 +4616,7 @@ var XpertCrmWorkbench = (() => {
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
   function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
     const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
     useEffect(() => {
@@ -4630,7 +4630,7 @@ var XpertCrmWorkbench = (() => {
     }, [onEscapeKeyDown, ownerDocument]);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31___1202449cfd75d4d3d4e876187986c0d8/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4837,7 +4837,7 @@ var XpertCrmWorkbench = (() => {
     }
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_c97f9e7487f0abcea30d185973e4d237/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -5039,7 +5039,7 @@ var XpertCrmWorkbench = (() => {
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_32b1caf40ac61f8d30d412d28d60b4ca/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5050,7 +5050,7 @@ var XpertCrmWorkbench = (() => {
   });
   Portal.displayName = PORTAL_NAME;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5087,7 +5087,7 @@ var XpertCrmWorkbench = (() => {
     return element;
   }
 
-  // ../../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -5119,13 +5119,13 @@ var XpertCrmWorkbench = (() => {
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5135,7 +5135,7 @@ var XpertCrmWorkbench = (() => {
     return ref;
   }
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5162,7 +5162,7 @@ var XpertCrmWorkbench = (() => {
     return ref.facade;
   }
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5193,7 +5193,7 @@ var XpertCrmWorkbench = (() => {
     return callbackRef;
   }
 
-  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a) {
     return a;
   }
@@ -5279,7 +5279,7 @@ var XpertCrmWorkbench = (() => {
     return medium;
   }
 
-  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5297,10 +5297,10 @@ var XpertCrmWorkbench = (() => {
     return SideCar;
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5332,7 +5332,7 @@ var XpertCrmWorkbench = (() => {
     zeroRight: zeroRightClassName
   };
 
-  // ../../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5344,7 +5344,7 @@ var XpertCrmWorkbench = (() => {
     return void 0;
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5390,7 +5390,7 @@ var XpertCrmWorkbench = (() => {
     };
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5403,7 +5403,7 @@ var XpertCrmWorkbench = (() => {
     };
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet2 = function(_a) {
@@ -5414,7 +5414,7 @@ var XpertCrmWorkbench = (() => {
     return Sheet2;
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5449,7 +5449,7 @@ var XpertCrmWorkbench = (() => {
     };
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5489,7 +5489,7 @@ var XpertCrmWorkbench = (() => {
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -5508,7 +5508,7 @@ var XpertCrmWorkbench = (() => {
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -5608,7 +5608,7 @@ var XpertCrmWorkbench = (() => {
     return shouldCancelScroll;
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -5779,17 +5779,17 @@ var XpertCrmWorkbench = (() => {
     return shadowParent;
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // ../../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -5910,7 +5910,7 @@ var XpertCrmWorkbench = (() => {
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_ef5419b1d5914b6ed85fc377af02cd8c/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6213,7 +6213,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Description = DialogDescription;
   var Close = DialogClose;
 
-  // ../../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/index.mjs
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/index.mjs
   var N = '[cmdk-group=""]';
   var Y2 = '[cmdk-group-items=""]';
   var be = '[cmdk-group-heading=""]';
@@ -6663,7 +6663,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   DialogDescription2.displayName = Description.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+r_9d7b7379fb7a1e56af9d4a8d107ecba8/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
@@ -6727,14 +6727,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ];
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6863,7 +6863,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7580,7 +7580,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7736,7 +7736,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -8351,7 +8351,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     });
   };
 
-  // ../../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8659,7 +8659,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_b34b7156178de4198a23e93f83c57da5/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8679,7 +8679,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   Arrow.displayName = NAME;
   var Root2 = Arrow;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_bd7668c1d3a757f9e8c97f0d7e635b5d/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8993,7 +8993,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Content2 = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31__@type_d783d3abe701a7f2fb2c68867b8f1f65/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -9204,7 +9204,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Root3 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_cc73edd868dbfc82392e3731b66f2e59/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -10016,7 +10016,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@typ_9dd0889a66ea847559fd572aaa20379b/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var DROPDOWN_MENU_NAME = "DropdownMenu";
   var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
     DROPDOWN_MENU_NAME,
@@ -10383,12 +10383,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Input.displayName = "Input";
 
-  // ../../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types_11143bec678d1605a26ae97f1f701c82/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   function useStateMachine2(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -11129,7 +11129,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   ScrollBar.displayName = ScrollAreaScrollbar.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31__@ty_fbf0dd0d68bb58b2410fc7a153ed1d9c/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -11159,7 +11159,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   VisuallyHidden.displayName = NAME2;
   var Root5 = VisuallyHidden;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_b9232b5aa23e604443839e7a081b7527/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
   var SELECTION_KEYS2 = [" ", "Enter"];
   var SELECT_NAME = "Select";
@@ -12616,7 +12616,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   SidebarMenuButton.displayName = "SidebarMenuButton";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_cfb70bb4d45c3eedb16b2d4d4cf80f46/node_modules/@radix-ui/react-slider/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-slider/dist/index.mjs
   var PAGE_KEYS = ["PageUp", "PageDown"];
   var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
   var BACK_KEYS = {
@@ -13245,7 +13245,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   Slider2.displayName = Slider.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_d2f9574497ecbe08e0e7c2298fb35dc1/node_modules/@radix-ui/react-switch/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-switch/dist/index.mjs
   var SWITCH_NAME = "Switch";
   var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
   var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
@@ -13555,7 +13555,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   TableCaption.displayName = "TableCaption";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_769bbb0130198553b196f258bd99ab92/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
   var TABS_NAME = "Tabs";
   var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
     createRovingFocusGroupScope
@@ -13766,7 +13766,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Textarea.displayName = "Textarea";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_02a5bba0cb45f3ddbe548efab47eabcc/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
     createPopperScope
   ]);
