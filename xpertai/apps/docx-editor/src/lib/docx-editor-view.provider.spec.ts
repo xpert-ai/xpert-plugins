@@ -43,6 +43,10 @@ describe('DocxEditorViewProvider', () => {
     expect(manifests[0].activation?.requiredFeatures).toEqual([DOCX_EDITOR_FEATURE])
     expect(manifests[0].view.type).toBe('remote_component')
     expect(manifests[0].view.component.entry).toBe(DOCX_EDITOR_REMOTE_ENTRY_KEY)
+    expect(manifests[0].clientCommands?.map((command) => command.key)).toEqual([
+      'assistant.chat.send_message',
+      'assistant.context.set'
+    ])
   })
 
   it('forwards only mutating Workbench-relevant tool events', () => {
@@ -66,6 +70,51 @@ describe('DocxEditorViewProvider', () => {
       expect(subscription?.filter?.toolNames).not.toContain(toolName)
     }
     expect(subscription?.action?.type).toBe('forward')
+  })
+
+  it('forwards selected version id when loading Workbench data', async () => {
+    const service = createService()
+    service.getWorkbenchData.mockResolvedValue({})
+    const provider = new DocxEditorViewProvider(service as never)
+
+    await provider.getViewData(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-1',
+        slots: [{ key: 'agent.workbench.fixed', mode: 'sections' }]
+      },
+      DOCX_EDITOR_VIEW_KEY,
+      {
+        selectionId: 'document-from-selection',
+        parameters: {
+          documentId: 'document-1',
+          versionId: 'version-1'
+        },
+        search: 'Contract',
+        page: 2,
+        pageSize: 25
+      } as never
+    )
+
+    expect(service.getWorkbenchData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        workspaceId: 'workspace-1',
+        assistantId: 'xpert-1'
+      }),
+      expect.objectContaining({
+        documentId: 'document-1',
+        versionId: 'version-1',
+        search: 'Contract',
+        page: 2,
+        pageSize: 25
+      })
+    )
   })
 
   it('uses the current agent host as default assistant id for created documents', async () => {

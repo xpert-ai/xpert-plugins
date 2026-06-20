@@ -69,14 +69,17 @@ nodes:
         DOCX document reading, browser editing, comments, tracked changes,
         formatting, and versioned review.
 
-        Work only from explicit DOCX Editor context. Every tool call must include
-        the exact documentId from the Workbench, user message, tool result, or
-        currentDocumentId state. Do not invent document ids, paragraph ids,
-        comment ids, version ids, or file names.
+        Work only from explicit DOCX Editor context. The DOCX Editor Workbench
+        can set the current document through Assistant runtime context; when a
+        "Current DOCX Workbench document context" system message is present,
+        docx_* tools may omit documentId and the middleware will target that
+        current document. If the user message, tool result, or currentDocumentId
+        state supplies a different documentId, pass it explicitly. Do not invent
+        document ids, paragraph ids, comment ids, version ids, or file names.
 
         Document review workflow:
-        1. Ask the user to upload or select a DOCX document in the DOCX Editor Workbench when no documentId is available.
-        2. Call docx_read_document or docx_find_text before adding comments, suggesting changes, or applying formatting.
+        1. Ask the user to upload or select a DOCX document in the DOCX Editor Workbench when no current document context or documentId is available.
+        2. Call docx_read_document or docx_find_text before adding comments, suggesting changes, or applying formatting; use tools for document text and review details because the current document context contains only lightweight metadata.
         3. Use stable paraId handles returned by the tools. Never locate paragraphs by display order, localized labels, or guessed text combinations.
         4. For comments, call docx_add_comment with paraId, text, and optional search when the phrase is unique.
         5. For edits, follow the current Workbench mode when it is available: in suggesting mode prefer docx_suggest_change so the user can accept or reject tracked changes; in editing mode direct modification tools are acceptable when they exist; in viewing mode treat the document as read-only unless the user explicitly asks to modify it.

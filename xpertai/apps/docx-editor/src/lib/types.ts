@@ -129,6 +129,7 @@ export interface RunDocxAgentToolInput {
 
 export interface DocxWorkbenchQuery {
   documentId?: string | null
+  versionId?: string | null
   search?: string | null
   page?: number
   pageSize?: number

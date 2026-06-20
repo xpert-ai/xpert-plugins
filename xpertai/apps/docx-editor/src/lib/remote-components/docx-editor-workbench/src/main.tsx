@@ -49,6 +49,12 @@ import { React, ReactDOM, h } from './vendor'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
 import {
+  buildClearDocxAssistantContextPayload,
+  buildDocxAssistantContextPayload,
+  numberValue,
+  stringValue
+} from './assistant-context'
+import {
   executeAction,
   executeFileAction,
   getErrorMessage,
@@ -82,6 +88,11 @@ type ApplyDetailPayloadOptions = {
   preserveEditorBuffer?: boolean
   preserveLiveState?: boolean
 }
+type SelectDocumentOptions = {
+  force?: boolean
+  toggleActive?: boolean
+  versionId?: string | null
+}
 
 type SyncSnapshotOptions = {
   notifyUser?: boolean
@@ -90,7 +101,6 @@ type SyncSnapshotOptions = {
 }
 
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
-const ASSISTANT_CONTEXT_KEY = 'docxEditor'
 const READ_ONLY_HOST_EVENT_TOOL_NAMES = new Set([
   'docx_read_document',
   'docx_read_selection',
@@ -279,7 +289,12 @@ function App() {
     if (eventDocumentId && eventDocumentId !== currentDocumentId) {
       return
     }
-    const response = await requestData({ parameters: { documentId: currentDocumentId } })
+    const response = await requestData({
+      parameters: buildDocumentRequestParameters(
+        currentDocumentId,
+        detailRef.current?.currentVersion?.id
+      )
+    })
     const payload = getResponsePayload(response)
     applyDetailPayload(payload, {
       preserveVersionExpanded: true,
@@ -306,20 +321,44 @@ function App() {
     return items
   }
 
-  async function selectDocument(documentId: string, options?: { force?: boolean; toggleActive?: boolean }) {
+  function buildDocumentRequestParameters(documentId: string, versionId?: string | null) {
+    const parameters: Record<string, string> = { documentId }
+    const normalizedVersionId = stringValue(versionId)
+    if (normalizedVersionId) {
+      parameters.versionId = normalizedVersionId
+    }
+    return parameters
+  }
+
+  async function selectDocument(documentId: string, options?: SelectDocumentOptions) {
     if (!documentId) {
       return
     }
+    const requestedVersionId = stringValue(options?.versionId)
+    const loadedVersionId = stringValue(detailRef.current?.currentVersion?.id)
     const isCurrentDocument = documentId === selectedIdRef.current && detailRef.current?.item?.id === documentId
-    if (isCurrentDocument && !options?.force) {
+    const requestedVersionLoaded = !requestedVersionId || requestedVersionId === loadedVersionId
+    if (isCurrentDocument && requestedVersionLoaded && !options?.force) {
       if (options?.toggleActive) {
         setVersionListExpanded((expanded) => !expanded)
       }
       return
     }
-    const response = await requestData({ parameters: { documentId } })
+    const response = await requestData({
+      parameters: buildDocumentRequestParameters(documentId, requestedVersionId)
+    })
     const payload = getResponsePayload(response)
     applyDetailPayload(payload, { preserveVersionExpanded: isCurrentDocument })
+  }
+
+  async function selectVersion(versionId: string) {
+    const documentId = selectedIdRef.current
+    if (!documentId || !versionId) {
+      return
+    }
+    await runBusy(async () => {
+      await selectDocument(documentId, { force: true, versionId })
+    })
   }
 
   async function createDocument() {
@@ -382,7 +421,7 @@ function App() {
       const documentId = payload?.document?.id || payload?.item?.id || payload?.id || targetDocumentId
       await reloadList()
       if (documentId) {
-        await selectDocument(documentId)
+        await selectDocument(documentId, { force: true })
       }
     })
   }
@@ -413,7 +452,7 @@ function App() {
       const payload = getResponsePayload(response)
       notify('success', resolveMessage(payload?.message, context?.locale) || t('save'))
       setDirty(false)
-      await selectDocument(selectedId)
+      await selectDocument(selectedId, { force: true })
       await syncSnapshot()
     })
   }
@@ -501,7 +540,7 @@ function App() {
         { documentId: selectedId, versionId, changeSummary: 'Restored from Workbench.' },
         { documentId: selectedId }
       )
-      await selectDocument(selectedId)
+      await selectDocument(selectedId, { force: true })
     })
   }
 
@@ -577,8 +616,7 @@ function App() {
       return
     }
     await invokeClientCommand(ASSISTANT_CONTEXT_COMMAND, {
-      key: ASSISTANT_CONTEXT_KEY,
-      clear: true
+      ...buildClearDocxAssistantContextPayload()
     }).catch((error) => {
       console.warn('Failed to clear DOCX assistant context:', error)
       return null
@@ -586,50 +624,14 @@ function App() {
   }
 
   function buildAssistantContextPayload() {
-    const documentId = selectedIdRef.current
-    const currentDetail = detailRef.current
-    const item = currentDetail?.item
-    if (!documentId || !item) {
-      return null
-    }
-
-    const currentVersion = currentDetail.currentVersion
-    const workspaceFilePath = stringValue(currentVersion?.workspaceFilePath) || stringValue(item.workspaceFilePath)
-    const versionId = stringValue(currentVersion?.id) || stringValue(item.currentVersionId)
     const selectionContext = selectionContextRef.current || safeGetAgentContext()
-    const selection = summarizeSelection(selectionContext?.selection ?? currentDetail.snapshot?.selection)
-    const env: Record<string, string> = {
-      docxEditorDocumentId: documentId,
-      docxEditorMode: mode
-    }
-    if (versionId) {
-      env.docxEditorVersionId = versionId
-    }
-    if (workspaceFilePath) {
-      env.docxEditorWorkspaceFilePath = workspaceFilePath
-    }
-
-    return {
-      key: ASSISTANT_CONTEXT_KEY,
-      env,
-      context: {
-        currentDocument: {
-          documentId,
-          title: stringValue(item.title) || stringValue(item.fileName) || documentId,
-          fileName: stringValue(item.fileName),
-          currentVersionId: versionId,
-          currentVersionNumber: numberValue(item.currentVersionNumber) ?? numberValue(currentVersion?.versionNumber),
-          workspaceFilePath,
-          workspaceCatalog: stringValue(currentVersion?.workspaceCatalog) || stringValue(item.workspaceCatalog),
-          workspaceScopeId: stringValue(currentVersion?.workspaceScopeId) || stringValue(item.workspaceScopeId),
-          dirty,
-          mode,
-          selection,
-          currentPage: numberValue(selectionContext?.currentPage),
-          totalPages: numberValue(selectionContext?.totalPages)
-        }
-      }
-    }
+    return buildDocxAssistantContextPayload({
+      documentId: selectedIdRef.current,
+      detail: detailRef.current,
+      dirty,
+      mode,
+      selectionContext
+    })
   }
 
   async function applyQueuedOperations() {
@@ -675,7 +677,7 @@ function App() {
   const versions = detail?.versions || []
   const shellClass = `docx-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
   const currentDocumentTitle = detail?.item?.title || detail?.item?.fileName || (selectedId ? t('untitled') : t('noDocument'))
-  const currentVersionNumber = detail?.item?.currentVersionNumber || detail?.currentVersion?.versionNumber
+  const currentVersionNumber = detail?.currentVersion?.versionNumber || detail?.item?.currentVersionNumber
   const currentVersionMeta = [
     currentVersionNumber ? `v${currentVersionNumber}` : '',
     detail?.currentVersion?.source || '',
@@ -752,7 +754,7 @@ function App() {
                                         className={`docx-version-button ${versionActive ? 'is-active' : ''}`}
                                         onClick={(event) => {
                                           event.stopPropagation()
-                                          void restoreVersion(version.id)
+                                          void selectVersion(version.id)
                                         }}
                                       >
                                         <span className="docx-version-text">
@@ -994,35 +996,6 @@ function base64ToArrayBuffer(base64: string) {
 
 function countParagraphLines(value: unknown) {
   return typeof value === 'string' ? value.split('\n').filter(Boolean).length : 0
-}
-
-function summarizeSelection(value: unknown) {
-  if (!isRecord(value)) {
-    return null
-  }
-
-  return {
-    paraId: stringValue(value.paraId),
-    selectedText: truncateText(stringValue(value.selectedText), 800),
-    paragraphText: truncateText(stringValue(value.paragraphText), 1200),
-    before: truncateText(stringValue(value.before), 240),
-    after: truncateText(stringValue(value.after), 240)
-  }
-}
-
-function truncateText(value: string | undefined, maxLength: number) {
-  if (!value) {
-    return undefined
-  }
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
-}
-
-function stringValue(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function getReviewCounts(detail: DetailPayload | null) {

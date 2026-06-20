@@ -430,7 +430,17 @@ export class DocxEditorService {
           take: 20
         })
       ])
-      const currentVersionEntity = versions.find((version) => version.id === document.currentVersionId) ?? versions[0] ?? null
+      const requestedVersionId = normalizeOptional(query.versionId)
+      const requestedVersionEntity = requestedVersionId
+        ? versions.find((version) => version.id === requestedVersionId) ?? null
+        : null
+      if (requestedVersionId && !requestedVersionEntity) {
+        throw new NotFoundException('DOCX document version was not found.')
+      }
+      const currentVersionEntity = requestedVersionEntity
+        ?? versions.find((version) => version.id === document.currentVersionId)
+        ?? versions[0]
+        ?? null
       return {
         item: document,
         currentVersion: currentVersionEntity
