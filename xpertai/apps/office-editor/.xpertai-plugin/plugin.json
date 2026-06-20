@@ -1,0 +1,95 @@
+{
+  "name": "@xpert-ai/plugin-office-editor",
+  "version": "0.1.0",
+  "description": "Univer Office editor app plugin for human and Agent collaborative spreadsheets, documents, and presentations.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/office-editor",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/office-editor",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "office",
+    "univer",
+    "spreadsheet",
+    "document",
+    "presentation",
+    "yjs",
+    "collaboration",
+    "agent-review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Office Editor",
+    "shortDescription": "Agent-ready Univer Office editor",
+    "longDescription": "Build and edit Univer-native spreadsheets, documents, and presentations with human review, Agent middleware tools, Yjs collaboration, a Workbench, and an Assistant template.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Create a collaborative spreadsheet",
+      "Draft a document and queue edits for review",
+      "Create a presentation outline"
+    ],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#0F766E",
+    "screenshots": []
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/apps/office-editor"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": []
+  },
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "office-editor",
+        "office-editor-workbench",
+        "office-editor-agent-review",
+        "office-editor-assistant-template",
+        "office-editor-collaboration"
+      ]
+    },
+    "data-xpert": {
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app"
+      ],
+      "capabilities": [
+        "office-editor",
+        "office-editor-workbench",
+        "office-editor-agent-review",
+        "office-editor-assistant-template",
+        "office-editor-collaboration"
+      ]
+    }
+  }
+}

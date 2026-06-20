@@ -1,0 +1,483 @@
+{
+  "name": "@xpert-ai/community-financial-markets",
+  "version": "0.1.27",
+  "description": "Public equity investing workflows for listed-company research, earnings analysis, valuation, model updates, long/short pitches, catalysts, thesis tracking, ETF/index and constituent diligence, sell-side research notes, risk sizing, hedging, dashboards, and investment memos.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/financial-markets",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/roles/financial-markets",
+  "license": "MIT",
+  "keywords": [
+    "financial-markets",
+    "public-equity-investing",
+    "public-equity",
+    "listed-equities",
+    "equity-research",
+    "long-only",
+    "hedge-fund",
+    "long-short",
+    "earnings",
+    "valuation",
+    "catalysts",
+    "investment-memo",
+    "etf-index-diligence",
+    "benchmark-relative-equity",
+    "sell-side-research",
+    "public-equity-diligence",
+    "portfolio-manager"
+  ],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Financial Markets",
+    "shortDescription": "Public equity PM research, long/short, earnings, ETF/index diligence, and memos",
+    "longDescription": "Public equity investing workflows for long-only investors, long/short hedge funds, sell-side equity research teams, ETF/index and constituent diligence, event-driven equity investors, and sector/thematic listed-equity research teams. Outputs should surface what is mispriced, what is priced in, what proves or kills the thesis, what to do next, and what evidence is missing. Use Credit Markets for credit instruments, creditworthiness, restructuring, distressed, recovery, spreads, yields, covenants, and debt security analysis.",
+    "developerName": "XpertAI",
+    "category": "Business",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Help me get started",
+      "Analyze Apple's latest earnings: what changed, what is priced in, and what should an investor watch next",
+      "Screen listed-equity beneficiaries of AI data-center power demand and rank the best ideas, risks, and false positives"
+    ],
+    "brandColor": "#04B84C",
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "screenshots": []
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "community/roles/financial-markets"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "screenshots": []
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "financial-markets",
+        "public-equity-investing",
+        "public-equity",
+        "listed-equities",
+        "equity-research",
+        "long-only",
+        "hedge-fund",
+        "long-short"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "catalyst-calendar",
+            "displayName": "Catalyst Calendar",
+            "description": "Catalyst Calendar workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "company-tearsheet",
+            "displayName": "Company Tearsheet",
+            "description": "Company Tearsheet workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "comps-valuation",
+            "displayName": "Comps Valuation",
+            "description": "Comps Valuation workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "dcf-model-builder",
+            "displayName": "Dcf Model Builder",
+            "description": "Dcf Model Builder workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "deck-report-qc",
+            "displayName": "Deck Report Qc",
+            "description": "Deck Report Qc workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "earnings-deep-dive",
+            "displayName": "Earnings Deep Dive",
+            "description": "Earnings Deep Dive workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "earnings-preview",
+            "displayName": "Earnings Preview",
+            "description": "Earnings Preview workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "economic-impact-report",
+            "displayName": "Economic Impact Report",
+            "description": "Economic Impact Report workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "equity-model-update",
+            "displayName": "Equity Model Update",
+            "description": "Equity Model Update workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "event-driven-analyzer",
+            "displayName": "Event Driven Analyzer",
+            "description": "Event Driven Analyzer workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "financials-normalizer",
+            "displayName": "Financials Normalizer",
+            "description": "Financials Normalizer workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "idea-generation",
+            "displayName": "Idea Generation",
+            "description": "Idea Generation workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "initiating-coverage",
+            "displayName": "Initiating Coverage",
+            "description": "Initiating Coverage workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "long-short-pitch",
+            "displayName": "Long Short Pitch",
+            "description": "Long Short Pitch workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "meeting-prep",
+            "displayName": "Meeting Prep",
+            "description": "Meeting Prep workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "memo-builder",
+            "displayName": "Memo Builder",
+            "description": "Memo Builder workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "model-audit-tieout",
+            "displayName": "Model Audit Tieout",
+            "description": "Model Audit Tieout workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "portfolio-risk-management",
+            "displayName": "Portfolio Risk Management",
+            "description": "Portfolio Risk Management workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "public-equity-investing",
+            "displayName": "Public Equity Investing",
+            "description": "Public Equity Investing workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "scenario-sensitivity-generator",
+            "displayName": "Scenario Sensitivity Generator",
+            "description": "Scenario Sensitivity Generator workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "thesis-tracker",
+            "displayName": "Thesis Tracker",
+            "description": "Thesis Tracker workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "three-statement-model-builder",
+            "displayName": "Three Statement Model Builder",
+            "description": "Three Statement Model Builder workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "user-context",
+            "displayName": "User Context",
+            "description": "User Context workflow skill.",
+            "tags": [
+              "skill",
+              "financial-markets"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "slack",
+            "displayName": "Slack",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "pitchbook",
+            "displayName": "Pitchbook",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "factset",
+            "displayName": "Factset",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "morningstar",
+            "displayName": "Morningstar",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "lseg",
+            "displayName": "Lseg",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "s-p",
+            "displayName": "S P",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "third-bridge",
+            "displayName": "Third Bridge",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "daloopa",
+            "displayName": "Daloopa",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "quartr",
+            "displayName": "Quartr",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "alpaca",
+            "displayName": "Alpaca",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "google_drive",
+            "displayName": "Google Drive",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "gmail_connector",
+            "displayName": "Gmail Connector",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "outlook_email_connector",
+            "displayName": "Outlook Email Connector",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "sharepoint_connector",
+            "displayName": "Sharepoint Connector",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "app",
+            "name": "teams_connector",
+            "displayName": "Teams Connector",
+            "description": "Workspace app connector requirement for Financial Markets.",
+            "tags": [
+              "app",
+              "required"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "financial-markets-assistant",
+            "displayName": "Financial Markets Assistant",
+            "description": "Assistant template for Financial Markets workflows."
+          }
+        ]
+      }
+    }
+  }
+}

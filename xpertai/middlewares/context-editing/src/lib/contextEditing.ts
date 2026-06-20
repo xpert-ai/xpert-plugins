@@ -25,7 +25,7 @@ import {
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
 } from "@xpert-ai/plugin-sdk";
-import { TAgentMiddlewareMeta } from "@metad/contracts";
+import type { TAgentMiddlewareMeta } from "@xpert-ai/contracts";
 import { countTokensApproximately } from "./utils.js";
 import {
   getProfileLimits,
@@ -533,8 +533,13 @@ export class ContextEditingMiddleware implements IAgentMiddlewareStrategy {
   readonly meta: TAgentMiddlewareMeta = {
     name: "ContextEditingMiddleware",
     label: {
-      en_US: "Context Editing Middleware",
-      zh_Hans: "上下文编辑中间件",
+      en_US: "Context Editing Middleware (Deprecated)",
+      zh_Hans: "上下文编辑中间件（已废弃）",
+    },
+    deprecated: true,
+    deprecationMessage: {
+      en_US: "Use the built-in context editing middleware feature instead.",
+      zh_Hans: "推荐使用内置上下文编辑中间件功能。",
     },
     icon: {
       type: "svg",
@@ -556,9 +561,9 @@ export class ContextEditingMiddleware implements IAgentMiddlewareStrategy {
     },
     description: {
       en_US:
-        "Middleware that automatically clears older tool results to manage context size, mirroring Anthropic's context editing capabilities.",
+        "Deprecated: use the built-in context editing middleware feature instead. Middleware that automatically clears older tool results to manage context size, mirroring Anthropic's context editing capabilities.",
       zh_Hans:
-        "自动清理旧工具结果以管理上下文大小的中间件，镜像 Anthropic 的上下文编辑功能。",
+        "已废弃：推荐使用内置上下文编辑中间件功能。自动清理旧工具结果以管理上下文大小的中间件，镜像 Anthropic 的上下文编辑功能。",
     },
     configSchema: {
       type: "object",
@@ -792,4 +797,3 @@ export class ContextEditingMiddleware implements IAgentMiddlewareStrategy {
     };
   }
 }
-

@@ -18,6 +18,7 @@ import { Repository } from 'typeorm'
 import { ChatWeComMessage } from '../message.js'
 import { WECOM_LONG_CONNECTION_SERVICE, WECOM_PLUGIN_CONTEXT } from '../tokens.js'
 import { iconImage, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions } from '../types.js'
+import type { WeComInboundFile } from '../types.js'
 import { WeComChannelStrategy } from '../wecom-channel.strategy.js'
 import { WeComTriggerBindingEntity } from '../entities/wecom-trigger-binding.entity.js'
 import { TWeComChatDispatchInput, WeComChatDispatchService } from '../handoff/wecom-chat-dispatch.service.js'
@@ -304,6 +305,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
   async handleInboundMessage(params: {
     integrationId: string
     input?: string
+    files?: WeComInboundFile[]
     wecomMessage: ChatWeComMessage
     conversationId?: string
     conversationUserKey?: string
@@ -336,6 +338,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
         dispatchPayload: {
           xpertId: binding.xpertId,
           input: params.input || '',
+          files: params.files,
           wecomMessage: params.wecomMessage,
           conversationId: params.conversationId,
           conversationUserKey: aggregateKey,
@@ -359,6 +362,10 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
       xpertId: binding.xpertId,
       version: nextVersion,
       inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
+      files: [
+        ...(sameRoutingTarget ? currentState?.files ?? [] : []),
+        ...(params.files ?? [])
+      ],
       lastMessageAt: Date.now(),
       conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
       tenantId: params.tenantId,
@@ -406,6 +413,7 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
     const dispatchPayload = {
       xpertId: state.xpertId,
       input: state.inputParts.join('\n'),
+      files: state.files,
       wecomMessage: new ChatWeComMessage(
         {
           integrationId: state.latestMessage.integrationId,

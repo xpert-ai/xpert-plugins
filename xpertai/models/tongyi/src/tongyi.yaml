@@ -35,6 +35,22 @@ provider_credential_schema:
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
+    - variable: use_international_endpoint
+      label:
+        zh_Hans: 使用国际端点
+        en_US: Use International Endpoint
+      type: radio
+      required: true
+      default: 'false'
+      options:
+        - value: 'true'
+          label:
+            zh_Hans: 是
+            en_US: 'True'
+        - value: 'false'
+          label:
+            zh_Hans: 否
+            en_US: 'False'
 model_credential_schema:
   model:
     label:
@@ -52,6 +68,22 @@ model_credential_schema:
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
+    - variable: use_international_endpoint
+      label:
+        zh_Hans: 使用国际端点
+        en_US: Use International Endpoint
+      type: radio
+      required: true
+      default: 'false'
+      options:
+        - value: 'true'
+          label:
+            zh_Hans: 是
+            en_US: 'True'
+        - value: 'false'
+          label:
+            zh_Hans: 否
+            en_US: 'False'
     - variable: context_size
       label:
         zh_Hans: 模型上下文长度

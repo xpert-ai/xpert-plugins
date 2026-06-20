@@ -170,6 +170,30 @@
     },
     {
       "path": "./integrations/modelscope"
+    },
+    {
+      "path": "./integrations/slack"
+    },
+    {
+      "path": "./packages/vstore-weaviate"
+    },
+    {
+      "path": "./integrations/ocr-paddle"
+    },
+    {
+      "path": "./packages/vstore-chroma"
+    },
+    {
+      "path": "./apps/docx-editor"
+    },
+    {
+      "path": "./apps/excalidraw"
+    },
+    {
+      "path": "./apps/lucidchart"
+    },
+    {
+      "path": "./apps/drawio"
     }
   ]
 }

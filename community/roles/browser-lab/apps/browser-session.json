@@ -1,0 +1,22 @@
+{
+  "name": "browser-session",
+  "displayName": "XpertAI Browser Session",
+  "description": "Connector descriptor for browser session state and first-use authorization.",
+  "auth": {
+    "type": "none",
+    "policy": "ON_FIRST_USE"
+  },
+  "permissions": [
+    {
+      "name": "browser.read",
+      "displayName": "Read browser page state",
+      "access": "read"
+    },
+    {
+      "name": "browser.plan",
+      "displayName": "Plan browser actions",
+      "access": "read"
+    }
+  ],
+  "targetApps": ["xpert"]
+}

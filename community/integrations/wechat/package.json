@@ -1,0 +1,87 @@
+{
+  "name": "@xpert-ai/plugin-community-wechat",
+  "version": "0.7.0",
+  "description": "Personal WeChat bridge integration for wx2.0 callbacks, Xpert Agent dispatch, and text replies.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/integrations/wechat"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "test": "jest --config jest.config.ts --runInBand",
+    "typecheck": "tsc -b tsconfig.lib.json --pretty false && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
+  },
+  "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
+    "bullmq": "^5.78.1",
+    "socket.io-client": "^4.8.1",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.6",
+    "@xpert-ai/contracts": "^3.12.1",
+    "@xpert-ai/plugin-sdk": "^3.12.1",
+    "cache-manager": "^7.2.0",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "socket.io": "^4.8.1",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.6",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "@swc/jest": "~0.2.38",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "3.12.1",
+    "@xpert-ai/plugin-sdk": "3.12.1",
+    "cache-manager": "^7.2.0",
+    "echarts": "5.5.0",
+    "esbuild": "^0.27.0",
+    "jest": "^29.7.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "ts-node": "10.9.1",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
+  }
+}

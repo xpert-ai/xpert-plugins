@@ -8,11 +8,15 @@ const moduleDir = dirname(fileURLToPath(import.meta.url));
 
 export const TongyiModelProvider = 'tongyi'
 export const TongyiDefaultBaseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+export const TongyiIntlBaseUrl = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+export const TongyiDefaultHttpBaseUrl = 'https://dashscope.aliyuncs.com/api/v1'
+export const TongyiIntlHttpBaseUrl = 'https://dashscope-intl.aliyuncs.com/api/v1'
 
 export const SvgIcon = readFileSync(join(moduleDir, '_assets/icon_s_en.svg'), 'utf8');
 
 export interface TongyiCredentials {
     dashscope_api_key: string
+    use_international_endpoint?: boolean | string
 }
 
 export interface TongyiModelCredentials extends CommonChatModelParameters {
@@ -25,6 +29,7 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     tool_stream?: boolean
     enable_search?: boolean
     response_format?: 'text' | 'json_object'
+    extra_headers?: string
 }
 
 export interface TongyiTextEmbeddingModelOptions {
@@ -32,12 +37,29 @@ export interface TongyiTextEmbeddingModelOptions {
     max_chunks: number
 }
 
+export function isTongyiInternationalEndpointEnabled(credentials?: Partial<TongyiCredentials>): boolean {
+    const value = credentials?.use_international_endpoint
+    return value === true || value === 'true'
+}
+
+export function getTongyiCompatibleBaseUrl(credentials: TongyiCredentials): string {
+    return isTongyiInternationalEndpointEnabled(credentials) ? TongyiIntlBaseUrl : TongyiDefaultBaseUrl
+}
+
+export function getTongyiHttpBaseUrl(credentials: TongyiCredentials): string {
+    return isTongyiInternationalEndpointEnabled(credentials) ? TongyiIntlHttpBaseUrl : TongyiDefaultHttpBaseUrl
+}
+
+export function joinTongyiApiUrl(baseUrl: string, path: string): string {
+    return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+}
+
 export function toCredentialKwargs(credentials: TongyiCredentials) {
     const credentialsKwargs = {
         apiKey: credentials.dashscope_api_key,
     } as OpenAIBaseInput
     const configuration: ClientOptions = {
-        baseURL: TongyiDefaultBaseUrl
+        baseURL: getTongyiCompatibleBaseUrl(credentials)
     }
 
     return {

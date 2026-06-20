@@ -1,5 +1,7 @@
 # Xpert 插件：上下文编辑中间件
 
+> **已废弃**：推荐使用内置上下文编辑中间件功能。
+
 `@xpert-ai/plugin-context-editing` 为 [Xpert AI](https://github.com/xpert-ai/xpert) 智能体添加自动上下文修剪功能。该中间件包装 LangChain 聊天请求并模仿 Anthropic 风格的上下文编辑:一旦对话超过阈值,旧的工具输出将被清除或折叠,以便模型保持在其输入窗口内。
 
 ## 主要特性

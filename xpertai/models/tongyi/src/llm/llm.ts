@@ -1,4 +1,5 @@
 import { HumanMessage } from '@langchain/core/messages'
+import { ClientOptions } from '@langchain/openai'
 import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
@@ -27,6 +28,79 @@ const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
   'glm-5.1'
 ])
 const TONGYI_EXPLICIT_CACHE_CONTROL = { type: 'ephemeral' } as const
+const TONGYI_EXTRA_HEADER_RESERVED_NAMES = new Set([
+  'authorization',
+  'content-type',
+  'content-length',
+  'host'
+])
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function parseTongyiExtraHeaders(value: unknown): Record<string, string> {
+  if (value == null || value === '') {
+    return {}
+  }
+
+  if (typeof value === 'string' && value.trim() === '') {
+    return {}
+  }
+
+  const parsed = typeof value === 'string'
+    ? JSON.parse(value.replace(/\u00a0/g, ' ').replace(/\u3000/g, ' '))
+    : value
+
+  if (!isPlainObject(parsed)) {
+    throw new Error('Extra headers must be a JSON object')
+  }
+
+  const headers: Record<string, string> = {}
+  for (const [rawKey, rawValue] of Object.entries(parsed)) {
+    const key = rawKey.trim()
+    if (!key) {
+      throw new Error('Extra header key must not be empty')
+    }
+    if (TONGYI_EXTRA_HEADER_RESERVED_NAMES.has(key.toLowerCase())) {
+      throw new Error(`Extra header '${rawKey}' is reserved`)
+    }
+    if (
+      typeof rawValue !== 'string' &&
+      typeof rawValue !== 'number' &&
+      typeof rawValue !== 'boolean'
+    ) {
+      throw new Error(`Extra header '${rawKey}' must be a string, number, or boolean`)
+    }
+
+    headers[key] = String(rawValue)
+  }
+
+  return headers
+}
+
+export function toTongyiConfigurationWithExtraHeaders(
+  configuration: ClientOptions,
+  extraHeaders: unknown
+): ClientOptions {
+  const parsedExtraHeaders = parseTongyiExtraHeaders(extraHeaders)
+  if (Object.keys(parsedExtraHeaders).length === 0) {
+    return configuration
+  }
+
+  return {
+    ...configuration,
+    defaultHeaders: {
+      ...(isPlainObject(configuration.defaultHeaders) ? configuration.defaultHeaders : {}),
+      ...parsedExtraHeaders
+    }
+  }
+}
 
 type TongyiContentPart = {
   type?: unknown
@@ -167,11 +241,13 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const credentials = modelProvider.credentials as TongyiCredentials
     const params = toCredentialKwargs(credentials)
     const modelCredentials = copilotModel.options as TongyiModelCredentials
+    const configuration = toTongyiConfigurationWithExtraHeaders(params.configuration, modelCredentials?.extra_headers)
 
     const model = copilotModel.model
     const fields = omitBy(
       {
         ...params,
+        configuration,
         model,
         streaming: modelCredentials?.streaming ?? true,
         temperature: modelCredentials?.temperature ?? 0,

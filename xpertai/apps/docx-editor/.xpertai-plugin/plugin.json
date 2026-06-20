@@ -1,0 +1,119 @@
+{
+  "name": "@xpert-ai/plugin-docx-editor",
+  "version": "0.1.0",
+  "description": "DOCX Editor app plugin for browser-based Word editing, versioning, comments, tracked changes, and Xpert Agent review tools.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/docx-editor",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/docx-editor",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "docx",
+    "word",
+    "document",
+    "editor",
+    "tracked-changes",
+    "comments",
+    "agent-review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DOCX Editor",
+    "shortDescription": "Agent-ready DOCX editor",
+    "longDescription": "Upload, edit, version, comment, and review DOCX documents in Xpert. The plugin wraps the open-source DOCX Editor packages and includes Agent middleware tools, a Workbench, an Assistant template, and a DOCX review skill.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Upload a DOCX file for review",
+      "Add comments to risky clauses",
+      "Suggest tracked changes in this document"
+    ],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#2563EB",
+    "screenshots": []
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/apps/docx-editor"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": []
+  },
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "docx-editor",
+        "docx-editor-workbench",
+        "docx-editor-agent-review",
+        "docx-editor-assistant-template"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "docx-editor",
+            "displayName": "DOCX Editor Review Skill",
+            "description": "Workflow skill for DOCX reading, paraId selection, comments, tracked changes, formatting, and version confirmation.",
+            "tags": [
+              "skill",
+              "docx",
+              "document-review"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "docx-editor-assistant",
+            "displayName": "DOCX Editor Assistant",
+            "description": "Assistant template for DOCX editing and review workflows."
+          },
+          {
+            "type": "app",
+            "name": "docx-editor",
+            "displayName": "DOCX Editor",
+            "description": "Workbench and Agent middleware tools for DOCX documents."
+          }
+        ]
+      }
+    },
+    "data-xpert": {
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app"
+      ],
+      "capabilities": [
+        "docx-editor",
+        "docx-editor-workbench",
+        "docx-editor-agent-review",
+        "docx-editor-assistant-template"
+      ]
+    }
+  }
+}

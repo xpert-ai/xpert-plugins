@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-model-retry",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -35,11 +35,11 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.9.1",
+    "@xpert-ai/plugin-sdk": "^3.10.0",
+    "@xpert-ai/contracts": "^3.10.0",
     "chalk": "4.1.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/cqrs": "^11.0.3",
-    "@metad/contracts": "^3.8.1",
     "@langchain/core": "0.3.72"
   }
 }

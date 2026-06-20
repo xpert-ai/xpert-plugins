@@ -1,0 +1,6 @@
+interface:
+  display_name: "Lucidchart Agent Drawing"
+  short_description: "Create, update, version, and review Lucidchart drafts with Standard Import JSON, Mermaid, and Lucid links."
+  default_prompt: "Create a Lucidchart Standard Import architecture draft"
+policy:
+  allow_implicit_invocation: true

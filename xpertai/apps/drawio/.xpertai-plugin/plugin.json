@@ -1,0 +1,118 @@
+{
+  "name": "@xpert-ai/plugin-drawio",
+  "version": "0.1.2",
+  "description": "draw.io/diagrams.net app plugin for agent-created diagrams, reviewable XML versions, Mermaid drafts, and an embedded editor workbench.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/drawio",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/drawio",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "drawio",
+    "diagrams-net",
+    "diagram",
+    "mermaid",
+    "agent-drawing",
+    "workbench"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "draw.io",
+    "shortDescription": "Agent-managed draw.io diagrams",
+    "longDescription": "Create, update, version, review, import, export, and convert Agent-generated draw.io / diagrams.net diagrams. The plugin includes an installable Xpert skill, Assistant template, middleware tools, and an embedded draw.io Workbench for human review.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Create an editable draw.io architecture diagram",
+      "Turn this flow into a draw.io diagram",
+      "Update the current draw.io diagram from my feedback"
+    ],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#F59E0B",
+    "screenshots": []
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "community/apps/drawio"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": []
+  },
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "drawio",
+        "drawio-workbench",
+        "drawio-agent-drawing",
+        "drawio-assistant-template"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "index",
+            "displayName": "draw.io Agent Drawing",
+            "description": "Workflow skill for Agent-managed draw.io diagrams, Mermaid drafts, XML versions, and Workbench review.",
+            "tags": [
+              "skill",
+              "drawio",
+              "agent-drawing"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "drawio-assistant",
+            "displayName": "draw.io Drawing Assistant",
+            "description": "Assistant template for draw.io diagram workflows."
+          },
+          {
+            "type": "app",
+            "name": "drawio",
+            "displayName": "draw.io",
+            "description": "Workbench and Agent middleware tools for draw.io diagrams."
+          }
+        ]
+      }
+    },
+    "data-xpert": {
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app"
+      ],
+      "capabilities": [
+        "drawio",
+        "drawio-workbench",
+        "drawio-agent-drawing",
+        "drawio-assistant-template"
+      ]
+    }
+  }
+}

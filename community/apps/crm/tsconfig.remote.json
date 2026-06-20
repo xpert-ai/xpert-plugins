@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@xpert-ai/plugin-shadcn-ui": ["../../../packages/shadcn-ui/src/index.ts"]
+    },
+    "types": ["node", "react", "react-dom"],
+    "rootDir": "../../../"
+  },
+  "include": ["src/lib/remote-components/**/*.tsx", "src/lib/remote-components/**/*.ts"]
+}

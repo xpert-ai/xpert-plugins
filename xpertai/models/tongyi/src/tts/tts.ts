@@ -6,6 +6,7 @@ import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
 import { TextToSpeechModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
+import { getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
 
 @Injectable()
 export class TongyiTTSModel extends TextToSpeechModel {
@@ -19,10 +20,12 @@ export class TongyiTTSModel extends TextToSpeechModel {
 
 	override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions): BaseChatModel {
 		const parameters = copilotModel.options || options?.modelProperties
+		const credentials = copilotModel.copilot.modelProvider.credentials as TongyiCredentials
 		return new TTSChatModel({
-			apiKey: (copilotModel.copilot.modelProvider.credentials as { dashscope_api_key: string }).dashscope_api_key,
+			apiKey: credentials.dashscope_api_key,
 			model: copilotModel.model,
-			voice: parameters?.voice
+			voice: parameters?.voice,
+			baseUrl: getTongyiHttpBaseUrl(credentials)
 		})
 	}
 }
@@ -31,6 +34,7 @@ export interface ChatTongyiTTSInput extends BaseChatModelParams {
 	apiKey?: string
 	model: string
 	voice: string
+	baseUrl?: string
 }
 
 export class TTSChatModel extends BaseChatModel {
@@ -65,8 +69,9 @@ export class TTSChatModel extends BaseChatModel {
 		const { signal } = options
 		const model = this.fields?.model || 'qwen-tts'
 		const voice = this.fields?.voice
+		const baseUrl = this.fields?.baseUrl || TongyiDefaultHttpBaseUrl
 
-		const url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation'
+		const url = joinTongyiApiUrl(baseUrl, '/services/aigc/multimodal-generation/generation')
 		const headers: Record<string, string> = {
 			Authorization: `Bearer ${this.apiKey}`,
 			'Content-Type': 'application/json',

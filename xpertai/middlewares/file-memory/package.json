@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-file-memory",
-  "version": "0.1.4",
+  "version": "0.2.1",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -42,7 +42,7 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/cqrs": "^11.0.3",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/contracts": "^3.9.0-beta.1",
-    "@xpert-ai/plugin-sdk": "^3.9.1"
+    "@xpert-ai/contracts": "^3.10.0",
+    "@xpert-ai/plugin-sdk": "^3.10.0"
   }
 }

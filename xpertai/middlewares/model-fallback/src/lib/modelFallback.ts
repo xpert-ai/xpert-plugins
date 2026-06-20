@@ -1,6 +1,6 @@
 import { z } from "zod/v3";
 import { z as z4 } from "zod/v4";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
   AgentMiddlewareStrategy,
   IAgentMiddlewareStrategy,
@@ -8,16 +8,15 @@ import {
   IAgentMiddlewareContext,
   ModelRequest,
   WrapModelCallHandler,
+  type AgentMiddlewareEvent,
 } from "@xpert-ai/plugin-sdk";
-import {
+import { AiModelTypeEnum } from "@xpert-ai/contracts";
+import type {
   TAgentMiddlewareMeta,
   ICopilotModel,
-  AiModelTypeEnum,
   JsonSchemaObjectType,
   TAgentRunnableConfigurable,
-  WorkflowNodeTypeEnum,
-  JSONValue,
-} from "@metad/contracts";
+} from "@xpert-ai/contracts";
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { AIMessage } from "@langchain/core/messages";
 import { ModelFallbackIcon } from "./types.js";
@@ -36,6 +35,18 @@ const modelFallbackSchema = z.object({
   fallbackModels: z.array(z.unknown()).nonempty(),
 });
 
+type ModelFallbackEventPhase =
+  | 'fallback_started'
+  | 'fallback_succeeded'
+  | 'fallback_failed'
+
+type ModelFallbackMiddlewareEvent = AgentMiddlewareEvent & {
+  phase: ModelFallbackEventPhase
+  status: NonNullable<AgentMiddlewareEvent['status']>
+  message: string
+  data?: Record<string, unknown>
+}
+
 /**
  * Model Fallback Middleware
  * 
@@ -46,6 +57,8 @@ const modelFallbackSchema = z.object({
 @Injectable()
 @AgentMiddlewareStrategy("ModelFallbackMiddleware")
 export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
+  private readonly logger = new Logger(ModelFallbackMiddleware.name)
+
   readonly meta: TAgentMiddlewareMeta = {
     name: "ModelFallbackMiddleware",
     label: {
@@ -131,51 +144,66 @@ export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
           return await handler(request);
           
         } catch (error) {
-          lastException = error as Error;
+          lastException = this.normalizeError(error);
         }
 
         // Try fallback models in sequence
-        for (const fallbackModel of userOptions.fallbackModels) {
+        for (const [index, fallbackModel] of userOptions.fallbackModels.entries()) {
+          const attempt = index + 1
+          await this.emitMiddlewareEvent(context, request, {
+            phase: 'fallback_started',
+            status: 'running',
+            message: `Trying fallback model ${attempt}/${userOptions.fallbackModels.length}`,
+            data: {
+              attempt,
+              totalAttempts: userOptions.fallbackModels.length,
+              model: fallbackModel.model,
+              provider: this.readModelProvider(fallbackModel),
+            },
+          })
+
           try {
-
-            const configurable = request.runtime.configurable as TAgentRunnableConfigurable
-            const { thread_id, checkpoint_ns, checkpoint_id, subscriber, executionId } = configurable
-            const fallbackResult = await context.runtime.wrapWorkflowNodeExecution(async () => {
-              const fallbackModelInstance = await context.runtime.createModelClient<BaseLanguageModel>(fallbackModel, {
-                usageCallback: (event) => {
-                  console.log(
-                    `[Middleware ModelFallback] Model ${fallbackModel.model} Usage:`,
-                    event
-                  );
-                },
-              });
-
-              const result = await handler({
-                ...request,
-                model: fallbackModelInstance,
-              });
-
-              return {
-                state: result,
-                output: result.content as JSONValue
-              };
-            }, {
-              execution: {
-                category: 'workflow',
-                type: WorkflowNodeTypeEnum.MIDDLEWARE,
-                inputs: {},
-                parentId: executionId,
-                threadId: thread_id,
-                checkpointNs: checkpoint_ns,
-                checkpointId: checkpoint_id,
-                agentKey: context.node.key,
-                title: context.node.title
+            const fallbackModelInstance = await context.runtime.createModelClient<BaseLanguageModel>(fallbackModel, {
+              usageCallback: (event) => {
+                console.log(
+                  `[Middleware ModelFallback] Model ${fallbackModel.model} Usage:`,
+                  event
+                );
               },
-              subscriber
+            });
+
+            const result = await handler({
+              ...request,
+              model: fallbackModelInstance,
+            });
+
+            await this.emitMiddlewareEvent(context, request, {
+              phase: 'fallback_succeeded',
+              status: 'success',
+              message: `Fallback model succeeded ${attempt}/${userOptions.fallbackModels.length}`,
+              data: {
+                attempt,
+                totalAttempts: userOptions.fallbackModels.length,
+                model: fallbackModel.model,
+                provider: this.readModelProvider(fallbackModel),
+              },
             })
-            return fallbackResult;
+
+            return result;
           } catch (error) {
-            lastException = error as Error;
+            lastException = this.normalizeError(error);
+            await this.emitMiddlewareEvent(context, request, {
+              phase: 'fallback_failed',
+              status: 'fail',
+              message: `Fallback model failed ${attempt}/${userOptions.fallbackModels.length}`,
+              error: this.serializeError(lastException),
+              data: {
+                attempt,
+                totalAttempts: userOptions.fallbackModels.length,
+                model: fallbackModel.model,
+                provider: this.readModelProvider(fallbackModel),
+              },
+            })
             continue;
           }
         }
@@ -184,5 +212,55 @@ export class ModelFallbackMiddleware implements IAgentMiddlewareStrategy {
         throw lastException;
       },
     };
+  }
+
+  private async emitMiddlewareEvent(
+    context: IAgentMiddlewareContext,
+    request: ModelRequest<AgentBuiltInState>,
+    event: ModelFallbackMiddlewareEvent
+  ) {
+    const emit = context.runtime.emitMiddlewareEvent
+    if (typeof emit !== 'function') return
+
+    const configurable = request.runtime?.configurable as
+      | Partial<TAgentRunnableConfigurable>
+      | undefined
+
+    try {
+      const payload: AgentMiddlewareEvent = {
+        middlewareName: 'ModelFallbackMiddleware',
+        middlewareKey: context.node?.key,
+        title: 'Model fallback',
+        ...event,
+        ...(typeof configurable?.executionId === 'string'
+          ? { executionId: configurable.executionId }
+          : {}),
+        ...(typeof configurable?.thread_id === 'string'
+          ? { threadId: configurable.thread_id }
+          : {}),
+      }
+      await emit.call(context.runtime, payload)
+    } catch (error) {
+      this.logger.debug(
+        `Failed to emit model fallback middleware event: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  private normalizeError(error: unknown): Error {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+
+  private serializeError(error: Error) {
+    return {
+      name: error.name || error.constructor.name || 'Error',
+      message: error.message,
+    }
+  }
+
+  private readModelProvider(model: ICopilotModel) {
+    const record = model as unknown as Record<string, unknown>
+    const provider = record.provider ?? record.providerName ?? record._provider ?? record._providerName
+    return typeof provider === 'string' && provider.trim() ? provider.trim() : undefined
   }
 }

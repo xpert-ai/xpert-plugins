@@ -1,0 +1,101 @@
+{
+  "name": "@xpert-ai/plugin-docx-editor",
+  "version": "0.2.0",
+  "description": "DOCX Editor app plugin for browser-based Word editing, versioning, comments, tracked changes, and Xpert Agent review tools.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/docx-editor"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "assets",
+    "skills",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
+  },
+  "dependencies": {
+    "@eigenpal/docx-editor-agents": "^1.5.0",
+    "@eigenpal/docx-editor-react": "^1.5.0",
+    "@eigenpal/docx-editor-core": "^1.5.0",
+    "@eigenpal/docx-editor-i18n": "^1.5.0",
+    "clsx": "^2.1.0",
+    "prosemirror-commands": "^1.5.2",
+    "prosemirror-dropcursor": "^1.8.2",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-keymap": "^1.2.2",
+    "prosemirror-model": "^1.19.4",
+    "prosemirror-state": "^1.4.3",
+    "prosemirror-tables": "^1.8.5",
+    "prosemirror-transform": "^1.12.0",
+    "prosemirror-view": "^1.41.6",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "3.10.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "esbuild": "^0.27.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
