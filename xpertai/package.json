@@ -42,6 +42,7 @@
   "workspaces": [
     "packages/*",
     "integrations/*",
+    "examples/*",
     "tools/*",
     "models/*",
     "databases/*",
@@ -52,7 +53,8 @@
     "@langchain/langgraph": "0.4.7",
     "@langchain/openai": "0.6.9",
     "@metad/contracts": "^3.8.3",
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",

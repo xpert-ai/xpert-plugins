@@ -1,0 +1,40 @@
+{
+  "name": "@xpert-ai/plugin-echarts-mcp-app",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "examples/echarts-mcp-app/src",
+  "projectType": "library",
+  "targets": {
+    "build-lib": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "examples/echarts-mcp-app/dist",
+        "main": "examples/echarts-mcp-app/src/index.ts",
+        "rootDir": "examples/echarts-mcp-app/src",
+        "tsConfig": "examples/echarts-mcp-app/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    },
+    "build-app": {
+      "executor": "nx:run-commands",
+      "outputs": ["examples/echarts-mcp-app/dist/app"],
+      "options": {
+        "cwd": "examples/echarts-mcp-app",
+        "command": "node scripts/build-app.mjs"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "examples/echarts-mcp-app",
+        "parallel": false,
+        "commands": [
+          "tsc --build tsconfig.lib.json",
+          "node scripts/build-app.mjs"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

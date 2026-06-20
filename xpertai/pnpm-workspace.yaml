@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - integrations/*
+  - examples/*
   - tools/*
   - models/*
   - databases/*
