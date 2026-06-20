@@ -58,6 +58,9 @@
       "path": "./tools/calculator"
     },
     {
+      "path": "./examples/echarts-mcp-app"
+    },
+    {
       "path": "./tools/zip"
     },
     {

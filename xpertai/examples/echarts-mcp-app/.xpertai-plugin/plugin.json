@@ -1,0 +1,41 @@
+{
+  "name": "@xpert-ai/plugin-echarts-mcp-app",
+  "version": "0.0.1",
+  "description": "ECharts MCP Apps demo plugin for testing inline ChatKit MCP App rendering and drilldown RPC.",
+  "author": "XpertAI Team",
+  "license": "AGPL-3.0",
+  "keywords": ["mcp", "apps", "echarts", "chatkit", "drilldown"],
+  "targetApps": ["xpert"],
+  "targetAppMeta": {
+    "xpert": {
+      "types": ["mcp-server", "tool", "demo"],
+      "capabilities": ["mcp-apps", "echarts", "drilldown-analysis"]
+    }
+  },
+  "interface": {
+    "displayName": "ECharts MCP App",
+    "shortDescription": "Render an interactive ECharts dashboard inside ChatKit via MCP Apps.",
+    "category": "Developer Tools",
+    "capabilities": ["MCP Apps", "ECharts", "Drilldown"]
+  },
+  "mcpServers": {
+    "echarts-drilldown": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/dist/mcp-server.js"],
+      "policy": {
+        "enabled": true,
+        "defaultToolsApprovalMode": "approve",
+        "enabledTools": ["echarts_sales_overview", "echarts_sales_drilldown"],
+        "tools": {
+          "echarts_sales_overview": {
+            "approvalMode": "approve"
+          },
+          "echarts_sales_drilldown": {
+            "approvalMode": "approve"
+          }
+        }
+      }
+    }
+  }
+}
