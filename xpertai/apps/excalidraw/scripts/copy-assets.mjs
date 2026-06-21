@@ -1,4 +1,4 @@
-import { cp, mkdir } from 'node:fs/promises'
+import { cp, mkdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,4 +11,4 @@ await cp(join(packageRoot, 'src', 'xpert-excalidraw-assistant.yaml'), join(packa
 await cp(join(packageRoot, 'src', 'lib', 'remote-components'), join(packageRoot, 'dist', 'lib', 'remote-components'), {
   recursive: true
 })
-await cp(join(packageRoot, 'docs'), join(packageRoot, 'dist', 'docs'), { recursive: true })
+await rm(join(packageRoot, 'dist', 'docs'), { recursive: true, force: true })

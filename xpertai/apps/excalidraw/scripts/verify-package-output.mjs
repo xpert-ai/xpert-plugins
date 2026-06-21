@@ -21,7 +21,7 @@ const requiredFiles = new Set([
   'dist/lib/excalidraw-view.provider.js',
   'dist/lib/remote-components/excalidraw-workbench/app.js',
   'dist/xpert-excalidraw-assistant.yaml',
-  'skills/index/SKILL.md'
+  'skills/excalidraw-agent-skill/SKILL.md'
 ])
 
 const missingFiles = [...requiredFiles]
