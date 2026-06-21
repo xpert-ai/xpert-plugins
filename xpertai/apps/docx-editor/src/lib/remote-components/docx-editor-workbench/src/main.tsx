@@ -98,6 +98,7 @@ type SyncSnapshotOptions = {
   notifyUser?: boolean
   includeDocument?: boolean
   includePages?: boolean
+  refreshRemoteVersion?: boolean
 }
 
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
@@ -126,6 +127,23 @@ const METADATA_REFRESH_HOST_EVENT_TOOL_NAMES = new Set([
   'docx_reject_all_changes',
   'docx_scroll'
 ])
+const QUEUED_LIVE_OPERATION_TOOL_NAMES = new Set([
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment',
+  'docx_scroll'
+])
+const QUEUED_LIVE_MUTATION_TOOL_NAMES = new Set([
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment'
+])
 
 installShadcnThemeVars({ styleId: 'docx-editor-workbench-shadcn-ui-vars' })
 injectStyles()
@@ -150,9 +168,11 @@ function App() {
   const assistantTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const selectedIdRef = React.useRef('')
   const detailRef = React.useRef<DetailPayload | null>(null)
+  const bufferRef = React.useRef<ArrayBuffer | null>(null)
   const selectionContextRef = React.useRef<Record<string, any> | null>(null)
   const selectionSnapshotTimerRef = React.useRef<number | null>(null)
   const bridgeReadyRef = React.useRef(false)
+  const processedOperationIdsRef = React.useRef<Set<string>>(new Set())
   const t = createTranslator(context?.locale)
   const docxEditorI18n = resolveDocxEditorI18n(context?.locale)
   const agentTools = useDocxAgentTools({
@@ -175,6 +195,10 @@ function App() {
   React.useEffect(() => {
     detailRef.current = detail
   }, [detail])
+
+  React.useEffect(() => {
+    bufferRef.current = buffer
+  }, [buffer])
 
   React.useEffect(() => {
     if (selectedId && detail?.item) {
@@ -289,18 +313,7 @@ function App() {
     if (eventDocumentId && eventDocumentId !== currentDocumentId) {
       return
     }
-    const response = await requestData({
-      parameters: buildDocumentRequestParameters(
-        currentDocumentId,
-        detailRef.current?.currentVersion?.id
-      )
-    })
-    const payload = getResponsePayload(response)
-    applyDetailPayload(payload, {
-      preserveVersionExpanded: true,
-      preserveEditorBuffer: true,
-      preserveLiveState: true
-    })
+    await refreshCurrentDocumentFromServer()
   }
 
   async function reloadAfterHostEvent() {
@@ -328,6 +341,31 @@ function App() {
       parameters.versionId = normalizedVersionId
     }
     return parameters
+  }
+
+  async function refreshCurrentDocumentFromServer() {
+    const currentDocumentId = selectedIdRef.current
+    if (!currentDocumentId) {
+      return false
+    }
+
+    const currentDetail = detailRef.current
+    const previousVersionId = stringValue(currentDetail?.currentVersion?.id)
+    const shouldRequestLatestVersion = isViewingCurrentDocumentVersion(currentDetail)
+    const response = await requestData({
+      parameters: buildDocumentRequestParameters(
+        currentDocumentId,
+        shouldRequestLatestVersion ? undefined : previousVersionId
+      )
+    })
+    const payload = getResponsePayload(response)
+    const shouldReloadEditor = shouldReloadEditorForServerDetail(payload, previousVersionId, Boolean(bufferRef.current))
+    applyDetailPayload(payload, {
+      preserveVersionExpanded: true,
+      preserveEditorBuffer: !shouldReloadEditor,
+      preserveLiveState: !shouldReloadEditor
+    })
+    return shouldReloadEditor
   }
 
   async function selectDocument(documentId: string, options?: SelectDocumentOptions) {
@@ -463,6 +501,15 @@ function App() {
     }
     const includeDocument = options.includeDocument ?? true
     const includePages = options.includePages ?? includeDocument
+    if (includeDocument && options.refreshRemoteVersion !== false) {
+      const reloaded = await refreshCurrentDocumentFromServer()
+      if (reloaded) {
+        if (options.notifyUser !== false) {
+          notify('success', t('synced'))
+        }
+        return
+      }
+    }
     const readDocument = includeDocument ? agentTools.executeToolCall('read_document', {}) : null
     const readComments = includeDocument ? agentTools.executeToolCall('read_comments', {}) : null
     const readChanges = includeDocument ? agentTools.executeToolCall('read_changes', {}) : null
@@ -522,11 +569,6 @@ function App() {
         await invokeClientCommand(payload.commandKey, payload.payload)
       }
     })
-  }
-
-  function openReviewPanel() {
-    setRightPanelCollapsed(false)
-    setTimeout(() => assistantTextareaRef.current?.focus(), 0)
   }
 
   async function restoreVersion(versionId: string) {
@@ -639,22 +681,146 @@ function App() {
       return
     }
     const queued = detail.operations.filter((operation) => operation.status === 'queued')
+    let appliedMutation = false
     for (const operation of queued) {
-      if (operation.toolName === 'docx_scroll' && operation.input?.paraId) {
-        const ok = editorRef.current.scrollToParaId(String(operation.input.paraId))
+      const operationId = stringValue(operation.id)
+      if (!operationId || processedOperationIdsRef.current.has(operationId)) {
+        continue
+      }
+      if (!QUEUED_LIVE_OPERATION_TOOL_NAMES.has(String(operation.toolName || ''))) {
+        continue
+      }
+      processedOperationIdsRef.current.add(operationId)
+
+      const outcome = executeQueuedLiveOperation(operation)
+      if (!outcome) {
+        continue
+      }
+      if (QUEUED_LIVE_MUTATION_TOOL_NAMES.has(String(operation.toolName || '')) && didApplyQueuedMutation(outcome)) {
+        appliedMutation = true
+        setDirty(true)
+      }
+
+      markOperationCompleteLocally(operationId, outcome)
+      try {
         await executeAction(
           'complete_operation',
-          selectedId,
+          selectedIdRef.current,
           {
-            operationId: operation.id,
-            status: ok ? 'applied' : 'failed',
-            result: { success: ok },
-            errorMessage: ok ? undefined : 'paraId was not found in the live editor.'
+            operationId,
+            status: outcome.status,
+            result: outcome.result,
+            errorMessage: outcome.errorMessage
           },
-          { documentId: selectedId }
+          { documentId: selectedIdRef.current }
         )
+      } catch (error) {
+        console.warn('Failed to complete queued DOCX operation:', error)
       }
     }
+    if (appliedMutation) {
+      await syncSnapshot({ notifyUser: false, refreshRemoteVersion: false }).catch((error) => {
+        console.warn('Failed to sync DOCX snapshot after queued operation:', error)
+      })
+    }
+  }
+
+  function executeQueuedLiveOperation(operation: Record<string, any>) {
+    const toolName = String(operation.toolName || '')
+    const input = isRecord(operation.input) ? operation.input : {}
+    if (toolName === 'docx_scroll') {
+      const paraId = stringValue(input.paraId)
+      const ok = paraId ? editorRef.current?.scrollToParaId(paraId) === true : false
+      return {
+        status: ok ? 'applied' : 'failed',
+        result: { success: ok },
+        errorMessage: ok ? undefined : 'paraId was not found in the live editor.'
+      }
+    }
+
+    try {
+      if (toolName === 'docx_suggest_change' && Array.isArray(input.changes)) {
+        return executeQueuedLiveSuggestChangeBatch(input.changes)
+      }
+      const result = agentTools.executeToolCall(toLiveToolName(toolName), input)
+      return {
+        status: result.success ? 'applied' : 'failed',
+        result,
+        errorMessage: result.success ? undefined : result.error || 'Live editor operation failed.'
+      }
+    } catch (error) {
+      const message = getErrorMessage(error)
+      return {
+        status: 'failed',
+        result: { success: false, error: message },
+        errorMessage: message
+      }
+    }
+  }
+
+  function executeQueuedLiveSuggestChangeBatch(changes: unknown[]) {
+    const results = changes.map((change, index) => {
+      if (!isRecord(change)) {
+        return {
+          success: false,
+          error: `changes[${index}] is not an object.`
+        }
+      }
+      return agentTools.executeToolCall('suggest_change', change)
+    })
+    const failed = results
+      .map((result, index) => ({ result, index }))
+      .filter((item) => !item.result.success)
+    const appliedCount = results.length - failed.length
+    const success = failed.length === 0
+    const message = success
+      ? undefined
+      : failed.map((item) => `changes[${item.index}]: ${item.result.error || 'Live editor operation failed.'}`).join('; ')
+    return {
+      status: success ? 'applied' : 'failed',
+      result: {
+        success,
+        appliedCount,
+        data: {
+          items: results
+        },
+        ...(message ? { error: message } : {})
+      },
+      errorMessage: message
+    }
+  }
+
+  function didApplyQueuedMutation(outcome: { status: string; result: unknown }) {
+    if (outcome.status === 'applied') {
+      return true
+    }
+    return isRecord(outcome.result) && (numberValue(outcome.result.appliedCount) ?? 0) > 0
+  }
+
+  function markOperationCompleteLocally(
+    operationId: string,
+    outcome: { status: string; result: unknown; errorMessage?: string }
+  ) {
+    setDetail((current) => {
+      if (!current?.operations?.some((operation) => operation.id === operationId)) {
+        return current
+      }
+      const next = {
+        ...current,
+        operations: current.operations.map((operation) =>
+          operation.id === operationId
+            ? {
+                ...operation,
+                status: outcome.status,
+                result: outcome.result,
+                errorMessage: outcome.errorMessage
+              }
+            : operation
+        )
+      }
+      detailRef.current = next
+      return next
+    })
   }
 
   async function runBusy(fn: () => Promise<void>) {
@@ -674,6 +840,7 @@ function App() {
   const commentsCount = reviewCounts.comments
   const changesCount = reviewCounts.changes
   const operationsCount = detail?.operations?.length || 0
+  const reviewTotal = commentsCount + changesCount
   const versions = detail?.versions || []
   const shellClass = `docx-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
   const currentDocumentTitle = detail?.item?.title || detail?.item?.fileName || (selectedId ? t('untitled') : t('noDocument'))
@@ -816,11 +983,6 @@ function App() {
                 </SelectContent>
               </Select>
               <Badge className="docx-status" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
-              <Button variant="outline" size="sm" title={t('openReview')} disabled={busy} onClick={openReviewPanel}>
-                <PanelRightOpen className="docx-button-icon" aria-hidden="true" />
-                <span className="docx-action-label">{t('ask')}</span>
-              </Button>
-              <span className="docx-toolbar-divider" aria-hidden="true" />
               <Button className="docx-danger-action" variant="ghost" size="icon" title={t('delete')} aria-label={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
                 <Archive className="docx-button-icon" aria-hidden="true" />
               </Button>
@@ -924,7 +1086,7 @@ function App() {
           {rightPanelCollapsed ? null : (
             <>
               <SidebarTitle className="docx-sidebar-title-truncate">{t('review')}</SidebarTitle>
-              <Badge variant={dirty ? 'warning' : 'secondary'}>{dirty ? t('dirty') : t('synced')}</Badge>
+              <Badge variant="secondary">{reviewTotal}</Badge>
             </>
           )}
           <SidebarTrigger
@@ -998,6 +1160,26 @@ function countParagraphLines(value: unknown) {
   return typeof value === 'string' ? value.split('\n').filter(Boolean).length : 0
 }
 
+function isViewingCurrentDocumentVersion(detail: DetailPayload | null) {
+  const documentCurrentVersionId = stringValue(detail?.item?.currentVersionId)
+  const viewedVersionId = stringValue(detail?.currentVersion?.id)
+  return !documentCurrentVersionId || !viewedVersionId || documentCurrentVersionId === viewedVersionId
+}
+
+function shouldReloadEditorForServerDetail(payload: DetailPayload | null, previousVersionId: string | undefined, hasEditorBuffer: boolean) {
+  if (!payload?.currentVersion?.docxBase64) {
+    return false
+  }
+  const nextVersionId = stringValue(payload.currentVersion.id)
+  if (!hasEditorBuffer) {
+    return true
+  }
+  if (!previousVersionId) {
+    return Boolean(nextVersionId)
+  }
+  return Boolean(nextVersionId && nextVersionId !== previousVersionId)
+}
+
 function getReviewCounts(detail: DetailPayload | null) {
   const snapshotComments = Array.isArray(detail?.snapshot?.comments) ? detail.snapshot.comments.length : 0
   const snapshotChanges = Array.isArray(detail?.snapshot?.changes) ? detail.snapshot.changes.length : 0
@@ -1048,6 +1230,10 @@ function getHostEventToolName(event: unknown) {
     readPath(event, ['payload', 'toolName']),
     readPath(event, ['payload', 'tool', 'name'])
   )
+}
+
+function toLiveToolName(toolName: string) {
+  return toolName.replace(/^docx_/, '')
 }
 
 function getHostEventDocumentId(event: unknown) {

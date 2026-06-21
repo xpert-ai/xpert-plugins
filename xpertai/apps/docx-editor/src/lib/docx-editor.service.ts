@@ -14,7 +14,8 @@ import {
 import {
   DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES,
   DOCX_EDITOR_MAX_INLINE_DOCX_BYTES,
-  DOCX_EDITOR_MUTATION_TOOL_NAMES
+  DOCX_EDITOR_MUTATION_TOOL_NAMES,
+  DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES
 } from './constants.js'
 import {
   DocxEditorDocument,
@@ -28,6 +29,7 @@ import type {
   CreateDocxDocumentInput,
   DocxEditorScope,
   DocxEditorToolName,
+  DocxEditorToolExecutionTarget,
   DocxWorkspaceFileScope,
   DocxWorkspaceFilesApi,
   DocxWorkbenchQuery,
@@ -96,6 +98,7 @@ type CompactAgentToolResponse = {
 
 const MUTATION_TOOL_NAMES = new Set<DocxEditorToolName>(DOCX_EDITOR_MUTATION_TOOL_NAMES)
 const LIVE_ONLY_TOOL_NAMES = new Set<DocxEditorToolName>(DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES)
+const WORKBENCH_LIVE_TOOL_NAMES = new Set<DocxEditorToolName>(DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES)
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const READ_DOCUMENT_MAX_LINES = 80
 const READ_DOCUMENT_MAX_CHARS = 12000
@@ -337,6 +340,10 @@ export class DocxEditorService {
       return this.runLiveOnlyTool(scope, document, version, toolName, toolInput)
     }
 
+    if (shouldQueueWorkbenchLive(input.executionTarget, toolName)) {
+      return this.queueWorkbenchLiveTool(scope, document, version, toolName, toolInput)
+    }
+
     if (toolName === 'docx_read_document' || toolName === 'docx_read_comments' || toolName === 'docx_read_changes') {
       const snapshotResult = await this.tryReadFromSnapshot(scope, document, toolName, toolInput)
       if (snapshotResult) {
@@ -562,6 +569,45 @@ export class DocxEditorService {
       },
       document,
       version: document.currentVersionId ? await this.versionRepository.findOne({ where: scopedWhere(scope, { id: document.currentVersionId }) }) : null,
+      toolName,
+      toolInput: input
+    })
+  }
+
+  private async queueWorkbenchLiveTool(
+    scope: DocxEditorScope,
+    document: DocxEditorDocument,
+    version: DocxEditorVersion,
+    toolName: DocxEditorToolName,
+    input: Record<string, unknown>
+  ) {
+    const documentId = requireEntityId(document.id, 'Document id is required.')
+    const result = {
+      success: true,
+      queued: true,
+      source: 'workbench_live',
+      message: 'Operation was queued for the live Workbench editor.',
+      data: input
+    }
+    const operation = await this.operationRepository.save(
+      this.operationRepository.create({
+        ...scopedCreate(scope),
+        documentId,
+        versionId: version.id,
+        toolName,
+        source: 'agent',
+        status: 'queued',
+        input,
+        result,
+        createdById: normalizeOptional(scope.userId)
+      })
+    )
+
+    return compactAgentToolResponse({
+      operation,
+      result,
+      document,
+      version,
       toolName,
       toolInput: input
     })
@@ -1810,8 +1856,12 @@ function toUpstreamToolName(toolName: DocxEditorToolName) {
 }
 
 function stripDocumentToolInput(input: Record<string, unknown>) {
-  const { documentId: _documentId, author: _author, ...rest } = input
+  const { documentId: _documentId, author: _author, executionTarget: _executionTarget, ...rest } = input
   return rest
+}
+
+function shouldQueueWorkbenchLive(target: DocxEditorToolExecutionTarget | undefined, toolName: DocxEditorToolName) {
+  return target === 'workbench_live' && WORKBENCH_LIVE_TOOL_NAMES.has(toolName)
 }
 
 function sliceSnapshotContent(contentText: string, input: Record<string, unknown>) {

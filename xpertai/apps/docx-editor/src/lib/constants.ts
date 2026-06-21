@@ -56,6 +56,16 @@ export const DOCX_EDITOR_MUTATION_TOOL_NAMES = [
   'docx_reject_all_changes'
 ] as const
 
+export const DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES = [
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment',
+  'docx_scroll'
+] as const
+
 export const DOCX_EDITOR_READ_ONLY_TOOL_NAMES = [
   'docx_read_document',
   'docx_read_selection',

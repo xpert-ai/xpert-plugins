@@ -515,6 +515,63 @@ describe('DocxEditorService', () => {
     expect(response.result).toEqual(expect.objectContaining({ success: true, appliedCount: 1 }))
   })
 
+  it('queues live Workbench changes without creating a new version', async () => {
+    const bridge = createAgentBridge([
+      { paraId: 'p1', text: 'Old paragraph text.' }
+    ])
+    const { service, workspaceFiles, operationRepository } = createAgentToolHarness(bridge)
+
+    const response = await service.runAgentTool(scope, {
+      documentId: 'document-1',
+      toolName: 'docx_suggest_change',
+      executionTarget: 'workbench_live',
+      input: {
+        paraId: 'p1',
+        search: 'Old paragraph text.',
+        replaceWith: 'New paragraph text.',
+        executionTarget: 'workbench_live'
+      }
+    })
+
+    expect(docxAgentsServer.DocxReviewer.fromBuffer).not.toHaveBeenCalled()
+    expect(bridge.proposeChange).not.toHaveBeenCalled()
+    expect(workspaceFiles.readBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(operationRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'document-1',
+        versionId: 'version-1',
+        toolName: 'docx_suggest_change',
+        status: 'queued',
+        input: {
+          paraId: 'p1',
+          search: 'Old paragraph text.',
+          replaceWith: 'New paragraph text.'
+        },
+        result: expect.objectContaining({
+          success: true,
+          queued: true,
+          source: 'workbench_live'
+        })
+      })
+    )
+    expect(response.operation).toEqual(
+      expect.objectContaining({
+        id: 'operation-1',
+        status: 'queued',
+        toolName: 'docx_suggest_change'
+      })
+    )
+    expect(response.result).toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        source: 'workbench_live'
+      })
+    )
+    expect(response.version).toEqual({ id: 'version-1' })
+  })
+
   it('accepts all tracked changes and saves one compact result version', async () => {
     const bridge = createAgentBridge([])
     const { service, reviewer, workspaceFiles } = createAgentToolHarness(bridge, {

@@ -5,6 +5,7 @@ export type DocxEditorVersionSource = 'upload' | 'workbench' | 'agent' | 'restor
 export type DocxEditorOperationStatus = 'queued' | 'applied' | 'failed'
 export type DocxEditorOperationSource = 'agent' | 'workbench' | 'system'
 export type DocxEditorToolName = (typeof DOCX_EDITOR_TOOL_NAMES)[number]
+export type DocxEditorToolExecutionTarget = 'server_persist' | 'workbench_live'
 export type DocxEditorWorkspaceCatalog = 'xperts' | 'projects'
 
 export const DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
@@ -125,6 +126,7 @@ export interface RunDocxAgentToolInput {
   toolName: DocxEditorToolName
   input?: Record<string, unknown>
   author?: string | null
+  executionTarget?: DocxEditorToolExecutionTarget
 }
 
 export interface DocxWorkbenchQuery {
