@@ -1,0 +1,6 @@
+interface:
+  display_name: "Excalidraw Agent Skill"
+  short_description: "Use Excalidraw middleware tools for drawing creation, selection-aware edits, scene inspection, patching, versioning, and recovery."
+  default_prompt: "Create an editable architecture diagram in Excalidraw"
+policy:
+  allow_implicit_invocation: true

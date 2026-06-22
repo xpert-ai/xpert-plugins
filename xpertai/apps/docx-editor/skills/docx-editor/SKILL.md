@@ -11,14 +11,15 @@ Use this skill when the user asks to upload, edit, review, comment on, or revise
 
 Always work from explicit DOCX Editor identifiers:
 
-- Use `documentId` from the Workbench, tool result, `currentDocumentId`, or the user's explicit context.
+- Use `documentId` from the Workbench current document context, tool result, `currentDocumentId`, or the user's explicit context.
+- When the current Workbench document context is present, `docx_*` tools may omit `documentId`; the middleware will inject it. If the user or a prior tool explicitly supplies a different `documentId`, pass it explicitly.
 - Use `paraId` returned by `docx_read_document`, `docx_find_text`, `docx_read_page`, or `docx_read_pages`.
 - Do not infer paragraph identity from display order, localized copy, visual position, or guessed text combinations.
 
 ## Workflow
 
-1. If no document is selected, ask the user to upload or select a document in the DOCX Editor Workbench.
-2. Read the document with `docx_read_document` or locate text with `docx_find_text`.
+1. If no current document context or document id is available, ask the user to upload or select a document in the DOCX Editor Workbench.
+2. Read the document with `docx_read_document` or locate text with `docx_find_text`; do not rely on the lightweight context metadata for document contents.
 3. Add comments with `docx_add_comment` when the user wants review notes.
 4. Follow the current Workbench mode when it is available: in suggesting mode prefer `docx_suggest_change`; in editing mode direct modification tools are acceptable when they exist; in viewing mode treat the document as read-only unless the user explicitly asks to modify it.
 5. Use `docx_apply_formatting` or `docx_set_paragraph_style` only after confirming the target `paraId`.

@@ -257,6 +257,80 @@ describe('DocxEditorService', () => {
     expect(data.currentVersion?.docxBase64).toBe(Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64'))
   })
 
+  it('loads the requested version bytes from workspace files for the Workbench', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    workspaceFiles.readBuffer.mockImplementation(async (input) => ({
+      name: input.filePath.endsWith('v1-history.docx') ? 'v1-history.docx' : 'v2-current.docx',
+      filePath: input.filePath,
+      workspacePath: input.filePath,
+      buffer: input.filePath.endsWith('v1-history.docx')
+        ? Buffer.from([0x01])
+        : Buffer.from([0x02])
+    }))
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-1',
+      title: 'Contract',
+      assistantId: 'xpert-1',
+      currentVersionId: 'version-2',
+      currentVersionNumber: 2
+    })
+    versionRepository.find.mockResolvedValue([
+      {
+        id: 'version-2',
+        documentId: 'document-1',
+        versionNumber: 2,
+        workspaceFilePath: 'files/docx-editor/documents/document-1/versions/v2-current.docx',
+        workspaceCatalog: 'xperts',
+        workspaceScopeId: 'xpert-1',
+        size: 4
+      },
+      {
+        id: 'version-1',
+        documentId: 'document-1',
+        versionNumber: 1,
+        workspaceFilePath: 'files/docx-editor/documents/document-1/versions/v1-history.docx',
+        workspaceCatalog: 'xperts',
+        workspaceScopeId: 'xpert-1',
+        size: 4
+      }
+    ])
+    snapshotRepository.findOne.mockResolvedValue(null)
+    operationRepository.find.mockResolvedValue([])
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+
+    const data = await service.getWorkbenchData(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        assistantId: 'xpert-1'
+      },
+      { documentId: 'document-1', versionId: 'version-1' }
+    )
+
+    expect(workspaceFiles.readBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: 'files/docx-editor/documents/document-1/versions/v1-history.docx'
+      })
+    )
+    expect(data.currentVersion?.id).toBe('version-1')
+    expect(data.currentVersion?.versionNumber).toBe(1)
+    expect(data.currentVersion?.docxBase64).toBe(Buffer.from([0x01]).toString('base64'))
+  })
+
   it('preserves existing snapshot fields when syncing only the live selection', async () => {
     const documentRepository = createRepository()
     const versionRepository = createRepository()
@@ -439,6 +513,63 @@ describe('DocxEditorService', () => {
     })
     expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
     expect(response.result).toEqual(expect.objectContaining({ success: true, appliedCount: 1 }))
+  })
+
+  it('queues live Workbench changes without creating a new version', async () => {
+    const bridge = createAgentBridge([
+      { paraId: 'p1', text: 'Old paragraph text.' }
+    ])
+    const { service, workspaceFiles, operationRepository } = createAgentToolHarness(bridge)
+
+    const response = await service.runAgentTool(scope, {
+      documentId: 'document-1',
+      toolName: 'docx_suggest_change',
+      executionTarget: 'workbench_live',
+      input: {
+        paraId: 'p1',
+        search: 'Old paragraph text.',
+        replaceWith: 'New paragraph text.',
+        executionTarget: 'workbench_live'
+      }
+    })
+
+    expect(docxAgentsServer.DocxReviewer.fromBuffer).not.toHaveBeenCalled()
+    expect(bridge.proposeChange).not.toHaveBeenCalled()
+    expect(workspaceFiles.readBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(operationRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'document-1',
+        versionId: 'version-1',
+        toolName: 'docx_suggest_change',
+        status: 'queued',
+        input: {
+          paraId: 'p1',
+          search: 'Old paragraph text.',
+          replaceWith: 'New paragraph text.'
+        },
+        result: expect.objectContaining({
+          success: true,
+          queued: true,
+          source: 'workbench_live'
+        })
+      })
+    )
+    expect(response.operation).toEqual(
+      expect.objectContaining({
+        id: 'operation-1',
+        status: 'queued',
+        toolName: 'docx_suggest_change'
+      })
+    )
+    expect(response.result).toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        source: 'workbench_live'
+      })
+    )
+    expect(response.version).toEqual({ id: 'version-1' })
   })
 
   it('accepts all tracked changes and saves one compact result version', async () => {

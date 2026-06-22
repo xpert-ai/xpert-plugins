@@ -3,6 +3,7 @@ packages:
   - apps/*
   - packages/*
   - integrations/*
+  - examples/*
   - tools/*
   - models/*
   - databases/*

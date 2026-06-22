@@ -9,6 +9,14 @@ This plugin wraps the upstream Apache-2.0 `@eigenpal/docx-editor` packages and e
 - Tenant-scoped persistence for documents, versions, snapshots, and operations.
 - An installable Assistant template and plugin-scoped skill.
 
+## Current Workbench document context
+
+The Workbench does not expose a separate "get current document" Agent middleware tool. Instead, the remote component sends the active document metadata to the Assistant runtime through the declared `assistant.context.set` client command.
+
+The context payload uses the fixed key `docxEditor`, includes `env.docxEditorDocumentId` and `env.docxEditorMode`, and provides lightweight `context.currentDocument` metadata such as title, file name, version, workspace file path, dirty state, mode, selection, and page state when available. When no document is selected or the Workbench unloads, it clears the same key.
+
+`DocxEditorMiddleware` reads this runtime context before model and tool calls. The model prompt receives the current document metadata, and `docx_*` tools may omit `documentId` when they target the current Workbench document. Explicit `documentId` arguments still take precedence. Full document text, comments, tracked changes, pages, and selection details should continue to be fetched with `docx_read_document`, `docx_find_text`, `docx_read_comments`, `docx_read_changes`, `docx_read_page`, `docx_read_pages`, or `docx_read_selection`.
+
 ## Validation
 
 ```bash

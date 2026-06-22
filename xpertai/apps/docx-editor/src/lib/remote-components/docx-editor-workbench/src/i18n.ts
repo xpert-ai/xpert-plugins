@@ -10,7 +10,6 @@ export type TranslationKey =
   | 'documents'
   | 'versions'
   | 'review'
-  | 'openReview'
   | 'noDocument'
   | 'untitled'
   | 'uploadHint'
@@ -55,7 +54,6 @@ const zh: Record<TranslationKey, string> = {
   documents: '文档',
   versions: '版本',
   review: '审阅',
-  openReview: '打开审阅',
   noDocument: '未选择文档',
   untitled: '未命名文档',
   uploadHint: '上传 .docx 后开始编辑',
@@ -101,7 +99,6 @@ const en: Record<TranslationKey, string> = {
   documents: 'Documents',
   versions: 'Versions',
   review: 'Review',
-  openReview: 'Open review',
   noDocument: 'No document selected',
   untitled: 'Untitled document',
   uploadHint: 'Upload a .docx file to start editing',

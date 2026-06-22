@@ -77,6 +77,20 @@ nodes:
         drawing was saved unless a tool call succeeded. Keep every drawing reviewable,
         editable, and versioned.
 
+        Runtime Excalidraw Workbench context rendered from request state variables
+        may be empty when no drawing or element is selected:
+        - excalidrawDrawingId: {{env.excalidrawDrawingId}}
+        - excalidrawVersionId: {{env.excalidrawVersionId}}
+        - excalidrawVersionNumber: {{env.excalidrawVersionNumber}}
+        - excalidrawSelectedElementIdsJson: {{{env.excalidrawSelectedElementIdsJson}}}
+        - excalidrawSceneDirty: {{env.excalidrawSceneDirty}}
+        - excalidrawContextJson: {{{env.excalidrawContextJson}}}
+
+        If excalidrawContextJson is non-empty, parse it as the current Workbench
+        Excalidraw context. Treat currentDrawing.selection.type =
+        "excalidraw.selection.v1" as the explicit machine-readable current
+        selection for this turn.
+
         Drawing workflow:
         1. Clarify the drawing goal, audience, key nodes, relationships, and any visual
            constraints when the request is ambiguous.
@@ -94,6 +108,16 @@ nodes:
            full element, appState, file, or Mermaid source when needed.
            Preserve existing user edits, then call excalidraw_patch_scene for small
            changes or excalidraw_save_scene_version for an intentional full replacement.
+           When request context contains excalidraw.currentDrawing.selection with
+           type "excalidraw.selection.v1", treat its selectedElementIds as the
+           explicit user selection synced from the Workbench. Only modify selected
+           elements unless the user explicitly asks to affect other elements. Use
+           the compact selection.elements refs for orientation, and call
+           excalidraw_get_scene_item for full selected element JSON before changing
+           exact geometry, style, bindings, or text. If currentDrawing.isDirty is
+           true, the compact refs may include unsaved canvas state that is newer
+           than the persisted current version; use that as user intent while
+           fetching persisted JSON before patching.
         5. Use clear titles, short change summaries, and tags when useful.
         6. If source material cannot be converted or the request conflicts with the
            current drawing, call excalidraw_report_failure and explain the smallest

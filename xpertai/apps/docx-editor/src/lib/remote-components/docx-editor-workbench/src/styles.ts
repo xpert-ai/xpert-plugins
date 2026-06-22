@@ -34,6 +34,8 @@ export function injectStyles() {
     .docx-shell.right-collapsed { --docx-right-width: var(--docx-rail-width); }
     .docx-sidebar,
     .docx-inspector {
+      position: relative;
+      z-index: 100;
       min-width: 0;
       height: 100vh;
       min-height: 720px;
@@ -47,15 +49,18 @@ export function injectStyles() {
       background: var(--xps-background);
     }
     .docx-toolbar {
+      position: relative;
+      z-index: 70;
       min-width: 0;
       min-height: 44px;
       display: grid;
       grid-template-columns: minmax(220px, 1fr) auto;
       align-items: center;
       gap: 8px;
+      margin: 0;
       padding: 6px 10px;
       background: var(--xps-card);
-      border-bottom: 1px solid var(--xps-border);
+      border-bottom: 0;
       overflow: hidden;
     }
     .docx-toolbar-title {
@@ -102,14 +107,8 @@ export function injectStyles() {
     }
     .docx-toolbar-actions .xps-button,
     .docx-toolbar-actions .xps-badge,
-    .docx-toolbar-actions .xps-select-trigger,
-    .docx-toolbar-divider {
+    .docx-toolbar-actions .xps-select-trigger {
       flex: 0 0 auto;
-    }
-    .docx-toolbar-divider {
-      width: 1px;
-      height: 20px;
-      background: color-mix(in srgb, var(--xps-border) 82%, transparent);
     }
     .docx-danger-action.xps-button {
       width: var(--xps-control-height-sm);
@@ -564,11 +563,15 @@ export function injectStyles() {
       box-shadow: none;
     }
     .docx-editor-frame .ep-root [data-testid="editor-toolbar"] {
+      position: relative;
+      z-index: 80;
       background: var(--xps-card) !important;
-      border-bottom: 1px solid var(--xps-border);
+      border-bottom: 0;
       box-shadow: none !important;
     }
     .docx-editor-frame .ep-root [data-testid="title-bar"] {
+      position: relative;
+      z-index: 80;
       min-height: 28px;
       align-items: center;
       background: var(--xps-card) !important;
@@ -620,8 +623,11 @@ export function injectStyles() {
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--xps-ring) 12%, transparent) !important;
     }
     .docx-editor-frame .ep-root [role="menubar"] {
+      position: relative;
+      z-index: 90;
       min-height: 22px;
       gap: 2px;
+      background: var(--xps-card);
     }
     .docx-editor-frame .ep-root [role="menubar"] button {
       height: 22px;
@@ -638,18 +644,25 @@ export function injectStyles() {
       background: var(--xps-muted) !important;
       color: var(--xps-foreground) !important;
     }
+    .docx-editor-frame .ep-root [data-radix-popper-content-wrapper],
+    .docx-editor-frame .ep-root [role="menu"],
+    .docx-editor-frame .ep-root [role="listbox"] {
+      z-index: 100 !important;
+    }
     .docx-editor-frame .ep-root [data-testid="formatting-bar"] > div:has(> button[title*="Ctrl+Shift+E"]),
     .docx-editor-frame .ep-root [data-testid="formatting-bar"] > div:has(+ div > button[title*="Ctrl+Shift+E"]) {
       display: none !important;
     }
     .docx-editor-frame .ep-root [data-testid="formatting-bar"] {
+      position: relative;
+      z-index: 90;
       min-height: 34px !important;
-      margin: 0 8px 6px !important;
+      margin: 0 !important;
       padding: 3px 6px !important;
-      border: 1px solid var(--xps-border);
-      border-radius: 8px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
       background: color-mix(in srgb, var(--xps-card) 88%, var(--xps-muted) 12%) !important;
-      box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 62%, transparent);
+      box-shadow: none !important;
       scrollbar-width: thin;
       scrollbar-color: color-mix(in srgb, var(--xps-muted-foreground) 34%, transparent) transparent;
     }
@@ -709,6 +722,272 @@ export function injectStyles() {
       border: 1px solid transparent !important;
       border-radius: 6px !important;
     }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) {
+      padding: 10px !important;
+      border: 1px solid var(--xps-border) !important;
+      border-radius: 8px !important;
+      background: var(--xps-popover, var(--xps-card)) !important;
+      color: var(--xps-popover-foreground, var(--xps-foreground)) !important;
+      box-shadow:
+        0 12px 36px color-mix(in srgb, var(--xps-foreground) 18%, transparent),
+        0 2px 8px color-mix(in srgb, var(--xps-foreground) 10%, transparent) !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) textarea {
+      min-height: 88px !important;
+      width: 100% !important;
+      padding: 10px 12px !important;
+      border: 1px solid var(--xps-input) !important;
+      border-radius: 8px !important;
+      background: var(--xps-background) !important;
+      color: var(--xps-foreground) !important;
+      box-shadow: none !important;
+      font-size: var(--xps-control-font-size) !important;
+      line-height: 1.45 !important;
+      resize: vertical !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) textarea::placeholder {
+      color: var(--xps-muted-foreground) !important;
+      opacity: 1 !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) textarea:focus {
+      border-color: var(--xps-ring) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--xps-ring) 18%, transparent) !important;
+      outline: none !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) > div {
+      align-items: center !important;
+      gap: 8px !important;
+      margin-top: 10px !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button {
+      height: var(--xps-control-height-sm) !important;
+      min-width: var(--xps-control-height-sm) !important;
+      padding: 0 12px !important;
+      border-radius: 6px !important;
+      border: 1px solid transparent !important;
+      font-size: var(--xps-control-font-size) !important;
+      font-weight: 600 !important;
+      line-height: 1 !important;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:first-child {
+      background: transparent !important;
+      color: var(--xps-primary) !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:first-child:hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:first-child:focus-visible:not(:disabled) {
+      background: color-mix(in srgb, var(--xps-primary) 9%, transparent) !important;
+      color: var(--xps-primary) !important;
+      outline: none !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:last-child {
+      border-color: var(--xps-primary) !important;
+      background: var(--xps-primary) !important;
+      color: var(--xps-primary-foreground) !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:last-child:hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:last-child:focus-visible:not(:disabled) {
+      border-color: color-mix(in srgb, var(--xps-primary) 88%, var(--xps-foreground) 12%) !important;
+      background: color-mix(in srgb, var(--xps-primary) 88%, var(--xps-foreground) 12%) !important;
+      outline: none !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar :is(div[style*="z-index: 50"], div[style*="z-index:50"]):has(> textarea) button:disabled {
+      border-color: color-mix(in srgb, var(--xps-border) 70%, transparent) !important;
+      background: var(--xps-muted) !important;
+      color: var(--xps-muted-foreground) !important;
+      cursor: not-allowed !important;
+      opacity: 0.55 !important;
+    }
+    .docx-editor-frame .ep-root .docx-unified-sidebar {
+      color: var(--xps-foreground) !important;
+      font-family: var(--xps-font-sans) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card,
+    .docx-editor-frame .ep-root .docx-tracked-change-card {
+      border: 1px solid var(--xps-border) !important;
+      border-radius: 8px !important;
+      background: var(--xps-card) !important;
+      color: var(--xps-card-foreground, var(--xps-foreground)) !important;
+      box-shadow:
+        0 1px 2px color-mix(in srgb, var(--xps-foreground) 7%, transparent),
+        0 6px 18px color-mix(in srgb, var(--xps-foreground) 8%, transparent) !important;
+      transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card:hover,
+    .docx-editor-frame .ep-root .docx-tracked-change-card:hover {
+      border-color: color-mix(in srgb, var(--xps-primary) 18%, var(--xps-border)) !important;
+      background: color-mix(in srgb, var(--xps-card) 92%, var(--xps-muted) 8%) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card[style*="box-shadow"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card[style*="box-shadow"] {
+      border-color: color-mix(in srgb, var(--xps-primary) 28%, var(--xps-border)) !important;
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--xps-ring) 14%, transparent),
+        0 8px 24px color-mix(in srgb, var(--xps-foreground) 10%, transparent) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#202124"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#202124"] {
+      color: var(--xps-foreground) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#5f6368"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#5f6368"],
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#80868b"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#80868b"] {
+      color: var(--xps-muted-foreground) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#1a73e8"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#1a73e8"] {
+      color: var(--xps-primary) !important;
+      border-color: var(--xps-primary) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#137333"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#137333"] {
+      color: var(--xps-success) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="#c5221f"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="#c5221f"] {
+      color: var(--xps-destructive) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card > div[style*="inline-flex"][style*="#188038"] {
+      border: 1px solid color-mix(in srgb, var(--xps-success) 20%, transparent) !important;
+      border-radius: 999px !important;
+      background: color-mix(in srgb, var(--xps-success) 11%, var(--xps-card)) !important;
+      color: var(--xps-success) !important;
+      font-weight: 650 !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card [style*="border-top"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card [style*="border-top"] {
+      border-top-color: var(--xps-border) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card input,
+    .docx-editor-frame .ep-root .docx-tracked-change-card input {
+      width: 100% !important;
+      height: var(--xps-control-height) !important;
+      border: 1px solid var(--xps-input) !important;
+      border-radius: 8px !important;
+      padding: 0 12px !important;
+      background: var(--xps-background) !important;
+      color: var(--xps-foreground) !important;
+      font-size: var(--xps-control-font-size) !important;
+      line-height: 1 !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card input::placeholder,
+    .docx-editor-frame .ep-root .docx-tracked-change-card input::placeholder {
+      color: var(--xps-muted-foreground) !important;
+      opacity: 1 !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card input:focus,
+    .docx-editor-frame .ep-root .docx-tracked-change-card input:focus {
+      border-color: var(--xps-ring) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--xps-ring) 18%, transparent) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button,
+    .docx-editor-frame .ep-root .docx-tracked-change-card button {
+      border: 1px solid transparent !important;
+      border-radius: 6px !important;
+      background: transparent !important;
+      color: var(--xps-muted-foreground) !important;
+      font-family: var(--xps-font-sans) !important;
+      font-size: var(--xps-control-font-size) !important;
+      font-weight: 600 !important;
+      line-height: 1 !important;
+      cursor: pointer !important;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button:hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-comment-card button:focus-visible:not(:disabled),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:focus-visible:not(:disabled) {
+      border-color: color-mix(in srgb, var(--xps-border) 78%, transparent) !important;
+      background: var(--xps-muted) !important;
+      color: var(--xps-foreground) !important;
+      outline: none !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button[title],
+    .docx-editor-frame .ep-root .docx-comment-card button:has(svg),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button[title],
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:has(svg) {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: var(--xps-control-height-sm) !important;
+      height: var(--xps-control-height-sm) !important;
+      min-width: var(--xps-control-height-sm) !important;
+      padding: 0 !important;
+      line-height: 1 !important;
+      vertical-align: middle !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button[title] :is(svg, span, i),
+    .docx-editor-frame .ep-root .docx-comment-card button:has(svg) :is(svg, span, i),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button[title] :is(svg, span, i),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:has(svg) :is(svg, span, i) {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 1.25rem !important;
+      height: 1.25rem !important;
+      margin: 0 !important;
+      line-height: 1 !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button:not([title]):not(:has(svg)),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:not([title]):not(:has(svg)) {
+      height: var(--xps-control-height-sm) !important;
+      min-width: var(--xps-control-height-sm) !important;
+      padding: 0 12px !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button:not([title]):not(:has(svg)):last-child:not(:only-child):not(:disabled),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:not([title]):not(:has(svg)):last-child:not(:only-child):not(:disabled) {
+      border-color: var(--xps-primary) !important;
+      background: var(--xps-primary) !important;
+      color: var(--xps-primary-foreground) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button:not([title]):not(:has(svg)):last-child:not(:only-child):hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-comment-card button:not([title]):not(:has(svg)):last-child:not(:only-child):focus-visible:not(:disabled),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:not([title]):not(:has(svg)):last-child:not(:only-child):hover:not(:disabled),
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:not([title]):not(:has(svg)):last-child:not(:only-child):focus-visible:not(:disabled) {
+      border-color: color-mix(in srgb, var(--xps-primary) 84%, var(--xps-foreground) 16%) !important;
+      background: color-mix(in srgb, var(--xps-primary) 84%, var(--xps-foreground) 16%) !important;
+      color: var(--xps-primary-foreground) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card button:disabled,
+    .docx-editor-frame .ep-root .docx-tracked-change-card button:disabled {
+      border-color: transparent !important;
+      background: var(--xps-muted) !important;
+      color: var(--xps-muted-foreground) !important;
+      cursor: not-allowed !important;
+      opacity: 0.55 !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card div[style*="position: absolute"][style*="min-width: 120px"],
+    .docx-editor-frame .ep-root .docx-tracked-change-card div[style*="position: absolute"][style*="min-width: 120px"] {
+      min-width: 132px !important;
+      padding: 4px !important;
+      border: 1px solid var(--xps-border) !important;
+      border-radius: 8px !important;
+      background: var(--xps-popover, var(--xps-card)) !important;
+      color: var(--xps-popover-foreground, var(--xps-foreground)) !important;
+      box-shadow:
+        0 10px 30px color-mix(in srgb, var(--xps-foreground) 16%, transparent),
+        0 2px 8px color-mix(in srgb, var(--xps-foreground) 10%, transparent) !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card div[style*="position: absolute"][style*="min-width: 120px"] button,
+    .docx-editor-frame .ep-root .docx-tracked-change-card div[style*="position: absolute"][style*="min-width: 120px"] button {
+      width: 100% !important;
+      height: var(--xps-control-height-sm) !important;
+      justify-content: flex-start !important;
+      padding: 0 10px !important;
+      background: transparent !important;
+      color: var(--xps-foreground) !important;
+      text-align: left !important;
+    }
+    .docx-editor-frame .ep-root .docx-comment-card div[style*="position: absolute"][style*="min-width: 120px"] button:hover,
+    .docx-editor-frame .ep-root .docx-comment-card div[style*="position: absolute"][style*="min-width: 120px"] button:focus-visible,
+    .docx-editor-frame .ep-root .docx-tracked-change-card div[style*="position: absolute"][style*="min-width: 120px"] button:hover,
+    .docx-editor-frame .ep-root .docx-tracked-change-card div[style*="position: absolute"][style*="min-width: 120px"] button:focus-visible {
+      background: var(--xps-muted) !important;
+      color: var(--xps-foreground) !important;
+    }
     .docx-editor-frame .ep-root .docx-horizontal-ruler {
       height: 18px !important;
       background: var(--xps-card) !important;
@@ -756,7 +1035,7 @@ export function injectStyles() {
       }
       .docx-sidebar[aria-expanded="true"] .xps-sidebar-content,
       .docx-inspector[aria-expanded="true"] .xps-sidebar-content {
-        position: absolute;
+        position: fixed;
         top: 2.5rem;
         bottom: 0;
         display: flex;
@@ -773,15 +1052,17 @@ export function injectStyles() {
         width: min(340px, calc(100vw - 64px));
       }
       .docx-sidebar[aria-expanded="true"] .xps-sidebar-content {
-        left: var(--docx-rail-width);
+        left: 0;
+        right: auto;
       }
       .docx-inspector[aria-expanded="true"] .xps-sidebar-content {
-        right: var(--docx-rail-width);
+        right: 0;
+        left: auto;
       }
       .docx-sidebar .xps-sidebar-header .xps-sidebar-title,
       .docx-sidebar .xps-sidebar-header .xps-badge,
-      .docx-inspector[aria-expanded="false"] .xps-sidebar-header .xps-sidebar-title,
-      .docx-inspector[aria-expanded="false"] .xps-sidebar-header .xps-badge {
+      .docx-inspector .xps-sidebar-header .xps-sidebar-title,
+      .docx-inspector .xps-sidebar-header .xps-badge {
         display: none;
       }
     }

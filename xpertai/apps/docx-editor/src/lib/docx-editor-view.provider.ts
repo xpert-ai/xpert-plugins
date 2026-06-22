@@ -204,6 +204,7 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
     }
     return this.service.getWorkbenchData(scopeFromContext(context), {
       documentId: getStringParameter(query.parameters, 'documentId') ?? query.selectionId,
+      versionId: getStringParameter(query.parameters, 'versionId'),
       search: query.search,
       page: query.page,
       pageSize: query.pageSize

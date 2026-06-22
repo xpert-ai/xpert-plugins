@@ -218,6 +218,146 @@ describe('DocxEditorMiddleware', () => {
     )
   })
 
+  it('keeps an explicit documentId instead of replacing it with Workbench context', async () => {
+    const middleware = new DocxEditorMiddleware({
+      runAgentTool: jest.fn()
+    } as never)
+    const runtime = middleware.createMiddleware({}, {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1'
+    })
+    const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'call-1' }))
+    const request = {
+      toolCall: {
+        id: 'call-1',
+        name: 'docx_read_document',
+        args: {
+          documentId: 'explicit-doc'
+        }
+      },
+      tool: runtime.tools?.[0] as never,
+      state: { messages: [] },
+      runtime: {
+        context: {
+          docxEditor: {
+            currentDocument: {
+              documentId: 'workbench-doc'
+            }
+          }
+        }
+      }
+    } as never
+
+    await runtime.wrapToolCall?.(request, handler as never)
+
+    expect(handler).toHaveBeenCalledWith(request)
+  })
+
+  it('routes live-supported mutation tools to the open Workbench editor', async () => {
+    const middleware = new DocxEditorMiddleware({
+      runAgentTool: jest.fn()
+    } as never)
+    const runtime = middleware.createMiddleware({}, {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1'
+    })
+    const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'call-1' }))
+
+    await runtime.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'call-1',
+          name: 'docx_suggest_change',
+          args: {
+            paraId: 'p1',
+            search: 'old',
+            replaceWith: 'new'
+          }
+        },
+        tool: runtime.tools?.find((item) => item.name === 'docx_suggest_change') as never,
+        state: { messages: [] },
+        runtime: {
+          context: {
+            docxEditor: {
+              currentDocument: {
+                documentId: 'workbench-doc'
+              }
+            }
+          }
+        }
+      } as never,
+      handler as never
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: {
+            documentId: 'workbench-doc',
+            executionTarget: 'workbench_live',
+            paraId: 'p1',
+            search: 'old',
+            replaceWith: 'new'
+          }
+        })
+      })
+    )
+  })
+
+  it('injects documentId from configurable runtime context before DOCX tool execution', async () => {
+    const middleware = new DocxEditorMiddleware({
+      runAgentTool: jest.fn()
+    } as never)
+    const runtime = middleware.createMiddleware({}, {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1'
+    })
+    const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'call-1' }))
+
+    await runtime.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'call-1',
+          name: 'docx_read_document',
+          args: {}
+        },
+        tool: runtime.tools?.[0] as never,
+        state: { messages: [] },
+        runtime: {
+          configurable: {
+            context: {
+              docxEditor: {
+                currentDocument: {
+                  documentId: 'doc-from-configurable'
+                }
+              }
+            }
+          }
+        }
+      } as never,
+      handler as never
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: {
+            documentId: 'doc-from-configurable'
+          }
+        })
+      })
+    )
+  })
+
   it('returns a clear error when documentId and current Workbench context are missing', async () => {
     const middleware = new DocxEditorMiddleware({
       runAgentTool: jest.fn()

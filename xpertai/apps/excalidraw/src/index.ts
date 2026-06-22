@@ -115,11 +115,11 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           contents: [
             {
               type: 'skill',
-              name: 'index',
-              displayName: 'Excalidraw Agent Drawing',
+              name: 'excalidraw-agent-skill',
+              displayName: 'Excalidraw Agent Skill',
               description:
-                'Workflow skill for Agent-managed Excalidraw diagrams, Mermaid drafts, scene versions, and Workbench review.',
-              tags: ['skill', 'excalidraw', 'agent-drawing']
+                'Skill for using Excalidraw middleware tools, Workbench selection context, scene inspection, patching, versioning, and recovery.',
+              tags: ['skill', 'excalidraw', 'agent-drawing', 'middleware-tools']
             },
             {
               type: 'assistant-template',

@@ -1,0 +1,56 @@
+{
+  "name": "@xpert-ai/plugin-echarts-mcp-app",
+  "version": "0.0.1",
+  "private": true,
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "xpert-echarts-mcp-app": "./dist/mcp-server.js"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./mcp-server": {
+      "@xpert-plugins-starter/source": "./src/mcp-server.ts",
+      "types": "./dist/mcp-server.d.ts",
+      "import": "./dist/mcp-server.js",
+      "default": "./dist/mcp-server.js"
+    }
+  },
+  "scripts": {
+    "build:app": "node scripts/build-app.mjs"
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "scripts",
+    "src/app",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "esbuild": "^0.25.12"
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.9.1",
+    "chalk": "4.1.2",
+    "zod": "3.25.67"
+  }
+}

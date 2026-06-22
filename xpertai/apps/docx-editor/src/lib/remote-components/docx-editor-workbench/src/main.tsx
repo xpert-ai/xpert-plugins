@@ -49,6 +49,12 @@ import { React, ReactDOM, h } from './vendor'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
 import {
+  buildClearDocxAssistantContextPayload,
+  buildDocxAssistantContextPayload,
+  numberValue,
+  stringValue
+} from './assistant-context'
+import {
   executeAction,
   executeFileAction,
   getErrorMessage,
@@ -82,15 +88,20 @@ type ApplyDetailPayloadOptions = {
   preserveEditorBuffer?: boolean
   preserveLiveState?: boolean
 }
+type SelectDocumentOptions = {
+  force?: boolean
+  toggleActive?: boolean
+  versionId?: string | null
+}
 
 type SyncSnapshotOptions = {
   notifyUser?: boolean
   includeDocument?: boolean
   includePages?: boolean
+  refreshRemoteVersion?: boolean
 }
 
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
-const ASSISTANT_CONTEXT_KEY = 'docxEditor'
 const READ_ONLY_HOST_EVENT_TOOL_NAMES = new Set([
   'docx_read_document',
   'docx_read_selection',
@@ -116,6 +127,23 @@ const METADATA_REFRESH_HOST_EVENT_TOOL_NAMES = new Set([
   'docx_reject_all_changes',
   'docx_scroll'
 ])
+const QUEUED_LIVE_OPERATION_TOOL_NAMES = new Set([
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment',
+  'docx_scroll'
+])
+const QUEUED_LIVE_MUTATION_TOOL_NAMES = new Set([
+  'docx_add_comment',
+  'docx_suggest_change',
+  'docx_apply_formatting',
+  'docx_set_paragraph_style',
+  'docx_reply_comment',
+  'docx_resolve_comment'
+])
 
 installShadcnThemeVars({ styleId: 'docx-editor-workbench-shadcn-ui-vars' })
 injectStyles()
@@ -140,9 +168,11 @@ function App() {
   const assistantTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const selectedIdRef = React.useRef('')
   const detailRef = React.useRef<DetailPayload | null>(null)
+  const bufferRef = React.useRef<ArrayBuffer | null>(null)
   const selectionContextRef = React.useRef<Record<string, any> | null>(null)
   const selectionSnapshotTimerRef = React.useRef<number | null>(null)
   const bridgeReadyRef = React.useRef(false)
+  const processedOperationIdsRef = React.useRef<Set<string>>(new Set())
   const t = createTranslator(context?.locale)
   const docxEditorI18n = resolveDocxEditorI18n(context?.locale)
   const agentTools = useDocxAgentTools({
@@ -165,6 +195,10 @@ function App() {
   React.useEffect(() => {
     detailRef.current = detail
   }, [detail])
+
+  React.useEffect(() => {
+    bufferRef.current = buffer
+  }, [buffer])
 
   React.useEffect(() => {
     if (selectedId && detail?.item) {
@@ -279,13 +313,7 @@ function App() {
     if (eventDocumentId && eventDocumentId !== currentDocumentId) {
       return
     }
-    const response = await requestData({ parameters: { documentId: currentDocumentId } })
-    const payload = getResponsePayload(response)
-    applyDetailPayload(payload, {
-      preserveVersionExpanded: true,
-      preserveEditorBuffer: true,
-      preserveLiveState: true
-    })
+    await refreshCurrentDocumentFromServer()
   }
 
   async function reloadAfterHostEvent() {
@@ -306,20 +334,69 @@ function App() {
     return items
   }
 
-  async function selectDocument(documentId: string, options?: { force?: boolean; toggleActive?: boolean }) {
+  function buildDocumentRequestParameters(documentId: string, versionId?: string | null) {
+    const parameters: Record<string, string> = { documentId }
+    const normalizedVersionId = stringValue(versionId)
+    if (normalizedVersionId) {
+      parameters.versionId = normalizedVersionId
+    }
+    return parameters
+  }
+
+  async function refreshCurrentDocumentFromServer() {
+    const currentDocumentId = selectedIdRef.current
+    if (!currentDocumentId) {
+      return false
+    }
+
+    const currentDetail = detailRef.current
+    const previousVersionId = stringValue(currentDetail?.currentVersion?.id)
+    const shouldRequestLatestVersion = isViewingCurrentDocumentVersion(currentDetail)
+    const response = await requestData({
+      parameters: buildDocumentRequestParameters(
+        currentDocumentId,
+        shouldRequestLatestVersion ? undefined : previousVersionId
+      )
+    })
+    const payload = getResponsePayload(response)
+    const shouldReloadEditor = shouldReloadEditorForServerDetail(payload, previousVersionId, Boolean(bufferRef.current))
+    applyDetailPayload(payload, {
+      preserveVersionExpanded: true,
+      preserveEditorBuffer: !shouldReloadEditor,
+      preserveLiveState: !shouldReloadEditor
+    })
+    return shouldReloadEditor
+  }
+
+  async function selectDocument(documentId: string, options?: SelectDocumentOptions) {
     if (!documentId) {
       return
     }
+    const requestedVersionId = stringValue(options?.versionId)
+    const loadedVersionId = stringValue(detailRef.current?.currentVersion?.id)
     const isCurrentDocument = documentId === selectedIdRef.current && detailRef.current?.item?.id === documentId
-    if (isCurrentDocument && !options?.force) {
+    const requestedVersionLoaded = !requestedVersionId || requestedVersionId === loadedVersionId
+    if (isCurrentDocument && requestedVersionLoaded && !options?.force) {
       if (options?.toggleActive) {
         setVersionListExpanded((expanded) => !expanded)
       }
       return
     }
-    const response = await requestData({ parameters: { documentId } })
+    const response = await requestData({
+      parameters: buildDocumentRequestParameters(documentId, requestedVersionId)
+    })
     const payload = getResponsePayload(response)
     applyDetailPayload(payload, { preserveVersionExpanded: isCurrentDocument })
+  }
+
+  async function selectVersion(versionId: string) {
+    const documentId = selectedIdRef.current
+    if (!documentId || !versionId) {
+      return
+    }
+    await runBusy(async () => {
+      await selectDocument(documentId, { force: true, versionId })
+    })
   }
 
   async function createDocument() {
@@ -382,7 +459,7 @@ function App() {
       const documentId = payload?.document?.id || payload?.item?.id || payload?.id || targetDocumentId
       await reloadList()
       if (documentId) {
-        await selectDocument(documentId)
+        await selectDocument(documentId, { force: true })
       }
     })
   }
@@ -413,7 +490,7 @@ function App() {
       const payload = getResponsePayload(response)
       notify('success', resolveMessage(payload?.message, context?.locale) || t('save'))
       setDirty(false)
-      await selectDocument(selectedId)
+      await selectDocument(selectedId, { force: true })
       await syncSnapshot()
     })
   }
@@ -424,6 +501,15 @@ function App() {
     }
     const includeDocument = options.includeDocument ?? true
     const includePages = options.includePages ?? includeDocument
+    if (includeDocument && options.refreshRemoteVersion !== false) {
+      const reloaded = await refreshCurrentDocumentFromServer()
+      if (reloaded) {
+        if (options.notifyUser !== false) {
+          notify('success', t('synced'))
+        }
+        return
+      }
+    }
     const readDocument = includeDocument ? agentTools.executeToolCall('read_document', {}) : null
     const readComments = includeDocument ? agentTools.executeToolCall('read_comments', {}) : null
     const readChanges = includeDocument ? agentTools.executeToolCall('read_changes', {}) : null
@@ -485,11 +571,6 @@ function App() {
     })
   }
 
-  function openReviewPanel() {
-    setRightPanelCollapsed(false)
-    setTimeout(() => assistantTextareaRef.current?.focus(), 0)
-  }
-
   async function restoreVersion(versionId: string) {
     if (!selectedId || !versionId) {
       return
@@ -501,7 +582,7 @@ function App() {
         { documentId: selectedId, versionId, changeSummary: 'Restored from Workbench.' },
         { documentId: selectedId }
       )
-      await selectDocument(selectedId)
+      await selectDocument(selectedId, { force: true })
     })
   }
 
@@ -577,8 +658,7 @@ function App() {
       return
     }
     await invokeClientCommand(ASSISTANT_CONTEXT_COMMAND, {
-      key: ASSISTANT_CONTEXT_KEY,
-      clear: true
+      ...buildClearDocxAssistantContextPayload()
     }).catch((error) => {
       console.warn('Failed to clear DOCX assistant context:', error)
       return null
@@ -586,50 +666,14 @@ function App() {
   }
 
   function buildAssistantContextPayload() {
-    const documentId = selectedIdRef.current
-    const currentDetail = detailRef.current
-    const item = currentDetail?.item
-    if (!documentId || !item) {
-      return null
-    }
-
-    const currentVersion = currentDetail.currentVersion
-    const workspaceFilePath = stringValue(currentVersion?.workspaceFilePath) || stringValue(item.workspaceFilePath)
-    const versionId = stringValue(currentVersion?.id) || stringValue(item.currentVersionId)
     const selectionContext = selectionContextRef.current || safeGetAgentContext()
-    const selection = summarizeSelection(selectionContext?.selection ?? currentDetail.snapshot?.selection)
-    const env: Record<string, string> = {
-      docxEditorDocumentId: documentId,
-      docxEditorMode: mode
-    }
-    if (versionId) {
-      env.docxEditorVersionId = versionId
-    }
-    if (workspaceFilePath) {
-      env.docxEditorWorkspaceFilePath = workspaceFilePath
-    }
-
-    return {
-      key: ASSISTANT_CONTEXT_KEY,
-      env,
-      context: {
-        currentDocument: {
-          documentId,
-          title: stringValue(item.title) || stringValue(item.fileName) || documentId,
-          fileName: stringValue(item.fileName),
-          currentVersionId: versionId,
-          currentVersionNumber: numberValue(item.currentVersionNumber) ?? numberValue(currentVersion?.versionNumber),
-          workspaceFilePath,
-          workspaceCatalog: stringValue(currentVersion?.workspaceCatalog) || stringValue(item.workspaceCatalog),
-          workspaceScopeId: stringValue(currentVersion?.workspaceScopeId) || stringValue(item.workspaceScopeId),
-          dirty,
-          mode,
-          selection,
-          currentPage: numberValue(selectionContext?.currentPage),
-          totalPages: numberValue(selectionContext?.totalPages)
-        }
-      }
-    }
+    return buildDocxAssistantContextPayload({
+      documentId: selectedIdRef.current,
+      detail: detailRef.current,
+      dirty,
+      mode,
+      selectionContext
+    })
   }
 
   async function applyQueuedOperations() {
@@ -637,22 +681,146 @@ function App() {
       return
     }
     const queued = detail.operations.filter((operation) => operation.status === 'queued')
+    let appliedMutation = false
     for (const operation of queued) {
-      if (operation.toolName === 'docx_scroll' && operation.input?.paraId) {
-        const ok = editorRef.current.scrollToParaId(String(operation.input.paraId))
+      const operationId = stringValue(operation.id)
+      if (!operationId || processedOperationIdsRef.current.has(operationId)) {
+        continue
+      }
+      if (!QUEUED_LIVE_OPERATION_TOOL_NAMES.has(String(operation.toolName || ''))) {
+        continue
+      }
+      processedOperationIdsRef.current.add(operationId)
+
+      const outcome = executeQueuedLiveOperation(operation)
+      if (!outcome) {
+        continue
+      }
+      if (QUEUED_LIVE_MUTATION_TOOL_NAMES.has(String(operation.toolName || '')) && didApplyQueuedMutation(outcome)) {
+        appliedMutation = true
+        setDirty(true)
+      }
+
+      markOperationCompleteLocally(operationId, outcome)
+      try {
         await executeAction(
           'complete_operation',
-          selectedId,
+          selectedIdRef.current,
           {
-            operationId: operation.id,
-            status: ok ? 'applied' : 'failed',
-            result: { success: ok },
-            errorMessage: ok ? undefined : 'paraId was not found in the live editor.'
+            operationId,
+            status: outcome.status,
+            result: outcome.result,
+            errorMessage: outcome.errorMessage
           },
-          { documentId: selectedId }
+          { documentId: selectedIdRef.current }
         )
+      } catch (error) {
+        console.warn('Failed to complete queued DOCX operation:', error)
       }
     }
+    if (appliedMutation) {
+      await syncSnapshot({ notifyUser: false, refreshRemoteVersion: false }).catch((error) => {
+        console.warn('Failed to sync DOCX snapshot after queued operation:', error)
+      })
+    }
+  }
+
+  function executeQueuedLiveOperation(operation: Record<string, any>) {
+    const toolName = String(operation.toolName || '')
+    const input = isRecord(operation.input) ? operation.input : {}
+    if (toolName === 'docx_scroll') {
+      const paraId = stringValue(input.paraId)
+      const ok = paraId ? editorRef.current?.scrollToParaId(paraId) === true : false
+      return {
+        status: ok ? 'applied' : 'failed',
+        result: { success: ok },
+        errorMessage: ok ? undefined : 'paraId was not found in the live editor.'
+      }
+    }
+
+    try {
+      if (toolName === 'docx_suggest_change' && Array.isArray(input.changes)) {
+        return executeQueuedLiveSuggestChangeBatch(input.changes)
+      }
+      const result = agentTools.executeToolCall(toLiveToolName(toolName), input)
+      return {
+        status: result.success ? 'applied' : 'failed',
+        result,
+        errorMessage: result.success ? undefined : result.error || 'Live editor operation failed.'
+      }
+    } catch (error) {
+      const message = getErrorMessage(error)
+      return {
+        status: 'failed',
+        result: { success: false, error: message },
+        errorMessage: message
+      }
+    }
+  }
+
+  function executeQueuedLiveSuggestChangeBatch(changes: unknown[]) {
+    const results = changes.map((change, index) => {
+      if (!isRecord(change)) {
+        return {
+          success: false,
+          error: `changes[${index}] is not an object.`
+        }
+      }
+      return agentTools.executeToolCall('suggest_change', change)
+    })
+    const failed = results
+      .map((result, index) => ({ result, index }))
+      .filter((item) => !item.result.success)
+    const appliedCount = results.length - failed.length
+    const success = failed.length === 0
+    const message = success
+      ? undefined
+      : failed.map((item) => `changes[${item.index}]: ${item.result.error || 'Live editor operation failed.'}`).join('; ')
+    return {
+      status: success ? 'applied' : 'failed',
+      result: {
+        success,
+        appliedCount,
+        data: {
+          items: results
+        },
+        ...(message ? { error: message } : {})
+      },
+      errorMessage: message
+    }
+  }
+
+  function didApplyQueuedMutation(outcome: { status: string; result: unknown }) {
+    if (outcome.status === 'applied') {
+      return true
+    }
+    return isRecord(outcome.result) && (numberValue(outcome.result.appliedCount) ?? 0) > 0
+  }
+
+  function markOperationCompleteLocally(
+    operationId: string,
+    outcome: { status: string; result: unknown; errorMessage?: string }
+  ) {
+    setDetail((current) => {
+      if (!current?.operations?.some((operation) => operation.id === operationId)) {
+        return current
+      }
+      const next = {
+        ...current,
+        operations: current.operations.map((operation) =>
+          operation.id === operationId
+            ? {
+                ...operation,
+                status: outcome.status,
+                result: outcome.result,
+                errorMessage: outcome.errorMessage
+              }
+            : operation
+        )
+      }
+      detailRef.current = next
+      return next
+    })
   }
 
   async function runBusy(fn: () => Promise<void>) {
@@ -672,10 +840,11 @@ function App() {
   const commentsCount = reviewCounts.comments
   const changesCount = reviewCounts.changes
   const operationsCount = detail?.operations?.length || 0
+  const reviewTotal = commentsCount + changesCount
   const versions = detail?.versions || []
   const shellClass = `docx-shell ${leftPanelCollapsed ? 'left-collapsed' : ''} ${rightPanelCollapsed ? 'right-collapsed' : ''}`
   const currentDocumentTitle = detail?.item?.title || detail?.item?.fileName || (selectedId ? t('untitled') : t('noDocument'))
-  const currentVersionNumber = detail?.item?.currentVersionNumber || detail?.currentVersion?.versionNumber
+  const currentVersionNumber = detail?.currentVersion?.versionNumber || detail?.item?.currentVersionNumber
   const currentVersionMeta = [
     currentVersionNumber ? `v${currentVersionNumber}` : '',
     detail?.currentVersion?.source || '',
@@ -752,7 +921,7 @@ function App() {
                                         className={`docx-version-button ${versionActive ? 'is-active' : ''}`}
                                         onClick={(event) => {
                                           event.stopPropagation()
-                                          void restoreVersion(version.id)
+                                          void selectVersion(version.id)
                                         }}
                                       >
                                         <span className="docx-version-text">
@@ -814,11 +983,6 @@ function App() {
                 </SelectContent>
               </Select>
               <Badge className="docx-status" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
-              <Button variant="outline" size="sm" title={t('openReview')} disabled={busy} onClick={openReviewPanel}>
-                <PanelRightOpen className="docx-button-icon" aria-hidden="true" />
-                <span className="docx-action-label">{t('ask')}</span>
-              </Button>
-              <span className="docx-toolbar-divider" aria-hidden="true" />
               <Button className="docx-danger-action" variant="ghost" size="icon" title={t('delete')} aria-label={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
                 <Archive className="docx-button-icon" aria-hidden="true" />
               </Button>
@@ -922,7 +1086,7 @@ function App() {
           {rightPanelCollapsed ? null : (
             <>
               <SidebarTitle className="docx-sidebar-title-truncate">{t('review')}</SidebarTitle>
-              <Badge variant={dirty ? 'warning' : 'secondary'}>{dirty ? t('dirty') : t('synced')}</Badge>
+              <Badge variant="secondary">{reviewTotal}</Badge>
             </>
           )}
           <SidebarTrigger
@@ -996,33 +1160,24 @@ function countParagraphLines(value: unknown) {
   return typeof value === 'string' ? value.split('\n').filter(Boolean).length : 0
 }
 
-function summarizeSelection(value: unknown) {
-  if (!isRecord(value)) {
-    return null
-  }
-
-  return {
-    paraId: stringValue(value.paraId),
-    selectedText: truncateText(stringValue(value.selectedText), 800),
-    paragraphText: truncateText(stringValue(value.paragraphText), 1200),
-    before: truncateText(stringValue(value.before), 240),
-    after: truncateText(stringValue(value.after), 240)
-  }
+function isViewingCurrentDocumentVersion(detail: DetailPayload | null) {
+  const documentCurrentVersionId = stringValue(detail?.item?.currentVersionId)
+  const viewedVersionId = stringValue(detail?.currentVersion?.id)
+  return !documentCurrentVersionId || !viewedVersionId || documentCurrentVersionId === viewedVersionId
 }
 
-function truncateText(value: string | undefined, maxLength: number) {
-  if (!value) {
-    return undefined
+function shouldReloadEditorForServerDetail(payload: DetailPayload | null, previousVersionId: string | undefined, hasEditorBuffer: boolean) {
+  if (!payload?.currentVersion?.docxBase64) {
+    return false
   }
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
-}
-
-function stringValue(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const nextVersionId = stringValue(payload.currentVersion.id)
+  if (!hasEditorBuffer) {
+    return true
+  }
+  if (!previousVersionId) {
+    return Boolean(nextVersionId)
+  }
+  return Boolean(nextVersionId && nextVersionId !== previousVersionId)
 }
 
 function getReviewCounts(detail: DetailPayload | null) {
@@ -1075,6 +1230,10 @@ function getHostEventToolName(event: unknown) {
     readPath(event, ['payload', 'toolName']),
     readPath(event, ['payload', 'tool', 'name'])
   )
+}
+
+function toLiveToolName(toolName: string) {
+  return toolName.replace(/^docx_/, '')
 }
 
 function getHostEventDocumentId(event: unknown) {

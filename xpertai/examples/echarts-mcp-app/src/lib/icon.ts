@@ -1,0 +1,1 @@
+export const icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="ECharts MCP App"><path fill="#2563eb" d="M4 19h16v2H4z"/><path fill="#14b8a6" d="M6 10h3v7H6z"/><path fill="#f59e0b" d="M11 4h3v13h-3z"/><path fill="#ef4444" d="M16 7h3v10h-3z"/><path fill="#111827" d="M5 3h14v2H5z" opacity=".25"/></svg>`

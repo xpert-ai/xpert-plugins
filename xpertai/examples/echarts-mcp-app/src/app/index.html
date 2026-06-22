@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ECharts Sales Drilldown</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar">
+      <div class="title">
+        <h1 id="appTitle">Sales Drilldown</h1>
+        <div id="summary" class="summary">Waiting for tool result...</div>
+      </div>
+      <div class="controls">
+        <label><span id="metricLabel">Metric</span>
+          <select id="metric">
+            <option value="revenue">Revenue</option>
+            <option value="margin">Gross margin</option>
+            <option value="orders">Orders</option>
+          </select>
+        </label>
+        <label><span id="groupByLabel">Group by</span>
+          <select id="groupBy">
+            <option value="region">Region</option>
+            <option value="product">Product</option>
+            <option value="month">Month</option>
+          </select>
+        </label>
+        <label><span id="yearLabel">Year</span>
+          <select id="year">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </label>
+        <label>&nbsp;
+          <button id="reset" type="button">Reset</button>
+        </label>
+      </div>
+    </div>
+    <div id="breadcrumbs" class="breadcrumbs"></div>
+    <div class="stats">
+      <div class="stat"><div id="revenueLabel" class="label">Revenue</div><div id="revenue" class="value">-</div></div>
+      <div class="stat"><div id="marginLabel" class="label">Gross margin</div><div id="margin" class="value">-</div></div>
+      <div class="stat"><div id="ordersLabel" class="label">Orders</div><div id="orders" class="value">-</div></div>
+    </div>
+    <div id="chart"></div>
+    <div id="hint" class="hint">Click a bar or point to drill into the next available dimension. Use Reset to return to the overview.</div>
+    <div id="error" class="error"></div>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

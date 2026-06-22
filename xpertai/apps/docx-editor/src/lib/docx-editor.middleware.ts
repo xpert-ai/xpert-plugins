@@ -16,10 +16,11 @@ import {
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
   DOCX_EDITOR_MIDDLEWARE_NAME,
-  DOCX_EDITOR_TOOL_NAMES
+  DOCX_EDITOR_TOOL_NAMES,
+  DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES
 } from './constants.js'
 import { DocxEditorService } from './docx-editor.service.js'
-import type { DocxEditorScope, DocxEditorToolName } from './types.js'
+import type { DocxEditorScope, DocxEditorToolExecutionTarget, DocxEditorToolName } from './types.js'
 
 const documentToolBaseSchema = z.object({
   documentId: z
@@ -27,7 +28,11 @@ const documentToolBaseSchema = z.object({
     .min(1)
     .optional()
     .describe('DOCX Editor plugin document id. Optional when a current DOCX Workbench document is open.'),
-  author: z.string().optional().describe('Optional author name for comments and tracked changes.')
+  author: z.string().optional().describe('Optional author name for comments and tracked changes.'),
+  executionTarget: z
+    .enum(['server_persist', 'workbench_live'])
+    .optional()
+    .describe('Internal execution target injected by the DOCX Workbench bridge. Do not set this manually.')
 })
 
 const readDocumentSchema = documentToolBaseSchema.extend({
@@ -198,6 +203,7 @@ type CurrentDocxWorkbenchDocument = {
 }
 
 const DOCX_TOOL_NAMES = new Set<string>(DOCX_EDITOR_TOOL_NAMES)
+const WORKBENCH_LIVE_TOOL_NAMES = new Set<string>(DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES)
 const DOCUMENT_ID_FALLBACK_HINT = ' If a current DOCX Workbench document is open, documentId may be omitted.'
 const MISSING_DOCUMENT_CONTEXT_MESSAGE =
   '未找到当前 Workbench 文档，请先打开文档或显式传 documentId。'
@@ -287,12 +293,10 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
         }
 
         const args = isRecord(request.toolCall.args) ? request.toolCall.args : {}
-        if (getString(args['documentId'])) {
-          return handler(request)
-        }
-
+        const explicitDocumentId = getString(args['documentId'])
         const currentDocument = resolveCurrentWorkbenchDocument(request.runtime)
-        if (!currentDocument?.documentId) {
+        const documentId = explicitDocumentId ?? currentDocument?.documentId
+        if (!documentId) {
           return new ToolMessage({
             content: MISSING_DOCUMENT_CONTEXT_MESSAGE,
             tool_call_id: request.toolCall.id ?? 'unknown',
@@ -305,10 +309,7 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
           ...request,
           toolCall: {
             ...request.toolCall,
-            args: {
-              ...args,
-              documentId: currentDocument.documentId
-            }
+            args: withToolExecutionTarget(args, request.toolCall.name, documentId, currentDocument)
           }
         })
       }
@@ -323,7 +324,8 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
             documentId: input.documentId ?? '',
             toolName,
             input,
-            author: input.author
+            author: input.author,
+            executionTarget: input.executionTarget
           }),
           null,
           2
@@ -375,10 +377,36 @@ function buildCurrentDocumentSystemPrompt(document: CurrentDocxWorkbenchDocument
     `- dirty: ${document.dirty === true ? 'true' : 'false'}`,
     document.mode ? `- mode: ${document.mode}` : null,
     document.mode ? `- modeGuidance: ${describeWorkbenchModeGuidance(document.mode)}` : null,
-    'DOCX Editor tools may omit documentId when operating on this current Workbench document.'
+    'DOCX Editor tools may omit documentId when operating on this current Workbench document.',
+    'When comments or tracked-change suggestions target this open Workbench document, they are queued into the live editor review state; ask the user to save when they want a new version checkpoint.'
   ]
 
   return lines.filter(Boolean).join('\n')
+}
+
+function withToolExecutionTarget(
+  args: Record<string, unknown>,
+  toolName: string,
+  documentId: string,
+  currentDocument: CurrentDocxWorkbenchDocument | null
+) {
+  const { executionTarget: _ignoredExecutionTarget, ...rest } = args
+  const target: DocxEditorToolExecutionTarget | undefined = shouldRunInWorkbenchLive(toolName, documentId, currentDocument)
+    ? 'workbench_live'
+    : undefined
+  return {
+    ...rest,
+    documentId,
+    ...(target ? { executionTarget: target } : {})
+  }
+}
+
+function shouldRunInWorkbenchLive(
+  toolName: string,
+  documentId: string,
+  currentDocument: CurrentDocxWorkbenchDocument | null
+) {
+  return WORKBENCH_LIVE_TOOL_NAMES.has(toolName) && Boolean(currentDocument?.documentId && currentDocument.documentId === documentId)
 }
 
 function describeWorkbenchModeGuidance(mode: string) {

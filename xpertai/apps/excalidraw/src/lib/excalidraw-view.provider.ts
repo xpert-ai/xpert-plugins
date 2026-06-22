@@ -25,6 +25,7 @@ import {
   AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
   ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
+  ASSISTANT_CONTEXT_SET_COMMAND,
   EXCALIDRAW_FEATURE,
   EXCALIDRAW_ICON,
   EXCALIDRAW_MIDDLEWARE_TOOL_NAMES,
@@ -36,9 +37,9 @@ import {
 import { ExcalidrawService } from './excalidraw.service.js'
 import type { ExcalidrawDrawingKind, ExcalidrawDrawingStatus, ExcalidrawScope } from './types.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const requireFromHere = createRequire(__filename)
+const moduleFilename = fileURLToPath(import.meta.url)
+const moduleDir = dirname(moduleFilename)
+const requireFromHere = createRequire(moduleFilename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
 @Injectable()
@@ -140,6 +141,10 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         },
         clientCommands: [
           {
+            key: ASSISTANT_CONTEXT_SET_COMMAND,
+            label: text('Set Assistant Context', '设置 Assistant 上下文')
+          },
+          {
             key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
             label: text('Send to Assistant Chat', '发送到 Assistant 对话')
           }
@@ -192,7 +197,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
       }
     }
 
-    const componentDir = join(__dirname, 'remote-components', EXCALIDRAW_REMOTE_ENTRY_KEY)
+    const componentDir = join(moduleDir, 'remote-components', EXCALIDRAW_REMOTE_ENTRY_KEY)
     const appScript = await readFile(join(componentDir, 'app.js'), 'utf8')
     const appCssPath = join(componentDir, 'app.css')
     const appCss = existsSync(appCssPath) ? await readFile(appCssPath, 'utf8') : ''

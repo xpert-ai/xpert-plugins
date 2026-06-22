@@ -1,6 +1,0 @@
-interface:
-  display_name: "Excalidraw Agent Drawing"
-  short_description: "Create, update, version, and review Excalidraw diagrams with Mermaid and Excalidraw JSON paths."
-  default_prompt: "Create an editable architecture diagram in Excalidraw"
-policy:
-  allow_implicit_invocation: true

@@ -65,6 +65,12 @@ import {
   normalizeToolCompletedEvent,
   SAVE_MERMAID_DRAFT_TOOL_NAME
 } from './tool-event-refresh'
+import {
+  createExcalidrawSelectionContextCommand,
+  createExcalidrawSelectionContextSignature,
+  createExcalidrawSelectionClearCommand,
+  getSelectedElementIds
+} from './selection-context'
 import { normalizeExcalidrawElementsForPersistence } from '../../../excalidraw-scene.validation'
 import {
   executeAction,
@@ -157,6 +163,9 @@ function App() {
   const elementsRef = React.useRef<any[]>([])
   const appStateRef = React.useRef<Record<string, unknown>>({})
   const filesRef = React.useRef<Record<string, unknown>>({})
+  const selectedElementIdsRef = React.useRef<string[]>([])
+  const selectionContextSignatureRef = React.useRef('')
+  const selectionContextSyncTimerRef = React.useRef<number | null>(null)
   const mermaidSourceRef = React.useRef(DEFAULT_MERMAID)
   const dirtyRef = React.useRef(false)
   const savedSceneSignatureRef = React.useRef('')
@@ -243,6 +252,14 @@ function App() {
       }
     )
     post('ready')
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      if (selectionContextSyncTimerRef.current !== null) {
+        window.clearTimeout(selectionContextSyncTimerRef.current)
+      }
+    }
   }, [])
 
   React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed, versionsOpen, deleteTarget])
@@ -878,6 +895,42 @@ function App() {
     }
   }
 
+  function scheduleAssistantSelectionContextSync(options: { immediate?: boolean } = {}) {
+    if (selectionContextSyncTimerRef.current !== null) {
+      window.clearTimeout(selectionContextSyncTimerRef.current)
+    }
+    selectionContextSyncTimerRef.current = window.setTimeout(() => {
+      selectionContextSyncTimerRef.current = null
+      void syncAssistantSelectionContext()
+    }, options.immediate ? 0 : 250)
+  }
+
+  async function syncAssistantSelectionContext() {
+    const input = {
+      drawing: detailRef.current?.item,
+      version: detailRef.current?.currentVersion,
+      selectedElementIds: getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current),
+      elements: elementsRef.current,
+      isDirty: dirtyRef.current
+    }
+    const signature = createExcalidrawSelectionContextSignature(input)
+    if (signature === selectionContextSignatureRef.current) {
+      return
+    }
+    selectionContextSignatureRef.current = signature
+
+    const command = createExcalidrawSelectionContextCommand(input) || createExcalidrawSelectionClearCommand()
+    try {
+      const response = await invokeClientCommand(command.commandKey, command.payload)
+      const result = getResponsePayload(response)
+      if (result?.success === false) {
+        console.warn('[excalidraw-workbench] assistant selection context command failed', result)
+      }
+    } catch (error) {
+      console.warn('[excalidraw-workbench] failed to sync assistant selection context', error)
+    }
+  }
+
   async function importFile(file: File | null) {
     if (!file) {
       return
@@ -978,6 +1031,8 @@ function App() {
     elementsRef.current = elements
     appStateRef.current = appState
     filesRef.current = files
+    selectedElementIdsRef.current = []
+    scheduleAssistantSelectionContextSync({ immediate: true })
     updateMermaidSource(mermaid)
     themeSyncRef.current = true
     const applied = updateSceneSafely({
@@ -1000,6 +1055,8 @@ function App() {
     elementsRef.current = []
     appStateRef.current = appState
     filesRef.current = {}
+    selectedElementIdsRef.current = []
+    scheduleAssistantSelectionContextSync({ immediate: true })
     if (options.clearMermaid) {
       updateMermaidSource('')
     }
@@ -1030,12 +1087,16 @@ function App() {
       filesRef.current,
       mermaidOverride
     )
+    dirtyRef.current = false
     setDirty(false)
+    scheduleAssistantSelectionContextSync()
   }
 
   function updateDirtyState(mermaidOverride = mermaidSourceRef.current) {
     if (!selectedIdRef.current) {
+      dirtyRef.current = false
       setDirty(false)
+      scheduleAssistantSelectionContextSync()
       return
     }
     const currentSceneSignature = createSceneSignature(
@@ -1044,7 +1105,10 @@ function App() {
       filesRef.current,
       mermaidOverride
     )
-    setDirty(currentSceneSignature !== savedSceneSignatureRef.current)
+    const nextDirty = currentSceneSignature !== savedSceneSignatureRef.current
+    dirtyRef.current = nextDirty
+    setDirty(nextDirty)
+    scheduleAssistantSelectionContextSync()
   }
 
   function canReplaceCurrentDirtyScene() {
@@ -1299,8 +1363,12 @@ function App() {
                 elementsRef.current = elements || []
                 appStateRef.current = appState || {}
                 filesRef.current = files || {}
+                selectedElementIdsRef.current = getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current)
                 if (!themeSyncRef.current) {
                   updateDirtyState()
+                }
+                if (themeSyncRef.current) {
+                  scheduleAssistantSelectionContextSync()
                 }
               }}
             />
