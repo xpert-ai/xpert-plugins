@@ -27,6 +27,15 @@ parameter_rules:
     help:
       zh_Hans: 核采样参数，控制输出的多样性。
       en_US: Nucleus sampling parameter, controls output diversity.
+  - name: do_sample
+    label:
+      zh_Hans: 采样策略
+      en_US: Sampling strategy
+    type: boolean
+    default: true
+    help:
+      zh_Hans: do_sample 为 true 时启用采样策略；为 false 时 temperature、top_p 将不生效。
+      en_US: Enables sampling. When set to false, temperature and top_p do not take effect.
   - name: max_tokens
     use_template: max_tokens
     default: 32768

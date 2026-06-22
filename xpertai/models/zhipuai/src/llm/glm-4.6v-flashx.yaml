@@ -1,0 +1,46 @@
+model: glm-4.6v-flashx
+label:
+  en_US: glm-4.6v-flashx
+  zh_Hans: glm-4.6v-flashx
+model_type: llm
+features:
+  - vision
+  - video
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+model_properties:
+  mode: chat
+  context_size: 131072
+parameter_rules:
+  - name: thinking
+    label:
+      zh_Hans: 推理模式
+      en_US: Thinking Mode
+    type: string
+    default: disabled
+    required: false
+    options:
+      - enabled
+      - disabled
+    help:
+      zh_Hans: 控制模型的推理能力。
+      en_US: Controls the model's thinking capability.
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    help:
+      zh_Hans: 指定模型必须输出的格式
+      en_US: specifying the format that the model must output
+    required: false
+    options:
+      - text
+      - json_object
+pricing:
+  input: "0.00015"
+  output: "0.0015"
+  unit: "0.001"
+  currency: RMB
