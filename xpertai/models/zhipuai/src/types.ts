@@ -19,6 +19,7 @@ export interface ZhipuaiCredentials {
 export interface ZhipuaiModelOptions extends CommonChatModelParameters {
 	streaming?: boolean
 	top_p?: number
+	do_sample?: boolean
 	max_tokens?: number
 	frequency_penalty?: number
 	thinking?: 'enabled' | 'disabled'
