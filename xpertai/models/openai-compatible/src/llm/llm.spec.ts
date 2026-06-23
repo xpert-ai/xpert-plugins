@@ -1,8 +1,23 @@
-import { OAIAPICompatLargeLanguageModel } from './llm.js'
+import { OpenAIClient } from '@langchain/openai'
+import { OAIAPICompatLargeLanguageModel, StableOpenAICompatibleChatModel } from './llm.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
 import { ModelFeature } from '@metad/contracts'
 import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { OpenAICompatModelCredentials, toCredentialKwargs } from '../types.js'
+
+class TestableStableOpenAICompatibleChatModel extends StableOpenAICompatibleChatModel {
+  convertDelta(
+    delta: Record<string, unknown>,
+    rawResponse: OpenAIClient.ChatCompletionChunk,
+    defaultRole?: 'function' | 'user' | 'system' | 'developer' | 'assistant' | 'tool'
+  ) {
+    return this._convertCompletionsDeltaToBaseMessageChunk(delta, rawResponse, defaultRole)
+  }
+
+  convertMessage(message: OpenAIClient.ChatCompletionMessage, rawResponse: OpenAIClient.ChatCompletion) {
+    return this._convertCompletionsMessageToBaseMessage(message, rawResponse)
+  }
+}
 
 describe('getCustomizableModelSchemaFromCredentials', () => {
   let llm: OAIAPICompatLargeLanguageModel
@@ -11,6 +26,53 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
   beforeEach(() => {
     provider = new OpenAICompatibleProviderStrategy()
     llm = new OAIAPICompatLargeLanguageModel(provider)
+  })
+
+  it('should replace placeholder chat completion ids for streaming chunks', () => {
+    const model = createTestChatModel()
+    const firstRoleChunk = model.convertDelta({ role: 'assistant' }, createChunk('chatcmpl', 1))
+    const firstToolChunk = model.convertDelta(
+      {
+        tool_calls: [
+          {
+            index: 0,
+            id: 'call-1',
+            type: 'function',
+            function: {
+              name: 'sandbox_shell',
+              arguments: '{}'
+            }
+          }
+        ]
+      },
+      createChunk('chatcmpl', 1),
+      'assistant'
+    )
+    const secondRoleChunk = model.convertDelta({ role: 'assistant' }, createChunk('chatcmpl', 2))
+
+    expect(firstRoleChunk.id).toMatch(/^chatcmpl-/)
+    expect(firstRoleChunk.id).not.toBe('chatcmpl')
+    expect(firstToolChunk.id).toBe(firstRoleChunk.id)
+    expect(secondRoleChunk.id).toMatch(/^chatcmpl-/)
+    expect(secondRoleChunk.id).not.toBe(firstRoleChunk.id)
+  })
+
+  it('should keep valid chat completion ids unchanged', () => {
+    const model = createTestChatModel()
+    const message = model.convertMessage(createAssistantMessage('call-1'), createCompletion('chatcmpl-valid-1'))
+
+    expect(message.id).toBe('chatcmpl-valid-1')
+  })
+
+  it('should replace placeholder chat completion ids for non-streaming messages', () => {
+    const model = createTestChatModel()
+    const firstMessage = model.convertMessage(createAssistantMessage('call-1'), createCompletion('chatcmpl'))
+    const secondMessage = model.convertMessage(createAssistantMessage('call-2'), createCompletion('chatcmpl'))
+
+    expect(firstMessage.id).toMatch(/^chatcmpl-/)
+    expect(firstMessage.id).not.toBe('chatcmpl')
+    expect(secondMessage.id).toMatch(/^chatcmpl-/)
+    expect(secondMessage.id).not.toBe(firstMessage.id)
   })
 
   it('should return correct schema for chat model with tool call support', () => {
@@ -331,3 +393,66 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
     ).toThrow("Custom body param 'bad_param' must be a string, finite number, or boolean")
   })
 })
+
+function createTestChatModel() {
+  return new TestableStableOpenAICompatibleChatModel({
+    apiKey: 'test-key',
+    model: 'test-model',
+    configuration: {
+      baseURL: 'http://test.com'
+    }
+  })
+}
+
+function createChunk(id: string, created: number): OpenAIClient.ChatCompletionChunk {
+  return {
+    id,
+    object: 'chat.completion.chunk',
+    created,
+    model: 'test-model',
+    choices: [
+      {
+        index: 0,
+        delta: {},
+        finish_reason: null
+      }
+    ]
+  }
+}
+
+function createCompletion(id: string): OpenAIClient.ChatCompletion {
+  const message = createAssistantMessage('call-1')
+
+  return {
+    id,
+    object: 'chat.completion',
+    created: 1,
+    model: 'test-model',
+    choices: [
+      {
+        index: 0,
+        message,
+        finish_reason: 'tool_calls',
+        logprobs: null
+      }
+    ]
+  }
+}
+
+function createAssistantMessage(toolCallId: string): OpenAIClient.ChatCompletionMessage {
+  return {
+    role: 'assistant',
+    content: '',
+    refusal: null,
+    tool_calls: [
+      {
+        id: toolCallId,
+        type: 'function',
+        function: {
+          name: 'sandbox_shell',
+          arguments: '{}'
+        }
+      }
+    ]
+  }
+}

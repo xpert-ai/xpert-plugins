@@ -40,6 +40,20 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
     const modelCredentials = copilotModel.options as ZhipuaiModelOptions
 
     const model = copilotModel.model
+    const parameterNames = new Set(
+      this.getParameterRules(model, credentials as unknown as Record<string, string>).map((rule) => rule.name)
+    )
+    const supportsThinking = parameterNames.has('thinking')
+    const supportsClearThinking = parameterNames.has('clear_thinking')
+    const thinking = supportsThinking
+      ? omitBy(
+          {
+            type: modelCredentials?.thinking ?? 'enabled',
+            clear_thinking: supportsClearThinking ? modelCredentials?.clear_thinking : undefined
+          },
+          isNil
+        )
+      : undefined
     const fields = omitBy(
       {
         ...params,
@@ -53,14 +67,12 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
         modelKwargs: omitBy(
           {
             web_search: modelCredentials?.web_search,
+            do_sample: modelCredentials?.do_sample,
             tool_stream: modelCredentials?.tool_stream,
             response_format: modelCredentials?.response_format
               ? { type: modelCredentials.response_format }
               : undefined,
-            thinking: {
-              type: modelCredentials?.thinking ?? 'enabled',
-              clear_thinking: modelCredentials?.clear_thinking
-            }
+            thinking
           },
           isNil
         ),

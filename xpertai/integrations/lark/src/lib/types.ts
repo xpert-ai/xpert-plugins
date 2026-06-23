@@ -1,5 +1,5 @@
 import type { ITenant, TChatConversationStatus } from '@metad/contracts'
-import { TDocumentAsset } from '@xpert-ai/plugin-sdk'
+import type { TDocumentAsset } from '@xpert-ai/plugin-sdk'
 import { AxiosError } from 'axios'
 
 export const INTEGRATION_LARK = 'lark'
@@ -19,8 +19,9 @@ export type TLarkIntegrationConfig = {
 }
 
 export type LarkDocumentsParams = {
-  folderToken: string
-  types: string[]
+  folderToken?: string
+  documentId?: string
+  types?: string[]
 }
 
 export type LarkDocumentMetadata = LarkFile & {
