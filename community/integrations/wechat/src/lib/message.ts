@@ -1,8 +1,8 @@
 import { Serializable } from '@langchain/core/load/serializable'
 import { IChatMessage } from '@xpert-ai/contracts'
-import type { WechatPersonalChannelStrategy } from './wechat-personal-channel.strategy.js'
+import type { WechatChannelStrategy } from './wechat-channel.strategy.js'
 
-export type WechatPersonalMessageStatus =
+export type WechatMessageStatus =
   | IChatMessage['status']
   | 'thinking'
   | 'continuing'
@@ -11,16 +11,16 @@ export type WechatPersonalMessageStatus =
   | 'end'
   | 'error'
 
-type WechatPersonalMessageChannel = Pick<WechatPersonalChannelStrategy, 'sendReplyByIntegrationId'>
+type WechatMessageChannel = Pick<WechatChannelStrategy, 'sendReplyByIntegrationId'>
 
-export interface WechatPersonalMessageFields {
+export interface WechatMessageFields {
   id?: string
   messageId?: string
-  status?: WechatPersonalMessageStatus
+  status?: WechatMessageStatus
   language?: string
 }
 
-type WechatPersonalMessageContext = {
+type WechatMessageContext = {
   integrationId: string
   uuid: string
   contactId: string
@@ -28,11 +28,11 @@ type WechatPersonalMessageContext = {
   senderId?: string
   ownerWxid?: string
   atUsers?: string[]
-  wechatChannel: WechatPersonalMessageChannel
+  wechatChannel: WechatMessageChannel
 }
 
-export class WechatPersonalMessage extends Serializable implements Required<WechatPersonalMessageFields> {
-  lc_namespace: string[] = ['wechat-personal']
+export class WechatMessage extends Serializable implements Required<WechatMessageFields> {
+  lc_namespace: string[] = ['wechat']
   override lc_serializable = true
 
   override get lc_attributes() {
@@ -46,12 +46,12 @@ export class WechatPersonalMessage extends Serializable implements Required<Wech
 
   public id: string = null
   public messageId: string = null
-  public status: WechatPersonalMessageStatus = 'thinking'
+  public status: WechatMessageStatus = 'thinking'
   public language: string = null
 
   constructor(
-    private readonly chatContext: WechatPersonalMessageContext,
-    options?: WechatPersonalMessageFields
+    private readonly chatContext: WechatMessageContext,
+    options?: WechatMessageFields
   ) {
     super(options || {})
     this.id = options?.id || null
@@ -84,7 +84,7 @@ export class WechatPersonalMessage extends Serializable implements Required<Wech
     return this.chatContext.ownerWxid
   }
 
-  async update(options: { status?: WechatPersonalMessageStatus; text?: string }): Promise<void> {
+  async update(options: { status?: WechatMessageStatus; text?: string }): Promise<void> {
     if (options.status) {
       this.status = options.status
     }
@@ -103,7 +103,7 @@ export class WechatPersonalMessage extends Serializable implements Required<Wech
     })
 
     if (!result.success) {
-      throw new Error(result.error || 'Failed to send WeChat personal message')
+      throw new Error(result.error || 'Failed to send WeChat message')
     }
 
     this.id = result.messageId || this.id

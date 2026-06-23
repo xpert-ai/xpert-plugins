@@ -1,0 +1,145 @@
+team:
+  name: wechat-user-assistant
+  type: agent
+  title: 微信会话助手
+  description: 通过 wx2.0 接收微信消息并自然回复微信用户的 Agent
+  avatar:
+    emoji:
+      id: speech_balloon
+    background: rgb(220, 252, 231)
+  options:
+    templateKey: wechat-user-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: wechat-user-assistant
+      assistantKind: wechat-user-assistant
+      businessDomain: wechat
+      wechatRole: user
+      requiredPlugin: '@xpert-ai/plugin-community-wechat'
+      requiredPlugins:
+        - '@xpert-ai/plugin-community-wechat'
+      requiredCapabilities:
+        - wechat_bridge
+        - wechat-runtime
+        - wechat-workbench
+  agentConfig:
+    stateVariables: []
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_WechatUser
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.4
+      maxRetries: 4
+      max_tokens: 4096
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_WechatUser
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_WechatUser
+      name: wechat-user-assistant
+      title: 微信会话助手
+      description: 通过 wx2.0 接收微信消息并自然回复微信用户的 Agent
+      avatar:
+        emoji:
+          id: speech_balloon
+        background: rgb(220, 252, 231)
+      prompt: >
+        You are a WeChat conversation assistant connected through the Xpert WeChat plugin.
+
+        Reply naturally in the context of the current WeChat conversation. Your final answer will be sent
+        directly to the WeChat user, so keep it concise, conversational, and suitable for a chat bubble.
+        Do not mention internal plugin names, system configuration, callback URLs, API tokens, integration
+        ids, queue ids, or hidden routing details.
+
+        In private chats, answer the user's message directly. In group chats, reply only because the plugin
+        has already determined that the message mentioned the assistant or matched configured keywords. Do
+        not broaden the conversation beyond the triggered message unless the user asks.
+
+        If important context is missing, ask one clear clarifying question first. Do not invent facts,
+        identities, business records, prices, dates, or previous messages. If the user requests an action
+        that needs external systems or permissions you do not have, explain what information or access is
+        needed.
+
+        Your final answer is automatically sent back to the current WeChat conversation by the plugin after
+        the Agent finishes. Do not call tools for ordinary replies. WeChat runtime tools in this
+        user assistant are limited to controlled proactive sending with trusted runtime state parameters.
+        When a scheduled task injects WeChat send parameters in runtime state, draft the scheduled content and call
+        wechat_send_message with that content; the middleware reads uuid/contactIds from trusted state.
+
+        Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Use plain,
+        WeChat-friendly text instead of Markdown formatting. Avoid markdown tables, decorative headings,
+        and heavy bullet nesting because the reply is sent as a normal WeChat text message.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: wechat-user-agent-v1
+  - type: workflow
+    key: Trigger_Wechat
+    position:
+      x: 520
+      y: 20
+    entity:
+      type: trigger
+      key: Trigger_Wechat
+      title: 触发器
+      from: wechat
+      config:
+        enabled: true
+        sessionTimeoutSeconds: 3600
+        summaryWindowSeconds: 0
+        historyContextLimit: 20
+        historyContextWindowSeconds: 3600
+        ignoreSelfMessages: true
+        selfMessagePolicy: history_only
+        chatFilterMode: all
+        allowedContactIds: []
+        blockedContactIds: []
+        allowedGroupIds: []
+        blockedGroupIds: []
+        allowedSenderIds: []
+        blockedSenderIds: []
+        allowedKeywords: []
+        groupTriggerMode: mention_or_keywords
+        mentionFallbackNames: []
+        integrationId: ""
+    hash: wechat-user-trigger-v1
+  - type: workflow
+    key: Middleware_WechatRuntime
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_WechatRuntime
+      title: WeChat Runtime Tools
+      provider: WechatRuntimeMiddleware
+      required: true
+      options:
+        toolMode: user
+        integrationId: ""
+    hash: wechat-user-middleware-v1
+connections:
+  - type: workflow
+    key: Trigger_Wechat/Agent_WechatUser
+    from: Trigger_Wechat
+    to: Agent_WechatUser
+  - type: workflow
+    key: Agent_WechatUser/Middleware_WechatRuntime
+    from: Agent_WechatUser
+    to: Middleware_WechatRuntime

@@ -12,7 +12,7 @@ function printUsage() {
   console.log(`Wechat tunnel sidecar.
 
 Usage:
-  node scripts/wechat-tunnel-sidecar.mjs --xpert-url wss://xpert.example.com/api/wechat-personal/tunnel/ws/<clientId>
+  node scripts/wechat-tunnel-sidecar.mjs --xpert-url wss://xpert.example.com/api/wechat/tunnel/ws/<clientId>
   node scripts/wechat-tunnel-sidecar.mjs --api-url https://xpert.example.com --client-id <clientId>
 
 Options:
@@ -77,7 +77,7 @@ function resolveTunnelUrl(args) {
   }
   const url = new URL(apiUrl.includes('://') ? apiUrl : `https://${apiUrl}`)
   url.protocol = url.protocol === 'http:' ? 'ws:' : 'wss:'
-  url.pathname = `/api/wechat-personal/tunnel/ws/${encodeURIComponent(clientId)}`
+  url.pathname = `/api/wechat/tunnel/ws/${encodeURIComponent(clientId)}`
   url.search = ''
   return url
 }

@@ -1,24 +1,24 @@
 import type { TChatRequestHuman } from '@xpert-ai/contracts'
 import type { PluginWebhookCredentialRecord } from '@xpert-ai/plugin-sdk'
-import { WECHAT_PERSONAL_PROVIDER_KEY } from './constants.js'
+import { WECHAT_PROVIDER_KEY } from './constants.js'
 
-export type WechatPersonalGroupTriggerMode =
+export type WechatGroupTriggerMode =
   | 'mention_or_keywords'
   | 'all'
   | 'mentions'
   | 'keywords'
   | 'off'
 
-export type WechatPersonalConnectionMode = 'direct_http' | 'reverse_tunnel'
-export type WechatPersonalChatFilterMode = 'all' | 'private_only' | 'group_only'
-export type WechatPersonalInboundMessageKind = 'text' | 'image' | 'voice' | 'unsupported'
-export type WechatPersonalSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
+export type WechatConnectionMode = 'direct_http' | 'reverse_tunnel'
+export type WechatChatFilterMode = 'all' | 'private_only' | 'group_only'
+export type WechatInboundMessageKind = 'text' | 'image' | 'voice' | 'unsupported'
+export type WechatSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
 
-export type WechatPersonalOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
+export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
 
-export type WechatPersonalWebhookCredentialRecord = PluginWebhookCredentialRecord
+export type WechatWebhookCredentialRecord = PluginWebhookCredentialRecord
 
-export interface WechatPersonalOutboundQueueOptions {
+export interface WechatOutboundQueueOptions {
   enabled?: boolean
   initialDelayMs?: number
   globalMinIntervalMs?: number
@@ -33,7 +33,7 @@ export interface WechatPersonalOutboundQueueOptions {
   maxAttempts?: number
   retryBackoffMs?: number[]
   lockTtlMs?: number
-  overflowAction?: WechatPersonalOutboundOverflowAction
+  overflowAction?: WechatOutboundOverflowAction
   failureGuard?: {
     threshold?: number
     windowSeconds?: number
@@ -46,38 +46,39 @@ export interface WechatPersonalOutboundQueueOptions {
   }>
 }
 
-export interface TIntegrationWechatPersonalOptions {
-  connectionMode?: WechatPersonalConnectionMode
+export interface TIntegrationWechatOptions {
+  connectionMode?: WechatConnectionMode
   baseUrl?: string
   tunnelClientId?: string
   apiVersion?: string
   timeoutMs?: number
   apiToken?: string
   preferLanguage?: 'en' | 'zh-Hans'
-  webhookCredential?: WechatPersonalWebhookCredentialRecord | null
+  webhookCredential?: WechatWebhookCredentialRecord | null
   fallbackToLegacySendText?: boolean
   fallbackToLegacySendImage?: boolean
-  outboundQueue?: WechatPersonalOutboundQueueOptions
+  outboundQueue?: WechatOutboundQueueOptions
 }
 
-export interface WechatPersonalInboundTriggerOptions {
+export interface WechatInboundTriggerOptions {
   ignoreSelfMessages?: boolean
-  selfMessagePolicy?: WechatPersonalSelfMessagePolicy
-  chatFilterMode?: WechatPersonalChatFilterMode
+  selfMessagePolicy?: WechatSelfMessagePolicy
+  chatFilterMode?: WechatChatFilterMode
   allowedContactIds?: string[] | string
   blockedContactIds?: string[] | string
   allowedGroupIds?: string[] | string
   blockedGroupIds?: string[] | string
   allowedSenderIds?: string[] | string
   blockedSenderIds?: string[] | string
-  groupTriggerMode?: WechatPersonalGroupTriggerMode
+  allowedKeywords?: string[] | string
+  groupTriggerMode?: WechatGroupTriggerMode
   groupKeywords?: string[] | string
   mentionFallbackNames?: string[] | string
 }
 
-export type WechatPersonalChatRequestFile = NonNullable<TChatRequestHuman['files']>[number]
+export type WechatChatRequestFile = NonNullable<TChatRequestHuman['files']>[number]
 
-export type WechatPersonalInboundFile = WechatPersonalChatRequestFile & {
+export type WechatInboundFile = WechatChatRequestFile & {
   id?: string
   fileUrl: string
   url?: string
@@ -94,7 +95,7 @@ export type WechatPersonalInboundFile = WechatPersonalChatRequestFile & {
   extension?: string
 }
 
-export interface WechatPersonalInboundImageRef {
+export interface WechatInboundImageRef {
   uuid: string
   newMsgId: string
   msgContent: string
@@ -109,7 +110,7 @@ export interface WechatPersonalInboundImageRef {
   originalName?: string
 }
 
-export interface WechatPersonalInboundVoiceRef {
+export interface WechatInboundVoiceRef {
   uuid: string
   newMsgId: string
   msgContent: string
@@ -127,7 +128,7 @@ export interface WechatPersonalInboundVoiceRef {
   byteLength?: number
 }
 
-export interface WechatPersonalInboundEvent {
+export interface WechatInboundEvent {
   source: 'legacy_callback' | 'message_webhook'
   uuid: string
   ownerWxid?: string
@@ -142,12 +143,12 @@ export interface WechatPersonalInboundEvent {
   chatType: 'private' | 'group'
   messageId: string
   msgType?: number
-  messageKind: WechatPersonalInboundMessageKind
+  messageKind: WechatInboundMessageKind
   content: string
   displayText?: string
-  files?: WechatPersonalInboundFile[]
-  imageRef?: WechatPersonalInboundImageRef
-  voiceRef?: WechatPersonalInboundVoiceRef
+  files?: WechatInboundFile[]
+  imageRef?: WechatInboundImageRef
+  voiceRef?: WechatInboundVoiceRef
   mediaSignature?: string
   timestamp: number
   isSelf: boolean
@@ -155,19 +156,19 @@ export interface WechatPersonalInboundEvent {
   rawPayload: unknown
 }
 
-export interface WechatPersonalDispatchableMessage extends WechatPersonalInboundEvent {
+export interface WechatDispatchableMessage extends WechatInboundEvent {
   input: string
   triggerReason: 'private' | 'group_all' | 'mention' | 'keyword'
 }
 
-export type WechatPersonalVoiceTranscriptionDecision = {
+export type WechatVoiceTranscriptionDecision = {
   triggerReason: 'private' | 'group_all' | 'mention' | 'keyword_candidate'
 }
 
 type Dict = Record<string, unknown>
 
-export function isWechatPersonalProviderValue(value: unknown): boolean {
-  return value === WECHAT_PERSONAL_PROVIDER_KEY
+export function isWechatProviderValue(value: unknown): boolean {
+  return value === WECHAT_PROVIDER_KEY
 }
 
 export function normalizeApiVersion(value: unknown): string {
@@ -191,18 +192,18 @@ export function normalizeBaseUrl(value: unknown): string {
   return value.trim().replace(/\/+$/, '')
 }
 
-export function normalizeWechatPersonalConnectionMode(value: unknown): WechatPersonalConnectionMode {
+export function normalizeWechatConnectionMode(value: unknown): WechatConnectionMode {
   return value === 'reverse_tunnel' ? 'reverse_tunnel' : 'direct_http'
 }
 
-export function normalizeChatFilterMode(value: unknown): WechatPersonalChatFilterMode {
+export function normalizeChatFilterMode(value: unknown): WechatChatFilterMode {
   return value === 'private_only' || value === 'group_only' ? value : 'all'
 }
 
 export function normalizeSelfMessagePolicy(
   value: unknown,
   legacyIgnoreSelfMessages?: unknown
-): WechatPersonalSelfMessagePolicy {
+): WechatSelfMessagePolicy {
   if (value === 'history_only' || value === 'ignore' || value === 'dispatch') {
     return value
   }
@@ -255,7 +256,7 @@ export function normalizeBoolean(value: unknown): boolean {
   return false
 }
 
-export function normalizeGroupTriggerMode(value: unknown): WechatPersonalGroupTriggerMode {
+export function normalizeGroupTriggerMode(value: unknown): WechatGroupTriggerMode {
   if (
     value === 'mention_or_keywords' ||
     value === 'all' ||
@@ -285,7 +286,7 @@ export function normalizeIdList(value: unknown): string[] {
   return Array.from(new Set(normalizeKeywords(value)))
 }
 
-export function normalizeWechatPersonalInboundPayload(payload: unknown): WechatPersonalInboundEvent | null {
+export function normalizeWechatInboundPayload(payload: unknown): WechatInboundEvent | null {
   const record = asRecord(payload)
   if (!record) {
     return null
@@ -302,32 +303,33 @@ export function normalizeWechatPersonalInboundPayload(payload: unknown): WechatP
   return null
 }
 
-export function shouldDispatchWechatPersonalMessage(
-  event: WechatPersonalInboundEvent,
-  options?: WechatPersonalInboundTriggerOptions
-): WechatPersonalDispatchableMessage | null {
+export function shouldDispatchWechatMessage(
+  event: WechatInboundEvent,
+  options?: WechatInboundTriggerOptions
+): WechatDispatchableMessage | null {
   const selfMessagePolicy = normalizeSelfMessagePolicy(options?.selfMessagePolicy, options?.ignoreSelfMessages)
   if (event.isSelf && selfMessagePolicy !== 'dispatch') {
     return null
   }
-  if (!matchesWechatPersonalMessageFilter(event, options)) {
+  if (!matchesWechatMessageFilter(event, options)) {
     return null
   }
-  if (!isWechatPersonalDispatchableMessageKind(event)) {
+  if (!isWechatDispatchableMessageKind(event)) {
     return null
   }
 
-  const input = normalizeWechatPersonalAgentInput(event)
+  const input = normalizeWechatAgentInput(event)
   if (!input && event.messageKind !== 'image') {
     return null
   }
 
   if (event.chatType !== 'group') {
-    return {
+    const dispatchable: WechatDispatchableMessage = {
       ...event,
       input,
       triggerReason: 'private'
     }
+    return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
   }
 
   const mode = normalizeGroupTriggerMode(options?.groupTriggerMode)
@@ -335,39 +337,42 @@ export function shouldDispatchWechatPersonalMessage(
     return null
   }
   if (mode === 'all') {
-    return {
+    const dispatchable: WechatDispatchableMessage = {
       ...event,
       input,
       triggerReason: 'group_all'
     }
+    return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
   }
 
   const mentioned = isMentioned(event, normalizeMentionFallbackNames(options?.mentionFallbackNames))
   const keyword = matchKeyword(input, normalizeKeywords(options?.groupKeywords))
 
   if ((mode === 'mentions' || mode === 'mention_or_keywords') && mentioned) {
-    return {
+    const dispatchable: WechatDispatchableMessage = {
       ...event,
       input: stripLeadingMention(input),
       triggerReason: 'mention'
     }
+    return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
   }
 
   if ((mode === 'keywords' || mode === 'mention_or_keywords') && keyword) {
-    return {
+    const dispatchable: WechatDispatchableMessage = {
       ...event,
       input,
       triggerReason: 'keyword'
     }
+    return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
   }
 
   return null
 }
 
-export function shouldAttemptWechatPersonalVoiceTranscription(
-  event: WechatPersonalInboundEvent,
-  options?: WechatPersonalInboundTriggerOptions
-): WechatPersonalVoiceTranscriptionDecision | null {
+export function shouldAttemptWechatVoiceTranscription(
+  event: WechatInboundEvent,
+  options?: WechatInboundTriggerOptions
+): WechatVoiceTranscriptionDecision | null {
   if (event.messageKind !== 'voice') {
     return null
   }
@@ -375,7 +380,7 @@ export function shouldAttemptWechatPersonalVoiceTranscription(
   if (event.isSelf && selfMessagePolicy !== 'dispatch') {
     return null
   }
-  if (!matchesWechatPersonalMessageFilter(event, options)) {
+  if (!matchesWechatMessageFilter(event, options)) {
     return null
   }
 
@@ -404,10 +409,21 @@ export function shouldAttemptWechatPersonalVoiceTranscription(
   return null
 }
 
-export function matchesWechatPersonalMessageFilter(
-  event: WechatPersonalInboundEvent,
+export function matchesWechatAllowedKeywords(
+  input: string,
+  options?: Pick<WechatInboundTriggerOptions, 'allowedKeywords'> | null
+): boolean {
+  const keywords = normalizeKeywords(options?.allowedKeywords)
+  if (!keywords.length) {
+    return true
+  }
+  return !!matchKeyword(input, keywords)
+}
+
+export function matchesWechatMessageFilter(
+  event: WechatInboundEvent,
   options?: Pick<
-    WechatPersonalInboundTriggerOptions,
+    WechatInboundTriggerOptions,
     | 'chatFilterMode'
     | 'allowedContactIds'
     | 'blockedContactIds'
@@ -503,7 +519,7 @@ function looksLikeLongBase64(value: string): boolean {
   return value.length > 512 && /^[A-Za-z0-9+/=\r\n]+$/.test(value)
 }
 
-function normalizeLegacyCallback(wrapper: Dict, rawPayload: unknown): WechatPersonalInboundEvent | null {
+function normalizeLegacyCallback(wrapper: Dict, rawPayload: unknown): WechatInboundEvent | null {
   const message = asRecord(wrapper.message)
   if (!message) {
     return null
@@ -588,7 +604,7 @@ function normalizeLegacyCallback(wrapper: Dict, rawPayload: unknown): WechatPers
   }
 }
 
-function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatPersonalInboundEvent | null {
+function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInboundEvent | null {
   const uuid = normalizeString(payload.uuid || payload.UUID)
   const ownerWxid = normalizeString(payload.ownerwxid || payload.ownerWxid || payload.Ownerwxid)
   const ownerInfo = asRecord(payload.ownerinfo || payload.ownerInfo || payload.Ownerinfo)
@@ -690,7 +706,7 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatPers
   }
 }
 
-export function normalizeWechatPersonalAgentInput(event: WechatPersonalInboundEvent): string {
+export function normalizeWechatAgentInput(event: WechatInboundEvent): string {
   if (event.messageKind === 'image') {
     return ''
   }
@@ -719,7 +735,7 @@ function isVoiceMessage(msgType: number | undefined): msgType is 34 {
   return msgType === 34
 }
 
-function resolveInboundMessageKind(msgType: number | undefined): WechatPersonalInboundMessageKind {
+function resolveInboundMessageKind(msgType: number | undefined): WechatInboundMessageKind {
   if (isImageMessage(msgType)) {
     return 'image'
   }
@@ -732,7 +748,7 @@ function resolveInboundMessageKind(msgType: number | undefined): WechatPersonalI
   return 'unsupported'
 }
 
-export function isWechatPersonalDispatchableMessageKind(event: WechatPersonalInboundEvent): boolean {
+export function isWechatDispatchableMessageKind(event: WechatInboundEvent): boolean {
   return event.messageKind === 'text' || event.messageKind === 'image' || event.messageKind === 'voice'
 }
 
@@ -748,7 +764,7 @@ function buildInboundImageRef(params: {
   isSelf?: boolean
   fileKey?: string
   originalName?: string
-}): WechatPersonalInboundImageRef | undefined {
+}): WechatInboundImageRef | undefined {
   if (!isImageMessage(params.msgType) || !params.uuid || !params.newMsgId || !params.contactId) {
     return undefined
   }
@@ -780,7 +796,7 @@ function buildInboundVoiceRef(params: {
   isSelf?: boolean
   fileKey?: string
   originalName?: string
-}): WechatPersonalInboundVoiceRef | undefined {
+}): WechatInboundVoiceRef | undefined {
   if (!isVoiceMessage(params.msgType) || !params.uuid || !params.newMsgId || !params.contactId) {
     return undefined
   }
@@ -805,12 +821,12 @@ function buildInboundVoiceRef(params: {
 
 function buildMediaSignature(params: {
   uuid: string
-  messageKind: WechatPersonalInboundMessageKind
+  messageKind: WechatInboundMessageKind
   messageId: string
   msgType?: number
   msgContent?: string
-  imageRef?: WechatPersonalInboundImageRef
-  voiceRef?: WechatPersonalInboundVoiceRef
+  imageRef?: WechatInboundImageRef
+  voiceRef?: WechatInboundVoiceRef
 }): string | undefined {
   if (params.messageKind !== 'image' && params.messageKind !== 'voice') {
     return undefined
@@ -844,7 +860,7 @@ function normalizeMentionFallbackNames(value: unknown): string[] {
   )
 }
 
-function isMentioned(event: WechatPersonalInboundEvent, fallbackNames: string[]): boolean {
+function isMentioned(event: WechatInboundEvent, fallbackNames: string[]): boolean {
   const ownerWxid = normalizeString(event.ownerWxid)
   if (ownerWxid && extractAtUserList(event.raw).includes(ownerWxid)) {
     return true
