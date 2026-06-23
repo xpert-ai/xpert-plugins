@@ -1,10 +1,27 @@
 import type { I18nObject, IDocumentSourceProvider, IIntegration } from '@metad/contracts'
 import { Injectable } from '@nestjs/common'
-import { DocumentSourceStrategy, IDocumentSourceStrategy, IntegrationPermission } from '@xpert-ai/plugin-sdk'
+import { DocumentSourceStrategy } from '@xpert-ai/plugin-sdk'
+import type { IDocumentSourceStrategy, IntegrationPermission } from '@xpert-ai/plugin-sdk'
 import { Document } from '@langchain/core/documents'
 import { DocumentSourceProviderCategoryEnum } from './contracts-compat.js'
 import { LarkClient } from './lark.client.js'
-import { iconImage, LarkDocumentsParams, LarkName } from './types.js'
+import { iconImage, LarkName } from './types.js'
+import type { LarkDocumentsParams, LarkFile } from './types.js'
+
+export function normalizeLarkDocxToken(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  const withoutQuery = trimmed.split(/[?#]/)[0]
+  const docxMatch = withoutQuery.match(/(?:^|\/)docx\/([^/]+)/)
+  if (docxMatch?.[1]) {
+    return docxMatch[1]
+  }
+
+  return withoutQuery
+}
 
 @DocumentSourceStrategy(LarkName)
 @Injectable()
@@ -38,6 +55,17 @@ export class LarkSourceStrategy implements IDocumentSourceStrategy<LarkDocuments
             zh_Hans: '从中获取文档的文件夹 Token。'
           } as I18nObject
         },
+        documentId: {
+          type: 'string',
+          title: {
+            en_US: 'Document ID / Docx Token',
+            zh_Hans: '文档 ID / Docx Token'
+          } as I18nObject,
+          description: {
+            en_US: 'A single Lark document ID, docx token, docx/<token>, or full docx URL.',
+            zh_Hans: '单个飞书文档 ID、Docx Token、docx/<token> 或完整 docx 链接。'
+          } as I18nObject
+        },
         /**
          * 文件类型。可选值有：
           doc：旧版文档
@@ -68,7 +96,7 @@ export class LarkSourceStrategy implements IDocumentSourceStrategy<LarkDocuments
           minItems: 0
         }
       },
-      required: ['folderToken']
+      required: []
     },
     icon: {
       type: 'image',
@@ -78,8 +106,8 @@ export class LarkSourceStrategy implements IDocumentSourceStrategy<LarkDocuments
   }
 
   async validateConfig(config: LarkDocumentsParams): Promise<void> {
-    if (!config.folderToken) {
-      throw new Error('Folder Token is required')
+    if (!normalizeLarkDocxToken(config.documentId) && !config.folderToken?.trim()) {
+      throw new Error('Document ID or Folder Token is required')
     }
   }
 
@@ -95,26 +123,42 @@ export class LarkSourceStrategy implements IDocumentSourceStrategy<LarkDocuments
 
     await this.validateConfig(config)
 
+    const documentId = normalizeLarkDocxToken(config.documentId)
+    if (documentId) {
+      return [this.createDocument({
+        token: documentId,
+        name: `Lark Document ${documentId}`,
+        type: 'docx'
+      })]
+    }
+
+    const folderToken = config.folderToken?.trim()
+    if (!folderToken) {
+      throw new Error('Folder Token is required')
+    }
+
     const client = new LarkClient(integration)
-    const children = await client.listDriveFiles(config.folderToken)
+    const children = await client.listDriveFiles(folderToken)
 
     const documents: Document[] = children
       .filter((item) => config.types ? config.types.includes(item.type) : true)
-      .map((item) => {
-        return new Document({
-          id: item.token,
-          pageContent: `${item.name}\n${item.url}`,
-          metadata: {
-            ...item,
-            chunkId: item.token,
-            title: item.name,
-            url: item.url,
-            createdAt: item.created_time
-          }
-        })
-      })
+      .map((item) => this.createDocument(item))
 
     return documents
+  }
+
+  private createDocument(item: LarkFile): Document {
+    return new Document({
+      id: item.token,
+      pageContent: `${item.name}\n${item.url ?? ''}`,
+      metadata: {
+        ...item,
+        chunkId: item.token,
+        title: item.name,
+        url: item.url,
+        createdAt: item.created_time
+      }
+    })
   }
 
   async loadDocument?(document: Document, context: { integration?: IIntegration }): Promise<Document> {
