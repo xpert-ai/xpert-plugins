@@ -1,4 +1,5 @@
-import { ChatOpenAIFields, ClientOptions } from '@langchain/openai'
+import { BaseMessage, BaseMessageChunk, isAIMessage, isAIMessageChunk } from '@langchain/core/messages'
+import { ChatOpenAIFields, ClientOptions, OpenAIClient } from '@langchain/openai'
 import {
   AIModelEntity,
   AiModelTypeEnum,
@@ -16,6 +17,7 @@ import {
   LargeLanguageModel,
   TChatModelOptions
 } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'node:crypto'
 import { OpenAICompatModelCredentials, toCredentialKwargs } from '../types.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
 
@@ -23,6 +25,65 @@ export type TOAIAPICompatLLMParams = ChatOpenAIFields & { configuration: ClientO
 
 function toBoolean(value: unknown): boolean {
   return value === true || value === 'true' || value === 1 || value === '1'
+}
+
+export class StableOpenAICompatibleChatModel extends ChatOAICompatReasoningModel {
+  private activeStreamResponseId: string | null = null
+
+  protected override _convertCompletionsDeltaToBaseMessageChunk(
+    delta: Record<string, unknown>,
+    rawResponse: OpenAIClient.ChatCompletionChunk,
+    defaultRole?: 'function' | 'user' | 'system' | 'developer' | 'assistant' | 'tool'
+  ): BaseMessageChunk {
+    if (isPlaceholderChatCompletionId(rawResponse.id) && delta.role) {
+      this.activeStreamResponseId = this.createResponseMessageId(rawResponse.id)
+    }
+
+    const messageChunk = super._convertCompletionsDeltaToBaseMessageChunk(delta, rawResponse, defaultRole)
+    if (isAIMessageChunk(messageChunk)) {
+      messageChunk._updateId(this.getResponseMessageId(rawResponse.id))
+      if (this.isStreamFinished(rawResponse)) {
+        this.activeStreamResponseId = null
+      }
+    }
+
+    return messageChunk
+  }
+
+  protected override _convertCompletionsMessageToBaseMessage(
+    message: OpenAIClient.ChatCompletionMessage,
+    rawResponse: OpenAIClient.ChatCompletion
+  ): BaseMessage {
+    const langChainMessage = super._convertCompletionsMessageToBaseMessage(message, rawResponse)
+    if (isAIMessage(langChainMessage)) {
+      langChainMessage._updateId(
+        isPlaceholderChatCompletionId(rawResponse.id) ? this.createResponseMessageId(rawResponse.id) : rawResponse.id
+      )
+    }
+
+    return langChainMessage
+  }
+
+  private getResponseMessageId(responseId?: string | null) {
+    if (!isPlaceholderChatCompletionId(responseId)) {
+      return responseId
+    }
+
+    this.activeStreamResponseId ??= this.createResponseMessageId(responseId)
+    return this.activeStreamResponseId
+  }
+
+  private createResponseMessageId(responseId?: string | null) {
+    return `${responseId ?? 'chatcmpl'}-${randomUUID()}`
+  }
+
+  private isStreamFinished(rawResponse: OpenAIClient.ChatCompletionChunk) {
+    return rawResponse.choices.some((choice) => choice.finish_reason != null)
+  }
+}
+
+function isPlaceholderChatCompletionId(responseId?: string | null) {
+  return responseId === 'chatcmpl'
 }
 
 @Injectable()
@@ -55,7 +116,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
     /**
      * @todo ChatOpenAICompletions vs ChatOpenAI
      */
-    return new ChatOAICompatReasoningModel(params)
+    return new StableOpenAICompatibleChatModel(params)
   }
 
   override getChatModel(
