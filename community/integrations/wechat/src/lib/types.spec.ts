@@ -1,21 +1,22 @@
 import {
-  matchesWechatPersonalMessageFilter,
-  normalizeWechatPersonalConnectionMode,
-  normalizeWechatPersonalInboundPayload,
-  shouldAttemptWechatPersonalVoiceTranscription,
-  shouldDispatchWechatPersonalMessage,
+  matchesWechatAllowedKeywords,
+  matchesWechatMessageFilter,
+  normalizeWechatConnectionMode,
+  normalizeWechatInboundPayload,
+  shouldAttemptWechatVoiceTranscription,
+  shouldDispatchWechatMessage,
   summarizePayload
 } from './types.js'
 import {
-  resolveWechatPersonalConversationIdentity,
-  resolveWechatPersonalConversationUserKey
+  resolveWechatConversationIdentity,
+  resolveWechatConversationUserKey
 } from './conversation-user-key.js'
 
-describe('wechat personal inbound normalization', () => {
+describe('wechat inbound normalization', () => {
   it('normalizes connection mode for backward compatible integrations', () => {
-    expect(normalizeWechatPersonalConnectionMode('reverse_tunnel')).toBe('reverse_tunnel')
-    expect(normalizeWechatPersonalConnectionMode('direct_http')).toBe('direct_http')
-    expect(normalizeWechatPersonalConnectionMode(undefined)).toBe('direct_http')
+    expect(normalizeWechatConnectionMode('reverse_tunnel')).toBe('reverse_tunnel')
+    expect(normalizeWechatConnectionMode('direct_http')).toBe('direct_http')
+    expect(normalizeWechatConnectionMode(undefined)).toBe('direct_http')
   })
 
   it('redacts image bytes from payload summaries', () => {
@@ -41,7 +42,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes legacy per-account callback wrapper', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       key: 'uuid-1',
       type: 'message',
       message: {
@@ -72,7 +73,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes legacy wrapper image messages from explicit msg_type=3', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       key: 'uuid-1',
       type: 'message',
       message: {
@@ -115,7 +116,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes global webhook payload', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -145,7 +146,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes global webhook image payloads from explicit msgtype=3', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -199,7 +200,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes legacy wrapper voice messages from explicit msg_type=34', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       key: 'uuid-1',
       type: 'message',
       message: {
@@ -248,7 +249,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('normalizes global webhook voice payloads from explicit msgtype=34', () => {
-    const event = normalizeWechatPersonalInboundPayload({
+    const event = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -298,7 +299,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('filters self, empty, unsupported media, and non-triggered group messages without inferring image display text', () => {
-    const base = normalizeWechatPersonalInboundPayload({
+    const base = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'wxid_friend',
       sendusername: 'wxid_friend',
@@ -308,16 +309,16 @@ describe('wechat personal inbound normalization', () => {
       isself: false
     })
 
-    expect(shouldDispatchWechatPersonalMessage({ ...base, isSelf: true })).toBeNull()
-    expect(shouldDispatchWechatPersonalMessage({ ...base, isSelf: true }, { ignoreSelfMessages: false })?.triggerReason).toBe(
+    expect(shouldDispatchWechatMessage({ ...base, isSelf: true })).toBeNull()
+    expect(shouldDispatchWechatMessage({ ...base, isSelf: true }, { ignoreSelfMessages: false })?.triggerReason).toBe(
       'private'
     )
-    expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[图片]' })).toBeNull()
-    expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[语音]' })).toBeNull()
-    expect(shouldDispatchWechatPersonalMessage({ ...base, content: '[语音]', displayText: '[语音]' })).toBeNull()
-    expect(shouldDispatchWechatPersonalMessage({ ...base, msgType: 43, messageKind: 'unsupported' })).toBeNull()
+    expect(shouldDispatchWechatMessage({ ...base, content: '[图片]' })).toBeNull()
+    expect(shouldDispatchWechatMessage({ ...base, content: '[语音]' })).toBeNull()
+    expect(shouldDispatchWechatMessage({ ...base, content: '[语音]', displayText: '[语音]' })).toBeNull()
+    expect(shouldDispatchWechatMessage({ ...base, msgType: 43, messageKind: 'unsupported' })).toBeNull()
     expect(
-      shouldDispatchWechatPersonalMessage(
+      shouldDispatchWechatMessage(
         {
           ...base,
           contactId: 'room@chatroom',
@@ -334,7 +335,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('uses trigger policy to decide whether voice should be transcribed', () => {
-    const privateVoice = normalizeWechatPersonalInboundPayload({
+    const privateVoice = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'wxid_friend',
       sendusername: 'wxid_friend',
@@ -344,10 +345,10 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 34,
       isself: false
     })
-    expect(shouldDispatchWechatPersonalMessage(privateVoice)).toBeNull()
-    expect(shouldAttemptWechatPersonalVoiceTranscription(privateVoice)?.triggerReason).toBe('private')
+    expect(shouldDispatchWechatMessage(privateVoice)).toBeNull()
+    expect(shouldAttemptWechatVoiceTranscription(privateVoice)?.triggerReason).toBe('private')
 
-    const groupVoice = normalizeWechatPersonalInboundPayload({
+    const groupVoice = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -358,19 +359,19 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 34,
       isself: false
     })
-    expect(shouldAttemptWechatPersonalVoiceTranscription(groupVoice, { groupTriggerMode: 'off' })).toBeNull()
-    expect(shouldAttemptWechatPersonalVoiceTranscription(groupVoice, { groupTriggerMode: 'all' })?.triggerReason).toBe(
+    expect(shouldAttemptWechatVoiceTranscription(groupVoice, { groupTriggerMode: 'off' })).toBeNull()
+    expect(shouldAttemptWechatVoiceTranscription(groupVoice, { groupTriggerMode: 'all' })?.triggerReason).toBe(
       'group_all'
     )
-    expect(shouldAttemptWechatPersonalVoiceTranscription(groupVoice, { groupTriggerMode: 'mentions' })).toBeNull()
+    expect(shouldAttemptWechatVoiceTranscription(groupVoice, { groupTriggerMode: 'mentions' })).toBeNull()
     expect(
-      shouldAttemptWechatPersonalVoiceTranscription(groupVoice, {
+      shouldAttemptWechatVoiceTranscription(groupVoice, {
         groupTriggerMode: 'keywords',
         groupKeywords: ['总结']
       })?.triggerReason
     ).toBe('keyword_candidate')
 
-    const mentionedVoice = normalizeWechatPersonalInboundPayload({
+    const mentionedVoice = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -383,14 +384,14 @@ describe('wechat personal inbound normalization', () => {
       newmsgid: 'voice-3'
     })
     expect(
-      shouldAttemptWechatPersonalVoiceTranscription(mentionedVoice, {
+      shouldAttemptWechatVoiceTranscription(mentionedVoice, {
         groupTriggerMode: 'mentions'
       })?.triggerReason
     ).toBe('mention')
   })
 
   it('dispatches private, group mention, group keyword, and explicit image messages', () => {
-    const privateEvent = normalizeWechatPersonalInboundPayload({
+    const privateEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'wxid_friend',
       sendusername: 'wxid_friend',
@@ -399,9 +400,9 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 1,
       isself: false
     })
-    expect(shouldDispatchWechatPersonalMessage(privateEvent)?.triggerReason).toBe('private')
+    expect(shouldDispatchWechatMessage(privateEvent)?.triggerReason).toBe('private')
 
-    const mentionEvent = normalizeWechatPersonalInboundPayload({
+    const mentionEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -412,13 +413,13 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 1,
       isself: false
     })
-    const mention = shouldDispatchWechatPersonalMessage(mentionEvent, {
+    const mention = shouldDispatchWechatMessage(mentionEvent, {
       groupTriggerMode: 'mention_or_keywords'
     })
     expect(mention?.triggerReason).toBe('mention')
     expect(mention?.input).toBe('帮我看一下')
 
-    const keywordEvent = normalizeWechatPersonalInboundPayload({
+    const keywordEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'room@chatroom',
       sendusername: 'wxid_sender',
@@ -428,13 +429,13 @@ describe('wechat personal inbound normalization', () => {
       isself: false
     })
     expect(
-      shouldDispatchWechatPersonalMessage(keywordEvent, {
+      shouldDispatchWechatMessage(keywordEvent, {
         groupTriggerMode: 'keywords',
         groupKeywords: ['小助手']
       })?.triggerReason
     ).toBe('keyword')
 
-    const privateImageEvent = normalizeWechatPersonalInboundPayload({
+    const privateImageEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'wxid_friend',
       sendusername: 'wxid_friend',
@@ -444,11 +445,11 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 3,
       isself: false
     })
-    const privateImage = shouldDispatchWechatPersonalMessage(privateImageEvent)
+    const privateImage = shouldDispatchWechatMessage(privateImageEvent)
     expect(privateImage?.triggerReason).toBe('private')
     expect(privateImage?.input).toBe('')
 
-    const groupImageEvent = normalizeWechatPersonalInboundPayload({
+    const groupImageEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -459,25 +460,25 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 3,
       isself: false
     })
-    const groupImage = shouldDispatchWechatPersonalMessage(groupImageEvent, {
+    const groupImage = shouldDispatchWechatMessage(groupImageEvent, {
       groupTriggerMode: 'all'
     })
     expect(groupImage?.triggerReason).toBe('group_all')
     expect(groupImage?.input).toBe('')
     expect(
-      shouldDispatchWechatPersonalMessage(groupImageEvent, {
+      shouldDispatchWechatMessage(groupImageEvent, {
         groupTriggerMode: 'keywords',
         groupKeywords: ['XpertAI']
       })
     ).toBeNull()
     expect(
-      shouldDispatchWechatPersonalMessage(groupImageEvent, {
+      shouldDispatchWechatMessage(groupImageEvent, {
         groupTriggerMode: 'mention_or_keywords',
         groupKeywords: ['小助手']
       })
     ).toBeNull()
 
-    const mentionedImageEvent = normalizeWechatPersonalInboundPayload({
+    const mentionedImageEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -488,15 +489,100 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 3,
       isself: false
     })
-    const mentionedImage = shouldDispatchWechatPersonalMessage(mentionedImageEvent, {
+    const mentionedImage = shouldDispatchWechatMessage(mentionedImageEvent, {
       groupTriggerMode: 'mentions'
     })
     expect(mentionedImage?.triggerReason).toBe('mention')
     expect(mentionedImage?.input).toBe('')
   })
 
+  it('applies allowed keyword filtering after normal trigger routing', () => {
+    const privateEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      contactid: 'wxid_friend',
+      sendusername: 'wxid_friend',
+      content: 'Please Handle this order',
+      newmsgid: '4101',
+      msgtype: 1,
+      isself: false
+    })
+    expect(
+      shouldDispatchWechatMessage(privateEvent, {
+        allowedKeywords: ['handle']
+      })?.triggerReason
+    ).toBe('private')
+    expect(
+      shouldDispatchWechatMessage(privateEvent, {
+        allowedKeywords: ['missing']
+      })
+    ).toBeNull()
+    expect(
+      shouldDispatchWechatMessage(privateEvent, {
+        allowedKeywords: []
+      })?.triggerReason
+    ).toBe('private')
+
+    const mentionEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      content: '@小白龙 请处理订单',
+      msgsource: '<msgsource><atuserlist><![CDATA[wxid_owner]]></atuserlist></msgsource>',
+      newmsgid: '4102',
+      msgtype: 1,
+      isself: false
+    })
+    expect(
+      shouldDispatchWechatMessage(mentionEvent, {
+        groupTriggerMode: 'mentions',
+        allowedKeywords: ['处理']
+      })?.triggerReason
+    ).toBe('mention')
+    expect(
+      shouldDispatchWechatMessage(mentionEvent, {
+        groupTriggerMode: 'mentions',
+        allowedKeywords: ['missing']
+      })
+    ).toBeNull()
+
+    const imageEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      contactid: 'wxid_friend',
+      sendusername: 'wxid_friend',
+      content: '<msg><img aeskey="download-token" /></msg>',
+      pushcontent: '[图片]',
+      newmsgid: '4103',
+      msgtype: 3,
+      isself: false
+    })
+    expect(
+      shouldDispatchWechatMessage(imageEvent, {
+        allowedKeywords: ['图片']
+      })
+    ).toBeNull()
+
+    const voiceEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      contactid: 'wxid_friend',
+      sendusername: 'wxid_friend',
+      content: '<msg><voicemsg /></msg>',
+      pushcontent: '[语音]',
+      newmsgid: '4104',
+      msgtype: 34,
+      isself: false
+    })
+    expect(
+      shouldAttemptWechatVoiceTranscription(voiceEvent, {
+        allowedKeywords: ['总结']
+      })?.triggerReason
+    ).toBe('private')
+    expect(matchesWechatAllowedKeywords('请总结这段语音', { allowedKeywords: ['总结'] })).toBe(true)
+    expect(matchesWechatAllowedKeywords('请看一下', { allowedKeywords: ['总结'] })).toBe(false)
+  })
+
   it('filters by chat type, group ids, contact ids, and sender ids', () => {
-    const privateEvent = normalizeWechatPersonalInboundPayload({
+    const privateEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       contactid: 'wxid_friend',
       sendusername: 'wxid_friend',
@@ -505,7 +591,7 @@ describe('wechat personal inbound normalization', () => {
       msgtype: 1,
       isself: false
     })
-    const groupEvent = normalizeWechatPersonalInboundPayload({
+    const groupEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -517,17 +603,17 @@ describe('wechat personal inbound normalization', () => {
       isself: false
     })
 
-    expect(matchesWechatPersonalMessageFilter(privateEvent, { chatFilterMode: 'group_only' })).toBe(false)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { chatFilterMode: 'group_only' })).toBe(true)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { allowedGroupIds: ['other@chatroom'] })).toBe(false)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { allowedGroupIds: ['room@chatroom'] })).toBe(true)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { blockedGroupIds: ['room@chatroom'] })).toBe(false)
-    expect(matchesWechatPersonalMessageFilter(privateEvent, { allowedContactIds: ['wxid_friend'] })).toBe(true)
-    expect(matchesWechatPersonalMessageFilter(privateEvent, { blockedContactIds: ['wxid_friend'] })).toBe(false)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { allowedSenderIds: ['wxid_sender'] })).toBe(true)
-    expect(matchesWechatPersonalMessageFilter(groupEvent, { blockedSenderIds: ['wxid_sender'] })).toBe(false)
+    expect(matchesWechatMessageFilter(privateEvent, { chatFilterMode: 'group_only' })).toBe(false)
+    expect(matchesWechatMessageFilter(groupEvent, { chatFilterMode: 'group_only' })).toBe(true)
+    expect(matchesWechatMessageFilter(groupEvent, { allowedGroupIds: ['other@chatroom'] })).toBe(false)
+    expect(matchesWechatMessageFilter(groupEvent, { allowedGroupIds: ['room@chatroom'] })).toBe(true)
+    expect(matchesWechatMessageFilter(groupEvent, { blockedGroupIds: ['room@chatroom'] })).toBe(false)
+    expect(matchesWechatMessageFilter(privateEvent, { allowedContactIds: ['wxid_friend'] })).toBe(true)
+    expect(matchesWechatMessageFilter(privateEvent, { blockedContactIds: ['wxid_friend'] })).toBe(false)
+    expect(matchesWechatMessageFilter(groupEvent, { allowedSenderIds: ['wxid_sender'] })).toBe(true)
+    expect(matchesWechatMessageFilter(groupEvent, { blockedSenderIds: ['wxid_sender'] })).toBe(false)
     expect(
-      shouldDispatchWechatPersonalMessage(groupEvent, {
+      shouldDispatchWechatMessage(groupEvent, {
         chatFilterMode: 'group_only',
         allowedGroupIds: ['room@chatroom'],
         groupTriggerMode: 'mentions'
@@ -536,7 +622,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('only uses configured display names for loose @ mention fallback', () => {
-    const groupEvent = normalizeWechatPersonalInboundPayload({
+    const groupEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
       ownerwxid: 'wxid_owner',
       contactid: 'room@chatroom',
@@ -548,18 +634,18 @@ describe('wechat personal inbound normalization', () => {
     })
 
     expect(
-      shouldDispatchWechatPersonalMessage(groupEvent, {
+      shouldDispatchWechatMessage(groupEvent, {
         groupTriggerMode: 'mentions'
       })
     ).toBeNull()
-    const mention = shouldDispatchWechatPersonalMessage(groupEvent, {
+    const mention = shouldDispatchWechatMessage(groupEvent, {
       groupTriggerMode: 'mentions',
       mentionFallbackNames: ['小白龙']
     })
     expect(mention?.triggerReason).toBe('mention')
     expect(mention?.input).toBe('帮我看一下')
     expect(
-      shouldDispatchWechatPersonalMessage(groupEvent, {
+      shouldDispatchWechatMessage(groupEvent, {
         groupTriggerMode: 'mentions',
         mentionFallbackNames: ['小白']
       })
@@ -568,7 +654,7 @@ describe('wechat personal inbound normalization', () => {
 
   it('builds conversation key with group sender split', () => {
     expect(
-      resolveWechatPersonalConversationUserKey({
+      resolveWechatConversationUserKey({
         integrationId: 'integration-1',
         uuid: 'uuid-1',
         contactId: 'room@chatroom',
@@ -578,7 +664,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('builds private self-message keys from the real peer contact', () => {
-    const keyA = resolveWechatPersonalConversationIdentity({
+    const keyA = resolveWechatConversationIdentity({
       integrationId: 'integration-1',
       uuid: 'uuid-1',
       ownerWxid: 'wxid_owner',
@@ -589,7 +675,7 @@ describe('wechat personal inbound normalization', () => {
       chatType: 'private',
       isSelf: true
     })
-    const keyB = resolveWechatPersonalConversationIdentity({
+    const keyB = resolveWechatConversationIdentity({
       integrationId: 'integration-1',
       uuid: 'uuid-1',
       ownerWxid: 'wxid_owner',
@@ -613,7 +699,7 @@ describe('wechat personal inbound normalization', () => {
   })
 
   it('keeps group conversations split by room and sender including self messages', () => {
-    const senderA = resolveWechatPersonalConversationIdentity({
+    const senderA = resolveWechatConversationIdentity({
       integrationId: 'integration-1',
       uuid: 'uuid-1',
       ownerWxid: 'wxid_owner',
@@ -622,7 +708,7 @@ describe('wechat personal inbound normalization', () => {
       chatType: 'group',
       isSelf: false
     })
-    const senderB = resolveWechatPersonalConversationIdentity({
+    const senderB = resolveWechatConversationIdentity({
       integrationId: 'integration-1',
       uuid: 'uuid-1',
       ownerWxid: 'wxid_owner',
@@ -631,7 +717,7 @@ describe('wechat personal inbound normalization', () => {
       chatType: 'group',
       isSelf: false
     })
-    const self = resolveWechatPersonalConversationIdentity({
+    const self = resolveWechatConversationIdentity({
       integrationId: 'integration-1',
       uuid: 'uuid-1',
       ownerWxid: 'wxid_owner',

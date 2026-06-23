@@ -6,7 +6,7 @@ export function normalizeConversationKey(value: unknown): string | undefined {
   return text || undefined
 }
 
-export type WechatPersonalConversationIdentity = {
+export type WechatConversationIdentity = {
   integrationId: string
   uuid: string
   contactId: string
@@ -15,7 +15,7 @@ export type WechatPersonalConversationIdentity = {
   conversationUserKey: string
 }
 
-export function resolveWechatPersonalConversationIdentity(params: {
+export function resolveWechatConversationIdentity(params: {
   integrationId: string
   uuid: string
   contactId?: string | null
@@ -25,7 +25,7 @@ export function resolveWechatPersonalConversationIdentity(params: {
   toUser?: string | null
   chatType?: 'private' | 'group' | null
   isSelf?: boolean | null
-}): WechatPersonalConversationIdentity | undefined {
+}): WechatConversationIdentity | undefined {
   const integrationId = normalizeConversationKey(params.integrationId)
   const uuid = normalizeConversationKey(params.uuid)
   if (!integrationId || !uuid) {
@@ -80,7 +80,7 @@ export function resolveWechatPersonalConversationIdentity(params: {
   }
 }
 
-export function resolveWechatPersonalConversationUserKey(params: {
+export function resolveWechatConversationUserKey(params: {
   integrationId: string
   uuid: string
   contactId?: string | null
@@ -91,10 +91,10 @@ export function resolveWechatPersonalConversationUserKey(params: {
   chatType?: 'private' | 'group' | null
   isSelf?: boolean | null
 }): string | undefined {
-  return resolveWechatPersonalConversationIdentity(params)?.conversationUserKey
+  return resolveWechatConversationIdentity(params)?.conversationUserKey
 }
 
-export function parseWechatPersonalConversationUserKey(value: unknown):
+export function parseWechatConversationUserKey(value: unknown):
   | {
       integrationId: string
       uuid: string

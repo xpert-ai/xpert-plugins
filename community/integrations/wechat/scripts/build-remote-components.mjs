@@ -7,7 +7,7 @@ import { build, transform } from 'esbuild'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
-const componentNames = ['wechat-personal-workbench']
+const componentNames = ['wechat-workbench']
 const sourceExtensions = new Set(['.ts', '.tsx'])
 const requireFromPackage = createRequire(join(packageRoot, 'package.json'))
 

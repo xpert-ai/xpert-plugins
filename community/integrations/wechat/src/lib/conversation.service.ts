@@ -15,42 +15,43 @@ import { IIntegration, type IPagination } from '@xpert-ai/contracts'
 import { LessThan, Like, MoreThan, Repository } from 'typeorm'
 import {
   normalizeConversationKey,
-  parseWechatPersonalConversationUserKey,
-  resolveWechatPersonalConversationIdentity,
-  type WechatPersonalConversationIdentity
+  parseWechatConversationUserKey,
+  resolveWechatConversationIdentity,
+  type WechatConversationIdentity
 } from './conversation-user-key.js'
 import {
-  isWechatPersonalDispatchableMessageKind,
-  matchesWechatPersonalMessageFilter,
+  isWechatDispatchableMessageKind,
+  matchesWechatAllowedKeywords,
+  matchesWechatMessageFilter,
   normalizeSelfMessagePolicy,
   normalizeString,
-  normalizeWechatPersonalAgentInput,
+  normalizeWechatAgentInput,
   summarizePayload,
-  shouldAttemptWechatPersonalVoiceTranscription,
-  shouldDispatchWechatPersonalMessage,
-  TIntegrationWechatPersonalOptions,
-  WechatPersonalInboundEvent,
-  WechatPersonalInboundFile,
-  WechatPersonalInboundTriggerOptions
+  shouldAttemptWechatVoiceTranscription,
+  shouldDispatchWechatMessage,
+  TIntegrationWechatOptions,
+  WechatInboundEvent,
+  WechatInboundFile,
+  WechatInboundTriggerOptions
 } from './types.js'
 import {
-  WechatPersonalTunnelBrokerService,
-  WechatPersonalTunnelStatus
-} from './wechat-personal-tunnel-broker.service.js'
-import { WECHAT_PERSONAL_PLUGIN_CONTEXT } from './tokens.js'
-import { WECHAT_PERSONAL_PROVIDER_KEY } from './constants.js'
-import { WechatPersonalMessage } from './message.js'
-import { WechatPersonalChannelStrategy } from './wechat-personal-channel.strategy.js'
-import { WechatPersonalClient } from './wechat-personal.client.js'
+  WechatTunnelBrokerService,
+  WechatTunnelStatus
+} from './wechat-tunnel-broker.service.js'
+import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
+import { WECHAT_PROVIDER_KEY } from './constants.js'
+import { WechatMessage } from './message.js'
+import { WechatChannelStrategy } from './wechat-channel.strategy.js'
+import { WechatClient } from './wechat.client.js'
 import {
-  WechatPersonalAccountEntity,
-  WechatPersonalConversationBindingEntity,
-  WechatPersonalMessageDirection,
-  WechatPersonalMessageLogEntity,
-  WechatPersonalMessageLogStatus
+  WechatAccountEntity,
+  WechatConversationBindingEntity,
+  WechatMessageDirection,
+  WechatMessageLogEntity,
+  WechatMessageLogStatus
 } from './entities/index.js'
-import { WechatPersonalTriggerStrategy } from './workflow/wechat-personal-trigger.strategy.js'
-import { WechatPersonalChatCallbackContext } from './handoff/wechat-personal-chat.types.js'
+import { WechatTriggerStrategy } from './workflow/wechat-trigger.strategy.js'
+import { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -61,17 +62,17 @@ const HISTORY_CONTEXT_ITEM_MAX_CHARS = 1000
 const HISTORY_CONTEXT_TOTAL_MAX_CHARS = 12000
 const HISTORY_CONTEXT_RESET_CONTENT = 'history_context_reset'
 
-type WechatPersonalTenantScope = {
+type WechatTenantScope = {
   tenantId?: string | null
   organizationId?: string | null
 }
 
-type WechatPersonalConversationState = {
+type WechatConversationState = {
   conversationId: string
   lastActiveAt?: Date
 }
 
-export type WechatPersonalCallbackConfig = {
+export type WechatCallbackConfig = {
   webhookUrl: string
   globalWebhookUrl: string
   setCallbackUrlTemplate: string
@@ -79,25 +80,25 @@ export type WechatPersonalCallbackConfig = {
   credentialActive?: boolean
 }
 
-type WechatPersonalWebhookCredentialResult = {
+type WechatWebhookCredentialResult = {
   token: string
   credential?: unknown
 }
 
-type WechatPersonalIntegrationPermissionServiceWithWebhookCredential = IntegrationPermissionService & {
+type WechatIntegrationPermissionServiceWithWebhookCredential = IntegrationPermissionService & {
   ensureWebhookCredential?: (
     id: string,
     options?: {
       provider?: string | null
       rotateIfRevoked?: boolean
     }
-  ) => Promise<WechatPersonalWebhookCredentialResult | null>
+  ) => Promise<WechatWebhookCredentialResult | null>
   rotateWebhookCredential?: (
     id: string,
     options?: {
       provider?: string | null
     }
-  ) => Promise<WechatPersonalWebhookCredentialResult | null>
+  ) => Promise<WechatWebhookCredentialResult | null>
   revokeWebhookCredential?: (
     id: string,
     options?: {
@@ -106,7 +107,7 @@ type WechatPersonalIntegrationPermissionServiceWithWebhookCredential = Integrati
   ) => Promise<boolean>
 }
 
-export type WechatPersonalConversationListItem = {
+export type WechatConversationListItem = {
   id: string
   integrationId: string
   uuid: string
@@ -118,25 +119,25 @@ export type WechatPersonalConversationListItem = {
   updatedAt: Date | null
 }
 
-export type WechatPersonalIntegrationWorkbenchItem = {
+export type WechatIntegrationWorkbenchItem = {
   id: string
   name?: string
   description?: string
   slug?: string
-  callbackConfig: WechatPersonalCallbackConfig
+  callbackConfig: WechatCallbackConfig
   accountCount: number
   conversationCount: number
   recentMessageCount: number
   errorCount: number
-  config: Partial<TIntegrationWechatPersonalOptions>
-  tunnel?: WechatPersonalTunnelStatus
+  config: Partial<TIntegrationWechatOptions>
+  tunnel?: WechatTunnelStatus
 }
 
-export type WechatPersonalWorkbenchData = {
+export type WechatWorkbenchData = {
   scope?: 'integration' | 'organization'
   integrationId?: string | null
-  integrations?: WechatPersonalIntegrationWorkbenchItem[]
-  callbackConfig: WechatPersonalCallbackConfig
+  integrations?: WechatIntegrationWorkbenchItem[]
+  callbackConfig: WechatCallbackConfig
   summary: {
     integrationCount?: number
     accountCount: number
@@ -144,38 +145,38 @@ export type WechatPersonalWorkbenchData = {
     recentMessageCount: number
     errorCount: number
   }
-  accounts: WechatPersonalAccountEntity[]
-  conversations: WechatPersonalConversationListItem[]
-  messages: WechatPersonalMessageLogEntity[]
-  queue: WechatPersonalMessageLogEntity[]
-  logs: WechatPersonalMessageLogEntity[]
-  tables?: Partial<Record<WechatPersonalWorkbenchTableKey, WechatPersonalWorkbenchTableResult>>
-  config: Partial<TIntegrationWechatPersonalOptions>
-  tunnel?: WechatPersonalTunnelStatus
+  accounts: WechatAccountEntity[]
+  conversations: WechatConversationListItem[]
+  messages: WechatMessageLogEntity[]
+  queue: WechatMessageLogEntity[]
+  logs: WechatMessageLogEntity[]
+  tables?: Partial<Record<WechatWorkbenchTableKey, WechatWorkbenchTableResult>>
+  config: Partial<TIntegrationWechatOptions>
+  tunnel?: WechatTunnelStatus
 }
 
-export type WechatPersonalPagedResult<T> = IPagination<T> & {
+export type WechatPagedResult<T> = IPagination<T> & {
   page: number
   pageSize: number
 }
 
-export type WechatPersonalWorkbenchTableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs'
+export type WechatWorkbenchTableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs'
 
-export type WechatPersonalWorkbenchTableQuery = {
+export type WechatWorkbenchTableQuery = {
   search?: string
   page?: number
   pageSize?: number
   filters?: Record<string, unknown> | null
 }
 
-export type WechatPersonalWorkbenchTableResult =
-  | (WechatPersonalPagedResult<WechatPersonalAccountEntity> & { key: 'accounts' })
-  | (WechatPersonalPagedResult<WechatPersonalConversationListItem> & { key: 'conversations' })
-  | (WechatPersonalPagedResult<WechatPersonalMessageLogEntity> & { key: 'messages' | 'queue' | 'logs' })
+export type WechatWorkbenchTableResult =
+  | (WechatPagedResult<WechatAccountEntity> & { key: 'accounts' })
+  | (WechatPagedResult<WechatConversationListItem> & { key: 'conversations' })
+  | (WechatPagedResult<WechatMessageLogEntity> & { key: 'messages' | 'queue' | 'logs' })
 
-export type WechatPersonalRuntimeStatus = {
-  callbackConfig: WechatPersonalWorkbenchData['callbackConfig']
-  summary: WechatPersonalWorkbenchData['summary']
+export type WechatRuntimeStatus = {
+  callbackConfig: WechatWorkbenchData['callbackConfig']
+  summary: WechatWorkbenchData['summary']
   triggerBinding: {
     integrationId: string
     xpertId: string
@@ -185,40 +186,41 @@ export type WechatPersonalRuntimeStatus = {
     historyContextWindowSeconds: number
     ignoreSelfMessages: boolean
     selfMessagePolicy: string
+    allowedKeywords: string[]
     groupTriggerMode: string
     groupKeywords: string[]
     mentionFallbackNames: string[]
     updatedAt: Date | null
   } | null
-  accounts: WechatPersonalAccountEntity[]
-  recentErrors: WechatPersonalMessageLogEntity[]
-  config: Partial<TIntegrationWechatPersonalOptions>
-  tunnel?: WechatPersonalTunnelStatus
-  integrations?: WechatPersonalIntegrationWorkbenchItem[]
+  accounts: WechatAccountEntity[]
+  recentErrors: WechatMessageLogEntity[]
+  config: Partial<TIntegrationWechatOptions>
+  tunnel?: WechatTunnelStatus
+  integrations?: WechatIntegrationWorkbenchItem[]
   scope?: 'integration' | 'organization'
 }
 
 @Injectable()
-export class WechatPersonalConversationService {
-  private readonly logger = new Logger(WechatPersonalConversationService.name)
+export class WechatConversationService {
+  private readonly logger = new Logger(WechatConversationService.name)
   private _integrationPermissionService: IntegrationPermissionService
   private _speechToTextPermissionService: SpeechToTextPermissionService
   private readonly inboundDedupeLocks = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(
-    private readonly wechatChannel: WechatPersonalChannelStrategy,
-    private readonly wechatClient: WechatPersonalClient,
-    private readonly triggerStrategy: WechatPersonalTriggerStrategy,
-    private readonly tunnelBroker: WechatPersonalTunnelBrokerService,
+    private readonly wechatChannel: WechatChannelStrategy,
+    private readonly wechatClient: WechatClient,
+    private readonly triggerStrategy: WechatTriggerStrategy,
+    private readonly tunnelBroker: WechatTunnelBrokerService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-    @InjectRepository(WechatPersonalConversationBindingEntity)
-    private readonly conversationBindingRepository: Repository<WechatPersonalConversationBindingEntity>,
-    @InjectRepository(WechatPersonalAccountEntity)
-    private readonly accountRepository: Repository<WechatPersonalAccountEntity>,
-    @InjectRepository(WechatPersonalMessageLogEntity)
-    private readonly messageLogRepository: Repository<WechatPersonalMessageLogEntity>,
-    @Inject(WECHAT_PERSONAL_PLUGIN_CONTEXT)
+    @InjectRepository(WechatConversationBindingEntity)
+    private readonly conversationBindingRepository: Repository<WechatConversationBindingEntity>,
+    @InjectRepository(WechatAccountEntity)
+    private readonly accountRepository: Repository<WechatAccountEntity>,
+    @InjectRepository(WechatMessageLogEntity)
+    private readonly messageLogRepository: Repository<WechatMessageLogEntity>,
+    @Inject(WECHAT_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
 
@@ -239,8 +241,8 @@ export class WechatPersonalConversationService {
   async getConversationState(
     conversationUserKey: string,
     xpertId: string,
-    scopeOverride?: WechatPersonalTenantScope | null
-  ): Promise<WechatPersonalConversationState | undefined> {
+    scopeOverride?: WechatTenantScope | null
+  ): Promise<WechatConversationState | undefined> {
     const normalizedUserKey = normalizeConversationKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationKey(xpertId)
     if (!normalizedUserKey || !normalizedXpertId) {
@@ -288,7 +290,7 @@ export class WechatPersonalConversationService {
     xpertId: string,
     conversationId: string,
     lastActiveAt: Date | undefined = new Date(),
-    scopeOverride?: WechatPersonalTenantScope | null
+    scopeOverride?: WechatTenantScope | null
   ): Promise<void> {
     const normalizedUserKey = normalizeConversationKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationKey(xpertId)
@@ -321,7 +323,7 @@ export class WechatPersonalConversationService {
     conversationUserKey: string,
     xpertId: string,
     lastActiveAt: Date = new Date(),
-    scopeOverride?: WechatPersonalTenantScope | null
+    scopeOverride?: WechatTenantScope | null
   ): Promise<void> {
     const current = await this.getConversationState(conversationUserKey, xpertId, scopeOverride)
     if (!current?.conversationId) {
@@ -333,7 +335,7 @@ export class WechatPersonalConversationService {
   async clearConversation(
     conversationUserKey: string,
     xpertId: string,
-    scopeOverride?: WechatPersonalTenantScope | null
+    scopeOverride?: WechatTenantScope | null
   ): Promise<void> {
     const normalizedUserKey = normalizeConversationKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationKey(xpertId)
@@ -369,18 +371,18 @@ export class WechatPersonalConversationService {
       throw new Error('该微信会话不存在或已被重置。')
     }
 
-    const parsed = parseWechatPersonalConversationUserKey(binding.conversationUserKey)
+    const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
     if (!parsed || parsed.integrationId !== normalizedIntegrationId) {
-      throw new Error('该微信会话不属于当前个人微信集成。')
+      throw new Error('该微信会话不属于当前微信集成。')
     }
     await this.clearConversation(binding.conversationUserKey, binding.xpertId, scope)
   }
 
   async handleInboundEvent(
-    event: WechatPersonalInboundEvent,
-    ctx: TChatEventContext<TIntegrationWechatPersonalOptions>
+    event: WechatInboundEvent,
+    ctx: TChatEventContext<TIntegrationWechatOptions>
   ): Promise<{ handled: boolean; reason?: string }> {
-    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatPersonalOptions>>(
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
       ctx.integration.id,
       {
         relations: ['tenant']
@@ -407,13 +409,14 @@ export class WechatPersonalConversationService {
       return { handled: false, reason: 'duplicate' }
     }
 
+    let inboundLog: WechatMessageLogEntity | null = null
     try {
       const duplicate = await this.isDuplicateInbound(integration.id, event, eventScope)
       if (duplicate) {
         return { handled: false, reason: 'duplicate' }
       }
 
-      const inboundLog = await this.logInbound(integration, event, 'received')
+      inboundLog = await this.logInbound(integration, event, 'received')
 
       const binding = await this.triggerStrategy.getBinding(integration.id, eventScope)
       if (!binding?.xpertId) {
@@ -424,7 +427,7 @@ export class WechatPersonalConversationService {
         return { handled: false, reason: 'trigger_binding_missing' }
       }
 
-      const triggerOptions: WechatPersonalInboundTriggerOptions = {
+      const triggerOptions: WechatInboundTriggerOptions = {
         ignoreSelfMessages: binding.ignoreSelfMessages !== false,
         selfMessagePolicy: normalizeSelfMessagePolicy(binding.selfMessagePolicy, binding.ignoreSelfMessages),
         chatFilterMode: binding.chatFilterMode,
@@ -434,12 +437,12 @@ export class WechatPersonalConversationService {
         blockedGroupIds: binding.blockedGroupIds,
         allowedSenderIds: binding.allowedSenderIds,
         blockedSenderIds: binding.blockedSenderIds,
+        allowedKeywords: binding.allowedKeywords ?? [],
         groupTriggerMode: binding.groupTriggerMode,
         groupKeywords: binding.groupKeywords ?? [],
         mentionFallbackNames: binding.mentionFallbackNames ?? []
       }
 
-      const executorUserId = this.resolveExecutionUserId(integration)
       let dispatchEvent = event
       let conversationIdentity = this.resolveEventConversationIdentity(integration.id, dispatchEvent)
       if (!conversationIdentity) {
@@ -488,7 +491,7 @@ export class WechatPersonalConversationService {
       }
 
       if (event.messageKind === 'voice') {
-        const voiceDecision = shouldAttemptWechatPersonalVoiceTranscription(event, triggerOptions)
+        const voiceDecision = shouldAttemptWechatVoiceTranscription(event, triggerOptions)
         if (!voiceDecision) {
           await this.updateLog(inboundLog.id, {
             status: 'skipped',
@@ -539,7 +542,7 @@ export class WechatPersonalConversationService {
         }, eventScope)
       }
 
-      const dispatchable = shouldDispatchWechatPersonalMessage(dispatchEvent, triggerOptions)
+      const dispatchable = shouldDispatchWechatMessage(dispatchEvent, triggerOptions)
       if (!dispatchable) {
         await this.updateLog(inboundLog.id, {
           status: 'skipped',
@@ -563,7 +566,7 @@ export class WechatPersonalConversationService {
 
       const conversationUserKey = conversationIdentity.conversationUserKey
 
-      const wechatMessage = new WechatPersonalMessage(
+      const wechatMessage = new WechatMessage(
         {
           integrationId: integration.id,
           uuid: dispatchEvent.uuid,
@@ -622,7 +625,6 @@ export class WechatPersonalConversationService {
         currentInboundLogIds: [inboundLog.id],
         tenantId: integration.tenantId || ctx.tenantId,
         organizationId: integration.organizationId || ctx.organizationId,
-        executorUserId,
         endUserId: conversationIdentity.senderId
       })
 
@@ -634,15 +636,30 @@ export class WechatPersonalConversationService {
       }, eventScope)
 
       return { handled, reason: handled ? 'dispatched' : 'dispatch_failed' }
+    } catch (error) {
+      if (!inboundLog?.id) {
+        throw error
+      }
+      const message = this.describeError(error) || 'inbound_processing_failed'
+      await this.updateLog(inboundLog.id, {
+        status: 'failed',
+        error: message.slice(0, 512)
+      }, eventScope).catch((updateError) => {
+        this.logger.error(
+          `Failed to mark inbound WeChat message ${inboundLog?.id} as failed: ${this.describeError(updateError)}`
+        )
+      })
+      this.logger.error(`Inbound WeChat message ${inboundLog.id} failed: ${message}`)
+      return { handled: false, reason: 'processing_failed' }
     } finally {
       this.releaseInboundDedupeLock(dedupeKeys)
     }
   }
 
   async logOutbound(params: {
-    context: WechatPersonalChatCallbackContext
+    context: WechatChatCallbackContext
     content: string
-    status: WechatPersonalMessageLogStatus
+    status: WechatMessageLogStatus
     messageId?: string
     error?: string
     payloadSummary?: string
@@ -690,11 +707,34 @@ export class WechatPersonalConversationService {
     )
   }
 
+  async markInboundCallbackFailed(context: WechatChatCallbackContext, error: unknown): Promise<void> {
+    const message = this.describeError(error) || 'Agent execution failed'
+    const bindingContext = this.resolveBindingContext()
+    const scope = this.resolveTenantScope(context, bindingContext)
+    const ids = Array.from(
+      new Set([
+        ...(Array.isArray(context.currentInboundLogIds) ? context.currentInboundLogIds : []),
+        context.message?.id
+      ].filter((id): id is string => typeof id === 'string' && Boolean(id)))
+    )
+
+    for (const id of ids) {
+      await this.updateLog(
+        id,
+        {
+          status: 'failed',
+          error: message.slice(0, 512)
+        },
+        scope
+      )
+    }
+  }
+
   async setAccountEnabled(integrationId: string, uuid: string, enabled: boolean): Promise<void> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     const normalizedUuid = normalizeConversationKey(uuid)
     if (!normalizedIntegrationId || !normalizedUuid) {
-      throw new Error('缺少个人微信账号标识。')
+      throw new Error('缺少微信账号标识。')
     }
 
     const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
@@ -717,7 +757,7 @@ export class WechatPersonalConversationService {
   async resendOutboundMessage(integrationId: string, logId?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
     const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
@@ -727,7 +767,7 @@ export class WechatPersonalConversationService {
             {
               id: normalizeConversationKey(logId),
               integrationId: normalizedIntegrationId,
-              direction: 'outbound' as WechatPersonalMessageDirection
+              direction: 'outbound' as WechatMessageDirection
             },
             scope
           )
@@ -736,7 +776,7 @@ export class WechatPersonalConversationService {
           where: this.scopedWhere(
             {
               integrationId: normalizedIntegrationId,
-              direction: 'outbound' as WechatPersonalMessageDirection
+              direction: 'outbound' as WechatMessageDirection
             },
             scope
           ),
@@ -793,8 +833,8 @@ export class WechatPersonalConversationService {
   async getWorkbenchData(
     integrationId: string,
     query: { search?: string; page?: number; pageSize?: number } = {}
-  ): Promise<WechatPersonalWorkbenchData> {
-    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatPersonalOptions>>(
+  ): Promise<WechatWorkbenchData> {
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
       integrationId,
       {
         relations: ['tenant']
@@ -802,7 +842,7 @@ export class WechatPersonalConversationService {
     )
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!integration || !normalizedIntegrationId) {
-      throw new Error('个人微信集成不存在或无权访问。')
+      throw new Error('微信集成不存在或无权访问。')
     }
     const pageSize = this.normalizePositiveInt(query.pageSize) ?? 30
     const search = this.normalizeListSearch(query.search)
@@ -827,7 +867,7 @@ export class WechatPersonalConversationService {
 
     const conversations = bindings
       .map((binding) => this.toConversationListItem(binding, normalizedIntegrationId))
-      .filter((item): item is WechatPersonalConversationListItem => Boolean(item))
+      .filter((item): item is WechatConversationListItem => Boolean(item))
       .filter((item) => {
         if (!search) {
           return true
@@ -894,8 +934,8 @@ export class WechatPersonalConversationService {
 
   async getOrganizationWorkbenchData(
     query: { search?: string; page?: number; pageSize?: number } = {}
-  ): Promise<WechatPersonalWorkbenchData> {
-    const integrations = await this.listWechatPersonalIntegrations()
+  ): Promise<WechatWorkbenchData> {
+    const integrations = await this.listWechatIntegrations()
     const integrationIds = integrations.map((integration) => normalizeConversationKey(integration.id)).filter(Boolean) as string[]
     const pageSize = this.normalizePositiveInt(query.pageSize) ?? 30
     const search = this.normalizeListSearch(query.search)
@@ -923,7 +963,7 @@ export class WechatPersonalConversationService {
         config: {
           organizationScope: true,
           integrationCount: 0
-        } as Partial<TIntegrationWechatPersonalOptions>
+        } as Partial<TIntegrationWechatOptions>
       }
     }
 
@@ -948,13 +988,13 @@ export class WechatPersonalConversationService {
     const integrationIdSet = new Set(integrationIds)
     const allConversations = bindings
       .map((binding) => {
-        const parsed = parseWechatPersonalConversationUserKey(binding.conversationUserKey)
+        const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
         if (!parsed || !integrationIdSet.has(parsed.integrationId)) {
           return null
         }
         return this.toConversationListItem(binding, parsed.integrationId)
       })
-      .filter((item): item is WechatPersonalConversationListItem => Boolean(item))
+      .filter((item): item is WechatConversationListItem => Boolean(item))
 
     const conversations = allConversations
       .filter((item) => this.matchesConversationSearch(item, search))
@@ -994,14 +1034,14 @@ export class WechatPersonalConversationService {
       config: {
         organizationScope: true,
         integrationCount: integrations.length
-      } as Partial<TIntegrationWechatPersonalOptions>
+      } as Partial<TIntegrationWechatOptions>
     }
   }
 
-  async getRuntimeStatus(integrationId: string): Promise<WechatPersonalRuntimeStatus> {
+  async getRuntimeStatus(integrationId: string): Promise<WechatRuntimeStatus> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
     const [workbenchData, triggerBinding] = await Promise.all([
@@ -1028,6 +1068,7 @@ export class WechatPersonalConversationService {
               triggerBinding.selfMessagePolicy,
               triggerBinding.ignoreSelfMessages
             ),
+            allowedKeywords: triggerBinding.allowedKeywords ?? [],
             groupTriggerMode: triggerBinding.groupTriggerMode,
             groupKeywords: triggerBinding.groupKeywords ?? [],
             mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
@@ -1043,7 +1084,7 @@ export class WechatPersonalConversationService {
     }
   }
 
-  async getOrganizationRuntimeStatus(): Promise<WechatPersonalRuntimeStatus> {
+  async getOrganizationRuntimeStatus(): Promise<WechatRuntimeStatus> {
     const workbenchData = await this.getOrganizationWorkbenchData({ pageSize: 20 })
     return {
       scope: 'organization',
@@ -1070,9 +1111,9 @@ export class WechatPersonalConversationService {
 
   async getWorkbenchTableData(
     integrationId: string,
-    table: WechatPersonalWorkbenchTableKey,
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalWorkbenchTableResult> {
+    table: WechatWorkbenchTableKey,
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatWorkbenchTableResult> {
     if (table === 'accounts') {
       return { key: table, ...(await this.listAccounts(integrationId, query)) }
     }
@@ -1096,9 +1137,9 @@ export class WechatPersonalConversationService {
   }
 
   async getOrganizationWorkbenchTableData(
-    table: WechatPersonalWorkbenchTableKey,
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalWorkbenchTableResult> {
+    table: WechatWorkbenchTableKey,
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatWorkbenchTableResult> {
     if (table === 'accounts') {
       return { key: table, ...(await this.listOrganizationAccounts(query)) }
     }
@@ -1123,11 +1164,11 @@ export class WechatPersonalConversationService {
 
   async listAccounts(
     integrationId: string,
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalAccountEntity>> {
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatAccountEntity>> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
     const page = this.normalizePage(query.page)
@@ -1160,8 +1201,8 @@ export class WechatPersonalConversationService {
   }
 
   async listOrganizationAccounts(
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalAccountEntity>> {
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatAccountEntity>> {
     const data = await this.getOrganizationWorkbenchData({ pageSize: 500 })
     const page = this.normalizePage(query.page)
     const pageSize = this.normalizePageSize(query.pageSize, 50)
@@ -1189,11 +1230,11 @@ export class WechatPersonalConversationService {
 
   async listConversations(
     integrationId: string,
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalConversationListItem>> {
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatConversationListItem>> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
     const page = this.normalizePage(query.page)
@@ -1208,7 +1249,7 @@ export class WechatPersonalConversationService {
     })
     const conversations = bindings
       .map((binding) => this.toConversationListItem(binding, normalizedIntegrationId))
-      .filter((item): item is WechatPersonalConversationListItem => Boolean(item))
+      .filter((item): item is WechatConversationListItem => Boolean(item))
       .filter((item) => this.matchesConversationFilters(item, filters))
       .filter((item) => {
         if (!search) {
@@ -1228,8 +1269,8 @@ export class WechatPersonalConversationService {
   }
 
   async listOrganizationConversations(
-    query: WechatPersonalWorkbenchTableQuery = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalConversationListItem>> {
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatConversationListItem>> {
     const data = await this.getOrganizationWorkbenchData({ pageSize: 1000 })
     const page = this.normalizePage(query.page)
     const pageSize = this.normalizePageSize(query.pageSize, 50)
@@ -1245,17 +1286,17 @@ export class WechatPersonalConversationService {
   async searchMessageLogs(
     integrationId: string,
     query: {
-      direction?: WechatPersonalMessageDirection
-      status?: WechatPersonalMessageLogStatus
+      direction?: WechatMessageDirection
+      status?: WechatMessageLogStatus
       search?: string
       page?: number
       pageSize?: number
       filters?: Record<string, unknown> | null
     } = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalMessageLogEntity>> {
+  ): Promise<WechatPagedResult<WechatMessageLogEntity>> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
     const page = this.normalizePage(query.page)
@@ -1303,7 +1344,7 @@ export class WechatPersonalConversationService {
   async findOutboundByIdempotencyKey(
     integrationId: string,
     idempotencyKey: string
-  ): Promise<WechatPersonalMessageLogEntity | null> {
+  ): Promise<WechatMessageLogEntity | null> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     const normalizedKey = normalizeString(idempotencyKey)
     if (!normalizedIntegrationId || !normalizedKey) {
@@ -1324,14 +1365,14 @@ export class WechatPersonalConversationService {
 
   async searchOrganizationMessageLogs(
     query: {
-      direction?: WechatPersonalMessageDirection
-      status?: WechatPersonalMessageLogStatus
+      direction?: WechatMessageDirection
+      status?: WechatMessageLogStatus
       search?: string
       page?: number
       pageSize?: number
       filters?: Record<string, unknown> | null
     } = {}
-  ): Promise<WechatPersonalPagedResult<WechatPersonalMessageLogEntity>> {
+  ): Promise<WechatPagedResult<WechatMessageLogEntity>> {
     const data = await this.getOrganizationWorkbenchData({ pageSize: 1000 })
     const page = this.normalizePage(query.page)
     const pageSize = this.normalizePageSize(query.pageSize, 50)
@@ -1360,16 +1401,16 @@ export class WechatPersonalConversationService {
     options: {
       requireActiveCredential?: boolean
     } = {}
-  ): Promise<WechatPersonalCallbackConfig> {
+  ): Promise<WechatCallbackConfig> {
     const apiBaseUrl = (process.env.API_BASE_URL || '').replace(/\/+$/, '')
     const id = normalizeConversationKey(integrationId) || '<integrationId>'
     const webhookSecret = await this.resolveWebhookCredentialSecret(id)
     if (!webhookSecret && options.requireActiveCredential) {
-      throw new Error('Personal WeChat webhook credential is unavailable; rotate the credential before registering callback')
+      throw new Error('WeChat webhook credential is unavailable; rotate the credential before registering callback')
     }
     const secretForUrl = webhookSecret || '<webhook-secret-unavailable>'
-    const webhookUrl = `${apiBaseUrl}/api/wechat-personal/webhook/${id}?secret=${encodeURIComponent(secretForUrl)}`
-    const setCallbackUrlTemplate = `${apiBaseUrl}/api/wechat-personal/webhook/${id}?secret=***`
+    const webhookUrl = `${apiBaseUrl}/api/wechat/webhook/${id}?secret=${encodeURIComponent(secretForUrl)}`
+    const setCallbackUrlTemplate = `${apiBaseUrl}/api/wechat/webhook/${id}?secret=***`
     return {
       webhookUrl,
       globalWebhookUrl: webhookUrl,
@@ -1382,19 +1423,19 @@ export class WechatPersonalConversationService {
     }
   }
 
-  async rotateWebhookCredential(integrationId: string): Promise<WechatPersonalCallbackConfig> {
+  async rotateWebhookCredential(integrationId: string): Promise<WechatCallbackConfig> {
     const service = this
-      .integrationPermissionService as WechatPersonalIntegrationPermissionServiceWithWebhookCredential
+      .integrationPermissionService as WechatIntegrationPermissionServiceWithWebhookCredential
     const rotateWebhookCredential = service.rotateWebhookCredential
     if (typeof rotateWebhookCredential !== 'function') {
-      throw new Error('Personal WeChat webhook credential rotation service is unavailable')
+      throw new Error('WeChat webhook credential rotation service is unavailable')
     }
 
     const result = await rotateWebhookCredential.call(service, integrationId, {
-      provider: WECHAT_PERSONAL_PROVIDER_KEY
+      provider: WECHAT_PROVIDER_KEY
     })
     if (!normalizeString(result?.token)) {
-      throw new Error('Personal WeChat webhook credential could not be rotated')
+      throw new Error('WeChat webhook credential could not be rotated')
     }
     return this.buildCallbackConfig(integrationId, {
       requireActiveCredential: true
@@ -1403,40 +1444,40 @@ export class WechatPersonalConversationService {
 
   async revokeWebhookCredential(integrationId: string): Promise<boolean> {
     const service = this
-      .integrationPermissionService as WechatPersonalIntegrationPermissionServiceWithWebhookCredential
+      .integrationPermissionService as WechatIntegrationPermissionServiceWithWebhookCredential
     const revokeWebhookCredential = service.revokeWebhookCredential
     if (typeof revokeWebhookCredential !== 'function') {
-      throw new Error('Personal WeChat webhook credential revocation service is unavailable')
+      throw new Error('WeChat webhook credential revocation service is unavailable')
     }
 
     const revoked = await revokeWebhookCredential.call(service, integrationId, {
-      provider: WECHAT_PERSONAL_PROVIDER_KEY
+      provider: WECHAT_PROVIDER_KEY
     })
     if (!revoked) {
-      throw new Error('Personal WeChat webhook credential could not be revoked')
+      throw new Error('WeChat webhook credential could not be revoked')
     }
     return true
   }
 
   private async resolveWebhookCredentialSecret(integrationId: string): Promise<string | null> {
     const service = this
-      .integrationPermissionService as WechatPersonalIntegrationPermissionServiceWithWebhookCredential
+      .integrationPermissionService as WechatIntegrationPermissionServiceWithWebhookCredential
     const ensureWebhookCredential = service.ensureWebhookCredential
     if (typeof ensureWebhookCredential !== 'function') {
-      throw new Error('Personal WeChat webhook credential service is unavailable')
+      throw new Error('WeChat webhook credential service is unavailable')
     }
 
     const result = await ensureWebhookCredential.call(service, integrationId, {
-      provider: WECHAT_PERSONAL_PROVIDER_KEY
+      provider: WECHAT_PROVIDER_KEY
     })
     const token = normalizeString(result?.token)
     return token || null
   }
 
   private async upsertAccount(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    event: WechatPersonalInboundEvent,
-    ctx: TChatEventContext<TIntegrationWechatPersonalOptions>
+    integration: IIntegration<TIntegrationWechatOptions>,
+    event: WechatInboundEvent,
+    ctx: TChatEventContext<TIntegrationWechatOptions>
   ): Promise<{ enabled: boolean }> {
     const bindingContext = this.resolveBindingContext()
     const scope = this.resolveTenantScope(integration, ctx)
@@ -1472,8 +1513,8 @@ export class WechatPersonalConversationService {
 
   private buildInboundDedupeKeys(
     integrationId: string,
-    event: WechatPersonalInboundEvent,
-    scope?: WechatPersonalTenantScope | null
+    event: WechatInboundEvent,
+    scope?: WechatTenantScope | null
   ): string[] {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
@@ -1547,8 +1588,8 @@ export class WechatPersonalConversationService {
 
   private async isDuplicateInbound(
     integrationId: string,
-    event: WechatPersonalInboundEvent,
-    scope?: WechatPersonalTenantScope | null
+    event: WechatInboundEvent,
+    scope?: WechatTenantScope | null
   ): Promise<boolean> {
     const messageId = event.messageId
     if (!normalizeConversationKey(messageId)) {
@@ -1559,7 +1600,7 @@ export class WechatPersonalConversationService {
         {
           integrationId,
           messageId,
-          direction: 'inbound' as WechatPersonalMessageDirection
+          direction: 'inbound' as WechatMessageDirection
         },
         scope
       )
@@ -1582,7 +1623,7 @@ export class WechatPersonalConversationService {
           uuid: event.uuid,
           contactId: event.contactId,
           senderId: event.senderId,
-          direction: 'inbound' as WechatPersonalMessageDirection,
+          direction: 'inbound' as WechatMessageDirection,
           ...(content ? { content } : { payloadSummary: Like(`%${mediaSignature}%`) }),
           createdAt: MoreThan(new Date(Date.now() - 5_000))
         },
@@ -1593,11 +1634,11 @@ export class WechatPersonalConversationService {
   }
 
   private async logInbound(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    event: WechatPersonalInboundEvent,
-    status: WechatPersonalMessageLogStatus,
+    integration: IIntegration<TIntegrationWechatOptions>,
+    event: WechatInboundEvent,
+    status: WechatMessageLogStatus,
     params: { error?: string } = {}
-  ): Promise<WechatPersonalMessageLogEntity> {
+  ): Promise<WechatMessageLogEntity> {
     const bindingContext = this.resolveBindingContext()
     const scope = this.resolveTenantScope(integration, bindingContext)
     return this.messageLogRepository.save({
@@ -1625,9 +1666,9 @@ export class WechatPersonalConversationService {
   }
 
   private async resolveInboundFiles(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    event: WechatPersonalInboundEvent
-  ): Promise<{ success: true; files?: WechatPersonalInboundFile[] } | { success: false; error: string }> {
+    integration: IIntegration<TIntegrationWechatOptions>,
+    event: WechatInboundEvent
+  ): Promise<{ success: true; files?: WechatInboundFile[] } | { success: false; error: string }> {
     if (event.messageKind !== 'image') {
       return { success: true, files: event.files }
     }
@@ -1666,10 +1707,10 @@ export class WechatPersonalConversationService {
   }
 
   private async resolveInboundVoiceInput(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    event: WechatPersonalInboundEvent,
+    integration: IIntegration<TIntegrationWechatOptions>,
+    event: WechatInboundEvent,
     xpertId: string,
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   ): Promise<{ success: true; input: string } | { success: false; error: string }> {
     if (!event.voiceRef) {
       return {
@@ -1717,7 +1758,7 @@ export class WechatPersonalConversationService {
     }
   }
 
-  private inboundLogContent(event: WechatPersonalInboundEvent): string {
+  private inboundLogContent(event: WechatInboundEvent): string {
     if (event.messageKind === 'image') {
       return normalizeString(event.displayText)
     }
@@ -1733,9 +1774,9 @@ export class WechatPersonalConversationService {
 
   private resolveEventConversationIdentity(
     integrationId: string,
-    event: WechatPersonalInboundEvent
-  ): WechatPersonalConversationIdentity | undefined {
-    return resolveWechatPersonalConversationIdentity({
+    event: WechatInboundEvent
+  ): WechatConversationIdentity | undefined {
+    return resolveWechatConversationIdentity({
       integrationId,
       uuid: event.uuid,
       ownerWxid: event.ownerWxid,
@@ -1749,25 +1790,28 @@ export class WechatPersonalConversationService {
   }
 
   private shouldStoreSelfHistory(
-    event: WechatPersonalInboundEvent,
-    options: WechatPersonalInboundTriggerOptions
+    event: WechatInboundEvent,
+    options: WechatInboundTriggerOptions
   ): boolean {
-    if (!matchesWechatPersonalMessageFilter(event, options)) {
+    if (!matchesWechatMessageFilter(event, options)) {
       return false
     }
-    if (!isWechatPersonalDispatchableMessageKind(event)) {
+    if (!isWechatDispatchableMessageKind(event)) {
       return false
     }
-    const input = normalizeWechatPersonalAgentInput(event)
+    const input = normalizeWechatAgentInput(event)
+    if (!matchesWechatAllowedKeywords(input, options)) {
+      return false
+    }
     return !!input || event.messageKind === 'image'
   }
 
   private async markHistoryContextReset(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
-    event: WechatPersonalInboundEvent,
+    integration: IIntegration<TIntegrationWechatOptions>,
+    event: WechatInboundEvent,
     conversationUserKey: string,
     xpertId: string,
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   ): Promise<void> {
     const normalizedUserKey = normalizeConversationKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationKey(xpertId)
@@ -1811,7 +1855,7 @@ export class WechatPersonalConversationService {
     timeoutSeconds?: number | null
     before?: Date | null
     excludedLogIds?: string[]
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   }): Promise<string | undefined> {
     const limit = this.normalizeHistoryContextLimit(params.limit)
     const conversationUserKey = normalizeConversationKey(params.conversationUserKey)
@@ -1828,8 +1872,8 @@ export class WechatPersonalConversationService {
           integrationId: params.integrationId,
           conversationUserKey,
           xpertId,
-          direction: 'system' as WechatPersonalMessageDirection,
-          status: 'context_reset' as WechatPersonalMessageLogStatus,
+          direction: 'system' as WechatMessageDirection,
+          status: 'context_reset' as WechatMessageLogStatus,
           createdAt: LessThan(before)
         },
         scope
@@ -1883,7 +1927,7 @@ export class WechatPersonalConversationService {
     return this.formatHistoryContext(logs.reverse())
   }
 
-  private formatHistoryContext(logs: WechatPersonalMessageLogEntity[]): string | undefined {
+  private formatHistoryContext(logs: WechatMessageLogEntity[]): string | undefined {
     const lines: string[] = []
     for (const log of logs) {
       const content = this.truncateContextText(log.content, HISTORY_CONTEXT_ITEM_MAX_CHARS)
@@ -1942,7 +1986,7 @@ export class WechatPersonalConversationService {
     id: string,
     patch: Partial<
       Pick<
-        WechatPersonalMessageLogEntity,
+        WechatMessageLogEntity,
         | 'status'
         | 'error'
         | 'xpertId'
@@ -1956,7 +2000,7 @@ export class WechatPersonalConversationService {
         | 'isSelf'
       >
     >,
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   ): Promise<void> {
     if (!id) {
       return
@@ -1967,11 +2011,11 @@ export class WechatPersonalConversationService {
   private getConversationCacheKey(
     conversationUserKey: string,
     xpertId: string,
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   ): string {
     const tenantKey = scope?.tenantId ? `tenant:${scope.tenantId}` : 'tenant:any'
     const organizationKey = scope?.organizationId ? `org:${scope.organizationId}` : 'org:any'
-    return `plugin_wechat_personal:chat:${tenantKey}:${organizationKey}:${conversationUserKey}:${xpertId}`
+    return `plugin_wechat:chat:${tenantKey}:${organizationKey}:${conversationUserKey}:${xpertId}`
   }
 
   private async cacheConversation(
@@ -1979,7 +2023,7 @@ export class WechatPersonalConversationService {
     xpertId: string,
     conversationId: string,
     lastActiveAt?: Date | null,
-    scope?: WechatPersonalTenantScope | null
+    scope?: WechatTenantScope | null
   ): Promise<void> {
     await this.cacheManager.set(
       this.getConversationCacheKey(conversationUserKey, xpertId, scope),
@@ -1992,9 +2036,9 @@ export class WechatPersonalConversationService {
   }
 
   private resolveTenantScope(
-    primary?: WechatPersonalTenantScope | null,
-    fallback?: WechatPersonalTenantScope | null
-  ): WechatPersonalTenantScope {
+    primary?: WechatTenantScope | null,
+    fallback?: WechatTenantScope | null
+  ): WechatTenantScope {
     const bindingContext = this.resolveBindingContext()
     return {
       tenantId: primary?.tenantId ?? fallback?.tenantId ?? bindingContext.tenantId ?? null,
@@ -2002,20 +2046,20 @@ export class WechatPersonalConversationService {
     }
   }
 
-  private async readIntegrationTenantScope(integrationId?: string | null): Promise<WechatPersonalTenantScope> {
+  private async readIntegrationTenantScope(integrationId?: string | null): Promise<WechatTenantScope> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
-      throw new Error('缺少个人微信集成标识。')
+      throw new Error('缺少微信集成标识。')
     }
 
-    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatPersonalOptions>>(
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
       normalizedIntegrationId,
       {
         relations: ['tenant']
       }
     )
     if (!integration) {
-      throw new Error('个人微信集成不存在或无权访问。')
+      throw new Error('微信集成不存在或无权访问。')
     }
 
     return this.resolveTenantScope(integration)
@@ -2023,9 +2067,9 @@ export class WechatPersonalConversationService {
 
   private scopedWhere<T extends Record<string, unknown>>(
     where: T,
-    scope?: WechatPersonalTenantScope | null
-  ): T & WechatPersonalTenantScope {
-    const scoped = { ...where } as T & WechatPersonalTenantScope
+    scope?: WechatTenantScope | null
+  ): T & WechatTenantScope {
+    const scoped = { ...where } as T & WechatTenantScope
     if (scope?.tenantId) {
       scoped.tenantId = scope.tenantId
     }
@@ -2053,18 +2097,10 @@ export class WechatPersonalConversationService {
     }
   }
 
-  private resolveExecutionUserId(integration?: { createdById?: string; updatedById?: string }): string | undefined {
-    const candidates = [RequestContext.currentUserId(), integration?.createdById, integration?.updatedById]
-      .map((value) => normalizeConversationKey(value))
-      .filter((value): value is string => Boolean(value))
-    const uuidMatched = candidates.find((value) => UUID_PATTERN.test(value))
-    return uuidMatched ?? candidates[0]
-  }
-
-  private async listWechatPersonalIntegrations(): Promise<IIntegration<TIntegrationWechatPersonalOptions>[]> {
-    const result = await this.integrationPermissionService.findAll<IIntegration<TIntegrationWechatPersonalOptions>>({
+  private async listWechatIntegrations(): Promise<IIntegration<TIntegrationWechatOptions>[]> {
+    const result = await this.integrationPermissionService.findAll<IIntegration<TIntegrationWechatOptions>>({
       where: {
-        provider: WECHAT_PERSONAL_PROVIDER_KEY
+        provider: WECHAT_PROVIDER_KEY
       },
       relations: ['tenant'],
       order: {
@@ -2072,17 +2108,17 @@ export class WechatPersonalConversationService {
       },
       take: 100
     })
-    return (result.items ?? []).filter((integration) => integration?.provider === WECHAT_PERSONAL_PROVIDER_KEY)
+    return (result.items ?? []).filter((integration) => integration?.provider === WECHAT_PROVIDER_KEY)
   }
 
   private async toIntegrationWorkbenchItem(
-    integration: IIntegration<TIntegrationWechatPersonalOptions>,
+    integration: IIntegration<TIntegrationWechatOptions>,
     stats: {
-      accounts: WechatPersonalAccountEntity[]
-      conversations: WechatPersonalConversationListItem[]
-      logs: WechatPersonalMessageLogEntity[]
+      accounts: WechatAccountEntity[]
+      conversations: WechatConversationListItem[]
+      logs: WechatMessageLogEntity[]
     }
-  ): Promise<WechatPersonalIntegrationWorkbenchItem> {
+  ): Promise<WechatIntegrationWorkbenchItem> {
     return {
       id: integration.id,
       name: integration.name,
@@ -2099,8 +2135,8 @@ export class WechatPersonalConversationService {
   }
 
   private sanitizeIntegrationConfig(
-    options?: TIntegrationWechatPersonalOptions | null
-  ): Partial<TIntegrationWechatPersonalOptions> {
+    options?: TIntegrationWechatOptions | null
+  ): Partial<TIntegrationWechatOptions> {
     return {
       connectionMode: options?.connectionMode ?? 'direct_http',
       baseUrl: options?.baseUrl,
@@ -2118,13 +2154,13 @@ export class WechatPersonalConversationService {
     }
   }
 
-  private getTunnelStatus(integration?: IIntegration<TIntegrationWechatPersonalOptions> | null): WechatPersonalTunnelStatus {
+  private getTunnelStatus(integration?: IIntegration<TIntegrationWechatOptions> | null): WechatTunnelStatus {
     return this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
       clientName: integration?.name || integration?.id || null
     })
   }
 
-  private emptyCallbackConfig(): WechatPersonalWorkbenchData['callbackConfig'] {
+  private emptyCallbackConfig(): WechatWorkbenchData['callbackConfig'] {
     return {
       webhookUrl: '',
       globalWebhookUrl: '',
@@ -2133,7 +2169,7 @@ export class WechatPersonalConversationService {
     }
   }
 
-  private matchesAccountFilters(account: WechatPersonalAccountEntity, filters: Record<string, unknown>): boolean {
+  private matchesAccountFilters(account: WechatAccountEntity, filters: Record<string, unknown>): boolean {
     const status = this.normalizeListSearch(filters.status)
     const enabled = this.normalizeBooleanFilter(filters.enabled)
     if (status && this.normalizeListSearch(account.status) !== status) {
@@ -2150,7 +2186,7 @@ export class WechatPersonalConversationService {
   }
 
   private matchesConversationFilters(
-    item: WechatPersonalConversationListItem,
+    item: WechatConversationListItem,
     filters: Record<string, unknown>
   ): boolean {
     const chatType = this.normalizeChatType(filters.chatType)
@@ -2166,7 +2202,7 @@ export class WechatPersonalConversationService {
     )
   }
 
-  private matchesLogFilters(log: WechatPersonalMessageLogEntity, filters: Record<string, unknown>): boolean {
+  private matchesLogFilters(log: WechatMessageLogEntity, filters: Record<string, unknown>): boolean {
     const chatType = this.normalizeChatType(filters.chatType)
     const level = this.normalizeListSearch(filters.level)
     if (this.normalizeBooleanFilter(filters.queueOnly) === true && !this.isQueueStatus(log.status)) {
@@ -2221,12 +2257,12 @@ export class WechatPersonalConversationService {
     return null
   }
 
-  private normalizeDirection(value: unknown): WechatPersonalMessageDirection | null {
+  private normalizeDirection(value: unknown): WechatMessageDirection | null {
     const normalized = this.normalizeListSearch(value)
     return normalized === 'inbound' || normalized === 'outbound' || normalized === 'system' ? normalized : null
   }
 
-  private normalizeLogStatus(value: unknown): WechatPersonalMessageLogStatus | null {
+  private normalizeLogStatus(value: unknown): WechatMessageLogStatus | null {
     const normalized = this.normalizeListSearch(value)
     return [
       'received',
@@ -2242,11 +2278,11 @@ export class WechatPersonalConversationService {
       'cancelled',
       'context_reset'
     ].includes(normalized || '')
-      ? (normalized as WechatPersonalMessageLogStatus)
+      ? (normalized as WechatMessageLogStatus)
       : null
   }
 
-  private isQueueStatus(status: WechatPersonalMessageLogStatus): boolean {
+  private isQueueStatus(status: WechatMessageLogStatus): boolean {
     return ['queued', 'deferred', 'sending', 'paused'].includes(status)
   }
 
@@ -2255,7 +2291,7 @@ export class WechatPersonalConversationService {
     return normalized === 'private' || normalized === 'group' ? normalized : null
   }
 
-  private matchesConversationSearch(item: WechatPersonalConversationListItem, search: string | null): boolean {
+  private matchesConversationSearch(item: WechatConversationListItem, search: string | null): boolean {
     if (!search) {
       return true
     }
@@ -2264,7 +2300,7 @@ export class WechatPersonalConversationService {
     )
   }
 
-  private matchesLogSearch(log: WechatPersonalMessageLogEntity, search: string | null): boolean {
+  private matchesLogSearch(log: WechatMessageLogEntity, search: string | null): boolean {
     if (!search) {
       return true
     }
@@ -2281,10 +2317,10 @@ export class WechatPersonalConversationService {
   }
 
   private toConversationListItem(
-    binding: WechatPersonalConversationBindingEntity,
+    binding: WechatConversationBindingEntity,
     integrationId: string
-  ): WechatPersonalConversationListItem | null {
-    const parsed = parseWechatPersonalConversationUserKey(binding.conversationUserKey)
+  ): WechatConversationListItem | null {
+    const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
     if (!parsed || parsed.integrationId !== integrationId) {
       return null
     }
@@ -2322,7 +2358,7 @@ export class WechatPersonalConversationService {
     return fallback
   }
 
-  private paginateItems<T>(items: T[], page: number, pageSize: number): WechatPersonalPagedResult<T> {
+  private paginateItems<T>(items: T[], page: number, pageSize: number): WechatPagedResult<T> {
     const start = (page - 1) * pageSize
     return {
       items: items.slice(start, start + pageSize),
