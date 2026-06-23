@@ -107,6 +107,15 @@ export function normalizeExcalidrawElementMetadata(
     normalized.index = null
   }
 
+  const type = readString(normalized.type)
+  if (type === 'arrow' || type === 'line') {
+    normalized.startBinding = normalizeBindingMetadata(normalized.startBinding)
+    normalized.endBinding = normalizeBindingMetadata(normalized.endBinding)
+    if (type === 'arrow' && typeof normalized.elbowed !== 'boolean') {
+      normalized.elbowed = false
+    }
+  }
+
   return normalized
 }
 
@@ -338,8 +347,26 @@ function validateBinding(value: unknown, path: string, issues: string[]) {
     return
   }
   validateRequiredString(value.elementId, `${path}.elementId`, issues)
-  validateFiniteNumber(value.focus, `${path}.focus`, issues)
-  validateFiniteNumber(value.gap, `${path}.gap`, issues)
+  const hasPointBinding = isFiniteNumber(value.focus) && isFiniteNumber(value.gap)
+  const hasFixedPointBinding = Array.isArray(value.fixedPoint) && value.fixedPoint.length === 2 && value.fixedPoint.every(isFiniteNumber)
+  if (!hasPointBinding && !hasFixedPointBinding) {
+    validateFiniteNumber(value.focus, `${path}.focus`, issues)
+    validateFiniteNumber(value.gap, `${path}.gap`, issues)
+    validateFiniteTuple(value.fixedPoint, `${path}.fixedPoint`, issues, 2)
+    return
+  }
+  if (value.focus !== undefined) {
+    validateFiniteNumber(value.focus, `${path}.focus`, issues)
+  }
+  if (value.gap !== undefined) {
+    validateFiniteNumber(value.gap, `${path}.gap`, issues)
+  }
+  if (value.fixedPoint !== undefined) {
+    validateFiniteTuple(value.fixedPoint, `${path}.fixedPoint`, issues, 2)
+  }
+  if (value.mode !== undefined && typeof value.mode !== 'string') {
+    issues.push(`${path}.mode must be a string when provided.`)
+  }
 }
 
 function validateCrop(value: unknown, path: string, issues: string[]) {
@@ -404,6 +431,10 @@ function validateFiniteTuple(value: unknown, path: string, issues: string[], len
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function normalizeBindingMetadata(value: unknown) {
+  return value === undefined ? null : value
 }
 
 function readString(value: unknown) {

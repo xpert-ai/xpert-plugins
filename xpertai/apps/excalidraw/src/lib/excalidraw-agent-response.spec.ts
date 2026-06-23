@@ -1,10 +1,27 @@
 import {
   summarizeFailureResult,
+  summarizeDrawingMutationResult,
   summarizeStatusResult
 } from './excalidraw-agent-response.js'
 
 describe('Excalidraw agent response summaries', () => {
-  it('returns top-level drawing id for status updates', () => {
+  it('uses the service message for mutation summaries', () => {
+    expect(summarizeDrawingMutationResult({
+      success: true,
+      message: 'Service fallback.',
+      patch: {
+        addCount: 1
+      }
+    }, 'Default fallback.')).toEqual({
+      success: true,
+      message: 'Service fallback.',
+      patch: {
+        addCount: 1
+      }
+    })
+  })
+
+  it('returns minimal status update results', () => {
     expect(summarizeStatusResult({
       success: true,
       message: 'Status updated.',
@@ -16,16 +33,11 @@ describe('Excalidraw agent response summaries', () => {
     })).toEqual({
       success: true,
       message: 'Status updated.',
-      drawingId: 'drawing-1',
-      item: {
-        id: 'drawing-1',
-        title: 'Architecture',
-        status: 'reviewed'
-      }
+      status: 'reviewed'
     })
   })
 
-  it('returns top-level drawing and version ids for failure logs', () => {
+  it('returns minimal failure log results', () => {
     expect(summarizeFailureResult({
       success: true,
       message: 'Failure recorded.',
@@ -40,18 +52,7 @@ describe('Excalidraw agent response summaries', () => {
       }
     })).toEqual({
       success: true,
-      message: 'Failure recorded.',
-      drawingId: 'drawing-2',
-      versionId: 'version-2',
-      log: {
-        id: 'log-1',
-        drawingId: 'drawing-2',
-        versionId: 'version-2',
-        action: 'convert',
-        actorType: 'agent',
-        errorMessage: 'Bad Mermaid',
-        createdAt: '2026-06-18T01:02:03.000Z'
-      }
+      message: 'Failure recorded.'
     })
   })
 })

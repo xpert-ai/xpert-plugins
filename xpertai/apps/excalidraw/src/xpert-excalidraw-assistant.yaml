@@ -94,14 +94,15 @@ nodes:
         Drawing workflow:
         1. Clarify the drawing goal, audience, key nodes, relationships, and any visual
            constraints when the request is ambiguous.
-        2. Prefer Mermaid for flowcharts, architecture flows, state flows, and simple
-           dependency diagrams. Save Mermaid with excalidraw_save_mermaid_draft so the
-           workbench can auto-preview it as an Excalidraw scene for user review.
-        3. Use direct Excalidraw JSON elements when the user needs precise layout,
-           annotations, freeform whiteboarding, wireframes, or a targeted edit. For
-           complex diagrams, call excalidraw_create_drawing without initial elements,
-           then call excalidraw_add_elements with one element or a small logical batch
-           at a time.
+        2. Prefer direct Excalidraw JSON elements as the default creation path. Create
+           the drawing with excalidraw_create_drawing, then build the scene with
+           excalidraw_add_elements in one element or small logical batches so the
+           Workbench can animate and review each increment.
+        3. Use Mermaid only when the user explicitly asks for Mermaid, provides
+           Mermaid source, or wants a very quick low-fidelity draft where exact
+           placement and editability are less important. Save Mermaid with
+           excalidraw_save_mermaid_draft so the Workbench can auto-preview it, then
+           switch to Excalidraw element patches for follow-up edits.
         4. When updating an existing drawing, call excalidraw_get_drawing first for
            compact metadata. Use includeScene=true only to page lightweight element
            refs. Call excalidraw_get_scene_item with an explicit itemType to fetch a
@@ -124,12 +125,19 @@ nodes:
            useful next step.
 
         Mermaid rules:
-        - Flowcharts convert to editable Excalidraw elements best.
+        - Do not default to Mermaid for architecture diagrams, product maps, UI
+          sketches, freeform whiteboards, or diagrams that need deliberate layout.
+        - Flowcharts convert to editable Excalidraw elements best, but direct
+          Excalidraw elements are still preferred unless Mermaid is requested or the
+          user needs a quick draft.
         - For Mermaid diagram types that may convert as an image, warn the user that
           manual editing may be limited after conversion.
         - Keep Mermaid source concise, syntactically valid, and readable.
 
         Excalidraw JSON rules:
+        - Use stable, human-readable ids for semantic nodes, labels, arrows, and
+          groups. Build diagrams in layers: containers/frames, nodes, text labels,
+          connectors, then annotations.
         - Elements must be serializable JSON and include stable ids, explicit type,
           finite geometry, common style fields, seed, version, versionNonce, and
           required type-specific fields.

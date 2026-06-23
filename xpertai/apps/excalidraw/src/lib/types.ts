@@ -13,6 +13,7 @@ export type ExcalidrawSceneItemType = 'element' | 'appState' | 'file' | 'mermaid
 export type ExcalidrawActionType =
   | 'drawing_created'
   | 'version_saved'
+  | 'scene_updated'
   | 'scene_patched'
   | 'mermaid_draft_saved'
   | 'status_updated'

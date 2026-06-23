@@ -9,20 +9,28 @@ const MAX_ELEMENT_LIMIT = 200
 const TEXT_PREVIEW_LIMIT = 240
 const ELEMENT_TEXT_PREVIEW_LIMIT = 120
 const MERMAID_PREVIEW_LIMIT = 300
+type MutationSummaryOptions = {
+  includeDrawingId?: boolean
+  includeVersionRef?: boolean
+}
 
 export function stringifyAgentToolResult(value: unknown) {
   return JSON.stringify(pruneUndefined(value))
 }
 
-export function summarizeDrawingMutationResult(result: Record<string, any>, fallbackMessage: string) {
+export function summarizeDrawingMutationResult(
+  result: Record<string, any>,
+  fallbackMessage: string,
+  options: MutationSummaryOptions = {}
+) {
   const drawingPayload = result.drawing ?? result
   const currentVersion = drawingPayload.currentVersion ?? result.version ?? null
-  const drawing = summarizeDrawingItem(drawingPayload.item ?? result.item)
   const summarizedCurrentVersion = summarizeVersion(currentVersion)
   const summarizedVersion = result.version ? summarizeVersion(result.version) : undefined
   const drawingId =
     readString(result.drawingId) ??
-    drawing?.id ??
+    readString(drawingPayload.item?.id) ??
+    readString(result.item?.id) ??
     readString(currentVersion?.drawingId) ??
     readString(result.version?.drawingId)
   const versionId = readString(result.versionId) ?? summarizedVersion?.id ?? summarizedCurrentVersion?.id
@@ -31,13 +39,9 @@ export function summarizeDrawingMutationResult(result: Record<string, any>, fall
   return pruneUndefined({
     success: result.success ?? true,
     message: result.message ?? fallbackMessage,
-    drawingId,
-    versionId,
-    versionNumber,
-    drawing,
-    currentVersion: summarizedCurrentVersion,
-    version: summarizedVersion,
-    summary: drawingPayload.summary,
+    drawingId: options.includeDrawingId ? drawingId : undefined,
+    versionId: options.includeVersionRef ? versionId : undefined,
+    versionNumber: options.includeVersionRef ? versionNumber : undefined,
     patch: result.patch
   })
 }
@@ -57,19 +61,14 @@ export function summarizeStatusResult(result: Record<string, any>) {
   return pruneUndefined({
     success: result.success ?? true,
     message: result.message,
-    drawingId: item?.id,
-    item
+    status: item?.status
   })
 }
 
 export function summarizeFailureResult(result: Record<string, any>) {
-  const log = summarizeLog(result.log)
   return pruneUndefined({
     success: result.success ?? true,
-    message: result.message,
-    drawingId: log?.drawingId,
-    versionId: log?.versionId,
-    log
+    message: result.message
   })
 }
 

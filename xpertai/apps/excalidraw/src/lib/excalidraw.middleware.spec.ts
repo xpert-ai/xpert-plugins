@@ -1,3 +1,9 @@
+const mockDispatchCustomEvent = jest.fn()
+
+jest.mock('@langchain/core/callbacks/dispatch', () => ({
+  dispatchCustomEvent: (...args: unknown[]) => mockDispatchCustomEvent(...args)
+}))
+
 jest.mock('@langchain/core/tools', () => ({
   tool: (func: (input: unknown) => Promise<string>, config: Record<string, unknown>) => ({
     ...config,
@@ -18,9 +24,15 @@ import {
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
   EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME
 } from './constants.js'
+import { ChatMessageEventTypeEnum } from '@xpert-ai/contracts'
 import { ExcalidrawMiddleware } from './excalidraw.middleware.js'
 
 describe('ExcalidrawMiddleware staged element tools', () => {
+  beforeEach(() => {
+    mockDispatchCustomEvent.mockReset()
+    mockDispatchCustomEvent.mockResolvedValue(undefined)
+  })
+
   it('keeps excalidraw_create_drawing metadata-only even if scene fields are provided', async () => {
     const createDrawing = jest.fn(async (_scope, input) => ({
       success: true,
@@ -63,7 +75,7 @@ describe('ExcalidrawMiddleware staged element tools', () => {
       }
     )
     expect(result.drawingId).toBe('drawing-1')
-    expect(result.drawing.id).toBe('drawing-1')
+    expect(result.drawing).toBeUndefined()
   })
 
   it('registers excalidraw_add_elements and routes it through patchScene', async () => {
@@ -131,10 +143,76 @@ describe('ExcalidrawMiddleware staged element tools', () => {
       updatedIds: [],
       deletedIds: []
     })
-    expect(result.drawingId).toBe('drawing-1')
-    expect(result.versionId).toBe('version-2')
-    expect(result.versionNumber).toBe(2)
-    expect(result.version.elements).toBeUndefined()
+    expect(result.message).toBe('Excalidraw elements were added.')
+    expect(result.drawingId).toBeUndefined()
+    expect(result.versionId).toBeUndefined()
+    expect(result.versionNumber).toBeUndefined()
+    expect(result.drawing).toBeUndefined()
+    expect(result.currentVersion).toBeUndefined()
+    expect(result.version).toBeUndefined()
+    expect(result.summary).toBeUndefined()
+  })
+
+  it('dispatches changeSummary as the tool event message', async () => {
+    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const handler = jest.fn(async () => ({
+      content: '{"success":true}',
+      name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+      tool_call_id: 'tool-call-1'
+    }))
+
+    const request = {
+      toolCall: {
+        type: 'tool_call',
+        id: 'tool-call-1',
+        name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+        args: {
+          drawingId: 'drawing-1',
+          elements: [{ id: 'rect-1', type: 'rectangle' }],
+          changeSummary: '添加数据分析平台'
+        }
+      },
+      tool: addTool,
+      state: { messages: [] },
+      runtime: {
+        metadata: {
+          toolset: 'Excalidraw',
+          toolName: 'Excalidraw'
+        }
+      }
+    } as any
+
+    await middleware.wrapToolCall(request, handler)
+
+    expect(handler).toHaveBeenCalledWith(request)
+    expect(mockDispatchCustomEvent).toHaveBeenCalledTimes(2)
+    expect(mockDispatchCustomEvent).toHaveBeenNthCalledWith(
+      1,
+      ChatMessageEventTypeEnum.ON_TOOL_MESSAGE,
+      expect.objectContaining({
+        id: 'tool-call-1',
+        tool_call_id: 'tool-call-1',
+        tool: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+        title: 'Excalidraw',
+        message: '添加数据分析平台',
+        status: 'running',
+        end_date: null,
+        input: request.toolCall.args
+      })
+    )
+    expect(mockDispatchCustomEvent).toHaveBeenNthCalledWith(
+      2,
+      ChatMessageEventTypeEnum.ON_TOOL_MESSAGE,
+      expect.objectContaining({
+        id: 'tool-call-1',
+        tool_call_id: 'tool-call-1',
+        tool: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+        message: '添加数据分析平台',
+        status: 'success',
+        output: '{"success":true}'
+      })
+    )
   })
 
   it('registers excalidraw_get_scene_item and routes it through getSceneItemForAgent', async () => {

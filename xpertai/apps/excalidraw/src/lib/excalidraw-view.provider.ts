@@ -24,7 +24,6 @@ import {
 import {
   AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
-  ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
   ASSISTANT_CONTEXT_SET_COMMAND,
   EXCALIDRAW_FEATURE,
   EXCALIDRAW_ICON,
@@ -143,16 +142,13 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           {
             key: ASSISTANT_CONTEXT_SET_COMMAND,
             label: text('Set Assistant Context', '设置 Assistant 上下文')
-          },
-          {
-            key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-            label: text('Send to Assistant Chat', '发送到 Assistant 对话')
           }
         ],
         actions: [
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_drawing', label: text('New Drawing', '新建图形'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
-          { key: 'save_scene_version', label: text('Save Version', '保存版本'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'save_current_scene', label: text('Save', '保存'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'save_scene_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
           { key: 'mark_reviewed', label: text('Mark Reviewed', '标记已审核'), icon: 'ri-check-line', actionType: 'invoke' },
           { key: 'mark_draft', label: text('Move Back to Draft', '退回草稿'), icon: 'ri-edit-line', actionType: 'invoke' },
@@ -168,16 +164,15 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
             transport: 'file'
           },
           {
-            key: 'save_converted_mermaid_scene',
-            label: text('Save Converted Mermaid Scene', '保存 Mermaid 转换结果'),
-            icon: 'ri-git-branch-line',
+            key: 'import_restored_scene',
+            label: text('Import Restored Excalidraw Scene', '导入已归一化 Excalidraw 场景'),
+            icon: 'ri-upload-cloud-line',
             actionType: 'invoke'
           },
           {
-            key: 'prepare_agent_draw_message',
-            label: text('Ask Assistant to Draw', '让 Assistant 绘图'),
-            icon: 'ri-send-plane-line',
-            placement: 'toolbar',
+            key: 'save_converted_mermaid_scene',
+            label: text('Save Converted Mermaid Scene', '保存 Mermaid 转换结果'),
+            icon: 'ri-git-branch-line',
             actionType: 'invoke'
           }
         ]
@@ -265,9 +260,9 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         }
       }
 
-      if (actionKey === 'save_scene_version' || actionKey === 'save_converted_mermaid_scene') {
+      if (actionKey === 'save_current_scene' || actionKey === 'save_converted_mermaid_scene') {
         const drawingId = requireDrawingId(request)
-        const result = await this.service.saveSceneVersion(scope, {
+        const result = await this.service.saveCurrentScene(scope, {
           drawingId,
           elements: getArrayInput(request.input, 'elements'),
           appState: getRecordInput(request.input, 'appState'),
@@ -277,7 +272,54 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
         return {
+          ...success('Drawing saved', '图形已保存'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'save_scene_version') {
+        const drawingId = requireDrawingId(request)
+        const result = await this.service.saveSceneVersion(scope, {
+          drawingId,
+          elements: getArrayInput(request.input, 'elements'),
+          appState: getRecordInput(request.input, 'appState'),
+          files: getRecordInput(request.input, 'files'),
+          mermaidSource: getStringInput(request.input, 'mermaidSource'),
+          sourceType: 'workbench',
+          changeSummary: getStringInput(request.input, 'changeSummary')
+        })
+        return {
           ...success('Drawing version saved', '图形版本已保存'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'import_restored_scene') {
+        const drawingId = getStringInput(request.input, 'drawingId') ?? getStringParameter(request.parameters, 'drawingId')
+        const scene = {
+          elements: getArrayInput(request.input, 'elements'),
+          appState: getRecordInput(request.input, 'appState'),
+          files: getRecordInput(request.input, 'files')
+        }
+        const changeSummary = getStringInput(request.input, 'changeSummary') ?? 'Imported Excalidraw file'
+        const result = drawingId
+          ? await this.service.saveCurrentScene(scope, {
+              drawingId,
+              ...scene,
+              sourceType: 'import',
+              changeSummary
+            })
+          : await this.service.createDrawing(scope, {
+              title: getStringInput(request.input, 'title') ?? 'Imported Excalidraw Drawing',
+              description: getStringInput(request.input, 'description'),
+              kind: 'diagram',
+              source: 'import',
+              ...scene,
+              changeSummary
+            })
+
+        return {
+          ...success('Excalidraw file imported', 'Excalidraw 文件已导入'),
           data: result
         }
       }
@@ -343,20 +385,6 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         }
       }
 
-      if (actionKey === 'prepare_agent_draw_message') {
-        const prompt = requireStringInput(request.input, 'prompt', 'Drawing request is required.')
-        return {
-          ...success('Assistant draw request prepared', 'Assistant 绘图请求已准备'),
-          data: {
-            commandKey: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-            payload: {
-              text: buildAgentDrawPrompt(prompt, getStringInput(request.input, 'drawingId'), context.locale)
-            }
-          },
-          refresh: false
-        }
-      }
-
       return failure('Unsupported action', '不支持的操作')
     } catch (error) {
       const message = getActionErrorMessage(error, 'Excalidraw action failed')
@@ -386,7 +414,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
       const drawingId = getStringInput(request.input, 'drawingId') ?? getStringParameter(request.parameters, 'drawingId')
       const scope = scopeFromContext(context)
       const result = drawingId
-        ? await this.service.saveSceneVersion(scope, {
+        ? await this.service.saveCurrentScene(scope, {
             drawingId,
             elements: scene.elements,
             appState: scene.appState,
@@ -524,28 +552,6 @@ function removeExcalidrawExtension(name: string | undefined) {
     return undefined
   }
   return normalized.replace(/\.excalidraw(?:\.json)?$/i, '').replace(/\.json$/i, '') || normalized
-}
-
-function buildAgentDrawPrompt(prompt: string, drawingId?: string, locale?: unknown) {
-  if (isChineseLocale(locale)) {
-    const context = drawingId ? `请更新当前 Excalidraw 图形 drawingId=${drawingId}。` : '请创建一张新的 Excalidraw 图形。'
-    return `${context}
-
-用户绘图需求：
-${prompt}
-
-请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 excalidraw_save_mermaid_draft。需要精确布局或自由图形时，复杂图先调用 excalidraw_create_drawing 创建空图，再调用 excalidraw_add_elements 按单个元素或小批量逐步添加；仅在明确要整体替换时才调用 excalidraw_save_scene_version。更新已有图形前先调用 excalidraw_get_drawing 获取摘要；需要元素列表时用 includeScene=true、versionNumber/versionId 和 elementOffset/elementLimit 获取轻量元素引用；需要完整元素、appState、文件或 Mermaid 源码时再调用 excalidraw_get_scene_item 并指定 itemType。`
-  }
-
-  const context = drawingId
-    ? `Update the current Excalidraw drawing drawingId=${drawingId}.`
-    : 'Create a new Excalidraw drawing.'
-  return `${context}
-
-User drawing request:
-${prompt}
-
-First decide whether the request is better as a Mermaid draft. For flowcharts, architecture flows, and state flows, call excalidraw_save_mermaid_draft. For precise layout or freeform diagrams, create complex drawings in stages: call excalidraw_create_drawing without elements, then call excalidraw_add_elements with one element or a small batch at a time. Call excalidraw_save_scene_version only when a full scene replacement is intentional. Before updating an existing drawing, call excalidraw_get_drawing for compact metadata; request lightweight element refs with includeScene=true, versionNumber/versionId, and elementOffset/elementLimit pagination. Fetch exact elements, appState, files, or Mermaid source with excalidraw_get_scene_item and an explicit itemType.`
 }
 
 function htmlLangFromLocale(locale: unknown) {

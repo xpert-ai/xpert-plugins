@@ -17,12 +17,26 @@ Do not treat Workbench view actions as Agent middleware tools. Use only the midd
 ## Core Rules
 
 1. Do not invent drawing ids, version ids, or element ids for existing drawings. Use Workbench context, `excalidraw_search_drawings`, `excalidraw_get_drawing`, or `excalidraw_get_scene_item`.
-2. Before editing an existing drawing, call `excalidraw_get_drawing` first unless the current prompt already contains a trustworthy Workbench context with the drawing id and version ref.
-3. Prefer `excalidraw_patch_scene` for targeted edits. Use `excalidraw_save_scene_version` only when a full scene replacement is intentional.
-4. Use `excalidraw_get_drawing` for compact metadata and lightweight refs. Use `excalidraw_get_scene_item` for full element JSON, full appState, file payloads, or full Mermaid source.
-5. Keep changes small and reviewable. For complex scenes, add elements in small batches with short `changeSummary` values.
-6. Do not claim a drawing was saved unless the tool call succeeded. Tool results are the source of truth.
-7. Do not route logic from display text, localized labels, sample titles, or incidental field combinations. Use explicit fields such as `selection.type`, `itemType`, `kind`, `status`, and `sourceType`.
+2. Prefer direct Excalidraw elements as the default creation path. Use Mermaid only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a fast low-fidelity draft where exact layout and editability are less important.
+3. For new complex diagrams, call `excalidraw_create_drawing` first, then call `excalidraw_add_elements` in one element or small logical batches. This gives the Workbench incremental updates and keeps failures easy to retry.
+4. Before editing an existing drawing, call `excalidraw_get_drawing` first unless the current prompt already contains a trustworthy Workbench context with the drawing id and version ref.
+5. Prefer `excalidraw_patch_scene` for targeted edits. Use `excalidraw_save_scene_version` only when a full scene replacement is intentional.
+6. Use `excalidraw_get_drawing` for compact metadata and lightweight refs. Use `excalidraw_get_scene_item` for full element JSON, full appState, file payloads, or full Mermaid source.
+7. Keep changes small and reviewable. Use short `changeSummary` values that describe the operation, not a long user-visible answer.
+8. Do not claim a drawing was saved unless the tool call succeeded. Tool results are the source of truth.
+9. Do not route logic from display text, localized labels, sample titles, or incidental field combinations. Use explicit fields such as `selection.type`, `itemType`, `kind`, `status`, and `sourceType`.
+
+## Default Tool Choice
+
+Choose the tool path in this order:
+
+1. New editable diagram: `excalidraw_create_drawing` -> repeated `excalidraw_add_elements`.
+2. Existing drawing targeted edit: `excalidraw_get_drawing` -> optional `excalidraw_get_scene_item` -> `excalidraw_patch_scene`.
+3. Intentional full replacement: `excalidraw_save_scene_version`.
+4. Explicit Mermaid import/draft: `excalidraw_save_mermaid_draft`.
+5. Failure or unresolved context: `excalidraw_report_failure`.
+
+Do not choose Mermaid just because the diagram is a flowchart or architecture map. The plugin can create editable boxes, labels, arrows, groups, frames, and containers directly with Excalidraw elements, and that should be the default.
 
 ## Workbench Selection Context
 
@@ -163,8 +177,9 @@ Inputs:
 
 Rules:
 
-- Use this for flowcharts, architecture flows, state flows, dependency maps, and quick drafts.
-- Flowcharts usually convert to editable Excalidraw elements best.
+- Use this when the user explicitly asks for Mermaid, provides Mermaid source, or asks for a quick draft where exact layout and editability are less important.
+- Do not use this as the default path for architecture diagrams, product maps, whiteboards, UI sketches, or diagrams that should be deliberately laid out.
+- Flowcharts usually convert to editable Excalidraw elements best, but direct Excalidraw elements are still preferred for new editable drawings.
 - Other Mermaid diagram types may convert as image-like content and may be less editable; warn the user when editability matters.
 - After the tool succeeds, the Workbench can auto-convert the Mermaid draft and save an editable Excalidraw version.
 
@@ -250,20 +265,22 @@ Rules:
 
 ## Recommended Workflows
 
-### New Mermaid-first drawing
+### New editable Excalidraw drawing
 
-1. Decide whether the request fits Mermaid. Use Mermaid for flows and architecture maps where exact freeform layout is less important.
+1. Call `excalidraw_create_drawing` with `title`, optional `kind`, tags, and a short `changeSummary`.
+2. Plan a stable coordinate system before adding elements. Leave comfortable spacing for labels and connectors.
+3. Add containers, frames, or major regions first with `excalidraw_add_elements`.
+4. Add nodes and text labels in small logical batches.
+5. Add arrows/connectors after both endpoints exist. Keep arrow ids stable and use supported arrowhead values.
+6. Use `excalidraw_get_drawing` with `includeScene=true` to page lightweight refs for verification when needed.
+7. Use `excalidraw_patch_scene` for final targeted corrections.
+
+### New Mermaid draft
+
+1. Use this only when Mermaid is explicitly requested, Mermaid source is supplied, or speed matters more than exact editable layout.
 2. Call `excalidraw_save_mermaid_draft` with `title`, `kind`, `mermaidSource`, and `changeSummary`.
 3. Tell the user the draft was saved for Workbench conversion and review.
-4. If the user later wants precise edits, inspect the converted version with `excalidraw_get_drawing` and `excalidraw_get_scene_item`, then patch.
-
-### New precise Excalidraw drawing
-
-1. Call `excalidraw_create_drawing` with metadata.
-2. Add a small logical batch with `excalidraw_add_elements`.
-3. Repeat small batches until the diagram is complete.
-4. Use `excalidraw_get_drawing` with `includeScene=true` to page lightweight refs for verification when needed.
-5. Use `excalidraw_patch_scene` for final targeted corrections.
+4. For follow-up edits, inspect the converted version with `excalidraw_get_drawing` and `excalidraw_get_scene_item`, then patch with direct Excalidraw elements.
 
 ### Update an existing drawing
 
@@ -293,6 +310,11 @@ Rules:
 
 - Persist only supported element types: `rectangle`, `diamond`, `ellipse`, `arrow`, `line`, `freedraw`, `text`, `image`, `frame`, `magicframe`, `iframe`, `embeddable`.
 - Never persist transient `selection` elements.
+- Use stable, semantic ids such as `box-api-gateway`, `text-api-gateway`, and `arrow-api-to-service`. Avoid random-looking ids unless preserving imported elements.
+- Build diagrams in layers: background regions or frames, primary nodes, text labels, connectors, then annotations and highlights.
+- Prefer separate text elements for labels inside important boxes when exact placement matters; use container binding only when the label should move tightly with a shape.
+- Keep coordinates, widths, and heights explicit. Leave extra width for Chinese labels and multi-line text.
+- Use consistent colors and stroke widths per region. Avoid making every item a separate palette unless the user's domain calls for it.
 - Every element needs a non-empty `id`, explicit `type`, finite common geometry/style/version fields, `isDeleted`, `locked`, `groupIds`, and binding fields expected by Excalidraw.
 - Common required string fields include `strokeColor`, `backgroundColor`, `fillStyle`, and `strokeStyle`.
 - Common required number fields include `x`, `y`, `width`, `height`, `angle`, `strokeWidth`, `roughness`, `opacity`, `seed`, `version`, `versionNonce`, and `updated`.

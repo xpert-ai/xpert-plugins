@@ -10,7 +10,6 @@ export const EXCALIDRAW_WORKBENCH_VIEW_KEY = 'excalidraw_workbench'
 export const EXCALIDRAW_REMOTE_ENTRY_KEY = 'excalidraw-workbench'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
-export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 export const ASSISTANT_CONTEXT_SET_COMMAND = 'assistant.context.set'
 
 export const EXCALIDRAW_CREATE_DRAWING_TOOL_NAME = 'excalidraw_create_drawing'

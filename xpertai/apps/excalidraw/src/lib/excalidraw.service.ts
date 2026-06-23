@@ -116,6 +116,25 @@ export class ExcalidrawService {
     }
   }
 
+  async saveCurrentScene(scope: ExcalidrawScope, input: SaveExcalidrawSceneVersionInput) {
+    const drawing = await this.requireDrawing(scope, input.drawingId)
+    const version = await this.updateCurrentVersion(scope, drawing, {
+      sourceType: input.sourceType ?? 'agent_json',
+      elements: input.elements,
+      appState: input.appState,
+      files: input.files,
+      mermaidSource: normalizeNullableText(input.mermaidSource),
+      changeSummary: normalizeOptional(input.changeSummary)
+    })
+
+    return {
+      success: true,
+      message: 'Excalidraw current scene was saved.',
+      drawing: await this.getDrawing(scope, drawing.id as string),
+      version
+    }
+  }
+
   async patchScene(scope: ExcalidrawScope, input: PatchExcalidrawSceneInput) {
     const drawing = await this.requireDrawing(scope, input.drawingId)
     const currentVersion = await this.getCurrentVersion(scope, drawing)
@@ -153,7 +172,7 @@ export class ExcalidrawService {
       throw new BadRequestException('Excalidraw scene patch did not change the current scene.')
     }
 
-    const version = await this.createVersion(scope, drawing, {
+    const version = await this.updateCurrentVersion(scope, drawing, {
       sourceType: 'agent_patch',
       elements: patch.elements,
       appState,
@@ -180,7 +199,7 @@ export class ExcalidrawService {
 
     return {
       success: true,
-      message: 'Excalidraw scene patch was saved as a new version.',
+      message: 'Excalidraw scene patch updated the current version.',
       drawing: await this.getDrawing(scope, drawing.id as string),
       version,
       patch: {
@@ -206,7 +225,7 @@ export class ExcalidrawService {
           })
         ).item
 
-    const version = await this.createVersion(scope, drawing, {
+    const version = await this.updateCurrentVersion(scope, drawing, {
       sourceType: 'agent_mermaid',
       elements: [],
       appState: {},
@@ -226,7 +245,7 @@ export class ExcalidrawService {
 
     return {
       success: true,
-      message: 'Mermaid draft was saved. The Excalidraw workbench will convert and save it as an editable version.',
+      message: 'Mermaid draft was saved. The Excalidraw workbench will convert and update the current scene.',
       drawing: await this.getDrawing(scope, drawing.id as string),
       version
     }
@@ -542,6 +561,57 @@ export class ExcalidrawService {
     return version
   }
 
+  private async updateCurrentVersion(
+    scope: ExcalidrawScope,
+    drawing: ExcalidrawDrawing,
+    input: ExcalidrawSceneInput & {
+      sourceType: ExcalidrawVersionSource
+      changeSummary?: string
+    }
+  ) {
+    const scene = validateScene(input, `Excalidraw ${input.sourceType} scene`)
+    const currentVersion = await this.getCurrentVersion(scope, drawing)
+    if (!currentVersion) {
+      return this.createVersion(scope, drawing, input)
+    }
+
+    const version = await this.versionRepository.save({
+      ...currentVersion,
+      sourceType: input.sourceType,
+      elements: scene.elements,
+      appState: scene.appState,
+      files: scene.files,
+      mermaidSource: normalizeNullableText(input.mermaidSource),
+      changeSummary: normalizeOptional(input.changeSummary),
+      assistantId: scope.assistantId ?? currentVersion.assistantId ?? null,
+      conversationId: scope.conversationId ?? currentVersion.conversationId ?? null
+    })
+
+    await this.drawingRepository.save({
+      ...drawing,
+      currentVersionId: version.id,
+      currentVersionNumber: version.versionNumber,
+      lastEditedById: scope.userId ?? null,
+      lastEditedAt: new Date()
+    })
+
+    await this.writeLog(scope, {
+      drawingId: drawing.id,
+      versionId: version.id,
+      action: 'scene_updated',
+      actorType: input.sourceType.startsWith('agent') ? 'agent' : 'user',
+      message: input.changeSummary,
+      snapshot: {
+        versionNumber: version.versionNumber,
+        sourceType: input.sourceType,
+        elementCount: version.elements?.length ?? 0,
+        hasMermaidSource: Boolean(version.mermaidSource)
+      }
+    })
+
+    return version
+  }
+
   private async getCurrentVersion(scope: ExcalidrawScope, drawing: ExcalidrawDrawing) {
     if (!drawing.currentVersionId) {
       return null
@@ -725,7 +795,7 @@ function applyElementPatch(elements: Record<string, unknown>[], input: PatchExca
       if (update.type !== undefined && update.type !== element.type) {
         throw new BadRequestException(`Cannot change Excalidraw element "${id}" type.`)
       }
-      return { ...element, ...update, id }
+      return mergePatchedElement(element, update, id)
     })
 
   return {
@@ -741,8 +811,292 @@ function normalizePatchElements(elements: unknown[] | undefined | null) {
     if (!isPlainObject(element)) {
       throw new BadRequestException(`addElements[${index}] must be an Excalidraw element object.`)
     }
-    return element
+    return normalizeAddedElementDefaults(element, index)
   })
+}
+
+function normalizeAddedElementDefaults(element: Record<string, unknown>, index: number) {
+  const type = typeof element.type === 'string' ? element.type : ''
+  const normalized = { ...element }
+  const text = typeof normalized.text === 'string' ? normalized.text : typeof normalized.originalText === 'string' ? normalized.originalText : ''
+  const widthDefault = type === 'text' ? estimateTextWidth(text) : 120
+  const heightDefault = type === 'text' ? 24 : 80
+
+  defaultFiniteNumber(normalized, 'x', 0)
+  defaultFiniteNumber(normalized, 'y', 0)
+  defaultFiniteNumber(normalized, 'width', widthDefault)
+  defaultFiniteNumber(normalized, 'height', heightDefault)
+  defaultFiniteNumber(normalized, 'angle', 0)
+  defaultFiniteNumber(normalized, 'strokeWidth', 2)
+  defaultFiniteNumber(normalized, 'roughness', 1)
+  defaultFiniteNumber(normalized, 'opacity', 100)
+  defaultFiniteNumber(normalized, 'seed', index + 1)
+  defaultFiniteNumber(normalized, 'version', 1)
+  defaultFiniteNumber(normalized, 'versionNonce', index + 1)
+  defaultFiniteNumber(normalized, 'updated', Date.now())
+  defaultString(normalized, 'strokeColor', '#1e1e1e')
+  defaultString(normalized, 'backgroundColor', 'transparent')
+  defaultString(normalized, 'fillStyle', 'hachure')
+  defaultString(normalized, 'strokeStyle', 'solid')
+  defaultBoolean(normalized, 'isDeleted', false)
+  defaultBoolean(normalized, 'locked', false)
+  defaultArray(normalized, 'groupIds')
+  defaultNullable(normalized, 'frameId')
+  defaultNullable(normalized, 'boundElements')
+  defaultNullable(normalized, 'link')
+  defaultNullable(normalized, 'roundness')
+  normalized.roundness = normalizeRoundnessValue(normalized.roundness)
+  if (normalized.index === undefined) {
+    normalized.index = null
+  }
+
+  if (type === 'text') {
+    normalized.text = text
+    defaultString(normalized, 'originalText', text)
+    defaultString(normalized, 'textAlign', 'left')
+    defaultString(normalized, 'verticalAlign', 'top')
+    defaultNullable(normalized, 'containerId')
+    defaultBoolean(normalized, 'autoResize', true)
+    defaultFiniteNumber(normalized, 'fontSize', 20)
+    defaultFiniteNumber(normalized, 'fontFamily', 5)
+    defaultFiniteNumber(normalized, 'lineHeight', 1.25)
+  } else if (type === 'arrow' || type === 'line') {
+    if (!Array.isArray(normalized.points) || normalized.points.length < 2) {
+      normalized.points = [[0, 0], [readFiniteNumber(normalized.width) ?? widthDefault, 0]]
+    }
+    defaultNullable(normalized, 'lastCommittedPoint')
+    defaultNullable(normalized, 'startBinding')
+    defaultNullable(normalized, 'endBinding')
+    normalized.startArrowhead = normalizeArrowheadValue(normalized.startArrowhead, null)
+    if (type === 'arrow') {
+      normalized.endArrowhead = normalizeArrowheadValue(normalized.endArrowhead, 'arrow')
+      defaultBoolean(normalized, 'elbowed', false)
+    } else {
+      normalized.endArrowhead = normalizeArrowheadValue(normalized.endArrowhead, null)
+    }
+  } else if (type === 'freedraw') {
+    if (!Array.isArray(normalized.points) || normalized.points.length < 1) {
+      normalized.points = [[0, 0]]
+    }
+    if (!Array.isArray(normalized.pressures)) {
+      normalized.pressures = []
+    }
+    defaultBoolean(normalized, 'simulatePressure', false)
+    defaultNullable(normalized, 'lastCommittedPoint')
+  } else if (type === 'image') {
+    defaultNullable(normalized, 'fileId')
+    defaultString(normalized, 'status', 'saved')
+    if (!Array.isArray(normalized.scale) || normalized.scale.length !== 2) {
+      normalized.scale = [1, 1]
+    }
+    defaultNullable(normalized, 'crop')
+  } else if (type === 'frame' || type === 'magicframe') {
+    defaultNullable(normalized, 'name')
+  }
+
+  return normalized
+}
+
+function normalizeElementUpdateFields(update: Record<string, unknown>, currentElement: Record<string, unknown>) {
+  const normalized = { ...update }
+  const type = typeof currentElement.type === 'string' ? currentElement.type : typeof normalized.type === 'string' ? normalized.type : ''
+  if (Object.prototype.hasOwnProperty.call(normalized, 'roundness')) {
+    normalized.roundness = normalizeRoundnessValue(normalized.roundness)
+  }
+  if (type !== 'arrow' && type !== 'line') {
+    return normalized
+  }
+  if (Object.prototype.hasOwnProperty.call(normalized, 'startArrowhead')) {
+    normalized.startArrowhead = normalizeArrowheadValue(normalized.startArrowhead, null)
+  }
+  if (Object.prototype.hasOwnProperty.call(normalized, 'endArrowhead')) {
+    normalized.endArrowhead = normalizeArrowheadValue(normalized.endArrowhead, type === 'arrow' ? 'arrow' : null)
+  }
+  return normalized
+}
+
+function mergePatchedElement(element: Record<string, unknown>, update: Record<string, unknown>, id: string) {
+  const merged = {
+    ...element,
+    ...normalizeElementUpdateFields(update, element),
+    id
+  }
+  if (!hasElementMaterialChange(element, merged)) {
+    return merged
+  }
+  return bumpElementMutationMetadata(element, merged)
+}
+
+function hasElementMaterialChange(previous: Record<string, unknown>, next: Record<string, unknown>) {
+  return createStableJsonSignature(stripElementMutationMetadata(previous)) !== createStableJsonSignature(stripElementMutationMetadata(next))
+}
+
+function stripElementMutationMetadata(element: Record<string, unknown>) {
+  return Object.keys(element).reduce<Record<string, unknown>>((acc, key) => {
+    if (key !== 'version' && key !== 'versionNonce' && key !== 'updated') {
+      acc[key] = element[key]
+    }
+    return acc
+  }, {})
+}
+
+function bumpElementMutationMetadata(previous: Record<string, unknown>, next: Record<string, unknown>) {
+  const bumped = { ...next }
+  const previousVersion = readFiniteNumber(previous.version) ?? 0
+  const nextVersion = readFiniteNumber(bumped.version)
+  if (nextVersion === null || nextVersion <= previousVersion) {
+    bumped.version = previousVersion + 1
+  }
+
+  const previousVersionNonce = readFiniteNumber(previous.versionNonce)
+  const nextVersionNonce = readFiniteNumber(bumped.versionNonce)
+  if (nextVersionNonce === null || nextVersionNonce === previousVersionNonce) {
+    bumped.versionNonce = nextElementVersionNonce(previousVersionNonce)
+  }
+
+  const previousUpdated = readFiniteNumber(previous.updated) ?? 0
+  const nextUpdated = readFiniteNumber(bumped.updated)
+  if (nextUpdated === null || nextUpdated <= previousUpdated) {
+    bumped.updated = Math.max(Date.now(), previousUpdated + 1)
+  }
+  return bumped
+}
+
+function nextElementVersionNonce(previousVersionNonce: number | null) {
+  const next = Math.trunc(Date.now() % 2147483647)
+  if (previousVersionNonce === null || next !== previousVersionNonce) {
+    return next
+  }
+  return next === 2147483646 ? 1 : next + 1
+}
+
+function estimateTextWidth(text: string) {
+  return Math.max(40, Math.min(600, text.length * 12 || 80))
+}
+
+const SUPPORTED_ARROWHEADS = new Set([
+  'arrow',
+  'bar',
+  'dot',
+  'circle',
+  'circle_outline',
+  'triangle',
+  'triangle_outline',
+  'diamond',
+  'diamond_outline',
+  'crowfoot_one',
+  'crowfoot_many',
+  'crowfoot_one_or_many'
+])
+const DEFAULT_ROUNDNESS_TYPE = 3
+
+const ARROWHEAD_ALIASES = new Map<string, string | null>([
+  ['none', null],
+  ['no', null],
+  ['no_arrow', null],
+  ['null', null],
+  ['undefined', null],
+  ['false', null],
+  ['0', null],
+  ['arrowhead', 'arrow'],
+  ['arrow_head', 'arrow'],
+  ['normal', 'arrow'],
+  ['standard', 'arrow'],
+  ['single_arrow', 'arrow'],
+  ['triangle_filled', 'triangle'],
+  ['filled_triangle', 'triangle'],
+  ['open_triangle', 'triangle_outline'],
+  ['hollow_triangle', 'triangle_outline'],
+  ['outlined_triangle', 'triangle_outline'],
+  ['circle_filled', 'circle'],
+  ['filled_circle', 'circle'],
+  ['open_circle', 'circle_outline'],
+  ['hollow_circle', 'circle_outline'],
+  ['outlined_circle', 'circle_outline'],
+  ['diamond_filled', 'diamond'],
+  ['filled_diamond', 'diamond'],
+  ['open_diamond', 'diamond_outline'],
+  ['hollow_diamond', 'diamond_outline'],
+  ['outlined_diamond', 'diamond_outline'],
+  ['tee', 'bar'],
+  ['one', 'crowfoot_one'],
+  ['many', 'crowfoot_many'],
+  ['one_or_many', 'crowfoot_one_or_many'],
+  ['crowfoot', 'crowfoot_many']
+])
+
+function normalizeArrowheadValue(value: unknown, fallback: string | null) {
+  if (value === undefined) {
+    return fallback
+  }
+  if (value === null) {
+    return null
+  }
+  if (typeof value !== 'string') {
+    return fallback
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (!normalized) {
+    return null
+  }
+  if (SUPPORTED_ARROWHEADS.has(normalized)) {
+    return normalized
+  }
+  if (ARROWHEAD_ALIASES.has(normalized)) {
+    return ARROWHEAD_ALIASES.get(normalized) ?? null
+  }
+  return fallback
+}
+
+function normalizeRoundnessValue(value: unknown) {
+  if (value === undefined || value === null) {
+    return null
+  }
+  if (!isPlainObject(value)) {
+    return null
+  }
+  const normalized = { ...value }
+  if (!Number.isFinite(normalized.type)) {
+    normalized.type = DEFAULT_ROUNDNESS_TYPE
+  }
+  if (normalized.value !== undefined && !Number.isFinite(normalized.value)) {
+    delete normalized.value
+  }
+  return normalized
+}
+
+function defaultFiniteNumber(element: Record<string, unknown>, field: string, value: number) {
+  if (!Number.isFinite(element[field])) {
+    element[field] = value
+  }
+}
+
+function defaultString(element: Record<string, unknown>, field: string, value: string) {
+  if (typeof element[field] !== 'string') {
+    element[field] = value
+  }
+}
+
+function defaultBoolean(element: Record<string, unknown>, field: string, value: boolean) {
+  if (typeof element[field] !== 'boolean') {
+    element[field] = value
+  }
+}
+
+function defaultArray(element: Record<string, unknown>, field: string) {
+  if (!Array.isArray(element[field])) {
+    element[field] = []
+  }
+}
+
+function defaultNullable(element: Record<string, unknown>, field: string) {
+  if (element[field] === undefined) {
+    element[field] = null
+  }
+}
+
+function readFiniteNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 function collectUniqueIds(elements: Record<string, unknown>[], label: string) {
