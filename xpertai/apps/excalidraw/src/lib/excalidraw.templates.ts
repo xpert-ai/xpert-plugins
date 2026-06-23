@@ -79,9 +79,9 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
     default: false,
     startPrompts: [
       'Create an editable architecture diagram from my system description.',
-      'Convert the following process description into an Excalidraw drawing and save a Mermaid draft.',
+      'Create an editable process diagram from my description using Excalidraw elements.',
       'Read the current drawing version and adjust the layout and annotations based on my feedback.',
-      'Import this Mermaid source and create a version that can keep being edited in the workbench.'
+      'Import this Mermaid source only as a draft, then refine it with editable Excalidraw elements.'
     ],
     releaseNotes: 'Created the Excalidraw Agentic Drawing business assistant.',
     xpertName: 'Excalidraw Drawing Assistant',

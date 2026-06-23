@@ -1,5 +1,6 @@
 export type TranslationKey =
   | 'newDrawing'
+  | 'newVersion'
   | 'save'
   | 'saveChanges'
   | 'saveNoChanges'
@@ -7,7 +8,6 @@ export type TranslationKey =
   | 'exportJson'
   | 'exportPng'
   | 'exportSvg'
-  | 'askAssistant'
   | 'search'
   | 'allStatuses'
   | 'draft'
@@ -31,8 +31,6 @@ export type TranslationKey =
   | 'convert'
   | 'saveConverted'
   | 'title'
-  | 'description'
-  | 'drawingRequest'
   | 'changeSummary'
   | 'operationCompleted'
   | 'operationFailed'
@@ -45,6 +43,7 @@ export type TranslationKey =
   | 'mermaidNotice'
   | 'untitled'
   | 'drawingCreated'
+  | 'drawingNotReady'
   | 'convertFailed'
   | 'agentDrawingUpdated'
   | 'agentDrawingUpdatedWithLocalChanges'
@@ -62,6 +61,7 @@ export type TranslationKey =
 const translations: Record<string, Record<TranslationKey, string>> = {
   zh_Hans: {
     newDrawing: '新建',
+    newVersion: '新建版本',
     save: '保存',
     saveChanges: '保存当前改动',
     saveNoChanges: '没有改动，无需保存',
@@ -69,7 +69,6 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     exportJson: 'JSON',
     exportPng: 'PNG',
     exportSvg: 'SVG',
-    askAssistant: '发送',
     search: '搜索图形',
     allStatuses: '全部状态',
     draft: '草稿',
@@ -93,8 +92,6 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     convert: '转换',
     saveConverted: '保存转换',
     title: '标题',
-    description: '描述',
-    drawingRequest: '绘图需求',
     changeSummary: '变更摘要',
     operationCompleted: '操作已完成',
     operationFailed: '操作失败',
@@ -107,6 +104,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     mermaidNotice: 'Flowchart 可结构化转换，其他 Mermaid 类型可能以图片进入画布。',
     untitled: '未命名图形',
     drawingCreated: '图形已创建',
+    drawingNotReady: '图形数据暂未就绪，请稍后刷新重试',
     convertFailed: 'Mermaid 转换失败',
     agentDrawingUpdated: 'Agent 绘图结果已刷新',
     agentDrawingUpdatedWithLocalChanges: 'Agent 已更新图形，但当前画布有未保存改动，未自动覆盖。',
@@ -123,6 +121,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
   },
   en_US: {
     newDrawing: 'New',
+    newVersion: 'New version',
     save: 'Save',
     saveChanges: 'Save current changes',
     saveNoChanges: 'No changes to save',
@@ -130,7 +129,6 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     exportJson: 'JSON',
     exportPng: 'PNG',
     exportSvg: 'SVG',
-    askAssistant: 'Send',
     search: 'Search drawings',
     allStatuses: 'All statuses',
     draft: 'Draft',
@@ -154,8 +152,6 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     convert: 'Convert',
     saveConverted: 'Save converted',
     title: 'Title',
-    description: 'Description',
-    drawingRequest: 'Drawing request',
     changeSummary: 'Change summary',
     operationCompleted: 'Operation completed',
     operationFailed: 'Operation failed',
@@ -168,6 +164,7 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     mermaidNotice: 'Flowcharts convert to editable elements best; other Mermaid types may enter as images.',
     untitled: 'Untitled drawing',
     drawingCreated: 'Drawing created',
+    drawingNotReady: 'Drawing data is not ready yet. Please refresh and try again shortly.',
     convertFailed: 'Mermaid conversion failed',
     agentDrawingUpdated: 'Agent drawing result refreshed',
     agentDrawingUpdatedWithLocalChanges: 'Agent updated this drawing, but unsaved canvas changes were kept.',

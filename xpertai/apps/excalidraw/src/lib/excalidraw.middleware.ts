@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
+import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
-import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -66,7 +67,7 @@ const createDrawingSchema = z.object({
 
 const addElementsSchema = z.object({
   drawingId: z.string().min(1).describe('Existing Excalidraw drawing id. Create a drawing first, usually without initial elements.'),
-  elements: z.array(z.unknown()).min(1).max(20).describe('One element or a small batch of valid full Excalidraw element JSON objects to append. Prefer 1-5 logically related elements per call for complex drawings.'),
+  elements: z.array(z.unknown()).min(1).max(20).describe('One element or a small batch to append. You may provide shorthand element JSON with id, type, geometry, and text/points as needed; the service fills common Excalidraw defaults such as style, roughness, locked, frameId, link, roundness, version, text defaults, and arrowhead defaults/aliases. Prefer 1-5 logically related elements per call for complex drawings.'),
   appStatePatch: recordSchema.optional().describe('Optional shallow appState patch. Omit unless this batch needs it.'),
   files: recordSchema.optional().describe('Replacement files map only when this batch adds file-backed elements. Omit otherwise.'),
   mermaidSource: z.string().optional().describe('Optional replacement Mermaid source. Omit to keep current source.'),
@@ -145,6 +146,14 @@ const reportFailureSchema = z.object({
   evidence: z.unknown().optional()
 })
 
+const CHANGE_SUMMARY_EVENT_TOOL_NAMES = new Set([
+  EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
+  EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+  EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
+  EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
+  EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME
+])
+
 @Injectable()
 @AgentMiddlewareStrategy(EXCALIDRAW_MIDDLEWARE_NAME)
 export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
@@ -187,7 +196,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
             tags: input.tags,
             source: input.source,
             changeSummary: input.changeSummary
-          }), 'Excalidraw drawing was created.')),
+          }), 'Excalidraw drawing was created.', { includeDrawingId: true })),
           {
             name: EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
             description:
@@ -210,16 +219,16 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
             description:
-              'Append one element or a small batch of valid Excalidraw elements to an existing drawing. Use this after excalidraw_create_drawing for staged construction of complex diagrams. Each call validates only the current scene plus this batch; if it fails, fix this batch and retry.',
+              'Append one element or a small batch of Excalidraw elements to the existing drawing current version without creating a new version. This is the default creation path for editable diagrams after excalidraw_create_drawing. Shorthand elements are accepted; common Excalidraw defaults and arrowhead aliases are filled automatically. Use small staged batches for complex diagrams so the Workbench can show incremental progress. Each call validates only the current scene plus this batch; if it fails, fix this batch and retry.',
             schema: addElementsSchema
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveSceneVersion(scope, input), 'Excalidraw scene version was saved.')),
+          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveCurrentScene(scope, input), 'Excalidraw current scene was saved.')),
           {
             name: EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
             description:
-              'Save a complete valid Excalidraw scene as a new version for an existing drawing. Call excalidraw_get_drawing first when updating an existing user-edited drawing.',
+              'Save a complete valid Excalidraw scene into the drawing current version without creating a new version. Use only for intentional full-scene creation or replacement; prefer excalidraw_add_elements for staged creation and excalidraw_patch_scene for targeted edits. Call excalidraw_get_drawing first when updating an existing user-edited drawing.',
             schema: saveSceneVersionSchema
           }
         ),
@@ -228,16 +237,16 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
             description:
-              'Apply strict add/update/delete element changes to the current drawing version and save the result as a new version. Unknown ids, duplicate ids, type changes, invalid elements, and no-op patches are rejected. Prefer this for small targeted edits.',
+              'Apply strict add/update/delete element changes to the current drawing version without creating a new version. Unknown ids, duplicate ids, type changes, invalid elements, and no-op patches are rejected; common arrowhead aliases and none/null values are normalized before validation. Prefer this for small targeted edits.',
             schema: patchSceneSchema
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveMermaidDraft(scope, input), 'Mermaid draft was saved.')),
+          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveMermaidDraft(scope, input), 'Mermaid draft was saved.', { includeDrawingId: true })),
           {
             name: EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
             description:
-              'Save Mermaid source for automatic conversion and version save in the Excalidraw workbench. Use this for flowcharts, architecture flows, state diagrams, and sequence-style drafts before manual review.',
+              'Save Mermaid source for automatic conversion into the drawing current version in the Excalidraw workbench. Use this only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a very quick low-fidelity draft. For new editable diagrams, prefer excalidraw_create_drawing followed by excalidraw_add_elements.',
             schema: saveMermaidDraftSchema
           }
         ),
@@ -284,7 +293,42 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
             schema: reportFailureSchema
           }
         )
-      ]
+      ],
+      wrapToolCall: async (request, handler) => {
+        const changeSummary = readChangeSummaryMessage(request.toolCall.args)
+        if (!changeSummary || !CHANGE_SUMMARY_EVENT_TOOL_NAMES.has(request.toolCall.name)) {
+          return handler(request)
+        }
+
+        const createdAt = new Date()
+        await dispatchExcalidrawToolStepEvent({
+          request,
+          message: changeSummary,
+          status: 'running',
+          createdAt
+        })
+
+        try {
+          const result = await handler(request)
+          await dispatchExcalidrawToolStepEvent({
+            request,
+            message: changeSummary,
+            status: 'success',
+            createdAt,
+            output: readToolMessageOutput(result)
+          })
+          return result
+        } catch (error) {
+          await dispatchExcalidrawToolStepEvent({
+            request,
+            message: changeSummary,
+            status: 'fail',
+            createdAt,
+            error: getErrorMessage(error)
+          })
+          throw error
+        }
+      }
     }
   }
 }
@@ -299,4 +343,120 @@ function scopeFromContext(context: IAgentMiddlewareContext): ExcalidrawScope {
     conversationId: context.conversationId ?? null,
     assistantId: context.xpertId ?? null
   }
+}
+
+function readChangeSummaryMessage(args: unknown) {
+  if (!isPlainObject(args)) {
+    return undefined
+  }
+  const value = args.changeSummary
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+type ExcalidrawToolStepStatus = 'running' | 'success' | 'fail'
+
+async function dispatchExcalidrawToolStepEvent({
+  request,
+  message,
+  status,
+  createdAt,
+  output,
+  error
+}: {
+  request: Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
+  message: string
+  status: ExcalidrawToolStepStatus
+  createdAt: Date
+  output?: string
+  error?: string
+}) {
+  const toolCall = request.toolCall
+  const runtimeMetadata = request.runtime && typeof request.runtime === 'object'
+    ? Reflect.get(request.runtime, 'metadata')
+    : undefined
+  const metadata = isPlainObject(runtimeMetadata) ? runtimeMetadata : {}
+  const toolName = toolCall.name
+  const toolCallId = getToolCallDisplayId(toolCall)
+  const toolset = readStringField(metadata, ['toolset']) ?? EXCALIDRAW_MIDDLEWARE_NAME
+  const toolsetId = readStringField(metadata, ['toolsetId'])
+  const title = readStringField(metadata, ['toolName', toolName]) ?? toolName
+  const payload = {
+    id: toolCallId,
+    tool_call_id: toolCall.id,
+    category: 'Tool',
+    type: ChatMessageStepCategory.Program,
+    toolset,
+    ...(toolsetId ? { toolset_id: toolsetId } : {}),
+    tool: toolName,
+    title,
+    message,
+    status,
+    created_date: createdAt,
+    input: toolCall.args,
+    ...(status === 'running' ? { end_date: null } : { end_date: new Date() }),
+    ...(output !== undefined ? { output } : {}),
+    ...(error ? { error } : {})
+  }
+
+  try {
+    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, payload)
+  } catch (dispatchError) {
+    console.warn('[ExcalidrawMiddleware] dispatch tool message failed:', getErrorMessage(dispatchError))
+  }
+}
+
+function getToolCallDisplayId(toolCall: { id?: string; name: string; args?: unknown }) {
+  if (typeof toolCall.id === 'string' && toolCall.id.trim()) {
+    return toolCall.id.trim()
+  }
+  return `${toolCall.name}:${stringifyValue(toolCall.args)}`
+}
+
+function readToolMessageOutput(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+  const content = Reflect.get(value, 'content')
+  if (typeof content === 'string') {
+    return content
+  }
+  if (content === undefined) {
+    return undefined
+  }
+  return stringifyValue(content)
+}
+
+function readStringField(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return undefined
+}
+
+function stringifyValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value == null) {
+    return ''
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  return stringifyValue(error) || 'Unknown error'
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }

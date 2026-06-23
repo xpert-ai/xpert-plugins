@@ -1,0 +1,97 @@
+graph TB
+    subgraph UserLayer["👤 用户接入层"]
+        Web["Web 应用"]
+        Feishu["飞书机器人"]
+        API["API 接口"]
+    end
+
+    subgraph Workspace["🏢 工作空间 Workspace"]
+        direction TB
+        subgraph AgentPlatform["🤖 Agent 编排平台"]
+            direction TB
+            AgentXpert["Agent Xpert/专家智能体"]
+            CopilotXpert["Copilot Xpert/人机协作助手"]
+            
+            subgraph WorkflowEngine["🔀 工作流引擎"]
+                AgentMode["Agent 模式/高自主性节点"]
+                WorkflowMode["Workflow 模式/低自主性节点"]
+                Hybrid["混合协作机制/动态切换 + 状态共享"]
+            end
+            
+            subgraph WorkflowPatterns["工作流模式"]
+                Routing["路由工作流"]
+                Parallel["并行工作流"]
+                Orchestrator["编排者-工作者"]
+                Evaluator["评估者-优化者"]
+            end
+        end
+
+        subgraph DataPlatform["📊 数据分析平台"]
+            direction TB
+            DataSources["数据源连接"]
+            Modeling["多维建模"]
+            Metrics["指标管理"]
+            BI["BI 可视化"]
+            ChatBI["ChatBI"]
+            ChatDB["ChatDB"]
+            Search["智能搜索"]
+        end
+
+        subgraph CoreComponents["⚙️ 核心组件"]
+            KnowledgeBase["🎓 知识库/向量数据库"]
+            Toolsets["🔧 工具集 Toolsets"]
+            Plugins["🧩 插件系统/热插拔 + 市场"]
+            Middleware["Agent 中间件"]
+            Skills["Agent 技能 Skills"]
+        end
+
+        subgraph LLM["🧠 大语言模型层"]
+            LLMModels["LLM Models/多模型支持"]
+            StructuredOutput["结构化输出"]
+            ToolCalls["工具调用"]
+        end
+    end
+
+    subgraph Future["🚀 规划中"]
+        ProjectMgmt["项目管理/看板/Sprint/任务"]
+    end
+
+    Web --> Workspace
+    Feishu --> Workspace
+    API --> Workspace
+
+    AgentXpert --> WorkflowEngine
+    CopilotXpert --> KnowledgeBase
+    CopilotXpert --> Toolsets
+    
+    AgentMode --> Hybrid
+    WorkflowMode --> Hybrid
+    Hybrid --> WorkflowPatterns
+    
+    WorkflowEngine --> CoreComponents
+    DataPlatform --> CoreComponents
+    
+    CoreComponents --> LLM
+    LLMModels --> StructuredOutput
+    LLMModels --> ToolCalls
+    
+    DataSources --> Modeling
+    Modeling --> Metrics
+    Metrics --> BI
+    ChatBI --> DataSources
+    ChatDB --> DataSources
+    Search --> KnowledgeBase
+
+    classDef userLayer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef agentPlatform fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef dataPlatform fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef coreComponents fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef llm fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef future fill:#f5f5f5,stroke:#616161,stroke-width:2px,stroke-dasharray: 5 5
+
+    class Web,Feishu,API userLayer
+    class AgentXpert,CopilotXpert,WorkflowEngine,WorkflowPatterns agentPlatform
+    class DataSources,Modeling,Metrics,BI,ChatBI,ChatDB,Search dataPlatform
+    class KnowledgeBase,Toolsets,Plugins,Middleware,Skills coreComponents
+    class LLMModels,StructuredOutput,ToolCalls llm
+    class ProjectMgmt future

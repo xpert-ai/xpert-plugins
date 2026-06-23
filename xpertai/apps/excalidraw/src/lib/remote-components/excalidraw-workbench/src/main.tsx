@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   FileJson,
-  Image,
+  Image as ImageIcon,
   Input,
   PanelLeftClose,
   PanelLeftOpen,
@@ -36,7 +36,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Send,
   Sidebar,
   SidebarContent,
   SidebarHeader,
@@ -62,9 +61,20 @@ import {
 } from './mermaid-auto-save'
 import {
   decideToolEventRefresh,
+  isAnimatedPatchTool,
   normalizeToolCompletedEvent,
   SAVE_MERMAID_DRAFT_TOOL_NAME
 } from './tool-event-refresh'
+import {
+  buildSceneDiffSteps,
+  DEFAULT_SCENE_ANIMATION_STEP_DELAY_MS,
+  prepareSceneAnimationBaseElements
+} from './scene-diff-animation'
+import { normalizeMermaidSourceForExcalidrawConversion } from './mermaid-source-normalization'
+import {
+  countSceneFiles,
+  isSingleImageMermaidResult
+} from './mermaid-conversion-result'
 import {
   createExcalidrawSelectionContextCommand,
   createExcalidrawSelectionContextSignature,
@@ -74,7 +84,6 @@ import {
 import { normalizeExcalidrawElementsForPersistence } from '../../../excalidraw-scene.validation'
 import {
   executeAction,
-  executeFileAction,
   getErrorMessage,
   getResponsePayload,
   invokeClientCommand,
@@ -96,6 +105,26 @@ type DetailPayload = {
   currentVersion?: DrawingVersion | null
   versions?: DrawingVersion[]
   logs?: any[]
+}
+type SceneApplyPayload = {
+  elements: any[]
+  appState: Record<string, unknown>
+  files: Record<string, unknown>
+  mermaidSource: string
+}
+type SaveCurrentSceneOptions = {
+  force?: boolean
+  changeSummary?: string
+  silent?: boolean
+  background?: boolean
+  reloadAfterSave?: boolean
+}
+type LoadDrawingDetailOptions = {
+  applyScene?: boolean
+  resetDirty?: boolean
+  closeVersions?: boolean
+  clearChangeSummary?: boolean
+  suppressErrorNotify?: boolean
 }
 type DeleteTarget =
   | {
@@ -125,6 +154,8 @@ const SCENE_APP_STATE_SIGNATURE_KEYS = [
   'objectsSnapModeEnabled',
   'frameRendering'
 ]
+const AUTO_SAVE_DELAY_MS = 1200
+const HOST_EVENT_DETAIL_RETRY_DELAYS_MS = [150, 350, 700, 1200]
 
 installShadcnThemeVars({ styleId: 'excalidraw-workbench-shadcn-ui-vars' })
 injectStyles()
@@ -139,9 +170,7 @@ function App() {
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
   const [newTitle, setNewTitle] = React.useState('')
-  const [newDescription, setNewDescription] = React.useState('')
   const [changeSummary, setChangeSummary] = React.useState('')
-  const [assistantPrompt, setAssistantPrompt] = React.useState('')
   const [mermaidSource, setMermaidSource] = React.useState(DEFAULT_MERMAID)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
@@ -150,12 +179,14 @@ function App() {
   const [excalidrawTheme, setExcalidrawTheme] = React.useState<ExcalidrawTheme>(() => resolveExcalidrawTheme(null))
   const [api, setApi] = React.useState<any>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const apiRef = React.useRef<any>(null)
   const contextRef = React.useRef<any>(null)
   const detailRef = React.useRef<DetailPayload | null>(null)
   const selectedIdRef = React.useRef('')
   const searchRef = React.useRef('')
   const statusRef = React.useRef<StatusFilter>('')
   const hostEventSequenceRef = React.useRef(0)
+  const sceneAnimationSequenceRef = React.useRef(0)
   const pendingMermaidPreviewRef = React.useRef<{ versionId?: string; source: string; autoSave?: boolean; autoSaveKey?: string } | null>(null)
   const mermaidAutoSaveGuardRef = React.useRef(createMermaidAutoSaveGuard())
   const excalidrawThemeRef = React.useRef<ExcalidrawTheme>(excalidrawTheme)
@@ -169,6 +200,10 @@ function App() {
   const mermaidSourceRef = React.useRef(DEFAULT_MERMAID)
   const dirtyRef = React.useRef(false)
   const savedSceneSignatureRef = React.useRef('')
+  const autoSaveTimerRef = React.useRef<number | null>(null)
+  const autoSaveInFlightRef = React.useRef(false)
+  const autoSaveRequestedRef = React.useRef(false)
+  const autoSaveFailureNotifiedRef = React.useRef(false)
   const suppressedDetailSceneVersionRef = React.useRef<string | null>(null)
   const t = createTranslator(context?.locale)
 
@@ -207,6 +242,10 @@ function App() {
   React.useEffect(() => {
     mermaidSourceRef.current = mermaidSource
   }, [mermaidSource])
+
+  React.useEffect(() => {
+    apiRef.current = api
+  }, [api])
 
   function setCurrentDetail(nextDetail: DetailPayload | null) {
     detailRef.current = nextDetail
@@ -256,6 +295,8 @@ function App() {
 
   React.useEffect(() => {
     return () => {
+      cancelSceneAnimation()
+      cancelAutoSave()
       if (selectionContextSyncTimerRef.current !== null) {
         window.clearTimeout(selectionContextSyncTimerRef.current)
       }
@@ -395,6 +436,7 @@ function App() {
       return
     }
 
+    cancelSceneAnimation()
     const sequence = ++hostEventSequenceRef.current
     const items = await reloadList()
     console.info('[excalidraw-workbench] hostEvent list reloaded', {
@@ -419,6 +461,10 @@ function App() {
     })
     console.info('[excalidraw-workbench] hostEvent refresh decision', decision)
     let selectedPayload: DetailPayload | null = null
+    let sceneApplied = true
+    const shouldAnimateScene = isAnimatedPatchTool(normalizedEvent) && Boolean(apiRef.current)
+    const shouldPreviewMermaidDraft = decision.shouldQueueMermaidPreview && Boolean(apiRef.current)
+    const shouldLoadDetailWithoutApplyingScene = shouldAnimateScene || shouldPreviewMermaidDraft
     if (decision.shouldProtectDirtyScene) {
       // Preserve unsaved local canvas edits; only refresh version metadata unless applying is explicitly safe.
       if (decision.shouldLoadProtectedDetail && decision.targetDrawingId) {
@@ -439,22 +485,75 @@ function App() {
 
     if (decision.shouldSelectDrawing && decision.targetDrawingId) {
       console.info('[excalidraw-workbench] selecting drawing after hostEvent', {
-        drawingId: decision.targetDrawingId
+        drawingId: decision.targetDrawingId,
+        animated: shouldAnimateScene,
+        mermaidPreview: shouldPreviewMermaidDraft
       })
-      selectedPayload = await selectDrawing(decision.targetDrawingId)
+      selectedPayload = await loadDrawingDetailAfterHostEvent(
+        decision.targetDrawingId,
+        shouldLoadDetailWithoutApplyingScene
+          ? {
+              applyScene: false,
+              resetDirty: true,
+              closeVersions: true,
+              clearChangeSummary: true
+            }
+          : {
+              applyScene: true,
+              resetDirty: true,
+              closeVersions: true,
+              clearChangeSummary: true
+            },
+        sequence
+      )
+      if (sequence !== hostEventSequenceRef.current) {
+        console.info('[excalidraw-workbench] hostEvent scene apply skipped because a newer event arrived', {
+          sequence,
+          currentSequence: hostEventSequenceRef.current
+        })
+        return
+      }
+      if (normalizedEvent?.isCreateDrawing && selectedPayload?.item && !items.some((item) => item?.id === selectedPayload?.item?.id)) {
+        await reloadList()
+        if (sequence !== hostEventSequenceRef.current) {
+          console.info('[excalidraw-workbench] hostEvent post-create list refresh skipped because a newer event arrived', {
+            sequence,
+            currentSequence: hostEventSequenceRef.current
+          })
+          return
+        }
+      }
+      if (shouldAnimateScene) {
+        if (selectedPayload?.currentVersion) {
+          sceneApplied = await animateApplyVersion(selectedPayload.currentVersion)
+        } else if (apiRef.current) {
+          applyBlankScene({ clearMermaid: true })
+        }
+        if (!sceneApplied) {
+          return
+        }
+      }
       console.info('[excalidraw-workbench] selected drawing after hostEvent', {
         drawingId: decision.targetDrawingId,
         currentVersionId: selectedPayload?.currentVersion?.id,
-        currentVersionNumber: selectedPayload?.currentVersion?.versionNumber
+        currentVersionNumber: selectedPayload?.currentVersion?.versionNumber,
+        animated: shouldAnimateScene,
+        mermaidPreview: shouldPreviewMermaidDraft
       })
     }
 
     if (decision.shouldQueueMermaidPreview && selectedPayload?.currentVersion?.mermaidSource) {
-      console.info('[excalidraw-workbench] queueing Mermaid auto-preview after hostEvent', {
+      console.info('[excalidraw-workbench] previewing Mermaid draft after hostEvent', {
         drawingId: decision.targetDrawingId,
         versionId: selectedPayload.currentVersion.id
       })
-      queueMermaidPreview(selectedPayload.currentVersion, { autoSave: true })
+      const autoSaveKey = createMermaidAutoSaveKey(selectedPayload.currentVersion.id, selectedPayload.currentVersion.mermaidSource)
+      prepareMermaidPreviewCanvas(selectedPayload.currentVersion.mermaidSource)
+      await previewMermaidSource(selectedPayload.currentVersion.mermaidSource, {
+        automatic: true,
+        autoSave: true,
+        autoSaveKey
+      })
       return
     }
 
@@ -512,9 +611,40 @@ function App() {
     })
   }
 
+  async function loadDrawingDetailAfterHostEvent(
+    drawingId: string,
+    options: LoadDrawingDetailOptions,
+    sequence: number
+  ): Promise<DetailPayload | null> {
+    for (let attempt = 0; attempt <= HOST_EVENT_DETAIL_RETRY_DELAYS_MS.length; attempt += 1) {
+      if (sequence !== hostEventSequenceRef.current) {
+        return null
+      }
+      const isFinalAttempt = attempt === HOST_EVENT_DETAIL_RETRY_DELAYS_MS.length
+      const payload = await loadDrawingDetail(drawingId, {
+        ...options,
+        suppressErrorNotify: !isFinalAttempt
+      })
+      if (payload?.item) {
+        return payload
+      }
+      if (isFinalAttempt || sequence !== hostEventSequenceRef.current) {
+        return null
+      }
+      const retryDelay = HOST_EVENT_DETAIL_RETRY_DELAYS_MS[attempt]
+      console.info('[excalidraw-workbench] hostEvent detail not ready; retrying', {
+        drawingId,
+        attempt: attempt + 1,
+        retryDelay
+      })
+      await wait(retryDelay)
+    }
+    return null
+  }
+
   async function loadDrawingDetail(
     drawingId: string,
-    options: { applyScene?: boolean; resetDirty?: boolean; closeVersions?: boolean; clearChangeSummary?: boolean } = {}
+    options: LoadDrawingDetailOptions = {}
   ): Promise<DetailPayload | null> {
     if (!drawingId) {
       return null
@@ -523,6 +653,9 @@ function App() {
     const resetDirty = options.resetDirty ?? applyScene
     const closeVersions = options.closeVersions ?? true
     const clearChangeSummary = options.clearChangeSummary ?? true
+    if (resetDirty && drawingId !== selectedIdRef.current) {
+      cancelAutoSave()
+    }
     setBusy(true)
     try {
       const response = await requestData({
@@ -531,6 +664,17 @@ function App() {
         }
       })
       const payload = getResponsePayload(response) || {}
+      if (!payload.item) {
+        console.warn('[excalidraw-workbench] loadDrawingDetail returned no drawing item', {
+          drawingId,
+          payload
+        })
+        if (!options.suppressErrorNotify) {
+          const translate = createTranslator(contextRef.current?.locale)
+          notify('warning', translate('drawingNotReady'))
+        }
+        return null
+      }
       console.info('[excalidraw-workbench] loadDrawingDetail result', {
         drawingId,
         applyScene,
@@ -545,7 +689,9 @@ function App() {
       }
       setCurrentDetail(payload)
       if (resetDirty) {
+        dirtyRef.current = false
         setDirty(false)
+        cancelAutoSave()
       }
       if (closeVersions) {
         setVersionsOpen(false)
@@ -559,15 +705,17 @@ function App() {
         } else {
           updateMermaidSource('')
         }
-        if (api && payload.currentVersion) {
+        if (apiRef.current && payload.currentVersion) {
           applyVersion(payload.currentVersion)
-        } else if (api) {
+        } else if (apiRef.current) {
           applyBlankScene({ clearMermaid: true })
         }
       }
       return payload
     } catch (error) {
-      notify('error', getErrorMessage(error))
+      if (!options.suppressErrorNotify) {
+        notify('error', getErrorMessage(error))
+      }
       return null
     } finally {
       setBusy(false)
@@ -579,17 +727,16 @@ function App() {
     setBusy(true)
     try {
       const response = await executeAction('create_drawing', null, {
-        title,
-        description: newDescription
+        title
       })
       const result = getResponsePayload(response)
       notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('drawingCreated'))
       const drawingId = result?.item?.id || result?.data?.item?.id
       const drawingItem = result?.item || result?.data?.item || null
       setNewTitle('')
-      setNewDescription('')
       setChangeSummary('')
       if (drawingId) {
+        cancelAutoSave()
         selectedIdRef.current = drawingId
         setSelectedId(drawingId)
         setCurrentDetail({
@@ -612,43 +759,80 @@ function App() {
   }
 
   async function saveCurrentScene(
-    sourceAction = 'save_scene_version',
-    options: { force?: boolean; changeSummary?: string; silent?: boolean } = {}
+    sourceAction = 'save_current_scene',
+    options: SaveCurrentSceneOptions = {}
   ) {
-    if (!selectedId) {
-      notify('warning', t('noDrawing'))
+    const drawingId = selectedIdRef.current || selectedId
+    if (!drawingId) {
+      if (!options.background) {
+        notify('warning', t('noDrawing'))
+      }
       return false
     }
     if (!options.force && !dirtyRef.current) {
-      notify('info', t('saveNoChanges'))
+      if (!options.background) {
+        notify('info', t('saveNoChanges'))
+      }
       return false
     }
-    setBusy(true)
+    const shouldSetBusy = !options.background
+    if (shouldSetBusy) {
+      setBusy(true)
+    }
     try {
       const scene = currentSerializableScene()
-      const response = await executeAction(sourceAction, selectedId, {
-        drawingId: selectedId,
+      const mermaidSourceAtSave = mermaidSourceRef.current
+      const savedSceneSignature = createSceneSignature(
+        scene.elements,
+        scene.appState,
+        scene.files,
+        mermaidSourceAtSave
+      )
+      const response = await executeAction(sourceAction, drawingId, {
+        drawingId,
         elements: scene.elements,
         appState: scene.appState,
         files: scene.files,
-        mermaidSource: mermaidSourceRef.current,
-        changeSummary: options.changeSummary ?? (changeSummary.trim() || undefined)
+        mermaidSource: mermaidSourceAtSave,
+        changeSummary: options.changeSummary ?? (options.background ? undefined : changeSummary.trim() || undefined)
       })
       const result = getResponsePayload(response)
       if (!options.silent) {
         notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
       }
-      markCurrentSceneSaved()
-      setChangeSummary('')
-      await selectDrawing(selectedId)
-      await reloadList()
+      autoSaveFailureNotifiedRef.current = false
+      if (options.background && selectedIdRef.current !== drawingId) {
+        return true
+      }
+      markSceneSignatureSaved(savedSceneSignature)
+      if (!options.background) {
+        setChangeSummary('')
+      }
+      if (options.reloadAfterSave !== false) {
+        await selectDrawing(drawingId)
+        await reloadList()
+      }
       return true
     } catch (error) {
-      notify('error', getErrorMessage(error))
+      if (options.background) {
+        console.warn('[excalidraw-workbench] auto-save failed', error)
+        if (!autoSaveFailureNotifiedRef.current) {
+          autoSaveFailureNotifiedRef.current = true
+          notify('warning', getErrorMessage(error))
+        }
+      } else {
+        notify('error', getErrorMessage(error))
+      }
       return false
     } finally {
-      setBusy(false)
+      if (shouldSetBusy) {
+        setBusy(false)
+      }
     }
+  }
+
+  async function saveNewVersion() {
+    await saveCurrentScene('save_scene_version', { force: true })
   }
 
   async function restoreVersion(versionId: string) {
@@ -722,6 +906,7 @@ function App() {
     if (!target) {
       return
     }
+    const deletingSelectedDrawing = target.type === 'drawing' && target.drawingId === selectedIdRef.current
     setBusy(true)
     try {
       if (target.type === 'drawing') {
@@ -731,13 +916,12 @@ function App() {
         const result = getResponsePayload(response)
         notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
         setDeleteTarget(null)
-        selectedIdRef.current = ''
-        setSelectedId('')
-        setCurrentDetail(null)
-        setVersionsOpen(false)
-        setDirty(false)
-        applyBlankScene({ clearMermaid: true })
-        await reloadList()
+        setDrawings((items) => items.filter((item) => item?.id !== target.drawingId))
+        if (deletingSelectedDrawing) {
+          await selectFallbackDrawingAfterDelete(target.drawingId)
+        } else {
+          await reloadList()
+        }
         return
       }
 
@@ -760,6 +944,34 @@ function App() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function selectFallbackDrawingAfterDelete(deletedDrawingId: string) {
+    cancelAutoSave()
+    cancelSceneAnimation()
+    setVersionsOpen(false)
+    dirtyRef.current = false
+    setDirty(false)
+    suppressedDetailSceneVersionRef.current = null
+
+    const items = await reloadList()
+    const remainingItems = items.filter((item) => item?.id && item.id !== deletedDrawingId)
+    if (remainingItems.length !== items.length) {
+      setDrawings(remainingItems)
+    }
+    const fallbackDrawingId = remainingItems[0]?.id
+    if (fallbackDrawingId) {
+      const payload = await selectDrawing(fallbackDrawingId)
+      if (payload?.item) {
+        return
+      }
+    }
+
+    selectedIdRef.current = ''
+    setSelectedId('')
+    setCurrentDetail(null)
+    setChangeSummary('')
+    applyBlankScene({ clearMermaid: true })
   }
 
   async function setDrawingReviewStatus(nextStatus: 'draft' | 'reviewed') {
@@ -796,13 +1008,14 @@ function App() {
 
   async function previewMermaidSource(sourceValue: string, options: { automatic?: boolean; autoSave?: boolean; autoSaveKey?: string } = {}) {
     const source = sourceValue.trim()
-    if (!source || !api) {
+    if (!source || !apiRef.current) {
       return false
     }
     const translate = createTranslator(contextRef.current?.locale)
     setBusy(true)
     try {
-      const result = await parseMermaidToExcalidraw(source, {
+      const conversionSource = normalizeMermaidSourceForExcalidrawConversion(source)
+      const result = await parseMermaidToExcalidrawWithoutFallbackErrorLog(conversionSource, {
         themeVariables: {
           fontSize: '25px'
         },
@@ -811,26 +1024,30 @@ function App() {
       })
       const elements = convertToExcalidrawElements(result.elements || [])
       const files = result.files || {}
+      const imageFallback = isSingleImageMermaidResult(elements, files)
+      console.info('[excalidraw-workbench] Mermaid conversion result', {
+        elementCount: elements.length,
+        elementTypes: elements.slice(0, 20).map((element: any) => element?.type),
+        fileCount: countSceneFiles(files),
+        imageFallback
+      })
       const appState = {
         ...(appStateRef.current || {}),
         theme: excalidrawThemeRef.current,
         viewBackgroundColor: defaultCanvasBackground(excalidrawThemeRef.current)
       }
-      const applied = updateSceneSafely({
+      const scene = {
         elements,
-        appState
-      }, { fallbackToBlank: true })
+        appState,
+        files,
+        mermaidSource: source
+      }
+      const applied = imageFallback
+        ? await applySceneImmediately(scene, { clearBeforeApply: true, markSaved: false, preloadFiles: true })
+        : await animateApplyScene(scene, { discardCurrentImages: true, markSaved: false })
       if (!applied) {
         return false
       }
-      if (files && api?.addFiles) {
-        addFilesSafely(files)
-      }
-      updateMermaidSource(source)
-      elementsRef.current = elements as any[]
-      appStateRef.current = appState
-      filesRef.current = files
-      updateDirtyState(source)
       notify(options.automatic ? 'info' : 'success', options.automatic ? translate('mermaidAutoPreviewed') : translate('operationCompleted'))
       if (options.autoSave && selectedIdRef.current) {
         const autoSaveKey = options.autoSaveKey || createMermaidAutoSaveKey(undefined, source)
@@ -855,6 +1072,39 @@ function App() {
     }
   }
 
+  async function parseMermaidToExcalidrawWithoutFallbackErrorLog(
+    source: string,
+    options: Parameters<typeof parseMermaidToExcalidraw>[1]
+  ) {
+    const restoreConsoleError = suppressMermaidImageFallbackErrorLog()
+    try {
+      return await parseMermaidToExcalidraw(source, options)
+    } finally {
+      restoreConsoleError()
+    }
+  }
+
+  function suppressMermaidImageFallbackErrorLog() {
+    const originalError = console.error
+    const patchedError = (...args: unknown[]) => {
+      if (isMermaidImageFallbackErrorLog(args)) {
+        console.info('[excalidraw-workbench] Mermaid structured conversion fell back to image', args[1] || args[0])
+        return
+      }
+      originalError(...args)
+    }
+    console.error = patchedError
+    return () => {
+      if (console.error === patchedError) {
+        console.error = originalError
+      }
+    }
+  }
+
+  function isMermaidImageFallbackErrorLog(args: unknown[]) {
+    return typeof args[0] === 'string' && args[0].startsWith('Error processing Mermaid diagram:')
+  }
+
   function queueMermaidPreview(version: DrawingVersion, options: { autoSave?: boolean } = {}) {
     const source = typeof version.mermaidSource === 'string' ? version.mermaidSource.trim() : ''
     if (!source) {
@@ -866,32 +1116,6 @@ function App() {
       source,
       autoSave: options.autoSave,
       autoSaveKey
-    }
-  }
-
-  async function sendAssistantPrompt() {
-    const prompt = assistantPrompt.trim()
-    if (!prompt) {
-      return
-    }
-    setBusy(true)
-    try {
-      const response = await executeAction('prepare_agent_draw_message', selectedId || null, {
-        drawingId: selectedId || undefined,
-        prompt
-      })
-      const result = getResponsePayload(response)
-      const commandKey = result?.data?.commandKey || result?.commandKey
-      const payload = result?.data?.payload || result?.payload
-      if (commandKey && payload) {
-        await invokeClientCommand(commandKey, payload)
-      }
-      setAssistantPrompt('')
-      notify('success', t('operationCompleted'))
-    } catch (error) {
-      notify('error', getErrorMessage(error))
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -937,24 +1161,29 @@ function App() {
     }
     setBusy(true)
     try {
-      const response = await executeFileAction(
-        'import_scene_file',
-        selectedId || null,
+      const scene = await restoreImportedExcalidrawFile(file, excalidrawThemeRef.current)
+      const drawingId = selectedIdRef.current || selectedId || undefined
+      const response = await executeAction(
+        'import_restored_scene',
+        drawingId || null,
         {
-          drawingId: selectedId || undefined,
-          title: removeExcalidrawExtension(file.name)
+          drawingId,
+          title: removeExcalidrawExtension(file.name),
+          elements: scene.elements,
+          appState: scene.appState,
+          files: scene.files,
+          changeSummary: `Imported ${file.name || 'Excalidraw file'}`
         },
         {
-          drawingId: selectedId || undefined
-        },
-        file
+          drawingId
+        }
       )
       const result = getResponsePayload(response)
       notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('operationCompleted'))
-      const drawingId = result?.data?.item?.id || result?.item?.id || selectedId
+      const importedDrawingId = result?.data?.item?.id || result?.data?.drawing?.item?.id || result?.item?.id || drawingId
       await reloadList()
-      if (drawingId) {
-        await selectDrawing(drawingId)
+      if (importedDrawingId) {
+        await selectDrawing(importedDrawingId)
       }
     } catch (error) {
       notify('error', getErrorMessage(error))
@@ -980,11 +1209,12 @@ function App() {
   }
 
   function updateSceneSafely(scene: Record<string, unknown>, options: { fallbackToBlank?: boolean } = {}) {
-    if (!api) {
+    const currentApi = apiRef.current
+    if (!currentApi) {
       return false
     }
     try {
-      const result = api.updateScene(scene)
+      const result = currentApi.updateScene(scene)
       if (result && typeof result.then === 'function') {
         void result.catch((error: unknown) => {
           handleSceneApplicationError(error, options)
@@ -997,19 +1227,20 @@ function App() {
     }
   }
 
-  function addFilesSafely(files: Record<string, unknown>) {
-    if (!api?.addFiles || Object.keys(files).length === 0) {
-      return
+  async function addFilesSafely(files: Record<string, unknown>) {
+    const currentApi = apiRef.current
+    if (!currentApi?.addFiles || Object.keys(files).length === 0) {
+      return true
     }
     try {
-      const result = api.addFiles(Object.values(files))
+      const result = currentApi.addFiles(Object.values(files))
       if (result && typeof result.then === 'function') {
-        void result.catch((error: unknown) => {
-          handleSceneApplicationError(error, { fallbackToBlank: false })
-        })
+        await result
       }
+      return true
     } catch (error) {
       handleSceneApplicationError(error, { fallbackToBlank: false })
+      return false
     }
   }
 
@@ -1022,7 +1253,266 @@ function App() {
     }
   }
 
+  function cancelSceneAnimation() {
+    sceneAnimationSequenceRef.current += 1
+  }
+
+  function isCurrentSceneAnimation(sequence: number) {
+    return sequence === sceneAnimationSequenceRef.current
+  }
+
+  function waitForSceneAnimationStep(sequence: number, delayMs = DEFAULT_SCENE_ANIMATION_STEP_DELAY_MS) {
+    return new Promise<boolean>((resolve) => {
+      window.setTimeout(() => {
+        resolve(isCurrentSceneAnimation(sequence))
+      }, delayMs)
+    })
+  }
+
+  async function animateApplyScene(scene: SceneApplyPayload, options: { discardCurrentImages?: boolean; markSaved: boolean }) {
+    const sequence = sceneAnimationSequenceRef.current + 1
+    sceneAnimationSequenceRef.current = sequence
+    const targetElements = scene.elements
+    const appState = scene.appState
+    const files = scene.files
+    const mermaid = scene.mermaidSource
+    const baseElements = prepareSceneAnimationBaseElements(elementsRef.current, targetElements, {
+      discardCurrentImages: options.discardCurrentImages
+    })
+    const steps = buildSceneDiffSteps(baseElements, targetElements)
+
+    selectedElementIdsRef.current = []
+    updateMermaidSource(mermaid)
+    appStateRef.current = appState
+    filesRef.current = files
+    themeSyncRef.current = true
+    if (!(await addFilesSafely(files))) {
+      return false
+    }
+    if (hasSceneAnimationBaseChanged(elementsRef.current, baseElements)) {
+      elementsRef.current = baseElements
+      updateSceneSafely({
+        elements: baseElements,
+        appState,
+        collaborators: new Map()
+      }, { fallbackToBlank: true })
+    }
+
+    try {
+      if (steps.length === 0) {
+        elementsRef.current = targetElements
+        if (!updateSceneSafely({
+          elements: targetElements,
+          appState,
+          collaborators: new Map()
+        }, { fallbackToBlank: true })) {
+          return false
+        }
+        completeAnimatedSceneApply(sequence, options.markSaved, mermaid)
+        return true
+      }
+
+      for (const step of steps) {
+        if (!isCurrentSceneAnimation(sequence)) {
+          return false
+        }
+        elementsRef.current = step.elements
+        if (!updateSceneSafely({
+          elements: step.elements,
+          appState,
+          collaborators: new Map()
+        }, { fallbackToBlank: true })) {
+          return false
+        }
+        if (step.type === 'delete') {
+          continue
+        }
+        if (!(await waitForSceneAnimationStep(sequence))) {
+          return false
+        }
+      }
+
+      if (!isCurrentSceneAnimation(sequence)) {
+        return false
+      }
+      elementsRef.current = targetElements
+      appStateRef.current = appState
+      filesRef.current = files
+      completeAnimatedSceneApply(sequence, options.markSaved, mermaid)
+      return true
+    } finally {
+      if (isCurrentSceneAnimation(sequence)) {
+        themeSyncRef.current = false
+      }
+    }
+  }
+
+  async function applySceneImmediately(
+    scene: SceneApplyPayload,
+    options: { clearBeforeApply?: boolean; markSaved: boolean; preloadFiles?: boolean }
+  ) {
+    const sequence = sceneAnimationSequenceRef.current + 1
+    sceneAnimationSequenceRef.current = sequence
+    const targetElements = scene.elements
+    const appState = scene.appState
+    const files = scene.files
+    const mermaid = scene.mermaidSource
+
+    selectedElementIdsRef.current = []
+    updateMermaidSource(mermaid)
+    appStateRef.current = appState
+    themeSyncRef.current = true
+
+    try {
+      if (options.clearBeforeApply) {
+        elementsRef.current = []
+        filesRef.current = {}
+        if (!updateSceneSafely({
+          elements: [],
+          appState,
+          collaborators: new Map()
+        }, { fallbackToBlank: false })) {
+          return false
+        }
+      }
+      if (options.preloadFiles) {
+        await preloadSceneFiles(files)
+        if (!isCurrentSceneAnimation(sequence)) {
+          return false
+        }
+      }
+      filesRef.current = files
+      if (!(await addFilesSafely(files))) {
+        return false
+      }
+      if (options.preloadFiles && !(await waitForSceneAnimationFrames(sequence, 2))) {
+        return false
+      }
+      elementsRef.current = targetElements
+      if (!updateSceneSafely({
+        elements: targetElements,
+        appState,
+        collaborators: new Map()
+      }, { fallbackToBlank: true })) {
+        return false
+      }
+      completeAnimatedSceneApply(sequence, options.markSaved, mermaid)
+      return true
+    } finally {
+      if (isCurrentSceneAnimation(sequence)) {
+        themeSyncRef.current = false
+      }
+    }
+  }
+
+  function prepareMermaidPreviewCanvas(source: string) {
+    cancelSceneAnimation()
+    const appState = withHostThemeAppState(appStateRef.current || {}, excalidrawThemeRef.current)
+    elementsRef.current = []
+    appStateRef.current = appState
+    filesRef.current = {}
+    selectedElementIdsRef.current = []
+    updateMermaidSource(source)
+    themeSyncRef.current = true
+    updateSceneSafely({
+      elements: [],
+      appState,
+      collaborators: new Map()
+    }, { fallbackToBlank: false })
+    window.setTimeout(() => {
+      themeSyncRef.current = false
+    }, 0)
+    dirtyRef.current = false
+    setDirty(false)
+    cancelAutoSave()
+  }
+
+  async function preloadSceneFiles(files: Record<string, unknown>) {
+    const dataUrls = Object.values(files)
+      .map(readSceneFileDataUrl)
+      .filter((dataUrl): dataUrl is string => Boolean(dataUrl && dataUrl.startsWith('data:image/')))
+    await Promise.all(dataUrls.map(preloadImageDataUrl))
+  }
+
+  function readSceneFileDataUrl(file: unknown) {
+    return isObject(file) && typeof file.dataURL === 'string' ? file.dataURL : null
+  }
+
+  function preloadImageDataUrl(dataUrl: string) {
+    return new Promise<boolean>((resolve) => {
+      if (typeof window.Image === 'undefined') {
+        resolve(false)
+        return
+      }
+      let settled = false
+      const finish = (loaded: boolean) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(loaded)
+      }
+      const image = new window.Image()
+      image.onload = () => finish(true)
+      image.onerror = () => finish(false)
+      window.setTimeout(() => finish(false), 2000)
+      image.src = dataUrl
+    })
+  }
+
+  async function waitForSceneAnimationFrames(sequence: number, frameCount: number) {
+    for (let index = 0; index < frameCount; index += 1) {
+      if (!(await waitForSceneAnimationFrame(sequence))) {
+        return false
+      }
+    }
+    return true
+  }
+
+  function waitForSceneAnimationFrame(sequence: number) {
+    return new Promise<boolean>((resolve) => {
+      window.requestAnimationFrame(() => {
+        resolve(isCurrentSceneAnimation(sequence))
+      })
+    })
+  }
+
+  function hasSceneAnimationBaseChanged(currentElements: unknown[], baseElements: unknown[]) {
+    if (currentElements.length !== baseElements.length) {
+      return true
+    }
+    return baseElements.some((element, index) => currentElements[index] !== element)
+  }
+
+  function completeAnimatedSceneApply(sequence: number, markSaved: boolean, mermaid: string) {
+    if (!isCurrentSceneAnimation(sequence)) {
+      return
+    }
+    themeSyncRef.current = false
+    if (markSaved) {
+      markCurrentSceneSaved(mermaid)
+    } else {
+      updateDirtyState(mermaid)
+    }
+  }
+
+  async function animateApplyVersion(version: DrawingVersion) {
+    if (!apiRef.current) {
+      applyVersion(version)
+      return true
+    }
+
+    const scene = restorePersistedScene(version, excalidrawThemeRef.current)
+    return animateApplyScene({
+      elements: scene.elements,
+      appState: scene.appState,
+      files: scene.files,
+      mermaidSource: typeof version.mermaidSource === 'string' ? version.mermaidSource : ''
+    }, { markSaved: true })
+  }
+
   function applyVersion(version: DrawingVersion) {
+    cancelSceneAnimation()
     const scene = restorePersistedScene(version, excalidrawThemeRef.current)
     const elements = scene.elements
     const appState = scene.appState
@@ -1043,7 +1533,7 @@ function App() {
     if (!applied) {
       return
     }
-    addFilesSafely(files)
+    void addFilesSafely(files)
     window.setTimeout(() => {
       themeSyncRef.current = false
     }, 0)
@@ -1051,6 +1541,7 @@ function App() {
   }
 
   function applyBlankScene(options: { clearMermaid?: boolean } = {}) {
+    cancelSceneAnimation()
     const appState = withHostThemeAppState({}, excalidrawThemeRef.current)
     elementsRef.current = []
     appStateRef.current = appState
@@ -1081,15 +1572,31 @@ function App() {
   }
 
   function markCurrentSceneSaved(mermaidOverride = mermaidSourceRef.current) {
-    savedSceneSignatureRef.current = createSceneSignature(
+    markSceneSignatureSaved(createSceneSignature(
       elementsRef.current,
       appStateRef.current,
       filesRef.current,
       mermaidOverride
+    ))
+  }
+
+  function markSceneSignatureSaved(savedSceneSignature: string) {
+    savedSceneSignatureRef.current = savedSceneSignature
+    const currentSceneSignature = createSceneSignature(
+      elementsRef.current,
+      appStateRef.current,
+      filesRef.current,
+      mermaidSourceRef.current
     )
-    dirtyRef.current = false
-    setDirty(false)
+    const nextDirty = Boolean(selectedIdRef.current && currentSceneSignature !== savedSceneSignature)
+    dirtyRef.current = nextDirty
+    setDirty(nextDirty)
     scheduleAssistantSelectionContextSync()
+    if (nextDirty) {
+      scheduleAutoSave()
+    } else {
+      cancelAutoSave()
+    }
   }
 
   function updateDirtyState(mermaidOverride = mermaidSourceRef.current) {
@@ -1097,6 +1604,7 @@ function App() {
       dirtyRef.current = false
       setDirty(false)
       scheduleAssistantSelectionContextSync()
+      cancelAutoSave()
       return
     }
     const currentSceneSignature = createSceneSignature(
@@ -1109,6 +1617,57 @@ function App() {
     dirtyRef.current = nextDirty
     setDirty(nextDirty)
     scheduleAssistantSelectionContextSync()
+    if (nextDirty) {
+      scheduleAutoSave()
+    } else {
+      cancelAutoSave()
+    }
+  }
+
+  function scheduleAutoSave() {
+    if (!selectedIdRef.current || !dirtyRef.current) {
+      return
+    }
+    if (autoSaveTimerRef.current !== null) {
+      window.clearTimeout(autoSaveTimerRef.current)
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null
+      void flushAutoSave()
+    }, AUTO_SAVE_DELAY_MS)
+  }
+
+  function cancelAutoSave() {
+    if (autoSaveTimerRef.current !== null) {
+      window.clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    autoSaveRequestedRef.current = false
+  }
+
+  async function flushAutoSave() {
+    if (!selectedIdRef.current || !dirtyRef.current) {
+      return
+    }
+    if (autoSaveInFlightRef.current) {
+      autoSaveRequestedRef.current = true
+      return
+    }
+    autoSaveInFlightRef.current = true
+    autoSaveRequestedRef.current = false
+    try {
+      await saveCurrentScene('save_current_scene', {
+        force: true,
+        silent: true,
+        background: true,
+        reloadAfterSave: false
+      })
+    } finally {
+      autoSaveInFlightRef.current = false
+      if ((autoSaveRequestedRef.current || dirtyRef.current) && selectedIdRef.current) {
+        scheduleAutoSave()
+      }
+    }
   }
 
   function canReplaceCurrentDirtyScene() {
@@ -1325,6 +1884,18 @@ function App() {
               <Save className="exw-button-icon" aria-hidden="true" />
               {t('save')}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!selectedId || busy}
+              title={t('newVersion')}
+              aria-label={t('newVersion')}
+              onClick={saveNewVersion}
+            >
+              <Plus className="exw-button-icon" aria-hidden="true" />
+              {t('newVersion')}
+            </Button>
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileInputRef.current?.click()}>
               <Upload className="exw-button-icon" aria-hidden="true" />
               {t('import')}
@@ -1334,11 +1905,11 @@ function App() {
               {t('exportJson')}
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportPng}>
-              <Image className="exw-button-icon" aria-hidden="true" />
+              <ImageIcon className="exw-button-icon" aria-hidden="true" />
               {t('exportPng')}
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportSvgFile}>
-              <Image className="exw-button-icon" aria-hidden="true" />
+              <ImageIcon className="exw-button-icon" aria-hidden="true" />
               {t('exportSvg')}
             </Button>
             <Badge className="exw-status" variant={dirty ? 'warning' : 'secondary'}>
@@ -1355,23 +1926,29 @@ function App() {
         </div>
         <div className="exw-canvas">
           {selectedId || currentVersion ? (
-            <Excalidraw
-              initialData={initialData as any}
-              theme={excalidrawTheme}
-              excalidrawAPI={(nextApi: any) => setApi(nextApi)}
-              onChange={(elements: any[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
-                elementsRef.current = elements || []
-                appStateRef.current = appState || {}
-                filesRef.current = files || {}
-                selectedElementIdsRef.current = getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current)
-                if (!themeSyncRef.current) {
-                  updateDirtyState()
-                }
-                if (themeSyncRef.current) {
-                  scheduleAssistantSelectionContextSync()
-                }
-              }}
-            />
+            <CanvasErrorBoundary resetKey={`${selectedId || 'unselected'}:${currentVersion?.id || 'no-version'}`}>
+              <Excalidraw
+                key={selectedId || 'unselected'}
+                initialData={initialData as any}
+                theme={excalidrawTheme}
+                excalidrawAPI={(nextApi: any) => {
+                  apiRef.current = nextApi
+                  setApi(nextApi)
+                }}
+                onChange={(elements: any[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
+                  elementsRef.current = elements || []
+                  appStateRef.current = appState || {}
+                  filesRef.current = files || {}
+                  selectedElementIdsRef.current = getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current)
+                  if (!themeSyncRef.current) {
+                    updateDirtyState()
+                  }
+                  if (themeSyncRef.current) {
+                    scheduleAssistantSelectionContextSync()
+                  }
+                }}
+              />
+            </CanvasErrorBoundary>
           ) : (
             <div className="exw-empty">{t('noDrawing')}</div>
           )}
@@ -1514,27 +2091,6 @@ function App() {
                   </div>
                 </section>
 
-                <section className="exw-section">
-                  <div className="exw-section-title">{t('drawingRequest')}</div>
-                  <Textarea
-                    value={assistantPrompt}
-                    placeholder={t('drawingRequest')}
-                    onChange={(event: any) => setAssistantPrompt(event.target.value)}
-                  />
-                  <Button type="button" disabled={busy || !assistantPrompt.trim()} onClick={sendAssistantPrompt}>
-                    <Send className="exw-button-icon" aria-hidden="true" />
-                    {t('askAssistant')}
-                  </Button>
-                </section>
-
-                <section className="exw-section">
-                  <div className="exw-section-title">{t('description')}</div>
-                  <Textarea
-                    value={newDescription}
-                    placeholder={t('description')}
-                    onChange={(event: any) => setNewDescription(event.target.value)}
-                  />
-                </section>
               </div>
             </ScrollArea>
           </SidebarContent>
@@ -1577,6 +2133,38 @@ function restorePersistedScene(version: DrawingVersion | null | undefined, theme
       appState: fallbackAppState,
       files: {}
     }
+  }
+}
+
+async function restoreImportedExcalidrawFile(file: File, theme: ExcalidrawTheme) {
+  const parsed = JSON.parse(await file.text())
+  return restoreExcalidrawScenePayload(parsed, theme)
+}
+
+function restoreExcalidrawScenePayload(payload: unknown, theme: ExcalidrawTheme) {
+  const source = isObject(payload) ? payload : {}
+  const appState = isObject(source.appState) ? source.appState : {}
+  const files = isObject(source.files) ? source.files : {}
+  const elements = Array.isArray(source.elements) ? source.elements : []
+  const fallbackAppState = withHostThemeAppState(appState, theme)
+  const restored = restore(
+    {
+      elements: elements as any,
+      appState: appState as any,
+      files: files as any
+    },
+    fallbackAppState as any,
+    null,
+    {
+      repairBindings: true,
+      refreshDimensions: false
+    }
+  ) as any
+
+  return {
+    elements: normalizeExcalidrawElementsForPersistence(Array.isArray(restored?.elements) ? restored.elements : elements),
+    appState: withHostThemeAppState(isObject(restored?.appState) ? restored.appState : fallbackAppState, theme),
+    files: isObject(restored?.files) ? restored.files : files
   }
 }
 
@@ -1766,6 +2354,12 @@ function parseCssColor(color: string): [number, number, number] | null {
   return null
 }
 
+function wait(delayMs: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, delayMs)
+  })
+}
+
 function createSceneSignature(
   elements: unknown[],
   appState: Record<string, unknown>,
@@ -1850,6 +2444,39 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
+
+class CanvasErrorBoundary extends React.Component {
+  state = { error: null as Error | null, resetKey: null as string | null }
+
+  static getDerivedStateFromProps(props: any, state: { error: Error | null; resetKey: string | null }) {
+    if (props.resetKey !== state.resetKey) {
+      return {
+        error: null,
+        resetKey: props.resetKey
+      }
+    }
+    return null
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('[excalidraw-workbench] recovered from canvas render crash', error)
+  }
+
+  render() {
+    if (this.state.error) {
+      return h('div', { className: 'exw-empty' }, [
+        h('strong', { key: 'title' }, '图形渲染异常。'),
+        h('span', { key: 'body' }, 'Please choose another drawing or refresh.')
+      ])
+    }
+    return (this.props as any).children
+  }
+}
+
 class WorkbenchErrorBoundary extends React.Component {
   state = { error: null as Error | null }
 

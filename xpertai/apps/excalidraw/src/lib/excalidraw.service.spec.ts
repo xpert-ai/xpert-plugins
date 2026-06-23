@@ -15,7 +15,7 @@ describe('ExcalidrawService patchScene', () => {
     service = new ExcalidrawService(drawings as any, versions as any, logs as any)
   })
 
-  it('applies add, update, and delete operations and saves a new version', async () => {
+  it('applies add, update, and delete operations into the current version', async () => {
     const created = await service.createDrawing(testScope(), {
       title: 'Patch target',
       elements: [baseElement({ id: 'rect-1' }), textElement({ id: 'text-1' })],
@@ -39,9 +39,13 @@ describe('ExcalidrawService patchScene', () => {
       updatedIds: ['rect-1'],
       deletedIds: ['text-1']
     })
-    expect(result.version.versionNumber).toBe(2)
+    expect(result.version.versionNumber).toBe(1)
     expect(result.version.elements.map((element: any) => element.id)).toEqual(['rect-1', 'ellipse-1'])
     expect(result.version.elements[0].x).toBe(32)
+    expect(result.version.elements[0].version).toBe(2)
+    expect(result.version.elements[0].versionNonce).not.toBe(1)
+    expect(result.version.elements[0].updated).toBeGreaterThan(1)
+    expect(await versions.find({ where: { drawingId: created.item.id } })).toHaveLength(1)
   })
 
   it('rejects updates for unknown element ids', async () => {
@@ -86,6 +90,212 @@ describe('ExcalidrawService patchScene', () => {
     expect(result.version.elements[0].id).toBe('rect-agent')
     expect(Number.isFinite(result.version.elements[0].updated)).toBe(true)
     expect(result.version.elements[0].index).toBeNull()
+  })
+
+  it('fills Excalidraw defaults for shorthand added elements', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Friendly append target'
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      addElements: [
+        {
+          id: 'rect-short',
+          type: 'rectangle',
+          x: 10,
+          y: 20,
+          width: 160,
+          height: 90
+        },
+        {
+          id: 'text-short',
+          type: 'text',
+          x: 20,
+          y: 40,
+          text: 'Hello defaults'
+        }
+      ],
+      changeSummary: 'Append shorthand elements'
+    })
+
+    const rect = result.version.elements[0]
+    const text = result.version.elements[1]
+    expect(rect).toEqual(expect.objectContaining({
+      id: 'rect-short',
+      roughness: 1,
+      backgroundColor: 'transparent',
+      locked: false,
+      frameId: null,
+      link: null,
+      roundness: null
+    }))
+    expect(text).toEqual(expect.objectContaining({
+      id: 'text-short',
+      backgroundColor: 'transparent',
+      originalText: 'Hello defaults',
+      verticalAlign: 'top',
+      autoResize: true,
+      containerId: null,
+      lineHeight: 1.25
+    }))
+  })
+
+  it('normalizes invalid roundness metadata for added elements', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Roundness defaults target'
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      addElements: [
+        {
+          id: 'rect-round',
+          type: 'rectangle',
+          roundness: {
+            type: 'adaptive',
+            value: 'auto'
+          }
+        },
+        {
+          id: 'rect-round-null',
+          type: 'rectangle',
+          roundness: 'round'
+        }
+      ]
+    })
+
+    expect(result.version.elements[0].roundness).toEqual({ type: 3 })
+    expect(result.version.elements[1].roundness).toBeNull()
+  })
+
+  it('normalizes arrowhead aliases and unsupported values for added linear elements', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Arrowhead defaults target'
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      addElements: [
+        {
+          id: 'arrow-short',
+          type: 'arrow',
+          startArrowhead: 'none',
+          endArrowhead: 'arrowhead'
+        },
+        {
+          id: 'line-short',
+          type: 'line',
+          startArrowhead: 'triangle-filled',
+          endArrowhead: 'unsupported'
+        },
+        {
+          id: 'arrow-fallback',
+          type: 'arrow',
+          startArrowhead: 'unsupported',
+          endArrowhead: 'unsupported'
+        }
+      ]
+    })
+
+    const [arrow, line, fallbackArrow] = result.version.elements
+    expect(arrow.startArrowhead).toBeNull()
+    expect(arrow.endArrowhead).toBe('arrow')
+    expect(line.startArrowhead).toBe('triangle')
+    expect(line.endArrowhead).toBeNull()
+    expect(fallbackArrow.startArrowhead).toBeNull()
+    expect(fallbackArrow.endArrowhead).toBe('arrow')
+  })
+
+  it('normalizes arrowhead aliases in update patches', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Arrowhead update target',
+      elements: [arrowElement({ id: 'arrow-1' })]
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      updateElements: [
+        {
+          id: 'arrow-1',
+          startArrowhead: 'open-triangle',
+          endArrowhead: 'normal'
+        }
+      ]
+    })
+
+    expect(result.version.elements[0].startArrowhead).toBe('triangle_outline')
+    expect(result.version.elements[0].endArrowhead).toBe('arrow')
+  })
+
+  it('normalizes invalid roundness metadata in update patches', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Roundness update target',
+      elements: [baseElement({ id: 'rect-1' })]
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      updateElements: [
+        {
+          id: 'rect-1',
+          roundness: {
+            type: 'round',
+            value: Number.NaN
+          }
+        }
+      ]
+    })
+
+    expect(result.version.elements[0].roundness).toEqual({ type: 3 })
+  })
+
+  it('keeps explicit higher element mutation metadata from update patches', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Explicit metadata target',
+      elements: [baseElement({ id: 'rect-1', version: 4, versionNonce: 44, updated: 100 })]
+    })
+
+    const result = await service.patchScene(testScope(), {
+      drawingId: created.item.id,
+      updateElements: [
+        {
+          id: 'rect-1',
+          x: 12,
+          version: 8,
+          versionNonce: 88,
+          updated: 120
+        }
+      ]
+    })
+
+    expect(result.version.elements[0]).toEqual(expect.objectContaining({
+      x: 12,
+      version: 8,
+      versionNonce: 88,
+      updated: 120
+    }))
+  })
+
+  it('saves a complete scene into the current version without incrementing version number', async () => {
+    const created = await service.createDrawing(testScope(), {
+      title: 'Current save target',
+      elements: [baseElement({ id: 'rect-1' })]
+    })
+
+    const result = await service.saveCurrentScene(testScope(), {
+      drawingId: created.item.id,
+      elements: [baseElement({ id: 'rect-2', x: 80 })],
+      appState: { viewBackgroundColor: '#fff' },
+      files: {},
+      sourceType: 'agent_json',
+      changeSummary: 'Replace current scene'
+    })
+
+    expect(result.version.id).toBe(created.currentVersion.id)
+    expect(result.version.versionNumber).toBe(1)
+    expect(result.version.elements.map((element: any) => element.id)).toEqual(['rect-2'])
+    expect(await versions.find({ where: { drawingId: created.item.id } })).toHaveLength(1)
   })
 
   it('rejects no-op patches', async () => {
@@ -225,11 +435,16 @@ describe('ExcalidrawService patchScene', () => {
 
     const summary = summarizeDrawingMutationResult(patched as any, 'patched') as any
 
-    expect(summary.success).toBe(true)
-    expect(summary.drawing.id).toBe(created.item.id)
-    expect(summary.version.versionNumber).toBe(2)
-    expect(summary.version.elements).toBeUndefined()
-    expect(summary.currentVersion.elements).toBeUndefined()
+    expect(summary).toEqual(expect.objectContaining({
+      success: true
+    }))
+    expect(summary.drawingId).toBeUndefined()
+    expect(summary.versionId).toBeUndefined()
+    expect(summary.versionNumber).toBeUndefined()
+    expect(summary.drawing).toBeUndefined()
+    expect(summary.version).toBeUndefined()
+    expect(summary.currentVersion).toBeUndefined()
+    expect(summary.summary).toBeUndefined()
     expect(summary.patch.updateCount).toBe(1)
   })
 
@@ -403,6 +618,23 @@ function textElement(overrides: Record<string, unknown> = {}) {
     originalText: 'Hello',
     autoResize: true,
     lineHeight: 1.25,
+    ...overrides
+  }
+}
+
+function arrowElement(overrides: Record<string, unknown> = {}) {
+  return {
+    ...baseElement({ type: 'arrow', width: 100, height: 0 }),
+    points: [
+      [0, 0],
+      [100, 0]
+    ],
+    lastCommittedPoint: null,
+    startBinding: null,
+    endBinding: null,
+    startArrowhead: null,
+    endArrowhead: 'arrow',
+    elbowed: false,
     ...overrides
   }
 }

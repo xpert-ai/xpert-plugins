@@ -30,6 +30,11 @@ export const EXCALIDRAW_MUTATION_TOOL_NAMES = new Set([
   REPORT_FAILURE_TOOL_NAME
 ])
 
+export const EXCALIDRAW_ANIMATED_PATCH_TOOL_NAMES = new Set([
+  ADD_ELEMENTS_TOOL_NAME,
+  PATCH_SCENE_TOOL_NAME
+])
+
 export interface NormalizedToolCompletedEvent {
   toolName: string
   drawingId?: string
@@ -67,6 +72,11 @@ export function normalizeToolCompletedEvent(event: unknown): NormalizedToolCompl
   }
 }
 
+export function isAnimatedPatchTool(eventOrToolName: NormalizedToolCompletedEvent | string | null | undefined) {
+  const toolName = typeof eventOrToolName === 'string' ? eventOrToolName : eventOrToolName?.toolName
+  return Boolean(toolName && EXCALIDRAW_ANIMATED_PATCH_TOOL_NAMES.has(toolName))
+}
+
 export function decideToolEventRefresh(
   event: NormalizedToolCompletedEvent | null,
   options: { selectedDrawingId?: string | null; isDirty?: boolean; canReplaceDirtyScene?: boolean } = {}
@@ -85,7 +95,15 @@ export function decideToolEventRefresh(
   const selectedDrawingId = cleanString(options.selectedDrawingId)
   // Do not guess a drawing target from the current selection or list order; missing ids only refresh metadata.
   const targetDrawingId = event.drawingId
-  const shouldProtectDirtyScene = Boolean(options.isDirty && !options.canReplaceDirtyScene && selectedDrawingId && targetDrawingId)
+  const shouldIgnoreDirtyProtection = event.isCreateDrawing
+  const shouldProtectDirtyScene = Boolean(
+    !shouldIgnoreDirtyProtection &&
+    options.isDirty &&
+    !options.canReplaceDirtyScene &&
+    selectedDrawingId &&
+    targetDrawingId &&
+    selectedDrawingId === targetDrawingId
+  )
   return {
     shouldReloadList: true,
     shouldSelectDrawing: Boolean(targetDrawingId && !shouldProtectDirtyScene),

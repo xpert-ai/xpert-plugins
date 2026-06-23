@@ -1,5 +1,6 @@
 import {
   decideToolEventRefresh,
+  isAnimatedPatchTool,
   normalizeToolCompletedEvent
 } from './tool-event-refresh.js'
 
@@ -131,6 +132,24 @@ describe('Excalidraw tool event refresh helpers', () => {
     expect(event?.versionNumber).toBe(13)
   })
 
+  it('normalizes created drawing ids from JSON string tool output content', () => {
+    const event = normalizeToolCompletedEvent({
+      name: 'assistant.tool.completed',
+      source: 'chatkit',
+      toolName: 'excalidraw_create_drawing',
+      payload: {
+        data: {
+          toolName: 'excalidraw_create_drawing',
+          content: '{"success":true,"message":"Excalidraw drawing was created.","drawingId":"drawing-created"}'
+        }
+      }
+    })
+
+    expect(event?.toolName).toBe('excalidraw_create_drawing')
+    expect(event?.drawingId).toBe('drawing-created')
+    expect(event?.isCreateDrawing).toBe(true)
+  })
+
   it('does not refresh for read-only tools', () => {
     const event = normalizeToolCompletedEvent({
       toolName: 'excalidraw_get_drawing',
@@ -183,6 +202,26 @@ describe('Excalidraw tool event refresh helpers', () => {
     })
   })
 
+  it('selects a created drawing without dirty protection', () => {
+    const event = normalizeToolCompletedEvent({
+      toolName: 'excalidraw_create_drawing',
+      drawingId: 'drawing-created'
+    })
+
+    expect(decideToolEventRefresh(event, {
+      selectedDrawingId: 'drawing-created',
+      isDirty: true
+    })).toEqual({
+      shouldReloadList: true,
+      shouldSelectDrawing: true,
+      shouldNotify: true,
+      shouldQueueMermaidPreview: false,
+      shouldProtectDirtyScene: false,
+      shouldLoadProtectedDetail: false,
+      targetDrawingId: 'drawing-created'
+    })
+  })
+
   it('queues Mermaid preview only when the dirty canvas is not protected', () => {
     const event = normalizeToolCompletedEvent({
       toolName: 'excalidraw_save_mermaid_draft',
@@ -204,6 +243,26 @@ describe('Excalidraw tool event refresh helpers', () => {
     })
   })
 
+  it('selects Mermaid draft target drawing when a different canvas is dirty', () => {
+    const event = normalizeToolCompletedEvent({
+      toolName: 'excalidraw_save_mermaid_draft',
+      drawingId: 'drawing-target'
+    })
+
+    expect(decideToolEventRefresh(event, {
+      selectedDrawingId: 'drawing-current',
+      isDirty: true
+    })).toEqual({
+      shouldReloadList: true,
+      shouldSelectDrawing: true,
+      shouldNotify: true,
+      shouldQueueMermaidPreview: true,
+      shouldProtectDirtyScene: false,
+      shouldLoadProtectedDetail: false,
+      targetDrawingId: 'drawing-target'
+    })
+  })
+
   it('protects unsaved canvas edits from automatic scene application', () => {
     const event = normalizeToolCompletedEvent({
       toolName: 'excalidraw_add_elements',
@@ -211,7 +270,7 @@ describe('Excalidraw tool event refresh helpers', () => {
     })
 
     expect(decideToolEventRefresh(event, {
-      selectedDrawingId: 'drawing-local',
+      selectedDrawingId: 'drawing-7',
       isDirty: true
     })).toEqual({
       shouldReloadList: true,
@@ -219,8 +278,16 @@ describe('Excalidraw tool event refresh helpers', () => {
       shouldNotify: true,
       shouldQueueMermaidPreview: false,
       shouldProtectDirtyScene: true,
-      shouldLoadProtectedDetail: false,
+      shouldLoadProtectedDetail: true,
       targetDrawingId: 'drawing-7'
     })
+  })
+
+  it('marks only patch-style tools as animated scene updates', () => {
+    expect(isAnimatedPatchTool('excalidraw_add_elements')).toBe(true)
+    expect(isAnimatedPatchTool('excalidraw_patch_scene')).toBe(true)
+    expect(isAnimatedPatchTool('excalidraw_save_scene_version')).toBe(false)
+    expect(isAnimatedPatchTool('excalidraw_save_mermaid_draft')).toBe(false)
+    expect(isAnimatedPatchTool('excalidraw_create_drawing')).toBe(false)
   })
 })

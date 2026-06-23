@@ -55,7 +55,13 @@ export function injectStyles() {
     .exw-sidebar.xps-sidebar {
       position: relative;
       z-index: 30;
-      overflow: visible;
+      overflow: hidden;
+    }
+    .exw-sidebar > .xps-sidebar-header,
+    .exw-sidebar > .xps-sidebar-content {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
     }
     .exw-inspector.xps-sidebar {
       position: relative;
@@ -138,6 +144,24 @@ export function injectStyles() {
       flex-direction: column;
       gap: 8px;
       border-bottom: 1px solid var(--xps-border);
+      min-width: 0;
+      max-width: 100%;
+    }
+    .exw-sidebar .xps-input,
+    .exw-sidebar .xps-select-trigger,
+    .exw-sidebar .xps-scroll-area,
+    .exw-sidebar .xps-scroll-area-viewport,
+    .exw-sidebar .xps-sidebar-menu,
+    .exw-sidebar .xps-sidebar-menu-item {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .exw-sidebar .xps-scroll-area-viewport > div,
+    .exw-inspector .xps-scroll-area-viewport > div {
+      display: block !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
     }
     .exw-main {
       min-width: 0;
@@ -195,23 +219,41 @@ export function injectStyles() {
     .exw-list {
       flex: 1 1 auto;
       min-height: 0;
+      width: 100%;
+      max-width: 100%;
       padding: 6px;
+      overflow-x: hidden;
     }
     .exw-list-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--xps-control-height);
-      align-items: center;
-      gap: 4px;
+      position: relative;
+      display: block;
       min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
     }
     .exw-list-select.xps-sidebar-menu-button {
       min-width: 0;
+      width: 100%;
+      padding-right: calc(var(--xps-control-height) + 8px);
     }
     .exw-list-delete.xps-button {
+      position: absolute;
+      top: 50%;
+      right: 4px;
+      transform: translateY(-50%);
       width: var(--xps-control-height);
       height: var(--xps-control-height);
       padding: 0;
       color: var(--xps-muted-foreground);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease, color 120ms ease;
+    }
+    .exw-list-row:hover .exw-list-delete.xps-button,
+    .exw-list-row:focus-within .exw-list-delete.xps-button {
+      opacity: 1;
+      pointer-events: auto;
     }
     .exw-list-delete.xps-button:hover {
       color: var(--xps-destructive);
@@ -389,6 +431,9 @@ export function injectStyles() {
       .exw-sidebar:not([aria-expanded="false"]),
       .exw-inspector:not([aria-expanded="false"]) {
         width: var(--exw-rail-width);
+      }
+      .exw-sidebar.xps-sidebar {
+        overflow: visible;
       }
       .exw-sidebar[aria-expanded="true"] {
         background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { ExcalidrawSceneValidationError, normalizeExcalidrawScene } from './excalidraw-scene.validation.js'
 
 describe('normalizeExcalidrawScene', () => {
@@ -64,6 +65,44 @@ describe('normalizeExcalidrawScene', () => {
     })
 
     expect(scene.elements[0].index).toBe('a0')
+  })
+
+  it('accepts official Excalidraw fixed-point bindings and defaults missing elbowed flags', () => {
+    const scene = normalizeExcalidrawScene({
+      elements: [
+        baseElement({ id: 'rect-1', type: 'rectangle' }),
+        arrowElement({
+          id: 'arrow-1',
+          elbowed: undefined,
+          startBinding: {
+            elementId: 'rect-1',
+            mode: 'orbit',
+            fixedPoint: [0.5, 0]
+          }
+        })
+      ]
+    })
+
+    expect(scene.elements[1].elbowed).toBe(false)
+    expect(scene.elements[1].startBinding).toEqual({
+      elementId: 'rect-1',
+      mode: 'orbit',
+      fixedPoint: [0.5, 0]
+    })
+  })
+
+  it('accepts official exported Excalidraw scene files with fixed-point bindings', () => {
+    const exported = JSON.parse(readFileSync(`${process.cwd()}/src/tests/Untitled-2026-06-15-1253.excalidraw`, 'utf8'))
+    const scene = normalizeExcalidrawScene(exported)
+
+    expect(scene.elements).toHaveLength(62)
+    expect(scene.elements[51].startBinding).toEqual(expect.objectContaining({
+      elementId: '9w-TzrOJglaI1zJjjkTbx',
+      mode: 'orbit',
+      fixedPoint: expect.any(Array)
+    }))
+    expect(scene.elements[51].elbowed).toBe(false)
+    expect(scene.elements[56].elbowed).toBe(false)
   })
 })
 
