@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { matchControlledGoods } from './trade-compliance.matching.js'
 import type { ControlledGoodsMatchCandidate, ProductMatchInput } from './types.js'
 

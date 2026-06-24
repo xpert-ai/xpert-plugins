@@ -1,6 +1,6 @@
 {
   "name": "@chenchaolong/plugin-trade-compliance-workbench",
-  "version": "0.1.1",
+  "version": "0.1.39",
   "description": "Trade Compliance Workbench app plugin for controlled goods review, supplier product management, and customs workbook generation.",
   "author": {
     "name": "XpertAI",
@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit"
+    "test": "tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.lib.json && node scripts/verify-remote-app.mjs && node scripts/verify-service-dedupe.mjs && node scripts/verify-real-enrichment.mjs && node scripts/verify-workbook-template.mjs && node scripts/verify-middleware-workbook-template.mjs"
   },
   "xpert": {
     "plugin": {
@@ -43,6 +43,10 @@
     }
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
     "tslib": "^2.3.0",
     "xlsx": "^0.18.5"
   },

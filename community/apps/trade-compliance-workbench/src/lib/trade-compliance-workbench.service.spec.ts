@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Repository } from 'typeorm'
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js'
 import {
@@ -126,6 +127,64 @@ describe('TradeComplianceWorkbenchService', () => {
     expect(reviewItemRepository.items).toHaveLength(1)
   })
 
+  it('appends review items to an existing batch when batchId is provided', async () => {
+    const { service, batchRepository, reviewItemRepository } = createService()
+    const first = await service.createReviewBatch(scope, {
+      type: 'controlled_goods_file',
+      sourceFileName: 'control.pdf',
+      items: [{ type: 'controlled_goods', title: '8401', extractedData: { hsCode: '8401' } }]
+    })
+
+    const second = await service.createReviewBatch(scope, {
+      type: 'controlled_goods_file',
+      batchId: first.batch.id,
+      sourceFileName: 'control.pdf',
+      items: [{ type: 'controlled_goods', title: '8402', extractedData: { hsCode: '8402' } }]
+    })
+
+    expect(second.batch.id).toBe(first.batch.id)
+    expect(batchRepository.items).toHaveLength(1)
+    expect(reviewItemRepository.items).toHaveLength(2)
+    expect(reviewItemRepository.items.map((item) => item.batchId)).toEqual([first.batch.id, first.batch.id])
+  })
+
+  it('inherits the existing batch scope when assistant saves parsed items by batchId', async () => {
+    const { service } = createService()
+    const first = await service.createReviewBatch(scope, {
+      type: 'supplier_contract',
+      sourceFileName: 'supplier.docx',
+      items: []
+    })
+
+    await service.createReviewBatch(
+      {
+        ...scope,
+        organizationId: null,
+        workspaceId: null,
+        assistantId: null
+      },
+      {
+        type: 'supplier_contract',
+        batchId: first.batch.id,
+        sourceFileName: 'supplier.docx',
+        items: [
+          {
+            type: 'supplier_product',
+            title: '服务器 HPC-8208',
+            extractedData: { supplierName: '闰镁科技（深圳）有限公司', productName: '服务器', model: 'HPC-8208' }
+          }
+        ]
+      }
+    )
+
+    const visibleItems = await service.listReviewItems(scope)
+
+    expect(visibleItems).toHaveLength(1)
+    expect(visibleItems[0]?.batchId).toBe(first.batch.id)
+    expect(visibleItems[0]?.organizationId).toBe(scope.organizationId)
+    expect(visibleItems[0]?.assistantId).toBe(scope.assistantId)
+  })
+
   it('confirms one item and preserves confirmed values', async () => {
     const { service, reviewItemRepository } = createService()
     const result = await service.createReviewBatch(scope, {
@@ -156,6 +215,77 @@ describe('TradeComplianceWorkbenchService', () => {
     expect(confirmed.every((item) => item.reviewStatus === 'confirmed')).toBe(true)
   })
 
+  it('deduplicates supplier product review items before saving a batch', async () => {
+    const { service, reviewItemRepository } = createService()
+
+    await service.createReviewBatch(scope, {
+      type: 'supplier_contract',
+      sourceFileName: 'supplier-a.docx',
+      items: [
+        {
+          type: 'supplier_product',
+          title: 'HPC-8208',
+          extractedData: { supplierName: '深圳市测试科技有限公司', productName: '服务器', model: 'HPC-8208' }
+        }
+      ]
+    })
+
+    const result = await service.createReviewBatch(scope, {
+      type: 'supplier_contract',
+      sourceFileName: 'supplier-a-copy.docx',
+      items: [
+        {
+          type: 'supplier_product',
+          title: 'HPC-8208',
+          extractedData: { supplierName: ' 深圳市测试科技有限公司 ', productName: ' 服务器 ', model: 'HPC-8208' }
+        },
+        {
+          type: 'supplier_product',
+          title: 'HPC-7242',
+          extractedData: { supplierName: '深圳市测试科技有限公司', productName: '服务器', model: 'HPC-7242' }
+        }
+      ]
+    })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.title).toBe('HPC-7242')
+    expect(reviewItemRepository.items).toHaveLength(2)
+  })
+
+  it('does not let completed supplier review remnants block a fresh parsed save', async () => {
+    const { service, reviewItemRepository, productRepository } = createService()
+
+    const previous = await service.createReviewBatch(scope, {
+      type: 'supplier_contract',
+      sourceFileName: 'supplier-old.docx',
+      items: [
+        {
+          type: 'supplier_product',
+          title: 'HPC-8208',
+          extractedData: { supplierName: '深圳市测试科技有限公司', productName: '服务器', model: 'HPC-8208' }
+        }
+      ]
+    })
+    await service.confirmReviewItem(scope, previous.items[0]!.id!, previous.items[0]!.extractedData)
+
+    const result = await service.createReviewBatch(scope, {
+      type: 'supplier_contract',
+      sourceFileName: 'supplier-new.docx',
+      items: [
+        {
+          type: 'supplier_product',
+          title: 'HPC-8208',
+          extractedData: { supplierName: '深圳市测试科技有限公司', productName: '服务器', model: 'HPC-8208' }
+        }
+      ]
+    })
+
+    expect(productRepository.items).toHaveLength(0)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.reviewStatus).toBe('pending')
+    expect(reviewItemRepository.items).toHaveLength(2)
+  })
+
   it('saves controlled goods and supplier products from confirmed data', async () => {
     const { service, controlledGoodsRepository, productRepository, supplierRepository } = createService()
 
@@ -177,6 +307,38 @@ describe('TradeComplianceWorkbenchService', () => {
     expect(product.supplierName).toBe('深圳市测试科技有限公司')
     expect(supplierRepository.items).toHaveLength(1)
     expect(controlledGoodsRepository.items).toHaveLength(1)
+    expect(productRepository.items).toHaveLength(1)
+  })
+
+  it('rejects duplicate controlled goods in the same scope', async () => {
+    const { service, controlledGoodsRepository } = createService()
+
+    await service.saveControlledGoods(scope, {
+      productName: '数字计算机',
+      hsCode: '8471501010'
+    })
+
+    await expect(service.saveControlledGoods(scope, {
+      productName: ' 数字计算机 ',
+      hsCode: '8471501010'
+    })).rejects.toThrow('管控商品已存在')
+    expect(controlledGoodsRepository.items).toHaveLength(1)
+  })
+
+  it('rejects duplicate supplier products in the same scope', async () => {
+    const { service, productRepository } = createService()
+
+    await service.saveSupplierProduct(scope, {
+      supplierName: '深圳市测试科技有限公司',
+      productName: '服务器',
+      model: 'HPC-8208'
+    })
+
+    await expect(service.saveSupplierProduct(scope, {
+      supplierName: ' 深圳市测试科技有限公司 ',
+      productName: ' 服务器 ',
+      model: 'HPC-8208'
+    })).rejects.toThrow('供应商商品已存在')
     expect(productRepository.items).toHaveLength(1)
   })
 

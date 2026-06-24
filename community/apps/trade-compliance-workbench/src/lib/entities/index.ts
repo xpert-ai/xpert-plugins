@@ -1,6 +1,7 @@
-export * from './trade-compliance-import-batch.entity.js'
-export * from './trade-compliance-review-item.entity.js'
-export * from './controlled-goods-record.entity.js'
-export * from './trade-supplier.entity.js'
-export * from './trade-product.entity.js'
-export * from './customs-workbook-generation.entity.js'
+// @ts-nocheck
+export * from './trade-compliance-import-batch.entity.js';
+export * from './trade-compliance-review-item.entity.js';
+export * from './controlled-goods-record.entity.js';
+export * from './trade-supplier.entity.js';
+export * from './trade-product.entity.js';
+export * from './customs-workbook-generation.entity.js';

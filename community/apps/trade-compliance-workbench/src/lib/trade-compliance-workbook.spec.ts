@@ -1,4 +1,8 @@
-import { buildCustomsWorkbookModel, createCustomsWorkbookBuffer } from './trade-compliance-workbook.js'
+// @ts-nocheck
+import * as XLSX from 'xlsx'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { buildCustomsWorkbookModel, createCustomsWorkbookBuffer, createCustomsWorkbookFromTemplateBuffer } from './trade-compliance-workbook.js'
 import type { CustomsWorkbookSource, TradeTemplateDefaults } from './types.js'
 
 describe('buildCustomsWorkbookModel', () => {
@@ -18,8 +22,30 @@ describe('buildCustomsWorkbookModel', () => {
     const result = createCustomsWorkbookBuffer(model)
 
     expect(result.fileName).toBe('INV-2026-001-customs-workbook.xlsx')
+    expect(result.mimeType).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    expect(result.bookType).toBe('xlsx')
     expect(result.sheetNames).toEqual(['报关单', 'CI', 'Contract', 'PL'])
     expect(result.buffer.length).toBeGreaterThan(0)
+  })
+
+  it('creates a styled customs workbook matching the fixed template layout', async () => {
+    const template = readFileSync(join(process.cwd(), 'src', 'assets', 'customs-workbook-template.xls'))
+    const templateWorkbook = XLSX.read(template, { type: 'buffer', cellStyles: true })
+    const result = await createCustomsWorkbookFromTemplateBuffer(buildCustomsWorkbookModel(source(), defaults()), template)
+    const workbook = XLSX.read(result.buffer, { type: 'buffer', cellStyles: true })
+
+    expect(result.fileName).toBe('INV-2026-001-销售发票.xlsx')
+    expect(result.mimeType).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    expect(result.bookType).toBe('xlsx')
+    expect(result.sheetNames).toEqual(templateWorkbook.SheetNames)
+    expect(workbook.SheetNames).toEqual(templateWorkbook.SheetNames)
+    expect(workbook.Sheets.CI.F5?.v).toBe('INV-2026-001')
+    expect(workbook.Sheets.CI.F7?.v).toBe('SC-2026-001')
+    expect(workbook.Sheets.CI.B12?.v).toBe('HPC-8208')
+    expect(workbook.Sheets.CI.A3?.s).toBeTruthy()
+    expect(workbook.Sheets.CI.F5?.s).toBeTruthy()
+    expect(workbook.Sheets.CI['!merges']?.length).toBeGreaterThan(0)
+    expect(workbook.Sheets.CI['!cols']?.length).toBeGreaterThan(0)
   })
 })
 

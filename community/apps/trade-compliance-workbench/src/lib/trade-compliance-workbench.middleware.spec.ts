@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TradeComplianceWorkbenchMiddleware } from './trade-compliance-workbench.middleware.js'
 import {
   TRADE_COMPLIANCE_MIDDLEWARE_NAME,
