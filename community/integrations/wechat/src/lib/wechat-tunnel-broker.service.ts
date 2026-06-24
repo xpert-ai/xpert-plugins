@@ -267,6 +267,21 @@ export class WechatTunnelBrokerService implements OnModuleDestroy {
     })
   }
 
+  disconnectClient(clientId?: string | null, reason = 'wechat reverse tunnel client disconnected'): boolean {
+    const normalizedClientId = normalizeString(clientId)
+    if (!normalizedClientId) {
+      return false
+    }
+
+    const session = this.sessions.get(normalizedClientId)
+    if (!session) {
+      return false
+    }
+
+    this.closeSession(session, reason)
+    return true
+  }
+
   getStatus(clientId?: string | null, setup?: { clientName?: string | null }): WechatTunnelStatus {
     const config = this.getConfig()
     const normalizedClientId = normalizeString(clientId)

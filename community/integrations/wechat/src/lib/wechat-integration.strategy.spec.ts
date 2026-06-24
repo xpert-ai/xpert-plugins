@@ -1,11 +1,26 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
 
 function readStrategySource() {
   return readFileSync(join(process.cwd(), 'src/lib/wechat-integration.strategy.ts'), 'utf8')
 }
 
 describe('WechatIntegrationStrategy', () => {
+  function createStrategy() {
+    const tunnelBroker = {
+      disconnectClient: jest.fn(),
+      buildSetupConfig: jest.fn(() => ({
+        forwardServerInfo: {},
+        msgClientInfo: {},
+        settingJson: '{}',
+        sidecar: {}
+      }))
+    }
+    const strategy = new WechatIntegrationStrategy(tunnelBroker as any, {} as any)
+    return { strategy, tunnelBroker }
+  }
+
   it('declares the integration detail extension view in provider metadata', () => {
     const source = readStrategySource()
 
@@ -45,5 +60,97 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('blockedSenderIds: {')
     expect(source).not.toContain('ignoreSelfMessages: {')
     expect(source).not.toContain('groupTriggerMode: {')
+  })
+
+  it('disconnects the previous reverse tunnel client when the integration client id changes', async () => {
+    const { strategy, tunnelBroker } = createStrategy()
+
+    await strategy.onUpdate(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'old-client'
+        }
+      } as any,
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'new-client'
+        }
+      } as any
+    )
+
+    expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
+      'old-client',
+      'wechat integration integration-1 tunnel client id changed'
+    )
+  })
+
+  it('disconnects the previous reverse tunnel client when switching back to direct HTTP', async () => {
+    const { strategy, tunnelBroker } = createStrategy()
+
+    await strategy.onUpdate(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'old-client'
+        }
+      } as any,
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'direct_http',
+          tunnelClientId: 'old-client'
+        }
+      } as any
+    )
+
+    expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
+      'old-client',
+      'wechat integration integration-1 tunnel client id changed'
+    )
+  })
+
+  it('keeps the current tunnel client connected when the client id is unchanged', async () => {
+    const { strategy, tunnelBroker } = createStrategy()
+
+    await strategy.onUpdate(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1'
+        }
+      } as any,
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1'
+        }
+      } as any
+    )
+
+    expect(tunnelBroker.disconnectClient).not.toHaveBeenCalled()
+  })
+
+  it('disconnects the tunnel client when the integration is deleted', async () => {
+    const { strategy, tunnelBroker } = createStrategy()
+
+    await strategy.onDelete({
+      id: 'integration-1',
+      options: {
+        connectionMode: 'reverse_tunnel',
+        tunnelClientId: 'client-1'
+      }
+    } as any)
+
+    expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
+      'client-1',
+      'wechat integration integration-1 deleted'
+    )
   })
 })
