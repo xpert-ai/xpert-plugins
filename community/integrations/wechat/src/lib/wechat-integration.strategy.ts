@@ -1,5 +1,5 @@
 import { IIntegration, TIntegrationProvider } from '@xpert-ai/contracts'
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
@@ -88,6 +88,7 @@ const WECHAT_INTEGRATION_VIEW_EXTENSION: WechatIntegrationViewExtensionMeta = {
 @Injectable()
 @IntegrationStrategyKey(WECHAT_PROVIDER_KEY)
 export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrationWechatOptions> {
+  private readonly logger = new Logger(WechatIntegrationStrategy.name)
   private _integrationPermissionService: IntegrationPermissionService | null = null
 
   constructor(
@@ -366,6 +367,31 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     return null
   }
 
+  async onUpdate(
+    previous: IIntegration<TIntegrationWechatOptions>,
+    current: IIntegration<any>
+  ): Promise<void> {
+    const previousClientId = this.getActiveTunnelClientId(previous)
+    const currentClientId = this.getActiveTunnelClientId(current)
+    if (!previousClientId || previousClientId === currentClientId) {
+      return
+    }
+
+    this.disconnectTunnelClient(
+      previousClientId,
+      `wechat integration ${previous.id} tunnel client id changed`
+    )
+  }
+
+  async onDelete(integration: IIntegration<TIntegrationWechatOptions>): Promise<void> {
+    const clientId = normalizeString(integration?.options?.tunnelClientId)
+    if (!clientId) {
+      return
+    }
+
+    this.disconnectTunnelClient(clientId, `wechat integration ${integration.id} deleted`)
+  }
+
   async validateConfig(
     config: TIntegrationWechatOptions,
     integration?: IIntegration<TIntegrationWechatOptions>
@@ -456,5 +482,20 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
       config.webhookCredential = result.credential
     }
     return token || null
+  }
+
+  private getActiveTunnelClientId(integration?: IIntegration<TIntegrationWechatOptions> | null): string {
+    const options = integration?.options
+    if (normalizeWechatConnectionMode(options?.connectionMode) !== 'reverse_tunnel') {
+      return ''
+    }
+    return normalizeString(options?.tunnelClientId)
+  }
+
+  private disconnectTunnelClient(clientId: string, reason: string): void {
+    const disconnected = this.tunnelBroker.disconnectClient(clientId, reason)
+    if (disconnected) {
+      this.logger.log(`[wechat-tunnel] disconnected client "${clientId}": ${reason}`)
+    }
   }
 }

@@ -189,6 +189,25 @@ describe('WechatTunnelBrokerService', () => {
     await expect(responsePromise).rejects.toThrow(/timed out/)
   })
 
+  it('disconnects a registered tunnel client by id', async () => {
+    service = createService()
+    const transport = attachMemoryClient(service)
+
+    transport.receive(encodeWechatTunnelMessage({ type: 'register', id: 'client-1' }))
+    expect(service.getStatus('client-1').connected).toBe(true)
+
+    expect(service.disconnectClient('client-1', 'config changed')).toBe(true)
+    expect(transport.destroyed).toBe(true)
+    expect(service.getStatus('client-1')).toEqual(
+      expect.objectContaining({
+        connected: false,
+        clientId: 'client-1',
+        lastError: 'config changed'
+      })
+    )
+    expect(service.disconnectClient('missing-client')).toBe(false)
+  })
+
   it('shares tunnel sessions across broker instances in the same process', async () => {
     service = createService()
     const sender = createService()
