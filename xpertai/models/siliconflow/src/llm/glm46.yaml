@@ -74,3 +74,4 @@ pricing:
   output: '14'
   unit: '0.000001'
   currency: RMB
+deprecated: true
