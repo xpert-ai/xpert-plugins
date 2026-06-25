@@ -36,6 +36,7 @@ import {
 } from './types.js'
 import {
   WechatTunnelBrokerService,
+  WechatTunnelClientInfo,
   WechatTunnelStatus
 } from './wechat-tunnel-broker.service.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
@@ -133,6 +134,27 @@ export type WechatIntegrationWorkbenchItem = {
   tunnel?: WechatTunnelStatus
 }
 
+export type WechatAccountTunnelBinding = {
+  status: 'bound_connected' | 'connected_unbound' | 'disconnected' | 'not_applicable'
+  connected: boolean
+  clientId?: string | null
+  clientName?: string | null
+  lastSeenAt?: string | null
+  lastSyncAt?: string | null
+  lastError?: string | null
+  bindingCount?: number
+}
+
+export type WechatAccountWorkbenchItem = WechatAccountEntity & {
+  tunnelBinding?: WechatAccountTunnelBinding
+}
+
+export type WechatTunnelClientWorkbenchItem = WechatTunnelClientInfo & {
+  integrationId?: string | null
+  integrationName?: string | null
+  expected?: boolean
+}
+
 export type WechatWorkbenchData = {
   scope?: 'integration' | 'organization'
   integrationId?: string | null
@@ -145,7 +167,7 @@ export type WechatWorkbenchData = {
     recentMessageCount: number
     errorCount: number
   }
-  accounts: WechatAccountEntity[]
+  accounts: WechatAccountWorkbenchItem[]
   conversations: WechatConversationListItem[]
   messages: WechatMessageLogEntity[]
   queue: WechatMessageLogEntity[]
@@ -153,6 +175,7 @@ export type WechatWorkbenchData = {
   tables?: Partial<Record<WechatWorkbenchTableKey, WechatWorkbenchTableResult>>
   config: Partial<TIntegrationWechatOptions>
   tunnel?: WechatTunnelStatus
+  tunnelClients?: WechatTunnelClientWorkbenchItem[]
 }
 
 export type WechatPagedResult<T> = IPagination<T> & {
@@ -160,7 +183,7 @@ export type WechatPagedResult<T> = IPagination<T> & {
   pageSize: number
 }
 
-export type WechatWorkbenchTableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs'
+export type WechatWorkbenchTableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs' | 'tunnelClients'
 
 export type WechatWorkbenchTableQuery = {
   search?: string
@@ -170,9 +193,10 @@ export type WechatWorkbenchTableQuery = {
 }
 
 export type WechatWorkbenchTableResult =
-  | (WechatPagedResult<WechatAccountEntity> & { key: 'accounts' })
+  | (WechatPagedResult<WechatAccountWorkbenchItem> & { key: 'accounts' })
   | (WechatPagedResult<WechatConversationListItem> & { key: 'conversations' })
   | (WechatPagedResult<WechatMessageLogEntity> & { key: 'messages' | 'queue' | 'logs' })
+  | (WechatPagedResult<WechatTunnelClientWorkbenchItem> & { key: 'tunnelClients' })
 
 export type WechatRuntimeStatus = {
   callbackConfig: WechatWorkbenchData['callbackConfig']
@@ -192,7 +216,7 @@ export type WechatRuntimeStatus = {
     mentionFallbackNames: string[]
     updatedAt: Date | null
   } | null
-  accounts: WechatAccountEntity[]
+  accounts: WechatAccountWorkbenchItem[]
   recentErrors: WechatMessageLogEntity[]
   config: Partial<TIntegrationWechatOptions>
   tunnel?: WechatTunnelStatus
@@ -887,7 +911,9 @@ export class WechatConversationService {
         )
       })
       .slice(0, pageSize)
-    const tunnel = this.getTunnelStatus(integration)
+    const tunnel = await this.getTunnelStatus(integration)
+    const accountsWithTunnel = await this.attachAccountTunnelBindings(accounts, [integration])
+    const tunnelClients = await this.buildTunnelClientItems([integration])
 
     const integrationWorkbenchItem = await this.toIntegrationWorkbenchItem(integration, {
       accounts,
@@ -907,12 +933,13 @@ export class WechatConversationService {
         recentMessageCount: logs.length,
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
-      accounts,
+      accounts: accountsWithTunnel,
       conversations,
       messages: filteredLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
       tunnel,
+      tunnelClients,
       config: {
         connectionMode: integration?.options?.connectionMode ?? 'direct_http',
         baseUrl: integration?.options?.baseUrl,
@@ -959,7 +986,8 @@ export class WechatConversationService {
         messages: [],
         queue: [],
         logs: [],
-        tunnel: this.tunnelBroker.getStatus(),
+        tunnel: await this.getTunnelStatus(null),
+        tunnelClients: await this.buildTunnelClientItems([], { includeOrphans: true }),
         config: {
           organizationScope: true,
           integrationCount: 0
@@ -1002,6 +1030,7 @@ export class WechatConversationService {
     const filteredLogs = logs
       .filter((log) => this.matchesLogSearch(log, search))
       .slice(0, pageSize)
+    const accountsWithTunnel = await this.attachAccountTunnelBindings(accounts, integrations)
 
     const integrationItems = await Promise.all(
       integrations.map((integration) =>
@@ -1025,12 +1054,13 @@ export class WechatConversationService {
         recentMessageCount: logs.length,
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
-      accounts,
+      accounts: accountsWithTunnel,
       conversations,
       messages: filteredLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
-      tunnel: this.tunnelBroker.getStatus(),
+      tunnel: await this.getTunnelStatus(null),
+      tunnelClients: await this.buildTunnelClientItems(integrations, { includeOrphans: true }),
       config: {
         organizationScope: true,
         integrationCount: integrations.length
@@ -1117,6 +1147,9 @@ export class WechatConversationService {
     if (table === 'accounts') {
       return { key: table, ...(await this.listAccounts(integrationId, query)) }
     }
+    if (table === 'tunnelClients') {
+      return { key: table, ...(await this.listTunnelClients(integrationId, query)) }
+    }
     if (table === 'conversations') {
       return { key: table, ...(await this.listConversations(integrationId, query)) }
     }
@@ -1143,6 +1176,9 @@ export class WechatConversationService {
     if (table === 'accounts') {
       return { key: table, ...(await this.listOrganizationAccounts(query)) }
     }
+    if (table === 'tunnelClients') {
+      return { key: table, ...(await this.listOrganizationTunnelClients(query)) }
+    }
     if (table === 'conversations') {
       return { key: table, ...(await this.listOrganizationConversations(query)) }
     }
@@ -1165,17 +1201,26 @@ export class WechatConversationService {
   async listAccounts(
     integrationId: string,
     query: WechatWorkbenchTableQuery = {}
-  ): Promise<WechatPagedResult<WechatAccountEntity>> {
+  ): Promise<WechatPagedResult<WechatAccountWorkbenchItem>> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     if (!normalizedIntegrationId) {
       throw new Error('缺少微信集成标识。')
     }
 
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
+      normalizedIntegrationId,
+      {
+        relations: ['tenant']
+      }
+    )
+    if (!integration) {
+      throw new Error('微信集成不存在或无权访问。')
+    }
     const page = this.normalizePage(query.page)
     const pageSize = this.normalizePageSize(query.pageSize, 50)
     const search = this.normalizeListSearch(query.search)
     const filters = this.normalizeFilters(query.filters)
-    const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
+    const scope = this.resolveTenantScope(integration)
     const accounts = await this.accountRepository.find({
       where: this.scopedWhere({ integrationId: normalizedIntegrationId }, scope),
       order: { updatedAt: 'DESC' },
@@ -1197,12 +1242,12 @@ export class WechatConversationService {
       ].some((value) => this.normalizeListSearch(value)?.includes(search))
     })
 
-    return this.paginateItems(filtered, page, pageSize)
+    return this.paginateItems(await this.attachAccountTunnelBindings(filtered, [integration]), page, pageSize)
   }
 
   async listOrganizationAccounts(
     query: WechatWorkbenchTableQuery = {}
-  ): Promise<WechatPagedResult<WechatAccountEntity>> {
+  ): Promise<WechatPagedResult<WechatAccountWorkbenchItem>> {
     const data = await this.getOrganizationWorkbenchData({ pageSize: 500 })
     const page = this.normalizePage(query.page)
     const pageSize = this.normalizePageSize(query.pageSize, 50)
@@ -1226,6 +1271,42 @@ export class WechatConversationService {
     })
 
     return this.paginateItems(filtered, page, pageSize)
+  }
+
+  async listTunnelClients(
+    integrationId: string,
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatTunnelClientWorkbenchItem>> {
+    const normalizedIntegrationId = normalizeConversationKey(integrationId)
+    if (!normalizedIntegrationId) {
+      throw new Error('缺少微信集成标识。')
+    }
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
+      normalizedIntegrationId,
+      {
+        relations: ['tenant']
+      }
+    )
+    if (!integration) {
+      throw new Error('微信集成不存在或无权访问。')
+    }
+    return this.paginateTunnelClients(await this.buildTunnelClientItems([integration]), query)
+  }
+
+  async listOrganizationTunnelClients(
+    query: WechatWorkbenchTableQuery = {}
+  ): Promise<WechatPagedResult<WechatTunnelClientWorkbenchItem>> {
+    return this.paginateTunnelClients(await this.buildTunnelClientItems(await this.listWechatIntegrations(), { includeOrphans: true }), query)
+  }
+
+  async disconnectTunnelClient(clientId?: string | null): Promise<boolean> {
+    const broker = this.tunnelBroker as WechatTunnelBrokerService & {
+      disconnectManagedClient?: WechatTunnelBrokerService['disconnectManagedClient']
+    }
+    if (typeof broker.disconnectManagedClient !== 'function') {
+      return this.tunnelBroker.disconnectClient(clientId, 'disconnected by WeChat workbench administrator')
+    }
+    return broker.disconnectManagedClient(clientId, 'disconnected by WeChat workbench administrator')
   }
 
   async listConversations(
@@ -2130,7 +2211,7 @@ export class WechatConversationService {
       recentMessageCount: stats.logs.length,
       errorCount: stats.logs.filter((log) => log.status === 'failed' || log.error).length,
       config: this.sanitizeIntegrationConfig(integration.options),
-      tunnel: this.getTunnelStatus(integration)
+      tunnel: await this.getTunnelStatus(integration)
     }
   }
 
@@ -2154,9 +2235,39 @@ export class WechatConversationService {
     }
   }
 
-  private getTunnelStatus(integration?: IIntegration<TIntegrationWechatOptions> | null): WechatTunnelStatus {
-    return this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
+  private async getTunnelStatus(integration?: IIntegration<TIntegrationWechatOptions> | null): Promise<WechatTunnelStatus> {
+    const broker = this.tunnelBroker as WechatTunnelBrokerService & {
+      getManagedStatus?: WechatTunnelBrokerService['getManagedStatus']
+    }
+    if (typeof broker.getManagedStatus !== 'function') {
+      return this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
+        clientName: integration?.name || integration?.id || null
+      })
+    }
+    return broker.getManagedStatus(integration?.options?.tunnelClientId, {
       clientName: integration?.name || integration?.id || null
+    })
+  }
+
+  private async syncTunnelClientScope(integration?: IIntegration<TIntegrationWechatOptions> | null): Promise<void> {
+    if (!integration || (integration.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
+      return
+    }
+    const clientId = normalizeString(integration.options?.tunnelClientId)
+    if (!clientId) {
+      return
+    }
+    const broker = this.tunnelBroker as WechatTunnelBrokerService & {
+      syncManagedClientScope?: WechatTunnelBrokerService['syncManagedClientScope']
+    }
+    if (typeof broker.syncManagedClientScope !== 'function') {
+      return
+    }
+    await broker.syncManagedClientScope(clientId, {
+      tenantId: integration.tenantId ?? null,
+      organizationId: integration.organizationId ?? null,
+      integrationId: integration.id,
+      integrationName: integration.name || integration.id
     })
   }
 
@@ -2167,6 +2278,191 @@ export class WechatConversationService {
       setCallbackUrlTemplate: '',
       setCallbackCurlTemplate: ''
     }
+  }
+
+  private async attachAccountTunnelBindings(
+    accounts: WechatAccountEntity[],
+    integrations: IIntegration<TIntegrationWechatOptions>[]
+  ): Promise<WechatAccountWorkbenchItem[]> {
+    const integrationById = new Map(integrations.map((integration) => [integration.id, integration]))
+    const tunnelByIntegrationId = new Map<string, WechatTunnelStatus>()
+    await Promise.all(
+      integrations
+        .filter((integration) => (integration.options?.connectionMode ?? 'direct_http') === 'reverse_tunnel')
+        .map(async (integration) => {
+          await this.syncTunnelClientScope(integration)
+          tunnelByIntegrationId.set(integration.id, await this.getTunnelStatus(integration))
+        })
+    )
+    return accounts.map((account) => {
+      const integration = integrationById.get(account.integrationId)
+      return {
+        ...account,
+        tunnelBinding: this.getAccountTunnelBinding(account, integration, tunnelByIntegrationId)
+      }
+    })
+  }
+
+  private getAccountTunnelBinding(
+    account: WechatAccountEntity,
+    integration?: IIntegration<TIntegrationWechatOptions>,
+    tunnelByIntegrationId?: Map<string, WechatTunnelStatus>
+  ): WechatAccountTunnelBinding {
+    if ((integration?.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
+      return {
+        status: 'not_applicable',
+        connected: false
+      }
+    }
+
+    let tunnel = tunnelByIntegrationId?.get(account.integrationId)
+    if (!tunnel) {
+      tunnel = this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
+        clientName: integration?.name || integration?.id || null
+      })
+      tunnelByIntegrationId?.set(account.integrationId, tunnel)
+    }
+
+    const base: Omit<WechatAccountTunnelBinding, 'status'> = {
+      connected: tunnel.connected,
+      clientId: tunnel.clientId ?? integration?.options?.tunnelClientId ?? null,
+      clientName: tunnel.clientName ?? integration?.name ?? integration?.id ?? null,
+      lastSeenAt: tunnel.lastSeenAt ?? null,
+      lastSyncAt: tunnel.lastSyncAt ?? null,
+      lastError: tunnel.lastError ?? null,
+      bindingCount: tunnel.bindingCount
+    }
+
+    if (!tunnel.connected) {
+      return {
+        ...base,
+        status: 'disconnected'
+      }
+    }
+
+    const accountUuid = normalizeString(account.uuid)
+    const bound = Boolean(accountUuid && tunnel.bindings.some((binding) => normalizeString(binding.uuid) === accountUuid))
+    return {
+      ...base,
+      status: bound ? 'bound_connected' : 'connected_unbound'
+    }
+  }
+
+  private async buildTunnelClientItems(
+    integrations: IIntegration<TIntegrationWechatOptions>[],
+    options: { includeOrphans?: boolean } = {}
+  ): Promise<WechatTunnelClientWorkbenchItem[]> {
+    const integrationByClientId = new Map<string, IIntegration<TIntegrationWechatOptions>>()
+    const configuredClientIds = new Set<string>()
+    for (const integration of integrations) {
+      if ((integration.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
+        continue
+      }
+      const clientId = normalizeString(integration.options?.tunnelClientId)
+      if (!clientId) {
+        continue
+      }
+      configuredClientIds.add(clientId)
+      if (!integrationByClientId.has(clientId)) {
+        integrationByClientId.set(clientId, integration)
+      }
+    }
+
+    await Promise.all([...integrationByClientId.values()].map((integration) => this.syncTunnelClientScope(integration)))
+
+    const broker = this.tunnelBroker as WechatTunnelBrokerService & {
+      listManagedClients?: WechatTunnelBrokerService['listManagedClients']
+    }
+    const brokerClients =
+      typeof broker.listManagedClients === 'function'
+        ? await broker.listManagedClients()
+        : this.tunnelBroker.listClients()
+    const byClientId = new Map(brokerClients.map((client) => [client.clientId, client]))
+    for (const clientId of configuredClientIds) {
+      if (byClientId.has(clientId)) {
+        continue
+      }
+      const integration = integrationByClientId.get(clientId)
+      const client = this.tunnelStatusToClientInfo(await this.getTunnelStatus(integration))
+      if (client) {
+        byClientId.set(client.clientId, client)
+      }
+    }
+
+    return [...byClientId.values()]
+      .filter((client) => options.includeOrphans || configuredClientIds.has(client.clientId))
+      .map((client) => {
+        const integration = integrationByClientId.get(client.clientId)
+        return {
+          ...client,
+          clientName: client.clientName || integration?.name || client.clientId,
+          integrationId: integration?.id ?? null,
+          integrationName: integration?.name || integration?.id || null,
+          expected: Boolean(integration)
+        }
+      })
+      .sort((left, right) => {
+        if (left.connected !== right.connected) {
+          return left.connected ? -1 : 1
+        }
+        if (left.expected !== right.expected) {
+          return left.expected ? -1 : 1
+        }
+        return this.tunnelClientActivityTime(right) - this.tunnelClientActivityTime(left)
+      })
+  }
+
+  private tunnelStatusToClientInfo(status: WechatTunnelStatus): WechatTunnelClientInfo | null {
+    const clientId = normalizeString(status.clientId)
+    if (!clientId) {
+      return null
+    }
+    return {
+      clientId,
+      clientName: status.clientName ?? null,
+      state: status.state,
+      connected: status.connected,
+      instanceId: status.instanceId,
+      remoteAddress: status.remoteAddress ?? null,
+      connectedAt: status.lastConnectedAt ?? null,
+      disconnectedAt: status.lastDisconnectedAt ?? null,
+      lastSeenAt: status.lastSeenAt ?? null,
+      lastPingAt: status.lastPingAt ?? null,
+      lastSyncAt: status.lastSyncAt ?? null,
+      lastError: status.lastError ?? null,
+      bindingCount: status.bindingCount,
+      bindings: status.bindings
+    }
+  }
+
+  private paginateTunnelClients(
+    clients: WechatTunnelClientWorkbenchItem[],
+    query: WechatWorkbenchTableQuery = {}
+  ): WechatPagedResult<WechatTunnelClientWorkbenchItem> {
+    const page = this.normalizePage(query.page)
+    const pageSize = this.normalizePageSize(query.pageSize, 50)
+    const search = this.normalizeListSearch(query.search)
+    const filters = this.normalizeFilters(query.filters)
+    const filtered = clients.filter((client) => {
+      if (!this.matchesTunnelClientFilters(client, filters)) {
+        return false
+      }
+      if (!search) {
+        return true
+      }
+      return [
+        client.integrationId,
+        client.integrationName,
+        client.clientId,
+        client.clientName,
+        client.state,
+        client.remoteAddress,
+        client.instanceId,
+        client.lastError,
+        ...client.bindings.flatMap((binding) => [binding.uuid, binding.wxid])
+      ].some((value) => this.normalizeListSearch(value)?.includes(search))
+    })
+    return this.paginateItems(filtered, page, pageSize)
   }
 
   private matchesAccountFilters(account: WechatAccountEntity, filters: Record<string, unknown>): boolean {
@@ -2226,6 +2522,28 @@ export class WechatConversationService {
       this.matchesFilter(log.xpertId, filters.xpertId) &&
       this.matchesFilter(log.conversationId, filters.conversationId)
     )
+  }
+
+  private matchesTunnelClientFilters(
+    client: WechatTunnelClientWorkbenchItem,
+    filters: Record<string, unknown>
+  ): boolean {
+    const state = this.normalizeListSearch(filters.state ?? filters.status)
+    if (state && client.state !== state) {
+      return false
+    }
+    return (
+      this.matchesFilter(client.integrationId, filters.integrationId) &&
+      this.matchesFilter(client.clientId, filters.clientId) &&
+      this.matchesFilter(client.clientName, filters.clientName) &&
+      this.matchesFilter(client.remoteAddress, filters.remoteAddress)
+    )
+  }
+
+  private tunnelClientActivityTime(client: WechatTunnelClientWorkbenchItem): number {
+    const value = client.lastSeenAt || client.connectedAt || client.disconnectedAt || ''
+    const time = Date.parse(value)
+    return Number.isFinite(time) ? time : 0
   }
 
   private normalizeFilters(value: unknown): Record<string, unknown> {

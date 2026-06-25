@@ -23,6 +23,7 @@ Options:
   --listen-port <port>    Local raw TCP listen port. Default: ${DEFAULT_LISTEN_PORT}
   --header <k:v>          Extra websocket handshake header. Repeatable.
   --verbose               Print tunnel frame summaries for troubleshooting.
+  --no-startup-probe      Skip the initial Xpert websocket connectivity check.
   --help                  Show help.
 
 Environment:
@@ -32,6 +33,7 @@ Environment:
   XPERT_WECHAT_SIDECAR_LISTEN_HOST
   XPERT_WECHAT_SIDECAR_LISTEN_PORT
   XPERT_WECHAT_SIDECAR_VERBOSE
+  XPERT_WECHAT_SIDECAR_NO_STARTUP_PROBE
 `)
 }
 
@@ -45,6 +47,10 @@ function parseArgs(argv) {
     }
     if (token === '--verbose') {
       args.verbose = true
+      continue
+    }
+    if (token === '--no-startup-probe') {
+      args.noStartupProbe = true
       continue
     }
     if (!token.startsWith('--')) {
@@ -117,6 +123,9 @@ async function main() {
   }
   const extraHeaders = parseHeaders(args.headers)
   const verbose = args.verbose === true || parseBoolean(process.env.XPERT_WECHAT_SIDECAR_VERBOSE)
+  const startupProbe =
+    args.noStartupProbe !== true &&
+    !parseBoolean(process.env.XPERT_WECHAT_SIDECAR_NO_STARTUP_PROBE)
   const localSockets = new Set()
   const remoteSockets = new Set()
 
@@ -164,6 +173,9 @@ async function main() {
   server.listen(listenPort, listenHost, () => {
     console.log(`[wechat-sidecar] listening raw TCP on ${listenHost}:${listenPort}`)
     console.log(`[wechat-sidecar] forwarding to ${tunnelUrl.toString()}`)
+    if (startupProbe) {
+      probeTunnelEndpoint(tunnelUrl, extraHeaders, server)
+    }
   })
 
   let shuttingDown = false
@@ -184,6 +196,19 @@ async function main() {
   }
   process.on('SIGINT', () => shutdown('SIGINT'))
   process.on('SIGTERM', () => shutdown('SIGTERM'))
+}
+
+function probeTunnelEndpoint(tunnelUrl, extraHeaders, server) {
+  connectSocketIo(tunnelUrl, extraHeaders)
+    .then((remote) => {
+      console.log(`[wechat-sidecar] websocket reachable ${tunnelUrl.toString()}`)
+      remote.close()
+    })
+    .catch((error) => {
+      console.error(`[wechat-sidecar] startup websocket probe failed: ${error.message}`)
+      server.close(() => process.exit(1))
+      setTimeout(() => process.exit(1), 1000).unref()
+    })
 }
 
 function parseBoolean(value) {

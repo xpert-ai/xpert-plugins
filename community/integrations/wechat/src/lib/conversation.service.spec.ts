@@ -236,8 +236,22 @@ describe('WechatConversationService fresh session history context', () => {
     }
     const accountRepository = {
       findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue(undefined),
-      update: jest.fn().mockResolvedValue(undefined)
+      update: jest.fn().mockResolvedValue(undefined),
+      ...overrides.accountRepository
+    }
+    const tunnelBroker = {
+      getStatus: jest.fn(() => ({
+        state: 'disconnected',
+        connected: false,
+        instanceId: 'test-instance',
+        bindingCount: 0,
+        bindings: []
+      })),
+      listClients: jest.fn(() => []),
+      disconnectClient: jest.fn(() => false),
+      ...overrides.tunnelBroker
     }
     const wechatClient = {
       downloadImage: jest.fn().mockResolvedValue({
@@ -288,9 +302,7 @@ describe('WechatConversationService fresh session history context', () => {
       {} as any,
       wechatClient as any,
       triggerStrategy as any,
-      {
-        getStatus: jest.fn(() => ({ connected: false, bindingCount: 0, bindings: [] }))
-      } as any,
+      tunnelBroker as any,
       { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any,
       { delete: jest.fn().mockResolvedValue(undefined) } as any,
       accountRepository as any,
@@ -307,6 +319,7 @@ describe('WechatConversationService fresh session history context', () => {
       integrationPermissionService,
       triggerStrategy,
       wechatClient,
+      tunnelBroker,
       speechToTextPermissionService,
       accountRepository,
       messageLogRepository,
@@ -347,6 +360,62 @@ describe('WechatConversationService fresh session history context', () => {
         currentInboundLogIds: ['inbound-log-1']
       })
     )
+  })
+
+  it('adds tunnel binding state to account workbench rows', async () => {
+    const { service, accountRepository, tunnelBroker } = createFullService({
+      integration: {
+        name: 'My WeChat',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1'
+        }
+      },
+      tunnelBroker: {
+        getStatus: jest.fn(() => ({
+          wsPath: '/api/wechat/tunnel/ws',
+          state: 'connected',
+          connected: true,
+          instanceId: 'test-instance',
+          clientId: 'client-1',
+          clientName: 'local wx',
+          lastSeenAt: '2026-06-25T03:00:00.000Z',
+          lastSyncAt: '2026-06-25T03:01:00.000Z',
+          bindingCount: 1,
+          bindings: [{ uuid: 'uuid-1', wxid: 'wxid_owner' }]
+        })),
+        listClients: jest.fn(() => [])
+      }
+    })
+    accountRepository.find.mockResolvedValueOnce([
+      {
+        id: 'account-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        ownerWxid: 'wxid_owner',
+        status: 'online',
+        enabled: true
+      }
+    ])
+
+    await expect(service.listAccounts('integration-1')).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            uuid: 'uuid-1',
+            tunnelBinding: expect.objectContaining({
+              status: 'bound_connected',
+              connected: true,
+              clientId: 'client-1',
+              clientName: 'local wx',
+              bindingCount: 1
+            })
+          })
+        ],
+        total: 1
+      })
+    )
+    expect(tunnelBroker.getStatus).toHaveBeenCalled()
   })
 
   it('marks inbound messages failed when dispatch handoff throws after the message is logged', async () => {

@@ -211,6 +211,63 @@ describe('WechatViewProvider', () => {
     )
   })
 
+  it('routes tunnel client table requests to the organization table loader', async () => {
+    const conversationService = {
+      getBoundIntegrationIdForXpert: jest.fn(async () => null),
+      getOrganizationWorkbenchTableData: jest.fn(async () => ({
+        key: 'tunnelClients',
+        items: [
+          {
+            clientId: 'client-1',
+            connected: true
+          }
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20
+      }))
+    }
+    const provider = createProvider(conversationService)
+
+    const result = await provider.getViewData(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-admin',
+        slots: []
+      } as any,
+      WECHAT_VIEW_KEY,
+      {
+        page: 1,
+        pageSize: 20,
+        parameters: {
+          table: 'tunnelClients',
+          filtersJson: JSON.stringify({
+            status: 'connected'
+          })
+        }
+      }
+    )
+
+    expect(conversationService.getOrganizationWorkbenchTableData).toHaveBeenCalledWith('tunnelClients', {
+      search: undefined,
+      page: 1,
+      pageSize: 20,
+      filters: {
+        status: 'connected'
+      }
+    })
+    expect(result).toEqual(
+      expect.objectContaining({
+        scope: 'organization',
+        tableKey: 'tunnelClients',
+        table: expect.objectContaining({ total: 1 })
+      })
+    )
+  })
+
   it('routes remote paged table requests to the integration table loader', async () => {
     const conversationService = {
       getWorkbenchTableData: jest.fn(async () => ({
@@ -302,6 +359,38 @@ describe('WechatViewProvider', () => {
         scope: 'integration',
         tableKey: 'conversations',
         table: expect.objectContaining({ key: 'conversations' })
+      })
+    )
+  })
+
+  it('disconnects tunnel clients without requiring an integration id', async () => {
+    const conversationService = {
+      disconnectTunnelClient: jest.fn(() => true)
+    }
+    const provider = createProvider(conversationService)
+
+    const result = await provider.executeViewAction(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-admin',
+        slots: []
+      } as any,
+      WECHAT_VIEW_KEY,
+      'disconnect_tunnel_client',
+      {
+        input: {
+          clientId: 'client-1'
+        }
+      } as any
+    )
+
+    expect(conversationService.disconnectTunnelClient).toHaveBeenCalledWith('client-1')
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true
       })
     )
   })

@@ -967,7 +967,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     document.head.appendChild(style);
   }
 
-  // ../../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -982,7 +982,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return n;
   }
 
-  // ../../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var CLASS_PART_SEPARATOR = "-";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
@@ -3521,13 +3521,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3540,7 +3540,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     strokeLinejoin: "round"
   };
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
   var Icon = forwardRef(
     ({
       color = "currentColor",
@@ -3572,7 +3572,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   );
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -3586,41 +3586,41 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Component2;
   };
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("Check", __iconNode);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
   var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
   var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
   var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
   var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
   var Circle = createLucideIcon("Circle", __iconNode5);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
   var __iconNode6 = [
     ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
     ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
   ];
   var Search = createLucideIcon("Search", __iconNode6);
 
-  // ../../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
+  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
   var __iconNode7 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
   var X = createLucideIcon("X", __iconNode7);
 
-  // ../../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -3684,7 +3684,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     });
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -3720,7 +3720,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3930,24 +3930,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
   var jsxs = jsx;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
-  function createContext2(rootComponentName, defaultContext) {
-    const Context = createContext(defaultContext);
-    Context.displayName = rootComponentName + "Context";
-    const Provider2 = (props) => {
-      const { children, ...context } = props;
-      const value = useMemo(() => context, Object.values(context));
-      return /* @__PURE__ */ jsx(Context.Provider, { value, children });
-    };
-    Provider2.displayName = rootComponentName + "Provider";
-    function useContext2(consumerName) {
-      const context = useContext(Context);
-      if (context) return context;
-      if (defaultContext !== void 0) return defaultContext;
-      throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
-    }
-    return [Provider2, useContext2];
-  }
+  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContextScope(scopeName, createContextScopeDeps = []) {
     let defaultContexts = [];
     function createContext3(rootComponentName, defaultContext) {
@@ -4007,7 +3990,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createScope;
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -4018,11 +4001,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4088,7 +4071,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return typeof value === "function";
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -4100,7 +4083,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [value]);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -4136,7 +4119,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return size4;
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_dc6e30df35507eb8a116c12c3da26e18/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4305,7 +4288,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
   var version2 = ReactDOMGlobal.version;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_9b6ae4cdaf3918ddbf0b21069e38e2ef/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4342,7 +4325,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_e21be6412c310c083d6755285c4c1ad9/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
   var CHECKBOX_NAME = "Checkbox";
   var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
   var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
@@ -4621,7 +4604,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   );
   Checkbox2.displayName = Checkbox.displayName;
 
-  // ../../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
   var U = 1;
   var Y = 0.9;
   var H = 0.8;
@@ -4648,7 +4631,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return _ = h2 && h2.length > 0 ? `${_ + " " + h2.join(" ")}` : _, G(_, C, D(_), D(C), 0, 0, {});
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4659,7 +4642,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -4668,7 +4651,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
   function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
     const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
     useEffect(() => {
@@ -4682,7 +4665,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }, [onEscapeKeyDown, ownerDocument]);
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31___1202449cfd75d4d3d4e876187986c0d8/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.13_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4691,12 +4674,19 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var DismissableLayerContext = createContext({
     layers: /* @__PURE__ */ new Set(),
     layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
-    branches: /* @__PURE__ */ new Set()
+    branches: /* @__PURE__ */ new Set(),
+    // Outside elements that belong to a layer's own dismiss affordance (eg, a
+    // dialog overlay). Pressing them should dismiss the layer regardless of
+    // whether or not they stop propagation.
+    //
+    // See https://github.com/radix-ui/primitives/issues/3346
+    dismissableSurfaces: /* @__PURE__ */ new Set()
   });
   var DismissableLayer = forwardRef(
     (props, forwardedRef) => {
       const {
         disableOutsidePointerEvents = false,
+        deferPointerDownOutside = false,
         onEscapeKeyDown,
         onPointerDownOutside,
         onFocusOutside,
@@ -4715,15 +4705,32 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       const index2 = node ? layers.indexOf(node) : -1;
       const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
       const isPointerEventsEnabled = index2 >= highestLayerWithOutsidePointerEventsDisabledIndex;
-      const pointerDownOutside = usePointerDownOutside((event) => {
-        const target = event.target;
-        const isPointerDownOnBranch = [...context.branches].some((branch) => branch.contains(target));
-        if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
-        onPointerDownOutside?.(event);
-        onInteractOutside?.(event);
-        if (!event.defaultPrevented) onDismiss?.();
-      }, ownerDocument);
+      const isDeferredPointerDownOutsideRef = useRef(false);
+      const pointerDownOutside = usePointerDownOutside(
+        (event) => {
+          const target = event.target;
+          if (!(target instanceof Node)) {
+            return;
+          }
+          const isPointerDownOnBranch = [...context.branches].some(
+            (branch) => branch.contains(target)
+          );
+          if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
+          onPointerDownOutside?.(event);
+          onInteractOutside?.(event);
+          if (!event.defaultPrevented) onDismiss?.();
+        },
+        {
+          ownerDocument,
+          deferPointerDownOutside,
+          isDeferredPointerDownOutsideRef,
+          dismissableSurfaces: context.dismissableSurfaces
+        }
+      );
       const focusOutside = useFocusOutside((event) => {
+        if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+          return;
+        }
         const target = event.target;
         const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
         if (isFocusInBranch) return;
@@ -4810,36 +4817,109 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return /* @__PURE__ */ jsx(Primitive.div, { ...props, ref: composedRefs });
   });
   DismissableLayerBranch.displayName = BRANCH_NAME;
-  function usePointerDownOutside(onPointerDownOutside, ownerDocument = globalThis?.document) {
+  function useDismissableLayerSurface() {
+    const context = useContext(DismissableLayerContext);
+    const [node, setNode] = useState(null);
+    useEffect(() => {
+      if (!node) {
+        return;
+      }
+      context.dismissableSurfaces.add(node);
+      return () => {
+        context.dismissableSurfaces.delete(node);
+      };
+    }, [node, context.dismissableSurfaces]);
+    return setNode;
+  }
+  function usePointerDownOutside(onPointerDownOutside, args) {
+    const {
+      ownerDocument = globalThis?.document,
+      deferPointerDownOutside = false,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces
+    } = args;
     const handlePointerDownOutside = useCallbackRef(onPointerDownOutside);
     const isPointerInsideReactTreeRef = useRef(false);
+    const isPointerDownOutsideRef = useRef(false);
+    const interceptedOutsideInteractionEventsRef = useRef(/* @__PURE__ */ new Map());
     const handleClickRef = useRef(() => {
     });
     useEffect(() => {
+      function resetOutsideInteraction() {
+        isPointerDownOutsideRef.current = false;
+        isDeferredPointerDownOutsideRef.current = false;
+        interceptedOutsideInteractionEventsRef.current.clear();
+      }
+      function isOutsideInteractionIntercepted() {
+        return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
+      }
+      function handleInteractionCapture(event) {
+        if (!isPointerDownOutsideRef.current) {
+          return;
+        }
+        const target = event.target;
+        const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
+        if (!isDismissableSurface) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, true);
+        }
+        if (event.type === "click") {
+          window.setTimeout(() => {
+            if (isPointerDownOutsideRef.current) {
+              handleClickRef.current();
+            }
+          }, 0);
+        }
+      }
+      function handleInteractionBubble(event) {
+        if (isPointerDownOutsideRef.current) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, false);
+        }
+      }
       const handlePointerDown = (event) => {
         if (event.target && !isPointerInsideReactTreeRef.current) {
           let handleAndDispatchPointerDownOutsideEvent2 = function() {
-            handleAndDispatchCustomEvent(
-              POINTER_DOWN_OUTSIDE,
-              handlePointerDownOutside,
-              eventDetail,
-              { discrete: true }
-            );
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
+            resetOutsideInteraction();
+            if (!wasOutsideInteractionIntercepted) {
+              handleAndDispatchCustomEvent(
+                POINTER_DOWN_OUTSIDE,
+                handlePointerDownOutside,
+                eventDetail,
+                { discrete: true }
+              );
+            }
           };
           var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
           const eventDetail = { originalEvent: event };
-          if (event.pointerType === "touch") {
+          isPointerDownOutsideRef.current = true;
+          isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
+          interceptedOutsideInteractionEventsRef.current.clear();
+          if (!deferPointerDownOutside || event.button !== 0) {
+            handleAndDispatchPointerDownOutsideEvent2();
+          } else {
             ownerDocument.removeEventListener("click", handleClickRef.current);
             handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
             ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
-          } else {
-            handleAndDispatchPointerDownOutsideEvent2();
           }
         } else {
           ownerDocument.removeEventListener("click", handleClickRef.current);
+          resetOutsideInteraction();
         }
         isPointerInsideReactTreeRef.current = false;
       };
+      const outsideInteractionEvents = [
+        "pointerup",
+        "mousedown",
+        "mouseup",
+        "touchstart",
+        "touchend",
+        "click"
+      ];
+      for (const eventName of outsideInteractionEvents) {
+        ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
+        ownerDocument.addEventListener(eventName, handleInteractionBubble);
+      }
       const timerId = window.setTimeout(() => {
         ownerDocument.addEventListener("pointerdown", handlePointerDown);
       }, 0);
@@ -4847,8 +4927,18 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         window.clearTimeout(timerId);
         ownerDocument.removeEventListener("pointerdown", handlePointerDown);
         ownerDocument.removeEventListener("click", handleClickRef.current);
+        for (const eventName of outsideInteractionEvents) {
+          ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
+          ownerDocument.removeEventListener(eventName, handleInteractionBubble);
+        }
       };
-    }, [ownerDocument, handlePointerDownOutside]);
+    }, [
+      ownerDocument,
+      handlePointerDownOutside,
+      deferPointerDownOutside,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces
+    ]);
     return {
       // ensures we check React component tree (not just DOM tree)
       onPointerDownCapture: () => isPointerInsideReactTreeRef.current = true
@@ -4889,7 +4979,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_c97f9e7487f0abcea30d185973e4d237/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -5091,7 +5181,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_32b1caf40ac61f8d30d412d28d60b4ca/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5102,7 +5192,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   });
   Portal.displayName = PORTAL_NAME;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5139,7 +5229,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return element;
   }
 
-  // ../../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -5171,13 +5261,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5187,7 +5277,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref;
   }
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5214,7 +5304,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref.facade;
   }
 
-  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5245,7 +5335,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return callbackRef;
   }
 
-  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a) {
     return a;
   }
@@ -5331,7 +5421,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return medium;
   }
 
-  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5349,10 +5439,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return SideCar;
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5384,7 +5474,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     zeroRight: zeroRightClassName
   };
 
-  // ../../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5396,7 +5486,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return void 0;
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5442,7 +5532,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5455,7 +5545,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5466,7 +5556,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Sheet;
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5501,7 +5591,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5541,7 +5631,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -5560,7 +5650,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -5660,7 +5750,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shouldCancelScroll;
   };
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -5831,17 +5921,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shadowParent;
   }
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // ../../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -5962,7 +6052,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_ef5419b1d5914b6ed85fc377af02cd8c/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6048,6 +6138,8 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     (props, forwardedRef) => {
       const { __scopeDialog, ...overlayProps } = props;
       const context = useDialogContext(OVERLAY_NAME, __scopeDialog);
+      const registerDismissableSurface = useDismissableLayerSurface();
+      const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
       return (
         // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
         // ie. when `Overlay` and `Content` are siblings
@@ -6056,7 +6148,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           {
             "data-state": getState2(context.open),
             ...overlayProps,
-            ref: forwardedRef,
+            ref: composedRefs,
             style: { pointerEvents: "auto", ...overlayProps.style }
           }
         ) })
@@ -6151,38 +6243,31 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     (props, forwardedRef) => {
       const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
       const context = useDialogContext(CONTENT_NAME, __scopeDialog);
-      const contentRef = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, contentRef);
       useFocusGuards();
-      return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          FocusScope,
-          {
-            asChild: true,
-            loop: true,
-            trapped: trapFocus,
-            onMountAutoFocus: onOpenAutoFocus,
-            onUnmountAutoFocus: onCloseAutoFocus,
-            children: /* @__PURE__ */ jsx(
-              DismissableLayer,
-              {
-                role: "dialog",
-                id: context.contentId,
-                "aria-describedby": context.descriptionId,
-                "aria-labelledby": context.titleId,
-                "data-state": getState2(context.open),
-                ...contentProps,
-                ref: composedRefs,
-                onDismiss: () => context.onOpenChange(false)
-              }
-            )
-          }
-        ),
-        /* @__PURE__ */ jsxs(Fragment2, { children: [
-          /* @__PURE__ */ jsx(TitleWarning, { titleId: context.titleId }),
-          /* @__PURE__ */ jsx(DescriptionWarning, { contentRef, descriptionId: context.descriptionId })
-        ] })
-      ] });
+      return /* @__PURE__ */ jsx(Fragment2, { children: /* @__PURE__ */ jsx(
+        FocusScope,
+        {
+          asChild: true,
+          loop: true,
+          trapped: trapFocus,
+          onMountAutoFocus: onOpenAutoFocus,
+          onUnmountAutoFocus: onCloseAutoFocus,
+          children: /* @__PURE__ */ jsx(
+            DismissableLayer,
+            {
+              role: "dialog",
+              id: context.contentId,
+              "aria-describedby": context.descriptionId,
+              "aria-labelledby": context.titleId,
+              "data-state": getState2(context.open),
+              ...contentProps,
+              ref: forwardedRef,
+              deferPointerDownOutside: true,
+              onDismiss: () => context.onOpenChange(false)
+            }
+          )
+        }
+      ) });
     }
   );
   var TITLE_NAME = "DialogTitle";
@@ -6223,49 +6308,8 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   function getState2(open) {
     return open ? "open" : "closed";
   }
-  var TITLE_WARNING_NAME = "DialogTitleWarning";
-  var [WarningProvider, useWarningContext] = createContext2(TITLE_WARNING_NAME, {
-    contentName: CONTENT_NAME,
-    titleName: TITLE_NAME,
-    docsSlug: "dialog"
-  });
-  var TitleWarning = ({ titleId }) => {
-    const titleWarningContext = useWarningContext(TITLE_WARNING_NAME);
-    const MESSAGE = `\`${titleWarningContext.contentName}\` requires a \`${titleWarningContext.titleName}\` for the component to be accessible for screen reader users.
 
-If you want to hide the \`${titleWarningContext.titleName}\`, you can wrap it with our VisuallyHidden component.
-
-For more information, see https://radix-ui.com/primitives/docs/components/${titleWarningContext.docsSlug}`;
-    useEffect(() => {
-      if (titleId) {
-        const hasTitle = document.getElementById(titleId);
-        if (!hasTitle) console.error(MESSAGE);
-      }
-    }, [MESSAGE, titleId]);
-    return null;
-  };
-  var DESCRIPTION_WARNING_NAME = "DialogDescriptionWarning";
-  var DescriptionWarning = ({ contentRef, descriptionId }) => {
-    const descriptionWarningContext = useWarningContext(DESCRIPTION_WARNING_NAME);
-    const MESSAGE = `Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${descriptionWarningContext.contentName}}.`;
-    useEffect(() => {
-      const describedById = contentRef.current?.getAttribute("aria-describedby");
-      if (descriptionId && describedById) {
-        const hasDescription = document.getElementById(descriptionId);
-        if (!hasDescription) console.warn(MESSAGE);
-      }
-    }, [MESSAGE, contentRef, descriptionId]);
-    return null;
-  };
-  var Root = Dialog;
-  var Portal2 = DialogPortal;
-  var Overlay = DialogOverlay;
-  var Content = DialogContent;
-  var Title = DialogTitle;
-  var Description = DialogDescription;
-  var Close = DialogClose;
-
-  // ../../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/index.mjs
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/index.mjs
   var N = '[cmdk-group=""]';
   var Y2 = '[cmdk-group-items=""]';
   var be = '[cmdk-group-heading=""]';
@@ -6513,7 +6557,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   });
   var xe = forwardRef((r2, o) => {
     let { open: n, onOpenChange: u2, overlayClassName: c, contentClassName: d, container: f, ...p2 } = r2;
-    return createElement(Root, { open: n, onOpenChange: u2 }, createElement(Portal2, { container: f }, createElement(Overlay, { "cmdk-overlay": "", className: c }), createElement(Content, { "aria-label": r2.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
+    return createElement(Dialog, { open: n, onOpenChange: u2 }, createElement(DialogPortal, { container: f }, createElement(DialogOverlay, { "cmdk-overlay": "", className: c }), createElement(DialogContent, { "aria-label": r2.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
   });
   var Ie = forwardRef((r2, o) => P((u2) => u2.filtered.count === 0) ? createElement(Primitive.div, { ref: o, ...r2, "cmdk-empty": "", role: "presentation" }) : null);
   var Pe = forwardRef((r2, o) => {
@@ -6645,22 +6689,22 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   CommandSeparator.displayName = _e.Separator.displayName;
 
   // ../../../packages/shadcn-ui/src/components/dialog.tsx
-  var DialogPortal2 = Portal2;
+  var DialogPortal2 = DialogPortal;
   var DialogOverlay2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
+    ({ className, ...props }, ref) => createElement(DialogOverlay, {
       ref,
       className: cn("xps-dialog-overlay", className),
       ...props
     })
   );
-  DialogOverlay2.displayName = Overlay.displayName;
+  DialogOverlay2.displayName = DialogOverlay.displayName;
   var DialogContent2 = forwardRef(
     ({ className, children, showClose = true, ...props }, ref) => createElement(
       DialogPortal2,
       null,
       createElement(DialogOverlay2, null),
       createElement(
-        Content,
+        DialogContent,
         {
           ref,
           className: cn("xps-dialog-content", className),
@@ -6668,7 +6712,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         },
         children,
         showClose ? createElement(
-          Close,
+          DialogClose,
           {
             className: "xps-dialog-close"
           },
@@ -6681,7 +6725,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       )
     )
   );
-  DialogContent2.displayName = Content.displayName;
+  DialogContent2.displayName = DialogContent.displayName;
   var DialogHeader = forwardRef(
     ({ className, ...props }, ref) => createElement("div", {
       ref,
@@ -6699,23 +6743,23 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   DialogFooter.displayName = "DialogFooter";
   var DialogTitle2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
+    ({ className, ...props }, ref) => createElement(DialogTitle, {
       ref,
       className: cn("xps-dialog-title", className),
       ...props
     })
   );
-  DialogTitle2.displayName = Title.displayName;
+  DialogTitle2.displayName = DialogTitle.displayName;
   var DialogDescription2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
+    ({ className, ...props }, ref) => createElement(DialogDescription, {
       ref,
       className: cn("xps-dialog-description", className),
       ...props
     })
   );
-  DialogDescription2.displayName = Description.displayName;
+  DialogDescription2.displayName = DialogDescription.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+r_9d7b7379fb7a1e56af9d4a8d107ecba8/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
@@ -6779,14 +6823,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ];
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6915,7 +6959,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7632,7 +7676,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7788,7 +7832,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // ../../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -8403,7 +8447,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     });
   };
 
-  // ../../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8711,7 +8755,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_b34b7156178de4198a23e93f83c57da5/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8729,9 +8773,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     );
   });
   Arrow.displayName = NAME;
-  var Root2 = Arrow;
+  var Root = Arrow;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_bd7668c1d3a757f9e8c97f0d7e635b5d/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8807,7 +8851,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         alignOffset = 0,
         arrowPadding = 0,
         avoidCollisions = true,
-        collisionBoundary,
+        collisionBoundary = [],
         collisionPadding: collisionPaddingProp = 0,
         sticky = "partial",
         hideWhenDetached = false,
@@ -8824,11 +8868,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const arrowHeight = arrowSize?.height ?? 0;
       const desiredPlacement = side + (align !== "center" ? "-" + align : "");
       const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
-      const boundary = collisionBoundary ? Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary] : void 0;
-      const hasExplicitBoundaries = boundary !== void 0 && boundary.length > 0;
+      const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
+      const hasExplicitBoundaries = boundary.length > 0;
       const detectOverflowOptions = {
         padding: collisionPadding,
-        boundary: boundary?.filter(isNotNull),
+        boundary: boundary.filter(isNotNull),
         // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
         altBoundary: hasExplicitBoundaries
       };
@@ -8867,7 +8911,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           }),
           arrow4 && arrow3({ element: arrow4, padding: arrowPadding }),
           transformOrigin({ arrowWidth, arrowHeight }),
-          hideWhenDetached && hide3({ strategy: "referenceHidden", ...detectOverflowOptions })
+          hideWhenDetached && hide3({
+            strategy: "referenceHidden",
+            ...detectOverflowOptions,
+            // `hide` detects whether the anchor (reference) is clipped, so when
+            // no explicit `collisionBoundary` is set we fall back to Floating
+            // UI's default clipping ancestors (e.g. a scrollable menu). This
+            // lets an occluded submenu hide once its anchor scrolls out of view
+            // (#3237). The collision/size middlewares deliberately keep the
+            // viewport-based default to avoid clamping content rendered inside
+            // transformed or overflow-clipping portal containers.
+            boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
+          })
         ]
       });
       const setPlacementState = context.setPlacementState;
@@ -8986,7 +9041,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             visibility: contentContext.shouldHideArrow ? "hidden" : void 0
           },
           children: /* @__PURE__ */ jsx(
-            Root2,
+            Root,
             {
               ...arrowProps,
               ref: forwardedRef,
@@ -9040,12 +9095,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const [side, align = "center"] = placement.split("-");
     return [side, align];
   }
-  var Root22 = Popper;
+  var Root2 = Popper;
   var Anchor = PopperAnchor;
-  var Content2 = PopperContent;
+  var Content = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31__@type_d783d3abe701a7f2fb2c68867b8f1f65/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.13_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -9256,7 +9311,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Root3 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_cc73edd868dbfc82392e3731b66f2e59/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.18_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -9301,7 +9356,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         document.removeEventListener("pointermove", handlePointer, { capture: true });
       };
     }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
+    useEffect(() => {
+      if (!open) {
+        return;
+      }
+      const handleBlur = () => handleOpenChange(false);
+      window.addEventListener("blur", handleBlur);
+      return () => window.removeEventListener("blur", handleBlur);
+    }, [open, handleOpenChange]);
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -9519,7 +9582,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                       }),
                       preventScrollOnEntryFocus: true,
                       children: /* @__PURE__ */ jsx(
-                        Content2,
+                        Content,
                         {
                           role: "menu",
                           "aria-orientation": "vertical",
@@ -9825,7 +9888,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       if (parentMenuContext.open === false) handleOpenChange(false);
       return () => handleOpenChange(false);
     }, [parentMenuContext.open, handleOpenChange]);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -10054,8 +10117,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }
   var Root32 = Menu;
   var Anchor2 = MenuAnchor;
-  var Portal3 = MenuPortal;
-  var Content22 = MenuContent;
+  var Portal2 = MenuPortal;
+  var Content2 = MenuContent;
   var Group = MenuGroup;
   var Label = MenuLabel;
   var Item2 = MenuItem;
@@ -10068,7 +10131,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@typ_9dd0889a66ea847559fd572aaa20379b/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.18_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var DROPDOWN_MENU_NAME = "DropdownMenu";
   var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
     DROPDOWN_MENU_NAME,
@@ -10150,7 +10213,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var DropdownMenuPortal = (props) => {
     const { __scopeDropdownMenu, ...portalProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(Portal3, { ...menuScope, ...portalProps });
+    return /* @__PURE__ */ jsx(Portal2, { ...menuScope, ...portalProps });
   };
   DropdownMenuPortal.displayName = PORTAL_NAME4;
   var CONTENT_NAME4 = "DropdownMenuContent";
@@ -10161,7 +10224,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const menuScope = useMenuScope(__scopeDropdownMenu);
       const hasInteractedOutsideRef = useRef(false);
       return /* @__PURE__ */ jsx(
-        Content22,
+        Content2,
         {
           id: context.contentId,
           "aria-labelledby": context.triggerId,
@@ -10299,7 +10362,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   });
   DropdownMenuSubContent.displayName = SUB_CONTENT_NAME2;
   var Portal22 = DropdownMenuPortal;
-  var Content23 = DropdownMenuContent;
+  var Content22 = DropdownMenuContent;
   var Label2 = DropdownMenuLabel;
   var Item22 = DropdownMenuItem;
   var CheckboxItem2 = DropdownMenuCheckboxItem;
@@ -10335,7 +10398,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ({ className, sideOffset = 4, ...props }, ref) => createElement(
       Portal22,
       null,
-      createElement(Content23, {
+      createElement(Content22, {
         ref,
         sideOffset,
         className: cn("xps-dropdown-menu-content", className),
@@ -10343,7 +10406,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       })
     )
   );
-  DropdownMenuContent2.displayName = Content23.displayName;
+  DropdownMenuContent2.displayName = Content22.displayName;
   var DropdownMenuItem2 = forwardRef(
     ({ className, inset, ...props }, ref) => createElement(Item22, {
       ref,
@@ -10429,12 +10492,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Input.displayName = "Input";
 
-  // ../../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types_11143bec678d1605a26ae97f1f701c82/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   function useStateMachine2(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -10514,15 +10577,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const ref = useRef(null);
       const composedRefs = useComposedRefs(forwardedRef, ref, context.onViewportChange);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          "style",
-          {
-            dangerouslySetInnerHTML: {
-              __html: `[data-radix-scroll-area-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-scroll-area-viewport]::-webkit-scrollbar{display:none}`
-            },
-            nonce
-          }
-        ),
+        /* @__PURE__ */ jsx(ScrollAreaViewportStyle, { nonce }),
         /* @__PURE__ */ jsx(
           Primitive.div,
           {
@@ -10552,6 +10607,20 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   ScrollAreaViewport.displayName = VIEWPORT_NAME;
+  var ScrollAreaViewportStyle = memo(
+    ({ nonce }) => {
+      return /* @__PURE__ */ jsx(
+        "style",
+        {
+          dangerouslySetInnerHTML: {
+            __html: `[data-radix-scroll-area-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-scroll-area-viewport]::-webkit-scrollbar{display:none}`
+          },
+          nonce
+        }
+      );
+    },
+    (prevProps, nextProps) => prevProps.nonce === nextProps.nonce
+  );
   var SCROLLBAR_NAME = "ScrollAreaScrollbar";
   var ScrollAreaScrollbar = forwardRef(
     (props, forwardedRef) => {
@@ -11175,7 +11244,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   ScrollBar.displayName = ScrollAreaScrollbar.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31__@ty_fbf0dd0d68bb58b2410fc7a153ed1d9c/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -11205,7 +11274,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   VisuallyHidden.displayName = NAME2;
   var Root5 = VisuallyHidden;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_b9232b5aa23e604443839e7a081b7527/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
   var SELECTION_KEYS2 = [" ", "Enter"];
   var SELECT_NAME = "Select";
@@ -11292,7 +11361,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       nativeSelectKey,
       isFormControl
     };
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection3.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection3.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
       SelectNativeOptionsProvider,
       {
         scope: __scopeSelect,
@@ -11578,7 +11647,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
         const nextItem = findNextItem(enabledItems, search, currentItem);
         if (nextItem) {
-          setTimeout(() => nextItem.ref.current.focus());
+          setTimeout(() => nextItem.ref.current?.focus());
         }
       });
       const itemRefCallback = useCallback(
@@ -11877,7 +11946,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     } = props;
     const popperScope = usePopperScope2(__scopeSelect);
     return /* @__PURE__ */ jsx(
-      Content2,
+      Content,
       {
         ...popperScope,
         ...popperProps,
@@ -12017,11 +12086,6 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           context.onOpenChange(false);
         }
       };
-      if (value === "") {
-        throw new Error(
-          "A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder."
-        );
-      }
       return /* @__PURE__ */ jsx(
         SelectItemContextProvider,
         {
@@ -12119,7 +12183,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }, [onNativeOptionAdd, onNativeOptionRemove, nativeOption]);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
         /* @__PURE__ */ jsx(Primitive.span, { id: itemContext.textId, ...itemTextProps, ref: composedRefs }),
-        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren ? createPortal(itemTextProps.children, context.valueNode) : null
+        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren && !shouldShowPlaceholder(context.value) ? createPortal(itemTextProps.children, context.valueNode) : null
       ] });
     }
   );
@@ -12272,6 +12336,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const composedRefs = useComposedRefs(forwardedRef, ref);
       const selectValue = value ?? "";
       const prevValue = usePrevious(selectValue);
+      const hasEmptyValueOption = Array.from(nativeOptions).some(
+        (option) => (option.props.value ?? "") === ""
+      );
       useEffect(() => {
         const select = ref.current;
         if (!select) return;
@@ -12303,7 +12370,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           ref: composedRefs,
           defaultValue: selectValue,
           children: [
-            shouldShowPlaceholder(value) ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
+            shouldShowPlaceholder(value) && !hasEmptyValueOption ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
             Array.from(nativeOptions)
           ]
         },
@@ -12487,22 +12554,22 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   Separator3.displayName = "Separator";
 
   // ../../../packages/shadcn-ui/src/components/sheet.tsx
-  var SheetPortal = Portal2;
+  var SheetPortal = DialogPortal;
   var SheetOverlay = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
+    ({ className, ...props }, ref) => createElement(DialogOverlay, {
       ref,
       className: cn("xps-dialog-overlay", className),
       ...props
     })
   );
-  SheetOverlay.displayName = Overlay.displayName;
+  SheetOverlay.displayName = DialogOverlay.displayName;
   var SheetContent = forwardRef(
     ({ className, children, side = "right", showClose = true, ...props }, ref) => createElement(
       SheetPortal,
       null,
       createElement(SheetOverlay, null),
       createElement(
-        Content,
+        DialogContent,
         {
           ref,
           className: cn("xps-sheet-content", `xps-sheet-content--${side}`, className),
@@ -12510,7 +12577,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         },
         children,
         showClose ? createElement(
-          Close,
+          DialogClose,
           {
             className: "xps-dialog-close"
           },
@@ -12523,7 +12590,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       )
     )
   );
-  SheetContent.displayName = Content.displayName;
+  SheetContent.displayName = DialogContent.displayName;
   var SheetHeader = forwardRef(
     ({ className, ...props }, ref) => createElement("div", {
       ref,
@@ -12541,21 +12608,21 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   SheetFooter.displayName = "SheetFooter";
   var SheetTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
+    ({ className, ...props }, ref) => createElement(DialogTitle, {
       ref,
       className: cn("xps-dialog-title", className),
       ...props
     })
   );
-  SheetTitle.displayName = Title.displayName;
+  SheetTitle.displayName = DialogTitle.displayName;
   var SheetDescription = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
+    ({ className, ...props }, ref) => createElement(DialogDescription, {
       ref,
       className: cn("xps-dialog-description", className),
       ...props
     })
   );
-  SheetDescription.displayName = Description.displayName;
+  SheetDescription.displayName = DialogDescription.displayName;
 
   // ../../../packages/shadcn-ui/src/components/sidebar.tsx
   var Sidebar = forwardRef(
@@ -12661,7 +12728,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   SidebarMenuButton.displayName = "SidebarMenuButton";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_cfb70bb4d45c3eedb16b2d4d4cf80f46/node_modules/@radix-ui/react-slider/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slider@1.4.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-slider/dist/index.mjs
   var PAGE_KEYS = ["PageUp", "PageDown"];
   var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
   var BACK_KEYS = {
@@ -13290,7 +13357,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   Slider2.displayName = Slider.displayName;
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_d2f9574497ecbe08e0e7c2298fb35dc1/node_modules/@radix-ui/react-switch/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-switch@1.3.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-switch/dist/index.mjs
   var SWITCH_NAME = "Switch";
   var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
   var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
@@ -13600,7 +13667,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   TableCaption.displayName = "TableCaption";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_769bbb0130198553b196f258bd99ab92/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
   var TABS_NAME = "Tabs";
   var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
     createRovingFocusGroupScope
@@ -13772,7 +13839,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return `${baseId}-content-${value}`;
   }
   var List = TabsList;
-  var Trigger3 = TabsTrigger;
+  var Trigger2 = TabsTrigger;
   var Content3 = TabsContent;
 
   // ../../../packages/shadcn-ui/src/components/tabs.tsx
@@ -13785,13 +13852,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   );
   TabsList2.displayName = List.displayName;
   var TabsTrigger2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Trigger3, {
+    ({ className, ...props }, ref) => createElement(Trigger2, {
       ref,
       className: cn("xps-tabs-trigger", className),
       ...props
     })
   );
-  TabsTrigger2.displayName = Trigger3.displayName;
+  TabsTrigger2.displayName = Trigger2.displayName;
   var TabsContent2 = forwardRef(
     ({ className, ...props }, ref) => createElement(Content3, {
       ref,
@@ -13809,7 +13876,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }));
   Textarea.displayName = "Textarea";
 
-  // ../../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_02a5bba0cb45f3ddbe548efab47eabcc/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.10_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
     createPopperScope
   ]);
@@ -13926,7 +13993,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         }
       };
     }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(
       TooltipContextProvider,
       {
         scope: __scopeTooltip,
@@ -14125,7 +14192,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           onFocusOutside: (event) => event.preventDefault(),
           onDismiss: onClose,
           children: /* @__PURE__ */ jsxs(
-            Content2,
+            Content,
             {
               "data-state": context.stateAttribute,
               ...popperScope,
@@ -14281,15 +14348,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       return upperHull.concat(lowerHull);
     }
   }
-  var Portal4 = TooltipPortal;
-  var Content24 = TooltipContent;
+  var Portal3 = TooltipPortal;
+  var Content23 = TooltipContent;
 
   // ../../../packages/shadcn-ui/src/components/tooltip.tsx
   var TooltipContent2 = forwardRef(
     ({ className, sideOffset = 4, ...props }, ref) => createElement(
-      Portal4,
+      Portal3,
       null,
-      createElement(Content24, {
+      createElement(Content23, {
         ref,
         sideOffset,
         className: cn("xps-tooltip-content", className),
@@ -14297,7 +14364,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       })
     )
   );
-  TooltipContent2.displayName = Content24.displayName;
+  TooltipContent2.displayName = Content23.displayName;
 
   // src/lib/remote-components/wechat-workbench/src/styles.ts
   function injectStyles2() {
@@ -14393,6 +14460,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }
 .wxp-tunnel-panel pre { max-width: 100%; }
 .wxp-tunnel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 12px; }
+.wxp-tunnel-clients-panel { grid-column: 1 / -1; }
+.wxp-tunnel-status-cell { display: grid; gap: 4px; min-width: 120px; }
+.wxp-tunnel-status-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
 .wxp-table-wrap { width: 100%; max-width: 100%; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); }
 .wxp-data-table { min-width: 980px; }
 @media (max-width: 760px) {
@@ -14422,6 +14492,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     appTitle: "\u5FAE\u4FE1",
     baseUrl: "\u670D\u52A1\u5730\u5740",
     basedOnRecentLogs: "\u57FA\u4E8E\u6700\u8FD1\u65E5\u5FD7",
+    boundAccounts: "\u7ED1\u5B9A\u8D26\u53F7",
+    boundConnected: "\u5DF2\u8FDE\u63A5\u5E76\u7ED1\u5B9A",
     calendarCumulative: "\u7D2F\u8BA1",
     calendarDaily: "\u6BCF\u65E5",
     calendarWeekly: "\u6BCF\u5468",
@@ -14431,11 +14503,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     chartLibraryUnavailable: "\u56FE\u8868\u5E93\u672A\u52A0\u8F7D\uFF0C\u8BF7\u5237\u65B0\u9875\u9762\u6216\u91CD\u542F Xpert \u670D\u52A1\u540E\u518D\u8BD5\u3002",
     chatFilterMode: "\u4F1A\u8BDD\u8FC7\u6EE4\u65B9\u5F0F",
     chatTypeMix: "\u4F1A\u8BDD\u7C7B\u578B",
+    clientName: "\u5BA2\u6237\u7AEF\u540D\u79F0",
     blockedContactIds: "\u6392\u9664\u7684\u8054\u7CFB\u4EBA/\u7FA4 ID",
     blockedGroupIds: "\u6392\u9664\u7684\u7FA4 ID",
     blockedSenderIds: "\u6392\u9664\u7684\u53D1\u9001\u4EBA ID",
     config: "\u914D\u7F6E",
     connected: "\u5DF2\u8FDE\u63A5",
+    connectedUnbound: "\u5DF2\u8FDE/\u672A\u540C\u6B65\u8D26\u53F7",
     connectionMode: "\u8FDE\u63A5\u65B9\u5F0F",
     content: "\u5185\u5BB9",
     contentDetail: "\u5185\u5BB9\u8BE6\u60C5",
@@ -14452,11 +14526,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     copyUrl: "\u590D\u5236 URL",
     currentResultHint: "\u5F53\u524D\u7B5B\u9009\u7ED3\u679C",
     currentResultMessages: "\u5F53\u524D\u6D88\u606F",
+    currentProcessTunnelClients: "\u663E\u793A\u5168\u5C40\u8FDE\u63A5\uFF1B\u672A\u8FDE\u63A5\u884C\u53EF\u80FD\u662F\u5386\u53F2/\u9884\u671F\u5BA2\u6237\u7AEF",
     dashboard: "\u5206\u6790",
     direction: "\u65B9\u5411",
     directHttp: "\u76F4\u63A5 HTTP",
     disable: "\u505C\u7528",
     disabled: "\u5DF2\u505C\u7528",
+    disconnect: "\u65AD\u5F00",
     disconnected: "\u672A\u8FDE\u63A5",
     deferred: "\u5DF2\u5EF6\u540E",
     dispatched: "\u5DF2\u5206\u53D1",
@@ -14489,6 +14565,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     latestActivity: "\u6700\u8FD1\u6D3B\u52A8",
     level: "\u7EA7\u522B",
     logs: "\u65E5\u5FD7",
+    lastClientName: "\u4E0A\u6B21\u5BA2\u6237\u7AEF\u540D\u79F0",
+    lastXpertInstance: "\u4E0A\u6B21\u5B9E\u4F8B",
     loading: "\u52A0\u8F7D\u4E2D",
     manualSend: "\u624B\u52A8\u53D1\u9001",
     message: "\u6D88\u606F",
@@ -14504,6 +14582,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     noQueueItems: "\u6682\u65E0\u961F\u5217\u6D88\u606F",
     noRecentFailures: "\u6682\u65E0\u5931\u8D25\u8BB0\u5F55",
     noRuntimeLogs: "\u6682\u65E0\u8FD0\u884C\u65E5\u5FD7",
+    noTunnelClients: "\u6682\u65E0\u53CD\u5411\u96A7\u9053\u5BA2\u6237\u7AEF",
+    notApplicable: "\u4E0D\u9002\u7528",
     needsAttention: "\u9700\u8981\u5173\u6CE8",
     nextPage: "\u4E0B\u4E00\u9875",
     operationCompleted: "\u64CD\u4F5C\u5DF2\u5B8C\u6210",
@@ -14533,6 +14613,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     recentFailures: "\u6700\u8FD1\u5931\u8D25",
     received: "\u5DF2\u63A5\u6536",
     remoteRequestFailed: "\u8FDC\u7A0B\u8BF7\u6C42\u5931\u8D25",
+    remoteAddress: "\u8FDC\u7AEF\u5730\u5740",
     requestTimeout: "\u8BF7\u6C42\u8D85\u65F6",
     resend: "\u91CD\u53D1",
     resume: "\u6062\u590D",
@@ -14560,6 +14641,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     sidecarLocalListen: "Sidecar \u672C\u5730\u76D1\u542C",
     sidecarWebsocketUrl: "Sidecar WSS \u5730\u5740",
     status: "\u72B6\u6001",
+    stale: "\u5DF2\u8FC7\u671F",
     skipped: "\u5DF2\u8DF3\u8FC7",
     system: "\u7CFB\u7EDF",
     tableSearchPlaceholder: "\u641C\u7D22\u5F53\u524D\u8868\u683C",
@@ -14573,11 +14655,14 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     topIntegrations: "\u9AD8\u9891\u96C6\u6210",
     trafficByDirection: "\u6D88\u606F\u65B9\u5411",
     trafficByStatus: "\u6D88\u606F\u72B6\u6001",
+    tunnel: "\u96A7\u9053",
     tunnelBindings: "\u7ED1\u5B9A\u6570\u91CF",
     tunnelClientId: "\u96A7\u9053\u5BA2\u6237\u7AEF ID",
+    tunnelClients: "\u53CD\u5411\u96A7\u9053\u5BA2\u6237\u7AEF",
     tunnelConfigSnippet: "wx2.0 \u914D\u7F6E\u7247\u6BB5",
     tunnelConnection: "\u96A7\u9053\u8FDE\u63A5",
     tunnelLastSeen: "\u6700\u8FD1\u5FC3\u8DF3",
+    tunnelLastSync: "\u6700\u8FD1\u540C\u6B65",
     tunnelSetup: "\u53CD\u5411\u96A7\u9053\u914D\u7F6E",
     tunnelStatus: "\u96A7\u9053\u72B6\u6001",
     type: "\u7C7B\u578B",
@@ -14587,6 +14672,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     updatedAt: "\u66F4\u65B0\u65F6\u95F4",
     uuid: "uuid",
     wechatMessageActivity: "\u5FAE\u4FE1\u6D88\u606F\u6D3B\u52A8",
+    xpertInstance: "Xpert \u5B9E\u4F8B",
     xpert: "\u667A\u80FD\u4F53"
   };
   var enUS = {
@@ -14606,6 +14692,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     appTitle: "WeChat",
     baseUrl: "Service URL",
     basedOnRecentLogs: "Based on recent logs",
+    boundAccounts: "bound accounts",
+    boundConnected: "Connected and bound",
     calendarCumulative: "Cumulative",
     calendarDaily: "Daily",
     calendarWeekly: "Weekly",
@@ -14615,11 +14703,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     chartLibraryUnavailable: "Chart library is unavailable. Refresh the page or restart the Xpert service.",
     chatFilterMode: "Chat filter mode",
     chatTypeMix: "Chat type mix",
+    clientName: "Client name",
     blockedContactIds: "Blocked contact/group IDs",
     blockedGroupIds: "Blocked group IDs",
     blockedSenderIds: "Blocked sender IDs",
     config: "Config",
     connected: "Connected",
+    connectedUnbound: "Connected / account not synced",
     connectionMode: "Connection mode",
     content: "Content",
     contentDetail: "Content detail",
@@ -14636,11 +14726,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     copyUrl: "Copy URL",
     currentResultHint: "Current filtered result",
     currentResultMessages: "Current messages",
+    currentProcessTunnelClients: "Showing global connections; disconnected rows can be historical or expected clients",
     dashboard: "Analytics",
     direction: "Direction",
     directHttp: "Direct HTTP",
     disable: "Disable",
     disabled: "Disabled",
+    disconnect: "Disconnect",
     disconnected: "Disconnected",
     deferred: "Deferred",
     dispatched: "Dispatched",
@@ -14673,6 +14765,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     latestActivity: "Latest activity",
     level: "Level",
     logs: "Logs",
+    lastClientName: "Last client name",
+    lastXpertInstance: "Last instance",
     loading: "Loading",
     manualSend: "Manual send",
     message: "Messages",
@@ -14688,6 +14782,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     noQueueItems: "No queued messages yet",
     noRecentFailures: "No recent failures",
     noRuntimeLogs: "No runtime logs yet",
+    noTunnelClients: "No reverse tunnel clients yet",
+    notApplicable: "N/A",
     needsAttention: "Needs attention",
     nextPage: "Next",
     operationCompleted: "Operation completed",
@@ -14717,6 +14813,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     recentFailures: "Recent failures",
     received: "Received",
     remoteRequestFailed: "Remote request failed",
+    remoteAddress: "Remote address",
     requestTimeout: "Request timed out",
     resend: "Resend",
     resume: "Resume",
@@ -14744,6 +14841,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     sidecarLocalListen: "Sidecar local listen",
     sidecarWebsocketUrl: "Sidecar WSS URL",
     status: "Status",
+    stale: "Stale",
     skipped: "Skipped",
     system: "System",
     tableSearchPlaceholder: "Search this table",
@@ -14757,11 +14855,14 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     topIntegrations: "Top integrations",
     trafficByDirection: "Traffic by direction",
     trafficByStatus: "Traffic by status",
+    tunnel: "Tunnel",
     tunnelBindings: "Bindings",
     tunnelClientId: "Tunnel client ID",
+    tunnelClients: "Reverse tunnel clients",
     tunnelConfigSnippet: "wx2.0 setting snippet",
     tunnelConnection: "Tunnel connection",
     tunnelLastSeen: "Last heartbeat",
+    tunnelLastSync: "Last sync",
     tunnelSetup: "Reverse tunnel setup",
     tunnelStatus: "Tunnel status",
     type: "Type",
@@ -14771,6 +14872,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     updatedAt: "Updated at",
     uuid: "uuid",
     wechatMessageActivity: "WeChat message activity",
+    xpertInstance: "Xpert instance",
     xpert: "Xpert"
   };
   var dictionaries = {
@@ -14931,9 +15033,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   var TABLE_KEYS = ["accounts", "conversations", "messages", "queue", "logs"];
   var SELECT_EMPTY_VALUE = "__all__";
   var TRANSLATABLE_VALUE_KEYS = {
+    connected: "connected",
     disabled: "disabled",
     deferred: "deferred",
     dispatched: "dispatched",
+    disconnected: "disconnected",
     history_only: "history_only",
     error: "error",
     failed: "failed",
@@ -14951,10 +15055,14 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     sent: "sent",
     sending: "sending",
     skipped: "skipped",
+    stale: "stale",
     cancelled: "cancelled",
+    bound_connected: "boundConnected",
+    connected_unbound: "connectedUnbound",
     context_reset: "context_reset",
     system: "system",
     group_only: "groupOnly",
+    not_applicable: "notApplicable",
     unknown: "unknown"
   };
   function createTableState() {
@@ -15138,6 +15246,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const logs = data?.logs || messages;
     const config = data?.config || {};
     const tunnel = data?.tunnel || null;
+    const tunnelClients = Array.isArray(data?.tunnelClients) ? data.tunnelClients : [];
     const dashboard = React.useMemo(() => buildDashboard(data), [data]);
     const accountTable = withFallbackTable(tablePages.accounts, accounts);
     const conversationTable = withFallbackTable(tablePages.conversations, conversations);
@@ -15199,11 +15308,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         callback,
         integrations,
         tunnel,
+        tunnelClients,
         isOrganizationScope,
         draft,
         setDraft,
         t,
-        onSend: () => runAction("send_text", null, draft)
+        onSend: () => runAction("send_text", null, draft),
+        onDisconnectTunnelClient: (client) => runAction("disconnect_tunnel_client", client.clientId, { clientId: client.clientId })
       }
     ), tab === "queue" && /* @__PURE__ */ h(
       QueueView,
@@ -15308,6 +15419,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           props.t("uuid"),
           props.t("ownerWxid"),
           props.t("status"),
+          props.t("tunnel"),
           props.t("lastCallback"),
           props.t("lastReply"),
           props.t("error"),
@@ -15322,6 +15434,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           code(account.uuid),
           display(account.ownerWxid || account.displayName),
           translatedPill(account.status || (account.enabled === false ? "disabled" : "unknown"), props.t),
+          accountTunnelPill(account.tunnelBinding, props.t),
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
@@ -15553,7 +15666,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           tunnelStatusLabel(integration.tunnel, props.t)
         ]
       }
-    ) : /* @__PURE__ */ h(React.Fragment, null, kv(props.t("connectionMode"), connectionModeLabel(props.config.connectionMode, props.t)), kv(props.t("baseUrl"), props.config.baseUrl), kv(props.t("tunnelClientId"), props.config.tunnelClientId), kv(props.t("apiVersion"), props.config.apiVersion), kv(props.t("timeoutMs"), props.config.timeoutMs), kv(props.t("preferLanguage"), props.config.preferLanguage), kv(props.t("fallbackToLegacySendText"), String(props.config.fallbackToLegacySendText)))), /* @__PURE__ */ h(TunnelPanel, { tunnel: props.tunnel, t: props.t }), /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.t("manualSend")), props.isOrganizationScope && /* @__PURE__ */ h(
+    ) : /* @__PURE__ */ h(React.Fragment, null, kv(props.t("connectionMode"), connectionModeLabel(props.config.connectionMode, props.t)), kv(props.t("baseUrl"), props.config.baseUrl), kv(props.t("tunnelClientId"), props.config.tunnelClientId), kv(props.t("apiVersion"), props.config.apiVersion), kv(props.t("timeoutMs"), props.config.timeoutMs), kv(props.t("preferLanguage"), props.config.preferLanguage), kv(props.t("fallbackToLegacySendText"), String(props.config.fallbackToLegacySendText)))), /* @__PURE__ */ h(TunnelPanel, { tunnel: props.tunnel, t: props.t }), /* @__PURE__ */ h(
+      TunnelClientsPanel,
+      {
+        clients: props.tunnelClients || [],
+        isOrganizationScope: props.isOrganizationScope,
+        t: props.t,
+        onDisconnect: props.onDisconnectTunnelClient
+      }
+    ), /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.t("manualSend")), props.isOrganizationScope && /* @__PURE__ */ h(
       Input,
       {
         placeholder: props.t("integrationId"),
@@ -15589,6 +15710,43 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const settingJson = setup.settingJson || "";
     const sidecar = setup.sidecar || {};
     return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-tunnel-panel" }, /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.t("tunnelSetup")), settingJson && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(settingJson, props.t) }, props.t("copyTunnelConfig"))), /* @__PURE__ */ h("div", { className: "wxp-tunnel-grid" }, kv(props.t("tunnelStatus"), tunnelStatusLabel(tunnel, props.t)), kv(props.t("tunnelClientId"), tunnel.clientId), kv(props.t("tunnelLastSeen"), time(tunnel.lastSeenAt)), kv(props.t("tunnelBindings"), tunnel.bindingCount), kv(props.t("sidecarWebsocketUrl"), sidecar.websocketUrl), kv(props.t("sidecarLocalListen"), sidecar.listenHost && sidecar.listenPort ? `${sidecar.listenHost}:${sidecar.listenPort}` : "")), /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", { className: "xui-muted" }, props.t("tunnelConfigSnippet")), /* @__PURE__ */ h("pre", null, settingJson || "-")), /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", { className: "xui-muted" }, props.t("sidecarCommand")), /* @__PURE__ */ h("pre", null, sidecar.command || "-")));
+  }
+  function TunnelClientsPanel(props) {
+    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-tunnel-clients-panel" }, /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.t("tunnelClients")), /* @__PURE__ */ h("span", null, props.t("currentProcessTunnelClients"))), /* @__PURE__ */ h(
+      DataTable,
+      {
+        headers: [
+          ...props.isOrganizationScope ? [props.t("integration")] : [],
+          props.t("status"),
+          props.t("direction"),
+          props.t("tunnelClientId"),
+          props.t("clientName"),
+          props.t("remoteAddress"),
+          props.t("xpertInstance"),
+          props.t("tunnelLastSeen"),
+          props.t("tunnelLastSync"),
+          props.t("tunnelBindings"),
+          props.t("error"),
+          props.t("action")
+        ],
+        rows: props.clients || [],
+        emptyText: props.t("noTunnelClients"),
+        renderRow: (client) => [
+          ...props.isOrganizationScope ? [code(client.integrationName || client.integrationId)] : [],
+          translatedPill(client.state || (client.connected ? "connected" : "disconnected"), props.t),
+          display(props.t(client.direction || "inbound")),
+          code(client.clientId),
+          client.connected ? display(client.clientName) : display(client.clientName ? `${props.t("lastClientName")}: ${client.clientName}` : ""),
+          display(client.remoteAddress),
+          client.connected ? code(client.instanceId) : display(client.instanceId ? `${props.t("lastXpertInstance")}: ${client.instanceId}` : ""),
+          time(client.lastSeenAt),
+          time(client.lastSyncAt),
+          tunnelBindingsCell(client, props.t),
+          display(client.lastError),
+          client.connected ? /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onDisconnect(client) }, props.t("disconnect")) : "-"
+        ]
+      }
+    ));
   }
   function LogsView(props) {
     const filter = useTableFilterDraft(props.table, props.onTableChange);
@@ -15925,7 +16083,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (!props.rows?.length) {
       return /* @__PURE__ */ h("div", { className: "xui-empty" }, props.emptyText);
     }
-    return /* @__PURE__ */ h(ScrollArea2, { className: "wxp-table-wrap" }, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(Table, { className: "wxp-data-table" }, /* @__PURE__ */ h(TableHeader, null, /* @__PURE__ */ h(TableRow, null, props.headers.map((header) => /* @__PURE__ */ h(TableHead, { key: header }, header)))), /* @__PURE__ */ h(TableBody, null, props.rows.map((row) => /* @__PURE__ */ h(TableRow, { key: row.id || row.uuid || row.conversationId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(TableCell, { key: index2 }, cell)))))));
+    return /* @__PURE__ */ h(ScrollArea2, { className: "wxp-table-wrap" }, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(Table, { className: "wxp-data-table" }, /* @__PURE__ */ h(TableHeader, null, /* @__PURE__ */ h(TableRow, null, props.headers.map((header) => /* @__PURE__ */ h(TableHead, { key: header }, header)))), /* @__PURE__ */ h(TableBody, null, props.rows.map((row) => /* @__PURE__ */ h(TableRow, { key: row.id || row.uuid || row.conversationId || row.clientId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(TableCell, { key: index2 }, cell)))))));
   }
   function kv(label, value) {
     return /* @__PURE__ */ h("div", { className: "wxp-kv" }, /* @__PURE__ */ h("span", null, label), /* @__PURE__ */ h("strong", null, displayText(value) || "-"));
@@ -15959,10 +16117,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (["sent", "dispatched", "received", "online", "connected", "outbound"].includes(text)) {
       return "success";
     }
+    if (["bound_connected"].includes(text)) {
+      return "success";
+    }
     if (["failed", "error", "disabled", "offline", "disconnected"].includes(text)) {
       return "destructive";
     }
-    if (["skipped", "unknown", "system"].includes(text)) {
+    if (["connected_unbound", "skipped", "unknown", "system"].includes(text)) {
       return "warning";
     }
     return "secondary";
@@ -15977,6 +16138,17 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function tunnelStatusLabel(tunnel, t) {
     return tunnel?.connected ? t("connected") : t("disconnected");
+  }
+  function accountTunnelPill(binding, t) {
+    const status = binding?.status || "not_applicable";
+    return /* @__PURE__ */ h("div", { className: "wxp-tunnel-status-cell" }, translatedPill(status, t), binding?.clientId && /* @__PURE__ */ h("small", null, clip(binding.clientId, 28)));
+  }
+  function tunnelBindingsCell(client, t) {
+    const bindings = Array.isArray(client?.bindings) ? client.bindings : [];
+    if (!bindings.length) {
+      return String(client?.bindingCount || 0);
+    }
+    return /* @__PURE__ */ h("details", null, /* @__PURE__ */ h("summary", null, client.bindingCount || bindings.length, " ", t("boundAccounts")), /* @__PURE__ */ h("pre", null, bindings.map((binding) => [binding.uuid, binding.wxid].filter(Boolean).join(" / ")).join("\n")));
   }
   function time(value) {
     if (!value) {

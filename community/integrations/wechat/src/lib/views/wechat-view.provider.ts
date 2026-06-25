@@ -214,6 +214,12 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
             label: text('Toggle Account', '启停账号'),
             icon: 'ri-toggle-line',
             actionType: 'invoke'
+          },
+          {
+            key: 'disconnect_tunnel_client',
+            label: text('Disconnect Tunnel Client', '断开隧道客户端'),
+            icon: 'ri-plug-2-line',
+            actionType: 'invoke'
           }
         ]
       }
@@ -315,6 +321,15 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
     try {
       if (actionKey === 'refresh') {
         return success('WeChat view refreshed', '微信视图已刷新')
+      }
+
+      if (actionKey === 'disconnect_tunnel_client') {
+        const clientId = requireStringInput(request.input, 'clientId', 'Tunnel client id is required.')
+        const disconnected = await this.conversationService.disconnectTunnelClient(clientId)
+        if (!disconnected) {
+          return failure('Tunnel client is not connected', '隧道客户端未连接')
+        }
+        return success('Tunnel client disconnected', '隧道客户端已断开')
       }
 
       const integrationId = await this.resolveIntegrationId(context, request.parameters, request.input)
@@ -488,7 +503,12 @@ function normalizeViewParameters(parameters: unknown): Record<string, unknown> {
 
 function getTableKey(parameters?: Record<string, unknown> | null): WechatWorkbenchTableKey | null {
   const value = getStringProperty(parameters, 'table')
-  return value === 'accounts' || value === 'conversations' || value === 'messages' || value === 'queue' || value === 'logs'
+  return value === 'accounts' ||
+    value === 'conversations' ||
+    value === 'messages' ||
+    value === 'queue' ||
+    value === 'logs' ||
+    value === 'tunnelClients'
     ? value
     : null
 }

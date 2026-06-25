@@ -47,9 +47,9 @@ async function waitFor(condition: () => boolean) {
   throw new Error('condition not met')
 }
 
-function attachMemoryClient(service: WechatTunnelBrokerService) {
+function attachMemoryClient(service: WechatTunnelBrokerService, expectedClientId = 'client-1') {
   const transport = new MemoryTunnelTransport()
-  service.attachTransport(transport as any, { expectedClientId: 'client-1' })
+  service.attachTransport(transport as any, { expectedClientId })
   return transport
 }
 
@@ -206,6 +206,72 @@ describe('WechatTunnelBrokerService', () => {
       })
     )
     expect(service.disconnectClient('missing-client')).toBe(false)
+  })
+
+  it('lists connected clients, disconnected snapshots, and configured placeholders', async () => {
+    service = createService()
+    const first = attachMemoryClient(service, 'client-list-1')
+    const second = attachMemoryClient(service, 'client-list-2')
+
+    first.receive(encodeWechatTunnelMessage({ type: 'register', id: 'client-list-1', name: 'first local wx' }))
+    first.receive(
+      encodeWechatTunnelMessage({
+        type: 'sync_bindings',
+        bindings: [{ uuid: 'uuid-1', wxid: 'wxid_owner_1' }]
+      })
+    )
+    second.receive(encodeWechatTunnelMessage({ type: 'register', id: 'client-list-2', name: 'second local wx' }))
+
+    expect(
+      service.listClients({
+        clientIds: ['client-list-1', 'client-list-2']
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clientId: 'client-list-1',
+          clientName: 'first local wx',
+          connected: true,
+          bindingCount: 1,
+          bindings: [{ uuid: 'uuid-1', wxid: 'wxid_owner_1' }]
+        }),
+        expect.objectContaining({
+          clientId: 'client-list-2',
+          clientName: 'second local wx',
+          connected: true,
+          bindingCount: 0
+        })
+      ])
+    )
+
+    expect(service.disconnectClient('client-list-1', 'manual disconnect')).toBe(true)
+    expect(
+      service.listClients({
+        clientIds: ['client-list-1']
+      })
+    ).toEqual([
+      expect.objectContaining({
+        clientId: 'client-list-1',
+        connected: false,
+        state: 'disconnected',
+        lastError: 'manual disconnect',
+        bindingCount: 1
+      })
+    ])
+
+    expect(
+      service.listClients({
+        clientIds: ['client-missing'],
+        includeMissing: true
+      })
+    ).toEqual([
+      expect.objectContaining({
+        clientId: 'client-missing',
+        connected: false,
+        state: 'disconnected',
+        bindingCount: 0
+      })
+    ])
   })
 
   it('shares tunnel sessions across broker instances in the same process', async () => {

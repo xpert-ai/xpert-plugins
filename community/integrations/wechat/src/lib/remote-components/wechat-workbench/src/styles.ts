@@ -91,6 +91,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }
 .wxp-tunnel-panel pre { max-width: 100%; }
 .wxp-tunnel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 12px; }
+.wxp-tunnel-clients-panel { grid-column: 1 / -1; }
+.wxp-tunnel-status-cell { display: grid; gap: 4px; min-width: 120px; }
+.wxp-tunnel-status-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
 .wxp-table-wrap { width: 100%; max-width: 100%; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); }
 .wxp-data-table { min-width: 980px; }
 @media (max-width: 760px) {
