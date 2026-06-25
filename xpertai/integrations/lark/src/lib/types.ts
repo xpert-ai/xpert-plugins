@@ -406,7 +406,11 @@ export type TLarkRuntimeStatus = {
   connectionMode: TLarkConnectionMode
   connected: boolean
   state: TLarkLongConnectionState
+  connectionKey?: string | null
+  direction?: 'inbound' | 'outbound' | 'internal' | null
+  transportType?: string | null
   ownerInstanceId?: string | null
+  lastSeenAt?: number | null
   lastConnectedAt?: number | null
   lastError?: string | null
   failureCount?: number

@@ -31,6 +31,14 @@ import {
 	TLarkRuntimeStatus
 } from './types.js'
 import { toLarkApiErrorMessage } from './utils.js'
+import {
+	CONNECTION_COMMAND_ROUTER_TOKEN,
+	ConnectionCommandRouter,
+	MANAGED_CONNECTION_REGISTRY_TOKEN,
+	ManagedConnectionCommandRequest,
+	ManagedConnectionRecord,
+	ManagedConnectionRegistry
+} from './managed-connection-compat.js'
 
 type RedisLike = {
 	set?: (...args: any[]) => Promise<any>
@@ -68,8 +76,24 @@ type LarkLongConnectionSession = {
 	disabledReason?: string | null
 }
 
+export type LarkManagedConnectionInfo = {
+	connectionKey: string
+	status: 'connected' | 'disconnected' | 'stale' | 'error'
+	connected: boolean
+	direction: 'inbound' | 'outbound' | 'internal'
+	transportType: string
+	ownerInstanceId: string | null
+	connectedAt: string | null
+	lastSeenAt: string | null
+	leaseExpiresAt: string | null
+	integrationCount: number
+	lastError: string | null
+}
+
 const REDIS_CLIENT_TOKEN = 'REDIS_CLIENT'
 const REGISTRY_KEY = 'lark:ws:registry'
+const LARK_MANAGED_CONNECTION_PLUGIN_NAME = '@xpert-ai/plugin-lark'
+const LARK_LONG_CONNECTION_TYPE = 'lark_long_connection'
 const LOCK_TTL_MS = 45_000
 const RENEW_INTERVAL_MS = 15_000
 const DEFAULT_RETRY_MS = 5_000
@@ -86,6 +110,10 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	private readonly sessions = new Map<string, LarkLongConnectionSession>()
 	private _integrationPermissionService: IntegrationPermissionService
 	private _redis: RedisLike | null | undefined
+	private managedRegistryResolved = false
+	private managedRegistryValue: ManagedConnectionRegistry | null = null
+	private commandRouterResolved = false
+	private commandRouterValue: ConnectionCommandRouter | null = null
 
 	constructor(
 		private readonly larkChannel: LarkChannelStrategy,
@@ -114,7 +142,32 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		return this._redis
 	}
 
+	private get managedRegistry(): ManagedConnectionRegistry | null {
+		if (!this.managedRegistryResolved) {
+			this.managedRegistryResolved = true
+			try {
+				this.managedRegistryValue = this.pluginContext.resolve(MANAGED_CONNECTION_REGISTRY_TOKEN)
+			} catch {
+				this.managedRegistryValue = null
+			}
+		}
+		return this.managedRegistryValue
+	}
+
+	private get commandRouter(): ConnectionCommandRouter | null {
+		if (!this.commandRouterResolved) {
+			this.commandRouterResolved = true
+			try {
+				this.commandRouterValue = this.pluginContext.resolve(CONNECTION_COMMAND_ROUTER_TOKEN)
+			} catch {
+				this.commandRouterValue = null
+			}
+		}
+		return this.commandRouterValue
+	}
+
 	async onModuleInit(): Promise<void> {
+		this.commandRouter?.registerHandler(LARK_LONG_CONNECTION_TYPE, (request) => this.handleManagedCommand(request))
 		await this.conversationBindingSchemaService.ensureSchema()
 		const integrationIds = await this.loadBootstrapIntegrationIds()
 		this.logger.debug(`[lark-long] bootstrapping long connection sessions for integrations: [${integrationIds.join(', ')}]`)
@@ -122,7 +175,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 	}
 
 	async onModuleDestroy(): Promise<void> {
-		await Promise.allSettled([...this.sessions.values()].map((session) => this.stopSession(session, true)))
+		await Promise.allSettled([...this.sessions.values()].map((session) => this.stopSession(session, true, 'service shutting down')))
 	}
 
 	async connect(integrationId: string): Promise<TLarkRuntimeStatus> {
@@ -158,6 +211,36 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			await this.dropMissingIntegration(integrationId)
 			return this.buildDetachedStatus(integrationId, 'webhook')
 		}
+		if (this.larkChannel.resolveConnectionMode(integration) !== 'long_connection') {
+			await this.unregisterIntegration(integrationId)
+			return this.buildDetachedStatus(integrationId, this.larkChannel.resolveConnectionMode(integration))
+		}
+		if (await this.invokeOwnerIfAvailable(integration, 'reconnect', { integrationId })) {
+			return this.status(integrationId)
+		}
+		return this.reconnectLocalIntegration(integration, integrationId)
+	}
+
+	async disconnect(integrationId: string): Promise<TLarkRuntimeStatus> {
+		const integration = await this.safeReadIntegration(integrationId)
+		if (!integration) {
+			await this.dropMissingIntegration(integrationId)
+			return this.buildDetachedStatus(integrationId, 'webhook')
+		}
+		if (this.larkChannel.resolveConnectionMode(integration) !== 'long_connection') {
+			await this.unregisterIntegration(integrationId)
+			return this.buildDetachedStatus(integrationId, this.larkChannel.resolveConnectionMode(integration))
+		}
+		if (await this.invokeOwnerIfAvailable(integration, 'disconnect', { integrationId })) {
+			return this.buildDetachedStatus(integrationId, 'long_connection')
+		}
+		return this.disconnectLocalIntegration(integrationId, integration)
+	}
+
+	private async reconnectLocalIntegration(
+		integration: IIntegration<TIntegrationLarkOptions>,
+		integrationId: string
+	): Promise<TLarkRuntimeStatus> {
 		const session = this.ensureSession(integration)
 		await this.synchronizeSessionIntegrations(session, integrationId)
 		session.failureCount = 0
@@ -167,15 +250,17 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		session.nextReconnectAt = null
 		session.state = 'idle'
 		await this.writeStatus(session)
-		await this.stopSession(session, true)
+		await this.stopSession(session, true, 'lark long connection reconnecting')
 		await this.startSession(session)
 		return this.buildStatus(session, integrationId)
 	}
 
-	async disconnect(integrationId: string): Promise<TLarkRuntimeStatus> {
+	private async disconnectLocalIntegration(
+		integrationId: string,
+		integration?: IIntegration<TIntegrationLarkOptions> | null
+	): Promise<TLarkRuntimeStatus> {
 		await this.unregisterIntegration(integrationId)
 
-		const integration = await this.safeReadIntegration(integrationId)
 		await this.removeIntegrationFromSessions(integrationId)
 		await this.clearStatus(integrationId)
 		return this.buildDetachedStatus(
@@ -197,17 +282,83 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			return this.buildDetachedStatus(integrationId, connectionMode)
 		}
 
+		const managedStatus = await this.readManagedRuntimeStatus(integration)
+		if (managedStatus?.connected) {
+			return managedStatus
+		}
+
 		const session = this.sessions.get(this.larkChannel.resolveLongConnectionAppKey(integration))
 		if (!session) {
 			void this.connect(integrationId).catch((error) => {
 				this.logger.warn(`[lark-long] lazy connect failed integration=${integrationId}: ${toLarkApiErrorMessage(error)}`)
 			})
-			return this.readStoredStatus(integrationId, connectionMode)
+			return managedStatus ?? this.readStoredStatus(integrationId, connectionMode)
 		}
 
 		this.refreshSessionState(session)
 		await this.writeStatus(session)
 		return this.buildStatus(session, integrationId)
+	}
+
+	async listManagedConnections(integrationId: string): Promise<LarkManagedConnectionInfo[]> {
+		const integration = await this.safeReadIntegration(integrationId)
+		if (!integration || this.larkChannel.resolveConnectionMode(integration) !== 'long_connection') {
+			return []
+		}
+
+		const registry = this.managedRegistry
+		if (!registry) {
+			const status = await this.status(integrationId)
+			if (!status.connectionKey) {
+				return []
+			}
+			return [
+				{
+					connectionKey: status.connectionKey,
+					status: status.connected ? 'connected' : 'disconnected',
+					connected: status.connected,
+					direction: status.direction ?? 'outbound',
+					transportType: status.transportType ?? 'websocket',
+					ownerInstanceId: status.ownerInstanceId ?? null,
+					connectedAt: this.toIsoFromNumber(status.lastConnectedAt),
+					lastSeenAt: this.toIsoFromNumber(status.lastSeenAt),
+					leaseExpiresAt: null,
+					integrationCount: 1,
+					lastError: status.lastError ?? null
+				}
+			]
+		}
+
+		const appKey = this.larkChannel.resolveLongConnectionAppKey(integration)
+		const records = await registry.list({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey: appKey,
+			direction: 'outbound',
+			limit: 20
+		}).catch(() => [])
+		if (!records.length) {
+			const status = await this.status(integrationId)
+			return status.connectionKey
+				? [
+						{
+							connectionKey: status.connectionKey,
+							status: status.connected ? 'connected' : 'disconnected',
+							connected: status.connected,
+							direction: status.direction ?? 'outbound',
+							transportType: status.transportType ?? 'websocket',
+							ownerInstanceId: status.ownerInstanceId ?? null,
+							connectedAt: this.toIsoFromNumber(status.lastConnectedAt),
+							lastSeenAt: this.toIsoFromNumber(status.lastSeenAt),
+							leaseExpiresAt: null,
+							integrationCount: 1,
+							lastError: status.lastError ?? null
+						}
+					]
+				: []
+		}
+
+		return records.map((record) => this.managedRecordToInfo(record))
 	}
 
 	async probeConfig(config: TIntegrationLarkOptions): Promise<TLarkConnectionProbeResult> {
@@ -257,6 +408,244 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 				lastError: classification.reason,
 				recoverable: classification.recoverable
 			}
+		}
+	}
+
+	private async handleManagedCommand(request: ManagedConnectionCommandRequest): Promise<unknown> {
+		const integrationId = this.getPayloadString(request.payload, 'integrationId')
+		if (request.command === 'disconnect') {
+			const session = this.sessions.get(request.connectionKey)
+			if (!session) {
+				return { disconnected: false }
+			}
+			if (integrationId) {
+				await this.disconnectLocalIntegration(integrationId, await this.safeReadIntegration(integrationId))
+			} else {
+				for (const id of [...session.integrationIds]) {
+					await this.disconnectLocalIntegration(id, await this.safeReadIntegration(id))
+				}
+			}
+			return { disconnected: true }
+		}
+
+		if (request.command === 'reconnect') {
+			const targetIntegrationId = integrationId || this.sessions.get(request.connectionKey)?.primaryIntegrationId
+			if (!targetIntegrationId) {
+				return { reconnected: false }
+			}
+			const integration = await this.safeReadIntegration(targetIntegrationId)
+			if (!integration) {
+				return { reconnected: false }
+			}
+			await this.reconnectLocalIntegration(integration, targetIntegrationId)
+			return { reconnected: true }
+		}
+
+		throw new Error(`Unsupported Lark long connection command "${request.command}"`)
+	}
+
+	private async invokeOwnerIfAvailable(
+		integration: IIntegration<TIntegrationLarkOptions>,
+		command: 'disconnect' | 'reconnect',
+		payload: Record<string, unknown>
+	): Promise<boolean> {
+		const registry = this.managedRegistry
+		const router = this.commandRouter
+		if (!registry || !router) {
+			return false
+		}
+
+		const connectionKey = this.larkChannel.resolveLongConnectionAppKey(integration)
+		const owner = await registry.getOwner({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey,
+			tenantId: integration.tenantId,
+			organizationId: integration.organizationId
+		}).catch(() => null)
+		if (!owner) {
+			return false
+		}
+
+		await router.invokeOwner(
+			LARK_LONG_CONNECTION_TYPE,
+			connectionKey,
+			command,
+			payload,
+			{
+				pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+				tenantId: integration.tenantId,
+				organizationId: integration.organizationId,
+				timeoutMs: 30_000
+			}
+		)
+		return true
+	}
+
+	private async registerManagedSession(session: LarkLongConnectionSession): Promise<void> {
+		const registry = this.managedRegistry
+		if (!registry || !session.primaryIntegrationId) {
+			return
+		}
+		const scope = await this.readSessionScope(session)
+		await registry.register({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey: session.appKey,
+			transportType: 'websocket',
+			direction: 'outbound',
+			tenantId: scope?.tenantId ?? null,
+			organizationId: scope?.organizationId ?? null,
+			metadata: this.buildManagedMetadata(session),
+			leaseTtlMs: LOCK_TTL_MS * 2
+		}).catch(() => undefined)
+	}
+
+	private async heartbeatManagedSession(session: LarkLongConnectionSession): Promise<void> {
+		const registry = this.managedRegistry
+		if (!registry || !session.primaryIntegrationId) {
+			return
+		}
+		await registry.heartbeat({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey: session.appKey,
+			metadata: this.buildManagedMetadata(session),
+			leaseTtlMs: LOCK_TTL_MS * 2
+		}).catch(() => undefined)
+	}
+
+	private async syncManagedSession(session: LarkLongConnectionSession): Promise<void> {
+		const registry = this.managedRegistry
+		if (!registry || !session.primaryIntegrationId) {
+			return
+		}
+		const scope = await this.readSessionScope(session)
+		await registry.syncMetadata({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey: session.appKey,
+			tenantId: scope?.tenantId ?? null,
+			organizationId: scope?.organizationId ?? null,
+			metadata: this.buildManagedMetadata(session),
+			leaseTtlMs: LOCK_TTL_MS * 2
+		}).catch(() => undefined)
+	}
+
+	private async markManagedSessionDisconnected(
+		session: LarkLongConnectionSession,
+		reason?: string
+	): Promise<void> {
+		const registry = this.managedRegistry
+		if (!registry) {
+			return
+		}
+		const scope = await this.readSessionScope(session)
+		await registry.markDisconnected(
+			{
+				pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+				connectionType: LARK_LONG_CONNECTION_TYPE,
+				connectionKey: session.appKey,
+				tenantId: scope?.tenantId ?? null,
+				organizationId: scope?.organizationId ?? null
+			},
+			reason
+		).catch(() => undefined)
+	}
+
+	private buildManagedMetadata(session: LarkLongConnectionSession): Record<string, unknown> {
+		return {
+			appKey: session.appKey,
+			appId: session.options?.appId ?? null,
+			domain: session.options?.isLark ? 'larksuite' : 'feishu',
+			connectionMode: 'long_connection',
+			primaryIntegrationId: session.primaryIntegrationId ?? null,
+			integrationIds: [...session.integrationIds],
+			integrationCount: session.integrationIds.size,
+			state: session.state,
+			localInstanceId: this.instanceId,
+			lastConnectedAt: session.connectedAt ?? null,
+			lastSeenAt: Date.now(),
+			failureCount: session.failureCount,
+			nextReconnectAt: session.nextReconnectAt ?? null,
+			disabledReason: session.disabledReason ?? null,
+			lastError: session.lastError ?? null
+		}
+	}
+
+	private async readSessionScope(
+		session: LarkLongConnectionSession
+	): Promise<Pick<IIntegration<TIntegrationLarkOptions>, 'tenantId' | 'organizationId'> | null> {
+		const integrationId = session.primaryIntegrationId || [...session.integrationIds][0]
+		if (!integrationId) {
+			return null
+		}
+		return this.safeReadIntegration(integrationId).catch(() => null)
+	}
+
+	private async readManagedRuntimeStatus(
+		integration: IIntegration<TIntegrationLarkOptions>
+	): Promise<TLarkRuntimeStatus | null> {
+		const registry = this.managedRegistry
+		if (!registry) {
+			return null
+		}
+		const appKey = this.larkChannel.resolveLongConnectionAppKey(integration)
+		const records = await registry.list({
+			pluginName: LARK_MANAGED_CONNECTION_PLUGIN_NAME,
+			connectionType: LARK_LONG_CONNECTION_TYPE,
+			connectionKey: appKey,
+			direction: 'outbound',
+			limit: 1
+		}).catch(() => [])
+		const [record] = records
+		if (!record) {
+			return null
+		}
+		return this.managedRecordToRuntimeStatus(record, integration.id)
+	}
+
+	private managedRecordToRuntimeStatus(
+		record: ManagedConnectionRecord,
+		integrationId: string
+	): TLarkRuntimeStatus {
+		const metadata = this.objectPayload(record.metadata)
+		const leaseExpiresAt = this.toDateTime(record.leaseExpiresAt)
+		const connected = record.status === 'connected' && (!leaseExpiresAt || leaseExpiresAt > Date.now())
+		return {
+			integrationId,
+			connectionMode: 'long_connection',
+			connected,
+			state: this.normalizeManagedState(metadata.state, connected),
+			connectionKey: record.connectionKey,
+			direction: record.direction ?? 'outbound',
+			transportType: record.transportType,
+			ownerInstanceId: connected ? record.ownerInstanceId : null,
+			lastSeenAt: this.toDateTime(record.lastSeenAt ?? metadata.lastSeenAt),
+			lastConnectedAt: this.toDateTime(metadata.lastConnectedAt ?? record.connectedAt),
+			lastError: record.lastError ?? this.stringValue(metadata.lastError) ?? null,
+			failureCount: this.numberValue(metadata.failureCount) ?? 0,
+			nextReconnectAt: this.toDateTime(metadata.nextReconnectAt),
+			disabledReason: this.stringValue(metadata.disabledReason)
+		}
+	}
+
+	private managedRecordToInfo(record: ManagedConnectionRecord): LarkManagedConnectionInfo {
+		const metadata = this.objectPayload(record.metadata)
+		const leaseExpiresAt = this.toDateTime(record.leaseExpiresAt)
+		const connected = record.status === 'connected' && (!leaseExpiresAt || leaseExpiresAt > Date.now())
+		return {
+			connectionKey: record.connectionKey,
+			status: connected ? 'connected' : record.status,
+			connected,
+			direction: record.direction ?? 'outbound',
+			transportType: record.transportType,
+			ownerInstanceId: connected ? record.ownerInstanceId : null,
+			connectedAt: this.toIsoValue(record.connectedAt ?? metadata.lastConnectedAt),
+			lastSeenAt: this.toIsoValue(record.lastSeenAt ?? metadata.lastSeenAt),
+			leaseExpiresAt: this.toIsoValue(record.leaseExpiresAt),
+			integrationCount: this.numberValue(metadata.integrationCount) ?? this.arrayValue(metadata.integrationIds).length,
+			lastError: record.lastError ?? this.stringValue(metadata.lastError) ?? null
 		}
 	}
 
@@ -406,7 +795,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 		await this.synchronizeSessionIntegrations(session)
 		if (session.integrationIds.size === 0 || !session.primaryIntegrationId) {
-			await this.stopSession(session, true)
+			await this.stopSession(session, true, 'no lark integrations remain')
 			this.sessions.delete(session.appKey)
 			return
 		}
@@ -435,7 +824,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			if (!integration) {
 				await this.synchronizeSessionIntegrations(session)
 				if (!session.primaryIntegrationId) {
-					await this.stopSession(session, true)
+					await this.stopSession(session, true, 'primary lark integration is missing')
 					this.sessions.delete(session.appKey)
 					return
 				}
@@ -485,6 +874,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			session.disabledReason = null
 			session.lastError = null
 			await this.writeStatus(session)
+			await this.registerManagedSession(session)
 			this.startRenew(session)
 			this.logger.log(
 				`[lark-long] connected integration=${session.primaryIntegrationId} app=${session.appKey} owner=${this.instanceId}`
@@ -687,7 +1077,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		session.disabledReason = reason
 		session.failureCount = Math.max(session.failureCount, MAX_UNRECOVERABLE_FAILURES)
 		session.nextReconnectAt = null
-		await this.stopSession(session, true)
+		await this.stopSession(session, true, reason)
 		await this.writeStatus(session)
 		this.logger.error(
 			`[lark-long] unhealthy integration=${session.primaryIntegrationId} app=${session.appKey}: ${reason}`
@@ -713,7 +1103,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			session.state = 'unhealthy'
 			session.disabledReason = session.lastError
 			session.nextReconnectAt = null
-			await this.stopSession(session, true)
+			await this.stopSession(session, true, session.lastError)
 			await this.writeStatus(session)
 			this.logger.error(
 				`[lark-long] unhealthy integration=${session.primaryIntegrationId} app=${session.appKey}: ${session.lastError}`
@@ -729,7 +1119,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 
 		session.state = 'retrying'
 		session.nextReconnectAt = Date.now() + retryDelay
-		await this.stopSession(session, true)
+		await this.stopSession(session, true, session.lastError)
 		await this.writeStatus(session)
 		this.scheduleRetry(session, retryDelay)
 		this.logger.warn(
@@ -767,7 +1157,7 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			session.lastError = 'Lost long-connection ownership'
 			session.state = 'retrying'
 			session.nextReconnectAt = Date.now() + DEFAULT_RETRY_MS
-			await this.stopSession(session, true)
+			await this.stopSession(session, true, 'Lost long-connection ownership')
 			await this.writeStatus(session)
 			this.scheduleRetry(session, DEFAULT_RETRY_MS)
 			return
@@ -776,6 +1166,9 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		await this.writeOwner(session, ownerKey)
 		this.refreshSessionState(session)
 		await this.writeStatus(session)
+		if (session.state === 'connected') {
+			await this.heartbeatManagedSession(session)
+		}
 	}
 
 	private refreshSessionState(session: LarkLongConnectionSession): void {
@@ -795,11 +1188,16 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		}
 	}
 
-	private async stopSession(session: LarkLongConnectionSession, clearOwnership: boolean): Promise<void> {
+	private async stopSession(
+		session: LarkLongConnectionSession,
+		clearOwnership: boolean,
+		reason?: string
+	): Promise<void> {
 		this.clearRenewTimer(session)
 		this.clearRetryTimer(session)
 
 		const client = session.client
+		const hadManagedConnection = Boolean(client || session.lockId || session.state === 'connected')
 		session.client = null
 		if (client) {
 			try {
@@ -813,6 +1211,10 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			await this.releaseLock(getLarkLongConnectionLockKey(session.options), session.lockId)
 			session.lockId = null
 			await this.clearOwner(session)
+		}
+
+		if (hadManagedConnection) {
+			await this.markManagedSessionDisconnected(session, reason)
 		}
 	}
 
@@ -966,11 +1368,12 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 				session.primaryIntegrationId = [...session.integrationIds][0] || null
 			}
 			if (session.integrationIds.size === 0) {
-				await this.stopSession(session, true)
+				await this.stopSession(session, true, 'no lark integrations remain')
 				this.sessions.delete(session.appKey)
 				continue
 			}
 			await this.writeStatus(session)
+			await this.syncManagedSession(session)
 		}
 	}
 
@@ -1026,7 +1429,11 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			connectionMode,
 			connected: data.connected === 'true',
 			state: (data.state as TLarkLongConnectionState) || 'idle',
+			connectionKey: null,
+			direction: connectionMode === 'long_connection' ? 'outbound' : null,
+			transportType: connectionMode === 'long_connection' ? 'websocket' : null,
 			ownerInstanceId: data.ownerInstanceId || null,
+			lastSeenAt: null,
 			lastConnectedAt: data.lastConnectedAt ? Number(data.lastConnectedAt) : null,
 			lastError: data.lastError || null,
 			failureCount: data.failureCount ? Number(data.failureCount) : 0,
@@ -1041,7 +1448,11 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			connectionMode: 'long_connection',
 			connected: session.state === 'connected',
 			state: session.state,
+			connectionKey: session.appKey,
+			direction: 'outbound',
+			transportType: 'websocket',
 			ownerInstanceId: session.lockId ? this.instanceId : null,
+			lastSeenAt: Date.now(),
 			lastConnectedAt: session.connectedAt ?? null,
 			lastError: session.lastError ?? null,
 			failureCount: session.failureCount,
@@ -1059,7 +1470,11 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 			connectionMode,
 			connected: false,
 			state: 'idle',
+			connectionKey: null,
+			direction: connectionMode === 'long_connection' ? 'outbound' : null,
+			transportType: connectionMode === 'long_connection' ? 'websocket' : null,
 			ownerInstanceId: null,
+			lastSeenAt: null,
 			lastConnectedAt: null,
 			lastError: null,
 			failureCount: 0,
@@ -1143,6 +1558,83 @@ export class LarkLongConnectionService implements OnModuleInit, OnModuleDestroy 
 		} catch {
 			return await redis.eval?.(script, { keys, arguments: args })
 		}
+	}
+
+	private getPayloadString(payload: unknown, key: string): string | null {
+		const object = this.objectPayload(payload)
+		return this.stringValue(object[key])
+	}
+
+	private objectPayload(value: unknown): Record<string, unknown> {
+		return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+	}
+
+	private stringValue(value: unknown): string | null {
+		if (typeof value !== 'string') {
+			return null
+		}
+		const normalized = value.trim()
+		return normalized.length ? normalized : null
+	}
+
+	private numberValue(value: unknown): number | null {
+		if (typeof value === 'number' && Number.isFinite(value)) {
+			return value
+		}
+		if (typeof value === 'string' && value.trim()) {
+			const parsed = Number(value)
+			return Number.isFinite(parsed) ? parsed : null
+		}
+		return null
+	}
+
+	private arrayValue(value: unknown): unknown[] {
+		return Array.isArray(value) ? value : []
+	}
+
+	private toDateTime(value: unknown): number | null {
+		if (value instanceof Date) {
+			const time = value.getTime()
+			return Number.isFinite(time) ? time : null
+		}
+		if (typeof value === 'number' && Number.isFinite(value)) {
+			return value
+		}
+		if (typeof value === 'string' && value.trim()) {
+			const numeric = Number(value)
+			if (Number.isFinite(numeric)) {
+				return numeric
+			}
+			const parsed = Date.parse(value)
+			return Number.isFinite(parsed) ? parsed : null
+		}
+		return null
+	}
+
+	private toIsoValue(value: unknown): string | null {
+		const time = this.toDateTime(value)
+		return this.toIsoFromNumber(time)
+	}
+
+	private toIsoFromNumber(value: number | null | undefined): string | null {
+		if (!Number.isFinite(value)) {
+			return null
+		}
+		const date = new Date(value as number)
+		return Number.isNaN(date.getTime()) ? null : date.toISOString()
+	}
+
+	private normalizeManagedState(value: unknown, connected: boolean): TLarkLongConnectionState {
+		if (
+			value === 'idle' ||
+			value === 'connecting' ||
+			value === 'connected' ||
+			value === 'retrying' ||
+			value === 'unhealthy'
+		) {
+			return value
+		}
+		return connected ? 'connected' : 'idle'
 	}
 
 	private stringifyInboundPayload(payload: unknown): string {

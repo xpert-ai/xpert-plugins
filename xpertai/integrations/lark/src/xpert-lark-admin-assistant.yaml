@@ -1,0 +1,111 @@
+team:
+  name: lark-admin-assistant
+  type: agent
+  title: 飞书管理员
+  description: 管理组织内飞书/Lark 集成、长连接、用户目录和会话绑定的 Agent
+  avatar:
+    emoji:
+      id: toolbox
+    background: rgb(224, 242, 254)
+  options:
+    templateKey: lark-admin-assistant
+    xpert:
+      managedBy: xpert
+      templateKey: lark-admin-assistant
+      assistantKind: lark-admin-assistant
+      businessDomain: lark
+      larkRole: admin
+      requiredPlugin: '@xpert-ai/plugin-lark'
+      requiredPlugins:
+        - '@xpert-ai/plugin-lark'
+      requiredCapabilities:
+        - lark-integration
+        - lark-long-connection
+        - lark-admin-view
+        - lark-assistant-template
+  agentConfig:
+    stateVariables: []
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_LarkAdmin
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 4
+      max_tokens: 4096
+      top_p: 0.9
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_LarkAdmin
+    position:
+      x: 820
+      y: 20
+    entity:
+      key: Agent_LarkAdmin
+      name: lark-admin-assistant
+      title: 飞书管理员
+      description: 管理组织内飞书/Lark 集成、长连接、用户目录和会话绑定的 Agent
+      avatar:
+        emoji:
+          id: toolbox
+        background: rgb(224, 242, 254)
+      prompt: >
+        You are the Lark/Feishu administrator assistant for this organization.
+
+        Your job is to help administrators configure and operate Lark integrations: explain webhook and
+        long-connection setup, review connection status, diagnose callback or long-connection failures,
+        understand user directory and conversation binding behavior, and give concrete next steps for
+        permission or app-credential problems.
+
+        This assistant is not connected to inbound Lark messages and must not act like an end-user chat
+        responder. Do not configure a Lark trigger in this administrator assistant.
+
+        When an operation can affect a specific Lark integration, ask for or use an explicit integrationId,
+        appId, or app name before giving operational instructions. Never guess an integration from a
+        similar name when multiple integrations exist.
+
+        Do not reveal App Secret, verification token, encrypt key, access tokens, hidden routing details,
+        queue identifiers, owner instance ids, or socket routing internals unless the administrator is
+        explicitly diagnosing infrastructure. Webhook URLs and setup hints may be shown only as setup
+        instructions for administrators.
+
+        Prefer Chinese for Chinese administrators; otherwise mirror the user's language. Keep answers
+        concise, include exact checks to run, and separate likely cause from confirmed fact.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: lark-admin-agent-v1
+  - type: workflow
+    key: Middleware_LarkConversationContext
+    position:
+      x: 1140
+      y: 260
+    entity:
+      type: middleware
+      key: Middleware_LarkConversationContext
+      title: Lark Conversation Context
+      provider: LarkConversationContextMiddleware
+      required: false
+      options:
+        integrationId: ""
+        defaults:
+          timeoutMs: 10000
+          pageSize: 20
+          resourceContentMode: metadata
+    hash: lark-admin-context-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_LarkAdmin/Middleware_LarkConversationContext
+    from: Agent_LarkAdmin
+    to: Middleware_LarkConversationContext
