@@ -10,6 +10,7 @@ import { AGENT_WORKBENCH_FIXED_SLOT, AGENT_WORKBENCH_MAIN_SLOT, TRADE_COMPLIANCE
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
 import { buildCustomsWorkbookModel, buildCustomsWorkbookTemplateFileName, createCustomsWorkbookFromTemplateBuffer, readCustomsWorkbookTemplateSheetNames } from './trade-compliance-workbook.js';
 import { parseControlledGoodsFile } from './controlled-goods-file-parser.js';
+import { getHsBianmaCodeDetail, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const requireFromHere = createRequire(__filename);
@@ -116,6 +117,8 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
                     { key: 'delete_supplier_product', label: text('Delete Supplier Product', '删除供应商商品'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
                     { key: 'delete_customs_workbook', label: text('Delete Workbook', '删除销售发票'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
                     { key: 'download_customs_workbook', label: text('Download Workbook', '下载销售发票'), icon: 'ri-download-line', actionType: 'invoke' },
+                    { key: 'search_hs_code', label: text('Search HS Code', '查询海关编码'), icon: 'ri-search-line', actionType: 'invoke' },
+                    { key: 'get_hs_code_detail', label: text('Get HS Code Detail', '查看海关编码详情'), icon: 'ri-file-search-line', actionType: 'invoke' },
                     { key: 'generate_customs_workbook', label: text('Generate Workbook', '生成报关资料'), icon: 'ri-file-excel-line', actionType: 'invoke' }
                 ]
             }
@@ -202,6 +205,28 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
         }
         if (actionKey === 'refresh') {
             return { success: true, message: text('Refreshed', '已刷新'), refresh: true };
+        }
+        if (actionKey === 'search_hs_code') {
+            const keywords = readString(request.input, 'keywords');
+            if (!keywords) {
+                return failure('keywords is required', '请输入商品名称或海关编码');
+            }
+            const result = await searchHsBianmaCodes({
+                keywords,
+                page: readNumber(request.input, 'page') ?? 1,
+                filterFailureCode: true,
+                displayChapter: false,
+                displayEnName: true
+            });
+            return success(result);
+        }
+        if (actionKey === 'get_hs_code_detail') {
+            const code = readString(request.input, 'code');
+            const detailUrl = readString(request.input, 'detailUrl');
+            if (!code && !detailUrl) {
+                return failure('code or detailUrl is required', '缺少海关编码');
+            }
+            return success(await getHsBianmaCodeDetail({ code, detailUrl }));
         }
         if (actionKey === 'save_controlled_goods') {
             const productName = readString(request.input, 'productName');
@@ -810,11 +835,10 @@ function buildSupplierContractParsePrompt(fileName, batchId) {
         `请解析我刚上传的供应商合同《${fileName}》。`,
         '文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径读取；如果同时存在附件能力，也可以使用 file_preview、file_search、file_read 等文件理解工具读取。',
         '目标：识别供应商信息和商品信息，商品信息包括商品名称、型号、描述、数量、单位、含税单价、含税金额、合同里的海关编码。',
-        '对每个商品必须调用 trade_compliance_enrich_product 获取海关编码、退税率、英文品名；该工具会请求 https://hsbianma.com/search?keywords=...&filterFailureCode=true&displayenname=true 并从返回 HTML 的结果表格读取数据。',
-        '不要调用其他海关编码接口，也不要只根据模型知识生成编码；如果 trade_compliance_enrich_product 返回 error，请把 error 写入 controlNote 并继续保存待审核记录。',
+        '不要把模糊查询得到的海关编码、退税率或英文品名写成最终值；插件保存待审核记录时会自动查询候选海关编码，必须由用户在工作台里人工确认后才作为最终编码。',
         '再结合已有管控商品记录调用 trade_compliance_match_controlled_goods 判断是否为管控商品。',
         `最后必须调用 trade_compliance_save_supplier_contract_extraction 保存待审核结果，batchId 必须传 ${batchId ?? '-'}；只有调用该保存工具后，工作台左侧供应商商品列表才会出现记录。`,
-        '每个 items 条目的 type 必须是 supplier_product；extractedData/defaultData 中请包含 supplierName、supplierCreditCode、supplierAddress、productName、model、description、quantity、unit、taxInclusiveUnitPrice、taxInclusiveTotalAmount、contractHsCode、enrichedHsCode、taxRefundRate、englishName、controlledStatus、controlNote。',
+        '每个 items 条目的 type 必须是 supplier_product；extractedData/defaultData 中请包含 supplierName、supplierCreditCode、supplierAddress、productName、model、description、quantity、unit、taxInclusiveUnitPrice、taxInclusiveTotalAmount、contractHsCode、controlledStatus、controlNote。',
         '不要只回复文字，必须调用工具把识别结果写入插件；回复中的识别数量必须等于本次工具实际保存的 items 数量。'
     ].join('\n');
 }

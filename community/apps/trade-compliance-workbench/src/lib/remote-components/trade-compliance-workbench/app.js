@@ -76,6 +76,15 @@
     const [detailItem, setDetailItem] = React.useState(null)
     const [formDialog, setFormDialog] = React.useState(null)
     const [deleteDialog, setDeleteDialog] = React.useState(null)
+    const [hsCodeDetailDialog, setHsCodeDetailDialog] = React.useState(null)
+    const [hsCodeSearch, setHsCodeSearch] = React.useState({
+      keywords: '',
+      page: 1,
+      loading: false,
+      searched: false,
+      error: '',
+      result: null
+    })
     const pollingRef = React.useRef(null)
     const fileInputsRef = React.useRef({})
 
@@ -94,7 +103,7 @@
       }
     }, [])
 
-    React.useEffect(reportResize, [data, activePage, selectedIds, statusFilter, busy, formDialog, deleteDialog])
+    React.useEffect(reportResize, [data, activePage, selectedIds, statusFilter, busy, formDialog, deleteDialog, hsCodeSearch, hsCodeDetailDialog])
 
     const reviewItems = data.reviewItems.filter((item) => !isPlaceholderReviewItem(item))
     const pendingItems = reviewItems.filter((item) => (item.reviewStatus || 'pending') === 'pending')
@@ -124,6 +133,117 @@
       } finally {
         setBusy(false)
       }
+    }
+
+    async function searchHsCodePage(page) {
+      const keywords = String(hsCodeSearch.keywords || '').trim()
+      if (!keywords) {
+        setHsCodeSearch(Object.assign({}, hsCodeSearch, { error: '请输入商品名称或海关编码', searched: false }))
+        return
+      }
+      const nextPage = Math.max(1, Number(page) || 1)
+      setHsCodeSearch(Object.assign({}, hsCodeSearch, { loading: true, error: '', page: nextPage }))
+      try {
+        const response = await executeAction('search_hs_code', null, {
+          keywords,
+          page: nextPage,
+          filterFailureCode: true,
+          displayChapter: false,
+          displayEnName: true
+        }, {})
+        assertActionSuccess(response)
+        const result = getActionDataPayload(response)
+        setHsCodeSearch((current) => Object.assign({}, current, {
+          loading: false,
+          searched: true,
+          page: nextPage,
+          error: '',
+          result
+        }))
+      } catch (error) {
+        setHsCodeSearch((current) => Object.assign({}, current, {
+          loading: false,
+          searched: true,
+          error: getErrorMessage(error)
+        }))
+      }
+    }
+
+    function updateHsCodeSearch(patch) {
+      setHsCodeSearch(Object.assign({}, hsCodeSearch, patch))
+    }
+
+    function submitHsCodeSearch(event) {
+      event.preventDefault()
+      searchHsCodePage(1)
+    }
+
+    async function loadHsCodeDetail(item) {
+      if (!item || (!item.code && !item.detailUrl)) return
+      setHsCodeDetailDialog({ loading: true, item, detail: null, error: '' })
+      try {
+        const response = await executeAction('get_hs_code_detail', null, {
+          code: item.code,
+          detailUrl: item.detailUrl
+        }, {})
+        assertActionSuccess(response)
+        setHsCodeDetailDialog({ loading: false, item, detail: getActionDataPayload(response), error: '' })
+      } catch (error) {
+        setHsCodeDetailDialog({ loading: false, item, detail: null, error: getErrorMessage(error) })
+      }
+    }
+
+    async function searchSupplierHsCandidatesForForm() {
+      if (!formDialog || formDialog.type !== 'supplier_product' || busy) return
+      const keyword = String(formDialog.hsCandidateKeyword || buildSupplierHsCandidateKeyword(formDialog.values) || '').trim()
+      if (!keyword) {
+        setFormDialog(Object.assign({}, formDialog, { hsCandidateError: '请输入商品名称、型号或海关编码后再查询。' }))
+        return
+      }
+      setFormDialog(Object.assign({}, formDialog, {
+        hsCandidateKeyword: keyword,
+        hsCandidateLoading: true,
+        hsCandidateError: '',
+        hsCandidateStatus: ''
+      }))
+      try {
+        const response = await executeAction('search_hs_code', null, {
+          keywords: keyword,
+          page: 1,
+          filterFailureCode: true,
+          displayChapter: false,
+          displayEnName: true
+        }, {})
+        assertActionSuccess(response)
+        const result = getActionDataPayload(response)
+        const candidates = Array.isArray(result && result.results) ? result.results.slice(0, 10) : []
+        setFormDialog((current) => current ? Object.assign({}, current, {
+          hsCandidateKeyword: keyword,
+          hsCandidateLoading: false,
+          hsCandidateError: '',
+          hsCandidateStatus: candidates.length ? 'pending_confirmation' : 'not_found',
+          hsCandidates: candidates
+        }) : current)
+      } catch (error) {
+        setFormDialog((current) => current ? Object.assign({}, current, {
+          hsCandidateLoading: false,
+          hsCandidateStatus: 'failed',
+          hsCandidateError: getErrorMessage(error)
+        }) : current)
+      }
+    }
+
+    function selectHsCandidate(candidate) {
+      if (!formDialog || formDialog.type !== 'supplier_product' || !candidate) return
+      setFormDialog(Object.assign({}, formDialog, {
+        values: Object.assign({}, formDialog.values, {
+          enrichedHsCode: candidate.code || '',
+          taxRefundRate: candidate.taxRefundRate || '',
+          englishName: candidate.englishName || candidate.name || ''
+        }),
+        hsCandidateStatus: 'confirmed'
+      }))
+      showNotice('已选用候选海关编码，请检查后保存。', 'success')
     }
 
     async function handleFile(actionKey, file) {
@@ -207,7 +327,7 @@
       if (!item || !item.id || busy) return
       setBusy(true)
       try {
-        const confirmedData = Object.assign({}, item.defaultData || {}, item.extractedData || {}, item.confirmedData || {})
+        const confirmedData = buildConfirmReviewData(item)
         const response = await executeAction('confirm_review_item', item.id, { itemId: item.id, confirmedData }, {})
         assertActionSuccess(response)
         showNotice('审核项已确认并写入业务列表。', 'success')
@@ -337,11 +457,17 @@
     }
 
     function openEdit(item) {
+      const merged = readMerged(item || {})
       setFormDialog({
         mode: 'edit',
         type: item.type,
         item,
-        values: valuesFromItem(item.type, item)
+        values: valuesFromItem(item.type, item),
+        hsCandidates: Array.isArray(merged.hsCodeCandidates) ? merged.hsCodeCandidates : [],
+        hsCandidateKeyword: merged.hsCodeLookupKeyword || buildSupplierHsCandidateKeyword(merged),
+        hsCandidateStatus: merged.hsCodeLookupStatus || '',
+        hsCandidateError: merged.hsCodeLookupError || '',
+        hsCandidateLoading: false
       })
     }
 
@@ -350,7 +476,12 @@
         mode: 'create',
         type,
         item: null,
-        values: emptyFormValues(type)
+        values: emptyFormValues(type),
+        hsCandidates: [],
+        hsCandidateKeyword: '',
+        hsCandidateStatus: '',
+        hsCandidateError: '',
+        hsCandidateLoading: false
       })
     }
 
@@ -490,19 +621,22 @@
         tab('overview-page', '工作台总览'),
         tab('controlled-goods-page', '管控商品'),
         tab('products-page', '供应商商品'),
-        tab('workbooks-page', '销售发票')
+        tab('workbooks-page', '销售发票'),
+        tab('hs-code-search-page', '海关编码查询')
       ]),
       h('main', { className: 'tcw-main tcw-frame' },
         h('section', { className: 'tcw-content' },
           activePage === 'overview-page' ? renderOverviewPage() : null,
           activePage === 'controlled-goods-page' ? renderControlledGoodsPage() : null,
           activePage === 'products-page' ? renderProductsPage() : null,
-          activePage === 'workbooks-page' ? renderWorkbooksPage() : null
+          activePage === 'workbooks-page' ? renderWorkbooksPage() : null,
+          activePage === 'hs-code-search-page' ? renderHsCodeSearchPage() : null
         )
       ),
       detailItem ? renderDetailModal() : null,
       formDialog ? renderFormModal() : null,
-      deleteDialog ? renderDeleteConfirmModal() : null
+      deleteDialog ? renderDeleteConfirmModal() : null,
+      hsCodeDetailDialog ? renderHsCodeDetailModal() : null
     )
 
     function tab(key, label) {
@@ -537,7 +671,7 @@
           renderListToolbar('管控商品列表', controlledReviews.length),
           h('div', { className: 'pending-controlled-goods confirmed-controlled-goods tcw-table-section' },
             reviewTable(['商品名称', '海关编码', '关键词', '管控说明', '来源'], page.rows, (item) => {
-            const row = readMerged(item)
+            const row = readSupplierEditableMerged(item)
             return [
               value(row.productName || item.title),
               value(row.hsCode),
@@ -561,13 +695,14 @@
         ], [
           renderListToolbar('供应商商品列表', supplierReviews.length),
           h('div', { className: 'pending-supplier-products tcw-table-section' },
-            reviewTable(['供应商', '商品', '型号', '海关编码', '退税率', '英文品名', '管控状态'], page.rows, (item) => {
-            const row = readMerged(item)
+            reviewTable(['供应商', '商品', '型号', '海关编码', '编码确认', '退税率', '英文品名', '管控状态'], page.rows, (item) => {
+            const row = readSupplierEditableMerged(item)
             return [
               value(row.supplierName),
               value(row.productName || item.title),
               value(row.model),
               value(row.enrichedHsCode || row.contractHsCode),
+              status(hsCodeReviewStatusText(row), hsCodeReviewStatusLevel(row)),
               value(row.taxRefundRate),
               value(row.englishName),
               status(controlStatusText(row.controlledStatus), controlStatusLevel(row.controlledStatus))
@@ -619,6 +754,107 @@
             pagination('sales-workbooks', filteredWorkbooks.length)
           )
         ])
+      )
+    }
+
+    function renderHsCodeSearchPage() {
+      const result = hsCodeSearch.result || {}
+      const rows = Array.isArray(result.results) ? result.results : []
+      return h('div', { className: 'tcw-page hs-code-search-page' },
+        businessPanel('海关编码查询', '输入商品名称或海关编码，查询 HS 编码网返回的候选结果。', [], [
+          h('form', { className: 'tcw-hs-search-form', onSubmit: submitHsCodeSearch },
+            h('div', { className: 'tcw-hs-search-row' },
+              h('input', {
+                className: 'tcw-search hs-code-search-input',
+                value: hsCodeSearch.keywords,
+                placeholder: '请输入商品名称或海关编码，例如：帽子、8471499100',
+                onChange: (event) => updateHsCodeSearch({ keywords: event.target.value })
+              }),
+              h('button', { className: 'tcw-btn tcw-btn-primary', disabled: hsCodeSearch.loading }, hsCodeSearch.loading ? '查询中' : '查询')
+            )
+          ),
+          hsCodeSearch.error ? h('div', { className: 'tcw-error' }, hsCodeSearch.error) : null,
+          !hsCodeSearch.searched && !hsCodeSearch.loading ? empty('请输入商品名称或海关编码后查询。') : null,
+          hsCodeSearch.loading ? empty('正在查询 HS 编码网，请稍候。') : null,
+          hsCodeSearch.searched && !hsCodeSearch.loading && !hsCodeSearch.error ? h('section', { className: 'tcw-history-section' },
+            h('div', { className: 'tcw-subsection-head' },
+              h('div', null,
+                h('h3', null, `和「${value(result.keywords || hsCodeSearch.keywords, '')}」有关的 HS 编码`),
+                h('p', null, `第 ${result.page || hsCodeSearch.page} 页，${rows.length} 条结果`)
+              )
+            ),
+            table(['商品编码', '商品名称', '英文名称', '计量单位', '出口退税率(%)', '监管条件', '检验检疫', '来源', '操作'], rows, (item) => [
+              h('strong', { className: 'tcw-hs-code-text' }, value(item.code)),
+              value(item.name),
+              value(item.englishName),
+              value(item.unit),
+              value(item.taxRefundRate),
+              value(item.regulatoryConditions),
+              value(item.inspectionQuarantine),
+              `第 ${item.sourcePage || result.page || hsCodeSearch.page} 页`,
+              h('div', { className: 'tcw-row-actions' },
+                h('button', { className: 'tcw-mini-btn', disabled: !item.code && !item.detailUrl, onClick: () => loadHsCodeDetail(item) }, '详情')
+              )
+            ], '未查询到相关编码。可换关键词或海关编码重新查询。'),
+            renderHsCodePagination(result.pagination)
+          ) : null
+        ])
+      )
+    }
+
+    function renderHsCodeDetailModal() {
+      const state = hsCodeDetailDialog || {}
+      const item = state.item || {}
+      const detail = state.detail || {}
+      const sections = Array.isArray(detail.sections) ? detail.sections : []
+      return h('div', { className: 'tcw-modal-backdrop' },
+        h('section', { className: 'tcw-modal tcw-hs-detail-modal' },
+          h('div', { className: 'tcw-modal-head' },
+            h('div', null,
+              h('h2', null, '海关编码详情'),
+              h('p', { className: 'tcw-modal-subtitle' }, `${value(detail.code || item.code, '-')} ${value(detail.name || item.name, '')}`)
+            ),
+            h('button', { type: 'button', className: 'tcw-icon-btn', onClick: () => setHsCodeDetailDialog(null) }, '×')
+          ),
+          state.loading ? empty('正在读取源站详情，请稍候。') : null,
+          state.error ? h('div', { className: 'tcw-error' }, state.error) : null,
+          !state.loading && !state.error && sections.length === 0 ? empty('源站详情页暂无可展示内容。') : null,
+          !state.loading && !state.error && sections.length > 0 ? h('div', { className: 'tcw-hs-detail-sections' },
+            sections.map((section) => h('section', { className: 'tcw-hs-detail-section', key: section.title },
+              h('h3', null, section.title),
+              h('div', { className: 'tcw-detail-grid' },
+                (Array.isArray(section.rows) ? section.rows : []).map((row) =>
+                  h('div', { className: 'tcw-detail-field', key: `${section.title}:${row.label}` },
+                    h('span', null, row.label),
+                    h('strong', null, value(row.value, '-'))
+                  )
+                )
+              )
+            ))
+          ) : null,
+          h('div', { className: 'tcw-modal-actions' },
+            h('button', { type: 'button', className: 'tcw-btn tcw-btn-soft', onClick: () => setHsCodeDetailDialog(null) }, '关闭')
+          )
+        )
+      )
+    }
+
+    function renderHsCodePagination(pagination) {
+      if (!pagination || (!pagination.hasPrevious && !pagination.hasNext && (!pagination.pages || pagination.pages.length <= 1))) return null
+      const pages = Array.isArray(pagination.pages) ? pagination.pages.filter((item) => item.page) : []
+      const visiblePages = pages.filter((item, index, arr) => arr.findIndex((candidate) => candidate.page === item.page) === index).slice(0, 10)
+      return h('div', { className: 'tcw-pagination hs-code-pagination' },
+        h('span', null, `第 ${pagination.currentPage || hsCodeSearch.page} 页`),
+        h('div', { className: 'tcw-page-buttons' },
+          h('button', { className: 'tcw-mini-btn', disabled: hsCodeSearch.loading || !pagination.hasPrevious, onClick: () => searchHsCodePage((pagination.currentPage || hsCodeSearch.page) - 1) }, '上一页'),
+          visiblePages.map((item) => h('button', {
+            key: item.page,
+            className: item.current ? 'tcw-mini-btn active' : 'tcw-mini-btn',
+            disabled: hsCodeSearch.loading || item.current,
+            onClick: () => searchHsCodePage(item.page)
+          }, String(item.page))),
+          h('button', { className: 'tcw-mini-btn', disabled: hsCodeSearch.loading || !pagination.hasNext, onClick: () => searchHsCodePage((pagination.currentPage || hsCodeSearch.page) + 1) }, '下一页')
+        )
       )
     }
 
@@ -830,11 +1066,47 @@
           h('div', { className: formDialog.type === 'supplier_product' ? 'tcw-edit-grid tcw-edit-grid-two' : 'tcw-edit-grid' },
             fields.map((config) => formField(config))
           ),
+          formDialog.type === 'supplier_product' ? renderSupplierHsCandidatePanel() : null,
           h('div', { className: 'tcw-modal-actions' },
             h('button', { type: 'button', className: 'tcw-btn tcw-btn-soft', onClick: () => setFormDialog(null) }, '取消'),
             h('button', { type: 'submit', className: 'tcw-btn tcw-btn-primary', disabled: busy }, '保存')
           )
         )
+      )
+    }
+
+    function renderSupplierHsCandidatePanel() {
+      const candidates = Array.isArray(formDialog.hsCandidates) ? formDialog.hsCandidates : []
+      return h('section', { className: 'tcw-hs-candidate-panel' },
+        h('div', { className: 'tcw-subsection-head' },
+          h('div', null,
+            h('h3', null, '候选海关编码'),
+            h('p', null, hsCandidateStatusText(formDialog.hsCandidateStatus, candidates.length))
+          ),
+          h('div', { className: 'tcw-hs-candidate-search' },
+            h('input', {
+              className: 'tcw-search',
+              value: formDialog.hsCandidateKeyword || '',
+              placeholder: '商品名称、型号或海关编码',
+              onChange: (event) => setFormDialog(Object.assign({}, formDialog, { hsCandidateKeyword: event.target.value }))
+            }),
+            h('button', { type: 'button', className: 'tcw-mini-btn', disabled: busy || formDialog.hsCandidateLoading, onClick: searchSupplierHsCandidatesForForm }, formDialog.hsCandidateLoading ? '查询中' : '查询')
+          )
+        ),
+        formDialog.hsCandidateError ? h('div', { className: 'tcw-error' }, formDialog.hsCandidateError) : null,
+        candidates.length ? table(['编码', '商品名称', '英文名称', '单位', '退税率', '监管', '检验检疫', '操作'], candidates, (candidate) => [
+          h('strong', { className: 'tcw-hs-code-text' }, value(candidate.code)),
+          value(candidate.name),
+          value(candidate.englishName),
+          value(candidate.unit),
+          value(candidate.taxRefundRate),
+          value(candidate.regulatoryConditions),
+          value(candidate.inspectionQuarantine),
+          h('div', { className: 'tcw-row-actions' },
+            h('button', { type: 'button', className: 'tcw-mini-btn', onClick: () => selectHsCandidate(candidate) }, '选用'),
+            h('button', { type: 'button', className: 'tcw-mini-btn', disabled: !candidate.code && !candidate.detailUrl, onClick: () => loadHsCodeDetail(candidate) }, '详情')
+          )
+        ], '暂无候选编码。') : empty('暂无候选编码，可调整关键词后查询。')
       )
     }
 
@@ -1111,7 +1383,7 @@
   }
 
   function valuesFromItem(type, item) {
-    const merged = readMerged(item || {})
+    const merged = type === 'supplier_product' ? readSupplierEditableMerged(item || {}) : readMerged(item || {})
     const base = emptyFormValues(type)
     for (const key of Object.keys(base)) {
       const value = merged[key]
@@ -1168,6 +1440,71 @@
     if (value === '' || value === undefined || value === null) return undefined
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  function buildSupplierHsCandidateKeyword(values) {
+    const contractHsCode = normalizeText(values && values.contractHsCode)
+    if (contractHsCode) return contractHsCode
+    const keyword = [values && values.productName, values && values.model].map(normalizeText).filter(Boolean).join(' ').trim()
+    if (keyword) return keyword
+    const description = normalizeText(values && values.description)
+    return description ? description.slice(0, 100) : ''
+  }
+
+  function buildConfirmReviewData(item) {
+    if (!item || item.type !== 'supplier_product') {
+      return Object.assign({}, item && item.defaultData || {}, item && item.extractedData || {}, item && item.confirmedData || {})
+    }
+    return Object.assign(
+      {},
+      omitAutoSupplierHsFinalFields(item.defaultData),
+      omitAutoSupplierHsFinalFields(item.extractedData),
+      item.confirmedData || {}
+    )
+  }
+
+  function readSupplierEditableMerged(item) {
+    return Object.assign(
+      {},
+      omitAutoSupplierHsFinalFields(item && item.defaultData),
+      omitAutoSupplierHsFinalFields(item && item.extractedData),
+      item && item.confirmedData
+    )
+  }
+
+  function omitAutoSupplierHsFinalFields(record) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) return record || {}
+    const next = Object.assign({}, record)
+    delete next.enrichedHsCode
+    delete next.taxRefundRate
+    delete next.englishName
+    return next
+  }
+
+  function hsCandidateStatusText(statusValue, count) {
+    if (statusValue === 'confirmed') return '已选用候选编码，保存后写入供应商商品。'
+    if (statusValue === 'pending_confirmation') return count ? `待人工确认，已找到 ${count} 个候选编码。` : '待人工确认。'
+    if (statusValue === 'not_found') return '未查询到候选编码，可调整关键词重新查询。'
+    if (statusValue === 'failed') return '候选编码查询失败，可稍后重试。'
+    if (statusValue === 'not_ready') return '缺少商品名称、型号或编码，可补充信息后查询。'
+    return count ? `已找到 ${count} 个候选编码，请选择确认。` : '可按商品名称、型号或海关编码查询候选。'
+  }
+
+  function hsCodeReviewStatusText(row) {
+    if (row.enrichedHsCode) return '已确认'
+    if (Array.isArray(row.hsCodeCandidates) && row.hsCodeCandidates.length > 0) return '待确认'
+    if (row.hsCodeLookupStatus === 'failed') return '查询失败'
+    if (row.hsCodeLookupStatus === 'not_found') return '未匹配'
+    if (row.contractHsCode) return '合同编码'
+    return '待查询'
+  }
+
+  function hsCodeReviewStatusLevel(row) {
+    if (row.enrichedHsCode) return 'ok'
+    if (Array.isArray(row.hsCodeCandidates) && row.hsCodeCandidates.length > 0) return 'warn'
+    if (row.hsCodeLookupStatus === 'failed') return 'danger'
+    if (row.hsCodeLookupStatus === 'not_found') return 'muted'
+    return 'muted'
   }
 
   function splitKeywords(value) {
@@ -1393,19 +1730,21 @@
     return 'muted'
   }
 
-  function pageTitle(key) {
-    if (key === 'overview-page') return '工作台总览'
-    if (key === 'controlled-goods-page') return '管控商品'
-    if (key === 'products-page') return '供应商商品'
-    return '销售发票'
-  }
+    function pageTitle(key) {
+      if (key === 'overview-page') return '工作台总览'
+      if (key === 'controlled-goods-page') return '管控商品'
+      if (key === 'products-page') return '供应商商品'
+      if (key === 'hs-code-search-page') return '海关编码查询'
+      return '销售发票'
+    }
 
   function pageSubtitle(key) {
     if (key === 'overview-page') return '查看处理进度、待审核数量和最近识别结果。'
-    if (key === 'controlled-goods-page') return '上传管控目录、审核识别结果、维护正式管控商品库。'
-    if (key === 'products-page') return '上传供应商合同，审核商品、HS Code、退税率和管控状态。'
-    return '上传购销合同，审核发票字段并生成固定模板 Excel。'
-  }
+      if (key === 'controlled-goods-page') return '上传管控目录、审核识别结果、维护正式管控商品库。'
+      if (key === 'products-page') return '上传供应商合同，审核商品、HS Code、退税率和管控状态。'
+      if (key === 'hs-code-search-page') return '输入商品名称或海关编码，查询 HS 编码网结果。'
+      return '上传购销合同，审核发票字段并生成固定模板 Excel。'
+    }
 
   function isObject(value) {
     return value && typeof value === 'object' && !Array.isArray(value)
@@ -1481,10 +1820,17 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-filter { display: inline-flex; align-items: center; gap: 8px; color: var(--tcw-muted); font-size: 13px; font-weight: 800; }
 .tcw-filter select { min-height: 34px; border: 1px solid var(--tcw-border); border-radius: 6px; background: var(--tcw-card); color: var(--tcw-text); padding: 6px 28px 6px 9px; }
 .tcw-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.tcw-mini-btn { min-height: 28px; border: 1px solid color-mix(in srgb, var(--tcw-primary) 35%, var(--tcw-border)); border-radius: 6px; background: color-mix(in srgb, var(--tcw-primary) 6%, var(--tcw-card)); color: var(--tcw-primary); padding: 4px 8px; cursor: pointer; font-size: 12px; font-weight: 800; }
-.tcw-mini-btn.danger { border-color: color-mix(in srgb, var(--tcw-danger) 35%, var(--tcw-border)); background: color-mix(in srgb, var(--tcw-danger) 6%, var(--tcw-card)); color: var(--tcw-danger); }
-.tcw-mini-btn:disabled { cursor: not-allowed; opacity: .5; }
-.row-selection-checkbox { width: 16px; height: 16px; }
+	.tcw-mini-btn { min-height: 28px; border: 1px solid color-mix(in srgb, var(--tcw-primary) 35%, var(--tcw-border)); border-radius: 6px; background: color-mix(in srgb, var(--tcw-primary) 6%, var(--tcw-card)); color: var(--tcw-primary); padding: 4px 8px; cursor: pointer; font-size: 12px; font-weight: 800; }
+	.tcw-mini-btn.active { background: var(--tcw-primary); color: #fff; }
+	.tcw-mini-btn.danger { border-color: color-mix(in srgb, var(--tcw-danger) 35%, var(--tcw-border)); background: color-mix(in srgb, var(--tcw-danger) 6%, var(--tcw-card)); color: var(--tcw-danger); }
+	.tcw-mini-btn:disabled { cursor: not-allowed; opacity: .5; }
+		.tcw-hs-code-text { overflow-wrap: anywhere; font-size: 12px; }
+		.tcw-hs-search-form { display: grid; gap: 10px; }
+		.tcw-hs-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+		.tcw-hs-candidate-panel { display: grid; gap: 10px; border-top: 1px solid var(--tcw-border); padding-top: 12px; }
+		.tcw-hs-candidate-search { display: grid; grid-template-columns: minmax(220px, 320px) auto; gap: 8px; align-items: center; }
+		.tcw-error { border: 1px solid color-mix(in srgb, var(--tcw-danger) 35%, var(--tcw-border)); border-radius: 8px; background: color-mix(in srgb, var(--tcw-danger) 6%, var(--tcw-card)); color: var(--tcw-danger); padding: 10px 12px; font-size: 13px; font-weight: 800; }
+	.row-selection-checkbox { width: 16px; height: 16px; }
 .tcw-empty { display: grid; place-items: center; min-height: 86px; border: 1px dashed var(--tcw-border); border-radius: 8px; background: var(--tcw-soft); color: var(--tcw-muted); padding: 16px; text-align: center; }
 .tcw-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--tcw-border); border-top: 0; border-radius: 0 0 8px 8px; background: var(--tcw-card); padding: 10px 12px; color: var(--tcw-muted); font-size: 12px; }
 .tcw-page-buttons { display: flex; gap: 8px; }
@@ -1492,8 +1838,10 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-modal { display: grid; gap: 12px; width: min(900px, 100%); max-height: calc(100vh - 48px); overflow: auto; border: 1px solid var(--tcw-border); border-radius: 8px; background: var(--tcw-card); padding: 16px; box-shadow: 0 18px 48px rgba(15, 23, 42, .18); }
 .tcw-form-modal { width: min(960px, 100%); }
 .tcw-confirm-modal { width: min(480px, 100%); }
+.tcw-hs-detail-modal { width: min(980px, 100%); }
 .tcw-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tcw-modal-head h2 { margin: 0; font-size: 18px; line-height: 1.3; }
+.tcw-modal-subtitle { margin: 3px 0 0; color: var(--tcw-muted); font-size: 13px; font-weight: 800; }
 .tcw-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .tcw-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .tcw-edit-grid-two { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
@@ -1505,6 +1853,9 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-detail-field strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
 .tcw-detail-items { display: grid; gap: 8px; }
 .tcw-detail-items h3 { margin: 0; font-size: 14px; }
+.tcw-hs-detail-sections { display: grid; gap: 12px; }
+.tcw-hs-detail-section { display: grid; gap: 8px; }
+.tcw-hs-detail-section h3 { margin: 0; font-size: 15px; line-height: 1.35; }
 .tcw-supplier-block { display: grid; gap: 10px; padding: 12px; }
 .tcw-supplier-head strong { font-size: 15px; }
 .tcw-supplier-head span { color: var(--tcw-muted); font-size: 12px; }
@@ -1529,8 +1880,9 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-status.danger { background: #fde8e6; color: var(--tcw-danger); }
 .tcw-status.muted { background: #eef2f6; color: var(--tcw-muted); }
 @media (max-width: 1040px) {
-  .tcw-header, .tcw-main.with-drawer, .tcw-edit-grid { grid-template-columns: 1fr; }
-  .tcw-detail-grid { grid-template-columns: 1fr; }
+	  .tcw-header, .tcw-main.with-drawer, .tcw-edit-grid { grid-template-columns: 1fr; }
+	  .tcw-detail-grid { grid-template-columns: 1fr; }
+	  .tcw-hs-candidate-search { grid-template-columns: 1fr; }
   .tcw-business-head { align-items: stretch; flex-direction: column; }
   .tcw-button-row, .tcw-list-actions { justify-content: flex-start; }
   .tcw-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

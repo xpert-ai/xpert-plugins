@@ -9,7 +9,7 @@ import { AgentMiddlewareStrategy, PLUGIN_CONFIG_RESOLVER_TOKEN, RequestContext }
 import { z } from 'zod/v3';
 import { TRADE_COMPLIANCE_FEATURE, TRADE_COMPLIANCE_ICON, TRADE_COMPLIANCE_MIDDLEWARE_NAME, TRADE_COMPLIANCE_PLUGIN_NAME, TRADE_COMPLIANCE_TOOL_NAMES } from './constants.js';
 import { readTradeComplianceEnvDefaults, TradeComplianceWorkbenchConfigSchema } from './trade-compliance.config.js';
-import { enrichProductWithFallback } from './trade-compliance.enrichment.js';
+import { enrichProductWithFallback, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
 import { matchControlledGoods } from './trade-compliance.matching.js';
 import { buildCustomsWorkbookModel, createCustomsWorkbookFromTemplateBuffer } from './trade-compliance-workbook.js';
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
@@ -93,7 +93,11 @@ let TradeComplianceWorkbenchMiddleware = class TradeComplianceWorkbenchMiddlewar
                     description: 'Save controlled goods entries extracted from an uploaded control catalog file into a review batch.',
                     schema: createReviewBatchSchema
                 }),
-                tool(async (input) => stringify(await this.service.createReviewBatch(scope, { ...input, type: 'supplier_contract' })), {
+                tool(async (input) => stringify(await this.service.createReviewBatch(scope, {
+                    ...input,
+                    type: 'supplier_contract',
+                    items: await enrichSupplierReviewItemsWithHsCandidates(input.items, config)
+                })), {
                     name: TRADE_COMPLIANCE_TOOL_NAMES[1],
                     description: 'Save supplier and product information extracted from a supplier contract into a review batch.',
                     schema: createReviewBatchSchema
@@ -181,4 +185,101 @@ function scopeFromContext(context) {
 }
 function stringify(value) {
     return JSON.stringify(value, null, 2);
+}
+async function enrichSupplierReviewItemsWithHsCandidates(items, config) {
+    const list = Array.isArray(items) ? items : [];
+    const enriched = [];
+    for (const item of list) {
+        if (item?.type !== 'supplier_product') {
+            enriched.push(item);
+            continue;
+        }
+        const sanitizedItem = sanitizeSupplierReviewItem(item);
+        const defaultData = { ...(sanitizedItem.defaultData || {}) };
+        if (Array.isArray(defaultData.hsCodeCandidates) && defaultData.hsCodeCandidates.length > 0) {
+            enriched.push(sanitizedItem);
+            continue;
+        }
+        const data = { ...defaultData, ...(sanitizedItem.extractedData || {}) };
+        const keyword = buildSupplierHsCandidateKeyword(data);
+        if (!keyword) {
+            enriched.push({
+                ...sanitizedItem,
+                defaultData: {
+                    ...defaultData,
+                    hsCodeLookupStatus: 'not_ready',
+                    hsCodeLookupNote: '缺少商品名称、型号或合同海关编码，无法自动查询候选编码'
+                }
+            });
+            continue;
+        }
+        try {
+            const result = await searchHsBianmaCodes({
+                keywords: keyword,
+                page: 1,
+                filterFailureCode: true,
+                displayChapter: false,
+                displayEnName: true
+            }, {
+                baseUrl: config.enrichment?.apiBaseUrl,
+                timeoutMs: config.enrichment?.timeoutMs
+            });
+            enriched.push({
+                ...sanitizedItem,
+                defaultData: {
+                    ...defaultData,
+                    hsCodeLookupKeyword: keyword,
+                    hsCodeLookupStatus: result.results.length > 0 ? 'pending_confirmation' : 'not_found',
+                    hsCodeCandidates: result.results.slice(0, 10)
+                }
+            });
+        }
+        catch (error) {
+            enriched.push({
+                ...sanitizedItem,
+                defaultData: {
+                    ...defaultData,
+                    hsCodeLookupKeyword: keyword,
+                    hsCodeLookupStatus: 'failed',
+                    hsCodeLookupError: summarizeHsLookupError(error),
+                    hsCodeCandidates: []
+                }
+            });
+        }
+    }
+    return enriched;
+}
+function sanitizeSupplierReviewItem(item) {
+    return {
+        ...item,
+        extractedData: omitAutoHsFinalFields(item.extractedData),
+        defaultData: omitAutoHsFinalFields(item.defaultData)
+    };
+}
+function omitAutoHsFinalFields(record) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+        return record;
+    const { enrichedHsCode: _enrichedHsCode, taxRefundRate: _taxRefundRate, englishName: _englishName, ...rest } = record;
+    return rest;
+}
+function buildSupplierHsCandidateKeyword(data) {
+    const contractHsCode = stringValue(data.contractHsCode);
+    if (contractHsCode)
+        return contractHsCode;
+    const productName = stringValue(data.productName);
+    const model = stringValue(data.model);
+    const description = stringValue(data.description);
+    const keyword = [productName, model].filter(Boolean).join(' ').trim();
+    if (keyword)
+        return keyword.slice(0, 100);
+    return description ? description.slice(0, 100) : undefined;
+}
+function stringValue(value) {
+    const text = String(value ?? '').trim();
+    return text ? text : undefined;
+}
+function summarizeHsLookupError(error) {
+    if (error instanceof Error)
+        return error.message.slice(0, 300);
+    return String(error).slice(0, 300);
 }

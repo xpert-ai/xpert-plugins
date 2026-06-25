@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { enrichProductWithFallback, parseHsBianmaSearchResults } from './trade-compliance.enrichment.js'
+import { enrichProductWithFallback, getHsBianmaCodeDetail, parseHsBianmaSearchResults } from './trade-compliance.enrichment.js'
 
 describe('enrichProductWithFallback', () => {
   const originalFetch = globalThis.fetch
@@ -80,5 +80,73 @@ describe('enrichProductWithFallback', () => {
       inspectionQuarantine: 'M',
       detailUrl: 'https://hsbianma.com/Code/6209200000.html'
     }])
+  })
+
+  it('normalizes formatted HS codes from exact-code search rows', () => {
+    const result = parseHsBianmaSearchResults(`
+      <table class="result">
+        <tr class="result-grid">
+          <td><font color="red">8471 4120.00</font></td>
+          <td>小型自动数据处理设备</td>
+          <td>台/千克</td><td>13%</td><td></td><td>L</td><td><a href="/Code/8471412000.html">详情</a></td>
+        </tr>
+      </table>
+    `)
+
+    expect(result).toEqual([{
+      code: '8471412000',
+      name: '小型自动数据处理设备',
+      englishName: undefined,
+      unit: '台/千克',
+      taxRefundRate: '13%',
+      regulatoryConditions: undefined,
+      inspectionQuarantine: 'L',
+      detailUrl: 'https://hsbianma.com/Code/8471412000.html'
+    }])
+  })
+
+  it('fetches and parses HS编码网 code detail sections', async () => {
+    const requests: string[] = []
+    globalThis.fetch = (async (url) => {
+      requests.push(String(url))
+      return new Response(
+        `<html><head><title>4304002000详情</title></head><body>
+          <div id="code-info">
+            <h3 class="ch3">基本信息</h3>
+            <div class="cbox"><table>
+              <tr><td class="td-label">商品编码</td><td class="td-txt">4304002000</td></tr>
+              <tr><td class="td-label">商品名称</td><td class="td-txt">人造毛皮制品</td></tr>
+            </table></div>
+            <h3 class="ch3">税率信息</h3>
+            <div class="cbox"><table>
+              <tr><td class="td-label">出口退税率</td><td class="td-txt">13%</td></tr>
+            </table></div>
+          </div>
+        </body></html>`,
+        { status: 200, headers: { 'content-type': 'text/html' } }
+      )
+    }) as typeof fetch
+
+    const detail = await getHsBianmaCodeDetail({ code: '4304002000' }, { baseUrl: 'https://example.test' })
+
+    expect(requests).toEqual(['https://example.test/Code/4304002000.html'])
+    expect(detail.code).toBe('4304002000')
+    expect(detail.name).toBe('人造毛皮制品')
+    expect(detail.sourceUrl).toBe('https://example.test/Code/4304002000.html')
+    expect(detail.sections).toEqual([
+      {
+        title: '基本信息',
+        rows: [
+          { label: '商品编码', value: '4304002000' },
+          { label: '商品名称', value: '人造毛皮制品' }
+        ]
+      },
+      {
+        title: '税率信息',
+        rows: [
+          { label: '出口退税率', value: '13%' }
+        ]
+      }
+    ])
   })
 })
