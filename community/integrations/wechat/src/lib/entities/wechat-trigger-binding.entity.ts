@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type {
   WechatChatFilterMode,
+  WechatGroupTriggerOverride,
   WechatGroupTriggerMode,
   WechatSelfMessagePolicy
 } from '../types.js'
@@ -70,6 +71,9 @@ export class WechatTriggerBindingEntity {
 
   @Column({ type: 'simple-array', nullable: true })
   mentionFallbackNames?: string[]
+
+  @Column({ type: 'jsonb', nullable: true })
+  groupTriggerOverrides?: WechatGroupTriggerOverride[]
 
   @Column({ nullable: true, length: 36 })
   tenantId?: string

@@ -34,13 +34,13 @@ import {
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { firstValueFrom, switchMap, throwError, timeout } from 'rxjs'
 import { z } from 'zod/v3'
+import { CHATBI_LARK_MIDDLEWARE_NAME } from '../constants.js'
 import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { ChatLarkMessage } from '../message.js'
 import { drawChatAnswerCard } from './chatbi-lark-answer.render.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import { iconImage } from '../types.js'
 
-const CHATBI_LARK_MIDDLEWARE_NAME = 'ChatBILarkMiddleware'
 const CHATBI_CUBES_CHANNEL = 'chatbi_cubes'
 const CHATBI_INDICATORS_CHANNEL = 'chatbi_indicators'
 const CHATBI_MODEL_SELECT_OPTIONS_URL = '/api/chatbi-model/model-select-options'
@@ -1288,4 +1288,3 @@ export class ChatBILarkMiddleware implements IAgentMiddlewareStrategy {
 }
 
 export type { ChatBILarkMiddlewareConfig }
-

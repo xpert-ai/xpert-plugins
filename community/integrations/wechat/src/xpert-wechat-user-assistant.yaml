@@ -116,7 +116,9 @@ nodes:
         blockedSenderIds: []
         allowedKeywords: []
         groupTriggerMode: mention_or_keywords
+        groupKeywords: []
         mentionFallbackNames: []
+        groupTriggerOverrides: []
         integrationId: ""
     hash: wechat-user-trigger-v1
   - type: workflow

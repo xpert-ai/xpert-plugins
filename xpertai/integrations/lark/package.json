@@ -21,6 +21,7 @@
   "files": [
     "dist",
     "src/i18n",
+    "src/*.yaml",
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
@@ -31,13 +32,17 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@xpert-ai/chatkit-types": "0.3.11",
+    "@xpert-ai/contracts": "3.12.1",
+    "@xpert-ai/plugin-sdk": "3.12.1",
     "@types/express": "^5.0.6",
     "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/chatkit-types": "^0.0.17",
-    "@xpert-ai/plugin-sdk": "^3.9.0-beta.0",
+    "@xpert-ai/chatkit-types": "^0.3.11",
+    "@xpert-ai/contracts": "^3.12.1",
+    "@xpert-ai/plugin-sdk": "^3.12.1",
     "i18next": "25.6.0",
     "@metad/contracts": "^3.9.0-beta.0",
     "@nestjs/common": "^11.1.6",

@@ -12,11 +12,11 @@ import {
   PromiseOrValue
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
+import { LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME } from '../constants.js'
 import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { LarkContextToolService } from '../lark-context-tool.service.js'
 import { iconImage } from '../types.js'
 
-const LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME = 'LarkConversationContextMiddleware'
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_PAGE_SIZE = 20
 

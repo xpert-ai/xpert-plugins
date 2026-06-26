@@ -33,6 +33,8 @@ describe('WechatTriggerStrategy', () => {
     expect(properties.selfMessagePolicy['x-ui'].enumLabels.history_only.zh_Hans).toBe('只写入历史')
     expect(properties.chatFilterMode['x-ui'].enumLabels.group_only.zh_Hans).toBe('仅群聊')
     expect(properties.groupTriggerMode['x-ui'].enumLabels.mention_or_keywords.en_US).toBe('@ mention or keywords')
+    expect(properties.groupTriggerOverrides.title.zh_Hans).toBe('按群触发配置')
+    expect(properties.groupTriggerOverrides.items.properties.groupId.title.zh_Hans).toBe('群 ID')
   })
 
   function createStrategy(bindingOverrides: Record<string, unknown> = {}) {
@@ -52,6 +54,7 @@ describe('WechatTriggerStrategy', () => {
       withAggregateLock: jest.fn(async (_aggregateKey: string, callback: () => Promise<unknown>) => callback())
     }
     const bindingRepository = {
+      upsert: jest.fn().mockResolvedValue(undefined),
       findOne: jest.fn().mockResolvedValue({
         integrationId: 'integration-1',
         xpertId: 'xpert-1',
@@ -64,12 +67,24 @@ describe('WechatTriggerStrategy', () => {
         ...bindingOverrides
       })
     }
+    const messageLogRepository = {
+      update: jest.fn().mockResolvedValue(undefined)
+    }
+    const pluginContext = {
+      resolve: jest.fn(() => ({
+        read: jest.fn().mockResolvedValue({
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        })
+      }))
+    }
     const strategy = new WechatTriggerStrategy(
       dispatchService as any,
       aggregationService as any,
       {} as any,
       bindingRepository as any,
-      { resolve: jest.fn() } as any
+      pluginContext as any,
+      messageLogRepository as any
     )
     const wechatMessage = new WechatMessage(
       {
@@ -85,8 +100,55 @@ describe('WechatTriggerStrategy', () => {
         status: 'thinking'
       }
     )
-    return { strategy, dispatchService, aggregationService, bindingRepository, wechatMessage }
+    return { strategy, dispatchService, aggregationService, bindingRepository, messageLogRepository, wechatMessage }
   }
+
+  it('normalizes per-group trigger overrides when publishing a binding', async () => {
+    const { strategy, bindingRepository } = createStrategy()
+    bindingRepository.findOne.mockResolvedValue(null)
+
+    await strategy.publish(
+      {
+        xpertId: 'xpert-1',
+        node: { key: 'Trigger_Wechat' },
+        config: {
+          enabled: true,
+          integrationId: 'integration-1',
+          groupTriggerMode: 'mention_or_keywords',
+          groupKeywords: ['默认'],
+          mentionFallbackNames: ['全局助手'],
+          groupTriggerOverrides: [
+            {
+              groupId: 'room-a@chatroom',
+              groupTriggerMode: 'keywords',
+              groupKeywords: ['订单'],
+              mentionFallbackNames: ['订单助手']
+            },
+            {
+              groupId: '',
+              groupTriggerMode: 'all',
+              groupKeywords: ['ignored']
+            }
+          ]
+        }
+      } as any,
+      jest.fn()
+    )
+
+    expect(bindingRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupTriggerOverrides: [
+          {
+            groupId: 'room-a@chatroom',
+            groupTriggerMode: 'keywords',
+            groupKeywords: ['订单'],
+            mentionFallbackNames: ['订单助手']
+          }
+        ]
+      }),
+      ['integrationId']
+    )
+  })
 
   it('prepends history context for immediate dispatch without conversationId', async () => {
     const { strategy, dispatchService, wechatMessage } = createStrategy()
@@ -111,7 +173,11 @@ describe('WechatTriggerStrategy', () => {
         tenantId: 'tenant-1',
         organizationId: 'org-1'
       } as any)
-    ).resolves.toBe(true)
+    ).resolves.toEqual({
+      accepted: true,
+      queued: false,
+      dispatched: true
+    })
 
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
       expect.not.objectContaining({
@@ -157,7 +223,11 @@ describe('WechatTriggerStrategy', () => {
         tenantId: 'tenant-1',
         organizationId: 'org-1'
       } as any)
-    ).resolves.toBe(true)
+    ).resolves.toEqual({
+      accepted: true,
+      queued: true,
+      dispatched: false
+    })
 
     expect(aggregationService.enqueueAggregate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -390,6 +460,146 @@ describe('WechatTriggerStrategy', () => {
         ]
       })
     )
+  })
+
+  it('flushes a debounced group batch when a later text mentions the bot', async () => {
+    const { strategy, dispatchService, aggregationService, messageLogRepository } = createStrategy()
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+      xpertId: 'xpert-1',
+      version: 6,
+      inputParts: ['', '这次可以看到了吗'],
+      items: [
+        {
+          input: '',
+          messageKind: 'image',
+          chatType: 'group',
+          mentioned: false,
+          groupKeywordMatched: false
+        },
+        {
+          input: '这次可以看到了吗',
+          messageKind: 'text',
+          chatType: 'group',
+          mentioned: true,
+          groupKeywordMatched: false
+        }
+      ],
+      triggerOptions: {
+        groupTriggerMode: 'mentions',
+        mentionFallbackNames: ['小白龙']
+      },
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,group-image',
+          mimeType: 'image/png',
+          originalName: 'group-image.png',
+          fileKey: 'group-image'
+        }
+      ],
+      currentInboundLogIds: ['inbound-log-image', 'inbound-log-text'],
+      historyContext: undefined,
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_sender',
+        language: 'zh-Hans',
+        messageId: 'msg-6'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+        version: 6
+      })
+    ).resolves.toBe(true)
+
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '这次可以看到了吗',
+        files: [
+          {
+            fileUrl: 'data:image/png;base64,group-image',
+            mimeType: 'image/png',
+            originalName: 'group-image.png',
+            fileKey: 'group-image'
+          }
+        ],
+        currentInboundLogIds: ['inbound-log-image', 'inbound-log-text']
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-image' }),
+      expect.objectContaining({ status: 'dispatched', error: undefined })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-text' }),
+      expect.objectContaining({ status: 'dispatched', error: undefined })
+    )
+  })
+
+  it('skips a debounced group batch when no item matches the trigger policy', async () => {
+    const { strategy, dispatchService, aggregationService, messageLogRepository } = createStrategy()
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+      xpertId: 'xpert-1',
+      version: 7,
+      inputParts: ['普通消息'],
+      items: [
+        {
+          input: '普通消息',
+          messageKind: 'text',
+          chatType: 'group',
+          mentioned: false,
+          groupKeywordMatched: false
+        }
+      ],
+      triggerOptions: {
+        groupTriggerMode: 'mentions'
+      },
+      files: [],
+      currentInboundLogIds: ['inbound-log-plain'],
+      historyContext: undefined,
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_sender',
+        messageId: 'msg-7'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
+        version: 7
+      })
+    ).resolves.toBe(false)
+
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-plain' }),
+      expect.objectContaining({
+        status: 'skipped',
+        error: 'filtered_by_trigger_policy'
+      })
+    )
+    expect(aggregationService.clear).toHaveBeenCalledWith('integration-1:uuid-1:room@chatroom:wxid_sender')
   })
 
   it('flushes debounced voice transcripts as normal text input', async () => {

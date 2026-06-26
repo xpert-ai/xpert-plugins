@@ -236,8 +236,22 @@ describe('WechatConversationService fresh session history context', () => {
     }
     const accountRepository = {
       findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue(undefined),
-      update: jest.fn().mockResolvedValue(undefined)
+      update: jest.fn().mockResolvedValue(undefined),
+      ...overrides.accountRepository
+    }
+    const tunnelBroker = {
+      getStatus: jest.fn(() => ({
+        state: 'disconnected',
+        connected: false,
+        instanceId: 'test-instance',
+        bindingCount: 0,
+        bindings: []
+      })),
+      listClients: jest.fn(() => []),
+      disconnectClient: jest.fn(() => false),
+      ...overrides.tunnelBroker
     }
     const wechatClient = {
       downloadImage: jest.fn().mockResolvedValue({
@@ -288,9 +302,7 @@ describe('WechatConversationService fresh session history context', () => {
       {} as any,
       wechatClient as any,
       triggerStrategy as any,
-      {
-        getStatus: jest.fn(() => ({ connected: false, bindingCount: 0, bindings: [] }))
-      } as any,
+      tunnelBroker as any,
       { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any,
       { delete: jest.fn().mockResolvedValue(undefined) } as any,
       accountRepository as any,
@@ -307,6 +319,7 @@ describe('WechatConversationService fresh session history context', () => {
       integrationPermissionService,
       triggerStrategy,
       wechatClient,
+      tunnelBroker,
       speechToTextPermissionService,
       accountRepository,
       messageLogRepository,
@@ -347,6 +360,62 @@ describe('WechatConversationService fresh session history context', () => {
         currentInboundLogIds: ['inbound-log-1']
       })
     )
+  })
+
+  it('adds tunnel binding state to account workbench rows', async () => {
+    const { service, accountRepository, tunnelBroker } = createFullService({
+      integration: {
+        name: 'My WeChat',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1'
+        }
+      },
+      tunnelBroker: {
+        getStatus: jest.fn(() => ({
+          wsPath: '/api/wechat/tunnel/ws',
+          state: 'connected',
+          connected: true,
+          instanceId: 'test-instance',
+          clientId: 'client-1',
+          clientName: 'local wx',
+          lastSeenAt: '2026-06-25T03:00:00.000Z',
+          lastSyncAt: '2026-06-25T03:01:00.000Z',
+          bindingCount: 1,
+          bindings: [{ uuid: 'uuid-1', wxid: 'wxid_owner' }]
+        })),
+        listClients: jest.fn(() => [])
+      }
+    })
+    accountRepository.find.mockResolvedValueOnce([
+      {
+        id: 'account-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        ownerWxid: 'wxid_owner',
+        status: 'online',
+        enabled: true
+      }
+    ])
+
+    await expect(service.listAccounts('integration-1')).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            uuid: 'uuid-1',
+            tunnelBinding: expect.objectContaining({
+              status: 'bound_connected',
+              connected: true,
+              clientId: 'client-1',
+              clientName: 'local wx',
+              bindingCount: 1
+            })
+          })
+        ],
+        total: 1
+      })
+    )
+    expect(tunnelBroker.getStatus).toHaveBeenCalled()
   })
 
   it('marks inbound messages failed when dispatch handoff throws after the message is logged', async () => {
@@ -571,6 +640,51 @@ describe('WechatConversationService fresh session history context', () => {
     expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
   })
 
+  it('uses per-group trigger overrides instead of the global group trigger mode', async () => {
+    const { service, triggerStrategy } = createFullService({
+      triggerBinding: {
+        groupTriggerMode: 'off',
+        groupTriggerOverrides: [
+          {
+            groupId: 'room@chatroom',
+            groupTriggerMode: 'all',
+            groupKeywords: ['订单'],
+            mentionFallbackNames: ['订单助手']
+          }
+        ]
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          contactId: 'room@chatroom',
+          chatId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          content: '普通群消息'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '普通群消息',
+        triggerOptions: expect.objectContaining({
+          groupTriggerMode: 'all',
+          groupKeywords: ['订单'],
+          mentionFallbackNames: ['订单助手']
+        })
+      })
+    )
+  })
+
   it('stores only self history messages that match allowed keywords', async () => {
     const { service, messageLogRepository } = createFullService({
       triggerBinding: {
@@ -725,6 +839,90 @@ describe('WechatConversationService fresh session history context', () => {
     expect(historySpy).not.toHaveBeenCalled()
     expect(wechatClient.downloadImage).not.toHaveBeenCalled()
     expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+  })
+
+  it('queues unmentioned group images for debounced batch trigger evaluation', async () => {
+    const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService({
+      triggerBinding: {
+        summaryWindowSeconds: 5,
+        groupTriggerMode: 'mentions',
+        mentionFallbackNames: ['小白龙']
+      }
+    })
+    triggerStrategy.handleInboundMessage.mockResolvedValueOnce({
+      accepted: true,
+      queued: true,
+      dispatched: false
+    })
+    const imageRef = {
+      uuid: 'uuid-1',
+      contactId: 'room@chatroom',
+      newMsgId: 'img-msg-debounced',
+      msgContent: '',
+      msgType: 3 as const,
+      fromUser: 'wxid_sender',
+      toUser: 'wxid_owner',
+      msgId: 125,
+      isSelf: false,
+      fileKey: 'file-key-debounced'
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          contactId: 'room@chatroom',
+          chatId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          messageId: 'img-msg-debounced',
+          msgType: 3,
+          messageKind: 'image',
+          content: '',
+          displayText: '[图片]',
+          imageRef,
+          mediaSignature: 'image:uuid-1:img-msg-debounced:3:room@chatroom:wxid_sender:wxid_owner'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'queued' })
+
+    expect(wechatClient.downloadImage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'integration-1' }),
+      imageRef
+    )
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '',
+        item: expect.objectContaining({
+          input: '',
+          messageKind: 'image',
+          chatType: 'group',
+          mentioned: false
+        }),
+        triggerOptions: expect.objectContaining({
+          groupTriggerMode: 'mentions',
+          mentionFallbackNames: ['小白龙']
+        }),
+        files: [
+          expect.objectContaining({
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            fileKey: 'file-key-1'
+          })
+        ]
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'queued',
+        error: undefined
+      })
+    )
   })
 
   it('marks inbound image logs failed and skips Agent dispatch when download fails', async () => {

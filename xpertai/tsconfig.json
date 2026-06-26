@@ -194,6 +194,9 @@
     },
     {
       "path": "./apps/drawio"
+    },
+    {
+      "path": "./apps/office-editor"
     }
   ]
 }

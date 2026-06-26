@@ -1,0 +1,170 @@
+team:
+  name: lark-conversation-assistant
+  type: agent
+  title: 飞书会话助手
+  description: 通过飞书/Lark 接收消息、理解会话上下文并自然回复的 Agent
+  avatar:
+    emoji:
+      id: speech_balloon
+    background: rgb(224, 242, 254)
+  options:
+    templateKey: lark-conversation-assistant
+    xpert:
+      managedBy: xpert
+      templateKey: lark-conversation-assistant
+      assistantKind: lark-conversation-assistant
+      businessDomain: lark
+      larkRole: conversation
+      requiredPlugin: '@xpert-ai/plugin-lark'
+      requiredPlugins:
+        - '@xpert-ai/plugin-lark'
+      requiredCapabilities:
+        - lark-integration
+        - lark-messaging
+        - lark-long-connection
+        - lark-assistant-template
+  agentConfig:
+    stateVariables: []
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_LarkConversation
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.4
+      maxRetries: 4
+      max_tokens: 4096
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_LarkConversation
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_LarkConversation
+      name: lark-conversation-assistant
+      title: 飞书会话助手
+      description: 通过飞书/Lark 接收消息、理解会话上下文并自然回复的 Agent
+      avatar:
+        emoji:
+          id: speech_balloon
+        background: rgb(224, 242, 254)
+      prompt: >
+        You are a Lark/Feishu conversation assistant connected through the Xpert Lark plugin.
+
+        Reply naturally in the current Lark conversation. Your final answer may be sent back to a private
+        chat or group chat, so keep it concise, conversational, and suitable for a chat message. Do not
+        mention internal plugin names, integration ids, access tokens, webhook URLs, queue identifiers,
+        socket routing details, or hidden platform configuration.
+
+        In private chats, answer the user's message directly. In group chats, reply only because the Lark
+        trigger has already determined that the bot was mentioned or the message is allowed by the
+        configured trigger policy. Do not broaden the conversation beyond the current user request unless
+        the user asks.
+
+        Use Lark conversation context tools when the user asks about previous messages, group context,
+        shared files, message resources, or when you need to verify what was said earlier. Treat open_id,
+        chat_id, message_id, and file keys as internal identifiers; do not present them as people names or
+        user-facing explanations unless the administrator explicitly asks for diagnostics.
+
+        Use Lark notification tools only when the user clearly asks you to send, update, or recall a Lark
+        message. Prefer recipient_name or recipient_names from the current chat context instead of exposing
+        open_id. If the target person has not appeared in the current context, ask the user to @mention
+        that person or provide a clear recipient.
+
+        Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Use plain,
+        Lark-friendly text. Avoid heavy Markdown tables and decorative headings unless the user explicitly
+        asks for a structured report.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: lark-conversation-agent-v1
+  - type: workflow
+    key: Trigger_Lark
+    position:
+      x: 520
+      y: 20
+    entity:
+      type: trigger
+      key: Trigger_Lark
+      title: 飞书触发器
+      from: lark
+      config:
+        enabled: true
+        integrationId: ""
+        singleChatScope: all_users
+        singleChatUserOpenIds: []
+        executeAsMappedUser: false
+        streamingEnabled: true
+        allowedGroupScope: all_chats
+        allowedGroupChatIds: []
+        groupUserScope: all_users
+        groupUserOpenIds: []
+        groupReplyStrategy: mention_only
+    hash: lark-conversation-trigger-v1
+  - type: workflow
+    key: Middleware_LarkConversationContext
+    position:
+      x: 1160
+      y: 250
+    entity:
+      type: middleware
+      key: Middleware_LarkConversationContext
+      title: Lark Conversation Context
+      provider: LarkConversationContextMiddleware
+      required: true
+      options:
+        integrationId: ""
+        defaults:
+          timeoutMs: 10000
+          pageSize: 20
+          resourceContentMode: metadata
+    hash: lark-conversation-context-middleware-v1
+  - type: workflow
+    key: Middleware_LarkNotify
+    position:
+      x: 1160
+      y: 460
+    entity:
+      type: middleware
+      key: Middleware_LarkNotify
+      title: Lark Notify Tools
+      provider: LarkNotifyMiddleware
+      required: false
+      options:
+        integrationId: ""
+        recipient_type: open_id
+        recipient_id: ""
+        template:
+          enabled: true
+          strict: false
+        defaults:
+          postLocale: zh_cn
+          timeoutMs: 10000
+        lookupTools:
+          enabled: true
+    hash: lark-notify-middleware-v1
+connections:
+  - type: workflow
+    key: Trigger_Lark/Agent_LarkConversation
+    from: Trigger_Lark
+    to: Agent_LarkConversation
+  - type: workflow
+    key: Agent_LarkConversation/Middleware_LarkConversationContext
+    from: Agent_LarkConversation
+    to: Middleware_LarkConversationContext
+  - type: workflow
+    key: Agent_LarkConversation/Middleware_LarkNotify
+    from: Agent_LarkConversation
+    to: Middleware_LarkNotify

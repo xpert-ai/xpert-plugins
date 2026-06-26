@@ -6,7 +6,7 @@ import type {
   XpertViewActionResult,
   XpertViewDataResult,
   XpertViewQuery
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { IXpertViewExtensionProvider, ViewExtensionProvider } from '@xpert-ai/plugin-sdk'
 import {
@@ -18,10 +18,12 @@ import {
   LarkRecipientDirectoryService
 } from '../lark-recipient-directory.service.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
-import { LarkLongConnectionService } from '../lark-long-connection.service.js'
+import {
+  LarkLongConnectionService,
+  LarkManagedConnectionInfo
+} from '../lark-long-connection.service.js'
+import { LARK_PLUGIN_NAME, LARK_VIEW_PROVIDER_KEY } from '../constants.js'
 
-const LARK_PLUGIN_NAME = '@xpert-ai/plugin-lark'
-const LARK_PROVIDER_KEY = 'lark_integration'
 const DEFAULT_PAGE_SIZE = 10
 
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
@@ -29,9 +31,27 @@ const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans }
 type LarkStatusSummary = {
   connectionMode: string
   state: string
+  connectionKey: string | null
+  direction: string | null
+  transportType: string | null
   botUser: string | null
   ownerInstanceId: string | null
+  lastSeenAt: string | null
   lastConnectedAt: string | null
+  lastError: string | null
+}
+
+type LarkConnectionViewRow = {
+  id: string
+  connectionKey: string
+  status: string
+  direction: string
+  transportType: string
+  ownerInstanceId: string | null
+  connectedAt: string | null
+  lastSeenAt: string | null
+  leaseExpiresAt: string | null
+  integrationCount: number
   lastError: string | null
 }
 
@@ -54,7 +74,7 @@ type LarkConversationViewRow = {
 }
 
 @Injectable()
-@ViewExtensionProvider(LARK_PROVIDER_KEY)
+@ViewExtensionProvider(LARK_VIEW_PROVIDER_KEY)
 export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider {
   constructor(
     private readonly longConnectionService: LarkLongConnectionService,
@@ -87,7 +107,7 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
         order: 10,
         refreshable: true,
         source: {
-          provider: LARK_PROVIDER_KEY,
+          provider: LARK_VIEW_PROVIDER_KEY,
           plugin: LARK_PLUGIN_NAME
         },
         view: {
@@ -95,11 +115,88 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
           items: [
             { key: 'connectionMode', label: text('Connection Mode', '连接方式'), valueType: 'text' },
             { key: 'state', label: text('State', '状态'), valueType: 'status' },
+            { key: 'connectionKey', label: text('Connection Key', '连接 Key'), valueType: 'text' },
+            { key: 'direction', label: text('Direction', '方向'), valueType: 'text' },
+            { key: 'transportType', label: text('Transport', '传输'), valueType: 'text' },
             { key: 'botUser', label: text('Bot User', '机器人用户'), valueType: 'text' },
             { key: 'ownerInstanceId', label: text('Owner Instance', '持有实例'), valueType: 'text' },
+            { key: 'lastSeenAt', label: text('Last Heartbeat', '最近心跳'), valueType: 'datetime' },
             { key: 'lastConnectedAt', label: text('Last Connected', '最近连接'), valueType: 'datetime' },
             { key: 'lastError', label: text('Last Error', '最近错误'), valueType: 'text' }
           ]
+        },
+        dataSource: {
+          mode: 'platform',
+          cache: {
+            ttlMs: 15 * 1000
+          },
+          polling: {
+            enabled: true,
+            intervalMs: 15 * 1000
+          }
+        },
+        actions: [
+          {
+            key: 'refresh',
+            label: text('Refresh', '刷新'),
+            icon: 'ri-refresh-line',
+            placement: 'toolbar',
+            actionType: 'refresh'
+          },
+          {
+            key: 'reconnect',
+            label: text('Reconnect', '重连'),
+            icon: 'ri-restart-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'disconnect',
+            label: text('Disconnect', '断开'),
+            icon: 'ri-plug-line',
+            placement: 'toolbar',
+            actionType: 'invoke',
+            confirm: {
+              title: text('Disconnect Lark long connection', '断开飞书长连接'),
+              message: text(
+                'Disconnect the current Lark long connection session?',
+                '确认断开当前飞书长连接会话吗？'
+              )
+            }
+          }
+        ]
+      },
+      {
+        key: 'connections',
+        title: text('Connections', '连接'),
+        hostType: context.hostType,
+        slot,
+        order: 20,
+        refreshable: true,
+        source: {
+          provider: LARK_VIEW_PROVIDER_KEY,
+          plugin: LARK_PLUGIN_NAME
+        },
+        view: {
+          type: 'table',
+          columns: [
+            { key: 'status', label: text('Status', '状态'), sortable: true },
+            { key: 'direction', label: text('Direction', '方向'), sortable: true },
+            { key: 'connectionKey', label: text('Connection Key', '连接 Key'), searchable: true, sortable: true },
+            { key: 'transportType', label: text('Transport', '传输'), sortable: true },
+            { key: 'ownerInstanceId', label: text('Owner Instance', '持有实例'), searchable: true, sortable: true },
+            { key: 'lastSeenAt', label: text('Last Heartbeat', '最近心跳'), sortable: true },
+            { key: 'connectedAt', label: text('Connected At', '连接时间'), sortable: true },
+            { key: 'integrationCount', label: text('Integrations', '集成数'), sortable: true },
+            { key: 'lastError', label: text('Last Error', '最近错误'), searchable: true }
+          ],
+          pagination: {
+            enabled: false,
+            pageSize: DEFAULT_PAGE_SIZE
+          },
+          search: {
+            enabled: false
+          }
         },
         dataSource: {
           mode: 'platform',
@@ -147,9 +244,9 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
         title: text('Users', '用户'),
         hostType: context.hostType,
         slot,
-        order: 20,
+        order: 30,
         source: {
-          provider: LARK_PROVIDER_KEY,
+          provider: LARK_VIEW_PROVIDER_KEY,
           plugin: LARK_PLUGIN_NAME
         },
         view: {
@@ -187,9 +284,9 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
         title: text('Conversations', '会话'),
         hostType: context.hostType,
         slot,
-        order: 30,
+        order: 40,
         source: {
-          provider: LARK_PROVIDER_KEY,
+          provider: LARK_VIEW_PROVIDER_KEY,
           plugin: LARK_PLUGIN_NAME
         },
         view: {
@@ -254,6 +351,14 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
       }
     }
 
+    if (viewKey === 'connections') {
+      const connections = await this.longConnectionService.listManagedConnections(context.hostId)
+      return {
+        items: connections.map((item) => this.mapConnectionRow(item)),
+        total: connections.length
+      }
+    }
+
     if (viewKey === 'conversations') {
       const result = await this.conversationService.listBindingsByIntegration(context.hostId, {
         page: query.page,
@@ -278,7 +383,7 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
     actionKey: string,
     _request: XpertViewActionRequest
   ): Promise<XpertViewActionResult> {
-    if (viewKey !== 'status') {
+    if (viewKey !== 'status' && viewKey !== 'connections') {
       return {
         success: false,
         message: text('Unsupported action', '不支持的操作')
@@ -368,10 +473,30 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
         runtimeStatus?.connectionMode ??
         (integration ? this.larkChannel.resolveConnectionMode(integration) : fallback.connectionMode),
       state: runtimeStatus?.state ?? fallback.state,
+      connectionKey: runtimeStatus?.connectionKey ?? null,
+      direction: runtimeStatus?.direction ?? null,
+      transportType: runtimeStatus?.transportType ?? null,
       botUser,
       ownerInstanceId: runtimeStatus?.ownerInstanceId ?? null,
+      lastSeenAt: formatDateTime(runtimeStatus?.lastSeenAt ?? null),
       lastConnectedAt: formatDateTime(runtimeStatus?.lastConnectedAt ?? null),
       lastError: normalizeText(runtimeStatus?.lastError) ?? fallback.lastError
+    }
+  }
+
+  private mapConnectionRow(item: LarkManagedConnectionInfo): LarkConnectionViewRow {
+    return {
+      id: item.connectionKey,
+      connectionKey: item.connectionKey,
+      status: item.status,
+      direction: item.direction,
+      transportType: item.transportType,
+      ownerInstanceId: item.ownerInstanceId,
+      connectedAt: item.connectedAt,
+      lastSeenAt: item.lastSeenAt,
+      leaseExpiresAt: item.leaseExpiresAt,
+      integrationCount: item.integrationCount,
+      lastError: item.lastError
     }
   }
 
@@ -402,8 +527,12 @@ function buildFallbackStatusSummary(hostSnapshot: unknown): LarkStatusSummary {
   return {
     connectionMode: getStringProperty(hostSnapshot, 'connectionMode') ?? 'webhook',
     state: getStringProperty(hostSnapshot, 'status') ?? 'idle',
+    connectionKey: null,
+    direction: null,
+    transportType: null,
     botUser: getStringProperty(hostSnapshot, 'botUser'),
     ownerInstanceId: null,
+    lastSeenAt: null,
     lastConnectedAt: null,
     lastError: null
   }

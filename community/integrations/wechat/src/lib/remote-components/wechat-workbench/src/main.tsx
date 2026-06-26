@@ -54,9 +54,11 @@ const DEFAULT_TABLE_PAGE_SIZE = 20
 const TABLE_KEYS: TableKey[] = ['accounts', 'conversations', 'messages', 'queue', 'logs']
 const SELECT_EMPTY_VALUE = '__all__'
 const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
+  connected: 'connected',
   disabled: 'disabled',
   deferred: 'deferred',
   dispatched: 'dispatched',
+  disconnected: 'disconnected',
   history_only: 'history_only',
   error: 'error',
   failed: 'failed',
@@ -74,10 +76,14 @@ const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   sent: 'sent',
   sending: 'sending',
   skipped: 'skipped',
+  stale: 'stale',
   cancelled: 'cancelled',
+  bound_connected: 'boundConnected',
+  connected_unbound: 'connectedUnbound',
   context_reset: 'context_reset',
   system: 'system',
   group_only: 'groupOnly',
+  not_applicable: 'notApplicable',
   unknown: 'unknown'
 }
 
@@ -275,6 +281,7 @@ function App() {
   const logs = data?.logs || messages
   const config = data?.config || {}
   const tunnel = data?.tunnel || null
+  const tunnelClients = Array.isArray(data?.tunnelClients) ? data.tunnelClients : []
   const dashboard = React.useMemo(() => buildDashboard(data), [data])
   const accountTable = withFallbackTable(tablePages.accounts, accounts)
   const conversationTable = withFallbackTable(tablePages.conversations, conversations)
@@ -370,11 +377,15 @@ function App() {
           callback={callback}
           integrations={integrations}
           tunnel={tunnel}
+          tunnelClients={tunnelClients}
           isOrganizationScope={isOrganizationScope}
           draft={draft}
           setDraft={setDraft}
           t={t}
           onSend={() => runAction('send_text', null, draft)}
+          onDisconnectTunnelClient={(client: any) =>
+            runAction('disconnect_tunnel_client', client.clientId, { clientId: client.clientId })
+          }
         />
       )}
       {tab === 'queue' && (
@@ -609,6 +620,7 @@ function AccountsView(props: any) {
           props.t('uuid'),
           props.t('ownerWxid'),
           props.t('status'),
+          props.t('tunnel'),
           props.t('lastCallback'),
           props.t('lastReply'),
           props.t('error'),
@@ -623,6 +635,7 @@ function AccountsView(props: any) {
           code(account.uuid),
           display(account.ownerWxid || account.displayName),
           translatedPill(account.status || (account.enabled === false ? 'disabled' : 'unknown'), props.t),
+          accountTunnelPill(account.tunnelBinding, props.t),
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
@@ -923,6 +936,12 @@ function ConfigView(props: any) {
         )}
       </div>
       <TunnelPanel tunnel={props.tunnel} t={props.t} />
+      <TunnelClientsPanel
+        clients={props.tunnelClients || []}
+        isOrganizationScope={props.isOrganizationScope}
+        t={props.t}
+        onDisconnect={props.onDisconnectTunnelClient}
+      />
       <div className="wxp-panel">
         <h3>{props.t('manualSend')}</h3>
         {props.isOrganizationScope && (
@@ -986,6 +1005,55 @@ function TunnelPanel(props: any) {
         <span className="xui-muted">{props.t('sidecarCommand')}</span>
         <pre>{sidecar.command || '-'}</pre>
       </div>
+    </div>
+  )
+}
+
+function TunnelClientsPanel(props: any) {
+  return (
+    <div className="wxp-panel wxp-tunnel-clients-panel">
+      <div className="wxp-panel-title">
+        <strong>{props.t('tunnelClients')}</strong>
+        <span>{props.t('currentProcessTunnelClients')}</span>
+      </div>
+      <DataTable
+        headers={[
+          ...(props.isOrganizationScope ? [props.t('integration')] : []),
+          props.t('status'),
+          props.t('direction'),
+          props.t('tunnelClientId'),
+          props.t('clientName'),
+          props.t('remoteAddress'),
+          props.t('xpertInstance'),
+          props.t('tunnelLastSeen'),
+          props.t('tunnelLastSync'),
+          props.t('tunnelBindings'),
+          props.t('error'),
+          props.t('action')
+        ]}
+        rows={props.clients || []}
+        emptyText={props.t('noTunnelClients')}
+        renderRow={(client: any) => [
+          ...(props.isOrganizationScope ? [code(client.integrationName || client.integrationId)] : []),
+          translatedPill(client.state || (client.connected ? 'connected' : 'disconnected'), props.t),
+          display(props.t(client.direction || 'inbound')),
+          code(client.clientId),
+          client.connected ? display(client.clientName) : display(client.clientName ? `${props.t('lastClientName')}: ${client.clientName}` : ''),
+          display(client.remoteAddress),
+          client.connected ? code(client.instanceId) : display(client.instanceId ? `${props.t('lastXpertInstance')}: ${client.instanceId}` : ''),
+          time(client.lastSeenAt),
+          time(client.lastSyncAt),
+          tunnelBindingsCell(client, props.t),
+          display(client.lastError),
+          client.connected ? (
+            <Button variant="outline" size="sm" onClick={() => props.onDisconnect(client)}>
+              {props.t('disconnect')}
+            </Button>
+          ) : (
+            '-'
+          )
+        ]}
+      />
     </div>
   )
 }
@@ -1505,7 +1573,7 @@ function DataTable(props: {
         </TableHeader>
         <TableBody>
           {props.rows.map((row) => (
-            <TableRow key={row.id || row.uuid || row.conversationId}>
+            <TableRow key={row.id || row.uuid || row.conversationId || row.clientId}>
               {props.renderRow(row).map((cell, index) => (
                 <TableCell key={index}>{cell}</TableCell>
               ))}
@@ -1564,10 +1632,13 @@ function badgeVariant(value: unknown): 'default' | 'secondary' | 'success' | 'wa
   if (['sent', 'dispatched', 'received', 'online', 'connected', 'outbound'].includes(text)) {
     return 'success'
   }
+  if (['bound_connected'].includes(text)) {
+    return 'success'
+  }
   if (['failed', 'error', 'disabled', 'offline', 'disconnected'].includes(text)) {
     return 'destructive'
   }
-  if (['skipped', 'unknown', 'system'].includes(text)) {
+  if (['connected_unbound', 'skipped', 'unknown', 'system'].includes(text)) {
     return 'warning'
   }
   return 'secondary'
@@ -1585,6 +1656,31 @@ function connectionModeLabel(value: unknown, t: Translator) {
 
 function tunnelStatusLabel(tunnel: any, t: Translator) {
   return tunnel?.connected ? t('connected') : t('disconnected')
+}
+
+function accountTunnelPill(binding: any, t: Translator) {
+  const status = binding?.status || 'not_applicable'
+  return (
+    <div className="wxp-tunnel-status-cell">
+      {translatedPill(status, t)}
+      {binding?.clientId && <small>{clip(binding.clientId, 28)}</small>}
+    </div>
+  )
+}
+
+function tunnelBindingsCell(client: any, t: Translator) {
+  const bindings = Array.isArray(client?.bindings) ? client.bindings : []
+  if (!bindings.length) {
+    return String(client?.bindingCount || 0)
+  }
+  return (
+    <details>
+      <summary>
+        {client.bindingCount || bindings.length} {t('boundAccounts')}
+      </summary>
+      <pre>{bindings.map((binding: any) => [binding.uuid, binding.wxid].filter(Boolean).join(' / ')).join('\n')}</pre>
+    </details>
+  )
 }
 
 function time(value: unknown) {

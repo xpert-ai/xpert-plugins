@@ -16,12 +16,12 @@ import { z } from 'zod/v3'
 import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { LarkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
+import { LARK_NOTIFY_MIDDLEWARE_NAME } from '../constants.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
 import { iconImage } from '../types.js'
 import { toLarkApiErrorMessage } from '../utils.js'
 
-const LARK_NOTIFY_MIDDLEWARE_NAME = 'LarkNotifyMiddleware'
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_POST_LOCALE = 'en_us'
 const MAX_BATCH_CONCURRENCY = 5
@@ -1524,4 +1524,3 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 }
 
 export type { LarkNotifyMiddlewareConfig, LarkNotifyState }
-

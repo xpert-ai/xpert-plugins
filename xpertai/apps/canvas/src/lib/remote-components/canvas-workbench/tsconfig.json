@@ -1,0 +1,4 @@
+{
+  "extends": "../../../../tsconfig.remote.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

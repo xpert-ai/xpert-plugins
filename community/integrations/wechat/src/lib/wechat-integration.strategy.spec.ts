@@ -1,5 +1,11 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
+
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
+  IntegrationStrategyKey: () => (target: unknown) => target
+}))
+
 import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
 
 function readStrategySource() {

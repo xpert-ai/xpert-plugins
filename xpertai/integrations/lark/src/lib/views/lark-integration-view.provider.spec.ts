@@ -69,13 +69,32 @@ describe('LarkIntegrationViewProvider', () => {
         connectionMode,
         connected: connectionMode === 'long_connection',
         state: connectionMode === 'long_connection' ? 'connected' : 'idle',
+        connectionKey: connectionMode === 'long_connection' ? 'larksuite:app-id' : null,
+        direction: connectionMode === 'long_connection' ? 'outbound' : null,
+        transportType: connectionMode === 'long_connection' ? 'websocket' : null,
         ownerInstanceId: connectionMode === 'long_connection' ? 'instance-1' : null,
+        lastSeenAt: connectionMode === 'long_connection' ? Date.parse('2026-04-01T00:01:00.000Z') : null,
         lastConnectedAt: connectionMode === 'long_connection' ? Date.parse('2026-04-01T00:00:00.000Z') : null,
         lastError: null,
         failureCount: 0,
         nextReconnectAt: null,
         disabledReason: null
       }),
+      listManagedConnections: jest.fn().mockResolvedValue([
+        {
+          connectionKey: 'larksuite:app-id',
+          status: 'connected',
+          connected: true,
+          direction: 'outbound',
+          transportType: 'websocket',
+          ownerInstanceId: 'instance-1',
+          connectedAt: '2026-04-01T00:00:00.000Z',
+          lastSeenAt: '2026-04-01T00:01:00.000Z',
+          leaseExpiresAt: '2026-04-01T00:02:00.000Z',
+          integrationCount: 1,
+          lastError: null
+        }
+      ]),
       reconnect: jest.fn().mockResolvedValue(undefined),
       disconnect: jest.fn().mockResolvedValue(undefined)
     }
@@ -160,12 +179,12 @@ describe('LarkIntegrationViewProvider', () => {
     expect(provider.supports(createContext('slack'))).toBe(false)
   })
 
-  it('declares status, users, and conversations tabs for integration detail main tabs', () => {
+  it('declares status, connections, users, and conversations tabs for integration detail main tabs', () => {
     const { provider } = createFixture()
 
     expect(
       provider.getViewManifests(createContext(), 'detail.main_tabs').map((manifest) => manifest.key)
-    ).toEqual(['status', 'users', 'conversations'])
+    ).toEqual(['status', 'connections', 'users', 'conversations'])
     expect(provider.getViewManifests(createContext(), 'detail.sidebar')).toEqual([])
   })
 
@@ -176,16 +195,40 @@ describe('LarkIntegrationViewProvider', () => {
       summary: {
         connectionMode: 'long_connection',
         state: 'connected',
+        connectionKey: 'larksuite:app-id',
+        direction: 'outbound',
+        transportType: 'websocket',
         botUser: 'Lark Bot',
         ownerInstanceId: 'instance-1',
+        lastSeenAt: '2026-04-01T00:01:00.000Z',
         lastConnectedAt: '2026-04-01T00:00:00.000Z',
         lastError: null
       }
     })
   })
 
-  it('loads users and conversations data through local aggregation services', async () => {
-    const { provider, recipientDirectoryService, conversationService } = createFixture()
+  it('loads connections, users, and conversations data through local aggregation services', async () => {
+    const { provider, longConnectionService, recipientDirectoryService, conversationService } = createFixture()
+
+    await expect(provider.getViewData(createContext(), 'connections', {})).resolves.toEqual({
+      items: [
+        {
+          id: 'larksuite:app-id',
+          connectionKey: 'larksuite:app-id',
+          status: 'connected',
+          direction: 'outbound',
+          transportType: 'websocket',
+          ownerInstanceId: 'instance-1',
+          connectedAt: '2026-04-01T00:00:00.000Z',
+          lastSeenAt: '2026-04-01T00:01:00.000Z',
+          leaseExpiresAt: '2026-04-01T00:02:00.000Z',
+          integrationCount: 1,
+          lastError: null
+        }
+      ],
+      total: 1
+    })
+    expect(longConnectionService.listManagedConnections).toHaveBeenCalledWith('integration-1')
 
     await expect(
       provider.getViewData(createContext(), 'users', {
@@ -265,6 +308,13 @@ describe('LarkIntegrationViewProvider', () => {
       })
     )
     expect(longConnectionService.disconnect).toHaveBeenCalledWith('integration-1')
+
+    await expect(provider.executeViewAction(createContext(), 'connections', 'reconnect', {})).resolves.toEqual(
+      expect.objectContaining({
+        success: true,
+        refresh: true
+      })
+    )
   })
 
   it('blocks reconnect and disconnect actions for webhook integrations', async () => {

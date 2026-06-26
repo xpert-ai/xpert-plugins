@@ -12,17 +12,25 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { Repository } from 'typeorm'
 import { WECHAT_ICON, WECHAT_PROVIDER_KEY } from '../constants.js'
-import { WechatTriggerBindingEntity } from '../entities/wechat-trigger-binding.entity.js'
+import {
+  WechatMessageLogEntity,
+  WechatMessageLogStatus,
+  WechatTriggerBindingEntity
+} from '../entities/index.js'
 import { WechatChatDispatchInput, WechatChatDispatchService } from '../handoff/wechat-chat-dispatch.service.js'
 import { WechatMessage } from '../message.js'
 import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
 import {
   normalizeChatFilterMode,
+  normalizeGroupTriggerOverrides,
   normalizeGroupTriggerMode,
   normalizeIdList,
   normalizeKeywords,
   normalizeSelfMessagePolicy,
+  shouldDispatchWechatBatch,
   TIntegrationWechatOptions,
+  WechatBatchTriggerItem,
+  WechatInboundTriggerOptions,
   type WechatInboundFile
 } from '../types.js'
 import { WechatChannelStrategy } from '../wechat-channel.strategy.js'
@@ -61,6 +69,12 @@ const GROUP_TRIGGER_MODE_ENUM_LABELS = {
 type WechatTenantScope = {
   tenantId?: string | null
   organizationId?: string | null
+}
+
+export type WechatInboundHandleResult = {
+  accepted: boolean
+  queued: boolean
+  dispatched: boolean
 }
 
 @Injectable()
@@ -310,7 +324,68 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
           items: {
             type: 'string'
           }
-        }
+        },
+        groupTriggerOverrides: {
+          type: 'array',
+          title: {
+            en_US: 'Per-group Trigger Overrides',
+            zh_Hans: '按群触发配置'
+          },
+          description: {
+            en_US:
+              'Optional per-group overrides. When a group id matches, these values override the global group trigger mode, group keywords, and mention fallback names.',
+            zh_Hans:
+              '可选的按群覆盖配置。群 ID 命中时，将覆盖全局的群聊触发方式、群聊关键词和 @ 昵称兜底名称。'
+          },
+          items: {
+            type: 'object',
+            properties: {
+              groupId: {
+                type: 'string',
+                title: {
+                  en_US: 'Group ID',
+                  zh_Hans: '群 ID'
+                },
+                description: {
+                  en_US: 'WeChat room id, for example 12345@chatroom.',
+                  zh_Hans: '微信群 roomId，例如 12345@chatroom。'
+                }
+              },
+              groupTriggerMode: {
+                type: 'string',
+                title: {
+                  en_US: 'Group Trigger Mode',
+                  zh_Hans: '群聊触发方式'
+                },
+                enum: ['mention_or_keywords', 'all', 'mentions', 'keywords', 'off'],
+                'x-ui': {
+                  enumLabels: GROUP_TRIGGER_MODE_ENUM_LABELS
+                } as any
+              },
+              groupKeywords: {
+                type: 'array',
+                title: {
+                  en_US: 'Group Keywords',
+                  zh_Hans: '群聊关键词'
+                },
+                items: {
+                  type: 'string'
+                }
+              },
+              mentionFallbackNames: {
+                type: 'array',
+                title: {
+                  en_US: 'Mention Fallback Names',
+                  zh_Hans: '@ 昵称兜底名称'
+                },
+                items: {
+                  type: 'string'
+                }
+              }
+            },
+            required: ['groupId']
+          }
+        } as any
       },
       required: ['enabled', 'integrationId']
     }
@@ -328,7 +403,9 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     @InjectRepository(WechatTriggerBindingEntity)
     private readonly bindingRepository: Repository<WechatTriggerBindingEntity>,
     @Inject(WECHAT_PLUGIN_CONTEXT)
-    private readonly pluginContext: PluginContext
+    private readonly pluginContext: PluginContext,
+    @InjectRepository(WechatMessageLogEntity)
+    private readonly messageLogRepository?: Repository<WechatMessageLogEntity>
   ) {}
 
   private get integrationPermissionService(): IntegrationPermissionService {
@@ -453,6 +530,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         groupTriggerMode: normalizeGroupTriggerMode(config.groupTriggerMode),
         groupKeywords: normalizeKeywords(config.groupKeywords),
         mentionFallbackNames: normalizeKeywords(config.mentionFallbackNames),
+        groupTriggerOverrides: normalizeGroupTriggerOverrides(config.groupTriggerOverrides),
         tenantId: context.tenantId ?? null,
         organizationId: context.organizationId ?? null,
         createdById: context.createdById ?? null,
@@ -531,24 +609,26 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     integrationId: string
     input?: string
     files?: WechatInboundFile[]
+    item?: WechatBatchTriggerItem
     wechatMessage: WechatMessage
     conversationUserKey?: string
     historyContext?: string
     currentInboundLogIds?: string[]
+    triggerOptions?: WechatInboundTriggerOptions
     tenantId: string
     organizationId?: string
     endUserId?: string
-  }): Promise<boolean> {
+  }): Promise<WechatInboundHandleResult> {
     const binding = await this.getBinding(params.integrationId, params)
     if (!binding?.xpertId) {
       this.logger.debug(`[wechat-trigger] binding miss integrationId=${params.integrationId}`)
-      return false
+      return this.createHandleResult(false)
     }
 
     const aggregateKey = this.normalizeAggregateKey(params.conversationUserKey)
     if (!aggregateKey) {
       this.logger.warn(`[wechat-trigger] aggregation key missing integrationId=${params.integrationId}`)
-      return false
+      return this.createHandleResult(false)
     }
 
     const summaryWindowSeconds = this.normalizeNonNegativeSeconds(
@@ -572,7 +652,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
           currentInboundLogIds: params.currentInboundLogIds
         }
       })
-      return true
+      return this.createHandleResult(true, { dispatched: true })
     }
 
     await this.aggregationService.enqueueAggregate({
@@ -580,6 +660,8 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       integrationId: params.integrationId,
       xpertId: binding.xpertId,
       input: params.input || '',
+      item: params.item ?? this.createLegacyBatchItem(params.input),
+      triggerOptions: params.triggerOptions,
       files: params.files,
       historyContext: params.historyContext,
       currentInboundLogIds: params.currentInboundLogIds,
@@ -603,7 +685,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       }
     })
 
-    return true
+    return this.createHandleResult(true, { queued: true })
   }
 
   async processInboundAggregateJob(payload: WechatTriggerAggregatePayload): Promise<void> {
@@ -625,6 +707,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       const sameRoutingTarget =
         currentState?.integrationId === payload.integrationId && currentState?.xpertId === payload.xpertId
       const nextVersion = (currentState?.version ?? 0) + 1
+      const nextItem = payload.item ?? this.createLegacyBatchItem(payload.input)
       const aggregateState: WechatTriggerAggregationState = {
         aggregateKey,
         integrationId: payload.integrationId,
@@ -632,6 +715,13 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         xpertId: payload.xpertId,
         version: nextVersion,
         inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), payload.input || ''],
+        items: [
+          ...(sameRoutingTarget ? currentState?.items ?? [] : []),
+          ...(nextItem ? [nextItem] : [])
+        ],
+        triggerOptions: sameRoutingTarget
+          ? currentState?.triggerOptions ?? payload.triggerOptions
+          : payload.triggerOptions,
         files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(payload.files ?? [])],
         currentInboundLogIds: [
           ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
@@ -666,7 +756,17 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
-    const aggregatedInput = this.composeAggregatedInput(state.inputParts, state.files)
+    const decision = shouldDispatchWechatBatch(
+      state.items ?? state.inputParts.map((input) => this.createLegacyBatchItem(input)).filter(Boolean),
+      state.triggerOptions
+    )
+    if (!decision) {
+      await this.markInboundLogs(state.currentInboundLogIds, state, 'skipped', 'filtered_by_trigger_policy')
+      await this.aggregationService.clear(aggregateKey)
+      return false
+    }
+
+    const aggregatedInput = this.composeAggregatedInput(decision.inputParts, state.files)
     const dispatchInput = this.composeDispatchInput(aggregatedInput, state.historyContext)
 
     await this.dispatchInboundMessage({
@@ -701,6 +801,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       }
     })
 
+    await this.markInboundLogs(state.currentInboundLogIds, state, 'dispatched')
     await this.aggregationService.clear(aggregateKey)
     return true
   }
@@ -805,11 +906,52 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   private composeAggregatedInput(inputParts: string[], files?: WechatInboundFile[]): string {
     const input = (Array.isArray(inputParts) ? inputParts : [])
       .map((part) => (typeof part === 'string' ? part : ''))
+      .filter((part) => part.trim())
       .join('\n')
     if (input.trim()) {
       return input
     }
     return Array.isArray(files) && files.length > 0 ? IMAGE_ONLY_AGGREGATE_INPUT : ''
+  }
+
+  private createLegacyBatchItem(input?: string): WechatBatchTriggerItem {
+    return {
+      input: typeof input === 'string' ? input : '',
+      messageKind: input ? 'text' : 'image',
+      chatType: 'private'
+    }
+  }
+
+  private createHandleResult(
+    accepted: boolean,
+    options: { queued?: boolean; dispatched?: boolean } = {}
+  ): WechatInboundHandleResult {
+    return {
+      accepted,
+      queued: Boolean(options.queued),
+      dispatched: Boolean(options.dispatched)
+    }
+  }
+
+  private async markInboundLogs(
+    ids: string[] | undefined,
+    scope: WechatTenantScope,
+    status: WechatMessageLogStatus,
+    error?: string
+  ): Promise<void> {
+    if (!this.messageLogRepository || !Array.isArray(ids) || ids.length === 0) {
+      return
+    }
+    const uniqueIds = Array.from(new Set(ids.map((id) => (typeof id === 'string' ? id.trim() : '')).filter(Boolean)))
+    for (const id of uniqueIds) {
+      await this.messageLogRepository.update(
+        this.scopedWhere({ id }, scope),
+        {
+          status,
+          error
+        }
+      )
+    }
   }
 
   private async removeBindingFromStore(integrationId: string, expectedXpertId?: string): Promise<void> {

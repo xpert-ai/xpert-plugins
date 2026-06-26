@@ -1,4 +1,7 @@
 export * from './integration-lark.module.js'
+export * from './constants.js'
+export * from './plugin-metadata-compat.js'
+export * from './lark.templates.js'
 export * from './lark-channel.strategy.js'
 export * from './lark-integration.strategy.js'
 export * from './workflow/lark-trigger.strategy.js'
