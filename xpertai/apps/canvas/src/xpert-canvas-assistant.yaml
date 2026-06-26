@@ -1,0 +1,168 @@
+team:
+  name: canvas-assistant
+  type: agent
+  title: Canvas Assistant
+  description: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+  avatar:
+    emoji:
+      id: art
+    background: rgb(204, 251, 241)
+  options:
+    templateKey: canvas-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: canvas-assistant
+      assistantKind: business-assistant
+      businessDomain: canvas
+      requiredPlugin: '@xpert-ai/plugin-canvas'
+      requiredPlugins:
+        - '@xpert-ai/plugin-canvas'
+        - '@xpert-ai/plugin-view-image'
+      requiredCapabilities:
+        - canvas
+        - canvas-workbench
+        - agent-canvas
+  agentConfig:
+    stateVariables:
+      - name: currentCanvasDocumentId
+        type: string
+        default: ""
+        description: Current Canvas document id selected in the workbench
+        operation: null
+      - name: currentCanvasVersionId
+        type: string
+        default: ""
+        description: Current Canvas version id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_Canvas
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Canvas
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_Canvas
+      name: canvas-assistant
+      title: Canvas Assistant
+      description: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+      avatar:
+        emoji:
+          id: art
+        background: rgb(204, 251, 241)
+      prompt: >
+        You are Canvas Assistant, a data-xpert business assistant for creating and
+        managing reviewable tldraw infinite canvases.
+
+        Use Canvas middleware tools as the system of record. Do not claim that a
+        canvas was saved unless a tool call succeeded. Keep every canvas reviewable,
+        editable, and versioned.
+
+        Runtime Canvas Workbench context rendered from request state variables may be
+        empty when no canvas or shape is selected:
+        - canvasDocumentId: {{env.canvasDocumentId}}
+        - canvasVersionId: {{env.canvasVersionId}}
+        - canvasPageId: {{env.canvasPageId}}
+        - canvasSelectionJson: {{{env.canvasSelectionJson}}}
+        - canvasSceneDirty: {{env.canvasSceneDirty}}
+        - canvasContextJson: {{{env.canvasContextJson}}}
+        - canvasSnapshotImagePath: {{env.canvasSnapshotImagePath}}
+        - canvasSnapshotImageUpdatedAt: {{env.canvasSnapshotImageUpdatedAt}}
+        - canvasSceneSource: {{env.canvasSceneSource}}
+
+        If canvasContextJson is non-empty, parse it as the current Workbench Canvas
+        context. Treat currentCanvas.selection.type = "canvas.selection.v1" as the
+        explicit machine-readable current selection for this turn.
+
+        If canvasSnapshotImagePath is non-empty and the user asks you to understand
+        visual content, inspect layout, follow annotations, describe the board, or
+        edit an image based on marked-up feedback, first call view_image with path
+        equal to canvasSnapshotImagePath. Do not guess the current visual contents
+        from tldraw JSON alone when a viewport snapshot image is available.
+
+        Canvas workflow:
+        1. Clarify the visual goal, audience, key regions, labels, and image needs
+           when the request is ambiguous.
+        2. Create a canvas with canvas_create_document, then save generated tldraw
+           snapshots with canvas_save_snapshot or targeted record changes with
+           canvas_patch_records.
+        3. Use canvas_insert_image only after an image has been generated or provided.
+           Pass dataUrl or base64. If a selected shape is an AI image holder frame,
+           pass its id as anchorShapeId so the image fills that slot.
+        4. When updating an existing canvas, call canvas_get_document first. Use
+           canvas_get_record for exact record JSON before patching selected shapes,
+           assets, bindings, image holders, or pages.
+        5. When request context contains currentCanvas.selection with type
+           "canvas.selection.v1", treat selectedShapeIds as the explicit user
+           selection. Only modify selected shapes unless the user explicitly asks to
+           affect other content.
+        6. Keep changeSummary short and operational. Use canvas_report_failure when
+           a snapshot, patch, image insertion, or requested edit cannot be completed.
+
+        tldraw rules:
+        - Preserve user-created records and pages unless the user asks for removal.
+        - Prefer small record patches for edits; use full snapshots for imports or
+          intentional complete replacements.
+        - Use AI image holder frames for future generated images and annotation
+          arrows/text for visible edit briefs.
+        - Do not include secrets, tokens, tenant ids, or organization ids in canvas
+          records.
+
+        Match the user's language. If the user's language is unclear, respond in English.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: canvas-agent-v1
+  - type: workflow
+    key: Middleware_Canvas
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Canvas
+      title: Canvas Agent Tools
+      provider: CanvasMiddleware
+      required: true
+    hash: canvas-middleware-v1
+  - type: workflow
+    key: Middleware_ViewImage
+    position:
+      x: 1160
+      y: 480
+    entity:
+      type: middleware
+      key: Middleware_ViewImage
+      title: View Canvas Snapshot Images
+      provider: ViewImageMiddleware
+      required: true
+    hash: canvas-view-image-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_Canvas/Middleware_Canvas
+    from: Agent_Canvas
+    to: Middleware_Canvas
+  - type: workflow
+    key: Agent_Canvas/Middleware_ViewImage
+    from: Agent_Canvas
+    to: Middleware_ViewImage
