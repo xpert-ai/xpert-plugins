@@ -1,8 +1,11 @@
 import {
+  buildWechatBatchTriggerItem,
   matchesWechatAllowedKeywords,
   matchesWechatMessageFilter,
   normalizeWechatConnectionMode,
+  normalizeGroupTriggerOverrides,
   normalizeWechatInboundPayload,
+  shouldDispatchWechatBatch,
   shouldAttemptWechatVoiceTranscription,
   shouldDispatchWechatMessage,
   summarizePayload
@@ -579,6 +582,98 @@ describe('wechat inbound normalization', () => {
     ).toBe('private')
     expect(matchesWechatAllowedKeywords('请总结这段语音', { allowedKeywords: ['总结'] })).toBe(true)
     expect(matchesWechatAllowedKeywords('请看一下', { allowedKeywords: ['总结'] })).toBe(false)
+  })
+
+  it('normalizes per-group trigger overrides', () => {
+    expect(
+      normalizeGroupTriggerOverrides([
+        {
+          groupId: 'room-a@chatroom',
+          groupTriggerMode: 'keywords',
+          groupKeywords: '订单, 售后',
+          mentionFallbackNames: []
+        },
+        {
+          contactId: 'room-b@chatroom',
+          groupKeywords: ['项目']
+        },
+        {
+          groupId: 'room-a@chatroom',
+          groupTriggerMode: 'all'
+        },
+        {
+          groupId: '',
+          groupTriggerMode: 'off'
+        }
+      ])
+    ).toEqual([
+      {
+        groupId: 'room-a@chatroom',
+        groupTriggerMode: 'keywords',
+        groupKeywords: ['订单', '售后'],
+        mentionFallbackNames: []
+      },
+      {
+        groupId: 'room-b@chatroom',
+        groupKeywords: ['项目']
+      }
+    ])
+  })
+
+  it('dispatches a debounced group batch when a later item mentions the bot', () => {
+    const imageEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      content: '<msg><img aeskey="download-token" /></msg>',
+      pushcontent: '[图片]',
+      newmsgid: '4201',
+      msgtype: 3,
+      isself: false
+    })
+    const mentionEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      content: '@小白龙 这次可以看到了吗',
+      msgsource: '<msgsource><atuserlist><![CDATA[wxid_owner]]></atuserlist></msgsource>',
+      newmsgid: '4202',
+      msgtype: 1,
+      isself: false
+    })
+
+    const decision = shouldDispatchWechatBatch(
+      [
+        buildWechatBatchTriggerItem(imageEvent, {
+          groupTriggerMode: 'mentions',
+          mentionFallbackNames: ['小白龙']
+        }),
+        buildWechatBatchTriggerItem(
+          mentionEvent,
+          {
+            groupTriggerMode: 'mentions',
+            mentionFallbackNames: ['小白龙']
+          },
+          '这次可以看到了吗'
+        )
+      ],
+      {
+        groupTriggerMode: 'mentions',
+        mentionFallbackNames: ['小白龙']
+      }
+    )
+
+    expect(decision).toEqual({
+      inputParts: ['', '这次可以看到了吗'],
+      triggerReason: 'mention'
+    })
+    expect(
+      shouldDispatchWechatBatch([buildWechatBatchTriggerItem(imageEvent, { groupTriggerMode: 'mentions' })], {
+        groupTriggerMode: 'mentions'
+      })
+    ).toBeNull()
   })
 
   it('filters by chat type, group ids, contact ids, and sender ids', () => {

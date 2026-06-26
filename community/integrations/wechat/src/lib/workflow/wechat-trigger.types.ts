@@ -1,5 +1,6 @@
-import {
+import type {
   WechatChatFilterMode,
+  WechatGroupTriggerOverride,
   WechatGroupTriggerMode,
   WechatSelfMessagePolicy
 } from '../types.js'
@@ -27,4 +28,5 @@ export type TWechatTriggerConfig = {
   groupTriggerMode?: WechatGroupTriggerMode
   groupKeywords?: string[] | string
   mentionFallbackNames?: string[] | string
+  groupTriggerOverrides?: WechatGroupTriggerOverride[]
 }

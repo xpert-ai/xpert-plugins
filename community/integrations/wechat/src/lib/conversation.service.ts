@@ -20,9 +20,11 @@ import {
   type WechatConversationIdentity
 } from './conversation-user-key.js'
 import {
+  buildWechatBatchTriggerItem,
   isWechatDispatchableMessageKind,
   matchesWechatAllowedKeywords,
   matchesWechatMessageFilter,
+  normalizeGroupTriggerOverrides,
   normalizeSelfMessagePolicy,
   normalizeString,
   normalizeWechatAgentInput,
@@ -214,6 +216,7 @@ export type WechatRuntimeStatus = {
     groupTriggerMode: string
     groupKeywords: string[]
     mentionFallbackNames: string[]
+    groupTriggerOverrides?: NonNullable<WechatInboundTriggerOptions['groupTriggerOverrides']>
     updatedAt: Date | null
   } | null
   accounts: WechatAccountWorkbenchItem[]
@@ -451,7 +454,7 @@ export class WechatConversationService {
         return { handled: false, reason: 'trigger_binding_missing' }
       }
 
-      const triggerOptions: WechatInboundTriggerOptions = {
+      const baseTriggerOptions: WechatInboundTriggerOptions = {
         ignoreSelfMessages: binding.ignoreSelfMessages !== false,
         selfMessagePolicy: normalizeSelfMessagePolicy(binding.selfMessagePolicy, binding.ignoreSelfMessages),
         chatFilterMode: binding.chatFilterMode,
@@ -464,7 +467,8 @@ export class WechatConversationService {
         allowedKeywords: binding.allowedKeywords ?? [],
         groupTriggerMode: binding.groupTriggerMode,
         groupKeywords: binding.groupKeywords ?? [],
-        mentionFallbackNames: binding.mentionFallbackNames ?? []
+        mentionFallbackNames: binding.mentionFallbackNames ?? [],
+        groupTriggerOverrides: normalizeGroupTriggerOverrides(binding.groupTriggerOverrides)
       }
 
       let dispatchEvent = event
@@ -487,6 +491,7 @@ export class WechatConversationService {
         conversationUserKey: conversationIdentity.conversationUserKey
       }, eventScope)
 
+      let triggerOptions = this.resolveEventTriggerOptions(dispatchEvent, baseTriggerOptions)
       const selfMessagePolicy = normalizeSelfMessagePolicy(binding.selfMessagePolicy, binding.ignoreSelfMessages)
       if (dispatchEvent.isSelf && selfMessagePolicy === 'ignore') {
         await this.updateLog(inboundLog.id, {
@@ -564,10 +569,15 @@ export class WechatConversationService {
             voiceTranscription: voiceInputResult.input
           })
         }, eventScope)
+        triggerOptions = this.resolveEventTriggerOptions(dispatchEvent, baseTriggerOptions)
       }
 
       const dispatchable = shouldDispatchWechatMessage(dispatchEvent, triggerOptions)
-      if (!dispatchable) {
+      const shouldQueueDebouncedCandidate =
+        !dispatchable &&
+        this.isDebounceEnabled(binding.summaryWindowSeconds) &&
+        this.isDebouncedBatchCandidate(dispatchEvent, triggerOptions)
+      if (!dispatchable && !shouldQueueDebouncedCandidate) {
         await this.updateLog(inboundLog.id, {
           status: 'skipped',
           xpertId: binding.xpertId,
@@ -576,6 +586,7 @@ export class WechatConversationService {
         }, eventScope)
         return { handled: false, reason: 'filtered' }
       }
+      const dispatchInput = dispatchable?.input ?? normalizeWechatAgentInput(dispatchEvent)
 
       const inboundFilesResult = await this.resolveInboundFiles(integration, dispatchEvent)
       if (inboundFilesResult.success === false) {
@@ -607,7 +618,12 @@ export class WechatConversationService {
         }
       )
 
-      const newSessionCommand = this.parseNewSessionCommand(dispatchable.input)
+      const newSessionCommand = dispatchable
+        ? this.parseNewSessionCommand(dispatchInput)
+        : {
+            matched: false,
+            input: dispatchInput
+          }
       if (newSessionCommand.matched && conversationUserKey) {
         await this.clearConversation(conversationUserKey, binding.xpertId, eventScope)
         await this.triggerStrategy.clearBufferedConversation(conversationUserKey)
@@ -641,8 +657,14 @@ export class WechatConversationService {
 
       const handled = await this.triggerStrategy.handleInboundMessage({
         integrationId: integration.id,
-        input: newSessionCommand.matched ? newSessionCommand.input : dispatchable.input,
+        input: newSessionCommand.matched ? newSessionCommand.input : dispatchInput,
         files: inboundFiles,
+        item: buildWechatBatchTriggerItem(
+          dispatchEvent,
+          triggerOptions,
+          newSessionCommand.matched ? newSessionCommand.input : dispatchInput
+        ),
+        triggerOptions,
         wechatMessage,
         conversationUserKey,
         historyContext,
@@ -651,15 +673,19 @@ export class WechatConversationService {
         organizationId: integration.organizationId || ctx.organizationId,
         endUserId: conversationIdentity.senderId
       })
+      const handleResult = this.normalizeInboundHandleResult(handled)
 
       await this.updateLog(inboundLog.id, {
-        status: handled ? 'dispatched' : 'failed',
+        status: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : 'failed',
         xpertId: binding.xpertId,
         conversationUserKey,
-        error: handled ? undefined : 'handoff_dispatch_failed'
+        error: handleResult.accepted ? undefined : 'handoff_dispatch_failed'
       }, eventScope)
 
-      return { handled, reason: handled ? 'dispatched' : 'dispatch_failed' }
+      return {
+        handled: handleResult.accepted,
+        reason: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : 'dispatch_failed'
+      }
     } catch (error) {
       if (!inboundLog?.id) {
         throw error
@@ -1102,6 +1128,7 @@ export class WechatConversationService {
             groupTriggerMode: triggerBinding.groupTriggerMode,
             groupKeywords: triggerBinding.groupKeywords ?? [],
             mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
+            groupTriggerOverrides: normalizeGroupTriggerOverrides(triggerBinding.groupTriggerOverrides),
             updatedAt: this.normalizeDate(triggerBinding.updatedAt) ?? null
           }
         : null,
@@ -1885,6 +1912,66 @@ export class WechatConversationService {
       return false
     }
     return !!input || event.messageKind === 'image'
+  }
+
+  private resolveEventTriggerOptions(
+    event: WechatInboundEvent,
+    options: WechatInboundTriggerOptions
+  ): WechatInboundTriggerOptions {
+    if (event.chatType !== 'group') {
+      return options
+    }
+    const groupId = normalizeString(event.contactId)
+    if (!groupId) {
+      return options
+    }
+    const override = normalizeGroupTriggerOverrides(options.groupTriggerOverrides).find(
+      (item) => item.groupId === groupId
+    )
+    if (!override) {
+      return options
+    }
+    return {
+      ...options,
+      groupTriggerMode: override.groupTriggerMode ?? options.groupTriggerMode,
+      groupKeywords: override.groupKeywords ?? options.groupKeywords,
+      mentionFallbackNames: override.mentionFallbackNames ?? options.mentionFallbackNames
+    }
+  }
+
+  private isDebounceEnabled(value: unknown): boolean {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+  }
+
+  private isDebouncedBatchCandidate(
+    event: WechatInboundEvent,
+    options: WechatInboundTriggerOptions
+  ): boolean {
+    if (!matchesWechatMessageFilter(event, options)) {
+      return false
+    }
+    if (!isWechatDispatchableMessageKind(event)) {
+      return false
+    }
+    const input = normalizeWechatAgentInput(event)
+    return Boolean(input) || event.messageKind === 'image'
+  }
+
+  private normalizeInboundHandleResult(
+    result: boolean | { accepted?: boolean; queued?: boolean; dispatched?: boolean }
+  ): { accepted: boolean; queued: boolean; dispatched: boolean } {
+    if (typeof result === 'boolean') {
+      return {
+        accepted: result,
+        queued: false,
+        dispatched: result
+      }
+    }
+    return {
+      accepted: result?.accepted === true,
+      queued: result?.queued === true,
+      dispatched: result?.dispatched === true
+    }
   }
 
   private async markHistoryContextReset(

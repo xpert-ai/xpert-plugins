@@ -16,6 +16,13 @@ export type WechatSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
 
 export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
 
+export interface WechatGroupTriggerOverride {
+  groupId: string
+  groupTriggerMode?: WechatGroupTriggerMode
+  groupKeywords?: string[]
+  mentionFallbackNames?: string[]
+}
+
 export type WechatWebhookCredentialRecord = PluginWebhookCredentialRecord
 
 export interface WechatOutboundQueueOptions {
@@ -74,6 +81,7 @@ export interface WechatInboundTriggerOptions {
   groupTriggerMode?: WechatGroupTriggerMode
   groupKeywords?: string[] | string
   mentionFallbackNames?: string[] | string
+  groupTriggerOverrides?: WechatGroupTriggerOverride[]
 }
 
 export type WechatChatRequestFile = NonNullable<TChatRequestHuman['files']>[number]
@@ -159,6 +167,21 @@ export interface WechatInboundEvent {
 export interface WechatDispatchableMessage extends WechatInboundEvent {
   input: string
   triggerReason: 'private' | 'group_all' | 'mention' | 'keyword'
+}
+
+export type WechatTriggerReason = WechatDispatchableMessage['triggerReason']
+
+export interface WechatBatchTriggerItem {
+  input: string
+  messageKind: WechatInboundMessageKind
+  chatType?: 'private' | 'group'
+  mentioned?: boolean
+  groupKeywordMatched?: boolean
+}
+
+export interface WechatBatchDispatchDecision {
+  inputParts: string[]
+  triggerReason: WechatTriggerReason
 }
 
 export type WechatVoiceTranscriptionDecision = {
@@ -286,6 +309,36 @@ export function normalizeIdList(value: unknown): string[] {
   return Array.from(new Set(normalizeKeywords(value)))
 }
 
+export function normalizeGroupTriggerOverrides(value: unknown): WechatGroupTriggerOverride[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const seen = new Set<string>()
+  return value
+    .map((item) => {
+      const record = asRecord(item)
+      const groupId = normalizeString(record?.groupId || record?.contactId || record?.chatId)
+      if (!groupId || seen.has(groupId)) {
+        return null
+      }
+      seen.add(groupId)
+      const override: WechatGroupTriggerOverride = {
+        groupId
+      }
+      if (record && Object.prototype.hasOwnProperty.call(record, 'groupTriggerMode')) {
+        override.groupTriggerMode = normalizeGroupTriggerMode(record.groupTriggerMode)
+      }
+      if (record && Object.prototype.hasOwnProperty.call(record, 'groupKeywords')) {
+        override.groupKeywords = normalizeKeywords(record.groupKeywords)
+      }
+      if (record && Object.prototype.hasOwnProperty.call(record, 'mentionFallbackNames')) {
+        override.mentionFallbackNames = normalizeKeywords(record.mentionFallbackNames)
+      }
+      return override
+    })
+    .filter((item): item is WechatGroupTriggerOverride => Boolean(item))
+}
+
 export function normalizeWechatInboundPayload(payload: unknown): WechatInboundEvent | null {
   const record = asRecord(payload)
   if (!record) {
@@ -364,6 +417,91 @@ export function shouldDispatchWechatMessage(
       triggerReason: 'keyword'
     }
     return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
+  }
+
+  return null
+}
+
+export function buildWechatBatchTriggerItem(
+  event: WechatInboundEvent,
+  options?: WechatInboundTriggerOptions,
+  input: string = normalizeWechatAgentInput(event)
+): WechatBatchTriggerItem {
+  return {
+    input,
+    messageKind: event.messageKind,
+    chatType: event.chatType,
+    mentioned: event.chatType === 'group'
+      ? isMentioned(event, normalizeMentionFallbackNames(options?.mentionFallbackNames))
+      : false,
+    groupKeywordMatched: event.chatType === 'group'
+      ? !!matchKeyword(input, normalizeKeywords(options?.groupKeywords))
+      : false
+  }
+}
+
+export function shouldDispatchWechatBatch(
+  items: WechatBatchTriggerItem[],
+  options?: WechatInboundTriggerOptions
+): WechatBatchDispatchDecision | null {
+  const candidates = (Array.isArray(items) ? items : []).filter((item) => {
+    if (!isWechatDispatchableMessageKind({ messageKind: item.messageKind } as WechatInboundEvent)) {
+      return false
+    }
+    return Boolean(normalizeString(item.input)) || item.messageKind === 'image'
+  })
+  if (!candidates.length) {
+    return null
+  }
+
+  const inputParts = candidates.map((item) => normalizeString(item.input))
+  const aggregatedInput = inputParts.join('\n')
+  const first = candidates[0]
+
+  if (first.chatType !== 'group') {
+    return matchesWechatAllowedKeywords(aggregatedInput, options)
+      ? {
+          inputParts,
+          triggerReason: 'private'
+        }
+      : null
+  }
+
+  const mode = normalizeGroupTriggerMode(options?.groupTriggerMode)
+  if (mode === 'off') {
+    return null
+  }
+  if (mode === 'all') {
+    return matchesWechatAllowedKeywords(aggregatedInput, options)
+      ? {
+          inputParts,
+          triggerReason: 'group_all'
+        }
+      : null
+  }
+
+  if ((mode === 'mentions' || mode === 'mention_or_keywords') && candidates.some((item) => item.mentioned)) {
+    const strippedInputParts = candidates.map((item) =>
+      item.mentioned ? stripLeadingMention(normalizeString(item.input)) : normalizeString(item.input)
+    )
+    return matchesWechatAllowedKeywords(strippedInputParts.join('\n'), options)
+      ? {
+          inputParts: strippedInputParts,
+          triggerReason: 'mention'
+        }
+      : null
+  }
+
+  if (
+    (mode === 'keywords' || mode === 'mention_or_keywords') &&
+    candidates.some((item) => item.groupKeywordMatched)
+  ) {
+    return matchesWechatAllowedKeywords(aggregatedInput, options)
+      ? {
+          inputParts,
+          triggerReason: 'keyword'
+        }
+      : null
   }
 
   return null

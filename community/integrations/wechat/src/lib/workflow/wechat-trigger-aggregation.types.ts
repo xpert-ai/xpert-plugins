@@ -1,4 +1,8 @@
-import type { WechatInboundFile } from '../types.js'
+import type {
+  WechatBatchTriggerItem,
+  WechatInboundFile,
+  WechatInboundTriggerOptions
+} from '../types.js'
 
 export interface WechatTriggerFlushPayload extends Record<string, unknown> {
   aggregateKey: string
@@ -23,6 +27,8 @@ export interface WechatTriggerAggregationState {
   xpertId: string
   version: number
   inputParts: string[]
+  items?: WechatBatchTriggerItem[]
+  triggerOptions?: WechatInboundTriggerOptions
   files?: WechatInboundFile[]
   currentInboundLogIds?: string[]
   historyContext?: string
@@ -38,6 +44,8 @@ export interface WechatTriggerAggregatePayload extends Record<string, unknown> {
   integrationId: string
   xpertId: string
   input?: string
+  item?: WechatBatchTriggerItem
+  triggerOptions?: WechatInboundTriggerOptions
   files?: WechatInboundFile[]
   historyContext?: string
   currentInboundLogIds?: string[]

@@ -640,6 +640,51 @@ describe('WechatConversationService fresh session history context', () => {
     expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
   })
 
+  it('uses per-group trigger overrides instead of the global group trigger mode', async () => {
+    const { service, triggerStrategy } = createFullService({
+      triggerBinding: {
+        groupTriggerMode: 'off',
+        groupTriggerOverrides: [
+          {
+            groupId: 'room@chatroom',
+            groupTriggerMode: 'all',
+            groupKeywords: ['订单'],
+            mentionFallbackNames: ['订单助手']
+          }
+        ]
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          contactId: 'room@chatroom',
+          chatId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          content: '普通群消息'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '普通群消息',
+        triggerOptions: expect.objectContaining({
+          groupTriggerMode: 'all',
+          groupKeywords: ['订单'],
+          mentionFallbackNames: ['订单助手']
+        })
+      })
+    )
+  })
+
   it('stores only self history messages that match allowed keywords', async () => {
     const { service, messageLogRepository } = createFullService({
       triggerBinding: {
@@ -794,6 +839,90 @@ describe('WechatConversationService fresh session history context', () => {
     expect(historySpy).not.toHaveBeenCalled()
     expect(wechatClient.downloadImage).not.toHaveBeenCalled()
     expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+  })
+
+  it('queues unmentioned group images for debounced batch trigger evaluation', async () => {
+    const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService({
+      triggerBinding: {
+        summaryWindowSeconds: 5,
+        groupTriggerMode: 'mentions',
+        mentionFallbackNames: ['小白龙']
+      }
+    })
+    triggerStrategy.handleInboundMessage.mockResolvedValueOnce({
+      accepted: true,
+      queued: true,
+      dispatched: false
+    })
+    const imageRef = {
+      uuid: 'uuid-1',
+      contactId: 'room@chatroom',
+      newMsgId: 'img-msg-debounced',
+      msgContent: '',
+      msgType: 3 as const,
+      fromUser: 'wxid_sender',
+      toUser: 'wxid_owner',
+      msgId: 125,
+      isSelf: false,
+      fileKey: 'file-key-debounced'
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          contactId: 'room@chatroom',
+          chatId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          messageId: 'img-msg-debounced',
+          msgType: 3,
+          messageKind: 'image',
+          content: '',
+          displayText: '[图片]',
+          imageRef,
+          mediaSignature: 'image:uuid-1:img-msg-debounced:3:room@chatroom:wxid_sender:wxid_owner'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'queued' })
+
+    expect(wechatClient.downloadImage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'integration-1' }),
+      imageRef
+    )
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '',
+        item: expect.objectContaining({
+          input: '',
+          messageKind: 'image',
+          chatType: 'group',
+          mentioned: false
+        }),
+        triggerOptions: expect.objectContaining({
+          groupTriggerMode: 'mentions',
+          mentionFallbackNames: ['小白龙']
+        }),
+        files: [
+          expect.objectContaining({
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            fileKey: 'file-key-1'
+          })
+        ]
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'queued',
+        error: undefined
+      })
+    )
   })
 
   it('marks inbound image logs failed and skips Agent dispatch when download fails', async () => {
