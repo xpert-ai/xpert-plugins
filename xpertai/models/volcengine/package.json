@@ -31,12 +31,14 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
+    "@langchain/core": "0.3.72",
     "@langchain/openai": "0.6.9",
     "@metad/contracts": "^3.6.1",
     "@nestjs/common": "^11.1.6",

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import chalk from 'chalk';
 import { VolcengineProviderStrategy } from './provider.strategy.js';
 import { VolcengineLargeLanguageModel } from './llm/llm.js';
+import { SeedreamAigcStrategy } from './seedream-aigc/strategy.js';
 
 @XpertServerPlugin({
 	/**
@@ -12,7 +13,8 @@ import { VolcengineLargeLanguageModel } from './llm/llm.js';
 
 	providers: [
 		VolcengineProviderStrategy,
-		VolcengineLargeLanguageModel
+		VolcengineLargeLanguageModel,
+		SeedreamAigcStrategy
 	]
 })
 export class VolcenginePlugin implements IOnPluginBootstrap, IOnPluginDestroy {
