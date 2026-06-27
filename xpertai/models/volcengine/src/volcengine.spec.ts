@@ -1,7 +1,7 @@
-import { volcengine } from './volcengine'
+import { Volcengine } from './types.js'
 
 describe('volcengine', () => {
   it('should work', () => {
-    expect(volcengine()).toEqual('volcengine')
+    expect(Volcengine).toEqual('volcengine')
   })
 })
