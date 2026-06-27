@@ -297,6 +297,47 @@ describe('Seedream AIGC tools', () => {
     expect(JSON.stringify(result)).not.toContain(Buffer.from('generated-image-b64').toString('base64'))
   })
 
+  it('reads workspace image inputs through the workspace files API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
+    }))
+    const readBufferMock = workspaceFiles.readBuffer as jest.Mock
+    readBufferMock.mockResolvedValueOnce({
+      name: 'input.png',
+      filePath: 'files/source/input.png',
+      workspacePath: 'files/source/input.png',
+      buffer: Buffer.from('workspace-image'),
+      mimeType: 'image/png',
+      catalog: 'xperts'
+    })
+
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedream_image_to_image'
+    )
+
+    await tool?.invoke({
+      id: 'call-workspace-input',
+      name: 'seedream_image_to_image',
+      type: 'tool_call',
+      args: {
+        prompt: 'make it cinematic',
+        input_image_file: { filePath: 'files/source/input.png', mimeType: 'image/png' }
+      }
+    })
+
+    expect(workspaceFiles.readBuffer).toHaveBeenCalledTimes(1)
+    expect(workspaceFiles.readBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: 'files/source/input.png'
+      })
+    )
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(
+      expect.objectContaining({
+        image: `data:image/png;base64,${Buffer.from('workspace-image').toString('base64')}`
+      })
+    )
+  })
+
   it('accepts JSON string arrays for multi-image inputs', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({
       data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]

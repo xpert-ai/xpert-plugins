@@ -1,5 +1,4 @@
-import { readFile } from 'fs/promises'
-import { basename } from 'path'
+import type { SeedreamWorkspaceScope, WorkspaceFilesApi } from './types.js'
 import { extensionFromMimeType } from './workspace-upload.js'
 
 type FileLike = {
@@ -8,6 +7,7 @@ type FileLike = {
   fileUrl?: string
   url?: string
   filePath?: string
+  workspacePath?: string
   path?: string
   fileName?: string
   name?: string
@@ -16,46 +16,49 @@ type FileLike = {
   type?: string
 }
 
-export async function inputToDataUrl(input: unknown, fetchImpl: typeof fetch, defaultMimeType = 'image/png') {
-  if (typeof input === 'string' && input.startsWith('data:')) {
-    return input
-  }
-  const { buffer, mimeType } = await inputToBuffer(input, fetchImpl, defaultMimeType)
+export type InputReadOptions = {
+  fetchImpl: typeof fetch
+  workspaceFiles: WorkspaceFilesApi
+  workspaceScope?: SeedreamWorkspaceScope
+  defaultMimeType: string
+}
+
+export function bufferToDataUrl(buffer: Buffer, mimeType: string) {
   return `data:${mimeType};base64,${buffer.toString('base64')}`
 }
 
-export async function inputToBuffer(input: unknown, fetchImpl: typeof fetch, defaultMimeType = 'application/octet-stream') {
+export async function inputToBuffer(input: unknown, options: InputReadOptions) {
   if (Buffer.isBuffer(input)) {
-    return { buffer: input, mimeType: defaultMimeType }
+    return { buffer: input, mimeType: options.defaultMimeType }
   }
   if (input instanceof Uint8Array) {
-    return { buffer: Buffer.from(input), mimeType: defaultMimeType }
+    return { buffer: Buffer.from(input), mimeType: options.defaultMimeType }
   }
   if (input instanceof ArrayBuffer) {
-    return { buffer: Buffer.from(input), mimeType: defaultMimeType }
+    return { buffer: Buffer.from(input), mimeType: options.defaultMimeType }
   }
   if (typeof input === 'string') {
     if (input.startsWith('data:')) {
       return dataUrlToBuffer(input)
     }
     if (isHttpUrl(input)) {
-      return downloadInput(input, fetchImpl, defaultMimeType)
+      return downloadInput(input, options.fetchImpl, options.defaultMimeType)
     }
-    return { buffer: await readFile(input), mimeType: inferMimeType(input, defaultMimeType) }
+    return readWorkspaceInput(input, options)
   }
   if (isObject(input)) {
     const file = input as FileLike
     const inline = file.blob ?? file.content
     if (inline !== undefined) {
-      return inputToBuffer(inline, fetchImpl, normalizeMimeType(file) ?? defaultMimeType)
+      return inputToBuffer(inline, { ...options, defaultMimeType: normalizeMimeType(file) ?? options.defaultMimeType })
     }
     const url = file.fileUrl ?? file.url
     if (url) {
-      return downloadInput(url, fetchImpl, normalizeMimeType(file) ?? defaultMimeType)
+      return downloadInput(url, options.fetchImpl, normalizeMimeType(file) ?? options.defaultMimeType)
     }
-    const filePath = file.filePath ?? file.path
+    const filePath = file.filePath ?? file.path ?? file.workspacePath
     if (filePath) {
-      return { buffer: await readFile(filePath), mimeType: normalizeMimeType(file) ?? inferMimeType(filePath, defaultMimeType) }
+      return readWorkspaceInput(filePath, options, normalizeMimeType(file))
     }
   }
   throw new Error('Unsupported file input')
@@ -75,14 +78,6 @@ export function createGeneratedFileName(prefix: string, index: number, mimeType:
   return `${prefix}${suffix}.${extensionFromMimeType(mimeType)}`
 }
 
-export function basenameFromUrl(url: string, fallback: string) {
-  try {
-    return basename(new URL(url).pathname) || fallback
-  } catch {
-    return fallback
-  }
-}
-
 function dataUrlToBuffer(dataUrl: string) {
   const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl)
   if (!match) {
@@ -92,6 +87,19 @@ function dataUrlToBuffer(dataUrl: string) {
   const body = match[3] ?? ''
   const buffer = match[2] ? Buffer.from(body, 'base64') : Buffer.from(decodeURIComponent(body))
   return { buffer, mimeType }
+}
+
+async function readWorkspaceInput(filePath: string, options: InputReadOptions, mimeType?: string) {
+  const file = await options.workspaceFiles.readBuffer({
+    ...options.workspaceScope,
+    filePath
+  })
+  const resolvedMimeType =
+    mimeType ?? file.mimeType ?? inferMimeType(file.name ?? file.filePath ?? filePath, options.defaultMimeType)
+  return {
+    buffer: Buffer.from(file.buffer),
+    mimeType: resolvedMimeType
+  }
 }
 
 async function downloadInput(url: string, fetchImpl: typeof fetch, defaultMimeType: string) {

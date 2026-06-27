@@ -1,6 +1,6 @@
 import { tool } from '@langchain/core/tools'
 import { SeedreamArkClient } from './client.js'
-import { inputToBuffer, inputToDataUrl, enforceMaxBytes, createGeneratedFileName } from './assets.js'
+import { inputToBuffer, bufferToDataUrl, enforceMaxBytes, createGeneratedFileName } from './assets.js'
 import { normalizeBoolean, normalizeString, normalizeVideoGenerationOptions, isSeedance2Model } from './rules.js'
 import { uploadGeneratedAsset } from './workspace-upload.js'
 import type { SeedreamArtifactFile, SeedreamToolDependencies, SeedreamToolResult } from './types.js'
@@ -825,9 +825,14 @@ const videoQuerySchema = videoObjectSchema({
 
 async function encodeImageInput(input: unknown, deps: SeedreamToolDependencies, limitBytes: number, label: string) {
   const fetchImpl = deps.fetch ?? fetch
-  const { buffer } = await inputToBuffer(input, fetchImpl, 'image/png')
+  const { buffer, mimeType } = await inputToBuffer(input, {
+    fetchImpl,
+    workspaceFiles: deps.workspaceFiles,
+    workspaceScope: deps.workspaceScope,
+    defaultMimeType: 'image/png'
+  })
   enforceMaxBytes(buffer, limitBytes, label)
-  return inputToDataUrl(input, fetchImpl, 'image/png')
+  return bufferToDataUrl(buffer, mimeType)
 }
 
 async function encodeImageInputs(
@@ -849,9 +854,14 @@ async function encodeImageInputs(
 
 async function encodeAudioInput(input: unknown, deps: SeedreamToolDependencies) {
   const fetchImpl = deps.fetch ?? fetch
-  const { buffer } = await inputToBuffer(input, fetchImpl, 'audio/mpeg')
+  const { buffer, mimeType } = await inputToBuffer(input, {
+    fetchImpl,
+    workspaceFiles: deps.workspaceFiles,
+    workspaceScope: deps.workspaceScope,
+    defaultMimeType: 'audio/mpeg'
+  })
   enforceMaxBytes(buffer, AUDIO_LIMIT_BYTES, 'reference audio')
-  return inputToDataUrl(input, fetchImpl, 'audio/mpeg')
+  return bufferToDataUrl(buffer, mimeType)
 }
 
 async function uploadImageOutputs(
