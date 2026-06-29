@@ -174,6 +174,9 @@ export function injectStyles() {
       padding: 7px 8px;
       text-align: left;
     }
+    .xps-button.xps-button--destructive.xps-button--icon {
+      flex-shrink: 0;
+    }
     .cw-canvas {
       position: relative;
       min-width: 0;
@@ -181,11 +184,23 @@ export function injectStyles() {
       overflow: hidden;
       background: var(--xps-muted);
     }
-    .cw-canvas .tl-container {
-      --color-background: var(--xps-background);
-      --color-low: var(--xps-muted);
-      --color-muted-1: var(--xps-muted);
-      --color-text-1: var(--xps-foreground);
+	    .cw-canvas .tl-container {
+	      --color-background: var(--xps-background);
+	      --color-low: var(--xps-muted);
+	      --color-muted-1: var(--xps-muted);
+	      --color-text-1: var(--xps-foreground);
+	    }
+	    .cw-theme-dark .cw-canvas .tl-container {
+	      color-scheme: dark;
+	    }
+    .cw-theme-light .cw-canvas .tl-container {
+      color-scheme: light;
+    }
+    .cw-root[data-tldraw-license="missing"] .cw-canvas [data-testid="tl-watermark-unlicensed"],
+    .cw-root[data-tldraw-license="missing"] .cw-canvas .tl-watermark_SEE-LICENSE {
+      display: none !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
     }
     .cw-empty {
       display: grid;
@@ -245,6 +260,12 @@ export function injectStyles() {
       margin: 0;
       overflow: hidden;
     }
+    .cw-tab-content[data-state="inactive"] {
+      display: none;
+    }
+    .cw-tab-content[data-state="active"] {
+      display: flex;
+    }
     .cw-section {
       min-width: 0;
       display: grid;
@@ -300,7 +321,17 @@ export function injectStyles() {
       color: var(--xps-foreground);
       font-size: 0.8125rem;
       border-bottom: 1px solid var(--xps-border);
-    }
+	    }
+	    .cw-version > div:first-child {
+	      min-width: 0;
+	      flex: 1 1 auto;
+	    }
+	    .cw-version-actions {
+	      display: flex;
+	      align-items: center;
+	      gap: 4px;
+	      flex: 0 0 auto;
+	    }
     .cw-log {
       display: grid;
       justify-content: stretch;

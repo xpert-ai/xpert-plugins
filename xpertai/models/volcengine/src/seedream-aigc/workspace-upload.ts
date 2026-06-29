@@ -43,6 +43,8 @@ export function toArtifactFile(file: WorkspaceFile, fileName: string, mimeType: 
     ...(file.url ? { url: file.url } : {}),
     mimeType: file.mimeType ?? mimeType,
     size: file.size,
+    catalog: file.catalog,
+    scopeId: file.scopeId,
     extension: extensionFromFileName(fileName),
     provider: SeedreamAigc
   }

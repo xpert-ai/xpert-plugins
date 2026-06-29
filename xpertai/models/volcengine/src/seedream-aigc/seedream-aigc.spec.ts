@@ -3,6 +3,7 @@ import { normalizeVideoGenerationOptions } from './rules.js'
 import { SeedreamAigcStrategy } from './strategy.js'
 import { SeedreamAigcToolset } from './toolset.js'
 import { SeedreamAigc, type SeedreamAigcCredentials, type SeedreamToolResult, type WorkspaceFilesApi } from './types.js'
+import type { TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   BuiltinToolset: class {
@@ -24,6 +25,12 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   },
   ToolsetStrategy: () => (target: any) => target
 }))
+
+type SeedreamInvocationOutput = SeedreamToolResult | {
+  content?: SeedreamInvocationContent
+  artifact?: SeedreamToolResult[1]
+}
+type SeedreamInvocationContent = string | Array<{ text?: string }> | undefined
 
 describe('Seedream AIGC tools', () => {
   const credentials: SeedreamAigcCredentials = {
@@ -64,7 +71,7 @@ describe('Seedream AIGC tools', () => {
       (_) => _.name === 'seedream_text_to_image'
     )
 
-    const result = await tool?.invoke({
+    const result: SeedreamInvocationOutput | undefined = await tool?.invoke({
       id: 'call-1',
       name: 'seedream_text_to_image',
       type: 'tool_call',
@@ -103,14 +110,19 @@ describe('Seedream AIGC tools', () => {
         })
       })
     )
-    const [content, artifact] = result as SeedreamToolResult
+    const [content, artifact] = normalizeToolResult(result)
     expect(artifact.files[0]).toEqual(
       expect.objectContaining({
+        catalog: 'xperts',
         fileUrl: expect.stringContaining('https://workspace.example/files/seedream-aigc/images/'),
         workspacePath: expect.stringContaining('files/seedream-aigc/images/')
       })
     )
     expect(content).toContain('https://workspace.example/files/seedream-aigc/images/')
+    expect(content).toContain('workspacePath: files/seedream-aigc/images/')
+    expect(content).toContain('filePath: files/seedream-aigc/images/')
+    expect(content).toContain('mimeType: image/png')
+    expect(content).toContain('catalog: xperts')
     expect(content).toContain('![')
     expect(JSON.stringify(result)).not.toContain('Z2VuZXJhdGVkLWltYWdl')
   })
@@ -228,10 +240,18 @@ describe('Seedream AIGC tools', () => {
       }))
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
-    const toolset = new (SeedreamAigcToolset as any)(
+    const params: TBuiltinToolsetParams = {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      env: {},
+      commandBus: {} as TBuiltinToolsetParams['commandBus'],
+      queryBus: {} as TBuiltinToolsetParams['queryBus']
+    }
+    const toolset = new SeedreamAigcToolset(
       { credentials },
       { get: jest.fn().mockReturnValue(workspaceFiles) },
-      { xpertId: 'xpert-1' }
+      params
     )
     const tools = await toolset.initTools()
     const tool = tools.find((_) => _.name === 'seedream_text_to_image')
@@ -253,9 +273,61 @@ describe('Seedream AIGC tools', () => {
 
     expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
       expect.objectContaining({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
         catalog: 'xperts',
         scopeId: 'xpert-1',
         xpertId: 'xpert-1'
+      })
+    )
+  })
+
+  it('uses the project runtime context before the xpert context as workspace upload scope', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
+      }))
+      .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
+
+    const params: TBuiltinToolsetParams = {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      projectId: 'project-1',
+      xpertId: 'xpert-1',
+      env: {},
+      commandBus: {} as TBuiltinToolsetParams['commandBus'],
+      queryBus: {} as TBuiltinToolsetParams['queryBus']
+    }
+    const toolset = new SeedreamAigcToolset(
+      { credentials },
+      { get: jest.fn().mockReturnValue(workspaceFiles) },
+      params
+    )
+    const tools = await toolset.initTools()
+    const tool = tools.find((_) => _.name === 'seedream_text_to_image')
+    const originalFetch = global.fetch
+    global.fetch = fetchMock as typeof fetch
+
+    try {
+      await tool?.invoke({
+        id: 'call-project-context',
+        name: 'seedream_text_to_image',
+        type: 'tool_call',
+        args: {
+          prompt: 'a clean product render'
+        }
+      })
+    } finally {
+      global.fetch = originalFetch
+    }
+
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        catalog: 'projects',
+        scopeId: 'project-1',
+        projectId: 'project-1'
       })
     )
   })
@@ -269,7 +341,7 @@ describe('Seedream AIGC tools', () => {
       (_) => _.name === 'seedream_image_to_image'
     )
 
-    const result = await tool?.invoke({
+    const result: SeedreamInvocationOutput | undefined = await tool?.invoke({
       id: 'call-2',
       name: 'seedream_image_to_image',
       type: 'tool_call',
@@ -292,7 +364,7 @@ describe('Seedream AIGC tools', () => {
         mimeType: 'image/png'
       })
     )
-    const [, artifact] = result as SeedreamToolResult
+    const [, artifact] = normalizeToolResult(result)
     expect(artifact.files[0].fileUrl).toContain('https://workspace.example/')
     expect(JSON.stringify(result)).not.toContain(Buffer.from('generated-image-b64').toString('base64'))
   })
@@ -406,7 +478,7 @@ describe('Seedream AIGC tools', () => {
       (_) => _.name === 'seedance_text_to_video'
     )
 
-    const result = await tool?.invoke({
+    const result: SeedreamInvocationOutput | undefined = await tool?.invoke({
       id: 'call-video-submit',
       name: 'seedance_text_to_video',
       type: 'tool_call',
@@ -415,7 +487,7 @@ describe('Seedream AIGC tools', () => {
       }
     })
 
-    const [content, artifact] = result as SeedreamToolResult
+    const [content, artifact] = normalizeToolResult(result)
     expect(content).toContain('Task ID: task-1')
     expect(content).toContain('Call seedance_video_query once')
     expect(content).toContain('Do not repeat the same query in this turn')
@@ -440,7 +512,7 @@ describe('Seedream AIGC tools', () => {
       (_) => _.name === 'seedance_video_query'
     )
 
-    const result = await tool?.invoke({
+    const result: SeedreamInvocationOutput | undefined = await tool?.invoke({
       id: 'call-video-query-pending',
       name: 'seedance_video_query',
       type: 'tool_call',
@@ -450,7 +522,7 @@ describe('Seedream AIGC tools', () => {
       }
     })
 
-    const [content] = result as SeedreamToolResult
+    const [content] = normalizeToolResult(result)
     expect(content).toContain('Video task task-1 status: running.')
     expect(content).toContain('No video_url is available yet')
     expect(content).toContain('Do not repeat seedance_video_query with the same task_id in this turn')
@@ -474,7 +546,7 @@ describe('Seedream AIGC tools', () => {
       (_) => _.name === 'seedance_video_query'
     )
 
-    const result = await tool?.invoke({
+    const result: SeedreamInvocationOutput | undefined = await tool?.invoke({
       id: 'call-3',
       name: 'seedance_video_query',
       type: 'tool_call',
@@ -498,7 +570,7 @@ describe('Seedream AIGC tools', () => {
         mimeType: 'video/mp4'
       })
     )
-    const [, artifact] = result as SeedreamToolResult
+    const [, artifact] = normalizeToolResult(result)
     expect(artifact.files[0]).toEqual(
       expect.objectContaining({
         fileName: 'task-1.mp4',
@@ -590,4 +662,24 @@ function binaryResponse(buffer: Buffer, mimeType: string): Response {
     headers: new Headers({ 'content-type': mimeType }),
     arrayBuffer: async () => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
   } as Response
+}
+
+function normalizeToolResult(output: SeedreamInvocationOutput | undefined): SeedreamToolResult {
+  if (Array.isArray(output)) {
+    return output
+  }
+  if (output?.artifact) {
+    return [normalizeToolContent(output.content), output.artifact]
+  }
+  throw new Error('Expected Seedream tool invocation to return content and artifact.')
+}
+
+function normalizeToolContent(content: SeedreamInvocationContent): string {
+  if (typeof content === 'string') {
+    return content
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => part.text ?? '').join('')
+  }
+  return ''
 }

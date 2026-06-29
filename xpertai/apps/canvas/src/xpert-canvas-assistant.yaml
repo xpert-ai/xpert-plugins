@@ -18,6 +18,7 @@ team:
       requiredPlugins:
         - '@xpert-ai/plugin-canvas'
         - '@xpert-ai/plugin-view-image'
+        - '@xpert-ai/plugin-volcengine'
       requiredCapabilities:
         - canvas
         - canvas-workbench
@@ -53,7 +54,46 @@ team:
       max_tokens: 8192
       top_p: 0.95
   knowledgebases: []
-  toolsets: []
+  toolsets:
+    - id: 9e7f0f3d-1f0d-4c59-9f14-7012dc2a0f4c
+      name: Seedream AIGC
+      type: seedream_aigc
+      category: builtin
+      description: Generate images with Volcengine Doubao Seedream models.
+      avatar:
+        url: https://api.mtda.cloud/api/xpert-toolset/builtin-provider/seedream_aigc/icon
+      options:
+        provider:
+          author: Xpert AI
+          name: seedream_aigc
+          label:
+            en_US: Seedream AIGC
+            zh_Hans: 即梦 AIGC
+          description:
+            en_US: Generate and edit images and videos with Volcengine Ark Seedream and Seedance models.
+            zh_Hans: 通过火山方舟即梦 Seedream 和 Seedance 模型生成、编辑图片和视频。
+          icon: icon.svg
+          tags:
+            - image
+            - aigc
+            - seedream
+            - volcengine
+          avatar:
+            url: https://api.mtda.cloud/api/xpert-toolset/builtin-provider/seedream_aigc/icon
+        toolPositions:
+          seedream_text_to_image: 0
+      privacyPolicy: null
+      customDisclaimer: null
+      tags: []
+      tools:
+        - id: d905500d-68f8-4bb5-897d-d5a60dc84f13
+          name: seedream_text_to_image
+          description: null
+          avatar: null
+          enabled: true
+          disabled: null
+          parameters: null
+          options: null
   tags: []
 nodes:
   - type: agent
@@ -84,6 +124,8 @@ nodes:
         - canvasVersionId: {{env.canvasVersionId}}
         - canvasPageId: {{env.canvasPageId}}
         - canvasSelectionJson: {{{env.canvasSelectionJson}}}
+        - canvasSelectedShapeJson: {{{env.canvasSelectedShapeJson}}}
+        - canvasInsertionTargetJson: {{{env.canvasInsertionTargetJson}}}
         - canvasSceneDirty: {{env.canvasSceneDirty}}
         - canvasContextJson: {{{env.canvasContextJson}}}
         - canvasSnapshotImagePath: {{env.canvasSnapshotImagePath}}
@@ -93,6 +135,8 @@ nodes:
         If canvasContextJson is non-empty, parse it as the current Workbench Canvas
         context. Treat currentCanvas.selection.type = "canvas.selection.v1" as the
         explicit machine-readable current selection for this turn.
+        If canvasInsertionTargetJson is non-empty and not null, use it as the exact
+        insertion target for generated images.
 
         If canvasSnapshotImagePath is non-empty and the user asks you to understand
         visual content, inspect layout, follow annotations, describe the board, or
@@ -100,15 +144,27 @@ nodes:
         equal to canvasSnapshotImagePath. Do not guess the current visual contents
         from tldraw JSON alone when a viewport snapshot image is available.
 
+        Auxiliary tools:
+        - Use read_skill_file when an enabled skill applies to the user's visual,
+          design, research, or file-processing task.
+        - Use web_search/web_fetch when the user asks for current external facts,
+          references, brand/product information, or web assets.
+        - Use sandbox_shell for command-line inspection, file conversion, and
+          workspace checks. Do not use sandbox_shell as the persistence path for
+          Canvas; Canvas middleware tools remain the system of record.
+
         Canvas workflow:
         1. Clarify the visual goal, audience, key regions, labels, and image needs
            when the request is ambiguous.
-        2. Create a canvas with canvas_create_document, then save generated tldraw
-           snapshots with canvas_save_snapshot or targeted record changes with
-           canvas_patch_records.
+        2. If canvasDocumentId is non-empty, treat it as the current canvas. Do not
+           call canvas_create_document for image insertion or updates to that canvas.
+           Only call canvas_create_document when there is no canvasDocumentId and the
+           user explicitly wants a new canvas.
         3. Use canvas_insert_image only after an image has been generated or provided.
-           Pass dataUrl or base64. If a selected shape is an AI image holder frame,
-           pass its id as anchorShapeId so the image fills that slot.
+           Pass documentId, exactly one image source such as workspaceFilePath,
+           dataUrl, or base64, and target from env.canvasInsertionTargetJson when
+           it is available. Let Canvas infer holder filling and page placement
+           from target.
         4. When updating an existing canvas, call canvas_get_document first. Use
            canvas_get_record for exact record JSON before patching selected shapes,
            assets, bindings, image holders, or pages.
@@ -118,6 +174,31 @@ nodes:
            affect other content.
         6. Keep changeSummary short and operational. Use canvas_report_failure when
            a snapshot, patch, image insertion, or requested edit cannot be completed.
+
+        Seedream text-to-image workflow:
+        - When the user asks to generate an image for Canvas, call
+          seedream_text_to_image first. Use canvas_insert_image only after
+          seedream_text_to_image returns a generated file.
+        - Read env.canvasInsertionTargetJson first. If it is non-empty and not null,
+          parse it and pass it unchanged as target to canvas_insert_image.
+          Otherwise read the current page and selected holder from
+          env.canvasContextJson.
+        - Choose Seedream size from the holder or requested aspect ratio:
+          1:1=2048x2048, 3:2=2496x1664, 2:3=1664x2496,
+          4:3=2304x1728, 3:4=1728x2304, 16:9=2560x1440,
+          9:16=1440x2560. If target width/height is available, derive the
+          nearest ratio from those values. If no ratio is clear, use 2048x2048.
+        - After Seedream returns, call canvas_insert_image with documentId,
+          workspaceFilePath, target when available, mimeType when useful, and a
+          clear changeSummary. If Seedream labels the generated path as
+          workspacePath or filePath, copy that value into workspaceFilePath. Do
+          not pass workspace scope or old flat placement fields.
+        - canvas_insert_image updates the current Canvas working copy and does not
+          create a version. Do not call canvas_save_snapshot after a successful
+          image insertion unless the user explicitly asked to create a new version
+          or replace the whole canvas with a complete valid tldraw snapshot.
+        - If no holder is selected, still generate the image and insert it into
+          the current page. Do not ask the user to create a holder first.
 
         tldraw rules:
         - Preserve user-created records and pages unless the user asks for removal.
@@ -130,7 +211,8 @@ nodes:
 
         Match the user's language. If the user's language is unclear, respond in English.
       collaboratorNames: []
-      toolsetIds: []
+      toolsetIds:
+        - 9e7f0f3d-1f0d-4c59-9f14-7012dc2a0f4c
       knowledgebaseIds: []
     hash: canvas-agent-v1
   - type: workflow
@@ -157,6 +239,42 @@ nodes:
       provider: ViewImageMiddleware
       required: true
     hash: canvas-view-image-middleware-v1
+  - type: workflow
+    key: Middleware_Skills
+    position:
+      x: 500
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Skills
+      title: Skills Middleware
+      provider: skillsMiddleware
+      required: true
+    hash: canvas-skills-middleware-v1
+  - type: workflow
+    key: Middleware_WebTools
+    position:
+      x: 500
+      y: 480
+    entity:
+      type: middleware
+      key: Middleware_WebTools
+      title: Web Tools
+      provider: WebTools
+      required: true
+    hash: canvas-web-tools-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxShell
+    position:
+      x: 1460
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SandboxShell
+      title: Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: canvas-sandbox-shell-middleware-v1
 connections:
   - type: workflow
     key: Agent_Canvas/Middleware_Canvas
@@ -166,3 +284,15 @@ connections:
     key: Agent_Canvas/Middleware_ViewImage
     from: Agent_Canvas
     to: Middleware_ViewImage
+  - type: workflow
+    key: Agent_Canvas/Middleware_Skills
+    from: Agent_Canvas
+    to: Middleware_Skills
+  - type: workflow
+    key: Agent_Canvas/Middleware_WebTools
+    from: Agent_Canvas
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_Canvas/Middleware_SandboxShell
+    from: Agent_Canvas
+    to: Middleware_SandboxShell

@@ -71,6 +71,8 @@ export type SeedreamArtifactFile = {
   url?: string
   mimeType: string
   size?: number
+  catalog?: WorkspaceFileCatalog
+  scopeId?: string
   extension: string
   provider: typeof SeedreamAigc
 }

@@ -33,7 +33,7 @@
     ".xpertai-plugin",
     "assets",
     "skills",
-    "README.md",
+    "README*.md",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {

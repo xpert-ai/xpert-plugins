@@ -25,7 +25,30 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
   version: string
 }
 
-const ConfigSchema = z.object({})
+const ConfigSchema = z.object({
+  tldrawLicenseKey: z.string().optional()
+})
+
+const canvasMarketplaceOperations = [
+  {
+    name: 'create-canvas-documents',
+    displayName: 'Create Canvas documents',
+    description: 'Create reviewable infinite canvases and visual planning boards.',
+    access: 'write' as const
+  },
+  {
+    name: 'save-canvas-versions',
+    displayName: 'Save Canvas versions',
+    description: 'Persist tldraw snapshots, record patches, image insertions, and Workbench edits.',
+    access: 'write' as const
+  },
+  {
+    name: 'review-canvas-workbench',
+    displayName: 'Review Canvas Workbench',
+    description: 'Open the Canvas Workbench to inspect, annotate, import, export, and manually edit canvases.',
+    access: 'read' as const
+  }
+]
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
@@ -43,51 +66,41 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'app',
               name: 'canvas',
               displayName: 'Canvas',
-              description: 'Create, annotate, insert images, review, import, export, and version Agent-managed tldraw canvases.',
+              description: 'Use Canvas Assistant to create, review, annotate, import, export, and version Agent-managed tldraw canvases.',
               icon: {
                 type: 'svg',
                 value: CANVAS_ICON,
                 color: '#0f766e'
               },
-              operations: [
-                {
-                  name: 'create-canvas-documents',
-                  displayName: 'Create Canvas documents',
-                  description: 'Create reviewable infinite canvases and visual planning boards.',
-                  access: 'write'
-                },
-                {
-                  name: 'save-canvas-versions',
-                  displayName: 'Save Canvas versions',
-                  description: 'Persist tldraw snapshots, record patches, image insertions, and Workbench edits.',
-                  access: 'write'
-                },
-                {
-                  name: 'review-canvas-workbench',
-                  displayName: 'Review Canvas Workbench',
-                  description: 'Open the Canvas Workbench to inspect, annotate, import, export, and manually edit canvases.',
-                  access: 'read'
-                }
-              ]
+              operations: canvasMarketplaceOperations
             },
             {
               type: 'view',
               name: CANVAS_WORKBENCH_VIEW_KEY,
               displayName: 'Canvas Workbench',
-              description: 'Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.'
+              description: 'Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.',
+              metadata: {
+                app: 'canvas'
+              }
             },
             {
-              type: 'tool',
+              type: 'middleware',
               name: CANVAS_MIDDLEWARE_NAME,
               displayName: 'Canvas Agent Tools',
               description:
-                'Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.'
+                'Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.',
+              metadata: {
+                app: 'canvas'
+              }
             },
             {
               type: 'assistant-template',
               name: 'canvas-assistant',
               displayName: 'Canvas Assistant Template',
-              description: 'Prebuilt assistant template for Agent-managed canvas creation, image holder, and annotation workflows.'
+              description: 'Prebuilt assistant template for Agent-managed canvas creation, image holder, and annotation workflows.',
+              metadata: {
+                app: 'canvas'
+              }
             }
           ]
         },
@@ -114,13 +127,36 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'assistant-template',
               name: 'canvas-assistant',
               displayName: 'Canvas Assistant',
-              description: 'Assistant template for Canvas visual workflows.'
+              description: 'Assistant template for Canvas visual workflows.',
+              metadata: {
+                app: 'canvas'
+              }
             },
             {
               type: 'app',
               name: 'canvas',
               displayName: 'Canvas',
-              description: 'Workbench and Agent middleware tools for tldraw canvases.'
+              description: 'Use Canvas Assistant with Workbench and Agent middleware tools for tldraw canvases.',
+              operations: canvasMarketplaceOperations
+            },
+            {
+              type: 'view',
+              name: CANVAS_WORKBENCH_VIEW_KEY,
+              displayName: 'Canvas Workbench',
+              description: 'Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.',
+              metadata: {
+                app: 'canvas'
+              }
+            },
+            {
+              type: 'middleware',
+              name: CANVAS_MIDDLEWARE_NAME,
+              displayName: 'Canvas Agent Tools',
+              description:
+                'Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.',
+              metadata: {
+                app: 'canvas'
+              }
             }
           ]
         }

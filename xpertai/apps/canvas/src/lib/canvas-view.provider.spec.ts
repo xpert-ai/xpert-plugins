@@ -46,6 +46,9 @@ type CanvasWorkbenchViewData = Awaited<ReturnType<CanvasViewProvider['getViewDat
       id: string
     }
   }
+  settings?: {
+    tldrawLicenseKey?: string
+  }
 }
 
 type CanvasActionResult = Awaited<ReturnType<CanvasViewProvider['executeViewAction']>> & {
@@ -74,26 +77,39 @@ describe('CanvasViewProvider', () => {
     expect(manifest.clientCommands?.map((command) => command.key)).toEqual(
       expect.arrayContaining([ASSISTANT_CONTEXT_SET_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND])
     )
-    expect(manifest.actions?.map((action) => action.key)).toEqual(expect.arrayContaining(['autosave_snapshot', 'prepare_assistant_prompt']))
+    expect(manifest.actions?.map((action) => action.key)).toEqual(
+      expect.arrayContaining(['autosave_snapshot', 'prepare_assistant_prompt', 'delete_document', 'delete_version'])
+    )
     expect(manifest.actions?.some((action) => action.key === 'import_snapshot_file' && (action as FileTransportAction).transport === 'file')).toBe(true)
     expect(manifest.hostEvents?.subscriptions?.[0].filter?.toolNames).toEqual([...CANVAS_MIDDLEWARE_TOOL_NAMES])
   })
 
   it('loads paginated view data and optional detail', async () => {
-    const service = {
-      searchDocuments: jest.fn().mockResolvedValue({ items: [{ id: 'doc-1' }], total: 1, page: 1, pageSize: 20 }),
-      getDocument: jest.fn().mockResolvedValue({ item: { id: 'doc-1' } })
-    }
-    const provider = new CanvasViewProvider(service as Partial<CanvasService> as CanvasService)
-    const result = await provider.getViewData(
-      hostContext,
-      CANVAS_WORKBENCH_VIEW_KEY,
-      { page: 1, pageSize: 20, parameters: { documentId: 'doc-1' } } as XpertViewQuery
-    ) as CanvasWorkbenchViewData
+    const previousLicenseKey = process.env.TLDRAW_LICENSE_KEY
+    process.env.TLDRAW_LICENSE_KEY = 'tl-test-key'
+    try {
+      const service = {
+        searchDocuments: jest.fn().mockResolvedValue({ items: [{ id: 'doc-1' }], total: 1, page: 1, pageSize: 20 }),
+        getDocument: jest.fn().mockResolvedValue({ item: { id: 'doc-1' } })
+      }
+      const provider = new CanvasViewProvider(service as Partial<CanvasService> as CanvasService)
+      const result = await provider.getViewData(
+        hostContext,
+        CANVAS_WORKBENCH_VIEW_KEY,
+        { page: 1, pageSize: 20, parameters: { documentId: 'doc-1' } } as XpertViewQuery
+      ) as CanvasWorkbenchViewData
 
-    expect(result.table?.items).toEqual([{ id: 'doc-1' }])
-    expect(result.detail?.item.id).toBe('doc-1')
-    expect(service.searchDocuments).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant', organizationId: 'org' }), expect.objectContaining({}))
+      expect(result.table?.items).toEqual([{ id: 'doc-1' }])
+      expect(result.detail?.item.id).toBe('doc-1')
+      expect(result.settings?.tldrawLicenseKey).toBe('tl-test-key')
+      expect(service.searchDocuments).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant', organizationId: 'org' }), expect.objectContaining({}))
+    } finally {
+      if (previousLicenseKey === undefined) {
+        delete process.env.TLDRAW_LICENSE_KEY
+      } else {
+        process.env.TLDRAW_LICENSE_KEY = previousLicenseKey
+      }
+    }
   })
 
   it('loads the latest document detail when no document id is provided', async () => {
@@ -138,5 +154,29 @@ describe('CanvasViewProvider', () => {
       expect.objectContaining({ tenantId: 'tenant', assistantId: 'assistant' }),
       expect.objectContaining({ documentId: 'doc-1', instruction: 'check layout' })
     )
+  })
+
+  it('executes document and version deletion actions', async () => {
+    const service = {
+      deleteDocument: jest.fn().mockResolvedValue({ success: true, deletedDocumentId: 'doc-1' }),
+      deleteVersion: jest.fn().mockResolvedValue({ success: true, deletedVersionId: 'ver-1' })
+    }
+    const provider = new CanvasViewProvider(service as Partial<CanvasService> as CanvasService)
+
+    await provider.executeViewAction(
+      hostContext,
+      CANVAS_WORKBENCH_VIEW_KEY,
+      'delete_version',
+      { targetId: 'doc-1', input: { versionId: 'ver-1' } } as XpertViewActionRequest
+    )
+    await provider.executeViewAction(
+      hostContext,
+      CANVAS_WORKBENCH_VIEW_KEY,
+      'delete_document',
+      { targetId: 'doc-1', input: {} } as XpertViewActionRequest
+    )
+
+    expect(service.deleteVersion).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant' }), 'doc-1', 'ver-1')
+    expect(service.deleteDocument).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant' }), 'doc-1')
   })
 })

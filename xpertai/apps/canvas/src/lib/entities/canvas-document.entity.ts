@@ -71,6 +71,12 @@ export class CanvasDocument {
   @Column({ type: 'varchar', nullable: true })
   autosaveBaseVersionId?: string
 
+  @Column({ type: 'int', default: 0 })
+  workingCopyRevision?: number
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  snapshotChecksum?: string
+
   @Column({ type: 'text', nullable: true })
   snapshotImagePath?: string
 

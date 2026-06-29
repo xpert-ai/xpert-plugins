@@ -605,7 +605,7 @@ const multimodalVideoRatioProperty = {
 } as const
 
 const videoDurationProperty = {
-  type: 'integer',
+  type: ['integer', 'string'],
   title: 'Duration',
   description: 'Video duration in seconds.',
   minimum: 2,
@@ -618,7 +618,7 @@ const videoDurationProperty = {
 } as const
 
 const videoSeedProperty = {
-  type: 'integer',
+  type: ['integer', 'string'],
   title: 'Seed',
   description: 'Random seed. Use -1 for a random seed.',
   minimum: -1,
@@ -952,12 +952,16 @@ function formatResultContent(message: string, files: SeedreamArtifactFile[]) {
   const fileLines = files
     .map((file, index) => {
       const url = file.fileUrl ?? file.url
-      if (!url) {
-        return `${index + 1}. ${file.fileName}`
-      }
-      return isImageFile(file)
-        ? `${index + 1}. ${file.fileName}: ${url}\n![${file.fileName}](${url})`
-        : `${index + 1}. ${file.fileName}: ${url}`
+      const metadataLines = [
+        `workspacePath: ${file.workspacePath}`,
+        `filePath: ${file.filePath}`,
+        `mimeType: ${file.mimeType}`,
+        ...(file.catalog ? [`catalog: ${file.catalog}`] : []),
+        ...(file.scopeId ? [`scopeId: ${file.scopeId}`] : [])
+      ]
+      const title = url ? `${index + 1}. ${file.fileName}: ${url}` : `${index + 1}. ${file.fileName}`
+      const preview = url && isImageFile(file) ? `\n![${file.fileName}](${url})` : ''
+      return `${title}\n${metadataLines.join('\n')}${preview}`
     })
     .join('\n')
 

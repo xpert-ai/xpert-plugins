@@ -42,14 +42,33 @@ export class SeedreamAigcToolset extends BuiltinToolset<StructuredToolInterface,
   }
 
   private createWorkspaceScope() {
-    if (!this.xpertId) {
+    const projectId = normalizeOptionalString(this.params?.projectId)
+    if (projectId) {
+      return {
+        tenantId: normalizeOptionalString(this.params?.tenantId),
+        userId: normalizeOptionalString(this.params?.userId),
+        catalog: 'projects' as const,
+        scopeId: projectId,
+        projectId
+      }
+    }
+
+    const xpertId = normalizeOptionalString(this.xpertId)
+    if (!xpertId) {
       return undefined
     }
     return {
+      tenantId: normalizeOptionalString(this.params?.tenantId),
+      userId: normalizeOptionalString(this.params?.userId),
       catalog: 'xperts' as const,
-      scopeId: this.xpertId,
-      xpertId: this.xpertId,
+      scopeId: xpertId,
+      xpertId,
       isolateByUser: false
     }
   }
+}
+
+function normalizeOptionalString(value: string | undefined | null) {
+  const normalized = value?.trim()
+  return normalized ? normalized : undefined
 }

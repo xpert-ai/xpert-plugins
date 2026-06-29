@@ -7,6 +7,10 @@ export type TranslationKey =
   | 'draft'
   | 'archive'
   | 'delete'
+  | 'deleteVersion'
+  | 'deleted'
+  | 'confirmDeleteCanvas'
+  | 'confirmDeleteVersion'
   | 'documents'
   | 'versions'
   | 'logs'
@@ -17,6 +21,8 @@ export type TranslationKey =
   | 'snapshot'
   | 'noSnapshot'
   | 'restore'
+  | 'aiHolderTip'
+  | 'annotationTip'
   | 'search'
   | 'untitled'
   | 'aiHolder'
@@ -44,6 +50,10 @@ const dictionary: Record<string, Record<TranslationKey, string>> = {
     draft: 'Draft',
     archive: 'Archive',
     delete: 'Delete',
+    deleteVersion: 'Delete version',
+    deleted: 'Deleted',
+    confirmDeleteCanvas: 'Delete this canvas and all versions?',
+    confirmDeleteVersion: 'Delete this version?',
     documents: 'Canvases',
     versions: 'Versions',
     logs: 'Logs',
@@ -54,6 +64,8 @@ const dictionary: Record<string, Record<TranslationKey, string>> = {
     snapshot: 'Snapshot',
     noSnapshot: 'No snapshot image yet',
     restore: 'Restore',
+    aiHolderTip: 'Create a selected AI image holder for generated images',
+    annotationTip: 'Add a red arrow and note for image feedback',
     search: 'Search',
     untitled: 'Untitled Canvas',
     aiHolder: 'AI image',
@@ -80,6 +92,10 @@ const dictionary: Record<string, Record<TranslationKey, string>> = {
     draft: '草稿',
     archive: '归档',
     delete: '删除',
+    deleteVersion: '删除版本',
+    deleted: '已删除',
+    confirmDeleteCanvas: '确定删除此画布及其所有版本？',
+    confirmDeleteVersion: '确定删除此版本？',
     documents: '画布',
     versions: '版本',
     logs: '日志',
@@ -90,6 +106,8 @@ const dictionary: Record<string, Record<TranslationKey, string>> = {
     snapshot: '快照',
     noSnapshot: '暂无快照图片',
     restore: '恢复',
+    aiHolderTip: '创建用于插入生成图片的选中占位符',
+    annotationTip: '添加红色箭头和文字标注',
     search: '搜索',
     untitled: '未命名画布',
     aiHolder: 'AI 图片',
