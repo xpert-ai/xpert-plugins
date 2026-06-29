@@ -19,12 +19,39 @@ const CANVAS_TEMPLATE_KEY = 'canvas-assistant'
 const CANVAS_TEMPLATE_FILE = 'xpert-canvas-assistant.yaml'
 const CANVAS_AGENT_KEY = 'Agent_Canvas'
 const VIEW_IMAGE_PLUGIN_NAME = '@xpert-ai/plugin-view-image'
+const VOLCENGINE_PLUGIN_NAME = '@xpert-ai/plugin-volcengine'
+const SEEDREAM_AIGC_PROVIDER = 'seedream_aigc'
+const CANVAS_SEEDREAM_TEMPLATE_TOOLSET_NODE_KEY = '9e7f0f3d-1f0d-4c59-9f14-7012dc2a0f4c'
+
+type CanvasTemplateToolsetDependency = {
+  pluginName?: string
+  provider: string
+  templateNodeKey: string
+  targetAgentKey?: string
+  instanceName?: string
+}
+
+type CanvasTemplateContribution = XpertTemplateContribution & {
+  dependencies?: NonNullable<XpertTemplateContribution['dependencies']> & {
+    toolsets?: CanvasTemplateToolsetDependency[]
+  }
+}
+
 const canvasSkillDependencies = [
   {
     componentKey: 'canvas-agent-skill',
     targetAgentKey: CANVAS_AGENT_KEY
   }
 ]
+const canvasToolsetDependencies = [
+  {
+    pluginName: VOLCENGINE_PLUGIN_NAME,
+    provider: SEEDREAM_AIGC_PROVIDER,
+    templateNodeKey: CANVAS_SEEDREAM_TEMPLATE_TOOLSET_NODE_KEY,
+    targetAgentKey: CANVAS_AGENT_KEY,
+    instanceName: 'Seedream AIGC'
+  }
+] satisfies CanvasTemplateToolsetDependency[]
 
 function getTemplateCandidates() {
   return [
@@ -44,7 +71,7 @@ function readCanvasDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const canvasTemplates: XpertTemplateContribution[] = [
+export const canvasTemplates: CanvasTemplateContribution[] = [
   {
     key: CANVAS_TEMPLATE_KEY,
     name: 'Canvas Assistant',
@@ -57,7 +84,7 @@ export const canvasTemplates: XpertTemplateContribution[] = [
       'data-xpert': {
         types: ['business-assistant'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY],
-        requiredPlugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME],
+        requiredPlugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME, VOLCENGINE_PLUGIN_NAME],
         defaultConfig: {
           assistantKind: 'business-assistant',
           businessDomain: 'canvas',
@@ -68,12 +95,13 @@ export const canvasTemplates: XpertTemplateContribution[] = [
       xpert: {
         types: ['assistant-template'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY],
-        requiredPlugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME]
+        requiredPlugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME, VOLCENGINE_PLUGIN_NAME]
       }
     },
     dependencies: {
-      plugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME],
-      skills: canvasSkillDependencies
+      plugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME, VOLCENGINE_PLUGIN_NAME],
+      skills: canvasSkillDependencies,
+      toolsets: canvasToolsetDependencies
     },
     dslContent: readCanvasDsl(),
     order: 58,
@@ -87,5 +115,5 @@ export const canvasTemplates: XpertTemplateContribution[] = [
     releaseNotes: 'Created the Canvas Agentic App assistant.',
     xpertName: 'Canvas Assistant',
     providerKey: CANVAS_TEMPLATE_PROVIDER_KEY
-  } as XpertTemplateContribution
+  }
 ]

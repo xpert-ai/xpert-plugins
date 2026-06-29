@@ -1,3 +1,5 @@
+import { canvasWorkbenchDebug, setCanvasDebugHostConfig } from './debug-logger.js'
+
 const CHANNEL = 'xpertai.remote_component'
 const VERSION = 1
 
@@ -25,6 +27,7 @@ type RemoteMessage = RemoteResponse & {
   initialQuery?: RemotePayloadValue
   locale?: string
   theme?: RemotePayloadValue
+  debug?: RemotePayloadValue
 }
 
 type RemoteErrorLike = Error | { message?: string } | string | null | undefined
@@ -49,6 +52,7 @@ export type RemoteBridgeContext = {
   }
   locale?: string
   theme?: RemotePayloadValue
+  debug?: RemotePayloadValue
 }
 
 type RemoteUIWindow = Window & {
@@ -213,16 +217,27 @@ export function startRemoteBridge(setContext: (context: RemoteBridgeContext) => 
 
     if (message.type === 'init') {
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
+      setCanvasDebugHostConfig(message.debug)
       const nextContext: RemoteBridgeContext = {
         manifest: message.manifest,
         payload: message.payload,
         initialQuery: getInitialQuery(message.initialQuery),
         locale: typeof message.locale === 'string' ? message.locale : undefined,
-        theme: message.theme
+        theme: message.theme,
+        debug: message.debug
       }
       currentContext = nextContext
       applyRemoteTheme(message.theme)
       setContext(nextContext)
+      canvasWorkbenchDebug.info('bridge.init', {
+        instanceId: instanceId ?? '',
+        locale: nextContext.locale ?? '',
+        manifestKey: isObject(message.manifest) && typeof message.manifest.key === 'string' ? message.manifest.key : '',
+        hasInitialQuery: message.initialQuery !== undefined,
+        hasTheme: message.theme !== undefined,
+        hasDebug: message.debug !== undefined,
+        debug: message.debug
+      })
       setTimeout(reportResize, 0)
       return
     }
@@ -237,7 +252,16 @@ export function startRemoteBridge(setContext: (context: RemoteBridgeContext) => 
     }
 
     if (message.type === 'hostEvent') {
-      handleHostEvent(message.event)
+      canvasWorkbenchDebug.info('bridge.hostEvent.received', {
+        messageType: message.type,
+        hasEvent: message.event !== undefined,
+        hasPayload: message.payload !== undefined,
+        hasData: message.data !== undefined,
+        hasResult: message.result !== undefined
+      })
+      const hostEvent = extractHostEventFromMessage(message)
+      canvasWorkbenchDebug.info('bridge.hostEvent.extracted', summarizeHostEvent(hostEvent))
+      handleHostEvent(hostEvent)
       return
     }
 
@@ -254,6 +278,46 @@ export function startRemoteBridge(setContext: (context: RemoteBridgeContext) => 
       }
     }
   })
+}
+
+function summarizeHostEvent(event: RemotePayloadValue | undefined): RemotePayloadObject {
+  if (!isObject(event)) {
+    return {
+      kind: event === undefined ? 'undefined' : typeof event
+    }
+  }
+
+  const data = isObject(event.data) ? event.data : null
+  const output = data && isObject(data.output) ? data.output : null
+  const input = data && isObject(data.input) ? data.input : null
+  return {
+    kind: 'object',
+    type: typeof event.type === 'string' ? event.type : '',
+    source: typeof event.source === 'string' ? event.source : '',
+    toolName: typeof event.toolName === 'string' ? event.toolName : '',
+    hasData: event.data !== undefined,
+    hasInput: Boolean(input),
+    hasOutput: Boolean(output),
+    inputKeys: input ? Object.keys(input) : [],
+    outputKeys: output ? Object.keys(output) : [],
+    topLevelKeys: Object.keys(event)
+  }
+}
+
+function extractHostEventFromMessage(message: RemoteMessage): RemotePayloadValue | undefined {
+  if (message.event !== undefined) {
+    return message.event
+  }
+  if (message.payload !== undefined) {
+    return message.payload
+  }
+  if (message.data !== undefined) {
+    return message.data
+  }
+  if (message.result !== undefined) {
+    return message.result
+  }
+  return message
 }
 
 function isThemeMessage(message: RemotePayloadObject) {

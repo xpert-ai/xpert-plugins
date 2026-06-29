@@ -10,6 +10,7 @@ export type CanvasActionType =
   | 'image_inserted'
   | 'status_updated'
   | 'version_restored'
+  | 'version_deleted'
   | 'document_archived'
   | 'failure_reported'
 
@@ -72,6 +73,10 @@ export interface CanvasWorkspaceFileRecord {
   scopeId?: string
 }
 
+export interface CanvasWorkspaceFileBuffer extends CanvasWorkspaceFileRecord {
+  buffer: Buffer
+}
+
 export interface CanvasWorkspaceFilesApi {
   uploadBuffer(input: CanvasWorkspaceFileScope & {
     buffer: Buffer
@@ -82,6 +87,10 @@ export interface CanvasWorkspaceFilesApi {
     fileName?: string | null
     metadata?: CanvasJsonObject
   }): Promise<CanvasWorkspaceFileRecord>
+
+  readBuffer(input: CanvasWorkspaceFileScope & {
+    filePath: string
+  }): Promise<CanvasWorkspaceFileBuffer>
 
   deleteFile(input: CanvasWorkspaceFileScope & {
     filePath: string
@@ -126,6 +135,8 @@ export interface AutosaveCanvasSnapshotInput extends CanvasSnapshotInput {
   documentId: string
   snapshot: CanvasSnapshotData
   snapshotImage: CanvasSnapshotImageInput
+  baseRevision?: number | null
+  baseSnapshotChecksum?: string | null
   changeSummary?: string | null
 }
 
@@ -140,26 +151,20 @@ export interface PatchCanvasRecordsInput {
 
 export interface InsertCanvasImageInput {
   documentId?: string
-  title?: string
-  description?: string
-  kind?: CanvasDocumentKind
   dataUrl?: string
   base64?: string
+  workspaceFilePath?: string
   mimeType?: string
-  fileName?: string
+  target?: CanvasImageInsertionTargetInput
+  changeSummary?: string
+}
+
+export interface CanvasImageInsertionTargetInput {
+  documentId?: string
+  pageId?: string
+  shapeId?: string
   width?: number
   height?: number
-  displayWidth?: number
-  displayHeight?: number
-  pageId?: string
-  anchorShapeId?: string
-  placement?: 'right' | 'left' | 'below' | 'center'
-  margin?: number
-  matchAnchor?: boolean
-  altText?: string
-  shapeMeta?: CanvasJsonObject
-  assetMeta?: CanvasJsonObject
-  changeSummary?: string
 }
 
 export interface SearchCanvasDocumentsInput {

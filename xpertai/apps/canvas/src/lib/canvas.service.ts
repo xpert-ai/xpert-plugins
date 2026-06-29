@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
 import { extname } from 'node:path'
@@ -60,6 +60,8 @@ type SnapshotImageFileFields = {
 }
 
 const SNAPSHOT_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+const SAVE_SNAPSHOT_REQUIRED_MESSAGE =
+  'canvas_save_snapshot requires a complete tldraw snapshot; do not call it after canvas_insert_image unless you are replacing the whole canvas.'
 
 @Injectable()
 export class CanvasService {
@@ -103,13 +105,19 @@ export class CanvasService {
     })
 
     if (hasSnapshotContent(input)) {
-      await this.createVersion(scope, document, {
-        sourceType: 'agent_snapshot',
-        snapshot: normalizeSnapshotInput(input.snapshot),
+      const snapshot = normalizeSnapshotInput(input.snapshot)
+      const imageFields = input.snapshotImage
+        ? await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
+            mode: 'current',
+            sourceType: input.source === 'import' ? 'import' : scope.assistantId ? 'agent_snapshot' : 'workbench',
+            versionNumber: document.currentVersionNumber ?? 0
+          })
+        : undefined
+      await this.saveWorkingCopy(scope, document, {
+        snapshot,
         viewState: normalizeObject(input.viewState),
         selectionSummary: normalizeObject(input.selectionSummary),
-        snapshotImage: input.snapshotImage,
-        changeSummary: normalizeOptional(input.changeSummary) ?? 'Initial canvas'
+        imageFields
       })
     }
 
@@ -118,9 +126,10 @@ export class CanvasService {
 
   async saveSnapshot(scope: CanvasScope, input: SaveCanvasSnapshotInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    const snapshot = normalizeRequiredSnapshotInput(input.snapshot)
     const version = await this.createVersion(scope, document, {
       sourceType: input.sourceType ?? 'agent_snapshot',
-      snapshot: normalizeSnapshotInput(input.snapshot),
+      snapshot,
       viewState: normalizeObject(input.viewState),
       selectionSummary: normalizeObject(input.selectionSummary),
       snapshotImage: input.snapshotImage,
@@ -139,13 +148,14 @@ export class CanvasService {
     return {
       success: true,
       message: 'Canvas snapshot was saved.',
-      document: await this.getDocument(scope, { documentId: document.id as string, includeSnapshot: true }),
-      version
+      document: compactDocument(document),
+      version: compactVersion(version)
     }
   }
 
   async autosaveSnapshot(scope: CanvasScope, input: AutosaveCanvasSnapshotInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    this.assertWorkingCopyBase(document, input)
     const snapshot = normalizeSnapshotInput(input.snapshot)
     const viewState = normalizeObject(input.viewState)
     const selectionSummary = normalizeObject(input.selectionSummary)
@@ -154,34 +164,18 @@ export class CanvasService {
       sourceType: 'workbench',
       versionNumber: document.currentVersionNumber ?? 0
     })
-    const autosaveUpdatedAt = new Date()
-
-    const savedDocument = await this.documentRepository.save({
-      ...document,
-      autosaveSnapshot: snapshot,
-      autosaveViewState: viewState,
-      autosaveSelectionSummary: selectionSummary,
-      autosaveUpdatedAt,
-      autosaveBaseVersionId: document.currentVersionId ?? null,
-      ...imageFields,
-      status: document.status === 'archived' ? document.status : 'draft',
-      lastEditedById: scope.userId ?? null,
-      lastEditedAt: autosaveUpdatedAt
+    const savedDocument = await this.saveWorkingCopy(scope, document, {
+      snapshot,
+      viewState,
+      selectionSummary,
+      imageFields
     })
 
     return {
       success: true,
       message: 'Canvas working copy was autosaved.',
-      document: await this.getDocument(scope, { documentId: savedDocument.id as string, includeSnapshot: true }),
-      autosave: {
-        documentId: savedDocument.id,
-        autosaveUpdatedAt,
-        autosaveBaseVersionId: savedDocument.autosaveBaseVersionId,
-        snapshotImagePath: savedDocument.snapshotImagePath,
-        snapshotImageUrl: savedDocument.snapshotImageUrl,
-        snapshotImageChecksum: savedDocument.snapshotImageChecksum,
-        snapshotSummary: summarizeSnapshot(snapshot)
-      }
+      document: compactDocument(savedDocument),
+      autosave: compactAutosave(savedDocument, snapshot)
     }
   }
 
@@ -213,17 +207,17 @@ export class CanvasService {
       ...normalizeObject(currentState.viewState),
       ...normalizeObject(input.viewStatePatch)
     }
-    const version = await this.createVersion(scope, document, {
-      sourceType: 'agent_patch',
+    const selectionSummary =
+      input.selectionSummary === undefined ? normalizeObject(currentState.selectionSummary) : normalizeObject(input.selectionSummary)
+    const savedDocument = await this.saveWorkingCopy(scope, document, {
       snapshot: normalized,
       viewState,
-      selectionSummary: input.selectionSummary === undefined ? normalizeObject(currentState.selectionSummary) : normalizeObject(input.selectionSummary),
-      changeSummary: normalizeOptional(input.changeSummary) ?? 'Canvas records patched'
+      selectionSummary
     })
 
     await this.writeLog(scope, {
       documentId: document.id,
-      versionId: version.id,
+      versionId: currentState.version?.id,
       action: 'records_patched',
       actorType: 'agent',
       message: input.changeSummary,
@@ -236,25 +230,22 @@ export class CanvasService {
 
     return {
       success: true,
-      message: 'Canvas records were patched.',
-      document: await this.getDocument(scope, { documentId: document.id as string, includeSnapshot: false }),
-      version: compactVersion(version)
+      message: 'Canvas records were patched in the working copy.',
+      document: compactDocument(savedDocument),
+      autosave: compactAutosave(savedDocument, normalized)
     }
   }
 
   async insertImage(scope: CanvasScope, input: InsertCanvasImageInput) {
-    const dataUrl = normalizeImageDataUrl(input)
+    requireInsertImageSource(input)
+    const target = normalizeInsertionTargetInput(input)
+    const documentId = normalizeOptional(input.documentId) ?? target.documentId
+    if (!documentId) {
+      throw new BadRequestException('canvas_insert_image requires documentId or target.documentId. Use env.canvasDocumentId for the current Workbench canvas.')
+    }
+    const document = await this.requireDocument(scope, documentId)
+    const dataUrl = await this.resolveInsertImageData(scope, document, input)
     const imageSize = readImageSizeFromDataUrl(dataUrl, input)
-    const document = input.documentId
-      ? await this.requireDocument(scope, input.documentId)
-      : (
-          await this.createDocument(scope, {
-            title: input.title ?? 'Untitled Canvas',
-            description: input.description,
-            kind: input.kind ?? 'image-board',
-            source: 'agent_image'
-          })
-        ).item
     const currentState = await this.getCurrentCanvasState(scope, document)
     const snapshot = structuredClone(currentState.snapshot)
     if (!isCanvasSnapshot(snapshot)) {
@@ -262,41 +253,62 @@ export class CanvasService {
     }
 
     const store: Record<string, CanvasRecord> = { ...snapshot.store }
-    const anchorShape = input.anchorShapeId ? store[input.anchorShapeId] : null
-    const pageId = normalizeOptional(input.pageId) ?? findPageIdForShape(store, anchorShape?.id) ?? findFirstPageId(store)
-    if (!pageId || !store[pageId]) {
+    const anchorShape = target.anchorShapeId ? store[target.anchorShapeId] : null
+    let pageId = target.pageId ?? findPageIdForShape(store, anchorShape?.id) ?? findFirstPageId(store)
+    if (!pageId || !isPageRecord(store[pageId])) {
+      ensureDefaultCanvasPage(store)
+      pageId = (pageId && isPageRecord(store[pageId]) ? pageId : null) ?? findFirstPageId(store)
+    }
+    if (!pageId || !isPageRecord(store[pageId])) {
       throw new BadRequestException('Could not determine target canvas page.')
     }
 
     const holderPlacement = isAiImageHolder(anchorShape)
-    const parentId = holderPlacement ? anchorShape.id : anchorShape?.parentId && store[anchorShape.parentId]?.typeName === 'page' ? anchorShape.parentId : pageId
+    const imageAnchorReplacement = isImageShape(anchorShape) && target.replaceExistingForAnchor
+    const parentId = imageAnchorReplacement
+      ? anchorShape.parentId ?? pageId
+      : holderPlacement
+        ? anchorShape.id
+        : anchorShape?.parentId && store[anchorShape.parentId]?.typeName === 'page'
+          ? anchorShape.parentId
+          : pageId
     const anchorBounds = holderPlacement ? null : pageBoundsForShape(store, anchorShape)
     const holderBounds = holderPlacement ? pageBoundsForShape(store, anchorShape) : null
-    const matchAnchor = input.matchAnchor !== false && (holderBounds || anchorBounds)
-    const displayWidth = positiveNumber(input.displayWidth) ?? (matchAnchor ? (holderBounds ?? anchorBounds)?.w : Math.min(imageSize.width, 512)) ?? imageSize.width
+    const matchAnchor = target.matchAnchor !== false && (holderBounds || anchorBounds)
+    const displayWidth = target.displayWidth ?? (matchAnchor ? (holderBounds ?? anchorBounds)?.w : Math.min(imageSize.width, 512)) ?? imageSize.width
     const displayHeight =
-      positiveNumber(input.displayHeight) ??
+      target.displayHeight ??
       (matchAnchor ? (holderBounds ?? anchorBounds)?.h : Math.round(displayWidth * (imageSize.height / imageSize.width))) ??
       imageSize.height
-    const bounds = holderPlacement
-      ? { x: 0, y: 0, w: displayWidth, h: displayHeight }
-      : choosePlacement({
-          store,
-          pageId,
-          parentId,
-          anchorShape,
-          width: displayWidth,
-          height: displayHeight,
-          margin: Math.max(0, input.margin ?? 40),
-          placement: input.placement ?? 'right'
-        })
+    const bounds = imageAnchorReplacement
+      ? {
+          x: finiteNumber(anchorShape.x, 0),
+          y: finiteNumber(anchorShape.y, 0),
+          w: displayWidth,
+          h: displayHeight
+        }
+      : holderPlacement
+        ? { x: 0, y: 0, w: displayWidth, h: displayHeight }
+        : choosePlacement({
+            store,
+            pageId,
+            parentId,
+            anchorShape,
+            width: displayWidth,
+            height: displayHeight,
+            margin: target.margin,
+            placement: target.placement
+          })
 
-    const seed = sanitizeIdPart(input.fileName ?? `canvas-image-${Date.now()}`)
+    const replaced = holderPlacement && target.replaceExistingForAnchor ? removeGeneratedImagesForAnchor(store, anchorShape.id) : { shapeIds: [], assetIds: [] }
+    const sourceFileName = fileNameFromPath(input.workspaceFilePath)
+    const seed = sanitizeIdPart(sourceFileName ?? `canvas-image-${Date.now()}`)
     const assetId = uniqueRecordId(store, 'asset', seed)
-    const shapeId = uniqueRecordId(store, 'shape', seed)
-    const fileName = sanitizeFileName(input.fileName ?? `${seed}.${extensionFromMimeType(dataUrl.mimeType).replace('.', '')}`, dataUrl.mimeType)
+    const shapeId = imageAnchorReplacement ? anchorShape.id : uniqueRecordId(store, 'shape', seed)
+    const fileName = sanitizeFileName(sourceFileName ?? `${seed}.${extensionFromMimeType(dataUrl.mimeType).replace('.', '')}`, dataUrl.mimeType)
     const fileSize = Buffer.byteLength(dataUrl.base64, 'base64')
-    const index = chooseIndex(store, parentId)
+    const index = imageAnchorReplacement ? anchorShape.index : chooseIndex(store, parentId)
+    const replacedAssetId = imageAnchorReplacement && typeof anchorShape.props?.assetId === 'string' ? anchorShape.props.assetId : null
 
     const assetRecord: CanvasRecord = {
       id: assetId,
@@ -311,58 +323,84 @@ export class CanvasService {
         mimeType: dataUrl.mimeType,
         isAnimated: false
       },
-      meta: normalizeObject(input.assetMeta)
+      meta: {}
     }
-    const shapeRecord: CanvasRecord = {
-      x: bounds.x,
-      y: bounds.y,
-      rotation: 0,
-      isLocked: false,
-      opacity: 1,
-      meta: {
-        ...(holderPlacement ? { canvasGeneratedForAiImageHolder: anchorShape.id } : { canvasGeneratedStandalone: true }),
-        ...normalizeObject(input.shapeMeta)
-      },
-      id: shapeId,
-      type: 'image',
-      props: {
-        w: bounds.w,
-        h: bounds.h,
-        assetId,
-        playing: true,
-        url: '',
-        crop: null,
-        flipX: false,
-        flipY: false,
-        altText: normalizeOptional(input.altText) ?? 'Canvas inserted image'
-      },
-      parentId,
-      index,
-      typeName: 'shape'
-    }
+    const shapeRecord: CanvasRecord = imageAnchorReplacement
+      ? {
+          ...anchorShape,
+          id: shapeId,
+          parentId,
+          index,
+          props: {
+            ...normalizeObject(anchorShape.props),
+            w: bounds.w,
+            h: bounds.h,
+            assetId,
+            playing: true,
+            url: '',
+            crop: null,
+            altText: normalizeOptional(typeof anchorShape.props?.altText === 'string' ? anchorShape.props.altText : undefined) ?? 'Canvas inserted image'
+          },
+          meta: {
+            ...normalizeObject(anchorShape.meta),
+            canvasGeneratedReplacement: true,
+            source: 'canvas_insert_image'
+          }
+        }
+      : {
+          x: bounds.x,
+          y: bounds.y,
+          rotation: 0,
+          isLocked: false,
+          opacity: 1,
+          meta: {
+            ...(holderPlacement ? { canvasGeneratedForAiImageHolder: anchorShape.id } : { canvasGeneratedStandalone: true }),
+            source: 'canvas_insert_image'
+          },
+          id: shapeId,
+          type: 'image',
+          props: {
+            w: bounds.w,
+            h: bounds.h,
+            assetId,
+            playing: true,
+            url: '',
+            crop: null,
+            flipX: false,
+            flipY: false,
+            altText: 'Canvas inserted image'
+          },
+          parentId,
+          index,
+          typeName: 'shape'
+        }
 
     store[assetId] = assetRecord
     store[shapeId] = shapeRecord
+    const replacedByImageAnchor = imageAnchorReplacement ? removeUnusedAssets(store, replacedAssetId ? [replacedAssetId] : []) : { shapeIds: [], assetIds: [] }
+    const replacedRecords = {
+      shapeIds: imageAnchorReplacement ? [shapeId] : replaced.shapeIds,
+      assetIds: [...replaced.assetIds, ...replacedByImageAnchor.assetIds]
+    }
 
     const normalized = normalizeSnapshotInput({
       ...snapshot,
       store
     })
-    const version = await this.createVersion(scope, document, {
-      sourceType: 'agent_image',
+    const selectionSummary = {
+      selectedShapes: [shapeRecord],
+      insertedShapeId: shapeId,
+      source: 'canvas_insert_image'
+    }
+    const savedDocument = await this.saveWorkingCopy(scope, document, {
       snapshot: normalized,
       viewState: normalizeObject(currentState.viewState),
-      selectionSummary: {
-        selectedShapes: [shapeRecord],
-        insertedShapeId: shapeId,
-        source: 'canvas_insert_image'
-      },
-      changeSummary: normalizeOptional(input.changeSummary) ?? 'Image inserted'
+      selectionSummary
     })
 
     await this.writeLog(scope, {
       documentId: document.id,
-      versionId: version.id,
+      versionId: currentState.version?.id,
       action: 'image_inserted',
       actorType: 'agent',
       message: input.changeSummary,
@@ -371,7 +409,9 @@ export class CanvasService {
         shapeId,
         pageId,
         parentId,
-        anchorShapeId: input.anchorShapeId,
+        anchorShapeId: target.anchorShapeId,
+        replacedShapeIds: replacedRecords.shapeIds,
+        replacedAssetIds: replacedRecords.assetIds,
         bounds,
         imageSize
       }
@@ -379,16 +419,18 @@ export class CanvasService {
 
     return {
       success: true,
-      message: 'Image was inserted into the canvas.',
-      document: await this.getDocument(scope, { documentId: document.id as string, includeSnapshot: false }),
-      version: compactVersion(version),
+      message: 'Image was inserted into the canvas working copy.',
+      document: compactDocument(savedDocument),
+      autosave: compactAutosave(savedDocument, normalized),
       insertion: {
         pageId,
         parentId,
-        anchorShapeId: input.anchorShapeId,
+        anchorShapeId: target.anchorShapeId,
         assetId,
         shapeId,
         index,
+        replacedShapeIds: replacedRecords.shapeIds,
+        replacedAssetIds: replacedRecords.assetIds,
         imageSize,
         bounds
       }
@@ -465,6 +507,8 @@ export class CanvasService {
       currentVersion: formatVersionForResponse(currentVersion, Boolean(input.includeSnapshot)),
       requestedVersion: requestedVersion && requestedVersion.id !== currentVersion?.id ? formatVersionForResponse(requestedVersion, Boolean(input.includeSnapshot)) : null,
       workingCopy,
+      workingCopyRevision: currentWorkingCopyRevision(document),
+      snapshotChecksum: document.snapshotChecksum ?? checksumSnapshot(document.autosaveSnapshot) ?? (isCanvasSnapshot(effectiveSnapshot) ? checksumSnapshot(effectiveSnapshot) : null),
       versions: versions.map((version) => compactVersion(version)),
       logs,
       snapshotSummary: summarizeSnapshot(effectiveSnapshot),
@@ -531,7 +575,7 @@ export class CanvasService {
     return {
       success: true,
       message: `Canvas status updated to ${input.status}.`,
-      document
+      document: compactDocument(document)
     }
   }
 
@@ -563,16 +607,15 @@ export class CanvasService {
     if (!version) {
       throw new NotFoundException('Canvas version was not found.')
     }
-    const restored = await this.createVersion(scope, document, {
-      sourceType: 'restore',
-      snapshot: normalizeSnapshotInput(version.snapshot),
+    const snapshot = normalizeSnapshotInput(version.snapshot)
+    const restoredDocument = await this.saveWorkingCopy(scope, document, {
+      snapshot,
       viewState: normalizeObject(version.viewState),
-      selectionSummary: normalizeObject(version.selectionSummary),
-      changeSummary: normalizeOptional(changeSummary) ?? `Restored version ${version.versionNumber}`
+      selectionSummary: normalizeObject(version.selectionSummary)
     })
     await this.writeLog(scope, {
       documentId: document.id,
-      versionId: restored.id,
+      versionId: version.id,
       action: 'version_restored',
       actorType: scope.assistantId ? 'agent' : 'user',
       message: changeSummary,
@@ -580,9 +623,66 @@ export class CanvasService {
     })
     return {
       success: true,
-      message: 'Canvas version was restored.',
-      document: await this.getDocument(scope, { documentId: document.id as string, includeSnapshot: true }),
-      version: restored
+      message: 'Canvas version was restored to the working copy.',
+      document: compactDocument(restoredDocument),
+      restoredVersion: compactVersion(version),
+      autosave: compactAutosave(restoredDocument, snapshot)
+    }
+  }
+
+  async deleteVersion(scope: CanvasScope, documentId: string, versionId: string) {
+    const document = await this.requireDocument(scope, documentId)
+    const version = await this.versionRepository.findOne({
+      where: scopedWhere(scope, { documentId: document.id, id: versionId })
+    })
+    if (!version) {
+      throw new NotFoundException('Canvas version was not found.')
+    }
+    const workspaceFiles = this.runtimeCapabilities?.get<CanvasWorkspaceFilesApi>(CANVAS_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    if (workspaceFiles && version.snapshotImagePath) {
+      try {
+        await workspaceFiles.deleteFile({
+          ...resolveVersionWorkspaceScope(scope, version),
+          filePath: version.snapshotImagePath
+        })
+      } catch {
+        // Version snapshot image cleanup is best-effort.
+      }
+    }
+
+    await this.versionRepository.delete(scopedWhere(scope, { documentId: document.id, id: version.id }))
+    const remaining = await this.versionRepository.find({
+      where: scopedWhere(scope, { documentId: document.id }),
+      order: {
+        versionNumber: 'DESC'
+      }
+    })
+    const nextCurrent = remaining[0] ?? null
+    if (document.currentVersionId === version.id) {
+      document.currentVersionId = nextCurrent?.id ?? null
+      document.currentVersionNumber = nextCurrent?.versionNumber ?? 0
+    }
+    if (document.autosaveBaseVersionId === version.id) {
+      document.autosaveBaseVersionId = nextCurrent?.id ?? null
+    }
+    document.lastEditedById = scope.userId ?? null
+    document.lastEditedAt = new Date()
+    await this.documentRepository.save(document)
+    await this.writeLog(scope, {
+      documentId: document.id,
+      action: 'version_deleted',
+      actorType: scope.assistantId ? 'agent' : 'user',
+      message: `Deleted version ${version.versionNumber}`,
+      snapshot: { deletedVersionId: version.id, deletedVersionNumber: version.versionNumber }
+    })
+
+    return {
+      success: true,
+      message: 'Canvas version was deleted.',
+      document: compactDocument(document),
+      deletedVersionId: version.id,
+      currentVersionId: document.currentVersionId ?? null,
+      currentVersionNumber: document.currentVersionNumber ?? 0
     }
   }
 
@@ -629,7 +729,8 @@ export class CanvasService {
     await this.documentRepository.delete(scopedWhere(scope, { id: document.id }))
     return {
       success: true,
-      message: 'Canvas document was deleted.'
+      message: 'Canvas document was deleted.',
+      deletedDocumentId: document.id
     }
   }
 
@@ -663,6 +764,43 @@ export class CanvasService {
       documentId: document.id,
       snapshotImagePath: imagePath ?? null,
       snapshotImageUpdatedAt: document.autosaveUpdatedAt ?? null
+    }
+  }
+
+  private async resolveInsertImageData(scope: CanvasScope, document: CanvasDocument, input: InsertCanvasImageInput) {
+    const inline = normalizeInlineImageDataUrl(input)
+    if (inline) {
+      return inline
+    }
+
+    const filePath = normalizeOptional(input.workspaceFilePath)
+    if (!filePath) {
+      throw new BadRequestException('Canvas image insertion requires dataUrl, base64, or workspaceFilePath.')
+    }
+    const workspaceFiles = this.workspaceFiles()
+    if (typeof workspaceFiles.readBuffer !== 'function') {
+      throw new BadRequestException('Xpert workspace file runtime capability must provide readBuffer for Canvas workspace image insertion.')
+    }
+    const workspaceFile = await workspaceFiles.readBuffer({
+      ...resolveInputWorkspaceScope(scope, document),
+      filePath
+    })
+    if (!workspaceFile.buffer || workspaceFile.buffer.byteLength === 0) {
+      throw new BadRequestException('Canvas workspace image file is empty.')
+    }
+    const detectedMimeType = detectImageMimeType(workspaceFile.buffer)
+    if (!detectedMimeType || !SNAPSHOT_IMAGE_MIME_TYPES.has(detectedMimeType)) {
+      throw new BadRequestException('Canvas workspace image files must be PNG, JPEG, or WebP.')
+    }
+    const declaredMimeType = normalizeOptional(input.mimeType) ?? normalizeOptional(workspaceFile.mimeType)
+    if (declaredMimeType?.startsWith('image/') && normalizeMimeType(declaredMimeType) !== detectedMimeType) {
+      throw new BadRequestException('Canvas workspace image file bytes do not match the declared MIME type.')
+    }
+    const base64 = workspaceFile.buffer.toString('base64')
+    return {
+      mimeType: detectedMimeType,
+      base64,
+      url: `data:${detectedMimeType};base64,${base64}`
     }
   }
 
@@ -749,6 +887,35 @@ export class CanvasService {
     }
   }
 
+  private async saveWorkingCopy(
+    scope: CanvasScope,
+    document: CanvasDocument,
+    input: {
+      snapshot: CanvasSnapshotData
+      viewState?: CanvasJsonObject | null
+      selectionSummary?: CanvasJsonObject | null
+      imageFields?: SnapshotImageFileFields | null
+    }
+  ) {
+    const autosaveUpdatedAt = new Date()
+    const workingCopyRevision = nextWorkingCopyRevision(document)
+    const snapshotChecksum = checksumSnapshot(input.snapshot)
+    return this.documentRepository.save({
+      ...document,
+      autosaveSnapshot: input.snapshot,
+      autosaveViewState: input.viewState ?? null,
+      autosaveSelectionSummary: input.selectionSummary ?? null,
+      autosaveUpdatedAt,
+      autosaveBaseVersionId: document.currentVersionId ?? null,
+      workingCopyRevision,
+      snapshotChecksum,
+      ...(input.imageFields ?? {}),
+      status: document.status === 'archived' ? document.status : 'draft',
+      lastEditedById: scope.userId ?? scope.assistantId ?? null,
+      lastEditedAt: autosaveUpdatedAt
+    })
+  }
+
   private async createVersion(
     scope: CanvasScope,
     document: CanvasDocument,
@@ -799,6 +966,8 @@ export class CanvasService {
     document.autosaveSelectionSummary = input.selectionSummary ?? null
     document.autosaveUpdatedAt = new Date()
     document.autosaveBaseVersionId = version.id
+    document.workingCopyRevision = nextWorkingCopyRevision(document)
+    document.snapshotChecksum = checksumSnapshot(input.snapshot)
     if (latestImageFields) {
       document.snapshotImagePath = latestImageFields.snapshotImagePath
       document.snapshotImageUrl = latestImageFields.snapshotImageUrl
@@ -832,6 +1001,39 @@ export class CanvasService {
       throw new NotFoundException('Canvas document was not found.')
     }
     return document
+  }
+
+  private assertWorkingCopyBase(
+    document: CanvasDocument,
+    input: {
+      baseRevision?: number | null
+      baseSnapshotChecksum?: string | null
+    }
+  ) {
+    const currentRevision = currentWorkingCopyRevision(document)
+    const baseRevision = input.baseRevision
+    const baseChecksum = normalizeOptional(input.baseSnapshotChecksum)
+    if (baseRevision != null) {
+      if (!Number.isInteger(baseRevision) || baseRevision < 0) {
+        throw new BadRequestException('Canvas autosave baseRevision must be a non-negative integer.')
+      }
+      if (baseRevision !== currentRevision) {
+        throw new ConflictException(
+          `Canvas working copy has changed on the server; autosave baseRevision ${baseRevision} is stale. Reload the latest canvas before autosaving.`
+        )
+      }
+      return
+    }
+    if (baseChecksum) {
+      const currentChecksum = document.snapshotChecksum ?? checksumSnapshot(document.autosaveSnapshot)
+      if (baseChecksum !== currentChecksum) {
+        throw new ConflictException('Canvas working copy has changed on the server; autosave baseSnapshotChecksum is stale.')
+      }
+      return
+    }
+    if (currentRevision > 0) {
+      throw new ConflictException('Canvas autosave requires baseRevision or baseSnapshotChecksum for the current working copy.')
+    }
   }
 
   private async writeLog(
@@ -904,7 +1106,18 @@ function normalizeSnapshotImageData(input: CanvasSnapshotImageInput) {
   }
 }
 
-function normalizeImageDataUrl(input: InsertCanvasImageInput) {
+function requireInsertImageSource(input: InsertCanvasImageInput) {
+  if (
+    normalizeOptional(input.dataUrl) ||
+    normalizeOptional(input.base64) ||
+    normalizeOptional(input.workspaceFilePath)
+  ) {
+    return
+  }
+  throw new BadRequestException('Canvas image insertion requires dataUrl, base64, or workspaceFilePath.')
+}
+
+function normalizeInlineImageDataUrl(input: InsertCanvasImageInput) {
   const explicit = normalizeOptional(input.dataUrl)
   if (explicit) {
     const parsed = parseDataUrl(explicit)
@@ -915,7 +1128,7 @@ function normalizeImageDataUrl(input: InsertCanvasImageInput) {
   }
   const base64 = normalizeOptional(input.base64)
   if (!base64) {
-    throw new BadRequestException('Canvas image insertion requires dataUrl or base64.')
+    return null
   }
   const mimeType = normalizeMimeType(input.mimeType)
   return {
@@ -955,16 +1168,16 @@ function parseDataUrl(value: string) {
 }
 
 function readImageSizeFromDataUrl(dataUrl: { base64: string; mimeType: string }, input: InsertCanvasImageInput) {
-  const explicitWidth = positiveNumber(input.width)
-  const explicitHeight = positiveNumber(input.height)
+  const explicitWidth = positiveNumber(input.target?.width)
+  const explicitHeight = positiveNumber(input.target?.height)
   if (explicitWidth && explicitHeight) {
     return { width: explicitWidth, height: explicitHeight }
   }
   const buffer = Buffer.from(dataUrl.base64, 'base64')
   const detected = detectImageSize(buffer)
   return {
-    width: explicitWidth ?? detected?.width ?? positiveNumber(input.displayWidth) ?? 512,
-    height: explicitHeight ?? detected?.height ?? positiveNumber(input.displayHeight) ?? 512
+    width: explicitWidth ?? detected?.width ?? 512,
+    height: explicitHeight ?? detected?.height ?? 512
   }
 }
 
@@ -1040,6 +1253,8 @@ function formatWorkingCopy(document: CanvasDocument, includeSnapshot: boolean) {
     snapshotImageMimeType: document.snapshotImageMimeType,
     snapshotImageSize: document.snapshotImageSize,
     snapshotImageChecksum: document.snapshotImageChecksum,
+    workingCopyRevision: currentWorkingCopyRevision(document),
+    snapshotChecksum: document.snapshotChecksum ?? checksumSnapshot(document.autosaveSnapshot),
     snapshotSummary: summarizeSnapshot(document.autosaveSnapshot)
   }
 }
@@ -1081,7 +1296,44 @@ function formatVersionForResponse(version: CanvasDocumentVersion | null, include
     : {
         ...compactVersion(version),
         scene: compactSnapshotForAgent(version.snapshot)
-      }
+    }
+}
+
+function compactDocument(document: CanvasDocument | null | undefined) {
+  if (!document) {
+    return null
+  }
+  return {
+    id: document.id,
+    title: document.title,
+    kind: document.kind,
+    status: document.status,
+    currentVersionId: document.currentVersionId,
+    currentVersionNumber: document.currentVersionNumber,
+    autosaveUpdatedAt: document.autosaveUpdatedAt,
+    workingCopyRevision: currentWorkingCopyRevision(document),
+    snapshotChecksum: document.snapshotChecksum ?? checksumSnapshot(document.autosaveSnapshot),
+    snapshotImagePath: document.snapshotImagePath,
+    snapshotImageUrl: document.snapshotImageUrl,
+    snapshotImageMimeType: document.snapshotImageMimeType,
+    snapshotImageSize: document.snapshotImageSize,
+    snapshotImageChecksum: document.snapshotImageChecksum,
+    updatedAt: document.updatedAt
+  }
+}
+
+function compactAutosave(document: CanvasDocument, snapshot?: CanvasSnapshotData) {
+  return {
+    documentId: document.id,
+    autosaveUpdatedAt: document.autosaveUpdatedAt,
+    autosaveBaseVersionId: document.autosaveBaseVersionId,
+    workingCopyRevision: currentWorkingCopyRevision(document),
+    snapshotChecksum: document.snapshotChecksum ?? (snapshot ? checksumSnapshot(snapshot) : checksumSnapshot(document.autosaveSnapshot)),
+    snapshotImagePath: document.snapshotImagePath,
+    snapshotImageUrl: document.snapshotImageUrl,
+    snapshotImageChecksum: document.snapshotImageChecksum,
+    snapshotSummary: snapshot ? summarizeSnapshot(snapshot) : undefined
+  }
 }
 
 function compactVersion(version: CanvasDocumentVersion | null) {
@@ -1108,6 +1360,13 @@ function compactVersion(version: CanvasDocumentVersion | null) {
 
 function isVersionWithSnapshot(value: object | null | undefined): value is CanvasDocumentVersion {
   return Boolean(value && 'snapshot' in value)
+}
+
+function normalizeRequiredSnapshotInput(snapshot: CanvasSnapshotData | null | undefined) {
+  if (!snapshot || !isCanvasSnapshot(snapshot)) {
+    throw new BadRequestException(SAVE_SNAPSHOT_REQUIRED_MESSAGE)
+  }
+  return normalizeSnapshotInput(snapshot)
 }
 
 function hasSnapshotContent(input: { snapshot?: CanvasSnapshotData | null; viewState?: CanvasJsonObject | null; selectionSummary?: CanvasJsonObject | null }) {
@@ -1165,11 +1424,34 @@ function positiveNumber(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null
 }
 
+function normalizeInsertionTargetInput(input: InsertCanvasImageInput) {
+  const target = input.target ?? {}
+  return {
+    documentId: normalizeOptional(target.documentId),
+    pageId: normalizeOptional(target.pageId),
+    anchorShapeId: normalizeOptional(target.shapeId),
+    displayWidth: positiveNumber(target.width),
+    displayHeight: positiveNumber(target.height),
+    placement: 'right' as CanvasPlacement,
+    margin: 40,
+    matchAnchor: true,
+    replaceExistingForAnchor: true
+  }
+}
+
 function sanitizeFileName(name: string, mimeType: string) {
   const extension = extname(name) || extensionFromMimeType(mimeType)
   const rawBase = name.slice(0, name.length - extname(name).length)
   const baseName = rawBase.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '')
   return `${baseName || 'image'}${extension}`
+}
+
+function fileNameFromPath(path: string | null | undefined) {
+  const normalized = normalizeOptional(path)
+  if (!normalized) {
+    return undefined
+  }
+  return normalized.split('/').filter(Boolean).at(-1)
 }
 
 function extensionFromMimeType(mimeType: string) {
@@ -1245,6 +1527,10 @@ function resolveDocumentWorkspaceScope(scope: CanvasScope, document: CanvasDocum
   }
 }
 
+function resolveInputWorkspaceScope(scope: CanvasScope, document: CanvasDocument): CanvasWorkspaceFileScope {
+  return resolveDocumentWorkspaceScope(scope, document)
+}
+
 function resolveVersionWorkspaceScope(scope: CanvasScope, version: CanvasDocumentVersion): CanvasWorkspaceFileScope {
   if (version.workspaceCatalog === 'projects' && version.workspaceScopeId) {
     return {
@@ -1289,6 +1575,11 @@ function resolveVersionWorkspaceScope(scope: CanvasScope, version: CanvasDocumen
   }
 }
 
+function normalizeWorkspaceCatalog(value: string | null | undefined): CanvasWorkspaceFileScope['catalog'] | undefined {
+  const normalized = normalizeOptional(value)
+  return normalized === 'projects' || normalized === 'xperts' ? normalized : undefined
+}
+
 function buildCanvasSnapshotFolder(documentId: string) {
   return `files/canvas/documents/${normalizePathSegment(documentId, 'Canvas document id is required.')}/snapshots`
 }
@@ -1310,8 +1601,37 @@ function checksum(buffer: Buffer) {
   return createHash('sha256').update(buffer).digest('hex')
 }
 
+function checksumSnapshot(snapshot: CanvasSnapshotData | null | undefined) {
+  if (!isCanvasSnapshot(snapshot)) {
+    return null
+  }
+  return createHash('sha256').update(stableStringifyCanvasJson(snapshot)).digest('hex')
+}
+
+function stableStringifyCanvasJson(value: CanvasJsonValue | undefined): string {
+  if (value === undefined || value === null || typeof value !== 'object') {
+    return JSON.stringify(value ?? null)
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringifyCanvasJson(item)).join(',')}]`
+  }
+  const entries = Object.keys(value)
+    .sort()
+    .filter((key) => value[key] !== undefined)
+    .map((key) => `${JSON.stringify(key)}:${stableStringifyCanvasJson(value[key])}`)
+  return `{${entries.join(',')}}`
+}
+
+function currentWorkingCopyRevision(document: CanvasDocument) {
+  return document.workingCopyRevision ?? 0
+}
+
+function nextWorkingCopyRevision(document: CanvasDocument) {
+  return currentWorkingCopyRevision(document) + 1
+}
+
 type ShapeBounds = { x: number; y: number; w: number; h: number }
-type CanvasPlacement = NonNullable<InsertCanvasImageInput['placement']>
+type CanvasPlacement = 'right' | 'left' | 'below' | 'center'
 
 function uniqueRecordId(store: Record<string, CanvasRecord>, prefix: string, seed: string) {
   const cleanSeed = sanitizeIdPart(seed)
@@ -1333,7 +1653,23 @@ function chooseIndex(store: Record<string, CanvasRecord>, parentId: string) {
 }
 
 function findFirstPageId(store: Record<string, CanvasRecord>) {
-  return Object.values(store).find((record) => record.typeName === 'page')?.id
+  return Object.values(store).find(isPageRecord)?.id
+}
+
+function isPageRecord(record: CanvasRecord | null | undefined) {
+  return Boolean(record?.typeName === 'page')
+}
+
+function ensureDefaultCanvasPage(store: Record<string, CanvasRecord>) {
+  const existingPageId = findFirstPageId(store)
+  if (existingPageId) {
+    return existingPageId
+  }
+  const emptySnapshot = createEmptyCanvasSnapshot()
+  for (const [id, record] of Object.entries(emptySnapshot.store)) {
+    store[id] = store[id] ?? record
+  }
+  return findFirstPageId(store)
 }
 
 function findPageIdForShape(store: Record<string, CanvasRecord>, shapeId: string | undefined) {
@@ -1362,6 +1698,59 @@ function findPageIdForShape(store: Record<string, CanvasRecord>, shapeId: string
 
 function isAiImageHolder(shape: CanvasRecord | null | undefined) {
   return Boolean(shape?.typeName === 'shape' && shape.type === 'frame' && (shape.meta?.canvasAiImageHolder === true || shape.meta?.cowartAiImageHolder === true))
+}
+
+function isImageShape(shape: CanvasRecord | null | undefined): shape is CanvasRecord {
+  return Boolean(shape?.typeName === 'shape' && shape.type === 'image')
+}
+
+function removeGeneratedImagesForAnchor(store: Record<string, CanvasRecord>, anchorShapeId: string) {
+  const shapeIds: string[] = []
+  const candidateAssetIds: string[] = []
+  for (const record of Object.values(store)) {
+    if (!isGeneratedImageForAnchor(record, anchorShapeId)) {
+      continue
+    }
+    shapeIds.push(record.id)
+    const assetId = record.props?.assetId
+    if (typeof assetId === 'string' && assetId.trim()) {
+      candidateAssetIds.push(assetId)
+    }
+  }
+  for (const shapeId of shapeIds) {
+    delete store[shapeId]
+  }
+
+  const assetIds: string[] = []
+  for (const assetId of candidateAssetIds) {
+    const stillUsed = Object.values(store).some((record) => record.typeName === 'shape' && record.props?.assetId === assetId)
+    if (!stillUsed) {
+      delete store[assetId]
+      assetIds.push(assetId)
+    }
+  }
+  return { shapeIds, assetIds }
+}
+
+function removeUnusedAssets(store: Record<string, CanvasRecord>, candidateAssetIds: string[]) {
+  const assetIds: string[] = []
+  for (const assetId of candidateAssetIds) {
+    const stillUsed = Object.values(store).some((record) => record.typeName === 'shape' && record.props?.assetId === assetId)
+    if (!stillUsed) {
+      delete store[assetId]
+      assetIds.push(assetId)
+    }
+  }
+  return { shapeIds: [], assetIds }
+}
+
+function isGeneratedImageForAnchor(record: CanvasRecord, anchorShapeId: string) {
+  return (
+    record.typeName === 'shape' &&
+    record.type === 'image' &&
+    record.parentId === anchorShapeId &&
+    (record.meta?.canvasGeneratedForAiImageHolder === anchorShapeId || record.meta?.cowartGeneratedForAiImageHolder === anchorShapeId)
+  )
 }
 
 function localBoundsForShape(shape: CanvasRecord | null | undefined): ShapeBounds | null {

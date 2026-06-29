@@ -93,13 +93,54 @@
             "type": "assistant-template",
             "name": "canvas-assistant",
             "displayName": "Canvas Assistant",
-            "description": "Assistant template for Canvas visual workflows."
+            "description": "Assistant template for Canvas visual workflows.",
+            "metadata": {
+              "app": "canvas"
+            }
           },
           {
             "type": "app",
             "name": "canvas",
             "displayName": "Canvas",
-            "description": "Workbench and Agent middleware tools for tldraw canvases."
+            "description": "Use Canvas Assistant with Workbench and Agent middleware tools for tldraw canvases.",
+            "operations": [
+              {
+                "name": "create-canvas-documents",
+                "displayName": "Create Canvas documents",
+                "description": "Create reviewable infinite canvases and visual planning boards.",
+                "access": "write"
+              },
+              {
+                "name": "save-canvas-versions",
+                "displayName": "Save Canvas versions",
+                "description": "Persist tldraw snapshots, record patches, image insertions, and Workbench edits.",
+                "access": "write"
+              },
+              {
+                "name": "review-canvas-workbench",
+                "displayName": "Review Canvas Workbench",
+                "description": "Open the Canvas Workbench to inspect, annotate, import, export, and manually edit canvases.",
+                "access": "read"
+              }
+            ]
+          },
+          {
+            "type": "view",
+            "name": "canvas_workbench",
+            "displayName": "Canvas Workbench",
+            "description": "Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.",
+            "metadata": {
+              "app": "canvas"
+            }
+          },
+          {
+            "type": "middleware",
+            "name": "CanvasMiddleware",
+            "displayName": "Canvas Agent Tools",
+            "description": "Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.",
+            "metadata": {
+              "app": "canvas"
+            }
           }
         ]
       }

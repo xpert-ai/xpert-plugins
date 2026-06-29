@@ -63,6 +63,9 @@ type CanvasWorkbenchViewData = XpertViewDataResult & {
   }
   documents: Awaited<ReturnType<CanvasService['searchDocuments']>>
   detail: Awaited<ReturnType<CanvasService['getDocument']>> | null
+  settings: {
+    tldrawLicenseKey?: string
+  }
 }
 
 type ProjectScopedViewHostContext = XpertResolvedViewHostContext & {
@@ -186,6 +189,7 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           { key: 'patch_records', label: text('Patch Records', '更新记录'), icon: 'ri-node-tree', actionType: 'invoke' },
           { key: 'insert_image', label: text('Insert Image', '插入图片'), icon: 'ri-image-add-line', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
+          { key: 'delete_version', label: text('Delete Version', '删除版本'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
           { key: 'mark_reviewed', label: text('Mark Reviewed', '标记已审核'), icon: 'ri-check-line', actionType: 'invoke' },
           { key: 'mark_draft', label: text('Move Back to Draft', '退回草稿'), icon: 'ri-edit-line', actionType: 'invoke' },
           { key: 'archive_document', label: text('Archive Canvas', '归档画布'), icon: 'ri-archive-line', actionType: 'invoke' },
@@ -274,7 +278,10 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         pageSize: documents.pageSize
       },
       documents,
-      detail
+      detail,
+      settings: {
+        tldrawLicenseKey: getTldrawLicenseKey()
+      }
     }
     return result
   }
@@ -321,6 +328,8 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           viewState: getRecordInput(request.input, 'viewState'),
           selectionSummary: getRecordInput(request.input, 'selectionSummary'),
           snapshotImage: getSnapshotImageInput(request.input, 'snapshotImage'),
+          baseRevision: getNumberInput(request.input, 'baseRevision'),
+          baseSnapshotChecksum: getStringInput(request.input, 'baseSnapshotChecksum'),
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
         return {
@@ -379,20 +388,9 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           documentId: getStringInput(request.input, 'documentId') ?? getStringParameter(request.parameters, 'documentId'),
           dataUrl: getStringInput(request.input, 'dataUrl'),
           base64: getStringInput(request.input, 'base64'),
+          workspaceFilePath: getStringInput(request.input, 'workspaceFilePath'),
           mimeType: getStringInput(request.input, 'mimeType'),
-          fileName: getStringInput(request.input, 'fileName'),
-          width: getNumberInput(request.input, 'width'),
-          height: getNumberInput(request.input, 'height'),
-          displayWidth: getNumberInput(request.input, 'displayWidth'),
-          displayHeight: getNumberInput(request.input, 'displayHeight'),
-          pageId: getStringInput(request.input, 'pageId'),
-          anchorShapeId: getStringInput(request.input, 'anchorShapeId'),
-          placement: getPlacementInput(request.input, 'placement'),
-          margin: getNumberInput(request.input, 'margin'),
-          matchAnchor: getBooleanInput(request.input, 'matchAnchor'),
-          altText: getStringInput(request.input, 'altText'),
-          shapeMeta: getRecordInput(request.input, 'shapeMeta'),
-          assetMeta: getRecordInput(request.input, 'assetMeta'),
+          target: getInsertionTargetInput(request.input, 'target'),
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
         return {
@@ -410,6 +408,18 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         )
         return {
           ...success('Canvas version restored', '画布版本已恢复'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'delete_version') {
+        const result = await this.service.deleteVersion(
+          scope,
+          requireDocumentId(request),
+          requireStringInput(request.input, 'versionId', 'Version id is required.')
+        )
+        return {
+          ...success('Canvas version deleted', '画布版本已删除'),
           data: result
         }
       }
@@ -565,14 +575,14 @@ function getStringInput(input: XpertViewActionRequest['input'], key: string) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
-  const value = input?.[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
 function getBooleanInput(input: XpertViewActionRequest['input'], key: string) {
   const value = input?.[key]
   return typeof value === 'boolean' ? value : undefined
+}
+
+function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
+  const value = input?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function getStringArrayInput(input: XpertViewActionRequest['input'], key: string) {
@@ -602,9 +612,26 @@ function getCanvasRecordArrayInput(input: XpertViewActionRequest['input'], key: 
   return records.length ? records : undefined
 }
 
-function getPlacementInput(input: XpertViewActionRequest['input'], key: string): InsertCanvasImageInput['placement'] | undefined {
-  const value = getStringInput(input, key)
-  return value === 'right' || value === 'left' || value === 'below' || value === 'center' ? value : undefined
+function getInsertionTargetInput(input: XpertViewActionRequest['input'], key: string): InsertCanvasImageInput['target'] | undefined {
+  const target = getRecordInput(input, key)
+  if (!Object.keys(target).length) {
+    return undefined
+  }
+  return {
+    documentId: getStringValue(target.documentId),
+    pageId: getStringValue(target.pageId),
+    shapeId: getStringValue(target.shapeId),
+    width: getNumberValue(target.width),
+    height: getNumberValue(target.height)
+  }
+}
+
+function getStringValue(value: CanvasJsonValue | undefined) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function getNumberValue(value: CanvasJsonValue | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function getNullableRecordInput(input: XpertViewActionRequest['input'], key: string): CanvasJsonObject | undefined {
@@ -634,6 +661,10 @@ function removeKnownExtension(name: string | undefined) {
     return undefined
   }
   return normalized.replace(/\.(tldr|tldraw|json)$/i, '') || normalized
+}
+
+function getTldrawLicenseKey() {
+  return process.env.TLDRAW_LICENSE_KEY?.trim() || process.env.XPERT_TLDRAW_LICENSE_KEY?.trim() || undefined
 }
 
 function htmlLangFromLocale(locale: string | null | undefined) {

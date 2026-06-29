@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
-import { ChatMessageEventTypeEnum, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -31,6 +31,8 @@ import {
   stringifyAgentToolResult,
   summarizeDocumentMutationResult,
   summarizeFailureResult,
+  summarizeGetDocumentResult,
+  summarizeGetRecordResult,
   summarizeSearchResult
 } from './canvas-agent-response.js'
 import { CanvasService } from './canvas.service.js'
@@ -92,28 +94,22 @@ const patchRecordsSchema = z.object({
   changeSummary: z.string().optional()
 })
 
+const insertionTargetSchema = z.object({
+  documentId: z.string().optional().describe('Canvas document id copied from env.canvasInsertionTargetJson when present.'),
+  pageId: z.string().optional().describe('Target tldraw page id. Usually copied from env.canvasInsertionTargetJson.'),
+  shapeId: z.string().optional().describe('Selected shape id or AI image holder id. The backend infers holder fill behavior.'),
+  width: z.number().int().positive().optional().describe('Desired display width. Usually copied from the selected holder.'),
+  height: z.number().int().positive().optional().describe('Desired display height. Usually copied from the selected holder.')
+})
+
 const insertImageSchema = z.object({
-  documentId: z.string().optional().describe('Existing Canvas document id. Omit to create a new image-board canvas.'),
-  title: z.string().optional().describe('Required only when documentId is omitted and a better title is available.'),
-  description: z.string().optional(),
-  kind: documentKindSchema.optional(),
-  dataUrl: z.string().optional().describe('Image data URL. Preferred for small generated images.'),
-  base64: z.string().optional().describe('Raw image base64 when dataUrl is omitted.'),
-  mimeType: z.string().optional().describe('Image MIME type used with base64. Defaults to image/png.'),
-  fileName: z.string().optional(),
-  width: z.number().int().positive().optional().describe('Natural bitmap width. Detected for PNG/JPEG/WebP when omitted.'),
-  height: z.number().int().positive().optional().describe('Natural bitmap height. Detected for PNG/JPEG/WebP when omitted.'),
-  displayWidth: z.number().int().positive().optional(),
-  displayHeight: z.number().int().positive().optional(),
-  pageId: z.string().optional(),
-  anchorShapeId: z.string().optional().describe('Existing shape id to place beside, or a frame AI image holder to fill.'),
-  placement: z.enum(['right', 'left', 'below', 'center']).optional(),
-  margin: z.number().min(0).optional(),
-  matchAnchor: z.boolean().optional().describe('Use the anchor display size when possible. Defaults to true.'),
-  altText: z.string().optional(),
-  shapeMeta: recordSchema.optional(),
-  assetMeta: recordSchema.optional(),
-  changeSummary: z.string().optional()
+  documentId: z.string().optional().describe('Existing Canvas document id. Prefer env.canvasDocumentId. Required unless target.documentId is provided.'),
+  workspaceFilePath: z.string().optional().describe('Workspace image path returned by an image generation tool. If the tool says workspacePath or filePath, pass that value here.'),
+  dataUrl: z.string().optional().describe('Image data URL when the image is already inline.'),
+  base64: z.string().optional().describe('Raw image base64 when dataUrl/workspaceFilePath is unavailable.'),
+  mimeType: z.string().optional().describe('Image MIME type for base64. Defaults to image/png.'),
+  target: insertionTargetSchema.optional().describe('Optional compact target copied from env.canvasInsertionTargetJson.'),
+  changeSummary: z.string().optional().describe('Short user-facing summary shown as the tool call title.')
 })
 
 const searchDocumentsSchema = z.object({
@@ -202,8 +198,9 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_CREATE_DOCUMENT_TOOL_NAME,
             description:
-              'Create a reviewable Canvas document record. Usually call this before saving snapshot records or inserting generated images. The Workbench will show the new canvas for human review.',
-            schema: createDocumentSchema
+              'Create a reviewable Canvas document record only when there is no current Workbench canvas or the user explicitly asks for a new canvas. If env.canvasDocumentId is present, do not call this tool for image insertion; use that existing documentId instead.',
+            schema: createDocumentSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -211,8 +208,9 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_SAVE_SNAPSHOT_TOOL_NAME,
             description:
-              'Save a complete tldraw snapshot as a new Canvas version. Use this for intentional full-canvas creation, import, or replacement; use canvas_patch_records for small edits.',
-            schema: saveSnapshotSchema
+              'Save a complete tldraw snapshot as a new Canvas version. Use this only for intentional full-canvas creation, import, or replacement; do not call it after canvas_insert_image unless you have a complete valid snapshot.',
+            schema: saveSnapshotSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -220,8 +218,9 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_PATCH_RECORDS_TOOL_NAME,
             description:
-              'Patch the current Canvas snapshot by inserting/replacing full tldraw records and/or removing record ids. Call canvas_get_document or canvas_get_record first when changing an existing user-edited canvas.',
-            schema: patchRecordsSchema
+              'Patch the current Canvas working copy by inserting/replacing full tldraw records and/or removing record ids. This does not create a version. Call canvas_get_document or canvas_get_record first when changing an existing user-edited canvas.',
+            schema: patchRecordsSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -229,8 +228,9 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_INSERT_IMAGE_TOOL_NAME,
             description:
-              'Insert a generated bitmap into a Canvas document. Pass dataUrl or base64. If anchorShapeId is an AI image holder frame, the image is placed inside it; otherwise it is placed beside the anchor or in a clear page area.',
-            schema: insertImageSchema
+              'Insert one generated bitmap into the current Canvas working copy. This does not create a version. Use documentId from env.canvasDocumentId or target.documentId from env.canvasInsertionTargetJson. Pass exactly one image source: workspaceFilePath, dataUrl, or base64. If env.canvasInsertionTargetJson is present, parse it and pass it as target; the backend infers page, selected holder, size, and replacement behavior. Do not create a new canvas for image insertion.',
+            schema: insertImageSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -238,25 +238,28 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
             description: 'Search existing Canvas documents by status, kind, keyword, and pagination. Returns document metadata only.',
-            schema: searchDocumentsSchema
+            schema: searchDocumentsSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(await this.service.getDocument(scope, input)),
+          async (input) => stringifyAgentToolResult(summarizeGetDocumentResult(await this.service.getDocument(scope, input), input.includeSnapshot)),
           {
             name: CANVAS_GET_DOCUMENT_TOOL_NAME,
             description:
               'Get Canvas metadata, working-copy scene by default, current version metadata, optional logs, and optional full tldraw snapshot. Leave includeSnapshot false unless exact record JSON is needed. If snapshotImagePath is present, call view_image with that path before visual analysis.',
-            schema: getDocumentSchema
+            schema: getDocumentSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(await this.service.getRecordForAgent(scope, input)),
+          async (input) => stringifyAgentToolResult(summarizeGetRecordResult(await this.service.getRecordForAgent(scope, input))),
           {
             name: CANVAS_GET_RECORD_TOOL_NAME,
             description:
               'Fetch one exact tldraw record from the Canvas working copy by default, or from a requested versionId/versionNumber. Use this before targeted edits to selected shapes, assets, bindings, pages, or image holders.',
-            schema: getRecordSchema
+            schema: getRecordSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -264,7 +267,8 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
             description: 'Update a Canvas document status to draft, reviewed, or archived after user confirmation.',
-            schema: updateDocumentStatusSchema
+            schema: updateDocumentStatusSchema,
+            verboseParsingErrors: true
           }
         ),
         tool(
@@ -273,7 +277,8 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
             name: CANVAS_REPORT_FAILURE_TOOL_NAME,
             description:
               'Record a failed Canvas generation, snapshot validation, image insertion, import, or patch attempt with recoverability and evidence.',
-            schema: reportFailureSchema
+            schema: reportFailureSchema,
+            verboseParsingErrors: true
           }
         )
       ],
@@ -283,8 +288,33 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           return handler(request)
         }
 
-        await dispatchCanvasToolMessageEvent(request, changeSummary)
-        return handler(request)
+        const createdAt = new Date()
+        await dispatchCanvasToolStepEvent({
+          request,
+          message: changeSummary,
+          status: 'running',
+          createdAt
+        })
+
+        try {
+          const result = await handler(request)
+          await dispatchCanvasToolStepEvent({
+            request,
+            message: changeSummary,
+            status: 'success',
+            createdAt
+          })
+          return result
+        } catch (error) {
+          await dispatchCanvasToolStepEvent({
+            request,
+            message: changeSummary,
+            status: 'fail',
+            createdAt,
+            error: getErrorMessage(error instanceof Error ? error : String(error))
+          })
+          throw error
+        }
       }
     }
   }
@@ -312,18 +342,49 @@ function readChangeSummaryMessage(args: ToolArgsValue) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-async function dispatchCanvasToolMessageEvent(
-  request: Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0],
+type CanvasToolStepStatus = 'running' | 'success' | 'fail'
+
+async function dispatchCanvasToolStepEvent({
+  request,
+  message,
+  status,
+  createdAt,
+  error
+}: {
+  request: Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
   message: string
-) {
+  status: CanvasToolStepStatus
+  createdAt: Date
+  error?: string
+}) {
   const toolCall = request.toolCall
-  const id = getToolCallDisplayId(toolCall)
+  const runtimeMetadata = request.runtime && typeof request.runtime === 'object'
+    ? Reflect.get(request.runtime, 'metadata')
+    : undefined
+  const metadata = isPlainObject(runtimeMetadata) ? runtimeMetadata : {}
+  const toolName = toolCall.name
+  const toolCallId = getToolCallDisplayId(toolCall)
+  const toolset = readStringField(metadata, ['toolset']) ?? CANVAS_MIDDLEWARE_NAME
+  const toolsetId = readStringField(metadata, ['toolsetId'])
+  const title = readStringField(metadata, ['toolName', toolName]) ?? toolName
+  const payload = {
+    id: toolCallId,
+    tool_call_id: toolCall.id,
+    category: 'Tool',
+    type: ChatMessageStepCategory.Program,
+    toolset,
+    ...(toolsetId ? { toolset_id: toolsetId } : {}),
+    tool: toolName,
+    title,
+    message,
+    status,
+    created_date: createdAt,
+    input: toolCall.args,
+    ...(status === 'running' ? { end_date: null } : { end_date: new Date() }),
+    ...(error ? { error } : {})
+  }
   try {
-    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, {
-      id,
-      tool_call_id: toolCall.id,
-      message
-    })
+    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, payload)
   } catch (error) {
     console.warn('[CanvasMiddleware] dispatch tool message failed:', getErrorMessage(error instanceof Error ? error : String(error)))
   }
@@ -348,6 +409,16 @@ function stringifyValue(value: ToolArgsValue) {
   } catch {
     return String(value)
   }
+}
+
+function readStringField(record: CanvasJsonObject, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return undefined
 }
 
 function getErrorMessage(error: Error | string) {
