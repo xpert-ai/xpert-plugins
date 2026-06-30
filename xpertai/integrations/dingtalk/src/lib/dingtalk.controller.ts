@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto'
-import { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@xpert-ai/contracts'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
@@ -13,6 +13,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Header,
   HttpCode,
   Inject,
   Logger,
@@ -32,9 +33,14 @@ import { DINGTALK_HTTP_SUBSCRIPTION_HINTS } from './dingtalk-integration.strateg
 import { DINGTALK_PLUGIN_CONTEXT } from './tokens.js'
 import {
   DINGTALK_END_CONVERSATION,
+  DINGTALK_INTEGRATION_SELECT_PATH,
+  INTEGRATION_DINGTALK,
+  INTEGRATION_DINGTALK_LONG,
   computeDingTalkSignature,
   decryptDingTalkEncrypt,
   encryptDingTalkMessage,
+  iconImage,
+  resolveDingTalkHttpCallbackEnabled,
   TIntegrationDingTalkOptions,
   verifyDingTalkSignature,
 } from './types.js'
@@ -43,6 +49,22 @@ type ResolvedWebhookPayload = {
   body: Record<string, unknown>
   encrypted: boolean
   challenge?: string
+}
+
+type IntegrationSelectOption = {
+  value: string
+  label?: string
+  description?: string
+  icon: {
+    type: 'svg'
+    value: string
+  }
+}
+
+type IntegrationPermissionServiceWithFindAll = IntegrationPermissionService & {
+  findAll?: (options?: Record<string, unknown>) => Promise<{
+    items?: Array<IIntegration<TIntegrationDingTalkOptions>>
+  }>
 }
 
 @Controller('dingtalk')
@@ -65,6 +87,25 @@ export class DingTalkHooksController {
   }
 
   @Public()
+  @Get('webhook/:id')
+  @HttpCode(200)
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  async webhookReachability(@Param('id') integrationId: string) {
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationDingTalkOptions>>(
+      integrationId
+    )
+    if (!integration) {
+      throw new BadRequestException(`Integration ${integrationId} not found`)
+    }
+
+    if (!resolveDingTalkHttpCallbackEnabled(integration.options, integration.provider)) {
+      throw new BadRequestException(`Integration ${integrationId} has httpCallbackEnabled=false`)
+    }
+
+    return 'success'
+  }
+
+  @Public()
   @UseGuards(DingTalkAuthGuard)
   @Post('webhook/:id')
   @HttpCode(200)
@@ -83,7 +124,7 @@ export class DingTalkHooksController {
       throw new BadRequestException(`Integration ${integrationId} not found`)
     }
 
-    if (!integration.options?.httpCallbackEnabled) {
+    if (!resolveDingTalkHttpCallbackEnabled(integration.options, integration.provider)) {
       throw new BadRequestException(`Integration ${integrationId} has httpCallbackEnabled=false`)
     }
 
@@ -158,7 +199,7 @@ export class DingTalkHooksController {
     })
 
     if (payload.encrypted) {
-      res.status(200).json(this.buildEncryptedSuccessAck(integration.options))
+      res.status(200).json(this.buildEncryptedSuccessAck(integration.options, this.getQueryString(req.query.timestamp)))
       return
     }
 
@@ -182,7 +223,7 @@ export class DingTalkHooksController {
     return {
       mode: 'http',
       callbackUrl: `${apiBaseUrl}/api/dingtalk/webhook/${integration.id}`,
-      httpCallbackEnabled: integration.options?.httpCallbackEnabled !== false,
+      httpCallbackEnabled: resolveDingTalkHttpCallbackEnabled(integration.options, integration.provider),
       signatureAlgorithm: 'sha1(sort(token,timestamp,nonce,encrypt))',
       encryptedAck: true,
       expectedAckMs: 1500,
@@ -193,6 +234,37 @@ export class DingTalkHooksController {
       },
       subscriptionHints: [...DINGTALK_HTTP_SUBSCRIPTION_HINTS]
     }
+  }
+
+  @Get(DINGTALK_INTEGRATION_SELECT_PATH)
+  async getIntegrationSelectOptions(): Promise<IntegrationSelectOption[]> {
+    const service = this.integrationPermissionService as IntegrationPermissionServiceWithFindAll
+    if (typeof service.findAll !== 'function') {
+      return []
+    }
+
+    const [streamResult, httpResult] = await Promise.all([
+      service.findAll({
+        where: {
+          provider: INTEGRATION_DINGTALK_LONG
+        }
+      }),
+      service.findAll({
+        where: {
+          provider: INTEGRATION_DINGTALK
+        }
+      })
+    ])
+
+    return [...(streamResult.items ?? []), ...(httpResult.items ?? [])].map((item) => ({
+      value: item.id,
+      label: item.name,
+      description: item.description,
+      icon: {
+        type: 'svg',
+        value: iconImage
+      }
+    }))
   }
 
   @Public()
@@ -396,7 +468,7 @@ export class DingTalkHooksController {
     }
   }
 
-  private buildEncryptedSuccessAck(options: TIntegrationDingTalkOptions) {
+  private buildEncryptedSuccessAck(options: TIntegrationDingTalkOptions, requestTimestamp?: string) {
     const callbackAppKey = this.resolveCallbackAppKey(options)
     if (!options.callbackToken || !options.callbackAesKey || !callbackAppKey) {
       throw new BadRequestException(
@@ -404,7 +476,7 @@ export class DingTalkHooksController {
       )
     }
 
-    const timestamp = String(Math.floor(Date.now() / 1000))
+    const timestamp = requestTimestamp || String(Date.now())
     const nonce = randomBytes(8).toString('hex')
     const encrypt = encryptDingTalkMessage({
       message: 'success',

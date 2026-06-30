@@ -1,8 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { IIntegration, TIntegrationProvider } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosError } from 'axios'
-import { iconImage, INTEGRATION_DINGTALK, TIntegrationDingTalkOptions } from './types.js'
+import {
+  DINGTALK_APP_CREDENTIALS_HELP_LABEL,
+  DINGTALK_APP_CREDENTIALS_HELP_URL,
+  iconImage,
+  INTEGRATION_DINGTALK,
+  resolveDingTalkHttpCallbackEnabled,
+  TDingTalkIntegrationProvider,
+  TIntegrationDingTalkOptions
+} from './types.js'
 
 export const DINGTALK_HTTP_SUBSCRIPTION_HINTS = [
   '机器人接收消息事件',
@@ -15,21 +23,25 @@ export const DINGTALK_HTTP_SUBSCRIPTION_HINTS = [
 export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegrationDingTalkOptions> {
   private readonly logger = new Logger(DingTalkIntegrationStrategy.name)
 
-  meta: TIntegrationProvider = {
+  meta: TDingTalkIntegrationProvider = {
     name: INTEGRATION_DINGTALK,
     label: {
-      en_US: 'DingTalk',
-      zh_Hans: '钉钉'
+      en_US: 'DingTalk (HTTP Mode)',
+      zh_Hans: '钉钉-HTTP模式'
     },
     icon: {
       type: 'svg',
       value: iconImage
     },
     description: {
-      en_US: 'Integration with DingTalk platform for bot messaging and HTTP callbacks.',
-      zh_Hans: '钉钉机器人双向消息与 HTTP 回调集成。'
+      en_US:
+        'DingTalk HTTP Mode callback integration for bot messages and card actions. Use only when Stream Mode is unavailable.',
+      zh_Hans:
+        '钉钉机器人 HTTP 模式回调集成，用于消息接收与卡片回调。仅在无法使用 Stream 模式时使用。'
     },
     webhook: true,
+    helpUrl: DINGTALK_APP_CREDENTIALS_HELP_URL,
+    helpLabel: DINGTALK_APP_CREDENTIALS_HELP_LABEL,
     schema: {
       type: 'object',
       properties: {
@@ -67,21 +79,6 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
               '用于通过 API 发送群/单聊消息的机器人唯一标识。从钉钉开放平台：应用 → 机器人 → 机器人的唯一标识 获取。不是回调体里的 robotCode（如 "normal"）。留空则仅依赖会话内 sessionWebhook 缓存回复。'
           }
         },
-        xpertId: {
-          type: 'string',
-          title: {
-            en_US: 'Xpert',
-            zh_Hans: '数字专家'
-          },
-          description: {
-            en_US: 'Choose a corresponding digital expert',
-            zh_Hans: '选择一个对应的数字专家'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/xpert/select-options'
-          }
-        },
         preferLanguage: {
           type: 'string',
           title: {
@@ -96,14 +93,6 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
             }
           }
         },
-        httpCallbackEnabled: {
-          type: 'boolean',
-          default: true,
-          title: {
-            en_US: 'Enable HTTP Callback',
-            zh_Hans: '启用 HTTP 回调'
-          }
-        },
         callbackToken: {
           type: 'string',
           title: {
@@ -112,7 +101,7 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
           },
           description: {
             en_US: 'Used to verify callback signature from DingTalk',
-            zh_Hans: '用于校验钉钉回调签名'
+            zh_Hans: '用于校验钉钉 HTTP 回调签名'
           },
           'x-ui': {
             component: 'password'
@@ -126,20 +115,14 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
           },
           description: {
             en_US: 'Used to decrypt callback encrypt payload',
-            zh_Hans: '用于解密钉钉回调加密体'
+            zh_Hans: '用于解密钉钉 HTTP 回调加密体'
           },
           'x-ui': {
             component: 'password'
           }
         },
       },
-      required: [
-        'clientId',
-        'clientSecret',
-        'httpCallbackEnabled',
-        'callbackToken',
-        'callbackAesKey'
-      ],
+      required: ['clientId', 'clientSecret'],
       secret: ['clientSecret', 'callbackToken', 'callbackAesKey']
     }
   }
@@ -148,7 +131,10 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
     return null
   }
 
-  async validateConfig(config: TIntegrationDingTalkOptions, integration?: IIntegration<TIntegrationDingTalkOptions>) {
+  async validateConfig(
+    config: TIntegrationDingTalkOptions,
+    integration?: IIntegration<TIntegrationDingTalkOptions>
+  ): Promise<any> {
     if (!config?.clientId) {
       throw new Error('clientId is required')
     }
@@ -157,15 +143,17 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
       throw new Error('clientSecret is required')
     }
 
-    if (config.httpCallbackEnabled === false) {
-      throw new Error('plugin-dingtalk v1 uses HTTP callback mode only, please enable httpCallbackEnabled')
+    const httpCallbackEnabled = resolveDingTalkHttpCallbackEnabled(config, INTEGRATION_DINGTALK)
+
+    if (!httpCallbackEnabled) {
+      throw new Error('HTTP callback is required for DingTalk HTTP mode')
     }
 
-    if (!config.callbackToken) {
-      throw new Error('callbackToken is required when httpCallbackEnabled=true')
+    if (httpCallbackEnabled && !config.callbackToken) {
+      throw new Error('callbackToken is required for DingTalk HTTP mode')
     }
-    if (!config.callbackAesKey) {
-      throw new Error('callbackAesKey is required when httpCallbackEnabled=true')
+    if (httpCallbackEnabled && !config.callbackAesKey) {
+      throw new Error('callbackAesKey is required for DingTalk HTTP mode')
     }
     try {
       const baseUrl = config.apiBaseUrl || 'https://api.dingtalk.com'
@@ -188,9 +176,13 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
       const apiBaseUrl = process.env.API_BASE_URL
       const integrationId = integration?.id || '<save_and_get_your_integration_id>'
       const callbackUrl = `${apiBaseUrl}/api/dingtalk/webhook/${integrationId}`
-      return {
-        webhookUrl: callbackUrl,
-        callback: {
+      const result: Record<string, unknown> = {
+        mode: 'webhook'
+      }
+
+      if (httpCallbackEnabled) {
+        result.webhookUrl = callbackUrl
+        result.callback = {
           mode: 'http',
           callbackUrl,
           signatureAlgorithm: 'sha1(sort(token,timestamp,nonce,encrypt))',
@@ -199,6 +191,8 @@ export class DingTalkIntegrationStrategy implements IntegrationStrategy<TIntegra
           subscriptionHints: [...DINGTALK_HTTP_SUBSCRIPTION_HINTS]
         }
       }
+
+      return result
     } catch (error: any) {
       const axiosError = error as AxiosError<{ code?: number; msg?: string; message?: string }>
       const message =

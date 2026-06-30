@@ -19,6 +19,7 @@ import { WeComTriggerAggregationService } from './workflow/wecom-trigger-aggrega
 import { WeComTriggerFlushProcessor } from './workflow/wecom-trigger-flush.processor.js'
 import { WeComLongIntegrationStrategy } from './wecom-long-integration.strategy.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
+import { WeComConversationBindingSchemaService } from './wecom-conversation-binding-schema.service.js'
 import { WECOM_LONG_CONNECTION_SERVICE } from './tokens.js'
 import { WeComIntegrationViewProvider } from './views/wecom-integration-view.provider.js'
 
@@ -31,6 +32,7 @@ import { WeComIntegrationViewProvider } from './views/wecom-integration-view.pro
   entities: [WeComConversationBindingEntity, WeComTriggerBindingEntity],
   providers: [
     WeComConversationService,
+    WeComConversationBindingSchemaService,
     WeComChannelStrategy,
     WeComIntegrationStrategy,
     WeComLongIntegrationStrategy,

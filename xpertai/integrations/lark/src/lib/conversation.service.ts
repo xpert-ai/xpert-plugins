@@ -30,7 +30,12 @@ import {
 import { translate } from './i18n.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { DispatchLarkChatCommand, DispatchLarkChatPayload } from './handoff/commands/dispatch-lark-chat.command.js'
-import { extractLarkSemanticMessage, unwrapLarkEventPayload } from './lark-message-semantics.js'
+import {
+	extractLarkSemanticMessage,
+	getLarkMessageContent,
+	getLarkMessageType,
+	unwrapLarkEventPayload
+} from './lark-message-semantics.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
@@ -362,7 +367,8 @@ export class LarkConversationService implements OnModuleDestroy {
 	private extractInboundImageRefs(message: unknown): LarkInboundImageRef[] {
 		const payload = unwrapLarkEventPayload(message)
 		const inboundMessage = payload?.message
-		if (!inboundMessage || inboundMessage.message_type !== 'image') {
+		const messageType = getLarkMessageType(inboundMessage)
+		if (!inboundMessage || (messageType !== 'image' && messageType !== 'post')) {
 			return []
 		}
 
@@ -371,9 +377,13 @@ export class LarkConversationService implements OnModuleDestroy {
 			return []
 		}
 
-		const content = safeJsonRecord(inboundMessage.content)
-		const fileKey = normalizeNonEmptyString(content?.image_key)
-		return fileKey ? [{ messageId, fileKey }] : []
+		const content = safeJsonRecord(getLarkMessageContent(inboundMessage))
+		if (messageType === 'image') {
+			const fileKey = normalizeNonEmptyString(content?.image_key)
+			return fileKey ? [{ messageId, fileKey }] : []
+		}
+
+		return extractLarkPostImageKeys(content).map((fileKey) => ({ messageId, fileKey }))
 	}
 
 	private resolveImageExtension(mimeType?: string): string {
@@ -1164,6 +1174,87 @@ export class LarkConversationService implements OnModuleDestroy {
 		})
 	}
 
+	private resolveTriggerSummaryWindowSeconds(
+		binding: LarkTriggerBindingEntity,
+		larkTriggerStrategy: LarkTriggerService
+	): number {
+		const config = larkTriggerStrategy.normalizeConfig(binding.config, binding.integrationId)
+		return this.normalizeNonNegativeSeconds(config.summaryWindowSeconds, 0)
+	}
+
+	private async isTriggerConversationExpired(
+		binding: LarkConversationBindingLookup,
+		sessionTimeoutSeconds: unknown
+	): Promise<boolean> {
+		const timeoutMs = this.normalizePositiveSeconds(sessionTimeoutSeconds, 3600) * 1000
+		const lastActiveAt = await this.getConversationBindingUpdatedAt(binding)
+		if (!lastActiveAt) {
+			return false
+		}
+		return Date.now() - lastActiveAt.getTime() > timeoutMs
+	}
+
+	private async getConversationBindingUpdatedAt(
+		binding: LarkConversationBindingLookup
+	): Promise<Date | null> {
+		const row = binding.scopeKey
+			? await this.conversationBindingRepository.findOne({
+					where: {
+						scopeKey: binding.scopeKey,
+						xpertId: binding.xpertId
+					}
+			  })
+			: binding.conversationUserKey
+				? await this.conversationBindingRepository.findOne({
+						where: {
+							conversationUserKey: binding.conversationUserKey,
+							xpertId: binding.xpertId
+						}
+				  })
+				: null
+		return row?.updatedAt instanceof Date ? row.updatedAt : null
+	}
+
+	private async touchConversationBinding(binding: LarkConversationBindingLookup): Promise<void> {
+		if (!binding.scopeKey && !binding.conversationUserKey) {
+			return
+		}
+
+		await this.conversationBindingRepository.upsert(
+			{
+				userId: binding.userId ?? null,
+				integrationId: binding.integrationId ?? null,
+				principalKey: binding.principalKey ?? null,
+				scopeKey: binding.scopeKey ?? null,
+				chatType: binding.chatType ?? null,
+				chatId: binding.chatId ?? null,
+				senderOpenId: binding.senderOpenId ?? null,
+				conversationUserKey: binding.conversationUserKey ?? null,
+				xpertId: binding.xpertId,
+				conversationId: binding.conversationId,
+				tenantId: binding.tenantId ?? null,
+				organizationId: binding.organizationId ?? null,
+				createdById: binding.createdById ?? null,
+				updatedById: binding.updatedById ?? null
+			},
+			binding.scopeKey ? ['scopeKey', 'xpertId'] : ['conversationUserKey', 'xpertId']
+		)
+	}
+
+	private normalizePositiveSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
+	private normalizeNonNegativeSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
 	private async purgeDisallowedTriggerBindings(params: {
 		integrationId: string
 		scopeBinding: LarkConversationBindingLookup | null
@@ -1352,16 +1443,37 @@ export class LarkConversationService implements OnModuleDestroy {
 			fallbackBinding?.conversationUserKey ??
 			userId
 		const legacyConversationUserKey = keys.legacyConversationUserKey ?? fallbackBinding?.conversationUserKey ?? userId
-		if (scopeBinding?.conversationId) {
+		const larkTriggerStrategy = await this.getLarkTriggerStrategy()
+		let activeTargetBinding = targetBinding
+		if (boundTriggerBinding && activeTargetBinding?.xpertId === boundTriggerBinding.xpertId) {
+			const triggerConfig = larkTriggerStrategy.normalizeConfig(boundTriggerBinding.config, integrationId)
+			if (
+				await this.isTriggerConversationExpired(
+					activeTargetBinding,
+					triggerConfig.sessionTimeoutSeconds
+				)
+			) {
+				await this.purgeBindingSession(
+					activeTargetBinding,
+					activeTargetBinding.scopeKey ?? effectiveScopeKey,
+					legacyConversationUserKey
+				)
+				activeTargetBinding = null
+			} else {
+				await this.touchConversationBinding(activeTargetBinding)
+			}
+		}
+		const activeTargetXpertId = activeTargetBinding?.xpertId ?? targetXpertId
+		if (activeTargetBinding?.conversationId) {
 			await this.cacheConversation(
 				effectiveScopeKey,
-				scopeBinding.xpertId,
-				scopeBinding.conversationId,
+				activeTargetBinding.xpertId,
+				activeTargetBinding.conversationId,
 				this.shouldAllowLegacyFallbackForScope(effectiveScopeKey) ? legacyConversationUserKey : null
 			)
 		}
 
-		const activeMessage = await this.getActiveMessage(effectiveScopeKey, targetXpertId, {
+		const activeMessage = await this.getActiveMessage(effectiveScopeKey, activeTargetXpertId, {
 			legacyConversationUserKey
 		})
 		const larkMessage = new ChatLarkMessage(
@@ -1388,7 +1500,6 @@ export class LarkConversationService implements OnModuleDestroy {
 			groupWindow: options.groupWindow,
 			mappedUserId: options.mappedUserId
 		})
-		const larkTriggerStrategy = await this.getLarkTriggerStrategy()
 		if (boundTriggerBinding) {
 			const matchesBoundTrigger = larkTriggerStrategy.matchesInboundMessage({
 				binding: boundTriggerBinding,
@@ -1404,8 +1515,8 @@ export class LarkConversationService implements OnModuleDestroy {
 					senderOpenId,
 					allowed: matchesBoundTrigger,
 					binding: boundTriggerBinding,
-					targetBinding,
-					targetXpertId
+					targetBinding: activeTargetBinding,
+					targetXpertId: activeTargetXpertId
 				})
 			}
 			if (!matchesBoundTrigger) {
@@ -1423,9 +1534,13 @@ export class LarkConversationService implements OnModuleDestroy {
 				return null
 			}
 		}
-		if (targetBinding) {
+		const shouldBufferTriggerMessage =
+			boundTriggerBinding &&
+			activeTargetBinding?.xpertId === boundTriggerBinding.xpertId &&
+			this.resolveTriggerSummaryWindowSeconds(boundTriggerBinding, larkTriggerStrategy) > 0
+		if (activeTargetBinding && !shouldBufferTriggerMessage) {
 			return await this.dispatchToLarkChat({
-				xpertId: targetXpertId,
+				xpertId: activeTargetXpertId,
 				input: dispatchInput,
 				files: await getDispatchFiles(),
 				larkMessage,
@@ -1435,7 +1550,7 @@ export class LarkConversationService implements OnModuleDestroy {
 
 		const handledByTrigger = await larkTriggerStrategy.handleInboundMessage({
 			integrationId,
-			input: useDispatchInputForTrigger ? dispatchInput : text,
+			input: activeTargetBinding || useDispatchInputForTrigger ? dispatchInput : text,
 			files: await getDispatchFiles(),
 			larkMessage,
 			options: {
@@ -2051,6 +2166,40 @@ function normalizeListPositiveInt(value: unknown): number | null {
 	}
 
 	return null
+}
+
+function extractLarkPostImageKeys(content: unknown): string[] {
+	const imageKeys = new Set<string>()
+	collectLarkPostImageKeys(content, imageKeys, new Set<unknown>())
+	return [...imageKeys]
+}
+
+function collectLarkPostImageKeys(value: unknown, imageKeys: Set<string>, visited: Set<unknown>) {
+	if (!value || typeof value !== 'object') {
+		return
+	}
+	if (visited.has(value)) {
+		return
+	}
+	visited.add(value)
+
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			collectLarkPostImageKeys(item, imageKeys, visited)
+		}
+		return
+	}
+
+	const record = value as Record<string, unknown>
+	const tag = normalizeNonEmptyString(record.tag)
+	const imageKey = normalizeNonEmptyString(record.image_key)
+	if (tag === 'img' && imageKey) {
+		imageKeys.add(imageKey)
+	}
+
+	for (const nestedValue of Object.values(record)) {
+		collectLarkPostImageKeys(nestedValue, imageKeys, visited)
+	}
 }
 
 function normalizeNonEmptyString(value: unknown): string | null {

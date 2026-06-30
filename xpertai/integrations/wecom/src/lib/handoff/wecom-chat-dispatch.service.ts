@@ -1,4 +1,4 @@
-import { LanguagesEnum, TChatRequest } from '@metad/contracts'
+import { LanguagesEnum, TChatRequest } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { generateReqId } from '@wecom/aibot-node-sdk'
 import {
@@ -223,7 +223,7 @@ export class WeComChatDispatchService {
           },
           context: callbackContext
         }
-      } as AgentChatDispatchPayload,
+      } as unknown as AgentChatDispatchPayload,
       headers: {
         ...(organizationId ? { organizationId } : {}),
         ...(resolvedExecutorUserId ? { userId: resolvedExecutorUserId } : {}),

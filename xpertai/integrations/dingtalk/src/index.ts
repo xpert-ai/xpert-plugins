@@ -27,8 +27,8 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
       value: iconImage
     },
     displayName: 'DingTalk Plugin',
-    description: 'Bidirectional messaging integration with DingTalk platform',
-    keywords: ['dingtalk', 'integration', 'message', 'webhook', 'stream'],
+    description: 'Bidirectional messaging integration with DingTalk platform using HTTP callback or Stream Mode',
+    keywords: ['dingtalk', 'integration', 'message', 'webhook', 'stream', 'stream-mode'],
     author: 'XpertAI team',
   },
   config: {
@@ -36,6 +36,7 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
   },
   permissions: [
     { type: 'integration', service: 'dingtalk', operations: ['read'] },
+    { type: 'integration', service: 'dingtalk_long', operations: ['read'] },
     { type: 'handoff', operations: ['enqueue'] }
   ],
   register(ctx) {

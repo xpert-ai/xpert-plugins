@@ -1,8 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common'
-import type { IIntegration, TIntegrationProvider } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosError } from 'axios'
-import { iconImage, INTEGRATION_LARK, TIntegrationLarkOptions } from './types.js'
+import {
+  iconImage,
+  INTEGRATION_LARK,
+  LARK_APP_CREDENTIALS_HELP_LABEL,
+  LARK_APP_CREDENTIALS_HELP_URL,
+  TLarkIntegrationProvider,
+  TIntegrationLarkOptions
+} from './types.js'
 import { toLarkApiErrorMessage } from './utils.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
@@ -42,7 +49,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     private readonly longConnectionService: LarkLongConnectionService
   ) {}
 
-  meta: TIntegrationProvider = {
+  meta: TLarkIntegrationProvider = {
     name: INTEGRATION_LARK,
     label: {
       en_US: 'Lark',
@@ -57,6 +64,8 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       zh_Hans: '与飞书平台的集成，用于消息传递和协作。'
     },
     webhook: true,
+    helpUrl: LARK_APP_CREDENTIALS_HELP_URL,
+    helpLabel: LARK_APP_CREDENTIALS_HELP_LABEL,
     schema: {
       type: 'object',
       properties: {
@@ -162,7 +171,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
                 zh_Hans: '默认角色'
               },
               enum: Object.values(RolesEnum),
-              default: RolesEnum.EMPLOYEE
+              default: RolesEnum.VIEWER
             }
           }
         }

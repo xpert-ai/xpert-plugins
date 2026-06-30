@@ -1,7 +1,15 @@
-import type { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkIntegrationStrategy } from './lark-integration.strategy.js'
 import type { TIntegrationLarkOptions } from './types.js'
+
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+	IntegrationStrategyKey: () => () => undefined
+}))
+
+jest.mock('./lark-long-connection.service.js', () => ({
+	LarkLongConnectionService: class LarkLongConnectionService {}
+}))
 
 describe('LarkIntegrationStrategy', () => {
 	let disconnect: jest.Mock<Promise<void>, [string]>
@@ -28,6 +36,16 @@ describe('LarkIntegrationStrategy', () => {
 		)
 
 		expect(disconnect).not.toHaveBeenCalled()
+	})
+
+	it('exposes a credential help button for the host integration form', () => {
+		expect(strategy.meta.helpUrl).toBe(
+			'https://open.feishu.cn/document/home/introduction-to-custom-app-development/self-built-application-development-process'
+		)
+		expect((strategy.meta as any).helpLabel).toEqual({
+			en_US: 'Get App ID',
+			zh_Hans: '获取App ID'
+		})
 	})
 })
 

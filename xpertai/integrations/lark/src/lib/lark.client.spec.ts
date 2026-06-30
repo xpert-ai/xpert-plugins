@@ -1,4 +1,4 @@
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { LarkClient } from './lark.client.js'
 import { TLarkIntegrationConfig } from './types.js'
 import * as dotenv from 'dotenv';

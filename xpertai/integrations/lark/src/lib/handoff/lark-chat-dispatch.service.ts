@@ -1,4 +1,4 @@
-import type { LanguagesEnum as TLanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatOptions, TChatRequest } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -219,7 +219,7 @@ export class LarkChatDispatchService {
 					},
 					context: callbackContext
 				}
-			} as AgentChatDispatchPayload,
+			} as unknown as AgentChatDispatchPayload,
 			headers: {
 				...(organizationId ? { organizationId } : {}),
 				// Queue-level user header drives request context reconstruction in agent-chat processor.

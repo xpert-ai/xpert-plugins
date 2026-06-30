@@ -17,7 +17,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   runWithRequestContext: async (_context: unknown, callback: () => unknown) => await callback()
 }))
 
-import type { IIntegration, XpertResolvedViewHostContext } from '@metad/contracts'
+import type { IIntegration, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { LarkConversationService } from '../conversation.service.js'
 import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'

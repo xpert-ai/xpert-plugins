@@ -2,7 +2,7 @@ import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput } from '@langchain/langgraph'
-import { getToolCallIdFromConfig, TAgentMiddlewareMeta } from '@metad/contracts'
+import { getToolCallIdFromConfig, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   AgentMiddleware,
@@ -16,7 +16,7 @@ import { z } from 'zod/v3'
 import { DingTalkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
-import { iconImage, normalizeDingTalkRobotCode } from '../types.js'
+import { DINGTALK_INTEGRATION_SELECT_URL, iconImage, normalizeDingTalkRobotCode } from '../types.js'
 
 const DINGTALK_NOTIFY_MIDDLEWARE_NAME = 'DingTalkNotifyMiddleware'
 const DEFAULT_TIMEOUT_MS = 10000
@@ -515,7 +515,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
           },
           'x-ui': {
             component: 'remoteSelect',
-            selectUrl: '/api/integration/select-options?provider=dingtalk',
+            selectUrl: DINGTALK_INTEGRATION_SELECT_URL,
             variable: true,
             span: 2,
           }

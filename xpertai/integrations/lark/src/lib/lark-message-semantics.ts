@@ -5,7 +5,13 @@ type TLarkEventEnvelope = {
   event?: TLarkEvent
 }
 
+type UnknownRecord = Record<string, unknown>
+
 const AT_TAG_PATTERN = /<at\b[^>]*?user_id="([^"]+)"[^>]*>(.*?)<\/at>/gi
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 
 function normalizeString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -17,6 +23,89 @@ function normalizeString(value: unknown): string | null {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function getLarkMessageType(message: unknown): string | null {
+  if (!isRecord(message)) {
+    return null
+  }
+
+  return normalizeString(message.message_type) ?? normalizeString(message.msg_type)
+}
+
+export function getLarkMessageContent(message: unknown): string | null {
+  if (!isRecord(message)) {
+    return null
+  }
+
+  const directContent = normalizeString(message.content)
+  if (directContent) {
+    return directContent
+  }
+
+  return isRecord(message.body) ? normalizeString(message.body.content) : null
+}
+
+function collectPostInlineText(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectPostInlineText(item))
+  }
+
+  if (!isRecord(value)) {
+    return []
+  }
+
+  const tag = normalizeString(value.tag)
+  if (tag === 'text' && typeof value.text === 'string') {
+    return [value.text]
+  }
+
+  if (tag === 'at') {
+    const name =
+      normalizeString(value.user_name) ??
+      normalizeString(value.name) ??
+      normalizeString(value.text) ??
+      normalizeString(value.user_id) ??
+      normalizeString(value.open_id)
+    return name ? [`@${name}`] : []
+  }
+
+  return []
+}
+
+function extractPostContentText(content: unknown): string | null {
+  if (!Array.isArray(content)) {
+    return null
+  }
+
+  const lines = content
+    .map((line) => collectPostInlineText(line).join('').trim())
+    .filter((line) => line.length > 0)
+
+  return lines.length ? lines.join('\n') : null
+}
+
+function extractLarkPostText(parsed: unknown): string | null {
+  if (!isRecord(parsed)) {
+    return null
+  }
+
+  const directText = extractPostContentText(parsed.content)
+  if (directText) {
+    return directText
+  }
+
+  for (const value of Object.values(parsed)) {
+    if (!isRecord(value)) {
+      continue
+    }
+    const localizedText = extractPostContentText(value.content)
+    if (localizedText) {
+      return localizedText
+    }
+  }
+
+  return null
 }
 
 export function unwrapLarkEventPayload(event: unknown): TLarkEvent | null {
@@ -149,11 +238,13 @@ export function extractLarkSemanticMessage(
   }
 
   let rawText = ''
+  const messageContent = getLarkMessageContent(message)
   try {
-    const parsed = JSON.parse(message.content)
-    rawText = normalizeString(parsed?.text) ?? ''
+    const parsed = JSON.parse(messageContent ?? '')
+    const messageType = getLarkMessageType(message)
+    rawText = (messageType === 'post' ? extractLarkPostText(parsed) : null) ?? normalizeString(parsed?.text) ?? ''
   } catch {
-    rawText = normalizeString(message.content) ?? ''
+    rawText = messageContent ?? ''
   }
 
   const mentions = Array.isArray(message.mentions)

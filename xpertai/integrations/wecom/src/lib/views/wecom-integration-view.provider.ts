@@ -1,4 +1,4 @@
-import type { I18nObject } from '@metad/contracts'
+import type { I18nObject } from '@xpert-ai/contracts'
 import { applyDecorators, Injectable, SetMetadata } from '@nestjs/common'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
 import {

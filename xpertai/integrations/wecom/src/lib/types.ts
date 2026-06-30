@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypt
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { TIntegrationProvider } from '@xpert-ai/contracts'
 
 const __filename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(__filename)
@@ -10,6 +11,19 @@ export const iconImage = `data:image/png;base64,${readFileSync(join(moduleDir, '
 
 export const INTEGRATION_WECOM = 'wecom'
 export const INTEGRATION_WECOM_LONG = 'wecom_long'
+export const WECOM_APP_CREDENTIALS_HELP_URL = 'https://developer.work.weixin.qq.com/document/path/101463'
+export const WECOM_CALLBACK_CREDENTIALS_HELP_LABEL = {
+  en_US: 'Get Callback Config',
+  zh_Hans: '获取回调配置'
+} as const
+export const WECOM_BOT_CREDENTIALS_HELP_LABEL = {
+  en_US: 'Get Bot ID',
+  zh_Hans: '获取Bot ID'
+} as const
+
+export type TWeComIntegrationProvider = TIntegrationProvider & {
+  helpLabel?: typeof WECOM_CALLBACK_CREDENTIALS_HELP_LABEL | typeof WECOM_BOT_CREDENTIALS_HELP_LABEL
+}
 
 export type TIntegrationWeComShortOptions = {
   token: string

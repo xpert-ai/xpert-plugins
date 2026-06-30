@@ -1,7 +1,14 @@
-import { IIntegration, TIntegrationProvider } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
-import { iconImage, INTEGRATION_WECOM, TIntegrationWeComShortOptions } from './types.js'
+import {
+  iconImage,
+  INTEGRATION_WECOM,
+  TIntegrationWeComShortOptions,
+  TWeComIntegrationProvider,
+  WECOM_APP_CREDENTIALS_HELP_URL,
+  WECOM_CALLBACK_CREDENTIALS_HELP_LABEL
+} from './types.js'
 
 export const WECOM_HTTP_SUBSCRIPTION_HINTS = [
   '企业微信机器人消息回调事件',
@@ -12,7 +19,7 @@ export const WECOM_HTTP_SUBSCRIPTION_HINTS = [
 @Injectable()
 @IntegrationStrategyKey(INTEGRATION_WECOM)
 export class WeComIntegrationStrategy implements IntegrationStrategy<TIntegrationWeComShortOptions> {
-  readonly meta: TIntegrationProvider = {
+  readonly meta: TWeComIntegrationProvider = {
     name: INTEGRATION_WECOM,
     label: {
       en_US: 'WeCom',
@@ -27,6 +34,8 @@ export class WeComIntegrationStrategy implements IntegrationStrategy<TIntegratio
       zh_Hans: '企业微信 API 回调集成，用于 URL 校验与事件接收。'
     },
     webhook: true,
+    helpUrl: WECOM_APP_CREDENTIALS_HELP_URL,
+    helpLabel: WECOM_CALLBACK_CREDENTIALS_HELP_LABEL,
     schema: {
       type: 'object',
       properties: {

@@ -1,11 +1,12 @@
 import axios, { AxiosInstance } from 'axios'
 import { createHmac } from 'crypto'
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import {
   TIntegrationDingTalkOptions,
   normalizeDingTalkRobotCode,
   parseDingTalkClientError,
-  formatDingTalkErrorToMarkdown
+  formatDingTalkErrorToMarkdown,
+  resolveDingTalkHttpCallbackEnabled
 } from './types.js'
 
 type DingTalkRecipient = {
@@ -47,9 +48,16 @@ type ParsedTemplatePayload = {
   msgParam: Record<string, unknown>
 }
 
+export type DingTalkDownloadedMessageFile = {
+  buffer: Buffer
+  mimeType?: string
+  fileName?: string
+}
+
 export class DingTalkClient {
   private readonly options: TIntegrationDingTalkOptions
   private readonly integrationId: string
+  private readonly provider: string
   private readonly apiBaseUrl: string
   private readonly legacyApiBaseUrl: string
   private readonly http: AxiosInstance
@@ -61,6 +69,7 @@ export class DingTalkClient {
 
   constructor(integration: IIntegration<TIntegrationDingTalkOptions>) {
     this.integrationId = integration.id
+    this.provider = integration.provider
     this.options = this.normalizeOptions(integration.options)
     this.apiBaseUrl = this.options.apiBaseUrl || 'https://api.dingtalk.com'
     this.legacyApiBaseUrl = this.options.legacyApiBaseUrl || 'https://oapi.dingtalk.com'
@@ -221,6 +230,72 @@ export class DingTalkClient {
 
   private stringOrEmpty(value: unknown): string {
     return typeof value === 'string' ? value.trim() : ''
+  }
+
+  private getHeaderValue(headers: Record<string, unknown> | undefined, name: string): string | undefined {
+    if (!headers) {
+      return undefined
+    }
+    const lowerName = name.toLowerCase()
+    for (const [key, value] of Object.entries(headers)) {
+      if (key.toLowerCase() !== lowerName) {
+        continue
+      }
+      if (Array.isArray(value)) {
+        return value.find((item): item is string => typeof item === 'string' && item.trim().length > 0)?.trim()
+      }
+      return typeof value === 'string' && value.trim() ? value.trim() : undefined
+    }
+    return undefined
+  }
+
+  async downloadMessageFile(input: {
+    downloadCode: string
+    robotCode?: string | null
+    timeoutMs?: number
+  }): Promise<DingTalkDownloadedMessageFile> {
+    const downloadCode = this.stringOrEmpty(input.downloadCode)
+    if (!downloadCode) {
+      throw new Error('DingTalk downloadCode is required')
+    }
+
+    const robotCode = this.resolveRobotCode(input.robotCode)
+    if (!robotCode) {
+      throw new Error('DingTalk robotCode is required to download message file')
+    }
+
+    const result = await this.requestV1<{
+      downloadUrl?: string
+      fileName?: string
+      name?: string
+    }>({
+      method: 'POST',
+      path: '/v1.0/robot/messageFiles/download',
+      data: {
+        downloadCode,
+        robotCode
+      },
+      timeoutMs: input.timeoutMs
+    })
+
+    const downloadUrl = this.stringOrEmpty(result?.downloadUrl)
+    if (!downloadUrl) {
+      throw new Error('Missing downloadUrl in DingTalk message file response')
+    }
+
+    const response = await this.http.get<ArrayBuffer>(downloadUrl, {
+      responseType: 'arraybuffer',
+      timeout: input.timeoutMs || 15_000
+    })
+    const buffer = Buffer.from(response.data)
+    const mimeType = this.getHeaderValue(response.headers as Record<string, unknown>, 'content-type')?.split(';')[0]?.trim()
+    const fileName = this.stringOrEmpty(result?.fileName) || this.stringOrEmpty(result?.name) || undefined
+
+    return {
+      buffer,
+      mimeType,
+      fileName
+    }
   }
 
   private resolveRobotCode(override?: string | null): string {
@@ -1145,7 +1220,7 @@ export class DingTalkClient {
     await this.getAccessToken()
     return {
       ok: true,
-      webhookUrl: this.options.httpCallbackEnabled
+      webhookUrl: resolveDingTalkHttpCallbackEnabled(this.options, this.provider)
         ? `/api/dingtalk/webhook/${this.integrationId}`
         : undefined
     }

@@ -1,6 +1,19 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
+import type { TIntegrationProvider } from '@xpert-ai/contracts'
 
 export const INTEGRATION_DINGTALK = 'dingtalk'
+export const INTEGRATION_DINGTALK_LONG = 'dingtalk_long'
+export const DINGTALK_INTEGRATION_SELECT_PATH = 'integration-select-options'
+export const DINGTALK_INTEGRATION_SELECT_URL = `/api/dingtalk/${DINGTALK_INTEGRATION_SELECT_PATH}`
+export const DINGTALK_APP_CREDENTIALS_HELP_URL = 'https://open.dingtalk.com/document/'
+export const DINGTALK_APP_CREDENTIALS_HELP_LABEL = {
+  en_US: 'Get AppKey',
+  zh_Hans: '获取AppKey'
+} as const
+
+export type TDingTalkIntegrationProvider = TIntegrationProvider & {
+  helpLabel?: typeof DINGTALK_APP_CREDENTIALS_HELP_LABEL
+}
 
 export const DingTalkName = 'dingtalk'
 
@@ -11,13 +24,15 @@ export const iconImage = `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http:/
 <g id="SVGRepo_iconCarrier"> <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm227 385.3c-1 4.2-3.5 10.4-7 17.8h.1l-.4.7c-20.3 43.1-73.1 127.7-73.1 127.7s-.1-.2-.3-.5l-15.5 26.8h74.5L575.1 810l32.3-128h-58.6l20.4-84.7c-16.5 3.9-35.9 9.4-59 16.8 0 0-31.2 18.2-89.9-35 0 0-39.6-34.7-16.6-43.4 9.8-3.7 47.4-8.4 77-12.3 40-5.4 64.6-8.2 64.6-8.2S422 517 392.7 512.5c-29.3-4.6-66.4-53.1-74.3-95.8 0 0-12.2-23.4 26.3-12.3 38.5 11.1 197.9 43.2 197.9 43.2s-207.4-63.3-221.2-78.7c-13.8-15.4-40.6-84.2-37.1-126.5 0 0 1.5-10.5 12.4-7.7 0 0 153.3 69.7 258.1 107.9 104.8 37.9 195.9 57.3 184.2 106.7z"/> </g>
 </svg>`
 
+export type TDingTalkConnectionMode = 'webhook' | 'long_connection'
+
 export type TIntegrationDingTalkOptions = {
   clientId: string
   clientSecret: string
   robotCode?: string
-  xpertId?: string
   preferLanguage?: 'zh-Hans' | 'en'
-  httpCallbackEnabled: boolean
+  connectionMode?: TDingTalkConnectionMode
+  httpCallbackEnabled?: boolean
   callbackToken?: string
   callbackAesKey?: string
   // Deprecated alias for callback decrypt only. Defaults to clientId when empty.
@@ -27,6 +42,49 @@ export type TIntegrationDingTalkOptions = {
   webhookSignSecret?: string
   apiBaseUrl?: string
   legacyApiBaseUrl?: string
+}
+
+export type TDingTalkLongRuntimeState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'unhealthy'
+
+export type TDingTalkConnectionProbeResult = {
+  connectionMode: 'long_connection'
+  connected: boolean
+  state: 'connected' | 'failed'
+  checkedAt: number
+  lastError?: string | null
+}
+
+export type TDingTalkRuntimeStatus = {
+  integrationId: string
+  connectionMode: TDingTalkConnectionMode
+  connected: boolean
+  state: TDingTalkLongRuntimeState
+  lastConnectedAt?: number | null
+  lastDisconnectedAt?: number | null
+  lastError?: string | null
+  reconnectAttempts?: number
+  lastCallbackAt?: number | null
+}
+
+export function resolveDingTalkConnectionMode(
+  options?: Partial<TIntegrationDingTalkOptions> | null,
+  provider?: string | null
+): TDingTalkConnectionMode {
+  if (provider === INTEGRATION_DINGTALK_LONG) {
+    return 'long_connection'
+  }
+  return options?.connectionMode === 'long_connection' ? 'long_connection' : 'webhook'
+}
+
+export function resolveDingTalkHttpCallbackEnabled(
+  options?: Partial<TIntegrationDingTalkOptions> | null,
+  provider?: string | null
+): boolean {
+  const connectionMode = resolveDingTalkConnectionMode(options, provider)
+  if (connectionMode === 'webhook') {
+    return options?.httpCallbackEnabled !== false
+  }
+  return false
 }
 
 export type TDingTalkUserProvisionOptions = {
@@ -94,10 +152,21 @@ export type DingTalkStructuredElement = Record<string, unknown> & {
 export type DingTalkRenderElement = DingTalkStructuredElement
 export type DingTalkCardElement = DingTalkRenderElement
 
+export type DingTalkImageMimeType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+export type DingTalkInboundFile = {
+  fileUrl: string
+  mimeType?: string
+  originalName?: string
+  fileKey?: string
+}
+
 export type TDingTalkEvent = {
   eventType?: string
   eventId?: string
   timestamp?: number
+  msgType?: string
+  msgtype?: string
   robotCode?: string
   conversationId?: string
   chatId?: string
@@ -106,6 +175,7 @@ export type TDingTalkEvent = {
   senderId?: string
   senderName?: string
   text?: string
+  content?: unknown
   sessionWebhook?: string
   /** Expiry time in ms (from sessionWebhookExpiredTime in callback). Used for cache TTL. */
   sessionWebhookExpiredTime?: number
@@ -114,6 +184,7 @@ export type TDingTalkEvent = {
     [key: string]: unknown
   }
   mentions?: Array<{ id: string; name?: string }>
+  files?: DingTalkInboundFile[]
   cardAction?: {
     messageId?: string
     chatId?: string
