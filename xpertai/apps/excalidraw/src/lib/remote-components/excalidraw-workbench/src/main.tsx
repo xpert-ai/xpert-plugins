@@ -396,6 +396,7 @@ function App() {
       return
     }
     if (payload.item) {
+      detailRef.current = payload
       setCurrentDetail(payload)
       setDirty(false)
       setVersionsOpen(false)
@@ -687,6 +688,7 @@ function App() {
       if (!applyScene) {
         suppressedDetailSceneVersionRef.current = sceneVersionKey(payload.currentVersion)
       }
+      detailRef.current = payload
       setCurrentDetail(payload)
       if (resetDirty) {
         dirtyRef.current = false
@@ -736,15 +738,17 @@ function App() {
       setNewTitle('')
       setChangeSummary('')
       if (drawingId) {
-        cancelAutoSave()
-        selectedIdRef.current = drawingId
-        setSelectedId(drawingId)
-        setCurrentDetail({
+        const detailPayload = {
           item: drawingItem || { id: drawingId, title, currentVersionNumber: 0, status: 'draft' },
           currentVersion: null,
           versions: [],
           logs: []
-        })
+        }
+        cancelAutoSave()
+        selectedIdRef.current = drawingId
+        setSelectedId(drawingId)
+        detailRef.current = detailPayload
+        setCurrentDetail(detailPayload)
         applyBlankScene({ clearMermaid: true })
       }
       await reloadList()
@@ -1131,7 +1135,7 @@ function App() {
 
   async function syncAssistantSelectionContext() {
     const input = {
-      drawing: detailRef.current?.item,
+      drawing: detailRef.current?.item ?? (selectedIdRef.current ? { id: selectedIdRef.current } : null),
       version: detailRef.current?.currentVersion,
       selectedElementIds: getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current),
       elements: elementsRef.current,

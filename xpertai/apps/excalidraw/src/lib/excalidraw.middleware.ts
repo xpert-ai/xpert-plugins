@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -66,7 +67,7 @@ const createDrawingSchema = z.object({
 })
 
 const addElementsSchema = z.object({
-  drawingId: z.string().min(1).describe('Existing Excalidraw drawing id. Create a drawing first, usually without initial elements.'),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   elements: z.array(z.unknown()).min(1).max(20).describe('One element or a small batch to append. You may provide shorthand element JSON with id, type, geometry, and text/points as needed; the service fills common Excalidraw defaults such as style, roughness, locked, frameId, link, roundness, version, text defaults, and arrowhead defaults/aliases. Prefer 1-5 logically related elements per call for complex drawings.'),
   appStatePatch: recordSchema.optional().describe('Optional shallow appState patch. Omit unless this batch needs it.'),
   files: recordSchema.optional().describe('Replacement files map only when this batch adds file-backed elements. Omit otherwise.'),
@@ -75,13 +76,13 @@ const addElementsSchema = z.object({
 })
 
 const saveSceneVersionSchema = sceneSchema.extend({
-  drawingId: z.string().min(1).describe('Existing Excalidraw drawing id.'),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   sourceType: versionSourceSchema.optional().describe('Where this version came from. Agent-created JSON should use agent_json.'),
   changeSummary: z.string().optional()
 })
 
 const patchSceneSchema = z.object({
-  drawingId: z.string().min(1),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   addElements: z.array(z.unknown()).optional().describe('Elements to append to the current scene.'),
   updateElements: z.array(elementUpdateSchema).optional().describe('Shallow element updates keyed by id.'),
   deleteElementIds: z.array(z.string()).optional().describe('Element ids to remove from the current scene.'),
@@ -92,7 +93,7 @@ const patchSceneSchema = z.object({
 })
 
 const saveMermaidDraftSchema = z.object({
-  drawingId: z.string().optional().describe('Existing drawing id. Omit to create a new drawing for this Mermaid draft.'),
+  drawingId: z.string().optional().describe('Existing drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId. Omit only when the user explicitly wants a new Mermaid drawing or no current drawing exists.'),
   title: z.string().optional().describe('Required when drawingId is omitted; otherwise used only as context.'),
   description: z.string().optional(),
   kind: drawingKindSchema.optional(),
@@ -109,7 +110,7 @@ const searchDrawingsSchema = z.object({
 })
 
 const getDrawingSchema = z.object({
-  drawingId: z.string().min(1),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   includeScene: z.boolean().optional().describe('Set true to fetch paged lightweight element refs for one version. Full elements are returned by excalidraw_get_scene_item.'),
   versionId: z.string().optional().describe('Specific version id to inspect. Use this to choose the scene version for includeScene or follow-up item reads.'),
   versionNumber: z.number().int().min(1).optional().describe('Specific version number to inspect. Use this to choose the scene version for includeScene or follow-up item reads.'),
@@ -123,7 +124,7 @@ const getDrawingSchema = z.object({
 
 const sceneItemTypeSchema = z.enum(['element', 'appState', 'file', 'mermaidSource'])
 const getSceneItemSchema = z.object({
-  drawingId: z.string().min(1),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   itemType: sceneItemTypeSchema.describe('Explicit scene data type to retrieve.'),
   versionId: z.string().optional().describe('Specific version id. Omit both versionId and versionNumber to use the current version.'),
   versionNumber: z.number().int().min(1).optional().describe('Specific version number. Omit both versionId and versionNumber to use the current version.'),
@@ -132,7 +133,7 @@ const getSceneItemSchema = z.object({
 })
 
 const updateDrawingStatusSchema = z.object({
-  drawingId: z.string().min(1),
+  drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   status: drawingStatusSchema,
   reason: z.string().optional()
 })
@@ -153,6 +154,41 @@ const CHANGE_SUMMARY_EVENT_TOOL_NAMES = new Set([
   EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
   EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME
 ])
+
+const DRAWING_ID_CONTEXT_TOOL_NAMES = new Set([
+  EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+  EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
+  EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
+  EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
+  EXCALIDRAW_GET_DRAWING_TOOL_NAME,
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+  EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME
+])
+
+const REQUIRED_DRAWING_ID_TOOL_NAMES = new Set([
+  EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+  EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
+  EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
+  EXCALIDRAW_GET_DRAWING_TOOL_NAME,
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+  EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME
+])
+
+type RuntimeContextRecord = Record<string, unknown>
+
+type CurrentExcalidrawWorkbenchDrawing = {
+  drawingId: string
+  title?: string
+  currentVersionId?: string
+  currentVersionNumber?: number
+  isDirty?: boolean
+  selectionType?: string
+  selectedElementIds?: string[]
+  selectedElementCount?: number
+}
+
+const MISSING_DRAWING_CONTEXT_MESSAGE =
+  '未找到当前 Excalidraw Workbench 图形，请先打开图形或显式传 drawingId。'
 
 @Injectable()
 @AgentMiddlewareStrategy(EXCALIDRAW_MIDDLEWARE_NAME)
@@ -200,7 +236,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
             description:
-              'Create a reviewable Excalidraw drawing record with metadata only. This tool does not accept elements, appState, files, or Mermaid source. After it succeeds, call excalidraw_add_elements in small batches or excalidraw_save_mermaid_draft for Mermaid.',
+              'Create a reviewable Excalidraw drawing record with metadata only. Use this only when no current Workbench drawing id is shown or the user explicitly asks for a new/separate drawing. If the current Workbench context shows a non-empty excalidrawDrawingId, do not call this tool for additions, blank-area insertions, title edits, restyling, or other updates to that drawing; use that existing drawing with excalidraw_add_elements, excalidraw_patch_scene, or excalidraw_save_scene_version. This tool does not accept elements, appState, files, or Mermaid source. After it succeeds, call excalidraw_add_elements in small batches or excalidraw_save_mermaid_draft for Mermaid.',
             schema: createDrawingSchema
           }
         ),
@@ -219,7 +255,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
             description:
-              'Append one element or a small batch of Excalidraw elements to the existing drawing current version without creating a new version. This is the default creation path for editable diagrams after excalidraw_create_drawing. Shorthand elements are accepted; common Excalidraw defaults and arrowhead aliases are filled automatically. Use small staged batches for complex diagrams so the Workbench can show incremental progress. Each call validates only the current scene plus this batch; if it fails, fix this batch and retry.',
+              'Append one element or a small batch of Excalidraw elements to an existing drawing without creating a new drawing. drawingId may be omitted when the current Workbench context shows a non-empty excalidrawDrawingId, including requests to add content in a blank area. This is also the staged creation path after excalidraw_create_drawing for a genuinely new drawing. Shorthand elements are accepted; common Excalidraw defaults and arrowhead aliases are filled automatically. Use small staged batches for complex diagrams so the Workbench can show incremental progress. Each call validates only the current scene plus this batch; if it fails, fix this batch and retry.',
             schema: addElementsSchema
           }
         ),
@@ -228,7 +264,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
             description:
-              'Save a complete valid Excalidraw scene into the drawing current version without creating a new version. Use only for intentional full-scene creation or replacement; prefer excalidraw_add_elements for staged creation and excalidraw_patch_scene for targeted edits. Call excalidraw_get_drawing first when updating an existing user-edited drawing.',
+              'Save a complete valid Excalidraw scene into an existing drawing current version without creating a new drawing. drawingId may be omitted when replacing the current Workbench drawing shown by excalidrawDrawingId. Use only for intentional full-scene creation or replacement; prefer excalidraw_add_elements for staged additions and excalidraw_patch_scene for targeted edits. Call excalidraw_get_drawing first when updating an existing user-edited drawing.',
             schema: saveSceneVersionSchema
           }
         ),
@@ -237,7 +273,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
             description:
-              'Apply strict add/update/delete element changes to the current drawing version without creating a new version. Unknown ids, duplicate ids, type changes, invalid elements, and no-op patches are rejected; common arrowhead aliases and none/null values are normalized before validation. Prefer this for small targeted edits.',
+              'Apply strict add/update/delete element changes to the current drawing version without creating a new drawing. drawingId may be omitted when patching the current Workbench drawing shown by excalidrawDrawingId. Unknown ids, duplicate ids, type changes, invalid elements, and no-op patches are rejected; common arrowhead aliases and none/null values are normalized before validation. Prefer this for small targeted edits.',
             schema: patchSceneSchema
           }
         ),
@@ -246,7 +282,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
             description:
-              'Save Mermaid source for automatic conversion into the drawing current version in the Excalidraw workbench. Use this only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a very quick low-fidelity draft. For new editable diagrams, prefer excalidraw_create_drawing followed by excalidraw_add_elements.',
+              'Save Mermaid source for automatic conversion into an existing drawing current version in the Excalidraw workbench, or into a new drawing only when drawingId is omitted and no current Workbench drawing is shown. When the current Workbench context shows excalidrawDrawingId, omitted drawingId is automatically treated as that current drawing. Use this only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a very quick low-fidelity draft. For new editable diagrams, prefer excalidraw_create_drawing followed by excalidraw_add_elements.',
             schema: saveMermaidDraftSchema
           }
         ),
@@ -263,7 +299,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_GET_DRAWING_TOOL_NAME,
             description:
-              'Get compact drawing metadata, lightweight version refs, and optional paged lightweight element refs. This tool avoids full scene JSON. Use excalidraw_get_scene_item for full element JSON, appState, file payloads, or Mermaid source.',
+              'Get compact drawing metadata, lightweight version refs, and optional paged lightweight element refs. drawingId may be omitted when reading the current Workbench drawing shown by excalidrawDrawingId. This tool avoids full scene JSON. Use excalidraw_get_scene_item for full element JSON, appState, file payloads, or Mermaid source.',
             schema: getDrawingSchema
           }
         ),
@@ -272,7 +308,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           {
             name: EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
             description:
-              'Fetch one explicit full scene item from a drawing version. Use itemType=element with elementId for full element JSON, itemType=appState for full appState, itemType=file with fileId for a file payload, or itemType=mermaidSource for full Mermaid source.',
+              'Fetch one explicit full scene item from a drawing version. drawingId may be omitted when reading the current Workbench drawing shown by excalidrawDrawingId. Use itemType=element with elementId for full element JSON, itemType=appState for full appState, itemType=file with fileId for a file payload, or itemType=mermaidSource for full Mermaid source.',
             schema: getSceneItemSchema
           }
         ),
@@ -280,7 +316,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           async (input) => stringifyAgentToolResult(summarizeStatusResult(await this.service.updateDrawingStatus(scope, input))),
           {
             name: EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME,
-            description: 'Update a drawing status to draft, reviewed, or archived after user confirmation or workflow completion.',
+            description: 'Update a drawing status to draft, reviewed, or archived after user confirmation or workflow completion. drawingId may be omitted for the current Workbench drawing shown by excalidrawDrawingId.',
             schema: updateDrawingStatusSchema
           }
         ),
@@ -294,24 +330,40 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         )
       ],
-      wrapToolCall: async (request, handler) => {
-        const changeSummary = readChangeSummaryMessage(request.toolCall.args)
-        if (!changeSummary || !CHANGE_SUMMARY_EVENT_TOOL_NAMES.has(request.toolCall.name)) {
+      wrapModelCall: (request, handler) => {
+        const currentDrawing = resolveCurrentWorkbenchDrawing(request.runtime)
+        if (!currentDrawing?.drawingId) {
           return handler(request)
+        }
+
+        return handler({
+          ...request,
+          systemMessage: appendSystemMessage(request.systemMessage, buildCurrentDrawingSystemPrompt(currentDrawing))
+        })
+      },
+      wrapToolCall: async (request, handler) => {
+        const preparedRequest = prepareExcalidrawToolRequest(request)
+        if (preparedRequest instanceof ToolMessage) {
+          return preparedRequest
+        }
+
+        const changeSummary = readChangeSummaryMessage(preparedRequest.toolCall.args)
+        if (!changeSummary || !CHANGE_SUMMARY_EVENT_TOOL_NAMES.has(request.toolCall.name)) {
+          return handler(preparedRequest)
         }
 
         const createdAt = new Date()
         await dispatchExcalidrawToolStepEvent({
-          request,
+          request: preparedRequest,
           message: changeSummary,
           status: 'running',
           createdAt
         })
 
         try {
-          const result = await handler(request)
+          const result = await handler(preparedRequest)
           await dispatchExcalidrawToolStepEvent({
-            request,
+            request: preparedRequest,
             message: changeSummary,
             status: 'success',
             createdAt,
@@ -320,7 +372,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           return result
         } catch (error) {
           await dispatchExcalidrawToolStepEvent({
-            request,
+            request: preparedRequest,
             message: changeSummary,
             status: 'fail',
             createdAt,
@@ -342,6 +394,198 @@ function scopeFromContext(context: IAgentMiddlewareContext): ExcalidrawScope {
     userId: context.userId,
     conversationId: context.conversationId ?? null,
     assistantId: context.xpertId ?? null
+  }
+}
+
+type ExcalidrawToolCallRequest = Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
+
+function prepareExcalidrawToolRequest(request: ExcalidrawToolCallRequest): ExcalidrawToolCallRequest | ToolMessage {
+  if (!DRAWING_ID_CONTEXT_TOOL_NAMES.has(request.toolCall.name)) {
+    return request
+  }
+
+  const args = isPlainObject(request.toolCall.args) ? request.toolCall.args : {}
+  const explicitDrawingId = getString(args.drawingId)
+  if (explicitDrawingId) {
+    return request
+  }
+
+  const currentDrawing = resolveCurrentWorkbenchDrawing(request.runtime)
+  if (currentDrawing?.drawingId) {
+    return {
+      ...request,
+      toolCall: {
+        ...request.toolCall,
+        args: {
+          ...args,
+          drawingId: currentDrawing.drawingId
+        }
+      }
+    }
+  }
+
+  if (!REQUIRED_DRAWING_ID_TOOL_NAMES.has(request.toolCall.name)) {
+    return request
+  }
+
+  return new ToolMessage({
+    content: MISSING_DRAWING_CONTEXT_MESSAGE,
+    tool_call_id: request.toolCall.id ?? 'unknown',
+    name: request.toolCall.name,
+    status: 'error'
+  })
+}
+
+function resolveCurrentWorkbenchDrawing(runtime: unknown): CurrentExcalidrawWorkbenchDrawing | null {
+  const runtimeContext = resolveRuntimeContext(runtime)
+  const excalidrawContext = getRecord(runtimeContext, 'excalidraw')
+  const currentDrawing = getRecord(excalidrawContext, 'currentDrawing')
+  const env = getRecord(runtimeContext, 'env')
+  const contextJson = parseJsonRecord(getString(env?.excalidrawContextJson))
+  const jsonCurrentDrawing = getRecord(contextJson, 'currentDrawing')
+  const selection = getRecord(currentDrawing, 'selection') ?? getRecord(jsonCurrentDrawing, 'selection')
+  const drawingId =
+    getString(currentDrawing?.drawingId) ??
+    getString(jsonCurrentDrawing?.drawingId) ??
+    getString(env?.excalidrawDrawingId)
+
+  if (!drawingId) {
+    return null
+  }
+
+  const envSelectedElementIds = parseJsonStringArray(getString(env?.excalidrawSelectedElementIdsJson))
+  const selectedElementIds = getStringArray(selection?.selectedElementIds) ?? envSelectedElementIds
+
+  return {
+    drawingId,
+    title: getString(currentDrawing?.title) ?? getString(jsonCurrentDrawing?.title),
+    currentVersionId:
+      getString(currentDrawing?.currentVersionId) ??
+      getString(jsonCurrentDrawing?.currentVersionId) ??
+      getString(env?.excalidrawVersionId),
+    currentVersionNumber:
+      getNumber(currentDrawing?.currentVersionNumber) ??
+      getNumber(jsonCurrentDrawing?.currentVersionNumber) ??
+      getNumberFromString(getString(env?.excalidrawVersionNumber)),
+    isDirty:
+      getBoolean(currentDrawing?.isDirty) ??
+      getBoolean(jsonCurrentDrawing?.isDirty) ??
+      getBooleanFromString(getString(env?.excalidrawSceneDirty)),
+    selectionType: getString(selection?.type),
+    selectedElementIds,
+    selectedElementCount:
+      getNumber(selection?.selectedElementCount) ??
+      (selectedElementIds ? selectedElementIds.length : undefined)
+  }
+}
+
+function resolveRuntimeContext(runtime: unknown): RuntimeContextRecord | null {
+  if (!isPlainObject(runtime)) {
+    return null
+  }
+
+  const directContext = getRecord(runtime, 'context')
+  if (directContext) {
+    return directContext
+  }
+
+  return getRecord(getRecord(runtime, 'configurable'), 'context')
+}
+
+function appendSystemMessage(systemMessage: unknown, addition: string) {
+  const content = systemMessage instanceof SystemMessage
+    ? systemMessage.content
+    : isPlainObject(systemMessage) && typeof systemMessage.content === 'string'
+      ? systemMessage.content
+      : ''
+
+  return new SystemMessage([typeof content === 'string' ? content : stringifyValue(content), addition].filter(Boolean).join('\n\n'))
+}
+
+function buildCurrentDrawingSystemPrompt(drawing: CurrentExcalidrawWorkbenchDrawing) {
+  const lines = [
+    'Current Excalidraw Workbench drawing context:',
+    `- excalidrawDrawingId: ${drawing.drawingId}`,
+    drawing.title ? `- title: ${drawing.title}` : null,
+    drawing.currentVersionId ? `- excalidrawVersionId: ${drawing.currentVersionId}` : null,
+    drawing.currentVersionNumber !== undefined ? `- excalidrawVersionNumber: ${drawing.currentVersionNumber}` : null,
+    `- excalidrawSceneDirty: ${drawing.isDirty === true ? 'true' : 'false'}`,
+    drawing.selectionType ? `- selectionType: ${drawing.selectionType}` : null,
+    drawing.selectedElementIds ? `- excalidrawSelectedElementIdsJson: ${JSON.stringify(drawing.selectedElementIds)}` : null,
+    drawing.selectedElementCount !== undefined ? `- selectedElementCount: ${drawing.selectedElementCount}` : null,
+    'Excalidraw tools may omit drawingId when operating on this current Workbench drawing.',
+    'Do not create a new drawing for additions, blank-area insertions, title edits, restyling, or other updates to this current drawing.'
+  ]
+
+  return lines.filter(Boolean).join('\n')
+}
+
+function getRecord(record: unknown, key: string): RuntimeContextRecord | null {
+  if (!isPlainObject(record)) {
+    return null
+  }
+  const value = record[key]
+  return isPlainObject(value) ? value : null
+}
+
+function getString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function getNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function getBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function getNumberFromString(value: string | undefined) {
+  if (!value) {
+    return undefined
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function getBooleanFromString(value: string | undefined) {
+  if (value === 'true') {
+    return true
+  }
+  if (value === 'false') {
+    return false
+  }
+  return undefined
+}
+
+function getStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+  const values = value.map((item) => getString(item)).filter((item): item is string => Boolean(item))
+  return values.length ? values : undefined
+}
+
+function parseJsonRecord(value: string | undefined): RuntimeContextRecord | null {
+  if (!value) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return isPlainObject(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function parseJsonStringArray(value: string | undefined) {
+  if (!value) {
+    return undefined
+  }
+  try {
+    return getStringArray(JSON.parse(value))
+  } catch {
+    return undefined
   }
 }
 
