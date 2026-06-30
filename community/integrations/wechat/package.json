@@ -31,13 +31,12 @@
     "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
   },
   "dependencies": {
-    "@nestjs/bullmq": "^11.0.4",
-    "bullmq": "^5.78.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
@@ -45,6 +44,7 @@
     "@nestjs/websockets": "^11.1.6",
     "@xpert-ai/contracts": "^3.12.1",
     "@xpert-ai/plugin-sdk": "^3.12.1",
+    "bullmq": "^5.78.1",
     "cache-manager": "^7.2.0",
     "react": ">=18",
     "react-dom": ">=18",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@langchain/core": "0.3.72",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
@@ -66,6 +67,7 @@
     "@types/node": "^20.19.9",
     "@xpert-ai/contracts": "3.12.1",
     "@xpert-ai/plugin-sdk": "3.12.1",
+    "bullmq": "^5.78.1",
     "cache-manager": "^7.2.0",
     "echarts": "5.5.0",
     "esbuild": "^0.27.0",
