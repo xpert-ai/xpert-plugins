@@ -21,8 +21,11 @@ import {
 import { WechatViewProvider } from './wechat-view.provider.js'
 
 describe('WechatViewProvider', () => {
-  function createProvider(conversationService: Record<string, unknown> = {}) {
-    return new WechatViewProvider(conversationService as any, {} as any, {} as any)
+  function createProvider(
+    conversationService: Record<string, unknown> = {},
+    accountManagement: Record<string, unknown> = {}
+  ) {
+    return new WechatViewProvider(conversationService as any, accountManagement as any, {} as any, {} as any)
   }
 
   it('declares the workbench tab for WeChat integration hosts without feature activation', async () => {
@@ -73,7 +76,6 @@ describe('WechatViewProvider', () => {
       getWorkbenchData: jest.fn(async () => ({
         summary: {
           accountCount: 1,
-          conversationCount: 0,
           recentMessageCount: 0,
           errorCount: 0
         }
@@ -117,7 +119,6 @@ describe('WechatViewProvider', () => {
         summary: {
           integrationCount: 2,
           accountCount: 3,
-          conversationCount: 0,
           recentMessageCount: 0,
           errorCount: 0
         }
@@ -315,7 +316,7 @@ describe('WechatViewProvider', () => {
   it('accepts view-host query parameters serialized as a JSON string', async () => {
     const conversationService = {
       getWorkbenchTableData: jest.fn(async () => ({
-        key: 'conversations',
+        key: 'messages',
         items: [],
         total: 0,
         page: 1,
@@ -338,7 +339,7 @@ describe('WechatViewProvider', () => {
         page: 1,
         pageSize: 20,
         parameters: JSON.stringify({
-          table: 'conversations',
+          table: 'messages',
           filtersJson: '{}'
         })
       } as any
@@ -346,7 +347,7 @@ describe('WechatViewProvider', () => {
 
     expect(conversationService.getWorkbenchTableData).toHaveBeenCalledWith(
       '75a9a030-6413-4125-b561-e60cd8f05bde',
-      'conversations',
+      'messages',
       {
         search: undefined,
         page: 1,
@@ -357,8 +358,159 @@ describe('WechatViewProvider', () => {
     expect(result).toEqual(
       expect.objectContaining({
         scope: 'integration',
-        tableKey: 'conversations',
-        table: expect.objectContaining({ key: 'conversations' })
+        tableKey: 'messages',
+        table: expect.objectContaining({ key: 'messages' })
+      })
+    )
+  })
+
+  it('declares device account login actions in the manifest', async () => {
+    const provider = createProvider()
+    const [manifest] = await provider.getViewManifests(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        hostType: 'integration',
+        hostId: 'integration-1',
+        slots: [{ key: 'detail.main_tabs', mode: 'tabs', order: 0 }],
+        hostSnapshot: {
+          provider: WECHAT_PROVIDER_KEY
+        }
+      } as any,
+      'detail.main_tabs'
+    )
+
+    expect(manifest.actions?.map((action) => action.key)).toEqual(
+      expect.arrayContaining([
+        'bind_device_key',
+        'start_device_login',
+        'poll_device_login',
+        'verify_device_login_code',
+        'verify_device_login_slide',
+        'sync_device_accounts',
+        'logout_device_account',
+        'delete_device_account'
+      ])
+    )
+  })
+
+  it('routes device login actions to the account management service', async () => {
+    const accountManagement = {
+      bindDeviceKey: jest.fn(async () => ({ uuid: 'SDabc1234567' })),
+      startDeviceLogin: jest.fn(async () => ({ uuid: 'SDabc1234567', nextAction: 'SHOW_QR' })),
+      pollDeviceLogin: jest.fn(async () => ({ uuid: 'SDabc1234567', nextAction: 'SHOW_SCANNED_AVATAR' })),
+      verifyLoginCode: jest.fn(async () => ({ uuid: 'SDabc1234567', nextAction: 'LOGIN_SUCCESS' })),
+      verifyLoginSlide: jest.fn(async () => ({ uuid: 'SDabc1234567', nextAction: 'LOGIN_SUCCESS' })),
+      syncDeviceAccounts: jest.fn(async () => ({ accounts: [] })),
+      logoutDeviceAccount: jest.fn(async () => ({ uuid: 'SDabc1234567' })),
+      deleteDeviceAccount: jest.fn(async () => ({ uuid: 'SDabc1234567' }))
+    }
+    const provider = createProvider({}, accountManagement)
+    const context = {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      hostType: 'integration',
+      hostId: 'integration-1',
+      slots: []
+    } as any
+
+    const bindResult = await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'bind_device_key', {
+      input: { key: 'SDabc1234567' }
+    } as any)
+    const startResult = await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'start_device_login', {
+      input: { uuid: 'SDabc1234567' }
+    } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'poll_device_login', {
+      input: { uuid: 'SDabc1234567', sessionId: 'session-1' }
+    } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'verify_device_login_code', {
+      input: { uuid: 'SDabc1234567', sessionId: 'session-1', code: '123456' }
+    } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'verify_device_login_slide', {
+      input: { uuid: 'SDabc1234567', sessionId: 'session-1', randstr: 'rand', slideticket: 'slide' }
+    } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'sync_device_accounts', { input: {} } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'logout_device_account', {
+      input: { uuid: 'SDabc1234567' }
+    } as any)
+    await provider.executeViewAction(context, WECHAT_VIEW_KEY, 'delete_device_account', {
+      input: { uuid: 'SDabc1234567' }
+    } as any)
+
+    expect(accountManagement.bindDeviceKey).toHaveBeenCalledWith('integration-1', 'SDabc1234567')
+    expect(accountManagement.startDeviceLogin).toHaveBeenCalledWith('integration-1', 'SDabc1234567')
+    expect(accountManagement.pollDeviceLogin).toHaveBeenCalledWith('integration-1', 'SDabc1234567', 'session-1')
+    expect(accountManagement.verifyLoginCode).toHaveBeenCalledWith('integration-1', 'SDabc1234567', 'session-1', '123456')
+    expect(accountManagement.verifyLoginSlide).toHaveBeenCalledWith('integration-1', 'SDabc1234567', 'session-1', 'rand', 'slide')
+    expect(accountManagement.syncDeviceAccounts).toHaveBeenCalledWith('integration-1')
+    expect(accountManagement.logoutDeviceAccount).toHaveBeenCalledWith('integration-1', 'SDabc1234567')
+    expect(accountManagement.deleteDeviceAccount).toHaveBeenCalledWith('integration-1', 'SDabc1234567')
+    expect(bindResult).toEqual(expect.objectContaining({ success: true, data: { uuid: 'SDabc1234567' } }))
+    expect(startResult).toEqual(expect.objectContaining({ success: true, data: expect.objectContaining({ nextAction: 'SHOW_QR' }) }))
+  })
+
+  it('returns a failed result when a device action has no integration id', async () => {
+    const conversationService = {
+      getBoundIntegrationIdForXpert: jest.fn(async () => null)
+    }
+    const accountManagement = {
+      bindDeviceKey: jest.fn()
+    }
+    const provider = createProvider(conversationService, accountManagement)
+
+    const result = await provider.executeViewAction(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-admin',
+        slots: []
+      } as any,
+      WECHAT_VIEW_KEY,
+      'bind_device_key',
+      {
+        input: { key: 'SDabc1234567' }
+      } as any
+    )
+
+    expect(accountManagement.bindDeviceKey).not.toHaveBeenCalled()
+    expect(result).toEqual(expect.objectContaining({ success: false }))
+  })
+
+  it('surfaces account management validation failures', async () => {
+    const accountManagement = {
+      bindDeviceKey: jest.fn(async () => {
+        throw new Error('请输入 SD 开头的 12 位设备 key')
+      })
+    }
+    const provider = createProvider({}, accountManagement)
+
+    const result = await provider.executeViewAction(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        hostType: 'integration',
+        hostId: 'integration-1',
+        slots: []
+      } as any,
+      WECHAT_VIEW_KEY,
+      'bind_device_key',
+      {
+        input: { key: 'bad' }
+      } as any
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        message: {
+          en_US: '请输入 SD 开头的 12 位设备 key',
+          zh_Hans: '请输入 SD 开头的 12 位设备 key'
+        }
       })
     )
   })

@@ -5794,7 +5794,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       }
       return;
     }, [props.inert, props.lockRef.current, props.shards]);
-    var shouldCancelEvent = useCallback(function(event, parent2) {
+    var shouldCancelEvent = useCallback(function(event, parent) {
       if ("touches" in event && event.touches.length === 2 || event.type === "wheel" && event.ctrlKey) {
         return !lastProps.current.allowPinchZoom;
       }
@@ -5834,7 +5834,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         return true;
       }
       var cancelingAxis = activeAxis.current || currentAxis;
-      return handleScroll(cancelingAxis, parent2, event, cancelingAxis === "h" ? deltaX : deltaY, true);
+      return handleScroll(cancelingAxis, parent, event, cancelingAxis === "h" ? deltaX : deltaY, true);
     }, []);
     var shouldPrevent = useCallback(function(_event) {
       var event = _event;
@@ -5946,16 +5946,16 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var unwrapHost = function(node) {
     return node && (node.host || unwrapHost(node.parentNode));
   };
-  var correctTargets = function(parent2, targets) {
+  var correctTargets = function(parent, targets) {
     return targets.map(function(target) {
-      if (parent2.contains(target)) {
+      if (parent.contains(target)) {
         return target;
       }
       var correctedTarget = unwrapHost(target);
-      if (correctedTarget && parent2.contains(correctedTarget)) {
+      if (correctedTarget && parent.contains(correctedTarget)) {
         return correctedTarget;
       }
-      console.error("aria-hidden", target, "in not contained inside", parent2, ". Doing nothing");
+      console.error("aria-hidden", target, "in not contained inside", parent, ". Doing nothing");
       return null;
     }).filter(function(x) {
       return Boolean(x);
@@ -5978,11 +5978,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       keep(el.parentNode);
     };
     targets.forEach(keep);
-    var deep = function(parent2) {
-      if (!parent2 || elementsToStop.has(parent2)) {
+    var deep = function(parent) {
+      if (!parent || elementsToStop.has(parent)) {
         return;
       }
-      Array.prototype.forEach.call(parent2.children, function(node) {
+      Array.prototype.forEach.call(parent.children, function(node) {
         if (elementsToKeep.has(node)) {
           deep(node);
         } else {
@@ -6689,6 +6689,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   CommandSeparator.displayName = _e.Separator.displayName;
 
   // ../../../packages/shadcn-ui/src/components/dialog.tsx
+  var Dialog2 = Dialog;
   var DialogPortal2 = DialogPortal;
   var DialogOverlay2 = forwardRef(
     ({ className, ...props }, ref) => createElement(DialogOverlay, {
@@ -14381,6 +14382,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 .wxp-stat { display: grid; gap: 4px; border: 1px solid var(--xui-color-border); border-radius: 8px; background: color-mix(in srgb, var(--xui-color-card) 88%, var(--xui-color-muted) 12%); padding: 10px; }
 .wxp-stat span, .wxp-stat small, .wxp-kv span { color: var(--xui-color-muted-foreground); font-size: 11px; }
 .wxp-stat strong { font-size: 18px; }
+.wxp-tunnel-client-stat { align-content: start; }
+.wxp-tunnel-lamps { display: grid; gap: 6px; min-width: 0; }
+.wxp-tunnel-lamp-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 7px; align-items: center; min-width: 0; }
+.wxp-tunnel-lamp-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.wxp-tunnel-lamp { display: block; width: 9px; height: 9px; border-radius: 999px; background: var(--xui-color-muted-foreground); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xui-color-muted-foreground) 14%, transparent); }
+.wxp-tunnel-lamp.connected { background: #16a34a; box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 18%, transparent); }
+.wxp-tunnel-lamp.error { background: var(--xui-color-destructive, #ef4444); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xui-color-destructive, #ef4444) 18%, transparent); }
 .wxp-dashboard { display: grid; gap: 12px; min-width: 0; }
 .wxp-dashboard-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .wxp-metric { display: grid; gap: 4px; min-width: 0; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 10px; }
@@ -14431,6 +14439,8 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 .wxp-tabs .xps-button.active { border-bottom-color: var(--xui-color-primary); color: var(--xui-color-primary); }
 .wxp-panel { display: grid; gap: 12px; min-width: 0; }
 .wxp-panel h3 { margin: 0; font-size: 14px; }
+.wxp-table-toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; }
+.wxp-table-toolbar strong { font-size: 13px; }
 .wxp-table-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: center; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 10px; }
 .wxp-table-filters .xps-input, .wxp-table-filters .xps-select-trigger { width: 100%; min-width: 0; }
 .wxp-filter-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
@@ -14456,18 +14466,51 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 .wxp-message-cell pre { max-width: min(720px, 72vw); max-height: 260px; font-size: 11px; line-height: 1.5; }
 .wxp-message-cell-error { border-left: 3px solid var(--xui-color-destructive, var(--mat-sys-error)); padding-left: 8px; }
 .wxp-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.wxp-config-callback { grid-column: 1 / -1; }
 .wxp-kv { display: grid; gap: 3px; border-bottom: 1px solid var(--xui-color-border); padding: 7px 0; }
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }
 .wxp-tunnel-panel pre { max-width: 100%; }
 .wxp-tunnel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 12px; }
 .wxp-tunnel-clients-panel { grid-column: 1 / -1; }
-.wxp-tunnel-status-cell { display: grid; gap: 4px; min-width: 120px; }
-.wxp-tunnel-status-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
-.wxp-table-wrap { width: 100%; max-width: 100%; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); }
-.wxp-data-table { min-width: 980px; }
-@media (max-width: 760px) {
+.wxp-tunnel-status-cell, .wxp-trigger-route-cell { display: grid; gap: 4px; min-width: 120px; }
+.wxp-tunnel-status-cell small, .wxp-trigger-route-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
+.wxp-login-dialog { width: min(520px, calc(100vw - 24px)); max-width: 520px; }
+.wxp-login-body { display: grid; gap: 12px; min-width: 0; }
+.wxp-field { display: grid; gap: 6px; min-width: 0; font-size: 12px; font-weight: 700; }
+.wxp-field span { color: var(--xui-color-muted-foreground); }
+.wxp-login-qr, .wxp-login-avatar, .wxp-login-result { display: grid; justify-items: center; gap: 8px; min-width: 0; }
+.wxp-login-qr img { width: 220px; max-width: 100%; aspect-ratio: 1; border: 1px solid var(--xui-color-border); border-radius: 8px; background: #fff; object-fit: contain; padding: 8px; }
+.wxp-login-avatar img { width: 86px; height: 86px; border-radius: 8px; object-fit: cover; }
+.wxp-login-avatar strong, .wxp-login-result strong { overflow-wrap: anywhere; font-size: 13px; }
+.wxp-login-result.success strong { color: var(--xui-color-primary); }
+.wxp-login-result.warning strong { color: var(--xui-color-destructive, var(--mat-sys-error)); }
+.wxp-login-countdown { position: relative; height: 24px; overflow: hidden; border-radius: 8px; background: var(--xui-color-muted); }
+.wxp-login-countdown div { height: 100%; background: color-mix(in srgb, var(--xui-color-primary) 42%, transparent); transition: width 160ms ease; }
+.wxp-login-countdown span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.wxp-login-message { border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); color: var(--xui-color-muted-foreground); padding: 8px; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.wxp-slide-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+	.wxp-table-wrap { width: 100%; max-width: 100%; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); }
+	.wxp-data-table { min-width: 980px; }
+	.wxp-messages-table-wrap, .wxp-logs-table-wrap { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+	.wxp-messages-table, .wxp-logs-table { width: max-content; }
+	.wxp-messages-table { min-width: 1540px; }
+	.wxp-logs-table { min-width: 1180px; }
+	.wxp-messages-table .xps-table-head,
+	.wxp-messages-table .xps-table-cell,
+	.wxp-logs-table .xps-table-head,
+	.wxp-logs-table .xps-table-cell { white-space: nowrap; }
+	.wxp-messages-table code,
+	.wxp-messages-table .xui-muted,
+	.wxp-messages-table .xps-badge,
+	.wxp-logs-table code,
+	.wxp-logs-table .xui-muted,
+	.wxp-logs-table .xps-badge { white-space: nowrap; }
+	.wxp-message-log-content { display: block; min-width: 420px; max-width: 560px; white-space: nowrap; }
+	.wxp-message-log-content summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.wxp-message-log-content pre { max-width: min(880px, 74vw); white-space: pre-wrap; }
+	@media (max-width: 760px) {
   .wxp-app { padding: 12px; }
-  .wxp-head, .wxp-stats, .wxp-dashboard-grid, .wxp-dashboard-layout, .wxp-calendar-head, .wxp-callback, .wxp-config, .wxp-integration-row { grid-template-columns: 1fr; }
+  .wxp-head, .wxp-stats, .wxp-dashboard-grid, .wxp-dashboard-layout, .wxp-calendar-head, .wxp-callback, .wxp-config, .wxp-integration-row, .wxp-slide-fields { grid-template-columns: 1fr; }
   .wxp-analytics-panel-wide { grid-column: auto; }
   .wxp-actions, .wxp-calendar-controls, .wxp-filter-actions, .wxp-pagination { justify-content: flex-start; }
 }`;
@@ -14479,11 +14522,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     account: "\u8D26\u53F7",
     accountFilter: "\u8D26\u53F7\u7B5B\u9009",
     accountHealth: "\u8D26\u53F7\u5065\u5EB7",
+    accountStatusSynced: "\u8D26\u53F7\u72B6\u6001\u5DF2\u540C\u6B65",
     action: "\u64CD\u4F5C",
     activeContacts: "\u6D3B\u8DC3\u8054\u7CFB\u4EBA",
+    addAndLogin: "\u6DFB\u52A0\u5E76\u626B\u7801",
+    addDevice: "\u6DFB\u52A0",
     allAccountsHint: "\u5168\u90E8\u8D26\u53F7",
     allAccounts: "\u6240\u6709\u8D26\u53F7",
     allChats: "\u5168\u90E8\u4F1A\u8BDD",
+    agentRoute: "Agent \u8DEF\u7531",
     allowedContactIds: "\u5141\u8BB8\u7684\u8054\u7CFB\u4EBA/\u7FA4 ID",
     allowedGroupIds: "\u5141\u8BB8\u7684\u7FA4 ID",
     allowedSenderIds: "\u5141\u8BB8\u7684\u53D1\u9001\u4EBA ID",
@@ -14514,14 +14561,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     content: "\u5185\u5BB9",
     contentDetail: "\u5185\u5BB9\u8BE6\u60C5",
     contentOrError: "\u5185\u5BB9/\u9519\u8BEF",
+    confirmDeleteAccount: "\u786E\u5B9A\u5220\u9664\u8FD9\u4E2A\u8BBE\u5907\u5417\uFF1F\u5220\u9664\u540E\u4F1A\u4ECE wx2.0 \u548C\u672C\u5730\u8D26\u53F7\u5217\u8868\u79FB\u9664\u3002",
+    confirmLogoutAccount: "\u786E\u5B9A\u8BA9\u8FD9\u4E2A\u5FAE\u4FE1\u8D26\u53F7\u9000\u51FA\u767B\u5F55\u5417\uFF1F",
     contact: "contact",
     contactId: "contactId",
     context_reset: "\u4E0A\u4E0B\u6587\u91CD\u7F6E",
-    conversation: "\u4F1A\u8BDD",
-    conversationId: "conversationId",
     copied: "\u5DF2\u590D\u5236",
     copyFailed: "\u590D\u5236\u5931\u8D25",
-    copySetCallbackCurl: "\u590D\u5236 SetCallback curl",
     copyTunnelConfig: "\u590D\u5236\u914D\u7F6E",
     copyUrl: "\u590D\u5236 URL",
     currentResultHint: "\u5F53\u524D\u7B5B\u9009\u7ED3\u679C",
@@ -14535,6 +14581,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disconnect: "\u65AD\u5F00",
     disconnected: "\u672A\u8FDE\u63A5",
     deferred: "\u5DF2\u5EF6\u540E",
+    defaultBinding: "\u9ED8\u8BA4\u7ED1\u5B9A",
+    deleteAccount: "\u5220\u9664",
     dispatched: "\u5DF2\u5206\u53D1",
     history_only: "\u4EC5\u4F5C\u5386\u53F2",
     enable: "\u542F\u7528",
@@ -14543,10 +14591,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     error: "\u9519\u8BEF",
     errorDetail: "\u9519\u8BEF\u8BE6\u60C5",
     errorLevel: "\u9519\u8BEF",
+    exactBinding: "\u7CBE\u786E\u7ED1\u5B9A",
     failed: "\u5931\u8D25",
     failedMessages: "\u5931\u8D25\u6D88\u606F",
     failureRate: "\u5931\u8D25\u7387",
     disabledOnly: "\u4EC5\u505C\u7528",
+    deviceKey: "\u8BBE\u5907\u53F7",
+    deviceKeyBound: "\u8BBE\u5907\u5DF2\u7ED1\u5B9A",
+    deviceKeyInvalid: "\u8BF7\u8F93\u5165 SD \u5F00\u5934\u7684 12 \u4F4D key",
+    deviceKeyPlaceholder: "SD \u5F00\u5934\u7684 12 \u4F4D key",
     groupChat: "\u7FA4\u804A",
     groupKeywords: "\u7FA4\u804A\u5173\u952E\u8BCD",
     groupOnly: "\u4EC5\u7FA4\u804A",
@@ -14565,6 +14618,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     latestActivity: "\u6700\u8FD1\u6D3B\u52A8",
     level: "\u7EA7\u522B",
     logs: "\u65E5\u5FD7",
+    loginCode: "\u9A8C\u8BC1\u7801",
+    loginCodePlaceholder: "\u8BF7\u8F93\u5165\u9A8C\u8BC1\u7801",
+    loginCodeRequired: "\u8BF7\u8F93\u5165\u9A8C\u8BC1\u7801",
+    loginQrCode: "\u767B\u5F55\u4E8C\u7EF4\u7801",
+    loginSuccess: "\u5FAE\u4FE1\u767B\u5F55\u6210\u529F",
+    logoutAccount: "\u9000\u51FA\u767B\u5F55",
     lastClientName: "\u4E0A\u6B21\u5BA2\u6237\u7AEF\u540D\u79F0",
     lastXpertInstance: "\u4E0A\u6B21\u5B9E\u4F8B",
     loading: "\u52A0\u8F7D\u4E2D",
@@ -14573,9 +14632,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     messageContent: "\u6D88\u606F\u5185\u5BB9",
     messageMetadata: "\u6D88\u606F\u5143\u6570\u636E",
     messageTrend: "\u6D88\u606F\u8D8B\u52BF",
+    missingAccountLoginTarget: "\u7F3A\u5C11\u767B\u5F55\u8D26\u53F7\u6216\u96C6\u6210",
     missingIntegrationFallback: "\u8BF7\u9009\u62E9\u5FAE\u4FE1\u96C6\u6210\u3002",
     noAccountCallbacks: "\u6682\u65E0\u8D26\u53F7\u56DE\u8C03",
-    noConversationBindings: "\u6682\u65E0\u7ED1\u5B9A\u4F1A\u8BDD",
     noDashboardData: "\u6682\u65E0\u53EF\u5206\u6790\u6570\u636E",
     noIntegrations: "\u6682\u65E0\u5FAE\u4FE1\u96C6\u6210",
     noMessageLogs: "\u6682\u65E0\u6D88\u606F\u65E5\u5FD7",
@@ -14609,7 +14668,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     queueJobId: "queueJobId",
     refresh: "\u5237\u65B0",
     refreshing: "\u5237\u65B0\u4E2D",
-    registerCallback: "\u6CE8\u518C\u56DE\u8C03",
     recentFailures: "\u6700\u8FD1\u5931\u8D25",
     received: "\u5DF2\u63A5\u6536",
     remoteRequestFailed: "\u8FDC\u7A0B\u8BF7\u6C42\u5931\u8D25",
@@ -14618,6 +14676,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     resend: "\u91CD\u53D1",
     resume: "\u6062\u590D",
     retry: "\u91CD\u8BD5",
+    retryLogin: "\u91CD\u65B0\u626B\u7801",
     reset: "\u91CD\u7F6E",
     resetFilters: "\u6E05\u7A7A\u7B5B\u9009",
     accountDisabled: "\u8D26\u53F7\u5DF2\u505C\u7528",
@@ -14625,10 +14684,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     cancelledByUser: "\u7528\u6237\u5DF2\u53D6\u6D88",
     pausedByUser: "\u7528\u6237\u5DF2\u6682\u505C",
     reverseTunnel: "\u53CD\u5411\u96A7\u9053",
+    reverseTunnelClientStatus: "\u53CD\u5411\u96A7\u9053\u5BA2\u6237\u7AEF",
     reverseTunnelNotConnected: "\u53CD\u5411\u96A7\u9053\u5BA2\u6237\u7AEF\u672A\u8FDE\u63A5",
     replyCoverage: "\u56DE\u590D\u8986\u76D6",
     runtimeConfig: "\u8FD0\u884C\u914D\u7F6E",
     searchPlaceholder: "\u641C\u7D22 uuid / contact / sender / \u72B6\u6001",
+    scannedWechat: "\u5DF2\u626B\u7801\u5FAE\u4FE1",
+    scanLogin: "\u626B\u7801\u767B\u5F55",
+    selectIntegrationFirst: "\u8BF7\u5148\u9009\u62E9\u5FAE\u4FE1\u96C6\u6210",
+    selectIntegrationToSync: "\u8BF7\u5148\u5728 integrationId \u7B5B\u9009\u4E2D\u6307\u5B9A\u8981\u540C\u6B65\u7684\u5FAE\u4FE1\u96C6\u6210",
     send: "\u53D1\u9001",
     sendTextPlaceholder: "\u53D1\u9001\u6587\u672C\u5185\u5BB9",
     sender: "sender",
@@ -14643,7 +14707,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     status: "\u72B6\u6001",
     stale: "\u5DF2\u8FC7\u671F",
     skipped: "\u5DF2\u8DF3\u8FC7",
+    slideTicketRequired: "\u8BF7\u8F93\u5165\u6ED1\u5757\u53C2\u6570",
     system: "\u7CFB\u7EDF",
+    submitCode: "\u63D0\u4EA4\u9A8C\u8BC1\u7801",
+    submitSlide: "\u63D0\u4EA4\u6ED1\u5757",
+    syncStatus: "\u540C\u6B65\u72B6\u6001",
+    syncingStatus: "\u540C\u6B65\u4E2D",
     tableSearchPlaceholder: "\u641C\u7D22\u5F53\u524D\u8868\u683C",
     fallbackToLegacySendText: "\u5931\u8D25\u65F6\u56DE\u9000\u65E7\u53D1\u9001\u63A5\u53E3",
     source: "\u6765\u6E90",
@@ -14669,8 +14738,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     totalItems: "\u5171",
     unknown: "\u672A\u77E5",
     unknownError: "\u672A\u77E5\u9519\u8BEF",
+    unbound: "\u672A\u7ED1\u5B9A",
     updatedAt: "\u66F4\u65B0\u65F6\u95F4",
     uuid: "uuid",
+    qrExpired: "\u4E8C\u7EF4\u7801\u5DF2\u8FC7\u671F",
+    waitingForConfirm: "\u7B49\u5F85\u624B\u673A\u786E\u8BA4\u767B\u5F55",
+    waitingForScan: "\u7B49\u5F85\u626B\u7801",
+    wechatAvatar: "\u5FAE\u4FE1\u5934\u50CF",
     wechatMessageActivity: "\u5FAE\u4FE1\u6D88\u606F\u6D3B\u52A8",
     xpertInstance: "Xpert \u5B9E\u4F8B",
     xpert: "\u667A\u80FD\u4F53"
@@ -14679,11 +14753,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     account: "Accounts",
     accountFilter: "Account",
     accountHealth: "Account health",
+    accountStatusSynced: "Account status synced",
     action: "Actions",
     activeContacts: "Active contacts",
+    addAndLogin: "Add and scan",
+    addDevice: "Add",
     allAccountsHint: "All accounts",
     allAccounts: "All accounts",
     allChats: "All chats",
+    agentRoute: "Agent route",
     allowedContactIds: "Allowed contact/group IDs",
     allowedGroupIds: "Allowed group IDs",
     allowedSenderIds: "Allowed sender IDs",
@@ -14714,14 +14792,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     content: "Content",
     contentDetail: "Content detail",
     contentOrError: "Content / Error",
+    confirmDeleteAccount: "Delete this device? It will be removed from wx2.0 and the local account list.",
+    confirmLogoutAccount: "Log this WeChat account out?",
     contact: "contact",
     contactId: "contactId",
     context_reset: "Context reset",
-    conversation: "Conversations",
-    conversationId: "conversationId",
     copied: "Copied",
     copyFailed: "Copy failed",
-    copySetCallbackCurl: "Copy SetCallback curl",
     copyTunnelConfig: "Copy config",
     copyUrl: "Copy URL",
     currentResultHint: "Current filtered result",
@@ -14735,6 +14812,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     disconnect: "Disconnect",
     disconnected: "Disconnected",
     deferred: "Deferred",
+    defaultBinding: "Default binding",
+    deleteAccount: "Delete",
     dispatched: "Dispatched",
     history_only: "History only",
     enable: "Enable",
@@ -14743,10 +14822,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     error: "Errors",
     errorDetail: "Error detail",
     errorLevel: "Error",
+    exactBinding: "Exact binding",
     failed: "Failed",
     failedMessages: "Failed messages",
     failureRate: "Failure rate",
     disabledOnly: "Disabled only",
+    deviceKey: "Device key",
+    deviceKeyBound: "Device key bound",
+    deviceKeyInvalid: "Enter a 12-character key starting with SD",
+    deviceKeyPlaceholder: "12-character SD key",
     groupChat: "Group",
     groupKeywords: "Group keywords",
     groupOnly: "Groups only",
@@ -14765,6 +14849,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     latestActivity: "Latest activity",
     level: "Level",
     logs: "Logs",
+    loginCode: "Login code",
+    loginCodePlaceholder: "Enter login code",
+    loginCodeRequired: "Enter the login code",
+    loginQrCode: "Login QR code",
+    loginSuccess: "WeChat login succeeded",
+    logoutAccount: "Logout",
     lastClientName: "Last client name",
     lastXpertInstance: "Last instance",
     loading: "Loading",
@@ -14773,9 +14863,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     messageContent: "Message content",
     messageMetadata: "Message metadata",
     messageTrend: "Message trend",
+    missingAccountLoginTarget: "Missing account or integration",
     missingIntegrationFallback: "Select a WeChat integration to view runtime data.",
     noAccountCallbacks: "No account callbacks yet",
-    noConversationBindings: "No conversation bindings yet",
     noDashboardData: "No analytics data yet",
     noIntegrations: "No WeChat integrations yet",
     noMessageLogs: "No message logs yet",
@@ -14809,7 +14899,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     queueJobId: "queueJobId",
     refresh: "Refresh",
     refreshing: "Refreshing",
-    registerCallback: "Register callback",
     recentFailures: "Recent failures",
     received: "Received",
     remoteRequestFailed: "Remote request failed",
@@ -14818,6 +14907,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     resend: "Resend",
     resume: "Resume",
     retry: "Retry",
+    retryLogin: "Retry scan",
     reset: "Reset",
     resetFilters: "Reset",
     accountDisabled: "Account disabled",
@@ -14825,10 +14915,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     cancelledByUser: "Cancelled by user",
     pausedByUser: "Paused by user",
     reverseTunnel: "Reverse tunnel",
+    reverseTunnelClientStatus: "Reverse tunnel clients",
     reverseTunnelNotConnected: "Reverse tunnel client is not connected",
     replyCoverage: "Reply coverage",
     runtimeConfig: "Runtime config",
     searchPlaceholder: "Search uuid / contact / sender / status",
+    scannedWechat: "Scanned WeChat",
+    scanLogin: "Scan login",
+    selectIntegrationFirst: "Select a WeChat integration first",
+    selectIntegrationToSync: "Filter by integrationId before syncing this organization view",
     send: "Send",
     sendTextPlaceholder: "Text content",
     sender: "sender",
@@ -14843,7 +14938,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     status: "Status",
     stale: "Stale",
     skipped: "Skipped",
+    slideTicketRequired: "Enter slide verification values",
     system: "System",
+    submitCode: "Submit code",
+    submitSlide: "Submit slide",
+    syncStatus: "Sync status",
+    syncingStatus: "Syncing",
     tableSearchPlaceholder: "Search this table",
     fallbackToLegacySendText: "Fallback to legacy send API",
     source: "Source",
@@ -14869,8 +14969,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     totalItems: "Total",
     unknown: "Unknown",
     unknownError: "Unknown error",
+    unbound: "Unbound",
     updatedAt: "Updated at",
     uuid: "uuid",
+    qrExpired: "QR code expired",
+    waitingForConfirm: "Waiting for phone confirmation",
+    waitingForScan: "Waiting for scan",
+    wechatAvatar: "WeChat avatar",
     wechatMessageActivity: "WeChat message activity",
     xpertInstance: "Xpert instance",
     xpert: "Xpert"
@@ -14902,6 +15007,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     remoteRequestFailed: "Remote request failed",
     unknownError: "Unknown error"
   };
+  function getBrowserWindow() {
+    return typeof window === "undefined" ? null : window;
+  }
   function isObject(value) {
     return Boolean(value && typeof value === "object" && !Array.isArray(value));
   }
@@ -14909,7 +15017,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (!instanceId && type !== "ready") {
       return;
     }
-    parent.postMessage(
+    getBrowserWindow()?.parent.postMessage(
       Object.assign(
         {
           channel: CHANNEL,
@@ -14948,12 +15056,23 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     post("notify", { level, message });
   }
   function reportResize() {
-    const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 620);
+    const browser = getBrowserWindow();
+    const height = Math.max(
+      browser?.document.body.scrollHeight || 0,
+      browser?.document.documentElement.scrollHeight || 0,
+      620
+    );
     post("resize", { height });
   }
   function getResponsePayload(response) {
     if (!response) {
       return null;
+    }
+    if (typeof response.success === "boolean") {
+      return response;
+    }
+    if (response.result !== void 0) {
+      return response.result;
     }
     if (response.payload !== void 0) {
       return response.payload;
@@ -14985,16 +15104,17 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     return error?.message ? error.message : String(error || runtimeText.unknownError);
   }
   function startRemoteBridge(setContext, handleHostEvent) {
-    window.addEventListener("message", (event) => {
+    const browser = getBrowserWindow();
+    if (!browser) {
+      return;
+    }
+    browser.addEventListener("message", (event) => {
       const message = event.data;
       if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) {
         return;
       }
       if (message.type === "init") {
         instanceId = typeof message.instanceId === "string" ? message.instanceId : null;
-        if (window.XpertRemoteUI && typeof window.XpertRemoteUI.applyTheme === "function") {
-          window.XpertRemoteUI.applyTheme(message.theme);
-        }
         setContext({
           manifest: message.manifest,
           payload: message.payload,
@@ -15030,7 +15150,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   // src/lib/remote-components/wechat-workbench/src/main.tsx
   installShadcnThemeVars({ styleId: "wechat-workbench-shadcn-ui-vars" });
   var DEFAULT_TABLE_PAGE_SIZE = 20;
-  var TABLE_KEYS = ["accounts", "conversations", "messages", "queue", "logs"];
+  var DEVICE_KEY_PATTERN = /^SD[a-zA-Z0-9]{10}$/;
+  var TABLE_KEYS = ["accounts", "messages", "queue", "logs"];
   var SELECT_EMPTY_VALUE = "__all__";
   var TRANSLATABLE_VALUE_KEYS = {
     connected: "connected",
@@ -15038,8 +15159,10 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     deferred: "deferred",
     dispatched: "dispatched",
     disconnected: "disconnected",
+    default: "defaultBinding",
     history_only: "history_only",
     error: "error",
+    exact: "exactBinding",
     failed: "failed",
     group: "groupChat",
     inbound: "inbound",
@@ -15063,7 +15186,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     system: "system",
     group_only: "groupOnly",
     not_applicable: "notApplicable",
-    unknown: "unknown"
+    unknown: "unknown",
+    unbound: "unbound"
   };
   function createTableState() {
     return {
@@ -15086,18 +15210,35 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       {}
     );
   }
+  function createDeviceLoginDialogState() {
+    return {
+      open: false,
+      mode: "add",
+      integrationId: "",
+      key: "",
+      status: null,
+      busy: false,
+      code: "",
+      randstr: "",
+      slideticket: ""
+    };
+  }
   function App() {
     const [context, setContext] = React.useState(null);
     const [data, setData] = React.useState(null);
     const [tab, setTab] = React.useState("dashboard");
     const [search, setSearch] = React.useState("");
     const [busy, setBusy] = React.useState(false);
+    const [accountSyncing, setAccountSyncing] = React.useState(false);
     const [tablePages, setTablePages] = React.useState(() => createInitialTablePages());
     const [draft, setDraft] = React.useState({ integrationId: "", uuid: "", contactId: "", content: "" });
+    const [loginDialog, setLoginDialog] = React.useState(() => createDeviceLoginDialogState());
     const contextRef = React.useRef(null);
     const searchRef = React.useRef("");
     const tabRef = React.useRef("dashboard");
     const tablePagesRef = React.useRef(tablePages);
+    const loginDialogRef = React.useRef(loginDialog);
+    const loginPollTimerRef = React.useRef(null);
     const t = createTranslator(context?.locale);
     React.useEffect(() => {
       setRuntimeText({
@@ -15116,6 +15257,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       tablePagesRef.current = tablePages;
     }, [tablePages]);
     React.useEffect(() => {
+      loginDialogRef.current = loginDialog;
+    }, [loginDialog]);
+    React.useEffect(() => {
       startRemoteBridge(
         (nextContext) => {
           contextRef.current = nextContext;
@@ -15127,12 +15271,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       );
       post("ready");
     }, []);
+    React.useEffect(() => () => clearLoginPolling(), []);
     React.useEffect(() => {
       if (isPagedTable(tab)) {
         loadTable(tab);
       }
     }, [tab]);
-    React.useEffect(reportResize, [data, tab, busy, tablePages]);
+    React.useEffect(reportResize, [data, tab, busy, accountSyncing, tablePages]);
     async function reload(nextContext) {
       const activeContext = nextContext || contextRef.current || context;
       if (!activeContext) {
@@ -15235,12 +15380,255 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         setBusy(false);
       }
     }
+    async function runLoginAction(actionKey, targetId, input) {
+      const response = await executeAction(actionKey, targetId || null, input || {}, {});
+      const result = getResponsePayload(response);
+      if (result && result.success === false) {
+        throw new Error(resolveMessage(result.message, contextRef.current?.locale) || t("operationFailed"));
+      }
+      return result?.data || null;
+    }
+    async function syncDeviceAccountStatus() {
+      if (accountSyncing) {
+        return;
+      }
+      const integrationId = resolveAccountSyncIntegrationId();
+      if (!integrationId) {
+        return;
+      }
+      setAccountSyncing(true);
+      try {
+        const response = await executeAction("sync_device_accounts", integrationId, { integrationId }, {});
+        const result = getResponsePayload(response);
+        if (result && result.success === false) {
+          throw new Error(resolveMessage(result.message, contextRef.current?.locale) || t("operationFailed"));
+        }
+        notify("success", resolveMessage(result?.message, contextRef.current?.locale) || t("accountStatusSynced"));
+        await loadTable("accounts");
+      } catch (error) {
+        notify("error", getErrorMessage(error));
+      } finally {
+        setAccountSyncing(false);
+      }
+    }
+    function resolveAccountSyncIntegrationId() {
+      if (data?.scope !== "organization") {
+        return displayText(data?.integrationId || integrations[0]?.id);
+      }
+      const filteredIntegrationId = displayText(tablePagesRef.current.accounts.filters?.integrationId);
+      if (filteredIntegrationId) {
+        return filteredIntegrationId;
+      }
+      if (integrations.length === 1) {
+        return displayText(integrations[0]?.id);
+      }
+      notify("error", t("selectIntegrationToSync"));
+      return "";
+    }
+    function defaultLoginIntegrationId() {
+      if (data?.scope !== "organization") {
+        return displayText(data?.integrationId || integrations[0]?.id);
+      }
+      return displayText(integrations[0]?.id);
+    }
+    function openAddDeviceDialog() {
+      const integrationId = defaultLoginIntegrationId();
+      if (!integrationId) {
+        notify("error", t("selectIntegrationFirst"));
+        return;
+      }
+      clearLoginPolling();
+      setLoginDialog({
+        ...createDeviceLoginDialogState(),
+        open: true,
+        mode: "add",
+        integrationId
+      });
+    }
+    function openAccountLoginDialog(account) {
+      const uuid = displayText(account?.uuid);
+      const integrationId = displayText(account?.integrationId || data?.integrationId || defaultLoginIntegrationId());
+      if (!uuid || !integrationId) {
+        notify("error", t("missingAccountLoginTarget"));
+        return;
+      }
+      clearLoginPolling();
+      setLoginDialog({
+        ...createDeviceLoginDialogState(),
+        open: true,
+        mode: "login",
+        integrationId,
+        key: uuid,
+        busy: true
+      });
+      setTimeout(() => startDeviceLogin(uuid, integrationId), 0);
+    }
+    function confirmAccountAction(account, actionKey) {
+      const uuid = displayText(account?.uuid);
+      const integrationId = displayText(account?.integrationId || data?.integrationId || defaultLoginIntegrationId());
+      if (!uuid || !integrationId) {
+        notify("error", t("missingAccountLoginTarget"));
+        return;
+      }
+      const confirmation = actionKey === "logout_device_account" ? t("confirmLogoutAccount") : t("confirmDeleteAccount");
+      if (!window.confirm(confirmation)) {
+        return;
+      }
+      runAction(actionKey, uuid, { uuid, integrationId });
+    }
+    function closeDeviceLoginDialog() {
+      clearLoginPolling();
+      setLoginDialog(createDeviceLoginDialogState());
+    }
+    function setLoginBusy(busy2) {
+      setLoginDialog((prev) => ({
+        ...prev,
+        busy: busy2
+      }));
+    }
+    async function bindAndStartDeviceLogin() {
+      const current = loginDialogRef.current;
+      const integrationId = displayText(current.integrationId);
+      const key = displayText(current.key);
+      if (!integrationId) {
+        notify("error", t("selectIntegrationFirst"));
+        return;
+      }
+      if (!DEVICE_KEY_PATTERN.test(key)) {
+        notify("error", t("deviceKeyInvalid"));
+        return;
+      }
+      setLoginBusy(true);
+      try {
+        await runLoginAction("bind_device_key", key, { integrationId, key });
+        notify("success", t("deviceKeyBound"));
+        await loadTable("accounts", { page: 1 });
+        await startDeviceLogin(key, integrationId);
+      } catch (error) {
+        notify("error", getErrorMessage(error));
+        setLoginBusy(false);
+      }
+    }
+    async function startDeviceLogin(uuid, integrationId) {
+      clearLoginPolling();
+      setLoginBusy(true);
+      try {
+        const status = await runLoginAction("start_device_login", uuid, { integrationId, uuid });
+        applyLoginStatus(status, integrationId, uuid);
+      } catch (error) {
+        notify("error", getErrorMessage(error));
+        setLoginBusy(false);
+      }
+    }
+    async function pollDeviceLogin() {
+      const current = loginDialogRef.current;
+      const uuid = displayText(current.key || current.status?.uuid);
+      const integrationId = displayText(current.integrationId);
+      const sessionId = displayText(current.status?.sessionId);
+      if (!uuid || !integrationId || !sessionId) {
+        return;
+      }
+      try {
+        const status = await runLoginAction("poll_device_login", uuid, { integrationId, uuid, sessionId });
+        applyLoginStatus(status, integrationId, uuid);
+      } catch (error) {
+        clearLoginPolling();
+        notify("error", getErrorMessage(error));
+        setLoginBusy(false);
+      }
+    }
+    async function verifyDeviceLoginCode() {
+      const current = loginDialogRef.current;
+      const uuid = displayText(current.key || current.status?.uuid);
+      const integrationId = displayText(current.integrationId);
+      const sessionId = displayText(current.status?.sessionId);
+      const code2 = displayText(current.code);
+      if (!uuid || !integrationId || !sessionId || !code2) {
+        notify("error", t("loginCodeRequired"));
+        return;
+      }
+      setLoginBusy(true);
+      try {
+        const status = await runLoginAction("verify_device_login_code", uuid, { integrationId, uuid, sessionId, code: code2 });
+        applyLoginStatus(status, integrationId, uuid);
+      } catch (error) {
+        notify("error", getErrorMessage(error));
+        setLoginBusy(false);
+      }
+    }
+    async function verifyDeviceLoginSlide() {
+      const current = loginDialogRef.current;
+      const uuid = displayText(current.key || current.status?.uuid);
+      const integrationId = displayText(current.integrationId);
+      const sessionId = displayText(current.status?.sessionId);
+      const randstr = displayText(current.randstr);
+      const slideticket = displayText(current.slideticket);
+      if (!uuid || !integrationId || !sessionId || !randstr || !slideticket) {
+        notify("error", t("slideTicketRequired"));
+        return;
+      }
+      setLoginBusy(true);
+      try {
+        const status = await runLoginAction("verify_device_login_slide", uuid, {
+          integrationId,
+          uuid,
+          sessionId,
+          randstr,
+          slideticket
+        });
+        applyLoginStatus(status, integrationId, uuid);
+      } catch (error) {
+        notify("error", getErrorMessage(error));
+        setLoginBusy(false);
+      }
+    }
+    function applyLoginStatus(status, integrationId, uuid) {
+      const nextAction = displayText(status?.nextAction);
+      setLoginDialog((prev) => ({
+        ...prev,
+        integrationId,
+        key: displayText(status?.uuid) || uuid,
+        status,
+        busy: false,
+        code: nextAction === "SHOW_CODE_INPUT" ? prev.code : "",
+        randstr: nextAction === "SHOW_SLIDE" ? prev.randstr : "",
+        slideticket: nextAction === "SHOW_SLIDE" ? prev.slideticket : ""
+      }));
+      if (status?.warning) {
+        notify("error", displayText(status.warning));
+      }
+      if (nextAction === "LOGIN_SUCCESS") {
+        clearLoginPolling();
+        notify("success", t("loginSuccess"));
+        reload();
+        loadTable("accounts", { page: 1 });
+        setTimeout(closeDeviceLoginDialog, 800);
+        return;
+      }
+      if (nextAction === "SHOW_QR" || nextAction === "SHOW_SCANNED_AVATAR") {
+        scheduleLoginPolling();
+        return;
+      }
+      clearLoginPolling();
+    }
+    function scheduleLoginPolling() {
+      clearLoginPolling();
+      loginPollTimerRef.current = setTimeout(() => {
+        loginPollTimerRef.current = null;
+        pollDeviceLogin();
+      }, 1e3);
+    }
+    function clearLoginPolling() {
+      if (loginPollTimerRef.current) {
+        clearTimeout(loginPollTimerRef.current);
+        loginPollTimerRef.current = null;
+      }
+    }
     const summary = data?.summary || {};
     const callback = data?.callbackConfig || {};
     const integrations = Array.isArray(data?.integrations) ? data.integrations : [];
     const isOrganizationScope = data?.scope === "organization";
     const accounts = data?.accounts || [];
-    const conversations = data?.conversations || [];
     const messages = data?.messages || [];
     const queue = data?.queue || [];
     const logs = data?.logs || messages;
@@ -15249,7 +15637,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const tunnelClients = Array.isArray(data?.tunnelClients) ? data.tunnelClients : [];
     const dashboard = React.useMemo(() => buildDashboard(data), [data]);
     const accountTable = withFallbackTable(tablePages.accounts, accounts);
-    const conversationTable = withFallbackTable(tablePages.conversations, conversations);
     const messageTable = withFallbackTable(tablePages.messages, messages);
     const queueTable = withFallbackTable(tablePages.queue, queue);
     const logTable = withFallbackTable(tablePages.logs, logs);
@@ -15268,28 +15655,34 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       }
-    ), /* @__PURE__ */ h(Button, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "conversations", label: t("conversation"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "queue", label: t("queue"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab }))), tab === "dashboard" && /* @__PURE__ */ h(DashboardView, { dashboard, summary, tunnel, isOrganizationScope, t }), tab === "accounts" && /* @__PURE__ */ h(
+    ), /* @__PURE__ */ h(Button, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "queue", label: t("queue"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab }))), tab === "dashboard" && /* @__PURE__ */ h(
+      DashboardView,
+      {
+        dashboard,
+        summary,
+        tunnel,
+        tunnelClients,
+        isOrganizationScope,
+        t
+      }
+    ), tab === "accounts" && /* @__PURE__ */ h(
       AccountsView,
       {
         accounts,
         table: accountTable,
-        callback,
         integrations,
         isOrganizationScope,
         t,
         onTableChange: (patch) => loadTable("accounts", patch),
-        onRegister: (account) => runAction("register_callback", account.uuid, { uuid: account.uuid, integrationId: account.integrationId }),
+        onAdd: openAddDeviceDialog,
+        canAdd: !isOrganizationScope || integrations.length > 0,
+        onSyncStatus: syncDeviceAccountStatus,
+        canSync: !accountSyncing && (!isOrganizationScope || integrations.length > 0),
+        syncing: accountSyncing,
+        onLogin: openAccountLoginDialog,
+        onLogout: (account) => confirmAccountAction(account, "logout_device_account"),
+        onDelete: (account) => confirmAccountAction(account, "delete_device_account"),
         onToggle: (account, enabled) => runAction("set_account_enabled", account.uuid, { uuid: account.uuid, enabled, integrationId: account.integrationId })
-      }
-    ), tab === "conversations" && /* @__PURE__ */ h(
-      ConversationsView,
-      {
-        conversations,
-        table: conversationTable,
-        isOrganizationScope,
-        t,
-        onTableChange: (patch) => loadTable("conversations", patch),
-        onReset: (item) => runAction("restart_conversation", item.id, { bindingId: item.id, integrationId: item.integrationId })
       }
     ), tab === "messages" && /* @__PURE__ */ h(
       MessagesView,
@@ -15338,6 +15731,20 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         t,
         onTableChange: (patch) => loadTable("logs", patch)
       }
+    ), /* @__PURE__ */ h(
+      DeviceLoginDialog,
+      {
+        state: loginDialog,
+        integrations,
+        isOrganizationScope,
+        t,
+        onChange: (patch) => setLoginDialog((prev) => ({ ...prev, ...patch })),
+        onClose: closeDeviceLoginDialog,
+        onBindAndLogin: bindAndStartDeviceLogin,
+        onStartLogin: () => startDeviceLogin(displayText(loginDialog.key || loginDialog.status?.uuid), displayText(loginDialog.integrationId)),
+        onVerifyCode: verifyDeviceLoginCode,
+        onVerifySlide: verifyDeviceLoginSlide
+      }
     ));
   }
   function DashboardView(props) {
@@ -15347,7 +15754,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const [calendarAccount, setCalendarAccount] = React.useState("all");
     const [calendarMode, setCalendarMode] = React.useState("daily");
     React.useEffect(reportResize, [calendarAccount, calendarMode]);
-    return /* @__PURE__ */ h("section", { className: "wxp-dashboard" }, /* @__PURE__ */ h("div", { className: "wxp-stats" }, summary.integrationCount !== void 0 && /* @__PURE__ */ h(Stat, { label: t("integration"), value: summary.integrationCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("account"), value: summary.accountCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("conversation"), value: summary.conversationCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("message"), value: summary.recentMessageCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("error"), value: summary.errorCount || 0 }), props.tunnel && /* @__PURE__ */ h(Stat, { label: t("tunnelStatus"), value: tunnelStatusLabel(props.tunnel, t), helper: props.tunnel.wsUrl || "" })), /* @__PURE__ */ h("div", { className: "wxp-dashboard-grid" }, /* @__PURE__ */ h(Metric, { label: t("currentResultMessages"), value: dashboard.total, helper: t("currentResultHint") }), /* @__PURE__ */ h(Metric, { label: t("inboundMessages"), value: dashboard.inbound, helper: formatPercent(dashboard.inbound, dashboard.total) }), /* @__PURE__ */ h(Metric, { label: t("outboundMessages"), value: dashboard.outbound, helper: formatPercent(dashboard.outbound, dashboard.total) }), /* @__PURE__ */ h(
+    return /* @__PURE__ */ h("section", { className: "wxp-dashboard" }, /* @__PURE__ */ h("div", { className: "wxp-stats" }, summary.integrationCount !== void 0 && /* @__PURE__ */ h(Stat, { label: t("integration"), value: summary.integrationCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("account"), value: summary.accountCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("message"), value: summary.recentMessageCount || 0 }), /* @__PURE__ */ h(Stat, { label: t("error"), value: summary.errorCount || 0 }), /* @__PURE__ */ h(TunnelClientStatusStat, { clients: props.tunnelClients || [], tunnel: props.tunnel, t })), /* @__PURE__ */ h("div", { className: "wxp-dashboard-grid" }, /* @__PURE__ */ h(Metric, { label: t("currentResultMessages"), value: dashboard.total, helper: t("currentResultHint") }), /* @__PURE__ */ h(Metric, { label: t("inboundMessages"), value: dashboard.inbound, helper: formatPercent(dashboard.inbound, dashboard.total) }), /* @__PURE__ */ h(Metric, { label: t("outboundMessages"), value: dashboard.outbound, helper: formatPercent(dashboard.outbound, dashboard.total) }), /* @__PURE__ */ h(
       Metric,
       {
         label: t("failedMessages"),
@@ -15376,7 +15783,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function AccountsView(props) {
     const filter = useTableFilterDraft(props.table, props.onTableChange);
-    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h("div", { className: "wxp-callback" }, props.isOrganizationScope ? /* @__PURE__ */ h("div", { className: "wxp-integration-list" }, /* @__PURE__ */ h("strong", null, props.t("organizationCallbacks")), (props.integrations || []).map((integration) => /* @__PURE__ */ h("div", { className: "wxp-integration-row", key: integration.id }, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", null, integration.name || integration.id), /* @__PURE__ */ h("code", null, integration.callbackConfig?.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(integration.callbackConfig?.globalWebhookUrl, props.t) }, props.t("copyUrl")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(integration.callbackConfig?.setCallbackCurlTemplate, props.t) }, props.t("copySetCallbackCurl")))))) : /* @__PURE__ */ h(React.Fragment, null, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("strong", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("code", null, props.callback.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", onClick: () => copyText(props.callback.globalWebhookUrl, props.t) }, props.t("copyUrl")), /* @__PURE__ */ h(Button, { variant: "outline", onClick: () => copyText(props.callback.setCallbackCurlTemplate, props.t) }, props.t("copySetCallbackCurl"))))), /* @__PURE__ */ h(
+    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h("div", { className: "wxp-table-toolbar" }, /* @__PURE__ */ h("strong", null, props.t("account")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", onClick: props.onSyncStatus, disabled: !props.canSync || props.syncing }, props.syncing ? props.t("syncingStatus") : props.t("syncStatus")), /* @__PURE__ */ h(Button, { onClick: props.onAdd, disabled: !props.canAdd }, props.t("addDevice")))), /* @__PURE__ */ h(
       TableFilters,
       {
         draft: filter.draft,
@@ -15420,6 +15827,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           props.t("ownerWxid"),
           props.t("status"),
           props.t("tunnel"),
+          props.t("agentRoute"),
           props.t("lastCallback"),
           props.t("lastReply"),
           props.t("error"),
@@ -15435,75 +15843,103 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           display(account.ownerWxid || account.displayName),
           translatedPill(account.status || (account.enabled === false ? "disabled" : "unknown"), props.t),
           accountTunnelPill(account.tunnelBinding, props.t),
+          accountTriggerBindingCell(account.triggerBinding, props.t),
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
-          /* @__PURE__ */ h("div", { className: "xui-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onRegister(account) }, props.t("registerCallback")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onToggle(account, account.enabled === false) }, account.enabled === false ? props.t("enable") : props.t("disable")))
+          /* @__PURE__ */ h("div", { className: "xui-actions" }, canScanLogin(account) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onLogin(account) }, props.t("scanLogin")), canLogout(account) && /* @__PURE__ */ h(Button, { variant: "destructive", size: "sm", onClick: () => props.onLogout(account) }, props.t("logoutAccount")), /* @__PURE__ */ h(
+            Button,
+            {
+              variant: account.enabled === false ? "outline" : "destructive",
+              size: "sm",
+              onClick: () => props.onToggle(account, account.enabled === false)
+            },
+            account.enabled === false ? props.t("enable") : props.t("disable")
+          ), /* @__PURE__ */ h(Button, { variant: "destructive", size: "sm", onClick: () => props.onDelete(account) }, props.t("deleteAccount")))
         ]
       }
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
   }
-  function ConversationsView(props) {
-    const filter = useTableFilterDraft(props.table, props.onTableChange);
-    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h(
-      TableFilters,
+  function DeviceLoginDialog(props) {
+    const status = props.state.status || {};
+    const nextAction = displayText(status.nextAction);
+    const remainingSeconds = normalizeCount(status.remainingSeconds, 0);
+    const countdownPercent = Math.max(0, Math.min(100, Math.round(remainingSeconds / 120 * 100)));
+    const showIntegrationSelect = props.isOrganizationScope && props.integrations.length > 1 && props.state.mode === "add";
+    const canSubmitKey = props.state.mode === "add" && DEVICE_KEY_PATTERN.test(displayText(props.state.key));
+    const title = props.state.mode === "add" ? props.t("addDevice") : props.t("scanLogin");
+    const statusText = displayText(status.message) || loginActionLabel(nextAction, props.t);
+    return /* @__PURE__ */ h(
+      Dialog2,
       {
-        draft: filter.draft,
-        setDraft: filter.setDraft,
-        commitDraft: filter.commitDraft,
-        t: props.t,
-        onReset: () => {
-          filter.reset();
-          props.onTableChange({ page: 1, search: "", filters: {} });
+        open: props.state.open,
+        onOpenChange: (open) => {
+          if (!open) {
+            props.onClose();
+          }
         }
       },
-      props.isOrganizationScope && /* @__PURE__ */ h(TextFilter, { field: "integrationId", placeholder: props.t("integrationId"), ...filter }),
-      /* @__PURE__ */ h(
-        SelectFilter,
+      /* @__PURE__ */ h(DialogContent2, { className: "wxp-login-dialog" }, /* @__PURE__ */ h(DialogHeader, null, /* @__PURE__ */ h(DialogTitle2, null, title)), /* @__PURE__ */ h("div", { className: "wxp-login-body" }, showIntegrationSelect && /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("integration")), /* @__PURE__ */ h(
+        Select2,
         {
-          field: "chatType",
-          label: props.t("type"),
-          options: [
-            { value: "private", label: props.t("privateChat") },
-            { value: "group", label: props.t("groupChat") }
-          ],
-          ...filter
+          value: displayText(props.state.integrationId),
+          onValueChange: (value) => props.onChange({ integrationId: value }),
+          disabled: props.state.busy
+        },
+        /* @__PURE__ */ h(SelectTrigger2, { "aria-label": props.t("integration") }, /* @__PURE__ */ h(SelectValue2, { placeholder: props.t("integration") })),
+        /* @__PURE__ */ h(SelectContent2, null, props.integrations.map((integration) => /* @__PURE__ */ h(SelectItem2, { key: integration.id, value: integration.id }, integration.name || integration.id)))
+      )), /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("deviceKey")), /* @__PURE__ */ h(
+        Input,
+        {
+          value: displayText(props.state.key),
+          placeholder: props.t("deviceKeyPlaceholder"),
+          maxLength: 12,
+          disabled: props.state.busy || props.state.mode === "login" || Boolean(nextAction),
+          onChange: (event) => props.onChange({ key: event.target.value.trim() }),
+          onKeyDown: (event) => {
+            if (event.key === "Enter" && canSubmitKey && !props.state.busy && !nextAction) {
+              props.onBindAndLogin();
+            }
+          }
         }
-      ),
-      /* @__PURE__ */ h(TextFilter, { field: "uuid", placeholder: props.t("uuid"), ...filter }),
-      /* @__PURE__ */ h(TextFilter, { field: "contactId", placeholder: props.t("contact"), ...filter }),
-      /* @__PURE__ */ h(TextFilter, { field: "senderId", placeholder: props.t("sender"), ...filter })
-    ), /* @__PURE__ */ h(
-      DataTable,
-      {
-        headers: [
-          ...props.isOrganizationScope ? [props.t("integration")] : [],
-          props.t("type"),
-          props.t("uuid"),
-          props.t("contact"),
-          props.t("sender"),
-          props.t("xpert"),
-          props.t("conversationId"),
-          props.t("updatedAt"),
-          props.t("action")
-        ],
-        rows: props.table.items,
-        loading: props.table.busy,
-        loadingText: props.t("loading"),
-        emptyText: props.t("noConversationBindings"),
-        renderRow: (item) => [
-          ...props.isOrganizationScope ? [code(item.integrationId)] : [],
-          translatedPill(item.chatType, props.t),
-          code(item.uuid),
-          code(item.contactId),
-          code(item.senderId),
-          code(item.xpertId),
-          code(item.conversationId),
-          time(item.updatedAt),
-          /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onReset(item) }, props.t("reset"))
-        ]
-      }
-    ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
+      )), status.qrCodeUrl && (nextAction === "SHOW_QR" || nextAction === "SHOW_SCANNED_AVATAR") && /* @__PURE__ */ h("div", { className: "wxp-login-qr" }, /* @__PURE__ */ h("img", { src: status.qrCodeUrl, alt: props.t("loginQrCode") })), status.headImgUrl && nextAction === "SHOW_SCANNED_AVATAR" && /* @__PURE__ */ h("div", { className: "wxp-login-avatar" }, /* @__PURE__ */ h("img", { src: status.headImgUrl, alt: props.t("wechatAvatar") }), /* @__PURE__ */ h("strong", null, displayText(status.nickName || status.wxid) || props.t("scannedWechat"))), nextAction === "LOGIN_SUCCESS" && /* @__PURE__ */ h("div", { className: "wxp-login-result success" }, /* @__PURE__ */ h("strong", null, props.t("loginSuccess")), /* @__PURE__ */ h("span", null, displayText(status.nickName || status.wxid))), (nextAction === "QR_EXPIRED" || nextAction === "FAILED") && /* @__PURE__ */ h("div", { className: "wxp-login-result warning" }, /* @__PURE__ */ h("strong", null, loginActionLabel(nextAction, props.t))), remainingSeconds > 0 && (nextAction === "SHOW_QR" || nextAction === "SHOW_SCANNED_AVATAR") && /* @__PURE__ */ h("div", { className: "wxp-login-countdown" }, /* @__PURE__ */ h("div", { style: { width: `${countdownPercent}%` } }), /* @__PURE__ */ h("span", null, remainingSeconds, "s")), statusText && /* @__PURE__ */ h("div", { className: "wxp-login-message" }, statusText), nextAction === "SHOW_CODE_INPUT" && /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("loginCode")), /* @__PURE__ */ h(
+        Input,
+        {
+          value: displayText(props.state.code),
+          placeholder: props.t("loginCodePlaceholder"),
+          disabled: props.state.busy,
+          onChange: (event) => props.onChange({ code: event.target.value }),
+          onKeyDown: (event) => {
+            if (event.key === "Enter" && !props.state.busy) {
+              props.onVerifyCode();
+            }
+          }
+        }
+      )), nextAction === "SHOW_SLIDE" && /* @__PURE__ */ h("div", { className: "wxp-slide-fields" }, /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, "randstr"), /* @__PURE__ */ h(
+        Input,
+        {
+          value: displayText(props.state.randstr),
+          placeholder: "randstr",
+          disabled: props.state.busy,
+          onChange: (event) => props.onChange({ randstr: event.target.value })
+        }
+      )), /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, "slideticket"), /* @__PURE__ */ h(
+        Input,
+        {
+          value: displayText(props.state.slideticket),
+          placeholder: "slideticket",
+          disabled: props.state.busy,
+          onChange: (event) => props.onChange({ slideticket: event.target.value })
+        }
+      )))), /* @__PURE__ */ h(DialogFooter, null, /* @__PURE__ */ h(Button, { variant: "outline", onClick: props.onClose }, props.t("cancel")), props.state.mode === "add" && !nextAction && /* @__PURE__ */ h(Button, { disabled: props.state.busy || !canSubmitKey, onClick: props.onBindAndLogin }, props.state.busy ? props.t("loading") : props.t("addAndLogin")), (nextAction === "QR_EXPIRED" || nextAction === "FAILED") && /* @__PURE__ */ h(Button, { disabled: props.state.busy, onClick: props.onStartLogin }, props.t("retryLogin")), nextAction === "SHOW_CODE_INPUT" && /* @__PURE__ */ h(Button, { disabled: props.state.busy || !displayText(props.state.code), onClick: props.onVerifyCode }, props.state.busy ? props.t("loading") : props.t("submitCode")), nextAction === "SHOW_SLIDE" && /* @__PURE__ */ h(
+        Button,
+        {
+          disabled: props.state.busy || !displayText(props.state.randstr) || !displayText(props.state.slideticket),
+          onClick: props.onVerifySlide
+        },
+        props.state.busy ? props.t("loading") : props.t("submitSlide")
+      )))
+    );
   }
   function MessagesView(props) {
     const filter = useTableFilterDraft(props.table, props.onTableChange);
@@ -15539,6 +15975,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     ), /* @__PURE__ */ h(
       DataTable,
       {
+        wrapperClassName: "wxp-messages-table-wrap",
+        tableClassName: "wxp-messages-table",
+        scrollX: true,
         headers: [
           ...props.isOrganizationScope ? [props.t("integration")] : [],
           props.t("direction"),
@@ -15562,7 +16001,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           code(item.uuid),
           code(item.contactId),
           code(item.senderId),
-          /* @__PURE__ */ h("details", null, /* @__PURE__ */ h("summary", null, clip(item.content, 80)), /* @__PURE__ */ h("pre", null, item.payloadSummary || item.content || "")),
+          /* @__PURE__ */ h("details", { className: "wxp-message-log-content" }, /* @__PURE__ */ h("summary", null, clip(item.content, 80)), /* @__PURE__ */ h("pre", null, item.payloadSummary || item.content || "")),
           display(item.error),
           time(item.createdAt),
           item.direction === "outbound" ? /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onResend(item) }, props.t("resend")) : ""
@@ -15639,13 +16078,20 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     return /* @__PURE__ */ h("div", { className: hasError ? "wxp-message-cell wxp-message-cell-error" : "wxp-message-cell" }, /* @__PURE__ */ h("div", { className: "wxp-message-cell-head" }, /* @__PURE__ */ h(Badge, { variant: hasError ? "destructive" : "secondary" }, hasError ? props.t("error") : type === "image" ? props.t("imageMessage") : props.t("textMessage")), meta && /* @__PURE__ */ h("small", null, meta)), /* @__PURE__ */ h("strong", { title: displayText(hasError ? item.error : item.content) }, summary || "-"), detail && /* @__PURE__ */ h("details", null, /* @__PURE__ */ h("summary", null, hasError ? props.t("errorDetail") : props.t("contentDetail")), /* @__PURE__ */ h("pre", null, detail)));
   }
   function ConfigView(props) {
-    return /* @__PURE__ */ h("section", { className: "wxp-config" }, /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.isOrganizationScope ? props.t("integrations") : props.t("runtimeConfig")), props.isOrganizationScope ? /* @__PURE__ */ h(
+    return /* @__PURE__ */ h("section", { className: "wxp-config" }, /* @__PURE__ */ h(
+      CallbackPanel,
+      {
+        callback: props.callback,
+        integrations: props.integrations || [],
+        isOrganizationScope: props.isOrganizationScope,
+        t: props.t
+      }
+    ), /* @__PURE__ */ h("div", { className: "wxp-panel" }, /* @__PURE__ */ h("h3", null, props.isOrganizationScope ? props.t("integrations") : props.t("runtimeConfig")), props.isOrganizationScope ? /* @__PURE__ */ h(
       DataTable,
       {
         headers: [
           props.t("integration"),
           props.t("account"),
-          props.t("conversation"),
           props.t("message"),
           props.t("error"),
           props.t("connectionMode"),
@@ -15658,7 +16104,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         renderRow: (integration) => [
           code(integration.name || integration.id),
           String(integration.accountCount || 0),
-          String(integration.conversationCount || 0),
           String(integration.recentMessageCount || 0),
           String(integration.errorCount || 0),
           connectionModeLabel(integration.config?.connectionMode, props.t),
@@ -15703,6 +16148,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         onChange: (event) => props.setDraft(Object.assign({}, props.draft, { content: event.target.value }))
       }
     ), /* @__PURE__ */ h(Button, { onClick: props.onSend }, props.t("send"))));
+  }
+  function CallbackPanel(props) {
+    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-config-callback" }, /* @__PURE__ */ h("h3", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("div", { className: "wxp-callback" }, props.isOrganizationScope ? /* @__PURE__ */ h("div", { className: "wxp-integration-list" }, /* @__PURE__ */ h("strong", null, props.t("organizationCallbacks")), (props.integrations || []).map((integration) => /* @__PURE__ */ h("div", { className: "wxp-integration-row", key: integration.id }, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", null, integration.name || integration.id), /* @__PURE__ */ h("code", null, integration.callbackConfig?.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(integration.callbackConfig?.globalWebhookUrl, props.t) }, props.t("copyUrl")))))) : /* @__PURE__ */ h(React.Fragment, null, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("strong", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("code", null, props.callback.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", onClick: () => copyText(props.callback.globalWebhookUrl, props.t) }, props.t("copyUrl"))))));
   }
   function TunnelPanel(props) {
     const tunnel = props.tunnel || {};
@@ -15782,6 +16230,9 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     ), /* @__PURE__ */ h(
       DataTable,
       {
+        wrapperClassName: "wxp-logs-table-wrap",
+        tableClassName: "wxp-logs-table",
+        scrollX: true,
         headers: [
           ...props.isOrganizationScope ? [props.t("integration")] : [],
           props.t("level"),
@@ -15809,6 +16260,21 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function Stat(props) {
     return /* @__PURE__ */ h(Card, { className: "wxp-stat" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
+  }
+  function TunnelClientStatusStat(props) {
+    const clients = asArray(props.clients);
+    const fallbackClientId = displayText(props.tunnel?.clientId);
+    const items = clients.length ? clients : fallbackClientId ? [{
+      clientId: fallbackClientId,
+      clientName: props.tunnel?.clientName,
+      connected: props.tunnel?.connected,
+      state: props.tunnel?.state,
+      lastError: props.tunnel?.lastError
+    }] : [];
+    return /* @__PURE__ */ h(Card, { className: "wxp-stat wxp-tunnel-client-stat" }, /* @__PURE__ */ h("span", null, props.t("reverseTunnelClientStatus")), items.length ? /* @__PURE__ */ h("div", { className: "wxp-tunnel-lamps" }, items.map((client) => {
+      const state = tunnelClientLampState(client);
+      return /* @__PURE__ */ h("div", { className: "wxp-tunnel-lamp-row", key: client.clientId || client.integrationId || client.clientName }, /* @__PURE__ */ h("i", { className: `wxp-tunnel-lamp ${state}` }), /* @__PURE__ */ h("strong", { title: displayText(client.clientId) }, clip(client.clientName || client.clientId, 28)), /* @__PURE__ */ h("small", null, tunnelClientLampLabel(client, props.t)));
+    })) : /* @__PURE__ */ h("strong", null, props.t("disconnected")));
   }
   function Metric(props) {
     return /* @__PURE__ */ h(Card, { className: props.tone === "danger" ? "wxp-metric wxp-metric-danger" : "wxp-metric" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
@@ -16083,7 +16549,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (!props.rows?.length) {
       return /* @__PURE__ */ h("div", { className: "xui-empty" }, props.emptyText);
     }
-    return /* @__PURE__ */ h(ScrollArea2, { className: "wxp-table-wrap" }, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(Table, { className: "wxp-data-table" }, /* @__PURE__ */ h(TableHeader, null, /* @__PURE__ */ h(TableRow, null, props.headers.map((header) => /* @__PURE__ */ h(TableHead, { key: header }, header)))), /* @__PURE__ */ h(TableBody, null, props.rows.map((row) => /* @__PURE__ */ h(TableRow, { key: row.id || row.uuid || row.conversationId || row.clientId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(TableCell, { key: index2 }, cell)))))));
+    const table = /* @__PURE__ */ h(React.Fragment, null, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(Table, { className: ["wxp-data-table", props.tableClassName].filter(Boolean).join(" ") }, /* @__PURE__ */ h(TableHeader, null, /* @__PURE__ */ h(TableRow, null, props.headers.map((header) => /* @__PURE__ */ h(TableHead, { key: header }, header)))), /* @__PURE__ */ h(TableBody, null, props.rows.map((row) => /* @__PURE__ */ h(TableRow, { key: row.id || row.uuid || row.conversationId || row.clientId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(TableCell, { key: index2 }, cell)))))));
+    const wrapperClassName = ["wxp-table-wrap", props.wrapperClassName].filter(Boolean).join(" ");
+    if (props.scrollX) {
+      return /* @__PURE__ */ h("div", { className: wrapperClassName }, table);
+    }
+    return /* @__PURE__ */ h(ScrollArea2, { className: wrapperClassName }, table);
   }
   function kv(label, value) {
     return /* @__PURE__ */ h("div", { className: "wxp-kv" }, /* @__PURE__ */ h("span", null, label), /* @__PURE__ */ h("strong", null, displayText(value) || "-"));
@@ -16117,13 +16588,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (["sent", "dispatched", "received", "online", "connected", "outbound"].includes(text)) {
       return "success";
     }
-    if (["bound_connected"].includes(text)) {
+    if (["bound_connected", "exact"].includes(text)) {
       return "success";
     }
     if (["failed", "error", "disabled", "offline", "disconnected"].includes(text)) {
       return "destructive";
     }
-    if (["connected_unbound", "skipped", "unknown", "system"].includes(text)) {
+    if (["connected_unbound", "default", "skipped", "unknown", "system"].includes(text)) {
       return "warning";
     }
     return "secondary";
@@ -16142,6 +16613,74 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   function accountTunnelPill(binding, t) {
     const status = binding?.status || "not_applicable";
     return /* @__PURE__ */ h("div", { className: "wxp-tunnel-status-cell" }, translatedPill(status, t), binding?.clientId && /* @__PURE__ */ h("small", null, clip(binding.clientId, 28)));
+  }
+  function accountTriggerBindingCell(binding, t) {
+    const status = binding?.status || "unbound";
+    return /* @__PURE__ */ h("div", { className: "wxp-trigger-route-cell" }, translatedPill(status, t), binding?.xpertId ? /* @__PURE__ */ h("small", null, clip(binding.xpertId, 28)) : /* @__PURE__ */ h("small", null, t("unbound")));
+  }
+  function canScanLogin(account) {
+    if (account?.enabled === false) {
+      return false;
+    }
+    const status = displayText(account?.status).toLowerCase();
+    return status === "offline" || status === "unknown" || status === "error" || !status;
+  }
+  function canLogout(account) {
+    if (account?.enabled === false) {
+      return false;
+    }
+    return displayText(account?.status).toLowerCase() === "online";
+  }
+  function tunnelClientLampState(client) {
+    const state = displayText(client?.state).toLowerCase();
+    const lastError = displayText(client?.lastError);
+    if (state === "error" || lastError && !isCleanTunnelDisconnectReason(lastError)) {
+      return "error";
+    }
+    return client?.connected ? "connected" : "disconnected";
+  }
+  function isCleanTunnelDisconnectReason(reason) {
+    return [
+      "disconnected by WeChat workbench administrator",
+      "wechat reverse tunnel client disconnected by owner command",
+      "replaced by a new connection",
+      "broker shutting down"
+    ].some((text) => reason.includes(text));
+  }
+  function tunnelClientLampLabel(client, t) {
+    const state = tunnelClientLampState(client);
+    if (state === "error") {
+      return t("error");
+    }
+    if (state === "connected") {
+      return t("connected");
+    }
+    return t("disconnected");
+  }
+  function loginActionLabel(value, t) {
+    const action = displayText(value);
+    if (action === "SHOW_QR") {
+      return t("waitingForScan");
+    }
+    if (action === "SHOW_SCANNED_AVATAR") {
+      return t("waitingForConfirm");
+    }
+    if (action === "SHOW_CODE_INPUT") {
+      return t("loginCodeRequired");
+    }
+    if (action === "SHOW_SLIDE") {
+      return t("slideTicketRequired");
+    }
+    if (action === "LOGIN_SUCCESS") {
+      return t("loginSuccess");
+    }
+    if (action === "QR_EXPIRED") {
+      return t("qrExpired");
+    }
+    if (action === "FAILED") {
+      return t("failed");
+    }
+    return "";
   }
   function tunnelBindingsCell(client, t) {
     const bindings = Array.isArray(client?.bindings) ? client.bindings : [];

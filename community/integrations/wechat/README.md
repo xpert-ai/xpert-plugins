@@ -5,16 +5,14 @@
 ## 功能概览
 
 - 接收 wx2.0 webhook 推送的微信消息。
-- 兼容两种入站格式：
-  - 全局 webhook：`webhook.allMessagePushUrl` / `AllMsgPushUrl`。
-  - 单账号回调：`POST /message/SetCallback?key=<uuid>`。
+- 支持全局 webhook 入站格式：`webhook.allMessagePushUrl` / `AllMsgPushUrl`。
 - 将消息规范化后派发给绑定的 Xpert Agent；可通过 trigger 配置进行防抖聚合、历史上下文注入和过滤。
 - 发送 Agent 最终回复中的文本和图片到微信。
 - 支持 Agent 主动发送到预配置微信联系人或群；定时任务通过 `xpert_task_*` runtime state 注入接收方参数，可实现每日早报、巡检提醒等定时消息。
 - 支持 wx2.0 v2 文本/图片/媒体下载接口：`POST /v1/message/sendtext`、`POST /v1/message/sendimage`、`POST /v1/message/downloadfile`、`POST /v1/message/getmediafilechunk`。
 - 可选回退旧发送接口：`POST /message/SendTextMessage?key=<uuid>`、`POST /message/SendImageMessage?key=<uuid>`。
 - 提供 WeChat Workbench，用于查看账号、会话、消息日志、配置和运行日志。
-- 提供 Agent middleware tools；管理员模式用于状态、回调、账号和队列运维，用户模式只提供受控主动发送。
+- 提供 Agent middleware tools；管理员模式用于状态、回调、账号和队列运维，用户模式支持当前会话历史检索与受控主动发送。
 - 使用 Redis-backed BullMQ 管理入站聚合任务和出站消息队列，支持跨实例 job 分发、延迟调度、账号/联系人串行锁、静默时段、暂停、取消和重试。
 - 提供两个 Assistant Template：
   - `wechat-admin-assistant`：管理员模板，用于管理组织内所有微信集成。
@@ -313,8 +311,6 @@ https://your-xpert-api.example.com/api/wechat/webhook/<integrationId>?secret=<we
 
 wx2.0 需要把收到的微信消息推送给 Xpert webhook。推荐优先使用全局 webhook。
 
-### 方式一：全局 webhook（推荐）
-
 在 wx2.0 配置中设置：
 
 ```text
@@ -328,23 +324,6 @@ AllMsgPushUrl = <Xpert webhook URL>
 ```
 
 这种方式适合多个账号统一推送。插件会从 payload 中读取 `uuid`、`contactid`、`content`、`sendusername`、`ownerwxid`、`msgtype`、`isself` 等字段。
-
-### 方式二：单账号 SetCallback
-
-如果希望按账号设置回调，可调用 wx2.0 的旧回调接口：
-
-```sh
-curl -X POST "http://127.0.0.1:8058/message/SetCallback?key=<uuid>" \
-  -H "Content-Type: application/json" \
-  -d '{"CallbackURL":"<Xpert webhook URL>","Enabled":true}'
-```
-
-其中：
-
-- `<uuid>` 是 wx2.0 中该微信账号的 key/uuid。
-- `<Xpert webhook URL>` 是保存集成后得到的 Xpert webhook URL。
-
-Workbench 中也提供生成 SetCallback curl 和注册回调的操作。
 
 ## 配置反向隧道
 
@@ -460,7 +439,7 @@ wechat-user-assistant
 - 一个主 Agent：负责排查和管理微信运行状态。
 - 一个 `WechatRuntimeMiddleware`：`toolMode` 为 `admin`，负责让前端发现 WeChat Workbench，并提供运行时管理工具。
 
-管理员 Workbench 在没有绑定单一集成时，会展示当前组织内所有微信集成的运行数据，包括账号、会话、消息、日志、每个集成的 webhook URL 和 SetCallback curl。
+管理员 Workbench 在没有绑定单一集成时，会展示当前组织内所有微信集成的运行数据，包括账号、会话、消息、日志和每个集成的 webhook URL。
 
 ### 使用者模板
 
@@ -489,6 +468,8 @@ wechat-user-assistant
    - `groupTriggerMode`: 推荐 `mention_or_keywords`。
    - `groupKeywords`: 按需配置。
    - `mentionFallbackNames`: 可选，仅当 wx2.0 未提供可靠 `atuserlist` 时，用配置的群昵称匹配 `@名称`。
+   - `groupJoinWelcomeEnabled`: 默认 `false`。开启后，识别到新成员入群系统消息时会独立触发 Agent 生成欢迎语，不受普通群 @ 或关键词规则影响。
+   - `groupJoinWelcomePrompt`: 入群欢迎提示词模板，支持 `{names}`、`{groupName}`、`{roomId}`、`{rawText}`。
 
 2. `WeChat Runtime Tools`
    - `toolMode`: 使用者模板固定为 `user`，只暴露受控主动发送工具。
@@ -583,10 +564,11 @@ Agent 生成 markdown 内容后只需要调用：
 
 过滤逻辑按下面顺序执行，任一步不满足都会跳过，不会派发给 Agent：
 
+0. `sendusername`、`fromusername`、`senderId` 或 `contactid` 为 `weixin` 的系统来源消息会在 webhook 归一化阶段直接丢弃，不写入消息日志。
 1. 如果 wx2.0 标记该消息为当前账号自己发出，先按 `selfMessagePolicy` 处理：`history_only` 写入同一规范化会话历史但不触发 Agent，`ignore` 跳过，`dispatch` 才继续尝试触发 Agent。
 2. 按 `chatFilterMode` 判断私聊/群聊范围。
 3. 按联系人/群/发送人 ID 的白名单和黑名单判断是否允许。
-4. 仅文本类消息、微信图片消息和微信语音消息继续处理。文本接受 `msgType` 为空、`0` 或 `1`；图片只接受 wx2.0 机器字段 `msgtype=3` / `msg_type=3`；语音只接受 wx2.0 机器字段 `msgtype=34` / `msg_type=34`。插件不会从 `[图片]`、`[语音]`、展示文本、文件名或其他偶然字段推断媒体类型。
+4. 仅文本类消息、微信图片消息和微信语音消息继续处理。文本接受 `msgType` 为空、`0` 或 `1`；图片只接受 wx2.0 机器字段 `msgtype=3` / `msg_type=3`；语音只接受 wx2.0 机器字段 `msgtype=34` / `msg_type=34`。插件不会从 `[图片]`、`[语音]`、展示文本、文件名或其他偶然字段推断媒体类型。`msgtype=10000` 系统消息默认不作为普通消息触发；仅在 `groupJoinWelcomeEnabled` 开启且识别为入群事件时，转换为欢迎请求交给 Agent。
 5. 文本消息内容为空，或内容形如 `[图片]`、`[语音]` 这种纯占位文本时跳过；图片消息允许无文字，并通过 `files` 传给 Agent；语音消息必须先成功转写成非空文本才会派发。
 6. 私聊消息通过前面规则后直接触发；群聊消息还要继续匹配 `groupTriggerMode` 和 `groupKeywords`。`keywords` 和 `mention_or_keywords` 模式下，语音会在通过账号/联系人/群/发送人过滤后先转写，再用转写文本匹配关键词；`mentions` 模式只会在原始 `atuserlist` / @ 匹配后转写。
 7. 如果配置了 `allowedKeywords`，消息文本或语音转写文本还必须命中任一关键词才会继续处理。该规则在拼接历史上下文之前执行；纯图片消息没有可匹配文本时不会通过该关键词过滤。
@@ -607,6 +589,8 @@ Agent 生成 markdown 内容后只需要调用：
 | `blockedSenderIds` | 发送人 ID 黑名单。命中后不回复。 |
 | `allowedKeywords` | 需要处理的消息关键词白名单。空列表表示不限制；非空时私聊和群聊都必须命中任一关键词。 |
 | `mentionFallbackNames` | @ 昵称兜底名称列表。只在 wx2.0 payload 没有可靠 `atuserlist` 时使用；空列表表示不使用昵称兜底。 |
+| `groupJoinWelcomeEnabled` | 新成员入群欢迎开关。默认关闭；开启后独立于 `groupTriggerMode`，但仍受账号启用、`chatFilterMode`、联系人/群白名单和黑名单限制。 |
+| `groupJoinWelcomePrompt` | 欢迎请求提示词模板，默认生成简短中文欢迎语。 |
 
 常见配置：
 
@@ -685,7 +669,7 @@ integrationId:uuid:contactId:senderId
 /new
 ```
 
-可以重置当前微信会话。也可以在 Workbench 或 middleware tool 中重置指定 conversation binding。
+可以清空当前微信触发上下文中的缓存状态。插件不再持久化会话映射，每条入站消息都会单独创建 Agent conversation。
 
 ## Workbench
 
@@ -693,8 +677,7 @@ WeChat Workbench 通常出现在集成详情页和 Agent workbench 中。
 
 主要页面：
 
-- 账号页：查看 wx2.0 账号、在线状态、最近回调、最近回复、错误；复制 webhook；生成 SetCallback curl；启停账号接入。启停账号接入控制入站处理，不等同于出站暂停。
-- 会话页：查看私聊/群聊会话、绑定的 Agent conversationId，支持重置会话。
+- 账号页：查看 wx2.0 账号、在线状态、最近回调、最近回复、错误；复制 webhook；启停账号接入。启停账号接入控制入站处理，不等同于出站暂停。
 - 消息页：查看入站/出站消息、状态、错误和 payload 摘要，支持重发最后一次 AI 回复。
 - 队列页：查看出站排队消息的 `queueJobId`、状态、计划发送时间、发送时间和错误，支持取消、重试、暂停账号出站和恢复账号出站。
 - 配置页：查看 wx2.0 baseUrl、apiVersion、token、群聊触发策略、session timeout 等配置摘要。
@@ -709,28 +692,26 @@ WeChat Workbench 通常出现在集成详情页和 Agent workbench 中。
 | Tool | 用途 |
 | --- | --- |
 | `wechat_get_runtime_status` | 查看回调地址、绑定 Agent、账号数、消息数、错误数等运行状态。 |
-| `wechat_get_callback_config` | 获取 Xpert webhook URL 和 SetCallback curl 模板。 |
+| `wechat_get_callback_config` | 获取 Xpert webhook URL。 |
 | `wechat_rotate_webhook_credential` | 轮换当前 integration 的 webhook credential，并返回新的 callback URL；旧 URL 随即失效。 |
 | `wechat_revoke_webhook_credential` | 吊销当前 integration 的 webhook credential；wx2.0 需重新配置轮换后的 URL 才能继续推送。 |
 | `wechat_list_accounts` | 查询账号列表。 |
-| `wechat_list_conversations` | 查询会话绑定列表。 |
 | `wechat_search_message_logs` | 查询入站、出站、失败、跳过等消息日志。 |
 | `wechat_list_outbound_queue` | 查询出站队列消息，包含 `queued`、`deferred`、`sending`、`paused`、`failed`、`cancelled` 和 `sent`。 |
 | `wechat_cancel_outbound_queue_item` | 取消一条尚未发送或可取消的出站队列消息。 |
 | `wechat_retry_outbound_queue_item` | 重试一条失败、取消或暂停的出站消息。 |
 | `wechat_pause_outbound_account` | 暂停指定 wx2.0 账号的出站发送，并把待发送消息标记为 `paused`。 |
 | `wechat_resume_outbound_account` | 恢复指定 wx2.0 账号的出站发送，并重新投递暂停中的消息。 |
-| `wechat_reset_conversation` | 重置指定会话。 |
-| `wechat_register_callback` | 为指定 wx2.0 账号调用 SetCallback。 |
 | `wechat_set_account_enabled` | 启用或停用指定账号的入站处理。 |
 
-用户会话模板使用 `toolMode: user`，只暴露以下受控发送工具：
+用户会话模板使用 `toolMode: user`，暴露以下受控工具：
 
 | Tool | 用途 |
 | --- | --- |
+| `wechat_search_chat_history` | 检索当前微信私聊或群聊中已由插件接收并落库的历史消息；可按关键词、方向、时间、群成员过滤。默认读取当前会话的 `uuid/contactId`，显式查询其他会话时仍受绑定 integration 与 trigger allow/block 配置限制。 |
 | `wechat_send_message` | 使用 runtime state 中的微信发送参数主动发送 markdown 内容。用于平台定时任务触发 Agent 后发送群公告、每日早报等。 |
 
-只有定时任务、群公告、运营提醒等主动发送场景才需要调用 `wechat_send_message`。普通微信回复不调用该工具。定时任务触发时，平台会把任务 runtime state 传给 Agent；middleware wrapper 会用这些 state values 补齐隐藏的 `uuid`、`contactIds`、`chatType`、`atUsers` 和 `idempotencyKey`。
+普通微信回复不需要调用工具；当用户要求回忆、总结或查找之前的微信消息时可调用 `wechat_search_chat_history`。只有定时任务、群公告、运营提醒等主动发送场景才需要调用 `wechat_send_message`。定时任务触发时，平台会把任务 runtime state 传给 Agent；middleware wrapper 会用这些 state values 补齐隐藏的 `uuid`、`contactIds`、`chatType`、`atUsers` 和 `idempotencyKey`。
 
 ## 测试发送
 
@@ -760,7 +741,7 @@ curl -X POST "https://your-xpert-api.example.com/api/wechat/<integrationId>/send
 
 检查：
 
-1. wx2.0 的全局 webhook 或 SetCallback 是否指向 Xpert webhook URL。
+1. wx2.0 的全局 webhook 是否指向 Xpert webhook URL。
 2. `API_BASE_URL` 是否是 wx2.0 能访问的地址。
 3. wx2.0 回调 URL 是否使用 Workbench 生成的完整地址，并带有正确的 `?secret=...`。
 4. Assistant 是否已启用或发布。

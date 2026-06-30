@@ -3,6 +3,11 @@ import {
   Badge,
   Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   ScrollArea,
   Select,
@@ -36,8 +41,8 @@ import {
 
 installShadcnThemeVars({ styleId: 'wechat-workbench-shadcn-ui-vars' })
 
-type TabKey = 'dashboard' | 'accounts' | 'conversations' | 'messages' | 'queue' | 'config' | 'logs'
-type TableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs'
+type TabKey = 'dashboard' | 'accounts' | 'messages' | 'queue' | 'config' | 'logs'
+type TableKey = 'accounts' | 'messages' | 'queue' | 'logs'
 type Translator = (key: TranslationKey) => string
 type PagedTableState = {
   items: any[]
@@ -49,9 +54,21 @@ type PagedTableState = {
   busy: boolean
   loaded: boolean
 }
+type DeviceLoginDialogState = {
+  open: boolean
+  mode: 'add' | 'login'
+  integrationId: string
+  key: string
+  status: any | null
+  busy: boolean
+  code: string
+  randstr: string
+  slideticket: string
+}
 
 const DEFAULT_TABLE_PAGE_SIZE = 20
-const TABLE_KEYS: TableKey[] = ['accounts', 'conversations', 'messages', 'queue', 'logs']
+const DEVICE_KEY_PATTERN = /^SD[a-zA-Z0-9]{10}$/
+const TABLE_KEYS: TableKey[] = ['accounts', 'messages', 'queue', 'logs']
 const SELECT_EMPTY_VALUE = '__all__'
 const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   connected: 'connected',
@@ -59,8 +76,10 @@ const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   deferred: 'deferred',
   dispatched: 'dispatched',
   disconnected: 'disconnected',
+  default: 'defaultBinding',
   history_only: 'history_only',
   error: 'error',
+  exact: 'exactBinding',
   failed: 'failed',
   group: 'groupChat',
   inbound: 'inbound',
@@ -84,7 +103,8 @@ const TRANSLATABLE_VALUE_KEYS: Record<string, TranslationKey> = {
   system: 'system',
   group_only: 'groupOnly',
   not_applicable: 'notApplicable',
-  unknown: 'unknown'
+  unknown: 'unknown',
+  unbound: 'unbound'
 }
 
 function createTableState(): PagedTableState {
@@ -110,18 +130,36 @@ function createInitialTablePages(): Record<TableKey, PagedTableState> {
   )
 }
 
+function createDeviceLoginDialogState(): DeviceLoginDialogState {
+  return {
+    open: false,
+    mode: 'add',
+    integrationId: '',
+    key: '',
+    status: null,
+    busy: false,
+    code: '',
+    randstr: '',
+    slideticket: ''
+  }
+}
+
 function App() {
   const [context, setContext] = React.useState(null)
   const [data, setData] = React.useState(null)
   const [tab, setTab] = React.useState<TabKey>('dashboard')
   const [search, setSearch] = React.useState('')
   const [busy, setBusy] = React.useState(false)
+  const [accountSyncing, setAccountSyncing] = React.useState(false)
   const [tablePages, setTablePages] = React.useState<Record<TableKey, PagedTableState>>(() => createInitialTablePages())
   const [draft, setDraft] = React.useState({ integrationId: '', uuid: '', contactId: '', content: '' })
+  const [loginDialog, setLoginDialog] = React.useState<DeviceLoginDialogState>(() => createDeviceLoginDialogState())
   const contextRef = React.useRef(null)
   const searchRef = React.useRef('')
   const tabRef = React.useRef<TabKey>('dashboard')
   const tablePagesRef = React.useRef<Record<TableKey, PagedTableState>>(tablePages)
+  const loginDialogRef = React.useRef<DeviceLoginDialogState>(loginDialog)
+  const loginPollTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const t = createTranslator(context?.locale)
 
   React.useEffect(() => {
@@ -145,6 +183,10 @@ function App() {
   }, [tablePages])
 
   React.useEffect(() => {
+    loginDialogRef.current = loginDialog
+  }, [loginDialog])
+
+  React.useEffect(() => {
     startRemoteBridge(
       (nextContext) => {
         contextRef.current = nextContext
@@ -157,13 +199,15 @@ function App() {
     post('ready')
   }, [])
 
+  React.useEffect(() => () => clearLoginPolling(), [])
+
   React.useEffect(() => {
     if (isPagedTable(tab)) {
       loadTable(tab)
     }
   }, [tab])
 
-  React.useEffect(reportResize, [data, tab, busy, tablePages])
+  React.useEffect(reportResize, [data, tab, busy, accountSyncing, tablePages])
 
   async function reload(nextContext?: any) {
     const activeContext = nextContext || contextRef.current || context
@@ -270,12 +314,276 @@ function App() {
     }
   }
 
+  async function runLoginAction(actionKey: string, targetId?: string | null, input?: any) {
+    const response = await executeAction(actionKey, targetId || null, input || {}, {})
+    const result = getResponsePayload(response)
+    if (result && result.success === false) {
+      throw new Error(resolveMessage(result.message, contextRef.current?.locale) || t('operationFailed'))
+    }
+    return result?.data || null
+  }
+
+  async function syncDeviceAccountStatus() {
+    if (accountSyncing) {
+      return
+    }
+    const integrationId = resolveAccountSyncIntegrationId()
+    if (!integrationId) {
+      return
+    }
+    setAccountSyncing(true)
+    try {
+      const response = await executeAction('sync_device_accounts', integrationId, { integrationId }, {})
+      const result = getResponsePayload(response)
+      if (result && result.success === false) {
+        throw new Error(resolveMessage(result.message, contextRef.current?.locale) || t('operationFailed'))
+      }
+      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('accountStatusSynced'))
+      await loadTable('accounts')
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setAccountSyncing(false)
+    }
+  }
+
+  function resolveAccountSyncIntegrationId() {
+    if (data?.scope !== 'organization') {
+      return displayText(data?.integrationId || integrations[0]?.id)
+    }
+    const filteredIntegrationId = displayText(tablePagesRef.current.accounts.filters?.integrationId)
+    if (filteredIntegrationId) {
+      return filteredIntegrationId
+    }
+    if (integrations.length === 1) {
+      return displayText(integrations[0]?.id)
+    }
+    notify('error', t('selectIntegrationToSync'))
+    return ''
+  }
+
+  function defaultLoginIntegrationId() {
+    if (data?.scope !== 'organization') {
+      return displayText(data?.integrationId || integrations[0]?.id)
+    }
+    return displayText(integrations[0]?.id)
+  }
+
+  function openAddDeviceDialog() {
+    const integrationId = defaultLoginIntegrationId()
+    if (!integrationId) {
+      notify('error', t('selectIntegrationFirst'))
+      return
+    }
+    clearLoginPolling()
+    setLoginDialog({
+      ...createDeviceLoginDialogState(),
+      open: true,
+      mode: 'add',
+      integrationId
+    })
+  }
+
+  function openAccountLoginDialog(account: any) {
+    const uuid = displayText(account?.uuid)
+    const integrationId = displayText(account?.integrationId || data?.integrationId || defaultLoginIntegrationId())
+    if (!uuid || !integrationId) {
+      notify('error', t('missingAccountLoginTarget'))
+      return
+    }
+    clearLoginPolling()
+    setLoginDialog({
+      ...createDeviceLoginDialogState(),
+      open: true,
+      mode: 'login',
+      integrationId,
+      key: uuid,
+      busy: true
+    })
+    setTimeout(() => startDeviceLogin(uuid, integrationId), 0)
+  }
+
+  function confirmAccountAction(account: any, actionKey: 'logout_device_account' | 'delete_device_account') {
+    const uuid = displayText(account?.uuid)
+    const integrationId = displayText(account?.integrationId || data?.integrationId || defaultLoginIntegrationId())
+    if (!uuid || !integrationId) {
+      notify('error', t('missingAccountLoginTarget'))
+      return
+    }
+    const confirmation = actionKey === 'logout_device_account' ? t('confirmLogoutAccount') : t('confirmDeleteAccount')
+    if (!window.confirm(confirmation)) {
+      return
+    }
+    runAction(actionKey, uuid, { uuid, integrationId })
+  }
+
+  function closeDeviceLoginDialog() {
+    clearLoginPolling()
+    setLoginDialog(createDeviceLoginDialogState())
+  }
+
+  function setLoginBusy(busy: boolean) {
+    setLoginDialog((prev) => ({
+      ...prev,
+      busy
+    }))
+  }
+
+  async function bindAndStartDeviceLogin() {
+    const current = loginDialogRef.current
+    const integrationId = displayText(current.integrationId)
+    const key = displayText(current.key)
+    if (!integrationId) {
+      notify('error', t('selectIntegrationFirst'))
+      return
+    }
+    if (!DEVICE_KEY_PATTERN.test(key)) {
+      notify('error', t('deviceKeyInvalid'))
+      return
+    }
+    setLoginBusy(true)
+    try {
+      await runLoginAction('bind_device_key', key, { integrationId, key })
+      notify('success', t('deviceKeyBound'))
+      await loadTable('accounts', { page: 1 })
+      await startDeviceLogin(key, integrationId)
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+      setLoginBusy(false)
+    }
+  }
+
+  async function startDeviceLogin(uuid: string, integrationId: string) {
+    clearLoginPolling()
+    setLoginBusy(true)
+    try {
+      const status = await runLoginAction('start_device_login', uuid, { integrationId, uuid })
+      applyLoginStatus(status, integrationId, uuid)
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+      setLoginBusy(false)
+    }
+  }
+
+  async function pollDeviceLogin() {
+    const current = loginDialogRef.current
+    const uuid = displayText(current.key || current.status?.uuid)
+    const integrationId = displayText(current.integrationId)
+    const sessionId = displayText(current.status?.sessionId)
+    if (!uuid || !integrationId || !sessionId) {
+      return
+    }
+    try {
+      const status = await runLoginAction('poll_device_login', uuid, { integrationId, uuid, sessionId })
+      applyLoginStatus(status, integrationId, uuid)
+    } catch (error) {
+      clearLoginPolling()
+      notify('error', getErrorMessage(error))
+      setLoginBusy(false)
+    }
+  }
+
+  async function verifyDeviceLoginCode() {
+    const current = loginDialogRef.current
+    const uuid = displayText(current.key || current.status?.uuid)
+    const integrationId = displayText(current.integrationId)
+    const sessionId = displayText(current.status?.sessionId)
+    const code = displayText(current.code)
+    if (!uuid || !integrationId || !sessionId || !code) {
+      notify('error', t('loginCodeRequired'))
+      return
+    }
+    setLoginBusy(true)
+    try {
+      const status = await runLoginAction('verify_device_login_code', uuid, { integrationId, uuid, sessionId, code })
+      applyLoginStatus(status, integrationId, uuid)
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+      setLoginBusy(false)
+    }
+  }
+
+  async function verifyDeviceLoginSlide() {
+    const current = loginDialogRef.current
+    const uuid = displayText(current.key || current.status?.uuid)
+    const integrationId = displayText(current.integrationId)
+    const sessionId = displayText(current.status?.sessionId)
+    const randstr = displayText(current.randstr)
+    const slideticket = displayText(current.slideticket)
+    if (!uuid || !integrationId || !sessionId || !randstr || !slideticket) {
+      notify('error', t('slideTicketRequired'))
+      return
+    }
+    setLoginBusy(true)
+    try {
+      const status = await runLoginAction('verify_device_login_slide', uuid, {
+        integrationId,
+        uuid,
+        sessionId,
+        randstr,
+        slideticket
+      })
+      applyLoginStatus(status, integrationId, uuid)
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+      setLoginBusy(false)
+    }
+  }
+
+  function applyLoginStatus(status: any, integrationId: string, uuid: string) {
+    const nextAction = displayText(status?.nextAction)
+    setLoginDialog((prev) => ({
+      ...prev,
+      integrationId,
+      key: displayText(status?.uuid) || uuid,
+      status,
+      busy: false,
+      code: nextAction === 'SHOW_CODE_INPUT' ? prev.code : '',
+      randstr: nextAction === 'SHOW_SLIDE' ? prev.randstr : '',
+      slideticket: nextAction === 'SHOW_SLIDE' ? prev.slideticket : ''
+    }))
+
+    if (status?.warning) {
+      notify('error', displayText(status.warning))
+    }
+
+    if (nextAction === 'LOGIN_SUCCESS') {
+      clearLoginPolling()
+      notify('success', t('loginSuccess'))
+      reload()
+      loadTable('accounts', { page: 1 })
+      setTimeout(closeDeviceLoginDialog, 800)
+      return
+    }
+
+    if (nextAction === 'SHOW_QR' || nextAction === 'SHOW_SCANNED_AVATAR') {
+      scheduleLoginPolling()
+      return
+    }
+
+    clearLoginPolling()
+  }
+
+  function scheduleLoginPolling() {
+    clearLoginPolling()
+    loginPollTimerRef.current = setTimeout(() => {
+      loginPollTimerRef.current = null
+      pollDeviceLogin()
+    }, 1000)
+  }
+
+  function clearLoginPolling() {
+    if (loginPollTimerRef.current) {
+      clearTimeout(loginPollTimerRef.current)
+      loginPollTimerRef.current = null
+    }
+  }
+
   const summary = data?.summary || {}
   const callback = data?.callbackConfig || {}
   const integrations = Array.isArray(data?.integrations) ? data.integrations : []
   const isOrganizationScope = data?.scope === 'organization'
   const accounts = data?.accounts || []
-  const conversations = data?.conversations || []
   const messages = data?.messages || []
   const queue = data?.queue || []
   const logs = data?.logs || messages
@@ -284,7 +592,6 @@ function App() {
   const tunnelClients = Array.isArray(data?.tunnelClients) ? data.tunnelClients : []
   const dashboard = React.useMemo(() => buildDashboard(data), [data])
   const accountTable = withFallbackTable(tablePages.accounts, accounts)
-  const conversationTable = withFallbackTable(tablePages.conversations, conversations)
   const messageTable = withFallbackTable(tablePages.messages, messages)
   const queueTable = withFallbackTable(tablePages.queue, queue)
   const logTable = withFallbackTable(tablePages.logs, logs)
@@ -325,7 +632,6 @@ function App() {
         <div className="wxp-tabs">
           <TabButton tabKey="dashboard" label={t('dashboard')} active={tab} setTab={setTab} />
           <TabButton tabKey="accounts" label={t('account')} active={tab} setTab={setTab} />
-          <TabButton tabKey="conversations" label={t('conversation')} active={tab} setTab={setTab} />
           <TabButton tabKey="messages" label={t('message')} active={tab} setTab={setTab} />
           <TabButton tabKey="queue" label={t('queue')} active={tab} setTab={setTab} />
           <TabButton tabKey="config" label={t('config')} active={tab} setTab={setTab} />
@@ -334,31 +640,34 @@ function App() {
       </div>
 
       {tab === 'dashboard' && (
-        <DashboardView dashboard={dashboard} summary={summary} tunnel={tunnel} isOrganizationScope={isOrganizationScope} t={t} />
+        <DashboardView
+          dashboard={dashboard}
+          summary={summary}
+          tunnel={tunnel}
+          tunnelClients={tunnelClients}
+          isOrganizationScope={isOrganizationScope}
+          t={t}
+        />
       )}
       {tab === 'accounts' && (
         <AccountsView
           accounts={accounts}
           table={accountTable}
-          callback={callback}
           integrations={integrations}
           isOrganizationScope={isOrganizationScope}
           t={t}
           onTableChange={(patch: Partial<PagedTableState>) => loadTable('accounts', patch)}
-          onRegister={(account: any) => runAction('register_callback', account.uuid, { uuid: account.uuid, integrationId: account.integrationId })}
+          onAdd={openAddDeviceDialog}
+          canAdd={!isOrganizationScope || integrations.length > 0}
+          onSyncStatus={syncDeviceAccountStatus}
+          canSync={!accountSyncing && (!isOrganizationScope || integrations.length > 0)}
+          syncing={accountSyncing}
+          onLogin={openAccountLoginDialog}
+          onLogout={(account: any) => confirmAccountAction(account, 'logout_device_account')}
+          onDelete={(account: any) => confirmAccountAction(account, 'delete_device_account')}
           onToggle={(account: any, enabled: boolean) =>
             runAction('set_account_enabled', account.uuid, { uuid: account.uuid, enabled, integrationId: account.integrationId })
           }
-        />
-      )}
-      {tab === 'conversations' && (
-        <ConversationsView
-          conversations={conversations}
-          table={conversationTable}
-          isOrganizationScope={isOrganizationScope}
-          t={t}
-          onTableChange={(patch: Partial<PagedTableState>) => loadTable('conversations', patch)}
-          onReset={(item: any) => runAction('restart_conversation', item.id, { bindingId: item.id, integrationId: item.integrationId })}
         />
       )}
       {tab === 'messages' && (
@@ -410,6 +719,18 @@ function App() {
           onTableChange={(patch: Partial<PagedTableState>) => loadTable('logs', patch)}
         />
       )}
+      <DeviceLoginDialog
+        state={loginDialog}
+        integrations={integrations}
+        isOrganizationScope={isOrganizationScope}
+        t={t}
+        onChange={(patch: Partial<DeviceLoginDialogState>) => setLoginDialog((prev) => ({ ...prev, ...patch }))}
+        onClose={closeDeviceLoginDialog}
+        onBindAndLogin={bindAndStartDeviceLogin}
+        onStartLogin={() => startDeviceLogin(displayText(loginDialog.key || loginDialog.status?.uuid), displayText(loginDialog.integrationId))}
+        onVerifyCode={verifyDeviceLoginCode}
+        onVerifySlide={verifyDeviceLoginSlide}
+      />
     </div>
   )
 }
@@ -428,12 +749,9 @@ function DashboardView(props: any) {
       <div className="wxp-stats">
         {summary.integrationCount !== undefined && <Stat label={t('integration')} value={summary.integrationCount || 0} />}
         <Stat label={t('account')} value={summary.accountCount || 0} />
-        <Stat label={t('conversation')} value={summary.conversationCount || 0} />
         <Stat label={t('message')} value={summary.recentMessageCount || 0} />
         <Stat label={t('error')} value={summary.errorCount || 0} />
-        {props.tunnel && (
-          <Stat label={t('tunnelStatus')} value={tunnelStatusLabel(props.tunnel, t)} helper={props.tunnel.wsUrl || ''} />
-        )}
+        <TunnelClientStatusStat clients={props.tunnelClients || []} tunnel={props.tunnel} t={t} />
       </div>
 
       <div className="wxp-dashboard-grid">
@@ -548,43 +866,16 @@ function AccountsView(props: any) {
   const filter = useTableFilterDraft(props.table, props.onTableChange)
   return (
     <section className="wxp-panel">
-      <div className="wxp-callback">
-        {props.isOrganizationScope ? (
-          <div className="wxp-integration-list">
-            <strong>{props.t('organizationCallbacks')}</strong>
-            {(props.integrations || []).map((integration: any) => (
-              <div className="wxp-integration-row" key={integration.id}>
-                <div>
-                  <span>{integration.name || integration.id}</span>
-                  <code>{integration.callbackConfig?.globalWebhookUrl || ''}</code>
-                </div>
-                <div className="wxp-actions">
-                  <Button variant="outline" size="sm" onClick={() => copyText(integration.callbackConfig?.globalWebhookUrl, props.t)}>
-                    {props.t('copyUrl')}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => copyText(integration.callbackConfig?.setCallbackCurlTemplate, props.t)}>
-                    {props.t('copySetCallbackCurl')}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <strong>{props.t('callbackGlobalWebhook')}</strong>
-              <code>{props.callback.globalWebhookUrl || ''}</code>
-            </div>
-            <div className="wxp-actions">
-              <Button variant="outline" onClick={() => copyText(props.callback.globalWebhookUrl, props.t)}>
-                {props.t('copyUrl')}
-              </Button>
-              <Button variant="outline" onClick={() => copyText(props.callback.setCallbackCurlTemplate, props.t)}>
-                {props.t('copySetCallbackCurl')}
-              </Button>
-            </div>
-          </>
-        )}
+      <div className="wxp-table-toolbar">
+        <strong>{props.t('account')}</strong>
+        <div className="wxp-actions">
+          <Button variant="outline" onClick={props.onSyncStatus} disabled={!props.canSync || props.syncing}>
+            {props.syncing ? props.t('syncingStatus') : props.t('syncStatus')}
+          </Button>
+          <Button onClick={props.onAdd} disabled={!props.canAdd}>
+            {props.t('addDevice')}
+          </Button>
+        </div>
       </div>
       <TableFilters
         draft={filter.draft}
@@ -621,6 +912,7 @@ function AccountsView(props: any) {
           props.t('ownerWxid'),
           props.t('status'),
           props.t('tunnel'),
+          props.t('agentRoute'),
           props.t('lastCallback'),
           props.t('lastReply'),
           props.t('error'),
@@ -636,15 +928,30 @@ function AccountsView(props: any) {
           display(account.ownerWxid || account.displayName),
           translatedPill(account.status || (account.enabled === false ? 'disabled' : 'unknown'), props.t),
           accountTunnelPill(account.tunnelBinding, props.t),
+          accountTriggerBindingCell(account.triggerBinding, props.t),
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
           <div className="xui-actions">
-            <Button variant="outline" size="sm" onClick={() => props.onRegister(account)}>
-              {props.t('registerCallback')}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => props.onToggle(account, account.enabled === false)}>
+            {canScanLogin(account) && (
+              <Button variant="outline" size="sm" onClick={() => props.onLogin(account)}>
+                {props.t('scanLogin')}
+              </Button>
+            )}
+            {canLogout(account) && (
+              <Button variant="destructive" size="sm" onClick={() => props.onLogout(account)}>
+                {props.t('logoutAccount')}
+              </Button>
+            )}
+            <Button
+              variant={account.enabled === false ? 'outline' : 'destructive'}
+              size="sm"
+              onClick={() => props.onToggle(account, account.enabled === false)}
+            >
               {account.enabled === false ? props.t('enable') : props.t('disable')}
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => props.onDelete(account)}>
+              {props.t('deleteAccount')}
             </Button>
           </div>
         ]}
@@ -654,66 +961,182 @@ function AccountsView(props: any) {
   )
 }
 
-function ConversationsView(props: any) {
-  const filter = useTableFilterDraft(props.table, props.onTableChange)
+function DeviceLoginDialog(props: {
+  state: DeviceLoginDialogState
+  integrations: any[]
+  isOrganizationScope: boolean
+  t: Translator
+  onChange: (patch: Partial<DeviceLoginDialogState>) => void
+  onClose: () => void
+  onBindAndLogin: () => void
+  onStartLogin: () => void
+  onVerifyCode: () => void
+  onVerifySlide: () => void
+}) {
+  const status = props.state.status || {}
+  const nextAction = displayText(status.nextAction)
+  const remainingSeconds = normalizeCount(status.remainingSeconds, 0)
+  const countdownPercent = Math.max(0, Math.min(100, Math.round((remainingSeconds / 120) * 100)))
+  const showIntegrationSelect = props.isOrganizationScope && props.integrations.length > 1 && props.state.mode === 'add'
+  const canSubmitKey = props.state.mode === 'add' && DEVICE_KEY_PATTERN.test(displayText(props.state.key))
+  const title = props.state.mode === 'add' ? props.t('addDevice') : props.t('scanLogin')
+  const statusText = displayText(status.message) || loginActionLabel(nextAction, props.t)
+
   return (
-    <section className="wxp-panel">
-      <TableFilters
-        draft={filter.draft}
-        setDraft={filter.setDraft}
-        commitDraft={filter.commitDraft}
-        t={props.t}
-        onReset={() => {
-          filter.reset()
-          props.onTableChange({ page: 1, search: '', filters: {} })
-        }}
-      >
-        {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
-        <SelectFilter
-          field="chatType"
-          label={props.t('type')}
-          options={[
-            { value: 'private', label: props.t('privateChat') },
-            { value: 'group', label: props.t('groupChat') }
-          ]}
-          {...filter}
-        />
-        <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
-        <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
-        <TextFilter field="senderId" placeholder={props.t('sender')} {...filter} />
-      </TableFilters>
-      <DataTable
-        headers={[
-          ...(props.isOrganizationScope ? [props.t('integration')] : []),
-          props.t('type'),
-          props.t('uuid'),
-          props.t('contact'),
-          props.t('sender'),
-          props.t('xpert'),
-          props.t('conversationId'),
-          props.t('updatedAt'),
-          props.t('action')
-        ]}
-        rows={props.table.items}
-        loading={props.table.busy}
-        loadingText={props.t('loading')}
-        emptyText={props.t('noConversationBindings')}
-        renderRow={(item: any) => [
-          ...(props.isOrganizationScope ? [code(item.integrationId)] : []),
-          translatedPill(item.chatType, props.t),
-          code(item.uuid),
-          code(item.contactId),
-          code(item.senderId),
-          code(item.xpertId),
-          code(item.conversationId),
-          time(item.updatedAt),
-          <Button variant="outline" size="sm" onClick={() => props.onReset(item)}>
-            {props.t('reset')}
+    <Dialog
+      open={props.state.open}
+      onOpenChange={(open: boolean) => {
+        if (!open) {
+          props.onClose()
+        }
+      }}
+    >
+      <DialogContent className="wxp-login-dialog">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="wxp-login-body">
+          {showIntegrationSelect && (
+            <label className="wxp-field">
+              <span>{props.t('integration')}</span>
+              <Select
+                value={displayText(props.state.integrationId)}
+                onValueChange={(value: string) => props.onChange({ integrationId: value })}
+                disabled={props.state.busy}
+              >
+                <SelectTrigger aria-label={props.t('integration')}>
+                  <SelectValue placeholder={props.t('integration')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {props.integrations.map((integration: any) => (
+                    <SelectItem key={integration.id} value={integration.id}>
+                      {integration.name || integration.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+          <label className="wxp-field">
+            <span>{props.t('deviceKey')}</span>
+            <Input
+              value={displayText(props.state.key)}
+              placeholder={props.t('deviceKeyPlaceholder')}
+              maxLength={12}
+              disabled={props.state.busy || props.state.mode === 'login' || Boolean(nextAction)}
+              onChange={(event: any) => props.onChange({ key: event.target.value.trim() })}
+              onKeyDown={(event: any) => {
+                if (event.key === 'Enter' && canSubmitKey && !props.state.busy && !nextAction) {
+                  props.onBindAndLogin()
+                }
+              }}
+            />
+          </label>
+
+          {status.qrCodeUrl && (nextAction === 'SHOW_QR' || nextAction === 'SHOW_SCANNED_AVATAR') && (
+            <div className="wxp-login-qr">
+              <img src={status.qrCodeUrl} alt={props.t('loginQrCode')} />
+            </div>
+          )}
+          {status.headImgUrl && nextAction === 'SHOW_SCANNED_AVATAR' && (
+            <div className="wxp-login-avatar">
+              <img src={status.headImgUrl} alt={props.t('wechatAvatar')} />
+              <strong>{displayText(status.nickName || status.wxid) || props.t('scannedWechat')}</strong>
+            </div>
+          )}
+          {nextAction === 'LOGIN_SUCCESS' && (
+            <div className="wxp-login-result success">
+              <strong>{props.t('loginSuccess')}</strong>
+              <span>{displayText(status.nickName || status.wxid)}</span>
+            </div>
+          )}
+          {(nextAction === 'QR_EXPIRED' || nextAction === 'FAILED') && (
+            <div className="wxp-login-result warning">
+              <strong>{loginActionLabel(nextAction, props.t)}</strong>
+            </div>
+          )}
+          {remainingSeconds > 0 && (nextAction === 'SHOW_QR' || nextAction === 'SHOW_SCANNED_AVATAR') && (
+            <div className="wxp-login-countdown">
+              <div style={{ width: `${countdownPercent}%` }} />
+              <span>{remainingSeconds}s</span>
+            </div>
+          )}
+          {statusText && (
+            <div className="wxp-login-message">
+              {statusText}
+            </div>
+          )}
+
+          {nextAction === 'SHOW_CODE_INPUT' && (
+            <label className="wxp-field">
+              <span>{props.t('loginCode')}</span>
+              <Input
+                value={displayText(props.state.code)}
+                placeholder={props.t('loginCodePlaceholder')}
+                disabled={props.state.busy}
+                onChange={(event: any) => props.onChange({ code: event.target.value })}
+                onKeyDown={(event: any) => {
+                  if (event.key === 'Enter' && !props.state.busy) {
+                    props.onVerifyCode()
+                  }
+                }}
+              />
+            </label>
+          )}
+
+          {nextAction === 'SHOW_SLIDE' && (
+            <div className="wxp-slide-fields">
+              <label className="wxp-field">
+                <span>randstr</span>
+                <Input
+                  value={displayText(props.state.randstr)}
+                  placeholder="randstr"
+                  disabled={props.state.busy}
+                  onChange={(event: any) => props.onChange({ randstr: event.target.value })}
+                />
+              </label>
+              <label className="wxp-field">
+                <span>slideticket</span>
+                <Input
+                  value={displayText(props.state.slideticket)}
+                  placeholder="slideticket"
+                  disabled={props.state.busy}
+                  onChange={(event: any) => props.onChange({ slideticket: event.target.value })}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={props.onClose}>
+            {props.t('cancel')}
           </Button>
-        ]}
-      />
-      <Pagination table={props.table} t={props.t} onChange={props.onTableChange} />
-    </section>
+          {props.state.mode === 'add' && !nextAction && (
+            <Button disabled={props.state.busy || !canSubmitKey} onClick={props.onBindAndLogin}>
+              {props.state.busy ? props.t('loading') : props.t('addAndLogin')}
+            </Button>
+          )}
+          {(nextAction === 'QR_EXPIRED' || nextAction === 'FAILED') && (
+            <Button disabled={props.state.busy} onClick={props.onStartLogin}>
+              {props.t('retryLogin')}
+            </Button>
+          )}
+          {nextAction === 'SHOW_CODE_INPUT' && (
+            <Button disabled={props.state.busy || !displayText(props.state.code)} onClick={props.onVerifyCode}>
+              {props.state.busy ? props.t('loading') : props.t('submitCode')}
+            </Button>
+          )}
+          {nextAction === 'SHOW_SLIDE' && (
+            <Button
+              disabled={props.state.busy || !displayText(props.state.randstr) || !displayText(props.state.slideticket)}
+              onClick={props.onVerifySlide}
+            >
+              {props.state.busy ? props.t('loading') : props.t('submitSlide')}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -747,6 +1170,9 @@ function MessagesView(props: any) {
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>
       <DataTable
+        wrapperClassName="wxp-messages-table-wrap"
+        tableClassName="wxp-messages-table"
+        scrollX
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('direction'),
@@ -770,7 +1196,7 @@ function MessagesView(props: any) {
           code(item.uuid),
           code(item.contactId),
           code(item.senderId),
-          <details>
+          <details className="wxp-message-log-content">
             <summary>{clip(item.content, 80)}</summary>
             <pre>{item.payloadSummary || item.content || ''}</pre>
           </details>,
@@ -895,6 +1321,12 @@ function QueueContentCell(props: { item: any; t: Translator }) {
 function ConfigView(props: any) {
   return (
     <section className="wxp-config">
+      <CallbackPanel
+        callback={props.callback}
+        integrations={props.integrations || []}
+        isOrganizationScope={props.isOrganizationScope}
+        t={props.t}
+      />
       <div className="wxp-panel">
         <h3>{props.isOrganizationScope ? props.t('integrations') : props.t('runtimeConfig')}</h3>
         {props.isOrganizationScope ? (
@@ -902,7 +1334,6 @@ function ConfigView(props: any) {
             headers={[
               props.t('integration'),
               props.t('account'),
-              props.t('conversation'),
               props.t('message'),
               props.t('error'),
               props.t('connectionMode'),
@@ -915,7 +1346,6 @@ function ConfigView(props: any) {
             renderRow={(integration: any) => [
               code(integration.name || integration.id),
               String(integration.accountCount || 0),
-              String(integration.conversationCount || 0),
               String(integration.recentMessageCount || 0),
               String(integration.errorCount || 0),
               connectionModeLabel(integration.config?.connectionMode, props.t),
@@ -971,6 +1401,46 @@ function ConfigView(props: any) {
         </Button>
       </div>
     </section>
+  )
+}
+
+function CallbackPanel(props: any) {
+  return (
+    <div className="wxp-panel wxp-config-callback">
+      <h3>{props.t('callbackGlobalWebhook')}</h3>
+      <div className="wxp-callback">
+        {props.isOrganizationScope ? (
+          <div className="wxp-integration-list">
+            <strong>{props.t('organizationCallbacks')}</strong>
+            {(props.integrations || []).map((integration: any) => (
+              <div className="wxp-integration-row" key={integration.id}>
+                <div>
+                  <span>{integration.name || integration.id}</span>
+                  <code>{integration.callbackConfig?.globalWebhookUrl || ''}</code>
+                </div>
+                <div className="wxp-actions">
+                  <Button variant="outline" size="sm" onClick={() => copyText(integration.callbackConfig?.globalWebhookUrl, props.t)}>
+                    {props.t('copyUrl')}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div>
+              <strong>{props.t('callbackGlobalWebhook')}</strong>
+              <code>{props.callback.globalWebhookUrl || ''}</code>
+            </div>
+            <div className="wxp-actions">
+              <Button variant="outline" onClick={() => copyText(props.callback.globalWebhookUrl, props.t)}>
+                {props.t('copyUrl')}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -1088,6 +1558,9 @@ function LogsView(props: any) {
         <TextFilter field="contactId" placeholder={props.t('contact')} {...filter} />
       </TableFilters>
       <DataTable
+        wrapperClassName="wxp-logs-table-wrap"
+        tableClassName="wxp-logs-table"
+        scrollX
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('level'),
@@ -1122,6 +1595,44 @@ function Stat(props: { label: string; value: unknown; helper?: string }) {
       <span>{props.label}</span>
       <strong>{String(props.value)}</strong>
       {props.helper && <small>{props.helper}</small>}
+    </Card>
+  )
+}
+
+function TunnelClientStatusStat(props: { clients: any[]; tunnel?: any; t: Translator }) {
+  const clients = asArray(props.clients)
+  const fallbackClientId = displayText(props.tunnel?.clientId)
+  const items = clients.length
+    ? clients
+    : fallbackClientId
+      ? [{
+          clientId: fallbackClientId,
+          clientName: props.tunnel?.clientName,
+          connected: props.tunnel?.connected,
+          state: props.tunnel?.state,
+          lastError: props.tunnel?.lastError
+        }]
+      : []
+
+  return (
+    <Card className="wxp-stat wxp-tunnel-client-stat">
+      <span>{props.t('reverseTunnelClientStatus')}</span>
+      {items.length ? (
+        <div className="wxp-tunnel-lamps">
+          {items.map((client: any) => {
+            const state = tunnelClientLampState(client)
+            return (
+              <div className="wxp-tunnel-lamp-row" key={client.clientId || client.integrationId || client.clientName}>
+                <i className={`wxp-tunnel-lamp ${state}`} />
+                <strong title={displayText(client.clientId)}>{clip(client.clientName || client.clientId, 28)}</strong>
+                <small>{tunnelClientLampLabel(client, props.t)}</small>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <strong>{props.t('disconnected')}</strong>
+      )}
     </Card>
   )
 }
@@ -1553,6 +2064,9 @@ function DataTable(props: {
   emptyText: string
   loadingText?: string
   loading?: boolean
+  wrapperClassName?: string
+  tableClassName?: string
+  scrollX?: boolean
 }) {
   if (props.loading && !props.rows?.length) {
     return <div className="xui-empty">{props.loadingText || '...'}</div>
@@ -1560,10 +2074,10 @@ function DataTable(props: {
   if (!props.rows?.length) {
     return <div className="xui-empty">{props.emptyText}</div>
   }
-  return (
-    <ScrollArea className="wxp-table-wrap">
+  const table = (
+    <>
       {props.loading && <div className="wxp-table-loading">{props.loadingText || '...'}</div>}
-      <ShadcnTable className="wxp-data-table">
+      <ShadcnTable className={['wxp-data-table', props.tableClassName].filter(Boolean).join(' ')}>
         <TableHeader>
           <TableRow>
             {props.headers.map((header) => (
@@ -1581,6 +2095,15 @@ function DataTable(props: {
           ))}
         </TableBody>
       </ShadcnTable>
+    </>
+  )
+  const wrapperClassName = ['wxp-table-wrap', props.wrapperClassName].filter(Boolean).join(' ')
+  if (props.scrollX) {
+    return <div className={wrapperClassName}>{table}</div>
+  }
+  return (
+    <ScrollArea className={wrapperClassName}>
+      {table}
     </ScrollArea>
   )
 }
@@ -1632,13 +2155,13 @@ function badgeVariant(value: unknown): 'default' | 'secondary' | 'success' | 'wa
   if (['sent', 'dispatched', 'received', 'online', 'connected', 'outbound'].includes(text)) {
     return 'success'
   }
-  if (['bound_connected'].includes(text)) {
+  if (['bound_connected', 'exact'].includes(text)) {
     return 'success'
   }
   if (['failed', 'error', 'disabled', 'offline', 'disconnected'].includes(text)) {
     return 'destructive'
   }
-  if (['connected_unbound', 'skipped', 'unknown', 'system'].includes(text)) {
+  if (['connected_unbound', 'default', 'skipped', 'unknown', 'system'].includes(text)) {
     return 'warning'
   }
   return 'secondary'
@@ -1666,6 +2189,86 @@ function accountTunnelPill(binding: any, t: Translator) {
       {binding?.clientId && <small>{clip(binding.clientId, 28)}</small>}
     </div>
   )
+}
+
+function accountTriggerBindingCell(binding: any, t: Translator) {
+  const status = binding?.status || 'unbound'
+  return (
+    <div className="wxp-trigger-route-cell">
+      {translatedPill(status, t)}
+      {binding?.xpertId ? <small>{clip(binding.xpertId, 28)}</small> : <small>{t('unbound')}</small>}
+    </div>
+  )
+}
+
+function canScanLogin(account: any) {
+  if (account?.enabled === false) {
+    return false
+  }
+  const status = displayText(account?.status).toLowerCase()
+  return status === 'offline' || status === 'unknown' || status === 'error' || !status
+}
+
+function canLogout(account: any) {
+  if (account?.enabled === false) {
+    return false
+  }
+  return displayText(account?.status).toLowerCase() === 'online'
+}
+
+function tunnelClientLampState(client: any): 'connected' | 'error' | 'disconnected' {
+  const state = displayText(client?.state).toLowerCase()
+  const lastError = displayText(client?.lastError)
+  if (state === 'error' || (lastError && !isCleanTunnelDisconnectReason(lastError))) {
+    return 'error'
+  }
+  return client?.connected ? 'connected' : 'disconnected'
+}
+
+function isCleanTunnelDisconnectReason(reason: string) {
+  return [
+    'disconnected by WeChat workbench administrator',
+    'wechat reverse tunnel client disconnected by owner command',
+    'replaced by a new connection',
+    'broker shutting down'
+  ].some((text) => reason.includes(text))
+}
+
+function tunnelClientLampLabel(client: any, t: Translator) {
+  const state = tunnelClientLampState(client)
+  if (state === 'error') {
+    return t('error')
+  }
+  if (state === 'connected') {
+    return t('connected')
+  }
+  return t('disconnected')
+}
+
+function loginActionLabel(value: unknown, t: Translator) {
+  const action = displayText(value)
+  if (action === 'SHOW_QR') {
+    return t('waitingForScan')
+  }
+  if (action === 'SHOW_SCANNED_AVATAR') {
+    return t('waitingForConfirm')
+  }
+  if (action === 'SHOW_CODE_INPUT') {
+    return t('loginCodeRequired')
+  }
+  if (action === 'SHOW_SLIDE') {
+    return t('slideTicketRequired')
+  }
+  if (action === 'LOGIN_SUCCESS') {
+    return t('loginSuccess')
+  }
+  if (action === 'QR_EXPIRED') {
+    return t('qrExpired')
+  }
+  if (action === 'FAILED') {
+    return t('failed')
+  }
+  return ''
 }
 
 function tunnelBindingsCell(client: any, t: Translator) {

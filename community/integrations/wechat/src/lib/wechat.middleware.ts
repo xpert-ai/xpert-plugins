@@ -23,24 +23,25 @@ import {
   WECHAT_ICON,
   WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_LIST_ACCOUNTS_TOOL_NAME,
-  WECHAT_LIST_CONVERSATIONS_TOOL_NAME,
   WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_MIDDLEWARE_NAME,
   WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
-  WECHAT_REGISTER_CALLBACK_TOOL_NAME,
   WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
-  WECHAT_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_RUNTIME_FEATURE,
+  WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
   WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME,
   WECHAT_SEND_MESSAGE_TOOL_NAME,
   WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME,
   WECHAT_WORKBENCH_FEATURE
 } from './constants.js'
 import { normalizeString } from './types.js'
-import { WechatConversationService } from './conversation.service.js'
+import {
+  WechatConversationService,
+  type WechatChatHistoryQuery
+} from './conversation.service.js'
 import {
   WechatChannelStrategy,
   type WechatReplySendResult
@@ -102,6 +103,15 @@ type NormalizedWechatSendParams = Required<Pick<WechatScheduleSendTarget, 'uuid'
     atUsers: string[]
   }
 
+type WechatRuntimeHistoryContext = {
+  integrationId?: string
+  uuid?: string
+  contactId?: string
+  chatType?: 'private' | 'group'
+  senderId?: string
+  sourceMessageLogIds: string[]
+}
+
 const integrationField = z.string().optional().describe('WeChat integration id. Defaults to the middleware node option.')
 
 const runtimeStatusSchema = z.object({
@@ -119,13 +129,6 @@ const listAccountsSchema = z.object({
   pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
 })
 
-const listConversationsSchema = z.object({
-  integrationId: integrationField,
-  search: z.string().optional().describe('Keyword for account uuid, contact id, sender id, xpert id or conversation id.'),
-  page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
-  pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
-})
-
 const searchMessageLogsSchema = z.object({
   integrationId: integrationField,
   direction: z.enum(['inbound', 'outbound', 'system']).optional().describe('Message direction filter.'),
@@ -133,6 +136,34 @@ const searchMessageLogsSchema = z.object({
   search: z.string().optional().describe('Keyword for contact, sender, message id, content, error or conversation id.'),
   page: z.number().int().min(1).optional().describe('Page number. Defaults to 1.'),
   pageSize: z.number().int().min(1).max(100).optional().describe('Page size. Defaults to 50.')
+})
+
+const searchChatHistorySchema = z.object({
+  integrationId: integrationField,
+  uuid: z.string().optional().describe('wx2.0 account uuid/key. Defaults to the current WeChat runtime context.'),
+  contactId: z.string().optional().describe('Contact or group id. Defaults to the current WeChat conversation.'),
+  chatType: z.enum(['private', 'group']).optional().describe('Chat type. Defaults to current context or contactId.'),
+  senderId: z.string().optional().describe('Optional group member wxid filter.'),
+  keyword: z.string().optional().describe('Optional keyword to search inside message content.'),
+  direction: z.enum(['inbound', 'outbound', 'both']).optional().describe('Direction filter. Defaults to both.'),
+  before: z.string().optional().describe('Only return messages before this ISO timestamp.'),
+  after: z.string().optional().describe('Only return messages after this ISO timestamp.'),
+  limit: z.number().int().min(1).max(100).optional().describe('Maximum messages to return. Defaults to 20.'),
+  __wechatRuntimeHistory: z
+    .object({
+      integrationId: z.string().optional(),
+      uuid: z.string().optional(),
+      contactId: z.string().optional(),
+      chatType: z.enum(['private', 'group']).optional(),
+      senderId: z.string().optional(),
+      sourceMessageLogIds: z.array(z.string()).optional()
+    })
+    .describe('Internal middleware-injected current WeChat context. Do not set manually.')
+    .optional(),
+  __wechatRuntimeHistoryToken: z
+    .string()
+    .describe('Internal middleware injection token. Do not set manually.')
+    .optional()
 })
 
 const listOutboundQueueSchema = z.object({
@@ -151,18 +182,6 @@ const queueItemSchema = z.object({
 const outboundAccountSchema = z.object({
   integrationId: integrationField,
   uuid: z.string().min(1).describe('wx2.0 account uuid/key.')
-})
-
-const resetConversationSchema = z.object({
-  integrationId: integrationField,
-  bindingId: z.string().min(1).describe('Conversation binding id returned by wechat_list_conversations.')
-})
-
-const registerCallbackSchema = z.object({
-  integrationId: integrationField,
-  uuid: z.string().min(1).describe('wx2.0 account uuid/key.'),
-  callbackUrl: z.string().optional().describe('Optional callback URL. Defaults to the Xpert webhook URL.'),
-  enabled: z.boolean().optional().describe('Whether the wx2.0 per-account callback should be enabled. Defaults to true.')
 })
 
 const setAccountEnabledSchema = z.object({
@@ -270,21 +289,19 @@ const WECHAT_ADMIN_TOOL_NAMES = new Set([
   WECHAT_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME,
   WECHAT_LIST_ACCOUNTS_TOOL_NAME,
-  WECHAT_LIST_CONVERSATIONS_TOOL_NAME,
   WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME,
   WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
-  WECHAT_RESET_CONVERSATION_TOOL_NAME,
-  WECHAT_REGISTER_CALLBACK_TOOL_NAME,
   WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME
 ])
 
 const WECHAT_USER_TOOL_NAMES = new Set([
+  WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
   WECHAT_SEND_MESSAGE_TOOL_NAME
 ])
 
@@ -315,8 +332,8 @@ const WECHAT_RUNTIME_MIDDLEWARE_META: TAgentMiddlewareMeta = {
           zh_Hans: '工具模式'
         },
         description: {
-          en_US: 'admin exposes operational tools; user exposes only controlled proactive sending.',
-          zh_Hans: 'admin 暴露运维管理工具；user 只暴露受控主动发送工具。'
+          en_US: 'admin exposes operational tools; user exposes chat history search and controlled proactive sending.',
+          zh_Hans: 'admin 暴露运维管理工具；user 暴露会话历史检索和受控主动发送工具。'
         },
         default: 'user'
       } as any,
@@ -355,6 +372,7 @@ export class WechatRuntimeMiddleware
   ): PromiseOrValue<AgentMiddleware> {
     const toolMode = this.resolveToolMode(options, context)
     const runtimeSendToken = randomUUID()
+    const runtimeHistoryToken = randomUUID()
     const tools = [
       tool(
         async (input) =>
@@ -442,7 +460,7 @@ export class WechatRuntimeMiddleware
         {
           name: WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME,
           description:
-            'Get the Xpert webhook URL and SetCallback curl template for configuring wx2.0 callbacks.',
+            'Get the Xpert global webhook URL for configuring wx2.0 message callbacks.',
           schema: callbackConfigSchema
         }
       ),
@@ -470,26 +488,6 @@ export class WechatRuntimeMiddleware
             const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
             return this.success(
               integrationId
-                ? 'WeChat conversation bindings were listed.'
-                : 'Organization WeChat conversation bindings were listed.',
-              integrationId
-                ? await this.conversationService.listConversations(integrationId, input)
-                : await this.conversationService.listOrganizationConversations(input)
-            )
-          }),
-        {
-          name: WECHAT_LIST_CONVERSATIONS_TOOL_NAME,
-          description:
-            'List WeChat conversation bindings. Use this to find a binding id before resetting a conversation.',
-          schema: listConversationsSchema
-        }
-      ),
-      tool(
-        async (input) =>
-          this.safeJson(async () => {
-            const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
-            return this.success(
-              integrationId
                 ? 'WeChat message logs were searched.'
                 : 'Organization WeChat message logs were searched.',
               integrationId
@@ -502,6 +500,36 @@ export class WechatRuntimeMiddleware
           description:
             'Search inbound, outbound and system WeChat message logs for diagnostics and audit questions.',
           schema: searchMessageLogsSchema
+        }
+      ),
+      tool(
+        async (input) =>
+          this.safeJson(async () => {
+            const runtimeContext = input.__wechatRuntimeHistoryToken === runtimeHistoryToken
+              ? this.normalizeRuntimeHistoryContext(input.__wechatRuntimeHistory)
+              : this.resolveRuntimeHistoryContext(context)
+            const integrationId = await this.resolveIntegrationId(
+              normalizeString(input.integrationId) || runtimeContext.integrationId,
+              options,
+              context
+            )
+            if (!integrationId) {
+              return this.missingIntegrationId()
+            }
+            const query = this.buildChatHistoryQuery(input, runtimeContext, toolMode)
+            if (!query.uuid || !query.contactId) {
+              return this.error('Missing WeChat uuid or contactId. Use this tool from a WeChat conversation or provide both values explicitly.')
+            }
+            return this.success(
+              'WeChat chat history was returned.',
+              await this.conversationService.searchChatHistory(integrationId, query)
+            )
+          }),
+        {
+          name: WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
+          description:
+            'Search concise historical messages for the current WeChat private chat or group. Use when the user asks to recall, summarize, or find previous WeChat messages. Defaults to the current WeChat conversation and never returns raw webhook payloads.',
+          schema: searchChatHistorySchema
         }
       ),
       tool(
@@ -616,25 +644,6 @@ export class WechatRuntimeMiddleware
             if (!integrationId) {
               return this.missingIntegrationId()
             }
-            await this.conversationService.restartConversationBinding(integrationId, input.bindingId)
-            return this.success('WeChat conversation was reset.', {
-              bindingId: input.bindingId
-            })
-          }),
-        {
-          name: WECHAT_RESET_CONVERSATION_TOOL_NAME,
-          description:
-            'Reset one WeChat conversation binding by binding id so the next inbound message starts a fresh Agent conversation.',
-          schema: resetConversationSchema
-        }
-      ),
-      tool(
-        async (input) =>
-          this.safeJson(async () => {
-            const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
-            if (!integrationId) {
-              return this.missingIntegrationId()
-            }
             const result = await this.outboundQueue.cancelOutboundQueueItem(integrationId, input.logId)
             return result.success
               ? this.success('WeChat outbound queue item was cancelled.', result)
@@ -662,37 +671,6 @@ export class WechatRuntimeMiddleware
           name: WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
           description: 'Retry one failed, cancelled or paused WeChat outbound message by outbound message log id.',
           schema: queueItemSchema
-        }
-      ),
-      tool(
-        async (input) =>
-          this.safeJson(async () => {
-            const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
-            if (!integrationId) {
-              return this.missingIntegrationId()
-            }
-            const integration = await this.wechatChannel.readIntegrationById(integrationId)
-            if (!integration) {
-              return this.error(`WeChat integration "${integrationId}" was not found.`)
-            }
-            const callbackConfig = await this.conversationService.buildCallbackConfig(integration.id, {
-              requireActiveCredential: true
-            })
-            const result = await this.wechatChannel.registerCallback({
-              integrationId: integration.id,
-              uuid: input.uuid,
-              callbackUrl: normalizeString(input.callbackUrl) || callbackConfig.webhookUrl,
-              enabled: input.enabled !== false
-            })
-            return result.success
-              ? this.success('wx2.0 SetCallback registration succeeded.', result)
-              : this.error(result.error || 'wx2.0 SetCallback registration failed.', result)
-          }),
-        {
-          name: WECHAT_REGISTER_CALLBACK_TOOL_NAME,
-          description:
-            'Register or update a wx2.0 per-account callback for a known account uuid/key. This is an administrative setup action.',
-          schema: registerCallbackSchema
         }
       ),
       tool(
@@ -778,7 +756,27 @@ export class WechatRuntimeMiddleware
       wrapToolCall: async (request, handler) => {
         const toolName =
           normalizeString(request.toolCall?.name) || normalizeString((request.tool as { name?: unknown })?.name)
-        if (toolMode !== 'user' || toolName !== WECHAT_SEND_MESSAGE_TOOL_NAME) {
+        if (toolMode !== 'user') {
+          return handler(request)
+        }
+
+        if (toolName === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME) {
+          const runtimeHistoryContext = this.resolveRuntimeHistoryContext(context, request)
+          const input = this.asRecord(request.toolCall?.args) ?? {}
+          return handler({
+            ...request,
+            toolCall: {
+              ...request.toolCall,
+              args: {
+                ...input,
+                __wechatRuntimeHistory: runtimeHistoryContext,
+                __wechatRuntimeHistoryToken: runtimeHistoryToken
+              }
+            }
+          })
+        }
+
+        if (toolName !== WECHAT_SEND_MESSAGE_TOOL_NAME) {
           return handler(request)
         }
 
@@ -856,6 +854,116 @@ export class WechatRuntimeMiddleware
     }
     const xpertId = normalizeString(context.xpertId)
     return xpertId ? this.conversationService.getBoundIntegrationIdForXpert(xpertId) : null
+  }
+
+  private buildChatHistoryQuery(
+    input: Record<string, unknown>,
+    runtimeContext: WechatRuntimeHistoryContext,
+    toolMode: WechatRuntimeToolMode
+  ): WechatChatHistoryQuery {
+    const contactId = normalizeString(input.contactId) || runtimeContext.contactId
+    return {
+      uuid: normalizeString(input.uuid) || runtimeContext.uuid,
+      contactId,
+      chatType: this.normalizeChatType(input.chatType) || runtimeContext.chatType || (contactId?.endsWith('@chatroom') ? 'group' : 'private'),
+      senderId: normalizeString(input.senderId) || undefined,
+      keyword: normalizeString(input.keyword) || undefined,
+      direction: input.direction === 'inbound' || input.direction === 'outbound' || input.direction === 'both'
+        ? input.direction
+        : undefined,
+      before: normalizeString(input.before) || undefined,
+      after: normalizeString(input.after) || undefined,
+      limit: typeof input.limit === 'number' ? input.limit : undefined,
+      excludedLogIds: runtimeContext.sourceMessageLogIds,
+      enforceTriggerFilters: toolMode === 'user'
+    }
+  }
+
+  private resolveRuntimeHistoryContext(
+    context: IAgentMiddlewareContext,
+    request?: unknown
+  ): WechatRuntimeHistoryContext {
+    const requestRecord = this.asRecord(request)
+    const runtimeRecord = this.asRecord(requestRecord?.runtime)
+    const configurableRecord = this.asRecord(runtimeRecord?.configurable)
+    const metadataRecord = this.asRecord(runtimeRecord?.metadata)
+    const stateRecord = this.asRecord(requestRecord?.state)
+    const contextRecord = this.asRecord(context)
+    const runtimePrincipalRecord =
+      this.asRecord(configurableRecord?.runtimePrincipal) ||
+      this.asRecord(runtimeRecord?.runtimePrincipal) ||
+      this.asRecord(contextRecord?.runtimePrincipal)
+    const records = [
+      configurableRecord,
+      metadataRecord,
+      stateRecord,
+      requestRecord,
+      contextRecord,
+      runtimePrincipalRecord
+    ]
+
+    const integrationId =
+      this.readFirstString(records, ['integrationId', 'sourceIntegrationId']) ||
+      this.readFirstString([runtimePrincipalRecord], ['sourceIntegrationId'])
+    const contactId = this.readFirstString(records, ['contactId', 'contact_id', 'chatId', 'chat_id'])
+    const chatType = this.normalizeChatType(this.readFirstString(records, ['chatType', 'chat_type']))
+
+    return {
+      integrationId,
+      uuid: this.readFirstString(records, ['uuid']),
+      contactId,
+      chatType: chatType || (contactId?.endsWith('@chatroom') ? 'group' : undefined),
+      senderId: this.readFirstString(records, ['senderId', 'sender_id', 'channelUserId']),
+      sourceMessageLogIds: this.readFirstStringList(records, ['sourceMessageLogIds', 'currentInboundLogIds'])
+    }
+  }
+
+  private normalizeRuntimeHistoryContext(value: unknown): WechatRuntimeHistoryContext {
+    const record = this.asRecord(value)
+    const contactId = normalizeString(record?.contactId)
+    const chatType = this.normalizeChatType(record?.chatType)
+    return {
+      integrationId: normalizeString(record?.integrationId) || undefined,
+      uuid: normalizeString(record?.uuid) || undefined,
+      contactId: contactId || undefined,
+      chatType: chatType || (contactId?.endsWith('@chatroom') ? 'group' : undefined),
+      senderId: normalizeString(record?.senderId) || undefined,
+      sourceMessageLogIds: this.normalizeStringList(record?.sourceMessageLogIds)
+    }
+  }
+
+  private readFirstString(
+    records: Array<Record<string, unknown> | null | undefined>,
+    keys: string[]
+  ): string | undefined {
+    for (const record of records) {
+      if (!record) {
+        continue
+      }
+      for (const key of keys) {
+        const value = normalizeString(record[key])
+        if (value) {
+          return value
+        }
+      }
+    }
+    return undefined
+  }
+
+  private readFirstStringList(
+    records: Array<Record<string, unknown> | null | undefined>,
+    keys: string[]
+  ): string[] {
+    const values = new Set<string>()
+    for (const record of records) {
+      if (!record) {
+        continue
+      }
+      for (const key of keys) {
+        this.normalizeStringList(record[key]).forEach((value) => values.add(value))
+      }
+    }
+    return Array.from(values)
   }
 
   private resolveScheduleState(state: unknown): WechatScheduleState {

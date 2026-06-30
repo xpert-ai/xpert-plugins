@@ -50,6 +50,39 @@ export interface WechatSendResult {
   raw?: unknown
 }
 
+export interface WechatBindDeviceKeyInput {
+  key: string
+}
+
+export interface WechatDeviceLoginInput {
+  uuid: string
+}
+
+export interface WechatDeviceLoginPollInput {
+  uuid: string
+  sessionId: string
+}
+
+export interface WechatDeviceLoginVerifyCodeInput {
+  uuid: string
+  code: string
+  data62: string
+  ticket: string
+  sessionId?: string
+}
+
+export interface WechatDeviceLoginVerifySlideInput {
+  data62: string
+  ticket: string
+  randstr: string
+  slideticket: string
+  sessionId?: string
+}
+
+export interface WechatDeviceAccountInput {
+  uuid: string
+}
+
 export type WechatDownloadedImageFile = WechatInboundFile &
   Required<
     Pick<
@@ -355,22 +388,95 @@ export class WechatClient {
     return body
   }
 
-  async registerCallback(params: {
+  async bindDeviceKey(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatBindDeviceKeyInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/bindkey', {
+      key: input.key
+    })
+  }
+
+  async listDeviceAccounts(
     integration: IIntegration<TIntegrationWechatOptions>
-    uuid: string
-    callbackUrl: string
-    enabled?: boolean
-  }): Promise<WechatSendResult> {
-    const baseUrl = normalizeBaseUrl(params.integration.options?.baseUrl)
-    const path = `/message/SetCallback?key=${encodeURIComponent(params.uuid)}`
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/getalluserlist', {})
+  }
+
+  async startDeviceLogin(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceLoginInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/getqrcode', {
+      uuid: input.uuid
+    })
+  }
+
+  async pollDeviceLogin(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceLoginPollInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/getscanuser', {
+      uuid: input.uuid,
+      sessionId: input.sessionId
+    })
+  }
+
+  async verifyLoginCode(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceLoginVerifyCodeInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/verifylogincode', {
+      uuid: input.uuid,
+      code: input.code,
+      data62: input.data62,
+      ticket: input.ticket,
+      sessionId: input.sessionId
+    })
+  }
+
+  async verifyLoginSlide(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceLoginVerifySlideInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/verifyloginslide', {
+      data62: input.data62,
+      ticket: input.ticket,
+      randstr: input.randstr,
+      slideticket: input.slideticket,
+      sessionId: input.sessionId
+    })
+  }
+
+  async logoutDeviceAccount(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceAccountInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/exitlogin', {
+      uuid: input.uuid
+    })
+  }
+
+  async deleteDeviceAccount(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDeviceAccountInput
+  ): Promise<WechatSendResult> {
+    return this.postV2Json(integration, 'account/deletekey', {
+      uuid: input.uuid
+    })
+  }
+
+  private async postV2Json(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<WechatSendResult> {
+    const options = integration.options || ({} as TIntegrationWechatOptions)
     return this.postJson(
-      params.integration,
-      `${baseUrl}${path}`,
-      path,
-      {
-        CallbackURL: params.callbackUrl,
-        Enabled: params.enabled !== false
-      }
+      integration,
+      this.buildV2Url(options, path),
+      this.buildV2Path(options, path),
+      body
     )
   }
 

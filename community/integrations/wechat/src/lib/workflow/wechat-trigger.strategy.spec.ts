@@ -18,7 +18,7 @@ import { WechatMessage } from '../message.js'
 
 describe('WechatTriggerStrategy', () => {
   it('replays published trigger bindings during server bootstrap', () => {
-    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any)
+    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
 
     expect(strategy.bootstrap).toEqual({
       mode: 'replay_publish',
@@ -27,7 +27,7 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('exposes translated labels for trigger select options', () => {
-    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any)
+    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
     const properties = (strategy.meta.configSchema as any).properties
 
     expect(properties.selfMessagePolicy['x-ui'].enumLabels.history_only.zh_Hans).toBe('只写入历史')
@@ -35,6 +35,9 @@ describe('WechatTriggerStrategy', () => {
     expect(properties.groupTriggerMode['x-ui'].enumLabels.mention_or_keywords.en_US).toBe('@ mention or keywords')
     expect(properties.groupTriggerOverrides.title.zh_Hans).toBe('按群触发配置')
     expect(properties.groupTriggerOverrides.items.properties.groupId.title.zh_Hans).toBe('群 ID')
+    expect(properties.groupJoinWelcomeEnabled.title.zh_Hans).toBe('欢迎新入群成员')
+    expect(properties.groupJoinWelcomePrompt['x-ui'].component).toBe('textarea')
+    expect(properties.groupJoinWelcomePrompt.default).toContain('{names}')
   })
 
   function createStrategy(bindingOverrides: Record<string, unknown> = {}) {
@@ -55,8 +58,10 @@ describe('WechatTriggerStrategy', () => {
     }
     const bindingRepository = {
       upsert: jest.fn().mockResolvedValue(undefined),
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue({
         integrationId: 'integration-1',
+        accountUuid: '*',
         xpertId: 'xpert-1',
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
@@ -65,6 +70,12 @@ describe('WechatTriggerStrategy', () => {
         ignoreSelfMessages: true,
         selfMessagePolicy: 'history_only',
         ...bindingOverrides
+      })
+    }
+    const accountRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1'
       })
     }
     const messageLogRepository = {
@@ -83,6 +94,7 @@ describe('WechatTriggerStrategy', () => {
       aggregationService as any,
       {} as any,
       bindingRepository as any,
+      accountRepository as any,
       pluginContext as any,
       messageLogRepository as any
     )
@@ -100,7 +112,7 @@ describe('WechatTriggerStrategy', () => {
         status: 'thinking'
       }
     )
-    return { strategy, dispatchService, aggregationService, bindingRepository, messageLogRepository, wechatMessage }
+    return { strategy, dispatchService, aggregationService, bindingRepository, accountRepository, messageLogRepository, wechatMessage }
   }
 
   it('normalizes per-group trigger overrides when publishing a binding', async () => {
@@ -117,6 +129,8 @@ describe('WechatTriggerStrategy', () => {
           groupTriggerMode: 'mention_or_keywords',
           groupKeywords: ['默认'],
           mentionFallbackNames: ['全局助手'],
+          groupJoinWelcomeEnabled: true,
+          groupJoinWelcomePrompt: '欢迎 {names} 加入 {groupName}',
           groupTriggerOverrides: [
             {
               groupId: 'room-a@chatroom',
@@ -144,9 +158,143 @@ describe('WechatTriggerStrategy', () => {
             groupKeywords: ['订单'],
             mentionFallbackNames: ['订单助手']
           }
-        ]
+        ],
+        groupJoinWelcomeEnabled: true,
+        groupJoinWelcomePrompt: '欢迎 {names} 加入 {groupName}'
       }),
-      ['integrationId']
+      ['integrationId', 'accountUuid']
+    )
+  })
+
+  it('publishes exact account bindings with the integration/account conflict target', async () => {
+    const { strategy, bindingRepository, accountRepository } = createStrategy()
+    bindingRepository.findOne.mockResolvedValue(null)
+
+    await strategy.publish(
+      {
+        xpertId: 'xpert-2',
+        node: { key: 'Trigger_Wechat' },
+        config: {
+          enabled: true,
+          integrationId: 'integration-1',
+          accountUuid: 'uuid-1'
+        }
+      } as any,
+      jest.fn()
+    )
+
+    expect(accountRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          integrationId: 'integration-1',
+          uuid: 'uuid-1'
+        })
+      })
+    )
+    expect(bindingRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        accountUuid: 'uuid-1',
+        xpertId: 'xpert-2'
+      }),
+      ['integrationId', 'accountUuid']
+    )
+  })
+
+  it('prefers exact account bindings before falling back to the default binding', async () => {
+    const { strategy, dispatchService, bindingRepository, wechatMessage } = createStrategy()
+    bindingRepository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        integrationId: 'integration-1',
+        accountUuid: '*',
+        xpertId: 'xpert-default',
+        sessionTimeoutSeconds: 3600,
+        summaryWindowSeconds: 0,
+        historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
+        ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only'
+      })
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        accountUuid: 'uuid-2',
+        input: '账号二消息',
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-2:wxid_friend:wxid_friend',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      queued: false,
+      dispatched: true
+    })
+
+    expect(bindingRepository.findOne).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          integrationId: 'integration-1',
+          accountUuid: 'uuid-2'
+        })
+      })
+    )
+    expect(bindingRepository.findOne).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          integrationId: 'integration-1',
+          accountUuid: '*'
+        })
+      })
+    )
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        xpertId: 'xpert-default',
+        input: '账号二消息'
+      })
+    )
+  })
+
+  it('routes exact account bindings to their own xpert', async () => {
+    const { strategy, dispatchService, bindingRepository, wechatMessage } = createStrategy()
+    bindingRepository.findOne.mockResolvedValueOnce({
+      integrationId: 'integration-1',
+      accountUuid: 'uuid-2',
+      xpertId: 'xpert-2',
+      sessionTimeoutSeconds: 3600,
+      summaryWindowSeconds: 0,
+      historyContextLimit: 20,
+      historyContextWindowSeconds: 3600,
+      ignoreSelfMessages: true,
+      selfMessagePolicy: 'history_only'
+    })
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        accountUuid: 'uuid-2',
+        input: '账号二消息',
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-2:wxid_friend:wxid_friend',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      queued: false,
+      dispatched: true
+    })
+
+    expect(bindingRepository.findOne).toHaveBeenCalledTimes(1)
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        xpertId: 'xpert-2',
+        input: '账号二消息'
+      })
     )
   })
 
@@ -233,6 +381,7 @@ describe('WechatTriggerStrategy', () => {
       expect.objectContaining({
         aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
         integrationId: 'integration-1',
+        accountUuid: '*',
         xpertId: 'xpert-1',
         input: '第一条',
         files: [
@@ -259,6 +408,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       xpertId: 'xpert-1',
       version: 1,
@@ -286,6 +436,7 @@ describe('WechatTriggerStrategy', () => {
       strategy.processInboundAggregateJob({
         aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
         integrationId: 'integration-1',
+        accountUuid: '*',
         xpertId: 'xpert-1',
         input: '第二条',
         files: [
@@ -352,6 +503,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       xpertId: 'xpert-1',
       version: 3,
@@ -413,6 +565,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       xpertId: 'xpert-1',
       version: 4,
@@ -467,6 +620,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
       xpertId: 'xpert-1',
       version: 6,
@@ -552,6 +706,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
       xpertId: 'xpert-1',
       version: 7,
@@ -607,6 +762,7 @@ describe('WechatTriggerStrategy', () => {
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       xpertId: 'xpert-1',
       version: 5,

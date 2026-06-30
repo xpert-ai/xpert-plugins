@@ -58,7 +58,7 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).toContain('tunnelClientId')
     expect(source).toContain('outboundQueue')
     expect(source).toContain('fallbackToLegacySendText')
-    expect(source).toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
+    expect(source).not.toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
     expect(source).not.toContain('chatFilterMode: {')
     expect(source).not.toContain('allowedGroupIds: {')
     expect(source).not.toContain('blockedGroupIds: {')

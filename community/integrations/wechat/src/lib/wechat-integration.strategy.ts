@@ -32,7 +32,6 @@ import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 
 export const WECHAT_CALLBACK_HINTS = [
   '推荐：wx2.0 config webhook.allMessagePushUrl / AllMsgPushUrl 指向 Xpert webhook URL',
-  '兼容：对单个账号调用 /message/SetCallback?key=<uuid> 设置 CallbackURL',
   '消息回复：Xpert 插件调用 wx2.0 /v1/message/sendtext，失败时可回退旧接口',
   '外网 Xpert 访问内网服务时，可选择 reverse_tunnel，由本地 sidecar 通过 WSS 连接 Xpert 插件'
 ] as const
@@ -432,7 +431,6 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     const webhookSecret = integration?.id ? await this.ensureWebhookSecret(integration.id, config) : null
     const secretForUrl = webhookSecret || '<webhook-secret>'
     const callbackUrl = `${apiBaseUrl}/api/wechat/webhook/${integrationId}?secret=${encodeURIComponent(secretForUrl)}`
-    const redactedCallbackUrl = `${apiBaseUrl}/api/wechat/webhook/${integrationId}?secret=***`
     const setup = this.tunnelBroker.buildSetupConfig(config.tunnelClientId, integration?.name || WECHAT_PROVIDER_KEY)
 
     return {
@@ -441,17 +439,6 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
         mode: 'http',
         callbackUrl,
         globalWebhookConfigKeys: ['webhook.allMessagePushUrl', 'AllMsgPushUrl'],
-        setCallback: {
-          method: 'POST',
-          urlTemplate:
-            connectionMode === 'reverse_tunnel'
-              ? 'reverse_tunnel:/message/SetCallback?key=<uuid>'
-              : `${baseUrl}/message/SetCallback?key=<uuid>`,
-          body: {
-            CallbackURL: redactedCallbackUrl,
-            Enabled: true
-          }
-        },
         expectedAckMs: 1500,
         subscriptionHints: [...WECHAT_CALLBACK_HINTS]
       },

@@ -195,6 +195,159 @@ describe('WechatClient', () => {
     )
   })
 
+  it('maps wx2.0 account APIs through direct_http', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      return new Response(JSON.stringify({ code: 0, data: { ok: true } }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+
+    const integration = {
+      id: 'integration-1',
+      options: {
+        baseUrl: 'http://127.0.0.1:8058',
+        apiVersion: '/v1/',
+        apiToken: 'token-1'
+      }
+    } as any
+    const client = new WechatClient()
+
+    await client.bindDeviceKey(integration, { key: 'SDabc1234567' })
+    await client.listDeviceAccounts(integration)
+    await client.startDeviceLogin(integration, { uuid: 'SDabc1234567' })
+    await client.pollDeviceLogin(integration, { uuid: 'SDabc1234567', sessionId: 'session-1' })
+    await client.verifyLoginCode(integration, {
+      uuid: 'SDabc1234567',
+      code: '123456',
+      data62: 'data62',
+      ticket: 'ticket',
+      sessionId: 'session-1'
+    })
+    await client.verifyLoginSlide(integration, {
+      data62: 'data62',
+      ticket: 'ticket',
+      randstr: 'rand',
+      slideticket: 'slide',
+      sessionId: 'session-1'
+    })
+    await client.logoutDeviceAccount(integration, { uuid: 'SDabc1234567' })
+    await client.deleteDeviceAccount(integration, { uuid: 'SDabc1234567' })
+
+    expect(calls.map((call) => call.url)).toEqual([
+      'http://127.0.0.1:8058/v1/account/bindkey',
+      'http://127.0.0.1:8058/v1/account/getalluserlist',
+      'http://127.0.0.1:8058/v1/account/getqrcode',
+      'http://127.0.0.1:8058/v1/account/getscanuser',
+      'http://127.0.0.1:8058/v1/account/verifylogincode',
+      'http://127.0.0.1:8058/v1/account/verifyloginslide',
+      'http://127.0.0.1:8058/v1/account/exitlogin',
+      'http://127.0.0.1:8058/v1/account/deletekey'
+    ])
+    for (const call of calls) {
+      expect(call.init.headers).toEqual(
+        expect.objectContaining({
+          'Content-Type': 'application/json',
+          token: 'token-1'
+        })
+      )
+    }
+    expect(calls.map((call) => JSON.parse(String(call.init.body)))).toEqual([
+      { key: 'SDabc1234567' },
+      {},
+      { uuid: 'SDabc1234567' },
+      { uuid: 'SDabc1234567', sessionId: 'session-1' },
+      { uuid: 'SDabc1234567', code: '123456', data62: 'data62', ticket: 'ticket', sessionId: 'session-1' },
+      { data62: 'data62', ticket: 'ticket', randstr: 'rand', slideticket: 'slide', sessionId: 'session-1' },
+      { uuid: 'SDabc1234567' },
+      { uuid: 'SDabc1234567' }
+    ])
+  })
+
+  it('maps wx2.0 account APIs through reverse_tunnel http frames', async () => {
+    const tunnelBroker = {
+      sendHttpRequest: jest.fn(async () => ({
+        status: 200,
+        headers: {},
+        body: Buffer.from(JSON.stringify({ code: 0, data: { ok: true } })),
+        text: JSON.stringify({ code: 0, data: { ok: true } })
+      }))
+    }
+
+    const integration = {
+      id: 'integration-1',
+      options: {
+        connectionMode: 'reverse_tunnel',
+        tunnelClientId: 'client-1',
+        apiVersion: '/v1/',
+        apiToken: 'token-1'
+      }
+    } as any
+    const client = new WechatClient(tunnelBroker as any)
+
+    await client.bindDeviceKey(integration, { key: 'SDabc1234567' })
+    await client.listDeviceAccounts(integration)
+    await client.startDeviceLogin(integration, { uuid: 'SDabc1234567' })
+    await client.pollDeviceLogin(integration, { uuid: 'SDabc1234567', sessionId: 'session-1' })
+    await client.verifyLoginCode(integration, {
+      uuid: 'SDabc1234567',
+      code: '123456',
+      data62: 'data62',
+      ticket: 'ticket',
+      sessionId: 'session-1'
+    })
+    await client.verifyLoginSlide(integration, {
+      data62: 'data62',
+      ticket: 'ticket',
+      randstr: 'rand',
+      slideticket: 'slide',
+      sessionId: 'session-1'
+    })
+    await client.logoutDeviceAccount(integration, { uuid: 'SDabc1234567' })
+    await client.deleteDeviceAccount(integration, { uuid: 'SDabc1234567' })
+
+    const tunnelRequests = (
+      tunnelBroker.sendHttpRequest.mock.calls as unknown as Array<[
+        {
+          path: string
+          body: string
+        }
+      ]>
+    ).map(([request]) => request)
+
+    expect(tunnelRequests.map((request) => request.path)).toEqual([
+      '/v1/account/bindkey',
+      '/v1/account/getalluserlist',
+      '/v1/account/getqrcode',
+      '/v1/account/getscanuser',
+      '/v1/account/verifylogincode',
+      '/v1/account/verifyloginslide',
+      '/v1/account/exitlogin',
+      '/v1/account/deletekey'
+    ])
+    expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          token: 'token-1'
+        })
+      })
+    )
+    expect(tunnelRequests.map((request) => JSON.parse(request.body))).toEqual([
+      { key: 'SDabc1234567' },
+      {},
+      { uuid: 'SDabc1234567' },
+      { uuid: 'SDabc1234567', sessionId: 'session-1' },
+      { uuid: 'SDabc1234567', code: '123456', data62: 'data62', ticket: 'ticket', sessionId: 'session-1' },
+      { data62: 'data62', ticket: 'ticket', randstr: 'rand', slideticket: 'slide', sessionId: 'session-1' },
+      { uuid: 'SDabc1234567' },
+      { uuid: 'SDabc1234567' }
+    ])
+  })
+
   it('maps sendImage to wx2.0 v2 sendimage body', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = []
     globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {

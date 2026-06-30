@@ -49,8 +49,6 @@ describe('WechatConversationService duplicate detection', () => {
         getStatus: jest.fn(() => ({ connected: false, bindingCount: 0, bindings: [] }))
       } as any,
       {} as any,
-      {} as any,
-      {} as any,
       { count } as any,
       {} as any
     )
@@ -93,7 +91,7 @@ describe('WechatConversationService duplicate detection', () => {
     })
   })
 
-  it('deduplicates wx2.0 dual callbacks when the legacy numeric id loses precision', async () => {
+  it('deduplicates wx2.0 callbacks when the message id differs but content matches', async () => {
     const count = jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1)
     const service = createService(count)
 
@@ -149,30 +147,28 @@ describe('WechatConversationService duplicate detection', () => {
     expect(keys.some((key: string) => key.includes('|media:'))).toBe(true)
   })
 
-  it('guards concurrent dual callbacks before the message log is committed', () => {
+  it('guards concurrent equivalent webhook callbacks before the message log is committed', () => {
     const service = createService(jest.fn())
-    const legacyEvent = {
+    const firstEvent = {
       ...baseEvent,
-      source: 'legacy_callback' as const,
       messageId: '622368768'
     }
-    const webhookEvent = {
+    const secondEvent = {
       ...baseEvent,
-      source: 'message_webhook' as const,
       messageId: '1981963849618395083'
     }
 
-    const legacyKeys = (service as any).buildInboundDedupeKeys('integration-1', legacyEvent)
-    const webhookKeys = (service as any).buildInboundDedupeKeys('integration-1', webhookEvent)
+    const firstKeys = (service as any).buildInboundDedupeKeys('integration-1', firstEvent)
+    const secondKeys = (service as any).buildInboundDedupeKeys('integration-1', secondEvent)
     const releaseLock = (service as any).releaseInboundDedupeLock.bind(service)
 
-    expect(legacyKeys.some((key: string) => webhookKeys.includes(key))).toBe(true)
-    expect((service as any).acquireInboundDedupeLock(legacyKeys)).toBe(true)
-    expect((service as any).acquireInboundDedupeLock(webhookKeys)).toBe(false)
+    expect(firstKeys.some((key: string) => secondKeys.includes(key))).toBe(true)
+    expect((service as any).acquireInboundDedupeLock(firstKeys)).toBe(true)
+    expect((service as any).acquireInboundDedupeLock(secondKeys)).toBe(false)
 
-    releaseLock(legacyKeys)
-    expect((service as any).acquireInboundDedupeLock(webhookKeys)).toBe(true)
-    releaseLock(webhookKeys)
+    releaseLock(firstKeys)
+    expect((service as any).acquireInboundDedupeLock(secondKeys)).toBe(true)
+    releaseLock(secondKeys)
   })
 })
 
@@ -194,6 +190,37 @@ describe('WechatConversationService fresh session history context', () => {
     isSelf: false,
     raw: {},
     rawPayload: {}
+  }
+
+  const groupJoinEvent: WechatInboundEvent = {
+    source: 'message_webhook',
+    uuid: 'uuid-1',
+    ownerWxid: 'wxid_owner',
+    contactId: 'room@chatroom',
+    contactName: '测试群',
+    fromUser: 'room@chatroom',
+    toUser: 'wxid_owner',
+    senderId: 'room@chatroom',
+    chatId: 'room@chatroom',
+    chatType: 'group',
+    messageId: 'join-1',
+    msgType: 10000,
+    messageKind: 'unsupported',
+    content: '"老威"与群里其他人都不是朋友关系，请注意隐私安全',
+    displayText: '"老威"与群里其他人都不是朋友关系，请注意隐私安全',
+    timestamp: Date.now(),
+    isSelf: false,
+    raw: {},
+    rawPayload: {}
+  }
+
+  const groupQrJoinEvent: WechatInboundEvent = {
+    ...groupJoinEvent,
+    messageId: 'join-2',
+    msgType: 10002,
+    content:
+      '<sysmsg type="sysmsgtemplate"><sysmsgtemplate><content_template type="tmpl_type_profilewithrevokeqrcode"><template><![CDATA["$adder$"通过扫描你分享的二维码加入群聊  $revoke$]]></template><link_list><link name="adder" type="link_profile"><memberlist><member><username><![CDATA[anypossible-w]]></username><nickname><![CDATA[暗梅幽闻花]]></nickname></member></memberlist></link><link name="revoke" type="link_revoke_qrcode" hidden="1"><title><![CDATA[撤销]]></title></link></link_list></content_template></sysmsgtemplate></sysmsg>',
+    displayText: "'暗梅幽闻花'通过扫描你分享的二维码加入群聊  撤销"
   }
 
   function createQueryBuilder(logs: any[] = []) {
@@ -220,6 +247,7 @@ describe('WechatConversationService fresh session history context', () => {
     const triggerStrategy = {
       getBinding: jest.fn().mockResolvedValue({
         integrationId: 'integration-1',
+        accountUuid: '*',
         xpertId: 'xpert-1',
         sessionTimeoutSeconds: 3600,
         summaryWindowSeconds: 0,
@@ -229,8 +257,27 @@ describe('WechatConversationService fresh session history context', () => {
         selfMessagePolicy: 'history_only',
         chatFilterMode: 'all',
         groupTriggerMode: 'mention_or_keywords',
+        groupJoinWelcomeEnabled: false,
+        groupJoinWelcomePrompt: '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。',
         ...overrides.triggerBinding
       }),
+      getBindingForAccount: jest.fn().mockResolvedValue({
+        integrationId: 'integration-1',
+        accountUuid: '*',
+        xpertId: 'xpert-1',
+        sessionTimeoutSeconds: 3600,
+        summaryWindowSeconds: 0,
+        historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
+        ignoreSelfMessages: true,
+        selfMessagePolicy: 'history_only',
+        chatFilterMode: 'all',
+        groupTriggerMode: 'mention_or_keywords',
+        groupJoinWelcomeEnabled: false,
+        groupJoinWelcomePrompt: '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。',
+        ...overrides.triggerBinding
+      }),
+      getBindings: jest.fn().mockResolvedValue(overrides.triggerBindings ?? []),
       handleInboundMessage: jest.fn().mockResolvedValue(true),
       clearBufferedConversation: jest.fn().mockResolvedValue(undefined)
     }
@@ -295,6 +342,7 @@ describe('WechatConversationService fresh session history context', () => {
         ...payload
       })),
       update: jest.fn().mockResolvedValue(undefined),
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue(null),
       createQueryBuilder: jest.fn(() => createQueryBuilder())
     }
@@ -303,8 +351,6 @@ describe('WechatConversationService fresh session history context', () => {
       wechatClient as any,
       triggerStrategy as any,
       tunnelBroker as any,
-      { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any,
-      { delete: jest.fn().mockResolvedValue(undefined) } as any,
       accountRepository as any,
       messageLogRepository as any,
       {
@@ -330,7 +376,6 @@ describe('WechatConversationService fresh session history context', () => {
   it('dispatches every inbound message without reusing an existing conversationId', async () => {
     const { service, triggerStrategy } = createFullService()
     const historySpy = jest.spyOn(service as any, 'buildHistoryContext').mockResolvedValue('[历史上下文]')
-    const getConversationSpy = jest.spyOn(service as any, 'getConversationState')
 
     await expect(
       service.handleInboundEvent(baseEvent, {
@@ -340,7 +385,6 @@ describe('WechatConversationService fresh session history context', () => {
       } as any)
     ).resolves.toEqual({ handled: true, reason: 'dispatched' })
 
-    expect(getConversationSpy).not.toHaveBeenCalled()
     expect(historySpy).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
@@ -356,10 +400,151 @@ describe('WechatConversationService fresh session history context', () => {
     )
     expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
       expect.objectContaining({
+        accountUuid: 'uuid-1',
         historyContext: '[历史上下文]',
         currentInboundLogIds: ['inbound-log-1']
       })
     )
+  })
+
+  it('drops weixin events before account, log, or trigger handling', async () => {
+    const { service, messageLogRepository, triggerStrategy } = createFullService()
+    const upsertSpy = jest.spyOn(service as any, 'upsertAccount')
+    const logSpy = jest.spyOn(service as any, 'logInbound')
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          senderId: 'weixin',
+          fromUser: 'weixin'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: false, reason: 'weixin_ignored' })
+
+    expect(upsertSpy).not.toHaveBeenCalled()
+    expect(logSpy).not.toHaveBeenCalled()
+    expect(messageLogRepository.save).not.toHaveBeenCalled()
+    expect(triggerStrategy.getBindingForAccount).not.toHaveBeenCalled()
+  })
+
+  it('skips group join system messages when welcome is disabled', async () => {
+    const { service, triggerStrategy, messageLogRepository } = createFullService({
+      triggerBinding: {
+        groupJoinWelcomeEnabled: false,
+        groupTriggerMode: 'off'
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(groupJoinEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: false, reason: 'filtered' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'skipped',
+        error: 'filtered_by_trigger_policy',
+        content: '"老威"与群里其他人都不是朋友关系，请注意隐私安全'
+      })
+    )
+  })
+
+  it('dispatches group join welcome through the agent independently of group trigger mode', async () => {
+    const { service, triggerStrategy } = createFullService({
+      triggerBinding: {
+        groupJoinWelcomeEnabled: true,
+        groupJoinWelcomePrompt: '欢迎 {names} 加入 {groupName}',
+        groupTriggerMode: 'off'
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(groupJoinEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining('欢迎 老威 加入 测试群'),
+        item: expect.objectContaining({
+          input: expect.stringContaining('新成员: 老威'),
+          messageKind: 'text',
+          chatType: 'group'
+        }),
+        wechatMessage: expect.objectContaining({
+          contactId: 'room@chatroom',
+          senderId: 'room@chatroom'
+        })
+      })
+    )
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining('原始系统提示: "老威"与群里其他人都不是朋友关系')
+      })
+    )
+  })
+
+  it('dispatches msgtype 10002 QR-code group join welcomes through the agent', async () => {
+    const { service, triggerStrategy } = createFullService({
+      triggerBinding: {
+        groupJoinWelcomeEnabled: true,
+        groupJoinWelcomePrompt: '欢迎 {names} 加入 {groupName}',
+        groupTriggerMode: 'off'
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(groupQrJoinEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining('欢迎 暗梅幽闻花 加入 测试群'),
+        item: expect.objectContaining({
+          input: expect.stringContaining('新成员: 暗梅幽闻花'),
+          messageKind: 'text',
+          chatType: 'group'
+        })
+      })
+    )
+  })
+
+  it('does not dispatch group join welcome for blocked groups', async () => {
+    const { service, triggerStrategy } = createFullService({
+      triggerBinding: {
+        groupJoinWelcomeEnabled: true,
+        groupJoinWelcomePrompt: '欢迎 {names}',
+        blockedGroupIds: ['room@chatroom']
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(groupJoinEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: false, reason: 'filtered' })
+
+    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
   })
 
   it('adds tunnel binding state to account workbench rows', async () => {
@@ -385,7 +570,16 @@ describe('WechatConversationService fresh session history context', () => {
           bindings: [{ uuid: 'uuid-1', wxid: 'wxid_owner' }]
         })),
         listClients: jest.fn(() => [])
-      }
+      },
+      triggerBindings: [
+        {
+          id: 'binding-1',
+          integrationId: 'integration-1',
+          accountUuid: 'uuid-1',
+          xpertId: 'xpert-account-1',
+          updatedAt: new Date('2026-06-25T03:02:00.000Z')
+        }
+      ]
     })
     accountRepository.find.mockResolvedValueOnce([
       {
@@ -409,6 +603,11 @@ describe('WechatConversationService fresh session history context', () => {
               clientId: 'client-1',
               clientName: 'local wx',
               bindingCount: 1
+            }),
+            triggerBinding: expect.objectContaining({
+              status: 'exact',
+              accountUuid: 'uuid-1',
+              xpertId: 'xpert-account-1'
             })
           })
         ],
@@ -1265,6 +1464,176 @@ describe('WechatConversationService fresh session history context', () => {
         input: '请总结这张图里的内容'
       })
     )
+  })
+
+  it('searches scoped WeChat chat history without exposing raw payload fields', async () => {
+    const longContent = `合同历史${'内容'.repeat(800)}`
+    const { service, messageLogRepository, triggerStrategy } = createFullService()
+    messageLogRepository.find.mockResolvedValueOnce([
+      {
+        id: 'current-log',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_sender',
+        direction: 'inbound',
+        status: 'received',
+        content: '合同 current',
+        payloadSummary: '{"secret":"hidden"}',
+        createdAt: new Date('2026-06-16T03:01:00.000Z')
+      },
+      {
+        id: 'outbound-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        direction: 'outbound',
+        status: 'sent',
+        content: '合同 Agent 回复',
+        messageId: 'msg-out-1',
+        sentAt: new Date('2026-06-16T03:00:00.000Z'),
+        createdAt: new Date('2026-06-16T03:00:00.000Z')
+      },
+      {
+        id: 'inbound-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_member',
+        direction: 'inbound',
+        status: 'dispatched',
+        content: longContent,
+        messageId: 'msg-in-1',
+        createdAt: new Date('2026-06-16T02:58:00.000Z')
+      },
+      {
+        id: 'failed-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_member',
+        direction: 'inbound',
+        status: 'failed',
+        content: '合同失败消息',
+        createdAt: new Date('2026-06-16T02:57:00.000Z')
+      }
+    ])
+
+    const result = await service.searchChatHistory('integration-1', {
+      uuid: 'uuid-1',
+      contactId: 'room@chatroom',
+      chatType: 'group',
+      keyword: '合同',
+      limit: 2,
+      excludedLogIds: ['current-log'],
+      enforceTriggerFilters: true
+    })
+
+    expect(triggerStrategy.getBindingForAccount).toHaveBeenCalledWith('integration-1', 'uuid-1', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
+    expect(messageLogRepository.find).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      }),
+      order: { createdAt: 'DESC' },
+      take: 1000
+    })
+    expect(result).toEqual(
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        totalScanned: 2,
+        hasMore: false
+      })
+    )
+    expect(result.items.map((item) => item.id)).toEqual(['inbound-1', 'outbound-1'])
+    expect(result.items[0].content).toContain('[截断]')
+    expect(result.items[0]).not.toHaveProperty('payloadSummary')
+    expect(result.items[0]).not.toHaveProperty('queueJobId')
+  })
+
+  it('applies sender, direction and time filters when searching chat history', async () => {
+    const { service, messageLogRepository } = createFullService()
+    messageLogRepository.find.mockResolvedValueOnce([
+      {
+        id: 'other-sender',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_other',
+        direction: 'inbound',
+        status: 'dispatched',
+        content: '其他人消息',
+        createdAt: new Date('2026-06-16T03:00:00.000Z')
+      },
+      {
+        id: 'wanted',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'wxid_member',
+        direction: 'inbound',
+        status: 'history_only',
+        content: '指定成员消息',
+        createdAt: new Date('2026-06-16T02:30:00.000Z')
+      },
+      {
+        id: 'outbound-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        direction: 'outbound',
+        status: 'sent',
+        content: 'Agent 消息',
+        createdAt: new Date('2026-06-16T02:20:00.000Z')
+      }
+    ])
+
+    const result = await service.searchChatHistory('integration-1', {
+      uuid: 'uuid-1',
+      contactId: 'room@chatroom',
+      chatType: 'group',
+      senderId: 'wxid_member',
+      direction: 'inbound',
+      after: '2026-06-16T02:00:00.000Z',
+      before: '2026-06-16T04:00:00.000Z'
+    })
+
+    expect(result.items.map((item) => item.id)).toEqual(['wanted'])
+  })
+
+  it('rejects chat history search for blocked groups', async () => {
+    const { service, messageLogRepository } = createFullService({
+      triggerBinding: {
+        blockedGroupIds: ['room@chatroom']
+      }
+    })
+
+    await expect(
+      service.searchChatHistory('integration-1', {
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        enforceTriggerFilters: true
+      })
+    ).rejects.toThrow('不在触发器允许')
+
+    expect(messageLogRepository.find).not.toHaveBeenCalled()
   })
 
   it('formats only previous dispatched inbound and sent outbound logs as history context', async () => {

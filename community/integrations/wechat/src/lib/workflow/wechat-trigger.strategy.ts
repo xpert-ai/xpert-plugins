@@ -11,8 +11,9 @@ import {
   WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
 import { Repository } from 'typeorm'
-import { WECHAT_ICON, WECHAT_PROVIDER_KEY } from '../constants.js'
+import { WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID, WECHAT_ICON, WECHAT_PROVIDER_KEY } from '../constants.js'
 import {
+  WechatAccountEntity,
   WechatMessageLogEntity,
   WechatMessageLogStatus,
   WechatTriggerBindingEntity
@@ -21,7 +22,9 @@ import { WechatChatDispatchInput, WechatChatDispatchService } from '../handoff/w
 import { WechatMessage } from '../message.js'
 import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
 import {
+  DEFAULT_GROUP_JOIN_WELCOME_PROMPT,
   normalizeChatFilterMode,
+  normalizeGroupJoinWelcomePrompt,
   normalizeGroupTriggerOverrides,
   normalizeGroupTriggerMode,
   normalizeIdList,
@@ -115,6 +118,18 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
             component: 'remoteSelect',
             selectUrl: '/api/wechat/integration-select-options'
           } as any
+        },
+        accountUuid: {
+          type: 'string',
+          title: {
+            en_US: 'WeChat Account UUID',
+            zh_Hans: '微信账号设备号'
+          },
+          description: {
+            en_US:
+              'Optional wx2.0 device key such as SDxxxx. Leave empty to keep the default binding for accounts without an exact binding.',
+            zh_Hans: '可选 wx2.0 设备号，例如 SDxxxx。留空表示默认绑定，仅处理没有精确绑定的账号。'
+          }
         },
         sessionTimeoutSeconds: {
           type: 'number',
@@ -385,6 +400,36 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
             },
             required: ['groupId']
           }
+        } as any,
+        groupJoinWelcomeEnabled: {
+          type: 'boolean',
+          title: {
+            en_US: 'Welcome New Group Members',
+            zh_Hans: '欢迎新入群成员'
+          },
+          description: {
+            en_US:
+              'When enabled, recognized group-join system messages are sent to the agent as a welcome request independently of normal group mention or keyword rules.',
+            zh_Hans:
+              '开启后，识别到新成员入群系统消息时，会独立触发 Agent 生成欢迎语，不受普通群 @ 或关键词规则影响。'
+          },
+          default: false
+        },
+        groupJoinWelcomePrompt: {
+          type: 'string',
+          title: {
+            en_US: 'Welcome Prompt',
+            zh_Hans: '欢迎提示词'
+          },
+          description: {
+            en_US: 'Prompt template used for group-join welcome requests. Supports {names}, {groupName}, {roomId}, and {rawText}.',
+            zh_Hans: '新成员入群欢迎提示词模板，支持 {names}、{groupName}、{roomId} 和 {rawText}。'
+          },
+          'x-ui': {
+            component: 'textarea',
+            span: 2
+          },
+          default: DEFAULT_GROUP_JOIN_WELCOME_PROMPT
         } as any
       },
       required: ['enabled', 'integrationId']
@@ -402,6 +447,8 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     private readonly wechatChannel: WechatChannelStrategy,
     @InjectRepository(WechatTriggerBindingEntity)
     private readonly bindingRepository: Repository<WechatTriggerBindingEntity>,
+    @InjectRepository(WechatAccountEntity)
+    private readonly accountRepository: Repository<WechatAccountEntity>,
     @Inject(WECHAT_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
     @InjectRepository(WechatMessageLogEntity)
@@ -435,6 +482,21 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return items
     }
 
+    const accountUuid = this.normalizeTriggerAccountUuid(config.accountUuid)
+    if (this.isReservedAccountUuid(config.accountUuid)) {
+      items.push({
+        node: nodeKey,
+        ruleCode: 'TRIGGER_WECHAT_ACCOUNT_UUID_RESERVED',
+        field: 'accountUuid',
+        value: config.accountUuid,
+        message: {
+          en_US: 'The reserved WeChat account UUID "*" cannot be used in trigger config',
+          zh_Hans: '微信账号设备号不能填写保留值 "*"'
+        },
+        level: 'error'
+      })
+    }
+
     try {
       const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
         config.integrationId
@@ -464,16 +526,39 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return items
     }
 
-    const existingXpertId = await this.getBoundXpertId(config.integrationId)
+    if (accountUuid !== WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID) {
+      const accountExists = await this.accountExistsForBinding(config.integrationId, accountUuid)
+      if (!accountExists) {
+        items.push({
+          node: nodeKey,
+          ruleCode: 'TRIGGER_WECHAT_ACCOUNT_NOT_FOUND',
+          field: 'accountUuid',
+          value: accountUuid,
+          message: {
+            en_US: `WeChat account "${accountUuid}" is not found under this integration`,
+            zh_Hans: `微信账号 "${accountUuid}" 不在当前集成下`
+          },
+          level: 'error'
+        })
+      }
+    }
+
+    const existingXpertId = await this.getBoundXpertId(config.integrationId, accountUuid)
     if (existingXpertId && existingXpertId !== xpertId) {
       items.push({
         node: nodeKey,
-        ruleCode: 'TRIGGER_WECHAT_INTEGRATION_CONFLICT',
-        field: 'integrationId',
-        value: config.integrationId,
+        ruleCode: 'TRIGGER_WECHAT_ACCOUNT_CONFLICT',
+        field: accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID ? 'integrationId' : 'accountUuid',
+        value: accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID ? config.integrationId : accountUuid,
         message: {
-          en_US: `Integration "${config.integrationId}" is already bound to another xpert`,
-          zh_Hans: `微信集成 "${config.integrationId}" 已绑定到其他专家`
+          en_US:
+            accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+              ? `Integration "${config.integrationId}" default binding is already bound to another xpert`
+              : `WeChat account "${accountUuid}" is already bound to another xpert`,
+          zh_Hans:
+            accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+              ? `微信集成 "${config.integrationId}" 默认绑定已绑定到其他专家`
+              : `微信账号 "${accountUuid}" 已绑定到其他专家`
         },
         level: 'error'
       })
@@ -492,10 +577,20 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     }
 
     const integrationId = config.integrationId
-    const existingXpertId = await this.getBoundXpertId(integrationId)
+    const accountUuid = this.normalizeTriggerAccountUuid(config.accountUuid)
+    if (this.isReservedAccountUuid(config.accountUuid)) {
+      throw new Error('The reserved WeChat account UUID "*" cannot be used in trigger config')
+    }
+    if (accountUuid !== WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID) {
+      await this.assertAccountExistsForBinding(integrationId, accountUuid)
+    }
+
+    const existingXpertId = await this.getBoundXpertId(integrationId, accountUuid)
     if (existingXpertId && existingXpertId !== xpertId) {
       throw new Error(
-        `WeChat trigger integration "${integrationId}" is already bound to xpert "${existingXpertId}"`
+        accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+          ? `WeChat trigger integration "${integrationId}" default binding is already bound to xpert "${existingXpertId}"`
+          : `WeChat account "${accountUuid}" is already bound to xpert "${existingXpertId}"`
       )
     }
 
@@ -503,6 +598,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     await this.bindingRepository.upsert(
       {
         integrationId,
+        accountUuid,
         xpertId,
         sessionTimeoutSeconds: this.normalizePositiveSeconds(
           config.sessionTimeoutSeconds,
@@ -531,23 +627,26 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         groupKeywords: normalizeKeywords(config.groupKeywords),
         mentionFallbackNames: normalizeKeywords(config.mentionFallbackNames),
         groupTriggerOverrides: normalizeGroupTriggerOverrides(config.groupTriggerOverrides),
+        groupJoinWelcomeEnabled: config.groupJoinWelcomeEnabled === true,
+        groupJoinWelcomePrompt: normalizeGroupJoinWelcomePrompt(config.groupJoinWelcomePrompt),
         tenantId: context.tenantId ?? null,
         organizationId: context.organizationId ?? null,
         createdById: context.createdById ?? null,
         updatedById: context.updatedById ?? null
       },
-      ['integrationId']
+      ['integrationId', 'accountUuid']
     )
 
-    this.callbacks.set(integrationId, callback)
+    this.callbacks.set(this.bindingCallbackKey(integrationId, accountUuid), callback)
   }
 
   async stop(payload: TWorkflowTriggerParams<TWechatTriggerConfig>): Promise<void> {
     const { xpertId, config } = payload
     const integrationId = config?.integrationId
     if (integrationId) {
-      this.callbacks.delete(integrationId)
-      await this.removeBindingFromStore(integrationId, xpertId)
+      const accountUuid = this.normalizeTriggerAccountUuid(config.accountUuid)
+      this.callbacks.delete(this.bindingCallbackKey(integrationId, accountUuid))
+      await this.removeBindingFromStore(integrationId, xpertId, accountUuid)
       return
     }
 
@@ -556,26 +655,58 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       where: this.scopedWhere({ xpertId }, scope)
     })
     for (const binding of persistedBindings) {
-      this.callbacks.delete(binding.integrationId)
+      this.callbacks.delete(this.bindingCallbackKey(binding.integrationId, binding.accountUuid))
     }
     await this.removeBindingsByXpertId(xpertId)
   }
 
   async getBinding(
     integrationId: string,
-    scope?: WechatTenantScope | null
+    scope?: WechatTenantScope | null,
+    accountUuid: string = WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
   ): Promise<WechatTriggerBindingEntity | null> {
     if (!integrationId) {
       return null
     }
     const resolvedScope = scope ?? (await this.resolveQueryTenantScope(integrationId))
     return this.bindingRepository.findOne({
-      where: this.scopedWhere({ integrationId }, resolvedScope)
+      where: this.scopedWhere({ integrationId, accountUuid: this.normalizeTriggerAccountUuid(accountUuid) }, resolvedScope)
     })
   }
 
-  async getBoundXpertId(integrationId: string): Promise<string | null> {
-    const binding = await this.getBinding(integrationId)
+  async getBindingForAccount(
+    integrationId: string,
+    accountUuid?: string | null,
+    scope?: WechatTenantScope | null
+  ): Promise<WechatTriggerBindingEntity | null> {
+    const normalizedAccountUuid = this.normalizeTriggerAccountUuid(accountUuid)
+    if (normalizedAccountUuid !== WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID) {
+      const exactBinding = await this.getBinding(integrationId, scope, normalizedAccountUuid)
+      if (exactBinding) {
+        return exactBinding
+      }
+    }
+    return this.getBinding(integrationId, scope, WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID)
+  }
+
+  async getBindings(
+    integrationId: string,
+    scope?: WechatTenantScope | null
+  ): Promise<WechatTriggerBindingEntity[]> {
+    if (!integrationId) {
+      return []
+    }
+    const resolvedScope = scope ?? (await this.resolveQueryTenantScope(integrationId))
+    return this.bindingRepository.find({
+      where: this.scopedWhere({ integrationId }, resolvedScope),
+      order: {
+        updatedAt: 'DESC'
+      }
+    })
+  }
+
+  async getBoundXpertId(integrationId: string, accountUuid = WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID): Promise<string | null> {
+    const binding = await this.getBinding(integrationId, undefined, accountUuid)
     return binding?.xpertId ?? null
   }
 
@@ -607,6 +738,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
   async handleInboundMessage(params: {
     integrationId: string
+    accountUuid?: string
     input?: string
     files?: WechatInboundFile[]
     item?: WechatBatchTriggerItem
@@ -619,11 +751,14 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     organizationId?: string
     endUserId?: string
   }): Promise<WechatInboundHandleResult> {
-    const binding = await this.getBinding(params.integrationId, params)
+    const binding = await this.getBindingForAccount(params.integrationId, params.accountUuid, params)
     if (!binding?.xpertId) {
-      this.logger.debug(`[wechat-trigger] binding miss integrationId=${params.integrationId}`)
+      this.logger.debug(
+        `[wechat-trigger] binding miss integrationId=${params.integrationId} accountUuid=${params.accountUuid || ''}`
+      )
       return this.createHandleResult(false)
     }
+    const accountUuid = this.normalizeTriggerAccountUuid(binding.accountUuid)
 
     const aggregateKey = this.normalizeAggregateKey(params.conversationUserKey)
     if (!aggregateKey) {
@@ -638,6 +773,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     if (summaryWindowSeconds <= 0) {
       await this.dispatchInboundMessage({
         integrationId: params.integrationId,
+        accountUuid,
         xpertId: binding.xpertId,
         dispatchMode: 'immediate',
         dispatchPayload: {
@@ -658,6 +794,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     await this.aggregationService.enqueueAggregate({
       aggregateKey,
       integrationId: params.integrationId,
+      accountUuid,
       xpertId: binding.xpertId,
       input: params.input || '',
       item: params.item ?? this.createLegacyBatchItem(params.input),
@@ -705,12 +842,15 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     await this.aggregationService.withAggregateLock(aggregateKey, async () => {
       const currentState = await this.aggregationService.get(aggregateKey)
       const sameRoutingTarget =
-        currentState?.integrationId === payload.integrationId && currentState?.xpertId === payload.xpertId
+        currentState?.integrationId === payload.integrationId &&
+        currentState?.accountUuid === payload.accountUuid &&
+        currentState?.xpertId === payload.xpertId
       const nextVersion = (currentState?.version ?? 0) + 1
       const nextItem = payload.item ?? this.createLegacyBatchItem(payload.input)
       const aggregateState: WechatTriggerAggregationState = {
         aggregateKey,
         integrationId: payload.integrationId,
+        accountUuid: this.normalizeTriggerAccountUuid(payload.accountUuid),
         conversationUserKey: aggregateKey,
         xpertId: payload.xpertId,
         version: nextVersion,
@@ -771,6 +911,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
     await this.dispatchInboundMessage({
       integrationId: state.integrationId,
+      accountUuid: this.normalizeTriggerAccountUuid(state.accountUuid),
       xpertId: state.xpertId,
       dispatchMode: `buffered version=${state.version}`,
       dispatchPayload: {
@@ -808,14 +949,15 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
   private async dispatchInboundMessage(params: {
     integrationId: string
+    accountUuid: string
     xpertId: string
     dispatchMode: string
     dispatchPayload: WechatChatDispatchInput
   }): Promise<void> {
-    const callback = this.callbacks.get(params.integrationId)
+    const callback = this.callbacks.get(this.bindingCallbackKey(params.integrationId, params.accountUuid))
     if (!callback) {
       this.logger.debug(
-        `[wechat-trigger] runtime callback miss, enqueue dispatch integrationId=${params.integrationId} xpertId=${params.xpertId} mode=${params.dispatchMode}`
+        `[wechat-trigger] runtime callback miss, enqueue dispatch integrationId=${params.integrationId} accountUuid=${params.accountUuid} xpertId=${params.xpertId} mode=${params.dispatchMode}`
       )
       await this.dispatchService.enqueueDispatch(params.dispatchPayload)
       return
@@ -857,6 +999,40 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       createdById: userId ?? integration?.createdById ?? null,
       updatedById: userId ?? integration?.updatedById ?? userId ?? null
     }
+  }
+
+  private normalizeTriggerAccountUuid(value?: string | null): string {
+    if (typeof value !== 'string') {
+      return WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+    }
+    const normalized = value.trim()
+    return normalized || WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+  }
+
+  private isReservedAccountUuid(value?: string | null): boolean {
+    return typeof value === 'string' && value.trim() === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+  }
+
+  private bindingCallbackKey(integrationId: string, accountUuid?: string | null): string {
+    return `${integrationId}:${this.normalizeTriggerAccountUuid(accountUuid)}`
+  }
+
+  private async accountExistsForBinding(integrationId: string, accountUuid: string): Promise<boolean> {
+    if (!integrationId || !accountUuid || accountUuid === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID) {
+      return true
+    }
+    const scope = await this.resolveQueryTenantScope(integrationId)
+    const account = await this.accountRepository.findOne({
+      where: this.scopedWhere({ integrationId, uuid: accountUuid }, scope)
+    })
+    return Boolean(account)
+  }
+
+  private async assertAccountExistsForBinding(integrationId: string, accountUuid: string): Promise<void> {
+    if (await this.accountExistsForBinding(integrationId, accountUuid)) {
+      return
+    }
+    throw new Error(`WeChat account "${accountUuid}" is not found under integration "${integrationId}"`)
   }
 
   private normalizeAggregateKey(value?: string | null): string | undefined {
@@ -954,16 +1130,21 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     }
   }
 
-  private async removeBindingFromStore(integrationId: string, expectedXpertId?: string): Promise<void> {
+  private async removeBindingFromStore(
+    integrationId: string,
+    expectedXpertId?: string,
+    accountUuid = WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+  ): Promise<void> {
     if (!integrationId) {
       return
     }
     const scope = await this.resolveQueryTenantScope(integrationId)
-    if (expectedXpertId) {
-      await this.bindingRepository.delete(this.scopedWhere({ integrationId, xpertId: expectedXpertId }, scope))
-      return
+    const where = {
+      integrationId,
+      accountUuid: this.normalizeTriggerAccountUuid(accountUuid),
+      ...(expectedXpertId ? { xpertId: expectedXpertId } : {})
     }
-    await this.bindingRepository.delete(this.scopedWhere({ integrationId }, scope))
+    await this.bindingRepository.delete(this.scopedWhere(where, scope))
   }
 
   private async removeBindingsByXpertId(xpertId: string): Promise<void> {

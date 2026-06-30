@@ -7,7 +7,7 @@ import type {
 } from '../types.js'
 
 @Entity(WechatTriggerBindingEntity.tableName)
-@Index('plugin_wechat_trigger_binding_integration_uq', ['integrationId'], { unique: true })
+@Index('plugin_wechat_trigger_binding_integration_account_uq', ['integrationId', 'accountUuid'], { unique: true })
 @Index('plugin_wechat_trigger_binding_tenant_org_idx', ['tenantId', 'organizationId'])
 export class WechatTriggerBindingEntity {
   static readonly tableName = 'plugin_wechat_trigger_binding'
@@ -17,6 +17,9 @@ export class WechatTriggerBindingEntity {
 
   @Column({ length: 36 })
   integrationId: string
+
+  @Column({ length: 128, default: '*' })
+  accountUuid: string
 
   @Column({ length: 36 })
   xpertId: string
@@ -74,6 +77,12 @@ export class WechatTriggerBindingEntity {
 
   @Column({ type: 'jsonb', nullable: true })
   groupTriggerOverrides?: WechatGroupTriggerOverride[]
+
+  @Column({ type: 'boolean', default: false })
+  groupJoinWelcomeEnabled: boolean
+
+  @Column({ type: 'text', nullable: true })
+  groupJoinWelcomePrompt?: string
 
   @Column({ nullable: true, length: 36 })
   tenantId?: string

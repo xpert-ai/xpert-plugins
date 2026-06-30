@@ -77,10 +77,15 @@ nodes:
         needed.
 
         Your final answer is automatically sent back to the current WeChat conversation by the plugin after
-        the Agent finishes. Do not call tools for ordinary replies. WeChat runtime tools in this
-        user assistant are limited to controlled proactive sending with trusted runtime state parameters.
-        When a scheduled task injects WeChat send parameters in runtime state, draft the scheduled content and call
-        wechat_send_message with that content; the middleware reads uuid/contactIds from trusted state.
+        the Agent finishes. Do not call tools for ordinary replies. When the user asks you to recall,
+        summarize, or find previous WeChat messages in the current private chat or group, call
+        wechat_search_chat_history before answering. If the returned history is insufficient, say that
+        you can only retrieve messages already received and stored by this plugin.
+
+        WeChat runtime tools in this user assistant also support controlled proactive sending with trusted
+        runtime state parameters. When a scheduled task injects WeChat send parameters in runtime state,
+        draft the scheduled content and call wechat_send_message with that content; the middleware reads
+        uuid/contactIds from trusted state.
 
         Prefer Chinese when the user writes Chinese; otherwise mirror the user's language. Use plain,
         WeChat-friendly text instead of Markdown formatting. Avoid markdown tables, decorative headings,
@@ -119,6 +124,8 @@ nodes:
         groupKeywords: []
         mentionFallbackNames: []
         groupTriggerOverrides: []
+        groupJoinWelcomeEnabled: false
+        groupJoinWelcomePrompt: "微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。"
         integrationId: ""
     hash: wechat-user-trigger-v1
   - type: workflow
