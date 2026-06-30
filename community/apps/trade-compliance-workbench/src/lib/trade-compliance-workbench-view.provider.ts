@@ -9,6 +9,7 @@ import { renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/pl
 import { AGENT_WORKBENCH_FIXED_SLOT, AGENT_WORKBENCH_MAIN_SLOT, TRADE_COMPLIANCE_FEATURE, TRADE_COMPLIANCE_ICON, TRADE_COMPLIANCE_PLUGIN_NAME, TRADE_COMPLIANCE_PROVIDER_KEY, TRADE_COMPLIANCE_REMOTE_ENTRY_KEY, TRADE_COMPLIANCE_VIEW_KEY } from './constants.js';
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
 import { buildCustomsWorkbookModel, buildCustomsWorkbookTemplateFileName, createCustomsWorkbookFromTemplateBuffer, readCustomsWorkbookTemplateSheetNames } from './trade-compliance-workbook.js';
+import { parseControlledGoodsFile } from './controlled-goods-file-parser.js';
 import { getHsBianmaCodeDetail, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -368,31 +369,43 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
         const scope = scopeFromContext(context);
         const fileName = getFileDisplayName(file, request.input);
         const assistantFile = viewFileToAssistantFile(file, fileName, roleForUploadAction(actionKey) ?? 'source_file', request.input);
-        if (!hasAssistantReadableFileHandle(assistantFile)) {
-            return failure('Uploaded file was not registered as an assistant-readable workspace file.', '文件未写入智能体工作空间，请重新上传后再解析。');
-        }
         if (actionKey === 'upload_controlled_goods_file') {
+            const buffer = getFileBuffer(file) ?? await readWorkspaceFileBuffer(assistantFile);
+            if (!buffer?.length) {
+                return failure('Uploaded file content is not readable.', '无法读取上传文件内容，请重新上传后再解析。');
+            }
+            const parsed = await parseControlledGoodsFile({
+                buffer,
+                fileName,
+                mimeType: getFileMimeType(file)
+            });
+            const items = parsed.candidates.map(toControlledGoodsCandidateReviewItem).filter(Boolean);
             const result = await this.service.createReviewBatch(scope, {
                 type: 'controlled_goods_file',
                 sourceFileName: fileName,
                 metadata: {
                     fileName,
                     size: getFileSize(file),
-                    mimeType: getFileMimeType(file)
+                    mimeType: getFileMimeType(file),
+                    parser: 'controlled-goods-file-parser',
+                    textLength: parsed.textLength,
+                    parsedCandidateCount: parsed.candidates.length,
+                    lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length,
+                    withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length
                 },
-                items: []
+                items
             });
-            return parsingStarted({
-                ...buildAssistantCommand({
-                    action: 'parse_controlled_goods_file',
-                    file: assistantFile,
-                    fileName,
-                    role: 'controlled_goods_file',
-                    batchId: result.batch.id,
-                    text: buildControlledGoodsParsePrompt(fileName, result.batch.id)
-                }),
-                expectedCount: null
+            return success({
+                batchId: result.batch.id,
+                parsedCandidateCount: parsed.candidates.length,
+                savedCount: result.items.length,
+                skippedDuplicateCount: Math.max(0, items.length - result.items.length),
+                lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length,
+                withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length
             });
+        }
+        if (!hasAssistantReadableFileHandle(assistantFile)) {
+            return failure('Uploaded file was not registered as an assistant-readable workspace file.', '文件未写入智能体工作空间，请重新上传后再解析。');
         }
         if (actionKey === 'upload_supplier_contract') {
             const result = await this.service.createReviewBatch(scope, {
@@ -499,6 +512,64 @@ function success(data) {
         message: text('Saved', '已保存'),
         data,
         refresh: true
+    };
+}
+async function readWorkspaceFileBuffer(file) {
+    const workspacePath = file?.workspacePath ?? file?.filePath;
+    if (!workspacePath)
+        return undefined;
+    try {
+        return await readFile(workspacePath);
+    }
+    catch {
+        return undefined;
+    }
+}
+function toControlledGoodsCandidateReviewItem(candidate) {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        return null;
+    const hsCode = Array.isArray(candidate.hsCodes) ? candidate.hsCodes.join('\n') : readString(candidate, 'hsCode');
+    const productName = readString(candidate, 'productName');
+    const referenceNameCandidate = readString(candidate, 'referenceNameCandidate');
+    const controlCode = readString(candidate, 'controlCode');
+    const category = readString(candidate, 'category');
+    const parseWarnings = Array.isArray(candidate.parseWarnings) ? candidate.parseWarnings.map((item) => String(item)).filter(Boolean) : [];
+    const displayName = productName ?? referenceNameCandidate ?? controlCode ?? readString(candidate, 'rawText')?.slice(0, 80);
+    const controlNote = [
+        category,
+        controlCode ? `管制编码：${controlCode}` : undefined,
+        referenceNameCandidate && !productName ? `候选商品名：${referenceNameCandidate}` : undefined,
+        parseWarnings.length ? `解析提示：${parseWarnings.join('、')}` : undefined,
+        readString(candidate, 'description') ?? readString(candidate, 'rawText')
+    ].filter(Boolean).join('\n');
+    return {
+        type: 'controlled_goods',
+        title: [controlCode, displayName].filter(Boolean).join(' ') || '管控商品',
+        extractedData: {
+            productName,
+            hsCode,
+            keywords: [controlCode, category, productName, referenceNameCandidate].filter(Boolean),
+            controlNote,
+            enabled: true,
+            controlCode,
+            category,
+            referenceNameCandidate,
+            parseWarnings,
+            parseStatus: parseWarnings.length ? 'needs_review' : 'parsed',
+            description: readString(candidate, 'description'),
+            unit: readString(candidate, 'unit'),
+            rawText: readString(candidate, 'rawText')
+        },
+        fields: [
+            { key: '序号', value: readString(candidate, 'sequence') },
+            { key: '管制编码', value: controlCode },
+            { key: '候选商品名', value: referenceNameCandidate },
+            { key: '解析提示', value: parseWarnings.join('、') },
+            { key: '海关编码', value: hsCode },
+            { key: '单位', value: readString(candidate, 'unit') }
+        ].filter((field) => field.value),
+        confidence: typeof candidate.confidence === 'number' ? candidate.confidence : undefined,
+        sourceLocation: readString(candidate, 'sourceLocation')
     };
 }
 function parsingStarted(data) {
@@ -762,11 +833,11 @@ function toChatReference(file, fileName, role) {
 function buildControlledGoodsParsePrompt(fileName, batchId) {
     return [
         `请解析我刚上传的管控商品文件《${fileName}》。`,
-        '文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径读取；如果同时存在附件能力，也可以使用 file_preview、file_search、file_read 等文件理解工具读取。',
-        '目标：识别文件中的管控商品、关键词、海关编码、管控说明、来源页码或条款。',
-        `请调用工具 trade_compliance_save_controlled_goods_extraction 保存待审核结果，batchId 必须传 ${batchId ?? '-'}。请尽量一次工具调用保存全部识别结果，不要按固定小批次拆分。`,
-        '每个 items 条目的 type 必须是 controlled_goods；extractedData 中请包含 productName、hsCode、keywords、controlNote；sourceLocation 记录证据位置。',
-        '不要只回复文字，必须调用工具把识别结果写入插件。回复中的识别数量必须等于工具实际保存的 items 总数。'
+        '文件已写入智能体工作空间，请根据 state.tradeComplianceWorkbench.workspacePath 获取原始文件路径。',
+        `请优先调用 trade_compliance_parse_controlled_goods_file 让插件代码直接解析原始文件并保存待审核结果，batchId 必须传 ${batchId ?? '-'}，workspacePath/filePath 传原始文件路径。`,
+        '不要由大模型手工逐页抽取全部管控目录；对于大 PDF/Excel 目录，代码侧解析会保留序号、管制编码、物项描述、海关编码、单位、原文片段、来源页码和低置信度标记。',
+        '只有当直解析工具明确失败时，才可以把识别结果写入工作区 JSON 文件，并调用 trade_compliance_save_controlled_goods_extraction_file 保存该 JSON 文件。',
+        '不要只回复文字，必须调用文件保存工具把识别结果写入插件。回复中的识别数量必须等于工具实际保存的 items 总数。'
     ].join('\n');
 }
 function buildSupplierContractParsePrompt(fileName, batchId) {

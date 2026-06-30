@@ -739,12 +739,14 @@
         ], [
           renderListToolbar('管控商品列表', controlledReviews.length),
           h('div', { className: 'pending-controlled-goods confirmed-controlled-goods tcw-table-section' },
-            reviewTable(['商品名称', '海关编码', '关键词', '管控说明', '来源'], page.rows, (item) => {
+            reviewTable(['商品名称/候选', '海关编码', '解析状态', '管控说明', '来源'], page.rows, (item) => {
             const row = readMerged(item)
+            const warnings = Array.isArray(row.parseWarnings) ? row.parseWarnings : []
+            const status = warnings.length ? `需核对：${warnings.join('、')}` : '已解析'
             return [
-              value(row.productName || item.title),
+              value(row.productName || row.referenceNameCandidate || item.title),
               value(row.hsCode),
-              Array.isArray(row.keywords) ? row.keywords.join('、') : value(row.keywords),
+              value(status),
               value(row.controlNote),
               value(item.sourceLocation || row.sourceFileName)
             ]
@@ -1524,13 +1526,21 @@
     'buyerName',
     'sellerName',
     'controlNote',
-    'keywords'
+    'keywords',
+    'referenceNameCandidate',
+    'parseStatus',
+    'parseWarnings',
+    'rawText'
   ]
   const controlledGoodsFormFields = [
     { key: 'productName', label: '商品名称', placeholder: '例如：高性能服务器' },
+    { key: 'referenceNameCandidate', label: '候选商品名' },
+    { key: 'parseStatus', label: '解析状态' },
+    { key: 'parseWarnings', label: '解析提示' },
     { key: 'hsCode', label: '海关编码', placeholder: '例如：8471501010' },
     { key: 'keywords', label: '关键词', placeholder: '逗号或空格分隔' },
     { key: 'controlNote', label: '管控说明', type: 'textarea', wide: true, placeholder: '许可证、两用物项、禁限说明' },
+    { key: 'rawText', label: '原文片段', type: 'textarea', wide: true },
     { key: 'sourceFileName', label: '来源文件' },
     { key: 'sourceLocation', label: '来源位置' },
     { key: 'enabled', label: '启用', type: 'checkbox' }
@@ -1623,6 +1633,10 @@
         productName: '',
         hsCode: '',
         keywords: '',
+        referenceNameCandidate: '',
+        parseStatus: '',
+        parseWarnings: '',
+        rawText: '',
         controlNote: '',
         sourceFileName: '',
         sourceLocation: '',
@@ -1670,6 +1684,10 @@
     if (type === 'controlled_goods') {
       return compactObject({
         productName: normalizeText(values.productName),
+        referenceNameCandidate: normalizeText(values.referenceNameCandidate),
+        parseStatus: normalizeText(values.parseStatus),
+        parseWarnings: splitKeywords(values.parseWarnings),
+        rawText: normalizeText(values.rawText),
         hsCode: normalizeText(values.hsCode),
         keywords: splitKeywords(values.keywords),
         controlNote: normalizeText(values.controlNote),

@@ -171,6 +171,11 @@ function descriptionRowHeight(item) {
     const lineCount = text.split(/\r?\n|\/\s*/).filter(Boolean).length;
     return Math.max(54, Math.min(190, lineCount * 18));
 }
+function formatQuantityUnit(item) {
+    const quantity = item.quantity ?? '';
+    const unit = item.unit ?? '';
+    return [quantity, unit].filter((value) => value !== undefined && value !== null && value !== '').join(' ');
+}
 function buildDeclarationWorksheet(sheet, model) {
     sheet.views = [{ showGridLines: false }];
     sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1 };
@@ -233,18 +238,16 @@ function buildDeclarationWorksheet(sheet, model) {
         put(sheet, `A${row}`, index + 1, { alignment: rightMiddle });
         put(sheet, `B${row}`, item.hsCode);
         put(sheet, `C${row}`, item.productName || item.englishName);
-        put(sheet, `D${row}`, item.quantity);
-        put(sheet, `E${row}`, item.unit);
-        put(sheet, `F${row}`, item.unitPrice, { numFmt: '#,##0.00' });
-        put(sheet, `G${row}`, item.amount, { numFmt: '#,##0.00' });
-        put(sheet, `H${row}`, model.currency || 'RMB');
-        put(sheet, `I${row}`, model.origin);
-        put(sheet, `J${row}`, model.destination);
-        put(sheet, `K${row}`, model.domesticSourceLocation);
-        put(sheet, `L${row}`, '照章征免');
+        put(sheet, `D${row}`, formatQuantityUnit(item));
+        put(sheet, `E${row}`, item.unitPrice, { numFmt: '#,##0.00' });
+        put(sheet, `F${row}`, item.amount, { numFmt: '#,##0.00' });
+        put(sheet, `G${row}`, model.currency || 'RMB');
+        put(sheet, `H${row}`, model.origin);
+        put(sheet, `I${row}`, model.destination);
+        put(sheet, `J${row}`, model.domesticSourceLocation);
+        put(sheet, `K${row}`, '照章征免');
         put(sheet, `C${row + 1}`, item.description);
-        put(sheet, `D${row + 1}`, item.netWeight);
-        put(sheet, `E${row + 1}`, '千克');
+        put(sheet, `D${row + 1}`, formatQuantityUnit({ quantity: item.netWeight, unit: item.netWeight ? '千克' : undefined }));
     });
     put(sheet, 'A18', '特殊关系确认：否', { font: boldFont });
     put(sheet, 'C18', '价格影响确认：否', { font: boldFont });

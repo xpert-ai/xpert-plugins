@@ -6,6 +6,7 @@ const provider = readFileSync(join(root, 'src/lib/trade-compliance-workbench-vie
 const remoteApp = readFileSync(join(root, 'src/lib/remote-components/trade-compliance-workbench/app.js'), 'utf8')
 const enrichment = readFileSync(join(root, 'src/lib/trade-compliance.enrichment.ts'), 'utf8')
 const middleware = readFileSync(join(root, 'src/lib/trade-compliance-workbench.middleware.ts'), 'utf8')
+const constants = readFileSync(join(root, 'src/lib/constants.ts'), 'utf8')
 
 const expectations = [
   ['view action', provider, "actionKey === 'search_hs_code'"],
@@ -37,6 +38,11 @@ const expectations = [
   ['supplier auto-linked English name', middleware, 'englishName: suggestion?.englishName'],
   ['supplier candidate enrichment helper', middleware, 'enrichSupplierReviewItemsWithHsCandidates'],
   ['supplier contract enrichment', middleware, 'enrichSupplierReviewItemsWithHsCandidates(input.items'],
+  ['controlled goods file save tool name', constants, 'trade_compliance_save_controlled_goods_extraction_file'],
+  ['controlled goods file save schema', middleware, 'controlledGoodsExtractionFileSchema'],
+  ['controlled goods file save handler', middleware, 'saveControlledGoodsExtractionFile'],
+  ['controlled goods JSON prompt', provider, 'trade_compliance_save_controlled_goods_extraction_file'],
+  ['review batch summary output', middleware, 'summarizeReviewBatchResult'],
   ['pagination controls', remoteApp, 'searchHsCodePage'],
   ['fixed filter flag', remoteApp, 'filterFailureCode: true'],
   ['fixed English name flag', remoteApp, 'displayEnName: true']
@@ -68,6 +74,7 @@ const forbidden = [
   ['controlled goods fixed batch size', provider, 'CONTROLLED_GOODS_BATCH_SIZE'],
   ['controlled goods candidate chunking', provider, 'chunkArray(parsed.candidates'],
   ['controlled goods candidate batch prompt', provider, 'buildControlledGoodsCandidateBatchPrompt'],
+  ['controlled goods old direct save prompt', provider, 'trade_compliance_save_controlled_goods_extraction 保存待审核结果'],
   ['supplier lookup panel old candidate title', remoteApp, '候选海关编码'],
   ['supplier lookup panel old auto-link copy', remoteApp, '已自动关联，保留']
 ].filter(([, source, token]) => source.includes(token))
