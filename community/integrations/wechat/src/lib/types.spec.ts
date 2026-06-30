@@ -5,6 +5,7 @@ import {
   normalizeWechatConnectionMode,
   normalizeGroupTriggerOverrides,
   normalizeWechatInboundPayload,
+  resolveWechatGroupJoinWelcomeInfo,
   shouldDispatchWechatBatch,
   shouldAttemptWechatVoiceTranscription,
   shouldDispatchWechatMessage,
@@ -44,7 +45,7 @@ describe('wechat inbound normalization', () => {
     expect(summary).not.toContain('data:audio/wav;base64')
   })
 
-  it('normalizes legacy per-account callback wrapper', () => {
+  it('ignores legacy per-account callback wrappers', () => {
     const event = normalizeWechatInboundPayload({
       key: 'uuid-1',
       type: 'message',
@@ -58,64 +59,7 @@ describe('wechat inbound normalization', () => {
       }
     })
 
-    expect(event).toEqual(
-      expect.objectContaining({
-        source: 'legacy_callback',
-        uuid: 'uuid-1',
-        ownerWxid: 'wxid_owner',
-        contactId: 'wxid_friend',
-        senderId: 'wxid_friend',
-        chatType: 'private',
-        messageId: '1001',
-        msgType: 1,
-        messageKind: 'text',
-        content: 'hello',
-        isSelf: false
-      })
-    )
-  })
-
-  it('normalizes legacy wrapper image messages from explicit msg_type=3', () => {
-    const event = normalizeWechatInboundPayload({
-      key: 'uuid-1',
-      type: 'message',
-      message: {
-        from_user_name: { str: 'wxid_friend' },
-        to_user_name: { str: 'wxid_owner' },
-        content: { str: '' },
-        img_buf: { buffer: 'ignored-for-type' },
-        msg_type: 3,
-        msg_id: 123,
-        new_msg_id: '1002',
-        create_time: 1700000000
-      }
-    })
-
-    expect(event).toEqual(
-      expect.objectContaining({
-        source: 'legacy_callback',
-        uuid: 'uuid-1',
-        contactId: 'wxid_friend',
-        senderId: 'wxid_friend',
-        chatType: 'private',
-        messageId: '1002',
-        msgType: 3,
-        messageKind: 'image',
-        content: '',
-        mediaSignature: expect.stringContaining('image:uuid-1:1002:3')
-      })
-    )
-    expect(event?.imageRef).toEqual(
-      expect.objectContaining({
-        uuid: 'uuid-1',
-        newMsgId: '1002',
-        msgType: 3,
-        contactId: 'wxid_friend',
-        fromUser: 'wxid_friend',
-        toUser: 'wxid_owner',
-        msgId: 123
-      })
-    )
+    expect(event).toBeNull()
   })
 
   it('normalizes global webhook payload', () => {
@@ -146,6 +90,118 @@ describe('wechat inbound normalization', () => {
         content: '@bot hello'
       })
     )
+  })
+
+  it('hard drops inbound payloads from weixin before normalization', () => {
+    const base = {
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      chattype: 'group',
+      content: 'hello',
+      newmsgid: '2002',
+      msgtype: 1,
+      isself: false
+    }
+
+    expect(normalizeWechatInboundPayload({ ...base, sendusername: 'weixin' })).toBeNull()
+    expect(normalizeWechatInboundPayload({ ...base, senderId: 'weixin', sendusername: '' })).toBeNull()
+    expect(normalizeWechatInboundPayload({ ...base, fromusername: 'weixin', sendusername: '' })).toBeNull()
+    expect(normalizeWechatInboundPayload({ ...base, contactid: 'weixin' })).toBeNull()
+  })
+
+  it('extracts group-join welcome names from wx2.0 system privacy notices', () => {
+    const event = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      chattype: 'room',
+      content: '"老威"与群里其他人都不是朋友关系，请注意隐私安全',
+      pushcontent: '"老威"与群里其他人都不是朋友关系，请注意隐私安全',
+      newmsgid: 'join-1',
+      msgtype: 10000,
+      isself: false
+    })
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        chatType: 'group',
+        msgType: 10000,
+        messageKind: 'unsupported',
+        senderId: 'room@chatroom'
+      })
+    )
+    expect(resolveWechatGroupJoinWelcomeInfo(event)).toEqual({
+      names: ['老威'],
+      rawText: '"老威"与群里其他人都不是朋友关系，请注意隐私安全'
+    })
+
+    const xmlEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      chattype: 'room',
+      content:
+        '<sysmsg type="sysmsgtemplate"><sysmsgtemplate><content_template><plain><![CDATA["小新"加入了群聊]]></plain></content_template></sysmsgtemplate></sysmsg>',
+      newmsgid: 'join-2',
+      msgtype: 10000,
+      isself: false
+    })
+
+    expect(resolveWechatGroupJoinWelcomeInfo(xmlEvent)).toEqual({
+      names: ['小新'],
+      rawText: '"小新"加入了群聊'
+    })
+
+    const qrJoinEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      sendusername: 'room@chatroom',
+      chattype: 'room',
+      content:
+        'room@chatroom:\n<sysmsg type="sysmsgtemplate"><sysmsgtemplate><content_template type="tmpl_type_profilewithrevokeqrcode"><template><![CDATA["$adder$"通过扫描你分享的二维码加入群聊  $revoke$]]></template><link_list><link name="adder" type="link_profile"><memberlist><member><username><![CDATA[anypossible-w]]></username><nickname><![CDATA[暗梅幽闻花]]></nickname></member></memberlist></link><link name="revoke" type="link_revoke_qrcode" hidden="1"><title><![CDATA[撤销]]></title></link></link_list></content_template></sysmsgtemplate></sysmsg>',
+      pushcontent: "'暗梅幽闻花'通过扫描你分享的二维码加入群聊  撤销",
+      newmsgid: 'join-3',
+      msgtype: 10002,
+      isself: false
+    })
+
+    expect(qrJoinEvent).toEqual(
+      expect.objectContaining({
+        chatType: 'group',
+        msgType: 10002,
+        messageKind: 'unsupported',
+        senderId: 'room@chatroom',
+        content: expect.stringContaining('<sysmsg type="sysmsgtemplate">')
+      })
+    )
+    expect(resolveWechatGroupJoinWelcomeInfo(qrJoinEvent)).toEqual(
+      expect.objectContaining({
+        names: ['暗梅幽闻花'],
+        rawText: expect.stringContaining('暗梅幽闻花')
+      })
+    )
+  })
+
+  it('does not treat unrelated system messages as group-join welcomes', () => {
+    const event = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      chattype: 'room',
+      content: '<sysmsg type="sns"><sns><item key="SnsIsHighActive">1</item></sns></sysmsg>',
+      newmsgid: 'system-1',
+      msgtype: 10000,
+      isself: false
+    })
+
+    expect(resolveWechatGroupJoinWelcomeInfo(event)).toBeNull()
   })
 
   it('normalizes global webhook image payloads from explicit msgtype=3', () => {
@@ -183,7 +239,7 @@ describe('wechat inbound normalization', () => {
         messageKind: 'image',
         content: '',
         displayText: '[图片]',
-        mediaSignature: expect.stringContaining('image:uuid-1:2003:3')
+        mediaSignature: expect.stringContaining('image:uuid-1:456:3')
       })
     )
     expect(event?.imageRef).toEqual(
@@ -198,55 +254,6 @@ describe('wechat inbound normalization', () => {
         msgId: 456,
         fileKey: 'file-key-1',
         originalName: 'wechat-image.jpg'
-      })
-    )
-  })
-
-  it('normalizes legacy wrapper voice messages from explicit msg_type=34', () => {
-    const event = normalizeWechatInboundPayload({
-      key: 'uuid-1',
-      type: 'message',
-      message: {
-        from_user_name: { str: 'wxid_friend' },
-        to_user_name: { str: 'wxid_owner' },
-        content: {
-          str: '<msg><voicemsg bufid="buf-legacy-1" voicelength="2400" voiceformat="4" length="12345" /></msg>'
-        },
-        push_content: '[语音]',
-        msg_type: 34,
-        msg_id: 234,
-        new_msg_id: '1003',
-        create_time: 1700000000
-      }
-    })
-
-    expect(event).toEqual(
-      expect.objectContaining({
-        source: 'legacy_callback',
-        uuid: 'uuid-1',
-        contactId: 'wxid_friend',
-        senderId: 'wxid_friend',
-        chatType: 'private',
-        messageId: '1003',
-        msgType: 34,
-        messageKind: 'voice',
-        displayText: '[语音]',
-        mediaSignature: expect.stringContaining('voice:uuid-1:1003:34')
-      })
-    )
-    expect(event?.voiceRef).toEqual(
-      expect.objectContaining({
-        uuid: 'uuid-1',
-        newMsgId: '1003',
-        msgType: 34,
-        contactId: 'wxid_friend',
-        fromUser: 'wxid_friend',
-        toUser: 'wxid_owner',
-        msgId: 234,
-        bufId: 'buf-legacy-1',
-        durationMs: 2400,
-        format: '4',
-        byteLength: 12345
       })
     )
   })
@@ -281,7 +288,7 @@ describe('wechat inbound normalization', () => {
         messageKind: 'voice',
         content: '<msg><voicemsg bufid="buf-global-1" voicelength="1800" voiceformat="4" /></msg>',
         displayText: 'sender 在群聊中发了一条语音',
-        mediaSignature: expect.stringContaining('voice:uuid-1:2004:34')
+        mediaSignature: expect.stringContaining('voice:uuid-1:567:34')
       })
     )
     expect(event?.voiceRef).toEqual(

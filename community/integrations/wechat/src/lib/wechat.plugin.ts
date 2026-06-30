@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { DiscoveryModule } from '@nestjs/core'
 import { BullModule } from '@nestjs/bullmq'
 import { WechatController } from './wechat.controller.js'
+import { WechatAccountManagementService } from './wechat-account-management.service.js'
 import { WechatConversationService } from './conversation.service.js'
 import { WechatClient } from './wechat.client.js'
 import {
@@ -17,7 +18,6 @@ import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
 import {
   WechatAccountEntity,
-  WechatConversationBindingEntity,
   WechatMessageLogEntity,
   WechatTriggerBindingEntity
 } from './entities/index.js'
@@ -39,7 +39,6 @@ import { WechatRuntimeMiddleware } from './wechat.middleware.js'
 
 const entities = [
   WechatTriggerBindingEntity,
-  WechatConversationBindingEntity,
   WechatAccountEntity,
   WechatMessageLogEntity
 ]
@@ -85,6 +84,7 @@ const entities = [
     WechatTunnelBrokerService,
     WechatWebsocketTunnelService,
     WechatClient,
+    WechatAccountManagementService,
     WechatConversationService,
     WechatChannelStrategy,
     WechatIntegrationStrategy,
@@ -105,6 +105,7 @@ const entities = [
     WechatTunnelBrokerService,
     WechatWebsocketTunnelService,
     WechatClient,
+    WechatAccountManagementService,
     WechatChannelStrategy,
     WechatIntegrationStrategy,
     WechatTriggerStrategy,

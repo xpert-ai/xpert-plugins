@@ -11,6 +11,7 @@ export const WechatTrigger = WECHAT_TRIGGER_KEY
 export type TWechatTriggerConfig = {
   enabled: boolean
   integrationId: string
+  accountUuid?: string
   sessionTimeoutSeconds?: number
   summaryWindowSeconds?: number
   historyContextLimit?: number
@@ -29,4 +30,6 @@ export type TWechatTriggerConfig = {
   groupKeywords?: string[] | string
   mentionFallbackNames?: string[] | string
   groupTriggerOverrides?: WechatGroupTriggerOverride[]
+  groupJoinWelcomeEnabled?: boolean
+  groupJoinWelcomePrompt?: string
 }

@@ -29,6 +29,7 @@ describe('WechatTriggerAggregationService', () => {
     return {
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
+      accountUuid: '*',
       conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       xpertId: 'xpert-1',
       version: 1,
@@ -54,6 +55,7 @@ describe('WechatTriggerAggregationService', () => {
     await service.enqueueAggregate({
       aggregateKey: state.aggregateKey,
       integrationId: state.integrationId,
+      accountUuid: state.accountUuid,
       xpertId: state.xpertId,
       input: 'hello',
       currentInboundLogIds: ['log-1'],

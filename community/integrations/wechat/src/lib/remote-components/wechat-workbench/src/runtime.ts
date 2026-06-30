@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 const CHANNEL = 'xpertai.remote_component'
 const VERSION = 1
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>()
@@ -10,6 +12,12 @@ let runtimeText = {
   unknownError: 'Unknown error'
 }
 
+type RemoteBrowserWindow = Window & typeof globalThis
+
+function getBrowserWindow(): RemoteBrowserWindow | null {
+  return typeof window === 'undefined' ? null : (window as RemoteBrowserWindow)
+}
+
 export function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
@@ -18,7 +26,7 @@ export function post(type: string, body?: Record<string, unknown>) {
   if (!instanceId && type !== 'ready') {
     return
   }
-  parent.postMessage(
+  getBrowserWindow()?.parent.postMessage(
     Object.assign(
       {
         channel: CHANNEL,
@@ -61,13 +69,24 @@ export function notify(level: 'success' | 'error' | 'info' | 'warning', message:
 }
 
 export function reportResize() {
-  const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 620)
+  const browser = getBrowserWindow()
+  const height = Math.max(
+    browser?.document.body.scrollHeight || 0,
+    browser?.document.documentElement.scrollHeight || 0,
+    620
+  )
   post('resize', { height })
 }
 
 export function getResponsePayload(response: any) {
   if (!response) {
     return null
+  }
+  if (typeof response.success === 'boolean') {
+    return response
+  }
+  if (response.result !== undefined) {
+    return response.result
   }
   if (response.payload !== undefined) {
     return response.payload
@@ -103,7 +122,11 @@ export function getErrorMessage(error: any): string {
 }
 
 export function startRemoteBridge(setContext: (context: any) => void, handleHostEvent: (event: any) => void) {
-  window.addEventListener('message', (event) => {
+  const browser = getBrowserWindow()
+  if (!browser) {
+    return
+  }
+  browser.addEventListener('message', (event: MessageEvent) => {
     const message = event.data
     if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) {
       return
@@ -111,9 +134,6 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
 
     if (message.type === 'init') {
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
-      if (window.XpertRemoteUI && typeof window.XpertRemoteUI.applyTheme === 'function') {
-        window.XpertRemoteUI.applyTheme(message.theme)
-      }
       setContext({
         manifest: message.manifest,
         payload: message.payload,

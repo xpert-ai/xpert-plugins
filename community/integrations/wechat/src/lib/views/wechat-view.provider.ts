@@ -31,6 +31,7 @@ import {
   WECHAT_VIEW_KEY,
   WECHAT_VIEW_PROVIDER_KEY
 } from '../constants.js'
+import { WechatAccountManagementService } from '../wechat-account-management.service.js'
 import { WechatConversationService } from '../conversation.service.js'
 import type { WechatWorkbenchTableKey, WechatWorkbenchTableQuery } from '../conversation.service.js'
 import { WechatChannelStrategy } from '../wechat-channel.strategy.js'
@@ -56,6 +57,7 @@ const WECHAT_VIEW_ICON_FOR_SDK = WECHAT_VIEW_ICON as unknown as SdkViewManifest[
 export class WechatViewProvider implements IXpertViewExtensionProvider {
   constructor(
     private readonly conversationService: WechatConversationService,
+    private readonly accountManagement: WechatAccountManagementService,
     private readonly wechatChannel: WechatChannelStrategy,
     private readonly outboundQueue: WechatOutboundQueueService
   ) {}
@@ -85,8 +87,8 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
         key: WECHAT_VIEW_KEY,
         title: text('WeChat', '微信'),
         description: text(
-          'Manage wx2.0 accounts, conversations, message logs, callbacks, and dispatch settings.',
-          '管理 wx2.0 账号、会话、消息日志、回调和派发配置。'
+          'Manage wx2.0 accounts, message logs, callbacks, and dispatch settings.',
+          '管理 wx2.0 账号、消息日志、回调和派发配置。'
         ),
         icon: WECHAT_VIEW_ICON_FOR_SDK,
         hostType: context.hostType,
@@ -150,9 +152,51 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
             actionType: 'refresh'
           },
           {
-            key: 'register_callback',
-            label: text('Register Callback', '注册回调'),
-            icon: 'ri-link',
+            key: 'bind_device_key',
+            label: text('Bind Device Key', '绑定设备 Key'),
+            icon: 'ri-add-circle-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'start_device_login',
+            label: text('Start Device Login', '开始扫码登录'),
+            icon: 'ri-qr-code-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'poll_device_login',
+            label: text('Poll Device Login', '查询扫码状态'),
+            icon: 'ri-refresh-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'verify_device_login_code',
+            label: text('Verify Device Login Code', '提交登录验证码'),
+            icon: 'ri-keyboard-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'verify_device_login_slide',
+            label: text('Verify Device Login Slide', '提交滑块验证'),
+            icon: 'ri-shield-check-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'sync_device_accounts',
+            label: text('Sync Device Accounts', '同步设备账号'),
+            icon: 'ri-loop-right-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'logout_device_account',
+            label: text('Logout Device Account', '退出登录'),
+            icon: 'ri-logout-box-r-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'delete_device_account',
+            label: text('Delete Device Account', '删除设备'),
+            icon: 'ri-delete-bin-line',
             actionType: 'invoke'
           },
           {
@@ -165,12 +209,6 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
             key: 'revoke_webhook_credential',
             label: text('Revoke Webhook Credential', '吊销回调凭据'),
             icon: 'ri-lock-line',
-            actionType: 'invoke'
-          },
-          {
-            key: 'restart_conversation',
-            label: text('Restart Conversation', '重置会话'),
-            icon: 'ri-restart-line',
             actionType: 'invoke'
           },
           {
@@ -337,34 +375,71 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
         return failure('Missing integration id', '缺少微信集成标识')
       }
 
-      if (actionKey === 'restart_conversation') {
-        const targetId = getStringInput(request.input, 'bindingId') || getStringInput(request.input, 'id') || request.targetId
-        if (!targetId) {
-          return failure('Missing conversation target', '缺少可重置的会话目标')
-        }
-        await this.conversationService.restartConversationBinding(integrationId, String(targetId))
-        return success('Conversation reset', '会话已重置')
+      if (actionKey === 'bind_device_key') {
+        const result = await this.accountManagement.bindDeviceKey(
+          integrationId,
+          requireStringInput(request.input, 'key', 'Device key is required.')
+        )
+        return successData('Device key bound', '设备 Key 已绑定', result)
       }
 
-      if (actionKey === 'register_callback') {
-        const integration = await this.wechatChannel.readIntegrationById(integrationId)
-        if (!integration) {
-          return failure('Integration not found', '未找到微信集成')
-        }
-        const uuid = requireStringInput(request.input, 'uuid', 'Account uuid is required.')
-        const callbackConfig = await this.conversationService.buildCallbackConfig(integration.id, {
-          requireActiveCredential: true
-        })
-        const result = await this.wechatChannel.registerCallback({
+      if (actionKey === 'start_device_login') {
+        const result = await this.accountManagement.startDeviceLogin(
           integrationId,
-          uuid,
-          callbackUrl: getStringInput(request.input, 'callbackUrl') || callbackConfig.webhookUrl,
-          enabled: getBooleanInput(request.input, 'enabled', true)
-        })
-        if (!result.success) {
-          return failure(result.error || 'Register callback failed', result.error || '注册回调失败')
-        }
-        return success('Callback registered', '回调已注册')
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.')
+        )
+        return successData('Device login started', '扫码登录已启动', result, false)
+      }
+
+      if (actionKey === 'poll_device_login') {
+        const result = await this.accountManagement.pollDeviceLogin(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.'),
+          requireStringInput(request.input, 'sessionId', 'Login session id is required.')
+        )
+        return successData('Device login status updated', '扫码状态已更新', result, false)
+      }
+
+      if (actionKey === 'verify_device_login_code') {
+        const result = await this.accountManagement.verifyLoginCode(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.'),
+          requireStringInput(request.input, 'sessionId', 'Login session id is required.'),
+          requireStringInput(request.input, 'code', 'Login code is required.')
+        )
+        return successData('Login code verified', '验证码已提交', result, false)
+      }
+
+      if (actionKey === 'verify_device_login_slide') {
+        const result = await this.accountManagement.verifyLoginSlide(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.'),
+          requireStringInput(request.input, 'sessionId', 'Login session id is required.'),
+          requireStringInput(request.input, 'randstr', 'randstr is required.'),
+          requireStringInput(request.input, 'slideticket', 'slideticket is required.')
+        )
+        return successData('Slide verification submitted', '滑块验证已提交', result, false)
+      }
+
+      if (actionKey === 'sync_device_accounts') {
+        const result = await this.accountManagement.syncDeviceAccounts(integrationId)
+        return successData('Device accounts synced', '设备账号已同步', result)
+      }
+
+      if (actionKey === 'logout_device_account') {
+        const result = await this.accountManagement.logoutDeviceAccount(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.')
+        )
+        return successData('Device account logged out', '设备账号已退出登录', result)
+      }
+
+      if (actionKey === 'delete_device_account') {
+        const result = await this.accountManagement.deleteDeviceAccount(
+          integrationId,
+          requireStringInput(request.input, 'uuid', 'Account uuid is required.')
+        )
+        return successData('Device account deleted', '设备账号已删除', result)
       }
 
       if (actionKey === 'rotate_webhook_credential') {
@@ -504,7 +579,6 @@ function normalizeViewParameters(parameters: unknown): Record<string, unknown> {
 function getTableKey(parameters?: Record<string, unknown> | null): WechatWorkbenchTableKey | null {
   const value = getStringProperty(parameters, 'table')
   return value === 'accounts' ||
-    value === 'conversations' ||
     value === 'messages' ||
     value === 'queue' ||
     value === 'logs' ||
@@ -628,6 +702,20 @@ function success(en_US: string, zh_Hans: string): XpertViewActionResult {
     success: true,
     message: text(en_US, zh_Hans),
     refresh: true
+  }
+}
+
+function successData<TData>(
+  en_US: string,
+  zh_Hans: string,
+  data: TData,
+  refresh = true
+): XpertViewActionResult<TData> {
+  return {
+    success: true,
+    message: text(en_US, zh_Hans),
+    data,
+    refresh
   }
 }
 

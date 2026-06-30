@@ -26,17 +26,15 @@ import {
   WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME,
   WECHAT_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_LIST_ACCOUNTS_TOOL_NAME,
-  WECHAT_LIST_CONVERSATIONS_TOOL_NAME,
   WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_MIDDLEWARE_NAME,
   WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
-  WECHAT_REGISTER_CALLBACK_TOOL_NAME,
   WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
   WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
   WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
-  WECHAT_RESET_CONVERSATION_TOOL_NAME,
   WECHAT_RUNTIME_FEATURE,
+  WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
   WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME,
   WECHAT_SEND_MESSAGE_TOOL_NAME,
   WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME,
@@ -106,16 +104,13 @@ describe('WechatRuntimeMiddleware', () => {
         WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME,
         WECHAT_GET_RUNTIME_STATUS_TOOL_NAME,
         WECHAT_LIST_ACCOUNTS_TOOL_NAME,
-        WECHAT_LIST_CONVERSATIONS_TOOL_NAME,
         WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME,
         WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
         WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME,
         WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME,
         WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME,
-        WECHAT_REGISTER_CALLBACK_TOOL_NAME,
         WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME,
         WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME,
-        WECHAT_RESET_CONVERSATION_TOOL_NAME,
         WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME,
         WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME
       ].sort()
@@ -135,7 +130,10 @@ describe('WechatRuntimeMiddleware', () => {
       )
     )
 
-    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([WECHAT_SEND_MESSAGE_TOOL_NAME])
+    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([
+      WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
+      WECHAT_SEND_MESSAGE_TOOL_NAME
+    ])
   })
 
   it('registers only controlled send tool for user-facing assistants', async () => {
@@ -150,8 +148,170 @@ describe('WechatRuntimeMiddleware', () => {
       )
     )
 
-    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([WECHAT_SEND_MESSAGE_TOOL_NAME])
+    expect((middleware.tools ?? []).map((item: any) => item.name)).toEqual([
+      WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
+      WECHAT_SEND_MESSAGE_TOOL_NAME
+    ])
     expect(middleware.stateSchema).toBeDefined()
+  })
+
+  it('searches current WeChat chat history from user runtime context', async () => {
+    const conversationService = {
+      searchChatHistory: jest.fn(async () => ({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        items: [],
+        totalScanned: 0,
+        hasMore: false
+      }))
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService).createMiddleware(
+        { toolMode: 'user' },
+        {
+          xpertId: 'xpert-1',
+          integrationId: 'integration-1',
+          uuid: 'uuid-1',
+          contactId: 'room@chatroom',
+          chatType: 'group',
+          senderId: 'wxid_sender',
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const historyTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
+    ) as any
+    const result = JSON.parse(await historyTool.handler({ keyword: '合同', limit: 5 }))
+
+    expect(conversationService.searchChatHistory).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        keyword: '合同',
+        limit: 5,
+        enforceTriggerFilters: true
+      })
+    )
+    expect(result).toEqual(expect.objectContaining({ success: true }))
+  })
+
+  it('injects current WeChat context into chat history tool calls', async () => {
+    const conversationService = {
+      searchChatHistory: jest.fn(async () => ({
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        items: [],
+        totalScanned: 0,
+        hasMore: false
+      }))
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService).createMiddleware(
+        { toolMode: 'user' },
+        {
+          xpertId: 'xpert-1',
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+    const historyTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
+    ) as any
+    const toolHandler = jest.fn(async (request) => historyTool.handler(request.toolCall.args))
+
+    await middleware.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'tool-call-1',
+          name: WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
+          type: 'tool_call',
+          args: {
+            direction: 'inbound'
+          }
+        },
+        tool: historyTool,
+        state: {},
+        runtime: {
+          configurable: {
+            integrationId: 'integration-1',
+            uuid: 'uuid-1',
+            contactId: 'room@chatroom',
+            chatType: 'group',
+            sourceMessageLogIds: ['inbound-log-1']
+          }
+        }
+      } as any,
+      toolHandler as any
+    )
+
+    expect(toolHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: expect.objectContaining({
+            __wechatRuntimeHistory: expect.objectContaining({
+              integrationId: 'integration-1',
+              uuid: 'uuid-1',
+              contactId: 'room@chatroom',
+              chatType: 'group',
+              sourceMessageLogIds: ['inbound-log-1']
+            }),
+            __wechatRuntimeHistoryToken: expect.any(String)
+          })
+        })
+      })
+    )
+    expect(conversationService.searchChatHistory).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        direction: 'inbound',
+        excludedLogIds: ['inbound-log-1'],
+        enforceTriggerFilters: true
+      })
+    )
+  })
+
+  it('requires chat target identifiers when history tool has no runtime context', async () => {
+    const conversationService = {
+      searchChatHistory: jest.fn()
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService).createMiddleware(
+        { integrationId: 'integration-1', toolMode: 'user' },
+        {
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const historyTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
+    ) as any
+    const result = JSON.parse(await historyTool.handler({}))
+
+    expect(conversationService.searchChatHistory).not.toHaveBeenCalled()
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('uuid or contactId')
+      })
+    )
   })
 
   it('resolves integration id from the assistant trigger binding for runtime tools', async () => {

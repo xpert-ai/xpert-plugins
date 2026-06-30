@@ -1,4 +1,3 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -10,24 +9,25 @@ import {
   TChatEventContext,
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
-import { type Cache } from 'cache-manager'
 import { IIntegration, type IPagination } from '@xpert-ai/contracts'
 import { LessThan, Like, MoreThan, Repository } from 'typeorm'
 import {
   normalizeConversationKey,
-  parseWechatConversationUserKey,
   resolveWechatConversationIdentity,
   type WechatConversationIdentity
 } from './conversation-user-key.js'
 import {
   buildWechatBatchTriggerItem,
+  isWechatHardExcludedInboundEvent,
   isWechatDispatchableMessageKind,
   matchesWechatAllowedKeywords,
   matchesWechatMessageFilter,
+  normalizeGroupJoinWelcomePrompt,
   normalizeGroupTriggerOverrides,
   normalizeSelfMessagePolicy,
   normalizeString,
   normalizeWechatAgentInput,
+  resolveWechatGroupJoinWelcomeInfo,
   summarizePayload,
   shouldAttemptWechatVoiceTranscription,
   shouldDispatchWechatMessage,
@@ -42,21 +42,20 @@ import {
   WechatTunnelStatus
 } from './wechat-tunnel-broker.service.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
-import { WECHAT_PROVIDER_KEY } from './constants.js'
+import { WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID, WECHAT_PROVIDER_KEY } from './constants.js'
 import { WechatMessage } from './message.js'
 import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 import { WechatClient } from './wechat.client.js'
 import {
   WechatAccountEntity,
-  WechatConversationBindingEntity,
   WechatMessageDirection,
   WechatMessageLogEntity,
-  WechatMessageLogStatus
+  WechatMessageLogStatus,
+  WechatTriggerBindingEntity
 } from './entities/index.js'
 import { WechatTriggerStrategy } from './workflow/wechat-trigger.strategy.js'
 import { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 
-const CACHE_TTL_MS = 10 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
 const DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS = 3600
@@ -64,22 +63,17 @@ const MAX_HISTORY_CONTEXT_LIMIT = 100
 const HISTORY_CONTEXT_ITEM_MAX_CHARS = 1000
 const HISTORY_CONTEXT_TOTAL_MAX_CHARS = 12000
 const HISTORY_CONTEXT_RESET_CONTENT = 'history_context_reset'
+const CHAT_HISTORY_DEFAULT_LIMIT = 20
+const CHAT_HISTORY_MAX_LIMIT = 100
 
 type WechatTenantScope = {
   tenantId?: string | null
   organizationId?: string | null
 }
 
-type WechatConversationState = {
-  conversationId: string
-  lastActiveAt?: Date
-}
-
 export type WechatCallbackConfig = {
   webhookUrl: string
   globalWebhookUrl: string
-  setCallbackUrlTemplate: string
-  setCallbackCurlTemplate: string
   credentialActive?: boolean
 }
 
@@ -110,18 +104,6 @@ type WechatIntegrationPermissionServiceWithWebhookCredential = IntegrationPermis
   ) => Promise<boolean>
 }
 
-export type WechatConversationListItem = {
-  id: string
-  integrationId: string
-  uuid: string
-  contactId: string
-  senderId: string
-  chatType: 'private' | 'group'
-  xpertId: string
-  conversationId: string
-  updatedAt: Date | null
-}
-
 export type WechatIntegrationWorkbenchItem = {
   id: string
   name?: string
@@ -129,7 +111,6 @@ export type WechatIntegrationWorkbenchItem = {
   slug?: string
   callbackConfig: WechatCallbackConfig
   accountCount: number
-  conversationCount: number
   recentMessageCount: number
   errorCount: number
   config: Partial<TIntegrationWechatOptions>
@@ -147,8 +128,17 @@ export type WechatAccountTunnelBinding = {
   bindingCount?: number
 }
 
+export type WechatAccountTriggerBinding = {
+  status: 'exact' | 'default' | 'unbound'
+  bindingId?: string | null
+  accountUuid?: string | null
+  xpertId?: string | null
+  updatedAt?: Date | null
+}
+
 export type WechatAccountWorkbenchItem = WechatAccountEntity & {
   tunnelBinding?: WechatAccountTunnelBinding
+  triggerBinding?: WechatAccountTriggerBinding
 }
 
 export type WechatTunnelClientWorkbenchItem = WechatTunnelClientInfo & {
@@ -165,12 +155,10 @@ export type WechatWorkbenchData = {
   summary: {
     integrationCount?: number
     accountCount: number
-    conversationCount: number
     recentMessageCount: number
     errorCount: number
   }
   accounts: WechatAccountWorkbenchItem[]
-  conversations: WechatConversationListItem[]
   messages: WechatMessageLogEntity[]
   queue: WechatMessageLogEntity[]
   logs: WechatMessageLogEntity[]
@@ -185,7 +173,7 @@ export type WechatPagedResult<T> = IPagination<T> & {
   pageSize: number
 }
 
-export type WechatWorkbenchTableKey = 'accounts' | 'conversations' | 'messages' | 'queue' | 'logs' | 'tunnelClients'
+export type WechatWorkbenchTableKey = 'accounts' | 'messages' | 'queue' | 'logs' | 'tunnelClients'
 
 export type WechatWorkbenchTableQuery = {
   search?: string
@@ -196,29 +184,72 @@ export type WechatWorkbenchTableQuery = {
 
 export type WechatWorkbenchTableResult =
   | (WechatPagedResult<WechatAccountWorkbenchItem> & { key: 'accounts' })
-  | (WechatPagedResult<WechatConversationListItem> & { key: 'conversations' })
   | (WechatPagedResult<WechatMessageLogEntity> & { key: 'messages' | 'queue' | 'logs' })
   | (WechatPagedResult<WechatTunnelClientWorkbenchItem> & { key: 'tunnelClients' })
+
+export type WechatChatHistoryDirection = 'inbound' | 'outbound' | 'both'
+
+export type WechatChatHistoryQuery = {
+  uuid?: string
+  contactId?: string
+  chatType?: 'private' | 'group'
+  senderId?: string
+  keyword?: string
+  direction?: WechatChatHistoryDirection
+  before?: string | Date
+  after?: string | Date
+  limit?: number
+  excludedLogIds?: string[]
+  enforceTriggerFilters?: boolean
+}
+
+export type WechatChatHistoryItem = {
+  id: string
+  direction: WechatMessageDirection
+  status: WechatMessageLogStatus
+  senderId?: string | null
+  content: string
+  messageId?: string | null
+  createdAt?: Date | null
+  sentAt?: Date | null
+}
+
+export type WechatChatHistoryResult = {
+  integrationId: string
+  uuid: string
+  contactId: string
+  chatType: 'private' | 'group'
+  items: WechatChatHistoryItem[]
+  totalScanned: number
+  hasMore: boolean
+  warning?: string
+}
+
+export type WechatRuntimeTriggerBinding = {
+  integrationId: string
+  accountUuid: string
+  xpertId: string
+  sessionTimeoutSeconds: number
+  summaryWindowSeconds: number
+  historyContextLimit: number
+  historyContextWindowSeconds: number
+  ignoreSelfMessages: boolean
+  selfMessagePolicy: string
+  allowedKeywords: string[]
+  groupTriggerMode: string
+  groupKeywords: string[]
+  mentionFallbackNames: string[]
+  groupTriggerOverrides?: NonNullable<WechatInboundTriggerOptions['groupTriggerOverrides']>
+  groupJoinWelcomeEnabled: boolean
+  groupJoinWelcomePrompt: string
+  updatedAt: Date | null
+}
 
 export type WechatRuntimeStatus = {
   callbackConfig: WechatWorkbenchData['callbackConfig']
   summary: WechatWorkbenchData['summary']
-  triggerBinding: {
-    integrationId: string
-    xpertId: string
-    sessionTimeoutSeconds: number
-    summaryWindowSeconds: number
-    historyContextLimit: number
-    historyContextWindowSeconds: number
-    ignoreSelfMessages: boolean
-    selfMessagePolicy: string
-    allowedKeywords: string[]
-    groupTriggerMode: string
-    groupKeywords: string[]
-    mentionFallbackNames: string[]
-    groupTriggerOverrides?: NonNullable<WechatInboundTriggerOptions['groupTriggerOverrides']>
-    updatedAt: Date | null
-  } | null
+  triggerBinding: WechatRuntimeTriggerBinding | null
+  triggerBindings?: WechatRuntimeTriggerBinding[]
   accounts: WechatAccountWorkbenchItem[]
   recentErrors: WechatMessageLogEntity[]
   config: Partial<TIntegrationWechatOptions>
@@ -239,10 +270,6 @@ export class WechatConversationService {
     private readonly wechatClient: WechatClient,
     private readonly triggerStrategy: WechatTriggerStrategy,
     private readonly tunnelBroker: WechatTunnelBrokerService,
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-    @InjectRepository(WechatConversationBindingEntity)
-    private readonly conversationBindingRepository: Repository<WechatConversationBindingEntity>,
     @InjectRepository(WechatAccountEntity)
     private readonly accountRepository: Repository<WechatAccountEntity>,
     @InjectRepository(WechatMessageLogEntity)
@@ -265,146 +292,6 @@ export class WechatConversationService {
     return this._speechToTextPermissionService
   }
 
-  async getConversationState(
-    conversationUserKey: string,
-    xpertId: string,
-    scopeOverride?: WechatTenantScope | null
-  ): Promise<WechatConversationState | undefined> {
-    const normalizedUserKey = normalizeConversationKey(conversationUserKey)
-    const normalizedXpertId = normalizeConversationKey(xpertId)
-    if (!normalizedUserKey || !normalizedXpertId) {
-      return undefined
-    }
-
-    const scope = this.resolveTenantScope(scopeOverride)
-    const cached = await this.cacheManager.get<{ conversationId?: unknown; lastActiveAt?: unknown }>(
-      this.getConversationCacheKey(normalizedUserKey, normalizedXpertId, scope)
-    )
-    if (cached && typeof cached === 'object') {
-      const conversationId = normalizeConversationKey(cached.conversationId)
-      if (conversationId) {
-        return {
-          conversationId,
-          lastActiveAt: this.normalizeDate(cached.lastActiveAt)
-        }
-      }
-    }
-
-    const binding = await this.conversationBindingRepository.findOne({
-      where: this.scopedWhere(
-        {
-          conversationUserKey: normalizedUserKey,
-          xpertId: normalizedXpertId
-        },
-        scope
-      )
-    })
-    const conversationId = normalizeConversationKey(binding?.conversationId)
-    if (!conversationId) {
-      return undefined
-    }
-
-    const lastActiveAt = this.normalizeDate(binding?.lastActiveAt) ?? this.normalizeDate(binding?.updatedAt)
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, conversationId, lastActiveAt, scope)
-    return {
-      conversationId,
-      lastActiveAt
-    }
-  }
-
-  async setConversation(
-    conversationUserKey: string,
-    xpertId: string,
-    conversationId: string,
-    lastActiveAt: Date | undefined = new Date(),
-    scopeOverride?: WechatTenantScope | null
-  ): Promise<void> {
-    const normalizedUserKey = normalizeConversationKey(conversationUserKey)
-    const normalizedXpertId = normalizeConversationKey(xpertId)
-    const normalizedConversationId = normalizeConversationKey(conversationId)
-    if (!normalizedUserKey || !normalizedXpertId || !normalizedConversationId) {
-      return
-    }
-
-    const resolvedLastActiveAt = this.normalizeDate(lastActiveAt) ?? new Date()
-    const bindingContext = this.resolveBindingContext()
-    const scope = this.resolveTenantScope(scopeOverride, bindingContext)
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, normalizedConversationId, resolvedLastActiveAt, scope)
-
-    await this.conversationBindingRepository.upsert(
-      {
-        conversationUserKey: normalizedUserKey,
-        xpertId: normalizedXpertId,
-        conversationId: normalizedConversationId,
-        lastActiveAt: resolvedLastActiveAt,
-        tenantId: scope.tenantId ?? null,
-        organizationId: scope.organizationId ?? null,
-        createdById: bindingContext.createdById ?? null,
-        updatedById: bindingContext.updatedById ?? null
-      },
-      ['conversationUserKey', 'xpertId']
-    )
-  }
-
-  async touchConversation(
-    conversationUserKey: string,
-    xpertId: string,
-    lastActiveAt: Date = new Date(),
-    scopeOverride?: WechatTenantScope | null
-  ): Promise<void> {
-    const current = await this.getConversationState(conversationUserKey, xpertId, scopeOverride)
-    if (!current?.conversationId) {
-      return
-    }
-    await this.setConversation(conversationUserKey, xpertId, current.conversationId, lastActiveAt, scopeOverride)
-  }
-
-  async clearConversation(
-    conversationUserKey: string,
-    xpertId: string,
-    scopeOverride?: WechatTenantScope | null
-  ): Promise<void> {
-    const normalizedUserKey = normalizeConversationKey(conversationUserKey)
-    const normalizedXpertId = normalizeConversationKey(xpertId)
-    if (!normalizedUserKey || !normalizedXpertId) {
-      return
-    }
-
-    const scope = this.resolveTenantScope(scopeOverride)
-    await this.cacheManager.del(this.getConversationCacheKey(normalizedUserKey, normalizedXpertId, scope))
-    await this.conversationBindingRepository.delete(
-      this.scopedWhere(
-        {
-          conversationUserKey: normalizedUserKey,
-          xpertId: normalizedXpertId
-        },
-        scope
-      )
-    )
-  }
-
-  async restartConversationBinding(integrationId: string, bindingId: string): Promise<void> {
-    const normalizedIntegrationId = normalizeConversationKey(integrationId)
-    const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
-    const binding = await this.conversationBindingRepository.findOne({
-      where: this.scopedWhere(
-        {
-          id: normalizeConversationKey(bindingId)
-        },
-        scope
-      )
-    })
-    if (!binding) {
-      throw new Error('该微信会话不存在或已被重置。')
-    }
-
-    const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
-    if (!parsed || parsed.integrationId !== normalizedIntegrationId) {
-      throw new Error('该微信会话不属于当前微信集成。')
-    }
-    await this.clearConversation(binding.conversationUserKey, binding.xpertId, scope)
-  }
-
   async handleInboundEvent(
     event: WechatInboundEvent,
     ctx: TChatEventContext<TIntegrationWechatOptions>
@@ -419,6 +306,10 @@ export class WechatConversationService {
     if (!integration) {
       this.logger.error(`Integration ${ctx.integration.id} not found`)
       return { handled: false, reason: 'integration_not_found' }
+    }
+
+    if (isWechatHardExcludedInboundEvent(event)) {
+      return { handled: false, reason: 'weixin_ignored' }
     }
 
     const eventScope = this.resolveTenantScope(integration, ctx)
@@ -445,7 +336,7 @@ export class WechatConversationService {
 
       inboundLog = await this.logInbound(integration, event, 'received')
 
-      const binding = await this.triggerStrategy.getBinding(integration.id, eventScope)
+      const binding = await this.triggerStrategy.getBindingForAccount(integration.id, event.uuid, eventScope)
       if (!binding?.xpertId) {
         await this.updateLog(inboundLog.id, {
           status: 'skipped',
@@ -468,7 +359,9 @@ export class WechatConversationService {
         groupTriggerMode: binding.groupTriggerMode,
         groupKeywords: binding.groupKeywords ?? [],
         mentionFallbackNames: binding.mentionFallbackNames ?? [],
-        groupTriggerOverrides: normalizeGroupTriggerOverrides(binding.groupTriggerOverrides)
+        groupTriggerOverrides: normalizeGroupTriggerOverrides(binding.groupTriggerOverrides),
+        groupJoinWelcomeEnabled: binding.groupJoinWelcomeEnabled === true,
+        groupJoinWelcomePrompt: normalizeGroupJoinWelcomePrompt(binding.groupJoinWelcomePrompt)
       }
 
       let dispatchEvent = event
@@ -572,12 +465,27 @@ export class WechatConversationService {
         triggerOptions = this.resolveEventTriggerOptions(dispatchEvent, baseTriggerOptions)
       }
 
-      const dispatchable = shouldDispatchWechatMessage(dispatchEvent, triggerOptions)
+      const groupJoinWelcomeInput = this.resolveGroupJoinWelcomeInput(dispatchEvent, triggerOptions)
+      if (groupJoinWelcomeInput) {
+        dispatchEvent = {
+          ...dispatchEvent,
+          messageKind: 'text',
+          content: groupJoinWelcomeInput,
+          displayText: groupJoinWelcomeInput,
+          files: undefined,
+          imageRef: undefined,
+          voiceRef: undefined,
+          mediaSignature: undefined
+        }
+      }
+
+      const dispatchable = groupJoinWelcomeInput ? null : shouldDispatchWechatMessage(dispatchEvent, triggerOptions)
       const shouldQueueDebouncedCandidate =
+        !groupJoinWelcomeInput &&
         !dispatchable &&
         this.isDebounceEnabled(binding.summaryWindowSeconds) &&
         this.isDebouncedBatchCandidate(dispatchEvent, triggerOptions)
-      if (!dispatchable && !shouldQueueDebouncedCandidate) {
+      if (!groupJoinWelcomeInput && !dispatchable && !shouldQueueDebouncedCandidate) {
         await this.updateLog(inboundLog.id, {
           status: 'skipped',
           xpertId: binding.xpertId,
@@ -586,7 +494,7 @@ export class WechatConversationService {
         }, eventScope)
         return { handled: false, reason: 'filtered' }
       }
-      const dispatchInput = dispatchable?.input ?? normalizeWechatAgentInput(dispatchEvent)
+      const dispatchInput = groupJoinWelcomeInput ?? dispatchable?.input ?? normalizeWechatAgentInput(dispatchEvent)
 
       const inboundFilesResult = await this.resolveInboundFiles(integration, dispatchEvent)
       if (inboundFilesResult.success === false) {
@@ -618,14 +526,13 @@ export class WechatConversationService {
         }
       )
 
-      const newSessionCommand = dispatchable
+      const newSessionCommand = !groupJoinWelcomeInput && dispatchable
         ? this.parseNewSessionCommand(dispatchInput)
         : {
             matched: false,
             input: dispatchInput
           }
       if (newSessionCommand.matched && conversationUserKey) {
-        await this.clearConversation(conversationUserKey, binding.xpertId, eventScope)
         await this.triggerStrategy.clearBufferedConversation(conversationUserKey)
         await this.markHistoryContextReset(integration, dispatchEvent, conversationUserKey, binding.xpertId, eventScope)
         if (!newSessionCommand.input) {
@@ -657,6 +564,7 @@ export class WechatConversationService {
 
       const handled = await this.triggerStrategy.handleInboundMessage({
         integrationId: integration.id,
+        accountUuid: dispatchEvent.uuid,
         input: newSessionCommand.matched ? newSessionCommand.input : dispatchInput,
         files: inboundFiles,
         item: buildWechatBatchTriggerItem(
@@ -898,7 +806,7 @@ export class WechatConversationService {
     const search = this.normalizeListSearch(query.search)
     const scope = this.resolveTenantScope(integration)
 
-    const [accounts, logs, bindings] = await Promise.all([
+    const [accounts, logs] = await Promise.all([
       this.accountRepository.find({
         where: this.scopedWhere({ integrationId: normalizedIntegrationId }, scope),
         order: { updatedAt: 'DESC' },
@@ -908,25 +816,9 @@ export class WechatConversationService {
         where: this.scopedWhere({ integrationId: normalizedIntegrationId }, scope),
         order: { createdAt: 'DESC' },
         take: 200
-      }),
-      this.conversationBindingRepository.find({
-        where: this.scopedWhere({}, scope),
-        order: { updatedAt: 'DESC' }
       })
     ])
 
-    const conversations = bindings
-      .map((binding) => this.toConversationListItem(binding, normalizedIntegrationId))
-      .filter((item): item is WechatConversationListItem => Boolean(item))
-      .filter((item) => {
-        if (!search) {
-          return true
-        }
-        return [item.uuid, item.contactId, item.senderId, item.xpertId, item.conversationId].some((value) =>
-          this.normalizeListSearch(value)?.includes(search)
-        )
-      })
-      .slice(0, pageSize)
     const filteredLogs = logs
       .filter((log) => {
         if (!search) {
@@ -938,12 +830,15 @@ export class WechatConversationService {
       })
       .slice(0, pageSize)
     const tunnel = await this.getTunnelStatus(integration)
-    const accountsWithTunnel = await this.attachAccountTunnelBindings(accounts, [integration])
+    const accountsWithTunnel = await this.attachAccountTriggerBindings(
+      await this.attachAccountTunnelBindings(accounts, [integration]),
+      [integration],
+      scope
+    )
     const tunnelClients = await this.buildTunnelClientItems([integration])
 
     const integrationWorkbenchItem = await this.toIntegrationWorkbenchItem(integration, {
       accounts,
-      conversations,
       logs
     })
 
@@ -955,12 +850,10 @@ export class WechatConversationService {
       summary: {
         integrationCount: 1,
         accountCount: accounts.length,
-        conversationCount: conversations.length,
         recentMessageCount: logs.length,
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
       accounts: accountsWithTunnel,
-      conversations,
       messages: filteredLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
@@ -1003,12 +896,10 @@ export class WechatConversationService {
         summary: {
           integrationCount: 0,
           accountCount: 0,
-          conversationCount: 0,
           recentMessageCount: 0,
           errorCount: 0
         },
         accounts: [],
-        conversations: [],
         messages: [],
         queue: [],
         logs: [],
@@ -1021,7 +912,7 @@ export class WechatConversationService {
       }
     }
 
-    const [accounts, logs, bindings] = await Promise.all([
+    const [accounts, logs] = await Promise.all([
       this.accountRepository.find({
         where: integrationIds.map((integrationId) => this.scopedWhere({ integrationId }, scope)),
         order: { updatedAt: 'DESC' },
@@ -1031,38 +922,22 @@ export class WechatConversationService {
         where: integrationIds.map((integrationId) => this.scopedWhere({ integrationId }, scope)),
         order: { createdAt: 'DESC' },
         take: 1000
-      }),
-      this.conversationBindingRepository.find({
-        where: this.scopedWhere({}, scope),
-        order: { updatedAt: 'DESC' },
-        take: 1500
       })
     ])
 
-    const integrationIdSet = new Set(integrationIds)
-    const allConversations = bindings
-      .map((binding) => {
-        const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
-        if (!parsed || !integrationIdSet.has(parsed.integrationId)) {
-          return null
-        }
-        return this.toConversationListItem(binding, parsed.integrationId)
-      })
-      .filter((item): item is WechatConversationListItem => Boolean(item))
-
-    const conversations = allConversations
-      .filter((item) => this.matchesConversationSearch(item, search))
-      .slice(0, pageSize)
     const filteredLogs = logs
       .filter((log) => this.matchesLogSearch(log, search))
       .slice(0, pageSize)
-    const accountsWithTunnel = await this.attachAccountTunnelBindings(accounts, integrations)
+    const accountsWithTunnel = await this.attachAccountTriggerBindings(
+      await this.attachAccountTunnelBindings(accounts, integrations),
+      integrations,
+      scope
+    )
 
     const integrationItems = await Promise.all(
       integrations.map((integration) =>
         this.toIntegrationWorkbenchItem(integration, {
           accounts: accounts.filter((account) => account.integrationId === integration.id),
-          conversations: allConversations.filter((conversation) => conversation.integrationId === integration.id),
           logs: logs.filter((log) => log.integrationId === integration.id)
         })
       )
@@ -1076,12 +951,10 @@ export class WechatConversationService {
       summary: {
         integrationCount: integrations.length,
         accountCount: accounts.length,
-        conversationCount: allConversations.length,
         recentMessageCount: logs.length,
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
       accounts: accountsWithTunnel,
-      conversations,
       messages: filteredLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
@@ -1100,38 +973,17 @@ export class WechatConversationService {
       throw new Error('缺少微信集成标识。')
     }
 
-    const [workbenchData, triggerBinding] = await Promise.all([
+    const [workbenchData, triggerBinding, triggerBindings] = await Promise.all([
       this.getWorkbenchData(normalizedIntegrationId, { pageSize: 20 }),
-      this.triggerStrategy.getBinding(normalizedIntegrationId)
+      this.triggerStrategy.getBinding(normalizedIntegrationId),
+      this.triggerStrategy.getBindings(normalizedIntegrationId)
     ])
 
     return {
       callbackConfig: workbenchData.callbackConfig,
       summary: workbenchData.summary,
-      triggerBinding: triggerBinding
-        ? {
-            integrationId: triggerBinding.integrationId,
-            xpertId: triggerBinding.xpertId,
-            sessionTimeoutSeconds: triggerBinding.sessionTimeoutSeconds,
-            summaryWindowSeconds: triggerBinding.summaryWindowSeconds,
-            historyContextLimit: triggerBinding.historyContextLimit ?? DEFAULT_HISTORY_CONTEXT_LIMIT,
-            historyContextWindowSeconds: this.normalizeHistoryContextWindowSeconds(
-              triggerBinding.historyContextWindowSeconds,
-              triggerBinding.sessionTimeoutSeconds
-            ),
-            ignoreSelfMessages: triggerBinding.ignoreSelfMessages !== false,
-            selfMessagePolicy: normalizeSelfMessagePolicy(
-              triggerBinding.selfMessagePolicy,
-              triggerBinding.ignoreSelfMessages
-            ),
-            allowedKeywords: triggerBinding.allowedKeywords ?? [],
-            groupTriggerMode: triggerBinding.groupTriggerMode,
-            groupKeywords: triggerBinding.groupKeywords ?? [],
-            mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
-            groupTriggerOverrides: normalizeGroupTriggerOverrides(triggerBinding.groupTriggerOverrides),
-            updatedAt: this.normalizeDate(triggerBinding.updatedAt) ?? null
-          }
-        : null,
+      triggerBinding: this.formatRuntimeTriggerBinding(triggerBinding),
+      triggerBindings: triggerBindings.map((binding) => this.formatRuntimeTriggerBinding(binding)).filter(Boolean) as WechatRuntimeTriggerBinding[],
       accounts: workbenchData.accounts.slice(0, 10),
       recentErrors: workbenchData.logs
         .filter((log) => log.status === 'failed' || Boolean(log.error))
@@ -1149,6 +1001,7 @@ export class WechatConversationService {
       callbackConfig: workbenchData.callbackConfig,
       summary: workbenchData.summary,
       triggerBinding: null,
+      triggerBindings: [],
       accounts: workbenchData.accounts.slice(0, 10),
       recentErrors: workbenchData.logs
         .filter((log) => log.status === 'failed' || Boolean(log.error))
@@ -1177,9 +1030,6 @@ export class WechatConversationService {
     if (table === 'tunnelClients') {
       return { key: table, ...(await this.listTunnelClients(integrationId, query)) }
     }
-    if (table === 'conversations') {
-      return { key: table, ...(await this.listConversations(integrationId, query)) }
-    }
     if (table === 'queue') {
       return {
         key: table,
@@ -1205,9 +1055,6 @@ export class WechatConversationService {
     }
     if (table === 'tunnelClients') {
       return { key: table, ...(await this.listOrganizationTunnelClients(query)) }
-    }
-    if (table === 'conversations') {
-      return { key: table, ...(await this.listOrganizationConversations(query)) }
     }
     if (table === 'queue') {
       return {
@@ -1269,7 +1116,8 @@ export class WechatConversationService {
       ].some((value) => this.normalizeListSearch(value)?.includes(search))
     })
 
-    return this.paginateItems(await this.attachAccountTunnelBindings(filtered, [integration]), page, pageSize)
+    const accountsWithTunnel = await this.attachAccountTunnelBindings(filtered, [integration])
+    return this.paginateItems(await this.attachAccountTriggerBindings(accountsWithTunnel, [integration], scope), page, pageSize)
   }
 
   async listOrganizationAccounts(
@@ -1336,61 +1184,6 @@ export class WechatConversationService {
     return broker.disconnectManagedClient(clientId, 'disconnected by WeChat workbench administrator')
   }
 
-  async listConversations(
-    integrationId: string,
-    query: WechatWorkbenchTableQuery = {}
-  ): Promise<WechatPagedResult<WechatConversationListItem>> {
-    const normalizedIntegrationId = normalizeConversationKey(integrationId)
-    if (!normalizedIntegrationId) {
-      throw new Error('缺少微信集成标识。')
-    }
-
-    const page = this.normalizePage(query.page)
-    const pageSize = this.normalizePageSize(query.pageSize, 50)
-    const search = this.normalizeListSearch(query.search)
-    const filters = this.normalizeFilters(query.filters)
-    const scope = await this.readIntegrationTenantScope(normalizedIntegrationId)
-    const bindings = await this.conversationBindingRepository.find({
-      where: this.scopedWhere({}, scope),
-      order: { updatedAt: 'DESC' },
-      take: 1000
-    })
-    const conversations = bindings
-      .map((binding) => this.toConversationListItem(binding, normalizedIntegrationId))
-      .filter((item): item is WechatConversationListItem => Boolean(item))
-      .filter((item) => this.matchesConversationFilters(item, filters))
-      .filter((item) => {
-        if (!search) {
-          return true
-        }
-        return [
-          item.id,
-          item.uuid,
-          item.contactId,
-          item.senderId,
-          item.xpertId,
-          item.conversationId
-        ].some((value) => this.normalizeListSearch(value)?.includes(search))
-      })
-
-    return this.paginateItems(conversations, page, pageSize)
-  }
-
-  async listOrganizationConversations(
-    query: WechatWorkbenchTableQuery = {}
-  ): Promise<WechatPagedResult<WechatConversationListItem>> {
-    const data = await this.getOrganizationWorkbenchData({ pageSize: 1000 })
-    const page = this.normalizePage(query.page)
-    const pageSize = this.normalizePageSize(query.pageSize, 50)
-    const search = this.normalizeListSearch(query.search)
-    const filters = this.normalizeFilters(query.filters)
-    const filtered = data.conversations
-      .filter((item) => this.matchesConversationFilters(item, filters))
-      .filter((item) => this.matchesConversationSearch(item, search))
-
-    return this.paginateItems(filtered, page, pageSize)
-  }
-
   async searchMessageLogs(
     integrationId: string,
     query: {
@@ -1447,6 +1240,101 @@ export class WechatConversationService {
     })
 
     return this.paginateItems(filtered, page, pageSize)
+  }
+
+  async searchChatHistory(
+    integrationId: string,
+    query: WechatChatHistoryQuery = {}
+  ): Promise<WechatChatHistoryResult> {
+    const normalizedIntegrationId = normalizeConversationKey(integrationId)
+    const uuid = normalizeConversationKey(query.uuid)
+    const contactId = normalizeConversationKey(query.contactId)
+    const chatType = query.chatType === 'group' || contactId?.endsWith('@chatroom') ? 'group' : 'private'
+    if (!normalizedIntegrationId) {
+      throw new Error('缺少微信集成标识。')
+    }
+    if (!uuid || !contactId) {
+      throw new Error('缺少微信会话标识。')
+    }
+
+    const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
+      normalizedIntegrationId,
+      {
+        relations: ['tenant']
+      }
+    )
+    if (!integration) {
+      throw new Error('微信集成不存在或无权访问。')
+    }
+
+    const scope = this.resolveTenantScope(integration)
+    if (query.enforceTriggerFilters) {
+      await this.assertChatHistoryTargetAllowed(normalizedIntegrationId, {
+        uuid,
+        contactId,
+        chatType,
+        scope
+      })
+    }
+
+    const direction = this.normalizeChatHistoryDirection(query.direction)
+    const keyword = this.normalizeListSearch(query.keyword)
+    const before = this.normalizeDate(query.before)
+    const after = this.normalizeDate(query.after)
+    const limit = this.normalizeChatHistoryLimit(query.limit)
+    const senderId = normalizeConversationKey(query.senderId)
+    const excludedLogIds = new Set((query.excludedLogIds ?? []).map((id) => normalizeConversationKey(id)).filter(Boolean))
+
+    const logs = await this.messageLogRepository.find({
+      where: this.scopedWhere({ integrationId: normalizedIntegrationId, uuid, contactId }, scope),
+      order: { createdAt: 'DESC' },
+      take: 1000
+    })
+
+    const filtered = logs.filter((log) => {
+      if (excludedLogIds.has(log.id)) {
+        return false
+      }
+      if (log.chatType && log.chatType !== chatType) {
+        return false
+      }
+      if (senderId && log.senderId !== senderId) {
+        return false
+      }
+      if (!this.isChatHistoryDirectionAllowed(log, direction)) {
+        return false
+      }
+      if (!this.isChatHistoryStatusAllowed(log)) {
+        return false
+      }
+      const timestamp = this.normalizeDate(log.sentAt) ?? this.normalizeDate(log.createdAt)
+      if (before && timestamp && timestamp >= before) {
+        return false
+      }
+      if (after && timestamp && timestamp <= after) {
+        return false
+      }
+      if (keyword && ![
+        log.content,
+        log.senderId,
+        log.messageId
+      ].some((value) => this.normalizeListSearch(value)?.includes(keyword))) {
+        return false
+      }
+      return Boolean(this.truncateContextText(log.content, HISTORY_CONTEXT_ITEM_MAX_CHARS))
+    })
+
+    const selected = filtered.slice(0, limit).reverse()
+    return {
+      integrationId: normalizedIntegrationId,
+      uuid,
+      contactId,
+      chatType,
+      items: this.formatChatHistoryItems(selected),
+      totalScanned: filtered.length,
+      hasMore: filtered.length > selected.length,
+      ...(logs.length >= 1000 ? { warning: 'Only the latest 1000 message logs were scanned.' } : {})
+    }
   }
 
   async findOutboundByIdempotencyKey(
@@ -1518,15 +1406,9 @@ export class WechatConversationService {
     }
     const secretForUrl = webhookSecret || '<webhook-secret-unavailable>'
     const webhookUrl = `${apiBaseUrl}/api/wechat/webhook/${id}?secret=${encodeURIComponent(secretForUrl)}`
-    const setCallbackUrlTemplate = `${apiBaseUrl}/api/wechat/webhook/${id}?secret=***`
     return {
       webhookUrl,
       globalWebhookUrl: webhookUrl,
-      setCallbackUrlTemplate,
-      setCallbackCurlTemplate:
-        `curl -X POST "$WX2_BASE_URL/message/SetCallback?key=<uuid>" ` +
-        `-H "Content-Type: application/json" ` +
-        `-d '{"CallbackURL":"${setCallbackUrlTemplate}","Enabled":true}'`,
       credentialActive: Boolean(webhookSecret)
     }
   }
@@ -1897,6 +1779,59 @@ export class WechatConversationService {
     })
   }
 
+  private resolveGroupJoinWelcomeInput(
+    event: WechatInboundEvent,
+    options: WechatInboundTriggerOptions
+  ): string | null {
+    if (options.groupJoinWelcomeEnabled !== true) {
+      return null
+    }
+    if (!this.matchesGroupJoinWelcomeFilters(event, options)) {
+      return null
+    }
+    const welcomeInfo = resolveWechatGroupJoinWelcomeInfo(event)
+    if (!welcomeInfo) {
+      return null
+    }
+    return this.buildGroupJoinWelcomeInput(event, welcomeInfo, options)
+  }
+
+  private matchesGroupJoinWelcomeFilters(
+    event: WechatInboundEvent,
+    options: WechatInboundTriggerOptions
+  ): boolean {
+    return matchesWechatMessageFilter(event, {
+      chatFilterMode: options.chatFilterMode,
+      allowedContactIds: options.allowedContactIds,
+      blockedContactIds: options.blockedContactIds,
+      allowedGroupIds: options.allowedGroupIds,
+      blockedGroupIds: options.blockedGroupIds
+    })
+  }
+
+  private buildGroupJoinWelcomeInput(
+    event: WechatInboundEvent,
+    welcomeInfo: { names: string[]; rawText: string },
+    options: WechatInboundTriggerOptions
+  ): string {
+    const names = welcomeInfo.names.join('、')
+    const groupName = normalizeString(event.contactName) || event.contactId
+    const prompt = normalizeGroupJoinWelcomePrompt(options.groupJoinWelcomePrompt)
+      .replace(/\{names\}/g, names)
+      .replace(/\{groupName\}/g, groupName)
+      .replace(/\{roomId\}/g, event.contactId)
+      .replace(/\{rawText\}/g, welcomeInfo.rawText)
+
+    return [
+      prompt,
+      '',
+      `群名称: ${groupName}`,
+      `群 roomId: ${event.contactId}`,
+      `新成员: ${names}`,
+      `原始系统提示: ${welcomeInfo.rawText}`
+    ].join('\n')
+  }
+
   private shouldStoreSelfHistory(
     event: WechatInboundEvent,
     options: WechatInboundTriggerOptions
@@ -2115,6 +2050,96 @@ export class WechatConversationService {
     )
   }
 
+  private async assertChatHistoryTargetAllowed(
+    integrationId: string,
+    params: {
+      uuid: string
+      contactId: string
+      chatType: 'private' | 'group'
+      scope: WechatTenantScope
+    }
+  ): Promise<void> {
+    const binding = await this.triggerStrategy.getBindingForAccount(integrationId, params.uuid, params.scope)
+    if (!binding?.xpertId) {
+      throw new Error('微信触发器未绑定，无法检索会话历史。')
+    }
+
+    const allowed = matchesWechatMessageFilter(
+      {
+        contactId: params.contactId,
+        senderId: params.contactId,
+        chatType: params.chatType
+      } as WechatInboundEvent,
+      {
+        chatFilterMode: binding.chatFilterMode,
+        allowedContactIds: binding.allowedContactIds,
+        blockedContactIds: binding.blockedContactIds,
+        allowedGroupIds: binding.allowedGroupIds,
+        blockedGroupIds: binding.blockedGroupIds
+      }
+    )
+    if (!allowed) {
+      throw new Error('当前微信会话不在触发器允许的历史检索范围内。')
+    }
+  }
+
+  private normalizeChatHistoryDirection(value: unknown): WechatChatHistoryDirection {
+    return value === 'inbound' || value === 'outbound' ? value : 'both'
+  }
+
+  private normalizeChatHistoryLimit(value: unknown): number {
+    if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+      return Math.min(value, CHAT_HISTORY_MAX_LIMIT)
+    }
+    return CHAT_HISTORY_DEFAULT_LIMIT
+  }
+
+  private isChatHistoryDirectionAllowed(
+    log: WechatMessageLogEntity,
+    direction: WechatChatHistoryDirection
+  ): boolean {
+    if (direction === 'both') {
+      return log.direction === 'inbound' || log.direction === 'outbound'
+    }
+    return log.direction === direction
+  }
+
+  private isChatHistoryStatusAllowed(log: WechatMessageLogEntity): boolean {
+    if (log.direction === 'inbound') {
+      return ['received', 'dispatched', 'history_only'].includes(log.status)
+    }
+    if (log.direction === 'outbound') {
+      return log.status === 'sent'
+    }
+    return false
+  }
+
+  private formatChatHistoryItems(logs: WechatMessageLogEntity[]): WechatChatHistoryItem[] {
+    const items: WechatChatHistoryItem[] = []
+    let remaining = HISTORY_CONTEXT_TOTAL_MAX_CHARS
+    for (const log of logs) {
+      if (remaining <= 0) {
+        break
+      }
+      const content = this.truncateContextText(log.content, Math.min(HISTORY_CONTEXT_ITEM_MAX_CHARS, remaining))
+      if (!content) {
+        continue
+      }
+      remaining -= content.length
+      items.push({
+        id: log.id,
+        direction: log.direction,
+        status: log.status,
+        senderId: log.senderId ?? null,
+        content,
+        messageId: log.messageId ?? null,
+        createdAt: this.normalizeDate(log.createdAt) ?? null,
+        sentAt: this.normalizeDate(log.sentAt) ?? null
+      })
+    }
+    return items
+  }
+
   private truncateContextText(value: unknown, maxLength: number): string {
     if (typeof value !== 'string') {
       return ''
@@ -2174,33 +2199,6 @@ export class WechatConversationService {
       return
     }
     await this.messageLogRepository.update(this.scopedWhere({ id }, scope), patch)
-  }
-
-  private getConversationCacheKey(
-    conversationUserKey: string,
-    xpertId: string,
-    scope?: WechatTenantScope | null
-  ): string {
-    const tenantKey = scope?.tenantId ? `tenant:${scope.tenantId}` : 'tenant:any'
-    const organizationKey = scope?.organizationId ? `org:${scope.organizationId}` : 'org:any'
-    return `plugin_wechat:chat:${tenantKey}:${organizationKey}:${conversationUserKey}:${xpertId}`
-  }
-
-  private async cacheConversation(
-    conversationUserKey: string,
-    xpertId: string,
-    conversationId: string,
-    lastActiveAt?: Date | null,
-    scope?: WechatTenantScope | null
-  ): Promise<void> {
-    await this.cacheManager.set(
-      this.getConversationCacheKey(conversationUserKey, xpertId, scope),
-      {
-        conversationId,
-        lastActiveAt: lastActiveAt?.toISOString()
-      },
-      CACHE_TTL_MS
-    )
   }
 
   private resolveTenantScope(
@@ -2283,7 +2281,6 @@ export class WechatConversationService {
     integration: IIntegration<TIntegrationWechatOptions>,
     stats: {
       accounts: WechatAccountEntity[]
-      conversations: WechatConversationListItem[]
       logs: WechatMessageLogEntity[]
     }
   ): Promise<WechatIntegrationWorkbenchItem> {
@@ -2294,7 +2291,6 @@ export class WechatConversationService {
       slug: integration.slug,
       callbackConfig: await this.buildCallbackConfig(integration.id),
       accountCount: stats.accounts.length,
-      conversationCount: stats.conversations.length,
       recentMessageCount: stats.logs.length,
       errorCount: stats.logs.filter((log) => log.status === 'failed' || log.error).length,
       config: this.sanitizeIntegrationConfig(integration.options),
@@ -2361,9 +2357,7 @@ export class WechatConversationService {
   private emptyCallbackConfig(): WechatWorkbenchData['callbackConfig'] {
     return {
       webhookUrl: '',
-      globalWebhookUrl: '',
-      setCallbackUrlTemplate: '',
-      setCallbackCurlTemplate: ''
+      globalWebhookUrl: ''
     }
   }
 
@@ -2388,6 +2382,95 @@ export class WechatConversationService {
         tunnelBinding: this.getAccountTunnelBinding(account, integration, tunnelByIntegrationId)
       }
     })
+  }
+
+  private async attachAccountTriggerBindings(
+    accounts: WechatAccountWorkbenchItem[],
+    integrations: IIntegration<TIntegrationWechatOptions>[],
+    scope?: WechatTenantScope | null
+  ): Promise<WechatAccountWorkbenchItem[]> {
+    if (!accounts.length) {
+      return accounts
+    }
+    const integrationIds = Array.from(
+      new Set(
+        integrations
+          .map((integration) => normalizeConversationKey(integration.id))
+          .filter(Boolean) as string[]
+      )
+    )
+    const bindingsByIntegrationId = new Map<string, WechatTriggerBindingEntity[]>()
+    await Promise.all(
+      integrationIds.map(async (integrationId) => {
+        bindingsByIntegrationId.set(integrationId, await this.triggerStrategy.getBindings(integrationId, scope))
+      })
+    )
+
+    return accounts.map((account) => {
+      const accountUuid = normalizeString(account.uuid)
+      const bindings = bindingsByIntegrationId.get(account.integrationId) ?? []
+      const exactBinding = bindings.find((binding) => normalizeString(binding.accountUuid) === accountUuid)
+      const defaultBinding = bindings.find(
+        (binding) => normalizeString(binding.accountUuid) === WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID
+      )
+      return {
+        ...account,
+        triggerBinding: this.formatAccountTriggerBinding(exactBinding, defaultBinding)
+      }
+    })
+  }
+
+  private formatAccountTriggerBinding(
+    exactBinding?: WechatTriggerBindingEntity | null,
+    defaultBinding?: WechatTriggerBindingEntity | null
+  ): WechatAccountTriggerBinding {
+    const binding = exactBinding ?? defaultBinding
+    if (!binding) {
+      return {
+        status: 'unbound',
+        bindingId: null,
+        accountUuid: null,
+        xpertId: null,
+        updatedAt: null
+      }
+    }
+    return {
+      status: exactBinding ? 'exact' : 'default',
+      bindingId: binding.id,
+      accountUuid: binding.accountUuid,
+      xpertId: binding.xpertId,
+      updatedAt: this.normalizeDate(binding.updatedAt) ?? null
+    }
+  }
+
+  private formatRuntimeTriggerBinding(
+    triggerBinding?: WechatTriggerBindingEntity | null
+  ): WechatRuntimeTriggerBinding | null {
+    if (!triggerBinding) {
+      return null
+    }
+    return {
+      integrationId: triggerBinding.integrationId,
+      accountUuid: triggerBinding.accountUuid ?? WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID,
+      xpertId: triggerBinding.xpertId,
+      sessionTimeoutSeconds: triggerBinding.sessionTimeoutSeconds,
+      summaryWindowSeconds: triggerBinding.summaryWindowSeconds,
+      historyContextLimit: triggerBinding.historyContextLimit ?? DEFAULT_HISTORY_CONTEXT_LIMIT,
+      historyContextWindowSeconds: this.normalizeHistoryContextWindowSeconds(
+        triggerBinding.historyContextWindowSeconds,
+        triggerBinding.sessionTimeoutSeconds
+      ),
+      ignoreSelfMessages: triggerBinding.ignoreSelfMessages !== false,
+      selfMessagePolicy: normalizeSelfMessagePolicy(triggerBinding.selfMessagePolicy, triggerBinding.ignoreSelfMessages),
+      allowedKeywords: triggerBinding.allowedKeywords ?? [],
+      groupTriggerMode: triggerBinding.groupTriggerMode,
+      groupKeywords: triggerBinding.groupKeywords ?? [],
+      mentionFallbackNames: triggerBinding.mentionFallbackNames ?? [],
+      groupTriggerOverrides: normalizeGroupTriggerOverrides(triggerBinding.groupTriggerOverrides),
+      groupJoinWelcomeEnabled: triggerBinding.groupJoinWelcomeEnabled === true,
+      groupJoinWelcomePrompt: normalizeGroupJoinWelcomePrompt(triggerBinding.groupJoinWelcomePrompt),
+      updatedAt: this.normalizeDate(triggerBinding.updatedAt) ?? null
+    }
   }
 
   private getAccountTunnelBinding(
@@ -2568,23 +2651,6 @@ export class WechatConversationService {
     )
   }
 
-  private matchesConversationFilters(
-    item: WechatConversationListItem,
-    filters: Record<string, unknown>
-  ): boolean {
-    const chatType = this.normalizeChatType(filters.chatType)
-    if (chatType && item.chatType !== chatType) {
-      return false
-    }
-    return (
-      this.matchesFilter(item.integrationId, filters.integrationId) &&
-      this.matchesFilter(item.uuid, filters.uuid) &&
-      this.matchesFilter(item.contactId, filters.contactId) &&
-      this.matchesFilter(item.senderId, filters.senderId) &&
-      this.matchesFilter(item.xpertId, filters.xpertId)
-    )
-  }
-
   private matchesLogFilters(log: WechatMessageLogEntity, filters: Record<string, unknown>): boolean {
     const chatType = this.normalizeChatType(filters.chatType)
     const level = this.normalizeListSearch(filters.level)
@@ -2696,15 +2762,6 @@ export class WechatConversationService {
     return normalized === 'private' || normalized === 'group' ? normalized : null
   }
 
-  private matchesConversationSearch(item: WechatConversationListItem, search: string | null): boolean {
-    if (!search) {
-      return true
-    }
-    return [item.integrationId, item.uuid, item.contactId, item.senderId, item.xpertId, item.conversationId].some(
-      (value) => this.normalizeListSearch(value)?.includes(search)
-    )
-  }
-
   private matchesLogSearch(log: WechatMessageLogEntity, search: string | null): boolean {
     if (!search) {
       return true
@@ -2719,27 +2776,6 @@ export class WechatConversationService {
       log.status,
       log.queueJobId
     ].some((value) => this.normalizeListSearch(value)?.includes(search))
-  }
-
-  private toConversationListItem(
-    binding: WechatConversationBindingEntity,
-    integrationId: string
-  ): WechatConversationListItem | null {
-    const parsed = parseWechatConversationUserKey(binding.conversationUserKey)
-    if (!parsed || parsed.integrationId !== integrationId) {
-      return null
-    }
-    return {
-      id: binding.id,
-      integrationId: parsed.integrationId,
-      uuid: parsed.uuid,
-      contactId: parsed.contactId,
-      senderId: parsed.senderId,
-      chatType: parsed.contactId.endsWith('@chatroom') ? 'group' : 'private',
-      xpertId: binding.xpertId,
-      conversationId: binding.conversationId,
-      updatedAt: this.normalizeDate(binding.lastActiveAt) ?? this.normalizeDate(binding.updatedAt) ?? null
-    }
   }
 
   private normalizePositiveInt(value: unknown): number | null {

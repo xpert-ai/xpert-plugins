@@ -16,6 +16,9 @@ export type WechatSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
 
 export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
 
+export const DEFAULT_GROUP_JOIN_WELCOME_PROMPT =
+  '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。'
+
 export interface WechatGroupTriggerOverride {
   groupId: string
   groupTriggerMode?: WechatGroupTriggerMode
@@ -82,6 +85,8 @@ export interface WechatInboundTriggerOptions {
   groupKeywords?: string[] | string
   mentionFallbackNames?: string[] | string
   groupTriggerOverrides?: WechatGroupTriggerOverride[]
+  groupJoinWelcomeEnabled?: boolean
+  groupJoinWelcomePrompt?: string
 }
 
 export type WechatChatRequestFile = NonNullable<TChatRequestHuman['files']>[number]
@@ -137,7 +142,7 @@ export interface WechatInboundVoiceRef {
 }
 
 export interface WechatInboundEvent {
-  source: 'legacy_callback' | 'message_webhook'
+  source: 'message_webhook'
   uuid: string
   ownerWxid?: string
   ownerName?: string
@@ -186,6 +191,11 @@ export interface WechatBatchDispatchDecision {
 
 export type WechatVoiceTranscriptionDecision = {
   triggerReason: 'private' | 'group_all' | 'mention' | 'keyword_candidate'
+}
+
+export type WechatGroupJoinWelcomeInfo = {
+  names: string[]
+  rawText: string
 }
 
 type Dict = Record<string, unknown>
@@ -264,6 +274,10 @@ export function normalizeString(value: unknown): string {
     return String(value)
   }
   return ''
+}
+
+export function normalizeGroupJoinWelcomePrompt(value: unknown): string {
+  return normalizeString(value) || DEFAULT_GROUP_JOIN_WELCOME_PROMPT
 }
 
 export function normalizeBoolean(value: unknown): boolean {
@@ -345,8 +359,8 @@ export function normalizeWechatInboundPayload(payload: unknown): WechatInboundEv
     return null
   }
 
-  if (asRecord(record.message)) {
-    return normalizeLegacyCallback(record, payload)
+  if (isWechatHardExcludedInboundPayload(record)) {
+    return null
   }
 
   if (normalizeString(record.uuid || record.UUID) && normalizeString(record.contactid || record.Contactid)) {
@@ -354,6 +368,52 @@ export function normalizeWechatInboundPayload(payload: unknown): WechatInboundEv
   }
 
   return null
+}
+
+export function isWechatHardExcludedInboundPayload(payload: unknown): boolean {
+  const record = asRecord(payload)
+  if (!record) {
+    return false
+  }
+  return [
+    record.sendusername,
+    record.sendUserName,
+    record.senderId,
+    record.Sendusername,
+    record.fromusername,
+    record.fromUserName,
+    record.Fromusername,
+    record.contactid,
+    record.contactId,
+    record.Contactid
+  ].some(isWeixinIdentifier)
+}
+
+export function isWechatHardExcludedInboundEvent(event: Pick<WechatInboundEvent, 'senderId' | 'fromUser' | 'contactId'>): boolean {
+  return [event.senderId, event.fromUser, event.contactId].some(isWeixinIdentifier)
+}
+
+export function resolveWechatGroupJoinWelcomeInfo(event: WechatInboundEvent): WechatGroupJoinWelcomeInfo | null {
+  if (event.chatType !== 'group' || !isWechatGroupJoinSystemMessageType(event.msgType)) {
+    return null
+  }
+  const sourceText = normalizeString(event.content || event.displayText)
+  const rawText = normalizeWechatSystemText(sourceText)
+  if (!rawText) {
+    return null
+  }
+  const names = extractWechatGroupJoinNames(sourceText)
+  if (!names.length) {
+    return null
+  }
+  return {
+    names,
+    rawText
+  }
+}
+
+function isWechatGroupJoinSystemMessageType(msgType: number | undefined): boolean {
+  return msgType === 10000 || msgType === 10002
 }
 
 export function shouldDispatchWechatMessage(
@@ -657,89 +717,113 @@ function looksLikeLongBase64(value: string): boolean {
   return value.length > 512 && /^[A-Za-z0-9+/=\r\n]+$/.test(value)
 }
 
-function normalizeLegacyCallback(wrapper: Dict, rawPayload: unknown): WechatInboundEvent | null {
-  const message = asRecord(wrapper.message)
-  if (!message) {
-    return null
+function isWeixinIdentifier(value: unknown): boolean {
+  return normalizeString(value).toLowerCase() === 'weixin'
+}
+
+function normalizeWechatSystemText(value: unknown): string {
+  return normalizeString(value)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function extractWechatGroupJoinNames(rawText: string): string[] {
+  const templateNames = extractWechatSysmsgTemplateJoinNames(rawText)
+  if (templateNames.length) {
+    return templateNames
   }
 
-  const uuid = normalizeString(wrapper.key || wrapper.uuid || wrapper.UUID)
-  const fromUser = builtinString(message.from_user_name || message.fromUserName || message.FromUserName)
-  const toUser = builtinString(message.to_user_name || message.toUserName || message.ToUserName)
-  const content = builtinString(message.content || message.Content)
-  const pushContent = normalizeString(message.push_content || message.pushContent || message.PushContent)
-  const msgType = normalizeNumber(message.msg_type || message.msgType || message.MsgType)
-  const numericMsgId = normalizeNumber(message.msg_id || message.msgId || message.MsgId)
-  const newMsgId = normalizeString(message.new_msg_id || message.newMsgId || message.NewMsgId)
-  const msgId = newMsgId || normalizeString(numericMsgId)
-  const timestamp = normalizeTimestamp(message.create_time || message.createTime || message.CreateTime)
-  const isGroup = isGroupContact(fromUser) || isGroupContact(toUser)
-  const ownerWxid = resolveLegacyOwnerWxid(fromUser, toUser, content, isGroup)
-  const contactId = resolveContactId(fromUser, toUser, ownerWxid)
-  const parsed = parseGroupSender(content, isGroup, ownerWxid)
-  const senderId = parsed.senderId || (!isGroup && fromUser ? fromUser : ownerWxid) || contactId
-  const body = parsed.body || content
-  const isSelf = isGroup ? senderId === ownerWxid : fromUser === ownerWxid
-  const messageKind = resolveInboundMessageKind(msgType)
-  const imageRef = buildInboundImageRef({
-    uuid,
-    newMsgId: msgId,
-    msgContent: content,
-    msgType,
-    contactId,
-    fromUser,
-    toUser,
-    msgId: numericMsgId,
-    isSelf
-  })
-  const voiceRef = buildInboundVoiceRef({
-    uuid,
-    newMsgId: msgId,
-    msgContent: content,
-    msgType,
-    contactId,
-    fromUser,
-    toUser,
-    msgId: numericMsgId,
-    isSelf
-  })
-  const mediaSignature = buildMediaSignature({
-    uuid,
-    messageKind,
-    messageId: msgId,
-    msgType,
-    msgContent: content,
-    imageRef,
-    voiceRef
-  })
-
-  if (!uuid || !contactId || !senderId || !msgId) {
-    return null
+  const text = normalizeWechatSystemText(rawText)
+  if (!text) {
+    return []
   }
 
-  return {
-    source: 'legacy_callback',
-    uuid,
-    ownerWxid,
-    fromUser,
-    toUser,
-    contactId,
-    senderId,
-    chatId: contactId,
-    chatType: isGroup ? 'group' : 'private',
-    messageId: msgId,
-    msgType,
-    messageKind,
-    content: body,
-    displayText: messageKind === 'image' || messageKind === 'voice' ? pushContent : pushContent || body,
-    imageRef,
-    voiceRef,
-    mediaSignature,
-    timestamp,
-    isSelf,
-    raw: message,
-    rawPayload
+  const privacyMatch = text.match(/["“]([^"”]{1,80})["”]与群里其他人都不是朋友关系/)
+  if (privacyMatch) {
+    return normalizeWechatMemberNames(privacyMatch[1])
   }
+
+  const invitedMatch = text.match(/(?:邀请|邀請)([^，,。；;]{1,120})(?:加入了?群聊|加入群聊)/)
+  if (invitedMatch) {
+    return normalizeWechatMemberNames(invitedMatch[1])
+  }
+
+  const joinedMatch = text.match(/([^，,。；;]{1,120})(?:加入了?群聊|加入群聊)/)
+  if (joinedMatch) {
+    return normalizeWechatMemberNames(joinedMatch[1])
+  }
+
+  return []
+}
+
+function extractWechatSysmsgTemplateJoinNames(rawText: string): string[] {
+  const source = normalizeString(rawText)
+  if (!source || !/<sysmsg\b/i.test(source)) {
+    return []
+  }
+
+  const normalizedText = normalizeWechatSystemText(source)
+  if (!/(加入了?群聊|加入群聊)/.test(normalizedText)) {
+    return []
+  }
+
+  const names: string[] = []
+  const adderLinkPattern = /<link\b(?=[^>]*\bname=["']adder["'])[^>]*>([\s\S]*?)<\/link>/gi
+  for (const match of source.matchAll(adderLinkPattern)) {
+    names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+  }
+
+  if (!names.length) {
+    const memberPattern = /<member\b[^>]*>([\s\S]*?)<\/member>/gi
+    for (const match of source.matchAll(memberPattern)) {
+      names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+    }
+  }
+
+  return normalizeWechatMemberNames(names.join('、'))
+}
+
+function extractWechatXmlElementTexts(xml: string, elementName: string): string[] {
+  const escapedName = elementName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  const pattern = new RegExp(`<${escapedName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedName}>`, 'gi')
+  const values: string[] = []
+  for (const match of xml.matchAll(pattern)) {
+    const value = normalizeWechatSystemText(match[1])
+    if (value) {
+      values.push(value)
+    }
+  }
+  return values
+}
+
+function normalizeWechatMemberNames(value: string): string[] {
+  const text = normalizeWechatMemberName(value)
+  if (!text) {
+    return []
+  }
+  const parts = text
+    .split(/[、,，]/)
+    .map(normalizeWechatMemberName)
+    .filter(Boolean)
+  return Array.from(new Set(parts))
+}
+
+function normalizeWechatMemberName(value: string): string {
+  const text = normalizeString(value)
+    .replace(/^["“'‘]+|["”'’]+$/g, '')
+    .replace(/^(?:群成员|新成员|成员)\s*/, '')
+    .replace(/^(?:你|您)?邀请/, '')
+    .replace(/通过.+$/, '')
+    .replace(/^["“'‘]+|["”'’]+$/g, '')
+    .trim()
+  return /^\$[^$]+\$$/.test(text) ? '' : text
 }
 
 function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInboundEvent | null {
@@ -970,11 +1054,12 @@ function buildMediaSignature(params: {
     return undefined
   }
   const ref = params.messageKind === 'voice' ? params.voiceRef : params.imageRef
+  const mediaId = normalizeString(ref?.msgId) || normalizeString(ref?.newMsgId || params.messageId)
   const content = normalizeString(params.msgContent).slice(0, 256)
   return [
     params.messageKind,
     params.uuid,
-    ref?.newMsgId || params.messageId,
+    mediaId,
     params.msgType ?? '',
     ref?.contactId || '',
     ref?.fromUser || '',
@@ -1127,18 +1212,6 @@ function normalizeContactName(record: Dict | null): string | undefined {
   )
 }
 
-function parseGroupSender(content: string, isGroup: boolean, ownerWxid?: string): { senderId?: string; body: string } {
-  if (!isGroup) {
-    return { body: content }
-  }
-  const parsed = stripGroupSenderPrefix(content, true)
-  const senderId = parsed.senderId || ownerWxid
-  return {
-    senderId,
-    body: parsed.body
-  }
-}
-
 function stripGroupSenderPrefix(content: string, isGroup: boolean): { senderId?: string; body: string } {
   if (!isGroup) {
     return { body: content }
@@ -1151,41 +1224,6 @@ function stripGroupSenderPrefix(content: string, isGroup: boolean): { senderId?:
     senderId: match[1].trim(),
     body: match[2].trim()
   }
-}
-
-function resolveLegacyOwnerWxid(fromUser: string, toUser: string, content: string, isGroup: boolean): string {
-  if (isGroup) {
-    if (isGroupContact(fromUser)) {
-      return toUser
-    }
-    if (isGroupContact(toUser)) {
-      return fromUser
-    }
-  }
-  if (toUser && !isGroupContact(toUser)) {
-    return toUser
-  }
-  const sender = stripGroupSenderPrefix(content, isGroup).senderId
-  if (sender && fromUser && sender === fromUser) {
-    return toUser
-  }
-  return toUser || fromUser
-}
-
-function resolveContactId(fromUser: string, toUser: string, ownerWxid: string): string {
-  if (isGroupContact(fromUser)) {
-    return fromUser
-  }
-  if (isGroupContact(toUser)) {
-    return toUser
-  }
-  if (fromUser === ownerWxid) {
-    return toUser
-  }
-  if (toUser === ownerWxid) {
-    return fromUser
-  }
-  return fromUser || toUser
 }
 
 function normalizeChatType(value: unknown, contactId: string): 'private' | 'group' {
@@ -1217,17 +1255,6 @@ function normalizeNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined
   }
   return undefined
-}
-
-function builtinString(value: unknown): string {
-  if (typeof value === 'string') {
-    return value.trim()
-  }
-  const record = asRecord(value)
-  if (!record) {
-    return ''
-  }
-  return normalizeString(record.str || record.Str || record.string || record.String)
 }
 
 function asRecord(value: unknown): Dict | null {

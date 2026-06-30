@@ -23,6 +23,7 @@ export interface WechatTriggerAggregationMessageContext {
 export interface WechatTriggerAggregationState {
   aggregateKey: string
   integrationId: string
+  accountUuid: string
   conversationUserKey: string
   xpertId: string
   version: number
@@ -42,6 +43,7 @@ export interface WechatTriggerAggregationState {
 export interface WechatTriggerAggregatePayload extends Record<string, unknown> {
   aggregateKey: string
   integrationId: string
+  accountUuid: string
   xpertId: string
   input?: string
   item?: WechatBatchTriggerItem

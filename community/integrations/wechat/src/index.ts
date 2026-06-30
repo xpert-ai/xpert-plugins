@@ -72,7 +72,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
                 {
                   name: 'manage-wechat-runtime',
                   displayName: 'Manage WeChat runtime',
-                  description: 'Review accounts, conversation bindings, message logs, callbacks, and configuration.',
+                  description: 'Review accounts, message logs, callbacks, and configuration.',
                   access: 'write'
                 }
               ]
@@ -81,20 +81,20 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
               type: 'view',
               name: WECHAT_VIEW_KEY,
               displayName: 'WeChat Workbench',
-              description: 'Workbench for wx2.0 accounts, conversations, message logs, and callback setup.'
+              description: 'Workbench for wx2.0 accounts, message logs, and callback setup.'
             },
             {
               type: 'tool',
               name: WECHAT_MIDDLEWARE_NAME,
               displayName: 'WeChat Runtime Tools',
               description:
-                'Assistant middleware for WeChat runtime discovery, callback setup, account management, conversations, and logs.'
+                'Assistant middleware for WeChat runtime discovery, callback setup, account management, and logs.'
             },
             {
               type: 'assistant-template',
               name: 'wechat-admin-assistant',
               displayName: 'WeChat Admin Assistant Template',
-              description: 'Organization-level assistant template for managing WeChat integrations, callbacks, accounts, conversations, and logs.'
+              description: 'Organization-level assistant template for managing WeChat integrations, callbacks, accounts, and logs.'
             },
             {
               type: 'assistant-template',
@@ -153,6 +153,7 @@ export * from './lib/handoff/index.js'
 export * from './lib/workflow/index.js'
 export * from './lib/conversation-user-key.js'
 export * from './lib/conversation.service.js'
+export * from './lib/wechat-account-management.service.js'
 export * from './lib/wechat-channel.strategy.js'
 export * from './lib/wechat.client.js'
 export * from './lib/wechat-outbound-queue.service.js'

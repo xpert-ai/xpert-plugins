@@ -428,34 +428,6 @@ export class WechatChannelStrategy
     })
   }
 
-  async registerCallback(params: {
-    integrationId: string
-    uuid: string
-    callbackUrl: string
-    enabled?: boolean
-  }): Promise<TChatSendResult> {
-    const integration = await this.readIntegrationById(params.integrationId)
-    if (!integration) {
-      return {
-        success: false,
-        error: '微信集成不存在或不可访问。'
-      }
-    }
-
-    const result = await this.client.registerCallback({
-      integration,
-      uuid: params.uuid,
-      callbackUrl: params.callbackUrl,
-      enabled: params.enabled
-    })
-
-    return {
-      success: result.success,
-      messageId: result.messageId,
-      error: result.error
-    }
-  }
-
   private async fetchImageContent(
     imageUrl: string,
     integration: IIntegration<TIntegrationWechatOptions>

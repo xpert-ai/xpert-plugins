@@ -13,7 +13,7 @@ import { Public } from './decorators.js'
 import { WECHAT_ICON, WECHAT_PROVIDER_KEY } from './constants.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 import { WechatConversationService } from './conversation.service.js'
-import { TIntegrationWechatOptions, normalizeString } from './types.js'
+import { TIntegrationWechatOptions } from './types.js'
 import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 
 type HttpRequestLike = {
@@ -114,28 +114,6 @@ export class WechatController {
   async getCallbackConfig(@Param('integrationId') integrationId: string) {
     const integration = await this.readWechatIntegration(integrationId)
     return await this.conversation.buildCallbackConfig(integration.id)
-  }
-
-  @Post(':integrationId/accounts/:uuid/register-callback')
-  async registerCallback(
-    @Param('integrationId') integrationId: string,
-    @Param('uuid') uuid: string,
-    @Body() body: { callbackUrl?: string; enabled?: boolean }
-  ) {
-    const integration = await this.readWechatIntegration(integrationId)
-    const callbackConfig = await this.conversation.buildCallbackConfig(integration.id, {
-      requireActiveCredential: true
-    })
-    const result = await this.wechatChannel.registerCallback({
-      integrationId: integration.id,
-      uuid,
-      callbackUrl: normalizeString(body?.callbackUrl) || callbackConfig.webhookUrl,
-      enabled: body?.enabled !== false
-    })
-    if (!result.success) {
-      throw new BadRequestException(result.error || 'Register wx2.0 callback failed')
-    }
-    return result
   }
 
   @Post(':integrationId/send-text')
