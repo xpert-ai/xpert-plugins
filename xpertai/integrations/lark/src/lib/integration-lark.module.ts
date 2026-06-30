@@ -27,6 +27,8 @@ import {
 	LarkNotifyMiddleware
 } from './middlewares/index.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
+import { LarkTriggerAggregationService } from './workflow/lark-trigger-aggregation.service.js'
+import { LarkTriggerFlushProcessor } from './workflow/lark-trigger-flush.processor.js'
 import { LarkSourceStrategy } from './source.strategy.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
@@ -51,6 +53,8 @@ import { LarkIntegrationViewProvider } from './views/index.js'
 		LarkInboundIdentityService,
 		LarkIntegrationStrategy,
 		LarkTriggerStrategy,
+		LarkTriggerAggregationService,
+		LarkTriggerFlushProcessor,
 		LarkLongConnectionService,
 		LarkChatDispatchService,
 		LarkChatRunStateService,

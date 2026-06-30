@@ -3,7 +3,7 @@ import axios from 'axios'
 import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
-import type { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@xpert-ai/contracts'
 import {
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,

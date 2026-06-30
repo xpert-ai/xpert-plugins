@@ -18,7 +18,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   runWithRequestContext: async (_context: unknown, _store: unknown, callback: () => unknown) => await callback()
 }))
 
-import type { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import { WeComConversationService } from '../conversation.service.js'
 import { WeComChannelStrategy } from '../wecom-channel.strategy.js'
 import { WeComLongConnectionService } from '../wecom-long-connection.service.js'

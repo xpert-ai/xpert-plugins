@@ -1,4 +1,4 @@
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { WeComLongIntegrationStrategy } from './wecom-long-integration.strategy.js'
 import { TIntegrationWeComLongOptions } from './types.js'
 
@@ -116,5 +116,15 @@ describe('WeComLongIntegrationStrategy', () => {
     const { strategy } = createFixture()
 
     expect((strategy.meta.schema?.properties as Record<string, unknown>)?.xpertId).toBeUndefined()
+  })
+
+  it('exposes a bot credential help button for the host integration form', () => {
+    const { strategy } = createFixture()
+
+    expect(strategy.meta.helpUrl).toBe('https://developer.work.weixin.qq.com/document/path/101463')
+    expect((strategy.meta as any).helpLabel).toEqual({
+      en_US: 'Get Bot ID',
+      zh_Hans: '获取Bot ID'
+    })
   })
 })

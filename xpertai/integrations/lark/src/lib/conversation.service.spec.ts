@@ -29,7 +29,9 @@ const DEFAULT_TRIGGER_CONFIG = {
 	allowedGroupChatIds: [],
 	groupUserScope: 'all_users',
 	groupUserOpenIds: [],
-	groupReplyStrategy: 'mention_only'
+	groupReplyStrategy: 'mention_only',
+	sessionTimeoutSeconds: 3600,
+	summaryWindowSeconds: 0
 } as const
 
 class MemoryCache {
@@ -631,6 +633,102 @@ describe('LarkConversationService', () => {
 				mimeType: 'image/png',
 				originalName: 'photo.png',
 				fileKey: 'img_1'
+			}
+		])
+	})
+
+	it('processMessage forwards inbound post text and images as vision files', async () => {
+		const { service, commandBus, contextToolService } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'creator-user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			message: {
+				message: {
+					message_id: 'om_post_1',
+					message_type: 'post',
+					content: JSON.stringify({
+						title: '',
+						content: [
+							[{ tag: 'img', image_key: 'img_post_1', width: 195, height: 183 }],
+							[{ tag: 'text', text: '图片中是什么', style: [] }]
+						]
+					})
+				}
+			}
+		} as any)
+
+		expect(contextToolService.getMessageResource).toHaveBeenCalledWith({
+			integrationId: 'integration-1',
+			messageId: 'om_post_1',
+			fileKey: 'img_post_1',
+			type: 'image',
+			contentMode: 'base64'
+		})
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe('图片中是什么')
+		expect(dispatchCommands[0].input.files).toEqual([
+			{
+				fileUrl: 'data:image/png;base64,YWJj',
+				mimeType: 'image/png',
+				originalName: 'photo.png',
+				fileKey: 'img_post_1'
+			}
+		])
+	})
+
+	it('processMessage forwards inbound API post payload text and images as vision files', async () => {
+		const { service, commandBus, contextToolService } = createFixture({
+			boundXpertId: null,
+			triggerHandled: false,
+			legacyXpertId: 'legacy-xpert'
+		})
+
+		await service.processMessage({
+			userId: 'creator-user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			message: {
+				message: {
+					message_id: 'om_post_api_1',
+					msg_type: 'post',
+					body: {
+						content: JSON.stringify({
+							title: '',
+							content: [
+								[{ tag: 'img', image_key: 'img_post_api_1', width: 195, height: 183 }],
+								[{ tag: 'text', text: '看太阳', style: [] }]
+							]
+						})
+					}
+				}
+			}
+		} as any)
+
+		expect(contextToolService.getMessageResource).toHaveBeenCalledWith({
+			integrationId: 'integration-1',
+			messageId: 'om_post_api_1',
+			fileKey: 'img_post_api_1',
+			type: 'image',
+			contentMode: 'base64'
+		})
+		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
+		expect(dispatchCommands).toHaveLength(1)
+		expect(dispatchCommands[0].input.input).toBe('看太阳')
+		expect(dispatchCommands[0].input.files).toEqual([
+			{
+				fileUrl: 'data:image/png;base64,YWJj',
+				mimeType: 'image/png',
+				originalName: 'photo.png',
+				fileKey: 'img_post_api_1'
 			}
 		])
 	})
@@ -1349,6 +1447,57 @@ describe('LarkConversationService', () => {
 		expect(dispatchCommands).toHaveLength(1)
 		expect(dispatchCommands[0].input.xpertId).toBe('trigger-xpert')
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
+	})
+
+	it('processMessage starts a new trigger conversation after session timeout', async () => {
+		const now = new Date('2026-06-29T10:00:00.000Z').getTime()
+		jest.spyOn(Date, 'now').mockReturnValue(now)
+		const { service, larkTriggerStrategy, commandBus } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerHandled: true,
+			triggerMatches: true,
+			legacyXpertId: 'legacy-xpert',
+			triggerConfig: {
+				integrationId: 'integration-1',
+				...DEFAULT_TRIGGER_CONFIG,
+				groupReplyStrategy: 'all_messages',
+				sessionTimeoutSeconds: 1
+			},
+			conversationBindings: [
+				{
+					userId: 'ou_sender_1',
+					integrationId: 'integration-1',
+					scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+					principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+					chatType: 'p2p',
+					senderOpenId: 'ou_sender_1',
+					conversationUserKey: 'open_id:ou_sender_1',
+					xpertId: 'trigger-xpert',
+					conversationId: 'conversation-expired',
+					updatedAt: new Date(now - 2_000)
+				}
+			]
+		})
+
+		await service.processMessage({
+			userId: 'user-1',
+			senderOpenId: 'ou_sender_1',
+			integrationId: 'integration-1',
+			chatType: 'p2p',
+			message: {
+				message: {
+					content: JSON.stringify({ text: 'hello after idle timeout' })
+				}
+			}
+		} as any)
+
+		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
+		expect(getExecutedDispatchCommands(commandBus as any)).toHaveLength(0)
+		await expect(
+			service.getConversation('lark:v2:scope:integration-1:p2p:ou_sender_1', 'trigger-xpert', {
+				legacyConversationUserKey: 'open_id:ou_sender_1'
+			})
+		).resolves.toBeUndefined()
 	})
 
 	it('processMessage does not fall back to integration xpert when trigger scope rejects inbound sender', async () => {

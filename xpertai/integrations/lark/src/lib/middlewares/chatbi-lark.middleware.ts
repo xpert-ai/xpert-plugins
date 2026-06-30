@@ -3,7 +3,7 @@ import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { InferInteropZodInput, interopSafeParse } from '@langchain/core/utils/types'
 import { Command, getCurrentTaskInput, LangGraphRunnableConfig } from '@langchain/langgraph'
-import type { TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
+import type { TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import {
   CalculatedMeasureSchema,
   ChartDimensionSchema,

@@ -8,7 +8,7 @@ import {
   IntegrationPermission,
   TDocumentTransformerConfig,
 } from '@xpert-ai/plugin-sdk'
-import type { IconType, IKnowledgeDocument } from '@xpert-ai/contracts'
+import type { IconType } from '@xpert-ai/contracts'
 import { iconImage, LarkDocumentMetadata, LarkDocumentName, LarkName } from './types.js'
 import { LarkClient } from './lark.client.js'
 
@@ -58,9 +58,9 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
   }
 
   async transformDocuments(
-    files: Partial<IKnowledgeDocument<LarkDocumentMetadata>>[],
+    files: any[],
     config: TDocumentTransformerConfig
-  ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
+  ): Promise<any[]> {
     const integration = config?.permissions?.integration
     if (!integration) {
       throw new Error('Integration system is required')
@@ -68,7 +68,7 @@ export class LarkDocTransformerStrategy implements IDocumentTransformerStrategy<
 
     const client = new LarkClient(integration)
     
-    const results: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
+    const results: any[] = []
     for await (const file of files) {
       const docToken = file.metadata?.token || file.id || ''
       const content = await client.getDocumentContent(docToken)

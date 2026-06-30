@@ -7,7 +7,7 @@ import {
   ProcessResult
 } from '@xpert-ai/plugin-sdk'
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
-import { XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { XpertAgentExecutionStatusEnum } from '@xpert-ai/contracts'
 import { ChatWeComMessage } from '../message.js'
 import { WeComConversationService } from '../conversation.service.js'
 import {

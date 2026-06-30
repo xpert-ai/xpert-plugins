@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk'
-import type { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@xpert-ai/contracts'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { isEqual } from 'date-fns'
@@ -24,7 +24,12 @@ import {
 	UserPermissionService,
 } from '@xpert-ai/plugin-sdk'
 import { type Cache } from 'cache-manager'
-import { extractLarkSemanticMessage, unwrapLarkEventPayload } from './lark-message-semantics.js'
+import {
+	extractLarkSemanticMessage,
+	getLarkMessageContent,
+	getLarkMessageType,
+	unwrapLarkEventPayload
+} from './lark-message-semantics.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { resolveLarkLongConnectionAppKey } from './lark-long-connection.utils.js'
 import { RolesEnum } from './contracts-compat.js'
@@ -234,15 +239,16 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 		let contentType: TChatInboundMessage['contentType'] = 'text'
 
 		if (!content) {
+			const messageContent = getLarkMessageContent(message)
 			try {
-				const parsed = JSON.parse(message.content)
+				const parsed = JSON.parse(messageContent ?? '')
 				content = parsed.text || ''
 			} catch {
-				content = message.content
+				content = messageContent ?? ''
 			}
 		}
 
-		switch (message.message_type) {
+		switch (getLarkMessageType(message)) {
 			case 'text':
 				contentType = 'text'
 				break
@@ -743,7 +749,7 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 	}
 
 	private resolveAutoProvisionRoleName(userProvision?: TLarkUserProvisionOptions): string {
-		return userProvision?.roleName || RolesEnum.EMPLOYEE
+		return userProvision?.roleName || RolesEnum.VIEWER
 	}
 
 	// ==================== Legacy Message Helpers ====================

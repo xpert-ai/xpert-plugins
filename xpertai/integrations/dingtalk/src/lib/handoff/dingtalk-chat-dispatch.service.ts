@@ -1,7 +1,8 @@
-import {
+import type {
 	LanguagesEnum,
-	TChatOptions
-} from '@metad/contracts'
+	TChatOptions,
+	TChatRequest
+} from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -68,15 +69,20 @@ export class DingTalkChatDispatchService {
 		const requestUserId = RequestContext.currentUserId()
 		const requestTenantId = RequestContext.currentTenantId()
 		const requestOrganizationId = RequestContext.getOrganizationId()
-		const conversationUserKey = resolveConversationUserKey({
-			integrationId: dingtalkMessage.integrationId,
-			conversationId: dingtalkMessage.chatId,
-			senderOpenId: dingtalkMessage.senderOpenId,
-			fallbackUserId: requestUserId
-		})
-		const conversationId = conversationUserKey
+		const conversationUserKey =
+			input.conversationUserKey ??
+			resolveConversationUserKey({
+				integrationId: dingtalkMessage.integrationId,
+				conversationId: dingtalkMessage.chatId,
+				senderOpenId: dingtalkMessage.senderOpenId,
+				fallbackUserId: requestUserId
+			})
+		const conversationId = input.conversationId ?? (conversationUserKey
 			? await this.conversationService.getConversation(conversationUserKey, xpertId)
-			: undefined
+			: undefined)
+		const activeMessage = conversationUserKey
+			? await this.conversationService.getActiveMessage(conversationUserKey, xpertId)
+			: null
 		// Dispatch must run under xpert creator context; request context is only a safety fallback.
 		const dispatchContext = await this.conversationService.resolveDispatchExecutionContext(
 			xpertId,
@@ -113,20 +119,20 @@ export class DingTalkChatDispatchService {
 		const runId = `dingtalk-chat-${randomUUID()}`
 		const sessionKey = conversationId ?? runId
 		const language = dingtalkMessage.language || RequestContext.getLanguageCode()
-			const callbackContext: DingTalkChatCallbackContext = {
-				tenantId,
-				organizationId,
-				userId: executorUserId,
-				xpertId,
-				integrationId: dingtalkMessage.integrationId,
-				chatId: dingtalkMessage.chatId,
-				senderOpenId: dingtalkMessage.senderOpenId,
-				robotCode: dingtalkMessage.robotCode,
-				sessionWebhook: dingtalkMessage.sessionWebhook,
-				reject: Boolean(input.options?.reject),
-				streaming: this.resolveStreamingOverrideFromRequest(),
-				message: this.toMessageSnapshot(dingtalkMessage, input.input)
-			}
+		const callbackContext: DingTalkChatCallbackContext = {
+			tenantId,
+			organizationId,
+			userId: executorUserId,
+			xpertId,
+			integrationId: dingtalkMessage.integrationId,
+			chatId: dingtalkMessage.chatId,
+			senderOpenId: dingtalkMessage.senderOpenId,
+			robotCode: dingtalkMessage.robotCode,
+			sessionWebhook: dingtalkMessage.sessionWebhook,
+			reject: Boolean(input.options?.reject),
+			streaming: this.resolveStreamingOverrideFromRequest(),
+			message: this.toMessageSnapshot(dingtalkMessage, input.input)
+		}
 
 		await this.runStateService.save({
 			sourceMessageId: runId,
@@ -154,13 +160,13 @@ export class DingTalkChatDispatchService {
 			enqueuedAt: Date.now(),
 			traceId: runId,
 			payload: {
-				request: {
-					input: {
-						input: input.input
-					},
-					conversationId,
-					confirm: input.options?.confirm
-				},
+					request: this.buildChatRequest({
+						conversationId,
+						activeMessageId: activeMessage?.id,
+						options: input.options,
+						input: input.input,
+						files: input.files
+					}),
 				options: {
 					xpertId,
 					from: 'dingtalk',
@@ -197,7 +203,7 @@ export class DingTalkChatDispatchService {
 					},
 					context: callbackContext
 				}
-			} as AgentChatDispatchPayload,
+			} as unknown as AgentChatDispatchPayload,
 			headers: {
 				...(organizationId ? { organizationId } : {}),
 				// Queue-level user header drives request context reconstruction in agent-chat processor.
@@ -224,6 +230,42 @@ export class DingTalkChatDispatchService {
 			degradedWithoutMessageId: message.isDegradedWithoutMessageId(),
 			terminalDelivered: message.isTerminalDelivered()
 		}
+	}
+
+	private buildChatRequest(params: {
+		conversationId?: string
+		activeMessageId?: string
+		options?: TDingTalkChatDispatchInput['options']
+		input?: string
+		files?: TDingTalkChatDispatchInput['files']
+	}): TChatRequest {
+		if (params.options?.confirm || params.options?.reject) {
+			if (!params.conversationId) {
+				throw new Error('Missing conversationId for DingTalk resume action')
+			}
+
+			return {
+				action: 'resume',
+				conversationId: params.conversationId,
+				target: {
+					...(params.activeMessageId ? { aiMessageId: params.activeMessageId } : {})
+				},
+				decision: {
+					type: params.options.reject ? 'reject' : 'confirm'
+				}
+			} as unknown as TChatRequest
+		}
+
+		return {
+			action: 'send',
+			...(params.conversationId ? { conversationId: params.conversationId } : {}),
+			message: {
+				input: {
+					input: params.input ?? '',
+					...(params.files?.length ? { files: params.files } : {})
+				}
+			}
+		} as unknown as TChatRequest
 	}
 
 	private toActiveMessageCache(message: ChatDingTalkMessage) {

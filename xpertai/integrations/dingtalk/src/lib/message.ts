@@ -1,5 +1,5 @@
 import { Serializable } from '@langchain/core/load/serializable'
-import { I18nObject, IChatMessage, TSensitiveOperation, XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { I18nObject, IChatMessage, TSensitiveOperation, XpertAgentExecutionStatusEnum } from '@xpert-ai/contracts'
 import { Logger } from '@nestjs/common'
 import type { DingTalkEventRenderItem, DingTalkRenderItem } from './handoff/dingtalk-chat.types.js'
 import { translate } from './i18n.js'

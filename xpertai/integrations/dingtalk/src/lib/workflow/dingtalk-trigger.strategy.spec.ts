@@ -1,6 +1,8 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+	HANDOFF_PERMISSION_SERVICE_TOKEN: 'HANDOFF_PERMISSION_SERVICE_TOKEN',
 	INTEGRATION_PERMISSION_SERVICE_TOKEN: 'INTEGRATION_PERMISSION_SERVICE_TOKEN',
 	WorkflowTriggerStrategy: () => () => undefined,
+	defineChannelMessageType: (...parts: Array<string | number>) => parts.join('.'),
 	RequestContext: {
 		currentTenantId: jest.fn(() => null),
 		getOrganizationId: jest.fn(() => null),
@@ -12,19 +14,52 @@ jest.mock('../handoff/dingtalk-chat-dispatch.service.js', () => ({
 	DingTalkChatDispatchService: class DingTalkChatDispatchService {}
 }))
 
+jest.mock('../dingtalk-channel.strategy.js', () => ({
+	DingTalkChannelStrategy: class DingTalkChannelStrategy {}
+}))
+
 import { DingTalkTriggerStrategy } from './dingtalk-trigger.strategy.js'
 
 describe('DingTalkTriggerStrategy', () => {
 	function createStrategy(params?: {
-		dbBindings?: Array<[string, string]>
+		dbBindings?: Array<
+			[string, { xpertId: string; sessionTimeoutSeconds?: number; summaryWindowSeconds?: number }]
+		>
 	}) {
-		const persistedBindings = new Map<string, string>(params?.dbBindings ?? [])
+		const persistedBindings = new Map<
+			string,
+			{ xpertId: string; sessionTimeoutSeconds: number; summaryWindowSeconds: number }
+		>(
+			(params?.dbBindings ?? []).map(([integrationId, value]) => [
+				integrationId,
+				{
+					xpertId: value.xpertId,
+					sessionTimeoutSeconds: value.sessionTimeoutSeconds ?? 3600,
+					summaryWindowSeconds: value.summaryWindowSeconds ?? 0
+				}
+			])
+		)
+		const aggregationStates = new Map<string, any>()
 		const dispatchService = {
 			buildDispatchMessage: jest.fn().mockResolvedValue({
 				id: 'handoff-id'
 			}),
 			enqueueDispatch: jest.fn().mockResolvedValue({
 				messageId: 'enqueued-message'
+			})
+		}
+		const aggregationService = {
+			get: jest.fn().mockImplementation(async (key: string) => aggregationStates.get(key) ?? null),
+			save: jest.fn().mockImplementation(async (state: any) => {
+				aggregationStates.set(state.aggregateKey, state)
+			}),
+			clear: jest.fn().mockImplementation(async (key: string) => {
+				aggregationStates.delete(key)
+			})
+		}
+		const handoffPermissionService = {
+			enqueue: jest.fn().mockResolvedValue({
+				id: 'flush-message-id'
 			})
 		}
 		const integrationPermissionService = {
@@ -38,22 +73,22 @@ describe('DingTalkTriggerStrategy', () => {
 		}
 		const bindingRepository = {
 			findOne: jest.fn().mockImplementation(async ({ where }: { where: { integrationId: string } }) => {
-				const xpertId = persistedBindings.get(where.integrationId)
-				if (!xpertId) {
+				const binding = persistedBindings.get(where.integrationId)
+				if (!binding) {
 					return null
 				}
 				return {
 					integrationId: where.integrationId,
-					xpertId
+					...binding
 				}
 			}),
 			find: jest.fn().mockImplementation(async ({ where }: { where: { xpertId: string } }) => {
 				const rows: Array<{ integrationId: string; xpertId: string }> = []
-				for (const [integrationId, xpertId] of persistedBindings.entries()) {
-					if (xpertId === where.xpertId) {
+				for (const [integrationId, binding] of persistedBindings.entries()) {
+					if (binding.xpertId === where.xpertId) {
 						rows.push({
 							integrationId,
-							xpertId
+							xpertId: binding.xpertId
 						})
 					}
 				}
@@ -61,19 +96,23 @@ describe('DingTalkTriggerStrategy', () => {
 			}),
 			upsert: jest
 				.fn()
-				.mockImplementation(async ({ integrationId, xpertId }: { integrationId: string; xpertId: string }) => {
-					persistedBindings.set(integrationId, xpertId)
+				.mockImplementation(async (payload: any) => {
+					persistedBindings.set(payload.integrationId, {
+						xpertId: payload.xpertId,
+						sessionTimeoutSeconds: payload.sessionTimeoutSeconds,
+						summaryWindowSeconds: payload.summaryWindowSeconds
+					})
 					return { generatedMaps: [], raw: [], identifiers: [] }
 				}),
 			delete: jest.fn().mockImplementation(async (criteria: { integrationId?: string; xpertId?: string }) => {
 				if (criteria.integrationId) {
 					const current = persistedBindings.get(criteria.integrationId)
-					if (!criteria.xpertId || current === criteria.xpertId) {
+					if (!criteria.xpertId || current?.xpertId === criteria.xpertId) {
 						persistedBindings.delete(criteria.integrationId)
 					}
 				} else if (criteria.xpertId) {
-					for (const [integrationId, xpertId] of persistedBindings) {
-						if (xpertId === criteria.xpertId) {
+					for (const [integrationId, binding] of persistedBindings) {
+						if (binding.xpertId === criteria.xpertId) {
 							persistedBindings.delete(integrationId)
 						}
 					}
@@ -86,22 +125,52 @@ describe('DingTalkTriggerStrategy', () => {
 				if (token === 'INTEGRATION_PERMISSION_SERVICE_TOKEN') {
 					return integrationPermissionService
 				}
+				if (token === 'HANDOFF_PERMISSION_SERVICE_TOKEN') {
+					return handoffPermissionService
+				}
 				throw new Error(`Unexpected token: ${String(token)}`)
 			})
 		}
 
-		const strategy = new DingTalkTriggerStrategy(
+		const strategy = new (DingTalkTriggerStrategy as any)(
 			dispatchService as any,
+			aggregationService as any,
+			{} as any,
 			bindingRepository as any,
 			pluginContext as any
 		)
 		return {
 			strategy,
 			dispatchService,
+			aggregationService,
+			handoffPermissionService,
 			bindingRepository,
 			persistedBindings
 		}
 	}
+
+	it('loads DingTalk integrations from the plugin select endpoint', () => {
+		const { strategy } = createStrategy()
+		const properties = strategy.meta.configSchema.properties as Record<string, any>
+
+		expect(properties.integrationId['x-ui'].selectUrl).toBe('/api/dingtalk/integration-select-options')
+	})
+
+	it('exposes session timeout and summary window defaults in trigger schema', () => {
+		const { strategy } = createStrategy()
+		const properties = strategy.meta.configSchema.properties as Record<string, any>
+
+		expect(properties.sessionTimeoutSeconds.default).toBe(3600)
+		expect(properties.sessionTimeoutSeconds.title).toEqual({
+			en_US: 'Session Timeout (seconds)',
+			zh_Hans: '会话超时时间（秒）'
+		})
+		expect(properties.summaryWindowSeconds.default).toBe(0)
+		expect(properties.summaryWindowSeconds.title).toEqual({
+			en_US: 'Summary Window (seconds)',
+			zh_Hans: '汇总时间（秒）'
+		})
+	})
 
 	it('publishes binding and forwards inbound messages via callback', async () => {
 		const { strategy, dispatchService, bindingRepository, persistedBindings } = createStrategy()
@@ -127,7 +196,11 @@ describe('DingTalkTriggerStrategy', () => {
 		expect(handled).toBe(true)
 		expect(dispatchService.buildDispatchMessage).toHaveBeenCalledTimes(1)
 		expect(bindingRepository.upsert).toHaveBeenCalledTimes(1)
-		expect(persistedBindings.get('integration-1')).toBe('xpert-1')
+		expect(persistedBindings.get('integration-1')).toEqual({
+			xpertId: 'xpert-1',
+			sessionTimeoutSeconds: 3600,
+			summaryWindowSeconds: 0
+		})
 		expect(callback).toHaveBeenCalledWith(
 			expect.objectContaining({
 				from: 'dingtalk',
@@ -139,7 +212,7 @@ describe('DingTalkTriggerStrategy', () => {
 
 	it('throws when one integration is bound to different xperts', async () => {
 		const { strategy } = createStrategy({
-			dbBindings: [['integration-1', 'xpert-1']]
+			dbBindings: [['integration-1', { xpertId: 'xpert-1' }]]
 		})
 
 		await expect(
@@ -158,7 +231,7 @@ describe('DingTalkTriggerStrategy', () => {
 
 	it('reports validation error when integration binding conflicts', async () => {
 		const { strategy } = createStrategy({
-			dbBindings: [['integration-1', 'xpert-1']]
+			dbBindings: [['integration-1', { xpertId: 'xpert-1' }]]
 		})
 
 		const checklist = await strategy.validate({
@@ -183,7 +256,7 @@ describe('DingTalkTriggerStrategy', () => {
 
 	it('resolves bound xpert id from persisted binding table', async () => {
 		const { strategy, bindingRepository } = createStrategy({
-			dbBindings: [['integration-1', 'xpert-from-db']]
+			dbBindings: [['integration-1', { xpertId: 'xpert-from-db' }]]
 		})
 
 		const xpertId = await strategy.getBoundXpertId('integration-1')
@@ -194,7 +267,7 @@ describe('DingTalkTriggerStrategy', () => {
 
 	it('handles inbound message by persisted binding when runtime callback is missing', async () => {
 		const { strategy, dispatchService } = createStrategy({
-			dbBindings: [['integration-1', 'xpert-from-db']]
+			dbBindings: [['integration-1', { xpertId: 'xpert-from-db' }]]
 		})
 
 		const handled = await strategy.handleInboundMessage({
@@ -212,5 +285,82 @@ describe('DingTalkTriggerStrategy', () => {
 			})
 		)
 		expect(dispatchService.buildDispatchMessage).not.toHaveBeenCalled()
+	})
+
+	it('persists zero summary window without changing session timeout fallback behavior', async () => {
+		const { strategy, persistedBindings } = createStrategy()
+
+		await strategy.publish(
+			{
+				xpertId: 'xpert-1',
+				config: {
+					enabled: true,
+					integrationId: 'integration-1',
+					sessionTimeoutSeconds: 0,
+					summaryWindowSeconds: 0
+				}
+			} as any,
+			jest.fn()
+		)
+
+		expect(persistedBindings.get('integration-1')).toEqual({
+			xpertId: 'xpert-1',
+			sessionTimeoutSeconds: 3600,
+			summaryWindowSeconds: 0
+		})
+	})
+
+	it('buffers inbound messages and schedules a delayed flush', async () => {
+		const { strategy, aggregationService, dispatchService, handoffPermissionService } = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 7 }]]
+		})
+
+		await expect(
+			(strategy as any).handleInboundMessage({
+				integrationId: 'integration-1',
+				input: '第一条消息',
+				dingtalkMessage: {
+					integrationId: 'integration-1',
+					chatId: 'chat-1',
+					dingtalkUserId: 'user-1',
+					senderOpenId: 'sender-1',
+					sessionWebhook: 'https://example.com/session',
+					language: 'zh-Hans'
+				} as any,
+				conversationId: 'conversation-1',
+				conversationUserKey: 'integration-1:chat-1:sender-1',
+				tenantId: 'tenant-1',
+				organizationId: 'org-1',
+				executorUserId: 'user-1',
+				endUserId: 'sender-1'
+			})
+		).resolves.toBe(true)
+
+		expect(aggregationService.save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				aggregateKey: 'integration-1:chat-1:sender-1',
+				version: 1,
+				inputParts: ['第一条消息'],
+				xpertId: 'xpert-1',
+				conversationId: 'conversation-1',
+				latestMessage: expect.objectContaining({
+					chatId: 'chat-1',
+					senderOpenId: 'sender-1'
+				})
+			}),
+			expect.any(Number)
+		)
+		expect(handoffPermissionService.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				payload: {
+					aggregateKey: 'integration-1:chat-1:sender-1',
+					version: 1
+				}
+			}),
+			{
+				delayMs: 7000
+			}
+		)
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
 	})
 })

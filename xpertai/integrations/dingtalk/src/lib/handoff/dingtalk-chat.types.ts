@@ -1,4 +1,4 @@
-import { LanguagesEnum, TChatOptions } from '@metad/contracts'
+import type { LanguagesEnum, TChatOptions, TChatRequest } from '@xpert-ai/contracts'
 import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
@@ -71,13 +71,7 @@ export interface DingTalkChatStreamCallbackPayload extends AgentChatCallbackEnve
 }
 
 export interface DingTalkChatHandoffPayload extends Record<string, unknown> {
-	request: {
-		input: {
-			input: string
-		}
-		conversationId?: string
-		confirm?: boolean
-	}
+	request: TChatRequest
 	options: TChatOptions & {
 		xpertId: string
 		from: string

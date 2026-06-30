@@ -15,7 +15,7 @@ jest.mock('@xpert-ai/chatkit-types', () => ({
   }
 }))
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   XpertAgentExecutionStatusEnum: {
     ERROR: 'error',
     INTERRUPTED: 'interrupted'
@@ -40,7 +40,7 @@ jest.mock('../wecom-channel.strategy.js', () => ({
 }))
 
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
-import { XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { XpertAgentExecutionStatusEnum } from '@xpert-ai/contracts'
 import { WeComChatStreamCallbackProcessor } from './wecom-chat-callback.processor.js'
 
 describe('WeComChatStreamCallbackProcessor', () => {

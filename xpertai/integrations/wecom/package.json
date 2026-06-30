@@ -38,7 +38,7 @@
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
     "@xpert-ai/plugin-sdk": "^3.8.1",
-    "@metad/contracts": "^3.8.1",
+    "@xpert-ai/contracts": "^3.10.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/core": "^11.1.6",

@@ -1,7 +1,10 @@
-import type { ChecklistItem, IIntegration, IUser, TWorkflowTriggerMeta } from '@metad/contracts'
+import type { ChecklistItem, IIntegration, IUser, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
+	HANDOFF_PERMISSION_SERVICE_TOKEN,
+	HandoffMessage,
+	HandoffPermissionService,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
 	IWorkflowTriggerStrategy,
@@ -10,6 +13,7 @@ import {
 	TWorkflowTriggerParams,
 	WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.js'
@@ -27,6 +31,15 @@ import {
 	LarkTrigger,
 	TLarkTriggerConfig
 } from './lark-trigger.types.js'
+import { LarkTriggerAggregationService } from './lark-trigger-aggregation.service.js'
+import {
+	LARK_TRIGGER_FLUSH_MESSAGE_TYPE,
+	LarkTriggerAggregationState,
+	LarkTriggerFlushPayload
+} from './lark-trigger-aggregation.types.js'
+
+const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
+const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
 
 type TLarkInboundDispatchOptions = {
 	confirm?: boolean
@@ -60,6 +73,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 	 */
 	private readonly callbacks = new Map<string, (payload: any) => void>()
 	private _integrationPermissionService: IntegrationPermissionService
+	private _handoffPermissionService: HandoffPermissionService
 
 	readonly meta: TWorkflowTriggerMeta = {
 		name: LarkTrigger,
@@ -92,6 +106,30 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 						component: 'remoteSelect',
 						selectUrl: '/api/integration/select-options?provider=lark'
 					} as any
+				},
+				sessionTimeoutSeconds: {
+					type: 'number',
+					title: {
+						en_US: 'Session Timeout (seconds)',
+						zh_Hans: '会话超时时间（秒）'
+					},
+					description: {
+						en_US: 'Messages after this idle window start a new conversation.',
+						zh_Hans: '超过该空闲时长后的下一条消息会按新会话处理。'
+					},
+					default: DEFAULT_SESSION_TIMEOUT_SECONDS
+				},
+				summaryWindowSeconds: {
+					type: 'number',
+					title: {
+						en_US: 'Summary Window (seconds)',
+						zh_Hans: '汇总时间（秒）'
+					},
+					description: {
+						en_US: 'Messages received in this window are merged before dispatching to the xpert.',
+						zh_Hans: '连续消息会在该窗口内汇总后再发送给数字专家。'
+					},
+					default: DEFAULT_SUMMARY_WINDOW_SECONDS
 				},
 				singleChatScope: {
 					type: 'string',
@@ -282,6 +320,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 
 	constructor(
 		private readonly dispatchService: LarkChatDispatchService,
+		private readonly aggregationService: LarkTriggerAggregationService,
 		private readonly larkChannel: LarkChannelStrategy,
 		@InjectRepository(LarkTriggerBindingEntity)
 		private readonly bindingRepository: Repository<LarkTriggerBindingEntity>,
@@ -298,17 +337,35 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		return this._integrationPermissionService
 	}
 
+	private get handoffPermissionService(): HandoffPermissionService {
+		if (!this._handoffPermissionService) {
+			this._handoffPermissionService = this.pluginContext.resolve(HANDOFF_PERMISSION_SERVICE_TOKEN)
+		}
+		return this._handoffPermissionService
+	}
+
 	normalizeConfig(
 		config?: Partial<TLarkTriggerConfig> | null,
 		integrationId?: string | null
 	): TLarkTriggerConfig {
-		return {
+		const merged = {
 			...DEFAULT_LARK_TRIGGER_CONFIG,
-			...config,
+			...config
+		}
+		return {
+			...merged,
 			integrationId: this.normalizeString(config?.integrationId) ?? this.normalizeString(integrationId) ?? '',
 			singleChatUserOpenIds: this.normalizeStringArray(config?.singleChatUserOpenIds),
 			allowedGroupChatIds: this.normalizeStringArray(config?.allowedGroupChatIds),
-			groupUserOpenIds: this.normalizeStringArray(config?.groupUserOpenIds)
+			groupUserOpenIds: this.normalizeStringArray(config?.groupUserOpenIds),
+			sessionTimeoutSeconds: this.normalizePositiveSeconds(
+				merged.sessionTimeoutSeconds,
+				DEFAULT_SESSION_TIMEOUT_SECONDS
+			),
+			summaryWindowSeconds: this.normalizeNonNegativeSeconds(
+				merged.summaryWindowSeconds,
+				DEFAULT_SUMMARY_WINDOW_SECONDS
+			)
 		}
 	}
 
@@ -625,34 +682,219 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		)
 
 		const dispatchOptions = this.resolveDispatchOptions(binding, params.options)
-		const callback = this.callbacks.get(params.integrationId)
-		if (!callback) {
-			// Persisted binding must continue to work after process restart even without in-memory callback.
-			await this.dispatchService.enqueueDispatch({
+		const normalizedConfig = this.normalizeConfig(binding.config, params.integrationId)
+		const summaryWindowSeconds = this.normalizeNonNegativeSeconds(
+			normalizedConfig.summaryWindowSeconds,
+			DEFAULT_SUMMARY_WINDOW_SECONDS
+		)
+		if (summaryWindowSeconds <= 0) {
+			await this.dispatchInboundMessage({
+				integrationId: params.integrationId,
 				xpertId: binding.xpertId,
-				input: params.input,
-				files: params.files,
-				larkMessage: params.larkMessage,
-				options: dispatchOptions
+				dispatchMode: 'immediate',
+				dispatchPayload: {
+					xpertId: binding.xpertId,
+					input: params.input,
+					files: params.files,
+					larkMessage: params.larkMessage,
+					options: dispatchOptions
+				}
 			})
 			return true
 		}
 
-		const handoffMessage = await this.dispatchService.buildDispatchMessage({
+		const aggregateKey = this.normalizeAggregateKey(
+			params.larkMessage.scopeKey ?? params.larkMessage.legacyConversationUserKey
+		)
+		if (!aggregateKey) {
+			this.logger.warn(`[lark-trigger] aggregation key missing integrationId=${params.integrationId}`)
+			return false
+		}
+
+		const currentState = await this.aggregationService.get(aggregateKey)
+		const sameRoutingTarget =
+			currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
+		const nextVersion = (currentState?.version ?? 0) + 1
+		const aggregateState: LarkTriggerAggregationState = {
+			aggregateKey,
+			integrationId: params.integrationId,
 			xpertId: binding.xpertId,
-			input: params.input,
-			files: params.files,
-			larkMessage: params.larkMessage,
-			options: dispatchOptions
+			version: nextVersion,
+			inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
+			files: [
+				...(sameRoutingTarget ? currentState?.files ?? [] : []),
+				...(params.files ?? [])
+			],
+			lastMessageAt: Date.now(),
+			tenantId: RequestContext.currentTenantId() ?? undefined,
+			organizationId: RequestContext.getOrganizationId() ?? undefined,
+			executorUserId: RequestContext.currentUserId() ?? undefined,
+			endUserId: dispatchOptions?.fromEndUserId,
+			options: {
+				...(dispatchOptions?.fromEndUserId ? { fromEndUserId: dispatchOptions.fromEndUserId } : {}),
+				...(dispatchOptions?.executorUserId ? { executorUserId: dispatchOptions.executorUserId } : {}),
+				...(dispatchOptions?.streamingEnabled !== undefined
+					? { streamingEnabled: dispatchOptions.streamingEnabled }
+					: {}),
+				...(dispatchOptions?.groupWindow ? { groupWindow: dispatchOptions.groupWindow } : {})
+			},
+			latestMessage: {
+				integrationId: params.larkMessage.integrationId,
+				organizationId: RequestContext.getOrganizationId() ?? undefined,
+				connectionMode: params.larkMessage.connectionMode,
+				chatId: params.larkMessage.chatId,
+				chatType: params.larkMessage.chatType,
+				senderOpenId: params.larkMessage.senderOpenId,
+				senderName: params.larkMessage['senderName'] as string | undefined,
+				principalKey: params.larkMessage.principalKey,
+				scopeKey: params.larkMessage.scopeKey,
+				legacyConversationUserKey: params.larkMessage.legacyConversationUserKey,
+				recipientDirectoryKey: params.larkMessage.recipientDirectoryKey,
+				replyToMessageId: params.larkMessage.replyToMessageId,
+				typingReaction: params.larkMessage.typingReaction,
+				language: params.larkMessage.language
+			}
+		}
+
+		const ttlSeconds = Math.max(
+			DEFAULT_SESSION_TIMEOUT_SECONDS,
+			normalizedConfig.sessionTimeoutSeconds,
+			summaryWindowSeconds * 3
+		)
+		await this.aggregationService.save(aggregateState, ttlSeconds)
+		await this.handoffPermissionService.enqueue(this.buildFlushMessage(aggregateState), {
+			delayMs: summaryWindowSeconds * 1000
 		})
+
+		this.logger.debug(
+			`[lark-trigger] buffered inbound integrationId=${params.integrationId} xpertId=${binding.xpertId} aggregateKey=${aggregateKey} version=${nextVersion}`
+		)
+		return true
+	}
+
+	async flushBufferedConversation(payload: LarkTriggerFlushPayload): Promise<boolean> {
+		const aggregateKey = this.normalizeAggregateKey(payload.aggregateKey)
+		if (!aggregateKey) {
+			return false
+		}
+
+		const state = await this.aggregationService.get(aggregateKey)
+		if (!state || state.version !== payload.version) {
+			return false
+		}
+
+		const input = state.inputParts.join('\n')
+		await this.dispatchInboundMessage({
+			integrationId: state.integrationId,
+			xpertId: state.xpertId,
+			dispatchMode: `buffered version=${state.version}`,
+			dispatchPayload: {
+				xpertId: state.xpertId,
+				input,
+				files: state.files,
+				larkMessage: new ChatLarkMessage(
+					{
+						tenant: null as any,
+						organizationId: state.latestMessage.organizationId ?? state.organizationId,
+						integrationId: state.latestMessage.integrationId,
+						connectionMode: state.latestMessage.connectionMode ?? 'webhook',
+						userId: state.executorUserId ?? state.endUserId ?? '',
+						chatId: state.latestMessage.chatId,
+						chatType: state.latestMessage.chatType,
+						senderOpenId: state.latestMessage.senderOpenId,
+						senderName: state.latestMessage.senderName,
+						principalKey: state.latestMessage.principalKey,
+						scopeKey: state.latestMessage.scopeKey ?? state.aggregateKey,
+						legacyConversationUserKey: state.latestMessage.legacyConversationUserKey,
+						recipientDirectoryKey: state.latestMessage.recipientDirectoryKey,
+						replyToMessageId: state.latestMessage.replyToMessageId,
+						typingReaction: state.latestMessage.typingReaction,
+						larkChannel: this.larkChannel
+					},
+					{
+						text: input,
+						status: 'thinking',
+						language: state.latestMessage.language
+					}
+				),
+				options: state.options ?? (state.endUserId ? { fromEndUserId: state.endUserId } : undefined)
+			}
+		})
+
+		await this.aggregationService.clear(aggregateKey)
+		return true
+	}
+
+	private buildFlushMessage(state: LarkTriggerAggregationState): HandoffMessage<LarkTriggerFlushPayload> {
+		return {
+			id: `lark-trigger-flush-${randomUUID()}`,
+			type: LARK_TRIGGER_FLUSH_MESSAGE_TYPE,
+			version: 1,
+			tenantId: state.tenantId,
+			sessionKey: state.aggregateKey,
+			businessKey: state.aggregateKey,
+			attempt: 1,
+			maxAttempts: 1,
+			enqueuedAt: Date.now(),
+			traceId: `${state.aggregateKey}:${state.version}`,
+			payload: {
+				aggregateKey: state.aggregateKey,
+				version: state.version
+			},
+			headers: {
+				...(state.organizationId ? { organizationId: state.organizationId } : {}),
+				...(state.executorUserId ? { userId: state.executorUserId } : {}),
+				source: 'api',
+				requestedLane: 'main',
+				handoffQueue: 'integration',
+				...(state.integrationId ? { integrationId: state.integrationId } : {})
+			}
+		}
+	}
+
+	private normalizeAggregateKey(value?: string | null): string | undefined {
+		if (typeof value !== 'string') {
+			return undefined
+		}
+		const normalized = value.trim()
+		return normalized || undefined
+	}
+
+	private normalizePositiveSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
+	private normalizeNonNegativeSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
+	private async dispatchInboundMessage(params: {
+		integrationId: string
+		xpertId: string
+		dispatchMode: string
+		dispatchPayload: Parameters<LarkChatDispatchService['enqueueDispatch']>[0]
+	}): Promise<void> {
+		const callback = this.callbacks.get(params.integrationId)
+		if (!callback) {
+			// Persisted binding must continue to work after process restart even without in-memory callback.
+			await this.dispatchService.enqueueDispatch(params.dispatchPayload)
+			return
+		}
+
+		const handoffMessage = await this.dispatchService.buildDispatchMessage(params.dispatchPayload)
 		await Promise.resolve(
 			callback({
 				from: LarkTrigger,
-				xpertId: binding.xpertId,
+				xpertId: params.xpertId,
 				handoffMessage
 			})
 		)
-		return true
 	}
 
 	private resolveDispatchOptions(

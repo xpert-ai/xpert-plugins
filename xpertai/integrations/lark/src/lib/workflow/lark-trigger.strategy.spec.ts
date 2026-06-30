@@ -1,4 +1,20 @@
-import { INTEGRATION_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+	HANDOFF_PERMISSION_SERVICE_TOKEN: 'HANDOFF_PERMISSION_SERVICE_TOKEN',
+	INTEGRATION_PERMISSION_SERVICE_TOKEN: 'INTEGRATION_PERMISSION_SERVICE_TOKEN',
+	WorkflowTriggerStrategy: () => () => undefined,
+	defineChannelMessageType: (...parts: Array<string | number>) => parts.join('.'),
+	RequestContext: {
+		currentTenantId: jest.fn(() => null),
+		getOrganizationId: jest.fn(() => null),
+		currentUserId: jest.fn(() => null)
+	}
+}))
+
+jest.mock('../lark-channel.strategy.js', () => ({
+	LarkChannelStrategy: class LarkChannelStrategy {}
+}))
+
+import { HANDOFF_PERMISSION_SERVICE_TOKEN, INTEGRATION_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
 import { LarkTriggerStrategy } from './lark-trigger.strategy.js'
 
 const DEFAULT_TRIGGER_CONFIG = {
@@ -11,7 +27,9 @@ const DEFAULT_TRIGGER_CONFIG = {
 	allowedGroupChatIds: [],
 	groupUserScope: 'all_users',
 	groupUserOpenIds: [],
-	groupReplyStrategy: 'mention_only'
+	groupReplyStrategy: 'mention_only',
+	sessionTimeoutSeconds: 3600,
+	summaryWindowSeconds: 0
 } as const
 
 type PersistedBinding = {
@@ -38,6 +56,21 @@ describe('LarkTriggerStrategy', () => {
 			}),
 			enqueueDispatch: jest.fn().mockResolvedValue({
 				messageId: 'enqueued-message'
+			})
+		}
+		const aggregationStates = new Map<string, any>()
+		const aggregationService = {
+			get: jest.fn().mockImplementation(async (key: string) => aggregationStates.get(key) ?? null),
+			save: jest.fn().mockImplementation(async (state: any) => {
+				aggregationStates.set(state.aggregateKey, state)
+			}),
+			clear: jest.fn().mockImplementation(async (key: string) => {
+				aggregationStates.delete(key)
+			})
+		}
+		const handoffPermissionService = {
+			enqueue: jest.fn().mockResolvedValue({
+				id: 'flush-message-id'
 			})
 		}
 		const integrationPermissionService = {
@@ -111,12 +144,16 @@ describe('LarkTriggerStrategy', () => {
 				if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
 					return integrationPermissionService
 				}
+				if (token === HANDOFF_PERMISSION_SERVICE_TOKEN) {
+					return handoffPermissionService
+				}
 				throw new Error(`Unexpected token: ${String(token)}`)
 			})
 		}
 
 		const strategy = new (LarkTriggerStrategy as any)(
 			dispatchService as any,
+			aggregationService as any,
 			larkChannel as any,
 			bindingRepository as any,
 			pluginContext as any
@@ -124,6 +161,8 @@ describe('LarkTriggerStrategy', () => {
 		return {
 			strategy,
 			dispatchService,
+			aggregationService,
+			handoffPermissionService,
 			bindingRepository,
 			persistedBindings
 		}
@@ -141,6 +180,22 @@ describe('LarkTriggerStrategy', () => {
 			...overrides
 		}
 	}
+
+	it('exposes session timeout and summary window defaults in trigger schema', () => {
+		const { strategy } = createStrategy()
+		const properties = strategy.meta.configSchema.properties as Record<string, any>
+
+		expect(properties.sessionTimeoutSeconds.default).toBe(3600)
+		expect(properties.sessionTimeoutSeconds.title).toEqual({
+			en_US: 'Session Timeout (seconds)',
+			zh_Hans: '会话超时时间（秒）'
+		})
+		expect(properties.summaryWindowSeconds.default).toBe(0)
+		expect(properties.summaryWindowSeconds.title).toEqual({
+			en_US: 'Summary Window (seconds)',
+			zh_Hans: '汇总时间（秒）'
+		})
+	})
 
 	it('reports validation error when integration is missing', async () => {
 		const { strategy } = createStrategy()
@@ -429,8 +484,34 @@ describe('LarkTriggerStrategy', () => {
 					integrationId: 'integration-1',
 					singleChatScope: 'all_users',
 					groupReplyStrategy: 'all_messages',
-					streamingEnabled: true
+					streamingEnabled: true,
+					sessionTimeoutSeconds: 3600,
+					summaryWindowSeconds: 0
 				})
+			})
+		)
+	})
+
+	it('persists zero summary window without changing session timeout fallback behavior', async () => {
+		const { strategy, persistedBindings } = createStrategy()
+
+		await strategy.publish(
+			{
+				xpertId: 'xpert-1',
+				config: {
+					integrationId: 'integration-1',
+					enabled: true,
+					sessionTimeoutSeconds: 0,
+					summaryWindowSeconds: 0
+				}
+			} as any,
+			jest.fn()
+		)
+
+		expect(persistedBindings.get('integration-1')?.config).toEqual(
+			expect.objectContaining({
+				sessionTimeoutSeconds: 3600,
+				summaryWindowSeconds: 0
 			})
 		)
 	})
@@ -548,5 +629,125 @@ describe('LarkTriggerStrategy', () => {
 				})
 			})
 		)
+	})
+
+	it('buffers inbound messages and schedules a delayed flush', async () => {
+		const { strategy, aggregationService, dispatchService, handoffPermissionService } = createStrategy({
+			bindings: [
+				createBinding({
+					config: {
+						integrationId: 'integration-1',
+						...DEFAULT_TRIGGER_CONFIG,
+						groupReplyStrategy: 'all_messages',
+						summaryWindowSeconds: 7
+					}
+				})
+			]
+		})
+
+		await expect(
+			strategy.handleInboundMessage({
+				integrationId: 'integration-1',
+				input: '第一条消息',
+				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				larkMessage: {
+					integrationId: 'integration-1',
+					chatId: 'chat-1',
+					chatType: 'group',
+					senderOpenId: 'ou_sender_1',
+					senderName: 'Alice',
+					scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+					legacyConversationUserKey: 'open_id:ou_sender_1',
+					principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+					recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+					language: 'zh-Hans',
+					connectionMode: 'webhook'
+				} as any,
+				options: {
+					fromEndUserId: 'mapped-user-1',
+					botMentioned: false
+				} as any
+			})
+		).resolves.toBe(true)
+
+		expect(aggregationService.save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
+				integrationId: 'integration-1',
+				xpertId: 'xpert-1',
+				version: 1,
+				inputParts: ['第一条消息'],
+				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				endUserId: 'mapped-user-1',
+				latestMessage: expect.objectContaining({
+					chatId: 'chat-1',
+					chatType: 'group',
+					senderOpenId: 'ou_sender_1'
+				})
+			}),
+			expect.any(Number)
+		)
+		expect(handoffPermissionService.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				payload: {
+					aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
+					version: 1
+				}
+			}),
+			{
+				delayMs: 7000
+			}
+		)
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+	})
+
+	it('flushes the current aggregate into a single dispatch payload', async () => {
+		const { strategy, aggregationService, dispatchService } = createStrategy()
+		aggregationService.get.mockResolvedValue({
+			aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
+			integrationId: 'integration-1',
+			xpertId: 'xpert-1',
+			version: 2,
+			inputParts: ['第一条消息', '第二条消息'],
+			files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+			lastMessageAt: Date.now(),
+			tenantId: 'tenant-1',
+			organizationId: 'org-1',
+			executorUserId: 'user-1',
+			endUserId: 'mapped-user-1',
+			latestMessage: {
+				integrationId: 'integration-1',
+				chatId: 'chat-1',
+				chatType: 'group',
+				senderOpenId: 'ou_sender_1',
+				senderName: 'Alice',
+				scopeKey: 'lark:v2:scope:integration-1:group:chat-1',
+				legacyConversationUserKey: 'open_id:ou_sender_1',
+				principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+				recipientDirectoryKey: 'lark:recipient-dir:integration-1:chat:chat-1',
+				language: 'zh-Hans',
+				connectionMode: 'webhook'
+			}
+		})
+
+		await expect(
+			strategy.flushBufferedConversation({
+				aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
+				version: 2
+			})
+		).resolves.toBe(true)
+
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				xpertId: 'xpert-1',
+				input: '第一条消息\n第二条消息',
+				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				options: expect.objectContaining({
+					fromEndUserId: 'mapped-user-1'
+				})
+			})
+		)
+		expect(dispatchService.enqueueDispatch.mock.calls[0][0].larkMessage.chatId).toBe('chat-1')
+		expect(aggregationService.clear).toHaveBeenCalledWith('lark:v2:scope:integration-1:group:chat-1')
 	})
 })

@@ -1,4 +1,4 @@
-import { IIntegration, IUser } from '@metad/contracts'
+import { IIntegration, IUser } from '@xpert-ai/contracts'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
