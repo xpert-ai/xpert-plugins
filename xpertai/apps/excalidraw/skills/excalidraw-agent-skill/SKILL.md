@@ -18,41 +18,47 @@ Do not treat Workbench view actions as Agent middleware tools. Use only the midd
 
 1. Do not invent drawing ids, version ids, or element ids for existing drawings. Use Workbench context, `excalidraw_search_drawings`, `excalidraw_get_drawing`, or `excalidraw_get_scene_item`.
 2. Prefer direct Excalidraw elements as the default creation path. Use Mermaid only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a fast low-fidelity draft where exact layout and editability are less important.
-3. For new complex diagrams, call `excalidraw_create_drawing` first, then call `excalidraw_add_elements` in one element or small logical batches. This gives the Workbench incremental updates and keeps failures easy to retry.
-4. Before editing an existing drawing, call `excalidraw_get_drawing` first unless the current prompt already contains a trustworthy Workbench context with the drawing id and version ref.
-5. Prefer `excalidraw_patch_scene` for targeted edits. Use `excalidraw_save_scene_version` only when a full scene replacement is intentional.
-6. Use `excalidraw_get_drawing` for compact metadata and lightweight refs. Use `excalidraw_get_scene_item` for full element JSON, full appState, file payloads, or full Mermaid source.
-7. Keep changes small and reviewable. Use short `changeSummary` values that describe the operation, not a long user-visible answer.
-8. Do not claim a drawing was saved unless the tool call succeeded. Tool results are the source of truth.
-9. Do not route logic from display text, localized labels, sample titles, or incidental field combinations. Use explicit fields such as `selection.type`, `itemType`, `kind`, `status`, and `sourceType`.
+3. If the rendered `excalidrawDrawingId` value or middleware-injected current Workbench context is present, update that current Workbench drawing. Do not call `excalidraw_create_drawing` for additions, blank-area insertions, title edits, restyling, or other updates to that drawing.
+4. For new complex diagrams where no current drawing exists or the user explicitly asks for a new drawing, call `excalidraw_create_drawing` first, then call `excalidraw_add_elements` in one element or small logical batches. This gives the Workbench incremental updates and keeps failures easy to retry.
+5. Before editing an existing drawing, call `excalidraw_get_drawing` first unless the current prompt already contains a trustworthy Workbench context with the drawing id and version ref.
+6. Prefer `excalidraw_patch_scene` for targeted edits. Use `excalidraw_save_scene_version` only when a full scene replacement is intentional.
+7. Use `excalidraw_get_drawing` for compact metadata and lightweight refs. Use `excalidraw_get_scene_item` for full element JSON, full appState, file payloads, or full Mermaid source.
+8. Keep changes small and reviewable. Use short `changeSummary` values that describe the operation, not a long user-visible answer.
+9. Do not claim a drawing was saved unless the tool call succeeded. Tool results are the source of truth.
+10. Do not route logic from display text, localized labels, sample titles, or incidental field combinations. Use explicit fields such as `selection.type`, `itemType`, `kind`, `status`, and `sourceType`.
 
 ## Default Tool Choice
 
 Choose the tool path in this order:
 
-1. New editable diagram: `excalidraw_create_drawing` -> repeated `excalidraw_add_elements`.
-2. Existing drawing targeted edit: `excalidraw_get_drawing` -> optional `excalidraw_get_scene_item` -> `excalidraw_patch_scene`.
-3. Intentional full replacement: `excalidraw_save_scene_version`.
-4. Explicit Mermaid import/draft: `excalidraw_save_mermaid_draft`.
-5. Failure or unresolved context: `excalidraw_report_failure`.
+1. Current Workbench drawing update: use rendered `excalidrawDrawingId` or the middleware-injected current Workbench context -> `excalidraw_get_drawing` -> `excalidraw_add_elements`, `excalidraw_patch_scene`, or `excalidraw_save_scene_version`.
+2. New editable diagram when no current drawing exists or the user explicitly asks for a new drawing: `excalidraw_create_drawing` -> repeated `excalidraw_add_elements`.
+3. Existing drawing targeted edit by explicit id or search result: `excalidraw_get_drawing` -> optional `excalidraw_get_scene_item` -> `excalidraw_patch_scene`.
+4. Intentional full replacement: `excalidraw_save_scene_version`.
+5. Explicit Mermaid import/draft: `excalidraw_save_mermaid_draft`.
+6. Failure or unresolved context: `excalidraw_report_failure`.
 
 Do not choose Mermaid just because the diagram is a flowchart or architecture map. The plugin can create editable boxes, labels, arrows, groups, frames, and containers directly with Excalidraw elements, and that should be the default.
 
 ## Workbench Selection Context
 
-The Workbench automatically sends `assistant.context.set` when the user selects elements. That request state is not automatically visible to the model unless the assistant prompt renders it through prompt variables.
+The Workbench automatically sends `assistant.context.set` when the user opens a drawing or changes the canvas selection. The payload goes into runtime context/env for the Agent run. Middleware also reads that runtime context directly and can inject the current `drawingId` into Excalidraw tools when the tool call omits it.
 
-When the prompt includes these variables, use them before searching broadly:
+The assistant prompt may render runtime env values as plain field-name lines. Reason from those visible names and values, not from JavaScript-style paths such as `env.excalidrawDrawingId`, and not from persistent state variable names.
 
-- `env.excalidrawDrawingId`
-- `env.excalidrawVersionId`
-- `env.excalidrawVersionNumber`
-- `env.excalidrawSelectedElementIdsJson`
-- `env.excalidrawSelectionJson`
-- `env.excalidrawContextJson`
-- `env.excalidrawSceneDirty`
+When the prompt includes these rendered field names, use them before searching broadly:
 
-If `env.excalidrawContextJson` is non-empty, parse it as JSON. The expected shape is:
+- `excalidrawDrawingId`
+- `excalidrawVersionId`
+- `excalidrawVersionNumber`
+- `excalidrawSelectedElementIdsJson`
+- `excalidrawSelectionJson`
+- `excalidrawContextJson`
+- `excalidrawSceneDirty`
+
+Template `stateVariables` are not required for these Workbench values. Older state names such as `currentDrawingId`/`currentVersionId` are not the source of truth.
+
+If rendered `excalidrawDrawingId` is non-empty, treat it as the current Workbench drawing even when no elements are selected. If rendered `excalidrawContextJson` is non-empty, parse it as JSON for extra metadata. The expected shape is:
 
 ```json
 {
@@ -90,10 +96,11 @@ If `env.excalidrawContextJson` is non-empty, parse it as JSON. The expected shap
 
 Selection rules:
 
+- `currentDrawing` may exist without `selection`; this means a drawing is open but no element is selected. Use the rendered `excalidrawDrawingId` or the middleware-injected current Workbench context for additions such as "add this in the blank area".
 - Treat `currentDrawing.selection.type === "excalidraw.selection.v1"` as the only valid machine-readable selection discriminator.
 - If a valid selection exists, modify only `selectedElementIds` unless the user explicitly asks to affect neighboring or unselected elements.
 - Use compact `selection.elements` only for orientation, bounds, and intent. Fetch full element JSON with `excalidraw_get_scene_item` before changing exact geometry, style, bindings, text, or file-backed elements.
-- If `currentDrawing.isDirty === true` or `env.excalidrawSceneDirty === "true"`, the compact selected refs may include unsaved canvas state newer than the persisted current version. Use the refs to understand the user intent, then fetch persisted JSON before patching. If the selected id is missing in the persisted version, ask the user to save the Workbench version or explain that the unsaved element cannot be patched by middleware yet.
+- If `currentDrawing.isDirty === true` or rendered `excalidrawSceneDirty` is `true`, the compact selected refs may include unsaved canvas state newer than the persisted current version. Use the refs to understand the user intent, then fetch persisted JSON before patching. If the selected id is missing in the persisted version, ask the user to save the Workbench version or explain that the unsaved element cannot be patched by middleware yet.
 - If no valid selection context exists but the user asks to edit "the selected element", ask them to select an element or provide a drawing id and element id.
 
 ## Tool Contracts
@@ -110,6 +117,7 @@ Inputs:
 
 Rules:
 
+- Do not call this when rendered `excalidrawDrawingId` or middleware-injected context identifies the current Workbench drawing and the user is asking to add, edit, or place content in that drawing.
 - This middleware schema is metadata-only. Do not pass `elements`, `appState`, `files`, or `mermaidSource`.
 - After success, call `excalidraw_add_elements`, `excalidraw_save_scene_version`, or `excalidraw_save_mermaid_draft` with the returned `drawingId`.
 
@@ -119,8 +127,9 @@ Append valid full Excalidraw elements to an existing drawing.
 
 Inputs:
 
-- Required: `drawingId`, `elements`.
-- Optional: `appStatePatch`, `files`, `mermaidSource`, `changeSummary`.
+- Required: `elements`.
+- Optional: `drawingId`, `appStatePatch`, `files`, `mermaidSource`, `changeSummary`.
+- Omit `drawingId` only when operating on the current Workbench drawing identified by rendered `excalidrawDrawingId` or middleware-injected context.
 - `elements` must contain 1 to 20 full element objects.
 
 Rules:
@@ -136,7 +145,7 @@ Save a complete valid Excalidraw scene as a new version.
 
 Inputs:
 
-- Required: `drawingId`.
+- Required: `drawingId` unless operating on the current Workbench drawing.
 - Optional: `elements`, `appState`, `files`, `mermaidSource`, `sourceType`, `changeSummary`.
 - `sourceType` is one of `agent_json`, `agent_patch`, `agent_mermaid`, `workbench`, `workbench_mermaid`, `import`, `restore`; Agent full JSON should normally use `agent_json`.
 
@@ -152,8 +161,9 @@ Apply strict add/update/delete changes to the current drawing version and save a
 
 Inputs:
 
-- Required: `drawingId`.
-- Optional: `addElements`, `updateElements`, `deleteElementIds`, `appStatePatch`, `files`, `mermaidSource`, `changeSummary`.
+- Required: at least one change field such as `addElements`, `updateElements`, `deleteElementIds`, `appStatePatch`, `files`, or `mermaidSource`.
+- Optional: `drawingId`, `addElements`, `updateElements`, `deleteElementIds`, `appStatePatch`, `files`, `mermaidSource`, `changeSummary`.
+- Omit `drawingId` only when operating on the current Workbench drawing identified by rendered `excalidrawDrawingId` or middleware-injected context.
 - Each `updateElements` item must include `id` plus shallow fields to merge onto the current element.
 
 Rules:
@@ -174,6 +184,7 @@ Inputs:
 - Required: `mermaidSource`.
 - Required when creating a new drawing: `title`.
 - Optional: `drawingId`, `description`, `kind`, `changeSummary`.
+- Omit `drawingId` only when saving to the current Workbench drawing or intentionally creating a new Mermaid draft because no current drawing exists.
 
 Rules:
 
@@ -204,7 +215,7 @@ Read compact drawing metadata, current version ref, lightweight version refs, op
 
 Inputs:
 
-- Required: `drawingId`.
+- Required: `drawingId` unless reading the current Workbench drawing.
 - Optional: `includeScene`, `versionId`, `versionNumber`, `versionLimit`, `includeLogs`, `logLimit`, `elementOffset`, `elementLimit`.
 - `versionLimit` and `logLimit` max are 20.
 - `elementLimit` max is 200.
@@ -223,7 +234,8 @@ Fetch one explicit full scene item from a drawing version.
 
 Inputs:
 
-- Required: `drawingId`, `itemType`.
+- Required: `itemType`.
+- Required: `drawingId` unless reading the current Workbench drawing.
 - Optional: `versionId`, `versionNumber`, `elementId`, `fileId`.
 - `itemType` is one of `element`, `appState`, `file`, `mermaidSource`.
 
@@ -240,7 +252,8 @@ Update a drawing lifecycle status.
 
 Inputs:
 
-- Required: `drawingId`, `status`.
+- Required: `status`.
+- Required: `drawingId` unless updating the current Workbench drawing.
 - Optional: `reason`.
 - `status` is one of `draft`, `reviewed`, `archived`.
 
@@ -267,6 +280,8 @@ Rules:
 
 ### New editable Excalidraw drawing
 
+Use this workflow only when there is no current Workbench drawing id or the user explicitly asked for a new/separate drawing.
+
 1. Call `excalidraw_create_drawing` with `title`, optional `kind`, tags, and a short `changeSummary`.
 2. Plan a stable coordinate system before adding elements. Leave comfortable spacing for labels and connectors.
 3. Add containers, frames, or major regions first with `excalidraw_add_elements`.
@@ -284,7 +299,7 @@ Rules:
 
 ### Update an existing drawing
 
-1. Resolve the drawing id from Workbench context, user input, or `excalidraw_search_drawings`.
+1. Resolve the drawing id from rendered `excalidrawDrawingId`, middleware-injected current context, user input, tool results, or `excalidraw_search_drawings`.
 2. Call `excalidraw_get_drawing` for compact metadata.
 3. If ids or geometry are needed, call `excalidraw_get_drawing` with `includeScene=true`, `versionId` or `versionNumber`, and pagination.
 4. Fetch exact items with `excalidraw_get_scene_item`.
@@ -292,12 +307,19 @@ Rules:
 
 ### Edit the current Workbench selection
 
-1. Parse `env.excalidrawContextJson`.
+1. Parse rendered `excalidrawContextJson`.
 2. Verify `currentDrawing.selection.type === "excalidraw.selection.v1"`.
-3. Use `currentDrawing.drawingId` and `currentDrawing.currentVersionId` or `currentVersionNumber`.
+3. Use rendered `excalidrawDrawingId`; use version metadata from parsed `excalidrawContextJson` only when needed.
 4. For each selected id that needs exact changes, call `excalidraw_get_scene_item` with `itemType=element`.
 5. Build an `excalidraw_patch_scene` request that only changes selected ids unless the user explicitly broadened scope.
 6. If the scene is dirty and selected ids are not in the persisted version, ask the user to save the Workbench version or report a recoverable failure.
+
+### Add to the current Workbench drawing with no selection
+
+1. Read rendered `excalidrawDrawingId`.
+2. Call `excalidraw_get_drawing` for compact metadata and, when placement depends on existing contents, page lightweight refs with `includeScene=true`.
+3. Add new elements to that same drawing with `excalidraw_add_elements` or `excalidraw_patch_scene`.
+4. If the user says "blank area" but no coordinates are available, choose a clear empty region based on the current scene bounds; do not create a new drawing.
 
 ### Inspect a large scene
 

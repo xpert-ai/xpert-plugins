@@ -13,22 +13,24 @@ import {
   EXCALIDRAW_WORKBENCH_CAPABILITY
 } from './constants.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const templateModuleFilename = fileURLToPath(import.meta.url)
+const templateModuleDir = dirname(templateModuleFilename)
 const EXCALIDRAW_TEMPLATE_KEY = 'excalidraw-assistant'
 const EXCALIDRAW_TEMPLATE_FILE = 'xpert-excalidraw-assistant.yaml'
 const EXCALIDRAW_AGENT_KEY = 'Agent_Excalidraw'
+const WEB_TOOLS_PLUGIN_NAME = '@xpert-ai/plugin-web-tools'
+const EXCALIDRAW_AGENT_SKILL_KEY = 'excalidraw-agent-skill'
 const excalidrawSkillDependencies = [
   {
-    componentKey: 'index',
+    componentKey: EXCALIDRAW_AGENT_SKILL_KEY,
     targetAgentKey: EXCALIDRAW_AGENT_KEY
   }
 ]
 
 function getTemplateCandidates() {
   return [
-    join(__dirname, '..', EXCALIDRAW_TEMPLATE_FILE),
-    join(__dirname, EXCALIDRAW_TEMPLATE_FILE),
+    join(templateModuleDir, '..', EXCALIDRAW_TEMPLATE_FILE),
+    join(templateModuleDir, EXCALIDRAW_TEMPLATE_FILE),
     join(process.cwd(), 'apps/excalidraw/src', EXCALIDRAW_TEMPLATE_FILE),
     join(process.cwd(), 'xpertai/apps/excalidraw/src', EXCALIDRAW_TEMPLATE_FILE),
     join(process.cwd(), 'dist/apps/excalidraw', EXCALIDRAW_TEMPLATE_FILE)
@@ -56,7 +58,7 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
       'data-xpert': {
         types: ['business-assistant'],
         capabilities: [EXCALIDRAW_FEATURE, EXCALIDRAW_WORKBENCH_CAPABILITY, EXCALIDRAW_AGENT_DRAWING_CAPABILITY],
-        requiredPlugins: [EXCALIDRAW_PLUGIN_NAME],
+        requiredPlugins: [EXCALIDRAW_PLUGIN_NAME, WEB_TOOLS_PLUGIN_NAME],
         defaultConfig: {
           assistantKind: 'business-assistant',
           businessDomain: 'excalidraw',
@@ -67,11 +69,11 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
       xpert: {
         types: ['assistant-template'],
         capabilities: [EXCALIDRAW_FEATURE, EXCALIDRAW_WORKBENCH_CAPABILITY, EXCALIDRAW_AGENT_DRAWING_CAPABILITY],
-        requiredPlugins: [EXCALIDRAW_PLUGIN_NAME]
+        requiredPlugins: [EXCALIDRAW_PLUGIN_NAME, WEB_TOOLS_PLUGIN_NAME]
       }
     },
     dependencies: {
-      plugins: [EXCALIDRAW_PLUGIN_NAME],
+      plugins: [EXCALIDRAW_PLUGIN_NAME, WEB_TOOLS_PLUGIN_NAME],
       skills: excalidrawSkillDependencies
     },
     dslContent: readExcalidrawDsl(),

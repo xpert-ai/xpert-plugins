@@ -24,6 +24,7 @@ import {
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
   EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME
 } from './constants.js'
+import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { ChatMessageEventTypeEnum } from '@xpert-ai/contracts'
 import { ExcalidrawMiddleware } from './excalidraw.middleware.js'
 
@@ -52,6 +53,8 @@ describe('ExcalidrawMiddleware staged element tools', () => {
 
     const createTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_CREATE_DRAWING_TOOL_NAME) as any
     expect(createTool).toBeTruthy()
+    expect(createTool.description).toContain('no current Workbench drawing id')
+    expect(createTool.description).toContain('do not call this tool for additions')
 
     const result = JSON.parse(await createTool.invoke({
       title: 'Metadata only',
@@ -120,6 +123,11 @@ describe('ExcalidrawMiddleware staged element tools', () => {
 
     const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
     expect(addTool).toBeTruthy()
+    expect(addTool.description).toContain('excalidrawDrawingId')
+    expect(addTool.description).toContain('blank area')
+    expect(addTool.schema.safeParse({
+      elements: [{ id: 'rect-1', type: 'rectangle' }]
+    }).success).toBe(true)
 
     const result = JSON.parse(await addTool.invoke({
       drawingId: 'drawing-1',
@@ -151,6 +159,155 @@ describe('ExcalidrawMiddleware staged element tools', () => {
     expect(result.currentVersion).toBeUndefined()
     expect(result.version).toBeUndefined()
     expect(result.summary).toBeUndefined()
+  })
+
+  it('injects drawingId from runtime structured context before Excalidraw tool execution', async () => {
+    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'tool-call-1' }))
+
+    await middleware.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'tool-call-1',
+          name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+          args: {
+            elements: [{ id: 'rect-1', type: 'rectangle' }]
+          }
+        },
+        tool: addTool,
+        state: { messages: [] },
+        runtime: {
+          context: {
+            excalidraw: {
+              currentDrawing: {
+                drawingId: 'drawing-from-context',
+                title: 'Opened drawing'
+              }
+            }
+          }
+        }
+      } as any,
+      handler as any
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: {
+            elements: [{ id: 'rect-1', type: 'rectangle' }],
+            drawingId: 'drawing-from-context'
+          }
+        })
+      })
+    )
+  })
+
+  it('injects drawingId from runtime env context before Excalidraw tool execution', async () => {
+    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'tool-call-1' }))
+
+    await middleware.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'tool-call-1',
+          name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+          args: {
+            elements: [{ id: 'rect-1', type: 'rectangle' }]
+          }
+        },
+        tool: addTool,
+        state: { messages: [] },
+        runtime: {
+          context: {
+            env: {
+              excalidrawDrawingId: 'drawing-from-env'
+            }
+          }
+        }
+      } as any,
+      handler as any
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          args: {
+            elements: [{ id: 'rect-1', type: 'rectangle' }],
+            drawingId: 'drawing-from-env'
+          }
+        })
+      })
+    )
+  })
+
+  it('returns a clear error when drawingId and current Workbench context are missing', async () => {
+    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const handler = jest.fn()
+
+    const result = await middleware.wrapToolCall?.(
+      {
+        toolCall: {
+          id: 'tool-call-1',
+          name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+          args: {
+            elements: [{ id: 'rect-1', type: 'rectangle' }]
+          }
+        },
+        tool: addTool,
+        state: { messages: [] },
+        runtime: {
+          context: {}
+        }
+      } as any,
+      handler as any
+    )
+
+    expect(handler).not.toHaveBeenCalled()
+    expect(result).toBeInstanceOf(ToolMessage)
+    expect((result as ToolMessage).content).toBe('未找到当前 Excalidraw Workbench 图形，请先打开图形或显式传 drawingId。')
+  })
+
+  it('injects current Workbench drawing context into model calls', async () => {
+    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const handler = jest.fn(async () => 'ok')
+
+    await middleware.wrapModelCall?.(
+      {
+        systemMessage: new SystemMessage('Base prompt.'),
+        messages: [],
+        tools: [],
+        state: { messages: [] },
+        runtime: {
+          context: {
+            excalidraw: {
+              currentDrawing: {
+                drawingId: 'drawing-1',
+                title: 'Current sketch',
+                currentVersionNumber: 3,
+                isDirty: true,
+                selection: {
+                  type: 'excalidraw.selection.v1',
+                  selectedElementIds: ['rect-1']
+                }
+              }
+            }
+          }
+        }
+      } as any,
+      handler as any
+    )
+
+    const request = handler.mock.calls[0]?.[0]
+    expect(request.systemMessage.content).toContain('Base prompt.')
+    expect(request.systemMessage.content).toContain('excalidrawDrawingId: drawing-1')
+    expect(request.systemMessage.content).toContain('title: Current sketch')
+    expect(request.systemMessage.content).toContain('excalidrawVersionNumber: 3')
+    expect(request.systemMessage.content).toContain('excalidrawSceneDirty: true')
+    expect(request.systemMessage.content).toContain('selectionType: excalidraw.selection.v1')
+    expect(request.systemMessage.content).toContain('Excalidraw tools may omit drawingId')
   })
 
   it('dispatches changeSummary as the tool event message', async () => {
