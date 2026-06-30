@@ -102,7 +102,60 @@ describe('createExcalidrawSelectionContextCommand', () => {
     })
   })
 
-  it('clears assistant context when there is no usable drawing or selection', () => {
+  it('keeps current drawing context when no elements are selected', () => {
+    const command = createExcalidrawSelectionContextCommand({
+      drawing: {
+        id: 'drawing-1',
+        title: 'Opened drawing'
+      },
+      version: {
+        id: 'version-1',
+        versionNumber: 1
+      },
+      selectedElementIds: ['missing-1'],
+      elements: [],
+      isDirty: false
+    })
+
+    expect(command).toMatchObject({
+      commandKey: 'assistant.context.set',
+      payload: {
+        key: 'excalidraw',
+        env: {
+          excalidrawDrawingId: 'drawing-1',
+          excalidrawVersionId: 'version-1',
+          excalidrawVersionNumber: '1',
+          excalidrawSelectedElementIdsJson: '[]',
+          excalidrawContextJson: expect.any(String),
+          excalidrawSceneDirty: 'false'
+        },
+        context: {
+          currentDrawing: {
+            drawingId: 'drawing-1',
+            title: 'Opened drawing',
+            currentVersionId: 'version-1',
+            currentVersionNumber: 1,
+            isDirty: false
+          }
+        }
+      }
+    })
+
+    const payload = command.payload as { env: Record<string, string> }
+    expect(payload.env.excalidrawSelectionJson).toBeUndefined()
+    expect(JSON.parse(payload.env.excalidrawContextJson)).toEqual({
+      currentDrawing: {
+        drawingId: 'drawing-1',
+        title: 'Opened drawing',
+        currentVersionId: 'version-1',
+        currentVersionNumber: 1,
+        isDirty: false,
+        source: '@xpert-ai/plugin-excalidraw'
+      }
+    })
+  })
+
+  it('clears assistant context when there is no usable drawing', () => {
     expect(createExcalidrawSelectionClearCommand()).toEqual({
       commandKey: 'assistant.context.set',
       payload: {
@@ -111,7 +164,7 @@ describe('createExcalidrawSelectionContextCommand', () => {
       }
     })
     expect(createExcalidrawSelectionContextCommand({
-      drawing: { id: 'drawing-1' },
+      drawing: null,
       version: null,
       selectedElementIds: ['missing-1'],
       elements: [],

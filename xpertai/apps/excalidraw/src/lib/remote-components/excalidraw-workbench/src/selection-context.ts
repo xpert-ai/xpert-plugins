@@ -45,23 +45,22 @@ export function createExcalidrawSelectionContextCommand(input: SelectionContextI
 
   const selectedElements = buildSelectedElementRefs(input.elements, input.selectedElementIds)
   const resolvedSelectedElementIds = selectedElements.map((element) => readString(element.id)).filter((id): id is string => Boolean(id))
-  if (resolvedSelectedElementIds.length === 0) {
-    return createExcalidrawSelectionClearCommand()
-  }
 
   const title = readString(input.drawing?.title)
   const versionId = readString(input.version?.id)
   const versionNumber = readFiniteNumber(input.version?.versionNumber)
   const capturedAt = input.capturedAt || new Date().toISOString()
   const isDirty = input.isDirty === true
-  const selection = {
-    type: EXCALIDRAW_SELECTION_CONTEXT_TYPE,
-    selectedElementIds: resolvedSelectedElementIds,
-    selectedElementCount: resolvedSelectedElementIds.length,
-    elements: selectedElements,
-    bounds: calculateSelectionBounds(selectedElements),
-    capturedAt
-  }
+  const selection = resolvedSelectedElementIds.length > 0
+    ? {
+        type: EXCALIDRAW_SELECTION_CONTEXT_TYPE,
+        selectedElementIds: resolvedSelectedElementIds,
+        selectedElementCount: resolvedSelectedElementIds.length,
+        elements: selectedElements,
+        bounds: calculateSelectionBounds(selectedElements),
+        capturedAt
+      }
+    : undefined
   const currentDrawing = pruneUndefined({
     drawingId,
     title,
@@ -84,7 +83,7 @@ export function createExcalidrawSelectionContextCommand(input: SelectionContextI
         excalidrawVersionId: versionId,
         excalidrawVersionNumber: versionNumber === undefined ? undefined : String(versionNumber),
         excalidrawSelectedElementIdsJson: JSON.stringify(resolvedSelectedElementIds),
-        excalidrawSelectionJson: JSON.stringify(selection),
+        excalidrawSelectionJson: selection ? JSON.stringify(selection) : undefined,
         excalidrawContextJson: JSON.stringify(excalidrawContext),
         excalidrawSceneDirty: String(isDirty)
       }),
