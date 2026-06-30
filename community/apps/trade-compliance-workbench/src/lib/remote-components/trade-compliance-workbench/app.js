@@ -70,9 +70,12 @@
     const [activePage, setActivePage] = React.useState('overview-page')
     const [selectedIds, setSelectedIds] = React.useState([])
     const [statusFilter, setStatusFilter] = React.useState('all')
+    const [overviewTab, setOverviewTab] = React.useState('all')
     const [busy, setBusy] = React.useState(false)
     const [query, setQuery] = React.useState('')
     const [pageByList, setPageByList] = React.useState({})
+    const [pageSizeByList, setPageSizeByList] = React.useState({})
+    const [pageJumpByList, setPageJumpByList] = React.useState({})
     const [detailItem, setDetailItem] = React.useState(null)
     const [formDialog, setFormDialog] = React.useState(null)
     const [deleteDialog, setDeleteDialog] = React.useState(null)
@@ -83,6 +86,7 @@
       loading: false,
       searched: false,
       error: '',
+      jumpPage: '',
       result: null
     })
     const pollingRef = React.useRef(null)
@@ -103,10 +107,11 @@
       }
     }, [])
 
-    React.useEffect(reportResize, [data, activePage, selectedIds, statusFilter, busy, formDialog, deleteDialog, hsCodeSearch, hsCodeDetailDialog])
+    React.useEffect(reportResize, [data, activePage, selectedIds, statusFilter, overviewTab, pageByList, pageSizeByList, busy, formDialog, deleteDialog, hsCodeSearch, hsCodeDetailDialog])
 
     const reviewItems = data.reviewItems.filter((item) => !isPlaceholderReviewItem(item))
     const pendingItems = reviewItems.filter((item) => (item.reviewStatus || 'pending') === 'pending')
+    const filteredPendingItems = filterItems(pendingItems, query, overviewSearchKeys)
     const controlledReviewRows = reviewItems.filter((item) => item.type === 'controlled_goods' && item.reviewStatus !== 'confirmed')
     const controlledRows = controlledReviewRows.concat(data.controlledGoods.map(toControlledGoodsReviewRow))
     const controlledReviews = applyStatusFilter(filterItems(controlledRows, query, reviewSearchKeys), statusFilter)
@@ -193,15 +198,17 @@
       }
     }
 
-    async function searchSupplierHsCandidatesForForm() {
+    async function searchSupplierHsCandidatesForForm(page) {
       if (!formDialog || formDialog.type !== 'supplier_product' || busy) return
       const keyword = String(formDialog.hsCandidateKeyword || buildSupplierHsCandidateKeyword(formDialog.values) || '').trim()
       if (!keyword) {
         setFormDialog(Object.assign({}, formDialog, { hsCandidateError: '请输入商品名称、型号或海关编码后再查询。' }))
         return
       }
+      const nextPage = Math.max(1, Number(page) || 1)
       setFormDialog(Object.assign({}, formDialog, {
         hsCandidateKeyword: keyword,
+        hsCandidatePage: nextPage,
         hsCandidateLoading: true,
         hsCandidateError: '',
         hsCandidateStatus: ''
@@ -209,20 +216,23 @@
       try {
         const response = await executeAction('search_hs_code', null, {
           keywords: keyword,
-          page: 1,
+          page: nextPage,
           filterFailureCode: true,
           displayChapter: false,
           displayEnName: true
         }, {})
         assertActionSuccess(response)
         const result = getActionDataPayload(response)
-        const candidates = Array.isArray(result && result.results) ? result.results.slice(0, 10) : []
+        const candidates = Array.isArray(result && result.results) ? result.results : []
         setFormDialog((current) => current ? Object.assign({}, current, {
           hsCandidateKeyword: keyword,
+          hsCandidatePage: nextPage,
+          hsCandidateLocalPage: 1,
           hsCandidateLoading: false,
           hsCandidateError: '',
           hsCandidateStatus: candidates.length ? 'pending_confirmation' : 'not_found',
-          hsCandidates: candidates
+          hsCandidates: candidates,
+          hsCandidatePagination: result && result.pagination ? result.pagination : null
         }) : current)
       } catch (error) {
         setFormDialog((current) => current ? Object.assign({}, current, {
@@ -243,7 +253,7 @@
         }),
         hsCandidateStatus: 'confirmed'
       }))
-      showNotice('已选用候选海关编码，请检查后保存。', 'success')
+      showNotice('已选用海关编码，请检查后保存。', 'success')
     }
 
     async function handleFile(actionKey, file) {
@@ -465,6 +475,12 @@
         values: valuesFromItem(item.type, item),
         hsCandidates: Array.isArray(merged.hsCodeCandidates) ? merged.hsCodeCandidates : [],
         hsCandidateKeyword: merged.hsCodeLookupKeyword || buildSupplierHsCandidateKeyword(merged),
+        hsCandidatePage: 1,
+        hsCandidateJumpPage: '',
+        hsCandidateLocalPage: 1,
+        hsCandidateLocalPageSize: 5,
+        hsCandidateLocalJumpPage: '',
+        hsCandidatePagination: null,
         hsCandidateStatus: merged.hsCodeLookupStatus || '',
         hsCandidateError: merged.hsCodeLookupError || '',
         hsCandidateLoading: false
@@ -479,6 +495,12 @@
         values: emptyFormValues(type),
         hsCandidates: [],
         hsCandidateKeyword: '',
+        hsCandidatePage: 1,
+        hsCandidateJumpPage: '',
+        hsCandidateLocalPage: 1,
+        hsCandidateLocalPageSize: 5,
+        hsCandidateLocalJumpPage: '',
+        hsCandidatePagination: null,
         hsCandidateStatus: '',
         hsCandidateError: '',
         hsCandidateLoading: false
@@ -606,31 +628,27 @@
     }
 
     return h('div', { className: 'tcw-shell' },
-      h('header', { className: 'tcw-header tcw-frame' },
-        h('div', { className: 'tcw-title-block' },
-          h('span', { className: 'tcw-kicker' }, '外贸合规工作台'),
-          h('h1', null, pageTitle(activePage)),
-          h('p', null, pageSubtitle(activePage))
+      renderSidebar(),
+      h('section', { className: 'tcw-workspace' },
+        h('header', { className: 'tcw-header' },
+          h('div', { className: 'tcw-title-block' },
+            h('span', { className: 'tcw-kicker' }, pageBreadcrumb(activePage)),
+            h('h1', null, pageTitle(activePage)),
+            h('p', null, pageSubtitle(activePage))
+          ),
+          h('div', { className: 'tcw-header-actions' },
+            h('input', { className: 'tcw-search', value: query, placeholder: '搜索商品、供应商、海关编码、文件名', onChange: (event) => setQuery(event.target.value) }),
+            h('button', { className: 'tcw-btn tcw-btn-soft', disabled: busy, onClick: () => reload() }, busy ? '处理中' : '刷新')
+          )
         ),
-        h('div', { className: 'tcw-header-actions' },
-          h('input', { className: 'tcw-search', value: query, placeholder: '搜索商品、供应商、海关编码、文件名', onChange: (event) => setQuery(event.target.value) }),
-          h('button', { className: 'tcw-btn tcw-btn-soft', disabled: busy, onClick: () => reload() }, busy ? '处理中' : '刷新')
-        )
-      ),
-      h('nav', { className: 'tcw-tabs tcw-frame' }, [
-        tab('overview-page', '工作台总览'),
-        tab('controlled-goods-page', '管控商品'),
-        tab('products-page', '供应商商品'),
-        tab('workbooks-page', '销售发票'),
-        tab('hs-code-search-page', '海关编码查询')
-      ]),
-      h('main', { className: 'tcw-main tcw-frame' },
-        h('section', { className: 'tcw-content' },
-          activePage === 'overview-page' ? renderOverviewPage() : null,
-          activePage === 'controlled-goods-page' ? renderControlledGoodsPage() : null,
-          activePage === 'products-page' ? renderProductsPage() : null,
-          activePage === 'workbooks-page' ? renderWorkbooksPage() : null,
-          activePage === 'hs-code-search-page' ? renderHsCodeSearchPage() : null
+        h('main', { className: 'tcw-main' },
+          h('section', { className: 'tcw-content' },
+            activePage === 'overview-page' ? renderOverviewPage() : null,
+            activePage === 'controlled-goods-page' ? renderControlledGoodsPage() : null,
+            activePage === 'products-page' ? renderProductsPage() : null,
+            activePage === 'workbooks-page' ? renderWorkbooksPage() : null,
+            activePage === 'hs-code-search-page' ? renderHsCodeSearchPage() : null
+          )
         )
       ),
       detailItem ? renderDetailModal() : null,
@@ -639,26 +657,77 @@
       hsCodeDetailDialog ? renderHsCodeDetailModal() : null
     )
 
-    function tab(key, label) {
-      return h('button', { key, className: key === activePage ? 'tcw-tab active' : 'tcw-tab', onClick: () => setActivePage(key) }, label)
+    function renderSidebar() {
+      return h('aside', { className: 'tcw-sidebar' },
+        h('div', { className: 'tcw-brand' },
+          h('div', { className: 'tcw-brand-mark' }, 'TC'),
+          h('div', null,
+            h('strong', null, '外贸合规工作台'),
+            h('span', null, 'Trade Compliance')
+          )
+        ),
+        h('nav', { className: 'tcw-nav', 'aria-label': '主导航' }, [
+          tab('overview-page', '总览', 'dashboard', pendingItems.length, 'blue'),
+          tab('controlled-goods-page', '管控商品', 'shield', controlledReviews.length, 'green'),
+          tab('products-page', '供应商商品', 'box', supplierReviews.length, 'orange'),
+          tab('workbooks-page', '销售发票', 'invoice', salesReviews.length + filteredWorkbooks.length, 'violet'),
+          tab('hs-code-search-page', '工具', 'search', null, 'slate')
+        ])
+      )
+    }
+
+    function tab(key, label, icon, count, tone) {
+      return h('button', { key, className: key === activePage ? 'tcw-tab active' : 'tcw-tab', onClick: () => setActivePage(key) },
+        h('span', { className: 'tcw-nav-icon ' + (tone || 'blue') }, iconImage(icon, label, tone)),
+        h('span', null, label),
+        count == null ? null : h('em', null, count)
+      )
     }
 
     function renderOverviewPage() {
+      const filteredPendingControlledItems = filteredPendingItems.filter((item) => item.type === 'controlled_goods')
+      const filteredPendingSupplierItems = filteredPendingItems.filter((item) => item.type === 'supplier_product')
+      const filteredPendingSalesItems = filteredPendingItems.filter((item) => item.type === 'customs_workbook')
+      const overviewRows = overviewTab === 'all'
+        ? filteredPendingItems
+        : filteredPendingItems.filter((item) => item.type === overviewTab)
+      const overviewListKey = `overview-${overviewTab}`
+      const overviewPage = paginateRows(overviewListKey, overviewRows)
       return h('div', { className: 'tcw-page overview-page' },
         h('section', { className: 'tcw-metrics' },
-          metric('待审核', pendingItems.length),
-          metric('管控识别待审', pendingControlledReviews.length),
-          metric('供应商商品待审', pendingSupplierReviews.length),
-          metric('销售合同待审', pendingSalesReviews.length),
-          metric('已入库管控商品', data.controlledGoods.length),
-          metric('已入库供应商商品', data.products.length),
-          metric('销售发票历史', data.workbookGenerations.length),
-          metric('全部审核记录', reviewItems.length)
+          metric('待审核', filteredPendingItems.length, 'dashboard', 'blue'),
+          metric('管控识别待审', filteredPendingControlledItems.length, 'shield', 'green'),
+          metric('供应商商品待审', filteredPendingSupplierItems.length, 'box', 'orange'),
+          metric('销售合同待审', filteredPendingSalesItems.length, 'invoice', 'violet'),
+          metric('已入库管控商品', data.controlledGoods.length, 'archive', 'slate'),
+          metric('已入库供应商商品', data.products.length, 'supplier', 'green'),
+          metric('销售发票历史', data.workbookGenerations.length, 'document', 'violet'),
+          metric('全部审核记录', reviewItems.length, 'records', 'blue')
         ),
-        panel('最近待审核', pendingItems.slice(0, 12).length
-          ? compactReviewList(pendingItems.slice(0, 12))
-          : empty('暂无待审核记录。智能体识别结果会先出现在这里。'))
+        panel('待办事项明细',
+          h('div', { className: 'tcw-overview-panel' },
+            h('div', { className: 'tcw-overview-tabs' }, [
+              overviewTabButton('all', '全部', filteredPendingItems.length),
+              overviewTabButton('controlled_goods', '管控商品', filteredPendingControlledItems.length),
+              overviewTabButton('supplier_product', '供应商商品', filteredPendingSupplierItems.length),
+              overviewTabButton('customs_workbook', '销售发票', filteredPendingSalesItems.length)
+            ]),
+            overviewPage.rows.length
+              ? compactReviewList(overviewPage.rows)
+              : empty('暂无待审核记录。智能体识别结果会先出现在这里。'),
+            pagination(overviewListKey, overviewRows.length)
+          )
+        )
       )
+
+      function overviewTabButton(key, label, count) {
+        return h('button', {
+          key,
+          type: 'button',
+          className: overviewTab === key ? 'tcw-overview-tab active' : 'tcw-overview-tab',
+          onClick: () => setOverviewTab(key)
+        }, `${label}${typeof count === 'number' ? ` ${count}` : ''}`)
+      }
     }
 
     function renderControlledGoodsPage() {
@@ -671,7 +740,7 @@
           renderListToolbar('管控商品列表', controlledReviews.length),
           h('div', { className: 'pending-controlled-goods confirmed-controlled-goods tcw-table-section' },
             reviewTable(['商品名称', '海关编码', '关键词', '管控说明', '来源'], page.rows, (item) => {
-            const row = readSupplierEditableMerged(item)
+            const row = readMerged(item)
             return [
               value(row.productName || item.title),
               value(row.hsCode),
@@ -701,7 +770,7 @@
               value(row.supplierName),
               value(row.productName || item.title),
               value(row.model),
-              value(row.enrichedHsCode || row.contractHsCode),
+              value(resolveDisplayHsCode(row)),
               status(hsCodeReviewStatusText(row), hsCodeReviewStatusLevel(row)),
               value(row.taxRefundRate),
               value(row.englishName),
@@ -761,7 +830,7 @@
       const result = hsCodeSearch.result || {}
       const rows = Array.isArray(result.results) ? result.results : []
       return h('div', { className: 'tcw-page hs-code-search-page' },
-        businessPanel('海关编码查询', '输入商品名称或海关编码，查询 HS 编码网返回的候选结果。', [], [
+        businessPanel('海关编码查询', '输入商品名称或海关编码，查询 HS 编码网返回的结果。', [], [
           h('form', { className: 'tcw-hs-search-form', onSubmit: submitHsCodeSearch },
             h('div', { className: 'tcw-hs-search-row' },
               h('input', {
@@ -842,20 +911,26 @@
     function renderHsCodePagination(pagination) {
       if (!pagination || (!pagination.hasPrevious && !pagination.hasNext && (!pagination.pages || pagination.pages.length <= 1))) return null
       const pages = Array.isArray(pagination.pages) ? pagination.pages.filter((item) => item.page) : []
-      const visiblePages = pages.filter((item, index, arr) => arr.findIndex((candidate) => candidate.page === item.page) === index).slice(0, 10)
-      return h('div', { className: 'tcw-pagination hs-code-pagination' },
-        h('span', null, `第 ${pagination.currentPage || hsCodeSearch.page} 页`),
-        h('div', { className: 'tcw-page-buttons' },
-          h('button', { className: 'tcw-mini-btn', disabled: hsCodeSearch.loading || !pagination.hasPrevious, onClick: () => searchHsCodePage((pagination.currentPage || hsCodeSearch.page) - 1) }, '上一页'),
-          visiblePages.map((item) => h('button', {
-            key: item.page,
-            className: item.current ? 'tcw-mini-btn active' : 'tcw-mini-btn',
-            disabled: hsCodeSearch.loading || item.current,
-            onClick: () => searchHsCodePage(item.page)
-          }, String(item.page))),
-          h('button', { className: 'tcw-mini-btn', disabled: hsCodeSearch.loading || !pagination.hasNext, onClick: () => searchHsCodePage((pagination.currentPage || hsCodeSearch.page) + 1) }, '下一页')
-        )
-      )
+      const maxPage = Number(pagination.maxVisiblePage) || Math.max(...pages.map((item) => Number(item.page) || 0), pagination.currentPage || hsCodeSearch.page || 1)
+      const currentPage = pagination.currentPage || hsCodeSearch.page || 1
+      return renderUnifiedPagination({
+        page: currentPage,
+        totalPages: Math.max(1, maxPage),
+        pageSize: 10,
+        fixedPageSize: true,
+        loading: hsCodeSearch.loading,
+        hasPrevious: pagination.hasPrevious,
+        hasNext: pagination.hasNext,
+        jumpValue: hsCodeSearch.jumpPage || '',
+        onPageChange: searchHsCodePage,
+        onJumpInput: (nextValue) => setHsCodeSearch(Object.assign({}, hsCodeSearch, { jumpPage: nextValue })),
+        onJump: () => {
+          const nextPage = Number(hsCodeSearch.jumpPage)
+          if (!Number.isFinite(nextPage) || nextPage <= 0) return
+          searchHsCodePage(nextPage)
+          setHsCodeSearch((current) => Object.assign({}, current, { jumpPage: '' }))
+        }
+      })
     }
 
     function compactReviewList(items) {
@@ -1000,7 +1075,7 @@
     }
 
     function paginateRows(listKey, rows) {
-      const pageSize = 10
+      const pageSize = getPageSize(listKey)
       const total = rows.length
       const totalPages = Math.max(1, Math.ceil(total / pageSize))
       const current = Math.min(Math.max(pageByList[listKey] || 1, 1), totalPages)
@@ -1008,15 +1083,44 @@
     }
 
     function pagination(listKey, total) {
-      if (total <= 10) return null
+      if (total <= 0) return null
       const page = paginateRows(listKey, Array.from({ length: total }))
-      return h('div', { className: 'tcw-pagination' },
-        h('span', null, `共 ${total} 条，第 ${page.page} / ${page.totalPages} 页`),
-        h('div', { className: 'tcw-page-buttons' },
-          h('button', { className: 'tcw-mini-btn', disabled: page.page <= 1, onClick: () => setPageByList(Object.assign({}, pageByList, { [listKey]: page.page - 1 })) }, '上一页'),
-          h('button', { className: 'tcw-mini-btn', disabled: page.page >= page.totalPages, onClick: () => setPageByList(Object.assign({}, pageByList, { [listKey]: page.page + 1 })) }, '下一页')
-        )
-      )
+      return renderUnifiedPagination({
+        total,
+        page: page.page,
+        totalPages: page.totalPages,
+        pageSize: page.pageSize,
+        pageSizeOptions: [10, 20, 50],
+        jumpValue: pageJumpByList[listKey] || '',
+        onPageChange: (nextPage) => setLocalPage(listKey, nextPage, page.totalPages),
+        onPageSizeChange: (nextSize) => setLocalPageSize(listKey, nextSize),
+        onJumpInput: (nextValue) => setPageJumpByList(Object.assign({}, pageJumpByList, { [listKey]: nextValue })),
+        onJump: () => jumpLocalPage(listKey, page.totalPages)
+      })
+    }
+
+    function getPageSize(listKey) {
+      const value = Number(pageSizeByList[listKey])
+      return Number.isFinite(value) && value > 0 ? value : 10
+    }
+
+    function setLocalPage(listKey, nextPage, totalPages) {
+      const page = Math.min(Math.max(Number(nextPage) || 1, 1), totalPages || 1)
+      setPageByList(Object.assign({}, pageByList, { [listKey]: page }))
+    }
+
+    function setLocalPageSize(listKey, nextSize) {
+      const pageSize = Number(nextSize) || 10
+      setPageSizeByList(Object.assign({}, pageSizeByList, { [listKey]: pageSize }))
+      setPageByList(Object.assign({}, pageByList, { [listKey]: 1 }))
+      setPageJumpByList(Object.assign({}, pageJumpByList, { [listKey]: '' }))
+    }
+
+    function jumpLocalPage(listKey, totalPages) {
+      const value = Number(pageJumpByList[listKey])
+      if (!Number.isFinite(value) || value <= 0) return
+      setLocalPage(listKey, value, totalPages)
+      setPageJumpByList(Object.assign({}, pageJumpByList, { [listKey]: '' }))
     }
 
     function renderDetailModal() {
@@ -1058,7 +1162,7 @@
       const fields = formDialog.type === 'controlled_goods' ? controlledGoodsFormFields : supplierProductFormFields
       const title = `${formDialog.mode === 'create' ? '新增' : '编辑'}${formDialog.type === 'controlled_goods' ? '管控商品' : '供应商商品'}`
       return h('div', { className: 'tcw-modal-backdrop' },
-        h('form', { className: 'tcw-modal tcw-form-modal', onSubmit: saveProductForm },
+        h('form', { className: formDialog.type === 'supplier_product' ? 'tcw-modal tcw-form-modal tcw-form-modal-supplier' : 'tcw-modal tcw-form-modal', onSubmit: saveProductForm },
           h('div', { className: 'tcw-modal-head' },
             h('h2', null, title),
             h('button', { type: 'button', className: 'tcw-icon-btn', onClick: () => setFormDialog(null) }, '×')
@@ -1077,11 +1181,19 @@
 
     function renderSupplierHsCandidatePanel() {
       const candidates = Array.isArray(formDialog.hsCandidates) ? formDialog.hsCandidates : []
+      const pagination = formDialog.hsCandidatePagination || null
+      const hasSourcePagination = pagination && (pagination.hasPrevious || pagination.hasNext || (pagination.pages && pagination.pages.length > 1))
+      const localPageSize = Math.max(1, Number(formDialog.hsCandidateLocalPageSize) || 5)
+      const localTotalPages = Math.max(1, Math.ceil(candidates.length / localPageSize))
+      const localPage = Math.min(Math.max(Number(formDialog.hsCandidateLocalPage) || 1, 1), localTotalPages)
+      const visibleCandidates = hasSourcePagination
+        ? candidates
+        : candidates.slice((localPage - 1) * localPageSize, localPage * localPageSize)
       return h('section', { className: 'tcw-hs-candidate-panel' },
         h('div', { className: 'tcw-subsection-head' },
           h('div', null,
-            h('h3', null, '候选海关编码'),
-            h('p', null, hsCandidateStatusText(formDialog.hsCandidateStatus, candidates.length))
+            h('h3', null, '海关编码查询'),
+            h('p', null, hsCodeLookupStatusText(formDialog.hsCandidateStatus, candidates.length))
           ),
           h('div', { className: 'tcw-hs-candidate-search' },
             h('input', {
@@ -1090,23 +1202,118 @@
               placeholder: '商品名称、型号或海关编码',
               onChange: (event) => setFormDialog(Object.assign({}, formDialog, { hsCandidateKeyword: event.target.value }))
             }),
-            h('button', { type: 'button', className: 'tcw-mini-btn', disabled: busy || formDialog.hsCandidateLoading, onClick: searchSupplierHsCandidatesForForm }, formDialog.hsCandidateLoading ? '查询中' : '查询')
+            h('button', { type: 'button', className: 'tcw-mini-btn', disabled: busy || formDialog.hsCandidateLoading, onClick: () => searchSupplierHsCandidatesForForm(1) }, formDialog.hsCandidateLoading ? '查询中' : '查询')
           )
         ),
         formDialog.hsCandidateError ? h('div', { className: 'tcw-error' }, formDialog.hsCandidateError) : null,
-        candidates.length ? table(['编码', '商品名称', '英文名称', '单位', '退税率', '监管', '检验检疫', '操作'], candidates, (candidate) => [
-          h('strong', { className: 'tcw-hs-code-text' }, value(candidate.code)),
-          value(candidate.name),
-          value(candidate.englishName),
-          value(candidate.unit),
-          value(candidate.taxRefundRate),
-          value(candidate.regulatoryConditions),
-          value(candidate.inspectionQuarantine),
-          h('div', { className: 'tcw-row-actions' },
-            h('button', { type: 'button', className: 'tcw-mini-btn', onClick: () => selectHsCandidate(candidate) }, '选用'),
-            h('button', { type: 'button', className: 'tcw-mini-btn', disabled: !candidate.code && !candidate.detailUrl, onClick: () => loadHsCodeDetail(candidate) }, '详情')
-          )
-        ], '暂无候选编码。') : empty('暂无候选编码，可调整关键词后查询。')
+        candidates.length ? h('div', { className: 'tcw-hs-candidate-result' },
+          table(['编码', '商品名称', '英文名称', '单位', '退税率', '监管', '检验检疫', '操作'], visibleCandidates, (candidate) => [
+            h('strong', { className: 'tcw-hs-code-text' }, value(candidate.code)),
+            value(candidate.name),
+            value(candidate.englishName),
+            value(candidate.unit),
+            value(candidate.taxRefundRate),
+            value(candidate.regulatoryConditions),
+            value(candidate.inspectionQuarantine),
+            h('div', { className: 'tcw-row-actions' },
+              h('button', { type: 'button', className: 'tcw-mini-btn', onClick: () => selectHsCandidate(candidate) }, '选用'),
+              h('button', { type: 'button', className: 'tcw-mini-btn', disabled: !candidate.code && !candidate.detailUrl, onClick: () => loadHsCodeDetail(candidate) }, '详情')
+            )
+          ], '暂无查询结果。'),
+          hasSourcePagination
+            ? renderSupplierHsCandidatePagination(pagination)
+            : renderSupplierHsCandidateLocalPagination(candidates.length, localPage, localTotalPages, localPageSize)
+        ) : empty('暂无查询结果，可调整关键词后查询。')
+      )
+    }
+
+    function renderSupplierHsCandidateLocalPagination(total, page, totalPages, pageSize) {
+      if (total <= pageSize) return null
+      return renderUnifiedPagination({
+        total,
+        page,
+        totalPages,
+        pageSize,
+        pageSizeOptions: [5, 10, 20],
+        jumpValue: formDialog.hsCandidateLocalJumpPage || '',
+        onPageChange: (nextPage) => setFormDialog(Object.assign({}, formDialog, { hsCandidateLocalPage: Math.min(Math.max(Number(nextPage) || 1, 1), totalPages) })),
+        onPageSizeChange: (nextSize) => setFormDialog(Object.assign({}, formDialog, { hsCandidateLocalPageSize: Number(nextSize) || 5, hsCandidateLocalPage: 1, hsCandidateLocalJumpPage: '' })),
+        onJumpInput: (nextValue) => setFormDialog(Object.assign({}, formDialog, { hsCandidateLocalJumpPage: nextValue })),
+        onJump: () => {
+          const nextPage = Number(formDialog.hsCandidateLocalJumpPage)
+          if (!Number.isFinite(nextPage) || nextPage <= 0) return
+          setFormDialog(Object.assign({}, formDialog, {
+            hsCandidateLocalPage: Math.min(Math.max(nextPage, 1), totalPages),
+            hsCandidateLocalJumpPage: ''
+          }))
+        }
+      })
+    }
+
+    function renderSupplierHsCandidatePagination(pagination) {
+      if (!pagination || (!pagination.hasPrevious && !pagination.hasNext && (!pagination.pages || pagination.pages.length <= 1))) return null
+      const pages = Array.isArray(pagination.pages) ? pagination.pages.filter((item) => item.page) : []
+      const currentPage = pagination.currentPage || formDialog.hsCandidatePage || 1
+      const maxPage = Number(pagination.maxVisiblePage) || Math.max(...pages.map((item) => Number(item.page) || 0), currentPage)
+      return renderUnifiedPagination({
+        page: currentPage,
+        totalPages: Math.max(1, maxPage),
+        pageSize: 10,
+        fixedPageSize: true,
+        loading: formDialog.hsCandidateLoading,
+        hasPrevious: pagination.hasPrevious,
+        hasNext: pagination.hasNext,
+        jumpValue: formDialog.hsCandidateJumpPage || '',
+        onPageChange: searchSupplierHsCandidatesForForm,
+        onJumpInput: (nextValue) => setFormDialog(Object.assign({}, formDialog, { hsCandidateJumpPage: nextValue })),
+        onJump: () => {
+          const nextPage = Number(formDialog.hsCandidateJumpPage)
+          if (!Number.isFinite(nextPage) || nextPage <= 0) return
+          searchSupplierHsCandidatesForForm(nextPage)
+          setFormDialog((current) => current ? Object.assign({}, current, { hsCandidateJumpPage: '' }) : current)
+        }
+      })
+    }
+
+    function renderUnifiedPagination(config) {
+      const totalPages = Math.max(1, Number(config.totalPages) || 1)
+      const page = Math.min(Math.max(Number(config.page) || 1, 1), totalPages)
+      const canPrevious = config.hasPrevious === undefined ? page > 1 : Boolean(config.hasPrevious)
+      const canNext = config.hasNext === undefined ? page < totalPages : Boolean(config.hasNext)
+      const loading = Boolean(config.loading)
+      const jumpValue = config.jumpValue || ''
+      const pageSize = Number(config.pageSize) || 10
+      return h('div', { className: 'tcw-pagination tcw-pagination-unified' },
+        config.total == null ? null : h('span', { className: 'tcw-pagination-total' }, `共 ${config.total} 条`),
+        h('button', { className: 'tcw-page-btn', disabled: loading || !canPrevious, onClick: () => config.onPageChange(1) }, '首页'),
+        h('button', { className: 'tcw-page-btn', disabled: loading || !canPrevious, onClick: () => config.onPageChange(page - 1) }, '上一页'),
+        h('span', { className: 'tcw-page-current' }, `第 ${page} / ${totalPages} 页`),
+        h('button', { className: 'tcw-page-btn', disabled: loading || !canNext, onClick: () => config.onPageChange(page + 1) }, '下一页'),
+        h('button', { className: 'tcw-page-btn', disabled: loading || !canNext, onClick: () => config.onPageChange(totalPages) }, '末页'),
+        h('span', { className: 'tcw-page-size-label' }, '每页'),
+        config.fixedPageSize
+          ? h('span', { className: 'tcw-page-size-fixed' }, `${pageSize} 条/页`)
+          : h('select', {
+            className: 'tcw-page-size-select',
+            value: pageSize,
+            onChange: (event) => config.onPageSizeChange(Number(event.target.value))
+          }, (config.pageSizeOptions || [10, 20, 50]).map((size) => h('option', { key: size, value: size }, `${size} 条/页`))),
+        h('input', {
+          className: 'tcw-page-jump-input',
+          type: 'number',
+          min: 1,
+          max: totalPages,
+          value: jumpValue,
+          placeholder: String(page),
+          onChange: (event) => config.onJumpInput(event.target.value),
+          onKeyDown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              config.onJump()
+            }
+          }
+        }),
+        h('button', { className: 'tcw-page-btn', disabled: loading, onClick: config.onJump }, '跳转')
       )
     }
 
@@ -1219,8 +1426,42 @@
 
   }
 
-  function metric(label, valueText) {
-    return h('div', { className: 'tcw-metric' }, h('span', null, label), h('strong', null, valueText))
+  function metric(label, valueText, icon, tone) {
+    return h('div', { className: 'tcw-metric' },
+      h('span', { className: 'tcw-metric-icon ' + (tone || 'blue') }, iconImage(icon, label, tone)),
+      h('div', { className: 'tcw-metric-body' },
+        h('span', null, label),
+        h('strong', null, valueText)
+      )
+    )
+  }
+
+  function iconImage(name, label, tone) {
+    return h('img', { src: iconDataUri(name, tone), alt: label || '', 'aria-hidden': label ? undefined : true })
+  }
+
+  function iconDataUri(name, tone) {
+    const colors = {
+      blue: '#2563eb',
+      green: '#139160',
+      orange: '#e07818',
+      violet: '#7c3aed',
+      slate: '#526174'
+    }
+    const color = colors[tone] || colors.blue
+    const paths = {
+      dashboard: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+      shield: '<path d="M12 3l7 3v5c0 4.8-2.9 8.2-7 10-4.1-1.8-7-5.2-7-10V6l7-3z"/><path d="M9 12l2 2 4-5"/>',
+      box: '<path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/>',
+      invoice: '<path d="M7 3h8l4 4v14l-3-1.5L13 21l-3-1.5L7 21V3z"/><path d="M15 3v5h4"/><path d="M9 11h6"/><path d="M9 15h6"/>',
+      search: '<circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/>',
+      archive: '<path d="M4 7h16v13H4V7z"/><path d="M3 4h18v3H3z"/><path d="M9 11h6"/>',
+      supplier: '<path d="M4 20V8l8-4 8 4v12"/><path d="M8 20v-7h8v7"/><path d="M10 9h4"/>',
+      document: '<path d="M7 3h7l5 5v13H7V3z"/><path d="M14 3v6h5"/><path d="M9 13h6"/><path d="M9 17h6"/>',
+      records: '<path d="M6 5h12v16H6V5z"/><path d="M9 3h6v4H9z"/><path d="M9 11h6"/><path d="M9 15h6"/>'
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.dashboard}</svg>`
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg)
   }
 
   function panel(title, content) {
@@ -1264,6 +1505,27 @@
   }
 
   const reviewSearchKeys = ['title', 'sourceLocation']
+  const overviewSearchKeys = [
+    'title',
+    'sourceLocation',
+    'sourceFileName',
+    'fileName',
+    'supplierName',
+    'supplierCreditCode',
+    'productName',
+    'model',
+    'description',
+    'hsCode',
+    'contractHsCode',
+    'enrichedHsCode',
+    'englishName',
+    'invoiceNo',
+    'contractNo',
+    'buyerName',
+    'sellerName',
+    'controlNote',
+    'keywords'
+  ]
   const controlledGoodsFormFields = [
     { key: 'productName', label: '商品名称', placeholder: '例如：高性能服务器' },
     { key: 'hsCode', label: '海关编码', placeholder: '例如：8471501010' },
@@ -1318,6 +1580,11 @@
     taxInclusiveTotalAmount: '含税金额',
     contractHsCode: '合同海关编码',
     enrichedHsCode: '补全海关编码',
+    suggestedHsCode: '建议海关编码',
+    suggestedHsCodeName: '建议编码品名',
+    suggestedHsCodeEnglishName: '建议英文品名',
+    suggestedTaxRefundRate: '建议退税率',
+    hsCodeCandidateCount: '查询结果数量',
     taxRefundRate: '退税率',
     englishName: '英文品名',
     controlledStatus: '管控状态',
@@ -1443,12 +1710,23 @@
   }
 
   function buildSupplierHsCandidateKeyword(values) {
-    const contractHsCode = normalizeText(values && values.contractHsCode)
+    const contractHsCode = normalizeHsCode(values && values.contractHsCode)
     if (contractHsCode) return contractHsCode
     const keyword = [values && values.productName, values && values.model].map(normalizeText).filter(Boolean).join(' ').trim()
     if (keyword) return keyword
     const description = normalizeText(values && values.description)
     return description ? description.slice(0, 100) : ''
+  }
+
+  function resolveDisplayHsCode(row) {
+    return normalizeHsCode(row && row.enrichedHsCode) || normalizeHsCode(row && row.contractHsCode)
+  }
+
+  function normalizeHsCode(value) {
+    const text = normalizeText(value)
+    if (!text) return ''
+    const digits = text.replace(/\D/g, '')
+    return /^\d{8,10}$/.test(digits) ? digits : ''
   }
 
   function buildConfirmReviewData(item) {
@@ -1457,8 +1735,8 @@
     }
     return Object.assign(
       {},
-      omitAutoSupplierHsFinalFields(item.defaultData),
-      omitAutoSupplierHsFinalFields(item.extractedData),
+      item.defaultData,
+      item.extractedData,
       item.confirmedData || {}
     )
   }
@@ -1466,28 +1744,19 @@
   function readSupplierEditableMerged(item) {
     return Object.assign(
       {},
-      omitAutoSupplierHsFinalFields(item && item.defaultData),
-      omitAutoSupplierHsFinalFields(item && item.extractedData),
+      item && item.defaultData,
+      item && item.extractedData,
       item && item.confirmedData
     )
   }
 
-  function omitAutoSupplierHsFinalFields(record) {
-    if (!record || typeof record !== 'object' || Array.isArray(record)) return record || {}
-    const next = Object.assign({}, record)
-    delete next.enrichedHsCode
-    delete next.taxRefundRate
-    delete next.englishName
-    return next
-  }
-
-  function hsCandidateStatusText(statusValue, count) {
-    if (statusValue === 'confirmed') return '已选用候选编码，保存后写入供应商商品。'
-    if (statusValue === 'pending_confirmation') return count ? `待人工确认，已找到 ${count} 个候选编码。` : '待人工确认。'
+  function hsCodeLookupStatusText(statusValue, count) {
+    if (statusValue === 'confirmed') return '已选用海关编码，保存后写入供应商商品。'
+    if (statusValue === 'pending_confirmation') return count ? `已查询到 ${count} 条结果，可选用一条写入商品信息。` : '可查询海关编码并选用结果。'
     if (statusValue === 'not_found') return '未查询到候选编码，可调整关键词重新查询。'
-    if (statusValue === 'failed') return '候选编码查询失败，可稍后重试。'
+    if (statusValue === 'failed') return '海关编码查询失败，可稍后重试。'
     if (statusValue === 'not_ready') return '缺少商品名称、型号或编码，可补充信息后查询。'
-    return count ? `已找到 ${count} 个候选编码，请选择确认。` : '可按商品名称、型号或海关编码查询候选。'
+    return count ? `已查询到 ${count} 条结果。` : '可按商品名称、型号或海关编码查询。'
   }
 
   function hsCodeReviewStatusText(row) {
@@ -1495,7 +1764,7 @@
     if (Array.isArray(row.hsCodeCandidates) && row.hsCodeCandidates.length > 0) return '待确认'
     if (row.hsCodeLookupStatus === 'failed') return '查询失败'
     if (row.hsCodeLookupStatus === 'not_found') return '未匹配'
-    if (row.contractHsCode) return '合同编码'
+    if (normalizeHsCode(row.contractHsCode)) return '合同编码'
     return '待查询'
   }
 
@@ -1731,19 +2000,27 @@
   }
 
     function pageTitle(key) {
-      if (key === 'overview-page') return '工作台总览'
+      if (key === 'overview-page') return '总览'
       if (key === 'controlled-goods-page') return '管控商品'
       if (key === 'products-page') return '供应商商品'
-      if (key === 'hs-code-search-page') return '海关编码查询'
+      if (key === 'hs-code-search-page') return '工具'
       return '销售发票'
     }
 
   function pageSubtitle(key) {
-    if (key === 'overview-page') return '查看处理进度、待审核数量和最近识别结果。'
+    if (key === 'overview-page') return '按业务顺序聚合待审核事项，先确认基础资料，再生成销售发票。'
       if (key === 'controlled-goods-page') return '上传管控目录、审核识别结果、维护正式管控商品库。'
       if (key === 'products-page') return '上传供应商合同，审核商品、HS Code、退税率和管控状态。'
       if (key === 'hs-code-search-page') return '输入商品名称或海关编码，查询 HS 编码网结果。'
       return '上传购销合同，审核发票字段并生成固定模板 Excel。'
+    }
+
+    function pageBreadcrumb(key) {
+      if (key === 'overview-page') return 'Workspace / 总览'
+      if (key === 'controlled-goods-page') return 'Workspace / 管控商品'
+      if (key === 'products-page') return 'Workspace / 供应商商品'
+      if (key === 'workbooks-page') return 'Workspace / 销售发票'
+      return 'Workspace / 工具'
     }
 
   function isObject(value) {
@@ -1799,9 +2076,38 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-subsection-head h3, .tcw-list-title h3 { margin: 0; font-size: 15px; line-height: 1.3; }
 .tcw-subsection-head p, .tcw-list-title span { margin: 0; color: var(--tcw-muted); font-size: 12px; }
 .tcw-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.tcw-metric { display: grid; gap: 4px; border: 1px solid var(--tcw-border); border-radius: 8px; background: var(--tcw-card); padding: 12px; }
-.tcw-metric span { color: var(--tcw-muted); font-size: 12px; }
-.tcw-metric strong { font-size: 22px; line-height: 1; }
+.tcw-metric {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--tcw-border);
+  border-radius: 8px;
+  background: var(--tcw-card);
+  padding: 12px;
+}
+.tcw-metric-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 900;
+}
+.tcw-metric-icon img {
+  width: 22px;
+  height: 22px;
+  color: currentColor;
+}
+.tcw-metric-icon.blue { background: #e8f0ff; color: var(--tcw-primary); }
+.tcw-metric-icon.green { background: #e7f8ef; color: var(--tcw-success); }
+.tcw-metric-icon.orange { background: #fff2df; color: var(--tcw-warning); }
+.tcw-metric-icon.violet { background: #f1eaff; color: var(--tcw-violet); }
+.tcw-metric-icon.slate { background: #eef2f6; color: var(--tcw-slate); }
+.tcw-metric-body { display: grid; gap: 2px; }
+.tcw-metric-body span { color: var(--tcw-muted); font-size: 12px; }
+.tcw-metric-body strong { font-size: 22px; line-height: 1; }
 .tcw-field { display: grid; gap: 5px; min-width: 0; }
 .tcw-field span { color: var(--tcw-muted); font-size: 12px; font-weight: 800; }
 .tcw-field-check { align-content: end; }
@@ -1832,11 +2138,83 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 		.tcw-error { border: 1px solid color-mix(in srgb, var(--tcw-danger) 35%, var(--tcw-border)); border-radius: 8px; background: color-mix(in srgb, var(--tcw-danger) 6%, var(--tcw-card)); color: var(--tcw-danger); padding: 10px 12px; font-size: 13px; font-weight: 800; }
 	.row-selection-checkbox { width: 16px; height: 16px; }
 .tcw-empty { display: grid; place-items: center; min-height: 86px; border: 1px dashed var(--tcw-border); border-radius: 8px; background: var(--tcw-soft); color: var(--tcw-muted); padding: 16px; text-align: center; }
-.tcw-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--tcw-border); border-top: 0; border-radius: 0 0 8px 8px; background: var(--tcw-card); padding: 10px 12px; color: var(--tcw-muted); font-size: 12px; }
+.tcw-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--tcw-border);
+  border-radius: 8px;
+  background: var(--tcw-card);
+  padding: 8px 10px;
+  color: var(--tcw-muted);
+  font-size: 12px;
+}
+.tcw-pagination-unified { justify-content: flex-start; }
 .tcw-page-buttons { display: flex; gap: 8px; }
+.tcw-pagination-total {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--tcw-primary);
+}
+.tcw-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 28px;
+  border: 1px solid var(--tcw-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--tcw-primary);
+  padding: 4px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.tcw-page-btn:disabled {
+  cursor: not-allowed;
+  background: var(--tcw-soft);
+  color: #9aa7b8;
+}
+.tcw-page-current {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 6px;
+  background: var(--tcw-primary);
+  color: #fff;
+  padding: 4px 12px;
+  font-weight: 800;
+}
+.tcw-page-size-label {
+  color: var(--tcw-primary);
+  font-weight: 800;
+}
+.tcw-page-size-select,
+.tcw-page-jump-input,
+.tcw-page-size-fixed {
+  min-height: 28px;
+  border: 1px solid var(--tcw-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--tcw-text);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.tcw-page-size-select { min-width: 92px; }
+.tcw-page-size-fixed { display: inline-flex; align-items: center; }
+.tcw-page-jump-input { width: 56px; }
 .tcw-modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(15, 23, 42, .32); padding: 20px; }
 .tcw-modal { display: grid; gap: 12px; width: min(900px, 100%); max-height: calc(100vh - 48px); overflow: auto; border: 1px solid var(--tcw-border); border-radius: 8px; background: var(--tcw-card); padding: 16px; box-shadow: 0 18px 48px rgba(15, 23, 42, .18); }
 .tcw-form-modal { width: min(960px, 100%); }
+.tcw-form-modal-supplier {
+  width: min(1180px, calc(100vw - 96px));
+  max-height: min(760px, calc(100vh - 56px));
+  gap: 10px;
+  padding: 14px;
+}
 .tcw-confirm-modal { width: min(480px, 100%); }
 .tcw-hs-detail-modal { width: min(980px, 100%); }
 .tcw-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1846,6 +2224,61 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .tcw-edit-grid-two { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
 .tcw-field-wide { grid-column: 1 / -1; }
+.tcw-form-modal-supplier .tcw-modal-head h2 { font-size: 17px; }
+.tcw-form-modal-supplier .tcw-edit-grid-two {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+.tcw-form-modal-supplier .tcw-field { gap: 4px; }
+.tcw-form-modal-supplier .tcw-field span { font-size: 11px; }
+.tcw-form-modal-supplier .tcw-field input,
+.tcw-form-modal-supplier .tcw-field select {
+  min-height: 32px;
+  padding: 6px 9px;
+}
+.tcw-form-modal-supplier .tcw-field textarea {
+  min-height: 58px;
+  padding: 7px 9px;
+}
+.tcw-form-modal-supplier .tcw-field-wide {
+  grid-column: span 3;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .55fr);
+  gap: 10px;
+  align-items: start;
+  border-top: 1px solid var(--tcw-border);
+  padding-top: 10px;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-panel > .tcw-subsection-head {
+  align-items: center;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-panel > .tcw-table-wrap,
+.tcw-form-modal-supplier .tcw-hs-candidate-panel > .tcw-empty,
+.tcw-form-modal-supplier .tcw-hs-candidate-panel > .tcw-error {
+  grid-column: 1 / -1;
+  max-height: 210px;
+  overflow: auto;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-result {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-result .tcw-table-wrap {
+  max-height: 210px;
+}
+.tcw-form-modal-supplier .tcw-hs-candidate-search {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.tcw-form-modal-supplier .tcw-modal-actions {
+  position: sticky;
+  bottom: -14px;
+  border-top: 1px solid var(--tcw-border);
+  background: var(--tcw-card);
+  padding-top: 10px;
+}
 .tcw-confirm-text { margin: 0; color: var(--tcw-text); font-size: 14px; line-height: 1.7; }
 .tcw-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .tcw-detail-field { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 8px; align-items: start; border: 1px solid var(--tcw-border); border-radius: 6px; background: var(--tcw-soft); padding: 8px 10px; }
@@ -1887,6 +2320,257 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
   .tcw-button-row, .tcw-list-actions { justify-content: flex-start; }
   .tcw-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tcw-drawer { position: static; max-height: none; }
+}
+
+/* V2 process-oriented shell */
+:root {
+  --tcw-bg:#f4f7fb;
+  --tcw-card:#ffffff;
+  --tcw-soft:#f8fafc;
+  --tcw-text:#172033;
+  --tcw-muted:#65758c;
+  --tcw-border:#dbe5f0;
+  --tcw-primary:#2563eb;
+  --tcw-primary-dark:#1d4ed8;
+  --tcw-success:#139160;
+  --tcw-warning:#e07818;
+  --tcw-danger:#bd2f2f;
+  --tcw-violet:#7c3aed;
+  --tcw-slate:#526174;
+  --tcw-shadow:0 14px 42px rgba(20, 35, 55, .08);
+}
+body { background: var(--tcw-bg); letter-spacing: 0; }
+.tcw-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  gap: 0;
+  min-height: 100vh;
+  padding: 0;
+  background: var(--tcw-bg);
+}
+.tcw-sidebar {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+  border-right: 1px solid var(--tcw-border);
+  background: var(--tcw-card);
+  padding: 20px 14px;
+}
+.tcw-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 6px;
+}
+.tcw-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #e8f0ff;
+  color: var(--tcw-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+.tcw-brand strong { display: block; font-size: 16px; line-height: 1.2; }
+.tcw-brand span { display: block; color: var(--tcw-muted); font-size: 12px; }
+.tcw-nav { display: grid; gap: 6px; }
+.tcw-tab {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tcw-text);
+  padding: 7px 8px;
+  text-align: left;
+  font-weight: 800;
+}
+.tcw-tab.active {
+  border-color: #d8e7ff;
+  background: #eff6ff;
+  color: #174ea6;
+}
+.tcw-overview-panel {
+  display: grid;
+  gap: 12px;
+}
+.tcw-overview-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  border: 1px solid var(--tcw-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.tcw-overview-tab {
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid var(--tcw-border);
+  background: #fff;
+  color: var(--tcw-muted);
+  padding: 8px 16px;
+  font-weight: 800;
+}
+.tcw-overview-tab:last-child { border-right: 0; }
+.tcw-overview-tab.active {
+  background: #eff6ff;
+  color: var(--tcw-primary);
+}
+.tcw-tab em {
+  min-width: 22px;
+  border-radius: 999px;
+  background: #edf2f7;
+  color: var(--tcw-muted);
+  padding: 2px 6px;
+  font-size: 11px;
+  font-style: normal;
+  text-align: center;
+}
+.tcw-nav-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.tcw-nav-icon img {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+.tcw-nav-icon.blue { background: #e8f0ff; color: var(--tcw-primary); }
+.tcw-nav-icon.green { background: #e7f8ef; color: var(--tcw-success); }
+.tcw-nav-icon.orange { background: #fff2df; color: var(--tcw-warning); }
+.tcw-nav-icon.violet { background: #f1eaff; color: var(--tcw-violet); }
+.tcw-nav-icon.slate { background: #eef2f6; color: var(--tcw-slate); }
+.tcw-workspace {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  padding: 18px;
+}
+.tcw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 64px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 14px;
+}
+.tcw-kicker {
+  margin: 0 0 3px;
+  color: var(--tcw-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.tcw-title-block h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.tcw-title-block p {
+  margin: 4px 0 0;
+  color: var(--tcw-muted);
+  font-size: 13px;
+}
+.tcw-header-actions {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) auto;
+  gap: 8px;
+  align-items: center;
+}
+.tcw-main { display: grid; min-width: 0; }
+.tcw-content { min-width: 0; border: 0; background: transparent; padding: 0; }
+.tcw-business-panel, .tcw-panel {
+  border: 1px solid var(--tcw-border);
+  border-radius: 8px;
+  background: var(--tcw-card);
+  box-shadow: var(--tcw-shadow);
+}
+.tcw-business-head {
+  min-height: auto;
+  align-items: center;
+  border-bottom: 1px solid var(--tcw-border);
+  background: linear-gradient(90deg, #ffffff, #f7fbff);
+  padding: 20px 22px;
+}
+.tcw-business-head h2 { font-size: 18px; }
+.tcw-business-body { padding: 18px 22px 22px; }
+.tcw-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.tcw-metric {
+  border-color: var(--tcw-border);
+  background: var(--tcw-card);
+  box-shadow: var(--tcw-shadow);
+}
+.tcw-metric strong { color: var(--tcw-text); font-size: 24px; }
+.tcw-btn, .tcw-upload, .tcw-mini-btn, .tcw-icon-btn {
+  border-radius: 7px;
+}
+.tcw-btn-primary {
+  border-color: var(--tcw-primary);
+  background: var(--tcw-primary);
+}
+.tcw-btn-primary:hover:not(:disabled) { background: var(--tcw-primary-dark); }
+.tcw-upload {
+  border-color: #bcd3ff;
+  background: #eff6ff;
+  color: var(--tcw-primary);
+}
+.tcw-table-wrap {
+  border-color: var(--tcw-border);
+  border-radius: 8px;
+}
+.tcw-table th {
+  background: var(--tcw-soft);
+  color: var(--tcw-muted);
+  font-size: 11px;
+}
+.tcw-table td { background: var(--tcw-card); }
+.tcw-table tr:hover td { background: #fbfdff; }
+.tcw-status.ok { background: #e7f8ef; color: var(--tcw-success); }
+.tcw-status.warn { background: #fff2df; color: #b35b00; }
+.tcw-status.danger { background: #fde8e6; color: var(--tcw-danger); }
+.tcw-status.muted { background: #eef2f6; color: var(--tcw-muted); }
+@media (max-width: 1280px) {
+  .tcw-shell { grid-template-columns: 230px minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .tcw-shell { grid-template-columns: 1fr; }
+  .tcw-sidebar {
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid var(--tcw-border);
+  }
+  .tcw-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tcw-workspace { padding: 14px; }
+  .tcw-header, .tcw-business-head, .tcw-list-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tcw-header-actions { grid-template-columns: 1fr; }
+  .tcw-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .tcw-nav { grid-template-columns: 1fr; }
+  .tcw-metrics, .tcw-edit-grid, .tcw-edit-grid-two { grid-template-columns: 1fr; }
 }
 `
     document.head.appendChild(style)

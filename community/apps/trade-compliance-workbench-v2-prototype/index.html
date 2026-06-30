@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>外贸合规工作台 V2 原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">TC</div>
+          <div>
+            <strong>外贸合规工作台</strong>
+            <span>Trade Compliance</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <button class="nav-item active" data-page="pending">
+            <span class="nav-icon blue">1</span>
+            <span>待处理</span>
+            <em>40</em>
+          </button>
+          <button class="nav-item" data-page="rules">
+            <span class="nav-icon green">2</span>
+            <span>管控规则库</span>
+            <em>6</em>
+          </button>
+          <button class="nav-item" data-page="supplier">
+            <span class="nav-icon orange">3</span>
+            <span>供应商商品</span>
+            <em>15</em>
+          </button>
+          <button class="nav-item" data-page="invoice">
+            <span class="nav-icon violet">4</span>
+            <span>销售发票</span>
+            <em>8</em>
+          </button>
+          <button class="nav-item" data-page="tools">
+            <span class="nav-icon slate">5</span>
+            <span>工具</span>
+          </button>
+        </nav>
+
+        <section class="sidebar-section">
+          <h2>主流程</h2>
+          <ol class="flow-list">
+            <li><span></span>维护管控规则</li>
+            <li><span></span>上传供应商合同</li>
+            <li><span></span>确认 HS 编码候选</li>
+            <li><span></span>审核供应商商品</li>
+            <li><span></span>上传购销合同</li>
+            <li><span></span>生成销售发票</li>
+          </ol>
+        </section>
+
+        <section class="sidebar-section compact">
+          <h2>数据关系</h2>
+          <p>规则库匹配供应商商品，已确认商品用于销售发票。</p>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Workspace / 合规资料</p>
+            <h1 id="pageTitle">待处理</h1>
+          </div>
+          <div class="top-actions">
+            <button class="icon-btn" title="刷新">↻</button>
+            <button class="soft-btn">导入文件</button>
+            <button class="primary-btn">处理下一项</button>
+          </div>
+        </header>
+
+        <section class="page active" id="pending">
+          <div class="hero-band">
+            <div>
+              <h2>今天需要处理的事项</h2>
+              <p>按业务顺序聚合：先确认规则和供应商商品，再生成销售发票。</p>
+            </div>
+            <div class="hero-status">
+              <strong>72%</strong>
+              <span>本批次完成度</span>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric">
+              <span class="metric-icon blue">盾</span>
+              <div>
+                <strong>6</strong>
+                <span>待审核管控规则</span>
+              </div>
+              <button data-page="rules">去处理</button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon green">品</span>
+              <div>
+                <strong>15</strong>
+                <span>待审核供应商商品</span>
+              </div>
+              <button data-page="supplier">去处理</button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon orange">HS</span>
+              <div>
+                <strong>8</strong>
+                <span>待确认 HS 编码</span>
+              </div>
+              <button data-page="supplier">去处理</button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon violet">票</span>
+              <div>
+                <strong>4</strong>
+                <span>待审核购销合同</span>
+              </div>
+              <button data-page="invoice">去处理</button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon slate">文</span>
+              <div>
+                <strong>7</strong>
+                <span>可生成销售发票</span>
+              </div>
+              <button data-page="invoice">去处理</button>
+            </article>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>待办事项明细</h2>
+                <p>所有 AI 解析结果先进入待审核，确认后才写入正式数据。</p>
+              </div>
+              <div class="segmented">
+                <button class="active">全部</button>
+                <button>规则</button>
+                <button>商品</button>
+                <button>发票</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>类型</th>
+                    <th>事项</th>
+                    <th>来源</th>
+                    <th>关联对象</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="tag blue">管控规则</span></td>
+                    <td>识别到 6 条新增管控规则</td>
+                    <td>管控目录_20240630.pdf</td>
+                    <td>ABC Ltd.</td>
+                    <td><span class="status warn">待审核</span></td>
+                    <td><button class="mini-btn" data-page="rules">处理</button></td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag green">供应商商品</span></td>
+                    <td>服务器 HPC-7242 需确认 HS 编码</td>
+                    <td>采购合同.docx</td>
+                    <td>深圳市测试科技有限公司</td>
+                    <td><span class="status warn">待确认编码</span></td>
+                    <td><button class="mini-btn open-product">处理</button></td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag orange">HS 编码</span></td>
+                    <td>8471412000 已匹配源站详情</td>
+                    <td>HS 编码网</td>
+                    <td>小型自动数据处理设备</td>
+                    <td><span class="status ok">可选用</span></td>
+                    <td><button class="mini-btn open-hs">查看</button></td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag violet">购销合同</span></td>
+                    <td>SC20240630 发票字段待审核</td>
+                    <td>购销合同.pdf</td>
+                    <td>ABC Import Ltd.</td>
+                    <td><span class="status warn">待审核</span></td>
+                    <td><button class="mini-btn" data-page="invoice">处理</button></td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag slate">销售发票</span></td>
+                    <td>INV-20240630 可生成下载</td>
+                    <td>已确认商品 3 条</td>
+                    <td>SC20240630</td>
+                    <td><span class="status ok">可生成</span></td>
+                    <td><button class="mini-btn" data-page="invoice">处理</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="rules">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>管控规则库</h2>
+                <p>管控商品是内部规则，用来匹配供应商商品是否涉控。</p>
+              </div>
+              <div class="panel-actions">
+                <button class="soft-btn">上传管控目录</button>
+                <button class="primary-btn">新增规则</button>
+              </div>
+            </div>
+            <div class="filter-row">
+              <input placeholder="搜索商品名称、HS 编码、关键词" />
+              <select><option>全部状态</option><option>启用</option><option>停用</option></select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品名称</th>
+                    <th>HS 编码</th>
+                    <th>关键词</th>
+                    <th>管控说明</th>
+                    <th>命中商品</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>高性能计算服务器</td>
+                    <td>8471501010</td>
+                    <td>CPU, GPU, 高算力</td>
+                    <td>关注两用物项和许可证要求</td>
+                    <td>3</td>
+                    <td><span class="status ok">启用</span></td>
+                    <td><button class="mini-btn">编辑</button></td>
+                  </tr>
+                  <tr>
+                    <td>激光测距模块</td>
+                    <td>9015100000</td>
+                    <td>laser, module</td>
+                    <td>民用用途需核对技术参数</td>
+                    <td>1</td>
+                    <td><span class="status ok">启用</span></td>
+                    <td><button class="mini-btn">编辑</button></td>
+                  </tr>
+                  <tr>
+                    <td>加密通信设备</td>
+                    <td>8517629900</td>
+                    <td>encryption, router</td>
+                    <td>需确认密码产品许可</td>
+                    <td>0</td>
+                    <td><span class="status muted">停用</span></td>
+                    <td><button class="mini-btn">编辑</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="supplier">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>供应商商品</h2>
+                <p>供应商商品是合同里的业务实例，编码和管控状态必须人工确认。</p>
+              </div>
+              <div class="panel-actions">
+                <button class="soft-btn">上传供应商合同</button>
+                <button class="primary-btn">新增商品</button>
+              </div>
+            </div>
+            <div class="process-strip">
+              <span class="done">合同解析</span>
+              <span class="active">候选编码确认</span>
+              <span>管控匹配</span>
+              <span>入库</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>供应商</th>
+                    <th>商品</th>
+                    <th>型号</th>
+                    <th>合同 HS</th>
+                    <th>最终 HS</th>
+                    <th>编码状态</th>
+                    <th>管控状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>深圳市测试科技有限公司</td>
+                    <td>服务器</td>
+                    <td>HPC-7242</td>
+                    <td>8471499100</td>
+                    <td>-</td>
+                    <td><span class="status warn">待确认</span></td>
+                    <td><span class="status muted">未检查</span></td>
+                    <td><button class="mini-btn open-product">审核</button></td>
+                  </tr>
+                  <tr>
+                    <td>ABC Ltd.</td>
+                    <td>小型自动数据处理设备</td>
+                    <td>LM-660-10W</td>
+                    <td>8471412000</td>
+                    <td>8471412000</td>
+                    <td><span class="status ok">已确认</span></td>
+                    <td><span class="status ok">非管控</span></td>
+                    <td><button class="mini-btn open-product">编辑</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="invoice">
+          <div class="two-col">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>销售发票生成</h2>
+                  <p>只使用已确认供应商商品和审核过的购销合同字段。</p>
+                </div>
+                <button class="soft-btn">上传购销合同</button>
+              </div>
+              <div class="invoice-form">
+                <label><span>合同号</span><input value="SC20240630001" /></label>
+                <label><span>发票号</span><input value="INV-20240630001" /></label>
+                <label><span>买方</span><input value="ABC Import Ltd." /></label>
+                <label><span>卖方</span><input value="Shenzhen Export Co., Ltd." /></label>
+                <label><span>贸易术语</span><input value="FOB Shenzhen" /></label>
+                <label><span>付款方式</span><input value="T/T 30 days" /></label>
+              </div>
+              <div class="step-actions">
+                <button class="soft-btn">保存草稿</button>
+                <button class="primary-btn">下一步：商品明细</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>商品明细匹配</h2>
+                  <p>合同商品必须匹配到已确认供应商商品。</p>
+                </div>
+              </div>
+              <div class="mini-list">
+                <div><strong>Laser Module LM-660-10W</strong><span class="status ok">已匹配</span></div>
+                <div><strong>Optical Sensor OS-P300</strong><span class="status ok">已匹配</span></div>
+                <div><strong>Controller Board CTRL-H00</strong><span class="status warn">待确认</span></div>
+              </div>
+              <button class="primary-btn wide">生成销售发票 / 报关资料</button>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>下载历史</h2>
+                <p>已生成的销售发票和报关资料。</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>合同号</th><th>文件类型</th><th>生成时间</th><th>状态</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>SC20240630001</td><td>销售发票.xlsx</td><td>06-25 09:30</td><td><span class="status ok">已生成</span></td><td><button class="mini-btn">下载</button></td></tr>
+                  <tr><td>SC20240628002</td><td>报关资料.xlsx</td><td>06-24 18:12</td><td><span class="status ok">已生成</span></td><td><button class="mini-btn">下载</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="tools">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>HS 编码查询</h2>
+                <p>工具入口只提供查询和详情，最终选用仍在供应商商品审核里完成。</p>
+              </div>
+            </div>
+            <div class="hs-search-box">
+              <input value="8471412000" aria-label="HS 编码或商品名称" />
+              <button class="primary-btn open-hs">查询</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>编码</th><th>商品名称</th><th>单位</th><th>退税率</th><th>检验检疫</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>8471412000</td><td>小型自动数据处理设备</td><td>台/千克</td><td>13%</td><td>L</td><td><button class="mini-btn open-hs">详情</button></td></tr>
+                  <tr><td>8471499100</td><td>其他系统形式自动数据处理设备</td><td>台/千克</td><td>13%</td><td>-</td><td><button class="mini-btn open-hs">详情</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <aside class="assistant-panel">
+        <div class="assistant-head">
+          <div>
+            <strong>外贸合规助手</strong>
+            <span>在线</span>
+          </div>
+          <button class="icon-btn">⋯</button>
+        </div>
+        <div class="assistant-card">
+          <p>你可以让我协助：</p>
+          <ul>
+            <li>解释待处理原因</li>
+            <li>比较候选 HS 编码</li>
+            <li>检查管控命中依据</li>
+            <li>生成发票字段建议</li>
+          </ul>
+        </div>
+        <div class="quick-prompts">
+          <button>为什么这个商品待确认？</button>
+          <button>HS 编码如何选？</button>
+          <button>哪些商品命中管控？</button>
+        </div>
+        <div class="assistant-input">
+          <input placeholder="输入问题..." />
+          <button>↑</button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="modal-backdrop" id="productModal" aria-hidden="true">
+      <section class="modal product-modal">
+        <div class="modal-head">
+          <div>
+            <h2>供应商商品审核</h2>
+            <p>确认商品字段、选择 HS 编码、核对管控状态。</p>
+          </div>
+          <button class="icon-btn close-modal">×</button>
+        </div>
+        <div class="modal-grid">
+          <section class="form-section">
+            <h3>商品信息</h3>
+            <div class="form-grid">
+              <label><span>供应商</span><input value="深圳市测试科技有限公司" /></label>
+              <label><span>商品名称</span><input value="服务器" /></label>
+              <label><span>型号</span><input value="HPC-7242" /></label>
+              <label><span>合同 HS 编码</span><input value="8471499100" /></label>
+              <label class="wide"><span>商品描述</span><textarea>机箱、主板、CPU、硬盘、内存、电源线等组件。</textarea></label>
+            </div>
+          </section>
+          <section class="form-section">
+            <h3>确认结果</h3>
+            <div class="form-grid">
+              <label><span>最终 HS 编码</span><input value="" placeholder="选择候选后写入" /></label>
+              <label><span>退税率</span><input value="" placeholder="选择候选后写入" /></label>
+              <label class="wide"><span>英文品名</span><input value="" placeholder="人工确认后写入" /></label>
+              <label class="wide"><span>管控结论</span><select><option>未检查</option><option>非管控</option><option>疑似管控</option><option>管控</option></select></label>
+            </div>
+          </section>
+        </div>
+        <section class="candidate-section">
+          <div class="panel-head compact-head">
+            <div>
+              <h3>候选 HS 编码</h3>
+              <p>候选只作为参考，点击“选用”后才写入最终字段。</p>
+            </div>
+            <div class="hs-search-inline">
+              <input value="服务器 HPC-7242" />
+              <button class="mini-btn">重新查询</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>编码</th><th>商品名称</th><th>英文名</th><th>单位</th><th>退税率</th><th>管控</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>8471499100</td>
+                  <td>其他系统形式自动数据处理设备</td>
+                  <td>-</td>
+                  <td>台/千克</td>
+                  <td>13%</td>
+                  <td><span class="status muted">未命中</span></td>
+                  <td><button class="mini-btn">选用</button><button class="mini-btn open-hs">详情</button></td>
+                </tr>
+                <tr>
+                  <td>8471412000</td>
+                  <td>小型自动数据处理设备</td>
+                  <td>-</td>
+                  <td>台/千克</td>
+                  <td>13%</td>
+                  <td><span class="status ok">非管控</span></td>
+                  <td><button class="mini-btn">选用</button><button class="mini-btn open-hs">详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <div class="modal-actions">
+          <button class="soft-btn close-modal">取消</button>
+          <button class="primary-btn">确认并入库</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="hsModal" aria-hidden="true">
+      <section class="modal hs-modal">
+        <div class="modal-head">
+          <div>
+            <h2>HS 编码详情</h2>
+            <p>8471412000 小型自动数据处理设备</p>
+          </div>
+          <button class="icon-btn close-modal">×</button>
+        </div>
+        <div class="detail-grid">
+          <div><span>商品编码</span><strong>8471412000</strong></div>
+          <div><span>商品名称</span><strong>小型自动数据处理设备</strong></div>
+          <div><span>计量单位</span><strong>台/千克</strong></div>
+          <div><span>出口退税率</span><strong>13%</strong></div>
+          <div><span>检验检疫</span><strong>L</strong></div>
+          <div><span>编码状态</span><strong>正常</strong></div>
+        </div>
+        <section class="declaration">
+          <h3>申报要素</h3>
+          <div class="mini-list">
+            <div><strong>品牌类型</strong><span>必填</span></div>
+            <div><strong>机型</strong><span>必填</span></div>
+            <div><strong>配置(系统组成部件)</strong><span>必填</span></div>
+            <div><strong>型号</strong><span>必填</span></div>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

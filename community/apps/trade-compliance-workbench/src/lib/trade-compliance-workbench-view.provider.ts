@@ -9,13 +9,11 @@ import { renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/pl
 import { AGENT_WORKBENCH_FIXED_SLOT, AGENT_WORKBENCH_MAIN_SLOT, TRADE_COMPLIANCE_FEATURE, TRADE_COMPLIANCE_ICON, TRADE_COMPLIANCE_PLUGIN_NAME, TRADE_COMPLIANCE_PROVIDER_KEY, TRADE_COMPLIANCE_REMOTE_ENTRY_KEY, TRADE_COMPLIANCE_VIEW_KEY } from './constants.js';
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
 import { buildCustomsWorkbookModel, buildCustomsWorkbookTemplateFileName, createCustomsWorkbookFromTemplateBuffer, readCustomsWorkbookTemplateSheetNames } from './trade-compliance-workbook.js';
-import { parseControlledGoodsFile } from './controlled-goods-file-parser.js';
 import { getHsBianmaCodeDetail, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const requireFromHere = createRequire(__filename);
 const text = (en_US, zh_Hans) => ({ en_US, zh_Hans });
-const CONTROLLED_GOODS_BATCH_SIZE = 40;
 let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewProvider {
     constructor(service) {
         this.service = service;
@@ -374,40 +372,16 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
             return failure('Uploaded file was not registered as an assistant-readable workspace file.', '文件未写入智能体工作空间，请重新上传后再解析。');
         }
         if (actionKey === 'upload_controlled_goods_file') {
-            const parsed = await parseControlledGoodsFile({
-                buffer: getFileBuffer(file),
-                fileName,
-                mimeType: getFileMimeType(file)
-            });
             const result = await this.service.createReviewBatch(scope, {
                 type: 'controlled_goods_file',
                 sourceFileName: fileName,
                 metadata: {
                     fileName,
                     size: getFileSize(file),
-                    mimeType: getFileMimeType(file),
-                    candidateCount: parsed.candidates.length,
-                    textLength: parsed.textLength
+                    mimeType: getFileMimeType(file)
                 },
                 items: []
             });
-            if (parsed.candidates.length > 0) {
-                const chunks = chunkArray(parsed.candidates, CONTROLLED_GOODS_BATCH_SIZE);
-                return parsingStarted({
-                    messages: chunks.map((candidates, index) => buildAssistantCommand({
-                        action: 'parse_controlled_goods_file',
-                        file: assistantFile,
-                        fileName,
-                        role: 'controlled_goods_file',
-                        batchId: result.batch.id,
-                        messageId: `trade-compliance:parse_controlled_goods_file:${result.batch.id}:${index + 1}`,
-                        text: buildControlledGoodsCandidateBatchPrompt(fileName, result.batch.id, candidates, index, chunks.length, parsed.candidates.length)
-                    })),
-                    batchId: result.batch.id,
-                    role: 'controlled_goods_file',
-                    expectedCount: parsed.candidates.length
-                });
-            }
             return parsingStarted({
                 ...buildAssistantCommand({
                     action: 'parse_controlled_goods_file',
@@ -417,7 +391,7 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
                     batchId: result.batch.id,
                     text: buildControlledGoodsParsePrompt(fileName, result.batch.id)
                 }),
-                expectedCount: 0
+                expectedCount: null
             });
         }
         if (actionKey === 'upload_supplier_contract') {
@@ -687,13 +661,6 @@ function getFileBuffer(file) {
         return Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     return undefined;
 }
-function chunkArray(items, size) {
-    const chunks = [];
-    for (let index = 0; index < items.length; index += size) {
-        chunks.push(items.slice(index, index + size));
-    }
-    return chunks;
-}
 function buildAssistantCommand(input) {
     const files = [input.file];
     const workspacePath = input.file.workspacePath ?? input.file.filePath;
@@ -797,37 +764,9 @@ function buildControlledGoodsParsePrompt(fileName, batchId) {
         `请解析我刚上传的管控商品文件《${fileName}》。`,
         '文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径读取；如果同时存在附件能力，也可以使用 file_preview、file_search、file_read 等文件理解工具读取。',
         '目标：识别文件中的管控商品、关键词、海关编码、管控说明、来源页码或条款。',
-        `请调用工具 trade_compliance_save_controlled_goods_extraction 保存待审核结果，batchId 必须传 ${batchId ?? '-'}。如果内容很多需要分批调用工具，每次都必须使用同一个 batchId。`,
+        `请调用工具 trade_compliance_save_controlled_goods_extraction 保存待审核结果，batchId 必须传 ${batchId ?? '-'}。请尽量一次工具调用保存全部识别结果，不要按固定小批次拆分。`,
         '每个 items 条目的 type 必须是 controlled_goods；extractedData 中请包含 productName、hsCode、keywords、controlNote；sourceLocation 记录证据位置。',
         '不要只回复文字，必须调用工具把识别结果写入插件。回复中的识别数量必须等于工具实际保存的 items 总数。'
-    ].join('\n');
-}
-function buildControlledGoodsCandidateBatchPrompt(fileName, batchId, candidates, batchIndex, batchTotal, totalCount) {
-    const start = batchIndex * CONTROLLED_GOODS_BATCH_SIZE + 1;
-    const lines = candidates.map((candidate, index) => {
-        const number = start + index;
-        const parts = [
-            `候选行 ${number}/${totalCount}`,
-            `序号：${candidate.sequence}`,
-            candidate.category ? `分类：${candidate.category}` : undefined,
-            candidate.sourceLocation ? `来源：${candidate.sourceLocation}` : undefined,
-            candidate.hsCodes.length ? `HS Code：${candidate.hsCodes.join(', ')}` : undefined,
-            `原文：${candidate.rawText}`
-        ].filter(Boolean);
-        return parts.join('\n');
-    });
-    return [
-        `请处理管控商品文件《${fileName}》的候选行批次 ${batchIndex + 1}/${batchTotal}。`,
-        '插件已经从原始文件中预提取出候选行；原始文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径核对来源，不要重新从整份文件自由扩展识别范围。',
-        `本批必须只处理下面 ${candidates.length} 条候选行，保存数量应等于候选行数量；除非某一行明确不是商品或管控条目，否则不要丢弃。`,
-        `请调用 trade_compliance_save_controlled_goods_extraction 保存待审核结果，batchId 必须传 ${batchId}。`,
-        '每个 items 条目的 type 必须是 controlled_goods；title 使用商品名称或 HS Code。',
-        'extractedData 必须包含 productName、hsCode、keywords、controlNote、enabled；enabled 默认 true。',
-        'sourceLocation 使用候选行的来源页码/工作表/行号；confidence 使用 0 到 1 的数字。',
-        '所有外语都翻译成中文，除非 HS Code、CAS、型号、标准号等特定语义必须保留外语或代码。',
-        '不要只回复文字，必须调用工具写入工作台；回复中的识别数量必须等于本批工具实际保存的 items 数量。',
-        '',
-        lines.join('\n\n')
     ].join('\n');
 }
 function buildSupplierContractParsePrompt(fileName, batchId) {
@@ -835,7 +774,7 @@ function buildSupplierContractParsePrompt(fileName, batchId) {
         `请解析我刚上传的供应商合同《${fileName}》。`,
         '文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径读取；如果同时存在附件能力，也可以使用 file_preview、file_search、file_read 等文件理解工具读取。',
         '目标：识别供应商信息和商品信息，商品信息包括商品名称、型号、描述、数量、单位、含税单价、含税金额、合同里的海关编码。',
-        '不要把模糊查询得到的海关编码、退税率或英文品名写成最终值；插件保存待审核记录时会自动查询候选海关编码，必须由用户在工作台里人工确认后才作为最终编码。',
+        '如果文件自带有效合同海关编码（8-10 位数字），默认使用文件里的海关编码，并用该编码查询退税率、英文品名等信息补充到待审核商品；如果文件没有有效海关编码，或只识别到“未识别”等占位值，再结合商品名称、型号和描述查询并选择最可信的海关编码。插件会保留全部候选海关编码，编辑页面保留重新查询和确认入口。',
         '再结合已有管控商品记录调用 trade_compliance_match_controlled_goods 判断是否为管控商品。',
         `最后必须调用 trade_compliance_save_supplier_contract_extraction 保存待审核结果，batchId 必须传 ${batchId ?? '-'}；只有调用该保存工具后，工作台左侧供应商商品列表才会出现记录。`,
         '每个 items 条目的 type 必须是 supplier_product；extractedData/defaultData 中请包含 supplierName、supplierCreditCode、supplierAddress、productName、model、description、quantity、unit、taxInclusiveUnitPrice、taxInclusiveTotalAmount、contractHsCode、controlledStatus、controlNote。',

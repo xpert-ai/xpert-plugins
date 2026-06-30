@@ -1,0 +1,11 @@
+{
+  "name": "@chenchaolong/trade-compliance-workbench-v2-prototype",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Static prototype for the redesigned trade compliance workbench.",
+  "scripts": {
+    "start": "python3 -m http.server 5177",
+    "check": "node scripts/check-static.mjs"
+  },
+  "devDependencies": {}
+}

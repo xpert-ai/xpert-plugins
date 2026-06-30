@@ -214,23 +214,24 @@ async function enrichSupplierReviewItemsWithHsCandidates(items, config) {
             continue;
         }
         try {
-            const result = await searchHsBianmaCodes({
-                keywords: keyword,
-                page: 1,
-                filterFailureCode: true,
-                displayChapter: false,
-                displayEnName: true
-            }, {
-                baseUrl: config.enrichment?.apiBaseUrl,
-                timeoutMs: config.enrichment?.timeoutMs
-            });
+            const candidates = await searchSupplierHsCandidatesForDefault(keyword, config);
+            const contractHsCode = resolveSupplierContractHsCode(data.contractHsCode);
+            const suggestion = resolveSupplierHsSuggestion(candidates, contractHsCode);
             enriched.push({
                 ...sanitizedItem,
                 defaultData: {
                     ...defaultData,
                     hsCodeLookupKeyword: keyword,
-                    hsCodeLookupStatus: result.results.length > 0 ? 'pending_confirmation' : 'not_found',
-                    hsCodeCandidates: result.results.slice(0, 10)
+                    hsCodeLookupStatus: candidates.length > 0 ? 'pending_confirmation' : 'not_found',
+                    hsCodeCandidateCount: candidates.length,
+                    suggestedHsCode: suggestion?.code,
+                    suggestedHsCodeName: suggestion?.name,
+                    suggestedHsCodeEnglishName: suggestion?.englishName,
+                    suggestedTaxRefundRate: suggestion?.taxRefundRate,
+                    enrichedHsCode: contractHsCode ?? suggestion?.code,
+                    taxRefundRate: suggestion?.taxRefundRate,
+                    englishName: suggestion?.englishName,
+                    hsCodeCandidates: candidates
                 }
             });
         }
@@ -249,21 +250,44 @@ async function enrichSupplierReviewItemsWithHsCandidates(items, config) {
     }
     return enriched;
 }
+async function searchSupplierHsCandidatesForDefault(keyword, config) {
+    const result = await searchHsBianmaCodes({
+        keywords: keyword,
+        page: 1,
+        filterFailureCode: true,
+        displayChapter: false,
+        displayEnName: true
+    }, {
+        baseUrl: config?.enrichment?.apiBaseUrl,
+        timeoutMs: config?.enrichment?.timeoutMs
+    });
+    return result.results ?? [];
+}
+function resolveSupplierHsSuggestion(candidates, contractHsCode) {
+    const normalizedContractHsCode = normalizeHsCode(contractHsCode);
+    if (normalizedContractHsCode) {
+        const exact = candidates.find((candidate) => normalizeHsCode(candidate?.code) === normalizedContractHsCode);
+        if (exact)
+            return exact;
+    }
+    return candidates[0];
+}
+function normalizeHsCode(value) {
+    const text = stringValue(value);
+    if (!text)
+        return undefined;
+    const digits = text.replace(/\D/g, '');
+    return digits || text;
+}
 function sanitizeSupplierReviewItem(item) {
     return {
         ...item,
-        extractedData: omitAutoHsFinalFields(item.extractedData),
-        defaultData: omitAutoHsFinalFields(item.defaultData)
+        extractedData: item.extractedData,
+        defaultData: item.defaultData
     };
 }
-function omitAutoHsFinalFields(record) {
-    if (!record || typeof record !== 'object' || Array.isArray(record))
-        return record;
-    const { enrichedHsCode: _enrichedHsCode, taxRefundRate: _taxRefundRate, englishName: _englishName, ...rest } = record;
-    return rest;
-}
 function buildSupplierHsCandidateKeyword(data) {
-    const contractHsCode = stringValue(data.contractHsCode);
+    const contractHsCode = resolveSupplierContractHsCode(data.contractHsCode);
     if (contractHsCode)
         return contractHsCode;
     const productName = stringValue(data.productName);
@@ -273,6 +297,13 @@ function buildSupplierHsCandidateKeyword(data) {
     if (keyword)
         return keyword.slice(0, 100);
     return description ? description.slice(0, 100) : undefined;
+}
+function resolveSupplierContractHsCode(value) {
+    const text = stringValue(value);
+    if (!text)
+        return undefined;
+    const digits = text.replace(/\D/g, '');
+    return /^\d{8,10}$/.test(digits) ? digits : undefined;
 }
 function stringValue(value) {
     const text = String(value ?? '').trim();

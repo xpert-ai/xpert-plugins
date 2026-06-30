@@ -1,6 +1,6 @@
 {
   "name": "@chenchaolong/plugin-trade-compliance-workbench",
-  "version": "0.1.43",
+  "version": "0.1.54",
   "description": "Trade Compliance Workbench app plugin for controlled goods review, supplier product management, and customs workbook generation.",
   "author": {
     "name": "XpertAI",
