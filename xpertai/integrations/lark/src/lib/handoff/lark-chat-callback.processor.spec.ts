@@ -1,6 +1,6 @@
 import {
 	XpertAgentExecutionStatusEnum
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { LarkChatStreamCallbackProcessor } from './lark-chat-callback.processor.js'
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'

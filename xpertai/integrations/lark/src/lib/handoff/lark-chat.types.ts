@@ -1,4 +1,4 @@
-import type { LanguagesEnum, TChatOptions, TChatRequest } from '@metad/contracts'
+import type { LanguagesEnum, TChatOptions, TChatRequest } from '@xpert-ai/contracts'
 import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload

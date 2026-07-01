@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { createRequire } from 'module'
 import { hostname } from 'os'
-import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import { forwardRef, Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common'
 import {
   WSClient,
   WsCmd,
@@ -12,7 +12,7 @@ import {
   type WsFrameHeaders
 } from '@wecom/aibot-node-sdk'
 import express from 'express'
-import { IIntegration, IUser } from '@metad/contracts'
+import { IIntegration, IUser } from '@xpert-ai/contracts'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
@@ -36,6 +36,7 @@ import {
 import type { WeComInboundFile } from './types.js'
 import { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { WeComTriggerBindingEntity } from './entities/wecom-trigger-binding.entity.js'
+import { WeComConversationBindingSchemaService } from './wecom-conversation-binding-schema.service.js'
 import {
   classifyWeComLongConnectionError,
   getWeComLongConnectionLockKey,
@@ -164,7 +165,9 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
     private readonly wecomChannel: WeComChannelStrategy,
     private readonly conversationService: WeComConversationService,
     @InjectRepository(WeComTriggerBindingEntity)
-    private readonly triggerBindingRepository: Repository<WeComTriggerBindingEntity>
+    private readonly triggerBindingRepository: Repository<WeComTriggerBindingEntity>,
+    @Optional()
+    private readonly conversationBindingSchemaService?: WeComConversationBindingSchemaService
   ) {}
 
   private get integrationPermissionService(): IntegrationPermissionService {
@@ -186,6 +189,7 @@ export class WeComLongConnectionService implements OnModuleInit, OnModuleDestroy
   }
 
   async onModuleInit(): Promise<void> {
+    await this.conversationBindingSchemaService?.ensureSchema()
     const integrationIds = await this.loadBootstrapIntegrationIds()
     this.logger.debug(
       `[wecom-long] bootstrapping long connection sessions for integrations: [${integrationIds.join(', ')}]`

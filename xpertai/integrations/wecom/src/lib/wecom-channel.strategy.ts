@@ -17,7 +17,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { type Cache } from 'cache-manager'
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { WECOM_LONG_CONNECTION_SERVICE, WECOM_PLUGIN_CONTEXT } from './tokens.js'
 import { iconImage, INTEGRATION_WECOM, INTEGRATION_WECOM_LONG, TIntegrationWeComOptions, TWeComEvent } from './types.js'
 import { buildWeComRestartConversationCard } from './wecom-conversation-action-card.js'

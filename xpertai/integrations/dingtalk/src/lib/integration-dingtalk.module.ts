@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { DingTalkChannelStrategy } from './dingtalk-channel.strategy.js'
 import { DingTalkIntegrationStrategy } from './dingtalk-integration.strategy.js'
+import { DingTalkLongIntegrationStrategy } from './dingtalk-long-integration.strategy.js'
+import { DingTalkLongConnectionService } from './dingtalk-long-connection.service.js'
 import { DingTalkHooksController } from './dingtalk.controller.js'
 import { DingTalkConversationService } from './conversation.service.js'
 import { DingTalkTokenStrategy } from './auth/dingtalk-token.strategy.js'
@@ -17,6 +19,11 @@ import { DingTalkTriggerBindingEntity } from './entities/dingtalk-trigger-bindin
 import { DingTalkNotifyMiddleware } from './middlewares/index.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
 import { DingTalkTriggerStrategy } from './workflow/dingtalk-trigger.strategy.js'
+import { DingTalkTriggerAggregationService } from './workflow/dingtalk-trigger-aggregation.service.js'
+import { DingTalkTriggerFlushProcessor } from './workflow/dingtalk-trigger-flush.processor.js'
+import { DingTalkIntegrationViewProvider } from './views/dingtalk-integration-view.provider.js'
+import { DingTalkConversationBindingSchemaService } from './dingtalk-conversation-binding-schema.service.js'
+import { DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
 
 @XpertServerPlugin({
   imports: [DiscoveryModule, CqrsModule, TypeOrmModule.forFeature([DingTalkConversationBindingEntity, DingTalkTriggerBindingEntity])],
@@ -24,18 +31,30 @@ import { DingTalkTriggerStrategy } from './workflow/dingtalk-trigger.strategy.js
   controllers: [DingTalkHooksController],
   providers: [
     DingTalkConversationService,
+    DingTalkConversationBindingSchemaService,
     DingTalkChannelStrategy,
+    DingTalkLongConnectionService,
+    DingTalkLongIntegrationStrategy,
     DingTalkIntegrationStrategy,
     DingTalkTriggerStrategy,
+    DingTalkTriggerAggregationService,
+    DingTalkTriggerFlushProcessor,
+    {
+      provide: DINGTALK_TRIGGER_STRATEGY,
+      useExisting: DingTalkTriggerStrategy
+    },
     DingTalkChatDispatchService,
     DingTalkChatRunStateService,
     DingTalkChatStreamCallbackProcessor,
+    DingTalkIntegrationViewProvider,
     DingTalkTokenStrategy,
     DingTalkNotifyMiddleware,
     ...Handlers
   ],
   exports: [
     DingTalkChannelStrategy,
+    DingTalkLongConnectionService,
+    DingTalkLongIntegrationStrategy,
     DingTalkIntegrationStrategy,
     DingTalkTriggerStrategy,
     DingTalkChatDispatchService,
@@ -45,15 +64,24 @@ import { DingTalkTriggerStrategy } from './workflow/dingtalk-trigger.strategy.js
 export class IntegrationDingTalkPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
   private logEnabled = true
 
-  onPluginBootstrap(): void | Promise<void> {
+  constructor(
+    private readonly longConnection: DingTalkLongConnectionService,
+    private readonly conversation: DingTalkConversationService,
+    private readonly conversationBindingSchema: DingTalkConversationBindingSchemaService
+  ) {}
+
+  async onPluginBootstrap(): Promise<void> {
     if (this.logEnabled) {
       console.log(chalk.green(`${IntegrationDingTalkPlugin.name} is being bootstrapped...`))
     }
+    await this.conversationBindingSchema.ensureSchema()
   }
 
-  onPluginDestroy(): void | Promise<void> {
+  async onPluginDestroy(): Promise<void> {
     if (this.logEnabled) {
       console.log(chalk.green(`${IntegrationDingTalkPlugin.name} is being destroyed...`))
     }
+    await this.longConnection.disconnectAll()
+    await this.conversation.closeQueues()
   }
 }

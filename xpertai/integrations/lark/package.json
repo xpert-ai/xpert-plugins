@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -44,7 +44,6 @@
     "@xpert-ai/contracts": "^3.12.1",
     "@xpert-ai/plugin-sdk": "^3.12.1",
     "i18next": "25.6.0",
-    "@metad/contracts": "^3.9.0-beta.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "chalk": "4.1.2",

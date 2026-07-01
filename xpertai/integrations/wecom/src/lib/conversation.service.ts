@@ -10,7 +10,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { type Cache } from 'cache-manager'
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { Repository } from 'typeorm'
 import { ChatWeComMessage } from './message.js'
 import { WECOM_PLUGIN_CONTEXT } from './tokens.js'
@@ -197,7 +197,7 @@ export class WeComConversationService {
         createdById: bindingContext.createdById ?? null,
         updatedById: bindingContext.updatedById ?? null
       },
-      userId ? ['userId'] : ['conversationUserKey', 'xpertId']
+      ['conversationUserKey', 'xpertId']
     )
   }
 

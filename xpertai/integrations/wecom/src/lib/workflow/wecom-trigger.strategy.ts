@@ -1,4 +1,4 @@
-import type { ChecklistItem, IIntegration, TWorkflowTriggerMeta } from '@metad/contracts'
+import type { ChecklistItem, IIntegration, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {

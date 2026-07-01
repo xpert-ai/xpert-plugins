@@ -134,6 +134,22 @@ describe('WeComConversationService', () => {
     }
   }
 
+  it('persists conversation bindings by conversation key and xpert instead of sender id', async () => {
+    const { service, conversationBindingRepository } = createFixture()
+
+    await service.setConversation('integration-1:chat-1:sender-1', 'xpert-1', 'conversation-1')
+
+    expect(conversationBindingRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'sender-1',
+        conversationUserKey: 'integration-1:chat-1:sender-1',
+        xpertId: 'xpert-1',
+        conversationId: 'conversation-1'
+      }),
+      ['conversationUserKey', 'xpertId']
+    )
+  })
+
   it('uses trigger binding instead of integration fallback', async () => {
     jest.spyOn(RequestContext, 'currentUserId').mockReturnValue('request-user-id' as any)
 

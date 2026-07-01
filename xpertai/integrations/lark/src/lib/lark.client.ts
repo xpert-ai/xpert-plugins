@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk'
-import type { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import type { TDocumentAsset, XpFileSystem } from '@xpert-ai/plugin-sdk'
 import path from 'node:path'
 import { formatLarkErrorToMarkdown, LarkFile, parseLarkClientError } from './types.js'

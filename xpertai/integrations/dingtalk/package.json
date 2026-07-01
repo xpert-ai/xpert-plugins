@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-dingtalk",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -24,7 +24,8 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
@@ -35,7 +36,7 @@
     "@xpert-ai/chatkit-types": "^0.0.12",
     "@xpert-ai/plugin-sdk": "^3.8.1",
     "i18next": "25.6.0",
-    "@metad/contracts": "^3.8.1",
+    "@xpert-ai/contracts": "^3.10.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "chalk": "4.1.2",

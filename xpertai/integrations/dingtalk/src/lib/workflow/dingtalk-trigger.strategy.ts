@@ -1,7 +1,10 @@
-import type { ChecklistItem, TWorkflowTriggerMeta } from '@metad/contracts'
+import type { ChecklistItem, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
+	HANDOFF_PERMISSION_SERVICE_TOKEN,
+	HandoffMessage,
+	HandoffPermissionService,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
 	IWorkflowTriggerStrategy,
@@ -10,13 +13,27 @@ import {
 	TWorkflowTriggerParams,
 	WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
-import { DingTalkChatDispatchService } from '../handoff/dingtalk-chat-dispatch.service.js'
-import type { ChatDingTalkMessage } from '../message.js'
+import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
+import {
+	DingTalkChatDispatchService,
+	type TDingTalkChatDispatchInput
+} from '../handoff/dingtalk-chat-dispatch.service.js'
+import { ChatDingTalkMessage } from '../message.js'
 import { DINGTALK_PLUGIN_CONTEXT } from '../tokens.js'
-import { iconImage } from '../types.js'
+import { DINGTALK_INTEGRATION_SELECT_URL, type DingTalkInboundFile, iconImage } from '../types.js'
 import { DingTalkTriggerBindingEntity } from '../entities/dingtalk-trigger-binding.entity.js'
+import { DingTalkTriggerAggregationService } from './dingtalk-trigger-aggregation.service.js'
+import {
+	DINGTALK_TRIGGER_FLUSH_MESSAGE_TYPE,
+	DingTalkTriggerAggregationState,
+	DingTalkTriggerFlushPayload
+} from './dingtalk-trigger-aggregation.types.js'
 import { DingTalkTrigger, TDingTalkTriggerConfig } from './dingtalk-trigger.types.js'
+
+const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
+const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
 
 @Injectable()
 @WorkflowTriggerStrategy(DingTalkTrigger)
@@ -27,6 +44,7 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 	 */
 	private readonly callbacks = new Map<string, (payload: any) => void>()
 	private _integrationPermissionService: IntegrationPermissionService
+	private _handoffPermissionService: HandoffPermissionService
 
 	readonly meta: TWorkflowTriggerMeta = {
 		name: DingTalkTrigger,
@@ -57,8 +75,32 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 					},
 					'x-ui': {
 						component: 'remoteSelect',
-						selectUrl: '/api/integration/select-options?provider=dingtalk'
+						selectUrl: DINGTALK_INTEGRATION_SELECT_URL
 					} as any
+				},
+				sessionTimeoutSeconds: {
+					type: 'number',
+					title: {
+						en_US: 'Session Timeout (seconds)',
+						zh_Hans: '会话超时时间（秒）'
+					},
+					description: {
+						en_US: 'Messages after this idle window start a new conversation.',
+						zh_Hans: '超过该空闲时长后的下一条消息会按新会话处理。'
+					},
+					default: DEFAULT_SESSION_TIMEOUT_SECONDS
+				},
+				summaryWindowSeconds: {
+					type: 'number',
+					title: {
+						en_US: 'Summary Window (seconds)',
+						zh_Hans: '汇总时间（秒）'
+					},
+					description: {
+						en_US: 'Messages received in this window are merged before dispatching to the xpert.',
+						zh_Hans: '连续消息会在该窗口内汇总后再发送给数字专家。'
+					},
+					default: DEFAULT_SUMMARY_WINDOW_SECONDS
 				}
 			},
 			required: ['enabled', 'integrationId']
@@ -72,6 +114,8 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 
 	constructor(
 		private readonly dispatchService: DingTalkChatDispatchService,
+		private readonly aggregationService: DingTalkTriggerAggregationService,
+		private readonly dingtalkChannel: DingTalkChannelStrategy,
 		@InjectRepository(DingTalkTriggerBindingEntity)
 		private readonly bindingRepository: Repository<DingTalkTriggerBindingEntity>,
 		@Inject(DINGTALK_PLUGIN_CONTEXT)
@@ -85,6 +129,13 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			)
 		}
 		return this._integrationPermissionService
+	}
+
+	private get handoffPermissionService(): HandoffPermissionService {
+		if (!this._handoffPermissionService) {
+			this._handoffPermissionService = this.pluginContext.resolve(HANDOFF_PERMISSION_SERVICE_TOKEN)
+		}
+		return this._handoffPermissionService
 	}
 
 	async validate(payload: TWorkflowTriggerParams<TDingTalkTriggerConfig>) {
@@ -174,6 +225,14 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			{
 				integrationId,
 				xpertId,
+				sessionTimeoutSeconds: this.normalizePositiveSeconds(
+					config.sessionTimeoutSeconds,
+					DEFAULT_SESSION_TIMEOUT_SECONDS
+				),
+				summaryWindowSeconds: this.normalizeNonNegativeSeconds(
+					config.summaryWindowSeconds,
+					DEFAULT_SUMMARY_WINDOW_SECONDS
+				),
 				tenantId: context.tenantId ?? null,
 				organizationId: context.organizationId ?? null,
 				createdById: context.createdById ?? null,
@@ -207,61 +266,248 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 	}
 
 	async getBoundXpertId(integrationId: string): Promise<string | null> {
+		const binding = await this.getBinding(integrationId)
+		return binding?.xpertId ?? null
+	}
+
+	async getBinding(integrationId: string): Promise<DingTalkTriggerBindingEntity | null> {
 		if (!integrationId) {
 			return null
 		}
-		const binding = await this.bindingRepository.findOne({
+
+		return this.bindingRepository.findOne({
 			where: {
 				integrationId
 			}
 		})
-		return binding?.xpertId ?? null
+	}
+
+	async clearBufferedConversation(conversationUserKey: string): Promise<void> {
+		const aggregateKey = this.normalizeAggregateKey(conversationUserKey)
+		if (!aggregateKey) {
+			return
+		}
+		await this.aggregationService.clear(aggregateKey)
 	}
 
 	async handleInboundMessage(params: {
 		integrationId: string
 		input?: string
+		files?: DingTalkInboundFile[]
 		dingtalkMessage: ChatDingTalkMessage
+		conversationId?: string
+		conversationUserKey?: string
+		tenantId?: string
+		organizationId?: string
+		executorUserId?: string
+		endUserId?: string
 		options?: {
 			confirm?: boolean
 			reject?: boolean
 		}
 	}): Promise<boolean> {
-		const binding = await this.bindingRepository.findOne({
-			where: {
-				integrationId: params.integrationId
-			}
-		})
+		const binding = await this.getBinding(params.integrationId)
 		if (!binding?.xpertId) {
 			return false
 		}
 
-		const callback = this.callbacks.get(params.integrationId)
-		if (!callback) {
-			// Persisted binding must continue to work after process restart even without in-memory callback.
-			await this.dispatchService.enqueueDispatch({
+		const summaryWindowSeconds = this.normalizeNonNegativeSeconds(
+			binding.summaryWindowSeconds,
+			DEFAULT_SUMMARY_WINDOW_SECONDS
+		)
+		if (summaryWindowSeconds <= 0 || params.options?.confirm || params.options?.reject) {
+			await this.dispatchInboundMessage({
+				integrationId: params.integrationId,
 				xpertId: binding.xpertId,
-				input: params.input,
-				dingtalkMessage: params.dingtalkMessage,
-				options: params.options
+				dispatchMode: 'immediate',
+				dispatchPayload: {
+					xpertId: binding.xpertId,
+					input: params.input,
+					files: params.files,
+					dingtalkMessage: params.dingtalkMessage,
+					conversationId: params.conversationId,
+					conversationUserKey: params.conversationUserKey,
+					options: params.options
+				}
 			})
 			return true
 		}
 
-		const handoffMessage = await this.dispatchService.buildDispatchMessage({
+		const aggregateKey = this.normalizeAggregateKey(params.conversationUserKey)
+		if (!aggregateKey) {
+			this.logger.warn(`[dingtalk-trigger] aggregation key missing integrationId=${params.integrationId}`)
+			return false
+		}
+
+		const currentState = await this.aggregationService.get(aggregateKey)
+		const sameRoutingTarget =
+			currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
+		const nextVersion = (currentState?.version ?? 0) + 1
+		const aggregateState: DingTalkTriggerAggregationState = {
+			aggregateKey,
+			integrationId: params.integrationId,
+			conversationUserKey: aggregateKey,
 			xpertId: binding.xpertId,
-			input: params.input,
-			dingtalkMessage: params.dingtalkMessage,
-			options: params.options
+			version: nextVersion,
+			inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
+			files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(params.files ?? [])],
+			lastMessageAt: Date.now(),
+			conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
+			tenantId: params.tenantId,
+			organizationId: params.organizationId,
+			executorUserId: params.executorUserId,
+			endUserId: params.endUserId,
+			latestMessage: {
+				integrationId: params.dingtalkMessage.integrationId,
+				organizationId: params.organizationId,
+				chatId: params.dingtalkMessage.chatId,
+				userId: params.dingtalkMessage.dingtalkUserId,
+				senderOpenId: params.dingtalkMessage.senderOpenId,
+				sessionWebhook: params.dingtalkMessage.sessionWebhook,
+				robotCode: params.dingtalkMessage.robotCode,
+				language: params.dingtalkMessage.language
+			}
+		}
+
+		const ttlSeconds = Math.max(
+			DEFAULT_SESSION_TIMEOUT_SECONDS,
+			this.normalizePositiveSeconds(binding.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
+			summaryWindowSeconds * 3
+		)
+		await this.aggregationService.save(aggregateState, ttlSeconds)
+		await this.handoffPermissionService.enqueue(this.buildFlushMessage(aggregateState), {
+			delayMs: summaryWindowSeconds * 1000
 		})
+
+		this.logger.debug(
+			`[dingtalk-trigger] buffered inbound integrationId=${params.integrationId} xpertId=${binding.xpertId} aggregateKey=${aggregateKey} version=${nextVersion}`
+		)
+		return true
+	}
+
+	async flushBufferedConversation(payload: DingTalkTriggerFlushPayload): Promise<boolean> {
+		const aggregateKey = this.normalizeAggregateKey(payload.aggregateKey)
+		if (!aggregateKey) {
+			return false
+		}
+
+		const state = await this.aggregationService.get(aggregateKey)
+		if (!state || state.version !== payload.version) {
+			return false
+		}
+
+		await this.dispatchInboundMessage({
+			integrationId: state.integrationId,
+			xpertId: state.xpertId,
+			dispatchMode: `buffered version=${state.version}`,
+			dispatchPayload: {
+				xpertId: state.xpertId,
+				input: state.inputParts.join('\n'),
+				files: state.files,
+				dingtalkMessage: new ChatDingTalkMessage(
+					{
+						integrationId: state.latestMessage.integrationId,
+						organizationId: state.latestMessage.organizationId,
+						preferLanguage: state.latestMessage.language,
+						userId: state.latestMessage.userId,
+						senderOpenId: state.latestMessage.senderOpenId,
+						sessionWebhook: state.latestMessage.sessionWebhook,
+						robotCode: state.latestMessage.robotCode,
+						chatId: state.latestMessage.chatId,
+						dingtalkChannel: this.dingtalkChannel
+					},
+					{
+						text: state.inputParts.join('\n'),
+						status: 'thinking',
+						language: state.latestMessage.language
+					}
+				),
+				conversationId: state.conversationId,
+				conversationUserKey: state.conversationUserKey
+			}
+		})
+
+		await this.aggregationService.clear(aggregateKey)
+		return true
+	}
+
+	private buildFlushMessage(
+		state: DingTalkTriggerAggregationState
+	): HandoffMessage<DingTalkTriggerFlushPayload> {
+		return {
+			id: `dingtalk-trigger-flush-${randomUUID()}`,
+			type: DINGTALK_TRIGGER_FLUSH_MESSAGE_TYPE,
+			version: 1,
+			tenantId: state.tenantId,
+			sessionKey: state.aggregateKey,
+			businessKey: state.aggregateKey,
+			attempt: 1,
+			maxAttempts: 1,
+			enqueuedAt: Date.now(),
+			traceId: `${state.aggregateKey}:${state.version}`,
+			payload: {
+				aggregateKey: state.aggregateKey,
+				version: state.version
+			},
+			headers: {
+				...(state.organizationId ? { organizationId: state.organizationId } : {}),
+				...(state.executorUserId ? { userId: state.executorUserId } : {}),
+				source: 'api',
+				requestedLane: 'main',
+				handoffQueue: 'integration',
+				...(state.integrationId ? { integrationId: state.integrationId } : {})
+			}
+		}
+	}
+
+	private normalizeAggregateKey(value?: string | null): string | undefined {
+		if (typeof value !== 'string') {
+			return undefined
+		}
+		const normalized = value.trim()
+		return normalized || undefined
+	}
+
+	private normalizePositiveSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
+	private normalizeNonNegativeSeconds(value: unknown, defaultValue: number): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+			return Math.floor(value)
+		}
+		return defaultValue
+	}
+
+	private async dispatchInboundMessage(params: {
+		integrationId: string
+		xpertId: string
+		dispatchMode: string
+		dispatchPayload: TDingTalkChatDispatchInput
+	}): Promise<void> {
+		const callback = this.callbacks.get(params.integrationId)
+		if (!callback) {
+			this.logger.debug(
+				`[dingtalk-trigger] runtime callback miss, enqueue dispatch integrationId=${params.integrationId} xpertId=${params.xpertId} mode=${params.dispatchMode}`
+			)
+			await this.dispatchService.enqueueDispatch(params.dispatchPayload)
+			return
+		}
+
+		this.logger.debug(
+			`[dingtalk-trigger] runtime callback hit, forward handoff integrationId=${params.integrationId} xpertId=${params.xpertId} mode=${params.dispatchMode}`
+		)
+		const handoffMessage = await this.dispatchService.buildDispatchMessage(params.dispatchPayload)
 		await Promise.resolve(
 			callback({
 				from: DingTalkTrigger,
-				xpertId: binding.xpertId,
+				xpertId: params.xpertId,
 				handoffMessage
 			})
 		)
-		return true
 	}
 
 	private async resolveBindingContext(integrationId: string): Promise<{

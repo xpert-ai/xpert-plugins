@@ -25,9 +25,11 @@ import {
 import { translate } from './i18n.js'
 import { DingTalkChannelStrategy } from './dingtalk-channel.strategy.js'
 import { DispatchDingTalkChatCommand, DispatchDingTalkChatPayload } from './handoff/commands/dispatch-dingtalk-chat.command.js'
-import { DINGTALK_PLUGIN_CONTEXT } from './tokens.js'
+import { DINGTALK_PLUGIN_CONTEXT, DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
 import {
   ChatDingTalkContext,
+  DingTalkImageMimeType,
+  DingTalkInboundFile,
   isConfirmAction,
   isDingTalkCardActionValue,
   isEndAction,
@@ -72,12 +74,30 @@ type DingTalkTriggerService = {
   handleInboundMessage: (params: {
     integrationId: string
     input?: string
+    files?: DingTalkInboundFile[]
     dingtalkMessage: ChatDingTalkMessage
+    conversationId?: string
+    conversationUserKey?: string
+    tenantId?: string
+    organizationId?: string
+    executorUserId?: string
+    endUserId?: string
     options?: {
       confirm?: boolean
       reject?: boolean
     }
   }) => Promise<boolean>
+  getBinding?: (integrationId: string) => Promise<{
+    xpertId: string
+    sessionTimeoutSeconds?: number
+    summaryWindowSeconds?: number
+  } | null>
+  clearBufferedConversation?: (conversationUserKey: string) => Promise<void>
+}
+
+type DingTalkConversationBindingState = {
+  conversationId: string
+  lastActiveAt?: Date
 }
 
 type DingTalkActiveMessage = {
@@ -92,7 +112,7 @@ type DingTalkActiveMessage = {
   }
 }
 
-export type DingTalkDispatchExecutionContextSource = 'exact' | 'xpert-latest' | 'request-fallback'
+export type DingTalkDispatchExecutionContextSource = 'exact' | 'xpert-latest' | 'trigger-binding' | 'request-fallback'
 
 export interface DingTalkDispatchExecutionContext {
   tenantId?: string
@@ -103,7 +123,9 @@ export interface DingTalkDispatchExecutionContext {
 
 @Injectable()
 export class DingTalkConversationService implements OnModuleDestroy {
+  private static readonly maxInlineImageBytes = 10 * 1024 * 1024
   private readonly logger = new Logger(DingTalkConversationService.name)
+  private readonly queueNamespace = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`
   private _integrationPermissionService: IntegrationPermissionService
   private _dingtalkTriggerStrategy: DingTalkTriggerService
 
@@ -119,6 +141,8 @@ export class DingTalkConversationService implements OnModuleDestroy {
     private readonly conversationBindingRepository: Repository<DingTalkConversationBindingEntity>,
     @InjectRepository(DingTalkTriggerBindingEntity)
     private readonly triggerBindingRepository: Repository<DingTalkTriggerBindingEntity>,
+    @Inject(DINGTALK_TRIGGER_STRATEGY)
+    private readonly dingtalkTriggerStrategy: DingTalkTriggerService,
     @Inject(DINGTALK_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -132,26 +156,15 @@ export class DingTalkConversationService implements OnModuleDestroy {
 
   private async getDingTalkTriggerStrategy(): Promise<DingTalkTriggerService> {
     if (!this._dingtalkTriggerStrategy) {
-      const { DingTalkTriggerStrategy } = await import('./workflow/dingtalk-trigger.strategy.js')
-      this._dingtalkTriggerStrategy = this.pluginContext.resolve(DingTalkTriggerStrategy)
+      this._dingtalkTriggerStrategy = this.dingtalkTriggerStrategy
     }
     return this._dingtalkTriggerStrategy
   }
 
-  private async getBoundXpertId(integrationId: string): Promise<string | null> {
-    if (!integrationId) {
-      return null
-    }
-
-    const binding = await this.triggerBindingRepository.findOne({
-      where: {
-        integrationId
-      }
-    })
-    return binding?.xpertId ?? null
-  }
-
-  async getConversation(conversationUserKey: string, xpertId: string) {
+  async getConversationState(
+    conversationUserKey: string,
+    xpertId: string
+  ): Promise<DingTalkConversationBindingState | undefined> {
     const normalizedUserKey = normalizeConversationUserKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationUserKey(xpertId)
     if (!normalizedUserKey || !normalizedXpertId) {
@@ -159,9 +172,28 @@ export class DingTalkConversationService implements OnModuleDestroy {
     }
 
     const key = this.getConversationCacheKey(normalizedUserKey, normalizedXpertId)
-    const cachedConversationId = await this.cacheManager.get<string>(key)
-    if (cachedConversationId) {
-      return cachedConversationId
+    const cachedValue = await this.cacheManager.get<
+      | string
+      | {
+          conversationId?: unknown
+          lastActiveAt?: unknown
+        }
+    >(key)
+    if (typeof cachedValue === 'string') {
+      const cachedConversationId = normalizeConversationUserKey(cachedValue)
+      if (cachedConversationId) {
+        return {
+          conversationId: cachedConversationId
+        }
+      }
+    } else if (cachedValue && typeof cachedValue === 'object') {
+      const cachedConversationId = normalizeConversationUserKey(cachedValue.conversationId)
+      if (cachedConversationId) {
+        return {
+          conversationId: cachedConversationId,
+          lastActiveAt: this.normalizeDate(cachedValue.lastActiveAt)
+        }
+      }
     }
 
     const binding = await this.conversationBindingRepository.findOne({
@@ -176,11 +208,31 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return undefined
     }
 
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, conversationId)
-    return conversationId
+    const lastActiveAt = this.normalizeDate(binding?.updatedAt)
+    await this.cacheConversation(normalizedUserKey, normalizedXpertId, conversationId, lastActiveAt)
+    return {
+      conversationId,
+      lastActiveAt
+    }
   }
 
-  async setConversation(conversationUserKey: string, xpertId: string, conversationId: string) {
+  async getConversation(conversationUserKey: string, xpertId: string) {
+    const state = await this.getConversationState(conversationUserKey, xpertId)
+    return state?.conversationId
+  }
+
+  async setConversation(
+    conversationUserKey: string,
+    xpertId: string,
+    conversationId: string,
+    lastActiveAt: Date = new Date(),
+    context?: {
+      tenantId?: string | null
+      organizationId?: string | null
+      createdById?: string | null
+      updatedById?: string | null
+    }
+  ) {
     const normalizedUserKey = normalizeConversationUserKey(conversationUserKey)
     const normalizedXpertId = normalizeConversationUserKey(xpertId)
     const normalizedConversationId = normalizeConversationUserKey(conversationId)
@@ -188,10 +240,17 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return
     }
 
-    await this.cacheConversation(normalizedUserKey, normalizedXpertId, normalizedConversationId)
+    const resolvedLastActiveAt = this.normalizeDate(lastActiveAt) ?? new Date()
+    await this.cacheConversation(
+      normalizedUserKey,
+      normalizedXpertId,
+      normalizedConversationId,
+      resolvedLastActiveAt
+    )
 
-    const userId = this.resolveUserIdFromConversationUserKey(normalizedUserKey)
-    const bindingContext = this.resolveBindingContext()
+    const isIntegrationScopedConversation = Boolean(parseAnonymousConversationKey(normalizedUserKey))
+    const userId = isIntegrationScopedConversation ? null : this.resolveUserIdFromConversationUserKey(normalizedUserKey)
+    const bindingContext = this.resolveBindingContext(context)
     await this.conversationBindingRepository.upsert(
       {
         userId: userId ?? null,
@@ -203,13 +262,13 @@ export class DingTalkConversationService implements OnModuleDestroy {
         createdById: bindingContext.createdById ?? null,
         updatedById: bindingContext.updatedById ?? null
       },
-      userId ? ['userId'] : ['conversationUserKey', 'xpertId']
+      ['conversationUserKey', 'xpertId']
     )
   }
 
   async getLatestConversationBindingByUserId(
     userId: string
-  ): Promise<{ xpertId: string; conversationId: string; conversationUserKey: string } | null> {
+  ): Promise<{ xpertId: string; conversationId: string; conversationUserKey: string; updatedAt?: Date } | null> {
     const normalizedUserId = normalizeConversationUserKey(userId)
     if (!normalizedUserId) {
       return null
@@ -226,7 +285,8 @@ export class DingTalkConversationService implements OnModuleDestroy {
     return {
       xpertId: binding.xpertId,
       conversationId: binding.conversationId,
-      conversationUserKey: binding.conversationUserKey
+      conversationUserKey: binding.conversationUserKey,
+      updatedAt: binding.updatedAt
     }
   }
 
@@ -257,21 +317,45 @@ export class DingTalkConversationService implements OnModuleDestroy {
         })
       : null
 
+    const needsTriggerBinding =
+      !this.hasCompleteDispatchBindingContext(exactBinding) &&
+      !this.hasCompleteDispatchBindingContext(xpertLatestBinding)
+    const triggerBinding = needsTriggerBinding
+      ? await this.triggerBindingRepository.findOne({
+          where: { xpertId: normalizedXpertId },
+          order: { updatedAt: 'DESC' }
+        })
+      : null
+
     const tenantId =
       this.normalizeBindingContextField(exactBinding?.tenantId) ??
-      this.normalizeBindingContextField(xpertLatestBinding?.tenantId)
+      this.normalizeBindingContextField(xpertLatestBinding?.tenantId) ??
+      this.normalizeBindingContextField(triggerBinding?.tenantId)
     const organizationId =
       this.normalizeBindingContextField(exactBinding?.organizationId) ??
-      this.normalizeBindingContextField(xpertLatestBinding?.organizationId)
+      this.normalizeBindingContextField(xpertLatestBinding?.organizationId) ??
+      this.normalizeBindingContextField(triggerBinding?.organizationId)
     const createdById =
       this.normalizeExecutionUserIdField(exactBinding?.createdById) ??
-      this.normalizeExecutionUserIdField(xpertLatestBinding?.createdById)
+      this.normalizeExecutionUserIdField(xpertLatestBinding?.createdById) ??
+      this.normalizeExecutionUserIdField(triggerBinding?.createdById)
+    const source: DingTalkDispatchExecutionContextSource = this.hasCompleteDispatchBindingContext(exactBinding)
+      ? 'exact'
+      : this.hasCompleteDispatchBindingContext(xpertLatestBinding)
+        ? 'xpert-latest'
+        : triggerBinding
+          ? 'trigger-binding'
+          : exactBinding
+            ? 'exact'
+            : xpertLatestBinding
+              ? 'xpert-latest'
+              : 'request-fallback'
 
     return {
       tenantId,
       organizationId,
       createdById,
-      source: exactBinding ? 'exact' : xpertLatestBinding ? 'xpert-latest' : 'request-fallback'
+      source
     }
   }
 
@@ -346,49 +430,94 @@ export class DingTalkConversationService implements OnModuleDestroy {
       throw new Error(`Integration ${integrationId} not found`)
     }
 
+    const requestUser = this.resolveRequestUser({
+      id: options.userId || '',
+      tenantId: integration.tenantId,
+      organizationId: options.organizationId || integration.organizationId
+    })
     const text = this.extractInputText(options)
-    const normalizedSenderOpenId = normalizeConversationUserKey(senderOpenId)
-    const latestBinding = normalizedSenderOpenId
-      ? await this.getLatestConversationBindingByUserId(normalizedSenderOpenId)
-      : null
-
-    const triggerXpertId = latestBinding ? null : await this.getBoundXpertId(integrationId)
-    const fallbackXpertId = normalizeConversationUserKey(integration.options?.xpertId)
-    const targetXpertId = latestBinding?.xpertId ?? triggerXpertId ?? fallbackXpertId
-    if (!targetXpertId) {
-      await this.dingtalkChannel.errorMessage(
-        {
-          integrationId,
-          chatId: options.chatId
-        },
-        new Error('No xpertId configured for this DingTalk integration. Please configure xpertId first.')
-      )
-      return null
-    }
-
+    const dingtalkTriggerStrategy = await this.getDingTalkTriggerStrategy()
+    const triggerBinding =
+      typeof dingtalkTriggerStrategy.getBinding === 'function'
+        ? await dingtalkTriggerStrategy.getBinding(integrationId)
+        : await this.triggerBindingRepository.findOne({
+            where: {
+              integrationId
+            }
+          })
     const conversationId =
       normalizeConversationUserKey(options.chatId) ||
       normalizeConversationUserKey(options.message?.conversationId) ||
       normalizeConversationUserKey(options.message?.chatId)
 
-    const conversationUserKey =
-      latestBinding?.conversationUserKey ??
-      resolveConversationUserKey({
-        integrationId,
-        conversationId,
-        senderOpenId,
-        fallbackUserId: options.userId
-      })
+    let conversationUserKey = resolveConversationUserKey({
+      integrationId,
+      conversationId,
+      senderOpenId,
+      fallbackUserId: options.userId
+    })
 
     if (!conversationUserKey) {
       this.logger.warn(`Failed to resolve conversation user key for integration ${integrationId}`)
       return null
     }
 
-    if (latestBinding?.conversationUserKey && latestBinding?.conversationId) {
-      await this.cacheConversation(latestBinding.conversationUserKey, latestBinding.xpertId, latestBinding.conversationId)
+    const triggerXpertId = normalizeConversationUserKey(triggerBinding?.xpertId)
+    let targetXpertId = triggerXpertId
+    let existingConversation:
+      | {
+          conversationId: string
+          lastActiveAt?: Date
+        }
+      | undefined =
+      triggerXpertId && conversationUserKey
+        ? await this.getConversationState(conversationUserKey, triggerXpertId)
+        : undefined
+
+    if (
+      existingConversation &&
+      triggerBinding?.xpertId === triggerXpertId &&
+      this.isConversationExpired(existingConversation.lastActiveAt, this.resolveSessionTimeoutMs(triggerBinding.sessionTimeoutSeconds))
+    ) {
+      await this.clearConversationSession(conversationUserKey, triggerXpertId)
+      if (typeof dingtalkTriggerStrategy.clearBufferedConversation === 'function') {
+        await dingtalkTriggerStrategy.clearBufferedConversation(conversationUserKey)
+      }
+      existingConversation = undefined
     }
 
+    const normalizedSenderOpenId = normalizeConversationUserKey(senderOpenId)
+    const latestBinding =
+      targetXpertId || !normalizedSenderOpenId
+        ? null
+        : await this.getLatestConversationBindingByUserId(normalizedSenderOpenId)
+    if (!targetXpertId && latestBinding) {
+      targetXpertId = latestBinding.xpertId
+      conversationUserKey = latestBinding.conversationUserKey
+      await this.cacheConversation(
+        latestBinding.conversationUserKey,
+        latestBinding.xpertId,
+        latestBinding.conversationId,
+        latestBinding.updatedAt
+      )
+    }
+
+    if (!targetXpertId) {
+      await this.dingtalkChannel.errorMessage(
+        {
+          integrationId,
+          chatId: options.chatId
+        },
+        new Error('No DingTalk trigger binding configured for this integration. Please link it through a trigger first.')
+      )
+      return null
+    }
+
+    const files = await this.resolveInboundImageFiles({
+      integrationId,
+      message: options.message
+    })
+    const dispatchFiles = files.length ? files : undefined
     const activeMessage = await this.getActiveMessage(conversationUserKey, targetXpertId)
     const dingtalkMessage = new ChatDingTalkMessage(
       {
@@ -408,30 +537,49 @@ export class DingTalkConversationService implements OnModuleDestroy {
       }
     )
 
-    if (latestBinding) {
+    const activeConversationId = existingConversation?.conversationId ?? latestBinding?.conversationId
+    if (activeConversationId) {
+      if (triggerBinding?.xpertId === targetXpertId) {
+        const handledByTrigger = await dingtalkTriggerStrategy.handleInboundMessage({
+          integrationId,
+          input: text,
+          files: dispatchFiles,
+          dingtalkMessage,
+          conversationId: activeConversationId,
+          conversationUserKey,
+          tenantId: requestUser.tenantId,
+          organizationId: requestUser.organizationId || integration.organizationId,
+          executorUserId: requestUser.id,
+          endUserId: senderOpenId
+        })
+        if (handledByTrigger) {
+          return dingtalkMessage
+        }
+      }
+
       return await this.dispatchToDingTalkChat({
         xpertId: targetXpertId,
         input: text,
-        dingtalkMessage
+        files: dispatchFiles,
+        dingtalkMessage,
+        conversationId: activeConversationId,
+        conversationUserKey
       })
     }
 
-    const dingtalkTriggerStrategy = await this.getDingTalkTriggerStrategy()
     const handledByTrigger = await dingtalkTriggerStrategy.handleInboundMessage({
       integrationId,
       input: text,
-      dingtalkMessage
+      files: dispatchFiles,
+      dingtalkMessage,
+      conversationUserKey,
+      tenantId: requestUser.tenantId,
+      organizationId: requestUser.organizationId || integration.organizationId,
+      executorUserId: requestUser.id,
+      endUserId: senderOpenId
     })
     if (handledByTrigger) {
       return dingtalkMessage
-    }
-
-    if (fallbackXpertId) {
-      return await this.dispatchToDingTalkChat({
-        xpertId: fallbackXpertId,
-        input: text,
-        dingtalkMessage
-      })
     }
 
     await this.dingtalkChannel.errorMessage(
@@ -439,7 +587,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
         integrationId,
         chatId: options.chatId
       },
-      new Error('No xpertId configured for this DingTalk integration. Please configure xpertId first.')
+      new Error('No DingTalk trigger binding configured for this integration. Please link it through a trigger first.')
     )
     return null
   }
@@ -548,7 +696,8 @@ export class DingTalkConversationService implements OnModuleDestroy {
     }
 
     if (!this.userQueues.has(normalizedQueueKey)) {
-      const queue = new Bull<DingTalkConversationQueueJob>(`dingtalk:user:${normalizedQueueKey}`, {
+      const queueName = this.getUserQueueName(normalizedQueueKey)
+      const queue = new Bull<DingTalkConversationQueueJob>(queueName, {
         redis: this.getBullRedisConfig()
       })
 
@@ -598,7 +747,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
       })
 
       queue.on('error', (error) => {
-        this.logger.error(`Queue dingtalk:user:${normalizedQueueKey} error: ${error?.message || error}`)
+        this.logger.error(`Queue ${queueName} error: ${error?.message || error}`)
       })
 
       this.userQueues.set(normalizedQueueKey, queue)
@@ -663,9 +812,18 @@ export class DingTalkConversationService implements OnModuleDestroy {
       organizationId: ctx.organizationId
     })
 
-    const xpertId = normalizeConversationUserKey(ctx.integration.options?.xpertId)
+    const dingtalkTriggerStrategy = await this.getDingTalkTriggerStrategy()
+    const triggerBinding =
+      typeof dingtalkTriggerStrategy.getBinding === 'function'
+        ? await dingtalkTriggerStrategy.getBinding(ctx.integration.id)
+        : await this.triggerBindingRepository.findOne({
+            where: {
+              integrationId: ctx.integration.id
+            }
+          })
+    const xpertId = normalizeConversationUserKey(triggerBinding?.xpertId)
     if (!xpertId) {
-      this.logger.warn('No xpertId configured for integration')
+      this.logger.warn('No DingTalk trigger conversation binding configured for card action')
       return
     }
 
@@ -705,10 +863,15 @@ export class DingTalkConversationService implements OnModuleDestroy {
     )
   }
 
-  async onModuleDestroy() {
+  async closeQueues() {
     for (const queue of this.userQueues.values()) {
       await queue.close()
     }
+    this.userQueues.clear()
+  }
+
+  async onModuleDestroy() {
+    await this.closeQueues()
   }
 
   private extractInputText(options: ChatDingTalkContext<TDingTalkEvent>): string {
@@ -716,7 +879,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return options.input.trim()
     }
 
-    const message = options.message
+    const message = this.normalizeRecord(options.message)
     if (!message) {
       return ''
     }
@@ -725,19 +888,323 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return message.text.trim()
     }
 
-    const bodyMessage = message?.message as { content?: string } | undefined
-    if (bodyMessage?.content) {
-      try {
-        const parsed = JSON.parse(bodyMessage.content)
-        if (typeof parsed?.text === 'string') {
-          return parsed.text.trim()
-        }
-      } catch {
-        return bodyMessage.content
-      }
+    const contentText = this.extractContentText(message.content)
+    if (contentText) {
+      return contentText
+    }
+
+    const bodyMessage = this.normalizeRecord(message.message)
+    const nestedContentText = this.extractContentText(bodyMessage?.content)
+    if (nestedContentText) {
+      return nestedContentText
+    }
+
+    const richTextText = this.extractRichTextText(message.richText)
+    if (richTextText) {
+      return richTextText
     }
 
     return ''
+  }
+
+  private extractContentText(content: unknown): string | undefined {
+    if (typeof content === 'string') {
+      const parsedContent = this.safeJsonRecord(content)
+      if (parsedContent) {
+        return this.extractContentText(parsedContent)
+      }
+      return this.normalizeString(content)
+    }
+
+    const contentRecord = this.normalizeRecord(content)
+    if (!contentRecord) {
+      return undefined
+    }
+
+    const directText = this.normalizeString(contentRecord.text) ?? this.normalizeString(contentRecord.content)
+    if (directText) {
+      return directText
+    }
+
+    return this.extractRichTextText(contentRecord.richText)
+  }
+
+  private extractRichTextText(richText: unknown): string | undefined {
+    if (!Array.isArray(richText)) {
+      return undefined
+    }
+
+    const text = richText
+      .map((item) => {
+        const record = this.normalizeRecord(item)
+        if (!record) {
+          return ''
+        }
+        const itemType = this.resolveDingTalkMessageType(record, true)
+        if (itemType === 'image' || itemType === 'picture') {
+          return ''
+        }
+        return this.normalizeString(record.text) ?? (itemType === 'text' ? this.normalizeString(record.content) : '') ?? ''
+      })
+      .filter(Boolean)
+      .join('')
+      .trim()
+
+    return text || undefined
+  }
+
+  private async resolveInboundImageFiles(params: {
+    integrationId: string
+    message?: unknown
+  }): Promise<DingTalkInboundFile[]> {
+    const refs = this.extractInboundImageRefs(params.message)
+    if (!refs.length) {
+      return []
+    }
+
+    const client = await this.dingtalkChannel.getOrCreateDingTalkClientById(params.integrationId)
+    const files: DingTalkInboundFile[] = []
+    for (const ref of refs) {
+      const downloaded = await client.downloadMessageFile({
+        downloadCode: ref.downloadCode,
+        robotCode: ref.robotCode
+      })
+      const buffer = this.normalizeBuffer(downloaded?.buffer)
+      if (!buffer?.length) {
+        throw new Error(`DingTalk image file "${ref.downloadCode}" did not return content`)
+      }
+      if (buffer.length > DingTalkConversationService.maxInlineImageBytes) {
+        throw new Error(
+          `DingTalk image file "${ref.downloadCode}" is too large (${buffer.length} bytes). Maximum size is ${DingTalkConversationService.maxInlineImageBytes} bytes.`
+        )
+      }
+
+      const mimeType = this.detectImageMimeType(buffer) ?? this.normalizeImageMimeType(downloaded?.mimeType)
+      if (!mimeType) {
+        throw new Error(`DingTalk image file "${ref.downloadCode}" returned unsupported image content`)
+      }
+
+      files.push({
+        fileUrl: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        mimeType,
+        originalName: downloaded?.fileName || ref.fileName || `${ref.downloadCode}${this.resolveImageExtension(mimeType)}`,
+        fileKey: ref.downloadCode
+      })
+    }
+
+    return files
+  }
+
+  private extractInboundImageRefs(message: unknown): Array<{
+    downloadCode: string
+    fileName?: string
+    robotCode?: string
+  }> {
+    const payload = this.normalizeRecord(message)
+    if (!payload) {
+      return []
+    }
+
+    const msgType = this.resolveDingTalkMessageType(payload)
+    const content = this.normalizeRecord(payload.content) ?? this.safeJsonRecord(payload.content)
+    const nestedMessage = this.normalizeRecord(payload.message)
+    const nestedContent = this.normalizeRecord(nestedMessage?.content) ?? this.safeJsonRecord(nestedMessage?.content)
+    const refs: Array<{
+      downloadCode: string
+      fileName?: string
+      robotCode?: string
+    }> = []
+    const baseRecords = [payload, content, nestedContent].filter((item): item is Record<string, unknown> => Boolean(item))
+
+    if (msgType === 'image' || msgType === 'picture') {
+      const image =
+        this.normalizeRecord(payload.image) ??
+        this.normalizeRecord(content?.image) ??
+        this.normalizeRecord(nestedContent?.image)
+      const file =
+        this.normalizeRecord(payload.file) ??
+        this.normalizeRecord(content?.file) ??
+        this.normalizeRecord(nestedContent?.file)
+      const ref = this.extractInboundImageRef([content, nestedContent, image, file, payload], baseRecords)
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+
+    const richTextItems = [
+      ...(Array.isArray(payload.richText) ? payload.richText : []),
+      ...(Array.isArray(content?.richText) ? content.richText : []),
+      ...(Array.isArray(nestedContent?.richText) ? nestedContent.richText : [])
+    ]
+    for (const rawItem of richTextItems) {
+      const item = this.normalizeRecord(rawItem)
+      const itemType = this.resolveDingTalkMessageType(item, true)
+      if (itemType !== 'image' && itemType !== 'picture') {
+        continue
+      }
+
+      const image = this.normalizeRecord(item?.image)
+      const file = this.normalizeRecord(item?.file)
+      const ref = this.extractInboundImageRef([item, image, file, content, nestedContent, payload], baseRecords)
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+
+    const dedupedRefs = new Map<string, (typeof refs)[number]>()
+    for (const ref of refs) {
+      dedupedRefs.set(ref.downloadCode, ref)
+    }
+    return [...dedupedRefs.values()]
+  }
+
+  private extractInboundImageRef(
+    records: Array<Record<string, unknown> | null | undefined>,
+    baseRecords: Array<Record<string, unknown>>
+  ): {
+    downloadCode: string
+    fileName?: string
+    robotCode?: string
+  } | null {
+    const sourceRecords = records.filter((item): item is Record<string, unknown> => Boolean(item))
+    const downloadCode = this.firstNormalizedString(sourceRecords, [
+      'downloadCode',
+      'download_code',
+      'pictureDownloadCode',
+      'picture_download_code',
+      'downloadMediaCode',
+      'download_media_code'
+    ])
+    if (!downloadCode) {
+      return null
+    }
+
+    return {
+      downloadCode,
+      fileName: this.firstNormalizedString(sourceRecords, ['fileName', 'filename', 'name']),
+      robotCode: this.firstNormalizedString(baseRecords, ['robotCode', 'robot_code'])
+    }
+  }
+
+  private resolveDingTalkMessageType(record: Record<string, unknown> | null, includeTypeField = false): string | undefined {
+    if (!record) {
+      return undefined
+    }
+    return this.normalizeString(
+      record.msgType ??
+        record.msgtype ??
+        record.MsgType ??
+        record.messageType ??
+        record.MessageType ??
+        (includeTypeField ? record.type : undefined)
+    )?.toLowerCase()
+  }
+
+  private firstNormalizedString(records: Array<Record<string, unknown>>, keys: string[]): string | undefined {
+    for (const record of records) {
+      for (const key of keys) {
+        const value = this.normalizeString(record[key])
+        if (value) {
+          return value
+        }
+      }
+    }
+    return undefined
+  }
+
+  private safeJsonRecord(value: unknown): Record<string, unknown> | null {
+    if (typeof value !== 'string' || !value.trim()) {
+      return null
+    }
+    try {
+      return this.normalizeRecord(JSON.parse(value))
+    } catch {
+      return null
+    }
+  }
+
+  private normalizeRecord(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  }
+
+  private normalizeString(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined
+    }
+    const text = value.trim()
+    return text || undefined
+  }
+
+  private normalizeBuffer(value: unknown): Buffer | null {
+    if (Buffer.isBuffer(value)) {
+      return value
+    }
+    if (value instanceof ArrayBuffer) {
+      return Buffer.from(value)
+    }
+    if (ArrayBuffer.isView(value)) {
+      return Buffer.from(value.buffer, value.byteOffset, value.byteLength)
+    }
+    return null
+  }
+
+  private normalizeImageMimeType(value: unknown): DingTalkImageMimeType | null {
+    const mimeType = this.normalizeString(value)?.split(';')[0]?.trim().toLowerCase()
+    switch (mimeType) {
+      case 'image/png':
+      case 'image/jpeg':
+      case 'image/gif':
+      case 'image/webp':
+        return mimeType
+      default:
+        return null
+    }
+  }
+
+  private detectImageMimeType(buffer: Buffer): DingTalkImageMimeType | null {
+    if (
+      buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0d &&
+      buffer[5] === 0x0a &&
+      buffer[6] === 0x1a &&
+      buffer[7] === 0x0a
+    ) {
+      return 'image/png'
+    }
+    if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return 'image/jpeg'
+    }
+
+    const firstSixBytes = buffer.subarray(0, 6).toString('ascii')
+    if (firstSixBytes === 'GIF87a' || firstSixBytes === 'GIF89a') {
+      return 'image/gif'
+    }
+    if (
+      buffer.length >= 12 &&
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return 'image/webp'
+    }
+
+    return null
+  }
+
+  private resolveImageExtension(mimeType: DingTalkImageMimeType): string {
+    switch (mimeType) {
+      case 'image/jpeg':
+        return '.jpg'
+      case 'image/png':
+        return '.png'
+      case 'image/webp':
+        return '.webp'
+      case 'image/gif':
+        return '.gif'
+    }
   }
 
   private normalizeRequestUser(job: DingTalkConversationQueueJob): DingTalkRequestUser {
@@ -805,7 +1272,12 @@ export class DingTalkConversationService implements OnModuleDestroy {
     return null
   }
 
-  private resolveBindingContext(): {
+  private resolveBindingContext(context?: {
+    tenantId?: string | null
+    organizationId?: string | null
+    createdById?: string | null
+    updatedById?: string | null
+  }): {
     tenantId: string | null
     organizationId: string | null
     createdById: string | null
@@ -815,11 +1287,13 @@ export class DingTalkConversationService implements OnModuleDestroy {
     const organizationId = RequestContext.getOrganizationId()
     const userId = normalizeConversationUserKey(RequestContext.currentUserId())
     const executionUserId = userId && UUID_PATTERN.test(userId) ? userId : null
+    const contextCreatedById = this.normalizeExecutionUserIdField(context?.createdById)
+    const contextUpdatedById = this.normalizeExecutionUserIdField(context?.updatedById)
     return {
-      tenantId: tenantId ?? null,
-      organizationId: organizationId ?? null,
-      createdById: executionUserId,
-      updatedById: executionUserId
+      tenantId: tenantId ?? this.normalizeBindingContextField(context?.tenantId) ?? null,
+      organizationId: organizationId ?? this.normalizeBindingContextField(context?.organizationId) ?? null,
+      createdById: executionUserId ?? contextCreatedById ?? null,
+      updatedById: executionUserId ?? contextUpdatedById ?? contextCreatedById ?? null
     }
   }
 
@@ -845,13 +1319,49 @@ export class DingTalkConversationService implements OnModuleDestroy {
     return normalized
   }
 
+  private normalizeDate(value: unknown): Date | undefined {
+    if (!value) {
+      return undefined
+    }
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? undefined : value
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const date = new Date(value)
+      return Number.isNaN(date.getTime()) ? undefined : date
+    }
+    return undefined
+  }
+
+  private resolveSessionTimeoutMs(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value) * 1000
+    }
+    return 3600 * 1000
+  }
+
+  private isConversationExpired(lastActiveAt: Date | undefined, sessionTimeoutMs: number): boolean {
+    if (!lastActiveAt) {
+      return false
+    }
+    return Date.now() - lastActiveAt.getTime() > sessionTimeoutMs
+  }
+
   private async cacheConversation(
     conversationUserKey: string,
     xpertId: string,
-    conversationId: string
+    conversationId: string,
+    lastActiveAt?: Date | null
   ): Promise<void> {
     const key = this.getConversationCacheKey(conversationUserKey, xpertId)
-    await this.cacheManager.set(key, conversationId, CACHE_TTL_MS)
+    await this.cacheManager.set(
+      key,
+      {
+        conversationId,
+        lastActiveAt: lastActiveAt?.toISOString()
+      },
+      CACHE_TTL_MS
+    )
   }
 
   private async dispatchToDingTalkChat(payload: DispatchDingTalkChatPayload): Promise<ChatDingTalkMessage> {
@@ -871,6 +1381,10 @@ export class DingTalkConversationService implements OnModuleDestroy {
 
   private getActiveMessageCacheKey(conversationUserKey: string, xpertId: string): string {
     return `${this.getConversationCacheKey(conversationUserKey, xpertId)}:active-message`
+  }
+
+  private getUserQueueName(normalizedQueueKey: string): string {
+    return `dingtalk:user:${this.queueNamespace}:${normalizedQueueKey}`
   }
 
   private async replyActionSessionTimedOut(chatContext: ChatDingTalkContext): Promise<void> {

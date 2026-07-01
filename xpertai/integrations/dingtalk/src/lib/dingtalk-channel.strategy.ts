@@ -17,7 +17,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { type Cache } from 'cache-manager'
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { DINGTALK_PLUGIN_CONTEXT } from './tokens.js'
 import {
   buildEventDedupeKey,
@@ -75,8 +75,6 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         clientId: { type: 'string', description: 'DingTalk app key (client id)' },
         clientSecret: { type: 'string', description: 'DingTalk app secret' },
         robotCode: { type: 'string', description: 'DingTalk robot code for send APIs' },
-        xpertId: { type: 'string', description: 'Fallback xpert id when trigger binding is not configured' },
-        httpCallbackEnabled: { type: 'boolean' },
         callbackToken: { type: 'string', description: 'HTTP callback signature token' },
         callbackAesKey: { type: 'string', description: 'HTTP callback AES key' },
         appKey: { type: 'string', description: 'DingTalk appKey for callback payload' }
@@ -312,6 +310,12 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
 
     const senderName = payload?.senderNick || payload?.senderName || payload?.sender?.nick || payload?.sender?.name
     const robotCode = typeof payload?.robotCode === 'string' ? payload.robotCode : undefined
+    const msgType =
+      payload?.msgType ||
+      payload?.msgtype ||
+      payload?.MsgType ||
+      payload?.messageType ||
+      payload?.MessageType
     const cardActionValue = payload?.actionCallback?.value || payload?.value
     const isCardAction =
       eventType === 'chatbot_card_callback' ||
@@ -341,27 +345,50 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       }
     }
 
-    const textFromRichText = Array.isArray(payload?.richText)
-      ? payload.richText
-          .map((item: any) => (typeof item?.text === 'string' ? item.text : ''))
-          .filter(Boolean)
-          .join('')
-      : ''
+    const textFromRichTextItems = (items: unknown) =>
+      Array.isArray(items)
+        ? items
+            .map((item: any) => {
+              const itemType = String(item?.type ?? item?.msgType ?? item?.msgtype ?? '').toLowerCase()
+              if (itemType === 'picture' || itemType === 'image') {
+                return ''
+              }
+              return typeof item?.text === 'string' ? item.text : ''
+            })
+            .filter(Boolean)
+            .join('')
+        : ''
+
+    const parsedContent =
+      typeof payload?.content === 'string'
+        ? (() => {
+            try {
+              const value = JSON.parse(payload.content)
+              return value && typeof value === 'object' && !Array.isArray(value) ? value : null
+            } catch {
+              return null
+            }
+          })()
+        : null
+    const contentRecord =
+      typeof payload?.content === 'object' && payload?.content && !Array.isArray(payload.content)
+        ? payload.content
+        : parsedContent
+
+    const textFromRichText = textFromRichTextItems(payload?.richText) || textFromRichTextItems(contentRecord?.richText)
 
     const textFromContentObject =
-      typeof payload?.content === 'object' && payload?.content
-        ? payload.content?.text || payload.content?.content || ''
-        : ''
+      contentRecord ? contentRecord?.text || contentRecord?.content || '' : ''
 
     let textFromContentString = ''
     if (typeof payload?.content === 'string') {
-      try {
-        const parsedContent = JSON.parse(payload.content)
+      if (parsedContent) {
         textFromContentString =
           (typeof parsedContent?.text === 'string' && parsedContent.text) ||
           (typeof parsedContent?.content === 'string' && parsedContent.content) ||
+          textFromRichTextItems(parsedContent?.richText) ||
           ''
-      } catch {
+      } else {
         textFromContentString = payload.content
       }
     }
@@ -393,6 +420,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       eventType,
       eventId,
       timestamp,
+      msgType,
       text: text ? String(text) : '',
       chatId: conversationId,
       conversationId,
@@ -401,6 +429,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       isInAtList: payload?.isInAtList === true,
       senderId,
       senderName,
+      content: payload?.content,
       sessionWebhook: payload?.sessionWebhook,
       sessionWebhookExpiredTime,
       mentions,
@@ -423,6 +452,8 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         ? 'group'
         : 'private'
 
+    const msgType = String(event.msgType || raw?.msgType || raw?.msgtype || raw?.MsgType || raw?.messageType || '').toLowerCase()
+
     return {
       messageId: event.eventId || `${Date.now()}`,
       chatId: event.chatId || event.conversationId,
@@ -430,7 +461,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       senderId: event.senderId,
       senderName: event.senderName,
       content: event.text || '',
-      contentType: 'text',
+      contentType: msgType === 'image' || msgType === 'picture' ? 'image' : 'text',
       mentions: event.mentions,
       timestamp: Number(event.timestamp || Date.now()),
       raw: event.raw || event

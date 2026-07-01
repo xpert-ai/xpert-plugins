@@ -1,4 +1,4 @@
-import type { I18nObject, IDocumentSourceProvider, IIntegration } from '@metad/contracts'
+import type { I18nObject, IDocumentSourceProvider, IIntegration } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { DocumentSourceStrategy } from '@xpert-ai/plugin-sdk'
 import type { IDocumentSourceStrategy, IntegrationPermission } from '@xpert-ai/plugin-sdk'

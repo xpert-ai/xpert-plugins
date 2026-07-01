@@ -1,4 +1,4 @@
-import type { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import { LarkClient } from './lark.client.js'
 import { LarkSourceStrategy, normalizeLarkDocxToken } from './source.strategy.js'
 

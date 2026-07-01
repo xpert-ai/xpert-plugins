@@ -106,6 +106,9 @@ describe('WeComLongConnectionService', () => {
     const conversationService = {
       handleMessage: jest.fn().mockResolvedValue(undefined)
     }
+    const conversationBindingSchemaService = {
+      ensureSchema: jest.fn().mockResolvedValue(undefined)
+    }
     const wecomChannel = {
       createEventHandler: jest.fn((_ctx, handlers) => async (req, res) => {
         const body = req.body as Record<string, any>
@@ -128,7 +131,8 @@ describe('WeComLongConnectionService', () => {
       pluginContext as any,
       wecomChannel as any as WeComChannelStrategy,
       conversationService as any as WeComConversationService,
-      triggerBindingRepository as any
+      triggerBindingRepository as any,
+      conversationBindingSchemaService as any
     )
 
     return {
@@ -138,12 +142,23 @@ describe('WeComLongConnectionService', () => {
       integration,
       triggerBindingRepository,
       wecomChannel,
-      conversationService
+      conversationService,
+      conversationBindingSchemaService
     }
   }
 
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  it('ensures conversation binding schema before bootstrapping sessions', async () => {
+    const { service, conversationBindingSchemaService } = createFixture({
+      integration: createIntegration({ enabled: false })
+    })
+
+    await service.onModuleInit()
+
+    expect(conversationBindingSchemaService.ensureSchema).toHaveBeenCalledTimes(1)
   })
 
   it('disconnect persists manual disconnect runtime status in redis', async () => {

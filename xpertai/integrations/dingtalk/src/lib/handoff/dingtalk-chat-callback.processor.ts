@@ -31,7 +31,7 @@ import {
 } from './dingtalk-chat.types.js'
 import { DingTalkChatRunState, DingTalkChatRunStateService } from './dingtalk-chat-run-state.service.js'
 import { DingTalkCardElement, DingTalkStructuredElement } from '../types.js'
-import { messageContentText, XpertAgentExecutionStatusEnum } from '@metad/contracts'
+import { messageContentText, XpertAgentExecutionStatusEnum } from '@xpert-ai/contracts'
 
 /**
  * Callback processor for DingTalk stream events.
@@ -214,18 +214,19 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		)
 
 		if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
-			const rawTextDelta = messageContentText(eventPayload.data)
-			const textDelta = this.normalizeStreamText(rawTextDelta)
+			const messageData = eventPayload.data
+			const structuredMessageData = this.toRecord(messageData)
+			const textDelta = this.extractMessageTextDelta(messageData)
 
 			if (textDelta) {
 				state.responseMessageContent += textDelta
 				this.appendStreamTextDelta(state, textDelta)
 			}
 
-			if (typeof eventPayload.data !== 'string') {
-				if (eventPayload.data?.type === 'update') {
+			if (typeof messageData !== 'string') {
+				if (structuredMessageData?.type === 'update') {
 					const message = ensureDingTalkMessage()
-					const updatePayload = eventPayload.data.data as Record<string, unknown> | undefined
+					const updatePayload = this.toRecord(structuredMessageData.data)
 					const structuredElements = this.extractStructuredElements(updatePayload?.elements)
 					if (structuredElements.length > 0) {
 						this.appendStructuredElements(state, structuredElements)
@@ -242,7 +243,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 					context.message = this.toMessageSnapshot(message, context.message?.text)
 					await this.syncActiveMessageCache(context)
 					return
-				} else if (eventPayload.data?.type !== 'text') {
+				} else if (!this.isKnownMessagePayloadType(structuredMessageData?.type)) {
 					this.logger.warn('Unprocessed chat message event payload')
 				}
 			}
@@ -279,11 +280,20 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		switch (eventPayload.event) {
 			case ChatMessageEventTypeEnum.ON_CONVERSATION_START: {
 				const conversationUserKey = this.resolveConversationUserKey(context)
-				if (conversationUserKey) {
+				const eventData = this.toRecord(eventPayload.data)
+				const conversationId = this.toNonEmptyString(eventData?.id)
+				if (conversationUserKey && conversationId) {
 					await this.conversationService.setConversation(
 						conversationUserKey,
 						context.xpertId,
-						eventPayload.data.id
+						conversationId,
+						new Date(),
+						{
+							tenantId: context.tenantId,
+							organizationId: context.organizationId,
+							createdById: context.userId,
+							updatedById: context.userId
+						}
 					)
 				}
 				break
@@ -627,18 +637,47 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		return text.length ? text : null
 	}
 
+	private toStringValue(value: unknown): string | null {
+		return typeof value === 'string' ? value : null
+	}
+
+	private extractMessageTextDelta(value: unknown): string {
+		try {
+			const contractText = this.normalizeStreamText(messageContentText(value as never))
+			if (contractText) {
+				return contractText
+			}
+		} catch {
+			// Older callback payloads may not match the shared message content contract.
+		}
+
+		const record = this.toRecord(value)
+		const type = this.toNonEmptyString(record?.type)
+		if (type !== 'text' && type !== 'text_delta') {
+			return ''
+		}
+
+		return this.normalizeStreamText(
+			this.toStringValue(record?.text) ??
+				this.toStringValue(record?.delta) ??
+				this.toStringValue(record?.content)
+		)
+	}
+
+	private isKnownMessagePayloadType(value: unknown): boolean {
+		const type = this.toNonEmptyString(value)
+		return type === 'text' || type === 'text_delta' || type === 'update' || type === 'reasoning' || type === 'component'
+	}
+
 	private normalizeStreamText(value: string | null | undefined): string {
 		if (typeof value !== 'string') {
 			return ''
 		}
 
-		const normalized = value
-			.replace(/\r/g, '')
-			.split('\n')
-			.filter((line) => !this.isPlaceholderText(line))
-			.join('\n')
-			.trim()
-		if (!normalized) {
+		const lines = value.replace(/\r/g, '').split('\n')
+		const hasPlaceholder = lines.some((line) => this.isPlaceholderText(line))
+		const normalized = lines.filter((line) => !this.isPlaceholderText(line)).join('\n')
+		if (hasPlaceholder && !normalized.trim()) {
 			return ''
 		}
 		return normalized

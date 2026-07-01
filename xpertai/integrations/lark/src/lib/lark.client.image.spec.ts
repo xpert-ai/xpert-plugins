@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream'
-import type { IIntegration } from '@metad/contracts'
+import type { IIntegration } from '@xpert-ai/contracts'
 import type { XpFileSystem } from '@xpert-ai/plugin-sdk'
 import { LarkClient } from './lark.client.js'
 import type { TLarkIntegrationConfig } from './types.js'

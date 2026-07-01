@@ -3,6 +3,9 @@ import {
   computeDingTalkSignature,
   decryptDingTalkEncrypt,
   encryptDingTalkMessage,
+  INTEGRATION_DINGTALK_LONG,
+  resolveDingTalkConnectionMode,
+  resolveDingTalkHttpCallbackEnabled,
   verifyDingTalkSignature
 } from './types.js'
 
@@ -31,6 +34,16 @@ function encryptDingTalkPayload(params: {
 }
 
 describe('dingtalk callback helpers', () => {
+  it('derives HTTP callback enablement from connection mode defaults', () => {
+    expect(resolveDingTalkHttpCallbackEnabled({})).toBe(true)
+    expect(resolveDingTalkHttpCallbackEnabled({ connectionMode: 'webhook' })).toBe(true)
+    expect(resolveDingTalkHttpCallbackEnabled({ connectionMode: 'webhook', httpCallbackEnabled: false })).toBe(false)
+    expect(resolveDingTalkHttpCallbackEnabled({ connectionMode: 'long_connection' })).toBe(false)
+    expect(resolveDingTalkHttpCallbackEnabled({ connectionMode: 'long_connection', httpCallbackEnabled: true })).toBe(false)
+    expect(resolveDingTalkConnectionMode({}, INTEGRATION_DINGTALK_LONG)).toBe('long_connection')
+    expect(resolveDingTalkHttpCallbackEnabled({}, INTEGRATION_DINGTALK_LONG)).toBe(false)
+  })
+
   it('verifies callback signature', () => {
     const token = 'token'
     const timestamp = '1730000000'

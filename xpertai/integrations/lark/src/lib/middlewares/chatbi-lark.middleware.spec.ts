@@ -1,6 +1,6 @@
 import { ToolMessage } from '@langchain/core/messages'
 import { Command } from '@langchain/langgraph'
-import { ChatMessageTypeEnum } from '@metad/contracts'
+import { ChatMessageTypeEnum } from '@xpert-ai/contracts'
 import { ENTITY_TYPE_SALESORDER } from '@metad/ocap-core'
 import { ANALYTICS_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
 import { NEVER, of } from 'rxjs'

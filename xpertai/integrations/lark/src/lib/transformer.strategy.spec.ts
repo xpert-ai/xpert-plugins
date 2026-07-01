@@ -1,4 +1,4 @@
-import type { IIntegration, IKnowledgeDocument } from '@metad/contracts'
+import type { IIntegration, IKnowledgeDocument } from '@xpert-ai/contracts'
 import type { TDocumentTransformerConfig } from '@xpert-ai/plugin-sdk'
 import { LarkClient } from './lark.client.js'
 import { LarkDocTransformerStrategy } from './transformer.strategy.js'

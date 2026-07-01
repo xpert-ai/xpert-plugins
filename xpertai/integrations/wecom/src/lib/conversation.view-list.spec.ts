@@ -48,6 +48,7 @@ describe('WeComConversationService view lists', () => {
 
     const service = new WeComConversationService(
       {} as any,
+      {} as any,
       { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any,
       conversationBindingRepository as any,
       { resolve: jest.fn() } as any

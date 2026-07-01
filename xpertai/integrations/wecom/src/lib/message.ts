@@ -1,5 +1,5 @@
 import { Serializable } from '@langchain/core/load/serializable'
-import { IChatMessage } from '@metad/contracts'
+import { IChatMessage } from '@xpert-ai/contracts'
 import { Logger } from '@nestjs/common'
 import type { WeComChannelStrategy } from './wecom-channel.strategy.js'
 import { buildWeComRestartConversationCard } from './wecom-conversation-action-card.js'

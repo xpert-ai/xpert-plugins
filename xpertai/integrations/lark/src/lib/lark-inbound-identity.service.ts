@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk'
-import type { IIntegration, IUser } from '@metad/contracts'
+import type { IIntegration, IUser } from '@xpert-ai/contracts'
 import {
 	getErrorMessage,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,

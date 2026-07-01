@@ -22,6 +22,8 @@ export type TLarkTriggerConfig = {
 	groupUserScope: TLarkGroupUserScope
 	groupUserOpenIds: string[]
 	groupReplyStrategy: TLarkGroupReplyStrategy
+	sessionTimeoutSeconds: number
+	summaryWindowSeconds: number
 }
 
 export const DEFAULT_LARK_TRIGGER_CONFIG: Omit<TLarkTriggerConfig, 'integrationId'> = {
@@ -34,5 +36,7 @@ export const DEFAULT_LARK_TRIGGER_CONFIG: Omit<TLarkTriggerConfig, 'integrationI
 	allowedGroupChatIds: [],
 	groupUserScope: 'all_users',
 	groupUserOpenIds: [],
-	groupReplyStrategy: 'mention_only'
+	groupReplyStrategy: 'mention_only',
+	sessionTimeoutSeconds: 3600,
+	summaryWindowSeconds: 0
 }

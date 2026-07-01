@@ -5,7 +5,8 @@ DingTalk integration plugin for Xpert AI platform.
 ## Features
 
 - Bidirectional messaging with DingTalk
-- HTTP webhook event handling (messages, mentions, card actions)
+- Recommended Stream Mode provider for DingTalk event handling (robot messages, card actions)
+- Optional HTTP Mode provider for HTTP callback event handling (messages, mentions, card actions)
 - HTTP callback signature verification + AES decrypt
 - Encrypted callback ACK response (`msg_signature + encrypt + timeStamp + nonce`)
 - Outbound text/markdown/interactive card message sending
@@ -27,18 +28,35 @@ This plugin is loaded automatically when placed in the plugins directory.
 
 ## Configuration
 
-Configure integration options in admin panel:
+Choose one of the DingTalk integration providers in the admin panel:
+
+- `DingTalk (Stream Mode)` / `钉钉-Stream模式`: recommended mode. It does not require a public HTTP callback URL.
+- `DingTalk (HTTP Mode)` / `钉钉-HTTP模式`: optional HTTP callback mode.
+
+Stream Mode options:
 
 - `clientId` (AppKey)
 - `clientSecret`
 - `robotCode` (required for group/user proactive send APIs)
-- `xpertId`
 - `preferLanguage`
-- `httpCallbackEnabled` (must be `true` in v1)
-- `callbackToken`
-- `callbackAesKey`
+
+HTTP Mode options:
+
+- `clientId` (AppKey)
+- `clientSecret`
+- `robotCode` (required for group/user proactive send APIs)
+- `preferLanguage`
+- `callbackToken` (required in HTTP callback mode)
+- `callbackAesKey` (required in HTTP callback mode)
 - `appKey` (optional alias for callback decrypt validation, defaults to `clientId`)
 - `webhookAccessToken` / `webhookSignSecret` (optional fallback path)
+
+DingTalk integrations are linked to a digital expert through the DingTalk trigger binding, not through an integration-level `xpertId`.
+
+For Stream Mode, enable Stream Mode for the DingTalk robot in the DingTalk developer console. The plugin subscribes to:
+
+- `/v1.0/im/bot/messages/get`
+- `/v1.0/card/instances/callback`
 
 ## Webhook URL
 
@@ -118,6 +136,7 @@ In Xpert integration settings, click "Test" to validate credentials and get `web
 - OAuth login is not included in v1.
 - AI interactive card (`ai_card`) is intentionally removed from plugin v1 scope.
 - Use `interactive` mode in `dingtalk_send_rich_notification` for URL button cards.
+- Existing HTTP callback integrations keep working through the `dingtalk` HTTP Mode provider.
 
 ## License
 

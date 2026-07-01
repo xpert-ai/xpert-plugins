@@ -1,10 +1,13 @@
-import { IIntegration, TIntegrationProvider } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import {
   iconImage,
   INTEGRATION_WECOM_LONG,
-  TIntegrationWeComLongOptions
+  TIntegrationWeComLongOptions,
+  TWeComIntegrationProvider,
+  WECOM_APP_CREDENTIALS_HELP_URL,
+  WECOM_BOT_CREDENTIALS_HELP_LABEL
 } from './types.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
 
@@ -15,7 +18,7 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
 
   constructor(private readonly longConnection: WeComLongConnectionService) {}
 
-  readonly meta: TIntegrationProvider = {
+  readonly meta: TWeComIntegrationProvider = {
     name: INTEGRATION_WECOM_LONG,
     label: {
       en_US: 'WeCom (Long Connection)',
@@ -30,6 +33,8 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       zh_Hans: '企业微信智能机器人 WebSocket 长连接模式（aibot_subscribe / aibot_msg_callback）。'
     },
     webhook: false,
+    helpUrl: WECOM_APP_CREDENTIALS_HELP_URL,
+    helpLabel: WECOM_BOT_CREDENTIALS_HELP_LABEL,
     schema: {
       type: 'object',
       properties: {

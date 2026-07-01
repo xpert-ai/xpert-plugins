@@ -1,5 +1,5 @@
 import { Serializable } from '@langchain/core/load/serializable'
-import type { I18nObject, IChatMessage, TSensitiveOperation } from '@metad/contracts'
+import type { I18nObject, IChatMessage, TSensitiveOperation } from '@xpert-ai/contracts'
 import { Logger } from '@nestjs/common'
 import { XpertAgentExecutionStatusEnum } from './contracts-compat.js'
 import type {

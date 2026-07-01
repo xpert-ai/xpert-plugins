@@ -8,7 +8,7 @@ import {
 } from 'typeorm'
 
 @Entity(WeComConversationBindingEntity.tableName)
-@Index('plugin_wecom_conversation_binding_user_id_uq', ['userId'], { unique: true })
+@Index('plugin_wecom_conversation_binding_user_id_idx', ['userId'])
 @Index('plugin_wecom_conversation_binding_user_key_xpert_uq', ['conversationUserKey', 'xpertId'], {
   unique: true
 })
