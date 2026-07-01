@@ -1,24 +1,38 @@
-import { Logger } from '@nestjs/common'
-import { Processor, WorkerHost } from '@nestjs/bullmq'
-import type { Job } from 'bullmq'
-import { WECHAT_OUTBOUND_QUEUE_NAME } from './constants.js'
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import {
+  PluginJobProcessor,
+  type ManagedQueueJob,
+  type PluginContext
+} from '@xpert-ai/plugin-sdk'
+import {
+  WECHAT_OUTBOUND_QUEUE_NAME,
+  WECHAT_OUTBOUND_SEND_TEXT_JOB,
+  WECHAT_PLUGIN_NAME
+} from './constants.js'
+import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 import {
   WechatOutboundQueueJobData,
   WechatOutboundQueueService
 } from './wechat-outbound-queue.service.js'
 
-@Processor(WECHAT_OUTBOUND_QUEUE_NAME, {
-  concurrency: 1,
-  autorun: process.env.WECHAT_OUTBOUND_QUEUE_AUTORUN !== 'false'
+/** Platform managed queue handler. */
+@PluginJobProcessor({
+  pluginName: WECHAT_PLUGIN_NAME,
+  queueName: WECHAT_OUTBOUND_QUEUE_NAME,
+  jobName: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+  concurrency: 1
 })
-export class WechatOutboundQueueProcessor extends WorkerHost {
+@Injectable()
+export class WechatOutboundQueueProcessor {
   private readonly logger = new Logger(WechatOutboundQueueProcessor.name)
 
-  constructor(private readonly queueService: WechatOutboundQueueService) {
-    super()
-  }
+  constructor(
+    private readonly queueService: WechatOutboundQueueService,
+    @Inject(WECHAT_PLUGIN_CONTEXT)
+    private readonly pluginContext: PluginContext
+  ) {}
 
-  async process(job: Job<WechatOutboundQueueJobData>): Promise<void> {
+  async handle(job: ManagedQueueJob<WechatOutboundQueueJobData>): Promise<void> {
     try {
       await this.queueService.processSendTextJob(job)
     } catch (error) {
@@ -30,5 +44,14 @@ export class WechatOutboundQueueProcessor extends WorkerHost {
       )
       throw error
     }
+  }
+
+  /** Backward-compatible alias for callers that still invoke process directly. */
+  async process(job: ManagedQueueJob<WechatOutboundQueueJobData>): Promise<void> {
+    return this.handle(job)
+  }
+
+  get scopeKey(): string | null {
+    return (this.pluginContext as { scopeKey?: string | null }).scopeKey ?? null
   }
 }

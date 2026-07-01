@@ -1,17 +1,20 @@
 import { randomUUID } from 'crypto'
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { InjectQueue } from '@nestjs/bullmq'
 import { InjectRepository } from '@nestjs/typeorm'
 import { IIntegration } from '@xpert-ai/contracts'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
+  MANAGED_QUEUE_SERVICE_TOKEN,
+  type ManagedQueueJob,
+  type ManagedQueueRedis,
+  type ManagedQueueService,
   RequestContext,
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { In, Repository } from 'typeorm'
-import type { Job, Queue } from 'bullmq'
 import {
+  WECHAT_PLUGIN_NAME,
   WECHAT_OUTBOUND_QUEUE_NAME,
   WECHAT_OUTBOUND_SEND_TEXT_JOB,
   WECHAT_PROVIDER_KEY
@@ -108,15 +111,7 @@ type WechatResolvedQueuedPayload =
       imageUrl: string
     }
 
-type RedisLike = {
-  get(key: string): Promise<string | null>
-  set(key: string, value: string, mode?: string, ttlMode?: string | number, ttlOrMode?: number | string): Promise<string | null>
-  del(...keys: string[]): Promise<number>
-  incr(key: string): Promise<number>
-  expire(key: string, seconds: number): Promise<number>
-  ttl(key: string): Promise<number>
-  eval(script: string, numKeys: number, ...args: Array<string | number>): Promise<unknown>
-}
+type RedisLike = ManagedQueueRedis
 
 type NormalizedOutboundQueueOptions = {
   enabled: boolean
@@ -153,12 +148,11 @@ const DEFAULT_BACKOFF_MS = [60_000, 300_000, 900_000]
 @Injectable()
 export class WechatOutboundQueueService {
   private readonly logger = new Logger(WechatOutboundQueueService.name)
-  private _integrationPermissionService: IntegrationPermissionService
+  private _integrationPermissionService?: IntegrationPermissionService
+  private _managedQueueService?: ManagedQueueService
 
   constructor(
     private readonly client: WechatClient,
-    @InjectQueue(WECHAT_OUTBOUND_QUEUE_NAME)
-    private readonly outboundQueue: Queue<WechatOutboundQueueJobData>,
     @InjectRepository(WechatAccountEntity)
     private readonly accountRepository: Repository<WechatAccountEntity>,
     @InjectRepository(WechatMessageLogEntity)
@@ -172,6 +166,13 @@ export class WechatOutboundQueueService {
       this._integrationPermissionService = this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
     }
     return this._integrationPermissionService
+  }
+
+  private get managedQueueService(): ManagedQueueService {
+    if (!this._managedQueueService) {
+      this._managedQueueService = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN)
+    }
+    return this._managedQueueService
   }
 
   async enqueueText(
@@ -282,7 +283,7 @@ export class WechatOutboundQueueService {
     await this.messageLogRepository.update(
       this.scopedWhere({ id: log.id }, scope),
       {
-        queueJobId: String(job.id),
+        queueJobId: job.id,
         scheduledAt
       }
     )
@@ -290,13 +291,13 @@ export class WechatOutboundQueueService {
     return {
       success: true,
       queued: true,
-      queueJobId: String(job.id),
+      queueJobId: job.id,
       outboundLogId: log.id,
       scheduledAt: scheduledAt.toISOString()
     }
   }
 
-  async processSendTextJob(job: Job<WechatOutboundQueueJobData>): Promise<void> {
+  async processSendTextJob(job: ManagedQueueJob<WechatOutboundQueueJobData>): Promise<void> {
     const data = job.data || ({} as WechatOutboundQueueJobData)
     const integration = await this.readIntegration(data.integrationId)
     if (!integration) {
@@ -322,7 +323,7 @@ export class WechatOutboundQueueService {
     }
 
     const options = this.resolveOptions(integration.options?.outboundQueue, integration.options)
-    const paused = await this.resolvePausedReason(integration.id, log.uuid, log.contactId)
+    const paused = await this.resolvePausedReason(integration.id, log.uuid, log.contactId, scope)
     if (paused) {
       await this.updateLog(log, {
         status: 'paused',
@@ -348,7 +349,7 @@ export class WechatOutboundQueueService {
       return
     }
 
-    const delayMs = await this.resolveNextDelay(integration.id, log.uuid, log.contactId, options)
+    const delayMs = await this.resolveNextDelay(integration.id, log.uuid, log.contactId, options, scope)
     if (delayMs > 0) {
       await this.deferLog(log, delayMs, options, 'rate_limited')
       return
@@ -359,9 +360,9 @@ export class WechatOutboundQueueService {
       normalizeTimeoutMs(integration.options?.timeoutMs) +
         Math.max(options.globalMinIntervalMs, options.perAccountMinIntervalMs, options.perContactMinIntervalMs)
     )
-    const globalLockKey = this.globalLockKey()
-    const accountLockKey = this.accountLockKey(integration.id, log.uuid)
-    const contactLockKey = this.contactLockKey(integration.id, log.uuid, log.contactId)
+    const globalLockKey = this.globalLockKey(integration.id, scope.tenantId)
+    const accountLockKey = this.accountLockKey(integration.id, log.uuid, scope.tenantId)
+    const contactLockKey = this.contactLockKey(integration.id, log.uuid, log.contactId, scope.tenantId)
     const token = randomUUID()
     const acquiredGlobal = await this.acquireLock(globalLockKey, token, lockTtlMs)
     const acquiredAccount = acquiredGlobal ? await this.acquireLock(accountLockKey, token, lockTtlMs) : false
@@ -407,7 +408,7 @@ export class WechatOutboundQueueService {
     }
   }
 
-  async handleJobFailure(job: Job<WechatOutboundQueueJobData>, error: unknown): Promise<void> {
+  async handleJobFailure(job: ManagedQueueJob<WechatOutboundQueueJobData>, error: unknown): Promise<void> {
     const data = job.data || ({} as WechatOutboundQueueJobData)
     const integration = await this.readIntegration(data.integrationId)
     if (!integration) {
@@ -438,7 +439,7 @@ export class WechatOutboundQueueService {
     })
 
     if (isFinalAttempt) {
-      await this.recordFailure(integration.id, log.uuid, log.contactId, options)
+      await this.recordFailure(integration.id, log.uuid, log.contactId, options, scope)
       await this.accountRepository.update(
         this.scopedWhere({ integrationId: integration.id, uuid: log.uuid }, scope),
         {
@@ -471,10 +472,7 @@ export class WechatOutboundQueueService {
       return { success: false, message: '只有 queued/deferred/paused 状态的出站消息可以取消。', item: log }
     }
     if (log.queueJobId) {
-      const job = await this.outboundQueue.getJob(log.queueJobId)
-      if (job) {
-        await job.remove().catch(() => undefined)
-      }
+      await this.managedQueueService.cancel({ jobId: log.queueJobId }).catch(() => undefined)
     }
     await this.updateLog(log, {
       status: 'cancelled',
@@ -509,11 +507,11 @@ export class WechatOutboundQueueService {
     const job = await this.addSendJob(log, scheduledAt, options)
     await this.updateLog(log, {
       status: 'queued',
-      queueJobId: String(job.id),
+      queueJobId: job.id,
       scheduledAt,
       error: null
     })
-    return { success: true, item: log, queueJobId: String(job.id) }
+    return { success: true, item: log, queueJobId: job.id }
   }
 
   async pauseOutboundAccount(integrationId: string, uuid: string): Promise<void> {
@@ -522,9 +520,9 @@ export class WechatOutboundQueueService {
     if (!normalizedIntegrationId || !normalizedUuid) {
       throw new Error('缺少微信账号标识。')
     }
-    await (await this.getRedis()).set(this.accountPausedKey(normalizedIntegrationId, normalizedUuid), 'manual')
     const integration = await this.readIntegration(normalizedIntegrationId)
     const scope = integration ? this.resolveTenantScope(integration) : undefined
+    await (await this.getRedis()).set(this.accountPausedKey(normalizedIntegrationId, normalizedUuid, scope?.tenantId), 'manual')
     await this.messageLogRepository.update(
       this.scopedWhere(
         {
@@ -548,12 +546,12 @@ export class WechatOutboundQueueService {
       throw new Error('缺少微信账号标识。')
     }
     const redis = await this.getRedis()
-    await redis.del(this.accountPausedKey(normalizedIntegrationId, normalizedUuid))
     const integration = await this.readIntegration(normalizedIntegrationId)
     if (!integration) {
       return 0
     }
     const scope = this.resolveTenantScope(integration)
+    await redis.del(this.accountPausedKey(normalizedIntegrationId, normalizedUuid, scope.tenantId))
     const options = this.resolveOptions(integration.options?.outboundQueue, integration.options)
     const logs = await this.messageLogRepository.find({
       where: this.scopedWhere(
@@ -576,7 +574,7 @@ export class WechatOutboundQueueService {
       const job = await this.addSendJob(log, scheduledAt, options)
       await this.updateLog(log, {
         status: 'queued',
-        queueJobId: String(job.id),
+        queueJobId: job.id,
         scheduledAt,
         error: null
       })
@@ -592,7 +590,7 @@ export class WechatOutboundQueueService {
     options: NormalizedOutboundQueueOptions,
     scope: { tenantId?: string | null; organizationId?: string | null }
   ): Promise<WechatQueuedSendResult | null> {
-    const paused = await this.resolvePausedReason(integrationId, uuid, contactId)
+    const paused = await this.resolvePausedReason(integrationId, uuid, contactId, scope)
     if (paused) {
       return {
         success: false,
@@ -651,35 +649,39 @@ export class WechatOutboundQueueService {
     log: WechatMessageLogEntity,
     scheduledAt: Date,
     options: NormalizedOutboundQueueOptions
-  ): Promise<Job<WechatOutboundQueueJobData>> {
+  ): Promise<{ id: string }> {
     const delay = Math.max(0, scheduledAt.getTime() - Date.now())
     const jobId = `plugin_wechat_outbound-${log.id}-${scheduledAt.getTime()}`
-    return this.outboundQueue.add(
-      WECHAT_OUTBOUND_SEND_TEXT_JOB,
-      {
+    const result = await this.managedQueueService.enqueue<WechatOutboundQueueJobData>({
+      pluginName: WECHAT_PLUGIN_NAME,
+      queueName: WECHAT_OUTBOUND_QUEUE_NAME,
+      jobName: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+      payload: {
         integrationId: log.integrationId,
         outboundLogId: log.id,
         tenantId: log.tenantId,
         organizationId: log.organizationId
       },
-      {
-        jobId,
-        delay,
-        attempts: options.maxAttempts,
-        backoff: {
-          type: 'fixed',
-          delay: options.retryBackoffMs[0] || DEFAULT_BACKOFF_MS[0]
-        },
-        removeOnComplete: {
-          age: 24 * 60 * 60,
-          count: 5000
-        },
-        removeOnFail: {
-          age: 7 * 24 * 60 * 60,
-          count: 5000
-        }
+      tenantId: log.tenantId,
+      organizationId: log.organizationId,
+      scopeKey: this.scopeKey,
+      jobId,
+      delayMs: delay,
+      attempts: options.maxAttempts,
+      backoffMs: {
+        type: 'fixed',
+        delay: options.retryBackoffMs[0] || DEFAULT_BACKOFF_MS[0]
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 5000
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 5000
       }
-    )
+    })
+    return { id: result.jobId }
   }
 
   private async deferLog(
@@ -720,14 +722,15 @@ export class WechatOutboundQueueService {
         lastError: null
       }
     )
-    await this.recordSuccess(integrationId, log.uuid, log.contactId, options)
+    await this.recordSuccess(integrationId, log.uuid, log.contactId, options, scope)
   }
 
   private async resolveNextDelay(
     integrationId: string,
     uuid: string,
     contactId: string,
-    options: NormalizedOutboundQueueOptions
+    options: NormalizedOutboundQueueOptions,
+    scope?: { tenantId?: string | null; organizationId?: string | null }
   ): Promise<number> {
     const quietDelay = this.resolveQuietHourDelay(options)
     if (quietDelay > 0) {
@@ -736,9 +739,9 @@ export class WechatOutboundQueueService {
 
     const redis = await this.getRedis()
     const now = Date.now()
-    const nextGlobal = Number(await redis.get(this.globalNextKey()))
-    const nextAccount = Number(await redis.get(this.accountNextKey(integrationId, uuid)))
-    const nextContact = Number(await redis.get(this.contactNextKey(integrationId, uuid, contactId)))
+    const nextGlobal = Number(await redis.get(this.globalNextKey(integrationId, scope?.tenantId)))
+    const nextAccount = Number(await redis.get(this.accountNextKey(integrationId, uuid, scope?.tenantId)))
+    const nextContact = Number(await redis.get(this.contactNextKey(integrationId, uuid, contactId, scope?.tenantId)))
     const slotDelay = Math.max(
       Number.isFinite(nextGlobal) ? nextGlobal - now : 0,
       Number.isFinite(nextAccount) ? nextAccount - now : 0,
@@ -748,7 +751,7 @@ export class WechatOutboundQueueService {
       return slotDelay
     }
 
-    return this.resolveCounterDelay(redis, integrationId, uuid, contactId, options)
+    return this.resolveCounterDelay(redis, integrationId, uuid, contactId, options, scope?.tenantId)
   }
 
   private async resolveCounterDelay(
@@ -756,26 +759,27 @@ export class WechatOutboundQueueService {
     integrationId: string,
     uuid: string,
     contactId: string,
-    options: NormalizedOutboundQueueOptions
+    options: NormalizedOutboundQueueOptions,
+    tenantId?: string | null
   ): Promise<number> {
     const checks = [
       {
-        key: this.counterKey('account', 'minute', integrationId, uuid),
+        key: this.counterKey('account', 'minute', integrationId, uuid, undefined, tenantId),
         max: options.perAccountMaxPerMinute,
         windowMs: 60_000
       },
       {
-        key: this.counterKey('account', 'hour', integrationId, uuid),
+        key: this.counterKey('account', 'hour', integrationId, uuid, undefined, tenantId),
         max: options.perAccountMaxPerHour,
         windowMs: 60 * 60_000
       },
       {
-        key: this.counterKey('account', 'day', integrationId, uuid),
+        key: this.counterKey('account', 'day', integrationId, uuid, undefined, tenantId),
         max: options.perAccountMaxPerDay,
         windowMs: 24 * 60 * 60_000
       },
       {
-        key: this.counterKey('contact', 'hour', integrationId, uuid, contactId),
+        key: this.counterKey('contact', 'hour', integrationId, uuid, contactId, tenantId),
         max: options.perContactMaxPerHour,
         windowMs: 60 * 60_000
       }
@@ -799,25 +803,26 @@ export class WechatOutboundQueueService {
     integrationId: string,
     uuid: string,
     contactId: string,
-    options: NormalizedOutboundQueueOptions
+    options: NormalizedOutboundQueueOptions,
+    scope?: { tenantId?: string | null; organizationId?: string | null }
   ): Promise<void> {
     const redis = await this.getRedis()
     const updates: Array<Promise<unknown>> = [
-      this.incrementCounter(redis, this.counterKey('account', 'minute', integrationId, uuid), 60),
-      this.incrementCounter(redis, this.counterKey('account', 'hour', integrationId, uuid), 60 * 60),
-      this.incrementCounter(redis, this.counterKey('account', 'day', integrationId, uuid), 24 * 60 * 60),
-      this.incrementCounter(redis, this.counterKey('contact', 'hour', integrationId, uuid, contactId), 60 * 60),
-      redis.del(this.failureKey(integrationId, uuid))
+      this.incrementCounter(redis, this.counterKey('account', 'minute', integrationId, uuid, undefined, scope?.tenantId), 60),
+      this.incrementCounter(redis, this.counterKey('account', 'hour', integrationId, uuid, undefined, scope?.tenantId), 60 * 60),
+      this.incrementCounter(redis, this.counterKey('account', 'day', integrationId, uuid, undefined, scope?.tenantId), 24 * 60 * 60),
+      this.incrementCounter(redis, this.counterKey('contact', 'hour', integrationId, uuid, contactId, scope?.tenantId), 60 * 60),
+      redis.del(this.failureKey(integrationId, uuid, scope?.tenantId))
     ]
     const now = Date.now()
     if (options.globalMinIntervalMs > 0) {
-      updates.push(redis.set(this.globalNextKey(), String(now + options.globalMinIntervalMs), 'PX', options.globalMinIntervalMs))
+      updates.push(redis.set(this.globalNextKey(integrationId, scope?.tenantId), String(now + options.globalMinIntervalMs), 'PX', options.globalMinIntervalMs))
     }
     if (options.perAccountMinIntervalMs > 0) {
-      updates.push(redis.set(this.accountNextKey(integrationId, uuid), String(now + options.perAccountMinIntervalMs), 'PX', options.perAccountMinIntervalMs))
+      updates.push(redis.set(this.accountNextKey(integrationId, uuid, scope?.tenantId), String(now + options.perAccountMinIntervalMs), 'PX', options.perAccountMinIntervalMs))
     }
     if (options.perContactMinIntervalMs > 0) {
-      updates.push(redis.set(this.contactNextKey(integrationId, uuid, contactId), String(now + options.perContactMinIntervalMs), 'PX', options.perContactMinIntervalMs))
+      updates.push(redis.set(this.contactNextKey(integrationId, uuid, contactId, scope?.tenantId), String(now + options.perContactMinIntervalMs), 'PX', options.perContactMinIntervalMs))
     }
     await Promise.all(updates)
   }
@@ -826,14 +831,15 @@ export class WechatOutboundQueueService {
     integrationId: string,
     uuid: string,
     _contactId: string,
-    options: NormalizedOutboundQueueOptions
+    options: NormalizedOutboundQueueOptions,
+    scope?: { tenantId?: string | null; organizationId?: string | null }
   ): Promise<void> {
     const redis = await this.getRedis()
-    const key = this.failureKey(integrationId, uuid)
+    const key = this.failureKey(integrationId, uuid, scope?.tenantId)
     const count = await redis.incr(key)
     await redis.expire(key, options.failureGuard.windowSeconds)
     if (count >= options.failureGuard.threshold) {
-      await redis.set(this.accountPausedKey(integrationId, uuid), 'failure_guard')
+      await redis.set(this.accountPausedKey(integrationId, uuid, scope?.tenantId), 'failure_guard')
     }
   }
 
@@ -844,14 +850,19 @@ export class WechatOutboundQueueService {
     }
   }
 
-  private async resolvePausedReason(integrationId: string, uuid: string, contactId?: string): Promise<string | null> {
+  private async resolvePausedReason(
+    integrationId: string,
+    uuid: string,
+    contactId?: string,
+    scope?: { tenantId?: string | null; organizationId?: string | null }
+  ): Promise<string | null> {
     const redis = await this.getRedis()
-    const accountReason = await redis.get(this.accountPausedKey(integrationId, uuid))
+    const accountReason = await redis.get(this.accountPausedKey(integrationId, uuid, scope?.tenantId))
     if (accountReason) {
       return `outbound_account_paused:${accountReason}`
     }
     if (contactId) {
-      const contactReason = await redis.get(this.contactPausedKey(integrationId, uuid, contactId))
+      const contactReason = await redis.get(this.contactPausedKey(integrationId, uuid, contactId, scope?.tenantId))
       if (contactReason) {
         return `outbound_contact_paused:${contactReason}`
       }
@@ -1038,7 +1049,11 @@ export class WechatOutboundQueueService {
   }
 
   private async getRedis(): Promise<RedisLike> {
-    return (await (this.outboundQueue as unknown as { client: Promise<RedisLike> }).client) as RedisLike
+    return this.managedQueueService.getRedis()
+  }
+
+  private get scopeKey(): string | null {
+    return (this.pluginContext as { scopeKey?: string | null }).scopeKey ?? null
   }
 
   private async updateLog(
@@ -1096,43 +1111,54 @@ export class WechatOutboundQueueService {
     }
   }
 
-  private globalLockKey(): string {
-    return 'plugin_wechat:lock:outbound'
+  private globalLockKey(integrationId: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:lock:outbound`
   }
 
-  private accountLockKey(integrationId: string, uuid: string): string {
-    return `plugin_wechat:lock:account:${integrationId}:${uuid}`
+  private accountLockKey(integrationId: string, uuid: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:lock:account:${uuid}`
   }
 
-  private contactLockKey(integrationId: string, uuid: string, contactId: string): string {
-    return `plugin_wechat:lock:contact:${integrationId}:${uuid}:${contactId}`
+  private contactLockKey(integrationId: string, uuid: string, contactId: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:lock:contact:${uuid}:${contactId}`
   }
 
-  private accountPausedKey(integrationId: string, uuid: string): string {
-    return `plugin_wechat:paused:account:${integrationId}:${uuid}`
+  private accountPausedKey(integrationId: string, uuid: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:paused:account:${uuid}`
   }
 
-  private contactPausedKey(integrationId: string, uuid: string, contactId: string): string {
-    return `plugin_wechat:paused:contact:${integrationId}:${uuid}:${contactId}`
+  private contactPausedKey(integrationId: string, uuid: string, contactId: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:paused:contact:${uuid}:${contactId}`
   }
 
-  private globalNextKey(): string {
-    return 'plugin_wechat:next:outbound'
+  private globalNextKey(integrationId: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:next:outbound`
   }
 
-  private accountNextKey(integrationId: string, uuid: string): string {
-    return `plugin_wechat:next:account:${integrationId}:${uuid}`
+  private accountNextKey(integrationId: string, uuid: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:next:account:${uuid}`
   }
 
-  private contactNextKey(integrationId: string, uuid: string, contactId: string): string {
-    return `plugin_wechat:next:contact:${integrationId}:${uuid}:${contactId}`
+  private contactNextKey(integrationId: string, uuid: string, contactId: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:next:contact:${uuid}:${contactId}`
   }
 
-  private failureKey(integrationId: string, uuid: string): string {
-    return `plugin_wechat:failures:account:${integrationId}:${uuid}`
+  private failureKey(integrationId: string, uuid: string, tenantId?: string | null): string {
+    return `${this.scopePrefix(integrationId, tenantId)}:failures:account:${uuid}`
   }
 
-  private counterKey(scope: 'account' | 'contact', window: string, integrationId: string, uuid: string, contactId?: string): string {
-    return ['plugin_wechat:counter', scope, window, integrationId, uuid, contactId].filter(Boolean).join(':')
+  private counterKey(
+    scope: 'account' | 'contact',
+    window: string,
+    integrationId: string,
+    uuid: string,
+    contactId?: string,
+    tenantId?: string | null
+  ): string {
+    return [this.scopePrefix(integrationId, tenantId), 'counter', scope, window, uuid, contactId].filter(Boolean).join(':')
+  }
+
+  private scopePrefix(integrationId: string, tenantId?: string | null): string {
+    return ['plugin_wechat', tenantId || 'tenant_global', integrationId].join(':')
   }
 }

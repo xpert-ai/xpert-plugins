@@ -7,6 +7,9 @@ import type {
 export interface WechatTriggerFlushPayload extends Record<string, unknown> {
   aggregateKey: string
   version: number
+  integrationId?: string
+  tenantId?: string
+  organizationId?: string
 }
 
 export interface WechatTriggerAggregationMessageContext {

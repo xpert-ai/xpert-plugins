@@ -403,7 +403,7 @@ describe('WechatTriggerStrategy', () => {
     expect(aggregationService.save).not.toHaveBeenCalled()
   })
 
-  it('aggregates debounced inbound jobs under a Redis lock and schedules BullMQ flush', async () => {
+  it('aggregates debounced inbound jobs under a Redis lock and schedules managed queue flush', async () => {
     const { strategy, aggregationService } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
@@ -464,7 +464,13 @@ describe('WechatTriggerStrategy', () => {
 
     expect(aggregationService.withAggregateLock).toHaveBeenCalledWith(
       'integration-1:uuid-1:wxid_friend:wxid_friend',
-      expect.any(Function)
+      expect.any(Function),
+      undefined,
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
     )
     expect(aggregationService.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -557,7 +563,14 @@ describe('WechatTriggerStrategy', () => {
         conversationId: expect.anything()
       })
     )
-    expect(aggregationService.clear).toHaveBeenCalledWith('integration-1:uuid-1:wxid_friend:wxid_friend')
+    expect(aggregationService.clear).toHaveBeenCalledWith(
+      'integration-1:uuid-1:wxid_friend:wxid_friend',
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    )
   })
 
   it('uses a default human input for image-only debounced batches', async () => {
@@ -754,7 +767,14 @@ describe('WechatTriggerStrategy', () => {
         error: 'filtered_by_trigger_policy'
       })
     )
-    expect(aggregationService.clear).toHaveBeenCalledWith('integration-1:uuid-1:room@chatroom:wxid_sender')
+    expect(aggregationService.clear).toHaveBeenCalledWith(
+      'integration-1:uuid-1:room@chatroom:wxid_sender',
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    )
   })
 
   it('flushes debounced voice transcripts as normal text input', async () => {

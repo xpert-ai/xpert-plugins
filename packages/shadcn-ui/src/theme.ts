@@ -118,6 +118,11 @@ export function installShadcnThemeVars(options: InstallShadcnThemeVarsOptions = 
       border-color: transparent;
     }
     .xps-button--destructive {
+      background: var(--xps-card);
+      color: var(--xps-destructive);
+      border-color: color-mix(in srgb, var(--xps-destructive) 28%, var(--xps-border));
+    }
+    .xps-button--destructive:hover {
       background: var(--xps-destructive);
       color: var(--xps-destructive-foreground);
       border-color: var(--xps-destructive);

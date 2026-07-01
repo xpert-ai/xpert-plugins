@@ -1,5 +1,6 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
+  MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,
@@ -7,7 +8,16 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   }
 }))
 
-import { WECHAT_OUTBOUND_SEND_TEXT_JOB, WECHAT_PROVIDER_KEY } from './constants.js'
+import {
+  INTEGRATION_PERMISSION_SERVICE_TOKEN,
+  MANAGED_QUEUE_SERVICE_TOKEN
+} from '@xpert-ai/plugin-sdk'
+import {
+  WECHAT_OUTBOUND_QUEUE_NAME,
+  WECHAT_OUTBOUND_SEND_TEXT_JOB,
+  WECHAT_PLUGIN_NAME,
+  WECHAT_PROVIDER_KEY
+} from './constants.js'
 import {
   WechatOutboundQueueJobData,
   WechatOutboundQueueService
@@ -60,10 +70,11 @@ describe('WechatOutboundQueueService', () => {
       sendImage: jest.fn(async () => ({ success: true, messageId: 'wx-img-1' }))
     }
     const redis = options.redis ?? createRedis()
-    const outboundQueue = {
-      client: Promise.resolve(redis),
-      add: jest.fn(async (_name, _data, opts) => ({ id: opts?.jobId ?? 'job-1' })),
-      getJob: jest.fn()
+    const managedQueue = {
+      enqueue: jest.fn(async (input: any) => ({ jobId: input?.jobId ?? 'job-1' })),
+      cancel: jest.fn(async () => ({ success: true })),
+      getJob: jest.fn(async () => null),
+      getRedis: jest.fn(async () => redis)
     }
     const accountRepository = {
       findOne: jest.fn(async () => ({ enabled: true })),
@@ -82,20 +93,29 @@ describe('WechatOutboundQueueService', () => {
       find: jest.fn(async () => [])
     }
     const integrationRead = options.integrationRead ?? jest.fn(async () => integration)
+    const integrationPermissionService = {
+      read: integrationRead
+    }
     const pluginContext = {
-      resolve: jest.fn(() => ({
-        read: integrationRead
-      }))
+      scopeKey: 'org:org-1',
+      resolve: jest.fn((token) => {
+        if (token === MANAGED_QUEUE_SERVICE_TOKEN) {
+          return managedQueue
+        }
+        if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
+          return integrationPermissionService
+        }
+        return integrationPermissionService
+      })
     }
 
     const service = new WechatOutboundQueueService(
       client as any,
-      outboundQueue as any,
       accountRepository as any,
       messageLogRepository as any,
       pluginContext as any
     )
-    return { service, client, redis, outboundQueue, accountRepository, messageLogRepository, integrationRead }
+    return { service, client, redis, managedQueue, accountRepository, messageLogRepository, integrationRead }
   }
 
   function createLog(overrides: Record<string, unknown> = {}) {
@@ -128,8 +148,8 @@ describe('WechatOutboundQueueService', () => {
     }
   }
 
-  it('creates an outbound message log and delayed BullMQ job without calling wx2.0 immediately', async () => {
-    const { service, client, outboundQueue, messageLogRepository } = createService()
+  it('creates an outbound message log and delayed managed queue job without calling wx2.0 immediately', async () => {
+    const { service, client, managedQueue, messageLogRepository } = createService()
 
     const result = await service.enqueueText(integration as any, {
       uuid: 'uuid-1',
@@ -160,22 +180,27 @@ describe('WechatOutboundQueueService', () => {
         scheduledAt: expect.any(Date)
       })
     )
-    expect(outboundQueue.add).toHaveBeenCalledWith(
-      WECHAT_OUTBOUND_SEND_TEXT_JOB,
+    expect(managedQueue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        integrationId: 'integration-1',
-        outboundLogId: 'log-1'
-      }),
-      expect.objectContaining({
+        pluginName: WECHAT_PLUGIN_NAME,
+        queueName: WECHAT_OUTBOUND_QUEUE_NAME,
+        jobName: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+        payload: expect.objectContaining({
+          integrationId: 'integration-1',
+          outboundLogId: 'log-1'
+        }),
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        scopeKey: 'org:org-1',
         jobId: expect.stringMatching(/^plugin_wechat_outbound-/),
-        delay: expect.any(Number),
+        delayMs: expect.any(Number),
         attempts: 2
       })
     )
   })
 
   it('creates an outbound image log with a typed payload', async () => {
-    const { service, outboundQueue, messageLogRepository } = createService()
+    const { service, managedQueue, messageLogRepository } = createService()
 
     const result = await service.enqueueImage(integration as any, {
       type: 'image',
@@ -201,13 +226,15 @@ describe('WechatOutboundQueueService', () => {
         })
       })
     )
-    expect(outboundQueue.add).toHaveBeenCalledWith(
-      WECHAT_OUTBOUND_SEND_TEXT_JOB,
+    expect(managedQueue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        integrationId: 'integration-1',
-        outboundLogId: 'log-1'
-      }),
-      expect.objectContaining({
+        pluginName: WECHAT_PLUGIN_NAME,
+        queueName: WECHAT_OUTBOUND_QUEUE_NAME,
+        jobName: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+        payload: expect.objectContaining({
+          integrationId: 'integration-1',
+          outboundLogId: 'log-1'
+        }),
         attempts: 2
       })
     )
@@ -220,21 +247,21 @@ describe('WechatOutboundQueueService', () => {
     await service.processSendTextJob(createJob() as any)
 
     expect(redis.set).toHaveBeenCalledWith(
-      'plugin_wechat:lock:outbound',
+      'plugin_wechat:tenant-1:integration-1:lock:outbound',
       expect.any(String),
       'PX',
       expect.any(Number),
       'NX'
     )
     expect(redis.set).toHaveBeenCalledWith(
-      'plugin_wechat:lock:account:integration-1:uuid-1',
+      'plugin_wechat:tenant-1:integration-1:lock:account:uuid-1',
       expect.any(String),
       'PX',
       expect.any(Number),
       'NX'
     )
     expect(redis.set).toHaveBeenCalledWith(
-      'plugin_wechat:lock:contact:integration-1:uuid-1:wxid_friend',
+      'plugin_wechat:tenant-1:integration-1:lock:contact:uuid-1:wxid_friend',
       expect.any(String),
       'PX',
       expect.any(Number),
@@ -305,16 +332,17 @@ describe('WechatOutboundQueueService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValue('OK')
     })
-    const { service, client, outboundQueue, messageLogRepository } = createService({ redis })
+    const { service, client, managedQueue, messageLogRepository } = createService({ redis })
     messageLogRepository.findOne.mockResolvedValueOnce(createLog())
 
     await service.processSendTextJob(createJob() as any)
 
     expect(client.sendText).not.toHaveBeenCalled()
-    expect(outboundQueue.add).toHaveBeenCalledWith(
-      WECHAT_OUTBOUND_SEND_TEXT_JOB,
-      expect.objectContaining({ outboundLogId: 'log-1' }),
-      expect.objectContaining({ delay: expect.any(Number) })
+    expect(managedQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ outboundLogId: 'log-1' }),
+        delayMs: expect.any(Number)
+      })
     )
     expect(messageLogRepository.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'log-1' }),
@@ -334,18 +362,19 @@ describe('WechatOutboundQueueService', () => {
 
   it('defers the job when the global send interval has not elapsed', async () => {
     const redis = createRedis({
-      get: jest.fn(async (key: string) => (key === 'plugin_wechat:next:outbound' ? String(Date.now() + 5000) : null))
+      get: jest.fn(async (key: string) => (key === 'plugin_wechat:tenant-1:integration-1:next:outbound' ? String(Date.now() + 5000) : null))
     })
-    const { service, client, outboundQueue, messageLogRepository } = createService({ redis })
+    const { service, client, managedQueue, messageLogRepository } = createService({ redis })
     messageLogRepository.findOne.mockResolvedValueOnce(createLog())
 
     await service.processSendTextJob(createJob() as any)
 
     expect(client.sendText).not.toHaveBeenCalled()
-    expect(outboundQueue.add).toHaveBeenCalledWith(
-      WECHAT_OUTBOUND_SEND_TEXT_JOB,
-      expect.objectContaining({ outboundLogId: 'log-1' }),
-      expect.objectContaining({ delay: expect.any(Number) })
+    expect(managedQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ outboundLogId: 'log-1' }),
+        delayMs: expect.any(Number)
+      })
     )
     expect(messageLogRepository.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'log-1' }),
@@ -354,24 +383,24 @@ describe('WechatOutboundQueueService', () => {
   })
 
   it('does not cancel messages that have already been sent', async () => {
-    const { service, outboundQueue, messageLogRepository } = createService()
+    const { service, managedQueue, messageLogRepository } = createService()
     messageLogRepository.findOne.mockResolvedValueOnce(createLog({ status: 'sent', queueJobId: 'job-1' }))
 
     const result = await service.cancelOutboundQueueItem('integration-1', 'log-1')
 
     expect(result.success).toBe(false)
-    expect(outboundQueue.getJob).not.toHaveBeenCalled()
+    expect(managedQueue.cancel).not.toHaveBeenCalled()
     expect(messageLogRepository.update).not.toHaveBeenCalled()
   })
 
   it('does not create duplicate retry jobs for messages already pending in the queue', async () => {
-    const { service, outboundQueue, messageLogRepository } = createService()
+    const { service, managedQueue, messageLogRepository } = createService()
     messageLogRepository.findOne.mockResolvedValueOnce(createLog({ status: 'queued', queueJobId: 'job-1' }))
 
     const result = await service.retryOutboundQueueItem('integration-1', 'log-1')
 
     expect(result.success).toBe(false)
-    expect(outboundQueue.add).not.toHaveBeenCalled()
+    expect(managedQueue.enqueue).not.toHaveBeenCalled()
     expect(messageLogRepository.update).not.toHaveBeenCalled()
   })
 
@@ -392,6 +421,6 @@ describe('WechatOutboundQueueService', () => {
       expect.objectContaining({ integrationId: 'integration-1', uuid: 'uuid-1' }),
       expect.objectContaining({ status: 'error', lastError: 'wx failed' })
     )
-    expect(actualRedis.set).toHaveBeenCalledWith('plugin_wechat:paused:account:integration-1:uuid-1', 'failure_guard')
+    expect(actualRedis.set).toHaveBeenCalledWith('plugin_wechat:tenant-1:integration-1:paused:account:uuid-1', 'failure_guard')
   })
 })

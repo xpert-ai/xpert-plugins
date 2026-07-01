@@ -1,4 +1,15 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  PLUGIN_JOB_PROCESSOR_METADATA: 'XPERT_PLUGIN_JOB_PROCESSOR_METADATA',
+  PluginJobProcessor: (options: any) => (target: any) => {
+    const metadata = {
+      pluginName: options.pluginName,
+      queueName: options.queueName ?? options.queue,
+      jobName: options.jobName ?? options.jobType,
+      ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency })
+    }
+    const existing = Reflect.getMetadata('XPERT_PLUGIN_JOB_PROCESSOR_METADATA', target) ?? []
+    Reflect.defineMetadata('XPERT_PLUGIN_JOB_PROCESSOR_METADATA', [metadata, ...existing], target)
+  },
   WorkflowTriggerStrategy: () => (target: unknown) => target,
   ChatChannel: () => (target: unknown) => target,
   defineChannelMessageType: (...parts: unknown[]) => parts.join(':'),
@@ -12,29 +23,25 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   }
 }))
 
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { PLUGIN_JOB_PROCESSOR_METADATA } from '@xpert-ai/plugin-sdk'
 import {
   WECHAT_INBOUND_AGGREGATE_JOB,
-  WECHAT_INBOUND_FLUSH_JOB
+  WECHAT_INBOUND_FLUSH_JOB,
+  WECHAT_INBOUND_QUEUE_NAME,
+  WECHAT_PLUGIN_NAME
 } from '../constants.js'
 import { WechatInboundQueueProcessor } from './wechat-inbound-queue.processor.js'
 
 describe('WechatInboundQueueProcessor', () => {
-  it('allows multiple conversation keys to run while per-key Redis locks serialize aggregation', () => {
-    const source = readFileSync(join(process.cwd(), 'src/lib/workflow/wechat-inbound-queue.processor.ts'), 'utf8')
-
-    expect(source).toContain('concurrency: 8')
-    expect(source).not.toContain('concurrency: 1')
-  })
-
-  it('delegates aggregate jobs to the trigger strategy', async () => {
-    const triggerStrategy = {
-      processInboundAggregateJob: jest.fn(async () => undefined),
-      flushBufferedConversation: jest.fn(async () => true)
+  function createPluginContext() {
+    return {
+      scopeKey: 'org:org-1',
+      resolve: jest.fn(() => null)
     }
-    const processor = new WechatInboundQueueProcessor(triggerStrategy as any)
-    const job = {
+  }
+
+  function createAggregateJob() {
+    return {
       name: WECHAT_INBOUND_AGGREGATE_JOB,
       data: {
         aggregateKey: 'aggregate-1',
@@ -50,8 +57,47 @@ describe('WechatInboundQueueProcessor', () => {
         }
       }
     }
+  }
 
-    await processor.process(job as any)
+  it('declares aggregate and flush handlers through PluginJobProcessor metadata', () => {
+    const metadata = Reflect.getMetadata(PLUGIN_JOB_PROCESSOR_METADATA, WechatInboundQueueProcessor)
+
+    expect(metadata).toHaveLength(2)
+    expect(metadata).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pluginName: WECHAT_PLUGIN_NAME,
+          queueName: WECHAT_INBOUND_QUEUE_NAME,
+          jobName: WECHAT_INBOUND_AGGREGATE_JOB
+        }),
+        expect.objectContaining({
+          pluginName: WECHAT_PLUGIN_NAME,
+          queueName: WECHAT_INBOUND_QUEUE_NAME,
+          jobName: WECHAT_INBOUND_FLUSH_JOB
+        })
+      ])
+    )
+  })
+
+  it('exposes the current plugin scope to the platform explorer', () => {
+    const triggerStrategy = {
+      processInboundAggregateJob: jest.fn(async () => undefined),
+      flushBufferedConversation: jest.fn(async () => true)
+    }
+    const processor = new WechatInboundQueueProcessor(triggerStrategy as any, createPluginContext() as any)
+
+    expect(processor.scopeKey).toBe('org:org-1')
+  })
+
+  it('delegates aggregate jobs to the trigger strategy', async () => {
+    const triggerStrategy = {
+      processInboundAggregateJob: jest.fn(async () => undefined),
+      flushBufferedConversation: jest.fn(async () => true)
+    }
+    const processor = new WechatInboundQueueProcessor(triggerStrategy as any, createPluginContext() as any)
+    const job = createAggregateJob()
+
+    await processor.handle(job as any)
 
     expect(triggerStrategy.processInboundAggregateJob).toHaveBeenCalledWith(job.data)
     expect(triggerStrategy.flushBufferedConversation).not.toHaveBeenCalled()
@@ -62,7 +108,7 @@ describe('WechatInboundQueueProcessor', () => {
       processInboundAggregateJob: jest.fn(async () => undefined),
       flushBufferedConversation: jest.fn(async () => true)
     }
-    const processor = new WechatInboundQueueProcessor(triggerStrategy as any)
+    const processor = new WechatInboundQueueProcessor(triggerStrategy as any, createPluginContext() as any)
     const job = {
       name: WECHAT_INBOUND_FLUSH_JOB,
       data: {
@@ -71,9 +117,22 @@ describe('WechatInboundQueueProcessor', () => {
       }
     }
 
-    await processor.process(job as any)
+    await processor.handle(job as any)
 
     expect(triggerStrategy.flushBufferedConversation).toHaveBeenCalledWith(job.data)
     expect(triggerStrategy.processInboundAggregateJob).not.toHaveBeenCalled()
+  })
+
+  it('keeps process as a compatibility alias for handle', async () => {
+    const triggerStrategy = {
+      processInboundAggregateJob: jest.fn(async () => undefined),
+      flushBufferedConversation: jest.fn(async () => true)
+    }
+    const processor = new WechatInboundQueueProcessor(triggerStrategy as any, createPluginContext() as any)
+    const job = createAggregateJob()
+
+    await processor.process(job as any)
+
+    expect(triggerStrategy.processInboundAggregateJob).toHaveBeenCalledWith(job.data)
   })
 })
