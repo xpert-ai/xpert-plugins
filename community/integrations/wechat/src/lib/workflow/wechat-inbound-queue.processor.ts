@@ -21,7 +21,7 @@ export type WechatInboundQueueJobData =
   | WechatTriggerAggregatePayload
   | WechatTriggerFlushPayload
 
-/** Platform managed queue handler; no longer a BullMQ WorkerHost processor. */
+/** Platform managed queue handler. */
 @PluginJobProcessor({
   pluginName: WECHAT_PLUGIN_NAME,
   queueName: WECHAT_INBOUND_QUEUE_NAME,

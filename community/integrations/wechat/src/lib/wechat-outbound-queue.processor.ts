@@ -15,7 +15,7 @@ import {
   WechatOutboundQueueService
 } from './wechat-outbound-queue.service.js'
 
-/** Platform managed queue handler; no longer a BullMQ WorkerHost processor. */
+/** Platform managed queue handler. */
 @PluginJobProcessor({
   pluginName: WECHAT_PLUGIN_NAME,
   queueName: WECHAT_OUTBOUND_QUEUE_NAME,
