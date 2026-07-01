@@ -889,6 +889,7 @@ function AccountsView(props: any) {
       >
         {props.isOrganizationScope && <TextFilter field="integrationId" placeholder={props.t('integrationId')} {...filter} />}
         <TextFilter field="uuid" placeholder={props.t('uuid')} {...filter} />
+        <TextFilter field="displayName" placeholder={props.t('wechatName')} {...filter} />
         <SelectFilter
           field="status"
           label={props.t('status')}
@@ -909,6 +910,7 @@ function AccountsView(props: any) {
         headers={[
           ...(props.isOrganizationScope ? [props.t('integration')] : []),
           props.t('uuid'),
+          props.t('wechatName'),
           props.t('ownerWxid'),
           props.t('status'),
           props.t('tunnel'),
@@ -925,7 +927,8 @@ function AccountsView(props: any) {
         renderRow={(account: any) => [
           ...(props.isOrganizationScope ? [code(account.integrationId)] : []),
           code(account.uuid),
-          display(account.ownerWxid || account.displayName),
+          display(account.displayName),
+          display(account.ownerWxid),
           translatedPill(account.status || (account.enabled === false ? 'disabled' : 'unknown'), props.t),
           accountTunnelPill(account.tunnelBinding, props.t),
           accountTriggerBindingCell(account.triggerBinding, props.t),

@@ -174,6 +174,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       border-color: transparent;
     }
     .xps-button--destructive {
+      background: var(--xps-card);
+      color: var(--xps-destructive);
+      border-color: color-mix(in srgb, var(--xps-destructive) 28%, var(--xps-border));
+    }
+    .xps-button--destructive:hover {
       background: var(--xps-destructive);
       color: var(--xps-destructive-foreground);
       border-color: var(--xps-destructive);
@@ -14746,6 +14751,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     waitingForScan: "\u7B49\u5F85\u626B\u7801",
     wechatAvatar: "\u5FAE\u4FE1\u5934\u50CF",
     wechatMessageActivity: "\u5FAE\u4FE1\u6D88\u606F\u6D3B\u52A8",
+    wechatName: "\u5FAE\u4FE1\u540D\u79F0",
     xpertInstance: "Xpert \u5B9E\u4F8B",
     xpert: "\u667A\u80FD\u4F53"
   };
@@ -14977,6 +14983,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     waitingForScan: "Waiting for scan",
     wechatAvatar: "WeChat avatar",
     wechatMessageActivity: "WeChat message activity",
+    wechatName: "WeChat name",
     xpertInstance: "Xpert instance",
     xpert: "Xpert"
   };
@@ -15797,6 +15804,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       },
       props.isOrganizationScope && /* @__PURE__ */ h(TextFilter, { field: "integrationId", placeholder: props.t("integrationId"), ...filter }),
       /* @__PURE__ */ h(TextFilter, { field: "uuid", placeholder: props.t("uuid"), ...filter }),
+      /* @__PURE__ */ h(TextFilter, { field: "displayName", placeholder: props.t("wechatName"), ...filter }),
       /* @__PURE__ */ h(
         SelectFilter,
         {
@@ -15824,6 +15832,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         headers: [
           ...props.isOrganizationScope ? [props.t("integration")] : [],
           props.t("uuid"),
+          props.t("wechatName"),
           props.t("ownerWxid"),
           props.t("status"),
           props.t("tunnel"),
@@ -15840,7 +15849,8 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         renderRow: (account) => [
           ...props.isOrganizationScope ? [code(account.integrationId)] : [],
           code(account.uuid),
-          display(account.ownerWxid || account.displayName),
+          display(account.displayName),
+          display(account.ownerWxid),
           translatedPill(account.status || (account.enabled === false ? "disabled" : "unknown"), props.t),
           accountTunnelPill(account.tunnelBinding, props.t),
           accountTriggerBindingCell(account.triggerBinding, props.t),

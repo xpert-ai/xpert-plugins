@@ -733,7 +733,13 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     if (!aggregateKey) {
       return
     }
-    await this.aggregationService.clear(aggregateKey)
+    const scope = this.resolveRequestTenantScope()
+    const [integrationId] = aggregateKey.split(':')
+    await this.aggregationService.clear(aggregateKey, {
+      integrationId,
+      tenantId: scope.tenantId ?? undefined,
+      organizationId: scope.organizationId ?? undefined
+    })
   }
 
   async handleInboundMessage(params: {
@@ -840,7 +846,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     }
 
     await this.aggregationService.withAggregateLock(aggregateKey, async () => {
-      const currentState = await this.aggregationService.get(aggregateKey)
+      const currentState = await this.aggregationService.get(aggregateKey, payload)
       const sameRoutingTarget =
         currentState?.integrationId === payload.integrationId &&
         currentState?.accountUuid === payload.accountUuid &&
@@ -882,7 +888,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       )
       await this.aggregationService.save(aggregateState, ttlSeconds)
       await this.aggregationService.enqueueFlush(aggregateState, summaryWindowSeconds * 1000)
-    })
+    }, undefined, payload)
   }
 
   async flushBufferedConversation(payload: WechatTriggerFlushPayload): Promise<boolean> {
@@ -891,7 +897,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
-    const state = await this.aggregationService.get(aggregateKey)
+    const state = await this.aggregationService.get(aggregateKey, payload)
     if (!state || state.version !== payload.version) {
       return false
     }
@@ -902,7 +908,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     )
     if (!decision) {
       await this.markInboundLogs(state.currentInboundLogIds, state, 'skipped', 'filtered_by_trigger_policy')
-      await this.aggregationService.clear(aggregateKey)
+      await this.aggregationService.clear(aggregateKey, state)
       return false
     }
 
@@ -943,7 +949,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     })
 
     await this.markInboundLogs(state.currentInboundLogIds, state, 'dispatched')
-    await this.aggregationService.clear(aggregateKey)
+    await this.aggregationService.clear(aggregateKey, state)
     return true
   }
 

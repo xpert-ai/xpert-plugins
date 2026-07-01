@@ -1,17 +1,10 @@
 import { PluginWebhookAuthGuard, XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { DiscoveryModule } from '@nestjs/core'
-import { BullModule } from '@nestjs/bullmq'
 import { WechatController } from './wechat.controller.js'
 import { WechatAccountManagementService } from './wechat-account-management.service.js'
 import { WechatConversationService } from './conversation.service.js'
 import { WechatClient } from './wechat.client.js'
-import {
-  WECHAT_INBOUND_QUEUE_NAME,
-  WECHAT_INBOUND_QUEUE_PREFIX,
-  WECHAT_OUTBOUND_QUEUE_NAME,
-  WECHAT_OUTBOUND_QUEUE_PREFIX
-} from './constants.js'
 import { WechatTunnelBrokerService } from './wechat-tunnel-broker.service.js'
 import { WechatWebsocketTunnelService } from './wechat-websocket-tunnel.service.js'
 import { WechatChannelStrategy } from './wechat-channel.strategy.js'
@@ -26,7 +19,6 @@ import {
   WechatChatDispatchService,
   WechatChatRunStateService
 } from './handoff/index.js'
-import { getWechatBullMqConnection } from './wechat-redis.js'
 import { WechatOutboundQueueService } from './wechat-outbound-queue.service.js'
 import { WechatOutboundQueueProcessor } from './wechat-outbound-queue.processor.js'
 import {
@@ -46,38 +38,7 @@ const entities = [
 @XpertServerPlugin({
   imports: [
     DiscoveryModule,
-    TypeOrmModule.forFeature(entities),
-    BullModule.forRoot({
-      connection: getWechatBullMqConnection()
-    }),
-    BullModule.registerQueue({
-      name: WECHAT_OUTBOUND_QUEUE_NAME,
-      prefix: WECHAT_OUTBOUND_QUEUE_PREFIX,
-      defaultJobOptions: {
-        removeOnComplete: {
-          age: 24 * 60 * 60,
-          count: 5000
-        },
-        removeOnFail: {
-          age: 7 * 24 * 60 * 60,
-          count: 5000
-        }
-      }
-    }),
-    BullModule.registerQueue({
-      name: WECHAT_INBOUND_QUEUE_NAME,
-      prefix: WECHAT_INBOUND_QUEUE_PREFIX,
-      defaultJobOptions: {
-        removeOnComplete: {
-          age: 24 * 60 * 60,
-          count: 5000
-        },
-        removeOnFail: {
-          age: 7 * 24 * 60 * 60,
-          count: 5000
-        }
-      }
-    })
+    TypeOrmModule.forFeature(entities)
   ],
   entities,
   providers: [

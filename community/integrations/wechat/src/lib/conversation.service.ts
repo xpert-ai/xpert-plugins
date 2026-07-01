@@ -2647,6 +2647,7 @@ export class WechatConversationService {
     return (
       this.matchesFilter(account.integrationId, filters.integrationId) &&
       this.matchesFilter(account.uuid, filters.uuid) &&
+      this.matchesFilter(account.displayName, filters.displayName) &&
       this.matchesFilter(account.ownerWxid, filters.ownerWxid)
     )
   }

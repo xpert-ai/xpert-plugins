@@ -1,12 +1,18 @@
-import { InjectQueue } from '@nestjs/bullmq'
-import { Injectable } from '@nestjs/common'
-import type { Job, Queue } from 'bullmq'
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  MANAGED_QUEUE_SERVICE_TOKEN,
+  type ManagedQueueRedis,
+  type ManagedQueueService,
+  type PluginContext
+} from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'crypto'
 import {
   WECHAT_INBOUND_AGGREGATE_JOB,
   WECHAT_INBOUND_FLUSH_JOB,
-  WECHAT_INBOUND_QUEUE_NAME
+  WECHAT_INBOUND_QUEUE_NAME,
+  WECHAT_PLUGIN_NAME
 } from '../constants.js'
+import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
 import {
   WechatTriggerAggregatePayload,
   WechatTriggerAggregationState,
@@ -16,25 +22,41 @@ import {
 const DEFAULT_AGGREGATION_TTL_SECONDS = 2 * 60 * 60
 const DEFAULT_LOCK_TTL_MS = 5000
 
-type RedisLike = {
-  get(key: string): Promise<string | null>
-  set(key: string, value: string, mode?: string, ttlMode?: string | number, ttlOrMode?: number | string): Promise<string | null>
-  del(...keys: string[]): Promise<number>
-  eval(script: string, numKeys: number, ...args: Array<string | number>): Promise<unknown>
+type RedisLike = ManagedQueueRedis
+type AggregationScope = {
+  integrationId?: string | null
+  tenantId?: string | null
+  organizationId?: string | null
 }
 
 @Injectable()
 export class WechatTriggerAggregationService {
+  private _managedQueueService?: ManagedQueueService
+
   constructor(
-    @InjectQueue(WECHAT_INBOUND_QUEUE_NAME)
-    private readonly inboundQueue: Queue<WechatTriggerAggregatePayload | WechatTriggerFlushPayload>
+    @Inject(WECHAT_PLUGIN_CONTEXT)
+    private readonly pluginContext: PluginContext
   ) {}
 
-  async enqueueAggregate(payload: WechatTriggerAggregatePayload): Promise<Job<WechatTriggerAggregatePayload>> {
-    return this.inboundQueue.add(WECHAT_INBOUND_AGGREGATE_JOB, payload, {
+  private get managedQueueService(): ManagedQueueService {
+    if (!this._managedQueueService) {
+      this._managedQueueService = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN)
+    }
+    return this._managedQueueService
+  }
+
+  async enqueueAggregate(payload: WechatTriggerAggregatePayload): Promise<{ id: string }> {
+    const job = await this.managedQueueService.enqueue<WechatTriggerAggregatePayload>({
+      pluginName: WECHAT_PLUGIN_NAME,
+      queueName: WECHAT_INBOUND_QUEUE_NAME,
+      jobName: WECHAT_INBOUND_AGGREGATE_JOB,
+      payload,
+      tenantId: payload.tenantId,
+      organizationId: payload.organizationId,
+      scopeKey: this.scopeKey,
       jobId: `plugin_wechat_inbound_aggregate-${randomUUID()}`,
       attempts: 5,
-      backoff: {
+      backoffMs: {
         type: 'fixed',
         delay: 1000
       },
@@ -46,70 +68,80 @@ export class WechatTriggerAggregationService {
         age: 7 * 24 * 60 * 60,
         count: 5000
       }
-    }) as Promise<Job<WechatTriggerAggregatePayload>>
+    })
+    return { id: job.jobId }
   }
 
   async enqueueFlush(
     state: WechatTriggerAggregationState,
     delayMs: number
-  ): Promise<Job<WechatTriggerFlushPayload>> {
-    return this.inboundQueue.add(
-      WECHAT_INBOUND_FLUSH_JOB,
-      {
-        aggregateKey: state.aggregateKey,
-        version: state.version
+  ): Promise<{ id: string }> {
+    const payload: WechatTriggerFlushPayload = {
+      aggregateKey: state.aggregateKey,
+      version: state.version,
+      integrationId: state.integrationId,
+      tenantId: state.tenantId,
+      organizationId: state.organizationId
+    }
+    const job = await this.managedQueueService.enqueue<WechatTriggerFlushPayload>({
+      pluginName: WECHAT_PLUGIN_NAME,
+      queueName: WECHAT_INBOUND_QUEUE_NAME,
+      jobName: WECHAT_INBOUND_FLUSH_JOB,
+      payload,
+      tenantId: state.tenantId,
+      organizationId: state.organizationId,
+      scopeKey: this.scopeKey,
+      jobId: `plugin_wechat_inbound_flush-${randomUUID()}`,
+      delayMs: Math.max(0, delayMs),
+      attempts: 3,
+      backoffMs: {
+        type: 'fixed',
+        delay: 1000
       },
-      {
-        jobId: `plugin_wechat_inbound_flush-${randomUUID()}`,
-        delay: Math.max(0, delayMs),
-        attempts: 3,
-        backoff: {
-          type: 'fixed',
-          delay: 1000
-        },
-        removeOnComplete: {
-          age: 24 * 60 * 60,
-          count: 5000
-        },
-        removeOnFail: {
-          age: 7 * 24 * 60 * 60,
-          count: 5000
-        }
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 5000
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 5000
       }
-    ) as Promise<Job<WechatTriggerFlushPayload>>
+    })
+    return { id: job.jobId }
   }
 
   async save(
     state: WechatTriggerAggregationState,
     ttlSeconds: number = DEFAULT_AGGREGATION_TTL_SECONDS
   ): Promise<void> {
-    await (await this.getRedis()).set(this.buildKey(state.aggregateKey), JSON.stringify(state), 'PX', ttlSeconds * 1000)
+    await (await this.getRedis()).set(this.buildKey(state.aggregateKey, state), JSON.stringify(state), 'PX', ttlSeconds * 1000)
   }
 
-  async get(aggregateKey: string): Promise<WechatTriggerAggregationState | null> {
-    const raw = await (await this.getRedis()).get(this.buildKey(aggregateKey))
+  async get(aggregateKey: string, scope?: AggregationScope): Promise<WechatTriggerAggregationState | null> {
+    const raw = await (await this.getRedis()).get(this.buildKey(aggregateKey, scope))
     if (!raw) {
       return null
     }
     try {
       return JSON.parse(raw) as WechatTriggerAggregationState
     } catch {
-      await this.clear(aggregateKey)
+      await this.clear(aggregateKey, scope)
       return null
     }
   }
 
-  async clear(aggregateKey: string): Promise<void> {
-    await (await this.getRedis()).del(this.buildKey(aggregateKey))
+  async clear(aggregateKey: string, scope?: AggregationScope): Promise<void> {
+    await (await this.getRedis()).del(this.buildKey(aggregateKey, scope))
   }
 
   async withAggregateLock<T>(
     aggregateKey: string,
     callback: () => Promise<T>,
-    ttlMs: number = DEFAULT_LOCK_TTL_MS
+    ttlMs: number = DEFAULT_LOCK_TTL_MS,
+    scope?: AggregationScope
   ): Promise<T> {
     const token = randomUUID()
-    const key = this.buildLockKey(aggregateKey)
+    const key = this.buildLockKey(aggregateKey, scope)
     const acquired = await this.acquireLock(key, token, ttlMs)
     if (!acquired) {
       throw new Error('inbound_aggregate_lock_unavailable')
@@ -123,7 +155,11 @@ export class WechatTriggerAggregationService {
   }
 
   private async getRedis(): Promise<RedisLike> {
-    return (await (this.inboundQueue as unknown as { client: Promise<RedisLike> }).client) as RedisLike
+    return this.managedQueueService.getRedis()
+  }
+
+  private get scopeKey(): string | null {
+    return (this.pluginContext as { scopeKey?: string | null }).scopeKey ?? null
   }
 
   private async acquireLock(key: string, token: string, ttlMs: number): Promise<boolean> {
@@ -140,11 +176,29 @@ export class WechatTriggerAggregationService {
     )
   }
 
-  private buildKey(aggregateKey: string): string {
-    return `plugin_wechat:trigger:aggregate:${aggregateKey}`
+  private buildKey(aggregateKey: string, scope?: AggregationScope): string {
+    const prefix = this.buildScopedPrefix(scope)
+    if (!prefix) {
+      return `plugin_wechat:trigger:aggregate:${aggregateKey}`
+    }
+    return `${prefix}:aggregate:${aggregateKey}`
   }
 
-  private buildLockKey(aggregateKey: string): string {
-    return `plugin_wechat:lock:inbound:${aggregateKey}`
+  private buildLockKey(aggregateKey: string, scope?: AggregationScope): string {
+    const prefix = this.buildScopedPrefix(scope)
+    if (!prefix) {
+      return `plugin_wechat:lock:inbound:${aggregateKey}`
+    }
+    return `${prefix}:lock:inbound:${aggregateKey}`
+  }
+
+  private buildScopedPrefix(scope?: AggregationScope): string | null {
+    const tenantId = typeof scope?.tenantId === 'string' && scope.tenantId ? scope.tenantId : null
+    const integrationId = typeof scope?.integrationId === 'string' && scope.integrationId ? scope.integrationId : null
+    if (!tenantId && !integrationId) {
+      return null
+    }
+    const organizationId = typeof scope?.organizationId === 'string' && scope.organizationId ? scope.organizationId : 'org_global'
+    return ['plugin_wechat', 'trigger', tenantId || 'tenant_global', organizationId, integrationId || 'integration_unknown'].join(':')
   }
 }

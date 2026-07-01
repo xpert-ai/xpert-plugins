@@ -226,6 +226,7 @@ const zhHans = {
   waitingForScan: '等待扫码',
   wechatAvatar: '微信头像',
   wechatMessageActivity: '微信消息活动',
+  wechatName: '微信名称',
   xpertInstance: 'Xpert 实例',
   xpert: '智能体'
 }
@@ -458,6 +459,7 @@ const enUS: Record<keyof typeof zhHans, string> = {
   waitingForScan: 'Waiting for scan',
   wechatAvatar: 'WeChat avatar',
   wechatMessageActivity: 'WeChat message activity',
+  wechatName: 'WeChat name',
   xpertInstance: 'Xpert instance',
   xpert: 'Xpert'
 }

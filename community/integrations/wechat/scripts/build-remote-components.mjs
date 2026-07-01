@@ -139,6 +139,7 @@ async function bundleComponent(componentName) {
   await validateSources(sourceDir)
   const echartsUmd = await readEchartsUmd()
   const result = await build({
+    absWorkingDir: packageRoot,
     entryPoints: [entryPoint],
     bundle: true,
     format: 'iife',

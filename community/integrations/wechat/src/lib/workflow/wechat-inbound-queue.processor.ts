@@ -1,11 +1,16 @@
-import { Logger } from '@nestjs/common'
-import { Processor, WorkerHost } from '@nestjs/bullmq'
-import type { Job } from 'bullmq'
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import {
+  PluginJobProcessor,
+  type ManagedQueueJob,
+  type PluginContext
+} from '@xpert-ai/plugin-sdk'
 import {
   WECHAT_INBOUND_AGGREGATE_JOB,
   WECHAT_INBOUND_FLUSH_JOB,
-  WECHAT_INBOUND_QUEUE_NAME
+  WECHAT_INBOUND_QUEUE_NAME,
+  WECHAT_PLUGIN_NAME
 } from '../constants.js'
+import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
 import {
   WechatTriggerAggregatePayload,
   WechatTriggerFlushPayload
@@ -16,18 +21,28 @@ export type WechatInboundQueueJobData =
   | WechatTriggerAggregatePayload
   | WechatTriggerFlushPayload
 
-@Processor(WECHAT_INBOUND_QUEUE_NAME, {
-  concurrency: 8,
-  autorun: process.env.WECHAT_INBOUND_QUEUE_AUTORUN !== 'false'
+/** Platform managed queue handler; no longer a BullMQ WorkerHost processor. */
+@PluginJobProcessor({
+  pluginName: WECHAT_PLUGIN_NAME,
+  queueName: WECHAT_INBOUND_QUEUE_NAME,
+  jobName: WECHAT_INBOUND_AGGREGATE_JOB
 })
-export class WechatInboundQueueProcessor extends WorkerHost {
+@PluginJobProcessor({
+  pluginName: WECHAT_PLUGIN_NAME,
+  queueName: WECHAT_INBOUND_QUEUE_NAME,
+  jobName: WECHAT_INBOUND_FLUSH_JOB
+})
+@Injectable()
+export class WechatInboundQueueProcessor {
   private readonly logger = new Logger(WechatInboundQueueProcessor.name)
 
-  constructor(private readonly triggerStrategy: WechatTriggerStrategy) {
-    super()
-  }
+  constructor(
+    private readonly triggerStrategy: WechatTriggerStrategy,
+    @Inject(WECHAT_PLUGIN_CONTEXT)
+    private readonly pluginContext: PluginContext
+  ) {}
 
-  async process(job: Job<WechatInboundQueueJobData>): Promise<void> {
+  async handle(job: ManagedQueueJob<WechatInboundQueueJobData>): Promise<void> {
     switch (job.name) {
       case WECHAT_INBOUND_AGGREGATE_JOB:
         await this.triggerStrategy.processInboundAggregateJob(job.data as WechatTriggerAggregatePayload)
@@ -38,5 +53,14 @@ export class WechatInboundQueueProcessor extends WorkerHost {
       default:
         this.logger.warn(`[wechat-inbound] unknown job=${job.name} id=${job.id}`)
     }
+  }
+
+  /** Backward-compatible alias for callers that still invoke process directly. */
+  async process(job: ManagedQueueJob<WechatInboundQueueJobData>): Promise<void> {
+    return this.handle(job)
+  }
+
+  get scopeKey(): string | null {
+    return (this.pluginContext as { scopeKey?: string | null }).scopeKey ?? null
   }
 }
