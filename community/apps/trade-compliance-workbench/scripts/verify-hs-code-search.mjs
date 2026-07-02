@@ -38,10 +38,8 @@ const expectations = [
   ['supplier auto-linked English name', middleware, 'englishName: suggestion?.englishName'],
   ['supplier candidate enrichment helper', middleware, 'enrichSupplierReviewItemsWithHsCandidates'],
   ['supplier contract enrichment', middleware, 'enrichSupplierReviewItemsWithHsCandidates(input.items'],
-  ['controlled goods file save tool name', constants, 'trade_compliance_save_controlled_goods_extraction_file'],
-  ['controlled goods file save schema', middleware, 'controlledGoodsExtractionFileSchema'],
-  ['controlled goods file save handler', middleware, 'saveControlledGoodsExtractionFile'],
-  ['controlled goods JSON prompt', provider, 'trade_compliance_save_controlled_goods_extraction_file'],
+  ['controlled goods one-shot LLM prompt', provider, '一次性识别'],
+  ['controlled goods one-shot save prompt', provider, '一次性调用 trade_compliance_save_controlled_goods_extraction'],
   ['review batch summary output', middleware, 'summarizeReviewBatchResult'],
   ['pagination controls', remoteApp, 'searchHsCodePage'],
   ['fixed filter flag', remoteApp, 'filterFailureCode: true'],
@@ -75,6 +73,10 @@ const forbidden = [
   ['controlled goods candidate chunking', provider, 'chunkArray(parsed.candidates'],
   ['controlled goods candidate batch prompt', provider, 'buildControlledGoodsCandidateBatchPrompt'],
   ['controlled goods old direct save prompt', provider, 'trade_compliance_save_controlled_goods_extraction 保存待审核结果'],
+  ['controlled goods file save tool name', constants, 'trade_compliance_save_controlled_goods_extraction_file'],
+  ['controlled goods source parser tool name', constants, 'trade_compliance_parse_controlled_goods_file'],
+  ['controlled goods ai audit target tool name', constants, 'trade_compliance_list_controlled_goods_audit_targets'],
+  ['controlled goods ai audit save tool name', constants, 'trade_compliance_save_controlled_goods_ai_audit'],
   ['supplier lookup panel old candidate title', remoteApp, '候选海关编码'],
   ['supplier lookup panel old auto-link copy', remoteApp, '已自动关联，保留']
 ].filter(([, source, token]) => source.includes(token))

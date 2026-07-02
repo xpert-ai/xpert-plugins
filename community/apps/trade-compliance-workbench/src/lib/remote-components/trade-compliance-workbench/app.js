@@ -285,7 +285,7 @@
         debugUpload('dispatching assistant commands', { actionKey, fileName: file.name })
         const dispatched = await dispatchAssistantCommands(actionData)
         debugUpload('file workflow completed', { actionKey, fileName: file.name, dispatched })
-        showNotice(dispatched ? '文件已发送给智能体解析，识别结果会进入待审核列表。' : '文件已登记，等待识别结果。', 'success')
+        showNotice(resolveFileWorkflowNotice(actionKey, dispatched), 'success')
         await reload()
         if (dispatched && expectedType) startRecognitionPolling(expectedType, previousCount, readExpectedCount(actionData))
       } catch (error) {
@@ -741,12 +741,10 @@
           h('div', { className: 'pending-controlled-goods confirmed-controlled-goods tcw-table-section' },
             reviewTable(['商品名称/候选', '海关编码', '解析状态', '管控说明', '来源'], page.rows, (item) => {
             const row = readMerged(item)
-            const warnings = Array.isArray(row.parseWarnings) ? row.parseWarnings : []
-            const status = warnings.length ? `需核对：${warnings.join('、')}` : '已解析'
             return [
               value(row.productName || row.referenceNameCandidate || item.title),
               value(row.hsCode),
-              value(status),
+              value(resolveControlledGoodsParseStatus(row)),
               value(row.controlNote),
               value(item.sourceLocation || row.sourceFileName)
             ]
@@ -1861,6 +1859,24 @@
     if (!payload || typeof payload !== 'object') return 0
     const value = payload.expectedCount
     return Number.isFinite(value) && value > 0 ? value : 0
+  }
+
+  function resolveFileWorkflowNotice(actionKey, dispatched) {
+    if (actionKey === 'upload_controlled_goods_file') {
+      return dispatched ? '文件已解析并提交待审核，智能体会总结导入质量。' : '文件已解析并提交待审核。'
+    }
+    return dispatched ? '文件已发送给智能体解析，识别结果会进入待审核列表。' : '文件已登记，等待识别结果。'
+  }
+
+  function resolveControlledGoodsParseStatus(row) {
+    if (row.aiAuditStatus === 'verified') return 'AI 已核对'
+    if (row.aiAuditStatus === 'corrected') return 'AI 已修正'
+    if (row.aiAuditStatus === 'needs_human_review') return '仍需人工核对'
+    if (row.parseStatus === 'ai_verified') return 'AI 已核对'
+    if (row.parseStatus === 'ai_corrected') return 'AI 已修正'
+    if (row.parseStatus === 'ai_needs_human_review') return '仍需人工核对'
+    const warnings = Array.isArray(row.parseWarnings) ? row.parseWarnings : []
+    return warnings.length ? `需核对：${warnings.join('、')}` : '已解析'
   }
 
   function assertActionSuccess(response) {

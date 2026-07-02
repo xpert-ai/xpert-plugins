@@ -9,8 +9,9 @@ import { renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/pl
 import { AGENT_WORKBENCH_FIXED_SLOT, AGENT_WORKBENCH_MAIN_SLOT, TRADE_COMPLIANCE_FEATURE, TRADE_COMPLIANCE_ICON, TRADE_COMPLIANCE_PLUGIN_NAME, TRADE_COMPLIANCE_PROVIDER_KEY, TRADE_COMPLIANCE_REMOTE_ENTRY_KEY, TRADE_COMPLIANCE_VIEW_KEY } from './constants.js';
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
 import { buildCustomsWorkbookModel, buildCustomsWorkbookTemplateFileName, createCustomsWorkbookFromTemplateBuffer, readCustomsWorkbookTemplateSheetNames } from './trade-compliance-workbook.js';
-import { parseControlledGoodsFile } from './controlled-goods-file-parser.js';
 import { getHsBianmaCodeDetail, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
+import { extractDocumentText } from './document-text-extractor.js';
+import { storeControlledGoodsExtractedText } from './controlled-goods-extracted-text-store.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const requireFromHere = createRequire(__filename);
@@ -374,12 +375,12 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
             if (!buffer?.length) {
                 return failure('Uploaded file content is not readable.', '无法读取上传文件内容，请重新上传后再解析。');
             }
-            const parsed = await parseControlledGoodsFile({
+            const extractedText = await extractDocumentText({
                 buffer,
                 fileName,
-                mimeType: getFileMimeType(file)
+                mimeType: getFileMimeType(file),
+                maxChars: 120000
             });
-            const items = parsed.candidates.map(toControlledGoodsCandidateReviewItem).filter(Boolean);
             const result = await this.service.createReviewBatch(scope, {
                 type: 'controlled_goods_file',
                 sourceFileName: fileName,
@@ -387,22 +388,29 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
                     fileName,
                     size: getFileSize(file),
                     mimeType: getFileMimeType(file),
-                    parser: 'controlled-goods-file-parser',
-                    textLength: parsed.textLength,
-                    parsedCandidateCount: parsed.candidates.length,
-                    lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length,
-                    withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length
+                    parser: 'document-text-to-llm',
+                    extractedTextKind: extractedText.kind,
+                    extractedTextLength: extractedText.originalLength,
+                    extractedTextTruncated: extractedText.truncated,
+                    extractedTextChunked: extractedText.chunked,
+                    extractedTextChunkCount: extractedText.chunkCount
                 },
-                items
+                items: []
             });
-            return success({
+            storeControlledGoodsExtractedText(result.batch.id, {
+                sourceFileName: fileName,
+                kind: extractedText.kind,
+                originalLength: extractedText.originalLength,
+                chunks: extractedText.chunks
+            });
+            return parsingStarted(buildAssistantCommand({
+                action: 'parse_controlled_goods_file',
+                file: assistantFile,
+                fileName,
+                role: 'controlled_goods_file',
                 batchId: result.batch.id,
-                parsedCandidateCount: parsed.candidates.length,
-                savedCount: result.items.length,
-                skippedDuplicateCount: Math.max(0, items.length - result.items.length),
-                lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length,
-                withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length
-            });
+                text: buildControlledGoodsParsePrompt(fileName, result.batch.id, extractedText)
+            }));
         }
         if (!hasAssistantReadableFileHandle(assistantFile)) {
             return failure('Uploaded file was not registered as an assistant-readable workspace file.', '文件未写入智能体工作空间，请重新上传后再解析。');
@@ -512,64 +520,6 @@ function success(data) {
         message: text('Saved', '已保存'),
         data,
         refresh: true
-    };
-}
-async function readWorkspaceFileBuffer(file) {
-    const workspacePath = file?.workspacePath ?? file?.filePath;
-    if (!workspacePath)
-        return undefined;
-    try {
-        return await readFile(workspacePath);
-    }
-    catch {
-        return undefined;
-    }
-}
-function toControlledGoodsCandidateReviewItem(candidate) {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
-        return null;
-    const hsCode = Array.isArray(candidate.hsCodes) ? candidate.hsCodes.join('\n') : readString(candidate, 'hsCode');
-    const productName = readString(candidate, 'productName');
-    const referenceNameCandidate = readString(candidate, 'referenceNameCandidate');
-    const controlCode = readString(candidate, 'controlCode');
-    const category = readString(candidate, 'category');
-    const parseWarnings = Array.isArray(candidate.parseWarnings) ? candidate.parseWarnings.map((item) => String(item)).filter(Boolean) : [];
-    const displayName = productName ?? referenceNameCandidate ?? controlCode ?? readString(candidate, 'rawText')?.slice(0, 80);
-    const controlNote = [
-        category,
-        controlCode ? `管制编码：${controlCode}` : undefined,
-        referenceNameCandidate && !productName ? `候选商品名：${referenceNameCandidate}` : undefined,
-        parseWarnings.length ? `解析提示：${parseWarnings.join('、')}` : undefined,
-        readString(candidate, 'description') ?? readString(candidate, 'rawText')
-    ].filter(Boolean).join('\n');
-    return {
-        type: 'controlled_goods',
-        title: [controlCode, displayName].filter(Boolean).join(' ') || '管控商品',
-        extractedData: {
-            productName,
-            hsCode,
-            keywords: [controlCode, category, productName, referenceNameCandidate].filter(Boolean),
-            controlNote,
-            enabled: true,
-            controlCode,
-            category,
-            referenceNameCandidate,
-            parseWarnings,
-            parseStatus: parseWarnings.length ? 'needs_review' : 'parsed',
-            description: readString(candidate, 'description'),
-            unit: readString(candidate, 'unit'),
-            rawText: readString(candidate, 'rawText')
-        },
-        fields: [
-            { key: '序号', value: readString(candidate, 'sequence') },
-            { key: '管制编码', value: controlCode },
-            { key: '候选商品名', value: referenceNameCandidate },
-            { key: '解析提示', value: parseWarnings.join('、') },
-            { key: '海关编码', value: hsCode },
-            { key: '单位', value: readString(candidate, 'unit') }
-        ].filter((field) => field.value),
-        confidence: typeof candidate.confidence === 'number' ? candidate.confidence : undefined,
-        sourceLocation: readString(candidate, 'sourceLocation')
     };
 }
 function parsingStarted(data) {
@@ -732,6 +682,17 @@ function getFileBuffer(file) {
         return Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     return undefined;
 }
+async function readWorkspaceFileBuffer(file) {
+    const workspacePath = file?.workspacePath ?? file?.filePath;
+    if (!workspacePath)
+        return undefined;
+    try {
+        return await readFile(workspacePath);
+    }
+    catch {
+        return undefined;
+    }
+}
 function buildAssistantCommand(input) {
     const files = [input.file];
     const workspacePath = input.file.workspacePath ?? input.file.filePath;
@@ -830,14 +791,47 @@ function toChatReference(file, fileName, role) {
         ].join('\n')
     };
 }
-function buildControlledGoodsParsePrompt(fileName, batchId) {
+function buildControlledGoodsParsePrompt(fileName, batchId, extractedText) {
+    const chunkCount = extractedText?.chunkCount ?? 0;
+    const isChunked = chunkCount > 1;
+    const textBlock = extractedText?.text
+        ? isChunked
+            ? [
+                '',
+                `转换文本已无损分成 ${chunkCount} 块。为避免 chatkit 消息截断，初始消息不直接携带大块原文。`,
+                `请先调用 trade_compliance_get_controlled_goods_extracted_text_chunk 读取第 1 块，参数 batchId=${batchId ?? '-'}、chunkIndex=1。`
+            ]
+            : [
+            '',
+            '以下是插件从上传文件中转换出的文本，请基于下方文本提取，不要重新读取附件：',
+            '```text',
+            extractedText.text,
+            '```'
+        ]
+        : [
+            '',
+            '插件未能从上传文件中转换出文本；如确需处理，请再尝试读取附件内容。'
+        ];
     return [
         `请解析我刚上传的管控商品文件《${fileName}》。`,
-        '文件已写入智能体工作空间，请根据 state.tradeComplianceWorkbench.workspacePath 获取原始文件路径。',
-        `请优先调用 trade_compliance_parse_controlled_goods_file 让插件代码直接解析原始文件并保存待审核结果，batchId 必须传 ${batchId ?? '-'}，workspacePath/filePath 传原始文件路径。`,
-        '不要由大模型手工逐页抽取全部管控目录；对于大 PDF/Excel 目录，代码侧解析会保留序号、管制编码、物项描述、海关编码、单位、原文片段、来源页码和低置信度标记。',
-        '只有当直解析工具明确失败时，才可以把识别结果写入工作区 JSON 文件，并调用 trade_compliance_save_controlled_goods_extraction_file 保存该 JSON 文件。',
-        '不要只回复文字，必须调用文件保存工具把识别结果写入插件。回复中的识别数量必须等于工具实际保存的 items 总数。'
+        '插件已经先把上传文件转换成纯文本/Markdown 表格，代码只做格式转换，不做业务字段提取。',
+        isChunked
+            ? `本次必须由大模型基于转换文本分块识别完整文件，不要调用代码解析工具，不要重新读取附件，不要生成 JSON 文件。保存时必须使用同一个 batchId：${batchId ?? '-'}。`
+            : `本次必须由大模型基于下方文本一次性识别完整文件，不要调用代码解析工具，不要生成 JSON 文件，不要分批保存。保存时必须使用同一个 batchId：${batchId ?? '-'}。`,
+        isChunked
+            ? '当前消息不包含原文全文。请按块处理：先调用 trade_compliance_get_controlled_goods_extracted_text_chunk 获取当前块文本，再抽取并调用 trade_compliance_save_controlled_goods_extraction 保存该块 rows，然后继续获取下一块，直到工具返回 hasMore=false。'
+            : '请一次性抽取文件中的全部管控商品明细，然后一次性调用 trade_compliance_save_controlled_goods_extraction 保存。为避免工具参数过大，管控商品优先使用 rows 紧凑入参，不要为每条记录手写完整 items 结构。',
+        '禁止摘要、禁止概览、禁止使用“等”“主要包括”“大类结构”代替明细；凡是表格或正文中的每一行商品、技术、软件、设备、材料、子项，都要拆成独立待审核记录。',
+        'rows 中每条记录尽量包含 productName、hsCode、keywords、controlNote、enabled、sequence、controlCode、sectionPath、rawText、sourcePage、sourceLocation、confidence；sourceLocation 必须写明页码、工作表行号或表格/章节位置。',
+        '如果转换文本是表格，rows 数量应尽量等于有效数据行数量，不要只保存前几行；不要因为聊天展示只列出部分数据而只传部分 rows。',
+        '如果源文件没有海关商品编号，hsCode 留空，不要编造；如果一行有多个 HS Code，用换行或数组语义保留全部编码；技术、软件类没有 HS Code 也要保存。',
+        isChunked
+            ? '每块保存完成后继续下一块，不要提前总结；最终回复只用简短中文说明：总块数、已处理块数、实际保存数量、是否存在未处理块。'
+            : '保存前请确认没有把文件后半部分压缩成摘要。最终回复只用简短中文说明：实际识别数量、工具实际保存数量；不要在聊天里贴完整明细。',
+        isChunked
+            ? `转换文本长度：${extractedText?.originalLength ?? 0} 字符，已无损分成 ${chunkCount} 块。必须调用 trade_compliance_get_controlled_goods_extracted_text_chunk 按 chunkIndex=1,2,3... 顺序读取。`
+            : `转换文本长度：${extractedText?.originalLength ?? 0} 字符。`,
+        ...textBlock
     ].join('\n');
 }
 function buildSupplierContractParsePrompt(fileName, batchId) {

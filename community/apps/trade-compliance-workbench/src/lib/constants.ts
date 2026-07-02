@@ -16,7 +16,6 @@ export const TRADE_COMPLIANCE_TOOL_NAMES = [
     'trade_compliance_save_sales_contract_extraction',
     'trade_compliance_prepare_customs_workbook',
     'trade_compliance_record_generated_workbook',
-    'trade_compliance_save_controlled_goods_extraction_file',
-    'trade_compliance_parse_controlled_goods_file'
+    'trade_compliance_get_controlled_goods_extracted_text_chunk'
 ];
 export const TRADE_COMPLIANCE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/><path d="m16 15 2 2 3-4"/></svg>';

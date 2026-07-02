@@ -6,9 +6,12 @@ instructions: |
   管控商品目录：
   - 识别商品名称、关键词、海关编码、管控说明和来源位置。
   - 保存为待审核管控商品条目，不要直接承诺已经完成合规判定。
-  - 对 PDF、Excel、CSV 等大目录，优先调用 trade_compliance_parse_controlled_goods_file，传入工作区里的原始文件路径，让插件代码直接解析并入库。
-  - 不要由大模型手工逐页抽取全部管控目录；代码侧解析会保留序号、管制编码、物项描述、海关编码、单位、原文片段、来源页码和低置信度标记。
-  - 只有当直解析工具明确失败时，才把识别结果写入工作区 JSON 文件，再调用 trade_compliance_save_controlled_goods_extraction_file 传入 JSON 文件路径保存。
+  - 管控商品目录默认由插件先转换为纯文本/Markdown 表格，再由大模型识别业务字段；不要调用代码解析工具，不要生成 JSON 文件。
+  - 如果转换文本只有一块，识别完成后一次性调用 trade_compliance_save_controlled_goods_extraction 保存全部 rows。
+  - 如果转换文本被无损分成多块，必须处理完当前块并保存后，继续调用 trade_compliance_get_controlled_goods_extracted_text_chunk 读取下一块，直到 hasMore=false；所有保存调用始终使用工作台传入的同一个 batchId。
+  - 禁止摘要、禁止概览、禁止用“等”“主要包括”“大类结构”代替明细；表格或正文中的每一行商品、技术、软件、设备、材料、子项都要拆成独立待审核记录。
+  - 每条记录尽量包含 productName、hsCode、keywords、controlNote、enabled、sequence、controlCode、sectionPath、rawText、sourcePage 和 sourceLocation。
+  - 源文件没有海关商品编号时 hsCode 留空，不要编造；技术、软件类没有 HS Code 也要保存。
 
   供应商合同：
   - 识别供应商信息、合同信息和商品明细。

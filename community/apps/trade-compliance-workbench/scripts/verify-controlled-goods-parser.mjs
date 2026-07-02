@@ -1,7 +1,6 @@
 import { strict as assert } from 'node:assert'
 
 import { parseControlledGoodsText } from '../dist/lib/controlled-goods-file-parser.js'
-import { TRADE_COMPLIANCE_TOOL_NAMES } from '../dist/lib/constants.js'
 
 const sample = [
   '-- 16 of 168 --',
@@ -31,11 +30,6 @@ assert.deepEqual(result.candidates[0].hsCodes, [])
 assert.equal(result.candidates[0].sourceLocation, '第 17 页')
 assert.equal(result.candidates[1].controlCode, '1A225')
 assert.deepEqual(result.candidates[1].hsCodes, ['38151200'])
-
-assert.ok(
-  TRADE_COMPLIANCE_TOOL_NAMES.includes('trade_compliance_parse_controlled_goods_file'),
-  'direct controlled goods parser tool should be registered'
-)
 
 const wrappedUnitSample = [
   '-- 87 of 168 --',

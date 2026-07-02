@@ -3,17 +3,17 @@ import { __decorate, __metadata, __param } from "tslib";
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { tool } from '@langchain/core/tools';
 import { readFile } from 'fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { AgentMiddlewareStrategy, PLUGIN_CONFIG_RESOLVER_TOKEN, RequestContext } from '@xpert-ai/plugin-sdk';
 import { z } from 'zod/v3';
 import { TRADE_COMPLIANCE_FEATURE, TRADE_COMPLIANCE_ICON, TRADE_COMPLIANCE_MIDDLEWARE_NAME, TRADE_COMPLIANCE_PLUGIN_NAME, TRADE_COMPLIANCE_TOOL_NAMES } from './constants.js';
 import { readTradeComplianceEnvDefaults, TradeComplianceWorkbenchConfigSchema } from './trade-compliance.config.js';
 import { enrichProductWithFallback, searchHsBianmaCodes } from './trade-compliance.enrichment.js';
-import { parseControlledGoodsFile } from './controlled-goods-file-parser.js';
 import { matchControlledGoods } from './trade-compliance.matching.js';
 import { buildCustomsWorkbookModel, createCustomsWorkbookFromTemplateBuffer } from './trade-compliance-workbook.js';
 import { TradeComplianceWorkbenchService } from './trade-compliance-workbench.service.js';
+import { getControlledGoodsExtractedTextChunk } from './controlled-goods-extracted-text-store.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const reviewItemSchema = z.object({
@@ -31,19 +31,29 @@ const createReviewBatchSchema = z.object({
     metadata: z.record(z.unknown()).optional(),
     items: z.array(reviewItemSchema).default([])
 });
-const controlledGoodsExtractionFileSchema = z.object({
+const controlledGoodsRowsSchema = z.object({
     batchId: z.string().optional(),
     sourceFileName: z.string().optional(),
-    workspacePath: z.string().optional(),
-    filePath: z.string().optional(),
-    jsonPath: z.string().optional()
+    metadata: z.record(z.unknown()).optional(),
+    items: z.array(reviewItemSchema).optional(),
+    rows: z.array(z.object({
+        productName: z.string().optional(),
+        hsCode: z.string().optional(),
+        keywords: z.array(z.string()).optional(),
+        controlNote: z.string().optional(),
+        enabled: z.boolean().optional(),
+        sequence: z.string().optional(),
+        controlCode: z.string().optional(),
+        sectionPath: z.string().optional(),
+        rawText: z.string().optional(),
+        sourcePage: z.string().optional(),
+        sourceLocation: z.string().optional(),
+        confidence: z.number().min(0).max(1).optional()
+    })).optional()
 });
-const controlledGoodsSourceFileSchema = z.object({
-    batchId: z.string().optional(),
-    sourceFileName: z.string().optional(),
-    workspacePath: z.string().optional(),
-    filePath: z.string().optional(),
-    mimeType: z.string().optional()
+const controlledGoodsTextChunkSchema = z.object({
+    batchId: z.string().min(1),
+    chunkIndex: z.number().int().min(1).default(1)
 });
 const productSchema = z.object({
     productName: z.string().optional(),
@@ -103,10 +113,13 @@ let TradeComplianceWorkbenchMiddleware = class TradeComplianceWorkbenchMiddlewar
         return {
             name: TRADE_COMPLIANCE_MIDDLEWARE_NAME,
             tools: [
-                tool(async (input) => stringify(summarizeReviewBatchResult(await this.service.createReviewBatch(scope, { ...input, type: 'controlled_goods_file' }), input)), {
+                tool(async (input) => {
+                    const normalizedInput = normalizeControlledGoodsExtractionInput(input);
+                    return stringify(summarizeReviewBatchResult(await this.service.createReviewBatch(scope, { ...normalizedInput, type: 'controlled_goods_file' }), normalizedInput));
+                }, {
                     name: TRADE_COMPLIANCE_TOOL_NAMES[0],
-                    description: 'Save controlled goods entries extracted from an uploaded control catalog file into a review batch. Prefer one call for small payloads. For large extraction results, write the extracted items to a workspace JSON file and call trade_compliance_save_controlled_goods_extraction_file instead of splitting fixed-size batches.',
-                    schema: createReviewBatchSchema
+                    description: 'Save controlled goods entries extracted from an uploaded control catalog file into a review batch. Prefer the compact rows field for hundreds or thousands of records; the plugin converts rows into review items. Use one call with the same batchId whenever possible.',
+                    schema: controlledGoodsRowsSchema
                 }),
                 tool(async (input) => stringify(summarizeReviewBatchResult(await this.service.createReviewBatch(scope, {
                     ...input,
@@ -169,73 +182,12 @@ let TradeComplianceWorkbenchMiddleware = class TradeComplianceWorkbenchMiddlewar
                     description: 'Record a generated customs workbook after human review confirmation.',
                     schema: generatedWorkbookSchema
                 }),
-                tool(async (input) => stringify(await this.saveControlledGoodsExtractionFile(scope, input)), {
+                tool(async (input) => stringify(getControlledGoodsExtractedTextChunk(input.batchId, input.chunkIndex)), {
                     name: TRADE_COMPLIANCE_TOOL_NAMES[7],
-                    description: 'Save controlled goods extraction results from a workspace JSON file. Use this for large controlled-goods files to avoid large tool-call payloads. The JSON file can be an array of items or an object with an items array.',
-                    schema: controlledGoodsExtractionFileSchema
-                }),
-                tool(async (input) => stringify(await this.parseControlledGoodsSourceFile(scope, input)), {
-                    name: TRADE_COMPLIANCE_TOOL_NAMES[8],
-                    description: 'Parse an uploaded controlled-goods catalog source file directly in plugin code and save the full extraction for review. Prefer this for large PDF/Excel catalogs so the model does not need to manually extract every row.',
-                    schema: controlledGoodsSourceFileSchema
+                    description: 'Read the next lossless text chunk converted from the uploaded controlled goods file. Use this when the initial prompt says the converted text has multiple chunks; process and save each chunk with the same batchId until hasMore is false.',
+                    schema: controlledGoodsTextChunkSchema
                 })
             ]
-        };
-    }
-    async saveControlledGoodsExtractionFile(scope, input) {
-        const filePath = resolveWorkspaceJsonPath(input);
-        const text = await readFile(filePath, 'utf8');
-        const parsed = JSON.parse(text);
-        const rawItems = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
-        if (!Array.isArray(rawItems) || rawItems.length === 0) {
-            throw new Error('JSON 文件中没有可保存的 items 数组');
-        }
-        const items = rawItems.map(toControlledGoodsReviewItem).filter(Boolean);
-        const result = await this.service.createReviewBatch(scope, {
-            batchId: input.batchId,
-            type: 'controlled_goods_file',
-            sourceFileName: input.sourceFileName ?? parsed?.sourceFileName,
-            metadata: {
-                ...(parsed?.metadata ?? {}),
-                extractionFilePath: filePath,
-                extractionFileItemCount: rawItems.length
-            },
-            items
-        });
-        return summarizeReviewBatchResult(result, { items });
-    }
-    async parseControlledGoodsSourceFile(scope, input) {
-        const filePath = resolveWorkspaceFilePath(input);
-        const buffer = await readFile(filePath);
-        const parsed = await parseControlledGoodsFile({
-            buffer,
-            fileName: input.sourceFileName ?? filePath,
-            mimeType: input.mimeType
-        });
-        if (!Array.isArray(parsed.candidates) || parsed.candidates.length === 0) {
-            throw new Error('未能从管控商品文件中解析出可审核记录');
-        }
-        const items = parsed.candidates.map(toControlledGoodsCandidateReviewItem).filter(Boolean);
-        const result = await this.service.createReviewBatch(scope, {
-            batchId: input.batchId,
-            type: 'controlled_goods_file',
-            sourceFileName: input.sourceFileName ?? filePath.split('/').pop(),
-            metadata: {
-                sourceFilePath: filePath,
-                parser: 'controlled-goods-file-parser',
-                textLength: parsed.textLength,
-                parsedCandidateCount: parsed.candidates.length,
-                lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length,
-                withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length
-            },
-            items
-        });
-        return {
-            ...summarizeReviewBatchResult(result, { items }),
-            parsedCandidateCount: parsed.candidates.length,
-            textLength: parsed.textLength,
-            withoutHsCodeCount: parsed.candidates.filter((candidate) => !Array.isArray(candidate.hsCodes) || candidate.hsCodes.length === 0).length,
-            lowConfidenceCount: parsed.candidates.filter((candidate) => Number(candidate.confidence ?? 0) < 0.75).length
         };
     }
     resolveConfig() {
@@ -280,83 +232,34 @@ function summarizeReviewBatchResult(result, input) {
         skippedDuplicateCount: typeof attemptedCount === 'number' ? Math.max(0, attemptedCount - savedCount) : undefined
     };
 }
-function resolveWorkspaceJsonPath(input) {
-    const value = stringValue(input?.jsonPath) ?? stringValue(input?.workspacePath) ?? stringValue(input?.filePath);
-    if (!value) {
-        throw new Error('缺少 JSON 文件路径，请传入 workspacePath、filePath 或 jsonPath');
-    }
-    return isAbsolute(value) ? value : resolve(value);
-}
-function resolveWorkspaceFilePath(input) {
-    const value = stringValue(input?.workspacePath) ?? stringValue(input?.filePath);
-    if (!value) {
-        throw new Error('缺少源文件路径，请传入 workspacePath 或 filePath');
-    }
-    return isAbsolute(value) ? value : resolve(value);
-}
-function toControlledGoodsCandidateReviewItem(candidate) {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
-        return null;
-    const hsCode = Array.isArray(candidate.hsCodes) ? candidate.hsCodes.join('\n') : stringValue(candidate.hsCode);
-    const productName = stringValue(candidate.productName);
-    const referenceNameCandidate = stringValue(candidate.referenceNameCandidate);
-    const controlCode = stringValue(candidate.controlCode);
-    const category = stringValue(candidate.category);
-    const parseWarnings = Array.isArray(candidate.parseWarnings) ? candidate.parseWarnings.map((item) => stringValue(item)).filter(Boolean) : [];
-    const displayName = productName ?? referenceNameCandidate ?? controlCode ?? stringValue(candidate.rawText)?.slice(0, 80);
-    const controlNote = [
-        category,
-        controlCode ? `管制编码：${controlCode}` : undefined,
-        referenceNameCandidate && !productName ? `候选商品名：${referenceNameCandidate}` : undefined,
-        parseWarnings.length ? `解析提示：${parseWarnings.join('、')}` : undefined,
-        stringValue(candidate.description) ?? stringValue(candidate.rawText)
-    ]
-        .filter(Boolean)
-        .join('\n');
-    const title = [controlCode, displayName].filter(Boolean).join(' ') || '管控商品';
+function normalizeControlledGoodsExtractionInput(input) {
+    const items = Array.isArray(input?.items) && input.items.length > 0
+        ? input.items
+        : Array.isArray(input?.rows)
+            ? input.rows.map(toControlledGoodsReviewItemFromRow).filter(Boolean)
+            : [];
     return {
-        type: 'controlled_goods',
-        title,
-        extractedData: {
-            productName,
-            hsCode,
-            keywords: [controlCode, category, productName, referenceNameCandidate].filter(Boolean),
-            controlNote,
-            enabled: true,
-            controlCode,
-            category,
-            referenceNameCandidate,
-            parseWarnings,
-            parseStatus: parseWarnings.length ? 'needs_review' : 'parsed',
-            description: stringValue(candidate.description),
-            unit: stringValue(candidate.unit),
-            rawText: stringValue(candidate.rawText)
+        batchId: input?.batchId,
+        sourceFileName: input?.sourceFileName,
+        metadata: {
+            ...(input?.metadata ?? {}),
+            inputMode: Array.isArray(input?.rows) && (!Array.isArray(input?.items) || input.items.length === 0) ? 'compact_rows' : 'items',
+            rowCount: Array.isArray(input?.rows) ? input.rows.length : undefined
         },
-        fields: [
-            { key: '序号', value: stringValue(candidate.sequence) },
-            { key: '管制编码', value: controlCode },
-            { key: '候选商品名', value: referenceNameCandidate },
-            { key: '解析提示', value: parseWarnings.join('、') },
-            { key: '海关编码', value: hsCode },
-            { key: '单位', value: stringValue(candidate.unit) }
-        ].filter((field) => field.value),
-        confidence: typeof candidate.confidence === 'number' ? candidate.confidence : undefined,
-        sourceLocation: stringValue(candidate.sourceLocation)
+        items
     };
 }
-function toControlledGoodsReviewItem(raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+function toControlledGoodsReviewItemFromRow(row) {
+    if (!row || typeof row !== 'object' || Array.isArray(row))
         return null;
-    const extracted = raw.extractedData && typeof raw.extractedData === 'object' && !Array.isArray(raw.extractedData)
-        ? raw.extractedData
-        : raw;
-    const productName = stringValue(extracted.productName) ?? stringValue(raw.productName) ?? stringValue(raw.title);
-    const hsCode = stringValue(extracted.hsCode) ?? stringValue(raw.hsCode);
-    const keywords = normalizeKeywords(extracted.keywords ?? raw.keywords);
-    const controlNote = stringValue(extracted.controlNote) ?? stringValue(raw.controlNote);
-    const title = stringValue(raw.title) ?? productName ?? hsCode;
-    if (!title)
-        return null;
+    const productName = stringValue(row.productName) ?? stringValue(row.rawText)?.slice(0, 80);
+    const hsCode = stringValue(row.hsCode);
+    const controlCode = stringValue(row.controlCode);
+    const sectionPath = stringValue(row.sectionPath);
+    const rawText = stringValue(row.rawText);
+    const keywords = normalizeControlledGoodsKeywords(row.keywords, [controlCode, sectionPath, productName, hsCode]);
+    const title = [controlCode, productName].filter(Boolean).join(' ') || hsCode || '管控商品';
+    const controlNote = stringValue(row.controlNote) ?? [sectionPath, rawText].filter(Boolean).join('\n');
     return {
         type: 'controlled_goods',
         title,
@@ -365,20 +268,26 @@ function toControlledGoodsReviewItem(raw) {
             hsCode,
             keywords,
             controlNote,
-            enabled: typeof extracted.enabled === 'boolean' ? extracted.enabled : typeof raw.enabled === 'boolean' ? raw.enabled : true
+            enabled: typeof row.enabled === 'boolean' ? row.enabled : true,
+            sequence: stringValue(row.sequence),
+            controlCode,
+            sectionPath,
+            rawText,
+            sourcePage: stringValue(row.sourcePage)
         },
-        fields: Array.isArray(raw.fields) ? raw.fields : undefined,
-        confidence: typeof raw.confidence === 'number' ? raw.confidence : undefined,
-        sourceLocation: stringValue(raw.sourceLocation) ?? stringValue(extracted.sourceLocation)
+        fields: [
+            { key: '序号', value: stringValue(row.sequence) },
+            { key: '管制编码', value: controlCode },
+            { key: '海关编码', value: hsCode },
+            { key: '来源', value: stringValue(row.sourceLocation) }
+        ].filter((field) => field.value),
+        confidence: typeof row.confidence === 'number' ? row.confidence : undefined,
+        sourceLocation: stringValue(row.sourceLocation)
     };
 }
-function normalizeKeywords(value) {
-    if (Array.isArray(value))
-        return value.map((item) => stringValue(item)).filter(Boolean);
-    const text = stringValue(value);
-    if (!text)
-        return undefined;
-    return text.split(/[,，;；、\n]/).map((item) => item.trim()).filter(Boolean);
+function normalizeControlledGoodsKeywords(value, fallback) {
+    const values = Array.isArray(value) ? value : fallback;
+    return [...new Set(values.map((item) => stringValue(item)).filter(Boolean))];
 }
 async function enrichSupplierReviewItemsWithHsCandidates(items, config) {
     const list = Array.isArray(items) ? items : [];
