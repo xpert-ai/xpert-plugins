@@ -1,0 +1,64 @@
+interface:
+  display_name: "Spreadsheets"
+  short_description: "Create and edit spreadsheet or Google Sheets-ready files"
+  icon_small: "./assets/file-spreadsheet.png"
+  icon_large: "./assets/file-spreadsheet.png"
+  brand_color: "#107C41"
+  default_prompt: "Use $Spreadsheets to build or update a spreadsheet artifact with formulas, formatting, and verification."
+runtime:
+  required_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "read_skill_file"
+      required: true
+      purpose: "Read bundled skill instructions, references, scripts, and assets before use."
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "skill_shell"
+      required: true
+      purpose: "Run shell commands from the installed skill runtime directory for workbook generation and verification."
+  compatible_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SandboxShell"
+      name: "sandbox_shell"
+      required: false
+      purpose: "Alternative general shell execution tool when skill_shell is unavailable."
+    - kind: "builtin-toolset-tool"
+      provider: "bash"
+      name: "bash_execute"
+      required: false
+      purpose: "Alternative Bash execution tool for Xpert templates that bind builtin toolsets."
+    - kind: "builtin-toolset-tool"
+      provider: "file"
+      name: "file_edit"
+      required: false
+      purpose: "Optional workspace file inspection and edits for generated artifact support files."
+    - kind: "builtin-toolset-tool"
+      provider: "python"
+      name: "python_execute"
+      required: false
+      purpose: "Optional Python execution helper for analysis and extraction scripts."
+  required_runtime:
+    filesystem:
+      read: true
+      write: true
+      workspace: true
+    shell: true
+    workspace_dependencies: true
+    executables:
+      - "node"
+    packages:
+      - "@oai/artifact-tool"
+  optional_runtime:
+    executables:
+      - "python"
+    packages:
+      - "pandas"
+      - "numpy"
+      - "pypdf"
+      - "python-docx"
+      - "reportlab"
+    integrations:
+      - "Google Drive spreadsheet import for native Google Sheets output"
+policy:
+  allow_implicit_invocation: true

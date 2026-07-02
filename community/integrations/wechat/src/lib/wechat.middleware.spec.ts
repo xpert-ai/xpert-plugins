@@ -153,9 +153,14 @@ describe('WechatRuntimeMiddleware', () => {
       WECHAT_SEND_MESSAGE_TOOL_NAME
     ])
     expect(middleware.stateSchema).toBeDefined()
+
+    const historyTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
+    ) as any
+    expect(Object.keys(historyTool.schema.shape)).toEqual(['keyword', 'direction', 'before', 'after', 'limit'])
   })
 
-  it('searches current WeChat chat history from user runtime context', async () => {
+  it('searches current WeChat chat history from runtime configurable context', async () => {
     const conversationService = {
       searchChatHistory: jest.fn(async () => ({
         integrationId: 'integration-1',
@@ -172,11 +177,6 @@ describe('WechatRuntimeMiddleware', () => {
         { toolMode: 'user' },
         {
           xpertId: 'xpert-1',
-          integrationId: 'integration-1',
-          uuid: 'uuid-1',
-          contactId: 'room@chatroom',
-          chatType: 'group',
-          senderId: 'wxid_sender',
           node: {
             options: {}
           }
@@ -187,7 +187,22 @@ describe('WechatRuntimeMiddleware', () => {
     const historyTool = (middleware.tools ?? []).find(
       (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
     ) as any
-    const result = JSON.parse(await historyTool.handler({ keyword: '合同', limit: 5 }))
+    const result = JSON.parse(
+      await historyTool.handler(
+        { keyword: '合同', limit: 5 },
+        {
+          configurable: {
+            context: {
+              integrationId: 'integration-1',
+              uuid: 'uuid-1',
+              contactId: 'room@chatroom',
+              chatType: 'group',
+              senderId: 'wxid_sender'
+            }
+          }
+        }
+      )
+    )
 
     expect(conversationService.searchChatHistory).toHaveBeenCalledWith(
       'integration-1',
@@ -203,7 +218,7 @@ describe('WechatRuntimeMiddleware', () => {
     expect(result).toEqual(expect.objectContaining({ success: true }))
   })
 
-  it('injects current WeChat context into chat history tool calls', async () => {
+  it('reads current WeChat context from tool runtime configurable context', async () => {
     const conversationService = {
       searchChatHistory: jest.fn(async () => ({
         integrationId: 'integration-1',
@@ -229,7 +244,7 @@ describe('WechatRuntimeMiddleware', () => {
     const historyTool = (middleware.tools ?? []).find(
       (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
     ) as any
-    const toolHandler = jest.fn(async (request) => historyTool.handler(request.toolCall.args))
+    const toolHandler = jest.fn(async (request) => historyTool.handler(request.toolCall.args, request.runtime))
 
     await middleware.wrapToolCall?.(
       {
@@ -245,11 +260,13 @@ describe('WechatRuntimeMiddleware', () => {
         state: {},
         runtime: {
           configurable: {
-            integrationId: 'integration-1',
-            uuid: 'uuid-1',
-            contactId: 'room@chatroom',
-            chatType: 'group',
-            sourceMessageLogIds: ['inbound-log-1']
+            context: {
+              integrationId: 'integration-1',
+              uuid: 'uuid-1',
+              contactId: 'room@chatroom',
+              chatType: 'group',
+              sourceMessageLogIds: ['inbound-log-1']
+            }
           }
         }
       } as any,
@@ -260,18 +277,12 @@ describe('WechatRuntimeMiddleware', () => {
       expect.objectContaining({
         toolCall: expect.objectContaining({
           args: expect.objectContaining({
-            __wechatRuntimeHistory: expect.objectContaining({
-              integrationId: 'integration-1',
-              uuid: 'uuid-1',
-              contactId: 'room@chatroom',
-              chatType: 'group',
-              sourceMessageLogIds: ['inbound-log-1']
-            }),
-            __wechatRuntimeHistoryToken: expect.any(String)
+            direction: 'inbound'
           })
         })
       })
     )
+    expect(toolHandler.mock.calls[0][0].toolCall.args).toEqual({ direction: 'inbound' })
     expect(conversationService.searchChatHistory).toHaveBeenCalledWith(
       'integration-1',
       expect.objectContaining({

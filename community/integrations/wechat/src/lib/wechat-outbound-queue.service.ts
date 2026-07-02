@@ -33,7 +33,7 @@ import {
   TIntegrationWechatOptions,
   WechatOutboundQueueOptions
 } from './types.js'
-import { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
+import type { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 import { fetchWechatImageAsBase64 } from './wechat-image.js'
 import {
   WechatClient,
@@ -66,9 +66,26 @@ export type WechatOutboundSource =
   | 'message_reply'
   | 'scheduled_agent'
 
+export type WechatOutboundContext = Partial<Pick<
+  WechatChatCallbackContext,
+  | 'tenantId'
+  | 'organizationId'
+  | 'integrationId'
+  | 'uuid'
+  | 'ownerWxid'
+  | 'contactId'
+  | 'chatId'
+  | 'chatType'
+  | 'senderId'
+  | 'senderName'
+  | 'xpertId'
+  | 'conversationId'
+  | 'conversationUserKey'
+>>
+
 export type WechatOutboundQueueTextInput = WechatSendTextInput & {
   type?: 'text'
-  context?: WechatChatCallbackContext
+  context?: WechatOutboundContext
   source?: WechatOutboundSource
   idempotencyKey?: string
 }
@@ -78,7 +95,7 @@ export type WechatOutboundQueueImageInput = {
   uuid: string
   contactId: string
   imageUrl: string
-  context?: WechatChatCallbackContext
+  context?: WechatOutboundContext
   source?: WechatOutboundSource
   idempotencyKey?: string
 }
@@ -244,7 +261,7 @@ export class WechatOutboundQueueService {
       uuid: string
       contactId: string
       content: string
-      context?: WechatChatCallbackContext
+      context?: WechatOutboundContext
       payload: WechatQueuedPayload
     }
   ): Promise<WechatQueuedSendResult> {
@@ -263,6 +280,7 @@ export class WechatOutboundQueueService {
       ownerWxid: input.context?.ownerWxid,
       contactId: input.contactId,
       senderId: input.context?.senderId,
+      senderName: input.context?.senderName,
       chatType: input.context?.chatType,
       isSelf: false,
       direction: 'outbound',

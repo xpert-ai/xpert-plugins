@@ -21,20 +21,15 @@ export interface WechatChatCallbackContext extends Record<string, unknown> {
   from?: string
   channelType?: string
   wechatConversation?: boolean
-  wechat_conversation?: boolean
   channelSource?: string
-  channel_source?: string
   integrationId: string
   uuid: string
   ownerWxid?: string
   contactId: string
-  contact_id?: string
   chatId: string
-  chat_id?: string
   chatType?: 'private' | 'group'
-  chat_type?: 'private' | 'group'
   senderId?: string
-  sender_id?: string
+  senderName?: string
   responseStrategy?: 'final_text'
   preferLanguage?: string
   conversationUserKey?: string

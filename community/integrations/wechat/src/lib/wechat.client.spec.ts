@@ -1,3 +1,8 @@
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  CONNECTION_COMMAND_ROUTER_TOKEN: Symbol('CONNECTION_COMMAND_ROUTER_TOKEN'),
+  MANAGED_CONNECTION_REGISTRY_TOKEN: Symbol('MANAGED_CONNECTION_REGISTRY_TOKEN')
+}))
+
 import { WechatClient } from './wechat.client.js'
 
 describe('WechatClient', () => {
@@ -96,6 +101,7 @@ describe('WechatClient', () => {
 
   it('maps reverse tunnel sendText to wx2.0 v2 sendtext path and body', async () => {
     const tunnelBroker = {
+      syncManagedClientScope: jest.fn(async () => undefined),
       sendHttpRequest: jest.fn(async () => ({
         status: 200,
         headers: {},
@@ -125,7 +131,7 @@ describe('WechatClient', () => {
     expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'msg-1' }))
     expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         method: 'POST',
         path: '/v1/message/sendtext',
         headers: expect.objectContaining({
@@ -179,7 +185,7 @@ describe('WechatClient', () => {
     expect(tunnelBroker.sendHttpRequest).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         path: '/message/SendTextMessage?key=uuid-1',
         body: JSON.stringify({
           MsgItem: [
@@ -267,6 +273,7 @@ describe('WechatClient', () => {
 
   it('maps wx2.0 account APIs through reverse_tunnel http frames', async () => {
     const tunnelBroker = {
+      syncManagedClientScope: jest.fn(async () => undefined),
       sendHttpRequest: jest.fn(async () => ({
         status: 200,
         headers: {},
@@ -277,6 +284,8 @@ describe('WechatClient', () => {
 
     const integration = {
       id: 'integration-1',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
       options: {
         connectionMode: 'reverse_tunnel',
         tunnelClientId: 'client-1',
@@ -328,7 +337,9 @@ describe('WechatClient', () => {
     ])
     expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
         method: 'POST',
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
@@ -336,6 +347,12 @@ describe('WechatClient', () => {
         })
       })
     )
+    expect(tunnelBroker.syncManagedClientScope).toHaveBeenCalledWith('integration-1', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      integrationId: 'integration-1',
+      integrationName: 'integration-1'
+    })
     expect(tunnelRequests.map((request) => JSON.parse(request.body))).toEqual([
       { key: 'SDabc1234567' },
       {},
@@ -452,7 +469,7 @@ describe('WechatClient', () => {
     expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'img-1' }))
     expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         method: 'POST',
         path: '/v1/message/sendimage',
         headers: expect.objectContaining({
@@ -586,7 +603,7 @@ describe('WechatClient', () => {
     expect(result.file).not.toHaveProperty('id')
     expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         method: 'POST',
         path: '/v1/message/downloadfile',
         headers: expect.objectContaining({
@@ -857,7 +874,7 @@ describe('WechatClient', () => {
     expect(tunnelBroker.sendHttpRequest).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         method: 'POST',
         path: '/v1/message/downloadfile'
       })
@@ -865,7 +882,7 @@ describe('WechatClient', () => {
     expect(tunnelBroker.sendHttpRequest).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        clientId: 'client-1',
+        clientId: 'integration-1',
         method: 'POST',
         path: '/v1/message/getmediafilechunk',
         body: JSON.stringify({

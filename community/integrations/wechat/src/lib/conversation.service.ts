@@ -37,8 +37,10 @@ import {
   WechatInboundTriggerOptions
 } from './types.js'
 import {
+  buildWechatSidecarRuntimeConfig,
   WechatTunnelBrokerService,
   WechatTunnelClientInfo,
+  type WechatSidecarRuntimeConfig,
   WechatTunnelStatus
 } from './wechat-tunnel-broker.service.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
@@ -75,6 +77,8 @@ export type WechatCallbackConfig = {
   webhookUrl: string
   globalWebhookUrl: string
   credentialActive?: boolean
+  sidecarConfig?: WechatSidecarRuntimeConfig
+  sidecarConfigJson?: string
 }
 
 type WechatWebhookCredentialResult = {
@@ -208,6 +212,7 @@ export type WechatChatHistoryItem = {
   direction: WechatMessageDirection
   status: WechatMessageLogStatus
   senderId?: string | null
+  senderName?: string | null
   content: string
   messageId?: string | null
   createdAt?: Date | null
@@ -517,6 +522,7 @@ export class WechatConversationService {
           contactId: conversationIdentity.contactId,
           chatType: conversationIdentity.chatType,
           senderId: conversationIdentity.senderId,
+          senderName: dispatchEvent.senderName,
           wechatChannel: this.wechatChannel
         },
         {
@@ -631,6 +637,7 @@ export class WechatConversationService {
       ownerWxid: context.ownerWxid,
       contactId: context.contactId,
       senderId: context.senderId,
+      senderName: context.senderName,
       chatType: context.chatType,
       messageId: params.messageId,
       isSelf: false,
@@ -769,6 +776,7 @@ export class WechatConversationService {
         ownerWxid: target.ownerWxid,
         contactId: target.contactId,
         senderId: target.senderId,
+        senderName: target.senderName,
         messageId: result.messageId,
         chatType: target.chatType,
         isSelf: false,
@@ -824,7 +832,7 @@ export class WechatConversationService {
         if (!search) {
           return true
         }
-        return [log.uuid, log.contactId, log.senderId, log.content, log.error, log.status].some((value) =>
+        return [log.uuid, log.contactId, log.senderId, log.senderName, log.content, log.error, log.status].some((value) =>
           this.normalizeListSearch(value)?.includes(search)
         )
       })
@@ -846,7 +854,9 @@ export class WechatConversationService {
       scope: 'integration',
       integrationId: normalizedIntegrationId,
       integrations: [integrationWorkbenchItem],
-      callbackConfig: await this.buildCallbackConfig(integrationId),
+      callbackConfig: await this.buildCallbackConfig(integration.id, {
+        clientName: integration.name
+      }),
       summary: {
         integrationCount: 1,
         accountCount: accounts.length,
@@ -862,7 +872,7 @@ export class WechatConversationService {
       config: {
         connectionMode: integration?.options?.connectionMode ?? 'direct_http',
         baseUrl: integration?.options?.baseUrl,
-        tunnelClientId: integration?.options?.tunnelClientId,
+        tunnelClientId: this.getEffectiveTunnelClientId(integration) || undefined,
         apiVersion: integration?.options?.apiVersion ?? '/v1/',
         timeoutMs: integration?.options?.timeoutMs ?? 10000,
         preferLanguage: integration?.options?.preferLanguage,
@@ -1317,6 +1327,7 @@ export class WechatConversationService {
       if (keyword && ![
         log.content,
         log.senderId,
+        log.senderName,
         log.messageId
       ].some((value) => this.normalizeListSearch(value)?.includes(keyword))) {
         return false
@@ -1396,6 +1407,7 @@ export class WechatConversationService {
     integrationId: string,
     options: {
       requireActiveCredential?: boolean
+      clientName?: string | null
     } = {}
   ): Promise<WechatCallbackConfig> {
     const apiBaseUrl = (process.env.API_BASE_URL || '').replace(/\/+$/, '')
@@ -1406,10 +1418,14 @@ export class WechatConversationService {
     }
     const secretForUrl = webhookSecret || '<webhook-secret-unavailable>'
     const webhookUrl = `${apiBaseUrl}/api/wechat/webhook/${id}?secret=${encodeURIComponent(secretForUrl)}`
+    const setup = this.tunnelBroker.buildSetupConfig(id, options.clientName || id)
+    const sidecarConfig = buildWechatSidecarRuntimeConfig(setup, webhookUrl)
     return {
       webhookUrl,
       globalWebhookUrl: webhookUrl,
-      credentialActive: Boolean(webhookSecret)
+      credentialActive: Boolean(webhookSecret),
+      sidecarConfig,
+      sidecarConfigJson: JSON.stringify(sidecarConfig, null, 2)
     }
   }
 
@@ -1637,6 +1653,7 @@ export class WechatConversationService {
       ownerWxid: event.ownerWxid,
       contactId: event.contactId,
       senderId: event.senderId,
+      senderName: event.senderName,
       messageId: event.messageId,
       chatType: event.chatType,
       isSelf: event.isSelf,
@@ -1930,6 +1947,7 @@ export class WechatConversationService {
       ownerWxid: event.ownerWxid,
       contactId: event.contactId,
       senderId: event.senderId,
+      senderName: event.senderName,
       messageId: event.messageId,
       chatType: event.chatType,
       isSelf: event.isSelf,
@@ -2131,6 +2149,7 @@ export class WechatConversationService {
         direction: log.direction,
         status: log.status,
         senderId: log.senderId ?? null,
+        senderName: log.senderName ?? null,
         content,
         messageId: log.messageId ?? null,
         createdAt: this.normalizeDate(log.createdAt) ?? null,
@@ -2289,22 +2308,25 @@ export class WechatConversationService {
       name: integration.name,
       description: integration.description,
       slug: integration.slug,
-      callbackConfig: await this.buildCallbackConfig(integration.id),
+      callbackConfig: await this.buildCallbackConfig(integration.id, {
+        clientName: integration.name
+      }),
       accountCount: stats.accounts.length,
       recentMessageCount: stats.logs.length,
       errorCount: stats.logs.filter((log) => log.status === 'failed' || log.error).length,
-      config: this.sanitizeIntegrationConfig(integration.options),
+      config: this.sanitizeIntegrationConfig(integration),
       tunnel: await this.getTunnelStatus(integration)
     }
   }
 
   private sanitizeIntegrationConfig(
-    options?: TIntegrationWechatOptions | null
+    integration?: IIntegration<TIntegrationWechatOptions> | null
   ): Partial<TIntegrationWechatOptions> {
+    const options = integration?.options
     return {
       connectionMode: options?.connectionMode ?? 'direct_http',
       baseUrl: options?.baseUrl,
-      tunnelClientId: options?.tunnelClientId,
+      tunnelClientId: this.getEffectiveTunnelClientId(integration) || undefined,
       apiVersion: options?.apiVersion ?? '/v1/',
       timeoutMs: options?.timeoutMs ?? 10000,
       preferLanguage: options?.preferLanguage,
@@ -2318,17 +2340,31 @@ export class WechatConversationService {
     }
   }
 
+  private getEffectiveTunnelClientId(integration?: IIntegration<TIntegrationWechatOptions> | null): string {
+    if (!integration || (integration.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
+      return ''
+    }
+    return normalizeConversationKey(integration.id) || ''
+  }
+
   private async getTunnelStatus(integration?: IIntegration<TIntegrationWechatOptions> | null): Promise<WechatTunnelStatus> {
+    await this.syncTunnelClientScope(integration)
+    const scope = this.resolveTenantScope(integration)
+    const clientId = this.getEffectiveTunnelClientId(integration)
     const broker = this.tunnelBroker as WechatTunnelBrokerService & {
       getManagedStatus?: WechatTunnelBrokerService['getManagedStatus']
     }
     if (typeof broker.getManagedStatus !== 'function') {
-      return this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
-        clientName: integration?.name || integration?.id || null
+      return this.tunnelBroker.getStatus(clientId, {
+        clientName: integration?.name || integration?.id || null,
+        tenantId: scope.tenantId,
+        organizationId: scope.organizationId
       })
     }
-    return broker.getManagedStatus(integration?.options?.tunnelClientId, {
-      clientName: integration?.name || integration?.id || null
+    return broker.getManagedStatus(clientId, {
+      clientName: integration?.name || integration?.id || null,
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId
     })
   }
 
@@ -2336,7 +2372,7 @@ export class WechatConversationService {
     if (!integration || (integration.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
       return
     }
-    const clientId = normalizeString(integration.options?.tunnelClientId)
+    const clientId = this.getEffectiveTunnelClientId(integration)
     if (!clientId) {
       return
     }
@@ -2486,8 +2522,9 @@ export class WechatConversationService {
     }
 
     let tunnel = tunnelByIntegrationId?.get(account.integrationId)
+    const clientId = this.getEffectiveTunnelClientId(integration)
     if (!tunnel) {
-      tunnel = this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
+      tunnel = this.tunnelBroker.getStatus(clientId, {
         clientName: integration?.name || integration?.id || null
       })
       tunnelByIntegrationId?.set(account.integrationId, tunnel)
@@ -2495,7 +2532,7 @@ export class WechatConversationService {
 
     const base: Omit<WechatAccountTunnelBinding, 'status'> = {
       connected: tunnel.connected,
-      clientId: tunnel.clientId ?? integration?.options?.tunnelClientId ?? null,
+      clientId: tunnel.clientId ?? clientId ?? null,
       clientName: tunnel.clientName ?? integration?.name ?? integration?.id ?? null,
       lastSeenAt: tunnel.lastSeenAt ?? null,
       lastSyncAt: tunnel.lastSyncAt ?? null,
@@ -2528,7 +2565,7 @@ export class WechatConversationService {
       if ((integration.options?.connectionMode ?? 'direct_http') !== 'reverse_tunnel') {
         continue
       }
-      const clientId = normalizeString(integration.options?.tunnelClientId)
+      const clientId = this.getEffectiveTunnelClientId(integration)
       if (!clientId) {
         continue
       }
@@ -2539,14 +2576,21 @@ export class WechatConversationService {
     }
 
     await Promise.all([...integrationByClientId.values()].map((integration) => this.syncTunnelClientScope(integration)))
+    const scope = this.resolveTenantScope(integrations[0] ?? null)
 
     const broker = this.tunnelBroker as WechatTunnelBrokerService & {
       listManagedClients?: WechatTunnelBrokerService['listManagedClients']
     }
     const brokerClients =
       typeof broker.listManagedClients === 'function'
-        ? await broker.listManagedClients()
-        : this.tunnelBroker.listClients()
+        ? await broker.listManagedClients({
+            tenantId: scope.tenantId,
+            organizationId: scope.organizationId
+          })
+        : this.tunnelBroker.listClients({
+            tenantId: scope.tenantId,
+            organizationId: scope.organizationId
+          })
     const byClientId = new Map(brokerClients.map((client) => [client.clientId, client]))
     for (const clientId of configuredClientIds) {
       if (byClientId.has(clientId)) {
@@ -2772,6 +2816,7 @@ export class WechatConversationService {
       log.uuid,
       log.contactId,
       log.senderId,
+      log.senderName,
       log.content,
       log.error,
       log.status,

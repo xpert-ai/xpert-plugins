@@ -2,113 +2,28 @@ import { randomUUID } from 'crypto'
 import { Buffer } from 'buffer'
 import { hostname } from 'os'
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-import { type PluginContext } from '@xpert-ai/plugin-sdk'
+import {
+  CONNECTION_COMMAND_ROUTER_TOKEN,
+  type ConnectionCommandRouter,
+  MANAGED_CONNECTION_REGISTRY_TOKEN,
+  type ManagedConnectionCommandRequest,
+  type ManagedConnectionDirection,
+  type ManagedConnectionRecord,
+  type ManagedConnectionRegistry,
+  type PluginContext
+} from '@xpert-ai/plugin-sdk'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 import { normalizeString, normalizeTimeoutMs } from './types.js'
 import { WECHAT_PLUGIN_NAME } from './constants.js'
 
 const DEFAULT_SIDECAR_LISTEN_HOST = '127.0.0.1'
 const DEFAULT_SIDECAR_LISTEN_PORT = 8088
+export const DEFAULT_WECHAT_IN_APP_PAGE_URL = 'http://127.0.0.1:8201'
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 30000
 const DEFAULT_CLIENT_TIMEOUT_MS = 90000
 const DEFAULT_HTTP_PORT = 8099
 const MAX_FRAME_BYTES = 128 * 1024 * 1024
 const WECHAT_TUNNEL_CONNECTION_TYPE = 'wechat_tunnel'
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection tokens in this plugin workspace. */
-const MANAGED_CONNECTION_REGISTRY_TOKEN = 'XPERT_MANAGED_CONNECTION_REGISTRY'
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection tokens in this plugin workspace. */
-const CONNECTION_COMMAND_ROUTER_TOKEN = 'XPERT_CONNECTION_COMMAND_ROUTER'
-
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection types in this plugin workspace. */
-type ManagedConnectionDirection = 'inbound' | 'outbound' | 'internal'
-
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection types in this plugin workspace. */
-type ManagedConnectionRecord = {
-  pluginName: string
-  connectionType: string
-  connectionKey: string
-  transportType: string
-  direction: ManagedConnectionDirection
-  ownerInstanceId: string
-  status: 'connected' | 'disconnected' | 'stale' | 'error'
-  connectedAt?: Date | string | null
-  lastSeenAt?: Date | string | null
-  leaseExpiresAt?: Date | string | null
-  disconnectedAt?: Date | string | null
-  remoteAddress?: string | null
-  metadata?: Record<string, unknown> | null
-  lastError?: string | null
-  tenantId?: string | null
-  organizationId?: string | null
-}
-
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection types in this plugin workspace. */
-type ManagedConnectionRegistry = {
-  register(input: {
-    pluginName: string
-    connectionType: string
-    connectionKey: string
-    transportType: string
-    direction?: ManagedConnectionDirection
-    tenantId?: string | null
-    organizationId?: string | null
-    remoteAddress?: string | null
-    metadata?: Record<string, unknown>
-    leaseTtlMs?: number
-  }): Promise<ManagedConnectionRecord>
-  heartbeat(input: {
-    pluginName?: string
-    connectionType: string
-    connectionKey: string
-    remoteAddress?: string | null
-    metadata?: Record<string, unknown>
-    leaseTtlMs?: number
-  }): Promise<void>
-  syncMetadata(input: {
-    pluginName?: string
-    connectionType: string
-    connectionKey: string
-    tenantId?: string | null
-    organizationId?: string | null
-    metadata?: Record<string, unknown>
-    leaseTtlMs?: number
-  }): Promise<void>
-  markDisconnected(input: {
-    pluginName?: string
-    connectionType: string
-    connectionKey: string
-  }, reason?: string): Promise<void>
-  list(query: {
-    pluginName?: string
-    connectionType?: string
-    direction?: ManagedConnectionDirection
-    limit?: number
-  }): Promise<ManagedConnectionRecord[]>
-}
-
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection types in this plugin workspace. */
-type ManagedConnectionCommandRequest = {
-  requestId: string
-  connectionType: string
-  connectionKey: string
-  command: string
-  payload?: unknown
-}
-
-/** @deprecated Remove after @xpert-ai/plugin-sdk exports ManagedConnection types in this plugin workspace. */
-type ConnectionCommandRouter = {
-  registerHandler(connectionType: string, handler: (request: ManagedConnectionCommandRequest) => Promise<unknown> | unknown): void
-  invokeOwner(
-    connectionType: string,
-    connectionKey: string,
-    command: string,
-    payload?: unknown,
-    options?: {
-      pluginName?: string
-      timeoutMs?: number
-    }
-  ): Promise<unknown>
-}
 
 export type WechatTunnelMessageType =
   | 'register'
@@ -169,6 +84,16 @@ export type WechatTunnelSetupConfig = {
   }
 }
 
+export type WechatSidecarRuntimeConfig = {
+  XpertUrl: string
+  ListenHost: string
+  ListenPort: number
+  MsgClientId: string
+  MsgClientName: string
+  AllMsgPushUrl: string
+  InAppPageUrl: string
+}
+
 export type WechatTunnelStatus = {
   wsPath: string
   wsUrl?: string | null
@@ -208,9 +133,27 @@ export type WechatTunnelClientInfo = {
   bindings: WechatTunnelBinding[]
 }
 
+export function buildWechatSidecarRuntimeConfig(
+  setup: WechatTunnelSetupConfig,
+  allMsgPushUrl: string,
+  inAppPageUrl = DEFAULT_WECHAT_IN_APP_PAGE_URL
+): WechatSidecarRuntimeConfig {
+  return {
+    XpertUrl: setup.sidecar.websocketUrl,
+    ListenHost: setup.sidecar.listenHost,
+    ListenPort: setup.sidecar.listenPort,
+    MsgClientId: setup.msgClientInfo.Id,
+    MsgClientName: setup.msgClientInfo.Name,
+    AllMsgPushUrl: allMsgPushUrl,
+    InAppPageUrl: inAppPageUrl
+  }
+}
+
 export type WechatTunnelClientListOptions = {
   clientIds?: Array<string | null | undefined>
   includeMissing?: boolean
+  tenantId?: string | null
+  organizationId?: string | null
 }
 
 export type WechatTunnelHttpRequest = {
@@ -220,6 +163,8 @@ export type WechatTunnelHttpRequest = {
   headers?: Record<string, string>
   body?: string | Buffer
   timeoutMs?: number
+  tenantId?: string | null
+  organizationId?: string | null
 }
 
 export type WechatTunnelHttpResponse = {
@@ -247,6 +192,8 @@ type TunnelSession = {
   lastPingAt?: Date
   lastSyncAt?: Date
   lastError?: string
+  tenantId?: string | null
+  organizationId?: string | null
   bindings: WechatTunnelBinding[]
   pending: Map<string, PendingRequest>
   heartbeatTimer?: ReturnType<typeof setInterval>
@@ -262,6 +209,8 @@ type TunnelClientSnapshot = {
   lastPingAt?: Date
   lastSyncAt?: Date
   lastError?: string
+  tenantId?: string | null
+  organizationId?: string | null
   bindings: WechatTunnelBinding[]
 }
 
@@ -378,8 +327,9 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       throw new Error('wechat reverse tunnel client id is required')
     }
 
+    const scope = this.normalizeRequestScope(request)
     const session = this.sessions.get(clientId)
-    if (session && !session.transport.destroyed && session.transport.writable) {
+    if (session && !session.transport.destroyed && session.transport.writable && this.sessionMatchesScope(session, scope)) {
       return this.sendLocalHttpRequest(request)
     }
 
@@ -392,6 +342,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
         this.serializeHttpRequest(request),
         {
           pluginName: WECHAT_PLUGIN_NAME,
+          tenantId: scope.tenantId,
+          organizationId: scope.organizationId,
           timeoutMs: normalizeTimeoutMs(request.timeoutMs, this.getConfig().clientTimeoutMs) + 1000
         }
       )
@@ -445,6 +397,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
         pluginName: WECHAT_PLUGIN_NAME,
         connectionType: WECHAT_TUNNEL_CONNECTION_TYPE,
         direction: 'inbound',
+        tenantId: options.tenantId,
+        organizationId: options.organizationId,
         limit: 1000
       })
       const requestedClientIds = new Set((options.clientIds ?? []).map((clientId) => normalizeString(clientId)).filter(Boolean))
@@ -485,7 +439,7 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
 
   async getManagedStatus(
     clientId?: string | null,
-    setup?: { clientName?: string | null }
+    setup?: { clientName?: string | null; tenantId?: string | null; organizationId?: string | null }
   ): Promise<WechatTunnelStatus> {
     const normalizedClientId = normalizeString(clientId)
     if (!normalizedClientId) {
@@ -496,7 +450,9 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       return local
     }
     const [client] = await this.listManagedClients({
-      clientIds: [normalizedClientId]
+      clientIds: [normalizedClientId],
+      tenantId: setup?.tenantId,
+      organizationId: setup?.organizationId
     })
     if (!client) {
       return local
@@ -534,7 +490,16 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
   ): Promise<void> {
     const normalizedClientId = normalizeString(clientId)
     const registry = this.managedRegistry
-    if (!normalizedClientId || !registry) {
+    if (!normalizedClientId) {
+      return
+    }
+    const session = this.sessions.get(normalizedClientId)
+    if (session) {
+      session.tenantId = scope.tenantId ?? null
+      session.organizationId = scope.organizationId ?? null
+      this.snapshotSession(session)
+    }
+    if (!registry) {
       return
     }
     await registry.syncMetadata({
@@ -557,9 +522,15 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
     if (!clientId) {
       throw new Error('wechat reverse tunnel client id is required')
     }
+    const scope = this.normalizeRequestScope(request)
 
     const session = this.sessions.get(clientId)
-    if (!session || session.transport.destroyed || !session.transport.writable) {
+    if (
+      !session ||
+      session.transport.destroyed ||
+      !session.transport.writable ||
+      !this.sessionMatchesScope(session, scope)
+    ) {
       throw new Error(
         `wechat reverse tunnel client "${clientId}" is not connected on broker ${this.instanceId}; ` +
           `connected clients: ${this.getConnectedClientIds().join(', ') || 'none'}`
@@ -617,6 +588,7 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
   listClients(options: WechatTunnelClientListOptions = {}): WechatTunnelClientInfo[] {
     const requestedClientIds = new Set((options.clientIds ?? []).map((clientId) => normalizeString(clientId)).filter(Boolean))
     const clientIds = new Set<string>()
+    const scope = this.normalizeRequestScope(options)
 
     for (const clientId of this.snapshots.keys()) {
       clientIds.add(clientId)
@@ -632,7 +604,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
 
     return [...clientIds]
       .filter((clientId) => !requestedClientIds.size || requestedClientIds.has(clientId))
-      .map((clientId) => this.toClientInfo(clientId, this.sessions.get(clientId), this.snapshots.get(clientId)))
+      .map((clientId) => this.toClientInfo(clientId, this.sessions.get(clientId), this.snapshots.get(clientId), scope))
+      .filter((client): client is WechatTunnelClientInfo => Boolean(client))
       .sort((left, right) => {
         if (left.connected !== right.connected) {
           return left.connected ? -1 : 1
@@ -641,12 +614,18 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       })
   }
 
-  getStatus(clientId?: string | null, setup?: { clientName?: string | null }): WechatTunnelStatus {
+  getStatus(
+    clientId?: string | null,
+    setup?: { clientName?: string | null; tenantId?: string | null; organizationId?: string | null }
+  ): WechatTunnelStatus {
     const config = this.getConfig()
     const normalizedClientId = normalizeString(clientId)
-    const session = normalizedClientId ? this.sessions.get(normalizedClientId) : undefined
-    const snapshot = normalizedClientId ? this.snapshots.get(normalizedClientId) : undefined
-    const anySession = session ?? [...this.sessions.values()][0]
+    const scope = this.normalizeRequestScope(setup ?? {})
+    const rawSession = normalizedClientId ? this.sessions.get(normalizedClientId) : undefined
+    const rawSnapshot = normalizedClientId ? this.snapshots.get(normalizedClientId) : undefined
+    const session = rawSession && this.sessionMatchesScope(rawSession, scope) ? rawSession : undefined
+    const snapshot = rawSnapshot && this.snapshotMatchesScope(rawSnapshot, scope) ? rawSnapshot : undefined
+    const anySession = session ?? [...this.sessions.values()].find((item) => this.sessionMatchesScope(item, scope))
     const source = session ?? snapshot
     const connected = Boolean(session && !session.transport.destroyed)
     const state: WechatTunnelStatus['state'] = connected ? 'connected' : 'disconnected'
@@ -908,6 +887,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       lastPingAt: session.lastPingAt,
       lastSyncAt: session.lastSyncAt,
       lastError: reason ?? session.lastError,
+      tenantId: session.tenantId ?? null,
+      organizationId: session.organizationId ?? null,
       bindings: this.cloneBindings(session.bindings)
     })
   }
@@ -939,6 +920,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       connectionKey: session.clientId,
       transportType: 'socket_io',
       direction: 'inbound',
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
       remoteAddress: session.remoteAddress,
       metadata: this.buildManagedMetadata(session),
       leaseTtlMs: this.getManagedLeaseTtlMs()
@@ -954,6 +937,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       pluginName: WECHAT_PLUGIN_NAME,
       connectionType: WECHAT_TUNNEL_CONNECTION_TYPE,
       connectionKey: session.clientId,
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
       remoteAddress: session.remoteAddress,
       metadata: this.buildManagedMetadata(session),
       leaseTtlMs: this.getManagedLeaseTtlMs()
@@ -969,6 +954,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       pluginName: WECHAT_PLUGIN_NAME,
       connectionType: WECHAT_TUNNEL_CONNECTION_TYPE,
       connectionKey: session.clientId,
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
       metadata: this.buildManagedMetadata(session),
       leaseTtlMs: this.getManagedLeaseTtlMs()
     }).catch(() => undefined)
@@ -987,7 +974,9 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       {
         pluginName: WECHAT_PLUGIN_NAME,
         connectionType: WECHAT_TUNNEL_CONNECTION_TYPE,
-        connectionKey: session.clientId
+        connectionKey: session.clientId,
+        tenantId: session.tenantId,
+        organizationId: session.organizationId
       },
       reason
     ).catch(() => undefined)
@@ -1004,6 +993,8 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       lastSyncAt: this.toIso(session.lastSyncAt),
       bindingCount: bindings.length,
       bindings,
+      tenantId: session.tenantId ?? null,
+      organizationId: session.organizationId ?? null,
       lastError: session.lastError ?? null
     }
   }
@@ -1062,7 +1053,7 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
 
   private serializeHttpRequest(request: WechatTunnelHttpRequest): Record<string, unknown> {
     const body = Buffer.isBuffer(request.body) ? request.body : Buffer.from(request.body ?? '', 'utf8')
-    return {
+    const result: Record<string, unknown> = {
       clientId: normalizeString(request.clientId),
       method: normalizeString(request.method).toUpperCase() || 'GET',
       path: this.normalizePath(request.path),
@@ -1070,6 +1061,13 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       body: body.toString('base64'),
       timeoutMs: request.timeoutMs
     }
+    if (request.tenantId !== undefined) {
+      result.tenantId = request.tenantId ?? null
+    }
+    if (request.organizationId !== undefined) {
+      result.organizationId = request.organizationId ?? null
+    }
+    return result
   }
 
   private deserializeHttpRequestPayload(clientId: string, payload: unknown): WechatTunnelHttpRequest {
@@ -1080,7 +1078,9 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
       path: this.stringValue(data.path) || '/',
       headers: this.stringRecord(data.headers),
       body: Buffer.from(this.stringValue(data.body) || '', 'base64'),
-      timeoutMs: this.numberValue(data.timeoutMs) ?? undefined
+      timeoutMs: this.numberValue(data.timeoutMs) ?? undefined,
+      tenantId: this.stringValue(data.tenantId),
+      organizationId: this.stringValue(data.organizationId)
     }
   }
 
@@ -1145,6 +1145,47 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
     return normalized || null
   }
 
+  private normalizeRequestScope(value: { tenantId?: unknown; organizationId?: unknown }): {
+    tenantId?: string | null
+    organizationId?: string | null
+  } {
+    const scope: { tenantId?: string | null; organizationId?: string | null } = {}
+    if (Object.prototype.hasOwnProperty.call(value, 'tenantId')) {
+      scope.tenantId = this.stringValue(value.tenantId) ?? null
+    }
+    if (Object.prototype.hasOwnProperty.call(value, 'organizationId')) {
+      scope.organizationId = this.stringValue(value.organizationId) ?? null
+    }
+    return scope
+  }
+
+  private hasExplicitScope(scope: { tenantId?: string | null; organizationId?: string | null }): boolean {
+    return scope.tenantId !== undefined || scope.organizationId !== undefined
+  }
+
+  private sessionMatchesScope(
+    session: Pick<TunnelSession, 'tenantId' | 'organizationId'>,
+    scope: { tenantId?: string | null; organizationId?: string | null }
+  ): boolean {
+    if (!this.hasExplicitScope(scope)) {
+      return true
+    }
+    if (scope.tenantId !== undefined && (session.tenantId ?? null) !== scope.tenantId) {
+      return false
+    }
+    if (scope.organizationId !== undefined && (session.organizationId ?? null) !== scope.organizationId) {
+      return false
+    }
+    return true
+  }
+
+  private snapshotMatchesScope(
+    snapshot: Pick<TunnelClientSnapshot, 'tenantId' | 'organizationId'>,
+    scope: { tenantId?: string | null; organizationId?: string | null }
+  ): boolean {
+    return this.sessionMatchesScope(snapshot, scope)
+  }
+
   private numberValue(value: unknown): number | null {
     const number = typeof value === 'number' ? value : Number(value)
     return Number.isFinite(number) ? number : null
@@ -1198,10 +1239,16 @@ export class WechatTunnelBrokerService implements OnModuleInit, OnModuleDestroy 
   private toClientInfo(
     clientId: string,
     session?: TunnelSession,
-    snapshot?: TunnelClientSnapshot
-  ): WechatTunnelClientInfo {
-    const connected = Boolean(session && !session.transport.destroyed && session.transport.writable)
-    const source = session ?? snapshot
+    snapshot?: TunnelClientSnapshot,
+    scope: { tenantId?: string | null; organizationId?: string | null } = {}
+  ): WechatTunnelClientInfo | null {
+    const scopedSession = session && this.sessionMatchesScope(session, scope) ? session : undefined
+    const scopedSnapshot = snapshot && this.snapshotMatchesScope(snapshot, scope) ? snapshot : undefined
+    if (this.hasExplicitScope(scope) && !scopedSession && !scopedSnapshot) {
+      return null
+    }
+    const connected = Boolean(scopedSession && !scopedSession.transport.destroyed && scopedSession.transport.writable)
+    const source = scopedSession ?? scopedSnapshot
     const bindings = this.cloneBindings(source?.bindings ?? [])
     return {
       clientId,

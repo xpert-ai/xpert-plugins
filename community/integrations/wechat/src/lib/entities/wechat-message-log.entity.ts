@@ -40,6 +40,9 @@ export class WechatMessageLogEntity {
   @Column({ nullable: true, length: 255 })
   senderId?: string
 
+  @Column({ nullable: true, length: 255 })
+  senderName?: string
+
   @Column({ nullable: true, length: 64 })
   messageId?: string
 

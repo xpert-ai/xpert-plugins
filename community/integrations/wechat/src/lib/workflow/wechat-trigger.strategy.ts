@@ -823,6 +823,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         contactId: params.wechatMessage.contactId,
         chatType: params.wechatMessage.chatType,
         senderId: params.wechatMessage.senderId,
+        senderName: params.wechatMessage.senderName,
         language: params.wechatMessage.language,
         messageId: params.wechatMessage.messageId
       }
@@ -932,6 +933,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
             contactId: state.latestMessage.contactId,
             chatType: state.latestMessage.chatType,
             senderId: state.latestMessage.senderId,
+            senderName: state.latestMessage.senderName,
             wechatChannel: this.wechatChannel
           },
           {

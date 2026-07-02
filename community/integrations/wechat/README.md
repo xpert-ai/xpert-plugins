@@ -135,7 +135,7 @@ REDIS_TLS=false
 | --- | --- | --- | --- |
 | 连接方式 | 否 | `direct_http` 或 `reverse_tunnel` | Xpert 到 wx2.0 的出站调用方式。 |
 | wx2.0 服务地址 | direct_http 必填 | `http://127.0.0.1:8058` | Xpert 后端主动调用 wx2.0 发消息的地址。生产环境请填写 Xpert 后端可访问的 wx2.0 地址。 |
-| 隧道客户端 ID | reverse_tunnel 必填 | 随机高熵字符串 | 需与 wx2.0 `MsgClientInfo.Id` 一致，用于识别主动连接到 Xpert 的本地实例。 |
+| 隧道客户端 ID | 自动生成 | 无需手填 | reverse_tunnel 模式使用系统集成 ID 作为 `MsgClientId`，Workbench 的“配置”页会展示完整 JSON。 |
 | API 版本前缀 | 否 | `/v1/` | 用于拼出 `{baseUrl}/{apiVersion}message/sendtext`、`sendimage`、`downloadfile` 和 `getmediafilechunk`。 |
 | 请求超时（毫秒） | 否 | `10000` | Xpert 调 wx2.0 的 HTTP 超时时间。 |
 | API Token | 否 | 留空 | 仅当 wx2.0 启用 token 校验时填写。插件会作为 `token` header 发送。 |
@@ -349,10 +349,10 @@ AllMsgPushUrl = <Xpert webhook URL>
 - sidecar 负责把 wx2.0 的 raw TCP 隧道帧转发到 Xpert 插件的 Socket.IO 长连接。
 
 ```text
-wx2.0 -> 127.0.0.1:8088 sidecar -> Socket.IO WebSocket namespace /api/wechat/tunnel/ws/<tunnelClientId> -> Xpert 插件
+wx2.0 -> 127.0.0.1:8088 sidecar -> Socket.IO WebSocket namespace /api/wechat/tunnel/ws/<integrationId> -> Xpert 插件
 ```
 
-生产反向代理需要放行宿主已有的 Socket.IO/Engine.IO WebSocket upgrade 路径（通常是 `/socket.io/`）；`/api/wechat/tunnel/ws/<tunnelClientId>` 是 Socket.IO namespace，不是普通 HTTP route。
+生产反向代理需要放行宿主已有的 Socket.IO/Engine.IO WebSocket upgrade 路径（通常是 `/socket.io/`）；`/api/wechat/tunnel/ws/<integrationId>` 是 Socket.IO namespace，不是普通 HTTP route。
 
 这种模式不需要在 Xpert 服务器额外暴露公网 TCP `8088`。其中 `127.0.0.1:8088` 是 wx2.0 所在客户端机器上的 sidecar 本地监听端口，不是 Xpert 插件服务端端口。
 
@@ -360,15 +360,28 @@ wx2.0 -> 127.0.0.1:8088 sidecar -> Socket.IO WebSocket namespace /api/wechat/tun
 
 ```text
 连接方式: reverse_tunnel
-隧道客户端 ID: <与 wx2.0 MsgClientInfo.Id 一致>
 ```
 
-sidecar 最直接的启动命令如下。该命令默认在本机监听 `127.0.0.1:8088`：
+保存集成后，在 Workbench 的“配置”页复制完整 JSON。该 JSON 同时包含 sidecar 连接地址、本地监听端口、`MsgClientId`、全局 webhook 和 wx2.0 内置页地址：
+
+```json
+{
+  "XpertUrl": "wss://your-xpert-api.example.com/api/wechat/tunnel/ws/<integrationId>",
+  "ListenHost": "127.0.0.1",
+  "ListenPort": 8088,
+  "MsgClientId": "<integrationId>",
+  "MsgClientName": "wechat-local",
+  "AllMsgPushUrl": "https://your-xpert-api.example.com/api/wechat/webhook/<integrationId>?secret=<webhook-secret>",
+  "InAppPageUrl": "http://127.0.0.1:8201"
+}
+```
+
+sidecar 最直接的启动命令如下。`--client-id` 使用 JSON 里的 `MsgClientId`，该命令默认在本机监听 `127.0.0.1:8088`：
 
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
   --api-url https://your-xpert-api.example.com \
-  --client-id <系统集成里的 tunnelClientId>
+  --client-id <integrationId>
 ```
 
 排查连接问题时可加 `--verbose`，sidecar 会打印 Socket.IO 连接成功、连接关闭，以及隧道帧类型摘要：
@@ -376,7 +389,7 @@ node scripts/wechat-tunnel-sidecar.mjs \
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
   --api-url https://your-xpert-api.example.com \
-  --client-id <系统集成里的 tunnelClientId> \
+  --client-id <integrationId> \
   --verbose
 ```
 
@@ -385,7 +398,7 @@ node scripts/wechat-tunnel-sidecar.mjs \
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
   --api-url https://your-xpert-api.example.com \
-  --client-id <系统集成里的 tunnelClientId> \
+  --client-id <integrationId> \
   --listen-host 127.0.0.1 \
   --listen-port 8088
 ```
@@ -394,22 +407,20 @@ node scripts/wechat-tunnel-sidecar.mjs \
 
 ```sh
 node scripts/wechat-tunnel-sidecar.mjs \
-  --xpert-url "wss://your-xpert-api.example.com/api/wechat/tunnel/ws/<系统集成里的 tunnelClientId>"
+  --xpert-url "wss://your-xpert-api.example.com/api/wechat/tunnel/ws/<integrationId>"
 ```
 
-然后在 wx2.0 配置中设置为连接本机 sidecar：
+然后在 wx2.0 配置中使用 Workbench 展示的完整 JSON：
 
 ```json
 {
-  "ForwardServerInfo": {
-    "Url": "127.0.0.1",
-    "TcpPort": 8088,
-    "HttpPort": 8099
-  },
-  "MsgClientInfo": {
-    "Id": "<系统集成里的 tunnelClientId>",
-    "Name": "wechat-local"
-  }
+  "XpertUrl": "wss://your-xpert-api.example.com/api/wechat/tunnel/ws/<integrationId>",
+  "ListenHost": "127.0.0.1",
+  "ListenPort": 8088,
+  "MsgClientId": "<integrationId>",
+  "MsgClientName": "wechat-local",
+  "AllMsgPushUrl": "https://your-xpert-api.example.com/api/wechat/webhook/<integrationId>?secret=<webhook-secret>",
+  "InAppPageUrl": "http://127.0.0.1:8201"
 }
 ```
 
@@ -417,8 +428,8 @@ node scripts/wechat-tunnel-sidecar.mjs \
 
 安全注意：
 
-- tunnel 协议本身没有 TLS 和鉴权，生产环境必须使用高熵 `tunnelClientId`。
-- sidecar 模式建议使用 HTTPS/WSS 入口，由现有 HTTPS 入口提供 TLS。
+- tunnel client id 由系统集成 ID 自动生成；生产环境必须使用 HTTPS/WSS 入口，由现有 HTTPS 入口提供 TLS。
+- 全局 webhook 使用 `AllMsgPushUrl` 中的 opaque secret 鉴权，不要在日志或公开文档中暴露完整 URL。
 - 多副本 Xpert 部署时，v1 要求 sidecar WSS 连接和出站调用落在同一个 API 实例；需要多副本无状态转发时，应引入专用 broker 或 Redis pub/sub。
 
 ## 配置 Assistant

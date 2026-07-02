@@ -19,6 +19,7 @@ export interface WechatTriggerAggregationMessageContext {
   contactId: string
   chatType?: 'private' | 'group'
   senderId?: string
+  senderName?: string
   language?: string
   messageId?: string
 }

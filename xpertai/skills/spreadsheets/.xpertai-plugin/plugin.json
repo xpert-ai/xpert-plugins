@@ -1,0 +1,212 @@
+{
+  "name": "@xpert-ai/plugin-spreadsheets",
+  "version": "0.1.0",
+  "description": "Create, edit, analyze, visualize, render, and export spreadsheet artifacts in Xpert. Converted from the Codex Spreadsheets skill plugin 26.630.12135.",
+  "author": "XpertAI",
+  "homepage": "https://xpertai.cn",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/skills/spreadsheets",
+  "license": "MIT",
+  "keywords": [
+    "sheet",
+    "sheets",
+    "google sheet",
+    "google sheets",
+    "spreadsheet",
+    "spreadsheets",
+    "excel",
+    "csv",
+    "xlsx",
+    "workbook",
+    "skill"
+  ],
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Spreadsheets",
+    "shortDescription": "Create and edit spreadsheet files",
+    "longDescription": "Create, edit, inspect, render, verify, and export XLSX, CSV, and TSV spreadsheets locally. Converted from Codex primary-runtime skill plugin 26.630.12135 for installation into Xpert workspaces.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "defaultPrompt": [
+      "Create a spreadsheet to analyze this company's financials",
+      "Create a corporate expense report template for my company",
+      "Take this bank statement CSV and create a full spreadsheet to analyze my transactions"
+    ],
+    "brandColor": "#107C41",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23dcfce7%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23f0fdf4%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23bbf7d0%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.2%22%20cy%3D%220.05%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.22%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M90%2092h1020M90%20150h1020M90%20208h1020M90%20266h1020M90%20324h1020%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M172%2064v292M304%2064v292M436%2064v292M568%2064v292M700%2064v292M832%2064v292M964%2064v292%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20opacity%3D%220.28%22%20transform%3D%22translate(820%2056)%20rotate(-6)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22220%22%20height%3D%22220%22%20rx%3D%2234%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M0%2072h220M0%20144h220M72%200v220M144%200v220%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%2214%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.66%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+    ]
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "NONE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/skills/spreadsheets"
+  },
+  "assets": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23dcfce7%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23f0fdf4%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23bbf7d0%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.2%22%20cy%3D%220.05%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.22%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M90%2092h1020M90%20150h1020M90%20208h1020M90%20266h1020M90%20324h1020%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M172%2064v292M304%2064v292M436%2064v292M568%2064v292M700%2064v292M832%2064v292M964%2064v292%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20opacity%3D%220.28%22%20transform%3D%22translate(820%2056)%20rotate(-6)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22220%22%20height%3D%22220%22%20rx%3D%2234%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M0%2072h220M0%20144h220M72%200v220M144%200v220%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%2214%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.66%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+    ]
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "skill",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "spreadsheets",
+        "spreadsheets-skill"
+      ],
+      "runtime": {
+        "requiredTools": [
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SkillsMiddleware",
+            "name": "read_skill_file",
+            "required": true,
+            "purpose": "Read bundled skill instructions, references, scripts, and assets before use."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SkillsMiddleware",
+            "name": "skill_shell",
+            "required": true,
+            "purpose": "Run shell commands from the installed skill runtime directory for workbook generation and verification."
+          }
+        ],
+        "compatibleTools": [
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxShell",
+            "name": "sandbox_shell",
+            "required": false,
+            "purpose": "Alternative general shell execution tool when skill_shell is unavailable."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "bash",
+            "name": "bash_execute",
+            "required": false,
+            "purpose": "Alternative Bash execution tool for Xpert templates that bind builtin toolsets."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "file",
+            "name": "file_edit",
+            "required": false,
+            "purpose": "Optional workspace file inspection and edits for generated artifact support files."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "python",
+            "name": "python_execute",
+            "required": false,
+            "purpose": "Optional Python execution helper for analysis and extraction scripts."
+          }
+        ],
+        "requiredRuntime": {
+          "filesystem": {
+            "read": true,
+            "write": true,
+            "workspace": true
+          },
+          "shell": true,
+          "workspaceDependencies": true,
+          "executables": [
+            "node"
+          ],
+          "packages": [
+            "@oai/artifact-tool"
+          ]
+        },
+        "optionalRuntime": {
+          "executables": [
+            "python"
+          ],
+          "packages": [
+            "pandas",
+            "numpy",
+            "pypdf",
+            "python-docx",
+            "reportlab"
+          ],
+          "integrations": [
+            "Google Drive spreadsheet import for native Google Sheets output"
+          ]
+        }
+      },
+      "marketplace": {
+        "screenshots": [
+          "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23dcfce7%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23f0fdf4%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23bbf7d0%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.2%22%20cy%3D%220.05%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.22%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M90%2092h1020M90%20150h1020M90%20208h1020M90%20266h1020M90%20324h1020%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M172%2064v292M304%2064v292M436%2064v292M568%2064v292M700%2064v292M832%2064v292M964%2064v292%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20opacity%3D%220.28%22%20transform%3D%22translate(820%2056)%20rotate(-6)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22220%22%20height%3D%22220%22%20rx%3D%2234%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M0%2072h220M0%20144h220M72%200v220M144%200v220%22%20stroke%3D%22%23107C41%22%20stroke-width%3D%2214%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.66%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+        ],
+        "trialShortcuts": [
+          {
+            "id": "spreadsheets-1",
+            "prompt": "Create a spreadsheet to analyze this company's financials",
+            "skillKey": "spreadsheets",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          },
+          {
+            "id": "spreadsheets-2",
+            "prompt": "Create a corporate expense report template for my company",
+            "skillKey": "spreadsheets",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          },
+          {
+            "id": "spreadsheets-3",
+            "prompt": "Take this bank statement CSV and create a full spreadsheet to analyze my transactions",
+            "skillKey": "spreadsheets",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          }
+        ],
+        "contents": [
+          {
+            "type": "skill",
+            "name": "spreadsheets",
+            "displayName": "Spreadsheets",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            },
+            "color": "#107C41",
+            "description": "Create, edit, analyze, visualize, render, and verify spreadsheet artifacts and Google Sheets-targeted workbooks.",
+            "tags": [
+              "skill",
+              "spreadsheets",
+              "excel",
+              "xlsx"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

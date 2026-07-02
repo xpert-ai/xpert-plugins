@@ -88,7 +88,6 @@ export class WechatChannelStrategy
           description: 'Outbound connection mode, default direct_http'
         },
         baseUrl: { type: 'string', description: 'wx2.0 HTTP base URL, required in direct_http mode' },
-        tunnelClientId: { type: 'string', description: 'MsgClientInfo.Id, required in reverse_tunnel mode' },
         apiVersion: { type: 'string', description: 'wx2.0 v2 API prefix, default /v1/' },
         apiToken: { type: 'string', description: 'Optional wx2.0 token header' },
         timeoutMs: { type: 'number', description: 'Outbound wx2.0 request timeout in milliseconds' },

@@ -1,0 +1,212 @@
+{
+  "name": "@xpert-ai/plugin-presentations",
+  "version": "0.1.0",
+  "description": "Create, edit, render, verify, and export presentation slide decks in Xpert. Converted from the Codex Presentations skill plugin 26.630.12135.",
+  "author": "XpertAI",
+  "homepage": "https://xpertai.cn",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/skills/presentations",
+  "license": "MIT",
+  "keywords": [
+    "slides",
+    "slide",
+    "deck",
+    "presentation",
+    "presentations",
+    "google slides",
+    "powerpoint",
+    "ppt",
+    "pptx",
+    "skill"
+  ],
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Presentations",
+    "shortDescription": "Create and edit presentations",
+    "longDescription": "Create, edit, inspect, render, verify, and export presentation slide decks locally. Converted from Codex primary-runtime skill plugin 26.630.12135 for installation into Xpert workspaces.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "defaultPrompt": [
+      "Create a slide deck about the solar system",
+      "Research this company's latest earnings and create a slide deck on the company's financial performance",
+      "Create a visually stunning slide deck about the latest AI trends"
+    ],
+    "brandColor": "#C43E1C",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffedd5%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.52%22%20stop-color%3D%22%23fff7ed%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.24%22%20cy%3D%220.08%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M80%20315C205%20238%20303%20102%20458%20133c126%2026%20157%20137%20292%20100%20128-35%20170-145%20320-94%2058%2020%20100%2058%20148%20110v131H80z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.3%22%20transform%3D%22translate(780%2072)%20rotate(7)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22260%22%20height%3D%22172%22%20rx%3D%2224%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2242%22%20width%3D%22188%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.68%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2282%22%20width%3D%22118%22%20height%3D%2254%22%20rx%3D%2218%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%2288%22%20width%3D%2254%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.42%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%22112%22%20width%3D%2242%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+    ]
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "NONE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/skills/presentations"
+  },
+  "assets": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffedd5%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.52%22%20stop-color%3D%22%23fff7ed%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.24%22%20cy%3D%220.08%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M80%20315C205%20238%20303%20102%20458%20133c126%2026%20157%20137%20292%20100%20128-35%20170-145%20320-94%2058%2020%20100%2058%20148%20110v131H80z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.3%22%20transform%3D%22translate(780%2072)%20rotate(7)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22260%22%20height%3D%22172%22%20rx%3D%2224%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2242%22%20width%3D%22188%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.68%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2282%22%20width%3D%22118%22%20height%3D%2254%22%20rx%3D%2218%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%2288%22%20width%3D%2254%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.42%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%22112%22%20width%3D%2242%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+    ]
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "skill",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "presentations",
+        "presentations-skill"
+      ],
+      "runtime": {
+        "requiredTools": [
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SkillsMiddleware",
+            "name": "read_skill_file",
+            "required": true,
+            "purpose": "Read bundled skill instructions, references, scripts, and assets before use."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SkillsMiddleware",
+            "name": "skill_shell",
+            "required": true,
+            "purpose": "Run shell commands from the installed skill runtime directory for deck generation, rendering, and QA."
+          }
+        ],
+        "compatibleTools": [
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxShell",
+            "name": "sandbox_shell",
+            "required": false,
+            "purpose": "Alternative general shell execution tool when skill_shell is unavailable."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "bash",
+            "name": "bash_execute",
+            "required": false,
+            "purpose": "Alternative Bash execution tool for Xpert templates that bind builtin toolsets."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "file",
+            "name": "file_edit",
+            "required": false,
+            "purpose": "Optional workspace file inspection and edits for generated artifact support files."
+          },
+          {
+            "kind": "builtin-toolset-tool",
+            "provider": "python",
+            "name": "python_execute",
+            "required": false,
+            "purpose": "Optional Python execution helper for bundled rendering and inspection scripts."
+          }
+        ],
+        "requiredRuntime": {
+          "filesystem": {
+            "read": true,
+            "write": true,
+            "workspace": true
+          },
+          "shell": true,
+          "workspaceDependencies": true,
+          "executables": [
+            "node",
+            "python"
+          ],
+          "packages": [
+            "@oai/artifact-tool"
+          ]
+        },
+        "optionalRuntime": {
+          "executables": [
+            "dot"
+          ],
+          "packages": [
+            "Pillow"
+          ],
+          "tools": [
+            "image_gen",
+            "image_search"
+          ],
+          "integrations": [
+            "Google Drive presentation import for native Google Slides output"
+          ]
+        }
+      },
+      "marketplace": {
+        "screenshots": [
+          "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffedd5%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220.52%22%20stop-color%3D%22%23fff7ed%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fed7aa%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22r%22%20cx%3D%220.24%22%20cy%3D%220.08%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220.92%22%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23r)%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M80%20315C205%20238%20303%20102%20458%20133c126%2026%20157%20137%20292%20100%20128-35%20170-145%20320-94%2058%2020%20100%2058%20148%20110v131H80z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%0A%20%20%3Cg%20opacity%3D%220.3%22%20transform%3D%22translate(780%2072)%20rotate(7)%22%3E%0A%20%20%20%20%3Crect%20width%3D%22260%22%20height%3D%22172%22%20rx%3D%2224%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2242%22%20width%3D%22188%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.68%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%2282%22%20width%3D%22118%22%20height%3D%2254%22%20rx%3D%2218%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%2288%22%20width%3D%2254%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.42%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22170%22%20y%3D%22112%22%20width%3D%2242%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%23C43E1C%22%20opacity%3D%220.32%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+        ],
+        "trialShortcuts": [
+          {
+            "id": "presentations-1",
+            "prompt": "Create a slide deck about the solar system",
+            "skillKey": "presentations",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          },
+          {
+            "id": "presentations-2",
+            "prompt": "Research this company's latest earnings and create a slide deck on the company's financial performance",
+            "skillKey": "presentations",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          },
+          {
+            "id": "presentations-3",
+            "prompt": "Create a visually stunning slide deck about the latest AI trends",
+            "skillKey": "presentations",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            }
+          }
+        ],
+        "contents": [
+          {
+            "type": "skill",
+            "name": "presentations",
+            "displayName": "Presentations",
+            "icon": {
+              "type": "image",
+              "value": "./assets/icon.png"
+            },
+            "color": "#C43E1C",
+            "description": "Create, edit, render, verify, and export PowerPoint or Google Slides-targeted presentation decks.",
+            "tags": [
+              "skill",
+              "presentations",
+              "slides",
+              "pptx"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

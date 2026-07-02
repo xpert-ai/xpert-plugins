@@ -197,6 +197,15 @@
     },
     {
       "path": "./apps/office-editor"
+    },
+    {
+      "path": "./skills/documents"
+    },
+    {
+      "path": "./skills/presentations"
+    },
+    {
+      "path": "./skills/spreadsheets"
     }
   ]
 }

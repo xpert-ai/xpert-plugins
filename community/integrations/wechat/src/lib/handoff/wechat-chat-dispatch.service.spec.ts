@@ -114,6 +114,24 @@ describe('WechatChatDispatchService', () => {
           sourceIntegrationId: 'integration-1'
         },
         fromEndUserId: 'wxid_friend',
+        context: expect.objectContaining({
+          from: 'wechat',
+          channelType: 'wechat',
+          channelSource: 'wechat_webhook',
+          sourceIntegrationId: 'integration-1',
+          integrationId: 'integration-1',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          contact_id: 'wxid_friend',
+          chatId: 'wxid_friend',
+          chat_id: 'wxid_friend',
+          senderId: 'wxid_friend',
+          sender_id: 'wxid_friend',
+          channelUserId: 'wxid_friend',
+          conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+          sourceMessageLogIds: ['inbound-log-1', 'inbound-log-2'],
+          currentInboundLogIds: ['inbound-log-1', 'inbound-log-2']
+        }),
         sourceMessageLogIds: ['inbound-log-1', 'inbound-log-2']
       })
     )
