@@ -309,6 +309,55 @@ describe('WechatTunnelBrokerService', () => {
     )
   })
 
+  it('does not reuse a scoped local tunnel session for another tenant', async () => {
+    service = createService()
+    const transport = attachMemoryClient(service)
+
+    transport.receive(encodeWechatTunnelMessage({ type: 'register', id: 'client-1' }))
+    await service.syncManagedClientScope('client-1', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
+
+    await expect(
+      service.sendHttpRequest({
+        clientId: 'client-1',
+        method: 'POST',
+        path: '/v1/account/bindkey',
+        tenantId: 'tenant-2',
+        organizationId: 'org-2',
+        timeoutMs: 20
+      })
+    ).rejects.toThrow(/not connected/)
+
+    const responsePromise = service.sendHttpRequest({
+      clientId: 'client-1',
+      method: 'POST',
+      path: '/v1/account/bindkey',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      timeoutMs: 1000
+    })
+    const request = readWrites(transport)[1]
+    expect(request).toEqual(expect.objectContaining({ type: 'http_request', path: '/v1/account/bindkey' }))
+
+    transport.receive(
+      encodeWechatTunnelMessage({
+        type: 'http_response',
+        requestId: request.requestId,
+        status: 200,
+        body: Buffer.from(JSON.stringify({ code: 0 })).toString('base64')
+      })
+    )
+
+    await expect(responsePromise).resolves.toEqual(
+      expect.objectContaining({
+        status: 200,
+        text: JSON.stringify({ code: 0 })
+      })
+    )
+  })
+
   it('rejects websocket bridge connections whose register id does not match the path client id', async () => {
     service = createService()
     const transport = new MemoryTunnelTransport()

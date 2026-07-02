@@ -902,6 +902,7 @@ export class WechatClient {
     }
 
     try {
+      await this.syncTunnelScope(integration, clientId)
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       }
@@ -916,7 +917,9 @@ export class WechatClient {
         path,
         headers,
         body: JSON.stringify(body),
-        timeoutMs: normalizeTimeoutMs(options.timeoutMs)
+        timeoutMs: normalizeTimeoutMs(options.timeoutMs),
+        tenantId: integration.tenantId ?? null,
+        organizationId: integration.organizationId ?? null
       })
       return this.resolveHttpResult(response.status, response.status >= 200 && response.status < 300, response.text)
     } catch (error) {
@@ -925,6 +928,22 @@ export class WechatClient {
         error: error instanceof Error ? error.message : String(error)
       }
     }
+  }
+
+  private async syncTunnelScope(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    clientId: string
+  ): Promise<void> {
+    const sync = this.tunnelBroker?.syncManagedClientScope
+    if (typeof sync !== 'function') {
+      return
+    }
+    await sync.call(this.tunnelBroker, clientId, {
+      tenantId: integration.tenantId ?? null,
+      organizationId: integration.organizationId ?? null,
+      integrationId: integration.id,
+      integrationName: normalizeString((integration as { name?: string | null }).name) || integration.id
+    })
   }
 
   private parsePayload(text: string): unknown {

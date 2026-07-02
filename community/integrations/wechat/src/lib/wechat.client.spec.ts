@@ -96,6 +96,7 @@ describe('WechatClient', () => {
 
   it('maps reverse tunnel sendText to wx2.0 v2 sendtext path and body', async () => {
     const tunnelBroker = {
+      syncManagedClientScope: jest.fn(async () => undefined),
       sendHttpRequest: jest.fn(async () => ({
         status: 200,
         headers: {},
@@ -267,6 +268,7 @@ describe('WechatClient', () => {
 
   it('maps wx2.0 account APIs through reverse_tunnel http frames', async () => {
     const tunnelBroker = {
+      syncManagedClientScope: jest.fn(async () => undefined),
       sendHttpRequest: jest.fn(async () => ({
         status: 200,
         headers: {},
@@ -277,6 +279,8 @@ describe('WechatClient', () => {
 
     const integration = {
       id: 'integration-1',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
       options: {
         connectionMode: 'reverse_tunnel',
         tunnelClientId: 'client-1',
@@ -329,6 +333,8 @@ describe('WechatClient', () => {
     expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: 'client-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
         method: 'POST',
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
@@ -336,6 +342,12 @@ describe('WechatClient', () => {
         })
       })
     )
+    expect(tunnelBroker.syncManagedClientScope).toHaveBeenCalledWith('client-1', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      integrationId: 'integration-1',
+      integrationName: 'integration-1'
+    })
     expect(tunnelRequests.map((request) => JSON.parse(request.body))).toEqual([
       { key: 'SDabc1234567' },
       {},

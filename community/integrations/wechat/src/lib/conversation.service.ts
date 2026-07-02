@@ -2319,16 +2319,22 @@ export class WechatConversationService {
   }
 
   private async getTunnelStatus(integration?: IIntegration<TIntegrationWechatOptions> | null): Promise<WechatTunnelStatus> {
+    await this.syncTunnelClientScope(integration)
+    const scope = this.resolveTenantScope(integration)
     const broker = this.tunnelBroker as WechatTunnelBrokerService & {
       getManagedStatus?: WechatTunnelBrokerService['getManagedStatus']
     }
     if (typeof broker.getManagedStatus !== 'function') {
       return this.tunnelBroker.getStatus(integration?.options?.tunnelClientId, {
-        clientName: integration?.name || integration?.id || null
+        clientName: integration?.name || integration?.id || null,
+        tenantId: scope.tenantId,
+        organizationId: scope.organizationId
       })
     }
     return broker.getManagedStatus(integration?.options?.tunnelClientId, {
-      clientName: integration?.name || integration?.id || null
+      clientName: integration?.name || integration?.id || null,
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId
     })
   }
 
@@ -2539,14 +2545,21 @@ export class WechatConversationService {
     }
 
     await Promise.all([...integrationByClientId.values()].map((integration) => this.syncTunnelClientScope(integration)))
+    const scope = this.resolveTenantScope(integrations[0] ?? null)
 
     const broker = this.tunnelBroker as WechatTunnelBrokerService & {
       listManagedClients?: WechatTunnelBrokerService['listManagedClients']
     }
     const brokerClients =
       typeof broker.listManagedClients === 'function'
-        ? await broker.listManagedClients()
-        : this.tunnelBroker.listClients()
+        ? await broker.listManagedClients({
+            tenantId: scope.tenantId,
+            organizationId: scope.organizationId
+          })
+        : this.tunnelBroker.listClients({
+            tenantId: scope.tenantId,
+            organizationId: scope.organizationId
+          })
     const byClientId = new Map(brokerClients.map((client) => [client.clientId, client]))
     for (const clientId of configuredClientIds) {
       if (byClientId.has(clientId)) {
