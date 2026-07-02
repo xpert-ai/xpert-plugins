@@ -113,7 +113,9 @@ export class WechatController {
   @Get(':integrationId/callback-config')
   async getCallbackConfig(@Param('integrationId') integrationId: string) {
     const integration = await this.readWechatIntegration(integrationId)
-    return await this.conversation.buildCallbackConfig(integration.id)
+    return await this.conversation.buildCallbackConfig(integration.id, {
+      clientName: integration.name
+    })
   }
 
   @Post(':integrationId/send-text')

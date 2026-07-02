@@ -17,6 +17,7 @@ import {
   WECHAT_CHAT_CALLBACK_MESSAGE_TYPE,
   WechatChatCallbackContext
 } from './wechat-chat.types.js'
+import { withWechatChatContextLegacyAliases } from './wechat-chat-context.js'
 import { WechatChatRunStateService } from './wechat-chat-run-state.service.js'
 
 export type WechatChatDispatchInput = {
@@ -75,28 +76,24 @@ export class WechatChatDispatchService {
       `${wechatMessage.integrationId}:${wechatMessage.uuid}:${wechatMessage.contactId}:${wechatMessage.senderId || ''}`
     const language = (wechatMessage.language || RequestContext.getLanguageCode() || 'zh-Hans') as LanguagesEnum
     const sourceMessageLogIds = this.normalizeInboundLogIds(currentInboundLogIds) ?? []
+    const runtimeContext = this.buildRuntimeContext(wechatMessage, sourceMessageLogIds, conversationUserKey)
 
-    const callbackContext: WechatChatCallbackContext = {
+    const callbackContext: WechatChatCallbackContext = withWechatChatContextLegacyAliases({
       tenantId,
       organizationId,
       xpertId,
       from: 'wechat',
       channelType: 'wechat',
       wechatConversation: true,
-      wechat_conversation: true,
       channelSource: 'wechat_webhook',
-      channel_source: 'wechat_webhook',
       integrationId: wechatMessage.integrationId,
       uuid: wechatMessage.uuid,
       ownerWxid: wechatMessage.ownerWxid,
       contactId: wechatMessage.contactId,
-      contact_id: wechatMessage.contactId,
       chatId: wechatMessage.contactId,
-      chat_id: wechatMessage.contactId,
       chatType: wechatMessage.chatType,
-      chat_type: wechatMessage.chatType,
       senderId: wechatMessage.senderId,
-      sender_id: wechatMessage.senderId,
+      senderName: wechatMessage.senderName,
       responseStrategy: 'final_text',
       preferLanguage: language,
       conversationUserKey: conversationUserKey || undefined,
@@ -107,7 +104,7 @@ export class WechatChatDispatchService {
         status: wechatMessage.status,
         language
       }
-    }
+    })
 
     await this.runStateService.save({
       sourceMessageId: runId,
@@ -150,24 +147,21 @@ export class WechatChatDispatchService {
           tenantId,
           organizationId,
           language,
-          channelType: 'wechat',
-          wechatConversation: true,
-          wechat_conversation: true,
-          channelSource: 'wechat_webhook',
-          channel_source: 'wechat_webhook',
-          integrationId: wechatMessage.integrationId,
-          uuid: wechatMessage.uuid,
-          ownerWxid: wechatMessage.ownerWxid,
-          contactId: wechatMessage.contactId,
-          contact_id: wechatMessage.contactId,
-          chatId: wechatMessage.contactId,
-          chat_id: wechatMessage.contactId,
-          chatType: wechatMessage.chatType,
-          chat_type: wechatMessage.chatType,
-          senderId: wechatMessage.senderId,
-          sender_id: wechatMessage.senderId,
-          channelUserId: wechatMessage.senderId,
-          ...(sourceMessageLogIds.length ? { sourceMessageLogIds } : {})
+          context: runtimeContext,
+          ...withWechatChatContextLegacyAliases({
+            channelType: 'wechat',
+            wechatConversation: true,
+            channelSource: 'wechat_webhook',
+            integrationId: wechatMessage.integrationId,
+            uuid: wechatMessage.uuid,
+            ownerWxid: wechatMessage.ownerWxid,
+            contactId: wechatMessage.contactId,
+            chatId: wechatMessage.contactId,
+            chatType: wechatMessage.chatType,
+            senderId: wechatMessage.senderId,
+            channelUserId: wechatMessage.senderId,
+            ...(sourceMessageLogIds.length ? { sourceMessageLogIds } : {})
+          })
         },
         callback: {
           messageType: WECHAT_CHAT_CALLBACK_MESSAGE_TYPE,
@@ -227,6 +221,36 @@ export class WechatChatDispatchService {
         }
       }
     } as unknown as TChatRequest
+  }
+
+  private buildRuntimeContext(
+    wechatMessage: WechatMessage,
+    sourceMessageLogIds: string[],
+    conversationUserKey?: string
+  ): Record<string, unknown> {
+    return withWechatChatContextLegacyAliases({
+      from: 'wechat',
+      channelType: 'wechat',
+      wechatConversation: true,
+      channelSource: 'wechat_webhook',
+      sourceIntegrationId: wechatMessage.integrationId,
+      integrationId: wechatMessage.integrationId,
+      uuid: wechatMessage.uuid,
+      ownerWxid: wechatMessage.ownerWxid,
+      contactId: wechatMessage.contactId,
+      chatId: wechatMessage.contactId,
+      chatType: wechatMessage.chatType,
+      senderId: wechatMessage.senderId,
+      senderName: wechatMessage.senderName,
+      channelUserId: wechatMessage.senderId,
+      ...(conversationUserKey ? { conversationUserKey } : {}),
+      ...(sourceMessageLogIds.length
+        ? {
+            currentInboundLogIds: sourceMessageLogIds,
+            sourceMessageLogIds
+          }
+        : {})
+    })
   }
 
   private normalizeFiles(files?: WechatInboundFile[]): WechatInboundFile[] | undefined {

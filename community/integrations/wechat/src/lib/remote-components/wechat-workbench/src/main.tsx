@@ -30,6 +30,7 @@ import {
   executeAction,
   getErrorMessage,
   getResponsePayload,
+  getSidecarConfigJson,
   notify,
   post,
   reportResize,
@@ -1198,7 +1199,7 @@ function MessagesView(props: any) {
           translatedPill(item.status, props.t),
           code(item.uuid),
           code(item.contactId),
-          code(item.senderId),
+          senderCell(item),
           <details className="wxp-message-log-content">
             <summary>{clip(item.content, 80)}</summary>
             <pre>{item.payloadSummary || item.content || ''}</pre>
@@ -1330,80 +1331,100 @@ function ConfigView(props: any) {
         isOrganizationScope={props.isOrganizationScope}
         t={props.t}
       />
-      <div className="wxp-panel">
-        <h3>{props.isOrganizationScope ? props.t('integrations') : props.t('runtimeConfig')}</h3>
-        {props.isOrganizationScope ? (
-          <DataTable
-            headers={[
-              props.t('integration'),
-              props.t('account'),
-              props.t('message'),
-              props.t('error'),
-              props.t('connectionMode'),
-              props.t('tunnelClientId'),
-              props.t('tunnelStatus')
-            ]}
-            rows={props.integrations || []}
-            loadingText={props.t('loading')}
-            emptyText={props.t('noIntegrations')}
-            renderRow={(integration: any) => [
-              code(integration.name || integration.id),
-              String(integration.accountCount || 0),
-              String(integration.recentMessageCount || 0),
-              String(integration.errorCount || 0),
-              connectionModeLabel(integration.config?.connectionMode, props.t),
-              code(integration.config?.tunnelClientId || integration.config?.baseUrl),
-              tunnelStatusLabel(integration.tunnel, props.t)
-            ]}
-          />
-        ) : (
-          <>
-            {kv(props.t('connectionMode'), connectionModeLabel(props.config.connectionMode, props.t))}
-            {kv(props.t('baseUrl'), props.config.baseUrl)}
-            {kv(props.t('tunnelClientId'), props.config.tunnelClientId)}
-            {kv(props.t('apiVersion'), props.config.apiVersion)}
-            {kv(props.t('timeoutMs'), props.config.timeoutMs)}
-            {kv(props.t('preferLanguage'), props.config.preferLanguage)}
-            {kv(props.t('fallbackToLegacySendText'), String(props.config.fallbackToLegacySendText))}
-          </>
-        )}
+      <div className="wxp-config-main">
+        <RuntimeConfigPanel {...props} />
+        <TunnelPanel callback={props.callback} tunnel={props.tunnel} t={props.t} />
+        <ManualSendPanel
+          draft={props.draft}
+          isOrganizationScope={props.isOrganizationScope}
+          setDraft={props.setDraft}
+          t={props.t}
+          onSend={props.onSend}
+        />
       </div>
-      <TunnelPanel tunnel={props.tunnel} t={props.t} />
       <TunnelClientsPanel
         clients={props.tunnelClients || []}
         isOrganizationScope={props.isOrganizationScope}
         t={props.t}
         onDisconnect={props.onDisconnectTunnelClient}
       />
-      <div className="wxp-panel">
-        <h3>{props.t('manualSend')}</h3>
-        {props.isOrganizationScope && (
-          <Input
-            placeholder={props.t('integrationId')}
-            value={props.draft.integrationId}
-            onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { integrationId: event.target.value }))}
-          />
-        )}
-        <Input
-          placeholder={props.t('uuid')}
-          value={props.draft.uuid}
-          onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { uuid: event.target.value }))}
-        />
-        <Input
-          placeholder={props.t('contactId')}
-          value={props.draft.contactId}
-          onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { contactId: event.target.value }))}
-        />
-        <Textarea
-          placeholder={props.t('sendTextPlaceholder')}
-          value={props.draft.content}
-          onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { content: event.target.value }))}
-        />
-        <Button onClick={props.onSend}>
-          {props.t('send')}
-        </Button>
-      </div>
     </section>
+  )
+}
+
+function RuntimeConfigPanel(props: any) {
+  return (
+    <div className="wxp-panel wxp-runtime-config-panel">
+      <h3>{props.isOrganizationScope ? props.t('integrations') : props.t('runtimeConfig')}</h3>
+      {props.isOrganizationScope ? (
+        <DataTable
+          headers={[
+            props.t('integration'),
+            props.t('account'),
+            props.t('message'),
+            props.t('error'),
+            props.t('connectionMode'),
+            props.t('tunnelClientId'),
+            props.t('tunnelStatus')
+          ]}
+          rows={props.integrations || []}
+          loadingText={props.t('loading')}
+          emptyText={props.t('noIntegrations')}
+          renderRow={(integration: any) => [
+            code(integration.name || integration.id),
+            String(integration.accountCount || 0),
+            String(integration.recentMessageCount || 0),
+            String(integration.errorCount || 0),
+            connectionModeLabel(integration.config?.connectionMode, props.t),
+            code(integration.config?.tunnelClientId || integration.config?.baseUrl),
+            tunnelStatusLabel(integration.tunnel, props.t)
+          ]}
+        />
+      ) : (
+        <>
+          {kv(props.t('connectionMode'), connectionModeLabel(props.config.connectionMode, props.t))}
+          {kv(props.t('baseUrl'), props.config.baseUrl)}
+          {kv(props.t('tunnelClientId'), props.config.tunnelClientId)}
+          {kv(props.t('apiVersion'), props.config.apiVersion)}
+          {kv(props.t('timeoutMs'), props.config.timeoutMs)}
+          {kv(props.t('preferLanguage'), props.config.preferLanguage)}
+          {kv(props.t('fallbackToLegacySendText'), String(props.config.fallbackToLegacySendText))}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ManualSendPanel(props: any) {
+  return (
+    <div className="wxp-panel wxp-manual-send-panel">
+      <h3>{props.t('manualSend')}</h3>
+      {props.isOrganizationScope && (
+        <Input
+          placeholder={props.t('integrationId')}
+          value={props.draft.integrationId}
+          onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { integrationId: event.target.value }))}
+        />
+      )}
+      <Input
+        placeholder={props.t('uuid')}
+        value={props.draft.uuid}
+        onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { uuid: event.target.value }))}
+      />
+      <Input
+        placeholder={props.t('contactId')}
+        value={props.draft.contactId}
+        onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { contactId: event.target.value }))}
+      />
+      <Textarea
+        placeholder={props.t('sendTextPlaceholder')}
+        value={props.draft.content}
+        onChange={(event: any) => props.setDraft(Object.assign({}, props.draft, { content: event.target.value }))}
+      />
+      <Button onClick={props.onSend}>
+        {props.t('send')}
+      </Button>
+    </div>
   )
 }
 
@@ -1450,8 +1471,13 @@ function CallbackPanel(props: any) {
 function TunnelPanel(props: any) {
   const tunnel = props.tunnel || {}
   const setup = tunnel.setup || {}
-  const settingJson = setup.settingJson || ''
+  const settingJson = getSidecarConfigJson(props.callback, setup)
   const sidecar = setup.sidecar || {}
+  const sidecarConfig = props.callback?.sidecarConfig || {}
+  const xpertUrl = sidecarConfig.XpertUrl || sidecar.websocketUrl
+  const listenHost = sidecarConfig.ListenHost || sidecar.listenHost
+  const listenPort = sidecarConfig.ListenPort || sidecar.listenPort
+  const msgClientId = tunnel.clientId || sidecarConfig.MsgClientId
   return (
     <div className="wxp-panel wxp-tunnel-panel">
       <div className="wxp-panel-title">
@@ -1464,19 +1490,15 @@ function TunnelPanel(props: any) {
       </div>
       <div className="wxp-tunnel-grid">
         {kv(props.t('tunnelStatus'), tunnelStatusLabel(tunnel, props.t))}
-        {kv(props.t('tunnelClientId'), tunnel.clientId)}
+        {kv(props.t('tunnelClientId'), msgClientId)}
         {kv(props.t('tunnelLastSeen'), time(tunnel.lastSeenAt))}
         {kv(props.t('tunnelBindings'), tunnel.bindingCount)}
-        {kv(props.t('sidecarWebsocketUrl'), sidecar.websocketUrl)}
-        {kv(props.t('sidecarLocalListen'), sidecar.listenHost && sidecar.listenPort ? `${sidecar.listenHost}:${sidecar.listenPort}` : '')}
+        {kv(props.t('sidecarWebsocketUrl'), xpertUrl)}
+        {kv(props.t('sidecarLocalListen'), listenHost && listenPort ? `${listenHost}:${listenPort}` : '')}
       </div>
       <div>
         <span className="xui-muted">{props.t('tunnelConfigSnippet')}</span>
         <pre>{settingJson || '-'}</pre>
-      </div>
-      <div>
-        <span className="xui-muted">{props.t('sidecarCommand')}</span>
-        <pre>{sidecar.command || '-'}</pre>
       </div>
     </div>
   )
@@ -2126,6 +2148,20 @@ function code(value: unknown) {
 
 function display(value: unknown) {
   return <span className="xui-muted">{displayText(value) || '-'}</span>
+}
+
+function senderCell(item: any) {
+  const name = displayText(item?.senderName)
+  const id = displayText(item?.senderId)
+  if (!name) {
+    return code(id)
+  }
+  return (
+    <div className="wxp-sender-cell">
+      <strong title={name}>{clip(name, 28)}</strong>
+      {id && <small>{clip(id, 36)}</small>}
+    </div>
+  )
 }
 
 function pill(value: unknown) {

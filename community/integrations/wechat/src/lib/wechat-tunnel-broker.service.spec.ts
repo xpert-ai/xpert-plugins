@@ -1,3 +1,8 @@
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  CONNECTION_COMMAND_ROUTER_TOKEN: Symbol('CONNECTION_COMMAND_ROUTER_TOKEN'),
+  MANAGED_CONNECTION_REGISTRY_TOKEN: Symbol('MANAGED_CONNECTION_REGISTRY_TOKEN')
+}))
+
 import { EventEmitter } from 'events'
 import {
   decodeWechatTunnelFrames,

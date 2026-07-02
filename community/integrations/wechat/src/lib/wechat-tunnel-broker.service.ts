@@ -18,6 +18,7 @@ import { WECHAT_PLUGIN_NAME } from './constants.js'
 
 const DEFAULT_SIDECAR_LISTEN_HOST = '127.0.0.1'
 const DEFAULT_SIDECAR_LISTEN_PORT = 8088
+export const DEFAULT_WECHAT_IN_APP_PAGE_URL = 'http://127.0.0.1:8201'
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 30000
 const DEFAULT_CLIENT_TIMEOUT_MS = 90000
 const DEFAULT_HTTP_PORT = 8099
@@ -83,6 +84,16 @@ export type WechatTunnelSetupConfig = {
   }
 }
 
+export type WechatSidecarRuntimeConfig = {
+  XpertUrl: string
+  ListenHost: string
+  ListenPort: number
+  MsgClientId: string
+  MsgClientName: string
+  AllMsgPushUrl: string
+  InAppPageUrl: string
+}
+
 export type WechatTunnelStatus = {
   wsPath: string
   wsUrl?: string | null
@@ -120,6 +131,22 @@ export type WechatTunnelClientInfo = {
   lastError?: string | null
   bindingCount: number
   bindings: WechatTunnelBinding[]
+}
+
+export function buildWechatSidecarRuntimeConfig(
+  setup: WechatTunnelSetupConfig,
+  allMsgPushUrl: string,
+  inAppPageUrl = DEFAULT_WECHAT_IN_APP_PAGE_URL
+): WechatSidecarRuntimeConfig {
+  return {
+    XpertUrl: setup.sidecar.websocketUrl,
+    ListenHost: setup.sidecar.listenHost,
+    ListenPort: setup.sidecar.listenPort,
+    MsgClientId: setup.msgClientInfo.Id,
+    MsgClientName: setup.msgClientInfo.Name,
+    AllMsgPushUrl: allMsgPushUrl,
+    InAppPageUrl: inAppPageUrl
+  }
 }
 
 export type WechatTunnelClientListOptions = {

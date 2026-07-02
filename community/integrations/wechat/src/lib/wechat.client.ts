@@ -887,11 +887,11 @@ export class WechatClient {
     body: Record<string, unknown>
   ): Promise<WechatSendResult> {
     const options = integration.options || ({} as TIntegrationWechatOptions)
-    const clientId = normalizeString(options.tunnelClientId)
+    const clientId = normalizeString(integration.id)
     if (!clientId) {
       return {
         success: false,
-        error: 'wechat reverse tunnel client id is required'
+        error: 'wechat reverse tunnel integration id is required'
       }
     }
     if (!this.tunnelBroker) {

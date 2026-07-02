@@ -16,11 +16,23 @@ describe('WechatIntegrationStrategy', () => {
   function createStrategy() {
     const tunnelBroker = {
       disconnectClient: jest.fn(),
-      buildSetupConfig: jest.fn(() => ({
-        forwardServerInfo: {},
-        msgClientInfo: {},
+      buildSetupConfig: jest.fn((clientId = '<tunnelClientId>', clientName = 'wechat') => ({
+        forwardServerInfo: {
+          Url: '127.0.0.1',
+          TcpPort: 8088,
+          HttpPort: 8099
+        },
+        msgClientInfo: {
+          Id: clientId,
+          Name: clientName
+        },
         settingJson: '{}',
-        sidecar: {}
+        sidecar: {
+          websocketUrl: `wss://api.example.com/api/wechat/tunnel/ws/${clientId}`,
+          listenHost: '127.0.0.1',
+          listenPort: 8088,
+          command: 'node scripts/wechat-tunnel-sidecar.mjs'
+        }
       }))
     }
     const strategy = new WechatIntegrationStrategy(tunnelBroker as any, {} as any)
@@ -55,7 +67,8 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).toContain('connectionMode')
     expect(source).toContain('direct_http')
     expect(source).toContain('reverse_tunnel')
-    expect(source).toContain('tunnelClientId')
+    expect(source).not.toContain('tunnelClientId: {')
+    expect(source).not.toContain('Required in reverse tunnel mode')
     expect(source).toContain('outboundQueue')
     expect(source).toContain('fallbackToLegacySendText')
     expect(source).not.toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
@@ -68,7 +81,7 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('groupTriggerMode: {')
   })
 
-  it('disconnects the previous reverse tunnel client when the integration client id changes', async () => {
+  it('disconnects a legacy reverse tunnel client while keeping the integration id client active', async () => {
     const { strategy, tunnelBroker } = createStrategy()
 
     await strategy.onUpdate(
@@ -115,27 +128,29 @@ describe('WechatIntegrationStrategy', () => {
     )
 
     expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
+      'integration-1',
+      'wechat integration integration-1 tunnel client id changed'
+    )
+    expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
       'old-client',
       'wechat integration integration-1 tunnel client id changed'
     )
   })
 
-  it('keeps the current tunnel client connected when the client id is unchanged', async () => {
+  it('keeps the current integration id tunnel client connected when reverse tunnel stays enabled', async () => {
     const { strategy, tunnelBroker } = createStrategy()
 
     await strategy.onUpdate(
       {
         id: 'integration-1',
         options: {
-          connectionMode: 'reverse_tunnel',
-          tunnelClientId: 'client-1'
+          connectionMode: 'reverse_tunnel'
         }
       } as any,
       {
         id: 'integration-1',
         options: {
-          connectionMode: 'reverse_tunnel',
-          tunnelClientId: 'client-1'
+          connectionMode: 'reverse_tunnel'
         }
       } as any
     )
@@ -143,7 +158,7 @@ describe('WechatIntegrationStrategy', () => {
     expect(tunnelBroker.disconnectClient).not.toHaveBeenCalled()
   })
 
-  it('disconnects the tunnel client when the integration is deleted', async () => {
+  it('disconnects the integration id and legacy tunnel clients when the integration is deleted', async () => {
     const { strategy, tunnelBroker } = createStrategy()
 
     await strategy.onDelete({
@@ -155,8 +170,39 @@ describe('WechatIntegrationStrategy', () => {
     } as any)
 
     expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
+      'integration-1',
+      'wechat integration integration-1 deleted'
+    )
+    expect(tunnelBroker.disconnectClient).toHaveBeenCalledWith(
       'client-1',
       'wechat integration integration-1 deleted'
     )
+  })
+
+  it('validates reverse tunnel config without a user-supplied tunnel client id', async () => {
+    const { strategy, tunnelBroker } = createStrategy()
+
+    const result = await strategy.validateConfig(
+      {
+        connectionMode: 'reverse_tunnel'
+      } as any,
+      {
+        id: 'integration-1',
+        name: 'WeChat Shenzhen'
+      } as any
+    )
+
+    expect(tunnelBroker.buildSetupConfig).toHaveBeenCalledWith('integration-1', 'WeChat Shenzhen')
+    expect(result.tunnel.clientId).toBe('integration-1')
+    expect(result.tunnel.sidecarConfig).toEqual(
+      expect.objectContaining({
+        MsgClientId: 'integration-1',
+        MsgClientName: 'WeChat Shenzhen',
+        ListenHost: '127.0.0.1',
+        ListenPort: 8088,
+        InAppPageUrl: 'http://127.0.0.1:8201'
+      })
+    )
+    expect(result.tunnel.sidecarConfigJson).toContain('"MsgClientId": "integration-1"')
   })
 })

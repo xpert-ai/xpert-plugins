@@ -97,6 +97,18 @@ export function getResponsePayload(response: any) {
   return response
 }
 
+export function getSidecarConfigJson(callbackConfig?: any, tunnelSetup?: any): string {
+  const explicitJson = typeof callbackConfig?.sidecarConfigJson === 'string' ? callbackConfig.sidecarConfigJson : ''
+  if (explicitJson.trim()) {
+    return explicitJson
+  }
+  if (isObject(callbackConfig?.sidecarConfig)) {
+    return JSON.stringify(callbackConfig.sidecarConfig, null, 2)
+  }
+  const legacyJson = typeof tunnelSetup?.settingJson === 'string' ? tunnelSetup.settingJson : ''
+  return legacyJson.trim() ? legacyJson : ''
+}
+
 export function setRuntimeText(nextText: Partial<typeof runtimeText>) {
   runtimeText = {
     ...runtimeText,

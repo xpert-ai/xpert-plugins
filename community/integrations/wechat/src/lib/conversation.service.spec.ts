@@ -236,6 +236,7 @@ describe('WechatConversationService fresh session history context', () => {
 
   function createFullService(overrides: Record<string, any> = {}) {
     const integrationPermissionService = {
+      ensureWebhookCredential: jest.fn().mockResolvedValue({ token: 'webhook-secret-1' }),
       read: jest.fn().mockResolvedValue({
         id: 'integration-1',
         tenantId: 'tenant-1',
@@ -295,6 +296,24 @@ describe('WechatConversationService fresh session history context', () => {
         instanceId: 'test-instance',
         bindingCount: 0,
         bindings: []
+      })),
+      buildSetupConfig: jest.fn((clientId = '<tunnelClientId>', clientName = 'wechat') => ({
+        forwardServerInfo: {
+          Url: '127.0.0.1',
+          TcpPort: 8088,
+          HttpPort: 8099
+        },
+        msgClientInfo: {
+          Id: clientId,
+          Name: clientName
+        },
+        settingJson: '{}',
+        sidecar: {
+          websocketUrl: `wss://api.example.com/api/wechat/tunnel/ws/${clientId}`,
+          listenHost: '127.0.0.1',
+          listenPort: 8088,
+          command: 'node scripts/wechat-tunnel-sidecar.mjs'
+        }
       })),
       listClients: jest.fn(() => []),
       disconnectClient: jest.fn(() => false),
@@ -562,7 +581,7 @@ describe('WechatConversationService fresh session history context', () => {
           state: 'connected',
           connected: true,
           instanceId: 'test-instance',
-          clientId: 'client-1',
+          clientId: 'integration-1',
           clientName: 'local wx',
           lastSeenAt: '2026-06-25T03:00:00.000Z',
           lastSyncAt: '2026-06-25T03:01:00.000Z',
@@ -600,7 +619,7 @@ describe('WechatConversationService fresh session history context', () => {
             tunnelBinding: expect.objectContaining({
               status: 'bound_connected',
               connected: true,
-              clientId: 'client-1',
+              clientId: 'integration-1',
               clientName: 'local wx',
               bindingCount: 1
             }),
@@ -614,7 +633,40 @@ describe('WechatConversationService fresh session history context', () => {
         total: 1
       })
     )
-    expect(tunnelBroker.getStatus).toHaveBeenCalled()
+    expect(tunnelBroker.getStatus).toHaveBeenCalledWith('integration-1', expect.objectContaining({
+      clientName: 'My WeChat'
+    }))
+  })
+
+  it('builds callback config with complete sidecar JSON from the integration id', async () => {
+    const previousApiBaseUrl = process.env.API_BASE_URL
+    process.env.API_BASE_URL = 'https://api.example.com'
+    const { service, tunnelBroker } = createFullService()
+
+    try {
+      await expect(service.buildCallbackConfig('integration-1', { clientName: 'My WeChat' })).resolves.toEqual(
+        expect.objectContaining({
+          globalWebhookUrl: 'https://api.example.com/api/wechat/webhook/integration-1?secret=webhook-secret-1',
+          sidecarConfig: expect.objectContaining({
+            XpertUrl: 'wss://api.example.com/api/wechat/tunnel/ws/integration-1',
+            ListenHost: '127.0.0.1',
+            ListenPort: 8088,
+            MsgClientId: 'integration-1',
+            MsgClientName: 'My WeChat',
+            AllMsgPushUrl: 'https://api.example.com/api/wechat/webhook/integration-1?secret=webhook-secret-1',
+            InAppPageUrl: 'http://127.0.0.1:8201'
+          }),
+          sidecarConfigJson: expect.stringContaining('"MsgClientId": "integration-1"')
+        })
+      )
+      expect(tunnelBroker.buildSetupConfig).toHaveBeenCalledWith('integration-1', 'My WeChat')
+    } finally {
+      if (previousApiBaseUrl === undefined) {
+        delete process.env.API_BASE_URL
+      } else {
+        process.env.API_BASE_URL = previousApiBaseUrl
+      }
+    }
   })
 
   it('marks inbound messages failed when dispatch handoff throws after the message is logged', async () => {
@@ -1503,6 +1555,7 @@ describe('WechatConversationService fresh session history context', () => {
         contactId: 'room@chatroom',
         chatType: 'group',
         senderId: 'wxid_member',
+        senderName: '张三',
         direction: 'inbound',
         status: 'dispatched',
         content: longContent,
@@ -1559,6 +1612,10 @@ describe('WechatConversationService fresh session history context', () => {
       })
     )
     expect(result.items.map((item) => item.id)).toEqual(['inbound-1', 'outbound-1'])
+    expect(result.items[0]).toEqual(expect.objectContaining({
+      senderId: 'wxid_member',
+      senderName: '张三'
+    }))
     expect(result.items[0].content).toContain('[截断]')
     expect(result.items[0]).not.toHaveProperty('payloadSummary')
     expect(result.items[0]).not.toHaveProperty('queueJobId')
@@ -1586,6 +1643,7 @@ describe('WechatConversationService fresh session history context', () => {
         contactId: 'room@chatroom',
         chatType: 'group',
         senderId: 'wxid_member',
+        senderName: '李四',
         direction: 'inbound',
         status: 'history_only',
         content: '指定成员消息',
@@ -1609,6 +1667,7 @@ describe('WechatConversationService fresh session history context', () => {
       contactId: 'room@chatroom',
       chatType: 'group',
       senderId: 'wxid_member',
+      keyword: '李四',
       direction: 'inbound',
       after: '2026-06-16T02:00:00.000Z',
       before: '2026-06-16T04:00:00.000Z'

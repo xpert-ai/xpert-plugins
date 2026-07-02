@@ -71,6 +71,7 @@ describe('wechat inbound normalization', () => {
       chattype: 'group',
       content: 'wxid_sender:\n@bot hello',
       pushcontent: 'sender: @bot hello',
+      sendcontactinfo: { nickname: 'Sender One' },
       newmsgid: '2002',
       msgtype: 1,
       isself: false
@@ -83,6 +84,7 @@ describe('wechat inbound normalization', () => {
         ownerWxid: 'wxid_owner',
         contactId: 'room@chatroom',
         senderId: 'wxid_sender',
+        senderName: 'Sender One',
         chatType: 'group',
         messageId: '2002',
         msgType: 1,

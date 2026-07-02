@@ -26,6 +26,7 @@ type WechatMessageContext = {
   contactId: string
   chatType?: 'private' | 'group'
   senderId?: string
+  senderName?: string
   ownerWxid?: string
   atUsers?: string[]
   wechatChannel: WechatMessageChannel
@@ -80,6 +81,10 @@ export class WechatMessage extends Serializable implements Required<WechatMessag
     return this.chatContext.senderId
   }
 
+  get senderName() {
+    return this.chatContext.senderName
+  }
+
   get ownerWxid() {
     return this.chatContext.ownerWxid
   }
@@ -99,6 +104,15 @@ export class WechatMessage extends Serializable implements Required<WechatMessag
       contactId: this.contactId,
       content,
       atUsers: this.chatContext.atUsers,
+      context: {
+        integrationId: this.integrationId,
+        uuid: this.uuid,
+        ownerWxid: this.ownerWxid,
+        contactId: this.contactId,
+        chatType: this.chatType,
+        senderId: this.senderId,
+        senderName: this.senderName
+      },
       source: 'message_reply'
     })
 

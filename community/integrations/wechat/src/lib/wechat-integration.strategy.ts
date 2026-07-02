@@ -27,7 +27,7 @@ import {
   normalizeWechatConnectionMode,
   TIntegrationWechatOptions
 } from './types.js'
-import { WechatTunnelBrokerService } from './wechat-tunnel-broker.service.js'
+import { buildWechatSidecarRuntimeConfig, WechatTunnelBrokerService } from './wechat-tunnel-broker.service.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 
 export const WECHAT_CALLBACK_HINTS = [
@@ -175,17 +175,6 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
           description: {
             en_US: 'Required in direct HTTP mode. Example: http://127.0.0.1:8058',
             zh_Hans: '直接 HTTP 模式必填。例如：http://127.0.0.1:8058'
-          }
-        },
-        tunnelClientId: {
-          type: 'string',
-          title: {
-            en_US: 'Tunnel Client ID',
-            zh_Hans: '隧道客户端 ID'
-          },
-          description: {
-            en_US: 'Required in reverse tunnel mode. Must match MsgClientInfo.Id in the local wx2.0 setting.',
-            zh_Hans: '反向隧道模式必填，需与本地 wx2.0 setting 中的 MsgClientInfo.Id 一致。'
           }
         },
         apiVersion: {
@@ -370,25 +359,22 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     previous: IIntegration<TIntegrationWechatOptions>,
     current: IIntegration<any>
   ): Promise<void> {
-    const previousClientId = this.getActiveTunnelClientId(previous)
-    const currentClientId = this.getActiveTunnelClientId(current)
-    if (!previousClientId || previousClientId === currentClientId) {
-      return
+    const currentClientIds = new Set(this.getRuntimeTunnelClientIds(current))
+    for (const previousClientId of this.getDisconnectableTunnelClientIds(previous)) {
+      if (currentClientIds.has(previousClientId)) {
+        continue
+      }
+      this.disconnectTunnelClient(
+        previousClientId,
+        `wechat integration ${previous.id} tunnel client id changed`
+      )
     }
-
-    this.disconnectTunnelClient(
-      previousClientId,
-      `wechat integration ${previous.id} tunnel client id changed`
-    )
   }
 
   async onDelete(integration: IIntegration<TIntegrationWechatOptions>): Promise<void> {
-    const clientId = normalizeString(integration?.options?.tunnelClientId)
-    if (!clientId) {
-      return
+    for (const clientId of this.getDisconnectableTunnelClientIds(integration)) {
+      this.disconnectTunnelClient(clientId, `wechat integration ${integration.id} deleted`)
     }
-
-    this.disconnectTunnelClient(clientId, `wechat integration ${integration.id} deleted`)
   }
 
   async validateConfig(
@@ -411,11 +397,8 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
       config.baseUrl = baseUrl
     } else {
       config.baseUrl = baseUrl || undefined
-      config.tunnelClientId = normalizeString(config.tunnelClientId)
-      if (!config.tunnelClientId) {
-        throw new Error('tunnelClientId is required in reverse_tunnel mode')
-      }
     }
+    delete config.tunnelClientId
 
     config.apiVersion = normalizeApiVersion(config.apiVersion)
     config.timeoutMs = normalizeTimeoutMs(config.timeoutMs)
@@ -431,7 +414,10 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     const webhookSecret = integration?.id ? await this.ensureWebhookSecret(integration.id, config) : null
     const secretForUrl = webhookSecret || '<webhook-secret>'
     const callbackUrl = `${apiBaseUrl}/api/wechat/webhook/${integrationId}?secret=${encodeURIComponent(secretForUrl)}`
-    const setup = this.tunnelBroker.buildSetupConfig(config.tunnelClientId, integration?.name || WECHAT_PROVIDER_KEY)
+    const tunnelClientId = this.getPreviewTunnelClientId(integration)
+    const setup = this.tunnelBroker.buildSetupConfig(tunnelClientId, integration?.name || tunnelClientId || WECHAT_PROVIDER_KEY)
+    const sidecarConfig = buildWechatSidecarRuntimeConfig(setup, callbackUrl)
+    const sidecarConfigJson = JSON.stringify(sidecarConfig, null, 2)
 
     return {
       webhookUrl: callbackUrl,
@@ -443,10 +429,12 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
         subscriptionHints: [...WECHAT_CALLBACK_HINTS]
       },
       tunnel: {
-        clientId: config.tunnelClientId,
+        clientId: tunnelClientId,
         forwardServerInfo: setup.forwardServerInfo,
         msgClientInfo: setup.msgClientInfo,
-        settingJson: setup.settingJson
+        settingJson: sidecarConfigJson,
+        sidecarConfig,
+        sidecarConfigJson
       }
     }
   }
@@ -471,12 +459,29 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     return token || null
   }
 
-  private getActiveTunnelClientId(integration?: IIntegration<TIntegrationWechatOptions> | null): string {
+  private getRuntimeTunnelClientIds(integration?: IIntegration<TIntegrationWechatOptions> | null): string[] {
     const options = integration?.options
     if (normalizeWechatConnectionMode(options?.connectionMode) !== 'reverse_tunnel') {
-      return ''
+      return []
     }
-    return normalizeString(options?.tunnelClientId)
+    const clientId = normalizeString(integration?.id)
+    return clientId ? [clientId] : []
+  }
+
+  private getDisconnectableTunnelClientIds(integration?: IIntegration<TIntegrationWechatOptions> | null): string[] {
+    if (normalizeWechatConnectionMode(integration?.options?.connectionMode) !== 'reverse_tunnel') {
+      return []
+    }
+    const ids = new Set(this.getRuntimeTunnelClientIds(integration))
+    const legacyClientId = normalizeString(integration?.options?.tunnelClientId)
+    if (legacyClientId) {
+      ids.add(legacyClientId)
+    }
+    return [...ids]
+  }
+
+  private getPreviewTunnelClientId(integration?: IIntegration<TIntegrationWechatOptions> | null): string {
+    return normalizeString(integration?.id) || '<save_and_get_your_integration_id>'
   }
 
   private disconnectTunnelClient(clientId: string, reason: string): void {
