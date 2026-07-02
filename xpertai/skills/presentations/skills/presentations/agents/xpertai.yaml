@@ -1,0 +1,64 @@
+interface:
+  display_name: "Presentations"
+  short_description: "Create polished PowerPoint and Google Slides decks"
+  icon_small: "./assets/file-presentation.png"
+  icon_large: "./assets/file-presentation.png"
+  brand_color: "#C43E1C"
+  default_prompt: "Create a presentation slide deck with $Presentations."
+runtime:
+  required_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "read_skill_file"
+      required: true
+      purpose: "Read bundled skill instructions, references, scripts, and assets before use."
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "skill_shell"
+      required: true
+      purpose: "Run shell commands from the installed skill runtime directory for deck generation, rendering, and QA."
+  compatible_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SandboxShell"
+      name: "sandbox_shell"
+      required: false
+      purpose: "Alternative general shell execution tool when skill_shell is unavailable."
+    - kind: "builtin-toolset-tool"
+      provider: "bash"
+      name: "bash_execute"
+      required: false
+      purpose: "Alternative Bash execution tool for Xpert templates that bind builtin toolsets."
+    - kind: "builtin-toolset-tool"
+      provider: "file"
+      name: "file_edit"
+      required: false
+      purpose: "Optional workspace file inspection and edits for generated artifact support files."
+    - kind: "builtin-toolset-tool"
+      provider: "python"
+      name: "python_execute"
+      required: false
+      purpose: "Optional Python execution helper for bundled rendering and inspection scripts."
+  required_runtime:
+    filesystem:
+      read: true
+      write: true
+      workspace: true
+    shell: true
+    workspace_dependencies: true
+    executables:
+      - "node"
+      - "python"
+    packages:
+      - "@oai/artifact-tool"
+  optional_runtime:
+    executables:
+      - "dot"
+    packages:
+      - "Pillow"
+    tools:
+      - "image_gen"
+      - "image_search"
+    integrations:
+      - "Google Drive presentation import for native Google Slides output"
+policy:
+  allow_implicit_invocation: true

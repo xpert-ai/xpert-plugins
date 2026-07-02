@@ -8,6 +8,10 @@ packages:
   - models/*
   - databases/*
   - middlewares/*
+  - skills/*
+
+overrides:
+  '@xpert-ai/plugin-sdk@3.12.1>@xpert-ai/contracts': 3.12.1
 
 onlyBuiltDependencies:
   - '@nestjs/core'
@@ -20,3 +24,16 @@ onlyBuiltDependencies:
   - sharp
   - ssh2
   - unrs-resolver
+
+allowBuilds:
+  '@nestjs/core': true
+  '@sap/hana-client': true
+  '@swc/core': true
+  cpu-features: true
+  esbuild: true
+  msgpackr-extract: true
+  nx: true
+  protobufjs: true
+  sharp: true
+  ssh2: true
+  unrs-resolver: true
