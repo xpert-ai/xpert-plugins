@@ -95,6 +95,12 @@
     "i18next": "25.6.0",
     "i18next-fs-backend": "2.6.0"
   },
+  "pnpm": {
+    "overrides": {
+      "i18next": "25.6.0",
+      "i18next-fs-backend": "2.6.0"
+    }
+  },
   "nx": {
     "includedScripts": [],
     "targets": {
