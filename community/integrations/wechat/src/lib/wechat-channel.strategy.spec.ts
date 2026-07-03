@@ -9,7 +9,8 @@ describe('WechatChannelStrategy', () => {
   function createStrategy(options: Record<string, unknown> = {}) {
     const client = {
       sendText: jest.fn(async () => ({ success: true, messageId: 'sent-1' })),
-      sendImage: jest.fn(async () => ({ success: true, messageId: 'image-1' }))
+      sendImage: jest.fn(async () => ({ success: true, messageId: 'image-1' })),
+      sendFile: jest.fn(async () => ({ success: true, messageId: 'file-1' }))
     }
     const outboundQueue = {
       enqueueText: jest.fn(async () => ({
@@ -25,6 +26,13 @@ describe('WechatChannelStrategy', () => {
         queueJobId: 'job-image-1',
         outboundLogId: 'log-image-1',
         scheduledAt: '2026-06-16T00:00:01.000Z'
+      })),
+      enqueueFile: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        queueJobId: 'job-file-1',
+        outboundLogId: 'log-file-1',
+        scheduledAt: '2026-06-16T00:00:02.000Z'
       }))
     }
     const integration = {
@@ -245,6 +253,83 @@ describe('WechatChannelStrategy', () => {
         uuid: 'uuid-1',
         contactId: 'wxid_friend',
         imageUrl: 'https://example.com/a.png'
+      })
+    )
+  })
+
+  it('queues validated file sends by metadata without calling wx2.0 immediately', async () => {
+    const { strategy, client, outboundQueue, integration } = createStrategy()
+
+    await expect(
+      strategy.sendFileByIntegrationId('integration-1', {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        file: {
+          filePath: '/tmp/report.pdf',
+          fileName: 'report.pdf',
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          size: 10,
+          sha256: 'hash-1',
+          fileContent: 'base64-file'
+        },
+        source: 'agent_tool',
+        idempotencyKey: 'send-file-1'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({ success: true, queued: true, queueJobId: 'job-file-1', outboundLogId: 'log-file-1' })
+    )
+
+    expect(client.sendFile).not.toHaveBeenCalled()
+    expect(outboundQueue.enqueueFile).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        type: 'file',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        filePath: '/tmp/report.pdf',
+        fileName: 'report.pdf',
+        mimeType: 'application/pdf',
+        extension: 'pdf',
+        size: 10,
+        sha256: 'hash-1',
+        source: 'agent_tool',
+        idempotencyKey: 'send-file-1'
+      })
+    )
+  })
+
+  it('sends files directly only when the outbound queue is disabled', async () => {
+    const { strategy, client, outboundQueue, integration } = createStrategy({
+      outboundQueue: {
+        enabled: false
+      }
+    })
+
+    await expect(
+      strategy.sendFileByIntegrationId('integration-1', {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        file: {
+          filePath: '/tmp/report.pdf',
+          fileName: 'report.pdf',
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          size: 10,
+          sha256: 'hash-1',
+          fileContent: 'base64-file'
+        }
+      })
+    ).resolves.toEqual(expect.objectContaining({ success: true, messageId: 'file-1' }))
+
+    expect(outboundQueue.enqueueFile).not.toHaveBeenCalled()
+    expect(client.sendFile).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        fileName: 'report.pdf',
+        fileContent: 'base64-file'
       })
     )
   })

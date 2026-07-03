@@ -485,6 +485,98 @@ describe('WechatClient', () => {
     )
   })
 
+  it('maps sendFile to wx2.0 v2 sendfile body', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      return new Response(JSON.stringify({ code: 0, data: { newmsgid: 'file-1' } }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+
+    const result = await new WechatClient().sendFile(
+      {
+        id: 'integration-1',
+        options: {
+          baseUrl: 'http://127.0.0.1:8058',
+          apiVersion: '/v1/',
+          apiToken: 'token-1'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        fileName: 'report.pdf',
+        fileContent: 'base64-file',
+        uploadToken: 'upload-1'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'file-1' }))
+    expect(calls[0].url).toBe('http://127.0.0.1:8058/v1/message/sendfile')
+    expect(calls[0].init.headers).toEqual(
+      expect.objectContaining({
+        'Content-Type': 'application/json',
+        token: 'token-1'
+      })
+    )
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      uuid: 'uuid-1',
+      contactid: 'wxid_friend',
+      filename: 'report.pdf',
+      filecontent: 'base64-file',
+      uploadtoken: 'upload-1'
+    })
+  })
+
+  it('maps reverse tunnel sendFile to wx2.0 v2 sendfile path and body', async () => {
+    const tunnelBroker = {
+      sendHttpRequest: jest.fn(async () => ({
+        status: 200,
+        headers: {},
+        body: Buffer.from(JSON.stringify({ code: 0, data: { newmsgid: 'file-1' } })),
+        text: JSON.stringify({ code: 0, data: { newmsgid: 'file-1' } })
+      }))
+    }
+
+    const result = await new WechatClient(tunnelBroker as any).sendFile(
+      {
+        id: 'integration-1',
+        options: {
+          connectionMode: 'reverse_tunnel',
+          tunnelClientId: 'client-1',
+          apiVersion: '/v1/',
+          apiToken: 'token-1'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        fileName: 'report.pdf',
+        fileContent: 'base64-file'
+      }
+    )
+
+    expect(result).toEqual(expect.objectContaining({ success: true, messageId: 'file-1' }))
+    expect(tunnelBroker.sendHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'integration-1',
+        method: 'POST',
+        path: '/v1/message/sendfile',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          token: 'token-1'
+        }),
+        body: JSON.stringify({
+          uuid: 'uuid-1',
+          contactid: 'wxid_friend',
+          filename: 'report.pdf',
+          filecontent: 'base64-file'
+        })
+      })
+    )
+  })
+
   it('downloads inbound images through direct_http as Agent data URLs', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = []
     globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {

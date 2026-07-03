@@ -29,6 +29,7 @@ import {
 } from './types.js'
 import { WechatClient } from './wechat.client.js'
 import {
+  WechatOutboundQueueFileInput,
   WechatOutboundQueueTextInput,
   WechatOutboundQueueService,
   WechatQueuedSendResult
@@ -39,6 +40,11 @@ import {
   WechatOutgoingContentPart
 } from './wechat-outgoing-content.js'
 import { formatWechatOutgoingText } from './wechat-text-format.js'
+import {
+  resolveWechatSendFile,
+  sanitizeWechatSendFileName,
+  type WechatResolvedSendFile
+} from './wechat-send-file.js'
 
 const DEFAULT_TEXT_LIMIT = 4000
 
@@ -201,10 +207,62 @@ export class WechatChannelStrategy
       filename?: string
     }
   ): Promise<TChatSendResult> {
+    if (media.type === 'file') {
+      const uuid = normalizeString((ctx as Record<string, unknown>).uuid)
+      const contactId = normalizeString(ctx.chatId)
+      if (!uuid || !contactId) {
+        return {
+          success: false,
+          error: '发送微信文件缺少 uuid/contactId。'
+        }
+      }
+      if (media.url) {
+        try {
+          const file = await resolveWechatSendFile({
+            path: media.url,
+            originalName: media.filename
+          })
+          return this.sendFileByIntegrationId(ctx.integration.id, {
+            uuid,
+            contactId,
+            file
+          })
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          }
+        }
+      }
+      if (!media.content) {
+        return {
+          success: false,
+          error: '发送微信文件缺少本地文件路径或文件内容。'
+        }
+      }
+      if (ctx.integration.options?.outboundQueue?.enabled !== false) {
+        return {
+          success: false,
+          error: '启用出站队列时，微信文件发送需要可重新读取的本地文件路径。'
+        }
+      }
+      const result = await this.client.sendFile(ctx.integration, {
+        uuid,
+        contactId,
+        fileName: sanitizeWechatSendFileName(media.filename, 'file'),
+        fileContent: media.content.toString('base64')
+      })
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error
+      }
+    }
+
     if (media.type !== 'image') {
       return {
         success: false,
-        error: '微信通道当前仅支持发送图片媒体。'
+        error: '微信通道当前仅支持发送图片和文件媒体。'
       }
     }
 
@@ -425,6 +483,67 @@ export class WechatChannelStrategy
       source: params.source,
       idempotencyKey: params.idempotencyKey
     })
+  }
+
+  async sendFileByIntegrationId(
+    integrationId: string,
+    params: {
+      uuid?: string | null
+      contactId?: string | null
+      file: WechatResolvedSendFile
+      uploadToken?: string | null
+    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
+  ): Promise<WechatQueuedSendResult> {
+    const integration = await this.readIntegration(integrationId)
+    if (!integration) {
+      return {
+        success: false,
+        error: '微信集成不存在或不可访问。'
+      }
+    }
+
+    const uuid = normalizeString(params.uuid)
+    const contactId = normalizeString(params.contactId)
+    const uploadToken = normalizeString(params.uploadToken)
+    const file = params.file
+    if (!uuid || !contactId || !file?.fileName || !file.fileContent || !file.filePath) {
+      return {
+        success: false,
+        error: '发送微信文件缺少 uuid/contactId/file。'
+      }
+    }
+
+    if (integration.options?.outboundQueue?.enabled === false) {
+      const result = await this.client.sendFile(integration, {
+        uuid,
+        contactId,
+        fileName: file.fileName,
+        fileContent: file.fileContent,
+        uploadToken
+      })
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error
+      }
+    }
+
+    return this.outboundQueue.enqueueFile(integration, {
+      type: 'file',
+      uuid,
+      contactId,
+      filePath: file.filePath,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      extension: file.extension,
+      size: file.size,
+      sha256: file.sha256,
+      uploadToken,
+      context: params.context,
+      source: params.source,
+      idempotencyKey: params.idempotencyKey
+    } satisfies WechatOutboundQueueFileInput)
   }
 
   private async fetchImageContent(
