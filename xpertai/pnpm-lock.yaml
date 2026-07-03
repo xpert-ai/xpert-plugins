@@ -5,7 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@xpert-ai/plugin-sdk@3.12.1>@xpert-ai/contracts': 3.12.1
+  i18next: 25.6.0
+  i18next-fs-backend: 2.6.0
 
 importers:
 
