@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-community-wechat",
   "version": "0.12.1",
-  "description": "WeChat bridge integration for wx2.0 callbacks, Xpert Agent dispatch, and text replies.",
+  "description": "WeChat bridge integration for wx2.0 callbacks, Xpert Agent dispatch, and text/file replies.",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins",

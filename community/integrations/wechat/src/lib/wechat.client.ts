@@ -27,6 +27,14 @@ export interface WechatSendImageInput {
   imageContent: string
 }
 
+export interface WechatSendFileInput {
+  uuid: string
+  contactId: string
+  fileName: string
+  fileContent: string
+  uploadToken?: string
+}
+
 export interface WechatDownloadImageInput {
   uuid: string
   contactId: string
@@ -236,6 +244,30 @@ export class WechatClient {
     }
 
     return legacy
+  }
+
+  async sendFile(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatSendFileInput
+  ): Promise<WechatSendResult> {
+    const body: Record<string, unknown> = {
+      uuid: input.uuid,
+      contactid: input.contactId,
+      filename: input.fileName,
+      filecontent: input.fileContent
+    }
+    const uploadToken = normalizeString(input.uploadToken)
+    if (uploadToken) {
+      body.uploadtoken = uploadToken
+    }
+
+    const options = integration.options || ({} as TIntegrationWechatOptions)
+    return this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/sendfile'),
+      this.buildV2Path(options, 'message/sendfile'),
+      body
+    )
   }
 
   async downloadImage(

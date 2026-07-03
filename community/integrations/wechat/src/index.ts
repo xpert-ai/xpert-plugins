@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   WECHAT_FEATURE,
+  WECHAT_FILE_SEND_FEATURE,
   WECHAT_ICON,
   WECHAT_MIDDLEWARE_NAME,
   WECHAT_PLUGIN_NAME,
@@ -40,6 +41,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
         capabilities: [
           WECHAT_FEATURE,
           WECHAT_RUNTIME_FEATURE,
+          WECHAT_FILE_SEND_FEATURE,
           'wechat-workbench',
           'wechat-admin-assistant-template',
           'wechat-user-assistant-template'
@@ -66,7 +68,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
                 {
                   name: 'send-wechat-replies',
                   displayName: 'Send WeChat replies',
-                  description: 'Send final Agent text replies through wx2.0 sendtext.',
+                  description: 'Send final Agent text, image, and file replies through wx2.0.',
                   access: 'write'
                 },
                 {
@@ -88,7 +90,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
               name: WECHAT_MIDDLEWARE_NAME,
               displayName: 'WeChat Runtime Tools',
               description:
-                'Assistant middleware for WeChat runtime discovery, callback setup, account management, and logs.'
+                'Assistant middleware for WeChat runtime discovery, account management, logs, and controlled message/file delivery.'
             },
             {
               type: 'assistant-template',
@@ -120,7 +122,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
       color: '#16a34a'
     },
     displayName: 'WeChat Plugin',
-    description: 'wx2.0 WeChat integration for webhook receiving, Agent dispatch, and sendtext replies.',
+    description: 'wx2.0 WeChat integration for webhook receiving, Agent dispatch, and text/file replies.',
     keywords: ['wechat', 'wx2.0', 'integration', 'webhook', 'agent', 'remote-component'],
     author: 'XpertAI Team'
   },

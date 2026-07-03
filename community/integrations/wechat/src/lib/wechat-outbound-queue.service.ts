@@ -37,9 +37,11 @@ import type { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 import { fetchWechatImageAsBase64 } from './wechat-image.js'
 import {
   WechatClient,
+  WechatSendFileInput,
   WechatSendResult,
   WechatSendTextInput
 } from './wechat.client.js'
+import { resolveWechatSendFile } from './wechat-send-file.js'
 
 export type WechatOutboundQueueJobData = {
   integrationId: string
@@ -100,9 +102,23 @@ export type WechatOutboundQueueImageInput = {
   idempotencyKey?: string
 }
 
+export type WechatOutboundQueueFileInput = Pick<WechatSendFileInput, 'uuid' | 'contactId' | 'uploadToken'> & {
+  type: 'file'
+  filePath: string
+  fileName: string
+  mimeType?: string
+  extension?: string
+  size: number
+  sha256: string
+  context?: WechatOutboundContext
+  source?: WechatOutboundSource
+  idempotencyKey?: string
+}
+
 export type WechatOutboundQueueInput =
   | WechatOutboundQueueTextInput
   | WechatOutboundQueueImageInput
+  | WechatOutboundQueueFileInput
 
 type WechatQueuedPayload =
   | {
@@ -117,6 +133,18 @@ type WechatQueuedPayload =
       imageUrl: string
       idempotencyKey?: string
     }
+  | {
+      type: 'file'
+      source: WechatOutboundSource
+      filePath: string
+      fileName: string
+      mimeType?: string
+      extension?: string
+      size: number
+      sha256: string
+      uploadToken?: string
+      idempotencyKey?: string
+    }
 
 type WechatResolvedQueuedPayload =
   | {
@@ -126,6 +154,16 @@ type WechatResolvedQueuedPayload =
   | {
       type: 'image'
       imageUrl: string
+    }
+  | {
+      type: 'file'
+      filePath: string
+      fileName: string
+      mimeType?: string
+      extension?: string
+      size?: number
+      sha256?: string
+      uploadToken?: string
     }
 
 type RedisLike = ManagedQueueRedis
@@ -161,6 +199,11 @@ type NormalizedOutboundQueueOptions = {
 const PENDING_STATUSES: WechatMessageLogStatus[] = ['queued', 'deferred', 'sending', 'paused']
 const TERMINAL_STATUSES: WechatMessageLogStatus[] = ['sent', 'failed', 'cancelled']
 const DEFAULT_BACKOFF_MS = [60_000, 300_000, 900_000]
+
+function normalizePayloadNumber(value: unknown): number | undefined {
+  const numberValue = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numberValue) && numberValue > 0 ? Math.floor(numberValue) : undefined
+}
 
 @Injectable()
 export class WechatOutboundQueueService {
@@ -250,6 +293,56 @@ export class WechatOutboundQueueService {
         type: 'image',
         source: input.source || 'message_reply',
         imageUrl: normalizedInput.imageUrl,
+        ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
+      }
+    })
+  }
+
+  async enqueueFile(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatOutboundQueueFileInput
+  ): Promise<WechatQueuedSendResult> {
+    const normalizedInput = {
+      uuid: normalizeString(input.uuid),
+      contactId: normalizeString(input.contactId),
+      filePath: normalizeString(input.filePath),
+      fileName: normalizeString(input.fileName),
+      mimeType: normalizeString(input.mimeType),
+      extension: normalizeString(input.extension),
+      size: normalizePayloadNumber(input.size),
+      sha256: normalizeString(input.sha256),
+      uploadToken: normalizeString(input.uploadToken),
+      idempotencyKey: normalizeString(input.idempotencyKey)
+    }
+    if (
+      !normalizedInput.uuid ||
+      !normalizedInput.contactId ||
+      !normalizedInput.filePath ||
+      !normalizedInput.fileName ||
+      !normalizedInput.size ||
+      !normalizedInput.sha256
+    ) {
+      return {
+        success: false,
+        error: '发送微信文件缺少 uuid/contactId/filePath/fileName/size/sha256。'
+      }
+    }
+
+    return this.enqueueOutbound(integration, {
+      uuid: normalizedInput.uuid,
+      contactId: normalizedInput.contactId,
+      content: normalizedInput.fileName,
+      context: input.context,
+      payload: {
+        type: 'file',
+        source: input.source || 'message_reply',
+        filePath: normalizedInput.filePath,
+        fileName: normalizedInput.fileName,
+        ...(normalizedInput.mimeType ? { mimeType: normalizedInput.mimeType } : {}),
+        ...(normalizedInput.extension ? { extension: normalizedInput.extension } : {}),
+        size: normalizedInput.size,
+        sha256: normalizedInput.sha256,
+        ...(normalizedInput.uploadToken ? { uploadToken: normalizedInput.uploadToken } : {}),
         ...(normalizedInput.idempotencyKey ? { idempotencyKey: normalizedInput.idempotencyKey } : {})
       }
     })
@@ -512,7 +605,7 @@ export class WechatOutboundQueueService {
       where: this.scopedWhere({ id: normalizeString(logId), integrationId: integration.id }, scope)
     })
     if (!log?.uuid || !log.contactId || !log.content) {
-      return { success: false, message: '未找到可重试的出站文本消息。' }
+      return { success: false, message: '未找到可重试的出站消息。' }
     }
     if (log.status === 'sent') {
       return { success: false, message: '已发送的出站消息不能重试。', item: log }
@@ -935,6 +1028,34 @@ export class WechatOutboundQueueService {
         imageContent: image.imageContent
       })
     }
+    if (payload.type === 'file') {
+      const file = await resolveWechatSendFile({
+        path: payload.filePath,
+        originalName: payload.fileName,
+        mimeType: payload.mimeType,
+        extension: payload.extension,
+        size: payload.size
+      })
+      if (payload.size && file.size !== payload.size) {
+        return {
+          success: false,
+          error: `微信文件发送校验失败：文件大小已变化 (${payload.size} -> ${file.size})。`
+        }
+      }
+      if (payload.sha256 && file.sha256 !== payload.sha256) {
+        return {
+          success: false,
+          error: '微信文件发送校验失败：文件内容已变化。'
+        }
+      }
+      return this.client.sendFile(integration, {
+        uuid: log.uuid,
+        contactId: log.contactId,
+        fileName: file.fileName,
+        fileContent: file.fileContent,
+        uploadToken: payload.uploadToken
+      })
+    }
 
     return this.client.sendText(integration, {
       uuid: log.uuid,
@@ -950,6 +1071,18 @@ export class WechatOutboundQueueService {
       return {
         type: 'image',
         imageUrl: normalizeString(payload.imageUrl) || normalizeString(log.content)
+      }
+    }
+    if (payload?.type === 'file') {
+      return {
+        type: 'file',
+        filePath: normalizeString(payload.filePath),
+        fileName: normalizeString(payload.fileName) || normalizeString(log.content),
+        mimeType: normalizeString(payload.mimeType) || undefined,
+        extension: normalizeString(payload.extension) || undefined,
+        size: normalizePayloadNumber(payload.size),
+        sha256: normalizeString(payload.sha256) || undefined,
+        uploadToken: normalizeString(payload.uploadToken) || undefined
       }
     }
 

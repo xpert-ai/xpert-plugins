@@ -22,6 +22,7 @@ import {
   WECHAT_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_ICON,
   WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME,
+  WECHAT_FILE_SEND_FEATURE,
   WECHAT_LIST_ACCOUNTS_TOOL_NAME,
   WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME,
   WECHAT_MIDDLEWARE_NAME,
@@ -33,6 +34,7 @@ import {
   WECHAT_RUNTIME_FEATURE,
   WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
   WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME,
+  WECHAT_SEND_FILE_TOOL_NAME,
   WECHAT_SEND_MESSAGE_TOOL_NAME,
   WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME,
   WECHAT_WORKBENCH_FEATURE
@@ -48,12 +50,19 @@ import {
 } from './wechat-channel.strategy.js'
 import {
   WechatOutboundQueueService,
-  type WechatOutboundSource
+  type WechatOutboundSource,
+  type WechatQueuedSendResult
 } from './wechat-outbound-queue.service.js'
 import type { WechatMessageLogEntity } from './entities/index.js'
 import type { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 import { withWechatChatContextLegacyAliases } from './handoff/wechat-chat-context.js'
 import { resolveWechatConversationIdentity } from './conversation-user-key.js'
+import {
+  resolveWechatSendFile,
+  toWechatSendFileMetadata,
+  type WechatResolvedSendFile,
+  type WechatSendFileDescriptor
+} from './wechat-send-file.js'
 
 type WechatRuntimeMiddlewareOptions = {
   integrationId?: string
@@ -267,6 +276,65 @@ const sendMessageSchema = z.object({
     .optional()
 })
 
+const sendFileDescriptorSchema = z
+  .object({
+    path: z.string().optional().describe('Absolute local file path returned by an Xpert file tool.'),
+    filePath: z.string().optional().describe('Alias for path.'),
+    workspacePath: z.string().optional().describe('Alias for path; relative paths require workspaceRoot.'),
+    workspaceRoot: z.string().optional().describe('Absolute workspace root used only when the file path is relative.'),
+    originalName: z.string().optional().describe('Original filename to show in WeChat.'),
+    name: z.string().optional().describe('Alias for originalName.'),
+    mimeType: z.string().optional().describe('Optional MIME type.'),
+    mimetype: z.string().optional().describe('Alias for mimeType.'),
+    extension: z.string().optional().describe('Optional file extension without leading dot.'),
+    size: z.number().int().positive().optional().describe('Optional expected file size in bytes.')
+  })
+  .passthrough()
+
+const sendFileSchema = z.object({
+  integrationId: integrationField,
+  file: sendFileDescriptorSchema
+    .optional()
+    .describe('File information returned by Xpert file tools. Include path/filePath/workspacePath.'),
+  path: z.string().optional().describe('Top-level absolute local file path alias.'),
+  filePath: z.string().optional().describe('Top-level filePath alias.'),
+  workspacePath: z.string().optional().describe('Top-level workspacePath alias.'),
+  workspaceRoot: z.string().optional().describe('Absolute workspace root for relative paths.'),
+  originalName: z.string().optional().describe('Filename to show in WeChat.'),
+  name: z.string().optional().describe('Alias for originalName.'),
+  mimeType: z.string().optional().describe('Optional MIME type.'),
+  mimetype: z.string().optional().describe('Alias for mimeType.'),
+  extension: z.string().optional().describe('Optional file extension without leading dot.'),
+  size: z.number().int().positive().optional().describe('Optional expected file size in bytes.'),
+  idempotencyKey: z
+    .string()
+    .optional()
+    .describe('Stable scheduler/run key. If an outbound log already exists for this key, no duplicate send is made.'),
+  __wechatRuntimeSend: z
+    .object({
+      uuid: z.string().min(1).optional(),
+      contactId: z.string().min(1).optional(),
+      chatType: z.enum(['private', 'group']).optional(),
+      atUsers: z.array(z.string()).optional(),
+      targets: z
+        .array(
+          z.object({
+            uuid: z.string().min(1),
+            contactId: z.string().min(1),
+            chatType: z.enum(['private', 'group']).optional(),
+            atUsers: z.array(z.string()).optional()
+          })
+        )
+        .optional()
+    })
+    .describe('Internal middleware-injected scheduled send parameters. Do not set manually.')
+    .optional(),
+  __wechatRuntimeSendToken: z
+    .string()
+    .describe('Internal middleware injection token. Do not set manually.')
+    .optional()
+})
+
 const WECHAT_ADMIN_TOOL_NAMES = new Set([
   WECHAT_GET_RUNTIME_STATUS_TOOL_NAME,
   WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME,
@@ -284,7 +352,8 @@ const WECHAT_ADMIN_TOOL_NAMES = new Set([
 
 const WECHAT_USER_TOOL_NAMES = new Set([
   WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME,
-  WECHAT_SEND_MESSAGE_TOOL_NAME
+  WECHAT_SEND_MESSAGE_TOOL_NAME,
+  WECHAT_SEND_FILE_TOOL_NAME
 ])
 
 const WECHAT_RUNTIME_MIDDLEWARE_META: TAgentMiddlewareMeta = {
@@ -302,7 +371,7 @@ const WECHAT_RUNTIME_MIDDLEWARE_META: TAgentMiddlewareMeta = {
     value: WECHAT_ICON,
     color: '#16a34a'
   },
-  features: [WECHAT_FEATURE, WECHAT_RUNTIME_FEATURE, WECHAT_WORKBENCH_FEATURE],
+  features: [WECHAT_FEATURE, WECHAT_RUNTIME_FEATURE, WECHAT_FILE_SEND_FEATURE, WECHAT_WORKBENCH_FEATURE],
   configSchema: {
     type: 'object',
     properties: {
@@ -499,7 +568,7 @@ export class WechatRuntimeMiddleware
             }
             const query = this.buildChatHistoryQuery(input, runtimeContext, toolMode)
             if (!query.uuid || !query.contactId) {
-              return this.error('Missing WeChat uuid or contactId. Use this tool from a WeChat conversation or provide both values explicitly.')
+              return this.error('Missing WeChat uuid or contactId. Use this tool from a WeChat conversation or a single-target WeChat scheduled task.')
             }
             return this.success(
               'WeChat chat history was returned.',
@@ -619,6 +688,24 @@ export class WechatRuntimeMiddleware
         }
       ),
       tool(
+        async (input, config) =>
+          this.safeJson(async () =>
+            this.sendFileFromTool(
+              this.asRecord(input) ?? {},
+              config,
+              runtimeSendToken,
+              options,
+              context
+            )
+          ),
+        {
+          name: WECHAT_SEND_FILE_TOOL_NAME,
+          description:
+            'Send a locally generated or edited file to the current WeChat user/group, or to trusted scheduled WeChat targets. Pass the local file path returned by Xpert file tools; the middleware validates the file and sends bytes through wx2.0.',
+          schema: sendFileSchema
+        }
+      ),
+      tool(
         async (input) =>
           this.safeJson(async () => {
             const integrationId = await this.resolveIntegrationId(input.integrationId, options, context)
@@ -724,7 +811,11 @@ export class WechatRuntimeMiddleware
           'This run includes trusted WeChat scheduled-send parameters in runtime state.',
           `Target count: ${runtimeScheduleState.targets.length}.`,
           runtimeScheduleState.idempotencyKey ? `Idempotency key: ${runtimeScheduleState.idempotencyKey}.` : '',
+          runtimeScheduleState.targets.length === 1
+            ? `You may call ${WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME} to search this scheduled target's chat history before drafting.`
+            : `Do not call ${WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME} in this multi-target scheduled run; split the task per target when history is needed.`,
           `After drafting the scheduled message, call ${WECHAT_SEND_MESSAGE_TOOL_NAME} with the final markdown content.`,
+          `If the scheduled run needs to deliver a generated or edited local file, call ${WECHAT_SEND_FILE_TOOL_NAME} with the returned file path instead of exposing the path to the WeChat user.`,
           'Do not expose uuid/contactId/contactIds in the user-facing message; the middleware injects those destination parameters into the send tool from runtime state.'
         ].filter(Boolean).join('\n')
         const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
@@ -741,7 +832,10 @@ export class WechatRuntimeMiddleware
           return handler(request)
         }
 
-        if (toolName !== WECHAT_SEND_MESSAGE_TOOL_NAME) {
+        const isScheduledSendTool =
+          toolName === WECHAT_SEND_MESSAGE_TOOL_NAME || toolName === WECHAT_SEND_FILE_TOOL_NAME
+        const isChatHistoryTool = toolName === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
+        if (!isScheduledSendTool && !isChatHistoryTool) {
           return handler(request)
         }
 
@@ -754,17 +848,58 @@ export class WechatRuntimeMiddleware
           return handler(request)
         }
 
+        if (isChatHistoryTool) {
+          if (!runtimeScheduleState.targets.length) {
+            return handler(request)
+          }
+
+          const runtimeContext = this.resolveRuntimeHistoryContext(context, {
+            runtime: request.runtime
+          })
+          if (runtimeContext.uuid && runtimeContext.contactId) {
+            return handler(request)
+          }
+
+          if (runtimeScheduleState.targets.length > 1) {
+            return JSON.stringify(
+              this.error(
+                'WeChat scheduled chat history search requires exactly one target. Split the schedule per contact/group when target-specific history is needed.',
+                {
+                  targetCount: runtimeScheduleState.targets.length,
+                  targets: runtimeScheduleState.targets.map((target) => ({
+                    uuid: target.uuid,
+                    contactId: target.contactId,
+                    chatType: target.chatType
+                  }))
+                }
+              ),
+              null,
+              2
+            )
+          }
+
+          return handler({
+            ...request,
+            runtime: this.withScheduledHistoryRuntimeContext(
+              request.runtime,
+              runtimeScheduleState.targets[0]
+            )
+          })
+        }
+
         const input = this.asRecord(request.toolCall?.args) ?? {}
         const args = {
           ...input
         } as Record<string, unknown>
         const idempotencyKey = normalizeString(args.idempotencyKey) || runtimeScheduleState.idempotencyKey
-        const atUsers = this.mergeAtUsers(runtimeScheduleState.atUsers, args.atUsers)
         if (idempotencyKey) {
           args.idempotencyKey = idempotencyKey
         }
-        if (atUsers.length) {
-          args.atUsers = atUsers
+        if (toolName === WECHAT_SEND_MESSAGE_TOOL_NAME) {
+          const atUsers = this.mergeAtUsers(runtimeScheduleState.atUsers, args.atUsers)
+          if (atUsers.length) {
+            args.atUsers = atUsers
+          }
         }
         if (runtimeScheduleState.targets.length) {
           args.__wechatRuntimeSend = {
@@ -788,6 +923,194 @@ export class WechatRuntimeMiddleware
       }
     } satisfies WechatRuntimeAgentMiddleware
     return runtimeMiddleware
+  }
+
+  private withScheduledHistoryRuntimeContext(
+    runtime: unknown,
+    target: WechatScheduleTarget
+  ): Record<string, unknown> {
+    const runtimeRecord = this.asRecord(runtime) ?? {}
+    const configurableRecord = this.asRecord(runtimeRecord.configurable) ?? {}
+    const contextRecord = this.asRecord(configurableRecord.context) ?? {}
+    const contactId = target.contactId
+    return {
+      ...runtimeRecord,
+      configurable: {
+        ...configurableRecord,
+        context: {
+          ...contextRecord,
+          uuid: target.uuid,
+          contactId,
+          chatId: contactId,
+          chatType: target.chatType || (contactId.endsWith('@chatroom') ? 'group' : 'private')
+        }
+      }
+    }
+  }
+
+  private async sendFileFromTool(
+    input: Record<string, unknown>,
+    runtime: unknown,
+    runtimeSendToken: string,
+    options: WechatRuntimeMiddlewareOptions,
+    context: IAgentMiddlewareContext
+  ): Promise<Record<string, unknown>> {
+    const runtimeContext = this.resolveRuntimeHistoryContext(context, {
+      runtime
+    })
+    const integrationId = await this.resolveIntegrationId(
+      normalizeString(input.integrationId) || runtimeContext.integrationId,
+      options,
+      context
+    )
+    if (!integrationId) {
+      return this.missingIntegrationId()
+    }
+
+    const targetResolution = this.resolveFileSendTargets(input, runtimeSendToken, runtimeContext)
+    if (targetResolution.error) {
+      return this.error(targetResolution.error)
+    }
+    const sendTargets = targetResolution.targets
+    if (!sendTargets.length) {
+      return this.error('WeChat file send target was not available. Use this tool from a WeChat conversation or trusted scheduled state.')
+    }
+
+    const file = await resolveWechatSendFile(this.buildSendFileDescriptor(input))
+    const validatedFile = toWechatSendFileMetadata(file)
+    const targetResults: Array<Record<string, unknown>> = []
+    const baseIdempotencyKey = normalizeString(input.idempotencyKey)
+    const source: WechatOutboundSource =
+      targetResolution.scheduled && baseIdempotencyKey ? 'scheduled_agent' : 'agent_tool'
+
+    for (let index = 0; index < sendTargets.length; index += 1) {
+      const sendParams = sendTargets[index]
+      const idempotencyKey = this.resolveTargetIdempotencyKey(
+        baseIdempotencyKey,
+        sendParams,
+        index,
+        sendTargets.length
+      )
+      if (idempotencyKey) {
+        const existing = await this.conversationService.findOutboundByIdempotencyKey(integrationId, idempotencyKey)
+        if (existing) {
+          targetResults.push(this.describeIdempotentOutbound(sendParams, idempotencyKey, existing))
+          continue
+        }
+      }
+
+      const outboundContext = this.buildOutboundToolContext(context, integrationId, sendParams, idempotencyKey)
+      const result = await this.wechatChannel.sendFileByIntegrationId(integrationId, {
+        uuid: sendParams.uuid,
+        contactId: sendParams.contactId,
+        file,
+        context: outboundContext,
+        source,
+        idempotencyKey
+      })
+
+      if (!result.queued) {
+        await this.logDirectFileSendResult(outboundContext, file, result, source, idempotencyKey)
+      }
+
+      targetResults.push({
+        uuid: sendParams.uuid,
+        contactId: sendParams.contactId,
+        chatType: sendParams.chatType,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
+        ...result
+      })
+    }
+
+    const sendResult = this.buildMultiTargetSendResult(targetResults)
+    const data = {
+      validatedFile,
+      ...sendResult
+    }
+    return sendResult.failureCount > 0
+      ? this.error('WeChat file delivery failed for one or more targets.', data)
+      : this.success(
+          sendTargets.length === 1
+            ? 'WeChat file was submitted for delivery.'
+            : `WeChat file was submitted for delivery to ${sendTargets.length} targets.`,
+          data
+        )
+  }
+
+  private resolveFileSendTargets(
+    input: Record<string, unknown>,
+    runtimeSendToken: string,
+    runtimeContext: WechatRuntimeHistoryContext
+  ): { targets: NormalizedWechatSendParams[]; scheduled: boolean; error?: string } {
+    const hasInternalSendArgs = Boolean(input.__wechatRuntimeSend || input.__wechatRuntimeSendToken)
+    if (input.__wechatRuntimeSendToken === runtimeSendToken) {
+      const targets = this.normalizeRuntimeSendTargets(input.__wechatRuntimeSend)
+      if (targets.length) {
+        return { targets, scheduled: true }
+      }
+      return {
+        targets: [],
+        scheduled: true,
+        error: 'WeChat scheduled send parameters were not provided in runtime state.'
+      }
+    }
+    if (hasInternalSendArgs) {
+      return {
+        targets: [],
+        scheduled: false,
+        error: 'WeChat scheduled send parameters were not provided in runtime state.'
+      }
+    }
+
+    return {
+      targets: this.normalizeUniqueSendTargets([
+        {
+          uuid: runtimeContext.uuid,
+          contactId: runtimeContext.contactId,
+          chatType: runtimeContext.chatType
+        }
+      ]),
+      scheduled: false
+    }
+  }
+
+  private buildSendFileDescriptor(input: Record<string, unknown>): WechatSendFileDescriptor {
+    const file = this.asRecord(input.file) ?? {}
+    const records = [file, input]
+    return {
+      path: this.readFirstString(records, ['path']),
+      filePath: this.readFirstString(records, ['filePath', 'file_path']),
+      workspacePath: this.readFirstString(records, ['workspacePath', 'workspace_path']),
+      workspaceRoot: this.readFirstString(records, ['workspaceRoot', 'workspace_root']),
+      originalName: this.readFirstString(records, ['originalName', 'original_name', 'filename', 'fileName']),
+      name: this.readFirstString(records, ['name']),
+      mimeType: this.readFirstString(records, ['mimeType', 'mime_type', 'contentType', 'content_type']),
+      mimetype: this.readFirstString(records, ['mimetype']),
+      extension: this.readFirstString(records, ['extension', 'ext']),
+      size: this.readFirstNumber(records, ['size'])
+    }
+  }
+
+  private async logDirectFileSendResult(
+    context: WechatChatCallbackContext,
+    file: WechatResolvedSendFile,
+    result: WechatQueuedSendResult,
+    source: WechatOutboundSource,
+    idempotencyKey?: string
+  ): Promise<void> {
+    await this.conversationService.logOutbound({
+      context,
+      content: file.fileName,
+      status: result.success ? 'sent' : 'failed',
+      messageId: result.messageId,
+      error: result.error,
+      payloadSummary: JSON.stringify({
+        type: 'file',
+        source,
+        ...toWechatSendFileMetadata(file),
+        ...(idempotencyKey ? { idempotencyKey } : {})
+      })
+    })
   }
 
   private resolveToolMode(
@@ -884,6 +1207,25 @@ export class WechatRuntimeMiddleware
         const value = normalizeString(record[key])
         if (value) {
           return value
+        }
+      }
+    }
+    return undefined
+  }
+
+  private readFirstNumber(
+    records: Array<Record<string, unknown> | null | undefined>,
+    keys: string[]
+  ): number | undefined {
+    for (const record of records) {
+      if (!record) {
+        continue
+      }
+      for (const key of keys) {
+        const value = record[key]
+        const numberValue = typeof value === 'number' ? value : Number(value)
+        if (Number.isFinite(numberValue) && numberValue > 0) {
+          return Math.floor(numberValue)
         }
       }
     }

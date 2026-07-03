@@ -8,6 +8,10 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   }
 }))
 
+import { createHash } from 'node:crypto'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   MANAGED_QUEUE_SERVICE_TOKEN
@@ -25,9 +29,11 @@ import {
 
 describe('WechatOutboundQueueService', () => {
   const originalFetch = globalThis.fetch
+  const tempDirs: string[] = []
 
-  afterEach(() => {
+  afterEach(async () => {
     globalThis.fetch = originalFetch
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
   })
 
   const integration = {
@@ -67,7 +73,8 @@ describe('WechatOutboundQueueService', () => {
   function createService(options: { redis?: ReturnType<typeof createRedis>; integrationRead?: jest.Mock } = {}) {
     const client = {
       sendText: jest.fn(async () => ({ success: true, messageId: 'wx-msg-1' })),
-      sendImage: jest.fn(async () => ({ success: true, messageId: 'wx-img-1' }))
+      sendImage: jest.fn(async () => ({ success: true, messageId: 'wx-img-1' })),
+      sendFile: jest.fn(async () => ({ success: true, messageId: 'wx-file-1' }))
     }
     const redis = options.redis ?? createRedis()
     const managedQueue = {
@@ -145,6 +152,19 @@ describe('WechatOutboundQueueService', () => {
       } satisfies WechatOutboundQueueJobData,
       attemptsMade: overrides.attemptsMade ?? 0,
       opts: overrides.opts ?? { attempts: 2 }
+    }
+  }
+
+  async function createTempFile(name: string, content: string) {
+    const dir = await mkdtemp(join(tmpdir(), 'wechat-outbound-file-'))
+    tempDirs.push(dir)
+    const filePath = join(dir, name)
+    await writeFile(filePath, content)
+    return {
+      filePath,
+      content,
+      size: Buffer.byteLength(content),
+      sha256: createHash('sha256').update(content).digest('hex')
     }
   }
 
@@ -240,6 +260,62 @@ describe('WechatOutboundQueueService', () => {
     )
   })
 
+  it('creates an outbound file log with metadata but no base64 content', async () => {
+    const { service, client, managedQueue, messageLogRepository } = createService()
+
+    const result = await service.enqueueFile(integration as any, {
+      type: 'file',
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      filePath: '/tmp/report.pdf',
+      fileName: 'report.pdf',
+      mimeType: 'application/pdf',
+      extension: 'pdf',
+      size: 12,
+      sha256: 'hash-1',
+      source: 'agent_tool',
+      idempotencyKey: 'send-file-1'
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        outboundLogId: 'log-1'
+      })
+    )
+    expect(client.sendFile).not.toHaveBeenCalled()
+    expect(messageLogRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'report.pdf',
+        payloadSummary: JSON.stringify({
+          type: 'file',
+          source: 'agent_tool',
+          filePath: '/tmp/report.pdf',
+          fileName: 'report.pdf',
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          size: 12,
+          sha256: 'hash-1',
+          idempotencyKey: 'send-file-1'
+        })
+      })
+    )
+    expect(String((messageLogRepository.save as jest.Mock).mock.calls[0][0].payloadSummary)).not.toContain('base64')
+    expect(managedQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pluginName: WECHAT_PLUGIN_NAME,
+        queueName: WECHAT_OUTBOUND_QUEUE_NAME,
+        jobName: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+        payload: expect.objectContaining({
+          integrationId: 'integration-1',
+          outboundLogId: 'log-1'
+        }),
+        attempts: 2
+      })
+    )
+  })
+
   it('sends once after acquiring Redis account and contact locks', async () => {
     const { service, client, redis, messageLogRepository, accountRepository } = createService()
     messageLogRepository.findOne.mockResolvedValueOnce(createLog())
@@ -320,6 +396,44 @@ describe('WechatOutboundQueueService', () => {
     expect(messageLogRepository.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'log-1' }),
       expect.objectContaining({ status: 'sent', messageId: 'wx-img-1', sentAt: expect.any(Date) })
+    )
+  })
+
+  it('reads and sends a queued file job based on the typed payload', async () => {
+    const file = await createTempFile('report.pdf', 'file-bytes')
+    const { service, client, messageLogRepository } = createService()
+    messageLogRepository.findOne.mockResolvedValueOnce(
+      createLog({
+        content: 'report.pdf',
+        payloadSummary: JSON.stringify({
+          type: 'file',
+          source: 'agent_tool',
+          filePath: file.filePath,
+          fileName: 'report.pdf',
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          size: file.size,
+          sha256: file.sha256
+        })
+      })
+    )
+
+    await service.processSendTextJob(createJob() as any)
+
+    expect(client.sendText).not.toHaveBeenCalled()
+    expect(client.sendImage).not.toHaveBeenCalled()
+    expect(client.sendFile).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        fileName: 'report.pdf',
+        fileContent: Buffer.from('file-bytes').toString('base64')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'log-1' }),
+      expect.objectContaining({ status: 'sent', messageId: 'wx-file-1', sentAt: expect.any(Date) })
     )
   })
 
