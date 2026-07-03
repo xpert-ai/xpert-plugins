@@ -404,6 +404,41 @@ describe('WechatOutboundQueueService', () => {
     expect(messageLogRepository.update).not.toHaveBeenCalled()
   })
 
+  it('does not create retry jobs while the account is paused by the failure guard', async () => {
+    const redis = createRedis({
+      get: jest.fn(async (key: string) =>
+        key === 'plugin_wechat:tenant-1:integration-1:paused:account:uuid-1' ? 'failure_guard' : null
+      )
+    })
+    const { service, managedQueue, messageLogRepository } = createService({ redis })
+    messageLogRepository.findOne.mockResolvedValueOnce(createLog({ status: 'failed', error: 'wx failed' }))
+
+    const result = await service.retryOutboundQueueItem('integration-1', 'log-1')
+
+    expect(result.success).toBe(false)
+    expect(result.message).toContain('连续发送失败自动暂停')
+    expect(managedQueue.enqueue).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).not.toHaveBeenCalled()
+  })
+
+  it('resolves account pause reason for workbench account rows', async () => {
+    const redis = createRedis({
+      get: jest.fn(async (key: string) =>
+        key === 'plugin_wechat:tenant-1:integration-1:paused:account:uuid-1' ? 'failure_guard' : null
+      )
+    })
+    const { service, redis: actualRedis } = createService({ redis })
+
+    await expect(
+      service.getOutboundAccountPausedReason('integration-1', 'uuid-1', {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toBe('outbound_account_paused:failure_guard')
+
+    expect(actualRedis.get).toHaveBeenCalledWith('plugin_wechat:tenant-1:integration-1:paused:account:uuid-1')
+  })
+
   it('marks final failures and pauses the account through the Redis failure guard', async () => {
     const redis = createRedis({
       incr: jest.fn(async () => 2)

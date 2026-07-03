@@ -11,6 +11,7 @@ import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
 import {
   WechatAccountEntity,
+  WechatMessageFileEntity,
   WechatMessageLogEntity,
   WechatTriggerBindingEntity
 } from './entities/index.js'
@@ -32,6 +33,7 @@ import { WechatRuntimeMiddleware } from './wechat.middleware.js'
 const entities = [
   WechatTriggerBindingEntity,
   WechatAccountEntity,
+  WechatMessageFileEntity,
   WechatMessageLogEntity
 ]
 

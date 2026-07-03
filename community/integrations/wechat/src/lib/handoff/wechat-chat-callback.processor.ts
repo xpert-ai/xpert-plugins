@@ -266,6 +266,7 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
 
   private async completeRun(state: WechatChatRunState): Promise<void> {
     const context = state.context
+    await this.markInboundConversationAttached(context)
     const finalText = this.normalizeFinalText(state.finalMessageContent || state.responseMessageContent)
 
     if (!finalText) {
@@ -303,6 +304,7 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
 
   private async failRun(state: WechatChatRunState, error: unknown): Promise<void> {
     const context = state.context
+    await this.markInboundConversationAttached(context)
     const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Agent execution failed'
     this.logger.warn(
       `[wechat-callback] agent run failed source=${state.sourceMessageId} integration=${context.integrationId} contact=${context.contactId} error=${message}`
@@ -322,6 +324,17 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
       context,
       source: 'agent_callback'
     })
+  }
+
+  private async markInboundConversationAttached(context: WechatChatCallbackContext): Promise<void> {
+    try {
+      await this.conversationService.markInboundConversationAttached(context)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)
+      this.logger.warn(
+        `[wechat-callback] failed to attach inbound conversation integration=${context.integrationId} contact=${context.contactId} error=${message}`
+      )
+    }
   }
 
   private resolveConversationId(eventPayload: any): string | undefined {

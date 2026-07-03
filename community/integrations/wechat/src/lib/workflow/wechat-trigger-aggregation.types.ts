@@ -1,7 +1,8 @@
 import type {
   WechatBatchTriggerItem,
   WechatInboundFile,
-  WechatInboundTriggerOptions
+  WechatInboundTriggerOptions,
+  WechatPendingInboundFile
 } from '../types.js'
 
 export interface WechatTriggerFlushPayload extends Record<string, unknown> {
@@ -35,8 +36,12 @@ export interface WechatTriggerAggregationState {
   items?: WechatBatchTriggerItem[]
   triggerOptions?: WechatInboundTriggerOptions
   files?: WechatInboundFile[]
+  pendingFiles?: WechatPendingInboundFile[]
   currentInboundLogIds?: string[]
+  duplicateInboundLogIds?: string[]
   historyContext?: string
+  fileMaterializeRetryCount?: number
+  fileMaterializeLastError?: string
   lastMessageAt: number
   tenantId: string
   organizationId?: string
@@ -53,6 +58,7 @@ export interface WechatTriggerAggregatePayload extends Record<string, unknown> {
   item?: WechatBatchTriggerItem
   triggerOptions?: WechatInboundTriggerOptions
   files?: WechatInboundFile[]
+  pendingFiles?: WechatPendingInboundFile[]
   historyContext?: string
   currentInboundLogIds?: string[]
   summaryWindowSeconds: number

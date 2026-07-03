@@ -666,6 +666,9 @@ function App() {
           onLogin={openAccountLoginDialog}
           onLogout={(account: any) => confirmAccountAction(account, 'logout_device_account')}
           onDelete={(account: any) => confirmAccountAction(account, 'delete_device_account')}
+          onResumeOutbound={(account: any) =>
+            runAction('resume_outbound_account', account.uuid, { uuid: account.uuid, integrationId: account.integrationId })
+          }
           onToggle={(account: any, enabled: boolean) =>
             runAction('set_account_enabled', account.uuid, { uuid: account.uuid, enabled, integrationId: account.integrationId })
           }
@@ -945,6 +948,11 @@ function AccountsView(props: any) {
             {canLogout(account) && (
               <Button variant="destructive" size="sm" onClick={() => props.onLogout(account)}>
                 {props.t('logoutAccount')}
+              </Button>
+            )}
+            {account.outboundPausedReason && (
+              <Button variant="outline" size="sm" onClick={() => props.onResumeOutbound(account)}>
+                {props.t('resumeOutbound')}
               </Button>
             )}
             <Button

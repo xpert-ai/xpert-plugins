@@ -1,6 +1,7 @@
 import type { ChecklistItem, IIntegration, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import path from 'node:path'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
@@ -14,6 +15,7 @@ import { Repository } from 'typeorm'
 import { WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID, WECHAT_ICON, WECHAT_PROVIDER_KEY } from '../constants.js'
 import {
   WechatAccountEntity,
+  WechatMessageFileEntity,
   WechatMessageLogEntity,
   WechatMessageLogStatus,
   WechatTriggerBindingEntity
@@ -30,13 +32,16 @@ import {
   normalizeIdList,
   normalizeKeywords,
   normalizeSelfMessagePolicy,
+  normalizeString,
   shouldDispatchWechatBatch,
   TIntegrationWechatOptions,
   WechatBatchTriggerItem,
   WechatInboundTriggerOptions,
-  type WechatInboundFile
+  type WechatInboundFile,
+  type WechatPendingInboundFile
 } from '../types.js'
 import { WechatChannelStrategy } from '../wechat-channel.strategy.js'
+import { WechatClient } from '../wechat.client.js'
 import {
   WechatTriggerAggregatePayload,
   WechatTriggerAggregationState,
@@ -50,7 +55,11 @@ const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
 const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
 const DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS = 3600
 const MAX_HISTORY_CONTEXT_LIMIT = 100
-const IMAGE_ONLY_AGGREGATE_INPUT = '[理解图片]'
+const ATTACHMENT_ONLY_AGGREGATE_INPUT = '[理解附件]'
+const PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS = [2_000, 5_000, 10_000]
+const MAX_PENDING_FILE_MATERIALIZE_RETRIES = PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS.length
+const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
+const WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
 const SELF_MESSAGE_POLICY_ENUM_LABELS = {
   history_only: { en_US: 'History only', zh_Hans: '只写入历史' },
   ignore: { en_US: 'Ignore', zh_Hans: '忽略' },
@@ -74,10 +83,77 @@ type WechatTenantScope = {
   organizationId?: string | null
 }
 
+type RuntimeCapabilityRegistry = {
+  get<T>(key: string): T | undefined
+}
+
+type PendingFileMergeResult = {
+  files?: WechatPendingInboundFile[]
+  duplicateLogIds: string[]
+}
+
+type WorkspaceFileHandle = {
+  name?: string
+  originalName?: string
+  filePath: string
+  workspacePath?: string
+  fileUrl?: string
+  url?: string
+  mimeType?: string
+  size?: number
+}
+
+type WorkspaceUnderstoodFileHandle = WorkspaceFileHandle & {
+  id: string
+  fileId: string
+  fileAssetId: string
+  storageFileId?: string
+  status?: string
+  parseStatus?: string
+  capabilities?: string[]
+}
+
+type WorkspaceFilesApi = {
+  uploadBuffer(input: {
+    tenantId?: string | null
+    userId?: string | null
+    catalog: 'xperts'
+    xpertId: string
+    isolateByUser: boolean
+    folder: string
+    fileName: string
+    originalName: string
+    mimeType?: string | null
+    size?: number | null
+    buffer: Buffer
+    metadata?: Record<string, unknown>
+  }): Promise<WorkspaceFileHandle>
+  understandFile(input: {
+    tenantId?: string | null
+    userId?: string | null
+    catalog: 'xperts'
+    xpertId: string
+    isolateByUser: boolean
+    filePath: string
+    originalName: string
+    mimeType?: string | null
+    size?: number | null
+    fileUrl?: string
+    purpose: 'chat_attachment'
+    parseMode: 'auto'
+    conversationId?: string
+    threadId?: string
+    projectId?: string
+    metadata?: Record<string, unknown>
+    runInline?: boolean
+  }): Promise<WorkspaceUnderstoodFileHandle>
+}
+
 export type WechatInboundHandleResult = {
   accepted: boolean
   queued: boolean
   dispatched: boolean
+  error?: string
 }
 
 @Injectable()
@@ -86,6 +162,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   private readonly logger = new Logger(WechatTriggerStrategy.name)
   private readonly callbacks = new Map<string, (payload: any) => void>()
   private _integrationPermissionService: IntegrationPermissionService
+  private _workspaceFiles: WorkspaceFilesApi | null | undefined
 
   readonly meta: TWorkflowTriggerMeta = {
     name: WechatTrigger,
@@ -445,10 +522,13 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     private readonly dispatchService: WechatChatDispatchService,
     private readonly aggregationService: WechatTriggerAggregationService,
     private readonly wechatChannel: WechatChannelStrategy,
+    private readonly wechatClient: WechatClient,
     @InjectRepository(WechatTriggerBindingEntity)
     private readonly bindingRepository: Repository<WechatTriggerBindingEntity>,
     @InjectRepository(WechatAccountEntity)
     private readonly accountRepository: Repository<WechatAccountEntity>,
+    @InjectRepository(WechatMessageFileEntity)
+    private readonly messageFileRepository: Repository<WechatMessageFileEntity>,
     @Inject(WECHAT_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
     @InjectRepository(WechatMessageLogEntity)
@@ -460,6 +540,17 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       this._integrationPermissionService = this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
     }
     return this._integrationPermissionService
+  }
+
+  private get workspaceFiles(): WorkspaceFilesApi {
+    if (this._workspaceFiles === undefined) {
+      const registry = this.pluginContext.resolve<RuntimeCapabilityRegistry>(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+      this._workspaceFiles = registry?.get<WorkspaceFilesApi>(WORKSPACE_FILES_RUNTIME_CAPABILITY) ?? null
+    }
+    if (!this._workspaceFiles) {
+      throw new Error('platform.workspace.files capability is not available')
+    }
+    return this._workspaceFiles
   }
 
   async validate(payload: TWorkflowTriggerParams<TWechatTriggerConfig>) {
@@ -711,11 +802,16 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   }
 
   async getBindingByXpertId(xpertId: string): Promise<WechatTriggerBindingEntity | null> {
+    const bindings = await this.getBindingsByXpertId(xpertId)
+    return bindings[0] ?? null
+  }
+
+  async getBindingsByXpertId(xpertId: string): Promise<WechatTriggerBindingEntity[]> {
     if (!xpertId) {
-      return null
+      return []
     }
     const scope = this.resolveRequestTenantScope()
-    return this.bindingRepository.findOne({
+    return this.bindingRepository.find({
       where: this.scopedWhere({ xpertId }, scope),
       order: {
         updatedAt: 'DESC'
@@ -724,8 +820,11 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   }
 
   async getBoundIntegrationId(xpertId: string): Promise<string | null> {
-    const binding = await this.getBindingByXpertId(xpertId)
-    return binding?.integrationId ?? null
+    const bindings = await this.getBindingsByXpertId(xpertId)
+    const integrationIds = Array.from(
+      new Set(bindings.map((binding) => normalizeString(binding.integrationId)).filter(Boolean))
+    )
+    return integrationIds.length === 1 ? integrationIds[0] : null
   }
 
   async clearBufferedConversation(conversationUserKey: string): Promise<void> {
@@ -747,6 +846,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     accountUuid?: string
     input?: string
     files?: WechatInboundFile[]
+    pendingFiles?: WechatPendingInboundFile[]
     item?: WechatBatchTriggerItem
     wechatMessage: WechatMessage
     conversationUserKey?: string
@@ -777,6 +877,20 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       DEFAULT_SUMMARY_WINDOW_SECONDS
     )
     if (summaryWindowSeconds <= 0) {
+      const materialized = await this.materializePendingFiles({
+        integrationId: params.integrationId,
+        xpertId: binding.xpertId,
+        tenantId: params.tenantId,
+        organizationId: params.organizationId,
+        conversationUserKey: aggregateKey,
+        pendingFiles: params.pendingFiles
+      })
+      if (materialized.success === false) {
+        await this.markInboundLogs(params.currentInboundLogIds, params, 'failed', materialized.error)
+        return this.createHandleResult(false, { error: materialized.error })
+      }
+      const files = [...(params.files ?? []), ...(materialized.files ?? [])]
+      const input = params.input || (files.length ? ATTACHMENT_ONLY_AGGREGATE_INPUT : '')
       await this.dispatchInboundMessage({
         integrationId: params.integrationId,
         accountUuid,
@@ -784,8 +898,8 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         dispatchMode: 'immediate',
         dispatchPayload: {
           xpertId: binding.xpertId,
-          input: this.composeDispatchInput(params.input || '', params.historyContext),
-          files: params.files,
+          input: this.composeDispatchInput(input, params.historyContext),
+          files,
           wechatMessage: params.wechatMessage,
           conversationUserKey: aggregateKey,
           tenantId: params.tenantId,
@@ -806,6 +920,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       item: params.item ?? this.createLegacyBatchItem(params.input),
       triggerOptions: params.triggerOptions,
       files: params.files,
+      pendingFiles: params.pendingFiles,
       historyContext: params.historyContext,
       currentInboundLogIds: params.currentInboundLogIds,
       summaryWindowSeconds,
@@ -854,6 +969,9 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         currentState?.xpertId === payload.xpertId
       const nextVersion = (currentState?.version ?? 0) + 1
       const nextItem = payload.item ?? this.createLegacyBatchItem(payload.input)
+      const pendingFileMerge = sameRoutingTarget
+        ? this.mergePendingFilesWithDuplicateLogIds(currentState?.pendingFiles, payload.pendingFiles)
+        : this.mergePendingFilesWithDuplicateLogIds(undefined, payload.pendingFiles)
       const aggregateState: WechatTriggerAggregationState = {
         aggregateKey,
         integrationId: payload.integrationId,
@@ -870,10 +988,15 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
           ? currentState?.triggerOptions ?? payload.triggerOptions
           : payload.triggerOptions,
         files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(payload.files ?? [])],
+        pendingFiles: pendingFileMerge.files,
         currentInboundLogIds: [
           ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
           ...(payload.currentInboundLogIds ?? [])
         ],
+        duplicateInboundLogIds: this.uniqueLogIds([
+          ...(sameRoutingTarget ? currentState?.duplicateInboundLogIds ?? [] : []),
+          ...pendingFileMerge.duplicateLogIds
+        ]),
         historyContext: sameRoutingTarget ? currentState?.historyContext ?? payload.historyContext : payload.historyContext,
         lastMessageAt: Date.now(),
         tenantId: payload.tenantId,
@@ -913,7 +1036,42 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
-    const aggregatedInput = this.composeAggregatedInput(decision.inputParts, state.files)
+    const pendingFileMerge = this.mergePendingFilesWithDuplicateLogIds(undefined, state.pendingFiles)
+    const pendingFiles = pendingFileMerge.files
+    const activePendingLogIds = this.uniqueLogIds(
+      (pendingFiles ?? []).map((pending) => pending.messageLogId).filter(Boolean) as string[]
+    )
+    const duplicateLogIds = this.uniqueLogIds([
+      ...(state.duplicateInboundLogIds ?? []),
+      ...pendingFileMerge.duplicateLogIds
+    ]).filter((id) => !activePendingLogIds.includes(id))
+    const dispatchLogIds = this.uniqueLogIds([
+      ...(state.currentInboundLogIds ?? []),
+      ...activePendingLogIds
+    ]).filter((id) => !duplicateLogIds.includes(id))
+
+    const materialized = await this.materializePendingFiles({
+      integrationId: state.integrationId,
+      xpertId: state.xpertId,
+      tenantId: state.tenantId,
+      organizationId: state.organizationId,
+      conversationUserKey: state.conversationUserKey,
+      pendingFiles,
+      markFailures: false
+    })
+    if (materialized.success === false) {
+      if (materialized.recoverable && this.canRetryPendingFileMaterialize(state)) {
+        await this.schedulePendingFileMaterializeRetry(aggregateKey, state, materialized.error)
+        return false
+      }
+      await this.markPendingFilesFailed(pendingFiles, state, materialized.error)
+      await this.markInboundLogs(state.currentInboundLogIds, state, 'failed', materialized.error)
+      await this.aggregationService.clear(aggregateKey, state)
+      return false
+    }
+
+    const files = [...(state.files ?? []), ...(materialized.files ?? [])]
+    const aggregatedInput = this.composeAggregatedInput(decision.inputParts, files)
     const dispatchInput = this.composeDispatchInput(aggregatedInput, state.historyContext)
 
     await this.dispatchInboundMessage({
@@ -924,7 +1082,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       dispatchPayload: {
         xpertId: state.xpertId,
         input: dispatchInput,
-        files: state.files,
+        files,
         wechatMessage: new WechatMessage(
           {
             integrationId: state.latestMessage.integrationId,
@@ -946,11 +1104,12 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         tenantId: state.tenantId,
         organizationId: state.organizationId,
         endUserId: state.endUserId,
-        currentInboundLogIds: state.currentInboundLogIds
+        currentInboundLogIds: dispatchLogIds
       }
     })
 
-    await this.markInboundLogs(state.currentInboundLogIds, state, 'dispatched')
+    await this.markInboundLogs(dispatchLogIds, state, 'dispatched')
+    await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
     await this.aggregationService.clear(aggregateKey, state)
     return true
   }
@@ -1095,7 +1254,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     if (input.trim()) {
       return input
     }
-    return Array.isArray(files) && files.length > 0 ? IMAGE_ONLY_AGGREGATE_INPUT : ''
+    return Array.isArray(files) && files.length > 0 ? ATTACHMENT_ONLY_AGGREGATE_INPUT : ''
   }
 
   private createLegacyBatchItem(input?: string): WechatBatchTriggerItem {
@@ -1106,15 +1265,506 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     }
   }
 
+  private mergePendingFiles(
+    existing?: WechatPendingInboundFile[],
+    incoming?: WechatPendingInboundFile[]
+  ): WechatPendingInboundFile[] | undefined {
+    return this.mergePendingFilesWithDuplicateLogIds(existing, incoming).files
+  }
+
+  private mergePendingFilesWithDuplicateLogIds(
+    existing?: WechatPendingInboundFile[],
+    incoming?: WechatPendingInboundFile[]
+  ): PendingFileMergeResult {
+    const merged: WechatPendingInboundFile[] = []
+    const indexByKey = new Map<string, number>()
+    const duplicateLogIds: string[] = []
+    for (const pending of [...(existing ?? []), ...(incoming ?? [])]) {
+      const key = this.pendingFileMergeKey(pending)
+      const index = indexByKey.get(key)
+      if (index === undefined) {
+        indexByKey.set(key, merged.length)
+        merged.push(pending)
+        continue
+      }
+      const current = merged[index]
+      const replace = this.pendingFileCompletenessScore(pending) >= this.pendingFileCompletenessScore(current)
+      const dropped = replace ? current : pending
+      if (dropped.kind === 'file' && dropped.messageLogId) {
+        duplicateLogIds.push(dropped.messageLogId)
+      }
+      if (replace) {
+        merged[index] = pending
+      }
+    }
+    return {
+      files: merged.length ? merged : undefined,
+      duplicateLogIds: this.uniqueLogIds(duplicateLogIds)
+    }
+  }
+
+  private pendingFileMergeKey(pending: WechatPendingInboundFile): string {
+    const name = this.normalizePendingFileIdentity(
+      pending.originalName || pending.fileRef?.originalName || pending.imageRef?.originalName
+    )
+    const size = pending.size ?? pending.fileRef?.size ?? 0
+    if (pending.kind === 'file' && name) {
+      return [pending.kind, pending.contactId, pending.senderId || '', name].join(':')
+    }
+    const stableAttachmentKey = this.pendingFileStableAttachmentKey(pending)
+    if (name && size) {
+      return [pending.kind, pending.contactId, pending.senderId || '', name, size].join(':')
+    }
+    if (stableAttachmentKey) {
+      return [pending.kind, pending.contactId, pending.senderId || '', stableAttachmentKey].join(':')
+    }
+    return [pending.kind, pending.contactId, pending.senderId || '', pending.messageId || pending.messageLogId || 'unknown'].join(':')
+  }
+
+  private pendingFileCompletenessScore(pending: WechatPendingInboundFile): number {
+    const fileRef = pending.fileRef
+    const imageRef = pending.imageRef
+    const stableAttachmentKey = this.pendingFileStableAttachmentKey(pending)
+    const hasAppAttach = /<appattach\b/i.test(normalizeString(fileRef?.msgContent))
+    const values: unknown[] = [
+      pending.messageLogId,
+      pending.messageId,
+      pending.originalName,
+      pending.size,
+      fileRef?.attachId,
+      fileRef?.cdnAttachUrl,
+      fileRef?.aesKey,
+      stableAttachmentKey,
+      hasAppAttach,
+      imageRef?.fileKey,
+      fileRef?.msgContent && fileRef.msgContent.length > 0 ? fileRef.msgContent.length : undefined,
+      imageRef?.msgContent && imageRef.msgContent.length > 0 ? imageRef.msgContent.length : undefined
+    ]
+    return values.reduce<number>((score, value) => score + (value ? 1 : 0), 0)
+  }
+
+  private pendingFileStableAttachmentKey(pending: WechatPendingInboundFile): string {
+    const fileRef = pending.fileRef
+    const directKey = normalizeString(fileRef?.attachId || fileRef?.cdnAttachUrl)
+    if (directKey) {
+      return directKey
+    }
+    const fileKey = normalizeString(fileRef?.fileKey)
+    const messageKey = normalizeString(fileRef?.newMsgId || pending.messageId)
+    return fileKey && fileKey !== messageKey ? fileKey : ''
+  }
+
   private createHandleResult(
     accepted: boolean,
-    options: { queued?: boolean; dispatched?: boolean } = {}
+    options: { queued?: boolean; dispatched?: boolean; error?: string } = {}
   ): WechatInboundHandleResult {
     return {
       accepted,
       queued: Boolean(options.queued),
-      dispatched: Boolean(options.dispatched)
+      dispatched: Boolean(options.dispatched),
+      error: options.error
     }
+  }
+
+  private async materializePendingFiles(params: {
+    integrationId: string
+    xpertId: string
+    tenantId?: string | null
+    organizationId?: string | null
+    conversationUserKey?: string
+    pendingFiles?: WechatPendingInboundFile[]
+    markFailures?: boolean
+  }): Promise<{ success: true; files?: WechatInboundFile[] } | { success: false; error: string; recoverable: boolean }> {
+    const pendingFiles = this.mergePendingFiles(undefined, params.pendingFiles) ?? []
+    if (!pendingFiles.length) {
+      return { success: true }
+    }
+
+    let integration: IIntegration<TIntegrationWechatOptions> | null = null
+    const files: WechatInboundFile[] = []
+    for (const pending of pendingFiles) {
+      try {
+        integration ??= await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
+          params.integrationId,
+          {
+            relations: ['tenant']
+          }
+        )
+        if (!integration) {
+          throw new Error('wechat integration not found')
+        }
+        const materialized = pending.kind === 'file'
+          ? await this.materializePendingWechatFile(integration, pending, params)
+          : await this.materializePendingWechatImage(integration, pending, params)
+        if (materialized) {
+          files.push(materialized)
+        }
+      } catch (error) {
+        const message = this.truncateError(
+          `inbound_${pending.kind}_materialize_failed: ${this.describeError(error)}`
+        )
+        const recoverable = this.isRecoverablePendingFileMaterializeError(message)
+        if (params.markFailures !== false || !recoverable) {
+          await this.markPendingFileFailed(pending, params, message)
+        }
+        return { success: false, error: message, recoverable }
+      }
+    }
+
+    return {
+      success: true,
+      files: files.length ? files : undefined
+    }
+  }
+
+  private async materializePendingWechatFile(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    pending: WechatPendingInboundFile,
+    context: {
+      xpertId: string
+      tenantId?: string | null
+      organizationId?: string | null
+      conversationUserKey?: string
+    }
+  ): Promise<WechatInboundFile> {
+    if (!pending.fileRef) {
+      throw new Error('inbound_file_ref_missing')
+    }
+
+    const row = await this.savePendingFileRow(pending, integration, context, 'processing')
+    const downloaded = await this.wechatClient.downloadFile(integration, pending.fileRef)
+    if (!downloaded.success || !downloaded.file) {
+      throw new Error(`inbound_file_download_failed${downloaded.error ? `: ${downloaded.error}` : ''}`)
+    }
+
+    const userId = RequestContext.currentUserId() ?? (integration as { createdById?: string | null }).createdById ?? undefined
+    const metadata = {
+      source: 'wechat_file_message',
+      integrationId: integration.id,
+      uuid: pending.uuid,
+      messageId: pending.messageId,
+      messageLogId: pending.messageLogId,
+      conversationUserKey: context.conversationUserKey,
+      contactId: pending.contactId,
+      senderId: pending.senderId,
+      fileKey: downloaded.file.fileKey,
+      originalWechatFileName: pending.fileRef.originalName
+    }
+    const uploaded = await this.workspaceFiles.uploadBuffer({
+      tenantId: context.tenantId ?? integration.tenantId ?? undefined,
+      userId,
+      catalog: 'xperts',
+      xpertId: context.xpertId,
+      isolateByUser: false,
+      folder: this.buildInboundWorkspaceFolder(integration.id, pending),
+      fileName: this.normalizeWorkspaceFileName(downloaded.file.originalName),
+      originalName: downloaded.file.originalName,
+      mimeType: downloaded.file.mimeType,
+      size: downloaded.file.size,
+      buffer: downloaded.file.data,
+      metadata
+    })
+    const understood = await this.workspaceFiles.understandFile({
+      tenantId: context.tenantId ?? integration.tenantId ?? undefined,
+      userId,
+      catalog: 'xperts',
+      xpertId: context.xpertId,
+      isolateByUser: false,
+      filePath: uploaded.filePath,
+      originalName: downloaded.file.originalName,
+      mimeType: downloaded.file.mimeType,
+      size: downloaded.file.size,
+      fileUrl: uploaded.fileUrl ?? uploaded.url,
+      purpose: 'chat_attachment',
+      parseMode: 'auto',
+      metadata
+    })
+
+    const handle: WechatInboundFile = {
+      id: understood.id,
+      fileId: understood.fileId,
+      fileAssetId: understood.fileAssetId,
+      storageFileId: understood.storageFileId,
+      filePath: understood.filePath,
+      workspacePath: understood.workspacePath,
+      fileUrl: understood.fileUrl,
+      url: understood.url,
+      mimeType: understood.mimeType,
+      mimetype: understood.mimeType,
+      originalName: understood.originalName || downloaded.file.originalName,
+      name: understood.name || understood.originalName || downloaded.file.originalName,
+      fileKey: downloaded.file.fileKey,
+      size: understood.size ?? downloaded.file.size,
+      extension: downloaded.file.extension
+    }
+    await this.updatePendingFileRow(row?.id, context, {
+      status: 'ready',
+      fileAssetId: handle.fileAssetId,
+      fileId: handle.fileId,
+      workspacePath: handle.workspacePath,
+      filePath: handle.filePath,
+      fileUrl: handle.fileUrl || handle.url,
+      originalName: handle.originalName || handle.name,
+      mimeType: handle.mimeType || handle.mimetype,
+      size: handle.size,
+      error: null
+    })
+    return handle
+  }
+
+  private async materializePendingWechatImage(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    pending: WechatPendingInboundFile,
+    context: {
+      xpertId: string
+      tenantId?: string | null
+      organizationId?: string | null
+      conversationUserKey?: string
+    }
+  ): Promise<WechatInboundFile> {
+    if (!pending.imageRef) {
+      throw new Error('inbound_image_ref_missing')
+    }
+
+    const row = await this.savePendingFileRow(pending, integration, context, 'processing')
+    const result = await this.wechatClient.downloadImage(integration, pending.imageRef)
+    if (!result.success || !result.file) {
+      throw new Error(`inbound_image_download_failed${result.error ? `: ${result.error}` : ''}`)
+    }
+    await this.updatePendingFileRow(row?.id, context, {
+      status: 'ready',
+      fileId: result.file.fileId,
+      fileAssetId: result.file.fileAssetId,
+      workspacePath: result.file.workspacePath,
+      filePath: result.file.filePath,
+      fileUrl: result.file.fileUrl || result.file.url,
+      originalName: result.file.originalName || result.file.name,
+      mimeType: result.file.mimeType || result.file.mimetype,
+      size: result.file.size,
+      error: null
+    })
+    return result.file
+  }
+
+  private async savePendingFileRow(
+    pending: WechatPendingInboundFile,
+    integration: IIntegration<TIntegrationWechatOptions>,
+    context: {
+      xpertId: string
+      tenantId?: string | null
+      organizationId?: string | null
+      conversationUserKey?: string
+    },
+    status: WechatMessageFileEntity['status']
+  ): Promise<WechatMessageFileEntity | null> {
+    if (!pending.messageLogId) {
+      return null
+    }
+    const where = this.scopedWhere(
+      {
+        messageLogId: pending.messageLogId,
+        integrationId: integration.id
+      },
+      context
+    )
+    const existing = await this.messageFileRepository.findOne({ where })
+    if (existing?.id) {
+      await this.messageFileRepository.update(where, {
+        conversationUserKey: context.conversationUserKey,
+        xpertId: context.xpertId,
+        messageId: pending.messageId,
+        originalName: pending.originalName,
+        mimeType: pending.mimeType,
+        size: pending.size,
+        status,
+        error: null
+      })
+      return existing
+    }
+    return this.messageFileRepository.save({
+      messageLogId: pending.messageLogId,
+      integrationId: integration.id,
+      conversationUserKey: context.conversationUserKey,
+      xpertId: context.xpertId,
+      messageId: pending.messageId,
+      originalName: pending.originalName,
+      mimeType: pending.mimeType,
+      size: pending.size,
+      status,
+      tenantId: context.tenantId ?? integration.tenantId ?? null,
+      organizationId: context.organizationId ?? integration.organizationId ?? null,
+      createdById: (integration as { createdById?: string | null }).createdById ?? null,
+      updatedById: (integration as { updatedById?: string | null }).updatedById ?? null
+    })
+  }
+
+  private async markPendingFilesFailed(
+    pendingFiles: WechatPendingInboundFile[] | undefined,
+    context: {
+      integrationId: string
+      xpertId: string
+      tenantId?: string | null
+      organizationId?: string | null
+      conversationUserKey?: string
+    },
+    error: string
+  ): Promise<void> {
+    for (const pending of Array.isArray(pendingFiles) ? pendingFiles : []) {
+      await this.markPendingFileFailed(pending, context, error)
+    }
+  }
+
+  private canRetryPendingFileMaterialize(state: WechatTriggerAggregationState): boolean {
+    return (state.fileMaterializeRetryCount ?? 0) < MAX_PENDING_FILE_MATERIALIZE_RETRIES
+  }
+
+  private async schedulePendingFileMaterializeRetry(
+    aggregateKey: string,
+    state: WechatTriggerAggregationState,
+    error: string
+  ): Promise<void> {
+    const retryCount = (state.fileMaterializeRetryCount ?? 0) + 1
+    const retryState: WechatTriggerAggregationState = {
+      ...state,
+      fileMaterializeRetryCount: retryCount,
+      fileMaterializeLastError: error,
+      lastMessageAt: Date.now()
+    }
+    const delayMs = this.resolvePendingFileMaterializeRetryDelay(retryCount)
+    const ttlSeconds = Math.max(
+      DEFAULT_SESSION_TIMEOUT_SECONDS,
+      Math.ceil(delayMs / 1000) * (MAX_PENDING_FILE_MATERIALIZE_RETRIES + 2)
+    )
+    this.logger.warn(
+      `[wechat-trigger] pending file materialization retry ${retryCount}/${MAX_PENDING_FILE_MATERIALIZE_RETRIES} ` +
+        `integrationId=${state.integrationId} aggregateKey=${aggregateKey} delayMs=${delayMs} error=${error}`
+    )
+    await this.aggregationService.save(retryState, ttlSeconds)
+    await this.aggregationService.enqueueFlush(retryState, delayMs)
+  }
+
+  private resolvePendingFileMaterializeRetryDelay(retryCount: number): number {
+    return PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS[
+      Math.min(Math.max(retryCount, 1), PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS.length) - 1
+    ]
+  }
+
+  private isRecoverablePendingFileMaterializeError(error: string): boolean {
+    return /无法从应用消息提取附件|文件尚未就绪|提取附件|appmsg|appattach|attach|not ready/i.test(error)
+  }
+
+  private async updatePendingFileRow(
+    id: string | undefined,
+    scope: WechatTenantScope,
+    patch: any
+  ): Promise<void> {
+    if (!id) {
+      return
+    }
+    await this.messageFileRepository.update(
+      this.scopedWhere({ id }, scope),
+      patch
+    )
+  }
+
+  private async markPendingFileFailed(
+    pending: WechatPendingInboundFile,
+    context: {
+      integrationId: string
+      xpertId: string
+      tenantId?: string | null
+      organizationId?: string | null
+      conversationUserKey?: string
+    },
+    error: string
+  ): Promise<void> {
+    if (!pending.messageLogId) {
+      return
+    }
+    const where = this.scopedWhere(
+      {
+        messageLogId: pending.messageLogId,
+        integrationId: context.integrationId
+      },
+      context
+    )
+    const existing = await this.messageFileRepository.findOne({ where })
+    if (existing?.id) {
+      await this.messageFileRepository.update(where, {
+        status: 'failed',
+        error
+      })
+      return
+    }
+    await this.messageFileRepository.save({
+      messageLogId: pending.messageLogId,
+      integrationId: context.integrationId,
+      conversationUserKey: context.conversationUserKey,
+      xpertId: context.xpertId,
+      messageId: pending.messageId,
+      originalName: pending.originalName,
+      mimeType: pending.mimeType,
+      size: pending.size,
+      status: 'failed',
+      error,
+      tenantId: context.tenantId ?? null,
+      organizationId: context.organizationId ?? null
+    })
+  }
+
+  private buildInboundWorkspaceFolder(integrationId: string, pending: WechatPendingInboundFile): string {
+    return [
+      'files',
+      'wechat',
+      this.normalizeWorkspaceSegment(integrationId),
+      this.normalizeWorkspaceSegment(pending.uuid),
+      this.normalizeWorkspaceSegment(pending.messageId || pending.messageLogId || 'message')
+    ].join('/')
+  }
+
+  private normalizeWorkspaceFileName(value: string): string {
+    const name = path.posix.basename(normalizeString(value).replace(/\\/g, '/')) || 'wechat-file'
+    return name
+      .replace(/[<>:"|?*\u0000-\u001f]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 180) || 'wechat-file'
+  }
+
+  private normalizeWorkspaceSegment(value?: string | null): string {
+    return normalizeString(value)
+      .replace(/[^A-Za-z0-9._-]/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 96) || 'unknown'
+  }
+
+  private normalizePendingFileIdentity(value?: string | null): string {
+    return normalizeString(value)
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+  }
+
+  private describeError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message
+    }
+    if (typeof error === 'string') {
+      return error
+    }
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
+  }
+
+  private truncateError(error: string): string {
+    return normalizeString(error).slice(0, 512) || 'inbound_file_materialize_failed'
+  }
+
+  private uniqueLogIds(ids: Array<string | undefined | null>): string[] {
+    return Array.from(new Set(ids.map((id) => normalizeString(id)).filter(Boolean)))
   }
 
   private async markInboundLogs(

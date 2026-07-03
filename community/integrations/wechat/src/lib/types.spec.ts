@@ -310,6 +310,58 @@ describe('wechat inbound normalization', () => {
     )
   })
 
+  it('normalizes WeChat appmsg file payloads as dispatchable file messages', () => {
+    const content =
+      '<?xml version="1.0"?><msg><appmsg appid="wx6618f1cfc6c132f8" sdkver="0"><title><![CDATA[技术实现文档-统一画象审核系统-v1.docx]]></title><type>74</type><appattach><totallen>22900</totallen><attachid><![CDATA[file-key-1]]></attachid><fileext><![CDATA[docx]]></fileext></appattach></appmsg></msg>'
+    const event = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'wxid_friend',
+      sendusername: 'wxid_friend',
+      fromusername: 'wxid_friend',
+      tousername: 'wxid_owner',
+      chattype: 'user',
+      content,
+      pushcontent: '',
+      newmsgid: 'file-1',
+      msgid: 789,
+      msgtype: 49,
+      isself: false
+    })
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        source: 'message_webhook',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'file-1',
+        msgType: 49,
+        messageKind: 'file',
+        content,
+        displayText: '技术实现文档-统一画象审核系统-v1.docx',
+        mediaSignature: expect.stringContaining('file:uuid-1:789:49')
+      })
+    )
+    expect(event?.fileRef).toEqual(
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        newMsgId: 'file-1',
+        msgType: 49,
+        contactId: 'wxid_friend',
+        fromUser: 'wxid_friend',
+        toUser: 'wxid_owner',
+        msgId: 789,
+        fileKey: 'file-key-1',
+        attachId: 'file-key-1',
+        originalName: '技术实现文档-统一画象审核系统-v1.docx',
+        extension: 'docx',
+        size: 22900
+      })
+    )
+    expect(shouldDispatchWechatMessage(event)?.triggerReason).toBe('private')
+  })
+
   it('filters self, empty, unsupported media, and non-triggered group messages without inferring image display text', () => {
     const base = normalizeWechatInboundPayload({
       uuid: 'uuid-1',

@@ -18,7 +18,7 @@ import { WechatMessage } from '../message.js'
 
 describe('WechatTriggerStrategy', () => {
   it('replays published trigger bindings during server bootstrap', () => {
-    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
+    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
 
     expect(strategy.bootstrap).toEqual({
       mode: 'replay_publish',
@@ -27,7 +27,7 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('exposes translated labels for trigger select options', () => {
-    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
+    const strategy = new WechatTriggerStrategy({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any)
     const properties = (strategy.meta.configSchema as any).properties
 
     expect(properties.selfMessagePolicy['x-ui'].enumLabels.history_only.zh_Hans).toBe('只写入历史')
@@ -78,23 +78,96 @@ describe('WechatTriggerStrategy', () => {
         uuid: 'uuid-1'
       })
     }
+    const wechatClient = {
+      downloadImage: jest.fn().mockResolvedValue({
+        success: true,
+        file: {
+          fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+          url: 'data:image/png;base64,iVBORw0KGgo=',
+          mimeType: 'image/png',
+          mimetype: 'image/png',
+          originalName: 'wechat-image.png',
+          name: 'wechat-image.png',
+          fileKey: 'image-key-1',
+          size: 8,
+          extension: 'png'
+        }
+      }),
+      downloadFile: jest.fn().mockResolvedValue({
+        success: true,
+        file: {
+          data: Buffer.from('docx-bytes'),
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          originalName: '技术实现文档.docx',
+          fileKey: 'file-key-1',
+          size: 9,
+          extension: 'docx'
+        }
+      })
+    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn().mockResolvedValue({
+        name: '技术实现文档.docx',
+        filePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        fileUrl: 'https://files.example/files/wechat/技术实现文档.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: 9
+      }),
+      understandFile: jest.fn().mockResolvedValue({
+        id: 'file-asset-1',
+        fileId: 'file-asset-1',
+        fileAssetId: 'file-asset-1',
+        filePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        fileUrl: 'https://files.example/files/wechat/技术实现文档.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        originalName: '技术实现文档.docx',
+        name: '技术实现文档.docx',
+        size: 9,
+        status: 'parsing',
+        parseStatus: 'queued',
+        capabilities: ['preview', 'workspace']
+      })
+    }
+    const integrationPermissionService = {
+      read: jest.fn().mockResolvedValue({
+        id: 'integration-1',
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        createdById: 'user-1',
+        updatedById: 'user-1'
+      })
+    }
+    const messageFileRepository = {
+      save: jest.fn(async (payload) => ({
+        id: 'message-file-1',
+        ...payload
+      })),
+      update: jest.fn().mockResolvedValue(undefined),
+      findOne: jest.fn().mockResolvedValue(null)
+    }
     const messageLogRepository = {
       update: jest.fn().mockResolvedValue(undefined)
     }
     const pluginContext = {
-      resolve: jest.fn(() => ({
-        read: jest.fn().mockResolvedValue({
-          tenantId: 'tenant-1',
-          organizationId: 'org-1'
-        })
-      }))
+      resolve: jest.fn((token) => {
+        if (token === 'XPERT_RUNTIME_CAPABILITIES') {
+          return {
+            get: jest.fn((key) => (key === 'platform.workspace.files' ? workspaceFiles : undefined))
+          }
+        }
+        return integrationPermissionService
+      })
     }
     const strategy = new WechatTriggerStrategy(
       dispatchService as any,
       aggregationService as any,
       {} as any,
+      wechatClient as any,
       bindingRepository as any,
       accountRepository as any,
+      messageFileRepository as any,
       pluginContext as any,
       messageLogRepository as any
     )
@@ -112,7 +185,19 @@ describe('WechatTriggerStrategy', () => {
         status: 'thinking'
       }
     )
-    return { strategy, dispatchService, aggregationService, bindingRepository, accountRepository, messageLogRepository, wechatMessage }
+    return {
+      strategy,
+      dispatchService,
+      aggregationService,
+      bindingRepository,
+      accountRepository,
+      wechatClient,
+      workspaceFiles,
+      integrationPermissionService,
+      messageFileRepository,
+      messageLogRepository,
+      wechatMessage
+    }
   }
 
   it('normalizes per-group trigger overrides when publishing a binding', async () => {
@@ -198,6 +283,83 @@ describe('WechatTriggerStrategy', () => {
         xpertId: 'xpert-2'
       }),
       ['integrationId', 'accountUuid']
+    )
+  })
+
+  it('stores different integration bindings for the same xpert as separate routes', async () => {
+    const { strategy, bindingRepository } = createStrategy()
+    bindingRepository.findOne.mockResolvedValue(null)
+
+    await strategy.publish(
+      {
+        xpertId: 'xpert-1',
+        node: { key: 'Trigger_Wechat_A' },
+        config: {
+          enabled: true,
+          integrationId: 'integration-1'
+        }
+      } as any,
+      jest.fn()
+    )
+    await strategy.publish(
+      {
+        xpertId: 'xpert-1',
+        node: { key: 'Trigger_Wechat_B' },
+        config: {
+          enabled: true,
+          integrationId: 'integration-2'
+        }
+      } as any,
+      jest.fn()
+    )
+
+    expect(bindingRepository.upsert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        accountUuid: '*',
+        xpertId: 'xpert-1'
+      }),
+      ['integrationId', 'accountUuid']
+    )
+    expect(bindingRepository.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        integrationId: 'integration-2',
+        accountUuid: '*',
+        xpertId: 'xpert-1'
+      }),
+      ['integrationId', 'accountUuid']
+    )
+  })
+
+  it('does not collapse multiple bound integrations for the same xpert into the latest route', async () => {
+    const { strategy, bindingRepository } = createStrategy()
+    bindingRepository.find.mockResolvedValue([
+      {
+        integrationId: 'integration-2',
+        accountUuid: '*',
+        xpertId: 'xpert-1',
+        updatedAt: new Date('2026-07-03T04:00:00.000Z')
+      },
+      {
+        integrationId: 'integration-1',
+        accountUuid: '*',
+        xpertId: 'xpert-1',
+        updatedAt: new Date('2026-07-03T03:00:00.000Z')
+      }
+    ])
+
+    await expect(strategy.getBoundIntegrationId('xpert-1')).resolves.toBeNull()
+    expect(bindingRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          xpertId: 'xpert-1'
+        }),
+        order: {
+          updatedAt: 'DESC'
+        }
+      })
     )
   })
 
@@ -403,6 +565,66 @@ describe('WechatTriggerStrategy', () => {
     expect(aggregationService.save).not.toHaveBeenCalled()
   })
 
+  it('enqueues pending file refs without downloading before the debounce flush', async () => {
+    const { strategy, aggregationService, wechatClient, wechatMessage } = createStrategy({
+      summaryWindowSeconds: 3
+    })
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-1',
+      msgContent: '<msg><appmsg><title>技术实现文档.docx</title><type>74</type></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'file-key-1',
+      originalName: '技术实现文档.docx',
+      extension: 'docx',
+      size: 9
+    }
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        input: '',
+        pendingFiles: [
+          {
+            kind: 'file',
+            messageLogId: 'inbound-file-log-1',
+            messageId: 'file-msg-1',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: '技术实现文档.docx',
+            size: 9,
+            extension: 'docx',
+            fileRef
+          }
+        ],
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        currentInboundLogIds: ['inbound-file-log-1'],
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      queued: true,
+      dispatched: false
+    })
+
+    expect(wechatClient.downloadFile).not.toHaveBeenCalled()
+    expect(aggregationService.enqueueAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pendingFiles: [
+          expect.objectContaining({
+            kind: 'file',
+            messageLogId: 'inbound-file-log-1',
+            fileRef
+          })
+        ]
+      })
+    )
+  })
+
   it('aggregates debounced inbound jobs under a Redis lock and schedules managed queue flush', async () => {
     const { strategy, aggregationService } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
@@ -504,6 +726,120 @@ describe('WechatTriggerStrategy', () => {
     )
   })
 
+  it('coalesces duplicate pending file refs and keeps the more complete attachment metadata', async () => {
+    const { strategy, aggregationService } = createStrategy()
+    const partialFileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-partial',
+      msgContent: '<msg><appmsg><title>技术实现文档.docx</title><type>74</type></appmsg></msg>',
+      msgType: 49,
+      originalName: '技术实现文档.docx',
+      extension: 'docx',
+      size: 9
+    }
+    const fullFileRef = {
+      ...partialFileRef,
+      newMsgId: 'file-msg-full',
+      msgContent:
+        '<msg><appmsg><title>技术实现文档.docx</title><type>74</type><appattach><totallen>9</totallen><attachid>attach-1</attachid><cdnattachurl>https://cdn.example/file</cdnattachurl><aeskey>aes-1</aeskey></appattach></appmsg></msg>',
+      fileKey: 'attach-1',
+      attachId: 'attach-1',
+      cdnAttachUrl: 'https://cdn.example/file',
+      aesKey: 'aes-1'
+    }
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 1,
+      inputParts: [''],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-partial',
+          messageId: 'file-msg-partial',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: '技术实现文档.docx',
+          size: 9,
+          extension: 'docx',
+          fileRef: partialFileRef
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-partial'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend'
+      }
+    })
+
+    await expect(
+      strategy.processInboundAggregateJob({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        integrationId: 'integration-1',
+        accountUuid: '*',
+        xpertId: 'xpert-1',
+        input: '分析这个文档',
+        item: {
+          input: '分析这个文档',
+          messageKind: 'text',
+          chatType: 'private'
+        },
+        pendingFiles: [
+          {
+            kind: 'file',
+            messageLogId: 'inbound-file-full',
+            messageId: 'file-msg-full',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: '技术实现文档.docx',
+            size: 9,
+            extension: 'docx',
+            fileRef: fullFileRef
+          }
+        ],
+        currentInboundLogIds: ['inbound-text-log-1'],
+        summaryWindowSeconds: 3,
+        sessionTimeoutSeconds: 3600,
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        latestMessage: {
+          integrationId: 'integration-1',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend'
+        }
+      })
+    ).resolves.toBeUndefined()
+
+    expect(aggregationService.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputParts: ['', '分析这个文档'],
+        pendingFiles: [
+          expect.objectContaining({
+            messageLogId: 'inbound-file-full',
+            fileRef: expect.objectContaining({
+              attachId: 'attach-1',
+              cdnAttachUrl: 'https://cdn.example/file',
+              aesKey: 'aes-1'
+            })
+          })
+        ],
+        currentInboundLogIds: ['inbound-file-partial', 'inbound-text-log-1'],
+        duplicateInboundLogIds: ['inbound-file-partial']
+      }),
+      expect.any(Number)
+    )
+  })
+
   it('flushes one debounced batch as one fresh-session dispatch with history context', async () => {
     const { strategy, dispatchService, aggregationService } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
@@ -573,7 +909,442 @@ describe('WechatTriggerStrategy', () => {
     )
   })
 
-  it('uses a default human input for image-only debounced batches', async () => {
+  it('materializes pending files at flush and dispatches FileAsset handles with merged text', async () => {
+    const { strategy, dispatchService, aggregationService, wechatClient, workspaceFiles, messageFileRepository } = createStrategy()
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-1',
+      msgContent: '<msg><appmsg><title>技术实现文档.docx</title><type>74</type></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'file-key-1',
+      originalName: '技术实现文档.docx',
+      extension: 'docx',
+      size: 9
+    }
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 8,
+      inputParts: ['', '分析这个文档'],
+      items: [
+        {
+          input: '',
+          messageKind: 'file',
+          chatType: 'private'
+        },
+        {
+          input: '分析这个文档',
+          messageKind: 'text',
+          chatType: 'private'
+        }
+      ],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-log-1',
+          messageId: 'file-msg-1',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: '技术实现文档.docx',
+          size: 9,
+          extension: 'docx',
+          fileRef
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-log-1', 'inbound-text-log-1'],
+      historyContext: undefined,
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        language: 'zh-Hans',
+        messageId: 'text-msg-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 8
+      })
+    ).resolves.toBe(true)
+
+    expect(wechatClient.downloadFile).toHaveBeenCalledWith(expect.objectContaining({ id: 'integration-1' }), fileRef)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        isolateByUser: false,
+        folder: 'files/wechat/integration-1/uuid-1/file-msg-1',
+        fileName: '技术实现文档.docx',
+        buffer: Buffer.from('docx-bytes')
+      })
+    )
+    expect(workspaceFiles.understandFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        isolateByUser: false,
+        filePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        originalName: '技术实现文档.docx',
+        purpose: 'chat_attachment',
+        parseMode: 'auto'
+      })
+    )
+    expect(messageFileRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageLogId: 'inbound-file-log-1',
+        status: 'processing',
+        xpertId: 'xpert-1'
+      })
+    )
+    expect(messageFileRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'message-file-1' }),
+      expect.objectContaining({
+        status: 'ready',
+        fileAssetId: 'file-asset-1',
+        workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx'
+      })
+    )
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '分析这个文档',
+        files: [
+          expect.objectContaining({
+            fileAssetId: 'file-asset-1',
+            fileId: 'file-asset-1',
+            workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+            originalName: '技术实现文档.docx'
+          })
+        ],
+        currentInboundLogIds: ['inbound-file-log-1', 'inbound-text-log-1']
+      })
+    )
+    expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('docx-bytes')
+  })
+
+  it('keeps the debounced batch and retries flush when file attachment fields are not ready', async () => {
+    const { strategy, dispatchService, aggregationService, wechatClient, messageLogRepository, messageFileRepository } =
+      createStrategy()
+    wechatClient.downloadFile.mockResolvedValueOnce({
+      success: false,
+      error: '无法从应用消息提取附件'
+    })
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 9,
+      inputParts: ['', '分析这个文档'],
+      items: [
+        {
+          input: '',
+          messageKind: 'file',
+          chatType: 'private'
+        },
+        {
+          input: '分析这个文档',
+          messageKind: 'text',
+          chatType: 'private'
+        }
+      ],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-log-1',
+          messageId: 'file-msg-1',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: '技术实现文档.docx',
+          size: 9,
+          extension: 'docx',
+          fileRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'file-msg-1',
+            msgContent: '<msg />',
+            msgType: 49
+          }
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-log-1', 'inbound-text-log-1'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'text-msg-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 9
+      })
+    ).resolves.toBe(false)
+
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).not.toHaveBeenCalled()
+    expect(messageFileRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageLogId: 'inbound-file-log-1',
+        status: 'processing'
+      })
+    )
+    expect(messageFileRepository.save).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed'
+      })
+    )
+    expect(aggregationService.clear).not.toHaveBeenCalled()
+    expect(aggregationService.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileMaterializeRetryCount: 1,
+        fileMaterializeLastError: expect.stringContaining('无法从应用消息提取附件'),
+        inputParts: ['', '分析这个文档']
+      }),
+      expect.any(Number)
+    )
+    expect(aggregationService.enqueueFlush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: 9,
+        fileMaterializeRetryCount: 1
+      }),
+      2000
+    )
+  })
+
+  it('merges duplicate file shell events and materializes the most complete ref with text', async () => {
+    const { strategy, dispatchService, aggregationService, wechatClient, workspaceFiles, messageLogRepository } =
+      createStrategy()
+    const partialRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-shell',
+      msgContent: '<msg><appmsg><title>PBOM最佳匹配及智能报价说明.docx</title><type>74</type></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'file-msg-shell',
+      originalName: 'PBOM最佳匹配及智能报价说明.docx',
+      extension: 'docx'
+    }
+    const completeRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-ready',
+      msgContent:
+        '<msg><appmsg><title>PBOM最佳匹配及智能报价说明.docx</title><type>74</type><appattach><totallen>10</totallen><attachid>attach-ready</attachid><cdnattachurl>https://cdn.example/file</cdnattachurl><aeskey>aes-ready</aeskey><fileext>docx</fileext></appattach></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'attach-ready',
+      attachId: 'attach-ready',
+      cdnAttachUrl: 'https://cdn.example/file',
+      aesKey: 'aes-ready',
+      originalName: 'PBOM最佳匹配及智能报价说明.docx',
+      extension: 'docx',
+      size: 10
+    }
+    wechatClient.downloadFile.mockResolvedValueOnce({
+      success: true,
+      file: {
+        data: Buffer.from('ready-docx'),
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        originalName: 'PBOM最佳匹配及智能报价说明.docx',
+        fileKey: 'attach-ready',
+        size: 10,
+        extension: 'docx'
+      }
+    })
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 11,
+      inputParts: ['', '', '分析此文档内容里的风险点'],
+      items: [
+        { input: '', messageKind: 'file', chatType: 'private' },
+        { input: '', messageKind: 'file', chatType: 'private' },
+        { input: '分析此文档内容里的风险点', messageKind: 'text', chatType: 'private' }
+      ],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-shell-log',
+          messageId: 'file-msg-shell',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: 'PBOM最佳匹配及智能报价说明.docx',
+          extension: 'docx',
+          fileRef: partialRef
+        },
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-ready-log',
+          messageId: 'file-msg-ready',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: 'PBOM最佳匹配及智能报价说明.docx',
+          size: 10,
+          extension: 'docx',
+          fileRef: completeRef
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-shell-log', 'inbound-file-ready-log', 'inbound-text-log'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'text-msg-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 11
+      })
+    ).resolves.toBe(true)
+
+    expect(wechatClient.downloadFile).toHaveBeenCalledTimes(1)
+    expect(wechatClient.downloadFile).toHaveBeenCalledWith(expect.objectContaining({ id: 'integration-1' }), completeRef)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: 'files/wechat/integration-1/uuid-1/file-msg-ready',
+        buffer: Buffer.from('ready-docx')
+      })
+    )
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '分析此文档内容里的风险点',
+        currentInboundLogIds: ['inbound-file-ready-log', 'inbound-text-log'],
+        files: [expect.objectContaining({ fileAssetId: 'file-asset-1' })]
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-file-shell-log' }),
+      expect.objectContaining({ status: 'skipped', error: 'duplicate_file_event' })
+    )
+    expect(messageLogRepository.update).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: 'failed' })
+    )
+  })
+
+  it('fails the debounced batch when pending file materialization fails', async () => {
+    const { strategy, dispatchService, aggregationService, wechatClient, messageLogRepository, messageFileRepository } =
+      createStrategy()
+    wechatClient.downloadFile.mockResolvedValueOnce({
+      success: false,
+      error: 'download timeout'
+    })
+    messageFileRepository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'message-file-1'
+      })
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 9,
+      inputParts: ['', '分析这个文档'],
+      items: [
+        {
+          input: '',
+          messageKind: 'file',
+          chatType: 'private'
+        },
+        {
+          input: '分析这个文档',
+          messageKind: 'text',
+          chatType: 'private'
+        }
+      ],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-log-1',
+          messageId: 'file-msg-1',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: '技术实现文档.docx',
+          size: 9,
+          extension: 'docx',
+          fileRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'file-msg-1',
+            msgContent: '<msg />',
+            msgType: 49
+          }
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-log-1', 'inbound-text-log-1'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'text-msg-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 9
+      })
+    ).resolves.toBe(false)
+
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-file-log-1' }),
+      expect.objectContaining({
+        status: 'failed',
+        error: expect.stringContaining('download timeout')
+      })
+    )
+    expect(messageFileRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageLogId: 'inbound-file-log-1',
+        integrationId: 'integration-1'
+      }),
+      expect.objectContaining({
+        status: 'failed',
+        error: expect.stringContaining('download timeout')
+      })
+    )
+  })
+
+  it('uses a default human input for attachment-only debounced batches', async () => {
     const { strategy, dispatchService, aggregationService } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
@@ -615,7 +1386,7 @@ describe('WechatTriggerStrategy', () => {
 
     expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        input: '[历史上下文]\nAgent: 之前回复\n\n[本次用户消息]\n[理解图片]',
+        input: '[历史上下文]\nAgent: 之前回复\n\n[本次用户消息]\n[理解附件]',
         files: [
           {
             fileUrl: 'data:image/png;base64,only-image',

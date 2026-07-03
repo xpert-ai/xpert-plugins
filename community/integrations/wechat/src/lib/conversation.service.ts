@@ -10,7 +10,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { IIntegration, type IPagination } from '@xpert-ai/contracts'
-import { LessThan, Like, MoreThan, Repository } from 'typeorm'
+import { In, LessThan, Like, MoreThan, Repository } from 'typeorm'
 import {
   normalizeConversationKey,
   resolveWechatConversationIdentity,
@@ -33,8 +33,8 @@ import {
   shouldDispatchWechatMessage,
   TIntegrationWechatOptions,
   WechatInboundEvent,
-  WechatInboundFile,
-  WechatInboundTriggerOptions
+  WechatInboundTriggerOptions,
+  WechatPendingInboundFile
 } from './types.js'
 import {
   buildWechatSidecarRuntimeConfig,
@@ -48,8 +48,10 @@ import { WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID, WECHAT_PROVIDER_KEY } from './cons
 import { WechatMessage } from './message.js'
 import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 import { WechatClient } from './wechat.client.js'
+import { WechatOutboundQueueService } from './wechat-outbound-queue.service.js'
 import {
   WechatAccountEntity,
+  WechatMessageFileEntity,
   WechatMessageDirection,
   WechatMessageLogEntity,
   WechatMessageLogStatus,
@@ -143,6 +145,7 @@ export type WechatAccountTriggerBinding = {
 export type WechatAccountWorkbenchItem = WechatAccountEntity & {
   tunnelBinding?: WechatAccountTunnelBinding
   triggerBinding?: WechatAccountTriggerBinding
+  outboundPausedReason?: string | null
 }
 
 export type WechatTunnelClientWorkbenchItem = WechatTunnelClientInfo & {
@@ -279,6 +282,9 @@ export class WechatConversationService {
     private readonly accountRepository: Repository<WechatAccountEntity>,
     @InjectRepository(WechatMessageLogEntity)
     private readonly messageLogRepository: Repository<WechatMessageLogEntity>,
+    @InjectRepository(WechatMessageFileEntity)
+    private readonly messageFileRepository: Repository<WechatMessageFileEntity>,
+    private readonly outboundQueue: WechatOutboundQueueService,
     @Inject(WECHAT_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -501,16 +507,8 @@ export class WechatConversationService {
       }
       const dispatchInput = groupJoinWelcomeInput ?? dispatchable?.input ?? normalizeWechatAgentInput(dispatchEvent)
 
-      const inboundFilesResult = await this.resolveInboundFiles(integration, dispatchEvent)
-      if (inboundFilesResult.success === false) {
-        await this.updateLog(inboundLog.id, {
-          status: 'failed',
-          xpertId: binding.xpertId,
-          error: inboundFilesResult.error || 'inbound_image_download_failed'
-        }, eventScope)
-        return { handled: false, reason: 'image_download_failed' }
-      }
-      const inboundFiles = inboundFilesResult.files
+      const pendingFiles = this.buildPendingInboundFiles(dispatchEvent, inboundLog.id)
+      const inboundFiles = dispatchEvent.files
 
       const conversationUserKey = conversationIdentity.conversationUserKey
 
@@ -573,6 +571,7 @@ export class WechatConversationService {
         accountUuid: dispatchEvent.uuid,
         input: newSessionCommand.matched ? newSessionCommand.input : dispatchInput,
         files: inboundFiles,
+        pendingFiles,
         item: buildWechatBatchTriggerItem(
           dispatchEvent,
           triggerOptions,
@@ -593,7 +592,7 @@ export class WechatConversationService {
         status: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : 'failed',
         xpertId: binding.xpertId,
         conversationUserKey,
-        error: handleResult.accepted ? undefined : 'handoff_dispatch_failed'
+        error: handleResult.accepted ? undefined : handleResult.error ?? 'handoff_dispatch_failed'
       }, eventScope)
 
       return {
@@ -695,6 +694,37 @@ export class WechatConversationService {
     }
   }
 
+  async markInboundConversationAttached(context: WechatChatCallbackContext): Promise<void> {
+    const conversationId = normalizeConversationKey(context.conversationId)
+    if (!conversationId) {
+      return
+    }
+    const bindingContext = this.resolveBindingContext()
+    const scope = this.resolveTenantScope(context, bindingContext)
+    const ids = Array.from(
+      new Set([
+        ...(Array.isArray(context.currentInboundLogIds) ? context.currentInboundLogIds : []),
+        context.message?.id
+      ].filter((id): id is string => typeof id === 'string' && Boolean(id)))
+    )
+
+    for (const id of ids) {
+      await this.updateLog(
+        id,
+        {
+          conversationId
+        },
+        scope
+      )
+      await this.messageFileRepository.update(
+        this.scopedWhere({ messageLogId: id }, scope),
+        {
+          conversationId
+        }
+      )
+    }
+  }
+
   async setAccountEnabled(integrationId: string, uuid: string, enabled: boolean): Promise<void> {
     const normalizedIntegrationId = normalizeConversationKey(integrationId)
     const normalizedUuid = normalizeConversationKey(uuid)
@@ -769,6 +799,12 @@ export class WechatConversationService {
             content: target.content,
             source: 'resend'
           })
+    if (!result.success && isOutboundPausedError(result.error)) {
+      return {
+        success: false,
+        error: describeOutboundPausedReason(result.error)
+      }
+    }
     if (!result.queued) {
       await this.messageLogRepository.save({
         integrationId: normalizedIntegrationId,
@@ -827,20 +863,23 @@ export class WechatConversationService {
       })
     ])
 
-    const filteredLogs = logs
-      .filter((log) => {
-        if (!search) {
-          return true
-        }
-        return [log.uuid, log.contactId, log.senderId, log.senderName, log.content, log.error, log.status].some((value) =>
-          this.normalizeListSearch(value)?.includes(search)
-        )
-      })
-      .slice(0, pageSize)
+    const searchedLogs = logs.filter((log) => {
+      if (!search) {
+        return true
+      }
+      return [log.uuid, log.contactId, log.senderId, log.senderName, log.content, log.error, log.status].some((value) =>
+        this.normalizeListSearch(value)?.includes(search)
+      )
+    })
+    const filteredLogs = searchedLogs.slice(0, pageSize)
+    const messageLogs = this.filterMessageDisplayLogs(searchedLogs).slice(0, pageSize)
     const tunnel = await this.getTunnelStatus(integration)
-    const accountsWithTunnel = await this.attachAccountTriggerBindings(
-      await this.attachAccountTunnelBindings(accounts, [integration]),
-      [integration],
+    const accountsWithTunnel = await this.attachAccountOutboundState(
+      await this.attachAccountTriggerBindings(
+        await this.attachAccountTunnelBindings(accounts, [integration]),
+        [integration],
+        scope
+      ),
       scope
     )
     const tunnelClients = await this.buildTunnelClientItems([integration])
@@ -864,7 +903,7 @@ export class WechatConversationService {
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
       accounts: accountsWithTunnel,
-      messages: filteredLogs,
+      messages: messageLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
       tunnel,
@@ -935,12 +974,15 @@ export class WechatConversationService {
       })
     ])
 
-    const filteredLogs = logs
-      .filter((log) => this.matchesLogSearch(log, search))
-      .slice(0, pageSize)
-    const accountsWithTunnel = await this.attachAccountTriggerBindings(
-      await this.attachAccountTunnelBindings(accounts, integrations),
-      integrations,
+    const searchedLogs = logs.filter((log) => this.matchesLogSearch(log, search))
+    const filteredLogs = searchedLogs.slice(0, pageSize)
+    const messageLogs = this.filterMessageDisplayLogs(searchedLogs).slice(0, pageSize)
+    const accountsWithTunnel = await this.attachAccountOutboundState(
+      await this.attachAccountTriggerBindings(
+        await this.attachAccountTunnelBindings(accounts, integrations),
+        integrations,
+        scope
+      ),
       scope
     )
 
@@ -965,7 +1007,7 @@ export class WechatConversationService {
         errorCount: logs.filter((log) => log.status === 'failed' || log.error).length
       },
       accounts: accountsWithTunnel,
-      messages: filteredLogs,
+      messages: messageLogs,
       queue: filteredLogs.filter((log) => log.direction === 'outbound' && this.isQueueStatus(log.status)),
       logs: filteredLogs,
       tunnel: await this.getTunnelStatus(null),
@@ -1053,6 +1095,18 @@ export class WechatConversationService {
         }))
       }
     }
+    if (table === 'messages') {
+      return {
+        key: table,
+        ...(await this.searchMessageLogs(integrationId, {
+          ...query,
+          filters: {
+            ...(query.filters || {}),
+            hideDuplicateFileEvents: true
+          }
+        }))
+      }
+    }
     return { key: table, ...(await this.searchMessageLogs(integrationId, query)) }
   }
 
@@ -1075,6 +1129,18 @@ export class WechatConversationService {
           filters: {
             ...(query.filters || {}),
             queueOnly: true
+          }
+        }))
+      }
+    }
+    if (table === 'messages') {
+      return {
+        key: table,
+        ...(await this.searchOrganizationMessageLogs({
+          ...query,
+          filters: {
+            ...(query.filters || {}),
+            hideDuplicateFileEvents: true
           }
         }))
       }
@@ -1127,7 +1193,8 @@ export class WechatConversationService {
     })
 
     const accountsWithTunnel = await this.attachAccountTunnelBindings(filtered, [integration])
-    return this.paginateItems(await this.attachAccountTriggerBindings(accountsWithTunnel, [integration], scope), page, pageSize)
+    const accountsWithBindings = await this.attachAccountTriggerBindings(accountsWithTunnel, [integration], scope)
+    return this.paginateItems(await this.attachAccountOutboundState(accountsWithBindings, scope), page, pageSize)
   }
 
   async listOrganizationAccounts(
@@ -1542,7 +1609,9 @@ export class WechatConversationService {
     const contactId = normalizeConversationKey(event.contactId)
     const senderId = normalizeConversationKey(event.senderId) || contactId
     const content =
-      event.messageKind === 'image' || event.messageKind === 'voice' ? '' : normalizeConversationKey(event.content)
+      event.messageKind === 'image' || event.messageKind === 'voice' || event.messageKind === 'file'
+        ? ''
+        : normalizeConversationKey(event.content)
     if (uuid && contactId && senderId && content) {
       keys.push(
         `${scopePrefix}|signature:${uuid}|${contactId}|${senderId}|${event.timestamp}|${content.slice(0, 512)}`
@@ -1616,7 +1685,9 @@ export class WechatConversationService {
     }
 
     const content =
-      event.messageKind === 'image' || event.messageKind === 'voice' ? '' : normalizeConversationKey(event.content)
+      event.messageKind === 'image' || event.messageKind === 'voice' || event.messageKind === 'file'
+        ? ''
+        : normalizeConversationKey(event.content)
     const mediaSignature = normalizeConversationKey(event.mediaSignature)
     if (!content && !mediaSignature) {
       return false
@@ -1672,45 +1743,46 @@ export class WechatConversationService {
     })
   }
 
-  private async resolveInboundFiles(
-    integration: IIntegration<TIntegrationWechatOptions>,
-    event: WechatInboundEvent
-  ): Promise<{ success: true; files?: WechatInboundFile[] } | { success: false; error: string }> {
-    if (event.messageKind !== 'image') {
-      return { success: true, files: event.files }
-    }
-    if (!event.imageRef) {
-      return {
-        success: false,
-        error: 'inbound_image_ref_missing'
-      }
-    }
-
-    const result = await this.wechatClient.downloadImage(integration, event.imageRef)
-    if (!result.success || !result.file) {
-      return {
-        success: false,
-        error: `inbound_image_download_failed${result.error ? `: ${result.error}` : ''}`
-      }
-    }
-
-    return {
-      success: true,
-      files: [
+  private buildPendingInboundFiles(event: WechatInboundEvent, messageLogId: string): WechatPendingInboundFile[] | undefined {
+    if (event.messageKind === 'file' && event.fileRef) {
+      return [
         {
-          id: result.file.id,
-          fileUrl: result.file.fileUrl,
-          url: result.file.url,
-          mimeType: result.file.mimeType,
-          mimetype: result.file.mimetype,
-          originalName: result.file.originalName,
-          name: result.file.name,
-          fileKey: result.file.fileKey,
-          size: result.file.size,
-          extension: result.file.extension
+          kind: 'file',
+          messageLogId,
+          messageId: event.messageId,
+          uuid: event.uuid,
+          ownerWxid: event.ownerWxid,
+          contactId: event.contactId,
+          senderId: event.senderId,
+          senderName: event.senderName,
+          chatType: event.chatType,
+          originalName: event.fileRef.originalName,
+          size: event.fileRef.size,
+          extension: event.fileRef.extension,
+          fileRef: event.fileRef
         }
       ]
     }
+
+    if (event.messageKind === 'image' && event.imageRef) {
+      return [
+        {
+          kind: 'image',
+          messageLogId,
+          messageId: event.messageId,
+          uuid: event.uuid,
+          ownerWxid: event.ownerWxid,
+          contactId: event.contactId,
+          senderId: event.senderId,
+          senderName: event.senderName,
+          chatType: event.chatType,
+          originalName: event.imageRef.originalName,
+          imageRef: event.imageRef
+        }
+      ]
+    }
+
+    return undefined
   }
 
   private async resolveInboundVoiceInput(
@@ -1775,6 +1847,9 @@ export class WechatConversationService {
         return content
       }
       return normalizeString(event.displayText)
+    }
+    if (event.messageKind === 'file') {
+      return normalizeString(event.displayText || event.fileRef?.originalName || '[文件]')
     }
     return event.content
   }
@@ -1906,12 +1981,12 @@ export class WechatConversationService {
       return false
     }
     const input = normalizeWechatAgentInput(event)
-    return Boolean(input) || event.messageKind === 'image'
+    return Boolean(input) || event.messageKind === 'image' || event.messageKind === 'file'
   }
 
   private normalizeInboundHandleResult(
-    result: boolean | { accepted?: boolean; queued?: boolean; dispatched?: boolean }
-  ): { accepted: boolean; queued: boolean; dispatched: boolean } {
+    result: boolean | { accepted?: boolean; queued?: boolean; dispatched?: boolean; error?: string }
+  ): { accepted: boolean; queued: boolean; dispatched: boolean; error?: string } {
     if (typeof result === 'boolean') {
       return {
         accepted: result,
@@ -1922,7 +1997,8 @@ export class WechatConversationService {
     return {
       accepted: result?.accepted === true,
       queued: result?.queued === true,
-      dispatched: result?.dispatched === true
+      dispatched: result?.dispatched === true,
+      error: result?.error
     }
   }
 
@@ -2045,27 +2121,70 @@ export class WechatConversationService {
     }
 
     const logs = await query.orderBy('log.createdAt', 'DESC').addOrderBy('log.id', 'DESC').limit(limit).getMany()
-    return this.formatHistoryContext(logs.reverse())
+    const logIds = logs.map((log) => log.id).filter(Boolean)
+    const files = logIds.length
+      ? await this.messageFileRepository.find({
+          where: this.scopedWhere({ messageLogId: In(logIds) }, scope),
+          order: {
+            createdAt: 'ASC'
+          }
+        })
+      : []
+    const filesByLogId = new Map<string, WechatMessageFileEntity[]>()
+    for (const file of files) {
+      if (!file.messageLogId) {
+        continue
+      }
+      const bucket = filesByLogId.get(file.messageLogId) ?? []
+      bucket.push(file)
+      filesByLogId.set(file.messageLogId, bucket)
+    }
+    return this.formatHistoryContext(logs.reverse(), filesByLogId)
   }
 
-  private formatHistoryContext(logs: WechatMessageLogEntity[]): string | undefined {
+  private formatHistoryContext(
+    logs: WechatMessageLogEntity[],
+    filesByLogId?: Map<string, WechatMessageFileEntity[]>
+  ): string | undefined {
     const lines: string[] = []
     for (const log of logs) {
       const content = this.truncateContextText(log.content, HISTORY_CONTEXT_ITEM_MAX_CHARS)
-      if (!content) {
+      const fileLines = (filesByLogId?.get(log.id) ?? [])
+        .map((file) => this.formatHistoryFileLine(file))
+        .filter((line): line is string => Boolean(line))
+      if (!content && !fileLines.length) {
         continue
       }
       const timestamp = (this.normalizeDate(log.sentAt) ?? this.normalizeDate(log.createdAt) ?? new Date()).toISOString()
       const actor = log.direction === 'outbound' ? 'Agent' : `用户${log.senderId ? `(${log.senderId})` : ''}`
-      lines.push(`[${timestamp}] ${actor}: ${content}`)
+      lines.push(`[${timestamp}] ${actor}: ${content || '[历史文件]'}`)
+      lines.push(...fileLines)
     }
     if (!lines.length) {
       return undefined
     }
     return this.truncateContextText(
-      ['[历史上下文，仅供背景参考，勿当作本次用户新消息]', ...lines].join('\n'),
+      [
+        '[历史上下文，仅供背景参考，勿当作本次用户新消息。历史文件仅是索引；如需理解历史文件，请优先使用 workspace_list、file_search、file_read 或 workspace_read 读取已关联到当前 conversation 的文件。]',
+        ...lines
+      ].join('\n'),
       HISTORY_CONTEXT_TOTAL_MAX_CHARS
     )
+  }
+
+  private formatHistoryFileLine(file: WechatMessageFileEntity): string | undefined {
+    const name = this.truncateContextText(file.originalName || file.workspacePath || file.filePath || 'wechat-file', 160)
+    const identifiers = [
+      file.fileAssetId ? `fileAssetId=${file.fileAssetId}` : '',
+      file.fileId ? `fileId=${file.fileId}` : '',
+      file.workspacePath ? `workspacePath=${file.workspacePath}` : '',
+      file.filePath && file.filePath !== file.workspacePath ? `filePath=${file.filePath}` : '',
+      file.status ? `status=${file.status}` : ''
+    ].filter(Boolean)
+    if (!name && identifiers.length === 0) {
+      return undefined
+    }
+    return this.truncateContextText(`  历史文件: ${name}${identifiers.length ? ` ${identifiers.join(' ')}` : ''}`, 800)
   }
 
   private async assertChatHistoryTargetAllowed(
@@ -2456,6 +2575,39 @@ export class WechatConversationService {
     })
   }
 
+  private async attachAccountOutboundState(
+    accounts: WechatAccountWorkbenchItem[],
+    scope?: WechatTenantScope | null
+  ): Promise<WechatAccountWorkbenchItem[]> {
+    if (!accounts.length) {
+      return accounts
+    }
+    const reasons = await Promise.all(
+      accounts.map(async (account) => {
+        const integrationId = normalizeConversationKey(account.integrationId)
+        const uuid = normalizeString(account.uuid)
+        if (!integrationId || !uuid) {
+          return null
+        }
+        try {
+          return await this.outboundQueue.getOutboundAccountPausedReason(integrationId, uuid, {
+            tenantId: account.tenantId ?? scope?.tenantId,
+            organizationId: account.organizationId ?? scope?.organizationId
+          })
+        } catch (error) {
+          this.logger.warn(
+            `[wechat-workbench] failed to resolve outbound pause state integration=${integrationId} uuid=${uuid} error=${this.describeError(error)}`
+          )
+          return null
+        }
+      })
+    )
+    return accounts.map((account, index) => ({
+      ...account,
+      outboundPausedReason: reasons[index]
+    }))
+  }
+
   private formatAccountTriggerBinding(
     exactBinding?: WechatTriggerBindingEntity | null,
     defaultBinding?: WechatTriggerBindingEntity | null
@@ -2699,6 +2851,9 @@ export class WechatConversationService {
   private matchesLogFilters(log: WechatMessageLogEntity, filters: Record<string, unknown>): boolean {
     const chatType = this.normalizeChatType(filters.chatType)
     const level = this.normalizeListSearch(filters.level)
+    if (this.normalizeBooleanFilter(filters.hideDuplicateFileEvents) === true && this.isDuplicateFileEventLog(log)) {
+      return false
+    }
     if (this.normalizeBooleanFilter(filters.queueOnly) === true && !this.isQueueStatus(log.status)) {
       return false
     }
@@ -2720,6 +2875,76 @@ export class WechatConversationService {
       this.matchesFilter(log.xpertId, filters.xpertId) &&
       this.matchesFilter(log.conversationId, filters.conversationId)
     )
+  }
+
+  private filterMessageDisplayLogs(logs: WechatMessageLogEntity[]): WechatMessageLogEntity[] {
+    const hiddenIds = new Set<string>()
+    const fileLogByKey = new Map<string, WechatMessageLogEntity>()
+    for (const log of logs) {
+      if (this.isDuplicateFileEventLog(log)) {
+        hiddenIds.add(log.id)
+        continue
+      }
+      const key = this.duplicateFileDisplayKey(log)
+      if (!key) {
+        continue
+      }
+      const existing = fileLogByKey.get(key)
+      if (!existing) {
+        fileLogByKey.set(key, log)
+        continue
+      }
+      const preferIncoming = this.fileDisplayLogScore(log) >= this.fileDisplayLogScore(existing)
+      hiddenIds.add(preferIncoming ? existing.id : log.id)
+      if (preferIncoming) {
+        fileLogByKey.set(key, log)
+      }
+    }
+    return logs.filter((log) => !hiddenIds.has(log.id))
+  }
+
+  private isDuplicateFileEventLog(log: WechatMessageLogEntity): boolean {
+    return log.direction === 'inbound' && log.status === 'skipped' && log.error === 'duplicate_file_event'
+  }
+
+  private duplicateFileDisplayKey(log: WechatMessageLogEntity): string {
+    if (log.direction !== 'inbound') {
+      return ''
+    }
+    const content = normalizeString(log.content)
+    const payloadSummary = normalizeString(log.payloadSummary)
+    if (!this.looksLikeFileMessageLog(content, payloadSummary)) {
+      return ''
+    }
+    const createdAt = this.normalizeDate(log.createdAt)?.getTime() ?? 0
+    const timeBucket = createdAt > 0 ? Math.floor(createdAt / 30_000) : ''
+    return [
+      log.integrationId,
+      log.uuid,
+      log.contactId,
+      log.senderId || '',
+      content.toLowerCase(),
+      timeBucket
+    ].join('|')
+  }
+
+  private looksLikeFileMessageLog(content: string, payloadSummary: string): boolean {
+    return (
+      /\[文件\]/i.test(content) ||
+      /<appmsg\b/i.test(payloadSummary) ||
+      /mediaSignature["']?\s*[:=]\s*["']?file:/i.test(payloadSummary) ||
+      /\.(docx?|xlsx?|pptx?|pdf|txt|csv|zip|rar|7z)\b/i.test(content)
+    )
+  }
+
+  private fileDisplayLogScore(log: WechatMessageLogEntity): number {
+    const payloadSummary = normalizeString(log.payloadSummary)
+    return [
+      log.status === 'dispatched',
+      /<appattach\b/i.test(payloadSummary),
+      /attachid|cdnattachurl|aeskey/i.test(payloadSummary),
+      payloadSummary.length > 0
+    ].reduce<number>((score, value) => score + (value ? 1 : 0), 0)
   }
 
   private matchesTunnelClientFilters(
@@ -2957,4 +3182,24 @@ export class WechatConversationService {
       ? 'A new conversation has started. Please continue sending your message.'
       : '已开启新会话，请继续发送消息。'
   }
+}
+
+function isOutboundPausedError(error?: string): boolean {
+  return typeof error === 'string' && /^outbound_(account|contact)_paused:/.test(error)
+}
+
+function describeOutboundPausedReason(reason?: string): string {
+  if (reason === 'outbound_account_paused:failure_guard') {
+    return '该微信账号出站已因连续发送失败自动暂停。请先确认 wx2.0 服务、Token、账号在线状态和网络已恢复，再在队列页恢复账号出站后重发。'
+  }
+  if (reason === 'outbound_account_paused:manual') {
+    return '该微信账号出站已手动暂停。请先在队列页恢复账号出站后重发。'
+  }
+  if (typeof reason === 'string' && reason.startsWith('outbound_account_paused:')) {
+    return `该微信账号出站已暂停（${reason.replace('outbound_account_paused:', '')}）。请先恢复账号出站后重发。`
+  }
+  if (typeof reason === 'string' && reason.startsWith('outbound_contact_paused:')) {
+    return `该联系人出站已暂停（${reason.replace('outbound_contact_paused:', '')}）。请先恢复后重发。`
+  }
+  return reason || '微信出站已暂停，请先恢复后重发。'
 }

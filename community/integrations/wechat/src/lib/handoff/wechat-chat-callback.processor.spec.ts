@@ -76,7 +76,8 @@ describe('WechatChatCallbackProcessor', () => {
     const conversationService = {
       setConversation: jest.fn(async () => undefined),
       logOutbound: jest.fn(async () => undefined),
-      markInboundCallbackFailed: jest.fn(async () => undefined)
+      markInboundCallbackFailed: jest.fn(async () => undefined),
+      markInboundConversationAttached: jest.fn(async () => undefined)
     }
     const runStateService = new MemoryRunStateService()
     const processor = new WechatChatCallbackProcessor(
@@ -132,6 +133,11 @@ describe('WechatChatCallbackProcessor', () => {
       source: 'agent_callback'
     })
     expect(conversationService.setConversation).not.toHaveBeenCalled()
+    expect(conversationService.markInboundConversationAttached).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conversation-1'
+      })
+    )
     expect(conversationService.logOutbound).not.toHaveBeenCalled()
     await expect(runStateService.get(sourceMessageId)).resolves.toBeNull()
   })

@@ -50,6 +50,8 @@ describe('WechatConversationService duplicate detection', () => {
       } as any,
       {} as any,
       { count } as any,
+      {} as any,
+      {} as any,
       {} as any
     )
   }
@@ -345,7 +347,44 @@ describe('WechatConversationService fresh session history context', () => {
           durationMs: 1000
         }
       }),
+      downloadFile: jest.fn().mockResolvedValue({
+        success: true,
+        file: {
+          data: Buffer.from('docx-bytes'),
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          originalName: '技术实现文档.docx',
+          fileKey: 'file-key-1',
+          size: 9,
+          extension: 'docx'
+        }
+      }),
       ...overrides.wechatClient
+    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn().mockResolvedValue({
+        name: '技术实现文档.docx',
+        filePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        fileUrl: 'https://files.example/files/wechat/技术实现文档.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: 9
+      }),
+      understandFile: jest.fn().mockResolvedValue({
+        id: 'file-asset-1',
+        fileId: 'file-asset-1',
+        fileAssetId: 'file-asset-1',
+        filePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+        fileUrl: 'https://files.example/files/wechat/技术实现文档.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        originalName: '技术实现文档.docx',
+        name: '技术实现文档.docx',
+        size: 9,
+        status: 'parsing',
+        parseStatus: 'queued',
+        capabilities: ['preview', 'workspace']
+      }),
+      ...overrides.workspaceFiles
     }
     const speechToTextPermissionService = {
       transcribe: jest.fn().mockResolvedValue({
@@ -365,17 +404,47 @@ describe('WechatConversationService fresh session history context', () => {
       findOne: jest.fn().mockResolvedValue(null),
       createQueryBuilder: jest.fn(() => createQueryBuilder())
     }
+    const messageFileRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(async (payload) => ({
+        id: 'message-file-1',
+        createdAt,
+        ...payload
+      })),
+      update: jest.fn().mockResolvedValue(undefined),
+      ...overrides.messageFileRepository
+    }
+    const wechatChannel = {
+      sendTextByIntegrationId: jest.fn().mockResolvedValue({ success: true, queued: true }),
+      sendImageByIntegrationId: jest.fn().mockResolvedValue({ success: true, queued: true }),
+      ...overrides.wechatChannel
+    }
+    const outboundQueue = {
+      getOutboundAccountPausedReason: jest.fn().mockResolvedValue(null),
+      ...overrides.outboundQueue
+    }
     const service = new WechatConversationService(
-      {} as any,
+      wechatChannel as any,
       wechatClient as any,
       triggerStrategy as any,
       tunnelBroker as any,
       accountRepository as any,
       messageLogRepository as any,
+      messageFileRepository as any,
+      outboundQueue as any,
       {
-        resolve: jest.fn((token) =>
-          token === SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN ? speechToTextPermissionService : integrationPermissionService
-        )
+        resolve: jest.fn((token) => {
+          if (token === SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN) {
+            return speechToTextPermissionService
+          }
+          if (token === 'XPERT_RUNTIME_CAPABILITIES') {
+            return {
+              get: jest.fn((key) => (key === 'platform.workspace.files' ? workspaceFiles : undefined))
+            }
+          }
+          return integrationPermissionService
+        })
       } as any
     )
 
@@ -386,8 +455,12 @@ describe('WechatConversationService fresh session history context', () => {
       wechatClient,
       tunnelBroker,
       speechToTextPermissionService,
+      workspaceFiles,
+      wechatChannel,
+      outboundQueue,
       accountRepository,
       messageLogRepository,
+      messageFileRepository,
       ...overrides
     }
   }
@@ -636,6 +709,59 @@ describe('WechatConversationService fresh session history context', () => {
     expect(tunnelBroker.getStatus).toHaveBeenCalledWith('integration-1', expect.objectContaining({
       clientName: 'My WeChat'
     }))
+  })
+
+  it('adds outbound pause state to account workbench rows only when the queue guard is paused', async () => {
+    const { service, accountRepository, outboundQueue } = createFullService({
+      outboundQueue: {
+        getOutboundAccountPausedReason: jest.fn(async (_integrationId: string, uuid: string) =>
+          uuid === 'uuid-paused' ? 'outbound_account_paused:failure_guard' : null
+        )
+      }
+    })
+    accountRepository.find.mockResolvedValueOnce([
+      {
+        id: 'account-1',
+        integrationId: 'integration-1',
+        uuid: 'uuid-paused',
+        ownerWxid: 'wxid_owner',
+        status: 'online',
+        enabled: true,
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      },
+      {
+        id: 'account-2',
+        integrationId: 'integration-1',
+        uuid: 'uuid-ready',
+        ownerWxid: 'wxid_owner_2',
+        status: 'offline',
+        enabled: true,
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      }
+    ])
+
+    const result = await service.listAccounts('integration-1')
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        uuid: 'uuid-paused',
+        outboundPausedReason: 'outbound_account_paused:failure_guard'
+      }),
+      expect.objectContaining({
+        uuid: 'uuid-ready',
+        outboundPausedReason: null
+      })
+    ])
+    expect(outboundQueue.getOutboundAccountPausedReason).toHaveBeenCalledWith('integration-1', 'uuid-paused', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
+    expect(outboundQueue.getOutboundAccountPausedReason).toHaveBeenCalledWith('integration-1', 'uuid-ready', {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
   })
 
   it('builds callback config with complete sidecar JSON from the integration id', async () => {
@@ -975,7 +1101,7 @@ describe('WechatConversationService fresh session history context', () => {
     )
   })
 
-  it('downloads inbound images and dispatches them as files with empty input', async () => {
+  it('passes inbound images as pending files before aggregation materialization', async () => {
     const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService()
     const imageRef = {
       uuid: 'uuid-1',
@@ -1014,12 +1140,7 @@ describe('WechatConversationService fresh session history context', () => {
       )
     ).resolves.toEqual({ handled: true, reason: 'dispatched' })
 
-    expect(wechatClient.downloadImage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'integration-1'
-      }),
-      imageRef
-    )
+    expect(wechatClient.downloadImage).not.toHaveBeenCalled()
     expect(messageLogRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         direction: 'inbound',
@@ -1030,19 +1151,90 @@ describe('WechatConversationService fresh session history context', () => {
     expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         input: '',
-        files: [
-          {
-            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
-            url: 'data:image/png;base64,iVBORw0KGgo=',
-            mimeType: 'image/png',
-            mimetype: 'image/png',
-            originalName: 'wechat-image.png',
-            name: 'wechat-image.png',
-            fileKey: 'file-key-1',
-            size: 8,
-            extension: 'png'
-          }
+        files: undefined,
+        pendingFiles: [
+          expect.objectContaining({
+            kind: 'image',
+            messageLogId: 'inbound-log-1',
+            messageId: 'img-msg-1',
+            imageRef
+          })
         ]
+      })
+    )
+  })
+
+  it('passes inbound files as pending refs without downloading before aggregation', async () => {
+    const { service, triggerStrategy, wechatClient, workspaceFiles, messageLogRepository } = createFullService()
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-1',
+      msgContent:
+        '<msg><appmsg><title><![CDATA[技术实现文档.docx]]></title><type>74</type><appattach><totallen>9</totallen><attachid><![CDATA[file-key-1]]></attachid><fileext><![CDATA[docx]]></fileext></appattach></appmsg></msg>',
+      msgType: 49,
+      fromUser: 'wxid_friend',
+      toUser: 'wxid_owner',
+      msgId: 126,
+      isSelf: false,
+      fileKey: 'file-key-1',
+      attachId: 'file-key-1',
+      originalName: '技术实现文档.docx',
+      extension: 'docx',
+      size: 9
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'file-msg-1',
+          msgType: 49,
+          messageKind: 'file',
+          content: fileRef.msgContent,
+          displayText: '技术实现文档.docx',
+          fileRef,
+          mediaSignature: 'file:uuid-1:126:49:wxid_friend:wxid_friend:wxid_owner'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(wechatClient.downloadFile).not.toHaveBeenCalled()
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.understandFile).not.toHaveBeenCalled()
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '',
+        files: undefined,
+        pendingFiles: [
+          expect.objectContaining({
+            kind: 'file',
+            messageLogId: 'inbound-log-1',
+            messageId: 'file-msg-1',
+            originalName: '技术实现文档.docx',
+            size: 9,
+            extension: 'docx',
+            fileRef
+          })
+        ],
+        item: expect.objectContaining({
+          input: '',
+          messageKind: 'file'
+        })
+      })
+    )
+    expect(JSON.stringify(triggerStrategy.handleInboundMessage.mock.calls[0][0])).not.toContain('data:')
+    expect(JSON.stringify(triggerStrategy.handleInboundMessage.mock.calls[0][0])).not.toContain('docx-bytes')
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'dispatched',
+        error: undefined
       })
     )
   })
@@ -1142,10 +1334,7 @@ describe('WechatConversationService fresh session history context', () => {
       )
     ).resolves.toEqual({ handled: true, reason: 'queued' })
 
-    expect(wechatClient.downloadImage).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'integration-1' }),
-      imageRef
-    )
+    expect(wechatClient.downloadImage).not.toHaveBeenCalled()
     expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         input: '',
@@ -1159,10 +1348,13 @@ describe('WechatConversationService fresh session history context', () => {
           groupTriggerMode: 'mentions',
           mentionFallbackNames: ['小白龙']
         }),
-        files: [
+        files: undefined,
+        pendingFiles: [
           expect.objectContaining({
-            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
-            fileKey: 'file-key-1'
+            kind: 'image',
+            messageLogId: 'inbound-log-1',
+            messageId: 'img-msg-debounced',
+            imageRef
           })
         ]
       })
@@ -1176,8 +1368,8 @@ describe('WechatConversationService fresh session history context', () => {
     )
   })
 
-  it('marks inbound image logs failed and skips Agent dispatch when download fails', async () => {
-    const { service, triggerStrategy, messageLogRepository } = createFullService({
+  it('does not download inbound images before dispatching pending refs to the trigger strategy', async () => {
+    const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService({
       wechatClient: {
         downloadImage: jest.fn().mockResolvedValue({
           success: false,
@@ -1210,17 +1402,28 @@ describe('WechatConversationService fresh session history context', () => {
           organizationId: 'org-1'
         } as any
       )
-    ).resolves.toEqual({ handled: false, reason: 'image_download_failed' })
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
 
-    expect(triggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+    expect(wechatClient.downloadImage).not.toHaveBeenCalled()
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pendingFiles: [
+          expect.objectContaining({
+            kind: 'image',
+            messageLogId: 'inbound-log-1',
+            messageId: 'img-msg-2'
+          })
+        ]
+      })
+    )
     expect(messageLogRepository.update).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'inbound-log-1'
       }),
       expect.objectContaining({
-        status: 'failed',
+        status: 'dispatched',
         xpertId: 'xpert-1',
-        error: expect.stringContaining('inbound_image_download_failed')
+        error: undefined
       })
     )
   })
@@ -1770,6 +1973,63 @@ describe('WechatConversationService fresh session history context', () => {
     expect(context).toContain('Agent: 上一轮 Agent 回复')
   })
 
+  it('adds historical file index cards to history context', async () => {
+    const query = createQueryBuilder([
+      {
+        id: 'inbound-file-log-1',
+        direction: 'inbound',
+        status: 'dispatched',
+        senderId: 'wxid_friend',
+        content: '分析这个文档',
+        createdAt: new Date('2026-06-16T02:58:00.000Z')
+      }
+    ])
+    const { service, messageLogRepository, messageFileRepository } = createFullService({
+      messageFileRepository: {
+        find: jest.fn().mockResolvedValue([
+          {
+            id: 'message-file-1',
+            messageLogId: 'inbound-file-log-1',
+            fileAssetId: 'file-asset-1',
+            fileId: 'file-asset-1',
+            workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx',
+            originalName: '技术实现文档.docx',
+            status: 'ready',
+            createdAt: new Date('2026-06-16T02:58:01.000Z')
+          }
+        ])
+      }
+    })
+    messageLogRepository.createQueryBuilder.mockReturnValueOnce(query)
+
+    const context = await (service as any).buildHistoryContext({
+      integrationId: 'integration-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      limit: 20,
+      timeoutSeconds: 3600,
+      before: createdAt,
+      scope: {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      }
+    })
+
+    expect(messageFileRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          messageLogId: expect.anything(),
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        })
+      })
+    )
+    expect(context).toContain('历史文件: 技术实现文档.docx')
+    expect(context).toContain('fileAssetId=file-asset-1')
+    expect(context).toContain('workspacePath=files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx')
+    expect(context).toContain('workspace_list、file_search、file_read 或 workspace_read')
+  })
+
   it('does not add a history time filter when historyContextWindowSeconds is 0', async () => {
     const query = createQueryBuilder([])
     const { service, messageLogRepository } = createFullService()
@@ -1801,5 +2061,54 @@ describe('WechatConversationService fresh session history context', () => {
     ).resolves.toBeUndefined()
 
     expect(messageLogRepository.createQueryBuilder).not.toHaveBeenCalled()
+  })
+
+  it('does not create another failed outbound log when resend is blocked by account pause', async () => {
+    const { service, wechatChannel, messageLogRepository } = createFullService({
+      wechatChannel: {
+        sendTextByIntegrationId: jest.fn().mockResolvedValue({
+          success: false,
+          error: 'outbound_account_paused:failure_guard'
+        })
+      }
+    })
+    messageLogRepository.findOne.mockResolvedValueOnce({
+      id: 'outbound-1',
+      integrationId: 'integration-1',
+      uuid: 'uuid-1',
+      ownerWxid: 'wxid_bot',
+      contactId: 'wxid_friend',
+      senderId: 'wxid_friend',
+      senderName: 'Friend',
+      chatType: 'private',
+      direction: 'outbound',
+      status: 'failed',
+      content: 'hello',
+      payloadSummary: JSON.stringify({
+        type: 'text',
+        source: 'agent_callback',
+        atUsers: []
+      }),
+      xpertId: 'xpert-1',
+      conversationId: 'conversation-1',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
+
+    const result = await service.resendOutboundMessage('integration-1', 'outbound-1')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('连续发送失败自动暂停')
+    expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: 'hello',
+        source: 'resend'
+      })
+    )
+    expect(messageLogRepository.save).not.toHaveBeenCalled()
   })
 })

@@ -139,4 +139,70 @@ describe('WechatChatDispatchService', () => {
     expect(message.headers).not.toHaveProperty('conversationId')
     expect(message.headers).not.toHaveProperty('userId')
   })
+
+  it('keeps workspace-backed file asset handles without requiring data urls', async () => {
+    const runStateService = {
+      save: jest.fn().mockResolvedValue(undefined)
+    }
+    const service = new WechatChatDispatchService(
+      runStateService as unknown as WechatChatRunStateService,
+      { resolve: jest.fn(() => ({ enqueue: jest.fn() })) } as any
+    )
+    const wechatMessage = new WechatMessage(
+      {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        wechatChannel: {} as any
+      },
+      {
+        messageId: 'msg-file-1',
+        status: 'thinking',
+        language: 'zh-Hans'
+      }
+    )
+
+    const message = await service.buildDispatchMessage({
+      xpertId: 'xpert-1',
+      input: '这讲的什么内容',
+      files: [
+        {
+          id: 'asset-1',
+          fileId: 'asset-1',
+          fileAssetId: 'asset-1',
+          filePath: 'files/wechat/integration-1/uuid-1/msg-file-1/doc.docx',
+          workspacePath: 'files/wechat/integration-1/uuid-1/msg-file-1/doc.docx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          originalName: '技术实现文档.docx',
+          size: 22900,
+          extension: 'docx'
+        }
+      ],
+      wechatMessage,
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    })
+
+    const requestFiles = (message.payload as any).request.message.input.files
+    const stateFiles = (message.payload as any).request.state.human.files
+    expect(requestFiles).toEqual([
+      expect.objectContaining({
+        id: 'asset-1',
+        fileId: 'asset-1',
+        fileAssetId: 'asset-1',
+        filePath: 'files/wechat/integration-1/uuid-1/msg-file-1/doc.docx',
+        workspacePath: 'files/wechat/integration-1/uuid-1/msg-file-1/doc.docx',
+        originalName: '技术实现文档.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: 22900,
+        extension: 'docx'
+      })
+    ])
+    expect(stateFiles).toEqual(requestFiles)
+    expect(JSON.stringify((message.payload as any).request)).not.toContain('data:')
+    expect(requestFiles[0]).not.toHaveProperty('fileUrl')
+    expect(requestFiles[0]).not.toHaveProperty('url')
+  })
 })
