@@ -188,6 +188,44 @@ describe('wechat inbound normalization', () => {
         rawText: expect.stringContaining('暗梅幽闻花')
       })
     )
+
+    const inviteTextEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      chattype: 'room',
+      content: '"牛作用"邀请"老姜 文旅"加入了群聊',
+      newmsgid: 'join-4',
+      msgtype: 10000,
+      isself: false
+    })
+
+    expect(resolveWechatGroupJoinWelcomeInfo(inviteTextEvent)).toEqual({
+      names: ['老姜 文旅'],
+      rawText: '"牛作用"邀请"老姜 文旅"加入了群聊'
+    })
+
+    const inviteXmlEvent = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      fromusername: 'room@chatroom',
+      chattype: 'room',
+      content:
+        '<sysmsg type="sysmsgtemplate"><sysmsgtemplate><content_template><template><![CDATA["$inviter$"邀请"$invitee$"加入了群聊]]></template><link_list><link name="inviter" type="link_profile"><memberlist><member><username><![CDATA[wxid_inviter]]></username><nickname><![CDATA[牛作用]]></nickname></member></memberlist></link><link name="invitee" type="link_profile"><memberlist><member><username><![CDATA[wxid_invitee]]></username><nickname><![CDATA[老姜 文旅]]></nickname></member></memberlist></link></link_list></content_template></sysmsgtemplate></sysmsg>',
+      pushcontent: '"牛作用"邀请"老姜 文旅"加入了群聊',
+      newmsgid: 'join-5',
+      msgtype: 10000,
+      isself: false
+    })
+
+    expect(resolveWechatGroupJoinWelcomeInfo(inviteXmlEvent)).toEqual(
+      expect.objectContaining({
+        names: ['老姜 文旅'],
+        rawText: expect.stringContaining('邀请')
+      })
+    )
   })
 
   it('does not treat unrelated system messages as group-join welcomes', () => {
