@@ -40,6 +40,7 @@ export interface WechatTriggerAggregationState {
   currentInboundLogIds?: string[]
   duplicateInboundLogIds?: string[]
   historyContext?: string
+  agentCallbackIntermediateTextEnabled?: boolean
   fileMaterializeRetryCount?: number
   fileMaterializeLastError?: string
   lastMessageAt: number
@@ -60,6 +61,7 @@ export interface WechatTriggerAggregatePayload extends Record<string, unknown> {
   files?: WechatInboundFile[]
   pendingFiles?: WechatPendingInboundFile[]
   historyContext?: string
+  agentCallbackIntermediateTextEnabled?: boolean
   currentInboundLogIds?: string[]
   summaryWindowSeconds: number
   sessionTimeoutSeconds: number

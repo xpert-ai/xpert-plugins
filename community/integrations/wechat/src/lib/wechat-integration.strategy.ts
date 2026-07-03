@@ -216,6 +216,18 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
           enum: ['en', 'zh-Hans'],
           default: 'zh-Hans'
         },
+        agentCallbackIntermediateTextEnabled: {
+          type: 'boolean',
+          title: {
+            en_US: 'Send Intermediate Agent Messages',
+            zh_Hans: '发送 Agent 中间消息'
+          },
+          description: {
+            en_US: 'When enabled, visible assistant messages produced before tool calls are sent to WeChat before the final reply.',
+            zh_Hans: '开启后，Agent 工具调用前已经生成的可见消息会先作为微信消息发送。'
+          },
+          default: false
+        },
         fallbackToLegacySendText: {
           type: 'boolean',
           title: {
@@ -402,6 +414,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
 
     config.apiVersion = normalizeApiVersion(config.apiVersion)
     config.timeoutMs = normalizeTimeoutMs(config.timeoutMs)
+    config.agentCallbackIntermediateTextEnabled = config.agentCallbackIntermediateTextEnabled === true
     config.fallbackToLegacySendText = config.fallbackToLegacySendText !== false
     config.fallbackToLegacySendImage = config.fallbackToLegacySendImage !== false
     config.outboundQueue = {

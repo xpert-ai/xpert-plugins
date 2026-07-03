@@ -142,6 +142,295 @@ describe('WechatChatCallbackProcessor', () => {
     await expect(runStateService.get(sourceMessageId)).resolves.toBeNull()
   })
 
+  it('keeps default final_text strategy from sending intermediate message text', async () => {
+    const { processor, wechatChannel } = createProcessor()
+    const sourceMessageId = 'wechat-chat-run-final-only'
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'text', id: 'stream-1', text: '我先查一下。' }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 2,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'component', data: { name: 'wechat_search_chat_history' } }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: { kind: 'complete', sourceMessageId, sequence: 3 } } as any, {} as any)
+
+    expect(wechatChannel.sendTextByIntegrationId).not.toHaveBeenCalled()
+    expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        content: '我先查一下。'
+      })
+    )
+  })
+
+  it('sends visible assistant text before a tool boundary as an intermediate WeChat text message', async () => {
+    const { processor, wechatChannel, runStateService } = createProcessor()
+    const sourceMessageId = 'wechat-chat-run-intermediate'
+    const intermediateContext = {
+      ...context,
+      responseStrategy: 'intermediate_text' as const
+    }
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context: intermediateContext,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'text', id: 'stream-1', text: '我先查一下。' }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 2,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'component', data: { name: 'wechat_search_chat_history' } }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 3,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'text', id: 'stream-2', text: '查到了结果。' }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 4,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.EVENT,
+              event: ChatMessageEventTypeEnum.ON_MESSAGE_END,
+              data: {
+                content: '我先查一下。查到了结果。'
+              }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: { kind: 'complete', sourceMessageId, sequence: 5 } } as any, {} as any)
+
+    expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledTimes(1)
+    expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledWith('integration-1', {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      content: '我先查一下。',
+      context: expect.objectContaining({
+        responseStrategy: 'intermediate_text'
+      }),
+      source: 'agent_callback',
+      idempotencyKey: `${sourceMessageId}:intermediate:1`
+    })
+    expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith('integration-1', {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      content: '查到了结果。',
+      context: expect.objectContaining({
+        responseStrategy: 'intermediate_text'
+      }),
+      source: 'agent_callback'
+    })
+    await expect(runStateService.get(sourceMessageId)).resolves.toBeNull()
+  })
+
+  it('does not resend an intermediate segment for duplicate callback sequences', async () => {
+    const { processor, wechatChannel } = createProcessor()
+    const sourceMessageId = 'wechat-chat-run-intermediate-duplicate'
+    const intermediateContext = {
+      ...context,
+      responseStrategy: 'intermediate_text' as const
+    }
+    const toolBoundaryPayload = {
+      kind: 'stream',
+      sourceMessageId,
+      sequence: 2,
+      event: {
+        data: {
+          type: ChatMessageTypeEnum.MESSAGE,
+          data: { type: 'component', data: { name: 'tool' } }
+        }
+      }
+    }
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context: intermediateContext,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'text', id: 'stream-1', text: '处理中。' }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: toolBoundaryPayload } as any, {} as any)
+    await processor.process({ payload: toolBoundaryPayload } as any, {} as any)
+
+    expect(wechatChannel.sendTextByIntegrationId).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send reasoning or component-only payloads as intermediate text', async () => {
+    const { processor, wechatChannel } = createProcessor()
+    const sourceMessageId = 'wechat-chat-run-intermediate-non-text'
+    const intermediateContext = {
+      ...context,
+      responseStrategy: 'intermediate_text' as const
+    }
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context: intermediateContext,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: [
+                { type: 'reasoning', id: 'reasoning-1', text: '内部推理' },
+                { type: 'component', data: { name: 'tool' } }
+              ]
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: { kind: 'complete', sourceMessageId, sequence: 2 } } as any, {} as any)
+
+    expect(wechatChannel.sendTextByIntegrationId).not.toHaveBeenCalled()
+    expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()
+  })
+
+  it('logs directly sent intermediate text when the queue is disabled', async () => {
+    const { processor, wechatChannel, conversationService } = createProcessor()
+    const sourceMessageId = 'wechat-chat-run-intermediate-direct'
+    const intermediateContext = {
+      ...context,
+      responseStrategy: 'intermediate_text' as const
+    }
+    ;(wechatChannel.sendTextByIntegrationId as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      queued: false,
+      messageId: 'intermediate-1'
+    })
+
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 1,
+          context: intermediateContext,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.MESSAGE,
+              data: { type: 'text', id: 'stream-1', text: '马上处理。' }
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process(
+      {
+        payload: {
+          kind: 'stream',
+          sourceMessageId,
+          sequence: 2,
+          event: {
+            data: {
+              type: ChatMessageTypeEnum.EVENT,
+              event: ChatMessageEventTypeEnum.ON_TOOL_START
+            }
+          }
+        }
+      } as any,
+      {} as any
+    )
+    await processor.process({ payload: { kind: 'complete', sourceMessageId, sequence: 3 } } as any, {} as any)
+
+    expect(conversationService.logOutbound).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '马上处理。',
+        status: 'sent',
+        messageId: 'intermediate-1',
+        payloadSummary: JSON.stringify({
+          type: 'text',
+          source: 'agent_callback',
+          phase: 'intermediate',
+          idempotencyKey: `${sourceMessageId}:intermediate:1`
+        })
+      })
+    )
+    expect(wechatChannel.sendReplyByIntegrationId).not.toHaveBeenCalled()
+  })
+
   it('logs every directly sent mixed reply part when the queue is disabled', async () => {
     const { processor, wechatChannel, conversationService } = createProcessor()
     const sourceMessageId = 'wechat-chat-run-2'

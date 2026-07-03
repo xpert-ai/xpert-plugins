@@ -64,6 +64,7 @@ export interface TIntegrationWechatOptions {
   timeoutMs?: number
   apiToken?: string
   preferLanguage?: 'en' | 'zh-Hans'
+  agentCallbackIntermediateTextEnabled?: boolean
   webhookCredential?: WechatWebhookCredentialRecord | null
   fallbackToLegacySendText?: boolean
   fallbackToLegacySendImage?: boolean

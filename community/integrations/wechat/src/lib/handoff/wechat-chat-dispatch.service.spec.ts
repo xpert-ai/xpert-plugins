@@ -105,6 +105,7 @@ describe('WechatChatDispatchService', () => {
       'inbound-log-1',
       'inbound-log-2'
     ])
+    expect((message.payload as any).callback.context.responseStrategy).toBe('final_text')
     expect((message.payload as any).callback.context.message.id).toBe('inbound-log-1')
     expect((message.payload as any).options).toEqual(
       expect.objectContaining({
@@ -204,5 +205,50 @@ describe('WechatChatDispatchService', () => {
     expect(JSON.stringify((message.payload as any).request)).not.toContain('data:')
     expect(requestFiles[0]).not.toHaveProperty('fileUrl')
     expect(requestFiles[0]).not.toHaveProperty('url')
+  })
+
+  it('enables intermediate_text callback strategy from WeChat integration options', async () => {
+    const runStateService = {
+      save: jest.fn().mockResolvedValue(undefined)
+    }
+    const service = new WechatChatDispatchService(
+      runStateService as unknown as WechatChatRunStateService,
+      { resolve: jest.fn(() => ({ enqueue: jest.fn() })) } as any
+    )
+    const wechatMessage = new WechatMessage(
+      {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        wechatChannel: {} as any
+      },
+      {
+        messageId: 'msg-1',
+        status: 'thinking',
+        language: 'zh-Hans'
+      }
+    )
+
+    const message = await service.buildDispatchMessage({
+      xpertId: 'xpert-1',
+      input: '你好',
+      wechatMessage,
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      integrationOptions: {
+        agentCallbackIntermediateTextEnabled: true
+      }
+    })
+
+    expect((message.payload as any).callback.context.responseStrategy).toBe('intermediate_text')
+    expect(runStateService.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          responseStrategy: 'intermediate_text'
+        })
+      })
+    )
   })
 })

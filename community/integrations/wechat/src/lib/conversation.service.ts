@@ -584,7 +584,10 @@ export class WechatConversationService {
         currentInboundLogIds: [inboundLog.id],
         tenantId: integration.tenantId || ctx.tenantId,
         organizationId: integration.organizationId || ctx.organizationId,
-        endUserId: conversationIdentity.senderId
+        endUserId: conversationIdentity.senderId,
+        integrationOptions: {
+          agentCallbackIntermediateTextEnabled: integration.options?.agentCallbackIntermediateTextEnabled === true
+        }
       })
       const handleResult = this.normalizeInboundHandleResult(handled)
 

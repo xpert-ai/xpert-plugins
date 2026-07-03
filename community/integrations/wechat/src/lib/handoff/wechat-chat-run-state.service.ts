@@ -9,6 +9,14 @@ export interface WechatChatRunState {
   sourceMessageId: string
   nextSequence: number
   responseMessageContent: string
+  responseTextStreamId?: string
+  pendingFinalTextContent?: string
+  pendingFinalTextStreamId?: string
+  currentTextSegmentContent?: string
+  currentTextSegmentStreamId?: string
+  sentIntermediateTextContent?: string
+  nextIntermediateSegmentIndex?: number
+  hasIntermediateTextSent?: boolean
   finalMessageContent?: string
   terminalError?: string
   runCreatedAt: number

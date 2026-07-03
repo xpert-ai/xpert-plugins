@@ -12,7 +12,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { WechatMessage } from '../message.js'
 import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
-import type { WechatInboundFile } from '../types.js'
+import type { TIntegrationWechatOptions, WechatInboundFile } from '../types.js'
 import {
   WECHAT_CHAT_CALLBACK_MESSAGE_TYPE,
   WechatChatCallbackContext
@@ -31,6 +31,7 @@ export type WechatChatDispatchInput = {
   organizationId?: string
   endUserId?: string
   currentInboundLogIds?: string[]
+  integrationOptions?: Pick<TIntegrationWechatOptions, 'agentCallbackIntermediateTextEnabled'>
 }
 
 @Injectable()
@@ -77,6 +78,9 @@ export class WechatChatDispatchService {
     const language = (wechatMessage.language || RequestContext.getLanguageCode() || 'zh-Hans') as LanguagesEnum
     const sourceMessageLogIds = this.normalizeInboundLogIds(currentInboundLogIds) ?? []
     const runtimeContext = this.buildRuntimeContext(wechatMessage, sourceMessageLogIds, conversationUserKey)
+    const responseStrategy = input.integrationOptions?.agentCallbackIntermediateTextEnabled === true
+      ? 'intermediate_text'
+      : 'final_text'
 
     const callbackContext: WechatChatCallbackContext = withWechatChatContextLegacyAliases({
       tenantId,
@@ -94,7 +98,7 @@ export class WechatChatDispatchService {
       chatType: wechatMessage.chatType,
       senderId: wechatMessage.senderId,
       senderName: wechatMessage.senderName,
-      responseStrategy: 'final_text',
+      responseStrategy,
       preferLanguage: language,
       conversationUserKey: conversationUserKey || undefined,
       currentInboundLogIds: sourceMessageLogIds,
