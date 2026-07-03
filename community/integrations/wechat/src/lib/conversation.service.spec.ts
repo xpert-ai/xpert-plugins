@@ -494,7 +494,36 @@ describe('WechatConversationService fresh session history context', () => {
       expect.objectContaining({
         accountUuid: 'uuid-1',
         historyContext: '[历史上下文]',
-        currentInboundLogIds: ['inbound-log-1']
+        currentInboundLogIds: ['inbound-log-1'],
+        integrationOptions: {
+          agentCallbackIntermediateTextEnabled: false
+        }
+      })
+    )
+  })
+
+  it('passes the intermediate callback option from integration config to the trigger strategy', async () => {
+    const { service, triggerStrategy } = createFullService({
+      integration: {
+        options: {
+          agentCallbackIntermediateTextEnabled: true
+        }
+      }
+    })
+
+    await expect(
+      service.handleInboundEvent(baseEvent, {
+        integration: { id: 'integration-1' },
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      } as any)
+    ).resolves.toEqual({ handled: true, reason: 'dispatched' })
+
+    expect(triggerStrategy.handleInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integrationOptions: {
+          agentCallbackIntermediateTextEnabled: true
+        }
       })
     )
   })

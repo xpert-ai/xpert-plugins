@@ -30,7 +30,7 @@ export interface WechatChatCallbackContext extends Record<string, unknown> {
   chatType?: 'private' | 'group'
   senderId?: string
   senderName?: string
-  responseStrategy?: 'final_text'
+  responseStrategy?: 'final_text' | 'intermediate_text'
   preferLanguage?: string
   conversationUserKey?: string
   conversationId?: string

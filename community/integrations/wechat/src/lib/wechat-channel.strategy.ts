@@ -100,6 +100,10 @@ export class WechatChannelStrategy
         outboundQueue: {
           type: 'object',
           description: 'Redis-backed outbound queue and rate-limit settings'
+        },
+        agentCallbackIntermediateTextEnabled: {
+          type: 'boolean',
+          description: 'Send visible assistant text between agent tool calls as intermediate WeChat text messages'
         }
       },
       required: []

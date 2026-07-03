@@ -64,6 +64,7 @@ export interface TIntegrationWechatOptions {
   timeoutMs?: number
   apiToken?: string
   preferLanguage?: 'en' | 'zh-Hans'
+  agentCallbackIntermediateTextEnabled?: boolean
   webhookCredential?: WechatWebhookCredentialRecord | null
   fallbackToLegacySendText?: boolean
   fallbackToLegacySendImage?: boolean
@@ -814,23 +815,84 @@ function extractWechatSysmsgTemplateJoinNames(rawText: string): string[] {
   }
 
   const names: string[] = []
-  const adderLinkPattern = /<link\b(?=[^>]*\bname=["']adder["'])[^>]*>([\s\S]*?)<\/link>/gi
-  for (const match of source.matchAll(adderLinkPattern)) {
-    names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+  const joinLinkNames = extractWechatSysmsgTemplateJoinLinkNames(source, normalizedText)
+  for (const linkName of joinLinkNames) {
+    names.push(...extractWechatSysmsgTemplateLinkNicknames(source, linkName))
   }
 
   if (!names.length) {
-    const memberPattern = /<member\b[^>]*>([\s\S]*?)<\/member>/gi
-    for (const match of source.matchAll(memberPattern)) {
-      names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+    const adderNames = extractWechatSysmsgTemplateLinkNicknames(source, 'adder')
+    names.push(...adderNames)
+  }
+
+  if (!names.length) {
+    const memberNames = extractWechatSysmsgTemplateMemberNicknames(source)
+    if (memberNames.length === 1) {
+      names.push(...memberNames)
     }
   }
 
   return normalizeWechatMemberNames(names.join('、'))
 }
 
+function extractWechatSysmsgTemplateJoinLinkNames(source: string, normalizedText: string): string[] {
+  const templateTexts = [
+    ...extractWechatXmlElementTexts(source, 'template'),
+    ...extractWechatXmlElementTexts(source, 'plain')
+  ]
+  const texts = templateTexts.length ? templateTexts : [normalizedText]
+  const linkNames: string[] = []
+
+  for (const text of texts) {
+    const inviteMatches = text.matchAll(/(?:邀请|邀請)([\s\S]{1,160}?)(?:加入了?群聊|加入群聊)/g)
+    for (const match of inviteMatches) {
+      linkNames.push(...extractWechatTemplatePlaceholderNames(match[1]))
+    }
+  }
+
+  if (linkNames.length) {
+    return Array.from(new Set(linkNames))
+  }
+
+  for (const text of texts) {
+    const joinedMatch = text.match(/^\s*(["“'‘]?\$[^$]+\$["”'’]?)(?:通过[\s\S]{0,80})?(?:加入了?群聊|加入群聊)/)
+    if (joinedMatch) {
+      linkNames.push(...extractWechatTemplatePlaceholderNames(joinedMatch[1]))
+    }
+  }
+
+  return Array.from(new Set(linkNames))
+}
+
+function extractWechatTemplatePlaceholderNames(value: string): string[] {
+  const names: string[] = []
+  for (const match of value.matchAll(/\$([^$\s]{1,80})\$/g)) {
+    names.push(match[1])
+  }
+  return names
+}
+
+function extractWechatSysmsgTemplateLinkNicknames(source: string, linkName: string): string[] {
+  const escapedName = escapeRegExp(linkName)
+  const linkPattern = new RegExp(`<link\\b(?=[^>]*\\bname=["']${escapedName}["'])[^>]*>([\\s\\S]*?)<\\/link>`, 'gi')
+  const names: string[] = []
+  for (const match of source.matchAll(linkPattern)) {
+    names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+  }
+  return names
+}
+
+function extractWechatSysmsgTemplateMemberNicknames(source: string): string[] {
+  const memberPattern = /<member\b[^>]*>([\s\S]*?)<\/member>/gi
+  const names: string[] = []
+  for (const match of source.matchAll(memberPattern)) {
+    names.push(...extractWechatXmlElementTexts(match[1], 'nickname'))
+  }
+  return normalizeWechatMemberNames(names.join('、'))
+}
+
 function extractWechatXmlElementTexts(xml: string, elementName: string): string[] {
-  const escapedName = elementName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  const escapedName = escapeRegExp(elementName)
   const pattern = new RegExp(`<${escapedName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedName}>`, 'gi')
   const values: string[] = []
   for (const match of xml.matchAll(pattern)) {
@@ -840,6 +902,10 @@ function extractWechatXmlElementTexts(xml: string, elementName: string): string[
     }
   }
   return values
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
 function normalizeWechatMemberNames(value: string): string[] {

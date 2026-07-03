@@ -22,6 +22,13 @@ type MessageTextContent = {
   id?: unknown
 }
 
+const TOOL_BOUNDARY_EVENTS = new Set<string>([
+  ChatMessageEventTypeEnum.ON_TOOL_START,
+  ChatMessageEventTypeEnum.ON_TOOL_END,
+  ChatMessageEventTypeEnum.ON_TOOL_ERROR,
+  ChatMessageEventTypeEnum.ON_TOOL_MESSAGE
+])
+
 function getTextStreamId(content: unknown): string | undefined {
   if (!content || typeof content !== 'object') {
     return undefined
@@ -75,6 +82,34 @@ function filterText(content: unknown): string | null {
   }
 
   return filterTextItem(content) || null
+}
+
+function isReasoningContent(content: unknown): boolean {
+  return !!content && typeof content === 'object' && (content as MessageTextContent).type === 'reasoning'
+}
+
+function isBoundaryContent(content: unknown): boolean {
+  if (!content || typeof content !== 'object') {
+    return false
+  }
+  const type = (content as MessageTextContent).type
+  return type !== 'text' && type !== 'reasoning'
+}
+
+function appendStreamText(
+  accumulator: string,
+  incoming: string,
+  previousStreamId?: string,
+  streamId?: string
+): string {
+  return appendPlainText(accumulator, incoming, !streamId || !previousStreamId || previousStreamId === streamId)
+}
+
+function removeTrailingText(value: string, suffix: string): string {
+  if (!value || !suffix) {
+    return value || ''
+  }
+  return value.endsWith(suffix) ? value.slice(0, value.length - suffix.length) : value
 }
 
 @Injectable()
@@ -169,6 +204,18 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
     if (typeof state.responseMessageContent !== 'string') {
       state.responseMessageContent = ''
     }
+    if (typeof state.pendingFinalTextContent !== 'string') {
+      state.pendingFinalTextContent = ''
+    }
+    if (typeof state.currentTextSegmentContent !== 'string') {
+      state.currentTextSegmentContent = ''
+    }
+    if (typeof state.sentIntermediateTextContent !== 'string') {
+      state.sentIntermediateTextContent = ''
+    }
+    if (!state.nextIntermediateSegmentIndex || state.nextIntermediateSegmentIndex <= 0) {
+      state.nextIntermediateSegmentIndex = 1
+    }
     if (!state.runCreatedAt || state.runCreatedAt <= 0) {
       state.runCreatedAt = Date.now()
     }
@@ -183,6 +230,11 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
       sourceMessageId,
       nextSequence: 1,
       responseMessageContent: '',
+      pendingFinalTextContent: '',
+      currentTextSegmentContent: '',
+      sentIntermediateTextContent: '',
+      nextIntermediateSegmentIndex: 1,
+      hasIntermediateTextSent: false,
       finalMessageContent: undefined,
       terminalError: undefined,
       runCreatedAt: Date.now(),
@@ -209,7 +261,7 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
 
       switch (payload.kind) {
         case 'stream': {
-          this.applyStreamEvent(state, payload.event)
+          await this.applyStreamEvent(state, payload.event)
           break
         }
         case 'complete': {
@@ -233,16 +285,20 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
     }
   }
 
-  private applyStreamEvent(state: WechatChatRunState, event: unknown): void {
+  private async applyStreamEvent(state: WechatChatRunState, event: unknown): Promise<void> {
     const eventPayload = (event as { data?: any } | undefined)?.data
     if (!eventPayload) {
       return
     }
 
     if (eventPayload.type === ChatMessageTypeEnum.MESSAGE) {
-      const text = filterText(eventPayload.data) ?? ''
-      if (text) {
-        state.responseMessageContent += text
+      if (this.isIntermediateTextStrategy(state)) {
+        await this.applyIntermediateMessageContent(state, eventPayload.data)
+      } else {
+        const text = filterText(eventPayload.data) ?? ''
+        if (text) {
+          state.responseMessageContent += text
+        }
       }
       return
     }
@@ -256,6 +312,10 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
       state.context.conversationId = conversationId
     }
 
+    if (this.isIntermediateTextStrategy(state) && TOOL_BOUNDARY_EVENTS.has(String(eventPayload.event))) {
+      await this.flushIntermediateTextSegment(state, String(eventPayload.event))
+    }
+
     if (eventPayload.event === ChatMessageEventTypeEnum.ON_MESSAGE_END) {
       const finalText = this.extractFinalMessageText(eventPayload)
       if (finalText) {
@@ -264,10 +324,124 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
     }
   }
 
+  private async applyIntermediateMessageContent(state: WechatChatRunState, content: unknown): Promise<void> {
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        await this.applyIntermediateMessageContent(state, item)
+      }
+      return
+    }
+
+    if (isReasoningContent(content)) {
+      return
+    }
+
+    const text = filterTextItem(content)
+    if (text) {
+      await this.appendIntermediateText(state, text, getTextStreamId(content))
+      return
+    }
+
+    if (isBoundaryContent(content)) {
+      await this.flushIntermediateTextSegment(state, 'component')
+    }
+  }
+
+  private async appendIntermediateText(
+    state: WechatChatRunState,
+    text: string,
+    streamId?: string
+  ): Promise<void> {
+    if (
+      streamId &&
+      state.currentTextSegmentStreamId &&
+      state.currentTextSegmentStreamId !== streamId &&
+      this.normalizeFinalText(state.currentTextSegmentContent || '')
+    ) {
+      await this.flushIntermediateTextSegment(state, 'stream_switch')
+    }
+
+    state.responseMessageContent = appendStreamText(
+      state.responseMessageContent,
+      text,
+      state.responseTextStreamId,
+      streamId
+    )
+    if (streamId) {
+      state.responseTextStreamId = streamId
+    }
+
+    state.pendingFinalTextContent = appendStreamText(
+      state.pendingFinalTextContent || '',
+      text,
+      state.pendingFinalTextStreamId,
+      streamId
+    )
+    if (streamId) {
+      state.pendingFinalTextStreamId = streamId
+    }
+
+    state.currentTextSegmentContent = appendStreamText(
+      state.currentTextSegmentContent || '',
+      text,
+      state.currentTextSegmentStreamId,
+      streamId
+    )
+    if (streamId) {
+      state.currentTextSegmentStreamId = streamId
+    }
+  }
+
+  private async flushIntermediateTextSegment(state: WechatChatRunState, reason: string): Promise<void> {
+    const context = state.context
+    const rawText = state.currentTextSegmentContent || ''
+    const content = this.normalizeFinalText(rawText)
+    state.currentTextSegmentContent = ''
+    state.currentTextSegmentStreamId = undefined
+
+    if (!content) {
+      return
+    }
+
+    const segmentIndex = state.nextIntermediateSegmentIndex || 1
+    state.nextIntermediateSegmentIndex = segmentIndex + 1
+    const idempotencyKey = `${state.sourceMessageId}:intermediate:${segmentIndex}`
+
+    try {
+      const result = await this.wechatChannel.sendTextByIntegrationId(context.integrationId, {
+        uuid: context.uuid,
+        contactId: context.contactId,
+        content,
+        context,
+        source: 'agent_callback',
+        idempotencyKey
+      })
+      await this.logIntermediateTextSendResult(context, content, result, idempotencyKey)
+
+      if (!result.success) {
+        this.logger.warn(
+          `[wechat-callback] failed to send intermediate text source=${state.sourceMessageId} integration=${context.integrationId} contact=${context.contactId} reason=${reason} error=${result.error || 'unknown'}`
+        )
+        return
+      }
+
+      state.hasIntermediateTextSent = true
+      state.sentIntermediateTextContent = `${state.sentIntermediateTextContent || ''}${rawText}`
+      state.pendingFinalTextContent = removeTrailingText(state.pendingFinalTextContent || '', rawText)
+      if (!state.pendingFinalTextContent) {
+        state.pendingFinalTextStreamId = undefined
+      }
+    } catch (error) {
+      this.logger.warn(
+        `[wechat-callback] failed to send intermediate text source=${state.sourceMessageId} integration=${context.integrationId} contact=${context.contactId} reason=${reason} error=${this.describeError(error)}`
+      )
+    }
+  }
+
   private async completeRun(state: WechatChatRunState): Promise<void> {
     const context = state.context
     await this.markInboundConversationAttached(context)
-    const finalText = this.normalizeFinalText(state.finalMessageContent || state.responseMessageContent)
+    const finalText = this.resolveFinalReplyText(state)
 
     if (!finalText) {
       this.logger.debug(
@@ -300,6 +474,57 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
     if (!result.success) {
       throw new Error(result.error || 'Failed to send WeChat reply')
     }
+  }
+
+  private resolveFinalReplyText(state: WechatChatRunState): string {
+    if (!this.isIntermediateTextStrategy(state) || !state.hasIntermediateTextSent) {
+      return this.normalizeFinalText(state.finalMessageContent || state.responseMessageContent)
+    }
+
+    const remainingFinalText = this.resolveRemainingFinalMessageText(state)
+    if (remainingFinalText) {
+      return remainingFinalText
+    }
+
+    return this.normalizeFinalText(state.pendingFinalTextContent || '')
+  }
+
+  private resolveRemainingFinalMessageText(state: WechatChatRunState): string {
+    const finalText = this.normalizeFinalText(state.finalMessageContent || '')
+    const sentText = this.normalizeFinalText(state.sentIntermediateTextContent || '')
+    if (!finalText || !sentText || !finalText.startsWith(sentText)) {
+      return ''
+    }
+    return this.normalizeFinalText(finalText.slice(sentText.length))
+  }
+
+  private async logIntermediateTextSendResult(
+    context: WechatChatCallbackContext,
+    content: string,
+    result: {
+      success: boolean
+      queued?: boolean
+      messageId?: string
+      error?: string
+    },
+    idempotencyKey: string
+  ): Promise<void> {
+    if (result.queued && result.success) {
+      return
+    }
+    await this.conversationService.logOutbound({
+      context,
+      content,
+      status: result.success ? 'sent' : 'failed',
+      messageId: result.messageId,
+      error: result.error,
+      payloadSummary: JSON.stringify({
+        type: 'text',
+        source: 'agent_callback',
+        phase: 'intermediate',
+        idempotencyKey
+      })
+    })
   }
 
   private async failRun(state: WechatChatRunState, error: unknown): Promise<void> {
@@ -374,6 +599,14 @@ export class WechatChatCallbackProcessor implements IHandoffProcessor<WechatChat
 
   private normalizeFinalText(value: string): string {
     return (value || '').replace(/\n{3,}/g, '\n\n').trim()
+  }
+
+  private isIntermediateTextStrategy(state: WechatChatRunState): boolean {
+    return state.context.responseStrategy === 'intermediate_text'
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)
   }
 
   private resolveFallbackText(language: unknown, message: string): string {

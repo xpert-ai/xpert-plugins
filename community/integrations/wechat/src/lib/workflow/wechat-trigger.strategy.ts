@@ -851,6 +851,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     wechatMessage: WechatMessage
     conversationUserKey?: string
     historyContext?: string
+    integrationOptions?: Pick<TIntegrationWechatOptions, 'agentCallbackIntermediateTextEnabled'>
     currentInboundLogIds?: string[]
     triggerOptions?: WechatInboundTriggerOptions
     tenantId: string
@@ -905,7 +906,8 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
           tenantId: params.tenantId,
           organizationId: params.organizationId,
           endUserId: params.endUserId,
-          currentInboundLogIds: params.currentInboundLogIds
+          currentInboundLogIds: params.currentInboundLogIds,
+          integrationOptions: params.integrationOptions
         }
       })
       return this.createHandleResult(true, { dispatched: true })
@@ -922,6 +924,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       files: params.files,
       pendingFiles: params.pendingFiles,
       historyContext: params.historyContext,
+      agentCallbackIntermediateTextEnabled: params.integrationOptions?.agentCallbackIntermediateTextEnabled === true,
       currentInboundLogIds: params.currentInboundLogIds,
       summaryWindowSeconds,
       sessionTimeoutSeconds: this.normalizePositiveSeconds(
@@ -998,6 +1001,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
           ...pendingFileMerge.duplicateLogIds
         ]),
         historyContext: sameRoutingTarget ? currentState?.historyContext ?? payload.historyContext : payload.historyContext,
+        agentCallbackIntermediateTextEnabled: payload.agentCallbackIntermediateTextEnabled === true,
         lastMessageAt: Date.now(),
         tenantId: payload.tenantId,
         organizationId: payload.organizationId,
@@ -1104,7 +1108,10 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         tenantId: state.tenantId,
         organizationId: state.organizationId,
         endUserId: state.endUserId,
-        currentInboundLogIds: dispatchLogIds
+        currentInboundLogIds: dispatchLogIds,
+        integrationOptions: {
+          agentCallbackIntermediateTextEnabled: state.agentCallbackIntermediateTextEnabled === true
+        }
       }
     })
 
