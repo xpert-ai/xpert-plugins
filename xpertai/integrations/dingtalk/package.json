@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-dingtalk",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -54,5 +54,10 @@
     "date-fns": "^3.0.4",
     "rxjs": "^7.8.1",
     "@langchain/langgraph": "0.4.7"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
   }
 }
