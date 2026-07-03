@@ -521,6 +521,10 @@ export class WechatOutboundQueueService {
       return { success: false, message: '该出站消息仍在队列处理中，无需重试。', item: log }
     }
     const options = this.resolveOptions(integration.options?.outboundQueue, integration.options)
+    const paused = await this.resolvePausedReason(integration.id, log.uuid, log.contactId, scope)
+    if (paused) {
+      return { success: false, message: describeOutboundPausedReason(paused), item: log }
+    }
     const scheduledAt = new Date(Date.now() + options.initialDelayMs)
     const job = await this.addSendJob(log, scheduledAt, options)
     await this.updateLog(log, {
@@ -599,6 +603,20 @@ export class WechatOutboundQueueService {
       resumed += 1
     }
     return resumed
+  }
+
+  async getOutboundAccountPausedReason(
+    integrationId: string,
+    uuid: string,
+    scope?: { tenantId?: string | null; organizationId?: string | null }
+  ): Promise<string | null> {
+    const normalizedIntegrationId = normalizeString(integrationId)
+    const normalizedUuid = normalizeString(uuid)
+    if (!normalizedIntegrationId || !normalizedUuid) {
+      return null
+    }
+    const reason = await (await this.getRedis()).get(this.accountPausedKey(normalizedIntegrationId, normalizedUuid, scope?.tenantId))
+    return reason ? `outbound_account_paused:${reason}` : null
   }
 
   private async assertCanQueue(
@@ -1179,4 +1197,20 @@ export class WechatOutboundQueueService {
   private scopePrefix(integrationId: string, tenantId?: string | null): string {
     return ['plugin_wechat', tenantId || 'tenant_global', integrationId].join(':')
   }
+}
+
+function describeOutboundPausedReason(reason: string): string {
+  if (reason === 'outbound_account_paused:failure_guard') {
+    return '该微信账号出站已因连续发送失败自动暂停。请先确认 wx2.0 服务、Token、账号在线状态和网络已恢复，再在队列页恢复账号出站后重试。'
+  }
+  if (reason === 'outbound_account_paused:manual') {
+    return '该微信账号出站已手动暂停。请先在队列页恢复账号出站后重试。'
+  }
+  if (reason.startsWith('outbound_account_paused:')) {
+    return `该微信账号出站已暂停（${reason.replace('outbound_account_paused:', '')}）。请先恢复账号出站后重试。`
+  }
+  if (reason.startsWith('outbound_contact_paused:')) {
+    return `该联系人出站已暂停（${reason.replace('outbound_contact_paused:', '')}）。请先恢复后重试。`
+  }
+  return reason
 }

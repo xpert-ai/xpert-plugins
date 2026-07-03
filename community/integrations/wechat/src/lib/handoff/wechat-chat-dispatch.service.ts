@@ -273,29 +273,54 @@ export class WechatChatDispatchService {
 
   private normalizeFile(file: WechatInboundFile): WechatInboundFile | null {
     const fileUrl = this.normalizeString(file.fileUrl) || this.normalizeString(file.url)
-    if (!fileUrl) {
+    const fileId = this.normalizeString(file.fileId)
+    const fileAssetId = this.normalizeString(file.fileAssetId)
+    const storageFileId = this.normalizeString(file.storageFileId)
+    const filePath = this.normalizeString(file.filePath)
+    const workspacePath = this.normalizeString(file.workspacePath)
+    if (!fileUrl && !fileId && !fileAssetId && !storageFileId && !filePath && !workspacePath) {
       return null
     }
 
     const mimeType = this.normalizeString(file.mimeType) || this.normalizeString(file.mimetype)
     const fileKey = this.normalizeString(file.fileKey)
-    const fileAssetId = this.normalizeString(file.fileAssetId)
-    const storageFileId = this.normalizeString(file.storageFileId)
-    const id = fileAssetId || storageFileId ? this.normalizeString(file.id) || fileAssetId || storageFileId : undefined
+    const id =
+      this.normalizeString(file.id) ||
+      fileAssetId ||
+      fileId ||
+      storageFileId ||
+      (filePath || workspacePath ? this.stableFileId(filePath || workspacePath || fileKey || 'wechat-file') : undefined)
     const extension = this.normalizeString(file.extension) || this.inferExtension(file.originalName || file.name, mimeType)
     const originalName =
       this.normalizeString(file.originalName) ||
       this.normalizeString(file.name) ||
-      `wechat-image-${fileKey || this.stableFileId(fileUrl)}${extension ? `.${extension}` : ''}`
+      this.basename(filePath || workspacePath) ||
+      `wechat-file-${fileKey || id}${extension ? `.${extension}` : ''}`
     const name = this.normalizeString(file.name) || originalName
     const size = typeof file.size === 'number' && Number.isFinite(file.size) ? file.size : undefined
-    const { id: _id, fileUrl: _fileUrl, url: _url, mimeType: _mimeType, mimetype: _mimetype, ...rest } = file
+    const {
+      id: _id,
+      fileId: _fileId,
+      fileAssetId: _fileAssetId,
+      storageFileId: _storageFileId,
+      filePath: _filePath,
+      workspacePath: _workspacePath,
+      fileUrl: _fileUrl,
+      url: _url,
+      mimeType: _mimeType,
+      mimetype: _mimetype,
+      ...rest
+    } = file
 
     return {
       ...rest,
       ...(id ? { id } : {}),
-      fileUrl,
-      url: this.normalizeString(file.url) || fileUrl,
+      ...(fileId || fileAssetId ? { fileId: fileId || fileAssetId } : {}),
+      ...(fileAssetId ? { fileAssetId } : {}),
+      ...(storageFileId ? { storageFileId } : {}),
+      ...(filePath ? { filePath } : {}),
+      ...(workspacePath ? { workspacePath } : {}),
+      ...(fileUrl ? { fileUrl, url: this.normalizeString(file.url) || fileUrl } : {}),
       ...(mimeType ? { mimeType, mimetype: this.normalizeString(file.mimetype) || mimeType } : {}),
       originalName,
       name,
@@ -337,6 +362,14 @@ export class WechatChatDispatchService {
       default:
         return undefined
     }
+  }
+
+  private basename(value?: string): string | undefined {
+    const normalized = this.normalizeString(value)?.replace(/\\/g, '/')
+    if (!normalized) {
+      return undefined
+    }
+    return normalized.split('/').filter(Boolean).pop()
   }
 
   private stableFileId(fileUrl: string): string {

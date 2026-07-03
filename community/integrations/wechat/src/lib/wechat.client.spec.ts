@@ -1048,6 +1048,116 @@ describe('WechatClient', () => {
     )
   })
 
+  it('retries inbound file download with persisted history when webhook appmsg lacks attach fields', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    const fileBytes = Buffer.from('docx-bytes')
+    const fileBase64 = fileBytes.toString('base64')
+    const partialContent =
+      '<msg><appmsg><title><![CDATA[PBOM最佳匹配及智能报价技术说明书_本体系统方案_V1.2_正式版.docx]]></title><type>74</type></appmsg></msg>'
+    const fullContent =
+      '<msg><appmsg><title><![CDATA[PBOM最佳匹配及智能报价技术说明书_本体系统方案_V1.2_正式版.docx]]></title><type>74</type><appattach><totallen>10</totallen><attachid><![CDATA[attach-1]]></attachid><fileext><![CDATA[docx]]></fileext><cdnattachurl><![CDATA[https://cdn.example/file]]></cdnattachurl><aeskey><![CDATA[aes-1]]></aeskey></appattach></appmsg></msg>'
+
+    globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      if (calls.length === 1) {
+        return new Response(
+          JSON.stringify({
+            code: -1,
+            message: '无法从应用消息提取附件'
+          }),
+          { status: 200 }
+        )
+      }
+      if (calls.length === 2) {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            data: [
+              {
+                newmsgid: 'file-msg-webhook',
+                msgid: 126,
+                msgtype: 49,
+                content: partialContent,
+                fromuser: 'wxid_friend',
+                touser: 'wxid_owner',
+                isself: false
+              },
+              {
+                newmsgid: 'file-msg-history',
+                msgid: 126,
+                msgtype: 49,
+                content: fullContent,
+                fromuser: 'wxid_friend',
+                touser: 'wxid_owner',
+                isself: false
+              }
+            ]
+          }),
+          { status: 200 }
+        )
+      }
+      return new Response(
+        JSON.stringify({
+          code: 0,
+          data: {
+            filename: 'PBOM最佳匹配及智能报价技术说明书_本体系统方案_V1.2_正式版.docx',
+            fileext: 'docx',
+            filedata: fileBase64
+          }
+        }),
+        { status: 200 }
+      )
+    }) as unknown as typeof fetch
+
+    const result = await new WechatClient().downloadFile(
+      {
+        id: 'integration-1',
+        options: {
+          baseUrl: 'http://127.0.0.1:8058'
+        }
+      } as any,
+      {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        newMsgId: 'file-msg-webhook',
+        msgContent: partialContent,
+        msgType: 49,
+        fromUser: 'wxid_friend',
+        toUser: 'wxid_owner',
+        msgId: 126,
+        isSelf: false,
+        originalName: 'PBOM最佳匹配及智能报价技术说明书_本体系统方案_V1.2_正式版.docx',
+        extension: 'docx'
+      }
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        file: expect.objectContaining({
+          data: fileBytes,
+          originalName: 'PBOM最佳匹配及智能报价技术说明书_本体系统方案_V1.2_正式版.docx',
+          fileKey: 'attach-1',
+          extension: 'docx'
+        })
+      })
+    )
+    expect(calls.map((call) => call.url)).toEqual([
+      'http://127.0.0.1:8058/v1/message/downloadfile',
+      'http://127.0.0.1:8058/v1/message/listhistory',
+      'http://127.0.0.1:8058/v1/message/downloadfile'
+    ])
+    expect(JSON.parse(String(calls[2].init.body))).toEqual(
+      expect.objectContaining({
+        newmsgid: 'file-msg-history',
+        msgcontent: fullContent,
+        attachid: 'attach-1',
+        cdnattachurl: 'https://cdn.example/file',
+        aeskey: 'aes-1'
+      })
+    )
+  })
+
   it('rejects AMR voice downloads without dispatchable wav bytes', async () => {
     globalThis.fetch = jest.fn(async () => {
       return new Response(JSON.stringify({ code: 0, data: { fileext: 'amr' } }), {

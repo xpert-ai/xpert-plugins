@@ -11,7 +11,7 @@ export type WechatGroupTriggerMode =
 
 export type WechatConnectionMode = 'direct_http' | 'reverse_tunnel'
 export type WechatChatFilterMode = 'all' | 'private_only' | 'group_only'
-export type WechatInboundMessageKind = 'text' | 'image' | 'voice' | 'unsupported'
+export type WechatInboundMessageKind = 'text' | 'image' | 'voice' | 'file' | 'unsupported'
 export type WechatSelfMessagePolicy = 'history_only' | 'ignore' | 'dispatch'
 
 export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume'
@@ -93,7 +93,7 @@ export type WechatChatRequestFile = NonNullable<TChatRequestHuman['files']>[numb
 
 export type WechatInboundFile = WechatChatRequestFile & {
   id?: string
-  fileUrl: string
+  fileUrl?: string
   url?: string
   mimeType?: string
   mimetype?: string
@@ -104,6 +104,7 @@ export type WechatInboundFile = WechatChatRequestFile & {
   fileAssetId?: string
   storageFileId?: string
   filePath?: string
+  workspacePath?: string
   size?: number
   extension?: string
 }
@@ -141,6 +142,43 @@ export interface WechatInboundVoiceRef {
   byteLength?: number
 }
 
+export interface WechatInboundFileRef {
+  uuid: string
+  newMsgId: string
+  msgContent: string
+  msgType: number
+  contactId: string
+  fromUser?: string
+  toUser?: string
+  msgId?: number
+  isSelf?: boolean
+  fileKey?: string
+  originalName?: string
+  extension?: string
+  size?: number
+  attachId?: string
+  cdnAttachUrl?: string
+  aesKey?: string
+}
+
+export interface WechatPendingInboundFile {
+  kind: 'image' | 'file'
+  messageLogId?: string
+  messageId?: string
+  uuid: string
+  ownerWxid?: string
+  contactId: string
+  senderId?: string
+  senderName?: string
+  chatType?: 'private' | 'group'
+  originalName?: string
+  mimeType?: string
+  size?: number
+  extension?: string
+  imageRef?: WechatInboundImageRef
+  fileRef?: WechatInboundFileRef
+}
+
 export interface WechatInboundEvent {
   source: 'message_webhook'
   uuid: string
@@ -162,6 +200,7 @@ export interface WechatInboundEvent {
   files?: WechatInboundFile[]
   imageRef?: WechatInboundImageRef
   voiceRef?: WechatInboundVoiceRef
+  fileRef?: WechatInboundFileRef
   mediaSignature?: string
   timestamp: number
   isSelf: boolean
@@ -432,7 +471,7 @@ export function shouldDispatchWechatMessage(
   }
 
   const input = normalizeWechatAgentInput(event)
-  if (!input && event.messageKind !== 'image') {
+  if (!input && event.messageKind !== 'image' && event.messageKind !== 'file') {
     return null
   }
 
@@ -508,7 +547,7 @@ export function shouldDispatchWechatBatch(
     if (!isWechatDispatchableMessageKind({ messageKind: item.messageKind } as WechatInboundEvent)) {
       return false
     }
-    return Boolean(normalizeString(item.input)) || item.messageKind === 'image'
+    return Boolean(normalizeString(item.input)) || item.messageKind === 'image' || item.messageKind === 'file'
   })
   if (!candidates.length) {
     return null
@@ -838,13 +877,13 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
     contactId
   const senderInfo = asRecord(payload.sendcontactinfo || payload.sendContactInfo || payload.Sendcontactinfo)
   const msgType = normalizeNumber(payload.msgtype || payload.msgType || payload.Msgtype)
-  const messageKind = resolveInboundMessageKind(msgType)
   const numericMsgId = normalizeNumber(payload.msgid || payload.msgId || payload.Msgid)
   const rawContent = normalizeString(payload.content || payload.Content)
   const pushContent = normalizeString(payload.pushcontent || payload.pushContent || payload.Pushcontent)
+  const messageKind = resolveInboundMessageKind(msgType, rawContent)
   const isGroup = normalizeChatType(payload.chattype || payload.chatType || payload.Chattype, contactId) === 'group'
   const content = stripGroupSenderPrefix(
-    messageKind === 'image' || messageKind === 'voice' ? rawContent : rawContent || pushContent,
+    messageKind === 'image' || messageKind === 'voice' || messageKind === 'file' ? rawContent : rawContent || pushContent,
     isGroup
   ).body
   const messageId =
@@ -886,6 +925,26 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
       normalizeString(fileInfo?.filetitle || fileInfo?.fileTitle || fileInfo?.Filetitle) ||
       undefined
   })
+  const fileRef = buildInboundFileRef({
+    uuid,
+    newMsgId: messageId,
+    msgContent: rawContent || content,
+    msgType,
+    contactId,
+    fromUser,
+    toUser,
+    msgId: numericMsgId,
+    isSelf: normalizeBoolean(payload.isself || payload.isSelf || payload.Isself),
+    fileKey:
+      normalizeString(fileInfo?.fileurl || fileInfo?.fileUrl || fileInfo?.Fileurl) ||
+      resolveFileAttachId(rawContent || content) ||
+      undefined,
+    originalName:
+      normalizeString(fileInfo?.filename || fileInfo?.fileName || fileInfo?.Filename) ||
+      normalizeString(fileInfo?.filetitle || fileInfo?.fileTitle || fileInfo?.Filetitle) ||
+      resolveFileTitle(rawContent || content) ||
+      undefined
+  })
   const mediaSignature = buildMediaSignature({
     uuid,
     messageKind,
@@ -893,7 +952,8 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
     msgType,
     msgContent: rawContent || content,
     imageRef,
-    voiceRef
+    voiceRef,
+    fileRef
   })
 
   if (!uuid || !contactId || !senderId || !messageId) {
@@ -917,9 +977,15 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
     msgType,
     messageKind,
     content,
-    displayText: messageKind === 'image' || messageKind === 'voice' ? pushContent : pushContent || content,
+    displayText:
+      messageKind === 'image' || messageKind === 'voice'
+        ? pushContent
+        : messageKind === 'file'
+          ? pushContent || fileRef?.originalName
+          : pushContent || content,
     imageRef,
     voiceRef,
+    fileRef,
     mediaSignature,
     timestamp,
     isSelf: normalizeBoolean(payload.isself || payload.isSelf || payload.Isself),
@@ -929,7 +995,7 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
 }
 
 export function normalizeWechatAgentInput(event: WechatInboundEvent): string {
-  if (event.messageKind === 'image') {
+  if (event.messageKind === 'image' || event.messageKind === 'file') {
     return ''
   }
   const text = normalizeString(event.content || event.displayText)
@@ -957,12 +1023,26 @@ function isVoiceMessage(msgType: number | undefined): msgType is 34 {
   return msgType === 34
 }
 
-function resolveInboundMessageKind(msgType: number | undefined): WechatInboundMessageKind {
+function isFileMessage(msgType: number | undefined, content?: string): boolean {
+  if (msgType === 6 || msgType === 74) {
+    return true
+  }
+  if (msgType === 49) {
+    const appMsgType = resolveAppMsgType(content)
+    return appMsgType === 6 || appMsgType === 74
+  }
+  return false
+}
+
+function resolveInboundMessageKind(msgType: number | undefined, content?: string): WechatInboundMessageKind {
   if (isImageMessage(msgType)) {
     return 'image'
   }
   if (isVoiceMessage(msgType)) {
     return 'voice'
+  }
+  if (isFileMessage(msgType, content)) {
+    return 'file'
   }
   if (isTextLikeMessage(msgType)) {
     return 'text'
@@ -971,7 +1051,7 @@ function resolveInboundMessageKind(msgType: number | undefined): WechatInboundMe
 }
 
 export function isWechatDispatchableMessageKind(event: WechatInboundEvent): boolean {
-  return event.messageKind === 'text' || event.messageKind === 'image' || event.messageKind === 'voice'
+  return event.messageKind === 'text' || event.messageKind === 'image' || event.messageKind === 'voice' || event.messageKind === 'file'
 }
 
 function buildInboundImageRef(params: {
@@ -1041,6 +1121,45 @@ function buildInboundVoiceRef(params: {
   }
 }
 
+function buildInboundFileRef(params: {
+  uuid: string
+  newMsgId: string
+  msgContent: string
+  msgType?: number
+  contactId: string
+  fromUser?: string
+  toUser?: string
+  msgId?: number
+  isSelf?: boolean
+  fileKey?: string
+  originalName?: string
+}): WechatInboundFileRef | undefined {
+  if (!isFileMessage(params.msgType, params.msgContent) || !params.uuid || !params.newMsgId || !params.contactId) {
+    return undefined
+  }
+  const originalName = params.originalName || resolveFileTitle(params.msgContent)
+  const extension = resolveFileExtension(params.msgContent, originalName)
+  const attachId = resolveFileAttachId(params.msgContent)
+  return {
+    uuid: params.uuid,
+    newMsgId: params.newMsgId,
+    msgContent: params.msgContent,
+    msgType: params.msgType ?? resolveAppMsgType(params.msgContent) ?? 49,
+    contactId: params.contactId,
+    fromUser: params.fromUser || undefined,
+    toUser: params.toUser || undefined,
+    msgId: params.msgId,
+    isSelf: params.isSelf,
+    fileKey: params.fileKey || attachId || params.newMsgId,
+    originalName,
+    extension,
+    size: resolveFileSize(params.msgContent),
+    attachId,
+    cdnAttachUrl: resolveFileAppAttachText(params.msgContent, 'cdnattachurl'),
+    aesKey: resolveFileAppAttachText(params.msgContent, 'aeskey')
+  }
+}
+
 function buildMediaSignature(params: {
   uuid: string
   messageKind: WechatInboundMessageKind
@@ -1049,11 +1168,17 @@ function buildMediaSignature(params: {
   msgContent?: string
   imageRef?: WechatInboundImageRef
   voiceRef?: WechatInboundVoiceRef
+  fileRef?: WechatInboundFileRef
 }): string | undefined {
-  if (params.messageKind !== 'image' && params.messageKind !== 'voice') {
+  if (params.messageKind !== 'image' && params.messageKind !== 'voice' && params.messageKind !== 'file') {
     return undefined
   }
-  const ref = params.messageKind === 'voice' ? params.voiceRef : params.imageRef
+  const ref =
+    params.messageKind === 'voice'
+      ? params.voiceRef
+      : params.messageKind === 'file'
+        ? params.fileRef
+        : params.imageRef
   const mediaId = normalizeString(ref?.msgId) || normalizeString(ref?.newMsgId || params.messageId)
   const content = normalizeString(params.msgContent).slice(0, 256)
   return [
@@ -1066,6 +1191,72 @@ function buildMediaSignature(params: {
     ref?.toUser || '',
     content
   ].join(':')
+}
+
+function resolveAppMsgType(content?: string): number | undefined {
+  return normalizeNumber(extractXmlElementText(content, 'type'))
+}
+
+function resolveFileTitle(content?: string): string | undefined {
+  return normalizeString(extractXmlElementText(content, 'title')) || undefined
+}
+
+function resolveFileExtension(content?: string, originalName?: string): string | undefined {
+  const explicit = normalizeString(resolveFileAppAttachText(content, 'fileext')).replace(/^\./, '')
+  if (explicit) {
+    return explicit
+  }
+  const name = normalizeString(originalName)
+  const match = name.match(/\.([A-Za-z0-9]{1,16})$/)
+  return match?.[1]
+}
+
+function resolveFileSize(content?: string): number | undefined {
+  const value = normalizeNumber(resolveFileAppAttachText(content, 'totallen') || extractXmlElementText(content, 'totallen'))
+  return value && value > 0 ? value : undefined
+}
+
+function resolveFileAttachId(content?: string): string | undefined {
+  return (
+    normalizeString(resolveFileAppAttachText(content, 'attachid')) ||
+    normalizeString(resolveFileAppAttachText(content, 'filekey')) ||
+    normalizeString(resolveFileAppAttachText(content, 'fileid')) ||
+    undefined
+  )
+}
+
+function resolveFileAppAttachText(content: string | undefined, elementName: string): string | undefined {
+  const appAttach = extractXmlElementText(content, 'appattach', { decode: false })
+  return normalizeString(extractXmlElementText(appAttach, elementName)) || undefined
+}
+
+function extractXmlElementText(
+  content: string | undefined,
+  elementName: string,
+  options: { decode?: boolean } = {}
+): string {
+  const source = normalizeString(content)
+  if (!source) {
+    return ''
+  }
+  const escapedName = elementName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  const pattern = new RegExp(`<${escapedName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedName}>`, 'i')
+  const value = source.match(pattern)?.[1]
+  if (!value) {
+    return ''
+  }
+  return options.decode === false ? value : decodeXmlText(value)
+}
+
+function decodeXmlText(value: string): string {
+  return normalizeString(value)
+    .replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/g, '$1')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
 }
 
 function matchKeyword(input: string, keywords: string[]): string | null {
@@ -1089,7 +1280,7 @@ function isMentioned(event: WechatInboundEvent, fallbackNames: string[]): boolea
     return true
   }
   const content =
-    event.messageKind === 'image' || event.messageKind === 'voice'
+    event.messageKind === 'image' || event.messageKind === 'voice' || event.messageKind === 'file'
       ? normalizeString(event.displayText)
       : `${event.content}\n${event.displayText || ''}`
   if (ownerWxid && content.includes(`@${ownerWxid}`)) {

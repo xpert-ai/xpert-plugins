@@ -9,6 +9,7 @@ import {
   normalizeWechatConnectionMode,
   TIntegrationWechatOptions,
   type WechatInboundFile,
+  type WechatInboundFileRef,
   type WechatInboundVoiceRef
 } from './types.js'
 import { WechatTunnelBrokerService } from './wechat-tunnel-broker.service.js'
@@ -42,6 +43,7 @@ export interface WechatDownloadImageInput {
 }
 
 export type WechatDownloadVoiceInput = WechatInboundVoiceRef
+export type WechatDownloadFileInput = WechatInboundFileRef
 
 export interface WechatSendResult {
   success: boolean
@@ -114,10 +116,27 @@ export interface WechatDownloadVoiceResult {
   raw?: unknown
 }
 
+export interface WechatDownloadedFile {
+  data: Buffer
+  mimeType: string
+  originalName: string
+  fileKey: string
+  size: number
+  extension?: string
+}
+
+export interface WechatDownloadFileResult {
+  success: boolean
+  file?: WechatDownloadedFile
+  error?: string
+  raw?: unknown
+}
+
 type WechatHistoryMessageRecord = Record<string, unknown>
 
 const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_INLINE_VOICE_BYTES = 10 * 1024 * 1024
+const MAX_INLINE_FILE_BYTES = 25 * 1024 * 1024
 const MAX_VOICE_DURATION_MS = 60 * 1000
 const MEDIA_CHUNK_SIZE = 2 * 1024 * 1024
 
@@ -279,6 +298,126 @@ export class WechatClient {
     }
   }
 
+  async downloadFile(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDownloadFileInput
+  ): Promise<WechatDownloadFileResult> {
+    if (input.size && input.size > MAX_INLINE_FILE_BYTES) {
+      return {
+        success: false,
+        error: `wx2.0 file ${input.size} bytes exceeds maximum ${MAX_INLINE_FILE_BYTES} bytes`
+      }
+    }
+
+    const options = integration.options || ({} as TIntegrationWechatOptions)
+    const downloadResult = await this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/downloadfile'),
+      this.buildV2Path(options, 'message/downloadfile'),
+      this.buildFileDownloadBody(input)
+    )
+    if (!downloadResult.success) {
+      const retry = await this.retryFileDownloadWithHistory(integration, input, downloadResult)
+      return retry ?? downloadResult
+    }
+
+    const inlineResult = this.resolveDownloadedFile(downloadResult.raw, input)
+    if (inlineResult.success) {
+      return inlineResult
+    }
+
+    const chunkResult = await this.downloadMediaChunks(integration, input, 'file', {
+      maxBytes: MAX_INLINE_FILE_BYTES,
+      mediaLabel: 'file'
+    })
+    if (!chunkResult.success || !chunkResult.data) {
+      const failedResult = {
+        success: false,
+        error: `${inlineResult.error || 'wx2.0 file inline download unavailable'}; chunks: ${
+          chunkResult.error || 'wx2.0 file chunks are not available'
+        }`,
+        raw: {
+          download: downloadResult.raw,
+          chunks: chunkResult.raw
+        }
+      }
+      const retry = await this.retryFileDownloadWithHistory(integration, input, failedResult)
+      return retry ?? failedResult
+    }
+
+    return this.buildDownloadedFileResult(chunkResult.data, downloadResult.raw, input, {
+      chunks: chunkResult.raw
+    })
+  }
+
+  private async retryFileDownloadWithHistory(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDownloadFileInput,
+    first: WechatDownloadFileResult
+  ): Promise<WechatDownloadFileResult | null> {
+    if (!this.shouldRetryFileDownloadWithHistory(first)) {
+      return null
+    }
+
+    const historyInput = await this.resolveHistoryFileDownloadInput(integration, input)
+    if (!historyInput || !this.isDifferentFileDownloadInput(input, historyInput)) {
+      return null
+    }
+
+    const retry = await this.downloadFileWithoutHistoryRetry(integration, historyInput)
+    if (retry.success) {
+      return retry
+    }
+    return {
+      ...retry,
+      error: `${first.error || 'wx2.0 file download failed'}; history retry: ${
+        retry.error || 'wx2.0 file download failed'
+      }`
+    }
+  }
+
+  private async downloadFileWithoutHistoryRetry(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDownloadFileInput
+  ): Promise<WechatDownloadFileResult> {
+    const options = integration.options || ({} as TIntegrationWechatOptions)
+    const downloadResult = await this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/downloadfile'),
+      this.buildV2Path(options, 'message/downloadfile'),
+      this.buildFileDownloadBody(input)
+    )
+    if (!downloadResult.success) {
+      return downloadResult
+    }
+
+    const inlineResult = this.resolveDownloadedFile(downloadResult.raw, input)
+    if (inlineResult.success) {
+      return inlineResult
+    }
+
+    const chunkResult = await this.downloadMediaChunks(integration, input, 'file', {
+      maxBytes: MAX_INLINE_FILE_BYTES,
+      mediaLabel: 'file'
+    })
+    if (!chunkResult.success || !chunkResult.data) {
+      return {
+        success: false,
+        error: `${inlineResult.error || 'wx2.0 file inline download unavailable'}; chunks: ${
+          chunkResult.error || 'wx2.0 file chunks are not available'
+        }`,
+        raw: {
+          download: downloadResult.raw,
+          chunks: chunkResult.raw
+        }
+      }
+    }
+
+    return this.buildDownloadedFileResult(chunkResult.data, downloadResult.raw, input, {
+      chunks: chunkResult.raw
+    })
+  }
+
   private async downloadVoiceFromInput(
     integration: IIntegration<TIntegrationWechatOptions>,
     input: WechatDownloadVoiceInput
@@ -307,7 +446,10 @@ export class WechatClient {
       }
     }
 
-    const chunkResult = await this.downloadMediaChunks(integration, input, 'voice')
+    const chunkResult = await this.downloadMediaChunks(integration, input, 'voice', {
+      maxBytes: MAX_INLINE_VOICE_BYTES,
+      mediaLabel: 'voice'
+    })
     if (!chunkResult.success || !chunkResult.data) {
       return {
         success: false,
@@ -363,6 +505,14 @@ export class WechatClient {
     return Boolean(result.error?.includes('voiceDownloadInput{'))
   }
 
+  private shouldRetryFileDownloadWithHistory(result: WechatDownloadFileResult): boolean {
+    if (result.success) {
+      return false
+    }
+    const error = normalizeString(result.error)
+    return /无法从应用消息提取附件|提取附件|appmsg|appattach|attach/i.test(error)
+  }
+
   private buildVoiceDownloadBody(input: WechatDownloadVoiceInput): Record<string, unknown> {
     const body: Record<string, unknown> = {
       uuid: input.uuid,
@@ -386,6 +536,28 @@ export class WechatClient {
       body.voiceformat = input.format
     }
     return body
+  }
+
+  private buildFileDownloadBody(input: WechatDownloadFileInput): Record<string, unknown> {
+    return {
+      uuid: input.uuid,
+      newmsgid: input.newMsgId,
+      msgcontent: input.msgContent,
+      msgtype: input.msgType,
+      contactid: input.contactId,
+      fromuser: input.fromUser,
+      touser: input.toUser,
+      msgid: input.msgId,
+      isself: input.isSelf,
+      filekey: input.fileKey,
+      attachid: input.attachId,
+      cdnattachurl: input.cdnAttachUrl,
+      aeskey: input.aesKey,
+      filename: input.originalName,
+      fileext: input.extension,
+      filesize: input.size,
+      preferhd: false
+    }
   }
 
   async bindDeviceKey(
@@ -581,10 +753,82 @@ export class WechatClient {
     }
   }
 
+  private resolveDownloadedFile(
+    payload: unknown,
+    input: WechatDownloadFileInput
+  ): WechatDownloadFileResult {
+    const data = this.resolveResponseData(payload)
+    const encoded = normalizeString(data?.filedata || data?.fileData || data?.FileData)
+    if (!encoded) {
+      return {
+        success: false,
+        error: 'wx2.0 file download did not return inline filedata',
+        raw: payload
+      }
+    }
+
+    const bytes = Buffer.from(stripDataUrlPrefix(encoded), 'base64')
+    return this.buildDownloadedFileResult(bytes, payload, input)
+  }
+
+  private buildDownloadedFileResult(
+    bytes: Buffer,
+    payload: unknown,
+    input: WechatDownloadFileInput,
+    extraRaw?: Record<string, unknown>
+  ): WechatDownloadFileResult {
+    if (!bytes.length) {
+      return {
+        success: false,
+        error: 'wx2.0 file download returned empty data',
+        raw: payload
+      }
+    }
+    if (bytes.length > MAX_INLINE_FILE_BYTES) {
+      return {
+        success: false,
+        error: `wx2.0 file download returned ${bytes.length} bytes; maximum is ${MAX_INLINE_FILE_BYTES} bytes`,
+        raw: payload
+      }
+    }
+
+    const data = this.resolveResponseData(payload)
+    const originalName =
+      input.originalName ||
+      normalizeString(data?.filename || data?.filetitle || data?.fileName || data?.fileTitle) ||
+      `${input.newMsgId || input.fileKey || 'wechat-file'}${input.extension ? `.${input.extension}` : ''}`
+    const extension = resolveFileExtension(originalName, input.extension || normalizeString(data?.fileext || data?.fileExt))
+    const mimeType = resolveFileMimeType({
+      mimeType: normalizeString(data?.mimetype || data?.mimeType || data?.contenttype || data?.contentType),
+      extension,
+      originalName
+    })
+
+    return {
+      success: true,
+      file: {
+        data: bytes,
+        mimeType,
+        originalName,
+        fileKey: input.fileKey || input.attachId || input.newMsgId,
+        size: bytes.length,
+        extension
+      },
+      raw: {
+        download: payload,
+        ...(extraRaw ?? {})
+      }
+    }
+  }
+
   private async downloadMediaChunks(
     integration: IIntegration<TIntegrationWechatOptions>,
     input: Pick<WechatDownloadVoiceInput, 'uuid' | 'newMsgId'>,
-    variant: string
+    variant: string,
+    chunkOptions: {
+      maxBytes: number
+      mediaLabel: string
+    }
   ): Promise<{ success: boolean; data?: Buffer; error?: string; raw?: unknown[] }> {
     const options = integration.options || ({} as TIntegrationWechatOptions)
     const chunks: Buffer[] = []
@@ -632,10 +876,10 @@ export class WechatClient {
       const chunk = Buffer.from(stripDataUrlPrefix(encoded), 'base64')
       chunks.push(chunk)
       const currentSize = chunks.reduce((sum, item) => sum + item.length, 0)
-      if (currentSize > MAX_INLINE_VOICE_BYTES) {
+      if (currentSize > chunkOptions.maxBytes) {
         return {
           success: false,
-          error: `wx2.0 voice download returned more than ${MAX_INLINE_VOICE_BYTES} bytes`,
+          error: `wx2.0 ${chunkOptions.mediaLabel} download returned more than ${chunkOptions.maxBytes} bytes`,
           raw: rawResponses
         }
       }
@@ -698,6 +942,43 @@ export class WechatClient {
     return this.buildVoiceDownloadInputFromHistory(input, match)
   }
 
+  private async resolveHistoryFileDownloadInput(
+    integration: IIntegration<TIntegrationWechatOptions>,
+    input: WechatDownloadFileInput
+  ): Promise<WechatDownloadFileInput | null> {
+    if (!input.uuid || !input.contactId) {
+      return null
+    }
+
+    const options = integration.options || ({} as TIntegrationWechatOptions)
+    const result = await this.postJson(
+      integration,
+      this.buildV2Url(options, 'message/listhistory'),
+      this.buildV2Path(options, 'message/listhistory'),
+      {
+        uuid: input.uuid,
+        contactid: input.contactId,
+        cursor: 0,
+        pagesize: 50
+      }
+    )
+    if (!result.success) {
+      return null
+    }
+
+    const data = this.resolveResponsePayloadData(result.raw)
+    if (!Array.isArray(data)) {
+      return null
+    }
+
+    const match = this.findMatchingHistoryFile(data, input)
+    if (!match) {
+      return null
+    }
+
+    return this.buildFileDownloadInputFromHistory(input, match)
+  }
+
   private findMatchingHistoryVoice(
     items: unknown[],
     input: WechatDownloadVoiceInput
@@ -740,6 +1021,86 @@ export class WechatClient {
     return null
   }
 
+  private findMatchingHistoryFile(
+    items: unknown[],
+    input: WechatDownloadFileInput
+  ): WechatHistoryMessageRecord | null {
+    const fileItems = items
+      .map((item) => (item && typeof item === 'object' && !Array.isArray(item) ? (item as WechatHistoryMessageRecord) : null))
+      .filter((item): item is WechatHistoryMessageRecord => {
+        const msgType = normalizeNumber(item.msgtype || item.msgType || item.Msgtype)
+        const content = this.historyContent(item)
+        const appMsgType = this.historyAppMsgType(content)
+        return msgType === 6 || msgType === 74 || (msgType === 49 && (appMsgType === 6 || appMsgType === 74))
+      })
+
+    const candidates: WechatHistoryMessageRecord[] = []
+    const pushCandidates = (matches: WechatHistoryMessageRecord[]) => {
+      for (const item of matches) {
+        if (!candidates.includes(item)) {
+          candidates.push(item)
+        }
+      }
+    }
+
+    pushCandidates(fileItems.filter((item) => this.historyNewMsgId(item) === input.newMsgId))
+
+    if (input.msgId) {
+      pushCandidates(fileItems.filter((item) => normalizeNumber(item.msgid || item.msgId || item.Msgid) === input.msgId))
+    }
+
+    const inputAttachId = normalizeString(input.attachId || input.fileKey)
+    if (inputAttachId) {
+      pushCandidates(
+        fileItems.filter((item) => {
+          const content = this.historyContent(item)
+          const attachId = this.historyFileAttachId(content)
+          return attachId && attachId === inputAttachId
+        })
+      )
+    }
+
+    const inputTitle = normalizeString(input.originalName || this.historyFileTitle(input.msgContent))
+    const inputSize = input.size
+    if (inputTitle) {
+      pushCandidates(
+        fileItems.filter((item) => {
+          const content = this.historyContent(item)
+          const title = normalizeString(
+            this.historyFileName(item) || this.historyFileTitle(content)
+          )
+          const size = this.historyFileSize(content)
+          return title === inputTitle && (!inputSize || !size || size === inputSize)
+        })
+      )
+    }
+
+    return this.selectBestHistoryFileCandidate(candidates)
+  }
+
+  private selectBestHistoryFileCandidate(
+    candidates: WechatHistoryMessageRecord[]
+  ): WechatHistoryMessageRecord | null {
+    return candidates
+      .slice()
+      .sort((left, right) => this.historyFileCompletenessScore(right) - this.historyFileCompletenessScore(left))[0] ?? null
+  }
+
+  private historyFileCompletenessScore(item: WechatHistoryMessageRecord): number {
+    const content = this.historyContent(item)
+    const values: unknown[] = [
+      this.historyNewMsgId(item),
+      normalizeNumber(item.msgid || item.msgId || item.Msgid),
+      this.historyFileName(item) || this.historyFileTitle(content),
+      this.historyFileSize(content),
+      this.historyFileAttachId(content),
+      this.historyFileAppAttachText(content, 'cdnattachurl'),
+      this.historyFileAppAttachText(content, 'aeskey'),
+      /<appattach\b/i.test(content)
+    ]
+    return values.reduce<number>((score, value) => score + (value ? 1 : 0), 0)
+  }
+
   private buildVoiceDownloadInputFromHistory(
     input: WechatDownloadVoiceInput,
     item: WechatHistoryMessageRecord
@@ -768,6 +1129,35 @@ export class WechatClient {
     }
   }
 
+  private buildFileDownloadInputFromHistory(
+    input: WechatDownloadFileInput,
+    item: WechatHistoryMessageRecord
+  ): WechatDownloadFileInput {
+    const content = this.historyContent(item) || input.msgContent
+    const newMsgId = this.historyNewMsgId(item) || input.newMsgId
+    const msgId = normalizeNumber(item.msgid || item.msgId || item.Msgid) ?? input.msgId
+    const isSelf = this.historyBoolean(item, 'isself', 'isSelf', 'Isself')
+    const attachId = this.historyFileAttachId(content) || input.attachId
+    const originalName = this.historyFileName(item) || this.historyFileTitle(content) || input.originalName
+
+    return {
+      ...input,
+      newMsgId,
+      msgContent: content,
+      fromUser: normalizeString(item.fromuser || item.fromUser || item.Fromuser) || input.fromUser,
+      toUser: normalizeString(item.touser || item.toUser || item.Touser) || input.toUser,
+      msgId,
+      isSelf: isSelf ?? input.isSelf,
+      fileKey: input.fileKey || attachId || newMsgId,
+      originalName,
+      extension: this.historyFileExtension(content, originalName) || input.extension,
+      size: this.historyFileSize(content) || input.size,
+      attachId,
+      cdnAttachUrl: this.historyFileAppAttachText(content, 'cdnattachurl') || input.cdnAttachUrl,
+      aesKey: this.historyFileAppAttachText(content, 'aeskey') || input.aesKey
+    }
+  }
+
   private isDifferentVoiceDownloadInput(
     left: WechatDownloadVoiceInput,
     right: WechatDownloadVoiceInput
@@ -782,6 +1172,23 @@ export class WechatClient {
     )
   }
 
+  private isDifferentFileDownloadInput(
+    left: WechatDownloadFileInput,
+    right: WechatDownloadFileInput
+  ): boolean {
+    return (
+      left.newMsgId !== right.newMsgId ||
+      left.msgContent !== right.msgContent ||
+      left.fromUser !== right.fromUser ||
+      left.toUser !== right.toUser ||
+      left.msgId !== right.msgId ||
+      left.isSelf !== right.isSelf ||
+      left.attachId !== right.attachId ||
+      left.cdnAttachUrl !== right.cdnAttachUrl ||
+      left.aesKey !== right.aesKey
+    )
+  }
+
   private historyNewMsgId(item: WechatHistoryMessageRecord): string {
     return normalizeString(item.newmsgid || item.newMsgId || item.Newmsgid || item.new_msg_id || item.newMsgID)
   }
@@ -791,6 +1198,83 @@ export class WechatClient {
       normalizeString(item.rawcontent || item.rawContent || item.RawContent) ||
       normalizeString(item.content || item.Content)
     )
+  }
+
+  private historyFileName(item: WechatHistoryMessageRecord): string {
+    return normalizeString(
+      item.filename ||
+        item.fileName ||
+        item.Filename ||
+        item.filetitle ||
+        item.fileTitle ||
+        item.Filetitle
+    )
+  }
+
+  private historyAppMsgType(content: string): number | undefined {
+    return normalizeNumber(this.historyXmlElementText(content, 'type'))
+  }
+
+  private historyFileTitle(content: string): string {
+    return normalizeString(this.historyXmlElementText(content, 'title'))
+  }
+
+  private historyFileSize(content: string): number | undefined {
+    const value = normalizeNumber(
+      this.historyFileAppAttachText(content, 'totallen') || this.historyXmlElementText(content, 'totallen')
+    )
+    return value && value > 0 ? value : undefined
+  }
+
+  private historyFileAttachId(content: string): string {
+    return (
+      this.historyFileAppAttachText(content, 'attachid') ||
+      this.historyFileAppAttachText(content, 'filekey') ||
+      this.historyFileAppAttachText(content, 'fileid')
+    )
+  }
+
+  private historyFileExtension(content: string, originalName?: string): string {
+    const explicit = normalizeString(this.historyFileAppAttachText(content, 'fileext')).replace(/^\./, '')
+    if (explicit) {
+      return explicit
+    }
+    const name = normalizeString(originalName)
+    const match = name.match(/\.([A-Za-z0-9]{1,16})$/)
+    return match?.[1] || ''
+  }
+
+  private historyFileAppAttachText(content: string, elementName: string): string {
+    const appAttach = this.historyXmlElementText(content, 'appattach', { decode: false })
+    return normalizeString(this.historyXmlElementText(appAttach, elementName))
+  }
+
+  private historyXmlElementText(
+    content: string | undefined,
+    elementName: string,
+    options: { decode?: boolean } = {}
+  ): string {
+    const source = normalizeString(content)
+    if (!source) {
+      return ''
+    }
+    const escapedName = elementName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    const pattern = new RegExp(`<${escapedName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedName}>`, 'i')
+    const value = source.match(pattern)?.[1]
+    if (!value) {
+      return ''
+    }
+    if (options.decode === false) {
+      return value
+    }
+    return normalizeString(value)
+      .replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/g, '$1')
+      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
   }
 
   private historyBoolean(
@@ -1064,6 +1548,63 @@ function isUnsafeIntegerString(value: string | undefined): boolean {
 function stripDataUrlPrefix(value: string): string {
   const match = value.match(/^data:[^;]+;base64,(.*)$/i)
   return (match?.[1] || value).replace(/\s+/g, '')
+}
+
+function resolveFileExtension(originalName: string, explicitExtension?: string): string | undefined {
+  const explicit = normalizeString(explicitExtension).replace(/^\./, '')
+  if (explicit) {
+    return explicit
+  }
+  const match = normalizeString(originalName).match(/\.([A-Za-z0-9]{1,16})$/)
+  return match?.[1]?.toLowerCase()
+}
+
+function resolveFileMimeType(input: {
+  mimeType?: string
+  extension?: string
+  originalName?: string
+}): string {
+  const explicit = normalizeString(input.mimeType)
+  if (explicit) {
+    return explicit.toLowerCase()
+  }
+  const extension = normalizeString(input.extension).toLowerCase()
+  switch (extension) {
+    case 'pdf':
+      return 'application/pdf'
+    case 'doc':
+      return 'application/msword'
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case 'xls':
+      return 'application/vnd.ms-excel'
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case 'ppt':
+      return 'application/vnd.ms-powerpoint'
+    case 'pptx':
+      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    case 'txt':
+      return 'text/plain'
+    case 'md':
+    case 'markdown':
+      return 'text/markdown'
+    case 'csv':
+      return 'text/csv'
+    case 'png':
+      return 'image/png'
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'gif':
+      return 'image/gif'
+    case 'webp':
+      return 'image/webp'
+    case 'zip':
+      return 'application/zip'
+    default:
+      return 'application/octet-stream'
+  }
 }
 
 function isWav(bytes: Buffer): boolean {
