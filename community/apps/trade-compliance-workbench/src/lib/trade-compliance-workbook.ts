@@ -417,84 +417,6 @@ function buildPackingListWorksheet(sheet, model) {
     put(sheet, 'A24', 'SIGNATURE:', { font: boldFont });
     applyTableStyle(sheet, 'A11:I24', 11);
 }
-function fillDeclarationSheet(sheet, model) {
-    if (!sheet)
-        return;
-    setCell(sheet, 'B5', model.buyerName);
-    setCell(sheet, 'B7', model.contractNo);
-    setCell(sheet, 'F6', model.supervisionMode);
-    setCell(sheet, 'H6', model.taxExemptionNature);
-    setCell(sheet, 'A9', model.packageType);
-    setCell(sheet, 'D9', sum(model.items, 'grossWeight') || readNumber(model, 'grossWeight'));
-    setCell(sheet, 'E9', sum(model.items, 'netWeight') || readNumber(model, 'netWeight'));
-    setCell(sheet, 'F9', model.tradeTerm);
-    setCell(sheet, 'K9', readNumber(model, 'freight'));
-    model.items.slice(0, 2).forEach((item, index) => {
-        const row = 14 + index * 2;
-        setCell(sheet, `A${row}`, index + 1);
-        setCell(sheet, `B${row}`, item.hsCode);
-        setCell(sheet, `C${row}`, item.productName || item.englishName);
-        setCell(sheet, `D${row}`, item.quantity);
-        setCell(sheet, `E${row}`, item.unit);
-        setCell(sheet, `F${row}`, item.unitPrice);
-        setCell(sheet, `G${row}`, item.amount);
-        setCell(sheet, `H${row}`, model.currency || '人民币');
-        setCell(sheet, `I${row}`, model.origin);
-        setCell(sheet, `J${row}`, model.destination);
-        setCell(sheet, `K${row}`, model.domesticSourceLocation);
-        setCell(sheet, `C${row + 1}`, item.description);
-        setCell(sheet, `D${row + 1}`, item.netWeight);
-        setCell(sheet, `E${row + 1}`, '千克');
-    });
-}
-function fillInvoiceLikeSheet(sheet, model) {
-    if (!sheet)
-        return;
-    setCell(sheet, 'B4', model.buyerName);
-    setCell(sheet, 'F4', model.sellerEnglishName || model.sellerName);
-    setCell(sheet, 'B5', model.buyerAddress);
-    setCell(sheet, 'F5', model.invoiceNo);
-    setCell(sheet, 'F6', model.date);
-    setCell(sheet, 'F7', model.contractNo);
-    setCell(sheet, 'B8', model.origin);
-    setCell(sheet, 'F8', model.paymentTerm);
-    setCell(sheet, 'B9', model.destination);
-    model.items.slice(0, 2).forEach((item, index) => {
-        const row = 12 + index;
-        setCell(sheet, `A${row}`, index + 1);
-        setCell(sheet, `B${row}`, item.model || item.englishName || item.productName);
-        setCell(sheet, `C${row}`, item.description);
-        setCell(sheet, `D${row}`, item.quantity);
-        setCell(sheet, `E${row}`, item.unitPrice);
-        setCell(sheet, `F${row}`, item.unit);
-        setCell(sheet, `G${row}`, model.exchangeRate);
-        setCell(sheet, `I${row}`, item.amount);
-        setCell(sheet, `J${row}`, item.hsCode);
-    });
-    setCell(sheet, 'G14', totalAmount(model.items));
-}
-function fillPackingListSheet(sheet, model) {
-    if (!sheet)
-        return;
-    setCell(sheet, 'B4', model.buyerName);
-    setCell(sheet, 'F4', model.sellerEnglishName || model.sellerName);
-    setCell(sheet, 'F5', model.date);
-    setCell(sheet, 'B6', model.destination);
-    model.items.slice(0, 2).forEach((item, index) => {
-        const row = 12 + index;
-        setCell(sheet, `A${row}`, item.englishName || item.productName);
-        setCell(sheet, `B${row}`, item.model);
-        setCell(sheet, `C${row}`, item.description);
-        setCell(sheet, `D${row}`, item.quantity);
-        setCell(sheet, `E${row}`, item.unit);
-        setCell(sheet, `F${row}`, item.cartonNo);
-        setCell(sheet, `G${row}`, item.dimension);
-        setCell(sheet, `H${row}`, item.netWeight);
-        setCell(sheet, `I${row}`, item.grossWeight);
-    });
-    setCell(sheet, 'H14', sum(model.items, 'netWeight') || readNumber(model, 'netWeight'));
-    setCell(sheet, 'I14', sum(model.items, 'grossWeight') || readNumber(model, 'grossWeight'));
-}
 function buildDeclarationRows(model) {
     return [
         ['境内发货人', model.sellerName ?? model.sellerEnglishName ?? ''],
@@ -594,17 +516,6 @@ function sum(items, key) {
         const value = item[key];
         return typeof value === 'number' ? total + value : total;
     }, 0);
-}
-function setCell(sheet, address, value) {
-    if (value === undefined || value === null || value === '')
-        return;
-    const existing = sheet[address];
-    const cellValue = typeof value === 'object' ? JSON.stringify(value) : value;
-    sheet[address] = {
-        ...(existing || {}),
-        t: typeof cellValue === 'number' ? 'n' : 's',
-        v: cellValue
-    };
 }
 function readNumber(input, key) {
     const value = typeof input === 'object' && input != null ? Reflect.get(input, key) : undefined;

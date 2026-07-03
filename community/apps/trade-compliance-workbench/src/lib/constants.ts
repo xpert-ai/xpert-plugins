@@ -1,5 +1,5 @@
 // @ts-nocheck
-export const TRADE_COMPLIANCE_PLUGIN_NAME = '@chenchaolong/plugin-trade-compliance-workbench';
+export const TRADE_COMPLIANCE_PLUGIN_NAME = '@xpert-ai/plugin-trade-compliance-workbench';
 export const TRADE_COMPLIANCE_PROVIDER_KEY = 'trade_compliance_workbench';
 export const TRADE_COMPLIANCE_VIEW_KEY = 'trade_compliance_workbench';
 export const TRADE_COMPLIANCE_REMOTE_ENTRY_KEY = 'trade-compliance-workbench';

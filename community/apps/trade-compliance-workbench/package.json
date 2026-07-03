@@ -1,5 +1,5 @@
 {
-  "name": "@chenchaolong/plugin-trade-compliance-workbench",
+  "name": "@xpert-ai/plugin-trade-compliance-workbench",
   "version": "0.1.73",
   "description": "Trade Compliance Workbench app plugin for controlled goods review, supplier product management, and customs workbook generation.",
   "author": {
@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.lib.json && node scripts/verify-remote-app.mjs && node scripts/verify-service-dedupe.mjs && node scripts/verify-real-enrichment.mjs && node scripts/verify-workbook-template.mjs && node scripts/verify-middleware-workbook-template.mjs"
+    "test": "tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.lib.json && node scripts/verify-controlled-goods-parser.mjs && node scripts/verify-controlled-goods-upload-text-extraction.mjs && node scripts/verify-controlled-goods-direct-upload.mjs && node scripts/verify-controlled-goods-large-text-chunking.mjs && node scripts/verify-controlled-goods-compact-rows-save.mjs && node scripts/verify-hs-code-search.mjs && node scripts/verify-customs-workbook-declaration-columns.mjs && node scripts/verify-sales-contract-single-review-item.mjs"
   },
   "xpert": {
     "plugin": {

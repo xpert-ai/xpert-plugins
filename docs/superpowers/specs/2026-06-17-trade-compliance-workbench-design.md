@@ -38,7 +38,7 @@ The plugin contributes one Workbench app named:
 
 Working package and directory names:
 
-- Package: `@chenchaolong/plugin-trade-compliance-workbench`
+- Package: `@xpert-ai/plugin-trade-compliance-workbench`
 - Directory: `community/apps/trade-compliance-workbench`
 
 The app has three page tabs.
