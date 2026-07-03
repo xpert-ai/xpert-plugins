@@ -171,6 +171,20 @@ function descriptionRowHeight(item) {
     const lineCount = text.split(/\r?\n|\/\s*/).filter(Boolean).length;
     return Math.max(54, Math.min(190, lineCount * 18));
 }
+function declarationDetailText(item) {
+    const productName = normalizeComparableText(item.productName);
+    const englishName = normalizeComparableText(item.englishName);
+    return [item.description, item.model]
+        .map((value) => stringValue(value)?.trim())
+        .filter((value) => {
+        const normalized = normalizeComparableText(value);
+        return normalized && normalized !== productName && normalized !== englishName;
+    })
+        .join('\n');
+}
+function normalizeComparableText(value) {
+    return stringValue(value)?.replace(/\s+/g, '').toLowerCase();
+}
 function formatQuantityUnit(item) {
     const quantity = item.quantity ?? '';
     const unit = item.unit ?? '';
@@ -246,7 +260,7 @@ function buildDeclarationWorksheet(sheet, model) {
         put(sheet, `I${row}`, model.destination);
         put(sheet, `J${row}`, model.domesticSourceLocation);
         put(sheet, `K${row}`, '照章征免');
-        put(sheet, `C${row + 1}`, item.description);
+        put(sheet, `C${row + 1}`, declarationDetailText(item));
         put(sheet, `D${row + 1}`, formatQuantityUnit({ quantity: item.netWeight, unit: item.netWeight ? '千克' : undefined }));
     });
     put(sheet, 'A18', '特殊关系确认：否', { font: boldFont });

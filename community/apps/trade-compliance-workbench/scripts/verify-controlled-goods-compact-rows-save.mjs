@@ -36,8 +36,25 @@ assert.equal(capturedInput.items[0].type, 'controlled_goods')
 assert.equal(capturedInput.items[0].title, '商品1')
 assert.equal(capturedInput.items[0].extractedData.productName, '商品1')
 assert.equal(capturedInput.items[0].extractedData.hsCode, '82070000')
+assert.equal(capturedInput.items[0].extractedData.controlNote, '制裁管控商品')
 assert.equal(capturedInput.items[0].sourceLocation, 'Sheet1, 行号2')
 assert.equal(capturedInput.metadata.inputMode, 'compact_rows')
 assert.equal(capturedInput.metadata.rowCount, 100)
+
+await saveTool.invoke({
+  batchId: 'batch-2',
+  sourceFileName: 'sanctions.xlsx',
+  rows: [{
+    productName: '章节商品',
+    hsCode: '25000000',
+    sequence: '25',
+    sectionPath: 'Chapter 25',
+    rawText: '25 章节商品 25000000',
+    sourceLocation: 'Sheet1, 行号4'
+  }]
+})
+assert.equal(capturedInput.items[0].extractedData.controlNote, undefined)
+assert.equal(capturedInput.items[0].extractedData.sectionPath, 'Chapter 25')
+assert.equal(capturedInput.items[0].extractedData.rawText, '25 章节商品 25000000')
 
 console.log('controlled goods compact rows save verification passed')

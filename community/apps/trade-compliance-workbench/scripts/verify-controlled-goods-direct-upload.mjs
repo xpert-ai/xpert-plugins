@@ -32,6 +32,7 @@ const response = await provider.executeViewFileAction(
 
 assert.equal(response.success, true)
 assert.equal(response.refresh, false)
+assert.equal(response.data?.expectedChunkCount, 1)
 assert.equal(response.data?.commandKey, 'assistant.chat.send_message')
 assert.ok(response.data?.payload?.text?.includes('一次性识别'))
 assert.ok(response.data?.payload?.text?.includes('一次性调用 trade_compliance_save_controlled_goods_extraction'))

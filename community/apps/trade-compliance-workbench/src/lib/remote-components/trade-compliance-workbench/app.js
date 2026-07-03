@@ -120,7 +120,7 @@
     const supplierRows = supplierReviewRows.concat(data.products.map(toSupplierProductReviewRow))
     const supplierReviews = applyStatusFilter(filterItems(supplierRows, query, reviewSearchKeys), statusFilter)
     const pendingSupplierReviews = supplierReviews.filter((item) => (item.reviewStatus || 'pending') === 'pending')
-    const salesReviews = applyStatusFilter(filterItems(reviewItems.filter((item) => item.type === 'customs_workbook'), query, reviewSearchKeys), statusFilter)
+    const salesReviews = applyStatusFilter(filterItems(reviewItems.filter((item) => item.type === 'customs_workbook' && !isSalesContractLineReviewItem(item)), query, reviewSearchKeys), statusFilter)
     const pendingSalesReviews = salesReviews.filter((item) => (item.reviewStatus || 'pending') === 'pending')
     const filteredControlledGoods = filterItems(data.controlledGoods, query, ['productName', 'hsCode', 'controlNote'])
     const filteredProducts = filterItems(data.products, query, ['supplierName', 'productName', 'model', 'enrichedHsCode', 'englishName'])
@@ -287,7 +287,7 @@
         debugUpload('file workflow completed', { actionKey, fileName: file.name, dispatched })
         showNotice(resolveFileWorkflowNotice(actionKey, dispatched), 'success')
         await reload()
-        if (dispatched && expectedType) startRecognitionPolling(expectedType, previousCount, readExpectedCount(actionData))
+        if (dispatched && expectedType) startRecognitionPolling(expectedType, previousCount, readRecognitionPollingOptions(actionData))
       } catch (error) {
         debugUpload('file workflow failed', { actionKey, fileName: file.name, message: getErrorMessage(error) })
         showNotice(getErrorMessage(error), 'error')
@@ -571,20 +571,27 @@
 
     async function generateWorkbook() {
       if (busy) return
-      const salesItem = salesReviews.find((item) => item.reviewStatus === 'confirmed') || salesReviews[0]
+      const selectedSalesRows = getSelectedSalesRows()
+      if (selectedSalesRows.length === 0) {
+        showNotice('请先勾选要生成销售发票的购销合同。', 'error')
+        return
+      }
       setBusy(true)
       try {
-        const base = readMerged(salesItem || {})
-        const invoiceNo = base.invoiceNo || ('INV-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''))
-        const response = await executeAction('generate_customs_workbook', null, {
-          invoiceNo,
-          contractNo: base.contractNo,
-          sourceFileName: base.sourceFileName,
-          fileName: invoiceNo + '-销售发票.xlsx',
-          workbookData: base
-        }, {})
-        assertActionSuccess(response)
-        showNotice('销售发票已生成并写入历史。', 'success')
+        for (let index = 0; index < selectedSalesRows.length; index += 1) {
+          const salesItem = selectedSalesRows[index]
+          const base = readMerged(salesItem || {})
+          const invoiceNo = base.invoiceNo || fallbackInvoiceNo(base, index, selectedSalesRows.length)
+          const response = await executeAction('generate_customs_workbook', null, {
+            invoiceNo,
+            contractNo: base.contractNo,
+            sourceFileName: base.sourceFileName || salesItem.title,
+            fileName: invoiceNo + '-销售发票.xlsx',
+            workbookData: base
+          }, {})
+          assertActionSuccess(response)
+        }
+        showNotice(selectedSalesRows.length === 1 ? '销售发票已生成并写入历史。' : `已生成 ${selectedSalesRows.length} 张销售发票。`, 'success')
         await reload()
       } catch (error) {
         showNotice(getErrorMessage(error), 'error')
@@ -597,11 +604,14 @@
       notify(level || 'info', message)
     }
 
-    function startRecognitionPolling(expectedType, previousCount, expectedCount) {
+    function startRecognitionPolling(expectedType, previousCount, options) {
       stopRecognitionPolling()
       let attempts = 0
       let lastCount = previousCount
       let stableTicks = 0
+      const pollingOptions = options || {}
+      const expectedCount = pollingOptions.expectedCount || 0
+      const isChunked = pollingOptions.expectedChunkCount > 1
       const targetCount = expectedCount > 0 ? previousCount + expectedCount : null
       pollingRef.current = setInterval(async () => {
         attempts += 1
@@ -612,7 +622,7 @@
           const nextCount = countReviewItemsByType(nextData.reviewItems, expectedType)
           stableTicks = nextCount === lastCount ? stableTicks + 1 : 0
           lastCount = nextCount
-          if ((targetCount && nextCount >= targetCount) || (!targetCount && nextCount > previousCount && stableTicks >= 4) || attempts >= 160) {
+          if ((targetCount && nextCount >= targetCount) || (!targetCount && !isChunked && nextCount > previousCount && stableTicks >= 4) || attempts >= 160) {
             stopRecognitionPolling()
           }
         } catch (_error) {
@@ -786,10 +796,11 @@
     function renderWorkbooksPage() {
       const salesPage = paginateRows('sales-contracts', salesReviews)
       const workbookPage = paginateRows('sales-workbooks', filteredWorkbooks)
+      const selectedSalesCount = getSelectedSalesRows().length
       return h('div', { className: 'tcw-page workbooks-page' },
         businessPanel('销售发票', '上传购销合同后，先审核发票字段，再生成固定模板 Excel。', [
           uploadButton('upload_sales_contract', '上传购销合同'),
-          h('button', { className: 'tcw-btn tcw-btn-primary', disabled: busy, onClick: generateWorkbook }, '生成销售发票')
+          h('button', { className: 'tcw-btn tcw-btn-primary', disabled: busy || selectedSalesCount === 0, onClick: generateWorkbook }, selectedSalesCount > 1 ? `生成销售发票 (${selectedSalesCount})` : '生成销售发票')
         ], [
           renderListToolbar('购销合同识别列表', salesReviews.length),
           h('div', { className: 'pending-sales-contracts tcw-table-section' },
@@ -805,7 +816,7 @@
             }, '暂无购销合同识别结果。', renderSalesReviewActions)
           ),
           pagination('sales-contracts', salesReviews.length),
-          h('section', { className: 'tcw-history-section' },
+          h('section', { className: 'tcw-history-section tcw-workbook-history-section' },
             h('div', { className: 'tcw-subsection-head' },
               h('div', null, h('h3', null, '已生成销售发票'), h('p', null, `${filteredWorkbooks.length} 条生成历史`))
             ),
@@ -1068,6 +1079,18 @@
             : []
       const selected = new Set(selectedIds)
       return rows.filter((row) => selected.has(row.id))
+    }
+
+    function getSelectedSalesRows() {
+      const selected = new Set(selectedIds)
+      return salesReviews.filter((row) => row.id && selected.has(row.id))
+    }
+
+    function fallbackInvoiceNo(base, index, total) {
+      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      const contractNo = String(base && base.contractNo || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 18)
+      if (contractNo) return `INV-${contractNo}`
+      return total > 1 ? `INV-${date}-${index + 1}` : `INV-${date}`
     }
 
     function materializedDeleteAction(item) {
@@ -1443,10 +1466,10 @@
   function iconDataUri(name, tone) {
     const colors = {
       blue: '#2563eb',
-      green: '#139160',
-      orange: '#e07818',
-      violet: '#7c3aed',
-      slate: '#526174'
+      green: '#64748b',
+      orange: '#64748b',
+      violet: '#64748b',
+      slate: '#64748b'
     }
     const color = colors[tone] || colors.blue
     const paths = {
@@ -1476,14 +1499,38 @@
     if (!rows || rows.length === 0) return empty(emptyText || '暂无数据。')
     return h('div', { className: 'tcw-table-wrap' },
       h('table', { className: 'tcw-table' },
-        h('thead', null, h('tr', null, headers.map((item, index) => h('th', { key: index }, item)))),
+        h('thead', null, h('tr', null, headers.map((item, index) => h('th', { key: index, className: tableHeaderClass(item, index, headers) }, item)))),
         h('tbody', null, rows.map((row, index) =>
           h('tr', { key: row.id || index, className: onRowClick ? 'clickable' : '', onClick: onRowClick ? () => onRowClick(row) : undefined },
-            mapRow(row, index).map((cell, cellIndex) => h('td', { key: cellIndex }, cell))
+            mapRow(row, index).map((cell, cellIndex) => h('td', { key: cellIndex, className: tableCellClass(headers[cellIndex], cellIndex, headers) }, normalizeTableCell(cell)))
           )
         ))
       )
     )
+  }
+
+  function tableHeaderClass(header, index, headers) {
+    return tableCellClass(header, index, headers)
+  }
+
+  function tableCellClass(header, index, headers) {
+    const classes = []
+    const headerText = String(header || '')
+    if (index === 0 && typeof header !== 'string') classes.push('tcw-select-cell')
+    if (headerText === '序号') classes.push('tcw-index-cell')
+    if (index === headers.length - 1 && headerText === '操作') classes.push('tcw-actions-cell')
+    if (/状态|确认/.test(headerText)) classes.push('tcw-status-cell')
+    if (/说明|描述|英文|商品|文件|标题|买方|卖方|来源|型号|模板工作表/.test(headerText)) classes.push('tcw-text-cell')
+    return classes.join(' ')
+  }
+
+  function normalizeTableCell(cell) {
+    if (cell === undefined || cell === null) return h('span', { className: 'tcw-cell-text muted', title: '-' }, '-')
+    if (typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean') {
+      const text = String(cell)
+      return h('span', { className: 'tcw-cell-text', title: text }, text)
+    }
+    return cell
   }
 
   function compareBlock(label, data) {
@@ -1855,10 +1902,14 @@
     return result
   }
 
-  function readExpectedCount(payload) {
-    if (!payload || typeof payload !== 'object') return 0
-    const value = payload.expectedCount
-    return Number.isFinite(value) && value > 0 ? value : 0
+  function readRecognitionPollingOptions(payload) {
+    if (!payload || typeof payload !== 'object') return { expectedCount: 0, expectedChunkCount: 0 }
+    const expectedCount = Number(payload.expectedCount)
+    const expectedChunkCount = Number(payload.expectedChunkCount)
+    return {
+      expectedCount: Number.isFinite(expectedCount) && expectedCount > 0 ? expectedCount : 0,
+      expectedChunkCount: Number.isFinite(expectedChunkCount) && expectedChunkCount > 0 ? expectedChunkCount : 0
+    }
   }
 
   function resolveFileWorkflowNotice(actionKey, dispatched) {
@@ -1958,6 +2009,15 @@
     if (item.type === 'supplier_product' && !merged.productName && !merged.supplierName && String(item.title || '').startsWith('供应商合同：')) return true
     if (item.type === 'customs_workbook' && !merged.invoiceNo && !merged.contractNo && String(item.title || '').startsWith('购销合同：')) return true
     return false
+  }
+
+  function isSalesContractLineReviewItem(item) {
+    if (!item || item.type !== 'customs_workbook') return false
+    const merged = readMerged(item)
+    if (Array.isArray(merged.items) && merged.items.length > 0) return false
+    if (merged.invoiceNo || merged.buyerName || merged.sellerName || merged.currency) return false
+    const hasLineFields = merged.productName || merged.description || merged.model || merged.quantity || merged.unitPrice || merged.amount || merged.hsCode
+    return Boolean(hasLineFields && merged.contractNo)
   }
 
   function groupBy(items, keyFn) {
@@ -2064,7 +2124,7 @@
   function injectStyles() {
     const style = document.createElement('style')
     style.textContent = `
-:root { color-scheme: light; --tcw-bg:#f5f7fa; --tcw-card:#fff; --tcw-soft:#f8fafc; --tcw-text:#152033; --tcw-muted:#66758a; --tcw-border:#dbe3ed; --tcw-primary:#176b87; --tcw-primary-dark:#0f5167; --tcw-success:#147a46; --tcw-warning:#9a5b00; --tcw-danger:#b42318; }
+:root { color-scheme: light; --tcw-bg:#f5f7fa; --tcw-card:#fff; --tcw-soft:#f8fafc; --tcw-text:#152033; --tcw-muted:#66758a; --tcw-border:#dbe3ed; --tcw-primary:#475569; --tcw-primary-dark:#334155; --tcw-success:#475569; --tcw-warning:#64748b; --tcw-danger:#9f3a38; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--tcw-bg); color: var(--tcw-text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 button, input, textarea, select { font: inherit; letter-spacing: 0; }
@@ -2134,10 +2194,10 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
   height: 22px;
   color: currentColor;
 }
-.tcw-metric-icon.blue { background: #e8f0ff; color: var(--tcw-primary); }
-.tcw-metric-icon.green { background: #e7f8ef; color: var(--tcw-success); }
-.tcw-metric-icon.orange { background: #fff2df; color: var(--tcw-warning); }
-.tcw-metric-icon.violet { background: #f1eaff; color: var(--tcw-violet); }
+.tcw-metric-icon.blue { background: #eef2f7; color: var(--tcw-primary); }
+.tcw-metric-icon.green { background: #eef2f7; color: var(--tcw-slate); }
+.tcw-metric-icon.orange { background: #eef2f7; color: var(--tcw-slate); }
+.tcw-metric-icon.violet { background: #eef2f7; color: var(--tcw-slate); }
 .tcw-metric-icon.slate { background: #eef2f6; color: var(--tcw-slate); }
 .tcw-metric-body { display: grid; gap: 2px; }
 .tcw-metric-body span { color: var(--tcw-muted); font-size: 12px; }
@@ -2148,9 +2208,18 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-field-check input { width: 18px; height: 18px; min-height: 18px; padding: 0; }
 .tcw-check { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: var(--tcw-muted); font-size: 13px; }
 .tcw-table-wrap { overflow: auto; border: 1px solid var(--tcw-border); border-radius: 8px; }
-.tcw-table { width: 100%; min-width: 840px; border-collapse: collapse; font-size: 12px; }
-.tcw-table th, .tcw-table td { border-bottom: 1px solid var(--tcw-border); padding: 10px; text-align: left; vertical-align: top; }
+.tcw-table { width: 100%; min-width: 1120px; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.tcw-table th, .tcw-table td { min-width: 96px; border-bottom: 1px solid var(--tcw-border); padding: 10px; text-align: left; vertical-align: top; }
 .tcw-table th { background: var(--tcw-soft); color: var(--tcw-muted); font-size: 11px; font-weight: 900; }
+.tcw-table th.tcw-select-cell, .tcw-table td.tcw-select-cell, .tcw-table th.tcw-index-cell, .tcw-table td.tcw-index-cell { width: 48px; min-width: 48px; }
+.tcw-table th.tcw-status-cell, .tcw-table td.tcw-status-cell { width: 108px; min-width: 108px; }
+.tcw-table th.tcw-actions-cell, .tcw-table td.tcw-actions-cell { position: sticky; right: 0; z-index: 2; width: 220px; min-width: 220px; background: var(--tcw-card); box-shadow: -8px 0 14px rgba(15, 23, 42, .05); }
+.tcw-table th.tcw-actions-cell { z-index: 3; background: var(--tcw-soft); }
+.tcw-workbook-history-section .tcw-table { min-width: 680px; }
+.tcw-workbook-history-section .tcw-table th.tcw-actions-cell, .tcw-workbook-history-section .tcw-table td.tcw-actions-cell { width: 112px; min-width: 112px; }
+.tcw-workbook-history-section .tcw-cell-text { max-width: 180px; }
+.tcw-cell-text { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcw-text-cell .tcw-cell-text { max-width: 280px; }
 .tcw-table tr:last-child td { border-bottom: 0; }
 .tcw-table tr.clickable { cursor: pointer; }
 .tcw-table tr.clickable:hover td { background: color-mix(in srgb, var(--tcw-primary) 5%, transparent); }
@@ -2159,10 +2228,10 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-list-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .tcw-filter { display: inline-flex; align-items: center; gap: 8px; color: var(--tcw-muted); font-size: 13px; font-weight: 800; }
 .tcw-filter select { min-height: 34px; border: 1px solid var(--tcw-border); border-radius: 6px; background: var(--tcw-card); color: var(--tcw-text); padding: 6px 28px 6px 9px; }
-.tcw-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-	.tcw-mini-btn { min-height: 28px; border: 1px solid color-mix(in srgb, var(--tcw-primary) 35%, var(--tcw-border)); border-radius: 6px; background: color-mix(in srgb, var(--tcw-primary) 6%, var(--tcw-card)); color: var(--tcw-primary); padding: 4px 8px; cursor: pointer; font-size: 12px; font-weight: 800; }
-	.tcw-mini-btn.active { background: var(--tcw-primary); color: #fff; }
-	.tcw-mini-btn.danger { border-color: color-mix(in srgb, var(--tcw-danger) 35%, var(--tcw-border)); background: color-mix(in srgb, var(--tcw-danger) 6%, var(--tcw-card)); color: var(--tcw-danger); }
+.tcw-row-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; width: max-content; white-space: nowrap; }
+	.tcw-mini-btn { display: inline-flex; align-items: center; justify-content: center; width: 46px; min-width: 46px; min-height: 28px; border: 1px solid var(--tcw-border); border-radius: 6px; background: var(--tcw-card); color: var(--tcw-text); padding: 4px 0; cursor: pointer; font-size: 12px; font-weight: 800; white-space: nowrap; }
+	.tcw-mini-btn.active { background: var(--tcw-soft); color: var(--tcw-text); }
+	.tcw-mini-btn.danger { border-color: color-mix(in srgb, var(--tcw-danger) 28%, var(--tcw-border)); background: var(--tcw-card); color: var(--tcw-danger); }
 	.tcw-mini-btn:disabled { cursor: not-allowed; opacity: .5; }
 		.tcw-hs-code-text { overflow-wrap: anywhere; font-size: 12px; }
 		.tcw-hs-search-form { display: grid; gap: 10px; }
@@ -2342,9 +2411,9 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 .tcw-evidence span { color: var(--tcw-muted); font-size: 11px; font-weight: 900; }
 .tcw-evidence strong { overflow-wrap: anywhere; font-size: 12px; }
 .tcw-status { display: inline-flex; width: fit-content; align-items: center; border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 900; }
-.tcw-status.ok { background: #e8f7ef; color: var(--tcw-success); }
-.tcw-status.warn { background: #fff4df; color: var(--tcw-warning); }
-.tcw-status.danger { background: #fde8e6; color: var(--tcw-danger); }
+.tcw-status.ok { background: #eef2f7; color: var(--tcw-success); }
+.tcw-status.warn { background: #f1f5f9; color: var(--tcw-warning); }
+.tcw-status.danger { background: #f8eeee; color: var(--tcw-danger); }
 .tcw-status.muted { background: #eef2f6; color: var(--tcw-muted); }
 @media (max-width: 1040px) {
 	  .tcw-header, .tcw-main.with-drawer, .tcw-edit-grid { grid-template-columns: 1fr; }
@@ -2358,19 +2427,19 @@ button, input, textarea, select { font: inherit; letter-spacing: 0; }
 
 /* V2 process-oriented shell */
 :root {
-  --tcw-bg:#f4f7fb;
+  --tcw-bg:#f6f8fb;
   --tcw-card:#ffffff;
   --tcw-soft:#f8fafc;
   --tcw-text:#172033;
   --tcw-muted:#65758c;
   --tcw-border:#dbe5f0;
-  --tcw-primary:#2563eb;
-  --tcw-primary-dark:#1d4ed8;
-  --tcw-success:#139160;
-  --tcw-warning:#e07818;
-  --tcw-danger:#bd2f2f;
-  --tcw-violet:#7c3aed;
-  --tcw-slate:#526174;
+  --tcw-primary:#475569;
+  --tcw-primary-dark:#334155;
+  --tcw-success:#475569;
+  --tcw-warning:#64748b;
+  --tcw-danger:#9f3a38;
+  --tcw-violet:#64748b;
+  --tcw-slate:#64748b;
   --tcw-shadow:0 14px 42px rgba(20, 35, 55, .08);
 }
 body { background: var(--tcw-bg); letter-spacing: 0; }
@@ -2405,7 +2474,7 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: #e8f0ff;
+  background: #eef2f7;
   color: var(--tcw-primary);
   font-size: 12px;
   font-weight: 900;
@@ -2428,9 +2497,9 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
   font-weight: 800;
 }
 .tcw-tab.active {
-  border-color: #d8e7ff;
-  background: #eff6ff;
-  color: #174ea6;
+  border-color: #dbe5f0;
+  background: #f1f5f9;
+  color: var(--tcw-primary);
 }
 .tcw-overview-panel {
   display: grid;
@@ -2457,7 +2526,7 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
 }
 .tcw-overview-tab:last-child { border-right: 0; }
 .tcw-overview-tab.active {
-  background: #eff6ff;
+  background: #f1f5f9;
   color: var(--tcw-primary);
 }
 .tcw-tab em {
@@ -2484,10 +2553,10 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
   height: 16px;
   color: currentColor;
 }
-.tcw-nav-icon.blue { background: #e8f0ff; color: var(--tcw-primary); }
-.tcw-nav-icon.green { background: #e7f8ef; color: var(--tcw-success); }
-.tcw-nav-icon.orange { background: #fff2df; color: var(--tcw-warning); }
-.tcw-nav-icon.violet { background: #f1eaff; color: var(--tcw-violet); }
+.tcw-nav-icon.blue { background: #eef2f7; color: var(--tcw-primary); }
+.tcw-nav-icon.green { background: #eef2f7; color: var(--tcw-slate); }
+.tcw-nav-icon.orange { background: #eef2f7; color: var(--tcw-slate); }
+.tcw-nav-icon.violet { background: #eef2f7; color: var(--tcw-slate); }
 .tcw-nav-icon.slate { background: #eef2f6; color: var(--tcw-slate); }
 .tcw-workspace {
   display: grid;
@@ -2540,7 +2609,7 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
   min-height: auto;
   align-items: center;
   border-bottom: 1px solid var(--tcw-border);
-  background: linear-gradient(90deg, #ffffff, #f7fbff);
+  background: var(--tcw-card);
   padding: 20px 22px;
 }
 .tcw-business-head h2 { font-size: 18px; }
@@ -2564,8 +2633,8 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
 }
 .tcw-btn-primary:hover:not(:disabled) { background: var(--tcw-primary-dark); }
 .tcw-upload {
-  border-color: #bcd3ff;
-  background: #eff6ff;
+  border-color: var(--tcw-border);
+  background: var(--tcw-soft);
   color: var(--tcw-primary);
 }
 .tcw-table-wrap {
@@ -2578,10 +2647,11 @@ body { background: var(--tcw-bg); letter-spacing: 0; }
   font-size: 11px;
 }
 .tcw-table td { background: var(--tcw-card); }
-.tcw-table tr:hover td { background: #fbfdff; }
-.tcw-status.ok { background: #e7f8ef; color: var(--tcw-success); }
-.tcw-status.warn { background: #fff2df; color: #b35b00; }
-.tcw-status.danger { background: #fde8e6; color: var(--tcw-danger); }
+.tcw-table tr:hover td { background: #f8fafc; }
+.tcw-table tr:hover td.tcw-actions-cell { background: var(--tcw-card); }
+.tcw-status.ok { background: #eef2f7; color: var(--tcw-success); }
+.tcw-status.warn { background: #f1f5f9; color: var(--tcw-warning); }
+.tcw-status.danger { background: #f8eeee; color: var(--tcw-danger); }
 .tcw-status.muted { background: #eef2f6; color: var(--tcw-muted); }
 @media (max-width: 1280px) {
   .tcw-shell { grid-template-columns: 230px minmax(0, 1fr); }

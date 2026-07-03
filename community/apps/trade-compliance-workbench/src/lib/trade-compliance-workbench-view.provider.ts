@@ -379,7 +379,7 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
                 buffer,
                 fileName,
                 mimeType: getFileMimeType(file),
-                maxChars: 120000
+                maxChars: 30000
             });
             const result = await this.service.createReviewBatch(scope, {
                 type: 'controlled_goods_file',
@@ -409,6 +409,7 @@ let TradeComplianceWorkbenchViewProvider = class TradeComplianceWorkbenchViewPro
                 fileName,
                 role: 'controlled_goods_file',
                 batchId: result.batch.id,
+                extractedText,
                 text: buildControlledGoodsParsePrompt(fileName, result.batch.id, extractedText)
             }));
         }
@@ -701,6 +702,7 @@ function buildAssistantCommand(input) {
         .filter((item) => Boolean(item));
     return {
         commandKey: 'assistant.chat.send_message',
+        expectedChunkCount: input.extractedText?.chunkCount ?? 0,
         payload: {
             text: input.text,
             clientMessageId: input.messageId ?? `trade-compliance:${input.action}:${input.batchId ?? Date.now()}`,
@@ -822,7 +824,8 @@ function buildControlledGoodsParsePrompt(fileName, batchId, extractedText) {
             ? '当前消息不包含原文全文。请按块处理：先调用 trade_compliance_get_controlled_goods_extracted_text_chunk 获取当前块文本，再抽取并调用 trade_compliance_save_controlled_goods_extraction 保存该块 rows，然后继续获取下一块，直到工具返回 hasMore=false。'
             : '请一次性抽取文件中的全部管控商品明细，然后一次性调用 trade_compliance_save_controlled_goods_extraction 保存。为避免工具参数过大，管控商品优先使用 rows 紧凑入参，不要为每条记录手写完整 items 结构。',
         '禁止摘要、禁止概览、禁止使用“等”“主要包括”“大类结构”代替明细；凡是表格或正文中的每一行商品、技术、软件、设备、材料、子项，都要拆成独立待审核记录。',
-        'rows 中每条记录尽量包含 productName、hsCode、keywords、controlNote、enabled、sequence、controlCode、sectionPath、rawText、sourcePage、sourceLocation、confidence；sourceLocation 必须写明页码、工作表行号或表格/章节位置。',
+        'rows 中每条记录尽量包含 productName、hsCode、keywords、enabled、sequence、controlCode、sectionPath、rawText、sourcePage、sourceLocation、confidence；sourceLocation 必须写明页码、工作表行号或表格/章节位置。',
+        'controlNote 只在源文件当前行明确写有许可证要求、禁止/限制说明、管制依据或合规备注时填写；不要把章节名、类别名、商品名、HS Code 或“管控商品/管控章节”这类泛化判断写入 controlNote，没有明确说明就留空。',
         '如果转换文本是表格，rows 数量应尽量等于有效数据行数量，不要只保存前几行；不要因为聊天展示只列出部分数据而只传部分 rows。',
         '如果源文件没有海关商品编号，hsCode 留空，不要编造；如果一行有多个 HS Code，用换行或数组语义保留全部编码；技术、软件类没有 HS Code 也要保存。',
         isChunked
@@ -852,7 +855,8 @@ function buildSalesContractParsePrompt(fileName, batchId) {
         '文件已写入智能体工作空间，请优先根据 state.tradeComplianceWorkbench.workspacePath 使用 SandboxFile 等沙箱文件工具按路径读取；如果同时存在附件能力，也可以使用 file_preview、file_search、file_read 等文件理解工具读取。',
         '目标：识别销售发票和报关资料所需字段，包括发票号、合同号、买方、卖方、币种、贸易术语、付款方式、商品明细、数量、单价、金额、包装、毛重、净重等。',
         `请调用 trade_compliance_save_sales_contract_extraction 保存待审核结果，batchId 可记录为 ${batchId ?? '-'}。`,
-        '每个 items 条目的 type 必须是 customs_workbook；extractedData 中请包含 invoiceNo、contractNo、buyerName、sellerName、currency、items 等字段。',
+        '一个购销合同只保存 1 个 items 条目，type 必须是 customs_workbook；不要把每个商品明细拆成独立审核项，商品明细必须放到该条 extractedData.items 数组中。',
+        '该 customs_workbook 条目的 extractedData 中请包含 invoiceNo、contractNo、buyerName、sellerName、currency、items 等字段。',
         '不要只回复文字，必须调用工具把识别结果写入插件。'
     ].join('\n');
 }

@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert'
 import * as XLSX from 'xlsx'
 
 import { TradeComplianceWorkbenchViewProvider } from '../dist/lib/trade-compliance-workbench-view.provider.js'
+import { TradeComplianceWorkbenchMiddleware } from '../dist/lib/trade-compliance-workbench.middleware.js'
 import { TRADE_COMPLIANCE_TOOL_NAMES, TRADE_COMPLIANCE_VIEW_KEY } from '../dist/lib/constants.js'
 
 const created = []
@@ -43,6 +44,19 @@ assert.ok(text.includes('先调用 trade_compliance_get_controlled_goods_extract
 assert.ok(!text.includes('LONG CONTROLLED GOODS DESCRIPTION'))
 assert.ok(!text.includes('已截断到消息上限'))
 assert.equal(created[0].metadata.extractedTextTruncated, false)
-assert.ok(created[0].metadata.extractedTextChunkCount > 1)
+assert.ok(created[0].metadata.extractedTextChunkCount >= 8)
+assert.equal(response.data?.expectedChunkCount, created[0].metadata.extractedTextChunkCount)
+
+const middleware = new TradeComplianceWorkbenchMiddleware(service, { resolve: () => ({}) })
+const runtime = middleware.createMiddleware({}, { tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', xpertId: 'assistant-1' })
+const chunkTool = runtime.tools.find((tool) => tool.name === 'trade_compliance_get_controlled_goods_extracted_text_chunk')
+assert.ok(chunkTool, 'controlled goods text chunk tool should exist')
+const chunkOutput = JSON.parse(await chunkTool.invoke({ batchId: 'batch-large', chunkIndex: 1 }))
+assert.equal(chunkOutput.found, true)
+assert.equal(chunkOutput.chunkIndex, 1)
+assert.ok(chunkOutput.chunkCount >= 8)
+assert.ok(chunkOutput.text.length <= 45000)
+assert.ok(chunkOutput.processingInstruction.includes('保存本块 rows'))
+assert.ok(chunkOutput.processingInstruction.includes('继续读取下一块'))
 
 console.log('controlled goods large text chunking verification passed')

@@ -40,12 +40,12 @@ const controlledGoodsRowsSchema = z.object({
         productName: z.string().optional(),
         hsCode: z.string().optional(),
         keywords: z.array(z.string()).optional(),
-        controlNote: z.string().optional(),
+        controlNote: z.string().optional().describe('Only fill when the source row explicitly states a control basis, license requirement, prohibition, restriction, or compliance note. Leave empty for generic chapter/category labels; do not invent text.'),
         enabled: z.boolean().optional(),
         sequence: z.string().optional(),
         controlCode: z.string().optional(),
-        sectionPath: z.string().optional(),
-        rawText: z.string().optional(),
+        sectionPath: z.string().optional().describe('Source chapter, sheet, or section path. Do not copy this into controlNote.'),
+        rawText: z.string().optional().describe('Original row text from the source. Do not copy this into controlNote unless it explicitly is a control note.'),
         sourcePage: z.string().optional(),
         sourceLocation: z.string().optional(),
         confidence: z.number().min(0).max(1).optional()
@@ -155,7 +155,10 @@ let TradeComplianceWorkbenchMiddleware = class TradeComplianceWorkbenchMiddlewar
                         candidates: z.array(controlledGoodsCandidateSchema)
                     })
                 }),
-                tool(async (input) => stringify(summarizeReviewBatchResult(await this.service.createReviewBatch(scope, { ...input, type: 'sales_contract' }), input)), {
+                tool(async (input) => {
+                    const normalizedInput = normalizeSalesContractExtractionInput(input);
+                    return stringify(summarizeReviewBatchResult(await this.service.createReviewBatch(scope, { ...normalizedInput, type: 'sales_contract' }), normalizedInput));
+                }, {
                     name: TRADE_COMPLIANCE_TOOL_NAMES[4],
                     description: 'Save sales contract extraction results for review before customs workbook generation.',
                     schema: createReviewBatchSchema
@@ -249,6 +252,77 @@ function normalizeControlledGoodsExtractionInput(input) {
         items
     };
 }
+function normalizeSalesContractExtractionInput(input) {
+    const sourceItems = Array.isArray(input?.items) ? input.items : [];
+    const workbookItems = sourceItems.filter((item) => item?.type === 'customs_workbook');
+    if (workbookItems.length <= 1) {
+        return { ...input, items: workbookItems.length ? workbookItems : sourceItems };
+    }
+    const mainItem = workbookItems.find((item) => isSalesContractHeaderData(mergeReviewData(item))) ?? workbookItems[0];
+    const mainData = mergeReviewData(mainItem);
+    const detailRows = workbookItems
+        .filter((item) => item !== mainItem)
+        .map((item) => toSalesContractLineItem(mergeReviewData(item)))
+        .filter(Boolean);
+    const existingLines = Array.isArray(mainData.items) ? mainData.items : [];
+    const mergedData = {
+        ...mainData,
+        items: dedupeSalesContractLineItems([...existingLines, ...detailRows])
+    };
+    return {
+        ...input,
+        items: [{
+                ...mainItem,
+                title: mainItem.title || buildSalesContractTitle(mergedData),
+                extractedData: mergedData,
+                defaultData: mainItem.defaultData,
+                fields: mainItem.fields,
+                sourceLocation: mainItem.sourceLocation
+            }]
+    };
+}
+function mergeReviewData(item) {
+    return {
+        ...(item?.defaultData ?? {}),
+        ...(item?.extractedData ?? {})
+    };
+}
+function isSalesContractHeaderData(data) {
+    return Boolean(stringValue(data.invoiceNo) || stringValue(data.contractNo) || stringValue(data.buyerName) || stringValue(data.sellerName));
+}
+function toSalesContractLineItem(data) {
+    const productName = stringValue(data.productName) ?? stringValue(data.name) ?? stringValue(data.description);
+    const description = stringValue(data.description) ?? productName;
+    const hasLineData = productName || stringValue(data.model) || stringValue(data.hsCode) || data.quantity != null || data.unitPrice != null || data.amount != null;
+    if (!hasLineData)
+        return null;
+    return {
+        productName,
+        englishName: stringValue(data.englishName),
+        model: stringValue(data.model),
+        description,
+        quantity: data.quantity,
+        unit: stringValue(data.unit),
+        unitPrice: data.unitPrice ?? data.taxInclusiveUnitPrice,
+        amount: data.amount ?? data.taxInclusiveTotalAmount,
+        hsCode: stringValue(data.hsCode ?? data.contractHsCode ?? data.enrichedHsCode),
+        netWeight: data.netWeight,
+        grossWeight: data.grossWeight
+    };
+}
+function dedupeSalesContractLineItems(items) {
+    const seen = new Set();
+    return items.filter((item) => {
+        const key = [item.productName, item.model, item.hsCode, item.quantity, item.unitPrice, item.amount].map((value) => String(value ?? '').trim()).join('|');
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
+    });
+}
+function buildSalesContractTitle(data) {
+    return ['购销合同', data.contractNo].filter(Boolean).join(' ') || '购销合同';
+}
 function toControlledGoodsReviewItemFromRow(row) {
     if (!row || typeof row !== 'object' || Array.isArray(row))
         return null;
@@ -259,7 +333,7 @@ function toControlledGoodsReviewItemFromRow(row) {
     const rawText = stringValue(row.rawText);
     const keywords = normalizeControlledGoodsKeywords(row.keywords, [controlCode, sectionPath, productName, hsCode]);
     const title = [controlCode, productName].filter(Boolean).join(' ') || hsCode || '管控商品';
-    const controlNote = stringValue(row.controlNote) ?? [sectionPath, rawText].filter(Boolean).join('\n');
+    const controlNote = stringValue(row.controlNote);
     return {
         type: 'controlled_goods',
         title,

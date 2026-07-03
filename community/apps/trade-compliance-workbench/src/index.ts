@@ -13,7 +13,7 @@ const plugin = {
     meta: {
         name: packageJson.name,
         version: packageJson.version,
-        level: 'system',
+        level: 'organization',
         targetApps: ['data-xpert'],
         targetAppMeta: {
             'data-xpert': {

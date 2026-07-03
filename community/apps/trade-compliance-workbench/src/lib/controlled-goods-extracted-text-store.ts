@@ -36,6 +36,9 @@ export function getControlledGoodsExtractedTextChunk(batchId, chunkIndex = 1) {
     chunkCount,
     hasMore: safeIndex < chunkCount,
     nextChunkIndex: safeIndex < chunkCount ? safeIndex + 1 : undefined,
+    processingInstruction: safeIndex < chunkCount
+      ? `请提取并保存本块 rows，保存后继续读取下一块 chunkIndex=${safeIndex + 1}，直到 hasMore=false。`
+      : '请提取并保存本块 rows。本块是最后一块，保存完成后汇总所有保存工具返回的 savedCount。',
     text
   }
 }
