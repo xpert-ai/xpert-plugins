@@ -10,6 +10,9 @@ import {
   type ManagedQueueRedis,
   type ManagedQueueService,
   RequestContext,
+  WORKSPACE_FILES_SOURCE,
+  type WorkspaceFilesApi,
+  type WorkspacePortableFileReference,
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { In, Repository } from 'typeorm'
@@ -41,7 +44,17 @@ import {
   WechatSendResult,
   WechatSendTextInput
 } from './wechat.client.js'
-import { resolveWechatSendFile } from './wechat-send-file.js'
+import {
+  resolveWechatSendFile,
+  resolveWechatSendFileFromWorkspace
+} from './wechat-send-file.js'
+
+const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
+
+/** Minimal runtime registry contract used to discover platform capabilities. */
+type RuntimeCapabilityRegistry = {
+  get<T>(key: string): T | undefined
+}
 
 export type WechatOutboundQueueJobData = {
   integrationId: string
@@ -105,6 +118,8 @@ export type WechatOutboundQueueImageInput = {
 export type WechatOutboundQueueFileInput = Pick<WechatSendFileInput, 'uuid' | 'contactId' | 'uploadToken'> & {
   type: 'file'
   filePath: string
+  /** Portable workspace reference used for delayed reads and retries. */
+  fileRef?: WorkspacePortableFileReference
   fileName: string
   mimeType?: string
   extension?: string
@@ -137,6 +152,8 @@ type WechatQueuedPayload =
       type: 'file'
       source: WechatOutboundSource
       filePath: string
+      /** Persisted reference; never persist file bytes in payloadSummary. */
+      fileRef?: WorkspacePortableFileReference
       fileName: string
       mimeType?: string
       extension?: string
@@ -158,6 +175,8 @@ type WechatResolvedQueuedPayload =
   | {
       type: 'file'
       filePath: string
+      /** Normalized reference loaded from payloadSummary for retry processing. */
+      fileRef?: WorkspacePortableFileReference
       fileName: string
       mimeType?: string
       extension?: string
@@ -205,11 +224,68 @@ function normalizePayloadNumber(value: unknown): number | undefined {
   return Number.isFinite(numberValue) && numberValue > 0 ? Math.floor(numberValue) : undefined
 }
 
+/**
+ * Normalize a persisted queue fileRef without trusting arbitrary payload JSON.
+ *
+ * The queue keeps only the portable workspace reference plus size/sha256 checks;
+ * base64 file content is intentionally reloaded when the job is processed.
+ * This does not infer workspace scope in the plugin; it only preserves an
+ * already-platform-issued reference in a safe shape after JSON serialization.
+ */
+function normalizeQueuedFileRef(value: unknown): WorkspacePortableFileReference | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+  const record = value as Record<string, unknown>
+  const filePath = normalizeString(record.filePath) || normalizeString(record.workspacePath)
+  if (!filePath) {
+    return undefined
+  }
+  const catalog = normalizeWorkspaceFileCatalog(record.catalog)
+  const source = normalizeString(record.source)
+  if (source && source !== WORKSPACE_FILES_SOURCE) {
+    return undefined
+  }
+  return {
+    source: WORKSPACE_FILES_SOURCE,
+    filePath,
+    workspacePath: normalizeString(record.workspacePath) || filePath,
+    ...(normalizeString(record.tenantId) ? { tenantId: normalizeString(record.tenantId) } : {}),
+    ...(normalizeString(record.userId) ? { userId: normalizeString(record.userId) } : {}),
+    ...(catalog ? { catalog } : {}),
+    ...(normalizeString(record.scopeId) ? { scopeId: normalizeString(record.scopeId) } : {}),
+    ...(normalizeString(record.projectId) ? { projectId: normalizeString(record.projectId) } : {}),
+    ...(normalizeString(record.knowledgeId) ? { knowledgeId: normalizeString(record.knowledgeId) } : {}),
+    ...(normalizeString(record.rootId) ? { rootId: normalizeString(record.rootId) } : {}),
+    ...(normalizeString(record.xpertId) ? { xpertId: normalizeString(record.xpertId) } : {}),
+    ...(typeof record.isolateByUser === 'boolean' ? { isolateByUser: record.isolateByUser } : {})
+  }
+}
+
+/**
+ * Accept only catalogs supported by the current portable reference contract.
+ *
+ * Queue payloads are JSON strings, so this guard prevents an arbitrary persisted
+ * value from being replayed as a workspace catalog. Scope resolution still
+ * belongs to the platform workspace-files capability.
+ */
+function normalizeWorkspaceFileCatalog(value: unknown): WorkspacePortableFileReference['catalog'] | undefined {
+  const catalog = normalizeString(value)
+  return catalog === 'projects' ||
+    catalog === 'users' ||
+    catalog === 'knowledges' ||
+    catalog === 'skills' ||
+    catalog === 'xperts'
+    ? catalog
+    : undefined
+}
+
 @Injectable()
 export class WechatOutboundQueueService {
   private readonly logger = new Logger(WechatOutboundQueueService.name)
   private _integrationPermissionService?: IntegrationPermissionService
   private _managedQueueService?: ManagedQueueService
+  private _workspaceFiles?: Pick<WorkspaceFilesApi, 'readRuntimeBuffer'> | null
 
   constructor(
     private readonly client: WechatClient,
@@ -233,6 +309,19 @@ export class WechatOutboundQueueService {
       this._managedQueueService = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN)
     }
     return this._managedQueueService
+  }
+
+  /** Lazily resolve the workspace-files capability for delayed file retries. */
+  private get workspaceFiles(): Pick<WorkspaceFilesApi, 'readRuntimeBuffer'> | null {
+    if (this._workspaceFiles === undefined) {
+      try {
+        const registry = this.pluginContext.resolve<RuntimeCapabilityRegistry>(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+        this._workspaceFiles = registry?.get<Pick<WorkspaceFilesApi, 'readRuntimeBuffer'>>(WORKSPACE_FILES_SOURCE) ?? null
+      } catch {
+        this._workspaceFiles = null
+      }
+    }
+    return this._workspaceFiles
   }
 
   async enqueueText(
@@ -306,6 +395,7 @@ export class WechatOutboundQueueService {
       uuid: normalizeString(input.uuid),
       contactId: normalizeString(input.contactId),
       filePath: normalizeString(input.filePath),
+      fileRef: normalizeQueuedFileRef(input.fileRef),
       fileName: normalizeString(input.fileName),
       mimeType: normalizeString(input.mimeType),
       extension: normalizeString(input.extension),
@@ -337,6 +427,7 @@ export class WechatOutboundQueueService {
         type: 'file',
         source: input.source || 'message_reply',
         filePath: normalizedInput.filePath,
+        ...(normalizedInput.fileRef ? { fileRef: normalizedInput.fileRef } : {}),
         fileName: normalizedInput.fileName,
         ...(normalizedInput.mimeType ? { mimeType: normalizedInput.mimeType } : {}),
         ...(normalizedInput.extension ? { extension: normalizedInput.extension } : {}),
@@ -1029,13 +1120,7 @@ export class WechatOutboundQueueService {
       })
     }
     if (payload.type === 'file') {
-      const file = await resolveWechatSendFile({
-        path: payload.filePath,
-        originalName: payload.fileName,
-        mimeType: payload.mimeType,
-        extension: payload.extension,
-        size: payload.size
-      })
+      const file = await this.resolveQueuedFile(log, payload)
       if (payload.size && file.size !== payload.size) {
         return {
           success: false,
@@ -1077,6 +1162,7 @@ export class WechatOutboundQueueService {
       return {
         type: 'file',
         filePath: normalizeString(payload.filePath),
+        fileRef: normalizeQueuedFileRef(payload.fileRef),
         fileName: normalizeString(payload.fileName) || normalizeString(log.content),
         mimeType: normalizeString(payload.mimeType) || undefined,
         extension: normalizeString(payload.extension) || undefined,
@@ -1102,6 +1188,42 @@ export class WechatOutboundQueueService {
     } catch {
       return null
     }
+  }
+
+  /**
+   * Resolve a queued file for sending.
+   *
+   * New queue payloads prefer the platform portable reference; older payloads
+   * without `fileRef` still fall back to legacy host-path reading.
+   */
+  private async resolveQueuedFile(
+    log: WechatMessageLogEntity,
+    payload: Extract<WechatResolvedQueuedPayload, { type: 'file' }>
+  ) {
+    if (payload.fileRef) {
+      const workspaceFiles = this.workspaceFiles
+      if (!workspaceFiles?.readRuntimeBuffer) {
+        throw new Error('微信文件发送无法读取 workspace 文件：platform.workspace.files capability is not available.')
+      }
+      return resolveWechatSendFileFromWorkspace(
+        {
+          fileRef: payload.fileRef,
+          originalName: payload.fileName,
+          mimeType: payload.mimeType,
+          extension: payload.extension,
+          size: payload.size
+        },
+        { workspaceFiles }
+      )
+    }
+
+    return resolveWechatSendFile({
+      path: payload.filePath,
+      originalName: payload.fileName,
+      mimeType: payload.mimeType,
+      extension: payload.extension,
+      size: payload.size
+    })
   }
 
   private parseAtUsers(payload?: Record<string, unknown> | null): string[] {
