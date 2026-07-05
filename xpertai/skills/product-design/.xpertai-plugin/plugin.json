@@ -1,0 +1,394 @@
+{
+  "name": "@xpert-ai/plugin-product-design",
+  "version": "0.1.0",
+  "description": "Turn early ideas, live URLs, and static screenshots into prototypes teams can review. Converted from the Codex Product Design skill plugin 0.1.47.",
+  "author": "XpertAI",
+  "homepage": "https://xpertai.cn",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/skills/product-design",
+  "license": "MIT",
+  "keywords": [
+    "product-design",
+    "prototype",
+    "frontend",
+    "ux-research",
+    "ux-audit",
+    "accessibility-audit",
+    "research",
+    "context-gathering",
+    "ideation",
+    "image-generation",
+    "skill"
+  ],
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Product Design",
+    "shortDescription": "Explore and prototype ideas",
+    "longDescription": "Turn early ideas into prototypes teams can review. Explore product directions, audit user flows, research user friction, prototype from a live URL, and make static screenshots interactive. Start with a written brief, URL, screenshot, or existing design, then compare visual directions before building.\n\nUse available browser, Figma, Canva, image generation, and hosting tools to gather references, create concepts, review the result, and carry the work forward with your team.",
+    "developerName": "XpertAI",
+    "category": "Design",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "defaultPrompt": [
+      "Help me get started",
+      "Turn this product idea into three visual directions",
+      "Clone this URL into an editable prototype"
+    ],
+    "brandColor": "#FF66AD",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffe4f1%22%2F%3E%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23fdf2f8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%3Cg%20opacity%3D%220.32%22%20transform%3D%22translate(735%2056)%20rotate(6)%22%3E%3Crect%20width%3D%22284%22%20height%3D%22192%22%20rx%3D%2228%22%20fill%3D%22%23ffffff%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2234%22%20width%3D%22156%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.72%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2278%22%20width%3D%22220%22%20height%3D%2230%22%20rx%3D%2215%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.26%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%22122%22%20width%3D%22102%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%230ea5e9%22%20opacity%3D%220.36%22%2F%3E%3Crect%20x%3D%22148%22%20y%3D%22122%22%20width%3D%22104%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.36%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M86%20318C198%20224%20320%20112%20478%20142c116%2022%20155%20120%20284%2094%20128-26%20178-122%20330-74%2046%2015%2084%2042%20118%2074v82H86z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22%2F%3E%3C%2Fsvg%3E"
+    ]
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "NONE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/skills/product-design"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.png",
+    "screenshots": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffe4f1%22%2F%3E%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23fdf2f8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%3Cg%20opacity%3D%220.32%22%20transform%3D%22translate(735%2056)%20rotate(6)%22%3E%3Crect%20width%3D%22284%22%20height%3D%22192%22%20rx%3D%2228%22%20fill%3D%22%23ffffff%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2234%22%20width%3D%22156%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.72%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2278%22%20width%3D%22220%22%20height%3D%2230%22%20rx%3D%2215%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.26%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%22122%22%20width%3D%22102%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%230ea5e9%22%20opacity%3D%220.36%22%2F%3E%3Crect%20x%3D%22148%22%20y%3D%22122%22%20width%3D%22104%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.36%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M86%20318C198%20224%20320%20112%20478%20142c116%2022%20155%20120%20284%2094%20128-26%20178-122%20330-74%2046%2015%2084%2042%20118%2074v82H86z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22%2F%3E%3C%2Fsvg%3E"
+    ]
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "skill",
+        "xpertai-bundle"
+      ],
+      "capabilities": [
+        "product-design",
+        "prototype",
+        "frontend",
+        "ux-research",
+        "ux-audit",
+        "accessibility-audit",
+        "research",
+        "context-gathering",
+        "ideation",
+        "image-to-code",
+        "url-to-code"
+      ],
+      "runtime": {
+        "compatibleTools": [
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxShell",
+            "name": "sandbox_shell",
+            "required": false,
+            "purpose": "Run shell, Node, npm, and Python commands for prototype bootstrap, local preview, preflight scripts, and QA."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_read_file",
+            "required": false,
+            "purpose": "Read generated prototype files, saved context, reference assets, and local source files."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_glob",
+            "required": false,
+            "purpose": "Find files by glob pattern while inspecting existing projects or generated prototypes."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_grep",
+            "required": false,
+            "purpose": "Search file contents while inspecting existing projects or generated prototypes."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_write_file",
+            "required": false,
+            "purpose": "Create generated prototype files and local workflow artifacts."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_append_file",
+            "required": false,
+            "purpose": "Append larger generated prototype files and local workflow artifacts."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_edit_file",
+            "required": false,
+            "purpose": "Edit generated prototype files and local workflow artifacts."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_multi_edit_file",
+            "required": false,
+            "purpose": "Apply multiple edits to generated prototype files and local workflow artifacts."
+          },
+          {
+            "kind": "agent-middleware-tool",
+            "provider": "SandboxFile",
+            "name": "sandbox_list_dir",
+            "required": false,
+            "purpose": "List workspace directories while inspecting existing projects or generated prototypes."
+          }
+        ],
+        "requiredRuntime": {
+          "filesystem": {
+            "read": true,
+            "write": true,
+            "workspace": true
+          },
+          "shell": true,
+          "workspaceDependencies": true,
+          "executables": [
+            "node",
+            "npm",
+            "python3"
+          ]
+        },
+        "optionalRuntime": {
+          "tools": [
+            "Browser",
+            "Chrome",
+            "Playwright",
+            "Figma",
+            "Canva",
+            "image_gen",
+            "Sites",
+            "Vercel"
+          ],
+          "packages": [
+            "vite",
+            "react",
+            "react-dom"
+          ],
+          "integrations": [
+            "Figma or Canva for design review boards",
+            "Sites, Vercel, or another hosting target for prototype sharing"
+          ]
+        }
+      },
+      "marketplace": {
+        "screenshots": [
+          "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20380%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffe4f1%22%2F%3E%3Cstop%20offset%3D%220.48%22%20stop-color%3D%22%23fdf2f8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e0f2fe%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%221200%22%20height%3D%22380%22%20fill%3D%22url(%23g)%22%2F%3E%3Cg%20opacity%3D%220.32%22%20transform%3D%22translate(735%2056)%20rotate(6)%22%3E%3Crect%20width%3D%22284%22%20height%3D%22192%22%20rx%3D%2228%22%20fill%3D%22%23ffffff%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2234%22%20width%3D%22156%22%20height%3D%2218%22%20rx%3D%229%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.72%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2278%22%20width%3D%22220%22%20height%3D%2230%22%20rx%3D%2215%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.26%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%22122%22%20width%3D%22102%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%230ea5e9%22%20opacity%3D%220.36%22%2F%3E%3Crect%20x%3D%22148%22%20y%3D%22122%22%20width%3D%22104%22%20height%3D%2238%22%20rx%3D%2219%22%20fill%3D%22%23FF66AD%22%20opacity%3D%220.36%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M86%20318C198%20224%20320%20112%20478%20142c116%2022%20155%20120%20284%2094%20128-26%20178-122%20330-74%2046%2015%2084%2042%20118%2074v82H86z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22%2F%3E%3C%2Fsvg%3E"
+        ],
+        "trialShortcuts": [
+          {
+            "id": "product-design-1",
+            "prompt": "Help me get started",
+            "skillKey": "product-design",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            }
+          },
+          {
+            "id": "product-design-2",
+            "prompt": "Turn this product idea into three visual directions",
+            "skillKey": "product-design",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            }
+          },
+          {
+            "id": "product-design-3",
+            "prompt": "Clone this URL into an editable prototype",
+            "skillKey": "product-design",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            }
+          }
+        ],
+        "contents": [
+          {
+            "type": "skill",
+            "name": "product-design",
+            "displayName": "Product Design",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Route Product Design setup, brief confirmation, research, audits, ideation, prototypes, URL clones, image-to-code builds, QA, and sharing.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "user-context",
+            "displayName": "User Context",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Save and read Product Design user context.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "get-context",
+            "displayName": "Get Context",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Confirm the Product Design brief before design or build work.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "research",
+            "displayName": "Research",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Research UX pain and workflow friction for a digital product.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "audit",
+            "displayName": "Audit",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Audit or critique product UX and design from captured screenshots.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "ideate",
+            "displayName": "Ideate",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Generate visual directions after brief confirmation.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "prototype",
+            "displayName": "Prototype",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Route prototype, redesign, clone, and UI build requests after brief confirmation.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "url-to-code",
+            "displayName": "URL To Code",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Clone a live URL into a runnable frontend prototype after brief confirmation.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "image-to-code",
+            "displayName": "Image To Code",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Build a responsive frontend from a selected visual target after brief confirmation.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "design-qa",
+            "displayName": "Design QA",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Compare a coded prototype against its visual source before handoff.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "share",
+            "displayName": "Share",
+            "icon": {
+              "type": "image",
+              "value": "./assets/composerIcon.svg"
+            },
+            "color": "#FF66AD",
+            "description": "Deploy a runnable prototype and return a shareable URL.",
+            "tags": [
+              "skill",
+              "product-design"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
