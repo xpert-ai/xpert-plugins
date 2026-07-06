@@ -1,11 +1,14 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
   ViewExtensionProvider: () => (target: unknown) => target,
   renderRemoteReactIframeHtml: jest.fn(() => '<!doctype html><html><body></body></html>')
 }))
 
 import {
+  OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX,
   OFFICE_EDITOR_FEATURE,
   OFFICE_EDITOR_PROVIDER_KEY,
+  OFFICE_EDITOR_ROUTE_NAMESPACE,
   OFFICE_EDITOR_REMOTE_ENTRY_KEY,
   OFFICE_EDITOR_TOOL_NAMES,
   OFFICE_EDITOR_VIEW_KEY
@@ -19,6 +22,8 @@ describe('OfficeEditorViewProvider', () => {
     const manifests = provider.getViewManifests(context, 'agent.workbench.fixed')
 
     expect(provider.supports(context)).toBe(true)
+    expect(OFFICE_EDITOR_ROUTE_NAMESPACE).toBe('office-editor')
+    expect(OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX).toBe('/api/office-editor/collab/ws/')
     expect(manifests).toHaveLength(1)
     expect(manifests[0]).toEqual(
       expect.objectContaining({

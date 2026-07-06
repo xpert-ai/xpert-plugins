@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { OfficeAuditOperationType, OfficeOperationSource, OfficeOperationStatus } from '../types.js'
+import { officeEditorTable } from '../constants.js'
 
-@Entity('plugin_office_editor_operation')
+@Entity(officeEditorTable('operation'))
 @Index(['tenantId', 'organizationId', 'documentId', 'status'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 export class OfficeOperation {

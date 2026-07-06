@@ -225,6 +225,7 @@ const plugin: XpertPlugin = {
         runtime: runtimeRequirements,
         // Compatibility: plugin-sdk 3.10.1 does not type trialShortcuts yet.
         marketplace: {
+          category: 'creativity',
           screenshots: [PRODUCT_DESIGN_TRIAL_CARD_BACKGROUND],
           trialShortcuts: PRODUCT_DESIGN_TRIAL_SHORTCUTS,
           contents: PRODUCT_DESIGN_SKILL_CONTENTS

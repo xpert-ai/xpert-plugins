@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { OfficeDocumentStatus, OfficeDocumentType } from '../types.js'
+import { officeEditorTable } from '../constants.js'
 
-@Entity('plugin_office_editor_document')
+@Entity(officeEditorTable('document'))
 @Index(['tenantId', 'organizationId', 'projectId', 'documentType', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'documentType', 'status'])
 @Index(['tenantId', 'organizationId', 'updatedAt'])

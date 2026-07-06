@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { officeEditorTable } from '../constants.js'
 
-@Entity('plugin_office_editor_yjs_update')
+@Entity(officeEditorTable('yjs_update'))
 @Index(['tenantId', 'organizationId', 'documentId', 'sequenceNumber'])
 @Index(['tenantId', 'organizationId', 'documentId', 'updateHash'])
 export class OfficeYjsUpdate {

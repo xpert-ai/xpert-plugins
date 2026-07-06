@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   OFFICE_EDITOR_AGENT_REVIEW_CAPABILITY,
+  OFFICE_EDITOR_ARTIFACT_NAMESPACE,
   OFFICE_EDITOR_ASSISTANT_TEMPLATE_KEY,
   OFFICE_EDITOR_COLLABORATION_CAPABILITY,
   OFFICE_EDITOR_FEATURE,
@@ -32,6 +33,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || OFFICE_EDITOR_PLUGIN_NAME,
     version: packageJson.version,
+    artifactNamespace: OFFICE_EDITOR_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
