@@ -12,18 +12,11 @@ packages:
 
 overrides:
   '@xpert-ai/plugin-sdk@3.12.1>@xpert-ai/contracts': 3.12.1
+  i18next: 25.6.0
+  i18next-fs-backend: 2.6.0
 
-onlyBuiltDependencies:
-  - '@nestjs/core'
-  - '@sap/hana-client'
-  - '@swc/core'
-  - cpu-features
-  - msgpackr-extract
-  - nx
-  - protobufjs
-  - sharp
-  - ssh2
-  - unrs-resolver
+minimumReleaseAgeExclude:
+  - '@xpert-ai/*'
 
 allowBuilds:
   '@nestjs/core': true
