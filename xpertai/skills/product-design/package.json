@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-product-design",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Xpert skill-only plugin for Product Design workflows converted from the Codex Product Design skill plugin.",
   "author": {
     "name": "XpertAI",
