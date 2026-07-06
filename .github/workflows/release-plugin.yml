@@ -64,8 +64,10 @@ jobs:
       matrix:
         include:
           - workspace: xpertai
+            pnpm_version: 11.7.0
             install_command: pnpm -C xpertai install --frozen-lockfile
           - workspace: community
+            pnpm_version: 8.15.8
             install_command: pnpm -C community install --no-frozen-lockfile
 
     steps:
@@ -98,17 +100,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        if: steps.decide.outputs.run == 'true'
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         if: steps.decide.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.14.0
+
+      - name: Setup pnpm
+        if: steps.decide.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ matrix.pnpm_version }}
 
       - name: Upgrade npm for trusted publishing
         if: steps.decide.outputs.run == 'true'

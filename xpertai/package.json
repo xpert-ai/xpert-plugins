@@ -2,6 +2,7 @@
   "name": "@xpert-plugins-starter/source",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "release:publish": "node ./scripts/release-publish.mjs"
   },
@@ -90,10 +91,6 @@
     "turndown": "^7.2.2",
     "typeorm": "^0.3.24",
     "zod": "3.25.67"
-  },
-  "overrides": {
-    "i18next": "25.6.0",
-    "i18next-fs-backend": "2.6.0"
   },
   "nx": {
     "includedScripts": [],
