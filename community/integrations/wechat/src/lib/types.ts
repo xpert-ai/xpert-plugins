@@ -1305,6 +1305,23 @@ function resolveReferencedAppMessageQuote(content?: string): string {
   return displayName ? `${displayName}: ${quotedContent}` : quotedContent
 }
 
+function isReferencedAppMessageFromOwner(event: WechatInboundEvent, ownerWxid: string): boolean {
+  const content = resolveWechatEventAppMsgContent(event)
+  if (!isReferencedAppMessage(event.msgType, content)) {
+    return false
+  }
+  const referMsg = extractXmlElementText(content, 'refermsg', { decode: false })
+  if (!referMsg) {
+    return false
+  }
+  return [
+    extractXmlElementText(referMsg, 'chatusr'),
+    extractXmlElementText(referMsg, 'fromusr')
+  ]
+    .map(normalizeString)
+    .some((value) => value === ownerWxid)
+}
+
 function resolveWechatEventAppMsgContent(event: WechatInboundEvent): string {
   const raw = asRecord(event.raw)
   const rawContent = normalizeString(raw?.content || raw?.Content)
@@ -1401,6 +1418,9 @@ function isMentioned(event: WechatInboundEvent, fallbackNames: string[]): boolea
       ? normalizeString(event.displayText)
       : `${event.content}\n${event.displayText || ''}`
   if (ownerWxid && content.includes(`@${ownerWxid}`)) {
+    return true
+  }
+  if (ownerWxid && isReferencedAppMessageFromOwner(event, ownerWxid)) {
     return true
   }
   return hasConfiguredMentionName(content, fallbackNames)
