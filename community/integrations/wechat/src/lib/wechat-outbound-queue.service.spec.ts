@@ -1,6 +1,7 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,
@@ -70,7 +71,13 @@ describe('WechatOutboundQueueService', () => {
     }
   }
 
-  function createService(options: { redis?: ReturnType<typeof createRedis>; integrationRead?: jest.Mock } = {}) {
+  function createService(
+    options: {
+      redis?: ReturnType<typeof createRedis>
+      integrationRead?: jest.Mock
+      workspaceFiles?: { readRuntimeBuffer: jest.Mock }
+    } = {}
+  ) {
     const client = {
       sendText: jest.fn(async () => ({ success: true, messageId: 'wx-msg-1' })),
       sendImage: jest.fn(async () => ({ success: true, messageId: 'wx-img-1' })),
@@ -111,6 +118,11 @@ describe('WechatOutboundQueueService', () => {
         }
         if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
           return integrationPermissionService
+        }
+        if (token === 'XPERT_RUNTIME_CAPABILITIES') {
+          return {
+            get: jest.fn((key) => (key === 'platform.workspace.files' ? options.workspaceFiles : undefined))
+          }
         }
         return integrationPermissionService
       })
@@ -316,6 +328,51 @@ describe('WechatOutboundQueueService', () => {
     )
   })
 
+  it('creates an outbound file log with a workspace file reference but no base64 content', async () => {
+    const { service, messageLogRepository } = createService()
+
+    const result = await service.enqueueFile(integration as any, {
+      type: 'file',
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      filePath: '智能体平台功能列表.docx',
+      fileRef: {
+        source: 'platform.workspace.files',
+        filePath: '智能体平台功能列表.docx',
+        workspacePath: '智能体平台功能列表.docx',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        catalog: 'xperts',
+        scopeId: 'xpert-1',
+        xpertId: 'xpert-1',
+        isolateByUser: false
+      },
+      fileName: '智能体平台功能列表.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      extension: 'docx',
+      size: 12,
+      sha256: 'hash-1',
+      source: 'agent_tool'
+    })
+
+    expect(result).toEqual(expect.objectContaining({ success: true, queued: true }))
+    const payloadSummary = String((messageLogRepository.save as jest.Mock).mock.calls[0][0].payloadSummary)
+    expect(payloadSummary).not.toContain('base64')
+    expect(JSON.parse(payloadSummary)).toEqual(
+      expect.objectContaining({
+        type: 'file',
+        filePath: '智能体平台功能列表.docx',
+        fileRef: expect.objectContaining({
+          source: 'platform.workspace.files',
+          filePath: '智能体平台功能列表.docx',
+          catalog: 'xperts',
+          scopeId: 'xpert-1',
+          tenantId: 'tenant-1'
+        })
+      })
+    )
+  })
+
   it('sends once after acquiring Redis account and contact locks', async () => {
     const { service, client, redis, messageLogRepository, accountRepository } = createService()
     messageLogRepository.findOne.mockResolvedValueOnce(createLog())
@@ -429,6 +486,84 @@ describe('WechatOutboundQueueService', () => {
         contactId: 'wxid_friend',
         fileName: 'report.pdf',
         fileContent: Buffer.from('file-bytes').toString('base64')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'log-1' }),
+      expect.objectContaining({ status: 'sent', messageId: 'wx-file-1', sentAt: expect.any(Date) })
+    )
+  })
+
+  it('reads and sends a queued workspace file job through the workspace files capability', async () => {
+    const fileBytes = Buffer.from('workspace-bytes')
+    const sha256 = createHash('sha256').update(fileBytes).digest('hex')
+    const workspaceFiles = {
+      readRuntimeBuffer: jest.fn(async () => ({
+        name: '智能体平台功能列表.docx',
+        filePath: '智能体平台功能列表.docx',
+        workspacePath: '/workspace/智能体平台功能列表.docx',
+        catalog: 'xperts',
+        scopeId: 'xpert-1',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: fileBytes.length,
+        buffer: fileBytes,
+        reference: {
+          source: 'platform.workspace.files',
+          filePath: '智能体平台功能列表.docx',
+          workspacePath: '/workspace/智能体平台功能列表.docx',
+          catalog: 'xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1'
+        }
+      }))
+    }
+    const { service, client, messageLogRepository } = createService({ workspaceFiles })
+    messageLogRepository.findOne.mockResolvedValueOnce(
+      createLog({
+        content: '智能体平台功能列表.docx',
+        payloadSummary: JSON.stringify({
+          type: 'file',
+          source: 'agent_tool',
+          filePath: '智能体平台功能列表.docx',
+          fileRef: {
+            source: 'platform.workspace.files',
+            filePath: '智能体平台功能列表.docx',
+            workspacePath: '智能体平台功能列表.docx',
+            tenantId: 'tenant-1',
+            userId: 'user-1',
+            catalog: 'xperts',
+            scopeId: 'xpert-1',
+            xpertId: 'xpert-1'
+          },
+          fileName: '智能体平台功能列表.docx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          extension: 'docx',
+          size: fileBytes.length,
+          sha256
+        })
+      })
+    )
+
+    await service.processSendTextJob(createJob() as any)
+
+    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'platform.workspace.files',
+        filePath: '智能体平台功能列表.docx',
+        catalog: 'xperts',
+        scopeId: 'xpert-1',
+        tenantId: 'tenant-1'
+      })
+    )
+    expect(client.sendText).not.toHaveBeenCalled()
+    expect(client.sendImage).not.toHaveBeenCalled()
+    expect(client.sendFile).toHaveBeenCalledWith(
+      integration,
+      expect.objectContaining({
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        fileName: '智能体平台功能列表.docx',
+        fileContent: fileBytes.toString('base64')
       })
     )
     expect(messageLogRepository.update).toHaveBeenCalledWith(

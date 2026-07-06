@@ -1,5 +1,6 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  AgentMiddlewareStrategy: () => (target: unknown) => target
+  AgentMiddlewareStrategy: () => (target: unknown) => target,
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files'
 }))
 
 jest.mock('@langchain/core/tools', () => ({
@@ -179,6 +180,10 @@ describe('WechatRuntimeMiddleware', () => {
       (item: any) => item.name === WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME
     ) as any
     expect(Object.keys(historyTool.schema.shape)).toEqual(['keyword', 'direction', 'before', 'after', 'limit'])
+    const sendFileTool = (middleware.tools ?? []).find((item: any) => item.name === WECHAT_SEND_FILE_TOOL_NAME) as any
+    expect(Object.keys(sendFileTool.schema.shape)).not.toEqual(
+      expect.arrayContaining(['tenantId', 'userId', 'catalog', 'scopeId', 'projectId', 'xpertId', 'isolateByUser'])
+    )
   })
 
   it('searches current WeChat chat history from runtime configurable context', async () => {
@@ -573,6 +578,169 @@ describe('WechatRuntimeMiddleware', () => {
           successCount: 1,
           outboundLogId: 'outbound-log-1'
         })
+      })
+    )
+  })
+
+  it('sends a sandbox /workspace file through the workspace files capability', async () => {
+    const fileBytes = Buffer.from('workspace file')
+    const workspaceFiles = {
+      readRuntimeBuffer: jest.fn(async () => ({
+        name: '智能体平台功能列表.docx',
+        filePath: '智能体平台功能列表.docx',
+        workspacePath: '/workspace/智能体平台功能列表.docx',
+        catalog: 'xperts',
+        scopeId: 'xpert-1',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: fileBytes.length,
+        buffer: fileBytes,
+        reference: {
+          source: 'platform.workspace.files',
+          filePath: '智能体平台功能列表.docx',
+          workspacePath: '/workspace/智能体平台功能列表.docx',
+          catalog: 'xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1'
+        }
+      }))
+    }
+    const conversationService = {
+      findOutboundByIdempotencyKey: jest.fn(async () => null),
+      logOutbound: jest.fn(async () => undefined)
+    }
+    const wechatChannel = {
+      sendFileByIntegrationId: jest.fn(async () => ({
+        success: true,
+        queued: true,
+        outboundLogId: 'outbound-log-1'
+      }))
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService, wechatChannel).createMiddleware(
+        { integrationId: 'integration-1', toolMode: 'user' },
+        {
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          runtime: {
+            capabilities: {
+              get: jest.fn((key) => (key === 'platform.workspace.files' ? workspaceFiles : undefined))
+            }
+          },
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const sendFileTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEND_FILE_TOOL_NAME
+    ) as any
+    const result = JSON.parse(
+      await sendFileTool.handler(
+        {
+          file: {
+            path: '/workspace/智能体平台功能列表.docx'
+          }
+        },
+        {
+          configurable: {
+            context: {
+              integrationId: 'integration-1',
+              uuid: 'uuid-1',
+              contactId: 'wxid_friend',
+              chatType: 'private'
+            }
+          }
+        }
+      )
+    )
+
+    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/workspace/智能体平台功能列表.docx'
+      })
+    )
+    expect(wechatChannel.sendFileByIntegrationId).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        file: expect.objectContaining({
+          filePath: '智能体平台功能列表.docx',
+          fileName: '智能体平台功能列表.docx',
+          fileContent: fileBytes.toString('base64'),
+          fileRef: expect.objectContaining({
+            filePath: '智能体平台功能列表.docx',
+            workspacePath: '/workspace/智能体平台功能列表.docx',
+            catalog: 'xperts',
+            scopeId: 'xpert-1'
+          })
+        })
+      })
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          validatedFile: expect.objectContaining({
+            filePath: '智能体平台功能列表.docx',
+            fileRef: expect.objectContaining({
+              filePath: '智能体平台功能列表.docx',
+              catalog: 'xperts'
+            })
+          })
+        })
+      })
+    )
+  })
+
+  it('returns a clear error when a workspace file cannot access runtime capabilities', async () => {
+    const conversationService = {
+      findOutboundByIdempotencyKey: jest.fn(async () => null)
+    }
+    const wechatChannel = {
+      sendFileByIntegrationId: jest.fn()
+    }
+    const middleware = await Promise.resolve(
+      createMiddleware(conversationService, wechatChannel).createMiddleware(
+        { integrationId: 'integration-1', toolMode: 'user' },
+        {
+          xpertId: 'xpert-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          node: {
+            options: {}
+          }
+        } as any
+      )
+    )
+
+    const sendFileTool = (middleware.tools ?? []).find(
+      (item: any) => item.name === WECHAT_SEND_FILE_TOOL_NAME
+    ) as any
+    const result = JSON.parse(
+      await sendFileTool.handler(
+        {
+          file: { path: '/workspace/report.txt' }
+        },
+        {
+          configurable: {
+            context: {
+              integrationId: 'integration-1',
+              uuid: 'uuid-1',
+              contactId: 'wxid_friend'
+            }
+          }
+        }
+      )
+    )
+
+    expect(wechatChannel.sendFileByIntegrationId).not.toHaveBeenCalled()
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('platform.workspace.files')
       })
     )
   })

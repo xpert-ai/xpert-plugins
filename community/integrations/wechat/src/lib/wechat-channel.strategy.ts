@@ -538,6 +538,7 @@ export class WechatChannelStrategy
       uuid,
       contactId,
       filePath: file.filePath,
+      fileRef: file.fileRef,
       fileName: file.fileName,
       mimeType: file.mimeType,
       extension: file.extension,

@@ -8,11 +8,11 @@ import {
   WebSocketGateway
 } from '@nestjs/websockets'
 import { Socket } from 'socket.io'
-import { OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX } from './constants.js'
+import { OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX, OFFICE_EDITOR_COLLAB_ROOM_PREFIX } from './constants.js'
 import { OfficeEditorService } from './office-editor.service.js'
 import type { OfficeCollabSession } from './types.js'
 
-const OFFICE_EDITOR_COLLAB_NAMESPACE = /^\/api\/office-editor\/collab\/ws\/[^/]+$/
+const OFFICE_EDITOR_COLLAB_NAMESPACE = new RegExp(`^${escapeRegExp(OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX)}[^/]+$`)
 
 @WebSocketGateway({
   namespace: OFFICE_EDITOR_COLLAB_NAMESPACE,
@@ -140,8 +140,12 @@ export class OfficeEditorCollabGateway implements OnGatewayConnection, OnGateway
   }
 
   private roomName(documentId: string) {
-    return `office-editor:${documentId}`
+    return `${OFFICE_EDITOR_COLLAB_ROOM_PREFIX}${documentId}`
   }
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function toObject(value: unknown): Record<string, unknown> {

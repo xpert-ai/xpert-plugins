@@ -8,6 +8,7 @@ jest.mock('@langchain/core/tools', () => ({
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: unknown) => target,
+  pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
   RequestContext: {
     getOrganizationId: () => null
   }

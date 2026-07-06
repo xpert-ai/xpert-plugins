@@ -5,6 +5,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AGENT_CHAT_DISPATCH_MESSAGE_TYPE: 'agent_chat_dispatch',
   HANDOFF_PERMISSION_SERVICE_TOKEN: Symbol('HANDOFF_PERMISSION_SERVICE_TOKEN'),
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,

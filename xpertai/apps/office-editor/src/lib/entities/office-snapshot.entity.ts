@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { OfficeSnapshotSource } from '../types.js'
+import { officeEditorTable } from '../constants.js'
 
-@Entity('plugin_office_editor_snapshot')
+@Entity(officeEditorTable('snapshot'))
 @Index(['tenantId', 'organizationId', 'documentId', 'versionNumber'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 export class OfficeSnapshot {

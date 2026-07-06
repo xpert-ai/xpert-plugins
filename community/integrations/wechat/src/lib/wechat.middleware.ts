@@ -13,7 +13,10 @@ import {
   AgentMiddlewareStrategy,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  PromiseOrValue
+  PromiseOrValue,
+  WORKSPACE_FILES_SOURCE,
+  type WorkspaceFileCatalog,
+  type WorkspaceFilesApi
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
@@ -59,6 +62,8 @@ import { withWechatChatContextLegacyAliases } from './handoff/wechat-chat-contex
 import { resolveWechatConversationIdentity } from './conversation-user-key.js'
 import {
   resolveWechatSendFile,
+  resolveWechatSendFileFromWorkspace,
+  shouldResolveWechatSendFileFromWorkspace,
   toWechatSendFileMetadata,
   type WechatResolvedSendFile,
   type WechatSendFileDescriptor
@@ -276,12 +281,22 @@ const sendMessageSchema = z.object({
     .optional()
 })
 
+// Keep the Agent-facing schema small: workspace scope lives inside platform
+// fileRef objects returned by runtime capabilities, not in tool parameters.
 const sendFileDescriptorSchema = z
   .object({
-    path: z.string().optional().describe('Absolute local file path returned by an Xpert file tool.'),
-    filePath: z.string().optional().describe('Alias for path.'),
-    workspacePath: z.string().optional().describe('Alias for path; relative paths require workspaceRoot.'),
-    workspaceRoot: z.string().optional().describe('Absolute workspace root used only when the file path is relative.'),
+    path: z.string().optional().describe('Workspace file path, sandbox /workspace path, or legacy absolute local path.'),
+    filePath: z.string().optional().describe('Workspace-relative file path or legacy path alias.'),
+    workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+    fileRef: z
+      .object({
+        source: z.string().optional().describe('File reference source. Use platform.workspace.files for Xpert workspace files.'),
+        filePath: z.string().optional().describe('Workspace-relative file path.'),
+        workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.')
+      })
+      .passthrough()
+      .optional()
+      .describe('Stable Xpert workspace file reference for queued/retryable file sends.'),
     originalName: z.string().optional().describe('Original filename to show in WeChat.'),
     name: z.string().optional().describe('Alias for originalName.'),
     mimeType: z.string().optional().describe('Optional MIME type.'),
@@ -291,15 +306,17 @@ const sendFileDescriptorSchema = z
   })
   .passthrough()
 
+// `wechat_send_file` accepts common path aliases and lets the platform resolve
+// `/workspace/...` into the scoped project/Xpert workspace.
 const sendFileSchema = z.object({
   integrationId: integrationField,
   file: sendFileDescriptorSchema
     .optional()
-    .describe('File information returned by Xpert file tools. Include path/filePath/workspacePath.'),
-  path: z.string().optional().describe('Top-level absolute local file path alias.'),
-  filePath: z.string().optional().describe('Top-level filePath alias.'),
-  workspacePath: z.string().optional().describe('Top-level workspacePath alias.'),
-  workspaceRoot: z.string().optional().describe('Absolute workspace root for relative paths.'),
+    .describe('File information returned by Xpert file tools. Include a workspace file reference, /workspace path, workspace-relative path, or legacy local path.'),
+  path: z.string().optional().describe('Top-level workspace file path, sandbox /workspace path, or legacy absolute local path alias.'),
+  filePath: z.string().optional().describe('Top-level workspace-relative file path alias.'),
+  workspacePath: z.string().optional().describe('Top-level workspace-relative or sandbox /workspace path alias.'),
+  fileRef: sendFileDescriptorSchema.shape.fileRef.optional(),
   originalName: z.string().optional().describe('Filename to show in WeChat.'),
   name: z.string().optional().describe('Alias for originalName.'),
   mimeType: z.string().optional().describe('Optional MIME type.'),
@@ -701,7 +718,7 @@ export class WechatRuntimeMiddleware
         {
           name: WECHAT_SEND_FILE_TOOL_NAME,
           description:
-            'Send a locally generated or edited file to the current WeChat user/group, or to trusted scheduled WeChat targets. Pass the local file path returned by Xpert file tools; the middleware validates the file and sends bytes through wx2.0.',
+            'Send a generated or edited file to the current WeChat user/group, or to trusted scheduled WeChat targets. Pass a Xpert workspace file reference, a sandbox /workspace path, a workspace-relative path, or a legacy absolute local path; the middleware validates the file and sends bytes through wx2.0.',
           schema: sendFileSchema
         }
       ),
@@ -976,7 +993,7 @@ export class WechatRuntimeMiddleware
       return this.error('WeChat file send target was not available. Use this tool from a WeChat conversation or trusted scheduled state.')
     }
 
-    const file = await resolveWechatSendFile(this.buildSendFileDescriptor(input))
+    const file = await this.resolveSendFileFromToolDescriptor(this.buildSendFileDescriptor(input), context)
     const validatedFile = toWechatSendFileMetadata(file)
     const targetResults: Array<Record<string, unknown>> = []
     const baseIdempotencyKey = normalizeString(input.idempotencyKey)
@@ -1074,14 +1091,34 @@ export class WechatRuntimeMiddleware
     }
   }
 
+  /**
+   * Collapse top-level tool arguments and nested file descriptors into the
+   * compact file contract consumed by the send-file resolver.
+   */
   private buildSendFileDescriptor(input: Record<string, unknown>): WechatSendFileDescriptor {
     const file = this.asRecord(input.file) ?? {}
+    const fileRef = this.asRecord(file.fileRef) ?? this.asRecord(input.fileRef)
     const records = [file, input]
     return {
       path: this.readFirstString(records, ['path']),
       filePath: this.readFirstString(records, ['filePath', 'file_path']),
       workspacePath: this.readFirstString(records, ['workspacePath', 'workspace_path']),
-      workspaceRoot: this.readFirstString(records, ['workspaceRoot', 'workspace_root']),
+      fileRef: fileRef
+        ? {
+            source: this.readFirstString([fileRef], ['source']),
+            filePath: this.readFirstString([fileRef], ['filePath', 'file_path']),
+            workspacePath: this.readFirstString([fileRef], ['workspacePath', 'workspace_path']),
+            tenantId: this.readFirstString([fileRef], ['tenantId', 'tenant_id']),
+            userId: this.readFirstString([fileRef], ['userId', 'user_id']),
+            catalog: this.readFirstString([fileRef], ['catalog']) as WorkspaceFileCatalog | undefined,
+            scopeId: this.readFirstString([fileRef], ['scopeId', 'scope_id']),
+            projectId: this.readFirstString([fileRef], ['projectId', 'project_id']),
+            knowledgeId: this.readFirstString([fileRef], ['knowledgeId', 'knowledge_id']),
+            rootId: this.readFirstString([fileRef], ['rootId', 'root_id']),
+            xpertId: this.readFirstString([fileRef], ['xpertId', 'xpert_id']),
+            isolateByUser: this.readFirstBoolean([fileRef], ['isolateByUser', 'isolate_by_user'])
+          }
+        : undefined,
       originalName: this.readFirstString(records, ['originalName', 'original_name', 'filename', 'fileName']),
       name: this.readFirstString(records, ['name']),
       mimeType: this.readFirstString(records, ['mimeType', 'mime_type', 'contentType', 'content_type']),
@@ -1089,6 +1126,28 @@ export class WechatRuntimeMiddleware
       extension: this.readFirstString(records, ['extension', 'ext']),
       size: this.readFirstNumber(records, ['size'])
     }
+  }
+
+  /**
+   * Resolve tool file input through platform workspace files when possible,
+   * falling back only for legacy host-readable absolute paths.
+   */
+  private async resolveSendFileFromToolDescriptor(
+    descriptor: WechatSendFileDescriptor,
+    context: IAgentMiddlewareContext
+  ): Promise<WechatResolvedSendFile> {
+    if (!shouldResolveWechatSendFileFromWorkspace(descriptor)) {
+      return resolveWechatSendFile(descriptor)
+    }
+
+    const workspaceFiles = context.runtime?.capabilities?.get<Pick<WorkspaceFilesApi, 'readRuntimeBuffer'>>(WORKSPACE_FILES_SOURCE)
+    if (!workspaceFiles?.readRuntimeBuffer) {
+      throw new Error('微信文件发送需要 platform.workspace.files runtime capability 才能读取 workspace 文件。')
+    }
+
+    return resolveWechatSendFileFromWorkspace(descriptor, {
+      workspaceFiles
+    })
   }
 
   private async logDirectFileSendResult(
@@ -1226,6 +1285,24 @@ export class WechatRuntimeMiddleware
         const numberValue = typeof value === 'number' ? value : Number(value)
         if (Number.isFinite(numberValue) && numberValue > 0) {
           return Math.floor(numberValue)
+        }
+      }
+    }
+    return undefined
+  }
+
+  private readFirstBoolean(
+    records: Array<Record<string, unknown> | null | undefined>,
+    keys: string[]
+  ): boolean | undefined {
+    for (const record of records) {
+      if (!record) {
+        continue
+      }
+      for (const key of keys) {
+        const value = record[key]
+        if (typeof value === 'boolean') {
+          return value
         }
       }
     }

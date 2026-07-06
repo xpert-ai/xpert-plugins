@@ -9,6 +9,8 @@ import {
   type PluginContext,
   RequestContext,
   TWorkflowTriggerParams,
+  WORKSPACE_FILES_SOURCE,
+  type WorkspaceFilesApi,
   WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
 import { Repository } from 'typeorm'
@@ -59,7 +61,6 @@ const ATTACHMENT_ONLY_AGGREGATE_INPUT = '[理解附件]'
 const PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS = [2_000, 5_000, 10_000]
 const MAX_PENDING_FILE_MATERIALIZE_RETRIES = PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS.length
 const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
-const WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
 const SELF_MESSAGE_POLICY_ENUM_LABELS = {
   history_only: { en_US: 'History only', zh_Hans: '只写入历史' },
   ignore: { en_US: 'Ignore', zh_Hans: '忽略' },
@@ -90,63 +91,6 @@ type RuntimeCapabilityRegistry = {
 type PendingFileMergeResult = {
   files?: WechatPendingInboundFile[]
   duplicateLogIds: string[]
-}
-
-type WorkspaceFileHandle = {
-  name?: string
-  originalName?: string
-  filePath: string
-  workspacePath?: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-}
-
-type WorkspaceUnderstoodFileHandle = WorkspaceFileHandle & {
-  id: string
-  fileId: string
-  fileAssetId: string
-  storageFileId?: string
-  status?: string
-  parseStatus?: string
-  capabilities?: string[]
-}
-
-type WorkspaceFilesApi = {
-  uploadBuffer(input: {
-    tenantId?: string | null
-    userId?: string | null
-    catalog: 'xperts'
-    xpertId: string
-    isolateByUser: boolean
-    folder: string
-    fileName: string
-    originalName: string
-    mimeType?: string | null
-    size?: number | null
-    buffer: Buffer
-    metadata?: Record<string, unknown>
-  }): Promise<WorkspaceFileHandle>
-  understandFile(input: {
-    tenantId?: string | null
-    userId?: string | null
-    catalog: 'xperts'
-    xpertId: string
-    isolateByUser: boolean
-    filePath: string
-    originalName: string
-    mimeType?: string | null
-    size?: number | null
-    fileUrl?: string
-    purpose: 'chat_attachment'
-    parseMode: 'auto'
-    conversationId?: string
-    threadId?: string
-    projectId?: string
-    metadata?: Record<string, unknown>
-    runInline?: boolean
-  }): Promise<WorkspaceUnderstoodFileHandle>
 }
 
 export type WechatInboundHandleResult = {
@@ -545,7 +489,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   private get workspaceFiles(): WorkspaceFilesApi {
     if (this._workspaceFiles === undefined) {
       const registry = this.pluginContext.resolve<RuntimeCapabilityRegistry>(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-      this._workspaceFiles = registry?.get<WorkspaceFilesApi>(WORKSPACE_FILES_RUNTIME_CAPABILITY) ?? null
+      this._workspaceFiles = registry?.get<WorkspaceFilesApi>(WORKSPACE_FILES_SOURCE) ?? null
     }
     if (!this._workspaceFiles) {
       throw new Error('platform.workspace.files capability is not available')

@@ -1,4 +1,11 @@
+import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
+
 export const OFFICE_EDITOR_PLUGIN_NAME = '@xpert-ai/plugin-office-editor'
+/**
+ * Stable namespace for Office Editor owned artifacts.
+ * Changing this after publish would require coordinated table and route migration.
+ */
+export const OFFICE_EDITOR_ARTIFACT_NAMESPACE = 'office_editor'
 export const OFFICE_EDITOR_FEATURE = 'office-editor'
 export const OFFICE_EDITOR_WORKBENCH_CAPABILITY = 'office-editor-workbench'
 export const OFFICE_EDITOR_AGENT_REVIEW_CAPABILITY = 'office-editor-agent-review'
@@ -11,8 +18,22 @@ export const OFFICE_EDITOR_VIEW_KEY = 'office_editor'
 export const OFFICE_EDITOR_REMOTE_ENTRY_KEY = 'office-editor-workbench'
 export const OFFICE_EDITOR_ASSISTANT_TEMPLATE_KEY = 'office-editor-assistant'
 export const OFFICE_EDITOR_AGENT_KEY = 'Agent_OfficeEditor'
-export const OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX = '/api/office-editor/collab/ws/'
+/**
+ * Route-safe derivative of the artifact namespace for HTTP and WebSocket paths.
+ * Keep this derived from the artifact namespace so non-table artifacts stay grouped.
+ */
+export const OFFICE_EDITOR_ROUTE_NAMESPACE = OFFICE_EDITOR_ARTIFACT_NAMESPACE.replace(/_/g, '-')
+export const OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX = `/api/${OFFICE_EDITOR_ROUTE_NAMESPACE}/collab/ws/`
+export const OFFICE_EDITOR_COLLAB_ROOM_PREFIX = `${OFFICE_EDITOR_ROUTE_NAMESPACE}:`
 export const OFFICE_EDITOR_COLLAB_SESSION_TTL_MS = 15 * 60 * 1000
+
+/**
+ * Build Office Editor table names with the shared plugin artifact namespace.
+ * Existing keys intentionally resolve to the current physical table names.
+ */
+export function officeEditorTable(key: string) {
+  return pluginArtifactTableName(OFFICE_EDITOR_ARTIFACT_NAMESPACE, key)
+}
 
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
