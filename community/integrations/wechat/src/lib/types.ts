@@ -18,6 +18,8 @@ export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume
 
 export const DEFAULT_GROUP_JOIN_WELCOME_PROMPT =
   '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。'
+const WECHAT_REFERENCE_APPMSG_TYPE = 57
+const WECHAT_MENTION_SEPARATOR_CLASS = '\\s\\u2005\\u2002\\u2003\\u2004\\u2006\\u2007\\u2008\\u2009\\u200a\\u202f\\u205f\\u3000'
 
 export interface WechatGroupTriggerOverride {
   groupId: string
@@ -498,13 +500,14 @@ export function shouldDispatchWechatMessage(
     return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
   }
 
-  const mentioned = isMentioned(event, normalizeMentionFallbackNames(options?.mentionFallbackNames))
+  const mentionFallbackNames = normalizeMentionFallbackNames(options?.mentionFallbackNames)
+  const mentioned = isMentioned(event, mentionFallbackNames)
   const keyword = matchKeyword(input, normalizeKeywords(options?.groupKeywords))
 
   if ((mode === 'mentions' || mode === 'mention_or_keywords') && mentioned) {
     const dispatchable: WechatDispatchableMessage = {
       ...event,
-      input: stripLeadingMention(input),
+      input: stripLeadingMention(input, mentionFallbackNames),
       triggerReason: 'mention'
     }
     return matchesWechatAllowedKeywords(dispatchable.input, options) ? dispatchable : null
@@ -581,8 +584,9 @@ export function shouldDispatchWechatBatch(
   }
 
   if ((mode === 'mentions' || mode === 'mention_or_keywords') && candidates.some((item) => item.mentioned)) {
+    const mentionFallbackNames = normalizeMentionFallbackNames(options?.mentionFallbackNames)
     const strippedInputParts = candidates.map((item) =>
-      item.mentioned ? stripLeadingMention(normalizeString(item.input)) : normalizeString(item.input)
+      item.mentioned ? stripLeadingMention(normalizeString(item.input), mentionFallbackNames) : normalizeString(item.input)
     )
     return matchesWechatAllowedKeywords(strippedInputParts.join('\n'), options)
       ? {
@@ -952,6 +956,7 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
     messageKind === 'image' || messageKind === 'voice' || messageKind === 'file' ? rawContent : rawContent || pushContent,
     isGroup
   ).body
+  const displayContent = isReferencedAppMessage(msgType, content) ? resolveReferencedAppMessageTitle(content) || content : content
   const messageId =
     normalizeString(payload.newmsgid || payload.newMsgId || payload.Newmsgid) ||
     normalizeString(numericMsgId)
@@ -1042,13 +1047,13 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
     messageId,
     msgType,
     messageKind,
-    content,
+    content: displayContent,
     displayText:
       messageKind === 'image' || messageKind === 'voice'
         ? pushContent
         : messageKind === 'file'
           ? pushContent || fileRef?.originalName
-          : pushContent || content,
+          : pushContent || displayContent,
     imageRef,
     voiceRef,
     fileRef,
@@ -1063,6 +1068,10 @@ function normalizeMessageWebhook(payload: Dict, rawPayload: unknown): WechatInbo
 export function normalizeWechatAgentInput(event: WechatInboundEvent): string {
   if (event.messageKind === 'image' || event.messageKind === 'file') {
     return ''
+  }
+  const appMsgContent = resolveWechatEventAppMsgContent(event)
+  if (isReferencedAppMessage(event.msgType, appMsgContent)) {
+    return resolveReferencedAppMessageInput(appMsgContent)
   }
   const text = normalizeString(event.content || event.displayText)
   if (!text) {
@@ -1100,6 +1109,10 @@ function isFileMessage(msgType: number | undefined, content?: string): boolean {
   return false
 }
 
+function isReferencedAppMessage(msgType: number | undefined, content?: string): boolean {
+  return msgType === 49 && resolveAppMsgType(content) === WECHAT_REFERENCE_APPMSG_TYPE
+}
+
 function resolveInboundMessageKind(msgType: number | undefined, content?: string): WechatInboundMessageKind {
   if (isImageMessage(msgType)) {
     return 'image'
@@ -1109,6 +1122,9 @@ function resolveInboundMessageKind(msgType: number | undefined, content?: string
   }
   if (isFileMessage(msgType, content)) {
     return 'file'
+  }
+  if (isReferencedAppMessage(msgType, content)) {
+    return 'text'
   }
   if (isTextLikeMessage(msgType)) {
     return 'text'
@@ -1263,6 +1279,41 @@ function resolveAppMsgType(content?: string): number | undefined {
   return normalizeNumber(extractXmlElementText(content, 'type'))
 }
 
+function resolveReferencedAppMessageTitle(content?: string): string | undefined {
+  return normalizeString(extractXmlElementText(content, 'title')) || undefined
+}
+
+function resolveReferencedAppMessageInput(content?: string): string {
+  const title = resolveReferencedAppMessageTitle(content) || ''
+  const quoted = resolveReferencedAppMessageQuote(content)
+  if (!quoted) {
+    return title
+  }
+  return [title, `[引用消息]\n${quoted}`].filter(Boolean).join('\n\n')
+}
+
+function resolveReferencedAppMessageQuote(content?: string): string {
+  const referMsg = extractXmlElementText(content, 'refermsg', { decode: false })
+  if (!referMsg) {
+    return ''
+  }
+  const displayName = normalizeString(extractXmlElementText(referMsg, 'displayname'))
+  const quotedContent = normalizeString(extractXmlElementText(referMsg, 'content'))
+  if (!quotedContent) {
+    return ''
+  }
+  return displayName ? `${displayName}: ${quotedContent}` : quotedContent
+}
+
+function resolveWechatEventAppMsgContent(event: WechatInboundEvent): string {
+  const raw = asRecord(event.raw)
+  const rawContent = normalizeString(raw?.content || raw?.Content)
+  if (rawContent) {
+    return stripGroupSenderPrefix(rawContent, event.chatType === 'group').body
+  }
+  return normalizeString(event.content)
+}
+
 function resolveFileTitle(content?: string): string | undefined {
   return normalizeString(extractXmlElementText(content, 'title')) || undefined
 }
@@ -1383,27 +1434,43 @@ function extractXmlAttribute(content: string, name: string): string {
   return normalizeString(content.match(pattern)?.[1])
 }
 
-function stripLeadingMention(input: string): string {
-  return input.replace(/^@[^\s]+\s*/, '').trim() || input
+function stripLeadingMention(input: string, fallbackNames: string[] = []): string {
+  const text = normalizeString(input)
+  for (const name of [...fallbackNames].sort((left, right) => right.length - left.length)) {
+    const pattern = createMentionNamePattern(name, true)
+    if (!pattern) {
+      continue
+    }
+    const stripped = text.replace(pattern, '').trim()
+    if (stripped !== text) {
+      return stripped || input
+    }
+  }
+  return text.replace(new RegExp(`^@[^${WECHAT_MENTION_SEPARATOR_CLASS}]+[${WECHAT_MENTION_SEPARATOR_CLASS}]*`), '').trim() || input
 }
 
 function hasConfiguredMentionName(content: string, names: string[]): boolean {
   if (!names.length) {
     return false
   }
-  const lowered = content.toLowerCase()
   return names.some((name) => {
-    const token = `@${name}`.toLowerCase()
-    let index = lowered.indexOf(token)
-    while (index >= 0) {
-      const next = content[index + token.length]
-      if (!next || /[\s,，.。:：;；!！?？)）]/.test(next)) {
-        return true
-      }
-      index = lowered.indexOf(token, index + 1)
-    }
-    return false
+    const pattern = createMentionNamePattern(name, false)
+    return pattern ? pattern.test(content) : false
   })
+}
+
+function createMentionNamePattern(name: string, leadingOnly: boolean): RegExp | null {
+  const parts = normalizeString(name)
+    .split(new RegExp(`[${WECHAT_MENTION_SEPARATOR_CLASS}]+`))
+    .filter(Boolean)
+  if (!parts.length) {
+    return null
+  }
+  const body = parts.map(escapeRegExp).join(`[${WECHAT_MENTION_SEPARATOR_CLASS}]+`)
+  const prefix = leadingOnly ? '^' : ''
+  const boundary = `(?=$|[${WECHAT_MENTION_SEPARATOR_CLASS},，.。:：;；!！?？)）])`
+  const suffix = leadingOnly ? `[${WECHAT_MENTION_SEPARATOR_CLASS}]*` : ''
+  return new RegExp(`${prefix}@${body}${boundary}${suffix}`, 'i')
 }
 
 function extractAtUserList(raw: Record<string, unknown>): string[] {

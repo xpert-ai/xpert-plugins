@@ -4,6 +4,7 @@ import {
   matchesWechatMessageFilter,
   normalizeWechatConnectionMode,
   normalizeGroupTriggerOverrides,
+  normalizeWechatAgentInput,
   normalizeWechatInboundPayload,
   resolveWechatGroupJoinWelcomeInfo,
   shouldDispatchWechatBatch,
@@ -398,6 +399,58 @@ describe('wechat inbound normalization', () => {
       })
     )
     expect(shouldDispatchWechatMessage(event)?.triggerReason).toBe('private')
+  })
+
+  it('normalizes mentioned appmsg quote payloads as dispatchable text with quoted source context', () => {
+    const content =
+      'wxid_6mpdxp1z5r8y22:\n<?xml version="1.0"?><msg><appmsg appid="" sdkver="0"><title>@XpertAI 小助手\u2005这是什么</title><type>57</type><refermsg><displayname>XpertAI 小助手</displayname><content>你好！我是 yuanshu assistant1，你的微信小助手</content></refermsg></appmsg></msg>'
+    const event = normalizeWechatInboundPayload({
+      uuid: 'SDwkRBvds0dt',
+      ownerwxid: 'wxid_3xh67h1ukg5a12',
+      contactid: '53061340816@chatroom',
+      sendusername: 'wxid_6mpdxp1z5r8y22',
+      fromusername: '53061340816@chatroom',
+      tousername: 'wxid_3xh67h1ukg5a12',
+      chattype: 'room',
+      content,
+      pushcontent: 'XpertAI (元数信息技术) : @XpertAI 小助手\u2005这是什么',
+      msgsource: '<msgsource><atuserlist>wxid_3xh67h1ukg5a12</atuserlist></msgsource>',
+      newmsgid: '7180799087978278614',
+      msgtype: 49,
+      isself: false
+    })
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        source: 'message_webhook',
+        uuid: 'SDwkRBvds0dt',
+        ownerWxid: 'wxid_3xh67h1ukg5a12',
+        contactId: '53061340816@chatroom',
+        senderId: 'wxid_6mpdxp1z5r8y22',
+        chatType: 'group',
+        messageId: '7180799087978278614',
+        msgType: 49,
+        messageKind: 'text',
+        content: '@XpertAI 小助手\u2005这是什么'
+      })
+    )
+
+    const normalizedInput = normalizeWechatAgentInput(event)
+    expect(normalizedInput).toBe(
+      '@XpertAI 小助手\u2005这是什么\n\n[引用消息]\nXpertAI 小助手: 你好！我是 yuanshu assistant1，你的微信小助手'
+    )
+    expect(normalizedInput).not.toContain('<?xml')
+    expect(normalizedInput).not.toContain('<msgsource>')
+
+    const mention = shouldDispatchWechatMessage(event, {
+      groupTriggerMode: 'mentions',
+      mentionFallbackNames: ['XpertAI 小助手']
+    })
+    expect(mention?.triggerReason).toBe('mention')
+    expect(mention?.input).toBe(
+      '这是什么\n\n[引用消息]\nXpertAI 小助手: 你好！我是 yuanshu assistant1，你的微信小助手'
+    )
+    expect(mention?.input).not.toContain('小助手\u2005这是什么')
   })
 
   it('filters self, empty, unsupported media, and non-triggered group messages without inferring image display text', () => {
