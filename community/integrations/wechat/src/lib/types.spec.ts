@@ -453,6 +453,33 @@ describe('wechat inbound normalization', () => {
     expect(mention?.input).not.toContain('小助手\u2005这是什么')
   })
 
+  it('treats replies to messages from the owner account as mention triggers', () => {
+    const content =
+      'wxid_sender:\n<?xml version="1.0"?><msg><appmsg><title>这是什么</title><type>57</type><refermsg><chatusr>wxid_owner</chatusr><fromusr>room@chatroom</fromusr><displayname>XpertAI 小助手</displayname><content>我是之前由机器人发出的消息</content></refermsg></appmsg></msg>'
+    const event = normalizeWechatInboundPayload({
+      uuid: 'uuid-1',
+      ownerwxid: 'wxid_owner',
+      contactid: 'room@chatroom',
+      sendusername: 'wxid_sender',
+      fromusername: 'room@chatroom',
+      tousername: 'wxid_owner',
+      chattype: 'room',
+      content,
+      pushcontent: 'Sender : 这是什么',
+      msgsource: '<msgsource><silence>0</silence></msgsource>',
+      newmsgid: 'quote-reply-1',
+      msgtype: 49,
+      isself: false
+    })
+
+    const mention = shouldDispatchWechatMessage(event, {
+      groupTriggerMode: 'mentions'
+    })
+
+    expect(mention?.triggerReason).toBe('mention')
+    expect(mention?.input).toBe('这是什么\n\n[引用消息]\nXpertAI 小助手: 我是之前由机器人发出的消息')
+  })
+
   it('filters self, empty, unsupported media, and non-triggered group messages without inferring image display text', () => {
     const base = normalizeWechatInboundPayload({
       uuid: 'uuid-1',
