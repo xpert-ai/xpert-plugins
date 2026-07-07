@@ -7,6 +7,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
+import { DEFAULT_OUTBOUND_QUEUE_OPTIONS } from './types.js'
 
 function readStrategySource() {
   return readFileSync(join(process.cwd(), 'src/lib/wechat-integration.strategy.ts'), 'utf8')
@@ -71,6 +72,8 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('Required in reverse tunnel mode')
     expect(source).toContain('outboundQueue')
     expect(source).toContain('fallbackToLegacySendText')
+    expect(source).toContain('inboundFileRules')
+    expect(source).toContain('maxSizeMb')
     expect(source).not.toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
     expect(source).not.toContain('chatFilterMode: {')
     expect(source).not.toContain('allowedGroupIds: {')
@@ -79,6 +82,20 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('blockedSenderIds: {')
     expect(source).not.toContain('ignoreSelfMessages: {')
     expect(source).not.toContain('groupTriggerMode: {')
+  })
+
+  it('exposes aggressive outbound queue defaults in config schema', () => {
+    const { strategy } = createStrategy()
+    const outboundQueue = (strategy.meta.schema.properties.outboundQueue as any).properties
+
+    expect(outboundQueue.initialDelayMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs)
+    expect(outboundQueue.globalMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs)
+    expect(outboundQueue.perAccountMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs)
+    expect(outboundQueue.perContactMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMinIntervalMs)
+    expect(outboundQueue.perAccountMaxPerMinute.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerMinute)
+    expect(outboundQueue.perAccountMaxPerHour.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerHour)
+    expect(outboundQueue.perAccountMaxPerDay.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerDay)
+    expect(outboundQueue.perContactMaxPerHour.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour)
   })
 
   it('disconnects a legacy reverse tunnel client while keeping the integration id client active', async () => {
@@ -204,5 +221,43 @@ describe('WechatIntegrationStrategy', () => {
       })
     )
     expect(result.tunnel.sidecarConfigJson).toContain('"MsgClientId": "integration-1"')
+  })
+
+  it('normalizes inbound file size rules when validating config', async () => {
+    const { strategy } = createStrategy()
+
+    const missingRules = {
+      connectionMode: 'reverse_tunnel'
+    }
+    await strategy.validateConfig(missingRules as any, { id: 'integration-1' } as any)
+    expect(missingRules).toEqual(
+      expect.objectContaining({
+        inboundFileRules: {
+          maxSizeMb: 2
+        }
+      })
+    )
+
+    const invalidRules = {
+      connectionMode: 'reverse_tunnel',
+      inboundFileRules: {
+        maxSizeMb: 0.5
+      }
+    }
+    await strategy.validateConfig(invalidRules as any, { id: 'integration-1' } as any)
+    expect(invalidRules.inboundFileRules).toEqual({
+      maxSizeMb: 2
+    })
+
+    const tooLargeRules = {
+      connectionMode: 'reverse_tunnel',
+      inboundFileRules: {
+        maxSizeMb: 99
+      }
+    }
+    await strategy.validateConfig(tooLargeRules as any, { id: 'integration-1' } as any)
+    expect(tooLargeRules.inboundFileRules).toEqual({
+      maxSizeMb: 25
+    })
   })
 })

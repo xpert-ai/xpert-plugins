@@ -27,6 +27,29 @@ import {
   WechatOutboundQueueJobData,
   WechatOutboundQueueService
 } from './wechat-outbound-queue.service.js'
+import {
+  DEFAULT_OUTBOUND_QUEUE_OPTIONS,
+  type TIntegrationWechatOptions,
+  type WechatOutboundQueueOptions
+} from './types.js'
+
+type ResolvedOutboundQueueOptions = {
+  initialDelayMs: number
+  globalMinIntervalMs: number
+  perAccountMinIntervalMs: number
+  perContactMinIntervalMs: number
+  perAccountMaxPerMinute: number
+  perAccountMaxPerHour: number
+  perAccountMaxPerDay: number
+  perContactMaxPerHour: number
+}
+
+type ResolveOutboundOptionsHost = {
+  resolveOptions(
+    rawOptions?: WechatOutboundQueueOptions,
+    integrationOptions?: TIntegrationWechatOptions
+  ): ResolvedOutboundQueueOptions
+}
 
 describe('WechatOutboundQueueService', () => {
   const originalFetch = globalThis.fetch
@@ -179,6 +202,26 @@ describe('WechatOutboundQueueService', () => {
       sha256: createHash('sha256').update(content).digest('hex')
     }
   }
+
+  it('uses aggressive outbound queue defaults when options are omitted', () => {
+    const { service } = createService()
+    const options = (service as unknown as ResolveOutboundOptionsHost).resolveOptions(undefined, {
+      timeoutMs: 10_000
+    })
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        initialDelayMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs,
+        globalMinIntervalMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs,
+        perAccountMinIntervalMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs,
+        perContactMinIntervalMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMinIntervalMs,
+        perAccountMaxPerMinute: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerMinute,
+        perAccountMaxPerHour: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerHour,
+        perAccountMaxPerDay: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerDay,
+        perContactMaxPerHour: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour
+      })
+    )
+  })
 
   it('creates an outbound message log and delayed managed queue job without calling wx2.0 immediately', async () => {
     const { service, client, managedQueue, messageLogRepository } = createService()

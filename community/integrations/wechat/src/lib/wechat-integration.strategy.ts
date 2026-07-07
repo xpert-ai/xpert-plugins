@@ -20,6 +20,10 @@ import {
   WECHAT_WORKBENCH_FEATURE
 } from './constants.js'
 import {
+  DEFAULT_INBOUND_FILE_MAX_SIZE_MB,
+  DEFAULT_OUTBOUND_QUEUE_OPTIONS,
+  MAX_INBOUND_FILE_MAX_SIZE_MB,
+  normalizeInboundFileRules,
   normalizeApiVersion,
   normalizeBaseUrl,
   normalizeString,
@@ -228,6 +232,36 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
           },
           default: false
         },
+        inboundFileRules: {
+          type: 'object',
+          title: {
+            en_US: 'Inbound File Rules',
+            zh_Hans: '入站文件规则'
+          },
+          description: {
+            en_US: 'Rules applied to inbound WeChat file messages before downloading and workspace upload.',
+            zh_Hans: '微信文件消息下载和上传 workspace 前应用的规则。'
+          },
+          properties: {
+            maxSizeMb: {
+              type: 'number',
+              title: {
+                en_US: 'Max File Size (MiB)',
+                zh_Hans: '最大文件大小（MiB）'
+              },
+              description: {
+                en_US: 'Files larger than this value are skipped before agent dispatch.',
+                zh_Hans: '超过该大小的文件会被跳过，不进入 Agent。'
+              },
+              minimum: 1,
+              maximum: MAX_INBOUND_FILE_MAX_SIZE_MB,
+              default: DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+            }
+          },
+          default: {
+            maxSizeMb: DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+          }
+        },
         fallbackToLegacySendText: {
           type: 'boolean',
           title: {
@@ -261,7 +295,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Enable Outbound Queue',
                 zh_Hans: '启用出站队列'
               },
-              default: true
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.enabled
             },
             initialDelayMs: {
               type: 'number',
@@ -269,7 +303,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Initial Delay (ms)',
                 zh_Hans: '初始延迟（毫秒）'
               },
-              default: 3000
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs
             },
             globalMinIntervalMs: {
               type: 'number',
@@ -281,7 +315,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Minimum interval between any two outbound sends across this plugin queue.',
                 zh_Hans: '该插件出站队列中任意两条消息成功发送之间的最小间隔。'
               },
-              default: 3000
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs
             },
             perAccountMinIntervalMs: {
               type: 'number',
@@ -289,7 +323,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Account Min Interval (ms)',
                 zh_Hans: '单账号最小间隔（毫秒）'
               },
-              default: 10000
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs
             },
             perContactMinIntervalMs: {
               type: 'number',
@@ -297,7 +331,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Contact Min Interval (ms)',
                 zh_Hans: '单联系人最小间隔（毫秒）'
               },
-              default: 20000
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMinIntervalMs
             },
             perAccountMaxPerMinute: {
               type: 'number',
@@ -305,7 +339,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Account Max / Minute',
                 zh_Hans: '单账号每分钟上限'
               },
-              default: 6
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerMinute
             },
             perAccountMaxPerHour: {
               type: 'number',
@@ -313,7 +347,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Account Max / Hour',
                 zh_Hans: '单账号每小时上限'
               },
-              default: 80
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerHour
             },
             perAccountMaxPerDay: {
               type: 'number',
@@ -321,7 +355,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Account Max / Day',
                 zh_Hans: '单账号每日上限'
               },
-              default: 500
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerDay
             },
             perContactMaxPerHour: {
               type: 'number',
@@ -329,7 +363,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Per Contact Max / Hour',
                 zh_Hans: '单联系人每小时上限'
               },
-              default: 20
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour
             },
             maxPendingPerAccount: {
               type: 'number',
@@ -337,7 +371,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Max Pending / Account',
                 zh_Hans: '单账号最大积压'
               },
-              default: 100
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxPendingPerAccount
             },
             maxPendingPerContact: {
               type: 'number',
@@ -345,7 +379,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Max Pending / Contact',
                 zh_Hans: '单联系人最大积压'
               },
-              default: 20
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxPendingPerContact
             },
             maxAttempts: {
               type: 'number',
@@ -353,7 +387,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
                 en_US: 'Max Attempts',
                 zh_Hans: '最大重试次数'
               },
-              default: 4
+              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxAttempts
             }
           }
         }
@@ -417,6 +451,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     config.agentCallbackIntermediateTextEnabled = config.agentCallbackIntermediateTextEnabled === true
     config.fallbackToLegacySendText = config.fallbackToLegacySendText !== false
     config.fallbackToLegacySendImage = config.fallbackToLegacySendImage !== false
+    config.inboundFileRules = normalizeInboundFileRules(config.inboundFileRules)
     config.outboundQueue = {
       ...config.outboundQueue,
       enabled: config.outboundQueue?.enabled !== false

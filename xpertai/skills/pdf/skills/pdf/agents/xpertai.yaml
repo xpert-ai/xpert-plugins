@@ -1,0 +1,57 @@
+interface:
+  display_name: "PDF"
+  short_description: "Read, create, render, and verify PDF files"
+  icon_small: "./assets/file-document.png"
+  icon_large: "./assets/file-document.png"
+  brand_color: "#DC2626"
+  default_prompt: "Use $pdf to read, create, render, or visually verify a PDF file."
+runtime:
+  required_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "read_skill_file"
+      required: true
+      purpose: "Read bundled skill instructions, references, scripts, and assets before use."
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "skill_shell"
+      required: true
+      purpose: "Run shell commands from the installed skill runtime directory for PDF generation, extraction, rendering, and verification."
+  compatible_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SandboxShell"
+      name: "sandbox_shell"
+      required: false
+      purpose: "Alternative general shell execution tool when skill_shell is unavailable."
+    - kind: "builtin-toolset-tool"
+      provider: "bash"
+      name: "bash_execute"
+      required: false
+      purpose: "Alternative Bash execution tool for Xpert templates that bind builtin toolsets."
+    - kind: "builtin-toolset-tool"
+      provider: "file"
+      name: "file_edit"
+      required: false
+      purpose: "Optional workspace file inspection and edits for generated artifact support files."
+    - kind: "builtin-toolset-tool"
+      provider: "python"
+      name: "python_execute"
+      required: false
+      purpose: "Optional Python execution helper when shell access is delegated to the Python toolset."
+  required_runtime:
+    filesystem:
+      read: true
+      write: true
+      workspace: true
+    shell: true
+    workspace_dependencies: true
+    executables:
+      - "python"
+      - "pdftoppm"
+      - "pdfinfo"
+    packages:
+      - "reportlab"
+      - "pdfplumber"
+      - "pypdf"
+policy:
+  allow_implicit_invocation: true

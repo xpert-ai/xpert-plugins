@@ -604,7 +604,9 @@ describe('WechatConversationService fresh session history context', () => {
         item: expect.objectContaining({
           input: expect.stringContaining('新成员: 老威'),
           messageKind: 'text',
-          chatType: 'group'
+          chatType: 'group',
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
         }),
         wechatMessage: expect.objectContaining({
           contactId: 'room@chatroom',
@@ -642,7 +644,9 @@ describe('WechatConversationService fresh session history context', () => {
         item: expect.objectContaining({
           input: expect.stringContaining('新成员: 暗梅幽闻花'),
           messageKind: 'text',
-          chatType: 'group'
+          chatType: 'group',
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
         })
       })
     )
@@ -1142,7 +1146,8 @@ describe('WechatConversationService fresh session history context', () => {
       toUser: 'wxid_owner',
       msgId: 123,
       isSelf: false,
-      fileKey: 'file-key-1'
+      fileKey: 'file-key-1',
+      size: 3 * 1024 * 1024
     }
 
     await expect(
@@ -1162,7 +1167,14 @@ describe('WechatConversationService fresh session history context', () => {
           }
         },
         {
-          integration: { id: 'integration-1' },
+          integration: {
+            id: 'integration-1',
+            options: {
+              inboundFileRules: {
+                maxSizeMb: 1
+              }
+            }
+          },
           tenantId: 'tenant-1',
           organizationId: 'org-1'
         } as any
@@ -1264,6 +1276,63 @@ describe('WechatConversationService fresh session history context', () => {
       expect.objectContaining({
         status: 'dispatched',
         error: undefined
+      })
+    )
+  })
+
+  it('marks inbound file messages skipped when trigger rules reject the file but continue safely', async () => {
+    const { service, triggerStrategy, wechatClient, messageLogRepository } = createFullService()
+    triggerStrategy.handleInboundMessage.mockResolvedValueOnce({
+      accepted: false,
+      queued: false,
+      dispatched: false,
+      skipped: true,
+      error: 'inbound_file_size_exceeded: large.docx 3145728 bytes exceeds maximum 2097152 bytes'
+    })
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-large',
+      msgContent:
+        '<msg><appmsg><title><![CDATA[large.docx]]></title><type>74</type><appattach><totallen>3145728</totallen><attachid><![CDATA[file-key-large]]></attachid><fileext><![CDATA[docx]]></fileext></appattach></appmsg></msg>',
+      msgType: 49,
+      fromUser: 'wxid_friend',
+      toUser: 'wxid_owner',
+      msgId: 127,
+      isSelf: false,
+      fileKey: 'file-key-large',
+      attachId: 'file-key-large',
+      originalName: 'large.docx',
+      extension: 'docx',
+      size: 3 * 1024 * 1024
+    }
+
+    await expect(
+      service.handleInboundEvent(
+        {
+          ...baseEvent,
+          messageId: 'file-msg-large',
+          msgType: 49,
+          messageKind: 'file',
+          content: fileRef.msgContent,
+          displayText: 'large.docx',
+          fileRef,
+          mediaSignature: 'file:uuid-1:127:49:wxid_friend:wxid_friend:wxid_owner'
+        },
+        {
+          integration: { id: 'integration-1' },
+          tenantId: 'tenant-1',
+          organizationId: 'org-1'
+        } as any
+      )
+    ).resolves.toEqual({ handled: false, reason: 'skipped' })
+
+    expect(wechatClient.downloadFile).not.toHaveBeenCalled()
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-1' }),
+      expect.objectContaining({
+        status: 'skipped',
+        error: expect.stringContaining('inbound_file_size_exceeded')
       })
     )
   })

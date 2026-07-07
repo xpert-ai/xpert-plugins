@@ -855,6 +855,32 @@ describe('wechat inbound normalization', () => {
     ).toBeNull()
   })
 
+  it('dispatches debounced group join welcome items without group mention or keyword policy', () => {
+    const decision = shouldDispatchWechatBatch(
+      [
+        {
+          input: '欢迎 老威 加入 测试群\n\n新成员: 老威',
+          messageKind: 'text',
+          chatType: 'group',
+          mentioned: false,
+          groupKeywordMatched: false,
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
+        }
+      ],
+      {
+        groupTriggerMode: 'off',
+        groupKeywords: ['不会命中'],
+        allowedKeywords: ['也不会命中']
+      }
+    )
+
+    expect(decision).toEqual({
+      inputParts: ['欢迎 老威 加入 测试群\n\n新成员: 老威'],
+      triggerReason: 'group_join_welcome'
+    })
+  })
+
   it('filters by chat type, group ids, contact ids, and sender ids', () => {
     const privateEvent = normalizeWechatInboundPayload({
       uuid: 'uuid-1',

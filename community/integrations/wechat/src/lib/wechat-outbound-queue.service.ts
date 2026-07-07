@@ -29,6 +29,7 @@ import {
 } from './entities/index.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 import {
+  DEFAULT_OUTBOUND_QUEUE_OPTIONS,
   normalizeNonNegativeInt,
   normalizePositiveInt,
   normalizeString,
@@ -1241,17 +1242,57 @@ export class WechatOutboundQueueService {
     const fallbackLockTtlMs = normalizeTimeoutMs(integrationOptions?.timeoutMs) + 20_000
     return {
       enabled: rawOptions?.enabled !== false,
-      initialDelayMs: normalizeNonNegativeInt(rawOptions?.initialDelayMs, 3000, 5 * 60_000),
-      globalMinIntervalMs: normalizeNonNegativeInt(rawOptions?.globalMinIntervalMs, 3000, 60 * 60_000),
-      perAccountMinIntervalMs: normalizeNonNegativeInt(rawOptions?.perAccountMinIntervalMs, 10_000, 60 * 60_000),
-      perContactMinIntervalMs: normalizeNonNegativeInt(rawOptions?.perContactMinIntervalMs, 20_000, 60 * 60_000),
-      perAccountMaxPerMinute: normalizePositiveInt(rawOptions?.perAccountMaxPerMinute, 6, 600),
-      perAccountMaxPerHour: normalizePositiveInt(rawOptions?.perAccountMaxPerHour, 80, 10_000),
-      perAccountMaxPerDay: normalizePositiveInt(rawOptions?.perAccountMaxPerDay, 500, 100_000),
-      perContactMaxPerHour: normalizePositiveInt(rawOptions?.perContactMaxPerHour, 20, 10_000),
-      maxPendingPerAccount: normalizePositiveInt(rawOptions?.maxPendingPerAccount, 100, 10_000),
-      maxPendingPerContact: normalizePositiveInt(rawOptions?.maxPendingPerContact, 20, 10_000),
-      maxAttempts: normalizePositiveInt(rawOptions?.maxAttempts, 4, 20),
+      initialDelayMs: normalizeNonNegativeInt(
+        rawOptions?.initialDelayMs,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs,
+        5 * 60_000
+      ),
+      globalMinIntervalMs: normalizeNonNegativeInt(
+        rawOptions?.globalMinIntervalMs,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs,
+        60 * 60_000
+      ),
+      perAccountMinIntervalMs: normalizeNonNegativeInt(
+        rawOptions?.perAccountMinIntervalMs,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs,
+        60 * 60_000
+      ),
+      perContactMinIntervalMs: normalizeNonNegativeInt(
+        rawOptions?.perContactMinIntervalMs,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMinIntervalMs,
+        60 * 60_000
+      ),
+      perAccountMaxPerMinute: normalizePositiveInt(
+        rawOptions?.perAccountMaxPerMinute,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerMinute,
+        600
+      ),
+      perAccountMaxPerHour: normalizePositiveInt(
+        rawOptions?.perAccountMaxPerHour,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerHour,
+        10_000
+      ),
+      perAccountMaxPerDay: normalizePositiveInt(
+        rawOptions?.perAccountMaxPerDay,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerDay,
+        100_000
+      ),
+      perContactMaxPerHour: normalizePositiveInt(
+        rawOptions?.perContactMaxPerHour,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour,
+        10_000
+      ),
+      maxPendingPerAccount: normalizePositiveInt(
+        rawOptions?.maxPendingPerAccount,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxPendingPerAccount,
+        10_000
+      ),
+      maxPendingPerContact: normalizePositiveInt(
+        rawOptions?.maxPendingPerContact,
+        DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxPendingPerContact,
+        10_000
+      ),
+      maxAttempts: normalizePositiveInt(rawOptions?.maxAttempts, DEFAULT_OUTBOUND_QUEUE_OPTIONS.maxAttempts, 20),
       retryBackoffMs: this.normalizeBackoff(rawOptions?.retryBackoffMs),
       lockTtlMs: normalizePositiveInt(rawOptions?.lockTtlMs, fallbackLockTtlMs, 10 * 60_000),
       overflowAction: rawOptions?.overflowAction === 'reject' ? 'reject' : 'pause_until_manual_resume',

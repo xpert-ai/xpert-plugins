@@ -18,6 +18,23 @@ export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume
 
 export const DEFAULT_GROUP_JOIN_WELCOME_PROMPT =
   '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。'
+export const WECHAT_MIB_BYTES = 1024 * 1024
+export const DEFAULT_INBOUND_FILE_MAX_SIZE_MB = 2
+export const MAX_INBOUND_FILE_MAX_SIZE_MB = 25
+export const DEFAULT_OUTBOUND_QUEUE_OPTIONS = {
+  enabled: true,
+  initialDelayMs: 0,
+  globalMinIntervalMs: 0,
+  perAccountMinIntervalMs: 500,
+  perContactMinIntervalMs: 1000,
+  perAccountMaxPerMinute: 60,
+  perAccountMaxPerHour: 1000,
+  perAccountMaxPerDay: 5000,
+  perContactMaxPerHour: 120,
+  maxPendingPerAccount: 100,
+  maxPendingPerContact: 20,
+  maxAttempts: 4
+} as const
 const WECHAT_REFERENCE_APPMSG_TYPE = 57
 const WECHAT_MENTION_SEPARATOR_CLASS = '\\s\\u2005\\u2002\\u2003\\u2004\\u2006\\u2007\\u2008\\u2009\\u200a\\u202f\\u205f\\u3000'
 
@@ -58,6 +75,10 @@ export interface WechatOutboundQueueOptions {
   }>
 }
 
+export interface WechatInboundFileRulesOptions {
+  maxSizeMb?: number
+}
+
 export interface TIntegrationWechatOptions {
   connectionMode?: WechatConnectionMode
   baseUrl?: string
@@ -70,6 +91,7 @@ export interface TIntegrationWechatOptions {
   webhookCredential?: WechatWebhookCredentialRecord | null
   fallbackToLegacySendText?: boolean
   fallbackToLegacySendImage?: boolean
+  inboundFileRules?: WechatInboundFileRulesOptions
   outboundQueue?: WechatOutboundQueueOptions
 }
 
@@ -217,6 +239,7 @@ export interface WechatDispatchableMessage extends WechatInboundEvent {
 }
 
 export type WechatTriggerReason = WechatDispatchableMessage['triggerReason']
+export type WechatBatchTriggerReason = WechatTriggerReason | 'group_join_welcome'
 
 export interface WechatBatchTriggerItem {
   input: string
@@ -224,11 +247,13 @@ export interface WechatBatchTriggerItem {
   chatType?: 'private' | 'group'
   mentioned?: boolean
   groupKeywordMatched?: boolean
+  bypassTriggerPolicy?: boolean
+  triggerReason?: WechatBatchTriggerReason
 }
 
 export interface WechatBatchDispatchDecision {
   inputParts: string[]
-  triggerReason: WechatTriggerReason
+  triggerReason: WechatBatchTriggerReason
 }
 
 export type WechatVoiceTranscriptionDecision = {
@@ -290,6 +315,27 @@ export function normalizeTimeoutMs(value: unknown, defaultValue = 10000): number
     return Math.floor(value)
   }
   return defaultValue
+}
+
+export function normalizeInboundFileRules(value: unknown): Required<WechatInboundFileRulesOptions> {
+  const record = value && typeof value === 'object' ? value as { maxSizeMb?: unknown } : undefined
+  return {
+    maxSizeMb: normalizeInboundFileMaxSizeMb(record?.maxSizeMb)
+  }
+}
+
+export function resolveInboundFileMaxBytes(
+  options?: Pick<TIntegrationWechatOptions, 'inboundFileRules'> | null
+): number {
+  return normalizeInboundFileRules(options?.inboundFileRules).maxSizeMb * WECHAT_MIB_BYTES
+}
+
+function normalizeInboundFileMaxSizeMb(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+  }
+  return Math.min(Math.floor(numeric), MAX_INBOUND_FILE_MAX_SIZE_MB)
 }
 
 export function normalizePositiveInt(value: unknown, defaultValue: number, maxValue = Number.MAX_SAFE_INTEGER): number {
@@ -528,7 +574,8 @@ export function shouldDispatchWechatMessage(
 export function buildWechatBatchTriggerItem(
   event: WechatInboundEvent,
   options?: WechatInboundTriggerOptions,
-  input: string = normalizeWechatAgentInput(event)
+  input: string = normalizeWechatAgentInput(event),
+  metadata?: Pick<WechatBatchTriggerItem, 'bypassTriggerPolicy' | 'triggerReason'>
 ): WechatBatchTriggerItem {
   return {
     input,
@@ -539,7 +586,8 @@ export function buildWechatBatchTriggerItem(
       : false,
     groupKeywordMatched: event.chatType === 'group'
       ? !!matchKeyword(input, normalizeKeywords(options?.groupKeywords))
-      : false
+      : false,
+    ...(metadata ?? {})
   }
 }
 
@@ -559,6 +607,13 @@ export function shouldDispatchWechatBatch(
 
   const inputParts = candidates.map((item) => normalizeString(item.input))
   const aggregatedInput = inputParts.join('\n')
+  const bypassPolicyItem = candidates.find((item) => item.bypassTriggerPolicy)
+  if (bypassPolicyItem) {
+    return {
+      inputParts,
+      triggerReason: bypassPolicyItem.triggerReason ?? 'group_join_welcome'
+    }
+  }
   const first = candidates[0]
 
   if (first.chatType !== 'group') {

@@ -39,6 +39,8 @@ export interface WechatTriggerAggregationState {
   pendingFiles?: WechatPendingInboundFile[]
   currentInboundLogIds?: string[]
   duplicateInboundLogIds?: string[]
+  skippedInboundLogIds?: string[]
+  skippedInboundError?: string
   historyContext?: string
   agentCallbackIntermediateTextEnabled?: boolean
   fileMaterializeRetryCount?: number
