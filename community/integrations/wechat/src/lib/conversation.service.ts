@@ -590,17 +590,20 @@ export class WechatConversationService {
         }
       })
       const handleResult = this.normalizeInboundHandleResult(handled)
+      const inboundStatus: WechatMessageLogStatus = handleResult.accepted
+        ? handleResult.queued ? 'queued' : 'dispatched'
+        : handleResult.skipped ? 'skipped' : 'failed'
 
       await this.updateLog(inboundLog.id, {
-        status: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : 'failed',
+        status: inboundStatus,
         xpertId: binding.xpertId,
         conversationUserKey,
-        error: handleResult.accepted ? undefined : handleResult.error ?? 'handoff_dispatch_failed'
+        error: handleResult.accepted ? undefined : handleResult.error ?? (handleResult.skipped ? 'skipped' : 'handoff_dispatch_failed')
       }, eventScope)
 
       return {
         handled: handleResult.accepted,
-        reason: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : 'dispatch_failed'
+        reason: handleResult.accepted ? (handleResult.queued ? 'queued' : 'dispatched') : handleResult.skipped ? 'skipped' : 'dispatch_failed'
       }
     } catch (error) {
       if (!inboundLog?.id) {
@@ -1988,19 +1991,21 @@ export class WechatConversationService {
   }
 
   private normalizeInboundHandleResult(
-    result: boolean | { accepted?: boolean; queued?: boolean; dispatched?: boolean; error?: string }
-  ): { accepted: boolean; queued: boolean; dispatched: boolean; error?: string } {
+    result: boolean | { accepted?: boolean; queued?: boolean; dispatched?: boolean; skipped?: boolean; error?: string }
+  ): { accepted: boolean; queued: boolean; dispatched: boolean; skipped: boolean; error?: string } {
     if (typeof result === 'boolean') {
       return {
         accepted: result,
         queued: false,
-        dispatched: result
+        dispatched: result,
+        skipped: false
       }
     }
     return {
       accepted: result?.accepted === true,
       queued: result?.queued === true,
       dispatched: result?.dispatched === true,
+      skipped: result?.skipped === true,
       error: result?.error
     }
   }

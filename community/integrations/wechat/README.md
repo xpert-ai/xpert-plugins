@@ -33,7 +33,7 @@
   -> 微信用户
 ```
 
-入站触发支持文本消息、wx2.0 明确标记为 `msgtype=3` 的微信图片消息、`msgtype=34` 的微信语音消息，以及文件 appmsg（`type=6` / `type=74`）。图片会通过 `/v1/message/downloadfile` 下载，校验为 JPEG/PNG/GIF/WebP 且不超过 10MB 后转为 `data:image/...;base64,...`，以 ChatKit 兼容附件形状（包含 `id`、`fileUrl`、`url`、`mimeType`、`mimetype`、`originalName`、`name`、`size`、`extension`）同步放入 Agent `message.input.files` 和 `state.human.files` 理解；图片没有附带文字时，立即派发的 user input 为空字符串。文件会下载为服务端临时 Buffer，随后写入 Xpert workspace 并触发 workspace-backed FileAsset 理解；传给 Agent 的 `files` 只包含 `fileAssetId/filePath/workspacePath` 等引用字段，不包含 `data:` URL、base64 或 buffer。语音不会作为 `audio/* files` 传给 Agent，而是通过 wx2.0 `/v1/message/downloadfile` 触发下载，再读取 `/v1/message/getmediafilechunk` 的 `variant: "voice"` wav 缓存，校验 RIFF/WAVE、最大 10MB、最长 60 秒，然后调用目标 Xpert 配置的 speech-to-text 模型转写为 human input。语音下载成功但转写失败或转写为空时，入站日志会标记为 `failed`，不会派发给 Agent。群聊图片、文件和语音都不会绕过 trigger 配置，仍然按 @、关键词、群过滤和 `groupTriggerMode` 决定是否触发。视频、表情、链接卡片等其他入站媒体仍未支持，也不把流式 token 实时推送到微信。
+入站触发支持文本消息、wx2.0 明确标记为 `msgtype=3` 的微信图片消息、`msgtype=34` 的微信语音消息，以及文件 appmsg（`type=6` / `type=74`）。图片会通过 `/v1/message/downloadfile` 下载，校验为 JPEG/PNG/GIF/WebP 且不超过 10MB 后转为 `data:image/...;base64,...`，以 ChatKit 兼容附件形状（包含 `id`、`fileUrl`、`url`、`mimeType`、`mimetype`、`originalName`、`name`、`size`、`extension`）同步放入 Agent `message.input.files` 和 `state.human.files` 理解；图片没有附带文字时，立即派发的 user input 为空字符串。文件消息会先按 integration 级入站文件大小规则校验，默认超过 2 MiB 的文件不下载、不上传、不进入 Agent；通过规则的文件会下载为服务端临时 Buffer，随后写入 Xpert workspace 并触发 workspace-backed FileAsset 理解；传给 Agent 的 `files` 只包含 `fileAssetId/filePath/workspacePath` 等引用字段，不包含 `data:` URL、base64 或 buffer。语音不会作为 `audio/* files` 传给 Agent，而是通过 wx2.0 `/v1/message/downloadfile` 触发下载，再读取 `/v1/message/getmediafilechunk` 的 `variant: "voice"` wav 缓存，校验 RIFF/WAVE、最大 10MB、最长 60 秒，然后调用目标 Xpert 配置的 speech-to-text 模型转写为 human input。语音下载成功但转写失败或转写为空时，入站日志会标记为 `failed`，不会派发给 Agent。群聊图片、文件和语音都不会绕过 trigger 配置，仍然按 @、关键词、群过滤和 `groupTriggerMode` 决定是否触发。视频、表情、链接卡片等其他入站媒体仍未支持，也不把流式 token 实时推送到微信。
 
 ## 后台运行身份
 
@@ -141,6 +141,7 @@ REDIS_TLS=false
 | API Token | 否 | 留空 | 仅当 wx2.0 启用 token 校验时填写。插件会作为 `token` header 发送。 |
 | 首选语言 | 否 | `zh-Hans` | 用于默认提示和部分系统回复。 |
 | Webhook 凭据 | 自动生成 | 无需手填 | 保存集成后由 Xpert host 为该 integration 生成 opaque webhook secret。配置中只保存 hash 和元数据，回调 URL 使用 `?secret=...`。wx2.0 当前不支持自定义 header，因此 webhook 鉴权只使用 query secret。 |
+| 入站文件最大大小 | 否 | `2` MiB | 普通文件消息超过该值时会跳过文件，不下载、不上传 workspace、不传给 Agent；同一聚合窗口内的文本仍可继续触发。允许范围 `1` 到 `25` MiB。 |
 | 失败时回退旧发送接口 | 否 | 开启 | `/v1/message/sendtext` 失败时尝试旧文本接口。 |
 | 图片失败时回退旧发送接口 | 否 | 开启 | `/v1/message/sendimage` 失败时尝试旧图片接口。 |
 | 出站队列 | 否 | 开启 | 使用 Redis BullMQ 排队发送文本和图片回复，支持延迟、限流、锁、取消、重试和暂停。 |
@@ -571,7 +572,7 @@ Agent 生成 markdown 内容后只需要调用：
 
 ## 消息过滤规则
 
-入站过滤规则只在微信 trigger 配置中设置。微信 integration 配置只负责连接方式、wx2.0 调用参数和出站队列策略，避免同一规则在两处配置造成歧义。
+通用入站过滤规则只在微信 trigger 配置中设置。微信 integration 配置负责连接方式、wx2.0 调用参数、出站队列策略，以及普通文件消息的入站大小保护规则；文件大小保护在下载和 workspace 上传前执行，避免超限文件进入后续 Agent 处理。
 
 过滤逻辑按下面顺序执行，任一步不满足都会跳过，不会派发给 Agent：
 
@@ -580,9 +581,10 @@ Agent 生成 markdown 内容后只需要调用：
 2. 按 `chatFilterMode` 判断私聊/群聊范围。
 3. 按联系人/群/发送人 ID 的白名单和黑名单判断是否允许。
 4. 仅文本类消息、微信图片消息、微信语音消息和微信文件消息继续处理。文本接受 `msgType` 为空、`0` 或 `1`；图片只接受 wx2.0 机器字段 `msgtype=3` / `msg_type=3`；语音只接受 wx2.0 机器字段 `msgtype=34` / `msg_type=34`；文件接受顶层文件消息或 appmsg `type=6` / `type=74`。插件不会从 `[图片]`、`[语音]`、展示文本、文件名或其他偶然字段推断非文件媒体类型。`msgtype=10000` 系统消息默认不作为普通消息触发；仅在 `groupJoinWelcomeEnabled` 开启且识别为入群事件时，转换为欢迎请求交给 Agent。
-5. 文本消息内容为空，或内容形如 `[图片]`、`[语音]` 这种纯占位文本时跳过；图片和文件消息允许无文字，并通过 `files` 传给 Agent；语音消息必须先成功转写成非空文本才会派发。
-6. 私聊消息通过前面规则后直接触发；群聊消息还要继续匹配 `groupTriggerMode` 和 `groupKeywords`。`keywords` 和 `mention_or_keywords` 模式下，语音会在通过账号/联系人/群/发送人过滤后先转写，再用转写文本匹配关键词；`mentions` 模式只会在原始 `atuserlist` / @ 匹配后转写。
-7. 如果配置了 `allowedKeywords`，消息文本或语音转写文本还必须命中任一关键词才会继续处理。该规则在拼接历史上下文之前执行；纯图片消息没有可匹配文本时不会通过该关键词过滤。
+5. 普通文件消息先按 integration 的 `inboundFileRules.maxSizeMb` 校验，默认 `2` MiB。超过限制的文件会标记为跳过，不调用 wx2.0 下载，不上传 workspace，也不会进入 Agent；如果同一防抖窗口还有文本或其他有效附件，剩余内容仍继续走后续规则。
+6. 文本消息内容为空，或内容形如 `[图片]`、`[语音]` 这种纯占位文本时跳过；图片和通过大小规则的文件消息允许无文字，并通过 `files` 传给 Agent；语音消息必须先成功转写成非空文本才会派发。
+7. 私聊消息通过前面规则后直接触发；群聊消息还要继续匹配 `groupTriggerMode` 和 `groupKeywords`。`keywords` 和 `mention_or_keywords` 模式下，语音会在通过账号/联系人/群/发送人过滤后先转写，再用转写文本匹配关键词；`mentions` 模式只会在原始 `atuserlist` / @ 匹配后转写。
+8. 如果配置了 `allowedKeywords`，消息文本或语音转写文本还必须命中任一关键词才会继续处理。该规则在拼接历史上下文之前执行；纯图片消息没有可匹配文本时不会通过该关键词过滤。
 
 列表型字段在保存时会去掉空白项并去重。空列表表示不限制；白名单非空时必须命中白名单，黑名单命中时一定跳过。因此同一个 ID 同时出现在允许和排除列表时，排除列表生效。
 

@@ -18,6 +18,9 @@ export type WechatOutboundOverflowAction = 'reject' | 'pause_until_manual_resume
 
 export const DEFAULT_GROUP_JOIN_WELCOME_PROMPT =
   '微信群有新成员加入：{names}。请生成一句简短、友好的中文欢迎语回复群聊，不要提及系统消息。'
+export const WECHAT_MIB_BYTES = 1024 * 1024
+export const DEFAULT_INBOUND_FILE_MAX_SIZE_MB = 2
+export const MAX_INBOUND_FILE_MAX_SIZE_MB = 25
 const WECHAT_REFERENCE_APPMSG_TYPE = 57
 const WECHAT_MENTION_SEPARATOR_CLASS = '\\s\\u2005\\u2002\\u2003\\u2004\\u2006\\u2007\\u2008\\u2009\\u200a\\u202f\\u205f\\u3000'
 
@@ -58,6 +61,10 @@ export interface WechatOutboundQueueOptions {
   }>
 }
 
+export interface WechatInboundFileRulesOptions {
+  maxSizeMb?: number
+}
+
 export interface TIntegrationWechatOptions {
   connectionMode?: WechatConnectionMode
   baseUrl?: string
@@ -70,6 +77,7 @@ export interface TIntegrationWechatOptions {
   webhookCredential?: WechatWebhookCredentialRecord | null
   fallbackToLegacySendText?: boolean
   fallbackToLegacySendImage?: boolean
+  inboundFileRules?: WechatInboundFileRulesOptions
   outboundQueue?: WechatOutboundQueueOptions
 }
 
@@ -290,6 +298,27 @@ export function normalizeTimeoutMs(value: unknown, defaultValue = 10000): number
     return Math.floor(value)
   }
   return defaultValue
+}
+
+export function normalizeInboundFileRules(value: unknown): Required<WechatInboundFileRulesOptions> {
+  const record = value && typeof value === 'object' ? value as { maxSizeMb?: unknown } : undefined
+  return {
+    maxSizeMb: normalizeInboundFileMaxSizeMb(record?.maxSizeMb)
+  }
+}
+
+export function resolveInboundFileMaxBytes(
+  options?: Pick<TIntegrationWechatOptions, 'inboundFileRules'> | null
+): number {
+  return normalizeInboundFileRules(options?.inboundFileRules).maxSizeMb * WECHAT_MIB_BYTES
+}
+
+function normalizeInboundFileMaxSizeMb(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+  }
+  return Math.min(Math.floor(numeric), MAX_INBOUND_FILE_MAX_SIZE_MB)
 }
 
 export function normalizePositiveInt(value: unknown, defaultValue: number, maxValue = Number.MAX_SAFE_INTEGER): number {

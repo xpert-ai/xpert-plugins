@@ -727,8 +727,8 @@ describe('WechatTriggerStrategy', () => {
     )
   })
 
-  it('coalesces duplicate pending file refs and keeps the more complete attachment metadata', async () => {
-    const { strategy, aggregationService } = createStrategy()
+  it('coalesces duplicate pending file refs and materializes the more complete attachment metadata', async () => {
+    const { strategy, aggregationService, wechatClient, workspaceFiles } = createStrategy()
     const partialFileRef = {
       uuid: 'uuid-1',
       contactId: 'wxid_friend',
@@ -807,7 +807,7 @@ describe('WechatTriggerStrategy', () => {
             fileRef: fullFileRef
           }
         ],
-        currentInboundLogIds: ['inbound-text-log-1'],
+        currentInboundLogIds: ['inbound-file-full', 'inbound-text-log-1'],
         summaryWindowSeconds: 3,
         sessionTimeoutSeconds: 3600,
         tenantId: 'tenant-1',
@@ -821,20 +821,24 @@ describe('WechatTriggerStrategy', () => {
       })
     ).resolves.toBeUndefined()
 
+    expect(wechatClient.downloadFile).toHaveBeenCalledWith(expect.objectContaining({ id: 'integration-1' }), fullFileRef)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: 'files/wechat/integration-1/uuid-1/file-msg-full',
+        fileName: '技术实现文档.docx'
+      })
+    )
     expect(aggregationService.save).toHaveBeenCalledWith(
       expect.objectContaining({
         inputParts: ['', '分析这个文档'],
-        pendingFiles: [
+        pendingFiles: undefined,
+        files: [
           expect.objectContaining({
-            messageLogId: 'inbound-file-full',
-            fileRef: expect.objectContaining({
-              attachId: 'attach-1',
-              cdnAttachUrl: 'https://cdn.example/file',
-              aesKey: 'aes-1'
-            })
+            fileAssetId: 'file-asset-1',
+            workspacePath: 'files/wechat/integration-1/uuid-1/file-msg-1/技术实现文档.docx'
           })
         ],
-        currentInboundLogIds: ['inbound-file-partial', 'inbound-text-log-1'],
+        currentInboundLogIds: ['inbound-file-partial', 'inbound-file-full', 'inbound-text-log-1'],
         duplicateInboundLogIds: ['inbound-file-partial']
       }),
       expect.any(Number)
@@ -1031,6 +1035,223 @@ describe('WechatTriggerStrategy', () => {
       })
     )
     expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('docx-bytes')
+  })
+
+  it('skips known oversized file messages before wx2.0 download or workspace upload', async () => {
+    const { strategy, dispatchService, wechatClient, workspaceFiles, messageFileRepository, wechatMessage } = createStrategy()
+    const oversizedSize = 3 * 1024 * 1024
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-large',
+      msgContent: '<msg><appmsg><title>large.docx</title><type>74</type><appattach><totallen>3145728</totallen></appattach></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'file-key-large',
+      originalName: 'large.docx',
+      extension: 'docx',
+      size: oversizedSize
+    }
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        input: '',
+        pendingFiles: [
+          {
+            kind: 'file',
+            messageLogId: 'inbound-file-large',
+            messageId: 'file-msg-large',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: 'large.docx',
+            size: oversizedSize,
+            extension: 'docx',
+            fileRef
+          }
+        ],
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        currentInboundLogIds: ['inbound-file-large'],
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        accepted: false,
+        queued: false,
+        dispatched: false,
+        skipped: true,
+        error: expect.stringContaining('inbound_file_size_exceeded')
+      })
+    )
+
+    expect(wechatClient.downloadFile).not.toHaveBeenCalled()
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.understandFile).not.toHaveBeenCalled()
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+    expect(messageFileRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageLogId: 'inbound-file-large',
+        status: 'failed',
+        size: oversizedSize,
+        error: expect.stringContaining('inbound_file_size_exceeded')
+      })
+    )
+  })
+
+  it('skips files that exceed the inbound limit after download and before workspace upload', async () => {
+    const { strategy, dispatchService, wechatClient, workspaceFiles, messageFileRepository, wechatMessage } = createStrategy()
+    const oversizedBuffer = Buffer.alloc(2 * 1024 * 1024 + 1)
+    wechatClient.downloadFile.mockResolvedValueOnce({
+      success: true,
+      file: {
+        data: oversizedBuffer,
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        originalName: 'unknown-size.docx',
+        fileKey: 'file-key-unknown-size',
+        size: oversizedBuffer.length,
+        extension: 'docx'
+      }
+    })
+    const fileRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'file-msg-unknown-size',
+      msgContent: '<msg><appmsg><title>unknown-size.docx</title><type>74</type></appmsg></msg>',
+      msgType: 49,
+      fileKey: 'file-key-unknown-size',
+      originalName: 'unknown-size.docx',
+      extension: 'docx'
+    }
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        input: '',
+        pendingFiles: [
+          {
+            kind: 'file',
+            messageLogId: 'inbound-file-unknown-size',
+            messageId: 'file-msg-unknown-size',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: 'unknown-size.docx',
+            extension: 'docx',
+            fileRef
+          }
+        ],
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        currentInboundLogIds: ['inbound-file-unknown-size'],
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        accepted: false,
+        skipped: true,
+        error: expect.stringContaining('inbound_file_size_exceeded')
+      })
+    )
+
+    expect(wechatClient.downloadFile).toHaveBeenCalledTimes(1)
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.understandFile).not.toHaveBeenCalled()
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+    expect(messageFileRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'message-file-1' }),
+      expect.objectContaining({
+        status: 'failed',
+        size: oversizedBuffer.length,
+        error: expect.stringContaining('inbound_file_size_exceeded')
+      })
+    )
+  })
+
+  it('skips oversized files in a debounced batch while dispatching the remaining text', async () => {
+    const { strategy, dispatchService, aggregationService, wechatClient, workspaceFiles, messageLogRepository } = createStrategy()
+    const oversizedSize = 3 * 1024 * 1024
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      xpertId: 'xpert-1',
+      version: 12,
+      inputParts: ['', '分析这个文档'],
+      items: [
+        { input: '', messageKind: 'file', chatType: 'private' },
+        { input: '分析这个文档', messageKind: 'text', chatType: 'private' }
+      ],
+      pendingFiles: [
+        {
+          kind: 'file',
+          messageLogId: 'inbound-file-large',
+          messageId: 'file-msg-large',
+          uuid: 'uuid-1',
+          contactId: 'wxid_friend',
+          senderId: 'wxid_friend',
+          originalName: 'large.docx',
+          size: oversizedSize,
+          extension: 'docx',
+          fileRef: {
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            newMsgId: 'file-msg-large',
+            msgContent: '<msg><appmsg><title>large.docx</title><type>74</type><appattach><totallen>3145728</totallen></appattach></appmsg></msg>',
+            msgType: 49,
+            fileKey: 'file-key-large',
+            originalName: 'large.docx',
+            extension: 'docx',
+            size: oversizedSize
+          }
+        }
+      ],
+      currentInboundLogIds: ['inbound-file-large', 'inbound-text-log-1'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'text-msg-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        version: 12
+      })
+    ).resolves.toBe(true)
+
+    expect(wechatClient.downloadFile).not.toHaveBeenCalled()
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(workspaceFiles.understandFile).not.toHaveBeenCalled()
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '分析这个文档',
+        files: [],
+        currentInboundLogIds: ['inbound-text-log-1']
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-file-large' }),
+      expect.objectContaining({
+        status: 'skipped',
+        error: expect.stringContaining('inbound_file_size_exceeded')
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-text-log-1' }),
+      expect.objectContaining({
+        status: 'dispatched'
+      })
+    )
   })
 
   it('keeps the debounced batch and retries flush when file attachment fields are not ready', async () => {

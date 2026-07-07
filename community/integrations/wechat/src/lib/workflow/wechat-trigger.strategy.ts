@@ -35,6 +35,7 @@ import {
   normalizeKeywords,
   normalizeSelfMessagePolicy,
   normalizeString,
+  resolveInboundFileMaxBytes,
   shouldDispatchWechatBatch,
   TIntegrationWechatOptions,
   WechatBatchTriggerItem,
@@ -93,10 +94,19 @@ type PendingFileMergeResult = {
   duplicateLogIds: string[]
 }
 
+type PendingFileMaterializeOutcome =
+  | { status: 'ready'; file: WechatInboundFile }
+  | { status: 'skipped'; logId?: string; error: string }
+
+type PendingFileMaterializeResult =
+  | { success: true; files?: WechatInboundFile[]; skippedLogIds?: string[]; skippedError?: string }
+  | { success: false; error: string; recoverable: boolean }
+
 export type WechatInboundHandleResult = {
   accepted: boolean
   queued: boolean
   dispatched: boolean
+  skipped?: boolean
   error?: string
 }
 
@@ -836,6 +846,12 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       }
       const files = [...(params.files ?? []), ...(materialized.files ?? [])]
       const input = params.input || (files.length ? ATTACHMENT_ONLY_AGGREGATE_INPUT : '')
+      if (!this.hasDispatchContent(input, files)) {
+        return this.createHandleResult(false, {
+          skipped: true,
+          error: materialized.skippedError ?? 'empty_inbound_message_after_file_rules'
+        })
+      }
       await this.dispatchInboundMessage({
         integrationId: params.integrationId,
         accountUuid,
@@ -919,6 +935,31 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       const pendingFileMerge = sameRoutingTarget
         ? this.mergePendingFilesWithDuplicateLogIds(currentState?.pendingFiles, payload.pendingFiles)
         : this.mergePendingFilesWithDuplicateLogIds(undefined, payload.pendingFiles)
+      let files = [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(payload.files ?? [])]
+      let pendingFiles = pendingFileMerge.files
+      let skippedLogIds: string[] = []
+      let skippedError: string | undefined
+      if (pendingFiles?.length) {
+        const materialized = await this.materializePendingFiles({
+          integrationId: payload.integrationId,
+          xpertId: payload.xpertId,
+          tenantId: payload.tenantId,
+          organizationId: payload.organizationId,
+          conversationUserKey: aggregateKey,
+          pendingFiles,
+          markFailures: false
+        })
+        if (materialized.success === true) {
+          files = [...files, ...(materialized.files ?? [])]
+          pendingFiles = undefined
+          skippedLogIds = materialized.skippedLogIds ?? []
+          skippedError = materialized.skippedError
+        }
+      }
+      const currentInboundLogIds = this.uniqueLogIds([
+        ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
+        ...(payload.currentInboundLogIds ?? [])
+      ]).filter((id) => !skippedLogIds.includes(id))
       const aggregateState: WechatTriggerAggregationState = {
         aggregateKey,
         integrationId: payload.integrationId,
@@ -934,16 +975,18 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         triggerOptions: sameRoutingTarget
           ? currentState?.triggerOptions ?? payload.triggerOptions
           : payload.triggerOptions,
-        files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(payload.files ?? [])],
-        pendingFiles: pendingFileMerge.files,
-        currentInboundLogIds: [
-          ...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
-          ...(payload.currentInboundLogIds ?? [])
-        ],
+        files,
+        pendingFiles,
+        currentInboundLogIds,
         duplicateInboundLogIds: this.uniqueLogIds([
           ...(sameRoutingTarget ? currentState?.duplicateInboundLogIds ?? [] : []),
           ...pendingFileMerge.duplicateLogIds
         ]),
+        skippedInboundLogIds: this.uniqueLogIds([
+          ...(sameRoutingTarget ? currentState?.skippedInboundLogIds ?? [] : []),
+          ...skippedLogIds
+        ]),
+        skippedInboundError: skippedError ?? (sameRoutingTarget ? currentState?.skippedInboundError : undefined),
         historyContext: sameRoutingTarget ? currentState?.historyContext ?? payload.historyContext : payload.historyContext,
         agentCallbackIntermediateTextEnabled: payload.agentCallbackIntermediateTextEnabled === true,
         lastMessageAt: Date.now(),
@@ -974,26 +1017,16 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
-    const decision = shouldDispatchWechatBatch(
-      state.items ?? state.inputParts.map((input) => this.createLegacyBatchItem(input)).filter(Boolean),
-      state.triggerOptions
-    )
-    if (!decision) {
-      await this.markInboundLogs(state.currentInboundLogIds, state, 'skipped', 'filtered_by_trigger_policy')
-      await this.aggregationService.clear(aggregateKey, state)
-      return false
-    }
-
     const pendingFileMerge = this.mergePendingFilesWithDuplicateLogIds(undefined, state.pendingFiles)
     const pendingFiles = pendingFileMerge.files
     const activePendingLogIds = this.uniqueLogIds(
       (pendingFiles ?? []).map((pending) => pending.messageLogId).filter(Boolean) as string[]
     )
-    const duplicateLogIds = this.uniqueLogIds([
+    let duplicateLogIds = this.uniqueLogIds([
       ...(state.duplicateInboundLogIds ?? []),
       ...pendingFileMerge.duplicateLogIds
     ]).filter((id) => !activePendingLogIds.includes(id))
-    const dispatchLogIds = this.uniqueLogIds([
+    let dispatchLogIds = this.uniqueLogIds([
       ...(state.currentInboundLogIds ?? []),
       ...activePendingLogIds
     ]).filter((id) => !duplicateLogIds.includes(id))
@@ -1018,8 +1051,36 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
+    const skippedLogIds = this.uniqueLogIds([
+      ...(state.skippedInboundLogIds ?? []),
+      ...(materialized.skippedLogIds ?? [])
+    ])
+    const skippedError = materialized.skippedError ?? state.skippedInboundError
+    if (skippedLogIds.length) {
+      dispatchLogIds = dispatchLogIds.filter((id) => !skippedLogIds.includes(id))
+      duplicateLogIds = duplicateLogIds.filter((id) => !skippedLogIds.includes(id))
+    }
     const files = [...(state.files ?? []), ...(materialized.files ?? [])]
+    const decision = shouldDispatchWechatBatch(
+      state.items ?? state.inputParts.map((input) => this.createLegacyBatchItem(input)).filter(Boolean),
+      state.triggerOptions
+    )
+    if (!decision) {
+      await this.markInboundLogs(dispatchLogIds, state, 'skipped', 'filtered_by_trigger_policy')
+      await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
+      await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
+      await this.aggregationService.clear(aggregateKey, state)
+      return false
+    }
+
     const aggregatedInput = this.composeAggregatedInput(decision.inputParts, files)
+    if (!this.hasDispatchContent(aggregatedInput, files)) {
+      await this.markInboundLogs(dispatchLogIds, state, 'skipped', 'empty_inbound_message_after_file_rules')
+      await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
+      await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
+      await this.aggregationService.clear(aggregateKey, state)
+      return false
+    }
     const dispatchInput = this.composeDispatchInput(aggregatedInput, state.historyContext)
 
     await this.dispatchInboundMessage({
@@ -1060,6 +1121,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     })
 
     await this.markInboundLogs(dispatchLogIds, state, 'dispatched')
+    await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
     await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
     await this.aggregationService.clear(aggregateKey, state)
     return true
@@ -1208,6 +1270,10 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     return Array.isArray(files) && files.length > 0 ? ATTACHMENT_ONLY_AGGREGATE_INPUT : ''
   }
 
+  private hasDispatchContent(input: string, files?: WechatInboundFile[]): boolean {
+    return Boolean(normalizeString(input)) || Boolean(files?.length)
+  }
+
   private createLegacyBatchItem(input?: string): WechatBatchTriggerItem {
     return {
       input: typeof input === 'string' ? input : '',
@@ -1307,14 +1373,20 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
   private createHandleResult(
     accepted: boolean,
-    options: { queued?: boolean; dispatched?: boolean; error?: string } = {}
+    options: { queued?: boolean; dispatched?: boolean; skipped?: boolean; error?: string } = {}
   ): WechatInboundHandleResult {
-    return {
+    const result: WechatInboundHandleResult = {
       accepted,
       queued: Boolean(options.queued),
-      dispatched: Boolean(options.dispatched),
-      error: options.error
+      dispatched: Boolean(options.dispatched)
     }
+    if (options.skipped) {
+      result.skipped = true
+    }
+    if (options.error !== undefined) {
+      result.error = options.error
+    }
+    return result
   }
 
   private async materializePendingFiles(params: {
@@ -1325,7 +1397,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     conversationUserKey?: string
     pendingFiles?: WechatPendingInboundFile[]
     markFailures?: boolean
-  }): Promise<{ success: true; files?: WechatInboundFile[] } | { success: false; error: string; recoverable: boolean }> {
+  }): Promise<PendingFileMaterializeResult> {
     const pendingFiles = this.mergePendingFiles(undefined, params.pendingFiles) ?? []
     if (!pendingFiles.length) {
       return { success: true }
@@ -1333,6 +1405,8 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
     let integration: IIntegration<TIntegrationWechatOptions> | null = null
     const files: WechatInboundFile[] = []
+    const skippedLogIds: string[] = []
+    const skippedErrors: string[] = []
     for (const pending of pendingFiles) {
       try {
         integration ??= await this.integrationPermissionService.read<IIntegration<TIntegrationWechatOptions>>(
@@ -1344,18 +1418,26 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         if (!integration) {
           throw new Error('wechat integration not found')
         }
-        const materialized = pending.kind === 'file'
+        const outcome: PendingFileMaterializeOutcome = pending.kind === 'file'
           ? await this.materializePendingWechatFile(integration, pending, params)
-          : await this.materializePendingWechatImage(integration, pending, params)
-        if (materialized) {
-          files.push(materialized)
+          : {
+              status: 'ready',
+              file: await this.materializePendingWechatImage(integration, pending, params)
+            }
+        if (outcome.status === 'skipped') {
+          if (outcome.logId) {
+            skippedLogIds.push(outcome.logId)
+          }
+          skippedErrors.push(outcome.error)
+          continue
         }
+        files.push(outcome.file)
       } catch (error) {
         const message = this.truncateError(
           `inbound_${pending.kind}_materialize_failed: ${this.describeError(error)}`
         )
         const recoverable = this.isRecoverablePendingFileMaterializeError(message)
-        if (params.markFailures !== false || !recoverable) {
+        if (params.markFailures !== false) {
           await this.markPendingFileFailed(pending, params, message)
         }
         return { success: false, error: message, recoverable }
@@ -1364,7 +1446,9 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
 
     return {
       success: true,
-      files: files.length ? files : undefined
+      files: files.length ? files : undefined,
+      skippedLogIds: skippedLogIds.length ? this.uniqueLogIds(skippedLogIds) : undefined,
+      skippedError: skippedErrors[0]
     }
   }
 
@@ -1377,15 +1461,46 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       organizationId?: string | null
       conversationUserKey?: string
     }
-  ): Promise<WechatInboundFile> {
+  ): Promise<PendingFileMaterializeOutcome> {
     if (!pending.fileRef) {
       throw new Error('inbound_file_ref_missing')
+    }
+
+    const maxBytes = resolveInboundFileMaxBytes(integration.options)
+    const declaredSize = this.resolvePendingFileSize(pending)
+    const fileContext = {
+      integrationId: integration.id,
+      ...context
+    }
+    if (declaredSize !== undefined && declaredSize > maxBytes) {
+      const error = this.buildInboundFileSizeExceededError(declaredSize, maxBytes, pending)
+      await this.markPendingFileFailed(pending, fileContext, error)
+      return {
+        status: 'skipped',
+        logId: pending.messageLogId,
+        error
+      }
     }
 
     const row = await this.savePendingFileRow(pending, integration, context, 'processing')
     const downloaded = await this.wechatClient.downloadFile(integration, pending.fileRef)
     if (!downloaded.success || !downloaded.file) {
       throw new Error(`inbound_file_download_failed${downloaded.error ? `: ${downloaded.error}` : ''}`)
+    }
+    if (downloaded.file.size > maxBytes) {
+      const error = this.buildInboundFileSizeExceededError(downloaded.file.size, maxBytes, pending)
+      await this.updatePendingFileRow(row?.id, context, {
+        status: 'failed',
+        error,
+        originalName: downloaded.file.originalName,
+        mimeType: downloaded.file.mimeType,
+        size: downloaded.file.size
+      })
+      return {
+        status: 'skipped',
+        logId: pending.messageLogId,
+        error
+      }
     }
 
     const userId = RequestContext.currentUserId() ?? (integration as { createdById?: string | null }).createdById ?? undefined
@@ -1460,7 +1575,10 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       size: handle.size,
       error: null
     })
-    return handle
+    return {
+      status: 'ready',
+      file: handle
+    }
   }
 
   private async materializePendingWechatImage(
@@ -1694,6 +1812,20 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase()
+  }
+
+  private resolvePendingFileSize(pending: WechatPendingInboundFile): number | undefined {
+    const value = pending.size ?? pending.fileRef?.size
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined
+  }
+
+  private buildInboundFileSizeExceededError(
+    size: number,
+    maxBytes: number,
+    pending: WechatPendingInboundFile
+  ): string {
+    const name = normalizeString(pending.originalName || pending.fileRef?.originalName || pending.messageId || 'wechat-file')
+    return this.truncateError(`inbound_file_size_exceeded: ${name} ${size} bytes exceeds maximum ${maxBytes} bytes`)
   }
 
   private describeError(error: unknown): string {

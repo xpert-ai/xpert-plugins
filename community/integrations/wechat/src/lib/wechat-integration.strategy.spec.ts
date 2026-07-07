@@ -71,6 +71,8 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('Required in reverse tunnel mode')
     expect(source).toContain('outboundQueue')
     expect(source).toContain('fallbackToLegacySendText')
+    expect(source).toContain('inboundFileRules')
+    expect(source).toContain('maxSizeMb')
     expect(source).not.toContain('reverse_tunnel:/message/SetCallback?key=<uuid>')
     expect(source).not.toContain('chatFilterMode: {')
     expect(source).not.toContain('allowedGroupIds: {')
@@ -204,5 +206,43 @@ describe('WechatIntegrationStrategy', () => {
       })
     )
     expect(result.tunnel.sidecarConfigJson).toContain('"MsgClientId": "integration-1"')
+  })
+
+  it('normalizes inbound file size rules when validating config', async () => {
+    const { strategy } = createStrategy()
+
+    const missingRules = {
+      connectionMode: 'reverse_tunnel'
+    }
+    await strategy.validateConfig(missingRules as any, { id: 'integration-1' } as any)
+    expect(missingRules).toEqual(
+      expect.objectContaining({
+        inboundFileRules: {
+          maxSizeMb: 2
+        }
+      })
+    )
+
+    const invalidRules = {
+      connectionMode: 'reverse_tunnel',
+      inboundFileRules: {
+        maxSizeMb: 0.5
+      }
+    }
+    await strategy.validateConfig(invalidRules as any, { id: 'integration-1' } as any)
+    expect(invalidRules.inboundFileRules).toEqual({
+      maxSizeMb: 2
+    })
+
+    const tooLargeRules = {
+      connectionMode: 'reverse_tunnel',
+      inboundFileRules: {
+        maxSizeMb: 99
+      }
+    }
+    await strategy.validateConfig(tooLargeRules as any, { id: 'integration-1' } as any)
+    expect(tooLargeRules.inboundFileRules).toEqual({
+      maxSizeMb: 25
+    })
   })
 })

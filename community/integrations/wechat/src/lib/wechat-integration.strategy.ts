@@ -20,6 +20,9 @@ import {
   WECHAT_WORKBENCH_FEATURE
 } from './constants.js'
 import {
+  DEFAULT_INBOUND_FILE_MAX_SIZE_MB,
+  MAX_INBOUND_FILE_MAX_SIZE_MB,
+  normalizeInboundFileRules,
   normalizeApiVersion,
   normalizeBaseUrl,
   normalizeString,
@@ -228,6 +231,36 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
           },
           default: false
         },
+        inboundFileRules: {
+          type: 'object',
+          title: {
+            en_US: 'Inbound File Rules',
+            zh_Hans: '入站文件规则'
+          },
+          description: {
+            en_US: 'Rules applied to inbound WeChat file messages before downloading and workspace upload.',
+            zh_Hans: '微信文件消息下载和上传 workspace 前应用的规则。'
+          },
+          properties: {
+            maxSizeMb: {
+              type: 'number',
+              title: {
+                en_US: 'Max File Size (MiB)',
+                zh_Hans: '最大文件大小（MiB）'
+              },
+              description: {
+                en_US: 'Files larger than this value are skipped before agent dispatch.',
+                zh_Hans: '超过该大小的文件会被跳过，不进入 Agent。'
+              },
+              minimum: 1,
+              maximum: MAX_INBOUND_FILE_MAX_SIZE_MB,
+              default: DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+            }
+          },
+          default: {
+            maxSizeMb: DEFAULT_INBOUND_FILE_MAX_SIZE_MB
+          }
+        },
         fallbackToLegacySendText: {
           type: 'boolean',
           title: {
@@ -417,6 +450,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     config.agentCallbackIntermediateTextEnabled = config.agentCallbackIntermediateTextEnabled === true
     config.fallbackToLegacySendText = config.fallbackToLegacySendText !== false
     config.fallbackToLegacySendImage = config.fallbackToLegacySendImage !== false
+    config.inboundFileRules = normalizeInboundFileRules(config.inboundFileRules)
     config.outboundQueue = {
       ...config.outboundQueue,
       enabled: config.outboundQueue?.enabled !== false
