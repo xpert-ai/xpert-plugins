@@ -507,6 +507,59 @@ state: plugin_wechat:trigger:aggregate:{integrationId}:{uuid}:{contactId}:{sende
 
 如果一个防抖窗口内的入站消息聚合后仍然没有任何文本，但包含图片或文件附件，派发给 Agent 的本次 user input 会使用默认文本 `[理解附件]`，附件仍通过 `files` 传递。语音消息会先转写成文本再进入聚合；语音无转写或转写为空会失败并停止派发，不使用 `[理解语音]` 兜底。
 
+## 延迟链路与优化
+
+一条微信消息从 wx2.0 入站到微信端收到 AI 回复，可能经过下面这些等待点。常见的五类延迟判断是正确的：`summaryWindowSeconds`、大模型思考时间、大模型回答时间、出站队列初始延迟、消息间隔都会影响体感速度；实际排查时还要把入站预处理、Agent 调度、工具调用、出站素材处理和 wx2.0 网络调用算进去。
+
+完整链路按顺序可以拆成：
+
+| 阶段 | 主要状态或现象 | 影响因素 | 优化方向 |
+| --- | --- | --- | --- |
+| wx2.0 webhook 到达 Xpert | Workbench 出现入站消息 | wx2.0 推送、网络、反向隧道或 direct HTTP 连通性、webhook 鉴权 | 保持 wx2.0 到 Xpert 网络稳定；反向隧道模式确认 sidecar 在线。 |
+| 入站解析与过滤 | 入站消息可能被跳过、仅作历史或进入待派发 | 自己消息策略、群/联系人/关键词过滤、文件大小规则、去重、历史上下文查询 | 过滤规则越明确越好；低延迟场景减少不必要的历史上下文条数。 |
+| 入站媒体预处理 | 语音、图片、文件消息在派发前可能停留更久 | 语音下载和 STT；图片下载；文件下载、上传 Xpert workspace、`understandFile`；文件大小超限会跳过 | 低延迟对话尽量使用纯文本；文件类消息会天然更慢。 |
+| 消息聚合/防抖 | 入站状态从 `queued` / “已入队” 到 `dispatched` / “已分发” | Trigger 的 `summaryWindowSeconds`。大于 `0` 时会等同一会话键内连续消息聚合，flush job 延迟约为 `summaryWindowSeconds * 1000` 毫秒 | 需要秒回时设为 `0`；需要合并连续短消息时设为 `1` 到 `3`。 |
+| Agent 派发与运行调度 | 入站已分发，但还没有 AI 回复 | fresh session 创建、handoff/callback 调度、目标 Agent 加载、平台运行队列 | 确认目标 Agent 已发布/启用，平台 worker 正常。 |
+| 大模型思考时间 | Agent 已开始运行，但没有可发送文本 | 模型首 token 延迟、system prompt 长度、历史上下文长度、知识库/工具准备 | 选择更快模型，减少历史上下文和复杂 prompt。 |
+| 工具调用与中间步骤 | Agent 运行中但最终回复迟迟不出 | Agent 调用工具、检索、文件理解、外部 API；多轮 tool call 会拉长总时间 | 减少非必要工具；优化工具超时和外部 API。 |
+| 大模型回答时间 | 模型在生成长回复 | 回复长度、模型吞吐、是否流式；默认微信侧按 final text 发送，只有开启 `agentCallbackIntermediateTextEnabled` 才会尝试发送可见中间文本 | 提示词要求简短回复；需要更早看到部分内容时开启中间文本回调。 |
+| 出站内容拆分与素材准备 | 已有 AI 内容，但还未进入或完成发送 | markdown 清洗；图片 URL 下载并转 base64；workspace 文件读取和校验；一个回复包含多张图片/多个片段会生成多条 outbound log | 低延迟优先纯文本；图片和文件会增加下载、编码和多条发送时间。 |
+| 出站队列初始延迟 | 出站 log 为 `queued` / “已入队” | Integration `outboundQueue.initialDelayMs` | 低延迟默认设为 `0`。 |
+| 出站限速、锁和静默时段 | 出站 log 为 `deferred`、`paused` 或长时间 `queued` | `globalMinIntervalMs`、`perAccountMinIntervalMs`、`perContactMinIntervalMs`、分钟/小时/日上限、账号/联系人锁、`quietHours`、账号暂停 | 低延迟场景降低间隔和上限限制；检查账号是否暂停、是否命中静默时段。 |
+| wx2.0 发送与微信侧送达 | 出站 log 从 `sending` 到 `sent` / “已发送” | wx2.0 API 响应时间、请求超时、反向隧道转发、微信侧风控或网络波动 | 确认 wx2.0 服务健康；必要时提高稳定性而不是继续降低间隔。 |
+| 失败重试 | 出站 log 反复 `failed` / `deferred` | `maxAttempts`、`retryBackoffMs`、失败保护暂停 | 查看 log error；修复 wx2.0、网络、素材下载或权限问题。 |
+
+因此，排查延迟时先看消息卡在哪个状态：
+
+- 入站停在 `queued` / “已入队”：优先看 `summaryWindowSeconds`、入站聚合 worker、Redis 和同会话是否不断有新消息刷新窗口。
+- 入站已经 `dispatched` / “已分发”，但没有出站消息：优先看 Agent 运行、模型、工具调用、callback/handoff 错误。
+- 出站停在 `queued`：优先看 `initialDelayMs`、队列 worker、Redis job 是否被消费。
+- 出站变成 `deferred`：优先看消息间隔、分钟/小时/日上限、静默时段和 Redis 中的下一次可发送时间。
+- 出站停在 `sending` 或最终 `failed`：优先看 wx2.0 API、网络、图片/文件素材下载、文件读取和请求超时。
+
+低延迟回复的推荐配置：
+
+```yaml
+微信消息触发器:
+  summaryWindowSeconds: 0
+  historyContextLimit: 5 到 10
+  historyContextWindowSeconds: 600 到 1800
+
+微信 integration 出站队列:
+  enabled: true
+  initialDelayMs: 0
+  globalMinIntervalMs: 0
+  perAccountMinIntervalMs: 500
+  perContactMinIntervalMs: 1000
+  perAccountMaxPerMinute: 60
+  perAccountMaxPerHour: 1000
+  perAccountMaxPerDay: 5000
+  perContactMaxPerHour: 120
+  quietHours: []
+```
+
+如果仍然觉得慢，下一步通常不是继续降低出站间隔，而是看 Agent 侧：模型是否太慢、回复是否太长、是否频繁调用工具、是否附带了过多历史上下文，或者当前消息是否包含语音、图片、文件这类需要额外处理的媒体。
+
 ## 定时任务与主动发送
 
 推荐把定时规则放在 Xpert 平台的定时任务机制里：定时任务负责按计划触发 Agent，并把本次任务配置好的 middleware runtime state 传给 Agent；Agent 负责生成内容，然后调用 WeChat Runtime Tools 暴露的主动发送工具；middleware tool 再从 state 中读取微信发送参数并提交到出站队列。这样定时、审计、重试、模型运行和微信发送边界清晰，插件也不会自己内建一套独立 scheduler。
