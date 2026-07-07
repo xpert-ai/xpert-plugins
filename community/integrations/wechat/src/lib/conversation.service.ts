@@ -575,7 +575,13 @@ export class WechatConversationService {
         item: buildWechatBatchTriggerItem(
           dispatchEvent,
           triggerOptions,
-          newSessionCommand.matched ? newSessionCommand.input : dispatchInput
+          newSessionCommand.matched ? newSessionCommand.input : dispatchInput,
+          groupJoinWelcomeInput
+            ? {
+                bypassTriggerPolicy: true,
+                triggerReason: 'group_join_welcome'
+              }
+            : undefined
         ),
         triggerOptions,
         wechatMessage,

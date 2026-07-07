@@ -1770,6 +1770,80 @@ describe('WechatTriggerStrategy', () => {
     )
   })
 
+  it('dispatches debounced group join welcomes without normal group mention or keyword policy', async () => {
+    const { strategy, dispatchService, aggregationService, messageLogRepository } = createStrategy()
+    const welcomeInput = [
+      '欢迎 老威 加入 测试群',
+      '',
+      '群名称: 测试群',
+      '群 roomId: room@chatroom',
+      '新成员: 老威',
+      '原始系统提示: "老威"与群里其他人都不是朋友关系，请注意隐私安全'
+    ].join('\n')
+    aggregationService.get.mockResolvedValueOnce({
+      aggregateKey: 'integration-1:uuid-1:room@chatroom:room@chatroom',
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: 'integration-1:uuid-1:room@chatroom:room@chatroom',
+      xpertId: 'xpert-1',
+      version: 13,
+      inputParts: [welcomeInput],
+      items: [
+        {
+          input: welcomeInput,
+          messageKind: 'text',
+          chatType: 'group',
+          mentioned: false,
+          groupKeywordMatched: false,
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
+        }
+      ],
+      triggerOptions: {
+        groupTriggerMode: 'off',
+        groupKeywords: ['不会命中'],
+        allowedKeywords: ['也不会命中']
+      },
+      files: [],
+      currentInboundLogIds: ['inbound-log-welcome'],
+      historyContext: undefined,
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'room@chatroom',
+        chatType: 'group',
+        senderId: 'room@chatroom',
+        language: 'zh-Hans',
+        messageId: 'join-1'
+      }
+    })
+
+    await expect(
+      strategy.flushBufferedConversation({
+        aggregateKey: 'integration-1:uuid-1:room@chatroom:room@chatroom',
+        version: 13
+      })
+    ).resolves.toBe(true)
+
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: welcomeInput,
+        files: [],
+        currentInboundLogIds: ['inbound-log-welcome']
+      })
+    )
+    expect(messageLogRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inbound-log-welcome' }),
+      expect.objectContaining({
+        status: 'dispatched',
+        error: undefined
+      })
+    )
+  })
+
   it('flushes debounced voice transcripts as normal text input', async () => {
     const { strategy, dispatchService, aggregationService } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({

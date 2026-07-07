@@ -7,6 +7,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { WechatIntegrationStrategy } from './wechat-integration.strategy.js'
+import { DEFAULT_OUTBOUND_QUEUE_OPTIONS } from './types.js'
 
 function readStrategySource() {
   return readFileSync(join(process.cwd(), 'src/lib/wechat-integration.strategy.ts'), 'utf8')
@@ -81,6 +82,20 @@ describe('WechatIntegrationStrategy', () => {
     expect(source).not.toContain('blockedSenderIds: {')
     expect(source).not.toContain('ignoreSelfMessages: {')
     expect(source).not.toContain('groupTriggerMode: {')
+  })
+
+  it('exposes aggressive outbound queue defaults in config schema', () => {
+    const { strategy } = createStrategy()
+    const outboundQueue = (strategy.meta.schema.properties.outboundQueue as any).properties
+
+    expect(outboundQueue.initialDelayMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs)
+    expect(outboundQueue.globalMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs)
+    expect(outboundQueue.perAccountMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs)
+    expect(outboundQueue.perContactMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMinIntervalMs)
+    expect(outboundQueue.perAccountMaxPerMinute.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerMinute)
+    expect(outboundQueue.perAccountMaxPerHour.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerHour)
+    expect(outboundQueue.perAccountMaxPerDay.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMaxPerDay)
+    expect(outboundQueue.perContactMaxPerHour.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour)
   })
 
   it('disconnects a legacy reverse tunnel client while keeping the integration id client active', async () => {

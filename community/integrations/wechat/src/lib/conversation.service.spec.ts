@@ -604,7 +604,9 @@ describe('WechatConversationService fresh session history context', () => {
         item: expect.objectContaining({
           input: expect.stringContaining('新成员: 老威'),
           messageKind: 'text',
-          chatType: 'group'
+          chatType: 'group',
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
         }),
         wechatMessage: expect.objectContaining({
           contactId: 'room@chatroom',
@@ -642,7 +644,9 @@ describe('WechatConversationService fresh session history context', () => {
         item: expect.objectContaining({
           input: expect.stringContaining('新成员: 暗梅幽闻花'),
           messageKind: 'text',
-          chatType: 'group'
+          chatType: 'group',
+          bypassTriggerPolicy: true,
+          triggerReason: 'group_join_welcome'
         })
       })
     )
