@@ -28,6 +28,7 @@ export interface SiliconflowModelCredentials
   seed?: string | number
   repetition_penalty?: string | number
   response_format?: string
+  json_schema?: string | Record<string, unknown>
   function_calling_type?: 'no_call' | 'function_call' | 'tool_call'
 }
 

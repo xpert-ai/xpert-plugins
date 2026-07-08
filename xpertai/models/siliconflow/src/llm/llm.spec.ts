@@ -1,17 +1,46 @@
-import { OAIAPICompatLargeLanguageModel } from './llm.js'
-import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
+import { SiliconflowLargeLanguageModel } from './llm.js'
+import { SiliconflowProviderStrategy } from '../provider.strategy.js'
 import { ModelFeature } from '@metad/contracts'
 import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
-import { OpenAICompatModelCredentials } from '../types.js'
+import { SiliconflowModelCredentials } from '../types.js'
 
 describe('getCustomizableModelSchemaFromCredentials', () => {
-  let llm: OAIAPICompatLargeLanguageModel
-  let provider: OpenAICompatibleProviderStrategy
+  let llm: SiliconflowLargeLanguageModel
+  let provider: SiliconflowProviderStrategy
 
   beforeEach(() => {
-    provider = new OpenAICompatibleProviderStrategy()
-    llm = new OAIAPICompatLargeLanguageModel(provider)
+    provider = new SiliconflowProviderStrategy()
+    llm = new SiliconflowLargeLanguageModel(provider)
   })
+
+  function createCredentials(overrides: Partial<SiliconflowModelCredentials> = {}): SiliconflowModelCredentials {
+    return {
+      api_key: 'test-key',
+      endpoint_url: 'http://test.com',
+      mode: 'chat',
+      context_size: '4096',
+      temperature: 0.2,
+      max_tokens_to_sample: '4096',
+      vision_support: 'no_support',
+      streaming: true,
+      ...overrides
+    }
+  }
+
+  function createCopilotModel(model: string, options: Record<string, unknown> = {}) {
+    return {
+      model,
+      options,
+      copilot: {
+        modelProvider: {
+          credentials: {
+            api_key: 'test-key',
+            endpoint_url: 'http://test.com'
+          }
+        }
+      }
+    } as unknown as Parameters<SiliconflowLargeLanguageModel['getChatModel']>[0]
+  }
 
   it('should return correct schema for chat model with tool call support', () => {
     const credentials = {
@@ -79,27 +108,80 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
   })
 
   it('should return chat model with correct configuration', () => {
-    const credentials: OpenAICompatModelCredentials = {
-      api_key: 'test-key',
-      endpoint_url: 'http://test.com',
-      endpoint_model_name: 'test-model',
-      mode: 'chat',
-      context_size: '4096',
-      temperature: 0.2,
-      max_tokens_to_sample: '4096',
-      vision_support: 'no_support',
-      streaming: true,
+    const credentials: SiliconflowModelCredentials = createCredentials({
       enable_thinking: true
-    }
+    })
     const model = llm.getChatModel(
-      { model: 'test-model' },
+      createCopilotModel('Qwen/Qwen3-8B'),
       { modelProperties: credentials } as unknown as TChatModelOptions,
       null
     )
     expect(model).toBeDefined()
-    expect(model.model).toBe('test-model')
+    expect(model.model).toBe('Qwen/Qwen3-8B')
     const invocationParams = model.invocationParams()
-    console.log(invocationParams)
+    expect(invocationParams['chat_template_kwargs']).toEqual({
+      enable_thinking: true
+    })
+  })
+
+  it('should convert json_schema response format into OpenAI-compatible request params', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        answer: {
+          type: 'string'
+        }
+      },
+      required: ['answer']
+    }
+
+    const model = llm.getChatModel(
+      createCopilotModel('nex-agi/Nex-N2-Pro', {
+        response_format: 'json_schema',
+        json_schema: JSON.stringify(schema)
+      }),
+      { modelProperties: createCredentials() } as unknown as TChatModelOptions,
+      null
+    )
+
+    expect(model.invocationParams()['response_format']).toEqual({
+      type: 'json_schema',
+      json_schema: {
+        name: 'response',
+        schema
+      }
+    })
+  })
+
+  it('should pass thinking params for GLM-5.2', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('zai-org/GLM-5.2', {
+        enable_thinking: true,
+        thinking_budget: 1024
+      }),
+      { modelProperties: createCredentials() } as unknown as TChatModelOptions,
+      null
+    )
+
+    const invocationParams = model.invocationParams()
+    expect(invocationParams['enable_thinking']).toBe(true)
+    expect(invocationParams['thinking_budget']).toBe(1024)
+    expect(invocationParams['chat_template_kwargs']).toEqual({
+      enable_thinking: true
+    })
+  })
+
+  it('should pass thinking params for LongCat-2.0', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('meituan-longcat/LongCat-2.0', {
+        enable_thinking: true
+      }),
+      { modelProperties: createCredentials() } as unknown as TChatModelOptions,
+      null
+    )
+
+    const invocationParams = model.invocationParams()
+    expect(invocationParams['enable_thinking']).toBe(true)
     expect(invocationParams['chat_template_kwargs']).toEqual({
       enable_thinking: true
     })

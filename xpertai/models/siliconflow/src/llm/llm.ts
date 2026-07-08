@@ -36,6 +36,24 @@ function toFiniteNumber(value: unknown): number | undefined {
   return Number.isFinite(num) ? num : undefined
 }
 
+function toJsonSchemaResponseFormat(responseFormat: unknown, jsonSchema: unknown): unknown {
+  if (responseFormat !== 'json_schema') {
+    return responseFormat
+  }
+  if (jsonSchema === null || jsonSchema === undefined || jsonSchema === '') {
+    return responseFormat
+  }
+
+  const schema = typeof jsonSchema === 'string' ? JSON.parse(jsonSchema) : jsonSchema
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'response',
+      schema,
+    },
+  }
+}
+
 function sanitizeUsageMetadata(
   usage:
     | undefined
@@ -446,6 +464,10 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
     const runtimeThinkingBudget =
       copilotModel.options?.['thinking_budget'] ?? credentials.thinking_budget
     const supportsThinkingToggle = this.supportsEnableThinkingParam(params.model)
+    const runtimeResponseFormat = toJsonSchemaResponseFormat(
+      copilotModel.options?.['response_format'] ?? credentials.response_format,
+      copilotModel.options?.['json_schema'] ?? credentials.json_schema
+    )
 
     const modelKwargs = {
       ...(params.modelKwargs ?? {}),
@@ -454,7 +476,7 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       repetition_penalty: toFiniteNumber(
         copilotModel.options?.['repetition_penalty'] ?? credentials.repetition_penalty
       ),
-      response_format: copilotModel.options?.['response_format'] ?? credentials.response_format,
+      response_format: runtimeResponseFormat,
     } as Record<string, any>
 
     if (supportsThinkingToggle) {
@@ -583,6 +605,8 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
     return (
       normalized.includes('qwen/qwen3') ||
       normalized.includes('qwen3-') ||
+      normalized === 'zai-org/glm-5.2' ||
+      normalized === 'meituan-longcat/longcat-2.0' ||
       normalized.includes('glm-4.1v-9b-thinking')
     )
   }
