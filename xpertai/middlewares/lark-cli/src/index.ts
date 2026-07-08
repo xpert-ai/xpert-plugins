@@ -28,7 +28,7 @@ const plugin: XpertPlugin = {
     },
     displayName: 'Lark CLI',
     description:
-      'Bootstraps the Lark CLI tool into the sandbox, downloads AI Agent Skills from GitHub, and teaches the agent how to interact with Lark/Feishu through sandbox_shell. Supports both user-level (OAuth) and bot-level (App ID/Secret) authentication.',
+      'Bootstraps the Lark CLI tool into the sandbox, downloads AI Agent Skills from GitHub, and teaches the agent how to interact with Lark/Feishu through sandbox_shell. Supports workspace connector, user-level (OAuth), and bot-level (App ID/Secret) authentication.',
     keywords: ['lark', 'feishu', 'cli', 'middleware', 'sandbox', 'calendar', 'messenger', 'docs', 'sheets', 'base'],
     author: 'XpertAI Team'
   },
@@ -49,3 +49,9 @@ const plugin: XpertPlugin = {
 }
 
 export default plugin
+export { LarkCliPluginModule } from './lib/lark-cli.module.js'
+export { LarkBootstrapService } from './lib/lark-bootstrap.service.js'
+export { LarkConnectorStrategy } from './lib/lark-connector.strategy.js'
+export { LarkConnectorRuntimeMiddleware } from './lib/lark-connector-runtime.middleware.js'
+export { LarkCLISkillMiddleware } from './lib/lark.middleware.js'
+export { LarkSkillValidator } from './lib/lark.validator.js'
