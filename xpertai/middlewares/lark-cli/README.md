@@ -9,7 +9,7 @@
 - Downloads 19 AI Agent Skills from the larksuite/cli GitHub repository
 - Supports optional shared proxy settings for both npm package and skill downloads
 - Supports optional npm registry or mirror overrides for installing `@larksuite/cli`
-- Supports both user-level (OAuth) and bot-level (App ID/Secret) authentication
+- Supports user-level (OAuth), bot-level (App ID/Secret), and Feishu workspace connector authentication
 - Validates that `node` is available in the sandbox
 - Appends the Lark CLI skill description to the model system prompt
 - Detects Lark CLI execution via `sandbox_shell`
@@ -36,17 +36,19 @@ Configure organization-wide download behavior at plugin level:
 
 | Field | Type | Description | Required | Default |
 |-------|------|-------------|----------|---------|
-| `authMode` | `'user'` \| `'bot'` | Authentication mode: user-level (OAuth) or bot-level (App ID/Secret) | No | `'user'` |
+| `authMode` | `'user'` \| `'bot'` \| `'connector'` | Authentication mode: user-level (OAuth), bot-level (App ID/Secret), or Feishu workspace connector | No | `'user'` |
 | `appId` | string | Lark App ID for bot-level authentication | Yes (if authMode='bot') | - |
 | `appSecret` | string | Lark App Secret for bot-level authentication | Yes (if authMode='bot') | - |
+| `connectorId` | string | Optional workspace connector ID for connector authentication; when omitted, the platform resolves the active Feishu connector | No | - |
 
 ## Runtime Behavior
 
-1. On `beforeAgent`, the plugin ensures the Lark CLI is installed, skills are downloaded, and bot credentials are synced if configured.
-2. On `wrapModelCall`, it appends a `<skill>...</skill>` block with Lark CLI usage instructions.
-3. On `wrapToolCall`, it intercepts `sandbox_shell` calls that execute `lark-cli` commands.
-4. Bootstrap state is tracked in `/workspace/.xpert/.lark-cli-bootstrap.json`, including the configured `proxy` and `npmRegistryUrl`.
-5. Any change to `proxy`, `npmRegistryUrl`, the installed `lark-cli` binary, or the required `lark-shared` skill file triggers a fresh bootstrap.
+1. On `wrapModelCall`, it appends a `<skill>...</skill>` block with Lark CLI usage instructions when a sandbox backend is available.
+2. The `lark-cli-auth-ensure` and `lark-cli-wait-user` tools check authentication lazily. In connector mode, they use the active workspace Feishu OAuth connector and do not start device login.
+3. On `wrapToolCall`, it intercepts `sandbox_shell` calls that execute `lark-cli` commands and then lazily installs Lark CLI, downloads skills, and syncs credentials before the command runs.
+4. In bot mode, credentials are synced into `/workspace/.xpert/secrets/`. In connector mode, runtime-only connector credentials are written under `/workspace/.xpert/secrets/lark-cli-connectors/` and sourced for the wrapped command.
+5. Bootstrap state is tracked in `/workspace/.xpert/.lark-cli-bootstrap.json`, including the configured `proxy` and `npmRegistryUrl`.
+6. Any change to `proxy`, `npmRegistryUrl`, the installed `lark-cli` binary, or the required `lark-shared` skill file triggers a fresh bootstrap.
 
 ## Available Skills
 

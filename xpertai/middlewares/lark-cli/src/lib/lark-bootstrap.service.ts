@@ -3,15 +3,18 @@ import { posix as path } from 'node:path'
 import {
   BaseSandbox,
   type IPluginConfigResolver,
-  PLUGIN_CONFIG_RESOLVER_TOKEN
+  PLUGIN_CONFIG_RESOLVER_TOKEN,
+  type ConnectorRuntimeCredential
 } from '@xpert-ai/plugin-sdk'
 import { Inject, Injectable, Optional } from '@nestjs/common'
 import {
   DEFAULT_LARK_CLI_APP_ID_PATH,
   DEFAULT_LARK_CLI_APP_SECRET_PATH,
+  DEFAULT_LARK_CLI_CONNECTOR_ENV_DIR,
   DEFAULT_LARK_CLI_SECRETS_DIR,
   DEFAULT_LARK_CLI_SKILLS_DIR,
   DEFAULT_LARK_CLI_STAMP_PATH,
+  DEFAULT_LARK_CLI_WORKSPACE_ROOT,
   LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
   LarkAuthEnsureResponse,
   LarkAuthMode,
@@ -26,6 +29,21 @@ import {
 import { LarkCliPluginName } from './types.js'
 
 type LarkBootstrapBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles' | 'workingDirectory'>
+
+export type LarkCliRuntimePathContext = {
+  workspaceRoot?: string | null
+  workingDirectory?: string | null
+}
+
+export type LarkCliRuntimePaths = {
+  workspaceRoot: string
+  skillsDir: string
+  secretsDir: string
+  stampPath: string
+  connectorEnvDir: string
+  appIdPath: string
+  appSecretPath: string
+}
 
 type LarkBootstrapStamp = {
   tool?: string
@@ -93,27 +111,59 @@ export class LarkBootstrapService {
     return LarkCliConfigSchema.parse(mergedConfig)
   }
 
-  getStampPath() {
-    return DEFAULT_LARK_CLI_STAMP_PATH
+  resolveRuntimePaths(context?: LarkCliRuntimePathContext | null): LarkCliRuntimePaths {
+    const workspaceRoot =
+      normalizeAbsolutePath(context?.workspaceRoot) ??
+      normalizeAbsolutePath(context?.workingDirectory) ??
+      DEFAULT_LARK_CLI_WORKSPACE_ROOT
+    const xpertDir = path.join(workspaceRoot, '.xpert')
+    const skillsDir = path.join(xpertDir, 'skills', 'lark-cli')
+    const secretsDir = path.join(xpertDir, 'secrets')
+
+    return {
+      workspaceRoot,
+      skillsDir,
+      secretsDir,
+      stampPath: path.join(xpertDir, '.lark-cli-bootstrap.json'),
+      connectorEnvDir: path.join(secretsDir, 'lark-cli-connectors'),
+      appIdPath: path.join(secretsDir, 'lark_app_id'),
+      appSecretPath: path.join(secretsDir, 'lark_app_secret')
+    }
   }
 
-  getSecretDirPath() {
-    return DEFAULT_LARK_CLI_SECRETS_DIR
+  getStampPath(paths = this.resolveRuntimePaths()) {
+    return paths.stampPath
   }
 
-  getAppIdPath() {
-    return DEFAULT_LARK_CLI_APP_ID_PATH
+  getSecretDirPath(paths = this.resolveRuntimePaths()) {
+    return paths.secretsDir
   }
 
-  getAppSecretPath() {
-    return DEFAULT_LARK_CLI_APP_SECRET_PATH
+  getConnectorEnvDir(paths = this.resolveRuntimePaths()) {
+    return paths.connectorEnvDir
   }
 
-  getSkillsDir() {
-    return DEFAULT_LARK_CLI_SKILLS_DIR
+  getConnectorEnvPath(connectorId: string, paths = this.resolveRuntimePaths()) {
+    return `${this.getConnectorEnvDir(paths)}/${safePathSegment(connectorId)}/env`
   }
 
-  buildSystemPrompt(): string {
+  getConnectorConfigDir(connectorId: string, paths = this.resolveRuntimePaths()) {
+    return `${this.getConnectorEnvDir(paths)}/${safePathSegment(connectorId)}/config`
+  }
+
+  getAppIdPath(paths = this.resolveRuntimePaths()) {
+    return paths.appIdPath
+  }
+
+  getAppSecretPath(paths = this.resolveRuntimePaths()) {
+    return paths.appSecretPath
+  }
+
+  getSkillsDir(paths = this.resolveRuntimePaths()) {
+    return paths.skillsDir
+  }
+
+  buildSystemPrompt(paths = this.resolveRuntimePaths()): string {
     const skillsList = LARK_SKILLS.map((skill) => `- ${skill}`).join('\n')
 
     return [
@@ -127,6 +177,7 @@ export class LarkBootstrapService {
       'The Lark CLI is installed and available as `lark-cli` in the sandbox.',
       '',
       '## Authentication',
+      '- Connector mode: Uses the active workspace Feishu OAuth connector from platform.connector',
       '- User mode: Uses OAuth login with `lark-cli auth login`',
       '- Bot mode: Uses App ID/Secret configured in middleware',
       '',
@@ -137,7 +188,7 @@ export class LarkBootstrapService {
       'lark-cli im +messages-send --chat-id "oc_xxx" --text "Hello"',
       '```',
       '',
-      `Read the skill files in \`${DEFAULT_LARK_CLI_SKILLS_DIR}/\` for detailed usage instructions.`,
+      `Read the skill files in \`${this.getSkillsDir(paths)}/\` for detailed usage instructions.`,
       '</skill>'
     ].join('\n')
   }
@@ -156,12 +207,14 @@ export class LarkBootstrapService {
 
   async ensureBootstrap(
     backend: LarkBootstrapBackend | null,
-    config = this.resolveConfig()
+    config = this.resolveConfig(),
+    paths?: LarkCliRuntimePaths
   ) {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for Lark CLI bootstrap.')
     }
-    const stamp = await this.readStamp(backend)
+    const runtimePaths = this.resolvePathsForBackend(backend, paths)
+    const stamp = await this.readStamp(backend, runtimePaths)
 
     const nodeReady = await this.hasNode(backend)
     if (!nodeReady) {
@@ -169,7 +222,7 @@ export class LarkBootstrapService {
     }
 
     const cliReady = await this.commandExists(backend, 'lark-cli')
-    const skillsReady = cliReady ? await this.areSkillsReady(backend) : false
+    const skillsReady = cliReady ? await this.areSkillsReady(backend, runtimePaths) : false
     const recordedConfigMatches =
       stamp?.proxy === config.proxy &&
       stamp?.npmRegistryUrl === config.npmRegistryUrl
@@ -182,8 +235,8 @@ export class LarkBootstrapService {
     }
 
     await this.installLarkCli(backend, config)
-    await this.downloadSkills(backend, config)
-    await this.writeStamp(backend, config)
+    await this.downloadSkills(backend, config, runtimePaths)
+    await this.writeStamp(backend, config, runtimePaths)
 
     return {
       output: stampMatches ? 'refreshed lark cli bootstrap' : 'bootstrapped lark cli',
@@ -194,15 +247,17 @@ export class LarkBootstrapService {
 
   async syncBotCredentials(
     backend: LarkBootstrapBackend | null,
-    config: LarkCliConfig
+    config: LarkCliConfig,
+    paths?: LarkCliRuntimePaths
   ) {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for Lark CLI credential sync.')
     }
+    const runtimePaths = this.resolvePathsForBackend(backend, paths)
 
     // Remove existing credentials
-    await backend.execute(`rm -f ${shellQuote(this.getAppIdPath())}`)
-    await backend.execute(`rm -f ${shellQuote(this.getAppSecretPath())}`)
+    await backend.execute(`rm -f ${shellQuote(this.getAppIdPath(runtimePaths))}`)
+    await backend.execute(`rm -f ${shellQuote(this.getAppSecretPath(runtimePaths))}`)
 
     // Only sync if bot mode with credentials
     if (config.authMode !== LarkAuthMode.BOT) {
@@ -217,7 +272,7 @@ export class LarkBootstrapService {
       throw new Error('Sandbox backend does not support secure file uploads required for Lark CLI credentials.')
     }
 
-    const secretDirPath = this.getSecretDirPath()
+    const secretDirPath = this.getSecretDirPath(runtimePaths)
     const prepareResult = await backend.execute(
       `mkdir -p ${shellQuote(secretDirPath)} && chmod 700 ${shellQuote(secretDirPath)}`
     )
@@ -226,7 +281,7 @@ export class LarkBootstrapService {
     }
 
     // Upload App ID
-    const appIdUploadPath = this.toUploadPath(backend, this.getAppIdPath())
+    const appIdUploadPath = this.toUploadPath(backend, this.getAppIdPath(runtimePaths))
     const appIdUploadResults = await backend.uploadFiles([
       [appIdUploadPath, Buffer.from(config.appId, 'utf8')]
     ])
@@ -235,7 +290,7 @@ export class LarkBootstrapService {
     }
 
     // Upload App Secret
-    const appSecretUploadPath = this.toUploadPath(backend, this.getAppSecretPath())
+    const appSecretUploadPath = this.toUploadPath(backend, this.getAppSecretPath(runtimePaths))
     const appSecretUploadResults = await backend.uploadFiles([
       [appSecretUploadPath, Buffer.from(config.appSecret, 'utf8')]
     ])
@@ -244,9 +299,57 @@ export class LarkBootstrapService {
     }
 
     // Lock down permissions
-    await backend.execute(`chmod 600 ${shellQuote(this.getAppIdPath())} ${shellQuote(this.getAppSecretPath())}`)
+    await backend.execute(`chmod 600 ${shellQuote(this.getAppIdPath(runtimePaths))} ${shellQuote(this.getAppSecretPath(runtimePaths))}`)
 
     return { output: 'synced lark cli bot credentials', exitCode: 0, truncated: false }
+  }
+
+  async syncConnectorCredential(
+    backend: LarkBootstrapBackend | null,
+    credential: ConnectorRuntimeCredential,
+    paths?: LarkCliRuntimePaths
+  ) {
+    if (!backend || typeof backend.execute !== 'function') {
+      throw new Error('Sandbox backend is not available for Lark CLI connector credential sync.')
+    }
+    const runtimePaths = this.resolvePathsForBackend(backend, paths)
+
+    if (!credential.connectorId || !credential.appId || !credential.accessToken) {
+      throw new Error('Connector credential is missing required fields.')
+    }
+
+    if (typeof backend.uploadFiles !== 'function') {
+      throw new Error('Sandbox backend does not support secure file uploads required for Lark CLI connector credentials.')
+    }
+
+    const envDir = path.dirname(this.getConnectorEnvPath(credential.connectorId, runtimePaths))
+    const configDir = this.getConnectorConfigDir(credential.connectorId, runtimePaths)
+    const prepareResult = await backend.execute(
+      `mkdir -p ${shellQuote(envDir)} ${shellQuote(configDir)} && chmod 700 ${shellQuote(envDir)} ${shellQuote(configDir)}`
+    )
+    if (prepareResult?.exitCode !== 0) {
+      throw new Error(`Failed to prepare Lark connector credential directory: ${prepareResult?.output || 'Unknown error'}`)
+    }
+
+    const uploadPath = this.toUploadPath(backend, this.getConnectorEnvPath(credential.connectorId, runtimePaths))
+    const uploadResults = await backend.uploadFiles([
+      [uploadPath, Buffer.from(buildConnectorEnvContent(credential, configDir), 'utf8')]
+    ])
+    if (!Array.isArray(uploadResults) || uploadResults.length !== 1 || uploadResults[0]?.error) {
+      throw new Error('Failed to upload Lark connector credential file')
+    }
+
+    await backend.execute(`chmod 600 ${shellQuote(this.getConnectorEnvPath(credential.connectorId, runtimePaths))}`)
+
+    return { output: 'synced lark cli connector credential', exitCode: 0, truncated: false }
+  }
+
+  buildConnectorCommand(command: string, connectorId: string, paths = this.resolveRuntimePaths()) {
+    return `. ${shellQuote(this.getConnectorEnvPath(connectorId, paths))} && ${command}`
+  }
+
+  private resolvePathsForBackend(backend: LarkBootstrapBackend, paths?: LarkCliRuntimePaths) {
+    return paths ?? this.resolveRuntimePaths({ workingDirectory: backend.workingDirectory })
   }
 
   private async installLarkCli(backend: LarkBootstrapBackend, config: LarkCliConfig) {
@@ -257,11 +360,14 @@ export class LarkBootstrapService {
     return result
   }
 
-  private async downloadSkills(backend: LarkBootstrapBackend, config: LarkCliConfig) {
-    const skillsDir = this.getSkillsDir()
+  private async downloadSkills(backend: LarkBootstrapBackend, config: LarkCliConfig, paths: LarkCliRuntimePaths) {
+    const skillsDir = this.getSkillsDir(paths)
 
     // Create skills directory
-    await backend.execute(`mkdir -p ${shellQuote(skillsDir)}`)
+    const prepareSkillsDir = await backend.execute(`mkdir -p ${shellQuote(skillsDir)}`)
+    if (prepareSkillsDir?.exitCode !== 0) {
+      throw new Error(`Failed to prepare Lark skills directory: ${prepareSkillsDir?.output || 'Unknown error'}`)
+    }
 
     // Download each skill from GitHub
     for (const skillName of LARK_SKILLS) {
@@ -269,7 +375,10 @@ export class LarkBootstrapService {
       const skillPath = `${skillsDir}/${skillName}`
 
       // Create skill directory
-      await backend.execute(`mkdir -p ${shellQuote(skillPath)}`)
+      const prepareSkillDir = await backend.execute(`mkdir -p ${shellQuote(skillPath)}`)
+      if (prepareSkillDir?.exitCode !== 0) {
+        throw new Error(`Failed to prepare Lark skill directory ${skillName}: ${prepareSkillDir?.output || 'Unknown error'}`)
+      }
 
       // Download SKILL.md using curl
       const downloadResult = await backend.execute(
@@ -294,15 +403,15 @@ export class LarkBootstrapService {
     return this.commandExists(backend, 'node')
   }
 
-  private async areSkillsReady(backend: LarkBootstrapBackend) {
+  private async areSkillsReady(backend: LarkBootstrapBackend, paths: LarkCliRuntimePaths) {
     // Check if at least the lark-shared skill exists (required by all other skills)
-    const sharedSkillPath = `${this.getSkillsDir()}/lark-shared/SKILL.md`
+    const sharedSkillPath = `${this.getSkillsDir(paths)}/lark-shared/SKILL.md`
     const result = await backend.execute(`test -f ${shellQuote(sharedSkillPath)}`)
     return result?.exitCode === 0
   }
 
-  private async writeStamp(backend: LarkBootstrapBackend, config: LarkCliConfig) {
-    const stampPath = this.getStampPath()
+  private async writeStamp(backend: LarkBootstrapBackend, config: LarkCliConfig, paths: LarkCliRuntimePaths) {
+    const stampPath = this.getStampPath(paths)
     const stampData = JSON.stringify({
       tool: 'lark-cli',
       proxy: config.proxy,
@@ -318,9 +427,9 @@ export class LarkBootstrapService {
     }
   }
 
-  private async readStamp(backend: LarkBootstrapBackend) {
+  private async readStamp(backend: LarkBootstrapBackend, paths: LarkCliRuntimePaths) {
     const stampCheck = await backend.execute(
-      `cat ${shellQuote(this.getStampPath())} 2>/dev/null || echo ''`
+      `cat ${shellQuote(this.getStampPath(paths))} 2>/dev/null || echo ''`
     )
     const stampContent = stampCheck?.output?.trim() ?? ''
 
@@ -420,7 +529,11 @@ export class LarkBootstrapService {
   /**
    * Perform bot login using App ID and Secret from config
    */
-  async performBotLogin(backend: LarkBootstrapBackend, config: LarkCliConfig): Promise<{ success: boolean; message: string }> {
+  async performBotLogin(
+    backend: LarkBootstrapBackend,
+    config: LarkCliConfig,
+    paths?: LarkCliRuntimePaths
+  ): Promise<{ success: boolean; message: string }> {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for bot login.')
     }
@@ -434,7 +547,7 @@ export class LarkBootstrapService {
     }
 
     // Ensure credentials are synced first
-    await this.syncBotCredentials(backend, config)
+    await this.syncBotCredentials(backend, config, paths)
 
     // Use `config init --app-id --app-secret-stdin --brand` to configure the app,
     // then `config default-as bot` to set the default identity to bot.
@@ -568,7 +681,8 @@ export class LarkBootstrapService {
    */
   async buildAuthEnsureResponse(
     backend: LarkBootstrapBackend | null,
-    config: LarkCliConfig
+    config: LarkCliConfig,
+    paths?: LarkCliRuntimePaths
   ): Promise<LarkAuthEnsureResponse> {
     // Check config validity
     const configExists = !!config
@@ -590,9 +704,24 @@ export class LarkBootstrapService {
       }
     }
 
+    if (config.authMode === LarkAuthMode.CONNECTOR) {
+      return {
+        configExists,
+        configValid,
+        authMode: LarkAuthMode.CONNECTOR,
+        identityType: 'none',
+        isLoggedIn: false,
+        tokenValid: false,
+        tokenExpiresAt: null,
+        authorizationUrl: null,
+        deviceCode: null,
+        message: 'Connector mode requires the platform.connector runtime capability and does not start device login.'
+      }
+    }
+
     // Ensure bootstrap first
     try {
-      await this.ensureBootstrap(backend)
+      await this.ensureBootstrap(backend, config, paths)
     } catch (error) {
       return {
         configExists,
@@ -614,7 +743,7 @@ export class LarkBootstrapService {
         // Bot mode does NOT use `auth login`. It only needs:
         // 1. Credential files synced to the sandbox
         // 2. lark-cli config.json written with appId + appSecret file reference
-        const loginResult = await this.performBotLogin(backend, config)
+        const loginResult = await this.performBotLogin(backend, config, paths)
         
         if (loginResult.success) {
           return {
@@ -729,6 +858,10 @@ export class LarkBootstrapService {
     if (config.authMode === LarkAuthMode.BOT) {
       return !!config.appId && !!config.appSecret
     }
+
+    if (config.authMode === LarkAuthMode.CONNECTOR) {
+      return true
+    }
     
     return false
   }
@@ -736,6 +869,32 @@ export class LarkBootstrapService {
 
 function normalizeString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function normalizeAbsolutePath(value: unknown) {
+  const normalized = normalizeString(value)
+  if (!normalized || !path.isAbsolute(normalized)) {
+    return null
+  }
+  return path.normalize(normalized)
+}
+
+function buildConnectorEnvContent(credential: ConnectorRuntimeCredential, configDir: string) {
+  const brand = 'feishu'
+  return [
+    `export LARKSUITE_CLI_APP_ID=${shellQuote(credential.appId)}`,
+    `export LARKSUITE_CLI_BRAND=${shellQuote(brand)}`,
+    `export LARKSUITE_CLI_USER_ACCESS_TOKEN=${shellQuote(credential.accessToken)}`,
+    `export LARKSUITE_CLI_DEFAULT_AS=user`,
+    `export LARKSUITE_CLI_STRICT_MODE=user`,
+    `export LARKSUITE_CLI_CONFIG_DIR=${shellQuote(configDir)}`,
+    ''
+  ].join('\n')
+}
+
+function safePathSegment(value: string) {
+  const normalized = value.replace(/[^A-Za-z0-9_.-]/g, '_')
+  return normalized || 'connector'
 }
 
 function shellQuote(value: string) {
