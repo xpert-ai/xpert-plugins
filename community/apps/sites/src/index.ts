@@ -63,7 +63,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                 {
                   name: 'deploy-sites-versions',
                   displayName: 'Deploy Sites versions',
-                  description: 'Publish approved saved versions and return production URLs.',
+                  description: 'Publish approved saved versions and return user-facing preview URLs plus permission-controlled deployment URLs.',
                   access: 'admin'
                 }
               ]
@@ -79,7 +79,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               name: SITES_MIDDLEWARE_NAME,
               displayName: 'Sites Agent Tools',
               description:
-                'Assistant middleware tools for project creation, saved versions, production deployments, access control, and hosted environment values.'
+                'Assistant middleware tools for project creation, saved versions, deployments, user-facing preview URLs, access control, and hosted environment values.'
             },
             {
               type: 'assistant-template',

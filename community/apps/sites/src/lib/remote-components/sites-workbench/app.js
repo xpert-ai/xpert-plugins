@@ -1032,7 +1032,7 @@
                 type: 'button',
                 key: 'preview',
                 onClick: () =>
-                  openDeploymentPreview(item.currentDeploymentPreviewUrl || item.currentDeploymentUrl, {
+                  openDeploymentPreview(item.currentDeploymentUrl, {
                     displayUrl: item.currentDeploymentUrl,
                     projectId: item.id,
                     deploymentId: item.currentDeploymentId,
@@ -1095,7 +1095,7 @@
                     type: 'button',
                     key: 'preview',
                     onClick: () =>
-                      openDeploymentPreview(project.currentDeploymentPreviewUrl || project.currentDeploymentUrl, {
+                      openDeploymentPreview(project.currentDeploymentUrl, {
                         displayUrl: project.currentDeploymentUrl,
                         projectId: project.id,
                         deploymentId: project.currentDeploymentId,

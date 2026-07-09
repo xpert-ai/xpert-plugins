@@ -1,8 +1,14 @@
 {
   "extends": "./tsconfig.lib.json",
   "compilerOptions": {
-    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": false,
+    "outDir": ".artifacts/sites-spec",
+    "sourceMap": false,
+    "tsBuildInfoFile": ".artifacts/sites-spec/tsconfig.spec.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": []
 }
