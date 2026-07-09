@@ -392,8 +392,12 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
           },
           scope
         )
-        const event = await this.service.buildDeploymentPreviewEvent({ deployment: data })
-        return { ...success('Version deployed', '版本已发布'), data: event ? { ...data, event } : data }
+        const share = await this.service.createDeploymentShareLink({ deploymentId: data.id ?? '', noExpiry: true }, scope)
+        const event = await this.service.buildDeploymentPreviewEvent({ deployment: data, previewUrl: share.previewUrl })
+        return {
+          ...success('Version deployed', '版本已发布'),
+          data: event ? { ...data, previewUrl: share.previewUrl, shareLinkId: share.shareLink.id, event } : { ...data, previewUrl: share.previewUrl, shareLinkId: share.shareLink.id }
+        }
       }
       if (actionKey === 'change_access') {
         const input = request.input ?? {}

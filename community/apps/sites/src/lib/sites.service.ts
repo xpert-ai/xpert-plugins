@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto'
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto'
 import { posix } from 'path'
 import { TextDecoder } from 'util'
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
@@ -7,12 +7,16 @@ import { In, Repository } from 'typeorm'
 import { PermissionsEnum, RolesEnum } from '@xpert-ai/contracts'
 import type { IUser } from '@xpert-ai/contracts'
 import { RequestContext } from '@xpert-ai/plugin-sdk'
-import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesVersion } from './entities/index.js'
+import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesShareLink, SitesVersion } from './entities/index.js'
 import { SITES_PLUGIN_NAME, WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE } from './constants.js'
 import type {
   CreateSitesProjectInput,
   DeploySitesVersionInput,
+  CreateSitesShareLinkInput,
+  ListSitesShareLinksInput,
+  RevokeSitesShareLinkInput,
   SaveSitesVersionInput,
+  SerializedSitesShareLink,
   SerializedSitesProject,
   SitesAccessMode,
   SitesEnvironmentValueInput,
@@ -31,6 +35,7 @@ const SITES_PREVIEW_TOKEN_AUDIENCE = 'sites-preview'
 const SITES_PREVIEW_TOKEN_PARAM = 'xpert_sites_preview'
 const SITES_PREVIEW_TOKEN_SUBJECT = 'sites-preview-url'
 const SITES_PREVIEW_TOKEN_TTL_MS = 60 * 60 * 1000
+const SITES_SHARE_TOKEN_PARAM = 'token'
 const SITE_SOURCE_MAX_FILES = 100
 const SITE_SOURCE_MAX_FILE_BYTES = 512 * 1024
 const SITE_SOURCE_MAX_TOTAL_BYTES = 5 * 1024 * 1024
@@ -82,7 +87,9 @@ export class SitesService {
     @InjectRepository(SitesDeployment)
     private readonly deploymentRepository: Repository<SitesDeployment>,
     @InjectRepository(SitesEnvironmentVariable)
-    private readonly environmentRepository: Repository<SitesEnvironmentVariable>
+    private readonly environmentRepository: Repository<SitesEnvironmentVariable>,
+    @InjectRepository(SitesShareLink)
+    private readonly shareLinkRepository: Repository<SitesShareLink>
   ) {}
 
   async createProject(input: CreateSitesProjectInput, scope: SitesScope) {
@@ -384,6 +391,91 @@ export class SitesService {
     return { projectId: project.id, key: normalizedKey, removed: true }
   }
 
+  async createDeploymentShareLink(input: CreateSitesShareLinkInput, scope: SitesScope) {
+    const deployment = await this.resolveDeploymentForShare(input.deploymentId, scope)
+    const token = createSitesShareToken()
+    const shareLink = await this.shareLinkRepository.save(
+      this.shareLinkRepository.create({
+        ...this.shareScopeCreate(scope, deployment),
+        projectId: normalizeRequiredString(deployment.projectId, 'projectId'),
+        versionId: normalizeRequiredString(deployment.versionId, 'versionId'),
+        deploymentId: normalizeRequiredString(deployment.id, 'deploymentId'),
+        tokenHash: hashSitesShareToken(token),
+        label: optionalString(input.label),
+        status: 'active',
+        expiresAt: normalizeShareLinkExpiresAt(input),
+        accessCount: 0
+      })
+    )
+
+    return {
+      shareLink: serializeShareLink(shareLink),
+      token,
+      previewUrl: buildSitesShareUrl(shareLink.id, token)
+    }
+  }
+
+  async revokeShareLink(input: RevokeSitesShareLinkInput, scope: SitesScope) {
+    const shareLink = await this.resolveShareLink(scope, input.shareLinkId)
+    const revoked = await this.shareLinkRepository.save({
+      ...shareLink,
+      status: 'revoked',
+      revokedById: scope.userId ?? shareLink.revokedById,
+      revokedAt: new Date(),
+      revokedReason: optionalString(input.reason) ?? shareLink.revokedReason
+    })
+    return serializeShareLink(revoked)
+  }
+
+  async listShareLinks(input: ListSitesShareLinksInput, scope: SitesScope) {
+    const where = this.scopedWhere(scope, {
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
+      ...(input.status ? { status: input.status } : {})
+    })
+    const shareLinks = await this.shareLinkRepository.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take: Math.min(Math.max(input.limit ?? 50, 1), 200)
+    })
+    return shareLinks.map(serializeShareLink)
+  }
+
+  async findSharedDeploymentSite(shareLinkId: string, token: string | undefined) {
+    const id = normalizeRequiredString(shareLinkId, 'shareLinkId')
+    const normalizedToken = normalizeRequiredString(token, SITES_SHARE_TOKEN_PARAM)
+    const shareLink = await this.shareLinkRepository.findOne({ where: { id } })
+    if (!shareLink || !isActiveShareLink(shareLink) || !safeEqualString(hashSitesShareToken(normalizedToken), shareLink.tokenHash ?? '')) {
+      throw new UnauthorizedException('Sites share link is invalid or expired')
+    }
+
+    const [deployment, version] = await Promise.all([
+      this.deploymentRepository.findOne({ where: { id: shareLink.deploymentId } }),
+      this.versionRepository.findOne({ where: { id: shareLink.versionId } })
+    ])
+    if (
+      !deployment ||
+      !version?.previewHtml ||
+      deployment.id !== shareLink.deploymentId ||
+      deployment.versionId !== shareLink.versionId ||
+      deployment.projectId !== shareLink.projectId
+    ) {
+      throw new NotFoundException('Sites shared deployment was not found')
+    }
+
+    await this.shareLinkRepository.save({
+      ...shareLink,
+      accessCount: (shareLink.accessCount ?? 0) + 1,
+      lastAccessedAt: new Date()
+    })
+
+    return {
+      deployment: serializeDeployment(deployment),
+      shareLink: serializeShareLink(shareLink),
+      html: version.previewHtml
+    }
+  }
+
   async archiveProject(scope: SitesScope, projectId: string) {
     const project = await this.resolveProject(scope, projectId)
     return this.projectRepository.save({
@@ -493,6 +585,24 @@ export class SitesService {
     return version
   }
 
+  private async resolveDeploymentForShare(deploymentId: string | undefined, scope: SitesScope) {
+    const id = normalizeRequiredString(deploymentId, 'deploymentId')
+    const deployment = await this.deploymentRepository.findOne({ where: this.scopedWhere(scope, { id }) })
+    if (!deployment) {
+      throw new NotFoundException('Sites deployment was not found')
+    }
+    return deployment
+  }
+
+  private async resolveShareLink(scope: SitesScope, shareLinkId: string | undefined) {
+    const id = normalizeRequiredString(shareLinkId, 'shareLinkId')
+    const shareLink = await this.shareLinkRepository.findOne({ where: this.scopedWhere(scope, { id }) })
+    if (!shareLink) {
+      throw new NotFoundException('Sites share link was not found')
+    }
+    return shareLink
+  }
+
   private async findLatestVersion(scope: SitesScope, projectId: string | undefined) {
     const version = await this.versionRepository.findOne({
       where: this.scopedWhere(scope, { projectId }),
@@ -547,7 +657,7 @@ export class SitesService {
     }
   }
 
-  async buildDeploymentPreviewEvent(input: { deployment: SitesDeployment; project?: SitesProject; version?: SitesVersion }) {
+  async buildDeploymentPreviewEvent(input: { deployment: SitesDeployment; project?: SitesProject; version?: SitesVersion; previewUrl?: string }) {
     const deployment = input.deployment
     if (!deployment) {
       return null
@@ -558,16 +668,22 @@ export class SitesService {
     ])
 
     if (!project || !version) {
-      return buildSitesDeploymentPreviewEvent({ deployment })
+      return buildSitesDeploymentPreviewEvent({
+        deployment,
+        url: input.previewUrl,
+        previewUrl: input.previewUrl,
+        displayUrl: input.previewUrl ?? deployment.deploymentUrl
+      })
     }
 
-    const previewUrl = buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
+    const transientPreviewUrl = input.previewUrl ? undefined : buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
     return buildSitesDeploymentPreviewEvent({
       project,
       version,
       deployment,
-      url: previewUrl,
-      displayUrl: deployment.deploymentUrl
+      url: input.previewUrl ?? transientPreviewUrl,
+      previewUrl: input.previewUrl,
+      displayUrl: input.previewUrl ?? deployment.deploymentUrl
     })
   }
 
@@ -599,6 +715,16 @@ export class SitesService {
       createdById: scope.userId ?? undefined,
       assistantId: scope.assistantId ?? undefined,
       conversationId: scope.conversationId ?? undefined
+    }
+  }
+
+  private shareScopeCreate(scope: SitesScope, deployment: SitesDeployment) {
+    return {
+      tenantId: normalizeRequiredString(scope.tenantId ?? deployment.tenantId, 'tenantId'),
+      organizationId: normalizeRequiredString(scope.organizationId ?? deployment.organizationId, 'organizationId'),
+      createdById: scope.userId ?? deployment.createdById,
+      assistantId: scope.assistantId ?? deployment.assistantId,
+      conversationId: scope.conversationId ?? deployment.conversationId
     }
   }
 }
@@ -800,6 +926,7 @@ type SitesDeploymentPreviewEventInput = {
   }
   url?: string
   displayUrl?: string
+  previewUrl?: string
   deploymentUrl?: string
   projectId?: string
   versionId?: string
@@ -813,7 +940,9 @@ type SitesDeploymentPreviewEventInput = {
 export function buildSitesDeploymentPreviewEvent(
   input: SitesDeploymentPreviewEventInput
 ): WorkbenchBrowserPreviewEvent | null {
+  const previewUrl = optionalString(input.previewUrl)
   const url =
+    previewUrl ??
     optionalString(input.url) ??
     optionalString(input.displayUrl) ??
     optionalString(input.deploymentUrl) ??
@@ -839,7 +968,8 @@ export function buildSitesDeploymentPreviewEvent(
     type: WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE,
     source: SITES_PLUGIN_NAME,
     url,
-    displayUrl: optionalString(input.displayUrl) ?? url,
+    displayUrl: optionalString(input.displayUrl) ?? previewUrl ?? url,
+    ...(previewUrl ? { previewUrl } : {}),
     ...(projectId ? { projectId } : {}),
     ...(versionId ? { versionId } : {}),
     ...(deploymentId ? { deploymentId } : {}),
@@ -913,6 +1043,31 @@ function buildSitesPreviewUrl(deploymentUrl: string | undefined, token: string) 
   }
   url.searchParams.set(SITES_PREVIEW_TOKEN_PARAM, token)
   return url.toString()
+}
+
+function buildSitesShareUrl(shareLinkId: string | undefined, token: string) {
+  const url = new URL(`${getPublicBaseUrl()}/share/${encodeURIComponent(normalizeRequiredString(shareLinkId, 'shareLinkId'))}`)
+  url.searchParams.set(SITES_SHARE_TOKEN_PARAM, token)
+  return url.toString()
+}
+
+function createSitesShareToken() {
+  return randomBytes(32).toString('base64url')
+}
+
+function hashSitesShareToken(token: string) {
+  return digest(normalizeRequiredString(token, SITES_SHARE_TOKEN_PARAM))
+}
+
+function isActiveShareLink(shareLink: SitesShareLink) {
+  if (shareLink.status !== 'active') {
+    return false
+  }
+  if (!shareLink.expiresAt) {
+    return true
+  }
+  const expiresAt = shareLink.expiresAt instanceof Date ? shareLink.expiresAt : new Date(shareLink.expiresAt)
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > Date.now()
 }
 
 function signSitesPreviewTokenPayload(encodedPayload: string, version: Pick<SitesVersion, 'artifactDigest'>) {
@@ -1009,6 +1164,20 @@ function normalizeEnvironmentKey(value: string) {
   return key
 }
 
+function normalizeShareLinkExpiresAt(input: Pick<CreateSitesShareLinkInput, 'expiresAt' | 'noExpiry'>) {
+  if (input.noExpiry || input.expiresAt === null || input.expiresAt === undefined) {
+    return null
+  }
+  const expiresAt = input.expiresAt instanceof Date ? input.expiresAt : new Date(input.expiresAt)
+  if (Number.isNaN(expiresAt.getTime())) {
+    throw new BadRequestException('expiresAt must be a valid date')
+  }
+  if (expiresAt.getTime() <= Date.now()) {
+    throw new BadRequestException('expiresAt must be in the future')
+  }
+  return expiresAt
+}
+
 function digest(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
@@ -1048,7 +1217,7 @@ async function readSandboxSourceFiles(sourcePathInput: string | undefined, sourc
 
   const workingDirectory = sourceOptions?.workingDirectory ?? backend.workingDirectory
   const sourcePath = resolveSandboxSourcePath(sourcePathInput, workingDirectory)
-  const entries = await Promise.resolve(backend.globInfo('**/*', sourcePath))
+  const entries = await collectSandboxSourceEntries(backend, sourcePath)
   const files = selectSandboxSourceFiles(entries, sourcePath, workingDirectory)
   const downloads = await Promise.resolve(backend.downloadFiles(files.map((file) => file.absolutePath)))
   const downloadsByPath = new Map(downloads.map((download) => [normalizeSandboxPath(download.path), download]))
@@ -1081,6 +1250,25 @@ async function readSandboxSourceFiles(sourcePathInput: string | undefined, sourc
     sourcePath,
     files: sourceFiles
   }
+}
+
+async function collectSandboxSourceEntries(backend: SitesSourceReadOptions['sandboxBackend'], sourcePath: string) {
+  if (!backend) {
+    return []
+  }
+
+  const batches = await Promise.all([
+    Promise.resolve(backend.globInfo('*', sourcePath)),
+    Promise.resolve(backend.globInfo('**/*', sourcePath))
+  ])
+  const entriesByPath = new Map<string, SitesSandboxFileInfo>()
+  for (const entry of batches.flat()) {
+    const key = `${normalizeSandboxPath(entry.path)}:${entry.is_dir ? 'dir' : 'file'}`
+    if (!entriesByPath.has(key)) {
+      entriesByPath.set(key, entry)
+    }
+  }
+  return [...entriesByPath.values()]
 }
 
 function selectSandboxSourceFiles(entries: SitesSandboxFileInfo[], sourcePath: string, workingDirectory?: string) {
@@ -1338,6 +1526,25 @@ function serializeDeployment(deployment: SitesDeployment) {
     errorMessage: deployment.errorMessage,
     createdAt: deployment.createdAt,
     updatedAt: deployment.updatedAt
+  }
+}
+
+function serializeShareLink(shareLink: SitesShareLink): SerializedSitesShareLink {
+  return {
+    id: shareLink.id,
+    projectId: shareLink.projectId,
+    versionId: shareLink.versionId,
+    deploymentId: shareLink.deploymentId,
+    label: shareLink.label,
+    status: shareLink.status,
+    expiresAt: shareLink.expiresAt,
+    accessCount: shareLink.accessCount,
+    lastAccessedAt: shareLink.lastAccessedAt,
+    revokedById: shareLink.revokedById,
+    revokedAt: shareLink.revokedAt,
+    revokedReason: shareLink.revokedReason,
+    updatedAt: shareLink.updatedAt,
+    createdAt: shareLink.createdAt
   }
 }
 

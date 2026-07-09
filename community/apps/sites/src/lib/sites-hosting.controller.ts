@@ -17,6 +17,17 @@ export class SitesHostingController {
     return site.html
   }
 
+  @Public()
+  @Get('share/:shareLinkId')
+  @Header('content-type', 'text/html; charset=utf-8')
+  async getSharedDeployment(
+    @Param('shareLinkId') shareLinkId: string,
+    @Query('token') token?: string
+  ) {
+    const site = await this.service.findSharedDeploymentSite(shareLinkId, token)
+    return site.html
+  }
+
   @Get(':deploymentIdOrSlug')
   @Header('content-type', 'text/html; charset=utf-8')
   async getDeployment(@Param('deploymentIdOrSlug') deploymentIdOrSlug: string) {

@@ -71,12 +71,13 @@ nodes:
         such as /workspace/sites/<slug>/, verify that directory contains a root
         index.html, then call Sites tools with sourcePath to save a reviewable
         version. Validate the saved candidate, then deploy only when the user
-        asks for a live production URL. Never pass source code contents directly
+        asks for a live access link. Never pass source code contents directly
         to Sites tools; Sites tools snapshot files from sourcePath. Track
         storage needs as static, D1, R2, D1+R2, workspace auth, or external
         auth. Store runtime environment values through Sites tools instead of
         writing secrets into source files. After deployment, report the
-        deployment status, access mode, and production URL.
+        deployment status, access mode, and previewUrl first; keep deploymentUrl
+        as the permission-controlled workspace URL for diagnostics.
       promptTemplates: null
       parameters: null
       outputVariables: null

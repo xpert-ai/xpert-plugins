@@ -2,6 +2,7 @@ export type SitesAccessMode = 'admins_only' | 'workspace_all' | 'custom'
 export type SitesProjectStatus = 'draft' | 'version_saved' | 'deployed' | 'archived'
 export type SitesVersionStatus = 'saved' | 'build_failed'
 export type SitesDeploymentStatus = 'pending' | 'deployed' | 'failed'
+export type SitesShareLinkStatus = 'active' | 'revoked'
 export type SitesStorageShape = 'static' | 'd1' | 'r2' | 'd1_r2' | 'workspace_auth' | 'external_auth'
 
 export interface SitesScope {
@@ -83,6 +84,25 @@ export interface DeploySitesVersionInput {
   customAudience?: string[]
 }
 
+export interface CreateSitesShareLinkInput {
+  deploymentId: string
+  expiresAt?: string | Date | null
+  noExpiry?: boolean
+  label?: string
+}
+
+export interface RevokeSitesShareLinkInput {
+  shareLinkId: string
+  reason?: string
+}
+
+export interface ListSitesShareLinksInput {
+  projectId?: string
+  deploymentId?: string
+  status?: SitesShareLinkStatus
+  limit?: number
+}
+
 export interface SitesEnvironmentValueInput {
   projectId: string
   key: string
@@ -96,6 +116,7 @@ export interface WorkbenchBrowserPreviewEvent {
   source?: string
   url: string
   displayUrl: string
+  previewUrl?: string
   projectId?: string
   versionId?: string
   deploymentId?: string
@@ -121,6 +142,23 @@ export interface SerializedSitesProject {
   currentDeploymentPreviewUrl?: string
   versionCount?: number
   deploymentCount?: number
+  updatedAt?: Date
+  createdAt?: Date
+}
+
+export interface SerializedSitesShareLink {
+  id?: string
+  projectId?: string
+  versionId?: string
+  deploymentId?: string
+  label?: string
+  status?: SitesShareLinkStatus
+  expiresAt?: Date | null
+  accessCount?: number
+  lastAccessedAt?: Date | null
+  revokedById?: string
+  revokedAt?: Date | null
+  revokedReason?: string
   updatedAt?: Date
   createdAt?: Date
 }
