@@ -27,14 +27,12 @@ import {
   TIntegrationWechatOptions,
   WechatInboundEvent
 } from './types.js'
-import { WechatClient } from './wechat.client.js'
 import {
   WechatOutboundQueueFileInput,
   WechatOutboundQueueTextInput,
   WechatOutboundQueueService,
   WechatQueuedSendResult
 } from './wechat-outbound-queue.service.js'
-import { fetchWechatImageAsBase64 } from './wechat-image.js'
 import {
   parseWechatOutgoingContent,
   WechatOutgoingContentPart
@@ -42,7 +40,6 @@ import {
 import { formatWechatOutgoingText } from './wechat-text-format.js'
 import {
   resolveWechatSendFile,
-  sanitizeWechatSendFileName,
   type WechatResolvedSendFile
 } from './wechat-send-file.js'
 
@@ -67,7 +64,6 @@ export class WechatChannelStrategy
   private _integrationPermissionService: IntegrationPermissionService
 
   constructor(
-    private readonly client: WechatClient,
     private readonly outboundQueue: WechatOutboundQueueService,
     @Inject(WECHAT_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
@@ -244,22 +240,9 @@ export class WechatChannelStrategy
           error: '发送微信文件缺少本地文件路径或文件内容。'
         }
       }
-      if (ctx.integration.options?.outboundQueue?.enabled !== false) {
-        return {
-          success: false,
-          error: '启用出站队列时，微信文件发送需要可重新读取的本地文件路径。'
-        }
-      }
-      const result = await this.client.sendFile(ctx.integration, {
-        uuid,
-        contactId,
-        fileName: sanitizeWechatSendFileName(media.filename, 'file'),
-        fileContent: media.content.toString('base64')
-      })
       return {
-        success: result.success,
-        messageId: result.messageId,
-        error: result.error
+        success: false,
+        error: '微信文件发送需要可重新读取的本地文件路径。'
       }
     }
 
@@ -285,7 +268,7 @@ export class WechatChannelStrategy
       contactId?: string | null
       content: string
       atUsers?: string[] | null
-    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
+    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey' | 'delayMs'>
   ): Promise<WechatReplySendResult> {
     const parts = this.buildReplySendParts(parseWechatOutgoingContent(params.content))
     if (!parts.length) {
@@ -306,7 +289,8 @@ export class WechatChannelStrategy
               imageUrl: part.imageUrl,
               context: params.context,
               source: params.source,
-              idempotencyKey: params.idempotencyKey
+              idempotencyKey: params.idempotencyKey,
+              delayMs: params.delayMs
             })
           : await this.sendTextByIntegrationId(integrationId, {
               uuid: params.uuid,
@@ -315,7 +299,8 @@ export class WechatChannelStrategy
               atUsers: params.atUsers,
               context: params.context,
               source: params.source,
-              idempotencyKey: params.idempotencyKey
+              idempotencyKey: params.idempotencyKey,
+              delayMs: params.delayMs
             })
 
       const item = this.toReplyPartResult(part, result, params.source, params.idempotencyKey)
@@ -374,7 +359,7 @@ export class WechatChannelStrategy
       contactId?: string | null
       content: string
       atUsers?: string[] | null
-    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
+    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey' | 'delayMs'>
   ): Promise<WechatQueuedSendResult> {
     const integration = await this.readIntegration(integrationId)
     if (!integration) {
@@ -394,21 +379,6 @@ export class WechatChannelStrategy
       }
     }
 
-    if (integration.options?.outboundQueue?.enabled === false) {
-      const result = await this.client.sendText(integration, {
-        uuid,
-        contactId,
-        content,
-        atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : []
-      })
-
-      return {
-        success: result.success,
-        messageId: result.messageId,
-        error: result.error
-      }
-    }
-
     return this.outboundQueue.enqueueText(integration, {
       uuid,
       contactId,
@@ -416,7 +386,8 @@ export class WechatChannelStrategy
       atUsers: Array.isArray(params.atUsers) ? params.atUsers.filter(Boolean) : [],
       context: params.context,
       source: params.source,
-      idempotencyKey: params.idempotencyKey
+      idempotencyKey: params.idempotencyKey,
+      delayMs: params.delayMs
     })
   }
 
@@ -427,7 +398,7 @@ export class WechatChannelStrategy
       contactId?: string | null
       imageUrl?: string | null
       imageContent?: string | null
-    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
+    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey' | 'delayMs'>
   ): Promise<WechatQueuedSendResult> {
     const integration = await this.readIntegration(integrationId)
     if (!integration) {
@@ -440,41 +411,10 @@ export class WechatChannelStrategy
     const uuid = normalizeString(params.uuid)
     const contactId = normalizeString(params.contactId)
     const imageUrl = normalizeString(params.imageUrl)
-    const imageContent = normalizeString(params.imageContent)
-    if (!uuid || !contactId || (!imageUrl && !imageContent)) {
+    if (!uuid || !contactId || !imageUrl) {
       return {
         success: false,
         error: '发送微信图片缺少 uuid/contactId/imageUrl。'
-      }
-    }
-
-    if (integration.options?.outboundQueue?.enabled === false) {
-      let result: Awaited<ReturnType<WechatClient['sendImage']>>
-      try {
-        const resolvedImageContent = imageContent || (await this.fetchImageContent(imageUrl, integration))
-        result = await this.client.sendImage(integration, {
-          uuid,
-          contactId,
-          imageContent: resolvedImageContent
-        })
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        }
-      }
-
-      return {
-        success: result.success,
-        messageId: result.messageId,
-        error: result.error
-      }
-    }
-
-    if (!imageUrl) {
-      return {
-        success: false,
-        error: '启用出站队列时，微信图片发送需要可下载的 imageUrl。'
       }
     }
 
@@ -485,7 +425,8 @@ export class WechatChannelStrategy
       imageUrl,
       context: params.context,
       source: params.source,
-      idempotencyKey: params.idempotencyKey
+      idempotencyKey: params.idempotencyKey,
+      delayMs: params.delayMs
     })
   }
 
@@ -496,7 +437,7 @@ export class WechatChannelStrategy
       contactId?: string | null
       file: WechatResolvedSendFile
       uploadToken?: string | null
-    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey'>
+    } & Pick<WechatOutboundQueueTextInput, 'context' | 'source' | 'idempotencyKey' | 'delayMs'>
   ): Promise<WechatQueuedSendResult> {
     const integration = await this.readIntegration(integrationId)
     if (!integration) {
@@ -510,26 +451,10 @@ export class WechatChannelStrategy
     const contactId = normalizeString(params.contactId)
     const uploadToken = normalizeString(params.uploadToken)
     const file = params.file
-    if (!uuid || !contactId || !file?.fileName || !file.fileContent || !file.filePath) {
+    if (!uuid || !contactId || !file?.fileName || !file.filePath || !file.size || !file.sha256) {
       return {
         success: false,
-        error: '发送微信文件缺少 uuid/contactId/file。'
-      }
-    }
-
-    if (integration.options?.outboundQueue?.enabled === false) {
-      const result = await this.client.sendFile(integration, {
-        uuid,
-        contactId,
-        fileName: file.fileName,
-        fileContent: file.fileContent,
-        uploadToken
-      })
-
-      return {
-        success: result.success,
-        messageId: result.messageId,
-        error: result.error
+        error: '发送微信文件缺少 uuid/contactId/filePath/fileName/size/sha256。'
       }
     }
 
@@ -547,18 +472,9 @@ export class WechatChannelStrategy
       uploadToken,
       context: params.context,
       source: params.source,
-      idempotencyKey: params.idempotencyKey
+      idempotencyKey: params.idempotencyKey,
+      delayMs: params.delayMs
     } satisfies WechatOutboundQueueFileInput)
-  }
-
-  private async fetchImageContent(
-    imageUrl: string,
-    integration: IIntegration<TIntegrationWechatOptions>
-  ): Promise<string> {
-    const image = await fetchWechatImageAsBase64(imageUrl, {
-      timeoutMs: integration.options?.timeoutMs
-    })
-    return image.imageContent
   }
 
   private toReplyPartResult(

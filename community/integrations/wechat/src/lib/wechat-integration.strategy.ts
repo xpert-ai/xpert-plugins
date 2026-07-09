@@ -289,14 +289,6 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
             zh_Hans: '基于 Redis 的延迟发送、限速、静默时段、重试和暂停保护。'
           },
           properties: {
-            enabled: {
-              type: 'boolean',
-              title: {
-                en_US: 'Enable Outbound Queue',
-                zh_Hans: '启用出站队列'
-              },
-              default: DEFAULT_OUTBOUND_QUEUE_OPTIONS.enabled
-            },
             initialDelayMs: {
               type: 'number',
               title: {
@@ -454,7 +446,7 @@ export class WechatIntegrationStrategy implements IntegrationStrategy<TIntegrati
     config.inboundFileRules = normalizeInboundFileRules(config.inboundFileRules)
     config.outboundQueue = {
       ...config.outboundQueue,
-      enabled: config.outboundQueue?.enabled !== false
+      enabled: true
     }
 
     const apiBaseUrl = (process.env.API_BASE_URL || '').replace(/\/+$/, '')

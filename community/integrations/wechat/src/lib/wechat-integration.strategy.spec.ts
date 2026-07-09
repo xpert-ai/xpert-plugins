@@ -88,6 +88,7 @@ describe('WechatIntegrationStrategy', () => {
     const { strategy } = createStrategy()
     const outboundQueue = (strategy.meta.schema.properties.outboundQueue as any).properties
 
+    expect(outboundQueue.enabled).toBeUndefined()
     expect(outboundQueue.initialDelayMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs)
     expect(outboundQueue.globalMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs)
     expect(outboundQueue.perAccountMinIntervalMs.default).toBe(DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs)
@@ -221,6 +222,20 @@ describe('WechatIntegrationStrategy', () => {
       })
     )
     expect(result.tunnel.sidecarConfigJson).toContain('"MsgClientId": "integration-1"')
+  })
+
+  it('forces outbound queue enabled when validating config', async () => {
+    const { strategy } = createStrategy()
+    const config = {
+      connectionMode: 'reverse_tunnel',
+      outboundQueue: {
+        enabled: false
+      }
+    }
+
+    await strategy.validateConfig(config as any, { id: 'integration-1' } as any)
+
+    expect(config.outboundQueue.enabled).toBe(true)
   })
 
   it('normalizes inbound file size rules when validating config', async () => {
