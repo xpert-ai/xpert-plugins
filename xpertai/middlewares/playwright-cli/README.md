@@ -21,7 +21,7 @@ pnpm add @xpert-ai/plugin-playwright-cli
 npm install @xpert-ai/plugin-playwright-cli
 ```
 
-> **Note**: Ensure the host service already provides `@xpert-ai/plugin-sdk`, `@metad/contracts`, `@nestjs/common@^11`, `@nestjs/event-emitter`, `@langchain/core@^0.3`, `zod`, and `chalk`. These are treated as peer/runtime dependencies in the host environment.
+> **Note**: Ensure the host service already provides `@xpert-ai/plugin-sdk`, `@xpert-ai/contracts`, `@nestjs/common@^11`, `@nestjs/event-emitter`, `@langchain/core@^0.3`, `zod`, and `chalk`. These are treated as peer/runtime dependencies in the host environment.
 
 ## Quick Start
 

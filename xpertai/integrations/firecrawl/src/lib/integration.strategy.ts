@@ -1,4 +1,4 @@
-import { IIntegration, TIntegrationProvider } from '@metad/contracts'
+import { IIntegration, TIntegrationProvider } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, ISchemaSecretField, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
 import { Firecrawl, FirecrawlOptions, icon } from './types.js'

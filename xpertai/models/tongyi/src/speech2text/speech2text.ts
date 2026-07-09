@@ -2,7 +2,7 @@ import { BaseChatModel, BaseChatModelParams } from '@langchain/core/language_mod
 import { AIMessage, BaseMessage } from '@langchain/core/messages'
 import { ChatResult } from '@langchain/core/outputs'
 import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { SpeechToTextModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'

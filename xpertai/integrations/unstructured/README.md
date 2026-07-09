@@ -10,7 +10,7 @@ pnpm add @xpert-ai/plugin-unstructured
 npm install @xpert-ai/plugin-unstructured
 ```
 
-> **Peer dependencies:** `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@metad/contracts`, `@langchain/core@^0.3.72`, `chalk@4`, `lodash-es`, and `zod`. Install them in the host service if they are not already available.
+> **Peer dependencies:** `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/config@^4`, `@xpert-ai/contracts`, `@langchain/core@^0.3.72`, `chalk@4`, `lodash-es`, and `zod`. Install them in the host service if they are not already available.
 
 ## Quick Start
 

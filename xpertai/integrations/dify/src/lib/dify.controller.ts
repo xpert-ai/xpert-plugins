@@ -1,4 +1,4 @@
-import { type IIntegration } from '@metad/contracts'
+import { type IIntegration } from '@xpert-ai/contracts'
 import { Body, Controller, Post } from '@nestjs/common'
 import { DifyService } from './dify.service.js'
 import { TDifyIntegrationOptions } from './types.js'

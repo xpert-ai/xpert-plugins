@@ -1,4 +1,4 @@
-import type { TAgentMiddlewareMeta } from '@metad/contracts'
+import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 
 export const sensitiveFilterMiddlewareConfigSchema = {
   type: 'object',

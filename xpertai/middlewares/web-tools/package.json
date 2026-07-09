@@ -40,7 +40,7 @@
     "chalk": "4.1.2",
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@metad/contracts": "^3.8.0",
+    "@xpert-ai/contracts": "^3.8.0",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "cheerio": "^1.0.0-rc.12",
     "turndown": "^7.2.0"

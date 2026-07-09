@@ -1,6 +1,6 @@
 import { Document } from '@langchain/core/documents'
 import { default as Firecrawl } from '@mendable/firecrawl-js'
-import { IIntegration, LanguagesEnum } from '@metad/contracts'
+import { IIntegration, LanguagesEnum } from '@xpert-ai/contracts'
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import { FirecrawlOptions, FirecrawlParams, WebsiteCrawlMessage } from './types.js'
 

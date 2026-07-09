@@ -7,7 +7,7 @@ import {
   ModelFeature,
   ModelPropertyKey,
   ParameterType
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   CredentialsValidateFailedError,

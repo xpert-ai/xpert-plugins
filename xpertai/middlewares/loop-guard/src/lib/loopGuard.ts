@@ -14,7 +14,7 @@ import {
   IAgentMiddlewareStrategy,
   JumpToTarget,
 } from '@xpert-ai/plugin-sdk'
-import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@metad/contracts'
+import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import type { Subscriber } from 'rxjs'
 import { z } from 'zod/v3'
 import { z as z4 } from 'zod/v4'

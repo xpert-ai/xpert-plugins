@@ -8,7 +8,7 @@
 npm install @xpert-ai/plugin-minimax
 ```
 
-> 需要宿主提供 peer deps：`@xpert-ai/plugin-sdk`、`@nestjs/common`、`@nestjs/config`、`@metad/contracts`、`@langchain/core`、`@langchain/openai`、`zod`、`tslib` 等。
+> 需要宿主提供 peer deps：`@xpert-ai/plugin-sdk`、`@nestjs/common`、`@nestjs/config`、`@xpert-ai/contracts`、`@langchain/core`、`@langchain/openai`、`zod`、`tslib` 等。
 
 ## 配置
 

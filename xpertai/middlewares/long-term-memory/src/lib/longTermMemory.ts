@@ -1,6 +1,6 @@
 import { BaseStore } from '@langchain/langgraph'
 import { SystemMessage } from '@langchain/core/messages'
-import { LongTermMemoryTypeEnum, TAgentMiddlewareMeta } from '@metad/contracts'
+import { LongTermMemoryTypeEnum, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   AgentMiddleware,

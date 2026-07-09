@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { IKnowledgeDocument } from '@metad/contracts';
+import type { IKnowledgeDocument } from '@xpert-ai/contracts';
 import type { ConfigService } from '@nestjs/config';
 import type {
   TDocumentTransformerConfig,

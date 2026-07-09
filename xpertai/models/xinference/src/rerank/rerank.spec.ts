@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 import { Document } from '@langchain/core/documents'
-import { ICopilotModel } from '@metad/contracts'
+import { ICopilotModel } from '@xpert-ai/contracts'
 import { XinferenceRerankModel } from './rerank.js'
 import { XinferenceProviderStrategy } from '../provider.strategy.js'
 

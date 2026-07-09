@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@metad/contracts'
+import { XpertTypeEnum } from '@xpert-ai/contracts'
 import {
   LARK_ADMIN_TEMPLATE_KEY,
   LARK_ADMIN_VIEW_FEATURE,

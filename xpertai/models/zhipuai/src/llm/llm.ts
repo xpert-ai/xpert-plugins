@@ -1,5 +1,5 @@
 import { HumanMessage } from '@langchain/core/messages'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'

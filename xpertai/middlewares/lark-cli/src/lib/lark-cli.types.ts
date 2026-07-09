@@ -1,4 +1,4 @@
-import { JsonSchemaObjectType } from '@metad/contracts'
+import { JsonSchemaObjectType } from '@xpert-ai/contracts'
 import type { ISchemaSecretField } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 

@@ -1,4 +1,4 @@
-import { type IIntegration, LanguagesEnum } from '@metad/contracts'
+import { type IIntegration, LanguagesEnum } from '@xpert-ai/contracts'
 import { Body, Controller, Post } from '@nestjs/common'
 import { I18nLang } from 'nestjs-i18n'
 import { FirecrawlService } from './firecrawl.service.js'

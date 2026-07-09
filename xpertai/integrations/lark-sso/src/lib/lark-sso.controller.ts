@@ -1,4 +1,4 @@
-import type { IUser } from '@metad/contracts'
+import type { IUser } from '@xpert-ai/contracts'
 import { Controller, Get, Query, Request, Response, SetMetadata } from '@nestjs/common'
 import { LarkSsoService } from './lark-sso.service.js'
 import { isLarkSsoError, LarkSsoError } from './types.js'

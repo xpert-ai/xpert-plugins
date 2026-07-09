@@ -1,5 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({}))
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   getAgentMiddlewareNodes: jest.fn((draft: any, agentKey: string) => {
     const connections = draft.graph?.connections ?? []
     return connections

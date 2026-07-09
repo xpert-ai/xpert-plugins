@@ -1,4 +1,4 @@
-import { DocumentSourceProviderCategoryEnum, I18nObject, IDocumentSourceProvider, IIntegration } from '@metad/contracts'
+import { DocumentSourceProviderCategoryEnum, I18nObject, IDocumentSourceProvider, IIntegration } from '@xpert-ai/contracts'
 import { Inject, Injectable } from '@nestjs/common'
 import { DocumentSourceStrategy, IDocumentSourceStrategy, IntegrationPermission } from '@xpert-ai/plugin-sdk'
 import { Document } from 'langchain/document'

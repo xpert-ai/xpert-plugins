@@ -1,6 +1,6 @@
 import { OAIAPICompatLargeLanguageModel } from './llm.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature } from '@metad/contracts'
+import { ModelFeature } from '@xpert-ai/contracts'
 import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { OpenAICompatModelCredentials } from '../types.js'
 

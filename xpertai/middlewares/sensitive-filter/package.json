@@ -39,6 +39,6 @@
     "chalk": "4.1.2",
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@metad/contracts": "^3.8.1"
+    "@xpert-ai/contracts": "^3.8.1"
   }
 }

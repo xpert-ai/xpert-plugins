@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import type { IIntegration } from '@metad/contracts';
+import type { IIntegration } from '@xpert-ai/contracts';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';

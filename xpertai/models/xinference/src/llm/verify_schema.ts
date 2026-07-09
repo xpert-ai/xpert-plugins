@@ -1,6 +1,6 @@
 import { XinferenceLargeLanguageModel } from './llm.js'
 import { XinferenceProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature, ParameterType } from '@metad/contracts'
+import { ModelFeature, ParameterType } from '@xpert-ai/contracts'
 
 const provider = new XinferenceProviderStrategy()
 const llm = new XinferenceLargeLanguageModel(provider)

@@ -20,7 +20,7 @@
 npm install @xpert-ai/plugin-volcengine
 ```
 
-> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@metad/contracts`, `@langchain/openai`, `lodash-es`, `chalk`, and `zod`. Please refer to `package.json` for specific versions.
+> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@xpert-ai/contracts`, `@langchain/openai`, `lodash-es`, `chalk`, and `zod`. Please refer to `package.json` for specific versions.
 
 ## Enabling in XpertAI
 

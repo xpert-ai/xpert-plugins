@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   ChatOAICompatReasoningModel,

@@ -1,4 +1,4 @@
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   AiModelTypeEnum: {
     LLM: 'llm'
   }
@@ -90,7 +90,7 @@ jest.mock('@langchain/openai', () => {
   }
 })
 
-import { ICopilotModel } from '@metad/contracts'
+import { ICopilotModel } from '@xpert-ai/contracts'
 import { OpenAIProviderStrategy } from '../provider.strategy.js'
 import { OpenAILargeLanguageModel } from './llm.js'
 

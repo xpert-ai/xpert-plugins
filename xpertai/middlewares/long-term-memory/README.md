@@ -22,7 +22,7 @@ pnpm add @xpert-ai/plugin-long-term-memory
 npm install @xpert-ai/plugin-long-term-memory
 ```
 
-> **Note**: Ensure the host service already provides `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/cqrs@^11`, `@langchain/core@^0.3`, `@langchain/langgraph@^0.4`, `@metad/contracts`, `zod`, and `chalk`. These are treated as peer/runtime dependencies.
+> **Note**: Ensure the host service already provides `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@nestjs/cqrs@^11`, `@langchain/core@^0.3`, `@langchain/langgraph@^0.4`, `@xpert-ai/contracts`, `zod`, and `chalk`. These are treated as peer/runtime dependencies.
 
 ## Quick Start
 

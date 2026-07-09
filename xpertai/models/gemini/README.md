@@ -16,7 +16,7 @@
 npm install @xpert-ai/plugin-gemini
 ```
 
-> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/google-genai`, `lodash-es`, `chalk`, `zod`, and `tslib`. Refer to `package.json` for exact versions.
+> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/google-genai`, `lodash-es`, `chalk`, `zod`, and `tslib`. Refer to `package.json` for exact versions.
 
 ## Enabling in XpertAI
 

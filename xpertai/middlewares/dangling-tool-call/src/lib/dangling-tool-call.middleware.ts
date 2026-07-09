@@ -1,6 +1,6 @@
 import { AIMessage, BaseMessage, ToolMessage, isAIMessage, isToolMessage } from '@langchain/core/messages'
 import { ToolCall } from '@langchain/core/messages/tool'
-import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@metad/contracts'
+import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,

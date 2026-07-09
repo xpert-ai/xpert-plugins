@@ -5,7 +5,7 @@ import {
 } from '@langchain/core/language_models/chat_models';
 import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { ChatResult } from '@langchain/core/outputs';
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts';
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import { Injectable } from '@nestjs/common';
 import {
   Speech2TextChatModel,

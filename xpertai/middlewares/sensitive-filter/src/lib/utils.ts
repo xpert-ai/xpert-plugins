@@ -1,5 +1,5 @@
-import { channelName } from '@metad/contracts'
-import type { TAgentRunnableConfigurable } from '@metad/contracts'
+import { channelName } from '@xpert-ai/contracts'
+import type { TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { SENSITIVE_FILTER_MIDDLEWARE_NAME } from './constants.js'
 import type { MatchPhase } from './runtime-types.js'
 

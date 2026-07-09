@@ -1,4 +1,4 @@
-import type { XpertTypeEnum } from '@metad/contracts'
+import type { XpertTypeEnum } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 
 type LarkPluginTargetApp = 'xpert' | 'data-xpert' | (string & {})

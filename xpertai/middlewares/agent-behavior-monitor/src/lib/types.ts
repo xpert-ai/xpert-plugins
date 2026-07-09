@@ -1,4 +1,4 @@
-import type { ICopilotModel } from '@metad/contracts'
+import type { ICopilotModel } from '@xpert-ai/contracts'
 
 export const AgentBehaviorMonitorIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 4h18v2H3V4zm2 4h14l-1.5 9h-11L5 8zm6 3h2v4h-2v-4zM9 11h2v4H9v-4zm4 0h2v4h-2v-4zM6 20h12v2H6v-2z"/></svg>`
 

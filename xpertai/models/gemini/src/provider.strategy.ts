@@ -5,7 +5,7 @@ import {
   ModelProvider,
 } from '@xpert-ai/plugin-sdk';
 import { Gemini, GoogleCredentials, toCredentialKwargs } from './types.js';
-import { AiModelTypeEnum } from '@metad/contracts';
+import { AiModelTypeEnum } from '@xpert-ai/contracts';
 
 @Injectable()
 @AIModelProviderStrategy(Gemini)

@@ -18,7 +18,7 @@
 npm install @xpert-ai/plugin-file-system
 ```
 
-> **Peer dependencies:** the host must already provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/core`, `chalk`, `zod`, and the respective protocol clients (`basic-ftp`, `ssh2-sftp-client`, `smb2`, `@awo00/smb2`, `webdav`). Review `package.json` for the exact version expectations.
+> **Peer dependencies:** the host must already provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/core`, `chalk`, `zod`, and the respective protocol clients (`basic-ftp`, `ssh2-sftp-client`, `smb2`, `@awo00/smb2`, `webdav`). Review `package.json` for the exact version expectations.
 
 ## Configuration
 

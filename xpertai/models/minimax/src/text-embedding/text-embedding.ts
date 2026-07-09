@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts';
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import { Embeddings } from '@langchain/core/embeddings';
 import {
   CredentialsValidateFailedError,

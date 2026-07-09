@@ -18,7 +18,7 @@ pnpm add @xpert-ai/plugin-tool-call-limit
 npm install @xpert-ai/plugin-tool-call-limit
 ```
 
-> **Note**: Ensure the host already provides `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@langchain/core@^0.3`, `zod`, `chalk`, and `@metad/contracts` as peer/runtime deps.
+> **Note**: Ensure the host already provides `@xpert-ai/plugin-sdk`, `@nestjs/common@^11`, `@langchain/core@^0.3`, `zod`, `chalk`, and `@xpert-ai/contracts` as peer/runtime deps.
 
 ## Quick Start
 

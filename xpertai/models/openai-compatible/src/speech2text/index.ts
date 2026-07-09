@@ -1,5 +1,5 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { Speech2TextChatModel, SpeechToTextModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'

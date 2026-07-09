@@ -1,6 +1,6 @@
 import 'dotenv/config'
 
-import { ICopilotModel } from '@metad/contracts'
+import { ICopilotModel } from '@xpert-ai/contracts'
 import { XinferenceLargeLanguageModel } from './llm.js'
 import { XinferenceProviderStrategy } from '../provider.strategy.js'
 

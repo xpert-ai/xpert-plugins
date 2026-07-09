@@ -17,7 +17,7 @@
 npm install @xpert-ai/plugin-fastgpt
 ```
 
-> **Peer dependencies:** your host must provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@metad/contracts`, `@langchain/core`, `axios`, `chalk`, `lodash`, and `zod` (see `package.json` for exact versions).
+> **Peer dependencies:** your host must provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@xpert-ai/contracts`, `@langchain/core`, `axios`, `chalk`, `lodash`, and `zod` (see `package.json` for exact versions).
 
 In an Nx workspace place the package inside `packages/` (or update your workspace layout accordingly).
 

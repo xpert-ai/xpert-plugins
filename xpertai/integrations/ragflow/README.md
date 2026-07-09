@@ -19,7 +19,7 @@ npm install @xpert-ai/plugin-ragflow
 pnpm add @xpert-ai/plugin-ragflow
 ```
 
-> **Peer dependencies:** The host project must pre-install dependencies such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@metad/contracts`, `@langchain/core`, `axios`, `chalk`, `lodash-es`, and `zod`. Refer to the repository `package.json` for specific versions.
+> **Peer dependencies:** The host project must pre-install dependencies such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@xpert-ai/contracts`, `@langchain/core`, `axios`, `chalk`, `lodash-es`, and `zod`. Refer to the repository `package.json` for specific versions.
 
 ## Usage
 

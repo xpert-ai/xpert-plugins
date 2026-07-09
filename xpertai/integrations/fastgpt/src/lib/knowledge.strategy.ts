@@ -1,5 +1,5 @@
 import { Document } from '@langchain/core/documents'
-import { IIntegration } from '@metad/contracts'
+import { IIntegration } from '@xpert-ai/contracts'
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { KnowledgeStrategy, KnowledgeStrategyKey, TKnowledgeStrategyParams } from '@xpert-ai/plugin-sdk'
 import axios, { AxiosResponse } from 'axios'

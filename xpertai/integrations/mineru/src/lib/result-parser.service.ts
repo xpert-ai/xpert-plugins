@@ -1,5 +1,5 @@
 import { Document } from '@langchain/core/documents';
-import { IKnowledgeDocument } from '@metad/contracts';
+import { IKnowledgeDocument } from '@xpert-ai/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ChunkMetadata,

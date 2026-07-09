@@ -1,5 +1,5 @@
 import { HumanMessage } from '@langchain/core/messages';
-import { ICopilotModel } from '@metad/contracts';
+import { ICopilotModel } from '@xpert-ai/contracts';
 import { MiniMaxProviderStrategy } from '../provider.strategy.js';
 import { MiniMaxLargeLanguageModel } from './llm.js';
 

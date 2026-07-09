@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 import { Document } from '@langchain/core/documents';
-import type { IIntegration } from '@metad/contracts';
+import type { IIntegration } from '@xpert-ai/contracts';
 import { ConfigService } from '@nestjs/config';
 import type { XpFileSystem } from '@xpert-ai/plugin-sdk';
 import { existsSync, mkdirSync, writeFile } from 'node:fs';

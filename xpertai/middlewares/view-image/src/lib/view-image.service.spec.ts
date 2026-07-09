@@ -1,4 +1,4 @@
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   getToolCallIdFromConfig: jest.fn((config) => config?.configurable?.tool_call_id)
 }))
 

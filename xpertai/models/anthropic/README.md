@@ -17,7 +17,7 @@
 npm install @xpert-ai/plugin-anthropic
 ```
 
-> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/anthropic`, `chalk`, and `zod`. Please refer to `package.json` for version requirements.
+> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/anthropic`, `chalk`, and `zod`. Please refer to `package.json` for version requirements.
 
 ## Enabling in XpertAI
 

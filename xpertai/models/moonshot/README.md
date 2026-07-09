@@ -20,7 +20,7 @@
 npm install @xpert-ai/plugin-moonshot
 ```
 
-> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/openai`, `chalk`, and `zod`. Refer to `package.json` for exact versions.
+> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/openai`, `chalk`, and `zod`. Refer to `package.json` for exact versions.
 
 ## Enabling in XpertAI
 

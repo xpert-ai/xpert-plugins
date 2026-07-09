@@ -1,7 +1,7 @@
 import { OpenAIClient } from '@langchain/openai'
 import { OAIAPICompatLargeLanguageModel, StableOpenAICompatibleChatModel } from './llm.js'
 import { OpenAICompatibleProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature } from '@metad/contracts'
+import { ModelFeature } from '@xpert-ai/contracts'
 import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { OpenAICompatModelCredentials, toCredentialKwargs } from '../types.js'
 

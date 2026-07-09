@@ -1,6 +1,6 @@
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
-import { getToolCallFromConfig, TAgentMiddlewareMeta } from '@metad/contracts'
+import { getToolCallFromConfig, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/chatkit-types'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'

@@ -10,7 +10,7 @@ import {
   ToolCallHandler,
 } from '@xpert-ai/plugin-sdk'
 import { ToolMessage } from '@langchain/core/messages'
-import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@metad/contracts'
+import { JsonSchemaObjectType, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { ToolRetryIcon } from './types.js'
 import {
   calculateRetryDelay,

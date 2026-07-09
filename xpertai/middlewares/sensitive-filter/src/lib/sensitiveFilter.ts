@@ -1,7 +1,7 @@
 import { AIMessage } from '@langchain/core/messages'
 import { BaseLanguageModel } from '@langchain/core/language_models/base'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import type { JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@metad/contracts'
+import type { JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,

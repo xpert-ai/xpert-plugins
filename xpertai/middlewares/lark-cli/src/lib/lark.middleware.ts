@@ -1,7 +1,7 @@
 import { RunnableConfig } from '@langchain/core/runnables'
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
-import { TAgentMiddlewareMeta } from '@metad/contracts'
+import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,
@@ -21,7 +21,7 @@ import {
   LarkCliConfig,
   LarkCliMiddlewareConfigFormSchema
 } from './lark-cli.types.js'
-import type { TAgentRunnableConfigurable } from '@metad/contracts'
+import type { TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { LarkIcon } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'

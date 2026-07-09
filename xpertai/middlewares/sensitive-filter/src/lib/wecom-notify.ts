@@ -1,4 +1,4 @@
-import type { TAgentRunnableConfigurable } from '@metad/contracts'
+import type { TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { DEFAULT_WECOM_TIMEOUT_MS, SENSITIVE_FILTER_MIDDLEWARE_NAME } from './constants.js'
 import type { AuditEntry, FilterMode, ResolvedWecomConfig, ResolvedWecomGroup } from './runtime-types.js'
 import type { SensitiveRule, WecomNotifyConfig } from './types.js'

@@ -30,7 +30,7 @@
     "zod": "3.25.67",
     "chalk": "4.1.2",
     "@nestjs/config": "^4.0.2",
-    "@metad/contracts": "^3.8.3",
+    "@xpert-ai/contracts": "^3.8.3",
     "@nestjs/common": "^11.1.6",
     "axios": "^1.12.2",
     "@langchain/core": "0.3.72",

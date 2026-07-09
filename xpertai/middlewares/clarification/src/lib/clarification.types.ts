@@ -1,4 +1,4 @@
-import { JsonSchemaObjectType } from '@metad/contracts'
+import { JsonSchemaObjectType } from '@xpert-ai/contracts'
 import { z } from 'zod'
 
 export const CLARIFICATION_MIDDLEWARE_NAME = 'ClarificationMiddleware'
