@@ -139,7 +139,6 @@ export interface SerializedSitesProject {
   hostingConfig?: SitesHostingConfig
   currentDeploymentId?: string
   currentDeploymentUrl?: string
-  currentDeploymentPreviewUrl?: string
   versionCount?: number
   deploymentCount?: number
   updatedAt?: Date

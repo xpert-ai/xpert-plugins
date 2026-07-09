@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto'
 import { posix } from 'path'
 import { TextDecoder } from 'util'
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
@@ -31,10 +31,6 @@ import type {
 
 const DEFAULT_BACKEND_BASE_URL = 'http://localhost:3000'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const SITES_PREVIEW_TOKEN_AUDIENCE = 'sites-preview'
-const SITES_PREVIEW_TOKEN_PARAM = 'xpert_sites_preview'
-const SITES_PREVIEW_TOKEN_SUBJECT = 'sites-preview-url'
-const SITES_PREVIEW_TOKEN_TTL_MS = 60 * 60 * 1000
 const SITES_SHARE_TOKEN_PARAM = 'token'
 const SITE_SOURCE_MAX_FILES = 100
 const SITE_SOURCE_MAX_FILE_BYTES = 512 * 1024
@@ -66,15 +62,6 @@ type SandboxSourceCandidate = {
   absolutePath: string
   relativePath: string
   size?: number
-}
-
-type SitesPreviewTokenPayload = {
-  aud: typeof SITES_PREVIEW_TOKEN_AUDIENCE
-  deploymentId: string
-  exp: number
-  projectId: string
-  sub: typeof SITES_PREVIEW_TOKEN_SUBJECT
-  versionId: string
 }
 
 @Injectable()
@@ -286,7 +273,6 @@ export class SitesService {
     const serialized = filtered.map((project) =>
       serializeProject(project, versionCounts.get(project.id ?? '') ?? 0, deploymentCounts.get(project.id ?? '') ?? 0)
     )
-    await this.attachCurrentDeploymentPreviewUrls(serialized)
     return serialized
   }
 
@@ -308,7 +294,6 @@ export class SitesService {
     ])
 
     const serializedProject = serializeProject(project, versions.length, deployments.length)
-    await this.attachCurrentDeploymentPreviewUrls([serializedProject])
 
     return {
       project: serializedProject,
@@ -484,14 +469,13 @@ export class SitesService {
     })
   }
 
-  async findDeploymentSite(deploymentIdOrSlug: string, options: { previewToken?: string } = {}) {
+  async findDeploymentSite(deploymentIdOrSlug: string) {
     const deploymentRecords = await this.findDeploymentCandidates(deploymentIdOrSlug)
     if (!deploymentRecords.length) {
       throw new NotFoundException('Sites deployment was not found')
     }
 
     const accessContext = resolveCurrentSitesAccessContext()
-    const previewToken = optionalString(options.previewToken)
     for (const deploymentRecord of deploymentRecords) {
       const [project, version] = await Promise.all([
         this.projectRepository.findOne({ where: { id: deploymentRecord.projectId } }),
@@ -500,7 +484,7 @@ export class SitesService {
       if (!project || !version?.previewHtml) {
         continue
       }
-      if (!canAccessDeployment(project, deploymentRecord, accessContext) && !verifySitesPreviewToken(previewToken, project, version, deploymentRecord)) {
+      if (!canAccessDeployment(project, deploymentRecord, accessContext)) {
         continue
       }
       return {
@@ -676,36 +660,14 @@ export class SitesService {
       })
     }
 
-    const transientPreviewUrl = input.previewUrl ? undefined : buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
     return buildSitesDeploymentPreviewEvent({
       project,
       version,
       deployment,
-      url: input.previewUrl ?? transientPreviewUrl,
+      url: input.previewUrl ?? deployment.deploymentUrl,
       previewUrl: input.previewUrl,
       displayUrl: input.previewUrl ?? deployment.deploymentUrl
     })
-  }
-
-  private async attachCurrentDeploymentPreviewUrls(projects: SerializedSitesProject[]) {
-    const deploymentIds = projects.map((project) => optionalString(project.currentDeploymentId)).filter((id): id is string => !!id)
-    if (!deploymentIds.length) {
-      return
-    }
-
-    const deployments = await this.deploymentRepository.find({ where: { id: In(deploymentIds) } })
-    const deploymentsById = new Map(deployments.map((deployment) => [deployment.id, deployment]))
-    const versionIds = deployments.map((deployment) => optionalString(deployment.versionId)).filter((id): id is string => !!id)
-    const versions = versionIds.length ? await this.versionRepository.find({ where: { id: In(versionIds) } }) : []
-    const versionsById = new Map(versions.map((version) => [version.id, version]))
-
-    for (const project of projects) {
-      const deployment = project.currentDeploymentId ? deploymentsById.get(project.currentDeploymentId) : undefined
-      const version = deployment?.versionId ? versionsById.get(deployment.versionId) : undefined
-      if (deployment && version) {
-        project.currentDeploymentPreviewUrl = buildSitesPreviewUrl(deployment.deploymentUrl, createSitesPreviewToken(project, version, deployment))
-      }
-    }
   }
 
   private scopeCreate(scope: SitesScope) {
@@ -980,71 +942,6 @@ export function buildSitesDeploymentPreviewEvent(
   }
 }
 
-function createSitesPreviewToken(
-  project: Pick<SitesProject, 'id'> | Pick<SerializedSitesProject, 'id'>,
-  version: Pick<SitesVersion, 'artifactDigest' | 'id'>,
-  deployment: Pick<SitesDeployment, 'id' | 'projectId' | 'versionId'>
-) {
-  const payload: SitesPreviewTokenPayload = {
-    aud: SITES_PREVIEW_TOKEN_AUDIENCE,
-    deploymentId: normalizeRequiredString(deployment.id, 'deploymentId'),
-    exp: Math.floor((Date.now() + SITES_PREVIEW_TOKEN_TTL_MS) / 1000),
-    projectId: normalizeRequiredString(project.id, 'projectId'),
-    sub: SITES_PREVIEW_TOKEN_SUBJECT,
-    versionId: normalizeRequiredString(version.id, 'versionId')
-  }
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload))
-  return `${encodedPayload}.${signSitesPreviewTokenPayload(encodedPayload, version)}`
-}
-
-function verifySitesPreviewToken(
-  token: string | undefined,
-  project: Pick<SitesProject, 'id'>,
-  version: Pick<SitesVersion, 'artifactDigest' | 'id'>,
-  deployment: Pick<SitesDeployment, 'id' | 'projectId' | 'versionId'>
-) {
-  const normalizedToken = optionalString(token)
-  if (!normalizedToken) {
-    return false
-  }
-
-  const [encodedPayload, signature, ...extra] = normalizedToken.split('.')
-  if (!encodedPayload || !signature || extra.length) {
-    return false
-  }
-
-  if (!safeEqualString(signature, signSitesPreviewTokenPayload(encodedPayload, version))) {
-    return false
-  }
-
-  const payload = decodeSitesPreviewTokenPayload(encodedPayload)
-  if (!payload) {
-    return false
-  }
-
-  return (
-    payload.aud === SITES_PREVIEW_TOKEN_AUDIENCE &&
-    payload.sub === SITES_PREVIEW_TOKEN_SUBJECT &&
-    payload.projectId === project.id &&
-    payload.versionId === version.id &&
-    payload.deploymentId === deployment.id &&
-    payload.exp > Math.floor(Date.now() / 1000)
-  )
-}
-
-function buildSitesPreviewUrl(deploymentUrl: string | undefined, token: string) {
-  const url = new URL(normalizeRequiredString(deploymentUrl, 'deploymentUrl'))
-  const marker = '/xpert-sites/'
-  if (!url.pathname.includes('/xpert-sites/preview/')) {
-    const markerIndex = url.pathname.indexOf(marker)
-    if (markerIndex >= 0) {
-      url.pathname = `${url.pathname.slice(0, markerIndex + marker.length)}preview/${url.pathname.slice(markerIndex + marker.length)}`
-    }
-  }
-  url.searchParams.set(SITES_PREVIEW_TOKEN_PARAM, token)
-  return url.toString()
-}
-
 function buildSitesShareUrl(shareLinkId: string | undefined, token: string) {
   const url = new URL(`${getPublicBaseUrl()}/share/${encodeURIComponent(normalizeRequiredString(shareLinkId, 'shareLinkId'))}`)
   url.searchParams.set(SITES_SHARE_TOKEN_PARAM, token)
@@ -1068,43 +965,6 @@ function isActiveShareLink(shareLink: SitesShareLink) {
   }
   const expiresAt = shareLink.expiresAt instanceof Date ? shareLink.expiresAt : new Date(shareLink.expiresAt)
   return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > Date.now()
-}
-
-function signSitesPreviewTokenPayload(encodedPayload: string, version: Pick<SitesVersion, 'artifactDigest'>) {
-  return createHmac('sha256', getSitesPreviewTokenSecret(version)).update(encodedPayload).digest('base64url')
-}
-
-function getSitesPreviewTokenSecret(version: Pick<SitesVersion, 'artifactDigest'>) {
-  return (
-    optionalString(process.env['XPERT_SITES_PREVIEW_TOKEN_SECRET']) ??
-    optionalString(process.env['JWT_SECRET']) ??
-    optionalString(process.env['EXPRESS_SESSION_SECRET']) ??
-    normalizeRequiredString(version.artifactDigest, 'artifactDigest')
-  )
-}
-
-function decodeSitesPreviewTokenPayload(encodedPayload: string): SitesPreviewTokenPayload | null {
-  try {
-    const parsed = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as SitesPreviewTokenPayload
-    if (
-      parsed &&
-      parsed.aud === SITES_PREVIEW_TOKEN_AUDIENCE &&
-      parsed.sub === SITES_PREVIEW_TOKEN_SUBJECT &&
-      typeof parsed.deploymentId === 'string' &&
-      typeof parsed.projectId === 'string' &&
-      typeof parsed.versionId === 'string' &&
-      typeof parsed.exp === 'number'
-    ) {
-      return parsed
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
-function base64UrlEncode(value: string) {
-  return Buffer.from(value, 'utf8').toString('base64url')
 }
 
 function safeEqualString(left: string, right: string) {

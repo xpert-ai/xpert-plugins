@@ -7,17 +7,6 @@ export class SitesHostingController {
   constructor(private readonly service: SitesService) {}
 
   @Public()
-  @Get('preview/:deploymentIdOrSlug')
-  @Header('content-type', 'text/html; charset=utf-8')
-  async getDeploymentPreview(
-    @Param('deploymentIdOrSlug') deploymentIdOrSlug: string,
-    @Query('xpert_sites_preview') previewToken?: string
-  ) {
-    const site = await this.service.findDeploymentSite(deploymentIdOrSlug, { previewToken })
-    return site.html
-  }
-
-  @Public()
   @Get('share/:shareLinkId')
   @Header('content-type', 'text/html; charset=utf-8')
   async getSharedDeployment(

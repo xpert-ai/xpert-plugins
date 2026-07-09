@@ -173,6 +173,20 @@ export async function assertSitesShareLinkBehavior() {
     assert.equal(repositories.shareLinks.items[0].accessCount, 1)
     assert.ok(repositories.shareLinks.items[0].lastAccessedAt instanceof Date)
 
+    const permissionControlledEvent = await service.buildDeploymentPreviewEvent({
+      deployment: {
+        id: 'deployment-id',
+        projectId: 'project-id',
+        versionId: 'version-id',
+        deploymentUrl: 'https://example.com/api/xpert-sites/site-slug?v=1',
+        status: 'deployed',
+        accessMode: 'workspace_all'
+      }
+    })
+    assert.equal(permissionControlledEvent?.url, 'https://example.com/api/xpert-sites/site-slug?v=1')
+    assert.equal(permissionControlledEvent?.displayUrl, 'https://example.com/api/xpert-sites/site-slug?v=1')
+    assert.equal(permissionControlledEvent?.previewUrl, undefined)
+
     await assert.rejects(
       service.findSharedDeploymentSite(share.shareLink.id ?? '', 'wrong-token'),
       UnauthorizedException
