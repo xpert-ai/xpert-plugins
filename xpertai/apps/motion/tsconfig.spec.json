@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "dist/tsconfig.spec.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "jest.config.ts"],
+  "exclude": ["dist", "node_modules", "src/lib/remote-components/**"]
+}
