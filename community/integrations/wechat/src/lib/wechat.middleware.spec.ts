@@ -89,6 +89,9 @@ describe('WechatRuntimeMiddleware', () => {
   it('keeps scheduled send parameters in runtime state instead of middleware config targets', () => {
     const middleware = createMiddleware()
     const configSchema = middleware.meta.configSchema as { properties?: Record<string, unknown> }
+    const randomDelaySchema = configSchema.properties?.sendMessageRandomDelay as
+      | { properties?: Record<string, { default?: number }> }
+      | undefined
     const runtime = middleware.createMiddleware(
       { integrationId: 'integration-1', toolMode: 'user' },
       { node: { options: {} } } as any
@@ -96,6 +99,8 @@ describe('WechatRuntimeMiddleware', () => {
     const properties = runtime.stateFormSchema.properties as Record<string, any>
 
     expect(configSchema.properties?.scheduleTargets).toBeUndefined()
+    expect(randomDelaySchema?.properties?.minMs).toEqual(expect.objectContaining({ default: 0 }))
+    expect(randomDelaySchema?.properties?.maxMs).toEqual(expect.objectContaining({ default: 0 }))
     expect((middleware.meta as { scheduleTarget?: unknown }).scheduleTarget).toBeUndefined()
     expect(runtime.stateSchema.shape[WECHAT_SCHEDULE_UUID_STATE_KEY]).toBeDefined()
     expect(properties[WECHAT_SCHEDULE_UUID_STATE_KEY]).toBeDefined()
@@ -1088,6 +1093,83 @@ describe('WechatRuntimeMiddleware', () => {
         })
       })
     )
+  })
+
+  it('adds configured random delay to scheduled message queue submissions', async () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const conversationService = {
+        findOutboundByIdempotencyKey: jest.fn(async () => null),
+        logOutbound: jest.fn(async () => undefined)
+      }
+      const wechatChannel = {
+        sendReplyByIntegrationId: jest.fn(async () => ({
+          success: true,
+          queued: true,
+          outboundLogId: 'outbound-log-1',
+          items: []
+        }))
+      }
+      const middleware = await Promise.resolve(
+        createMiddleware(conversationService, wechatChannel).createMiddleware(
+          {
+            integrationId: 'integration-1',
+            toolMode: 'user'
+          },
+          {
+            xpertId: 'xpert-1',
+            tenantId: 'tenant-1',
+            organizationId: 'org-1',
+            userId: 'user-1',
+            node: {
+              options: {
+                sendMessageRandomDelay: {
+                  minMs: 1000,
+                  maxMs: 5000
+                }
+              }
+            }
+          } as any
+        )
+      )
+      const sendTool = (middleware.tools ?? []).find(
+        (item: any) => item.name === WECHAT_SEND_MESSAGE_TOOL_NAME
+      ) as any
+      const toolHandler = jest.fn(async (request) => sendTool.handler(request.toolCall.args))
+
+      await middleware.wrapToolCall?.(
+        {
+          toolCall: {
+            id: 'tool-call-1',
+            name: WECHAT_SEND_MESSAGE_TOOL_NAME,
+            type: 'tool_call',
+            args: {
+              content: '今日新闻'
+            }
+          },
+          tool: sendTool,
+          state: {
+            [XPERT_TASK_SCHEDULE_IDEMPOTENCY_KEY]: 'daily-news:2026-06-16',
+            [WECHAT_SCHEDULE_UUID_STATE_KEY]: 'uuid-1',
+            [WECHAT_SCHEDULE_CONTACT_ID_STATE_KEY]: 'daily@chatroom'
+          },
+          runtime: {}
+        } as any,
+        toolHandler as any
+      )
+
+      expect(randomSpy).toHaveBeenCalledTimes(1)
+      expect(wechatChannel.sendReplyByIntegrationId).toHaveBeenCalledWith(
+        'integration-1',
+        expect.objectContaining({
+          contactId: 'daily@chatroom',
+          content: '今日新闻',
+          delayMs: 3000
+        })
+      )
+    } finally {
+      randomSpy.mockRestore()
+    }
   })
 
   it('uses scheduled send parameters for file delivery tools', async () => {

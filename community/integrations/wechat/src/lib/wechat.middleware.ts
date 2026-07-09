@@ -42,7 +42,10 @@ import {
   WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME,
   WECHAT_WORKBENCH_FEATURE
 } from './constants.js'
-import { normalizeString } from './types.js'
+import {
+  normalizeNonNegativeInt,
+  normalizeString
+} from './types.js'
 import {
   WechatConversationService,
   type WechatChatHistoryQuery
@@ -72,9 +75,15 @@ import {
 type WechatRuntimeMiddlewareOptions = {
   integrationId?: string
   toolMode?: WechatRuntimeToolMode
+  sendMessageRandomDelay?: WechatRuntimeRandomDelayOptions
 }
 
 type WechatRuntimeToolMode = 'admin' | 'user'
+
+type WechatRuntimeRandomDelayOptions = {
+  minMs?: number
+  maxMs?: number
+}
 
 type WechatRuntimeAgentMiddleware = AgentMiddleware & {
   stateFormSchema: JsonSchemaObjectType
@@ -104,6 +113,7 @@ const CHAT_TYPE_ENUM_LABELS = {
   private: { en_US: 'Private chat', zh_Hans: '私聊' },
   group: { en_US: 'Group chat', zh_Hans: '群聊' }
 }
+const MAX_SEND_MESSAGE_RANDOM_DELAY_MS = 24 * 60 * 60_000
 
 type WechatScheduleSendTarget = {
   uuid?: string
@@ -415,6 +425,43 @@ const WECHAT_RUNTIME_MIDDLEWARE_META: TAgentMiddlewareMeta = {
           component: 'remoteSelect',
           selectUrl: '/api/wechat/integration-select-options'
         } as any
+      },
+      sendMessageRandomDelay: {
+        type: 'object',
+        title: {
+          en_US: 'Send Message Random Delay',
+          zh_Hans: '发送消息随机延迟'
+        },
+        description: {
+          en_US: 'Adds a random extra queue delay to each wechat_send_message target. Use 0..0 to disable.',
+          zh_Hans: '为每个 wechat_send_message 目标额外增加一个随机入队延迟。0..0 表示关闭。'
+        },
+        properties: {
+          minMs: {
+            type: 'number',
+            minimum: 0,
+            maximum: MAX_SEND_MESSAGE_RANDOM_DELAY_MS,
+            title: {
+              en_US: 'Minimum Delay (ms)',
+              zh_Hans: '最小延迟（毫秒）'
+            },
+            default: 0
+          },
+          maxMs: {
+            type: 'number',
+            minimum: 0,
+            maximum: MAX_SEND_MESSAGE_RANDOM_DELAY_MS,
+            title: {
+              en_US: 'Maximum Delay (ms)',
+              zh_Hans: '最大延迟（毫秒）'
+            },
+            default: 0
+          }
+        },
+        default: {
+          minMs: 0,
+          maxMs: 0
+        }
       }
     },
     required: []
@@ -664,6 +711,7 @@ export class WechatRuntimeMiddleware
               }
 
               const outboundContext = this.buildOutboundToolContext(context, integrationId, sendParams, idempotencyKey)
+              const delayMs = this.resolveSendMessageRandomDelayMs(options, context)
               const result = await this.wechatChannel.sendReplyByIntegrationId(integrationId, {
                 uuid: sendParams.uuid,
                 contactId: sendParams.contactId,
@@ -671,7 +719,8 @@ export class WechatRuntimeMiddleware
                 atUsers: this.mergeAtUsers(sendParams.atUsers, input.atUsers),
                 context: outboundContext,
                 source,
-                idempotencyKey
+                idempotencyKey,
+                delayMs
               })
 
               if (!result.queued) {
@@ -1179,6 +1228,30 @@ export class WechatRuntimeMiddleware
     const nodeOptions = context.node?.options as WechatRuntimeMiddlewareOptions | undefined
     const configuredMode = normalizeString(nodeOptions?.toolMode) || normalizeString(options?.toolMode)
     return configuredMode === 'admin' ? 'admin' : 'user'
+  }
+
+  private resolveSendMessageRandomDelayMs(
+    options: WechatRuntimeMiddlewareOptions,
+    context: IAgentMiddlewareContext
+  ): number {
+    const nodeOptions = context.node?.options as WechatRuntimeMiddlewareOptions | undefined
+    const range = this.resolveRandomDelayRange(
+      nodeOptions?.sendMessageRandomDelay ?? options?.sendMessageRandomDelay
+    )
+    if (range.maxMs <= 0) {
+      return 0
+    }
+    if (range.minMs === range.maxMs) {
+      return range.minMs
+    }
+    return range.minMs + Math.floor(Math.random() * (range.maxMs - range.minMs + 1))
+  }
+
+  private resolveRandomDelayRange(value: unknown): Required<WechatRuntimeRandomDelayOptions> {
+    const record = this.asRecord(value)
+    const minMs = normalizeNonNegativeInt(record?.minMs, 0, MAX_SEND_MESSAGE_RANDOM_DELAY_MS)
+    const maxMs = normalizeNonNegativeInt(record?.maxMs, 0, MAX_SEND_MESSAGE_RANDOM_DELAY_MS)
+    return minMs <= maxMs ? { minMs, maxMs } : { minMs: maxMs, maxMs: minMs }
   }
 
   private filterTools(tools: AgentMiddleware['tools'], toolMode: WechatRuntimeToolMode): AgentMiddleware['tools'] {

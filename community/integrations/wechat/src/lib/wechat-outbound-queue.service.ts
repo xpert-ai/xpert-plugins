@@ -104,6 +104,7 @@ export type WechatOutboundQueueTextInput = WechatSendTextInput & {
   context?: WechatOutboundContext
   source?: WechatOutboundSource
   idempotencyKey?: string
+  delayMs?: number
 }
 
 export type WechatOutboundQueueImageInput = {
@@ -114,6 +115,7 @@ export type WechatOutboundQueueImageInput = {
   context?: WechatOutboundContext
   source?: WechatOutboundSource
   idempotencyKey?: string
+  delayMs?: number
 }
 
 export type WechatOutboundQueueFileInput = Pick<WechatSendFileInput, 'uuid' | 'contactId' | 'uploadToken'> & {
@@ -129,6 +131,7 @@ export type WechatOutboundQueueFileInput = Pick<WechatSendFileInput, 'uuid' | 'c
   context?: WechatOutboundContext
   source?: WechatOutboundSource
   idempotencyKey?: string
+  delayMs?: number
 }
 
 export type WechatOutboundQueueInput =
@@ -219,6 +222,7 @@ type NormalizedOutboundQueueOptions = {
 const PENDING_STATUSES: WechatMessageLogStatus[] = ['queued', 'deferred', 'sending', 'paused']
 const TERMINAL_STATUSES: WechatMessageLogStatus[] = ['sent', 'failed', 'cancelled']
 const DEFAULT_BACKOFF_MS = [60_000, 300_000, 900_000]
+const MAX_OUTBOUND_EXTRA_DELAY_MS = 24 * 60 * 60_000
 
 function normalizePayloadNumber(value: unknown): number | undefined {
   const numberValue = typeof value === 'number' ? value : Number(value)
@@ -334,7 +338,8 @@ export class WechatOutboundQueueService {
       contactId: normalizeString(input.contactId),
       content: normalizeString(input.content),
       atUsers: Array.isArray(input.atUsers) ? input.atUsers.map((item) => normalizeString(item)).filter(Boolean) : [],
-      idempotencyKey: normalizeString(input.idempotencyKey)
+      idempotencyKey: normalizeString(input.idempotencyKey),
+      delayMs: normalizeNonNegativeInt(input.delayMs, 0, MAX_OUTBOUND_EXTRA_DELAY_MS)
     }
     if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.content) {
       return {
@@ -348,6 +353,7 @@ export class WechatOutboundQueueService {
       contactId: normalizedInput.contactId,
       content: normalizedInput.content,
       context: input.context,
+      delayMs: normalizedInput.delayMs,
       payload: {
         type: 'text',
         source: input.source || 'message_reply',
@@ -365,7 +371,8 @@ export class WechatOutboundQueueService {
       uuid: normalizeString(input.uuid),
       contactId: normalizeString(input.contactId),
       imageUrl: normalizeString(input.imageUrl),
-      idempotencyKey: normalizeString(input.idempotencyKey)
+      idempotencyKey: normalizeString(input.idempotencyKey),
+      delayMs: normalizeNonNegativeInt(input.delayMs, 0, MAX_OUTBOUND_EXTRA_DELAY_MS)
     }
     if (!normalizedInput.uuid || !normalizedInput.contactId || !normalizedInput.imageUrl) {
       return {
@@ -379,6 +386,7 @@ export class WechatOutboundQueueService {
       contactId: normalizedInput.contactId,
       content: normalizedInput.imageUrl,
       context: input.context,
+      delayMs: normalizedInput.delayMs,
       payload: {
         type: 'image',
         source: input.source || 'message_reply',
@@ -403,7 +411,8 @@ export class WechatOutboundQueueService {
       size: normalizePayloadNumber(input.size),
       sha256: normalizeString(input.sha256),
       uploadToken: normalizeString(input.uploadToken),
-      idempotencyKey: normalizeString(input.idempotencyKey)
+      idempotencyKey: normalizeString(input.idempotencyKey),
+      delayMs: normalizeNonNegativeInt(input.delayMs, 0, MAX_OUTBOUND_EXTRA_DELAY_MS)
     }
     if (
       !normalizedInput.uuid ||
@@ -424,6 +433,7 @@ export class WechatOutboundQueueService {
       contactId: normalizedInput.contactId,
       content: normalizedInput.fileName,
       context: input.context,
+      delayMs: normalizedInput.delayMs,
       payload: {
         type: 'file',
         source: input.source || 'message_reply',
@@ -447,6 +457,7 @@ export class WechatOutboundQueueService {
       contactId: string
       content: string
       context?: WechatOutboundContext
+      delayMs?: number
       payload: WechatQueuedPayload
     }
   ): Promise<WechatQueuedSendResult> {
@@ -458,7 +469,8 @@ export class WechatOutboundQueueService {
     }
 
     const bindingContext = this.resolveBindingContext()
-    const scheduledAt = new Date(Date.now() + options.initialDelayMs)
+    const extraDelayMs = normalizeNonNegativeInt(input.delayMs, 0, MAX_OUTBOUND_EXTRA_DELAY_MS)
+    const scheduledAt = new Date(Date.now() + options.initialDelayMs + extraDelayMs)
     const log = await this.messageLogRepository.save({
       integrationId: integration.id,
       uuid: input.uuid,
@@ -1241,7 +1253,7 @@ export class WechatOutboundQueueService {
   ): NormalizedOutboundQueueOptions {
     const fallbackLockTtlMs = normalizeTimeoutMs(integrationOptions?.timeoutMs) + 20_000
     return {
-      enabled: rawOptions?.enabled !== false,
+      enabled: true,
       initialDelayMs: normalizeNonNegativeInt(
         rawOptions?.initialDelayMs,
         DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs,

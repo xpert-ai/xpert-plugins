@@ -7,11 +7,6 @@ import { WechatChannelStrategy } from './wechat-channel.strategy.js'
 
 describe('WechatChannelStrategy', () => {
   function createStrategy(options: Record<string, unknown> = {}) {
-    const client = {
-      sendText: jest.fn(async () => ({ success: true, messageId: 'sent-1' })),
-      sendImage: jest.fn(async () => ({ success: true, messageId: 'image-1' })),
-      sendFile: jest.fn(async () => ({ success: true, messageId: 'file-1' }))
-    }
     const outboundQueue = {
       enqueueText: jest.fn(async () => ({
         success: true,
@@ -49,13 +44,13 @@ describe('WechatChannelStrategy', () => {
     const pluginContext = {
       resolve: jest.fn(() => integrationPermissionService)
     }
-    const strategy = new WechatChannelStrategy(client as any, outboundQueue as any, pluginContext as any)
+    const strategy = new WechatChannelStrategy(outboundQueue as any, pluginContext as any)
 
-    return { strategy, client, outboundQueue, integration }
+    return { strategy, outboundQueue, integration }
   }
 
   it('formats markdown-like final replies before enqueueing outbound text', async () => {
-    const { strategy, client, outboundQueue, integration } = createStrategy()
+    const { strategy, outboundQueue, integration } = createStrategy()
 
     await expect(
       strategy.sendTextByIntegrationId('integration-1', {
@@ -67,7 +62,6 @@ describe('WechatChannelStrategy', () => {
       expect.objectContaining({ success: true, queued: true, queueJobId: 'job-1', outboundLogId: 'log-1' })
     )
 
-    expect(client.sendText).not.toHaveBeenCalled()
     expect(outboundQueue.enqueueText).toHaveBeenCalledWith(
       integration,
       expect.objectContaining({
@@ -78,8 +72,8 @@ describe('WechatChannelStrategy', () => {
     )
   })
 
-  it('sends directly only when the outbound queue is disabled for the integration', async () => {
-    const { strategy, client, outboundQueue, integration } = createStrategy({
+  it('queues outbound text even when an existing integration disabled the queue', async () => {
+    const { strategy, outboundQueue, integration } = createStrategy({
       outboundQueue: {
         enabled: false
       }
@@ -91,10 +85,9 @@ describe('WechatChannelStrategy', () => {
         contactId: 'wxid_friend',
         content: '**Direct** send'
       })
-    ).resolves.toEqual(expect.objectContaining({ success: true, messageId: 'sent-1' }))
+    ).resolves.toEqual(expect.objectContaining({ success: true, queued: true, queueJobId: 'job-1' }))
 
-    expect(outboundQueue.enqueueText).not.toHaveBeenCalled()
-    expect(client.sendText).toHaveBeenCalledWith(
+    expect(outboundQueue.enqueueText).toHaveBeenCalledWith(
       integration,
       expect.objectContaining({
         uuid: 'uuid-1',
@@ -118,7 +111,8 @@ describe('WechatChannelStrategy', () => {
 文字二
 
 ![图二](https://example.com/b.png)`,
-        source: 'agent_callback'
+        source: 'agent_callback',
+        delayMs: 1500
       })
     ).resolves.toEqual(
       expect.objectContaining({
@@ -138,7 +132,8 @@ describe('WechatChannelStrategy', () => {
       integration,
       expect.objectContaining({
         content: '文字一\n\n文字二',
-        source: 'agent_callback'
+        source: 'agent_callback',
+        delayMs: 1500
       })
     )
     expect(outboundQueue.enqueueImage).toHaveBeenNthCalledWith(
@@ -146,7 +141,8 @@ describe('WechatChannelStrategy', () => {
       integration,
       expect.objectContaining({
         imageUrl: 'https://example.com/a.png',
-        source: 'agent_callback'
+        source: 'agent_callback',
+        delayMs: 1500
       })
     )
     expect(outboundQueue.enqueueImage).toHaveBeenNthCalledWith(
@@ -154,7 +150,8 @@ describe('WechatChannelStrategy', () => {
       integration,
       expect.objectContaining({
         imageUrl: 'https://example.com/b.png',
-        source: 'agent_callback'
+        source: 'agent_callback',
+        delayMs: 1500
       })
     )
     expect(outboundQueue.enqueueText).toHaveBeenNthCalledWith(
@@ -162,7 +159,8 @@ describe('WechatChannelStrategy', () => {
       integration,
       expect.objectContaining({
         content: '2个图片已发完',
-        source: 'agent_callback'
+        source: 'agent_callback',
+        delayMs: 1500
       })
     )
   })
@@ -258,7 +256,7 @@ describe('WechatChannelStrategy', () => {
   })
 
   it('queues validated file sends by metadata without calling wx2.0 immediately', async () => {
-    const { strategy, client, outboundQueue, integration } = createStrategy()
+    const { strategy, outboundQueue, integration } = createStrategy()
 
     await expect(
       strategy.sendFileByIntegrationId('integration-1', {
@@ -280,7 +278,6 @@ describe('WechatChannelStrategy', () => {
       expect.objectContaining({ success: true, queued: true, queueJobId: 'job-file-1', outboundLogId: 'log-file-1' })
     )
 
-    expect(client.sendFile).not.toHaveBeenCalled()
     expect(outboundQueue.enqueueFile).toHaveBeenCalledWith(
       integration,
       expect.objectContaining({
@@ -299,8 +296,8 @@ describe('WechatChannelStrategy', () => {
     )
   })
 
-  it('sends files directly only when the outbound queue is disabled', async () => {
-    const { strategy, client, outboundQueue, integration } = createStrategy({
+  it('queues file sends even when an existing integration disabled the queue', async () => {
+    const { strategy, outboundQueue, integration } = createStrategy({
       outboundQueue: {
         enabled: false
       }
@@ -320,16 +317,18 @@ describe('WechatChannelStrategy', () => {
           fileContent: 'base64-file'
         }
       })
-    ).resolves.toEqual(expect.objectContaining({ success: true, messageId: 'file-1' }))
+    ).resolves.toEqual(expect.objectContaining({ success: true, queued: true, queueJobId: 'job-file-1' }))
 
-    expect(outboundQueue.enqueueFile).not.toHaveBeenCalled()
-    expect(client.sendFile).toHaveBeenCalledWith(
+    expect(outboundQueue.enqueueFile).toHaveBeenCalledWith(
       integration,
       expect.objectContaining({
+        type: 'file',
         uuid: 'uuid-1',
         contactId: 'wxid_friend',
+        filePath: '/tmp/report.pdf',
         fileName: 'report.pdf',
-        fileContent: 'base64-file'
+        size: 10,
+        sha256: 'hash-1'
       })
     )
   })

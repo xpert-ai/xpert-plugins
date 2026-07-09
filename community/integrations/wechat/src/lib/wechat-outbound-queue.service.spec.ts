@@ -34,6 +34,7 @@ import {
 } from './types.js'
 
 type ResolvedOutboundQueueOptions = {
+  enabled: boolean
   initialDelayMs: number
   globalMinIntervalMs: number
   perAccountMinIntervalMs: number
@@ -211,6 +212,7 @@ describe('WechatOutboundQueueService', () => {
 
     expect(options).toEqual(
       expect.objectContaining({
+        enabled: true,
         initialDelayMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.initialDelayMs,
         globalMinIntervalMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.globalMinIntervalMs,
         perAccountMinIntervalMs: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perAccountMinIntervalMs,
@@ -221,6 +223,20 @@ describe('WechatOutboundQueueService', () => {
         perContactMaxPerHour: DEFAULT_OUTBOUND_QUEUE_OPTIONS.perContactMaxPerHour
       })
     )
+  })
+
+  it('treats legacy disabled queue options as enabled', () => {
+    const { service } = createService()
+    const options = (service as unknown as ResolveOutboundOptionsHost).resolveOptions(
+      {
+        enabled: false
+      },
+      {
+        timeoutMs: 10_000
+      }
+    )
+
+    expect(options.enabled).toBe(true)
   })
 
   it('creates an outbound message log and delayed managed queue job without calling wx2.0 immediately', async () => {
@@ -272,6 +288,43 @@ describe('WechatOutboundQueueService', () => {
         attempts: 2
       })
     )
+  })
+
+  it('adds caller-provided delay to the outbound queue schedule', async () => {
+    const now = new Date('2026-06-16T00:00:00.000Z').getTime()
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now)
+    try {
+      const { service, managedQueue, messageLogRepository } = createService()
+
+      const result = await service.enqueueText(integration as any, {
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        content: 'hello',
+        delayMs: 2500
+      })
+
+      const expectedScheduledAt = new Date(now + 2600)
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: true,
+          queued: true,
+          scheduledAt: expectedScheduledAt.toISOString()
+        })
+      )
+      expect(messageLogRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduledAt: expectedScheduledAt
+        })
+      )
+      expect(managedQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobId: `plugin_wechat_outbound-log-1-${expectedScheduledAt.getTime()}`,
+          delayMs: 2600
+        })
+      )
+    } finally {
+      nowSpy.mockRestore()
+    }
   })
 
   it('creates an outbound image log with a typed payload', async () => {
