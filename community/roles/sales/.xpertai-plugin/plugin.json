@@ -86,7 +86,10 @@
             "type": "skill",
             "name": "analyze-account-signals",
             "displayName": "Analyze Account Signals",
-            "description": "Analyze Account Signals workflow skill.",
+            "description": {
+              "en_US": "Analyze Account Signals workflow skill.",
+              "zh_Hans": "Analyze Account Signals 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -96,7 +99,10 @@
             "type": "skill",
             "name": "build-business-case",
             "displayName": "Build Business Case",
-            "description": "Build Business Case workflow skill.",
+            "description": {
+              "en_US": "Build Business Case workflow skill.",
+              "zh_Hans": "Build Business Case 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -106,7 +112,10 @@
             "type": "skill",
             "name": "build-competitive-brief",
             "displayName": "Build Competitive Brief",
-            "description": "Build Competitive Brief workflow skill.",
+            "description": {
+              "en_US": "Build Competitive Brief workflow skill.",
+              "zh_Hans": "Build Competitive Brief 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -116,7 +125,10 @@
             "type": "skill",
             "name": "enrich-company-and-contact-data",
             "displayName": "Enrich Company And Contact Data",
-            "description": "Enrich Company And Contact Data workflow skill.",
+            "description": {
+              "en_US": "Enrich Company And Contact Data workflow skill.",
+              "zh_Hans": "Enrich Company And Contact Data 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -126,7 +138,10 @@
             "type": "skill",
             "name": "find-customer-quotes",
             "displayName": "Find Customer Quotes",
-            "description": "Find Customer Quotes workflow skill.",
+            "description": {
+              "en_US": "Find Customer Quotes workflow skill.",
+              "zh_Hans": "Find Customer Quotes 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -136,7 +151,10 @@
             "type": "skill",
             "name": "find-key-internal-sources",
             "displayName": "Find Key Internal Sources",
-            "description": "Find Key Internal Sources workflow skill.",
+            "description": {
+              "en_US": "Find Key Internal Sources workflow skill.",
+              "zh_Hans": "Find Key Internal Sources 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -146,7 +164,10 @@
             "type": "skill",
             "name": "follow-up-after-call",
             "displayName": "Follow Up After Call",
-            "description": "Follow Up After Call workflow skill.",
+            "description": {
+              "en_US": "Follow Up After Call workflow skill.",
+              "zh_Hans": "Follow Up After Call 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -156,7 +177,10 @@
             "type": "skill",
             "name": "get-rep-call-feedback",
             "displayName": "Get Rep Call Feedback",
-            "description": "Get Rep Call Feedback workflow skill.",
+            "description": {
+              "en_US": "Get Rep Call Feedback workflow skill.",
+              "zh_Hans": "Get Rep Call Feedback 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -166,7 +190,10 @@
             "type": "skill",
             "name": "hubspot",
             "displayName": "Hubspot",
-            "description": "Hubspot workflow skill.",
+            "description": {
+              "en_US": "Hubspot workflow skill.",
+              "zh_Hans": "Hubspot 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -176,7 +203,10 @@
             "type": "skill",
             "name": "index",
             "displayName": "Index",
-            "description": "Index workflow skill.",
+            "description": {
+              "en_US": "Index workflow skill.",
+              "zh_Hans": "Index 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -186,7 +216,10 @@
             "type": "skill",
             "name": "plan-deal-strategy",
             "displayName": "Plan Deal Strategy",
-            "description": "Plan Deal Strategy workflow skill.",
+            "description": {
+              "en_US": "Plan Deal Strategy workflow skill.",
+              "zh_Hans": "Plan Deal Strategy 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -196,7 +229,10 @@
             "type": "skill",
             "name": "prepare-for-meeting",
             "displayName": "Prepare For Meeting",
-            "description": "Prepare For Meeting workflow skill.",
+            "description": {
+              "en_US": "Prepare For Meeting workflow skill.",
+              "zh_Hans": "Prepare For Meeting 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -206,7 +242,10 @@
             "type": "skill",
             "name": "prioritize-accounts",
             "displayName": "Prioritize Accounts",
-            "description": "Prioritize Accounts workflow skill.",
+            "description": {
+              "en_US": "Prioritize Accounts workflow skill.",
+              "zh_Hans": "Prioritize Accounts 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -216,7 +255,10 @@
             "type": "skill",
             "name": "review-forecast",
             "displayName": "Review Forecast",
-            "description": "Review Forecast workflow skill.",
+            "description": {
+              "en_US": "Review Forecast workflow skill.",
+              "zh_Hans": "Review Forecast 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -226,7 +268,10 @@
             "type": "skill",
             "name": "review-rep-call-trends",
             "displayName": "Review Rep Call Trends",
-            "description": "Review Rep Call Trends workflow skill.",
+            "description": {
+              "en_US": "Review Rep Call Trends workflow skill.",
+              "zh_Hans": "Review Rep Call Trends 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -236,7 +281,10 @@
             "type": "skill",
             "name": "sales-company-research",
             "displayName": "Sales Company Research",
-            "description": "Sales Company Research workflow skill.",
+            "description": {
+              "en_US": "Sales Company Research workflow skill.",
+              "zh_Hans": "Sales Company Research 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -246,7 +294,10 @@
             "type": "skill",
             "name": "salesforce",
             "displayName": "Salesforce",
-            "description": "Salesforce workflow skill.",
+            "description": {
+              "en_US": "Salesforce workflow skill.",
+              "zh_Hans": "Salesforce 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -256,7 +307,10 @@
             "type": "skill",
             "name": "suggest-sales-next-step",
             "displayName": "Suggest Sales Next Step",
-            "description": "Suggest Sales Next Step workflow skill.",
+            "description": {
+              "en_US": "Suggest Sales Next Step workflow skill.",
+              "zh_Hans": "Suggest Sales Next Step 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -266,7 +320,10 @@
             "type": "skill",
             "name": "user-context",
             "displayName": "User Context",
-            "description": "User Context workflow skill.",
+            "description": {
+              "en_US": "User Context workflow skill.",
+              "zh_Hans": "User Context 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -276,7 +333,10 @@
             "type": "skill",
             "name": "zoominfo",
             "displayName": "Zoominfo",
-            "description": "Zoominfo workflow skill.",
+            "description": {
+              "en_US": "Zoominfo workflow skill.",
+              "zh_Hans": "Zoominfo 工作流技能。"
+            },
             "tags": [
               "skill",
               "sales"
@@ -286,7 +346,10 @@
             "type": "app",
             "name": "slack",
             "displayName": "Slack",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -296,7 +359,10 @@
             "type": "app",
             "name": "microsoft_teams",
             "displayName": "Microsoft Teams",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -306,7 +372,10 @@
             "type": "app",
             "name": "zoom",
             "displayName": "Zoom",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -316,7 +385,10 @@
             "type": "app",
             "name": "granola",
             "displayName": "Granola",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -326,7 +398,10 @@
             "type": "app",
             "name": "fireflies",
             "displayName": "Fireflies",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -336,7 +411,10 @@
             "type": "app",
             "name": "otter_ai",
             "displayName": "Otter Ai",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -346,7 +424,10 @@
             "type": "app",
             "name": "salesforce",
             "displayName": "Salesforce",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -356,7 +437,10 @@
             "type": "app",
             "name": "hubspot",
             "displayName": "Hubspot",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -366,7 +450,10 @@
             "type": "app",
             "name": "close",
             "displayName": "Close",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -376,7 +463,10 @@
             "type": "app",
             "name": "zoho",
             "displayName": "Zoho",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -386,7 +476,10 @@
             "type": "app",
             "name": "pipedrive",
             "displayName": "Pipedrive",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -396,7 +489,10 @@
             "type": "app",
             "name": "zoominfo",
             "displayName": "Zoominfo",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -406,7 +502,10 @@
             "type": "app",
             "name": "clay",
             "displayName": "Clay",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -416,7 +515,10 @@
             "type": "app",
             "name": "hg_insights",
             "displayName": "Hg Insights",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -426,7 +528,10 @@
             "type": "app",
             "name": "rox",
             "displayName": "Rox",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -436,7 +541,10 @@
             "type": "app",
             "name": "apollo",
             "displayName": "Apollo",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -446,7 +554,10 @@
             "type": "app",
             "name": "actively",
             "displayName": "Actively",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -456,7 +567,10 @@
             "type": "app",
             "name": "meticulate",
             "displayName": "Meticulate",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -466,7 +580,10 @@
             "type": "app",
             "name": "gmail",
             "displayName": "Gmail",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -476,7 +593,10 @@
             "type": "app",
             "name": "outlook_email",
             "displayName": "Outlook Email",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -486,7 +606,10 @@
             "type": "app",
             "name": "outreach",
             "displayName": "Outreach",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -496,7 +619,10 @@
             "type": "app",
             "name": "notion",
             "displayName": "Notion",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -506,7 +632,10 @@
             "type": "app",
             "name": "google_drive",
             "displayName": "Google Drive",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -516,7 +645,10 @@
             "type": "app",
             "name": "microsoft_sharepoint",
             "displayName": "Microsoft Sharepoint",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -526,7 +658,10 @@
             "type": "app",
             "name": "google_calendar",
             "displayName": "Google Calendar",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -536,7 +671,10 @@
             "type": "app",
             "name": "outlook_calendar",
             "displayName": "Outlook Calendar",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -546,7 +684,10 @@
             "type": "app",
             "name": "calendly",
             "displayName": "Calendly",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -556,7 +697,10 @@
             "type": "app",
             "name": "monday",
             "displayName": "Monday",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -566,7 +710,10 @@
             "type": "app",
             "name": "docusign",
             "displayName": "Docusign",
-            "description": "Workspace app connector requirement for Sales.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Sales.",
+              "zh_Hans": "Sales 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -576,7 +723,10 @@
             "type": "assistant-template",
             "name": "sales-assistant",
             "displayName": "Sales Assistant",
-            "description": "Assistant template for Sales workflows."
+            "description": {
+              "en_US": "Assistant template for Sales workflows.",
+              "zh_Hans": "面向 Sales 工作流的助手模板。"
+            }
           }
         ]
       }

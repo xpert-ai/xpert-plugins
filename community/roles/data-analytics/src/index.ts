@@ -1,10 +1,14 @@
 import { z } from 'zod'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { PLUGIN_NAME, pluginIcon } from './lib/constants'
 import { XpertAIDataAnalyticsPluginModule } from './lib/role-plugin.module'
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
+const workflowSkillDescription = (name: string) => text(`${name} workflow skill.`, `${name} 工作流技能。`)
+const workspaceAppDescription = (role: string) => text(`Workspace app connector requirement for ${role}.`, `${role} 所需的工作区应用连接器。`)
+const assistantTemplateDescription = (role: string) => text(`Assistant template for ${role} workflows.`, `面向 ${role} 工作流的助手模板。`)
 const AGENT_KEY = "Agent_XpertAIDataAnalytics"
 const skillDependencies = [
   {
@@ -79,7 +83,7 @@ const roleAgent = {
   key: AGENT_KEY,
   name: "data_analytics",
   title: "Data Analytics",
-  description: "Turn data into clear decisions",
+  description: text("Turn data into clear decisions", "把数据转化为清晰决策"),
   avatar: {
   "emoji": {
     "id": "chart-line"
@@ -100,7 +104,7 @@ const roleDraft = {
   team: {
     name: "Data Analytics Assistant",
     title: "Data Analytics Assistant",
-    description: "Turn data into clear decisions",
+    description: text("Turn data into clear decisions", "把数据转化为清晰决策"),
     type: XpertTypeEnum.Agent,
     avatar: {
   "emoji": {
@@ -203,7 +207,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "analyze-data-quality",
                     "displayName": "Analyze Data Quality",
-                    "description": "Analyze Data Quality workflow skill.",
+                    "description": workflowSkillDescription("Analyze Data Quality"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -213,7 +217,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "build-dashboard",
                     "displayName": "Build Dashboard",
-                    "description": "Build Dashboard workflow skill.",
+                    "description": workflowSkillDescription("Build Dashboard"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -223,7 +227,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "build-report",
                     "displayName": "Build Report",
-                    "description": "Build Report workflow skill.",
+                    "description": workflowSkillDescription("Build Report"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -233,7 +237,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "design-kpis",
                     "displayName": "Design Kpis",
-                    "description": "Design Kpis workflow skill.",
+                    "description": workflowSkillDescription("Design Kpis"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -243,7 +247,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "gather-business-context",
                     "displayName": "Gather Business Context",
-                    "description": "Gather Business Context workflow skill.",
+                    "description": workflowSkillDescription("Gather Business Context"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -253,7 +257,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "index",
                     "displayName": "Index",
-                    "description": "Index workflow skill.",
+                    "description": workflowSkillDescription("Index"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -263,7 +267,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "jupyter-notebooks",
                     "displayName": "Jupyter Notebooks",
-                    "description": "Jupyter Notebooks workflow skill.",
+                    "description": workflowSkillDescription("Jupyter Notebooks"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -273,7 +277,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "kpi-reporting",
                     "displayName": "Kpi Reporting",
-                    "description": "Kpi Reporting workflow skill.",
+                    "description": workflowSkillDescription("Kpi Reporting"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -283,7 +287,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "market-sizing",
                     "displayName": "Market Sizing",
-                    "description": "Market Sizing workflow skill.",
+                    "description": workflowSkillDescription("Market Sizing"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -293,7 +297,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "metric-diagnostics",
                     "displayName": "Metric Diagnostics",
-                    "description": "Metric Diagnostics workflow skill.",
+                    "description": workflowSkillDescription("Metric Diagnostics"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -303,7 +307,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "product-business-analysis",
                     "displayName": "Product Business Analysis",
-                    "description": "Product Business Analysis workflow skill.",
+                    "description": workflowSkillDescription("Product Business Analysis"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -313,7 +317,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "spreadsheets",
                     "displayName": "Spreadsheets",
-                    "description": "Spreadsheets workflow skill.",
+                    "description": workflowSkillDescription("Spreadsheets"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -323,7 +327,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "user-context",
                     "displayName": "User Context",
-                    "description": "User Context workflow skill.",
+                    "description": workflowSkillDescription("User Context"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -333,7 +337,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "validate-data",
                     "displayName": "Validate Data",
-                    "description": "Validate Data workflow skill.",
+                    "description": workflowSkillDescription("Validate Data"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -343,7 +347,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "visualize-data",
                     "displayName": "Visualize Data",
-                    "description": "Visualize Data workflow skill.",
+                    "description": workflowSkillDescription("Visualize Data"),
                     "tags": [
                               "skill",
                               "data-analytics"
@@ -353,7 +357,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "tool",
                     "name": "datascienceWidgets",
                     "displayName": "DatascienceWidgets",
-                    "description": "Plugin-managed MCP server for Data Analytics.",
+                    "description": text("Plugin-managed MCP server for Data Analytics.", "Data Analytics 插件托管的 MCP 服务器。"),
                     "tags": [
                               "mcp-server",
                               "data-analytics"
@@ -363,7 +367,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "slack",
                     "displayName": "Slack",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "required"
@@ -373,7 +377,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "teams",
                     "displayName": "Teams",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -383,7 +387,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "notion",
                     "displayName": "Notion",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "required"
@@ -393,7 +397,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "gmail",
                     "displayName": "Gmail",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -403,7 +407,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outlook_email",
                     "displayName": "Outlook Email",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -413,7 +417,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outlook_calendar",
                     "displayName": "Outlook Calendar",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -423,7 +427,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "google_calendar",
                     "displayName": "Google Calendar",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -433,7 +437,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "google_drive",
                     "displayName": "Google Drive",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "required"
@@ -443,7 +447,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "databricks",
                     "displayName": "Databricks",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -453,7 +457,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "bigquery",
                     "displayName": "Bigquery",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -463,7 +467,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "snowflake",
                     "displayName": "Snowflake",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -473,7 +477,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "sharepoint",
                     "displayName": "Sharepoint",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -483,7 +487,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "github",
                     "displayName": "Github",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "required"
@@ -493,7 +497,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "statsig",
                     "displayName": "Statsig",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -503,7 +507,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "hex",
                     "displayName": "Hex",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -513,7 +517,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "deepnote",
                     "displayName": "Deepnote",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -523,7 +527,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "amplitude",
                     "displayName": "Amplitude",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -533,7 +537,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "mixpanel",
                     "displayName": "Mixpanel",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -543,7 +547,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "omni-analytics",
                     "displayName": "Omni Analytics",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -553,7 +557,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "metabase",
                     "displayName": "Metabase",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -563,7 +567,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "thoughtspot",
                     "displayName": "Thoughtspot",
-                    "description": "Workspace app connector requirement for Data Analytics.",
+                    "description": workspaceAppDescription("Data Analytics"),
                     "tags": [
                               "app",
                               "optional"
@@ -573,7 +577,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "assistant-template",
                     "name": "data-analytics-assistant",
                     "displayName": "Data Analytics Assistant",
-                    "description": "Assistant template for Data Analytics workflows."
+                    "description": assistantTemplateDescription("Data Analytics")
           }
 ]
         }
@@ -588,7 +592,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       key: "data-analytics-assistant",
       title: "Data Analytics Assistant",
       name: "Data Analytics Assistant",
-      description: "Turn data into clear decisions",
+      description: "把数据转化为清晰决策",
       type: XpertTypeEnum.Agent,
       category: "analytics",
       icon: {

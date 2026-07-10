@@ -1,10 +1,14 @@
 import { z } from 'zod'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { PLUGIN_NAME, pluginIcon } from './lib/constants'
 import { XpertAIFinancialMarketsPluginModule } from './lib/role-plugin.module'
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
+const workflowSkillDescription = (name: string) => text(`${name} workflow skill.`, `${name} 工作流技能。`)
+const workspaceAppDescription = (role: string) => text(`Workspace app connector requirement for ${role}.`, `${role} 所需的工作区应用连接器。`)
+const assistantTemplateDescription = (role: string) => text(`Assistant template for ${role} workflows.`, `面向 ${role} 工作流的助手模板。`)
 const AGENT_KEY = "Agent_XpertAIFinancialMarkets"
 const skillDependencies = [
   {
@@ -105,7 +109,7 @@ const roleAgent = {
   key: AGENT_KEY,
   name: "financial_markets",
   title: "Financial Markets",
-  description: "Public equity PM research, long/short, earnings, ETF/index diligence, and memos",
+  description: text("Public equity PM research, long/short, earnings, ETF/index diligence, and memos", "面向公开市场投资研究、多空策略、财报、ETF/指数尽调和备忘录的助手"),
   avatar: {
   "emoji": {
     "id": "landmark"
@@ -126,7 +130,7 @@ const roleDraft = {
   team: {
     name: "Financial Markets Assistant",
     title: "Financial Markets Assistant",
-    description: "Public equity PM research, long/short, earnings, ETF/index diligence, and memos",
+    description: text("Public equity PM research, long/short, earnings, ETF/index diligence, and memos", "面向公开市场投资研究、多空策略、财报、ETF/指数尽调和备忘录的助手"),
     type: XpertTypeEnum.Agent,
     avatar: {
   "emoji": {
@@ -219,7 +223,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "catalyst-calendar",
                     "displayName": "Catalyst Calendar",
-                    "description": "Catalyst Calendar workflow skill.",
+                    "description": workflowSkillDescription("Catalyst Calendar"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -229,7 +233,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "company-tearsheet",
                     "displayName": "Company Tearsheet",
-                    "description": "Company Tearsheet workflow skill.",
+                    "description": workflowSkillDescription("Company Tearsheet"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -239,7 +243,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "comps-valuation",
                     "displayName": "Comps Valuation",
-                    "description": "Comps Valuation workflow skill.",
+                    "description": workflowSkillDescription("Comps Valuation"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -249,7 +253,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "dcf-model-builder",
                     "displayName": "Dcf Model Builder",
-                    "description": "Dcf Model Builder workflow skill.",
+                    "description": workflowSkillDescription("Dcf Model Builder"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -259,7 +263,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "deck-report-qc",
                     "displayName": "Deck Report Qc",
-                    "description": "Deck Report Qc workflow skill.",
+                    "description": workflowSkillDescription("Deck Report Qc"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -269,7 +273,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "earnings-deep-dive",
                     "displayName": "Earnings Deep Dive",
-                    "description": "Earnings Deep Dive workflow skill.",
+                    "description": workflowSkillDescription("Earnings Deep Dive"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -279,7 +283,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "earnings-preview",
                     "displayName": "Earnings Preview",
-                    "description": "Earnings Preview workflow skill.",
+                    "description": workflowSkillDescription("Earnings Preview"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -289,7 +293,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "economic-impact-report",
                     "displayName": "Economic Impact Report",
-                    "description": "Economic Impact Report workflow skill.",
+                    "description": workflowSkillDescription("Economic Impact Report"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -299,7 +303,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "equity-model-update",
                     "displayName": "Equity Model Update",
-                    "description": "Equity Model Update workflow skill.",
+                    "description": workflowSkillDescription("Equity Model Update"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -309,7 +313,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "event-driven-analyzer",
                     "displayName": "Event Driven Analyzer",
-                    "description": "Event Driven Analyzer workflow skill.",
+                    "description": workflowSkillDescription("Event Driven Analyzer"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -319,7 +323,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "financials-normalizer",
                     "displayName": "Financials Normalizer",
-                    "description": "Financials Normalizer workflow skill.",
+                    "description": workflowSkillDescription("Financials Normalizer"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -329,7 +333,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "idea-generation",
                     "displayName": "Idea Generation",
-                    "description": "Idea Generation workflow skill.",
+                    "description": workflowSkillDescription("Idea Generation"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -339,7 +343,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "initiating-coverage",
                     "displayName": "Initiating Coverage",
-                    "description": "Initiating Coverage workflow skill.",
+                    "description": workflowSkillDescription("Initiating Coverage"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -349,7 +353,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "long-short-pitch",
                     "displayName": "Long Short Pitch",
-                    "description": "Long Short Pitch workflow skill.",
+                    "description": workflowSkillDescription("Long Short Pitch"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -359,7 +363,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "meeting-prep",
                     "displayName": "Meeting Prep",
-                    "description": "Meeting Prep workflow skill.",
+                    "description": workflowSkillDescription("Meeting Prep"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -369,7 +373,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "memo-builder",
                     "displayName": "Memo Builder",
-                    "description": "Memo Builder workflow skill.",
+                    "description": workflowSkillDescription("Memo Builder"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -379,7 +383,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "model-audit-tieout",
                     "displayName": "Model Audit Tieout",
-                    "description": "Model Audit Tieout workflow skill.",
+                    "description": workflowSkillDescription("Model Audit Tieout"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -389,7 +393,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "portfolio-risk-management",
                     "displayName": "Portfolio Risk Management",
-                    "description": "Portfolio Risk Management workflow skill.",
+                    "description": workflowSkillDescription("Portfolio Risk Management"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -399,7 +403,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "public-equity-investing",
                     "displayName": "Public Equity Investing",
-                    "description": "Public Equity Investing workflow skill.",
+                    "description": workflowSkillDescription("Public Equity Investing"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -409,7 +413,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "scenario-sensitivity-generator",
                     "displayName": "Scenario Sensitivity Generator",
-                    "description": "Scenario Sensitivity Generator workflow skill.",
+                    "description": workflowSkillDescription("Scenario Sensitivity Generator"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -419,7 +423,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "thesis-tracker",
                     "displayName": "Thesis Tracker",
-                    "description": "Thesis Tracker workflow skill.",
+                    "description": workflowSkillDescription("Thesis Tracker"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -429,7 +433,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "three-statement-model-builder",
                     "displayName": "Three Statement Model Builder",
-                    "description": "Three Statement Model Builder workflow skill.",
+                    "description": workflowSkillDescription("Three Statement Model Builder"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -439,7 +443,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "user-context",
                     "displayName": "User Context",
-                    "description": "User Context workflow skill.",
+                    "description": workflowSkillDescription("User Context"),
                     "tags": [
                               "skill",
                               "financial-markets"
@@ -449,7 +453,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "slack",
                     "displayName": "Slack",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -459,7 +463,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "pitchbook",
                     "displayName": "Pitchbook",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -469,7 +473,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "factset",
                     "displayName": "Factset",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -479,7 +483,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "morningstar",
                     "displayName": "Morningstar",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -489,7 +493,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "lseg",
                     "displayName": "Lseg",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -499,7 +503,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "s-p",
                     "displayName": "S P",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -509,7 +513,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "third-bridge",
                     "displayName": "Third Bridge",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -519,7 +523,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "daloopa",
                     "displayName": "Daloopa",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -529,7 +533,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "quartr",
                     "displayName": "Quartr",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -539,7 +543,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "alpaca",
                     "displayName": "Alpaca",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -549,7 +553,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "google_drive",
                     "displayName": "Google Drive",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -559,7 +563,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "gmail_connector",
                     "displayName": "Gmail Connector",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -569,7 +573,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outlook_email_connector",
                     "displayName": "Outlook Email Connector",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -579,7 +583,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "sharepoint_connector",
                     "displayName": "Sharepoint Connector",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -589,7 +593,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "teams_connector",
                     "displayName": "Teams Connector",
-                    "description": "Workspace app connector requirement for Financial Markets.",
+                    "description": workspaceAppDescription("Financial Markets"),
                     "tags": [
                               "app",
                               "required"
@@ -599,7 +603,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "assistant-template",
                     "name": "financial-markets-assistant",
                     "displayName": "Financial Markets Assistant",
-                    "description": "Assistant template for Financial Markets workflows."
+                    "description": assistantTemplateDescription("Financial Markets")
           }
 ]
         }
@@ -614,7 +618,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       key: "financial-markets-assistant",
       title: "Financial Markets Assistant",
       name: "Financial Markets Assistant",
-      description: "Public equity PM research, long/short, earnings, ETF/index diligence, and memos",
+      description: "公开市场投资研究、多空策略、财报、ETF/指数尽调和备忘录助手",
       type: XpertTypeEnum.Agent,
       category: "business",
       icon: {
