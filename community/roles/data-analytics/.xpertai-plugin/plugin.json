@@ -105,7 +105,10 @@
             "type": "skill",
             "name": "analyze-data-quality",
             "displayName": "Analyze Data Quality",
-            "description": "Analyze Data Quality workflow skill.",
+            "description": {
+              "en_US": "Analyze Data Quality workflow skill.",
+              "zh_Hans": "Analyze Data Quality 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -115,7 +118,10 @@
             "type": "skill",
             "name": "build-dashboard",
             "displayName": "Build Dashboard",
-            "description": "Build Dashboard workflow skill.",
+            "description": {
+              "en_US": "Build Dashboard workflow skill.",
+              "zh_Hans": "Build Dashboard 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -125,7 +131,10 @@
             "type": "skill",
             "name": "build-report",
             "displayName": "Build Report",
-            "description": "Build Report workflow skill.",
+            "description": {
+              "en_US": "Build Report workflow skill.",
+              "zh_Hans": "Build Report 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -135,7 +144,10 @@
             "type": "skill",
             "name": "design-kpis",
             "displayName": "Design Kpis",
-            "description": "Design Kpis workflow skill.",
+            "description": {
+              "en_US": "Design Kpis workflow skill.",
+              "zh_Hans": "Design Kpis 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -145,7 +157,10 @@
             "type": "skill",
             "name": "gather-business-context",
             "displayName": "Gather Business Context",
-            "description": "Gather Business Context workflow skill.",
+            "description": {
+              "en_US": "Gather Business Context workflow skill.",
+              "zh_Hans": "Gather Business Context 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -155,7 +170,10 @@
             "type": "skill",
             "name": "index",
             "displayName": "Index",
-            "description": "Index workflow skill.",
+            "description": {
+              "en_US": "Index workflow skill.",
+              "zh_Hans": "Index 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -165,7 +183,10 @@
             "type": "skill",
             "name": "jupyter-notebooks",
             "displayName": "Jupyter Notebooks",
-            "description": "Jupyter Notebooks workflow skill.",
+            "description": {
+              "en_US": "Jupyter Notebooks workflow skill.",
+              "zh_Hans": "Jupyter Notebooks 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -175,7 +196,10 @@
             "type": "skill",
             "name": "kpi-reporting",
             "displayName": "Kpi Reporting",
-            "description": "Kpi Reporting workflow skill.",
+            "description": {
+              "en_US": "Kpi Reporting workflow skill.",
+              "zh_Hans": "Kpi Reporting 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -185,7 +209,10 @@
             "type": "skill",
             "name": "market-sizing",
             "displayName": "Market Sizing",
-            "description": "Market Sizing workflow skill.",
+            "description": {
+              "en_US": "Market Sizing workflow skill.",
+              "zh_Hans": "Market Sizing 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -195,7 +222,10 @@
             "type": "skill",
             "name": "metric-diagnostics",
             "displayName": "Metric Diagnostics",
-            "description": "Metric Diagnostics workflow skill.",
+            "description": {
+              "en_US": "Metric Diagnostics workflow skill.",
+              "zh_Hans": "Metric Diagnostics 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -205,7 +235,10 @@
             "type": "skill",
             "name": "product-business-analysis",
             "displayName": "Product Business Analysis",
-            "description": "Product Business Analysis workflow skill.",
+            "description": {
+              "en_US": "Product Business Analysis workflow skill.",
+              "zh_Hans": "Product Business Analysis 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -215,7 +248,10 @@
             "type": "skill",
             "name": "spreadsheets",
             "displayName": "Spreadsheets",
-            "description": "Spreadsheets workflow skill.",
+            "description": {
+              "en_US": "Spreadsheets workflow skill.",
+              "zh_Hans": "Spreadsheets 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -225,7 +261,10 @@
             "type": "skill",
             "name": "user-context",
             "displayName": "User Context",
-            "description": "User Context workflow skill.",
+            "description": {
+              "en_US": "User Context workflow skill.",
+              "zh_Hans": "User Context 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -235,7 +274,10 @@
             "type": "skill",
             "name": "validate-data",
             "displayName": "Validate Data",
-            "description": "Validate Data workflow skill.",
+            "description": {
+              "en_US": "Validate Data workflow skill.",
+              "zh_Hans": "Validate Data 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -245,7 +287,10 @@
             "type": "skill",
             "name": "visualize-data",
             "displayName": "Visualize Data",
-            "description": "Visualize Data workflow skill.",
+            "description": {
+              "en_US": "Visualize Data workflow skill.",
+              "zh_Hans": "Visualize Data 工作流技能。"
+            },
             "tags": [
               "skill",
               "data-analytics"
@@ -255,7 +300,10 @@
             "type": "tool",
             "name": "datascienceWidgets",
             "displayName": "DatascienceWidgets",
-            "description": "Plugin-managed MCP server for Data Analytics.",
+            "description": {
+              "en_US": "Plugin-managed MCP server for Data Analytics.",
+              "zh_Hans": "Data Analytics 插件托管的 MCP 服务器。"
+            },
             "tags": [
               "mcp-server",
               "data-analytics"
@@ -265,7 +313,10 @@
             "type": "app",
             "name": "slack",
             "displayName": "Slack",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -275,7 +326,10 @@
             "type": "app",
             "name": "teams",
             "displayName": "Teams",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -285,7 +339,10 @@
             "type": "app",
             "name": "notion",
             "displayName": "Notion",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -295,7 +352,10 @@
             "type": "app",
             "name": "gmail",
             "displayName": "Gmail",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -305,7 +365,10 @@
             "type": "app",
             "name": "outlook_email",
             "displayName": "Outlook Email",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -315,7 +378,10 @@
             "type": "app",
             "name": "outlook_calendar",
             "displayName": "Outlook Calendar",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -325,7 +391,10 @@
             "type": "app",
             "name": "google_calendar",
             "displayName": "Google Calendar",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -335,7 +404,10 @@
             "type": "app",
             "name": "google_drive",
             "displayName": "Google Drive",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -345,7 +417,10 @@
             "type": "app",
             "name": "databricks",
             "displayName": "Databricks",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -355,7 +430,10 @@
             "type": "app",
             "name": "bigquery",
             "displayName": "Bigquery",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -365,7 +443,10 @@
             "type": "app",
             "name": "snowflake",
             "displayName": "Snowflake",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -375,7 +456,10 @@
             "type": "app",
             "name": "sharepoint",
             "displayName": "Sharepoint",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -385,7 +469,10 @@
             "type": "app",
             "name": "github",
             "displayName": "Github",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -395,7 +482,10 @@
             "type": "app",
             "name": "statsig",
             "displayName": "Statsig",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -405,7 +495,10 @@
             "type": "app",
             "name": "hex",
             "displayName": "Hex",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -415,7 +508,10 @@
             "type": "app",
             "name": "deepnote",
             "displayName": "Deepnote",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -425,7 +521,10 @@
             "type": "app",
             "name": "amplitude",
             "displayName": "Amplitude",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -435,7 +534,10 @@
             "type": "app",
             "name": "mixpanel",
             "displayName": "Mixpanel",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -445,7 +547,10 @@
             "type": "app",
             "name": "omni-analytics",
             "displayName": "Omni Analytics",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -455,7 +560,10 @@
             "type": "app",
             "name": "metabase",
             "displayName": "Metabase",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -465,7 +573,10 @@
             "type": "app",
             "name": "thoughtspot",
             "displayName": "Thoughtspot",
-            "description": "Workspace app connector requirement for Data Analytics.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Data Analytics.",
+              "zh_Hans": "Data Analytics 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "optional"
@@ -475,7 +586,10 @@
             "type": "assistant-template",
             "name": "data-analytics-assistant",
             "displayName": "Data Analytics Assistant",
-            "description": "Assistant template for Data Analytics workflows."
+            "description": {
+              "en_US": "Assistant template for Data Analytics workflows.",
+              "zh_Hans": "面向 Data Analytics 工作流的助手模板。"
+            }
           }
         ]
       }
