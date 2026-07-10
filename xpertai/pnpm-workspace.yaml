@@ -17,6 +17,7 @@ overrides:
 
 minimumReleaseAgeExclude:
   - '@xpert-ai/*'
+  - '@lucide/vue@1.24.0'
 
 allowBuilds:
   '@nestjs/core': true

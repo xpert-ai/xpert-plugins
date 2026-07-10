@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "strictNullChecks": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/lib/remote-components/pencil-workbench/src/**/*.ts",
+    "src/lib/remote-components/pencil-workbench/src/**/*.vue"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

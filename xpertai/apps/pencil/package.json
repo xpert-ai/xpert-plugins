@@ -1,0 +1,94 @@
+{
+  "name": "@xpert-ai/plugin-pencil",
+  "version": "0.1.0",
+  "description": "Pencil Agentic App plugin for agent-managed design documents, reviewable versions, imports, exports, and an editable Workbench.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/pencil"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "assets",
+    "skills",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-vue build",
+    "build": "pnpm run build:ui && node scripts/clean-dist.mjs && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "node scripts/prepack.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
+  },
+  "dependencies": {
+    "@open\u002dpencil/core": "0.13.2",
+    "@open\u002dpencil/vue": "0.13.2",
+    "@fontsource-variable/noto-sans-sc": "5.2.10",
+    "canvaskit-wasm": "^0.40.0",
+    "jspdf": "^4.2.1",
+    "prismjs": "^1.30.0",
+    "tslib": "^2.3.0",
+    "vue": "^3.5.29"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/node": "^20.19.9",
+    "@types/prismjs": "^1.26.6",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@xpert-ai/contracts": "3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-shadcn-vue": "workspace:*",
+    "jest": "^30.0.2",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "vite": "^7.2.4",
+    "vue-tsc": "^3.3.7",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
