@@ -16,9 +16,11 @@ describe('canvas assistant template', () => {
   it('declares view-image and Seedream dependencies for visual generation workflows', () => {
     const template = canvasTemplates[0]
 
-    expect(template.description).toBe(
-      'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.'
-    )
+    expect(template.description).toEqual({
+      en_US:
+        'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.',
+      zh_Hans: '面向 data-xpert 的可视化画布助手模板，支持无限白板、AI 图片占位框、基于标注的修改和情绪板创作。'
+    })
     expect(template.dependencies?.plugins).toEqual(
       expect.arrayContaining(['@xpert-ai/plugin-canvas', '@xpert-ai/plugin-view-image', '@xpert-ai/plugin-volcengine'])
     )

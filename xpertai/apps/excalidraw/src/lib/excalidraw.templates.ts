@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
-import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import {
   EXCALIDRAW_AGENT_DRAWING_CAPABILITY,
   EXCALIDRAW_FEATURE,
@@ -45,12 +44,16 @@ function readExcalidrawDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const excalidrawTemplates: XpertTemplateContribution[] = [
+export const excalidrawTemplates = [
   {
     key: EXCALIDRAW_TEMPLATE_KEY,
     name: 'Excalidraw Drawing Assistant',
     title: 'Excalidraw Drawing Assistant',
-    description: 'A data-xpert drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
+    description: {
+      en_US:
+        'A data-xpert drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
+      zh_Hans: '面向流程图、架构图、线框图和自由白板的 data-xpert 绘图助手模板。'
+    },
     category: 'Excalidraw',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -88,5 +91,5 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
     releaseNotes: 'Created the Excalidraw Agentic Drawing business assistant.',
     xpertName: 'Excalidraw Drawing Assistant',
     providerKey: EXCALIDRAW_TEMPLATE_PROVIDER_KEY
-  } as XpertTemplateContribution
+  }
 ]

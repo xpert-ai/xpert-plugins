@@ -29,7 +29,11 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 const ConfigSchema = z.object({})
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
-const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
+type LucidchartXpertPlugin = Omit<XpertPlugin<z.infer<typeof ConfigSchema>>, 'templates'> & {
+  templates: typeof lucidchartTemplates
+}
+
+const plugin: LucidchartXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,

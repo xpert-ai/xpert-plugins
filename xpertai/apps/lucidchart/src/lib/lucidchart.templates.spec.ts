@@ -17,10 +17,11 @@ const agentDescription = [
 test('localizes the Lucidchart installed assistant descriptions', () => {
   const template = lucidchartTemplates[0]
 
-  assert.equal(
-    template.description,
-    'A data-xpert drawing assistant template for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration.'
-  )
+  assert.deepEqual(template.description, {
+    en_US:
+      'A data-xpert drawing assistant template for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration.',
+    zh_Hans: '面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 data-xpert 绘图助手模板。'
+  })
   assert.match(template.dslContent ?? '', /description:\n    en_US:/)
   assert.match(template.dslContent ?? '', /description:\n        en_US:/)
   assert.ok(template.dslContent?.includes(teamDescription))
