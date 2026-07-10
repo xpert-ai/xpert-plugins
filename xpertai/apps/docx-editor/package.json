@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-docx-editor",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DOCX Editor app plugin for browser-based Word editing, versioning, comments, tracked changes, and Xpert Agent review tools.",
   "author": {
     "name": "XpertAI",
