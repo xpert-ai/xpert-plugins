@@ -4,7 +4,9 @@ describe('excalidraw assistant template', () => {
   it('declares common assistant middleware dependencies and usage guidance', () => {
     const template = excalidrawTemplates[0]
 
-    expect(template.description).toBe('面向流程图、架构图、线框图和自由白板的 data-xpert 绘图助手模板。')
+    expect(template.description).toBe(
+      'A data-xpert drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.'
+    )
     expect(template.dslContent).toContain('zh_Hans: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手')
 
     expect(template.dependencies?.plugins).toEqual(

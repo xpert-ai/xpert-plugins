@@ -50,7 +50,7 @@ export const excalidrawTemplates: XpertTemplateContribution[] = [
     key: EXCALIDRAW_TEMPLATE_KEY,
     name: 'Excalidraw Drawing Assistant',
     title: 'Excalidraw Drawing Assistant',
-    description: '面向流程图、架构图、线框图和自由白板的 data-xpert 绘图助手模板。',
+    description: 'A data-xpert drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
     category: 'Excalidraw',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],

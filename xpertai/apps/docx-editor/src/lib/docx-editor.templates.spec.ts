@@ -19,7 +19,7 @@ test('localizes the DOCX Editor installed assistant descriptions', () => {
 
   assert.equal(
     template.description,
-    '面向 DOCX 上传、在线编辑、批注、修订建议和版本化保存的 data-xpert 文档助手模板。'
+    'A data-xpert document assistant template for DOCX uploads, online editing, comments, tracked-change suggestions, and versioned saves.'
   )
   assert.match(template.dslContent ?? '', /description:\n    en_US:/)
   assert.match(template.dslContent ?? '', /description:\n        en_US:/)

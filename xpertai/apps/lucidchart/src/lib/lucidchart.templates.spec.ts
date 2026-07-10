@@ -19,7 +19,7 @@ test('localizes the Lucidchart installed assistant descriptions', () => {
 
   assert.equal(
     template.description,
-    '面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 data-xpert 绘图助手模板。'
+    'A data-xpert drawing assistant template for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration.'
   )
   assert.match(template.dslContent ?? '', /description:\n    en_US:/)
   assert.match(template.dslContent ?? '', /description:\n        en_US:/)

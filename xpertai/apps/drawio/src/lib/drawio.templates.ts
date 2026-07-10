@@ -48,7 +48,7 @@ export const drawioTemplates: XpertTemplateContribution[] = [
     key: DRAWIO_TEMPLATE_KEY,
     name: 'draw.io Drawing Assistant',
     title: 'draw.io 绘图助手',
-    description: '面向流程图、架构图、线框图和自由白板的 data-xpert draw.io 绘图助手模板。',
+    description: 'A data-xpert draw.io drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
     category: 'draw.io',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
