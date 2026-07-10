@@ -2,7 +2,9 @@ team:
   name: drawio-assistant
   type: agent
   title: draw.io 绘图助手
-  description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+  description:
+    en_US: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+    zh_Hans: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
   avatar:
     emoji:
       id: art
@@ -64,7 +66,9 @@ nodes:
       key: Agent_Drawio
       name: drawio-assistant
       title: draw.io 绘图助手
-      description: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
+      description:
+        en_US: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+        zh_Hans: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
       avatar:
         emoji:
           id: art

@@ -48,7 +48,7 @@ export const lucidchartTemplates: XpertTemplateContribution[] = [
     key: LUCIDCHART_TEMPLATE_KEY,
     name: 'Lucidchart Drawing Assistant',
     title: 'Lucidchart 绘图助手',
-    description: '面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 data-xpert 绘图助手模板。',
+    description: 'A data-xpert drawing assistant template for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration.',
     category: 'Lucidchart',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],

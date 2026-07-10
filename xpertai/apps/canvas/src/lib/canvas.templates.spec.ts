@@ -1,9 +1,24 @@
 import { canvasTemplates } from './canvas.templates.js'
 
+const assistantDescription = [
+  '  description:',
+  '    en_US: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards',
+  '    zh_Hans: 面向无限白板、AI 图片占位框、标注工作流和情绪板的智能体式可视化画布助手'
+].join('\n')
+
+const agentDescription = [
+  '      description:',
+  '        en_US: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards',
+  '        zh_Hans: 面向无限白板、AI 图片占位框、标注工作流和情绪板的智能体式可视化画布助手'
+].join('\n')
+
 describe('canvas assistant template', () => {
   it('declares view-image and Seedream dependencies for visual generation workflows', () => {
     const template = canvasTemplates[0]
 
+    expect(template.description).toBe(
+      'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.'
+    )
     expect(template.dependencies?.plugins).toEqual(
       expect.arrayContaining(['@xpert-ai/plugin-canvas', '@xpert-ai/plugin-view-image', '@xpert-ai/plugin-volcengine'])
     )
@@ -42,5 +57,12 @@ describe('canvas assistant template', () => {
     expect(template.dslContent).toContain('canvas_insert_image updates the current Canvas working copy')
     expect(template.dslContent).not.toContain('workspaceCatalog')
     expect(template.dslContent).not.toContain('workspaceScopeId')
+  })
+
+  it('localizes the installed assistant descriptions', () => {
+    const template = canvasTemplates[0]
+
+    expect(template.dslContent).toContain(assistantDescription)
+    expect(template.dslContent).toContain(agentDescription)
   })
 })

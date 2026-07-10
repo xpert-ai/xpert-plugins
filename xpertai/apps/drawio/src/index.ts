@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DRAWIO_AGENT_DRAWING_CAPABILITY,
@@ -26,6 +27,7 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 }
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
@@ -48,8 +50,10 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'app',
               name: 'drawio',
               displayName: 'draw.io',
-              description:
+              description: text(
                 'Create, update, version, review, import, export, and convert Agent-generated draw.io diagrams.',
+                '创建、更新、版本化、审核、导入导出并转换 Agent 生成的 draw.io 图表。'
+              ),
               icon: {
                 type: 'svg',
                 value: DRAWIO_ICON,
@@ -59,19 +63,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                 {
                   name: 'create-drawio-drawings',
                   displayName: 'Create draw.io diagrams',
-                  description: 'Create reviewable diagrams from Agent-generated diagrams.net XML or Mermaid drafts.',
+                  description: text(
+                    'Create reviewable diagrams from Agent-generated diagrams.net XML or Mermaid drafts.',
+                    '从 Agent 生成的 diagrams.net XML 或 Mermaid 草稿创建可审核图表。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'save-drawio-versions',
                   displayName: 'Save diagram versions',
-                  description: 'Persist XML scenes, metadata patches, and Mermaid conversions as versioned diagram records.',
+                  description: text(
+                    'Persist XML scenes, metadata patches, and Mermaid conversions as versioned diagram records.',
+                    '将 XML 场景、元数据补丁和 Mermaid 转换保存为带版本的图表记录。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'review-drawio-workbench',
                   displayName: 'Review draw.io workbench',
-                  description: 'Open draw.io to inspect, manually edit, restore, import, and export diagrams.',
+                  description: text(
+                    'Open draw.io to inspect, manually edit, restore, import, and export diagrams.',
+                    '打开 draw.io 工作台以检查、手动编辑、恢复、导入和导出图表。'
+                  ),
                   access: 'read'
                 }
               ]
@@ -80,20 +93,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'view',
               name: DRAWIO_WORKBENCH_VIEW_KEY,
               displayName: 'draw.io Workbench',
-              description: 'Workbench view for diagram lists, embedded draw.io editing, Mermaid import, and version history.'
+              description: text(
+                'Workbench view for diagram lists, embedded draw.io editing, Mermaid import, and version history.',
+                '用于图表列表、嵌入式 draw.io 编辑、Mermaid 导入和版本历史的工作台视图。'
+              )
             },
             {
               type: 'tool',
               name: DRAWIO_MIDDLEWARE_NAME,
               displayName: 'draw.io Agent Tools',
-              description:
-                'Assistant middleware tools for creating diagrams, saving XML versions, patching metadata, saving Mermaid drafts, searching diagrams, and reporting failures.'
+              description: text(
+                'Assistant middleware tools for creating diagrams, saving XML versions, patching metadata, saving Mermaid drafts, searching diagrams, and reporting failures.',
+                '用于创建图表、保存 XML 版本、修补元数据、保存 Mermaid 草稿、检索图表和上报失败的助手中间件工具。'
+              )
             },
             {
               type: 'assistant-template',
               name: 'drawio-assistant',
               displayName: 'draw.io Drawing Assistant Template',
-              description: 'Prebuilt assistant template for Agent-managed diagram creation and draw.io review workflows.'
+              description: text(
+                'Prebuilt assistant template for Agent-managed diagram creation and draw.io review workflows.',
+                '面向 Agent 管理图表创建和 draw.io 审阅工作流的预置助手模板。'
+              )
             }
           ]
         },
@@ -117,21 +138,29 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'skill',
               name: 'index',
               displayName: 'draw.io Agent Drawing',
-              description:
+              description: text(
                 'Workflow skill for Agent-managed draw.io diagrams, Mermaid drafts, XML versions, and Workbench review.',
+                '用于 Agent 管理 draw.io 图表、Mermaid 草稿、XML 版本和工作台审阅的工作流技能。'
+              ),
               tags: ['skill', 'drawio', 'agent-drawing']
             },
             {
               type: 'assistant-template',
               name: 'drawio-assistant',
               displayName: 'draw.io Drawing Assistant',
-              description: 'Assistant template for draw.io diagram workflows.'
+              description: text(
+                'Assistant template for draw.io diagram workflows.',
+                '面向 draw.io 图表工作流的助手模板。'
+              )
             },
             {
               type: 'app',
               name: 'drawio',
               displayName: 'draw.io',
-              description: 'Workbench and Agent middleware tools for draw.io diagrams.'
+              description: text(
+                'Workbench and Agent middleware tools for draw.io diagrams.',
+                '用于 draw.io 图表的工作台和 Agent 中间件工具。'
+              )
             }
           ]
         }

@@ -2,7 +2,9 @@ team:
   name: canvas-assistant
   type: agent
   title: Canvas Assistant
-  description: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+  description:
+    en_US: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+    zh_Hans: 面向无限白板、AI 图片占位框、标注工作流和情绪板的智能体式可视化画布助手
   avatar:
     emoji:
       id: art
@@ -105,7 +107,9 @@ nodes:
       key: Agent_Canvas
       name: canvas-assistant
       title: Canvas Assistant
-      description: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+      description:
+        en_US: Agentic visual canvas assistant for infinite whiteboards, AI image slots, annotation workflows, and moodboards
+        zh_Hans: 面向无限白板、AI 图片占位框、标注工作流和情绪板的智能体式可视化画布助手
       avatar:
         emoji:
           id: art

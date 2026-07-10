@@ -48,7 +48,7 @@ export const docxEditorTemplates: XpertTemplateContribution[] = [
     key: DOCX_EDITOR_ASSISTANT_TEMPLATE_KEY,
     name: 'DOCX Editor Assistant',
     title: 'DOCX 文档审阅助手',
-    description: '面向 DOCX 上传、在线编辑、批注、修订建议和版本化保存的 data-xpert 文档助手模板。',
+    description: 'A data-xpert document assistant template for DOCX uploads, online editing, comments, tracked-change suggestions, and versioned saves.',
     category: 'Documents',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],

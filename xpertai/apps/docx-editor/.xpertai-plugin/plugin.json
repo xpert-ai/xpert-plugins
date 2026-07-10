@@ -80,7 +80,10 @@
             "type": "skill",
             "name": "docx-editor",
             "displayName": "DOCX Editor Review Skill",
-            "description": "Workflow skill for DOCX reading, paraId selection, comments, tracked changes, formatting, and version confirmation.",
+            "description": {
+              "en_US": "Workflow skill for DOCX reading, paraId selection, comments, tracked changes, formatting, and version confirmation.",
+              "zh_Hans": "用于 DOCX 读取、paraId 选择、批注、修订建议、格式处理和版本确认的工作流技能。"
+            },
             "tags": [
               "skill",
               "docx",
@@ -91,13 +94,19 @@
             "type": "assistant-template",
             "name": "docx-editor-assistant",
             "displayName": "DOCX Editor Assistant",
-            "description": "Assistant template for DOCX editing and review workflows."
+            "description": {
+              "en_US": "Assistant template for DOCX editing and review workflows.",
+              "zh_Hans": "面向 DOCX 编辑和审阅工作流的助手模板。"
+            }
           },
           {
             "type": "app",
             "name": "docx-editor",
             "displayName": "DOCX Editor",
-            "description": "Workbench and Agent middleware tools for DOCX documents."
+            "description": {
+              "en_US": "Workbench and Agent middleware tools for DOCX documents.",
+              "zh_Hans": "用于 DOCX 文档的工作台和 Agent 中间件工具。"
+            }
           }
         ]
       }

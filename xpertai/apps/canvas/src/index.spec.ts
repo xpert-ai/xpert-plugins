@@ -32,7 +32,8 @@ describe('canvas plugin marketplace metadata', () => {
       'save-canvas-versions',
       'review-canvas-workbench'
     ])
-    expect(String(canvasApp?.description)).toContain('Canvas Assistant')
+    expectI18nText(canvasApp?.description, 'Canvas Assistant', '创建')
+    expectI18nText(assistantTemplate?.description, 'Prebuilt assistant template', '预置助手模板')
     expect(assistantTemplate?.metadata).toEqual({ app: 'canvas' })
     expect(workbench?.metadata).toEqual({ app: 'canvas' })
     expect(middleware?.metadata).toEqual({ app: 'canvas' })
@@ -55,7 +56,8 @@ describe('canvas plugin marketplace metadata', () => {
     )
 
     expect(manifest.apps).toBeUndefined()
-    expect(String(canvasApp?.description)).toContain('Canvas Assistant')
+    expectI18nText(canvasApp?.description, 'Canvas Assistant', '管理 tldraw 画布')
+    expectI18nText(assistantTemplate?.description, 'Assistant template', '助手模板')
     expect(assistantTemplate?.metadata).toEqual({ app: 'canvas' })
     expect(workbench?.metadata).toEqual({ app: 'canvas' })
     expect(middleware?.metadata).toEqual({ app: 'canvas' })
@@ -74,4 +76,13 @@ function readManifestContents(manifest: Record<string, unknown>) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function expectI18nText(value: unknown, enText: string, zhText: string) {
+  expect(isRecord(value)).toBe(true)
+  if (!isRecord(value)) {
+    return
+  }
+  expect(value.en_US).toEqual(expect.stringContaining(enText))
+  expect(value.zh_Hans).toEqual(expect.stringContaining(zhText))
 }
