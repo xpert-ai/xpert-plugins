@@ -2,7 +2,9 @@ team:
   name: lucidchart-assistant
   type: agent
   title: Lucidchart 绘图助手
-  description: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
+  description:
+    en_US: Agentic Drawing assistant for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration
+    zh_Hans: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
   avatar:
     emoji:
       id: art
@@ -64,7 +66,9 @@ nodes:
       key: Agent_Lucidchart
       name: lucidchart-assistant
       title: Lucidchart 绘图助手
-      description: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
+      description:
+        en_US: Agentic Drawing assistant for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration
+        zh_Hans: 面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 Agentic Drawing 助手
       avatar:
         emoji:
           id: art

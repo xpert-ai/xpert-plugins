@@ -76,7 +76,7 @@ export const canvasTemplates: CanvasTemplateContribution[] = [
     key: CANVAS_TEMPLATE_KEY,
     name: 'Canvas Assistant',
     title: 'Canvas Assistant',
-    description: 'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.',
+    description: '面向 data-xpert 的可视化画布助手模板，支持无限白板、AI 图片占位框、基于标注的修改和情绪板创作。',
     category: 'Canvas',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],

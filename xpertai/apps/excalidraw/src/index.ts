@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   EXCALIDRAW_AGENT_DRAWING_CAPABILITY,
@@ -26,6 +27,7 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 }
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
@@ -48,8 +50,10 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'app',
               name: 'excalidraw',
               displayName: 'Excalidraw',
-              description:
+              description: text(
                 'Create, update, version, review, import, export, and convert Agent-generated Excalidraw diagrams.',
+                '创建、更新、版本化、审核、导入导出并转换 Agent 生成的 Excalidraw 图形。'
+              ),
               icon: {
                 type: 'svg',
                 value: EXCALIDRAW_ICON,
@@ -59,19 +63,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                 {
                   name: 'create-excalidraw-drawings',
                   displayName: 'Create Excalidraw drawings',
-                  description: 'Create reviewable diagrams from Agent-generated Excalidraw JSON or Mermaid drafts.',
+                  description: text(
+                    'Create reviewable diagrams from Agent-generated Excalidraw JSON or Mermaid drafts.',
+                    '从 Agent 生成的 Excalidraw JSON 或 Mermaid 草稿创建可审核图形。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'save-excalidraw-versions',
                   displayName: 'Save drawing versions',
-                  description: 'Persist complete scenes, patches, and Mermaid conversions as versioned drawing records.',
+                  description: text(
+                    'Persist complete scenes, patches, and Mermaid conversions as versioned drawing records.',
+                    '将完整场景、补丁和 Mermaid 转换保存为带版本的图形记录。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'review-excalidraw-workbench',
                   displayName: 'Review drawing workbench',
-                  description: 'Open Excalidraw to inspect, manually edit, restore, import, and export drawings.',
+                  description: text(
+                    'Open Excalidraw to inspect, manually edit, restore, import, and export drawings.',
+                    '打开 Excalidraw 工作台以检查、手动编辑、恢复、导入和导出图形。'
+                  ),
                   access: 'read'
                 }
               ]
@@ -80,20 +93,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'view',
               name: EXCALIDRAW_WORKBENCH_VIEW_KEY,
               displayName: 'Excalidraw Workbench',
-              description: 'Workbench view for drawing lists, Excalidraw editing, Mermaid conversion, and version history.'
+              description: text(
+                'Workbench view for drawing lists, Excalidraw editing, Mermaid conversion, and version history.',
+                '用于图形列表、Excalidraw 编辑、Mermaid 转换和版本历史的工作台视图。'
+              )
             },
             {
               type: 'tool',
               name: EXCALIDRAW_MIDDLEWARE_NAME,
               displayName: 'Excalidraw Agent Tools',
-              description:
-                'Assistant middleware tools for creating drawings, saving scenes, patching elements, saving Mermaid drafts, searching drawings, and reporting failures.'
+              description: text(
+                'Assistant middleware tools for creating drawings, saving scenes, patching elements, saving Mermaid drafts, searching drawings, and reporting failures.',
+                '用于创建图形、保存场景、修补元素、保存 Mermaid 草稿、检索图形和上报失败的助手中间件工具。'
+              )
             },
             {
               type: 'assistant-template',
               name: 'excalidraw-assistant',
               displayName: 'Excalidraw Drawing Assistant Template',
-              description: 'Prebuilt assistant template for Agent-managed diagram creation and Excalidraw review workflows.'
+              description: text(
+                'Prebuilt assistant template for Agent-managed diagram creation and Excalidraw review workflows.',
+                '面向 Agent 管理图表创建和 Excalidraw 审阅工作流的预置助手模板。'
+              )
             }
           ]
         },
@@ -117,21 +138,29 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'skill',
               name: 'excalidraw-agent-skill',
               displayName: 'Excalidraw Agent Skill',
-              description:
+              description: text(
                 'Skill for using Excalidraw middleware tools, Workbench selection context, scene inspection, patching, versioning, and recovery.',
+                '使用 Excalidraw 中间件工具、工作台选择上下文、场景检查、修补、版本管理和恢复的技能。'
+              ),
               tags: ['skill', 'excalidraw', 'agent-drawing', 'middleware-tools']
             },
             {
               type: 'assistant-template',
               name: 'excalidraw-assistant',
               displayName: 'Excalidraw Drawing Assistant',
-              description: 'Assistant template for Excalidraw drawing workflows.'
+              description: text(
+                'Assistant template for Excalidraw drawing workflows.',
+                '面向 Excalidraw 绘图工作流的助手模板。'
+              )
             },
             {
               type: 'app',
               name: 'excalidraw',
               displayName: 'Excalidraw',
-              description: 'Workbench and Agent middleware tools for Excalidraw diagrams.'
+              description: text(
+                'Workbench and Agent middleware tools for Excalidraw diagrams.',
+                '用于 Excalidraw 图形的工作台和 Agent 中间件工具。'
+              )
             }
           ]
         }

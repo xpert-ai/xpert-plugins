@@ -2,7 +2,9 @@ team:
   name: docx-editor-assistant
   type: agent
   title: DOCX 文档审阅助手
-  description: 面向 DOCX 在线编辑、批注、修订建议和版本化保存的业务助手
+  description:
+    en_US: Business assistant for DOCX online editing, comments, tracked-change suggestions, and versioned saving
+    zh_Hans: 面向 DOCX 在线编辑、批注、修订建议和版本化保存的业务助手
   avatar:
     emoji:
       id: memo
@@ -59,7 +61,9 @@ nodes:
       key: Agent_DocxEditor
       name: docx-editor-assistant
       title: DOCX 文档审阅助手
-      description: 面向 DOCX 在线编辑、批注、修订建议和版本化保存的业务助手
+      description:
+        en_US: Business assistant for DOCX online editing, comments, tracked-change suggestions, and versioned saving
+        zh_Hans: 面向 DOCX 在线编辑、批注、修订建议和版本化保存的业务助手
       avatar:
         emoji:
           id: memo

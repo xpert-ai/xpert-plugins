@@ -79,7 +79,10 @@
             "type": "skill",
             "name": "index",
             "displayName": "Lucidchart Agent Drawing",
-            "description": "Workflow skill for Agent-managed Lucidchart Standard Import drafts, Mermaid drafts, Lucid links, and Workbench review.",
+            "description": {
+              "en_US": "Workflow skill for Agent-managed Lucidchart Standard Import drafts, Mermaid drafts, Lucid links, and Workbench review.",
+              "zh_Hans": "用于 Agent 管理 Lucidchart Standard Import 草稿、Mermaid 草稿、Lucid 链接和工作台审阅的工作流技能。"
+            },
             "tags": [
               "skill",
               "lucidchart",
@@ -90,13 +93,19 @@
             "type": "assistant-template",
             "name": "lucidchart-assistant",
             "displayName": "Lucidchart Drawing Assistant",
-            "description": "Assistant template for Lucidchart draft workflows."
+            "description": {
+              "en_US": "Assistant template for Lucidchart draft workflows.",
+              "zh_Hans": "面向 Lucidchart 草稿工作流的助手模板。"
+            }
           },
           {
             "type": "app",
             "name": "lucidchart",
             "displayName": "Lucidchart",
-            "description": "Workbench and Agent middleware tools for Lucidchart drafts."
+            "description": {
+              "en_US": "Workbench and Agent middleware tools for Lucidchart drafts.",
+              "zh_Hans": "用于 Lucidchart 草稿的工作台和 Agent 中间件工具。"
+            }
           }
         ]
       }

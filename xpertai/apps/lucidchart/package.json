@@ -39,7 +39,7 @@
   "scripts": {
     "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "node --loader ts-node/esm --test src/lib/lucidchart.templates.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "npm run build && node scripts/verify-package-output.mjs"
   },
