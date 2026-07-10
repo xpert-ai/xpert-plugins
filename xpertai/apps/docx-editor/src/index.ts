@@ -28,7 +28,11 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 const ConfigSchema = z.object({})
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
-const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
+type DocxEditorXpertPlugin = Omit<XpertPlugin<z.infer<typeof ConfigSchema>>, 'templates'> & {
+  templates: typeof docxEditorTemplates
+}
+
+const plugin: DocxEditorXpertPlugin = {
   meta: {
     name: packageJson.name || DOCX_EDITOR_PLUGIN_NAME,
     version: packageJson.version,

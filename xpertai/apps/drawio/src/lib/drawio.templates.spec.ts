@@ -17,10 +17,11 @@ const agentDescription = [
 test('localizes the draw.io installed assistant descriptions', () => {
   const template = drawioTemplates[0]
 
-  assert.equal(
-    template.description,
-    'A data-xpert draw.io drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.'
-  )
+  assert.deepEqual(template.description, {
+    en_US:
+      'A data-xpert draw.io drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
+    zh_Hans: '面向流程图、架构图、线框图和自由白板的 data-xpert draw.io 绘图助手模板。'
+  })
   assert.match(template.dslContent ?? '', /description:\n    en_US:/)
   assert.match(template.dslContent ?? '', /description:\n        en_US:/)
   assert.ok(template.dslContent?.includes(teamDescription))

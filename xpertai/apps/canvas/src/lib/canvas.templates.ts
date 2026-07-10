@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import {
   CANVAS_AGENT_CAPABILITY,
@@ -31,10 +31,8 @@ type CanvasTemplateToolsetDependency = {
   instanceName?: string
 }
 
-type CanvasTemplateContribution = XpertTemplateContribution & {
-  dependencies?: NonNullable<XpertTemplateContribution['dependencies']> & {
-    toolsets?: CanvasTemplateToolsetDependency[]
-  }
+type CanvasTemplateDependencies = NonNullable<XpertTemplateContribution['dependencies']> & {
+  toolsets?: CanvasTemplateToolsetDependency[]
 }
 
 const canvasSkillDependencies = [
@@ -71,12 +69,15 @@ function readCanvasDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const canvasTemplates: CanvasTemplateContribution[] = [
+export const canvasTemplates = [
   {
     key: CANVAS_TEMPLATE_KEY,
     name: 'Canvas Assistant',
     title: 'Canvas Assistant',
-    description: 'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.',
+    description: {
+      en_US: 'A data-xpert visual canvas assistant template for infinite whiteboards, AI image holders, annotation-driven edits, and moodboards.',
+      zh_Hans: '面向 data-xpert 的可视化画布助手模板，支持无限白板、AI 图片占位框、基于标注的修改和情绪板创作。'
+    },
     category: 'Canvas',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -102,7 +103,7 @@ export const canvasTemplates: CanvasTemplateContribution[] = [
       plugins: [CANVAS_PLUGIN_NAME, VIEW_IMAGE_PLUGIN_NAME, VOLCENGINE_PLUGIN_NAME],
       skills: canvasSkillDependencies,
       toolsets: canvasToolsetDependencies
-    },
+    } satisfies CanvasTemplateDependencies,
     dslContent: readCanvasDsl(),
     order: 58,
     default: false,

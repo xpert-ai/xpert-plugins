@@ -61,7 +61,11 @@ const canvasMarketplaceOperations = [
   }
 ]
 
-const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
+type CanvasXpertPlugin = Omit<XpertPlugin<z.infer<typeof ConfigSchema>>, 'templates'> & {
+  templates: typeof canvasTemplates
+}
+
+const plugin: CanvasXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
