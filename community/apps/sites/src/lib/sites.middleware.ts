@@ -14,7 +14,10 @@ import { SITES_FEATURE, SITES_ICON, SITES_MIDDLEWARE_NAME } from './constants.js
 import { SitesService } from './sites.service.js'
 import type {
   CreateSitesProjectInput,
+  CreateSitesShareLinkInput,
   DeploySitesVersionInput,
+  ListSitesShareLinksInput,
+  RevokeSitesShareLinkInput,
   SaveSitesVersionInput,
   SitesAccessMode,
   SitesEnvironmentValueInput,
@@ -59,6 +62,25 @@ const deployVersionSchema = z.object({
 })
 
 const createAndDeploySchema = createProjectSchema.merge(saveVersionSchema).merge(deployVersionSchema)
+
+const createShareLinkSchema = z.object({
+  deploymentId: z.string().min(1),
+  expiresAt: z.string().optional().describe('Optional ISO expiration time. Omit for a long-lived public preview URL.'),
+  noExpiry: z.boolean().optional().describe('Set true to create a long-lived public preview URL with no expiration.'),
+  label: z.string().optional().describe('Optional label for identifying the public preview link.')
+})
+
+const revokeShareLinkSchema = z.object({
+  shareLinkId: z.string().min(1),
+  reason: z.string().optional()
+})
+
+const listShareLinksSchema = z.object({
+  projectId: z.string().optional(),
+  deploymentId: z.string().optional(),
+  status: z.enum(['active', 'revoked']).optional(),
+  limit: z.number().int().positive().max(200).optional()
+})
 
 const inspectProjectSchema = z.object({
   projectId: z.string().min(1)
@@ -164,13 +186,16 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     const deployVersionTool = tool(
       async (input: z.infer<typeof deployVersionSchema>) => {
         const deployment = await this.service.deployVersion(input, scope)
-        const event = await this.service.buildDeploymentPreviewEvent({ deployment })
+        const share = await this.service.createDeploymentShareLink({ deploymentId: deployment.id ?? '', noExpiry: true }, scope)
+        const event = await this.service.buildDeploymentPreviewEvent({ deployment, previewUrl: share.previewUrl })
         return stringify({
-          message: 'Sites version was deployed to production.',
+          message: 'Sites version was deployed. Use previewUrl as the primary user-facing access link.',
           projectId: deployment.projectId,
           versionId: deployment.versionId,
           deploymentId: deployment.id,
           deploymentUrl: deployment.deploymentUrl,
+          previewUrl: share.previewUrl,
+          shareLinkId: share.shareLink.id,
           status: deployment.status,
           accessMode: deployment.accessMode,
           ...(event ? { event } : {})
@@ -179,7 +204,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       {
         name: 'sites_deploy_version',
         description:
-          'Deploy a saved Sites version and return the production URL. Only call this after the saved candidate is approved.',
+          'Deploy a saved Sites version and return previewUrl as the primary long-lived anonymous access link, plus deploymentUrl for permission-controlled workspace access. Only call this after the saved candidate is approved.',
         schema: deployVersionSchema
       }
     )
@@ -191,15 +216,18 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
           scope,
           sourceReadOptionsFromConfig(config)
         )
-        const event = await this.service.buildDeploymentPreviewEvent(result)
+        const share = await this.service.createDeploymentShareLink({ deploymentId: result.deployment.id ?? '', noExpiry: true }, scope)
+        const event = await this.service.buildDeploymentPreviewEvent({ ...result, previewUrl: share.previewUrl })
         return stringify({
-          message: 'Sites project was created, saved as a version, and deployed.',
+          message: 'Sites project was created, saved as a version, and deployed. Use previewUrl as the primary user-facing access link.',
           projectId: result.project.id,
           slug: result.project.slug,
           versionId: result.version.id,
           versionNumber: result.version.versionNumber,
           deploymentId: result.deployment.id,
           deploymentUrl: result.deployment.deploymentUrl,
+          previewUrl: share.previewUrl,
+          shareLinkId: share.shareLink.id,
           accessMode: result.deployment.accessMode,
           ...(event ? { event } : {})
         })
@@ -207,8 +235,55 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       {
         name: 'sites_create_and_deploy',
         description:
-          'Convenience tool for explicit publish requests: create a project, snapshot files from sandbox sourcePath, save a version, and deploy it in one call. Create and edit source files with SandboxFile tools before calling this.',
+          'Convenience tool for explicit publish requests: create a project, snapshot files from sandbox sourcePath, save a version, deploy it, and return previewUrl as the primary long-lived anonymous access link. Create and edit source files with SandboxFile tools before calling this.',
         schema: createAndDeploySchema
+      }
+    )
+
+    const createShareLinkTool = tool(
+      async (input: z.infer<typeof createShareLinkSchema>) => {
+        const share = await this.service.createDeploymentShareLink(input as CreateSitesShareLinkInput, scope)
+        return stringify({
+          message: 'Sites public preview link was created.',
+          shareLinkId: share.shareLink.id,
+          previewUrl: share.previewUrl,
+          shareLink: share.shareLink
+        })
+      },
+      {
+        name: 'sites_create_share_link',
+        description: 'Create a long-lived or expiring anonymous previewUrl for an existing Sites deployment. Use this when the user needs a fresh shareable access link.',
+        schema: createShareLinkSchema
+      }
+    )
+
+    const revokeShareLinkTool = tool(
+      async (input: z.infer<typeof revokeShareLinkSchema>) => {
+        const shareLink = await this.service.revokeShareLink(input as RevokeSitesShareLinkInput, scope)
+        return stringify({
+          message: 'Sites public preview link was revoked.',
+          shareLink
+        })
+      },
+      {
+        name: 'sites_revoke_share_link',
+        description: 'Revoke a public preview URL so anonymous users can no longer access it.',
+        schema: revokeShareLinkSchema
+      }
+    )
+
+    const listShareLinksTool = tool(
+      async (input: z.infer<typeof listShareLinksSchema>) => {
+        const shareLinks = await this.service.listShareLinks(input as ListSitesShareLinksInput, scope)
+        return stringify({
+          message: 'Sites public preview links were loaded. Existing link tokens are not shown; create a new link if a fresh URL is needed.',
+          shareLinks
+        })
+      },
+      {
+        name: 'sites_list_share_links',
+        description: 'List public preview link metadata for Sites deployments without exposing link tokens.',
+        schema: listShareLinksSchema
       }
     )
 
@@ -306,7 +381,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
       },
       {
         name: 'sites_check_deployment_status',
-        description: 'Return the latest deployment status and production URL for a Sites project.',
+        description: 'Return the latest deployment status and permission-controlled deploymentUrl for a Sites project.',
         schema: inspectProjectSchema
       }
     )
@@ -318,6 +393,9 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
         saveVersionTool,
         deployVersionTool,
         createAndDeployTool,
+        createShareLinkTool,
+        revokeShareLinkTool,
+        listShareLinksTool,
         listProjectsTool,
         inspectProjectTool,
         setAccessTool,

@@ -5,26 +5,11 @@
   "projectType": "library",
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
       "options": {
-        "outputPath": "middlewares/lark-cli/dist",
-        "main": "middlewares/lark-cli/src/index.ts",
-        "rootDir": "middlewares/lark-cli/src",
-        "tsConfig": "middlewares/lark-cli/tsconfig.lib.json",
-        "generatePackageJson": false,
-        "assets": [
-          {
-            "glob": "**/*.md",
-            "input": "middlewares/lark-cli/src",
-            "output": "./"
-          },
-          {
-            "glob": "**/*.sh",
-            "input": "middlewares/lark-cli/src",
-            "output": "./"
-          }
-        ]
+        "cwd": "middlewares/lark-cli",
+        "command": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs"
       }
     }
   },

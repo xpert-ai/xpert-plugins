@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-sites",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Sites app plugin for creating, saving, deploying, and inspecting hosted sites from data-xpert Assistants.",
   "author": {
     "name": "XpertAI",
@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit"
+    "test": "rm -rf .artifacts/sites-spec && tsc -p tsconfig.spec.json && node .artifacts/sites-spec/lib/sites-share-link.spec.js && rm -rf .artifacts/sites-spec"
   },
   "xpert": {
     "plugin": {

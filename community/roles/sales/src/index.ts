@@ -1,10 +1,14 @@
 import { z } from 'zod'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { PLUGIN_NAME, pluginIcon } from './lib/constants'
 import { XpertAISalesPluginModule } from './lib/role-plugin.module'
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
+const workflowSkillDescription = (name: string) => text(`${name} workflow skill.`, `${name} 工作流技能。`)
+const workspaceAppDescription = (role: string) => text(`Workspace app connector requirement for ${role}.`, `${role} 所需的工作区应用连接器。`)
+const assistantTemplateDescription = (role: string) => text(`Assistant template for ${role} workflows.`, `面向 ${role} 工作流的助手模板。`)
 const AGENT_KEY = "Agent_XpertAISales"
 const skillDependencies = [
   {
@@ -93,7 +97,7 @@ const roleAgent = {
   key: AGENT_KEY,
   name: "sales",
   title: "Sales",
-  description: "Prepare sales work faster",
+  description: text("Prepare sales work faster", "更快完成销售准备和跟进工作"),
   avatar: {
   "emoji": {
     "id": "briefcase-business"
@@ -114,7 +118,7 @@ const roleDraft = {
   team: {
     name: "Sales Assistant",
     title: "Sales Assistant",
-    description: "Prepare sales work faster",
+    description: text("Prepare sales work faster", "更快完成销售准备和跟进工作"),
     type: XpertTypeEnum.Agent,
     avatar: {
   "emoji": {
@@ -199,7 +203,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "analyze-account-signals",
                     "displayName": "Analyze Account Signals",
-                    "description": "Analyze Account Signals workflow skill.",
+                    "description": workflowSkillDescription("Analyze Account Signals"),
                     "tags": [
                               "skill",
                               "sales"
@@ -209,7 +213,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "build-business-case",
                     "displayName": "Build Business Case",
-                    "description": "Build Business Case workflow skill.",
+                    "description": workflowSkillDescription("Build Business Case"),
                     "tags": [
                               "skill",
                               "sales"
@@ -219,7 +223,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "build-competitive-brief",
                     "displayName": "Build Competitive Brief",
-                    "description": "Build Competitive Brief workflow skill.",
+                    "description": workflowSkillDescription("Build Competitive Brief"),
                     "tags": [
                               "skill",
                               "sales"
@@ -229,7 +233,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "enrich-company-and-contact-data",
                     "displayName": "Enrich Company And Contact Data",
-                    "description": "Enrich Company And Contact Data workflow skill.",
+                    "description": workflowSkillDescription("Enrich Company And Contact Data"),
                     "tags": [
                               "skill",
                               "sales"
@@ -239,7 +243,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "find-customer-quotes",
                     "displayName": "Find Customer Quotes",
-                    "description": "Find Customer Quotes workflow skill.",
+                    "description": workflowSkillDescription("Find Customer Quotes"),
                     "tags": [
                               "skill",
                               "sales"
@@ -249,7 +253,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "find-key-internal-sources",
                     "displayName": "Find Key Internal Sources",
-                    "description": "Find Key Internal Sources workflow skill.",
+                    "description": workflowSkillDescription("Find Key Internal Sources"),
                     "tags": [
                               "skill",
                               "sales"
@@ -259,7 +263,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "follow-up-after-call",
                     "displayName": "Follow Up After Call",
-                    "description": "Follow Up After Call workflow skill.",
+                    "description": workflowSkillDescription("Follow Up After Call"),
                     "tags": [
                               "skill",
                               "sales"
@@ -269,7 +273,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "get-rep-call-feedback",
                     "displayName": "Get Rep Call Feedback",
-                    "description": "Get Rep Call Feedback workflow skill.",
+                    "description": workflowSkillDescription("Get Rep Call Feedback"),
                     "tags": [
                               "skill",
                               "sales"
@@ -279,7 +283,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "hubspot",
                     "displayName": "Hubspot",
-                    "description": "Hubspot workflow skill.",
+                    "description": workflowSkillDescription("Hubspot"),
                     "tags": [
                               "skill",
                               "sales"
@@ -289,7 +293,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "index",
                     "displayName": "Index",
-                    "description": "Index workflow skill.",
+                    "description": workflowSkillDescription("Index"),
                     "tags": [
                               "skill",
                               "sales"
@@ -299,7 +303,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "plan-deal-strategy",
                     "displayName": "Plan Deal Strategy",
-                    "description": "Plan Deal Strategy workflow skill.",
+                    "description": workflowSkillDescription("Plan Deal Strategy"),
                     "tags": [
                               "skill",
                               "sales"
@@ -309,7 +313,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "prepare-for-meeting",
                     "displayName": "Prepare For Meeting",
-                    "description": "Prepare For Meeting workflow skill.",
+                    "description": workflowSkillDescription("Prepare For Meeting"),
                     "tags": [
                               "skill",
                               "sales"
@@ -319,7 +323,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "prioritize-accounts",
                     "displayName": "Prioritize Accounts",
-                    "description": "Prioritize Accounts workflow skill.",
+                    "description": workflowSkillDescription("Prioritize Accounts"),
                     "tags": [
                               "skill",
                               "sales"
@@ -329,7 +333,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "review-forecast",
                     "displayName": "Review Forecast",
-                    "description": "Review Forecast workflow skill.",
+                    "description": workflowSkillDescription("Review Forecast"),
                     "tags": [
                               "skill",
                               "sales"
@@ -339,7 +343,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "review-rep-call-trends",
                     "displayName": "Review Rep Call Trends",
-                    "description": "Review Rep Call Trends workflow skill.",
+                    "description": workflowSkillDescription("Review Rep Call Trends"),
                     "tags": [
                               "skill",
                               "sales"
@@ -349,7 +353,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "sales-company-research",
                     "displayName": "Sales Company Research",
-                    "description": "Sales Company Research workflow skill.",
+                    "description": workflowSkillDescription("Sales Company Research"),
                     "tags": [
                               "skill",
                               "sales"
@@ -359,7 +363,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "salesforce",
                     "displayName": "Salesforce",
-                    "description": "Salesforce workflow skill.",
+                    "description": workflowSkillDescription("Salesforce"),
                     "tags": [
                               "skill",
                               "sales"
@@ -369,7 +373,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "suggest-sales-next-step",
                     "displayName": "Suggest Sales Next Step",
-                    "description": "Suggest Sales Next Step workflow skill.",
+                    "description": workflowSkillDescription("Suggest Sales Next Step"),
                     "tags": [
                               "skill",
                               "sales"
@@ -379,7 +383,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "user-context",
                     "displayName": "User Context",
-                    "description": "User Context workflow skill.",
+                    "description": workflowSkillDescription("User Context"),
                     "tags": [
                               "skill",
                               "sales"
@@ -389,7 +393,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "skill",
                     "name": "zoominfo",
                     "displayName": "Zoominfo",
-                    "description": "Zoominfo workflow skill.",
+                    "description": workflowSkillDescription("Zoominfo"),
                     "tags": [
                               "skill",
                               "sales"
@@ -399,7 +403,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "slack",
                     "displayName": "Slack",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -409,7 +413,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "microsoft_teams",
                     "displayName": "Microsoft Teams",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -419,7 +423,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "zoom",
                     "displayName": "Zoom",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -429,7 +433,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "granola",
                     "displayName": "Granola",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -439,7 +443,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "fireflies",
                     "displayName": "Fireflies",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -449,7 +453,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "otter_ai",
                     "displayName": "Otter Ai",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -459,7 +463,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "salesforce",
                     "displayName": "Salesforce",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -469,7 +473,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "hubspot",
                     "displayName": "Hubspot",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -479,7 +483,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "close",
                     "displayName": "Close",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -489,7 +493,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "zoho",
                     "displayName": "Zoho",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -499,7 +503,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "pipedrive",
                     "displayName": "Pipedrive",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -509,7 +513,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "zoominfo",
                     "displayName": "Zoominfo",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -519,7 +523,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "clay",
                     "displayName": "Clay",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -529,7 +533,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "hg_insights",
                     "displayName": "Hg Insights",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -539,7 +543,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "rox",
                     "displayName": "Rox",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -549,7 +553,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "apollo",
                     "displayName": "Apollo",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -559,7 +563,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "actively",
                     "displayName": "Actively",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -569,7 +573,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "meticulate",
                     "displayName": "Meticulate",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -579,7 +583,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "gmail",
                     "displayName": "Gmail",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -589,7 +593,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outlook_email",
                     "displayName": "Outlook Email",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -599,7 +603,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outreach",
                     "displayName": "Outreach",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -609,7 +613,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "notion",
                     "displayName": "Notion",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -619,7 +623,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "google_drive",
                     "displayName": "Google Drive",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -629,7 +633,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "microsoft_sharepoint",
                     "displayName": "Microsoft Sharepoint",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -639,7 +643,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "google_calendar",
                     "displayName": "Google Calendar",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -649,7 +653,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "outlook_calendar",
                     "displayName": "Outlook Calendar",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -659,7 +663,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "calendly",
                     "displayName": "Calendly",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -669,7 +673,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "monday",
                     "displayName": "Monday",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -679,7 +683,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "app",
                     "name": "docusign",
                     "displayName": "Docusign",
-                    "description": "Workspace app connector requirement for Sales.",
+                    "description": workspaceAppDescription("Sales"),
                     "tags": [
                               "app",
                               "required"
@@ -689,7 +693,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                     "type": "assistant-template",
                     "name": "sales-assistant",
                     "displayName": "Sales Assistant",
-                    "description": "Assistant template for Sales workflows."
+                    "description": assistantTemplateDescription("Sales")
           }
 ]
         }
@@ -704,7 +708,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       key: "sales-assistant",
       title: "Sales Assistant",
       name: "Sales Assistant",
-      description: "Prepare sales work faster",
+      description: "更快完成销售准备和跟进工作",
       type: XpertTypeEnum.Agent,
       category: "business",
       icon: {

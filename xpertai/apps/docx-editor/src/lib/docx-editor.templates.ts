@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
-import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import {
   DOCX_EDITOR_AGENT_KEY,
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
@@ -43,12 +42,16 @@ function readDocxEditorDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const docxEditorTemplates: XpertTemplateContribution[] = [
+export const docxEditorTemplates = [
   {
     key: DOCX_EDITOR_ASSISTANT_TEMPLATE_KEY,
     name: 'DOCX Editor Assistant',
     title: 'DOCX 文档审阅助手',
-    description: '面向 DOCX 上传、在线编辑、批注、修订建议和版本化保存的 data-xpert 文档助手模板。',
+    description: {
+      en_US:
+        'A data-xpert document assistant template for DOCX uploads, online editing, comments, tracked-change suggestions, and versioned saves.',
+      zh_Hans: '面向 DOCX 上传、在线编辑、批注、修订建议和版本化保存的 data-xpert 文档助手模板。'
+    },
     category: 'Documents',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -86,5 +89,5 @@ export const docxEditorTemplates: XpertTemplateContribution[] = [
     releaseNotes: '创建 DOCX 文档审阅和编辑助手。',
     xpertName: 'DOCX 文档审阅助手',
     providerKey: DOCX_EDITOR_TEMPLATE_PROVIDER_KEY
-  } as XpertTemplateContribution
+  }
 ]

@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
-import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import {
   LUCIDCHART_AGENT_DRAWING_CAPABILITY,
   LUCIDCHART_FEATURE,
@@ -43,12 +42,16 @@ function readLucidchartDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const lucidchartTemplates: XpertTemplateContribution[] = [
+export const lucidchartTemplates = [
   {
     key: LUCIDCHART_TEMPLATE_KEY,
     name: 'Lucidchart Drawing Assistant',
     title: 'Lucidchart 绘图助手',
-    description: '面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 data-xpert 绘图助手模板。',
+    description: {
+      en_US:
+        'A data-xpert drawing assistant template for Lucidchart Standard Import drafts, Mermaid drafts, and external Lucid document registration.',
+      zh_Hans: '面向 Lucidchart Standard Import 草稿、Mermaid 草稿和外部 Lucid 文档登记的 data-xpert 绘图助手模板。'
+    },
     category: 'Lucidchart',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -86,5 +89,5 @@ export const lucidchartTemplates: XpertTemplateContribution[] = [
     releaseNotes: '创建 Lucidchart Standard Import Agentic Drawing 业务助手。',
     xpertName: 'Lucidchart 绘图助手',
     providerKey: LUCIDCHART_TEMPLATE_PROVIDER_KEY
-  } as XpertTemplateContribution
+  }
 ]

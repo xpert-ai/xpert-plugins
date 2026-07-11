@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
@@ -25,8 +26,13 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 }
 
 const ConfigSchema = z.object({})
+const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
-const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
+type DocxEditorXpertPlugin = Omit<XpertPlugin<z.infer<typeof ConfigSchema>>, 'templates'> & {
+  templates: typeof docxEditorTemplates
+}
+
+const plugin: DocxEditorXpertPlugin = {
   meta: {
     name: packageJson.name || DOCX_EDITOR_PLUGIN_NAME,
     version: packageJson.version,
@@ -47,7 +53,10 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'app',
               name: 'docx-editor',
               displayName: 'DOCX Editor',
-              description: 'Upload, edit, version, comment, and review .docx files in a Workbench.',
+              description: text(
+                'Upload, edit, version, comment, and review .docx files in a Workbench.',
+                '在工作台中上传、编辑、版本化、批注和审阅 .docx 文件。'
+              ),
               icon: {
                 type: 'svg',
                 value: DOCX_EDITOR_ICON,
@@ -57,19 +66,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                 {
                   name: 'edit-docx',
                   displayName: 'Edit DOCX',
-                  description: 'Open and edit .docx documents in the browser.',
+                  description: text(
+                    'Open and edit .docx documents in the browser.',
+                    '在浏览器中打开和编辑 .docx 文档。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'review-docx',
                   displayName: 'Review DOCX',
-                  description: 'Use Agent tools to add comments and tracked changes.',
+                  description: text(
+                    'Use Agent tools to add comments and tracked changes.',
+                    '使用 Agent 工具添加批注和修订建议。'
+                  ),
                   access: 'write'
                 },
                 {
                   name: 'version-docx',
                   displayName: 'Version DOCX',
-                  description: 'Save and restore DOCX document versions.',
+                  description: text(
+                    'Save and restore DOCX document versions.',
+                    '保存和恢复 DOCX 文档版本。'
+                  ),
                   access: 'write'
                 }
               ]
@@ -78,19 +96,28 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'view',
               name: DOCX_EDITOR_VIEW_KEY,
               displayName: 'DOCX Editor Workbench',
-              description: 'Workbench view for DOCX editing, comments, tracked changes, snapshots, and version history.'
+              description: text(
+                'Workbench view for DOCX editing, comments, tracked changes, snapshots, and version history.',
+                '用于 DOCX 编辑、批注、修订建议、快照和版本历史的工作台视图。'
+              )
             },
             {
               type: 'tool',
               name: DOCX_EDITOR_MIDDLEWARE_NAME,
               displayName: 'DOCX Editor Agent Tools',
-              description: 'Assistant middleware tools for DOCX reading, comments, tracked changes, formatting, and live Workbench actions.'
+              description: text(
+                'Assistant middleware tools for DOCX reading, comments, tracked changes, formatting, and live Workbench actions.',
+                '用于 DOCX 读取、批注、修订建议、格式处理和实时工作台操作的助手中间件工具。'
+              )
             },
             {
               type: 'assistant-template',
               name: 'docx-editor-assistant',
               displayName: 'DOCX Editor Assistant Template',
-              description: 'Prebuilt assistant template for DOCX document editing and review workflows.'
+              description: text(
+                'Prebuilt assistant template for DOCX document editing and review workflows.',
+                '面向 DOCX 文档编辑和审阅工作流的预置助手模板。'
+              )
             }
           ]
         },
@@ -114,20 +141,29 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'skill',
               name: 'docx-editor',
               displayName: 'DOCX Editor Review Skill',
-              description: 'Workflow skill for DOCX reading, paraId selection, comments, tracked changes, formatting, and version confirmation.',
+              description: text(
+                'Workflow skill for DOCX reading, paraId selection, comments, tracked changes, formatting, and version confirmation.',
+                '用于 DOCX 读取、paraId 选择、批注、修订建议、格式处理和版本确认的工作流技能。'
+              ),
               tags: ['skill', 'docx', 'document-review']
             },
             {
               type: 'assistant-template',
               name: 'docx-editor-assistant',
               displayName: 'DOCX Editor Assistant',
-              description: 'Assistant template for DOCX editing and review workflows.'
+              description: text(
+                'Assistant template for DOCX editing and review workflows.',
+                '面向 DOCX 编辑和审阅工作流的助手模板。'
+              )
             },
             {
               type: 'app',
               name: 'docx-editor',
               displayName: 'DOCX Editor',
-              description: 'Workbench and Agent middleware tools for DOCX documents.'
+              description: text(
+                'Workbench and Agent middleware tools for DOCX documents.',
+                '用于 DOCX 文档的工作台和 Agent 中间件工具。'
+              )
             }
           ]
         }

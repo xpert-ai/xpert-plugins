@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { XpertTypeEnum } from '@xpert-ai/contracts'
-import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
+import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import {
   DRAWIO_AGENT_DRAWING_CAPABILITY,
   DRAWIO_FEATURE,
@@ -43,12 +42,16 @@ function readDrawioDsl() {
   return readFileSync(templatePath, 'utf8')
 }
 
-export const drawioTemplates: XpertTemplateContribution[] = [
+export const drawioTemplates = [
   {
     key: DRAWIO_TEMPLATE_KEY,
     name: 'draw.io Drawing Assistant',
     title: 'draw.io 绘图助手',
-    description: '面向流程图、架构图、线框图和自由白板的 data-xpert draw.io 绘图助手模板。',
+    description: {
+      en_US:
+        'A data-xpert draw.io drawing assistant template for flowcharts, architecture diagrams, wireframes, and freeform whiteboards.',
+      zh_Hans: '面向流程图、架构图、线框图和自由白板的 data-xpert draw.io 绘图助手模板。'
+    },
     category: 'draw.io',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -86,5 +89,5 @@ export const drawioTemplates: XpertTemplateContribution[] = [
     releaseNotes: '创建 draw.io Agentic Drawing 业务助手。',
     xpertName: 'draw.io 绘图助手',
     providerKey: DRAWIO_TEMPLATE_PROVIDER_KEY
-  } as XpertTemplateContribution
+  }
 ]

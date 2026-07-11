@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-docx-editor",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "DOCX Editor app plugin for browser-based Word editing, versioning, comments, tracked changes, and Xpert Agent review tools.",
   "author": {
     "name": "XpertAI",
@@ -39,7 +39,7 @@
   "scripts": {
     "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
   },

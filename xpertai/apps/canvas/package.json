@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-canvas",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Canvas app plugin for agent-managed tldraw infinite canvases, image holders, annotation workflows, reviewable versions, and an editable workbench.",
   "author": {
     "name": "XpertAI",

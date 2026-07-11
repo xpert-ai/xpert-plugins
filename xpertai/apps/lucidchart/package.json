@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lucidchart",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "Lucidchart app plugin for agent-created Standard Import drafts, Lucid document references, reviewable versions, and a workbench.",
   "author": {
     "name": "XpertAI",
@@ -39,7 +39,7 @@
   "scripts": {
     "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "node --loader ts-node/esm --test src/lib/lucidchart.templates.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "npm run build && node scripts/verify-package-output.mjs"
   },

@@ -79,7 +79,10 @@
             "type": "skill",
             "name": "excalidraw-agent-skill",
             "displayName": "Excalidraw Agent Skill",
-            "description": "Skill for using Excalidraw middleware tools, Workbench selection context, scene inspection, patching, versioning, and recovery.",
+            "description": {
+              "en_US": "Skill for using Excalidraw middleware tools, Workbench selection context, scene inspection, patching, versioning, and recovery.",
+              "zh_Hans": "使用 Excalidraw 中间件工具、工作台选择上下文、场景检查、修补、版本管理和恢复的技能。"
+            },
             "tags": [
               "skill",
               "excalidraw",
@@ -91,13 +94,19 @@
             "type": "assistant-template",
             "name": "excalidraw-assistant",
             "displayName": "Excalidraw Drawing Assistant",
-            "description": "Assistant template for Excalidraw drawing workflows."
+            "description": {
+              "en_US": "Assistant template for Excalidraw drawing workflows.",
+              "zh_Hans": "面向 Excalidraw 绘图工作流的助手模板。"
+            }
           },
           {
             "type": "app",
             "name": "excalidraw",
             "displayName": "Excalidraw",
-            "description": "Workbench and Agent middleware tools for Excalidraw diagrams."
+            "description": {
+              "en_US": "Workbench and Agent middleware tools for Excalidraw diagrams.",
+              "zh_Hans": "用于 Excalidraw 图形的工作台和 Agent 中间件工具。"
+            }
           }
         ]
       }

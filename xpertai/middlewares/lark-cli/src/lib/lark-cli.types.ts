@@ -2,11 +2,52 @@ import { JsonSchemaObjectType } from '@xpert-ai/contracts'
 import type { ISchemaSecretField } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 
-export const LARK_CLI_SKILL_MIDDLEWARE_NAME = 'LarkCLISkill'
+type JsonSchemaUIDependency =
+  | string
+  | {
+      name: string
+      alias?: string
+      source?: 'model' | 'context'
+    }
 
-export const DEFAULT_LARK_CLI_SKILLS_DIR = '/workspace/.xpert/skills/lark-cli'
-export const DEFAULT_LARK_CLI_SECRETS_DIR = '/workspace/.xpert/secrets'
-export const DEFAULT_LARK_CLI_STAMP_PATH = '/workspace/.xpert/.lark-cli-bootstrap.json'
+type JsonSchemaUIWithContextDepends = {
+  component?: string
+  enumLabels?: Record<string, unknown>
+  revealable?: boolean
+  maskSymbol?: string
+  persist?: boolean
+  span?: number
+  selectUrl?: string
+  depends?: JsonSchemaUIDependency[]
+  visibleWhen?: {
+    name: string
+    source?: 'model' | 'context'
+    value?: unknown
+    values?: unknown[]
+    exists?: boolean
+    not?: boolean
+  }
+}
+
+type JsonSchemaObjectTypeWithContextDepends = Omit<JsonSchemaObjectType, 'properties'> & {
+  properties: Record<
+    string,
+    JsonSchemaObjectType['properties'][string] & {
+      'x-ui'?: JsonSchemaUIWithContextDepends | ISchemaSecretField
+    }
+  >
+}
+
+export const LARK_CLI_SKILL_MIDDLEWARE_NAME = 'LarkCLISkill'
+export const CONNECTOR_MIDDLEWARE_NAME = 'ConnectorMiddleware'
+export const LARK_CONNECTOR_PROVIDER = 'lark'
+export const LARK_CONNECTOR_RUNTIME_MIDDLEWARE_NAME = `ConnectorRuntime:${LARK_CONNECTOR_PROVIDER}`
+
+export const DEFAULT_LARK_CLI_WORKSPACE_ROOT = '/workspace'
+export const DEFAULT_LARK_CLI_SKILLS_DIR = `${DEFAULT_LARK_CLI_WORKSPACE_ROOT}/.xpert/skills/lark-cli`
+export const DEFAULT_LARK_CLI_SECRETS_DIR = `${DEFAULT_LARK_CLI_WORKSPACE_ROOT}/.xpert/secrets`
+export const DEFAULT_LARK_CLI_STAMP_PATH = `${DEFAULT_LARK_CLI_WORKSPACE_ROOT}/.xpert/.lark-cli-bootstrap.json`
+export const DEFAULT_LARK_CLI_CONNECTOR_ENV_DIR = `${DEFAULT_LARK_CLI_WORKSPACE_ROOT}/.xpert/secrets/lark-cli-connectors`
 export const DEFAULT_LARK_BOOTSTRAP_SCRIPT_PATH = `${DEFAULT_LARK_CLI_SKILLS_DIR}/scripts/lark-bootstrap.sh`
 export const DEFAULT_LARK_CLI_APP_ID_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_id`
 export const DEFAULT_LARK_CLI_APP_SECRET_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_secret`
@@ -15,7 +56,8 @@ export const LARK_CLI_BOOTSTRAP_SCHEMA_VERSION = 2
 // Authentication mode enum
 export const LarkAuthMode = {
   USER: 'user',
-  BOT: 'bot'
+  BOT: 'bot',
+  CONNECTOR: 'connector'
 } as const
 
 // Lark brand enum (determines API endpoint)
@@ -59,20 +101,29 @@ export const LarkBotAuthConfigSchema = z.object({
   brand: z.enum([LarkBrand.LARK, LarkBrand.FEISHU]).optional().default(LarkBrand.LARK)
 })
 
+// Middleware-level configuration schema for workspace connector authentication
+export const LarkConnectorAuthConfigSchema = z.object({
+  authMode: z.literal(LarkAuthMode.CONNECTOR),
+  connectorId: OptionalConfigStringSchema
+})
+
 export const LarkCliMiddlewareConfigSchema = z.discriminatedUnion('authMode', [
   LarkUserAuthConfigSchema,
-  LarkBotAuthConfigSchema
+  LarkBotAuthConfigSchema,
+  LarkConnectorAuthConfigSchema
 ])
 
 export type LarkCliMiddlewareConfig = z.infer<typeof LarkCliMiddlewareConfigSchema>
 
 const LarkCliUserConfigSchema = LarkUserAuthConfigSchema.merge(LarkCliPluginConfigSchema)
 const LarkCliBotConfigSchema = LarkBotAuthConfigSchema.merge(LarkCliPluginConfigSchema)
+const LarkCliConnectorConfigSchema = LarkConnectorAuthConfigSchema.merge(LarkCliPluginConfigSchema)
 
 // Combined runtime config schema - authentication plus plugin-level download settings
 export const LarkCliConfigSchema = z.discriminatedUnion('authMode', [
   LarkCliUserConfigSchema,
-  LarkCliBotConfigSchema
+  LarkCliBotConfigSchema,
+  LarkCliConnectorConfigSchema
 ])
 
 export type LarkCliConfig = z.infer<typeof LarkCliConfigSchema>
@@ -118,7 +169,7 @@ export const LarkCliPluginConfigFormSchema: JsonSchemaObjectType = {
 }
 
 // Middleware-level form schema for UI configuration
-export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
+export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectTypeWithContextDepends = {
   type: 'object',
   properties: {
     authMode: {
@@ -129,12 +180,22 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
         zh_Hans: '认证模式'
       },
       description: {
-        en_US: 'Select user-level (OAuth) or bot-level (App ID/Secret) authentication.',
-        zh_Hans: '选择用户级（OAuth）或应用级（App ID/Secret）认证。'
+        en_US: 'Select user-level device login or bot-level App ID/Secret authentication.',
+        zh_Hans: '选择用户级设备登录或机器人应用 App ID/Secret 认证。'
       },
       default: LarkAuthMode.USER,
       'x-ui': {
         component: 'select',
+        enumLabels: {
+          [LarkAuthMode.USER]: {
+            en_US: 'User device login',
+            zh_Hans: '用户设备登录'
+          },
+          [LarkAuthMode.BOT]: {
+            en_US: 'Bot app credentials',
+            zh_Hans: '机器人应用凭证'
+          }
+        },
         span: 2
       }
     },
@@ -154,6 +215,10 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
         revealable: true,
         maskSymbol: '*',
         persist: true,
+        visibleWhen: {
+          name: 'authMode',
+          value: LarkAuthMode.BOT
+        },
         span: 2
       }
     },
@@ -173,6 +238,10 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
         revealable: true,
         maskSymbol: '*',
         persist: true,
+        visibleWhen: {
+          name: 'authMode',
+          value: LarkAuthMode.BOT
+        },
         span: 2
       }
     },
@@ -190,6 +259,10 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
       default: LarkBrand.LARK,
       'x-ui': {
         component: 'select',
+        visibleWhen: {
+          name: 'authMode',
+          value: LarkAuthMode.BOT
+        },
         span: 2
       }
     }
@@ -205,7 +278,7 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectType = {
 export const LarkAuthEnsureResponseSchema = z.object({
   configExists: z.boolean().describe('Whether middleware configuration exists'),
   configValid: z.boolean().describe('Whether required configuration fields are valid'),
-  authMode: z.enum(['user', 'bot']).describe('Current authentication mode from config'),
+  authMode: z.enum(['user', 'bot', 'connector']).describe('Current authentication mode from config'),
   identityType: z.enum(['user', 'bot', 'none']).describe('Current active identity type'),
   isLoggedIn: z.boolean().describe('Whether authentication is currently active'),
   tokenValid: z.boolean().describe('Whether token is valid (not expired)'),

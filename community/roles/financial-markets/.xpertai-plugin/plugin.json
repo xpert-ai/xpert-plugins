@@ -94,7 +94,10 @@
             "type": "skill",
             "name": "catalyst-calendar",
             "displayName": "Catalyst Calendar",
-            "description": "Catalyst Calendar workflow skill.",
+            "description": {
+              "en_US": "Catalyst Calendar workflow skill.",
+              "zh_Hans": "Catalyst Calendar 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -104,7 +107,10 @@
             "type": "skill",
             "name": "company-tearsheet",
             "displayName": "Company Tearsheet",
-            "description": "Company Tearsheet workflow skill.",
+            "description": {
+              "en_US": "Company Tearsheet workflow skill.",
+              "zh_Hans": "Company Tearsheet 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -114,7 +120,10 @@
             "type": "skill",
             "name": "comps-valuation",
             "displayName": "Comps Valuation",
-            "description": "Comps Valuation workflow skill.",
+            "description": {
+              "en_US": "Comps Valuation workflow skill.",
+              "zh_Hans": "Comps Valuation 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -124,7 +133,10 @@
             "type": "skill",
             "name": "dcf-model-builder",
             "displayName": "Dcf Model Builder",
-            "description": "Dcf Model Builder workflow skill.",
+            "description": {
+              "en_US": "Dcf Model Builder workflow skill.",
+              "zh_Hans": "Dcf Model Builder 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -134,7 +146,10 @@
             "type": "skill",
             "name": "deck-report-qc",
             "displayName": "Deck Report Qc",
-            "description": "Deck Report Qc workflow skill.",
+            "description": {
+              "en_US": "Deck Report Qc workflow skill.",
+              "zh_Hans": "Deck Report Qc 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -144,7 +159,10 @@
             "type": "skill",
             "name": "earnings-deep-dive",
             "displayName": "Earnings Deep Dive",
-            "description": "Earnings Deep Dive workflow skill.",
+            "description": {
+              "en_US": "Earnings Deep Dive workflow skill.",
+              "zh_Hans": "Earnings Deep Dive 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -154,7 +172,10 @@
             "type": "skill",
             "name": "earnings-preview",
             "displayName": "Earnings Preview",
-            "description": "Earnings Preview workflow skill.",
+            "description": {
+              "en_US": "Earnings Preview workflow skill.",
+              "zh_Hans": "Earnings Preview 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -164,7 +185,10 @@
             "type": "skill",
             "name": "economic-impact-report",
             "displayName": "Economic Impact Report",
-            "description": "Economic Impact Report workflow skill.",
+            "description": {
+              "en_US": "Economic Impact Report workflow skill.",
+              "zh_Hans": "Economic Impact Report 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -174,7 +198,10 @@
             "type": "skill",
             "name": "equity-model-update",
             "displayName": "Equity Model Update",
-            "description": "Equity Model Update workflow skill.",
+            "description": {
+              "en_US": "Equity Model Update workflow skill.",
+              "zh_Hans": "Equity Model Update 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -184,7 +211,10 @@
             "type": "skill",
             "name": "event-driven-analyzer",
             "displayName": "Event Driven Analyzer",
-            "description": "Event Driven Analyzer workflow skill.",
+            "description": {
+              "en_US": "Event Driven Analyzer workflow skill.",
+              "zh_Hans": "Event Driven Analyzer 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -194,7 +224,10 @@
             "type": "skill",
             "name": "financials-normalizer",
             "displayName": "Financials Normalizer",
-            "description": "Financials Normalizer workflow skill.",
+            "description": {
+              "en_US": "Financials Normalizer workflow skill.",
+              "zh_Hans": "Financials Normalizer 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -204,7 +237,10 @@
             "type": "skill",
             "name": "idea-generation",
             "displayName": "Idea Generation",
-            "description": "Idea Generation workflow skill.",
+            "description": {
+              "en_US": "Idea Generation workflow skill.",
+              "zh_Hans": "Idea Generation 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -214,7 +250,10 @@
             "type": "skill",
             "name": "initiating-coverage",
             "displayName": "Initiating Coverage",
-            "description": "Initiating Coverage workflow skill.",
+            "description": {
+              "en_US": "Initiating Coverage workflow skill.",
+              "zh_Hans": "Initiating Coverage 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -224,7 +263,10 @@
             "type": "skill",
             "name": "long-short-pitch",
             "displayName": "Long Short Pitch",
-            "description": "Long Short Pitch workflow skill.",
+            "description": {
+              "en_US": "Long Short Pitch workflow skill.",
+              "zh_Hans": "Long Short Pitch 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -234,7 +276,10 @@
             "type": "skill",
             "name": "meeting-prep",
             "displayName": "Meeting Prep",
-            "description": "Meeting Prep workflow skill.",
+            "description": {
+              "en_US": "Meeting Prep workflow skill.",
+              "zh_Hans": "Meeting Prep 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -244,7 +289,10 @@
             "type": "skill",
             "name": "memo-builder",
             "displayName": "Memo Builder",
-            "description": "Memo Builder workflow skill.",
+            "description": {
+              "en_US": "Memo Builder workflow skill.",
+              "zh_Hans": "Memo Builder 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -254,7 +302,10 @@
             "type": "skill",
             "name": "model-audit-tieout",
             "displayName": "Model Audit Tieout",
-            "description": "Model Audit Tieout workflow skill.",
+            "description": {
+              "en_US": "Model Audit Tieout workflow skill.",
+              "zh_Hans": "Model Audit Tieout 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -264,7 +315,10 @@
             "type": "skill",
             "name": "portfolio-risk-management",
             "displayName": "Portfolio Risk Management",
-            "description": "Portfolio Risk Management workflow skill.",
+            "description": {
+              "en_US": "Portfolio Risk Management workflow skill.",
+              "zh_Hans": "Portfolio Risk Management 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -274,7 +328,10 @@
             "type": "skill",
             "name": "public-equity-investing",
             "displayName": "Public Equity Investing",
-            "description": "Public Equity Investing workflow skill.",
+            "description": {
+              "en_US": "Public Equity Investing workflow skill.",
+              "zh_Hans": "Public Equity Investing 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -284,7 +341,10 @@
             "type": "skill",
             "name": "scenario-sensitivity-generator",
             "displayName": "Scenario Sensitivity Generator",
-            "description": "Scenario Sensitivity Generator workflow skill.",
+            "description": {
+              "en_US": "Scenario Sensitivity Generator workflow skill.",
+              "zh_Hans": "Scenario Sensitivity Generator 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -294,7 +354,10 @@
             "type": "skill",
             "name": "thesis-tracker",
             "displayName": "Thesis Tracker",
-            "description": "Thesis Tracker workflow skill.",
+            "description": {
+              "en_US": "Thesis Tracker workflow skill.",
+              "zh_Hans": "Thesis Tracker 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -304,7 +367,10 @@
             "type": "skill",
             "name": "three-statement-model-builder",
             "displayName": "Three Statement Model Builder",
-            "description": "Three Statement Model Builder workflow skill.",
+            "description": {
+              "en_US": "Three Statement Model Builder workflow skill.",
+              "zh_Hans": "Three Statement Model Builder 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -314,7 +380,10 @@
             "type": "skill",
             "name": "user-context",
             "displayName": "User Context",
-            "description": "User Context workflow skill.",
+            "description": {
+              "en_US": "User Context workflow skill.",
+              "zh_Hans": "User Context 工作流技能。"
+            },
             "tags": [
               "skill",
               "financial-markets"
@@ -324,7 +393,10 @@
             "type": "app",
             "name": "slack",
             "displayName": "Slack",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -334,7 +406,10 @@
             "type": "app",
             "name": "pitchbook",
             "displayName": "Pitchbook",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -344,7 +419,10 @@
             "type": "app",
             "name": "factset",
             "displayName": "Factset",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -354,7 +432,10 @@
             "type": "app",
             "name": "morningstar",
             "displayName": "Morningstar",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -364,7 +445,10 @@
             "type": "app",
             "name": "lseg",
             "displayName": "Lseg",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -374,7 +458,10 @@
             "type": "app",
             "name": "s-p",
             "displayName": "S P",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -384,7 +471,10 @@
             "type": "app",
             "name": "third-bridge",
             "displayName": "Third Bridge",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -394,7 +484,10 @@
             "type": "app",
             "name": "daloopa",
             "displayName": "Daloopa",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -404,7 +497,10 @@
             "type": "app",
             "name": "quartr",
             "displayName": "Quartr",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -414,7 +510,10 @@
             "type": "app",
             "name": "alpaca",
             "displayName": "Alpaca",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -424,7 +523,10 @@
             "type": "app",
             "name": "google_drive",
             "displayName": "Google Drive",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -434,7 +536,10 @@
             "type": "app",
             "name": "gmail_connector",
             "displayName": "Gmail Connector",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -444,7 +549,10 @@
             "type": "app",
             "name": "outlook_email_connector",
             "displayName": "Outlook Email Connector",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -454,7 +562,10 @@
             "type": "app",
             "name": "sharepoint_connector",
             "displayName": "Sharepoint Connector",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -464,7 +575,10 @@
             "type": "app",
             "name": "teams_connector",
             "displayName": "Teams Connector",
-            "description": "Workspace app connector requirement for Financial Markets.",
+            "description": {
+              "en_US": "Workspace app connector requirement for Financial Markets.",
+              "zh_Hans": "Financial Markets 所需的工作区应用连接器。"
+            },
             "tags": [
               "app",
               "required"
@@ -474,7 +588,10 @@
             "type": "assistant-template",
             "name": "financial-markets-assistant",
             "displayName": "Financial Markets Assistant",
-            "description": "Assistant template for Financial Markets workflows."
+            "description": {
+              "en_US": "Assistant template for Financial Markets workflows.",
+              "zh_Hans": "面向 Financial Markets 工作流的助手模板。"
+            }
           }
         ]
       }

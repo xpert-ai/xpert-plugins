@@ -1,13 +1,13 @@
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
-import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesVersion } from './entities/index.js'
+import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesShareLink, SitesVersion } from './entities/index.js'
 import { SitesHostingController } from './sites-hosting.controller.js'
 import { SitesMiddleware } from './sites.middleware.js'
 import { SitesService } from './sites.service.js'
 import { SitesViewProvider } from './sites-view.provider.js'
 
-const SITES_ENTITIES = [SitesProject, SitesVersion, SitesDeployment, SitesEnvironmentVariable]
+const SITES_ENTITIES = [SitesProject, SitesVersion, SitesDeployment, SitesEnvironmentVariable, SitesShareLink]
 
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(SITES_ENTITIES)],

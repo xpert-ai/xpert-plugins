@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lark-cli",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -38,6 +38,7 @@
   },
   "peerDependencies": {
     "@xpert-ai/contracts": "^3.8.3",
-    "@xpert-ai/plugin-sdk": "^3.8.3"
+    "axios": "1.12.2",
+    "@xpert-ai/plugin-sdk": "^3.15.7"
   }
 }

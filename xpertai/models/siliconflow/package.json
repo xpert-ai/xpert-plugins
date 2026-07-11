@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-siliconflow",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "SiliconFlow AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",

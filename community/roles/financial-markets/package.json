@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/community-financial-markets",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Public equity investing workflows for listed-company research, earnings analysis, valuation, model updates, long/short pitches, catalysts, thesis tracking, ETF/index and constituent diligence, sell-side research notes, risk sizing, hedging, dashboards, and investment memos.",
   "author": "XpertAI",
   "license": "MIT",

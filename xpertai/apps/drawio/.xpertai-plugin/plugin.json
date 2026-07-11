@@ -79,7 +79,10 @@
             "type": "skill",
             "name": "index",
             "displayName": "draw.io Agent Drawing",
-            "description": "Workflow skill for Agent-managed draw.io diagrams, Mermaid drafts, XML versions, and Workbench review.",
+            "description": {
+              "en_US": "Workflow skill for Agent-managed draw.io diagrams, Mermaid drafts, XML versions, and Workbench review.",
+              "zh_Hans": "用于 Agent 管理 draw.io 图表、Mermaid 草稿、XML 版本和工作台审阅的工作流技能。"
+            },
             "tags": [
               "skill",
               "drawio",
@@ -90,13 +93,19 @@
             "type": "assistant-template",
             "name": "drawio-assistant",
             "displayName": "draw.io Drawing Assistant",
-            "description": "Assistant template for draw.io diagram workflows."
+            "description": {
+              "en_US": "Assistant template for draw.io diagram workflows.",
+              "zh_Hans": "面向 draw.io 图表工作流的助手模板。"
+            }
           },
           {
             "type": "app",
             "name": "drawio",
             "displayName": "draw.io",
-            "description": "Workbench and Agent middleware tools for draw.io diagrams."
+            "description": {
+              "en_US": "Workbench and Agent middleware tools for draw.io diagrams.",
+              "zh_Hans": "用于 draw.io 图表的工作台和 Agent 中间件工具。"
+            }
           }
         ]
       }

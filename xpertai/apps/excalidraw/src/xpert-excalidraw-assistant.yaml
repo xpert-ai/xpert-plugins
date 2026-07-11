@@ -2,7 +2,9 @@ team:
   name: excalidraw-assistant
   type: agent
   title: Excalidraw Drawing Assistant
-  description: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+  description:
+    en_US: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+    zh_Hans: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
   avatar:
     emoji:
       id: art
@@ -55,7 +57,9 @@ nodes:
       key: Agent_Excalidraw
       name: excalidraw-assistant
       title: Excalidraw Drawing Assistant
-      description: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+      description:
+        en_US: Agentic Drawing assistant for flowcharts, architecture diagrams, wireframes, and freeform whiteboards
+        zh_Hans: 面向流程图、架构图、线框图和自由白板的 Agentic Drawing 助手
       avatar:
         emoji:
           id: art
