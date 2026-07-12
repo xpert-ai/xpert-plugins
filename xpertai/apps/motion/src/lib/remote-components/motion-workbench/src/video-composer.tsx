@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { Card } from '@xpert-ai/plugin-shadcn-ui/components/card'
-import { Input } from '@xpert-ai/plugin-shadcn-ui/components/input'
-import { Textarea } from '@xpert-ai/plugin-shadcn-ui/components/textarea'
+import { Card } from '@xpert-ai/plugin-shadcn-ui'
+import { Input } from '@xpert-ai/plugin-shadcn-ui'
+import { Textarea } from '@xpert-ai/plugin-shadcn-ui'
 import {
   MOTION_TEMPLATE_GROUPS,
   VIDEO_LAYER_TYPES,
@@ -355,7 +355,7 @@ export function VideoComposer(props: {
                     <span>{layerTypeLabel(layer.type, props.t)}</span>
                     <strong>{layer.text || layer.id || props.t('untitled')}</strong>
                     <Button
-                      variant="destructiveOutline"
+                      variant="destructive"
                       className="mini-danger"
                       onClick={(event) => {
                         event.stopPropagation()

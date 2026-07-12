@@ -25,10 +25,11 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
-    "test": "jest --config jest.config.ts --runInBand",
-    "typecheck": "tsc -b tsconfig.lib.json --pretty false && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "test": "pnpm run build:ui && jest --config jest.config.ts --runInBand",
+    "typecheck": "pnpm run build:ui && tsc -b tsconfig.lib.json --pretty false && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "pnpm run build:ui && node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
   },
   "dependencies": {
     "socket.io-client": "^4.8.1",
@@ -63,6 +64,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.9",
     "@xpert-ai/contracts": "3.15.4",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.15.4",
     "cache-manager": "^7.2.0",
     "echarts": "5.5.0",

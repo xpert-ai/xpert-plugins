@@ -7,7 +7,7 @@ import { build, transform } from 'esbuild'
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
-const shadcnUiSourceEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'src', 'index.ts')
+const shadcnUiSourceEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'dist', 'index.js')
 const pluginSdkSourceEntry = join(workspaceRoot, '..', 'xpert', 'packages', 'plugin-sdk', 'src', 'lib', 'collaboration', 'client.ts')
 const componentName = 'presentation-studio-workbench'
 const sourceExtensions = new Set(['.ts', '.tsx'])

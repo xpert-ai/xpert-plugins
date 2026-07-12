@@ -6,23 +6,23 @@ export function injectStyles() {
   style.id = 'office-editor-workbench-styles'
   style.textContent = `
     :root {
-      --oe-bg: var(--xps-background, var(--xui-color-background, #f8fafc));
-      --oe-panel: var(--xps-card, var(--xui-color-card, #ffffff));
-      --oe-panel-text: var(--xps-card-foreground, var(--xui-color-card-foreground, #0f172a));
-      --oe-text: var(--xps-foreground, var(--xui-color-foreground, #0f172a));
-      --oe-muted: var(--xps-muted-foreground, var(--xui-color-muted-foreground, #64748b));
-      --oe-muted-bg: var(--xps-muted, var(--xui-color-muted, #f1f5f9));
-      --oe-border: var(--xps-border, var(--xui-color-border, #e2e8f0));
-      --oe-primary: var(--xps-primary, var(--xui-color-primary, #0f766e));
-      --oe-primary-foreground: var(--xps-primary-foreground, var(--xui-color-primary-foreground, #ffffff));
-      --oe-accent: var(--xps-accent, var(--xui-color-accent, #e0f2fe));
-      --oe-accent-foreground: var(--xps-accent-foreground, var(--xui-color-accent-foreground, #0f172a));
-      --oe-danger: var(--xps-destructive, var(--xui-color-destructive, #dc2626));
-      --oe-radius: var(--xps-radius, var(--xui-radius-md, 0.5rem));
-      --oe-rail-width: var(--xps-sidebar-rail-width, var(--xui-sidebar-rail-width, 3rem));
+      --oe-bg: var(--background, var(--xui-color-background, #f8fafc));
+      --oe-panel: var(--card, var(--xui-color-card, #ffffff));
+      --oe-panel-text: var(--card-foreground, var(--xui-color-card-foreground, #0f172a));
+      --oe-text: var(--foreground, var(--xui-color-foreground, #0f172a));
+      --oe-muted: var(--muted-foreground, var(--xui-color-muted-foreground, #64748b));
+      --oe-muted-bg: var(--muted, var(--xui-color-muted, #f1f5f9));
+      --oe-border: var(--border, var(--xui-color-border, #e2e8f0));
+      --oe-primary: var(--primary, var(--xui-color-primary, #0f766e));
+      --oe-primary-foreground: var(--primary-foreground, var(--xui-color-primary-foreground, #ffffff));
+      --oe-accent: var(--accent, var(--xui-color-accent, #e0f2fe));
+      --oe-accent-foreground: var(--accent-foreground, var(--xui-color-accent-foreground, #0f172a));
+      --oe-danger: var(--destructive, var(--xui-color-destructive, #dc2626));
+      --oe-radius: var(--radius, var(--xui-radius-md, 0.5rem));
+      --oe-rail-width: var(--xpert-sidebar-rail-width, var(--xui-sidebar-rail-width, 3rem));
     }
     * { box-sizing: border-box; }
-    html, body, #root { margin: 0; min-height: 100%; color: var(--oe-text); background: var(--oe-bg); font-family: var(--xps-font-sans, var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)); }
+    html, body, #root { margin: 0; min-height: 100%; color: var(--oe-text); background: var(--oe-bg); font-family: var(--font-sans, var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)); }
     button, input, textarea, select { font: inherit; }
     .oe-shell { min-height: 640px; height: 100vh; display: grid; grid-template-columns: var(--oe-rail-width) minmax(0, 1fr) minmax(280px, 320px); background: var(--oe-bg); overflow: hidden; transition: grid-template-columns 160ms ease; }
     .oe-shell.is-sidebar-open { grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 320px); }
@@ -91,6 +91,8 @@ export function injectStyles() {
       .oe-toolbar { align-items: flex-start; flex-direction: column; }
       .oe-actions { justify-content: flex-start; }
     }
+    [data-slot="badge"][data-status="success"] { border-color: color-mix(in srgb, var(--status-success) 30%, var(--border)); background: var(--status-success-background); color: var(--status-success); }
+    [data-slot="badge"][data-status="warning"] { border-color: color-mix(in srgb, var(--status-warning) 30%, var(--border)); background: var(--status-warning-background); color: var(--status-warning); }
   `
   document.head.appendChild(style)
 }

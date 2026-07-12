@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
+import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
-import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { ChatMessageEventTypeEnum, ChatMessageStepCategory, type TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
   AgentMiddlewareStrategy,
   RequestContext,
@@ -93,6 +94,11 @@ const failureSchema = z.object({
   deckId: z.string().uuid().optional(), operation: z.string().min(1), errorMessage: z.string().min(1), recoverable: z.boolean().optional(), evidence: jsonValueSchema.optional()
 })
 const AGENT_PRESENCE_TOOL_NAMES = new Set<string>(PRESENTATION_TOOL_NAMES)
+const CHANGE_SUMMARY_EVENT_TOOL_NAMES = new Set<string>([
+  'presentation_add_slide',
+  'presentation_patch_slide',
+  'presentation_finalize_deck'
+])
 const AGENT_EDITING_TOOL_NAMES = new Set<string>([
   'presentation_add_slide',
   'presentation_patch_slide',
@@ -167,10 +173,10 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
           name: 'presentation_search_layouts', description: toolDescription(currentDeckHint, 'Search up to 12 layouts by role, keyword, theme, and media requirements. Call before inspecting layouts. Use the current themePack from context when modifying the current deck unless the user explicitly asks for a different new deck.'), schema: searchLayoutsSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.catalog.inspectLayouts(input.layouts)), {
-          name: 'presentation_inspect_layouts', description: toolDescription(currentDeckHint, 'Inspect 1-8 candidate layouts and return fill plans, copy budgets, controls, prop shapes, and media slots.'), schema: inspectLayoutsSchema, verboseParsingErrors: true
+          name: 'presentation_inspect_layouts', description: toolDescription(currentDeckHint, 'HARD LIMIT: inspect 1-8 candidate layouts per call. If more than 8 layouts are selected, split them into sequential batches of at most 8. Returns fill plans, copy budgets, controls, prop shapes, media slots, and strict array-item authoring contracts. This is a read-only planning tool: it does not change the deck, theme, active slide, or Workbench UI.'), schema: inspectLayoutsSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.addSlide(scope, input)), {
-          name: 'presentation_add_slide', description: toolDescription(currentDeckHint, 'Add one slide to an existing deck after inspecting its layout contract. Each active slide must use a unique layout. Prefer the current deckId from context when the user asks to continue or modify the current presentation.'), schema: addSlideSchema, verboseParsingErrors: true
+          name: 'presentation_add_slide', description: toolDescription(currentDeckHint, 'Add one slide to an existing deck after inspecting its layout contract. Construct nested arrays from authoringContract.arrayItemContracts exactly: array items may contain only allowedKeys, and top-level fields such as desc or en must not be copied into array items unless explicitly allowed. Each active slide must use a unique layout. Prefer the current deckId from context when the user asks to continue or modify the current presentation.'), schema: addSlideSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.patchSlide(scope, input)), {
           name: 'presentation_patch_slide', description: toolDescription(currentDeckHint, 'Patch one existing slide at field level, including plain-text editor IDs, props, layout within the same theme, or status. Arrays are atomically replaced; layout changes and deletion require expectedRevision. Prefer current deckId/slideId when the user asks to edit the current slide.'), schema: patchSlideSchema, verboseParsingErrors: true
@@ -219,20 +225,45 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
       ],
       wrapToolCall: async (request, handler) => {
         const startedAt = Date.now()
+        const createdAt = new Date(startedAt)
         const toolName = request.toolCall.name
+        const changeSummary = CHANGE_SUMMARY_EVENT_TOOL_NAMES.has(toolName)
+          ? readChangeSummaryMessage(request.toolCall.args)
+          : undefined
         const target = await resolveAgentPresenceTarget(this.service, scope, toolName, request.toolCall.args)
         const actor = target ? this.service.createAgentCollabActor(target.scope, target.deckId) : null
         this.debugLogger.info('tool.started', { toolName })
         if (target && actor) {
           await publishAgentPresence(this.service, target.scope, target, actor, AGENT_EDITING_TOOL_NAMES.has(toolName) ? 'editing' : 'thinking')
         }
+        if (changeSummary) {
+          await dispatchPresentationToolStepEvent({ request, message: changeSummary, status: 'running', createdAt })
+        }
         try {
           const result = await handler(request)
           if (target && actor) await publishAgentPresence(this.service, target.scope, target, actor, 'done')
+          if (changeSummary) {
+            await dispatchPresentationToolStepEvent({
+              request,
+              message: changeSummary,
+              status: 'success',
+              createdAt,
+              output: readToolMessageOutput(result)
+            })
+          }
           this.debugLogger.info('tool.completed', { toolName, durationMs: Date.now() - startedAt })
           return result
         } catch (error) {
           if (target && actor) await publishAgentPresence(this.service, target.scope, target, actor, 'failed')
+          if (changeSummary) {
+            await dispatchPresentationToolStepEvent({
+              request,
+              message: changeSummary,
+              status: 'fail',
+              createdAt,
+              error: error instanceof Error ? error.message : 'Tool execution failed.'
+            })
+          }
           this.debugLogger.error('tool.failed', {
             toolName,
             durationMs: Date.now() - startedAt,
@@ -242,6 +273,80 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         }
       }
     }
+  }
+}
+
+function readChangeSummaryMessage(args: unknown) {
+  const value = objectFromUnknown(args).changeSummary
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+type PresentationToolStepStatus = 'running' | 'success' | 'fail'
+
+async function dispatchPresentationToolStepEvent({
+  request,
+  message,
+  status,
+  createdAt,
+  output,
+  error
+}: {
+  request: Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
+  message: string
+  status: PresentationToolStepStatus
+  createdAt: Date
+  output?: string
+  error?: string
+}) {
+  const toolCall = request.toolCall
+  const runtimeMetadata = request.runtime && typeof request.runtime === 'object'
+    ? Reflect.get(request.runtime, 'metadata')
+    : undefined
+  const metadata = objectFromUnknown(runtimeMetadata)
+  const toolName = toolCall.name
+  const toolCallId = stringValue(toolCall.id) ?? `${toolName}:${stableStringify(toolCall.args)}`
+  const toolset = stringValue(metadata.toolset) ?? PRESENTATION_MIDDLEWARE_NAME
+  const toolsetId = stringValue(metadata.toolsetId)
+  const title = stringValue(metadata.toolName) ?? toolName
+  const event = {
+    id: toolCallId,
+    tool_call_id: toolCall.id,
+    category: 'Tool',
+    type: ChatMessageStepCategory.Program,
+    toolset,
+    ...(toolsetId ? { toolset_id: toolsetId } : {}),
+    tool: toolName,
+    title,
+    message,
+    status,
+    created_date: createdAt,
+    input: toolCall.args,
+    ...(status === 'running' ? { end_date: null } : { end_date: new Date() }),
+    ...(output !== undefined ? { output } : {}),
+    ...(error ? { error } : {})
+  }
+
+  try {
+    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, event)
+  } catch {
+    // Tool timeline events are best-effort and must never fail the underlying mutation.
+  }
+}
+
+function readToolMessageOutput(value: unknown) {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const content = Reflect.get(value, 'content')
+    if (typeof content === 'string') return content
+  }
+  return stableStringify(value)
+}
+
+function stableStringify(value: unknown) {
+  try {
+    return JSON.stringify(value) ?? ''
+  } catch {
+    return String(value ?? '')
   }
 }
 

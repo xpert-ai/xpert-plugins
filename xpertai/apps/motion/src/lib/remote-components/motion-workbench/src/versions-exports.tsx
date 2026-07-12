@@ -6,7 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from '@xpert-ai/plugin-shadcn-ui/components/dialog'
+} from '@xpert-ai/plugin-shadcn-ui'
 import type { ExportSummary, ProjectSummary, VersionSummary } from './motion-types'
 import type { Translator } from './i18n'
 import { Button, h } from './ui'

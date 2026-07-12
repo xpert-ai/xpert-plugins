@@ -56,6 +56,18 @@ export class ExcalidrawDrawing {
   @Column({ type: 'int', default: 0 })
   currentVersionNumber?: number
 
+  @Column({ type: 'int', default: 0 })
+  revision?: number
+
+  @Column({ type: 'text', nullable: true })
+  yjsStateBase64?: string
+
+  @Column({ type: 'text', nullable: true })
+  yjsStateVectorBase64?: string
+
+  @Column({ type: 'int', default: 0 })
+  yjsUpdateCount?: number
+
   @Column({ type: 'varchar', nullable: true })
   lastEditedById?: string
 

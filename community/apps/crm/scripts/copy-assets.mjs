@@ -16,3 +16,7 @@ await cp(
   join(packageRoot, 'src', 'lib', 'remote-components', 'crm-workbench', 'app.js'),
   join(packageRoot, 'dist', 'lib', 'remote-components', 'crm-workbench', 'app.js')
 )
+await cp(
+  join(packageRoot, 'src', 'lib', 'remote-components', 'crm-workbench', 'app.css'),
+  join(packageRoot, 'dist', 'lib', 'remote-components', 'crm-workbench', 'app.css')
+)

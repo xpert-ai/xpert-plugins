@@ -48,931 +48,24 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 "use strict";
 (() => {
   var __defProp = Object.defineProperty;
+  var __typeError = (msg) => {
+    throw TypeError(msg);
+  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
+  var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+  var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
+  var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+  var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 
   // src/lib/remote-components/wechat-workbench/src/vendor.ts
   var React = window.React;
   var ReactDOM = window.ReactDOM;
   var h = React.createElement;
 
-  // ../../../packages/shadcn-ui/src/theme.ts
-  function installShadcnThemeVars(options = {}) {
-    const styleId = options.styleId ?? "xpert-plugin-shadcn-ui-vars";
-    if (typeof document === "undefined" || document.getElementById(styleId)) {
-      return;
-    }
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-    :root {
-      --xps-background: var(--xui-color-background, #f8fafc);
-      --xps-foreground: var(--xui-color-foreground, #0f172a);
-      --xps-card: var(--xui-color-card, #ffffff);
-      --xps-card-foreground: var(--xui-color-card-foreground, var(--xps-foreground));
-      --xps-popover: var(--xui-color-popover, var(--xps-card));
-      --xps-popover-foreground: var(--xui-color-popover-foreground, var(--xps-foreground));
-      --xps-primary: var(--xui-color-primary, #2563eb);
-      --xps-primary-foreground: var(--xui-color-primary-foreground, #ffffff);
-      --xps-secondary: var(--xui-color-secondary, #f1f5f9);
-      --xps-secondary-foreground: var(--xui-color-secondary-foreground, #0f172a);
-      --xps-muted: var(--xui-color-muted, #f1f5f9);
-      --xps-muted-foreground: var(--xui-color-muted-foreground, #64748b);
-      --xps-accent: var(--xui-color-accent, #e0f2fe);
-      --xps-accent-foreground: var(--xui-color-accent-foreground, #0f172a);
-      --xps-destructive: var(--xui-color-destructive, #dc2626);
-      --xps-destructive-foreground: var(--xui-color-destructive-foreground, #ffffff);
-      --xps-destructive-background: var(--xui-color-destructive-background, #fee2e2);
-      --xps-warning: var(--xui-color-warning, #b45309);
-      --xps-warning-background: var(--xui-color-warning-background, #fffbeb);
-      --xps-success: var(--xui-color-success, #047857);
-      --xps-success-background: var(--xui-color-success-background, #ecfdf5);
-      --xps-border: var(--xui-color-border, #e2e8f0);
-      --xps-input: var(--xui-color-input, var(--xps-border));
-      --xps-ring: var(--xui-color-ring, var(--xps-primary));
-      --xps-radius: var(--xui-radius-md, 0.5rem);
-      --xps-font-sans: var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-      --xps-control-height: var(--xui-control-height, 2rem);
-      --xps-control-height-sm: var(--xui-control-height-sm, 1.75rem);
-      --xps-control-height-lg: var(--xui-control-height-lg, 2.25rem);
-      --xps-control-padding-x: var(--xui-control-padding-x, 0.625rem);
-      --xps-control-padding-x-sm: var(--xui-control-padding-x-sm, 0.625rem);
-      --xps-control-padding-x-lg: var(--xui-control-padding-x-lg, 0.875rem);
-      --xps-control-font-size: var(--xui-control-font-size, 0.8125rem);
-      --xps-control-font-size-sm: var(--xui-control-font-size-sm, 0.75rem);
-      --xps-sidebar-rail-width: var(--xui-sidebar-rail-width, 2.75rem);
-    }
-
-    .xps-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      height: var(--xps-control-height);
-      border-radius: calc(var(--xps-radius) - 1px);
-      border: 1px solid transparent;
-      padding: 0 var(--xps-control-padding-x);
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      font-weight: 600;
-      line-height: 1;
-      white-space: nowrap;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-button:focus-visible,
-    .xps-checkbox:focus-visible,
-    .xps-command-input:focus,
-    .xps-dropdown-menu-item:focus,
-    .xps-input:focus,
-    .xps-select-trigger:focus,
-    .xps-slider-thumb:focus-visible,
-    .xps-switch:focus-visible,
-    .xps-tabs-trigger:focus-visible,
-    .xps-textarea:focus {
-      outline: none;
-      border-color: var(--xps-ring);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--xps-ring) 18%, transparent);
-    }
-    .xps-button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-    .xps-button--default {
-      background: var(--xps-primary);
-      color: var(--xps-primary-foreground);
-      border-color: var(--xps-primary);
-    }
-    .xps-button--default:hover {
-      background: color-mix(in srgb, var(--xps-primary) 90%, #000000 10%);
-      border-color: color-mix(in srgb, var(--xps-primary) 90%, #000000 10%);
-    }
-    .xps-button--secondary {
-      background: var(--xps-secondary);
-      color: var(--xps-secondary-foreground);
-      border-color: var(--xps-secondary);
-    }
-    .xps-button--secondary:hover,
-    .xps-button--ghost:hover {
-      background: color-mix(in srgb, var(--xps-muted) 82%, var(--xps-foreground) 6%);
-    }
-    .xps-button--outline {
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      border-color: var(--xps-border);
-    }
-    .xps-button--outline:hover {
-      background: var(--xps-muted);
-    }
-    .xps-button--ghost {
-      background: transparent;
-      color: var(--xps-foreground);
-      border-color: transparent;
-    }
-    .xps-button--destructive {
-      background: var(--xps-card);
-      color: var(--xps-destructive);
-      border-color: color-mix(in srgb, var(--xps-destructive) 28%, var(--xps-border));
-    }
-    .xps-button--destructive:hover {
-      background: var(--xps-destructive);
-      color: var(--xps-destructive-foreground);
-      border-color: var(--xps-destructive);
-    }
-    .xps-button--destructive-outline {
-      background: var(--xps-card);
-      color: var(--xps-destructive);
-      border-color: color-mix(in srgb, var(--xps-destructive) 24%, var(--xps-border));
-    }
-    .xps-button--sm {
-      height: var(--xps-control-height-sm);
-      padding: 0 var(--xps-control-padding-x-sm);
-      font-size: var(--xps-control-font-size-sm);
-    }
-    .xps-button--lg {
-      height: var(--xps-control-height-lg);
-      padding: 0 var(--xps-control-padding-x-lg);
-    }
-    .xps-button--icon {
-      width: var(--xps-control-height);
-      padding: 0;
-    }
-
-    .xps-input,
-    .xps-select-trigger,
-    .xps-textarea {
-      width: 100%;
-      border: 1px solid var(--xps-input);
-      border-radius: calc(var(--xps-radius) - 1px);
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      box-sizing: border-box;
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      transition: border-color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-input,
-    .xps-select-trigger {
-      height: var(--xps-control-height);
-      padding: 0 var(--xps-control-padding-x);
-    }
-    .xps-select-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      cursor: pointer;
-      line-height: 1;
-    }
-    .xps-select-trigger[data-placeholder] {
-      color: var(--xps-muted-foreground);
-    }
-    .xps-select-content {
-      z-index: 2147483647;
-      max-height: min(320px, var(--radix-select-content-available-height));
-      min-width: 8rem;
-      overflow: hidden;
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-    }
-    .xps-select-content-popper {
-      transform-origin: var(--radix-select-content-transform-origin);
-    }
-    .xps-select-viewport {
-      padding: 0.25rem;
-    }
-    .xps-select-viewport-popper {
-      min-width: var(--radix-select-trigger-width);
-    }
-    .xps-select-label {
-      padding: 0.3125rem 1.75rem 0.3125rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-select-item {
-      position: relative;
-      display: flex;
-      min-height: var(--xps-control-height);
-      width: 100%;
-      cursor: pointer;
-      user-select: none;
-      align-items: center;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.3125rem 1.75rem 0.3125rem 0.5rem;
-      font-size: var(--xps-control-font-size);
-      line-height: 1.2;
-      outline: none;
-    }
-    .xps-select-item[data-highlighted] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-select-item[data-disabled] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-select-item-indicator {
-      position: absolute;
-      right: 0.5rem;
-      display: inline-flex;
-      width: 1rem;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-select-scroll-button {
-      display: flex;
-      height: 1.5rem;
-      align-items: center;
-      justify-content: center;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-select-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-    .xps-textarea {
-      min-height: 5rem;
-      padding: 0.5rem var(--xps-control-padding-x);
-      resize: vertical;
-      line-height: 1.45;
-    }
-    .xps-input::placeholder,
-    .xps-textarea::placeholder {
-      color: var(--xps-muted-foreground);
-    }
-
-    .xps-card {
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-    }
-    .xps-card-header {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-      padding: 1rem;
-    }
-    .xps-card-title {
-      margin: 0;
-      font-size: 0.9375rem;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-    .xps-card-description {
-      margin: 0;
-      color: var(--xps-muted-foreground);
-      font-size: 0.8125rem;
-      line-height: 1.35;
-    }
-    .xps-card-content {
-      padding: 0 1rem 1rem;
-    }
-
-    .xps-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      line-height: 1.45;
-    }
-    .xps-table-header {
-      background: color-mix(in srgb, var(--xps-muted) 72%, var(--xps-card) 28%);
-    }
-    .xps-table-row {
-      transition: background-color 120ms ease;
-    }
-    .xps-table-body .xps-table-row:hover {
-      background: color-mix(in srgb, var(--xps-muted) 56%, transparent);
-    }
-    .xps-table-head,
-    .xps-table-cell {
-      border-bottom: 1px solid var(--xps-border);
-      padding: 0.625rem 0.75rem;
-      text-align: left;
-      vertical-align: middle;
-    }
-    .xps-table-head {
-      color: var(--xps-muted-foreground);
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .xps-table-cell {
-      color: var(--xps-foreground);
-    }
-    .xps-table-caption {
-      margin-top: 0.625rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-    }
-    .xps-table-footer {
-      background: var(--xps-muted);
-      font-weight: 700;
-    }
-
-    .xps-badge {
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      padding: 0.0625rem 0.4375rem;
-      font-size: 0.75rem;
-      font-weight: 700;
-      line-height: 1.25;
-      white-space: nowrap;
-    }
-    .xps-badge--default {
-      background: color-mix(in srgb, var(--xps-primary) 12%, transparent);
-      color: var(--xps-primary);
-      border-color: color-mix(in srgb, var(--xps-primary) 18%, transparent);
-    }
-    .xps-badge--secondary {
-      background: var(--xps-muted);
-      color: var(--xps-muted-foreground);
-      border-color: var(--xps-border);
-    }
-    .xps-badge--success {
-      background: var(--xps-success-background);
-      color: var(--xps-success);
-      border-color: color-mix(in srgb, var(--xps-success) 16%, transparent);
-    }
-    .xps-badge--warning {
-      background: var(--xps-warning-background);
-      color: var(--xps-warning);
-      border-color: color-mix(in srgb, var(--xps-warning) 18%, transparent);
-    }
-    .xps-badge--destructive {
-      background: var(--xps-destructive-background);
-      color: var(--xps-destructive);
-      border-color: color-mix(in srgb, var(--xps-destructive) 18%, transparent);
-    }
-    .xps-separator {
-      flex-shrink: 0;
-      background: var(--xps-border);
-    }
-    .xps-separator--horizontal {
-      width: 100%;
-      height: 1px;
-    }
-    .xps-separator--vertical {
-      width: 1px;
-      height: 100%;
-    }
-    .xps-sidebar {
-      min-width: 0;
-      min-height: 0;
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      overflow: hidden;
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-      border-color: var(--xps-border);
-      border-style: solid;
-    }
-    .xps-sidebar--left {
-      border-width: 0 1px 0 0;
-    }
-    .xps-sidebar--right {
-      border-width: 0 0 0 1px;
-    }
-    .xps-sidebar-header {
-      min-height: 2.5rem;
-      padding: 0.375rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      border-bottom: 1px solid var(--xps-border);
-      min-width: 0;
-    }
-    .xps-sidebar-title {
-      min-width: 0;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      font-weight: 750;
-      line-height: 1.2;
-    }
-    .xps-sidebar-content {
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .xps-sidebar-footer {
-      padding: 0.5rem;
-      border-top: 1px solid var(--xps-border);
-    }
-    .xps-sidebar-trigger.xps-button {
-      flex: 0 0 auto;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-sidebar-rail {
-      min-height: 0;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 0.625rem;
-      color: var(--xps-muted-foreground);
-      background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);
-    }
-    .xps-sidebar-rail > span {
-      writing-mode: vertical-rl;
-      letter-spacing: 0;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-sidebar-group {
-      display: flex;
-      min-width: 0;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .xps-sidebar-group-label {
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-    .xps-sidebar-menu {
-      display: flex;
-      min-width: 0;
-      flex-direction: column;
-      gap: 0.375rem;
-    }
-    .xps-sidebar-menu-item {
-      min-width: 0;
-    }
-    .xps-sidebar-menu-button.xps-button {
-      width: 100%;
-      height: auto;
-      min-height: 3.25rem;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 0.25rem;
-      border: 1px solid transparent;
-      border-radius: var(--xps-radius);
-      padding: 0.5rem;
-      text-align: left;
-      white-space: normal;
-    }
-    .xps-sidebar-menu-button.xps-button:hover {
-      background: var(--xps-muted);
-    }
-    .xps-sidebar-menu-button--active.xps-button {
-      background: color-mix(in srgb, var(--xps-primary) 10%, transparent);
-      border-color: color-mix(in srgb, var(--xps-primary) 26%, var(--xps-border));
-      color: var(--xps-foreground);
-    }
-    .xps-scroll-area {
-      position: relative;
-      min-height: 0;
-      overflow: hidden;
-    }
-    .xps-scroll-area-viewport {
-      width: 100%;
-      height: 100%;
-      min-height: inherit;
-      border-radius: inherit;
-    }
-    .xps-scroll-bar {
-      display: flex;
-      touch-action: none;
-      user-select: none;
-      transition: background-color 120ms ease;
-    }
-    .xps-scroll-bar-vertical {
-      width: 0.5rem;
-      border-left: 1px solid transparent;
-      padding: 1px;
-    }
-    .xps-scroll-bar-horizontal {
-      height: 0.5rem;
-      flex-direction: column;
-      border-top: 1px solid transparent;
-      padding: 1px;
-    }
-    .xps-scroll-thumb {
-      position: relative;
-      flex: 1;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--xps-muted-foreground) 36%, transparent);
-    }
-    .xps-dialog-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 2147483646;
-      background: color-mix(in srgb, var(--xps-foreground) 42%, transparent);
-    }
-    .xps-dialog-content,
-    .xps-sheet-content {
-      position: fixed;
-      z-index: 2147483647;
-      border: 1px solid var(--xps-border);
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-      box-shadow: 0 18px 54px color-mix(in srgb, var(--xps-foreground) 20%, transparent);
-    }
-    .xps-dialog-content {
-      left: 50%;
-      top: 50%;
-      width: min(520px, calc(100vw - 2rem));
-      max-height: calc(100vh - 2rem);
-      transform: translate(-50%, -50%);
-      border-radius: var(--xps-radius);
-      padding: 1rem;
-      overflow: auto;
-    }
-    .xps-sheet-content {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .xps-sheet-content--right,
-    .xps-sheet-content--left {
-      top: 0;
-      bottom: 0;
-      width: min(380px, calc(100vw - 2rem));
-    }
-    .xps-sheet-content--right { right: 0; border-radius: var(--xps-radius) 0 0 var(--xps-radius); }
-    .xps-sheet-content--left { left: 0; border-radius: 0 var(--xps-radius) var(--xps-radius) 0; }
-    .xps-sheet-content--top,
-    .xps-sheet-content--bottom {
-      left: 0;
-      right: 0;
-      max-height: min(420px, calc(100vh - 2rem));
-    }
-    .xps-sheet-content--top { top: 0; border-radius: 0 0 var(--xps-radius) var(--xps-radius); }
-    .xps-sheet-content--bottom { bottom: 0; border-radius: var(--xps-radius) var(--xps-radius) 0 0; }
-    .xps-dialog-close {
-      position: absolute;
-      right: 0.625rem;
-      top: 0.625rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: var(--xps-control-height-sm);
-      height: var(--xps-control-height-sm);
-      border: 0;
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: transparent;
-      color: var(--xps-muted-foreground);
-      cursor: pointer;
-    }
-    .xps-dialog-close:hover {
-      background: var(--xps-muted);
-      color: var(--xps-foreground);
-    }
-    .xps-dialog-header,
-    .xps-dialog-footer {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .xps-dialog-header {
-      flex-direction: column;
-      padding-right: 2rem;
-    }
-    .xps-dialog-footer {
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
-    .xps-dialog-title {
-      margin: 0;
-      color: var(--xps-foreground);
-      font-size: 1rem;
-      font-weight: 750;
-      line-height: 1.2;
-    }
-    .xps-dialog-description {
-      margin: 0;
-      color: var(--xps-muted-foreground);
-      font-size: var(--xps-control-font-size);
-      line-height: 1.45;
-    }
-    .xps-dropdown-menu-content {
-      z-index: 2147483647;
-      min-width: 10rem;
-      overflow: hidden;
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-      padding: 0.25rem;
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-    }
-    .xps-dropdown-menu-item,
-    .xps-dropdown-menu-sub-trigger {
-      position: relative;
-      display: flex;
-      min-height: var(--xps-control-height);
-      align-items: center;
-      gap: 0.5rem;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.3125rem 0.5rem;
-      color: var(--xps-foreground);
-      cursor: pointer;
-      font-size: var(--xps-control-font-size);
-      line-height: 1.2;
-      outline: none;
-      user-select: none;
-    }
-    .xps-dropdown-menu-item[data-highlighted],
-    .xps-dropdown-menu-sub-trigger[data-highlighted] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-dropdown-menu-item[data-disabled],
-    .xps-dropdown-menu-sub-trigger[data-disabled] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-dropdown-menu-item--inset {
-      padding-left: 1.75rem;
-    }
-    .xps-dropdown-menu-check-item {
-      padding-left: 1.75rem;
-    }
-    .xps-dropdown-menu-item-indicator {
-      position: absolute;
-      left: 0.5rem;
-      display: inline-flex;
-      width: 1rem;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-dropdown-menu-label {
-      padding: 0.3125rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-dropdown-menu-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-    .xps-dropdown-menu-shortcut {
-      margin-left: auto;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-    }
-
-    .xps-command {
-      width: 100%;
-      overflow: hidden;
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-    }
-    .xps-command-input-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--xps-border);
-      padding: 0 0.625rem;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-command-input {
-      width: 100%;
-      height: 2.25rem;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--xps-foreground);
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-    }
-    .xps-command-input::placeholder {
-      color: var(--xps-muted-foreground);
-    }
-    .xps-command-list {
-      max-height: 18rem;
-      overflow: auto;
-      overscroll-behavior: contain;
-      padding: 0.25rem;
-    }
-    .xps-command-empty {
-      padding: 1.25rem 0.75rem;
-      color: var(--xps-muted-foreground);
-      text-align: center;
-      font-size: var(--xps-control-font-size);
-    }
-    .xps-command-group {
-      overflow: hidden;
-      padding: 0.25rem;
-    }
-    .xps-command-group [cmdk-group-heading] {
-      padding: 0.375rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-command-item {
-      display: flex;
-      min-height: var(--xps-control-height);
-      cursor: pointer;
-      user-select: none;
-      align-items: center;
-      gap: 0.5rem;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.375rem 0.5rem;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      outline: none;
-    }
-    .xps-command-item[data-selected="true"] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-command-item[data-disabled="true"] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-command-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-
-    .xps-tabs-list {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.125rem;
-      min-height: var(--xps-control-height);
-      border-radius: var(--xps-radius);
-      background: var(--xps-muted);
-      padding: 0.1875rem;
-    }
-    .xps-tabs-trigger {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(var(--xps-control-height) - 0.375rem);
-      border: 0;
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: transparent;
-      color: var(--xps-muted-foreground);
-      cursor: pointer;
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      font-weight: 650;
-      padding: 0 0.625rem;
-      white-space: nowrap;
-    }
-    .xps-tabs-trigger[data-state='active'] {
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      box-shadow: 0 1px 2px color-mix(in srgb, var(--xps-foreground) 10%, transparent);
-    }
-    .xps-tabs-trigger:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-tabs-content {
-      min-width: 0;
-      outline: none;
-    }
-    .xps-tooltip-content {
-      z-index: 2147483647;
-      max-width: min(320px, calc(100vw - 2rem));
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: var(--xps-foreground);
-      color: var(--xps-background);
-      padding: 0.375rem 0.625rem;
-      font-size: 0.75rem;
-      line-height: 1.3;
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
-    }
-    .xps-checkbox {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1rem;
-      height: 1rem;
-      border: 1px solid var(--xps-input);
-      border-radius: calc(var(--xps-radius) - 3px);
-      background: var(--xps-card);
-      color: var(--xps-primary-foreground);
-      cursor: pointer;
-    }
-    .xps-checkbox[data-state='checked'] {
-      background: var(--xps-primary);
-      border-color: var(--xps-primary);
-    }
-    .xps-checkbox:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-checkbox-indicator {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-switch {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      width: 2.25rem;
-      height: 1.25rem;
-      border: 1px solid transparent;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--xps-muted-foreground) 34%, transparent);
-      cursor: pointer;
-      transition: background-color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-switch[data-state='checked'] {
-      background: var(--xps-primary);
-    }
-    .xps-switch:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-switch-thumb {
-      display: block;
-      width: 1rem;
-      height: 1rem;
-      border-radius: 999px;
-      background: #ffffff;
-      box-shadow: 0 1px 3px color-mix(in srgb, #000000 20%, transparent);
-      transform: translateX(0.125rem);
-      transition: transform 120ms ease;
-    }
-    .xps-switch[data-state='checked'] .xps-switch-thumb {
-      transform: translateX(1rem);
-    }
-    .xps-slider {
-      position: relative;
-      display: flex;
-      width: 100%;
-      touch-action: none;
-      user-select: none;
-      align-items: center;
-    }
-    .xps-slider-track {
-      position: relative;
-      height: 0.375rem;
-      width: 100%;
-      flex: 1;
-      overflow: hidden;
-      border-radius: 999px;
-      background: var(--xps-muted);
-    }
-    .xps-slider-range {
-      position: absolute;
-      height: 100%;
-      background: var(--xps-primary);
-    }
-    .xps-slider-thumb {
-      display: block;
-      width: 1rem;
-      height: 1rem;
-      border: 2px solid var(--xps-primary);
-      border-radius: 999px;
-      background: var(--xps-card);
-      box-shadow: 0 1px 3px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-      transition: box-shadow 120ms ease;
-    }
-    .xps-slider-thumb:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-icon--filled {
-      fill: currentColor;
-    }
-    .xps-sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-    .xps-icon {
-      width: 1rem;
-      height: 1rem;
-      flex: 0 0 auto;
-      stroke-width: 2;
-    }
-  `;
-    document.head.appendChild(style);
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -987,8 +80,29 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return n;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  var concatArrays = (array1, array2) => {
+    const combinedArray = new Array(array1.length + array2.length);
+    for (let i = 0; i < array1.length; i++) {
+      combinedArray[i] = array1[i];
+    }
+    for (let i = 0; i < array2.length; i++) {
+      combinedArray[array1.length + i] = array2[i];
+    }
+    return combinedArray;
+  };
+  var createClassValidatorObject = (classGroupId, validator) => ({
+    classGroupId,
+    validator
+  });
+  var createClassPartObject = (nextPart = /* @__PURE__ */ new Map(), validators = null, classGroupId) => ({
+    nextPart,
+    validators,
+    classGroupId
+  });
   var CLASS_PART_SEPARATOR = "-";
+  var EMPTY_CONFLICTS = [];
+  var ARBITRARY_PROPERTY_PREFIX = "arbitrary..";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
     const {
@@ -996,121 +110,134 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       conflictingClassGroupModifiers
     } = config;
     const getClassGroupId = (className) => {
-      const classParts = className.split(CLASS_PART_SEPARATOR);
-      if (classParts[0] === "" && classParts.length !== 1) {
-        classParts.shift();
+      if (className.startsWith("[") && className.endsWith("]")) {
+        return getGroupIdForArbitraryProperty(className);
       }
-      return getGroupRecursive(classParts, classMap) || getGroupIdForArbitraryProperty(className);
+      const classParts = className.split(CLASS_PART_SEPARATOR);
+      const startIndex = classParts[0] === "" && classParts.length > 1 ? 1 : 0;
+      return getGroupRecursive(classParts, startIndex, classMap);
     };
     const getConflictingClassGroupIds = (classGroupId, hasPostfixModifier) => {
-      const conflicts = conflictingClassGroups[classGroupId] || [];
-      if (hasPostfixModifier && conflictingClassGroupModifiers[classGroupId]) {
-        return [...conflicts, ...conflictingClassGroupModifiers[classGroupId]];
+      if (hasPostfixModifier) {
+        const modifierConflicts = conflictingClassGroupModifiers[classGroupId];
+        const baseConflicts = conflictingClassGroups[classGroupId];
+        if (modifierConflicts) {
+          if (baseConflicts) {
+            return concatArrays(baseConflicts, modifierConflicts);
+          }
+          return modifierConflicts;
+        }
+        return baseConflicts || EMPTY_CONFLICTS;
       }
-      return conflicts;
+      return conflictingClassGroups[classGroupId] || EMPTY_CONFLICTS;
     };
     return {
       getClassGroupId,
       getConflictingClassGroupIds
     };
   };
-  var getGroupRecursive = (classParts, classPartObject) => {
-    if (classParts.length === 0) {
+  var getGroupRecursive = (classParts, startIndex, classPartObject) => {
+    const classPathsLength = classParts.length - startIndex;
+    if (classPathsLength === 0) {
       return classPartObject.classGroupId;
     }
-    const currentClassPart = classParts[0];
+    const currentClassPart = classParts[startIndex];
     const nextClassPartObject = classPartObject.nextPart.get(currentClassPart);
-    const classGroupFromNextClassPart = nextClassPartObject ? getGroupRecursive(classParts.slice(1), nextClassPartObject) : void 0;
-    if (classGroupFromNextClassPart) {
-      return classGroupFromNextClassPart;
+    if (nextClassPartObject) {
+      const result = getGroupRecursive(classParts, startIndex + 1, nextClassPartObject);
+      if (result) return result;
     }
-    if (classPartObject.validators.length === 0) {
+    const validators = classPartObject.validators;
+    if (validators === null) {
       return void 0;
     }
-    const classRest = classParts.join(CLASS_PART_SEPARATOR);
-    return classPartObject.validators.find(({
-      validator
-    }) => validator(classRest))?.classGroupId;
-  };
-  var arbitraryPropertyRegex = /^\[(.+)\]$/;
-  var getGroupIdForArbitraryProperty = (className) => {
-    if (arbitraryPropertyRegex.test(className)) {
-      const arbitraryPropertyClassName = arbitraryPropertyRegex.exec(className)[1];
-      const property = arbitraryPropertyClassName?.substring(0, arbitraryPropertyClassName.indexOf(":"));
-      if (property) {
-        return "arbitrary.." + property;
+    const classRest = startIndex === 0 ? classParts.join(CLASS_PART_SEPARATOR) : classParts.slice(startIndex).join(CLASS_PART_SEPARATOR);
+    const validatorsLength = validators.length;
+    for (let i = 0; i < validatorsLength; i++) {
+      const validatorObj = validators[i];
+      if (validatorObj.validator(classRest)) {
+        return validatorObj.classGroupId;
       }
     }
+    return void 0;
   };
+  var getGroupIdForArbitraryProperty = (className) => className.slice(1, -1).indexOf(":") === -1 ? void 0 : (() => {
+    const content = className.slice(1, -1);
+    const colonIndex = content.indexOf(":");
+    const property = content.slice(0, colonIndex);
+    return property ? ARBITRARY_PROPERTY_PREFIX + property : void 0;
+  })();
   var createClassMap = (config) => {
     const {
       theme,
-      prefix
+      classGroups
     } = config;
-    const classMap = {
-      nextPart: /* @__PURE__ */ new Map(),
-      validators: []
-    };
-    const prefixedClassGroupEntries = getPrefixedClassGroupEntries(Object.entries(config.classGroups), prefix);
-    prefixedClassGroupEntries.forEach(([classGroupId, classGroup]) => {
-      processClassesRecursively(classGroup, classMap, classGroupId, theme);
-    });
+    return processClassGroups(classGroups, theme);
+  };
+  var processClassGroups = (classGroups, theme) => {
+    const classMap = createClassPartObject();
+    for (const classGroupId in classGroups) {
+      const group = classGroups[classGroupId];
+      processClassesRecursively(group, classMap, classGroupId, theme);
+    }
     return classMap;
   };
   var processClassesRecursively = (classGroup, classPartObject, classGroupId, theme) => {
-    classGroup.forEach((classDefinition) => {
-      if (typeof classDefinition === "string") {
-        const classPartObjectToEdit = classDefinition === "" ? classPartObject : getPart(classPartObject, classDefinition);
-        classPartObjectToEdit.classGroupId = classGroupId;
-        return;
-      }
-      if (typeof classDefinition === "function") {
-        if (isThemeGetter(classDefinition)) {
-          processClassesRecursively(classDefinition(theme), classPartObject, classGroupId, theme);
-          return;
-        }
-        classPartObject.validators.push({
-          validator: classDefinition,
-          classGroupId
-        });
-        return;
-      }
-      Object.entries(classDefinition).forEach(([key, classGroup2]) => {
-        processClassesRecursively(classGroup2, getPart(classPartObject, key), classGroupId, theme);
-      });
-    });
+    const len = classGroup.length;
+    for (let i = 0; i < len; i++) {
+      const classDefinition = classGroup[i];
+      processClassDefinition(classDefinition, classPartObject, classGroupId, theme);
+    }
+  };
+  var processClassDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    if (typeof classDefinition === "string") {
+      processStringDefinition(classDefinition, classPartObject, classGroupId);
+      return;
+    }
+    if (typeof classDefinition === "function") {
+      processFunctionDefinition(classDefinition, classPartObject, classGroupId, theme);
+      return;
+    }
+    processObjectDefinition(classDefinition, classPartObject, classGroupId, theme);
+  };
+  var processStringDefinition = (classDefinition, classPartObject, classGroupId) => {
+    const classPartObjectToEdit = classDefinition === "" ? classPartObject : getPart(classPartObject, classDefinition);
+    classPartObjectToEdit.classGroupId = classGroupId;
+  };
+  var processFunctionDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    if (isThemeGetter(classDefinition)) {
+      processClassesRecursively(classDefinition(theme), classPartObject, classGroupId, theme);
+      return;
+    }
+    if (classPartObject.validators === null) {
+      classPartObject.validators = [];
+    }
+    classPartObject.validators.push(createClassValidatorObject(classGroupId, classDefinition));
+  };
+  var processObjectDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    const entries = Object.entries(classDefinition);
+    const len = entries.length;
+    for (let i = 0; i < len; i++) {
+      const [key, value] = entries[i];
+      processClassesRecursively(value, getPart(classPartObject, key), classGroupId, theme);
+    }
   };
   var getPart = (classPartObject, path) => {
-    let currentClassPartObject = classPartObject;
-    path.split(CLASS_PART_SEPARATOR).forEach((pathPart) => {
-      if (!currentClassPartObject.nextPart.has(pathPart)) {
-        currentClassPartObject.nextPart.set(pathPart, {
-          nextPart: /* @__PURE__ */ new Map(),
-          validators: []
-        });
+    let current = classPartObject;
+    const parts = path.split(CLASS_PART_SEPARATOR);
+    const len = parts.length;
+    for (let i = 0; i < len; i++) {
+      const part = parts[i];
+      let next = current.nextPart.get(part);
+      if (!next) {
+        next = createClassPartObject();
+        current.nextPart.set(part, next);
       }
-      currentClassPartObject = currentClassPartObject.nextPart.get(pathPart);
-    });
-    return currentClassPartObject;
-  };
-  var isThemeGetter = (func) => func.isThemeGetter;
-  var getPrefixedClassGroupEntries = (classGroupEntries, prefix) => {
-    if (!prefix) {
-      return classGroupEntries;
+      current = next;
     }
-    return classGroupEntries.map(([classGroupId, classGroup]) => {
-      const prefixedClassGroup = classGroup.map((classDefinition) => {
-        if (typeof classDefinition === "string") {
-          return prefix + classDefinition;
-        }
-        if (typeof classDefinition === "object") {
-          return Object.fromEntries(Object.entries(classDefinition).map(([key, value]) => [prefix + key, value]));
-        }
-        return classDefinition;
-      });
-      return [classGroupId, prefixedClassGroup];
-    });
+    return current;
   };
+  var isThemeGetter = (func) => "isThemeGetter" in func && func.isThemeGetter === true;
   var createLruCache = (maxCacheSize) => {
     if (maxCacheSize < 1) {
       return {
@@ -1120,31 +247,31 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       };
     }
     let cacheSize = 0;
-    let cache = /* @__PURE__ */ new Map();
-    let previousCache = /* @__PURE__ */ new Map();
+    let cache = /* @__PURE__ */ Object.create(null);
+    let previousCache = /* @__PURE__ */ Object.create(null);
     const update = (key, value) => {
-      cache.set(key, value);
+      cache[key] = value;
       cacheSize++;
       if (cacheSize > maxCacheSize) {
         cacheSize = 0;
         previousCache = cache;
-        cache = /* @__PURE__ */ new Map();
+        cache = /* @__PURE__ */ Object.create(null);
       }
     };
     return {
       get(key) {
-        let value = cache.get(key);
+        let value = cache[key];
         if (value !== void 0) {
           return value;
         }
-        if ((value = previousCache.get(key)) !== void 0) {
+        if ((value = previousCache[key]) !== void 0) {
           update(key, value);
           return value;
         }
       },
       set(key, value) {
-        if (cache.has(key)) {
-          cache.set(key, value);
+        if (key in cache) {
+          cache[key] = value;
         } else {
           update(key, value);
         }
@@ -1152,25 +279,33 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
   var IMPORTANT_MODIFIER = "!";
+  var MODIFIER_SEPARATOR = ":";
+  var EMPTY_MODIFIERS = [];
+  var createResultObject = (modifiers, hasImportantModifier, baseClassName, maybePostfixModifierPosition, isExternal) => ({
+    modifiers,
+    hasImportantModifier,
+    baseClassName,
+    maybePostfixModifierPosition,
+    isExternal
+  });
   var createParseClassName = (config) => {
     const {
-      separator,
+      prefix,
       experimentalParseClassName
     } = config;
-    const isSeparatorSingleCharacter = separator.length === 1;
-    const firstSeparatorCharacter = separator[0];
-    const separatorLength = separator.length;
-    const parseClassName = (className) => {
+    let parseClassName = (className) => {
       const modifiers = [];
       let bracketDepth = 0;
+      let parenDepth = 0;
       let modifierStart = 0;
       let postfixModifierPosition;
-      for (let index2 = 0; index2 < className.length; index2++) {
-        let currentCharacter = className[index2];
-        if (bracketDepth === 0) {
-          if (currentCharacter === firstSeparatorCharacter && (isSeparatorSingleCharacter || className.slice(index2, index2 + separatorLength) === separator)) {
+      const len = className.length;
+      for (let index2 = 0; index2 < len; index2++) {
+        const currentCharacter = className[index2];
+        if (bracketDepth === 0 && parenDepth === 0) {
+          if (currentCharacter === MODIFIER_SEPARATOR) {
             modifiers.push(className.slice(modifierStart, index2));
-            modifierStart = index2 + separatorLength;
+            modifierStart = index2 + 1;
             continue;
           }
           if (currentCharacter === "/") {
@@ -1178,60 +313,99 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
             continue;
           }
         }
-        if (currentCharacter === "[") {
-          bracketDepth++;
-        } else if (currentCharacter === "]") {
-          bracketDepth--;
-        }
+        if (currentCharacter === "[") bracketDepth++;
+        else if (currentCharacter === "]") bracketDepth--;
+        else if (currentCharacter === "(") parenDepth++;
+        else if (currentCharacter === ")") parenDepth--;
       }
-      const baseClassNameWithImportantModifier = modifiers.length === 0 ? className : className.substring(modifierStart);
-      const hasImportantModifier = baseClassNameWithImportantModifier.startsWith(IMPORTANT_MODIFIER);
-      const baseClassName = hasImportantModifier ? baseClassNameWithImportantModifier.substring(1) : baseClassNameWithImportantModifier;
+      const baseClassNameWithImportantModifier = modifiers.length === 0 ? className : className.slice(modifierStart);
+      let baseClassName = baseClassNameWithImportantModifier;
+      let hasImportantModifier = false;
+      if (baseClassNameWithImportantModifier.endsWith(IMPORTANT_MODIFIER)) {
+        baseClassName = baseClassNameWithImportantModifier.slice(0, -1);
+        hasImportantModifier = true;
+      } else if (
+        /**
+         * In Tailwind CSS v3 the important modifier was at the start of the base class name. This is still supported for legacy reasons.
+         * @see https://github.com/dcastil/tailwind-merge/issues/513#issuecomment-2614029864
+         */
+        baseClassNameWithImportantModifier.startsWith(IMPORTANT_MODIFIER)
+      ) {
+        baseClassName = baseClassNameWithImportantModifier.slice(1);
+        hasImportantModifier = true;
+      }
       const maybePostfixModifierPosition = postfixModifierPosition && postfixModifierPosition > modifierStart ? postfixModifierPosition - modifierStart : void 0;
-      return {
-        modifiers,
-        hasImportantModifier,
-        baseClassName,
-        maybePostfixModifierPosition
-      };
+      return createResultObject(modifiers, hasImportantModifier, baseClassName, maybePostfixModifierPosition);
     };
+    if (prefix) {
+      const fullPrefix = prefix + MODIFIER_SEPARATOR;
+      const parseClassNameOriginal = parseClassName;
+      parseClassName = (className) => className.startsWith(fullPrefix) ? parseClassNameOriginal(className.slice(fullPrefix.length)) : createResultObject(EMPTY_MODIFIERS, false, className, void 0, true);
+    }
     if (experimentalParseClassName) {
-      return (className) => experimentalParseClassName({
+      const parseClassNameOriginal = parseClassName;
+      parseClassName = (className) => experimentalParseClassName({
         className,
-        parseClassName
+        parseClassName: parseClassNameOriginal
       });
     }
     return parseClassName;
   };
-  var sortModifiers = (modifiers) => {
-    if (modifiers.length <= 1) {
-      return modifiers;
-    }
-    const sortedModifiers = [];
-    let unsortedModifiers = [];
-    modifiers.forEach((modifier) => {
-      const isArbitraryVariant = modifier[0] === "[";
-      if (isArbitraryVariant) {
-        sortedModifiers.push(...unsortedModifiers.sort(), modifier);
-        unsortedModifiers = [];
-      } else {
-        unsortedModifiers.push(modifier);
-      }
+  var createSortModifiers = (config) => {
+    const modifierWeights = /* @__PURE__ */ new Map();
+    config.orderSensitiveModifiers.forEach((mod, index2) => {
+      modifierWeights.set(mod, 1e6 + index2);
     });
-    sortedModifiers.push(...unsortedModifiers.sort());
-    return sortedModifiers;
+    return (modifiers) => {
+      const result = [];
+      let currentSegment = [];
+      for (let i = 0; i < modifiers.length; i++) {
+        const modifier = modifiers[i];
+        const isArbitrary = modifier[0] === "[";
+        const isOrderSensitive = modifierWeights.has(modifier);
+        if (isArbitrary || isOrderSensitive) {
+          if (currentSegment.length > 0) {
+            currentSegment.sort();
+            result.push(...currentSegment);
+            currentSegment = [];
+          }
+          result.push(modifier);
+        } else {
+          currentSegment.push(modifier);
+        }
+      }
+      if (currentSegment.length > 0) {
+        currentSegment.sort();
+        result.push(...currentSegment);
+      }
+      return result;
+    };
   };
   var createConfigUtils = (config) => ({
     cache: createLruCache(config.cacheSize),
     parseClassName: createParseClassName(config),
+    sortModifiers: createSortModifiers(config),
+    postfixLookupClassGroupIds: createPostfixLookupClassGroupIds(config),
     ...createClassGroupUtils(config)
   });
+  var createPostfixLookupClassGroupIds = (config) => {
+    const lookup = /* @__PURE__ */ Object.create(null);
+    const classGroupIds = config.postfixLookupClassGroups;
+    if (classGroupIds) {
+      for (let i = 0; i < classGroupIds.length; i++) {
+        lookup[classGroupIds[i]] = true;
+      }
+    }
+    return lookup;
+  };
   var SPLIT_CLASSES_REGEX = /\s+/;
   var mergeClassList = (classList, configUtils) => {
     const {
       parseClassName,
       getClassGroupId,
-      getConflictingClassGroupIds
+      getConflictingClassGroupIds,
+      sortModifiers,
+      postfixLookupClassGroupIds
     } = configUtils;
     const classGroupsInConflict = [];
     const classNames = classList.trim().split(SPLIT_CLASSES_REGEX);
@@ -1239,13 +413,29 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     for (let index2 = classNames.length - 1; index2 >= 0; index2 -= 1) {
       const originalClassName = classNames[index2];
       const {
+        isExternal,
         modifiers,
         hasImportantModifier,
         baseClassName,
         maybePostfixModifierPosition
       } = parseClassName(originalClassName);
-      let hasPostfixModifier = Boolean(maybePostfixModifierPosition);
-      let classGroupId = getClassGroupId(hasPostfixModifier ? baseClassName.substring(0, maybePostfixModifierPosition) : baseClassName);
+      if (isExternal) {
+        result = originalClassName + (result.length > 0 ? " " + result : result);
+        continue;
+      }
+      let hasPostfixModifier = !!maybePostfixModifierPosition;
+      let classGroupId;
+      if (hasPostfixModifier) {
+        const baseClassNameWithoutPostfix = baseClassName.substring(0, maybePostfixModifierPosition);
+        classGroupId = getClassGroupId(baseClassNameWithoutPostfix);
+        const classGroupIdWithPostfix = classGroupId && postfixLookupClassGroupIds[classGroupId] ? getClassGroupId(baseClassName) : void 0;
+        if (classGroupIdWithPostfix && classGroupIdWithPostfix !== classGroupId) {
+          classGroupId = classGroupIdWithPostfix;
+          hasPostfixModifier = false;
+        }
+      } else {
+        classGroupId = getClassGroupId(baseClassName);
+      }
       if (!classGroupId) {
         if (!hasPostfixModifier) {
           result = originalClassName + (result.length > 0 ? " " + result : result);
@@ -1258,10 +448,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         }
         hasPostfixModifier = false;
       }
-      const variantModifier = sortModifiers(modifiers).join(":");
+      const variantModifier = modifiers.length === 0 ? "" : modifiers.length === 1 ? modifiers[0] : sortModifiers(modifiers).join(":");
       const modifierId = hasImportantModifier ? variantModifier + IMPORTANT_MODIFIER : variantModifier;
       const classId = modifierId + classGroupId;
-      if (classGroupsInConflict.includes(classId)) {
+      if (classGroupsInConflict.indexOf(classId) > -1) {
         continue;
       }
       classGroupsInConflict.push(classId);
@@ -1274,13 +464,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
     return result;
   };
-  function twJoin() {
+  var twJoin = (...classLists) => {
     let index2 = 0;
     let argument;
     let resolvedValue;
     let string = "";
-    while (index2 < arguments.length) {
-      if (argument = arguments[index2++]) {
+    while (index2 < classLists.length) {
+      if (argument = classLists[index2++]) {
         if (resolvedValue = toValue(argument)) {
           string && (string += " ");
           string += resolvedValue;
@@ -1288,16 +478,16 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       }
     }
     return string;
-  }
+  };
   var toValue = (mix) => {
     if (typeof mix === "string") {
       return mix;
     }
     let resolvedValue;
     let string = "";
-    for (let k3 = 0; k3 < mix.length; k3++) {
-      if (mix[k3]) {
-        if (resolvedValue = toValue(mix[k3])) {
+    for (let k2 = 0; k2 < mix.length; k2++) {
+      if (mix[k2]) {
+        if (resolvedValue = toValue(mix[k2])) {
           string && (string += " ");
           string += resolvedValue;
         }
@@ -1305,20 +495,20 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
     return string;
   };
-  function createTailwindMerge(createConfigFirst, ...createConfigRest) {
+  var createTailwindMerge = (createConfigFirst, ...createConfigRest) => {
     let configUtils;
     let cacheGet;
     let cacheSet;
-    let functionToCall = initTailwindMerge;
-    function initTailwindMerge(classList) {
+    let functionToCall;
+    const initTailwindMerge = (classList) => {
       const config = createConfigRest.reduce((previousConfig, createConfigCurrent) => createConfigCurrent(previousConfig), createConfigFirst());
       configUtils = createConfigUtils(config);
       cacheGet = configUtils.cache.get;
       cacheSet = configUtils.cache.set;
       functionToCall = tailwindMerge;
       return tailwindMerge(classList);
-    }
-    function tailwindMerge(classList) {
+    };
+    const tailwindMerge = (classList) => {
       const cachedResult = cacheGet(classList);
       if (cachedResult) {
         return cachedResult;
@@ -1326,49 +516,30 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       const result = mergeClassList(classList, configUtils);
       cacheSet(classList, result);
       return result;
-    }
-    return function callTailwindMerge() {
-      return functionToCall(twJoin.apply(null, arguments));
     };
-  }
+    functionToCall = initTailwindMerge;
+    return (...args) => functionToCall(twJoin(...args));
+  };
+  var fallbackThemeArr = [];
   var fromTheme = (key) => {
-    const themeGetter = (theme) => theme[key] || [];
+    const themeGetter = (theme) => theme[key] || fallbackThemeArr;
     themeGetter.isThemeGetter = true;
     return themeGetter;
   };
-  var arbitraryValueRegex = /^\[(?:([a-z-]+):)?(.+)\]$/i;
-  var fractionRegex = /^\d+\/\d+$/;
-  var stringLengths = /* @__PURE__ */ new Set(["px", "full", "screen"]);
+  var arbitraryValueRegex = /^\[(?:(\w[\w-]*):)?(.+)\]$/i;
+  var arbitraryVariableRegex = /^\((?:(\w[\w-]*):)?(.+)\)$/i;
+  var fractionRegex = /^\d+(?:\.\d+)?\/\d+(?:\.\d+)?$/;
   var tshirtUnitRegex = /^(\d+(\.\d+)?)?(xs|sm|md|lg|xl)$/;
   var lengthUnitRegex = /\d+(%|px|r?em|[sdl]?v([hwib]|min|max)|pt|pc|in|cm|mm|cap|ch|ex|r?lh|cq(w|h|i|b|min|max))|\b(calc|min|max|clamp)\(.+\)|^0$/;
   var colorFunctionRegex = /^(rgba?|hsla?|hwb|(ok)?(lab|lch)|color-mix)\(.+\)$/;
   var shadowRegex = /^(inset_)?-?((\d+)?\.?(\d+)[a-z]+|0)_-?((\d+)?\.?(\d+)[a-z]+|0)/;
   var imageRegex = /^(url|image|image-set|cross-fade|element|(repeating-)?(linear|radial|conic)-gradient)\(.+\)$/;
-  var isLength = (value) => isNumber(value) || stringLengths.has(value) || fractionRegex.test(value);
-  var isArbitraryLength = (value) => getIsArbitraryValue(value, "length", isLengthOnly);
-  var isNumber = (value) => Boolean(value) && !Number.isNaN(Number(value));
-  var isArbitraryNumber = (value) => getIsArbitraryValue(value, "number", isNumber);
-  var isInteger = (value) => Boolean(value) && Number.isInteger(Number(value));
+  var isFraction = (value) => fractionRegex.test(value);
+  var isNumber = (value) => !!value && !Number.isNaN(Number(value));
+  var isInteger = (value) => !!value && Number.isInteger(Number(value));
   var isPercent = (value) => value.endsWith("%") && isNumber(value.slice(0, -1));
-  var isArbitraryValue = (value) => arbitraryValueRegex.test(value);
   var isTshirtSize = (value) => tshirtUnitRegex.test(value);
-  var sizeLabels = /* @__PURE__ */ new Set(["length", "size", "percentage"]);
-  var isArbitrarySize = (value) => getIsArbitraryValue(value, sizeLabels, isNever);
-  var isArbitraryPosition = (value) => getIsArbitraryValue(value, "position", isNever);
-  var imageLabels = /* @__PURE__ */ new Set(["image", "url"]);
-  var isArbitraryImage = (value) => getIsArbitraryValue(value, imageLabels, isImage);
-  var isArbitraryShadow = (value) => getIsArbitraryValue(value, "", isShadow);
   var isAny = () => true;
-  var getIsArbitraryValue = (value, label, testValue) => {
-    const result = arbitraryValueRegex.exec(value);
-    if (result) {
-      if (result[1]) {
-        return typeof label === "string" ? result[1] === label : label.has(result[1]);
-      }
-      return testValue(result[2]);
-    }
-    return false;
-  };
   var isLengthOnly = (value) => (
     // `colorFunctionRegex` check is necessary because color functions can have percentages in them which which would be incorrectly classified as lengths.
     // For example, `hsl(0 0% 0%)` would be classified as a length without this check.
@@ -1378,109 +549,218 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var isNever = () => false;
   var isShadow = (value) => shadowRegex.test(value);
   var isImage = (value) => imageRegex.test(value);
+  var isAnyNonArbitrary = (value) => !isArbitraryValue(value) && !isArbitraryVariable(value);
+  var isNamedContainerQuery = (value) => value.startsWith("@container") && (value[10] === "/" && value[11] !== void 0 || value[11] === "s" && value[16] !== void 0 && value.startsWith("-size/", 10) || value[11] === "n" && value[18] !== void 0 && value.startsWith("-normal/", 10));
+  var isArbitrarySize = (value) => getIsArbitraryValue(value, isLabelSize, isNever);
+  var isArbitraryValue = (value) => arbitraryValueRegex.test(value);
+  var isArbitraryLength = (value) => getIsArbitraryValue(value, isLabelLength, isLengthOnly);
+  var isArbitraryNumber = (value) => getIsArbitraryValue(value, isLabelNumber, isNumber);
+  var isArbitraryWeight = (value) => getIsArbitraryValue(value, isLabelWeight, isAny);
+  var isArbitraryFamilyName = (value) => getIsArbitraryValue(value, isLabelFamilyName, isNever);
+  var isArbitraryPosition = (value) => getIsArbitraryValue(value, isLabelPosition, isNever);
+  var isArbitraryImage = (value) => getIsArbitraryValue(value, isLabelImage, isImage);
+  var isArbitraryShadow = (value) => getIsArbitraryValue(value, isLabelShadow, isShadow);
+  var isArbitraryVariable = (value) => arbitraryVariableRegex.test(value);
+  var isArbitraryVariableLength = (value) => getIsArbitraryVariable(value, isLabelLength);
+  var isArbitraryVariableFamilyName = (value) => getIsArbitraryVariable(value, isLabelFamilyName);
+  var isArbitraryVariablePosition = (value) => getIsArbitraryVariable(value, isLabelPosition);
+  var isArbitraryVariableSize = (value) => getIsArbitraryVariable(value, isLabelSize);
+  var isArbitraryVariableImage = (value) => getIsArbitraryVariable(value, isLabelImage);
+  var isArbitraryVariableShadow = (value) => getIsArbitraryVariable(value, isLabelShadow, true);
+  var isArbitraryVariableWeight = (value) => getIsArbitraryVariable(value, isLabelWeight, true);
+  var getIsArbitraryValue = (value, testLabel, testValue) => {
+    const result = arbitraryValueRegex.exec(value);
+    if (result) {
+      if (result[1]) {
+        return testLabel(result[1]);
+      }
+      return testValue(result[2]);
+    }
+    return false;
+  };
+  var getIsArbitraryVariable = (value, testLabel, shouldMatchNoLabel = false) => {
+    const result = arbitraryVariableRegex.exec(value);
+    if (result) {
+      if (result[1]) {
+        return testLabel(result[1]);
+      }
+      return shouldMatchNoLabel;
+    }
+    return false;
+  };
+  var isLabelPosition = (label) => label === "position" || label === "percentage";
+  var isLabelImage = (label) => label === "image" || label === "url";
+  var isLabelSize = (label) => label === "length" || label === "size" || label === "bg-size";
+  var isLabelLength = (label) => label === "length";
+  var isLabelNumber = (label) => label === "number";
+  var isLabelFamilyName = (label) => label === "family-name";
+  var isLabelWeight = (label) => label === "number" || label === "weight";
+  var isLabelShadow = (label) => label === "shadow";
   var getDefaultConfig = () => {
-    const colors = fromTheme("colors");
-    const spacing = fromTheme("spacing");
-    const blur = fromTheme("blur");
-    const brightness = fromTheme("brightness");
-    const borderColor = fromTheme("borderColor");
-    const borderRadius = fromTheme("borderRadius");
-    const borderSpacing = fromTheme("borderSpacing");
-    const borderWidth = fromTheme("borderWidth");
-    const contrast = fromTheme("contrast");
-    const grayscale = fromTheme("grayscale");
-    const hueRotate = fromTheme("hueRotate");
-    const invert = fromTheme("invert");
-    const gap = fromTheme("gap");
-    const gradientColorStops = fromTheme("gradientColorStops");
-    const gradientColorStopPositions = fromTheme("gradientColorStopPositions");
-    const inset = fromTheme("inset");
-    const margin = fromTheme("margin");
-    const opacity = fromTheme("opacity");
-    const padding = fromTheme("padding");
-    const saturate = fromTheme("saturate");
-    const scale = fromTheme("scale");
-    const sepia = fromTheme("sepia");
-    const skew = fromTheme("skew");
-    const space = fromTheme("space");
-    const translate = fromTheme("translate");
-    const getOverscroll = () => ["auto", "contain", "none"];
-    const getOverflow = () => ["auto", "hidden", "clip", "visible", "scroll"];
-    const getSpacingWithAutoAndArbitrary = () => ["auto", isArbitraryValue, spacing];
-    const getSpacingWithArbitrary = () => [isArbitraryValue, spacing];
-    const getLengthWithEmptyAndArbitrary = () => ["", isLength, isArbitraryLength];
-    const getNumberWithAutoAndArbitrary = () => ["auto", isNumber, isArbitraryValue];
-    const getPositions = () => ["bottom", "center", "left", "left-bottom", "left-top", "right", "right-bottom", "right-top", "top"];
-    const getLineStyles = () => ["solid", "dashed", "dotted", "double", "none"];
-    const getBlendModes = () => ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
-    const getAlign = () => ["start", "end", "center", "between", "around", "evenly", "stretch"];
-    const getZeroAndEmpty = () => ["", "0", isArbitraryValue];
-    const getBreaks = () => ["auto", "avoid", "all", "avoid-page", "page", "left", "right", "column"];
-    const getNumberAndArbitrary = () => [isNumber, isArbitraryValue];
+    const themeColor = fromTheme("color");
+    const themeFont = fromTheme("font");
+    const themeText = fromTheme("text");
+    const themeFontWeight = fromTheme("font-weight");
+    const themeTracking = fromTheme("tracking");
+    const themeLeading = fromTheme("leading");
+    const themeBreakpoint = fromTheme("breakpoint");
+    const themeContainer = fromTheme("container");
+    const themeSpacing = fromTheme("spacing");
+    const themeRadius = fromTheme("radius");
+    const themeShadow = fromTheme("shadow");
+    const themeInsetShadow = fromTheme("inset-shadow");
+    const themeTextShadow = fromTheme("text-shadow");
+    const themeDropShadow = fromTheme("drop-shadow");
+    const themeBlur = fromTheme("blur");
+    const themePerspective = fromTheme("perspective");
+    const themeAspect = fromTheme("aspect");
+    const themeEase = fromTheme("ease");
+    const themeAnimate = fromTheme("animate");
+    const scaleBreak = () => ["auto", "avoid", "all", "avoid-page", "page", "left", "right", "column"];
+    const scalePosition = () => [
+      "center",
+      "top",
+      "bottom",
+      "left",
+      "right",
+      "top-left",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "left-top",
+      "top-right",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "right-top",
+      "bottom-right",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "right-bottom",
+      "bottom-left",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "left-bottom"
+    ];
+    const scalePositionWithArbitrary = () => [...scalePosition(), isArbitraryVariable, isArbitraryValue];
+    const scaleOverflow = () => ["auto", "hidden", "clip", "visible", "scroll"];
+    const scaleOverscroll = () => ["auto", "contain", "none"];
+    const scaleUnambiguousSpacing = () => [isArbitraryVariable, isArbitraryValue, themeSpacing];
+    const scaleInset = () => [isFraction, "full", "auto", ...scaleUnambiguousSpacing()];
+    const scaleGridTemplateColsRows = () => [isInteger, "none", "subgrid", isArbitraryVariable, isArbitraryValue];
+    const scaleGridColRowStartAndEnd = () => ["auto", {
+      span: ["full", isInteger, isArbitraryVariable, isArbitraryValue]
+    }, isInteger, isArbitraryVariable, isArbitraryValue];
+    const scaleGridColRowStartOrEnd = () => [isInteger, "auto", isArbitraryVariable, isArbitraryValue];
+    const scaleGridAutoColsRows = () => ["auto", "min", "max", "fr", isArbitraryVariable, isArbitraryValue];
+    const scaleAlignPrimaryAxis = () => ["start", "end", "center", "between", "around", "evenly", "stretch", "baseline", "center-safe", "end-safe"];
+    const scaleAlignSecondaryAxis = () => ["start", "end", "center", "stretch", "center-safe", "end-safe"];
+    const scaleMargin = () => ["auto", ...scaleUnambiguousSpacing()];
+    const scaleSizing = () => [isFraction, "auto", "full", "dvw", "dvh", "lvw", "lvh", "svw", "svh", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleSizingInline = () => [isFraction, "screen", "full", "dvw", "lvw", "svw", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleSizingBlock = () => [isFraction, "screen", "full", "lh", "dvh", "lvh", "svh", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleColor = () => [themeColor, isArbitraryVariable, isArbitraryValue];
+    const scaleBgPosition = () => [...scalePosition(), isArbitraryVariablePosition, isArbitraryPosition, {
+      position: [isArbitraryVariable, isArbitraryValue]
+    }];
+    const scaleBgRepeat = () => ["no-repeat", {
+      repeat: ["", "x", "y", "space", "round"]
+    }];
+    const scaleBgSize = () => ["auto", "cover", "contain", isArbitraryVariableSize, isArbitrarySize, {
+      size: [isArbitraryVariable, isArbitraryValue]
+    }];
+    const scaleGradientStopPosition = () => [isPercent, isArbitraryVariableLength, isArbitraryLength];
+    const scaleRadius = () => [
+      // Deprecated since Tailwind CSS v4.0.0
+      "",
+      "none",
+      "full",
+      themeRadius,
+      isArbitraryVariable,
+      isArbitraryValue
+    ];
+    const scaleBorderWidth = () => ["", isNumber, isArbitraryVariableLength, isArbitraryLength];
+    const scaleLineStyle = () => ["solid", "dashed", "dotted", "double"];
+    const scaleBlendMode = () => ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
+    const scaleMaskImagePosition = () => [isNumber, isPercent, isArbitraryVariablePosition, isArbitraryPosition];
+    const scaleBlur = () => [
+      // Deprecated since Tailwind CSS v4.0.0
+      "",
+      "none",
+      themeBlur,
+      isArbitraryVariable,
+      isArbitraryValue
+    ];
+    const scaleRotate = () => ["none", isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleScale = () => ["none", isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleSkew = () => [isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleTranslate = () => [isFraction, "full", ...scaleUnambiguousSpacing()];
     return {
       cacheSize: 500,
-      separator: ":",
       theme: {
-        colors: [isAny],
-        spacing: [isLength, isArbitraryLength],
-        blur: ["none", "", isTshirtSize, isArbitraryValue],
-        brightness: getNumberAndArbitrary(),
-        borderColor: [colors],
-        borderRadius: ["none", "", "full", isTshirtSize, isArbitraryValue],
-        borderSpacing: getSpacingWithArbitrary(),
-        borderWidth: getLengthWithEmptyAndArbitrary(),
-        contrast: getNumberAndArbitrary(),
-        grayscale: getZeroAndEmpty(),
-        hueRotate: getNumberAndArbitrary(),
-        invert: getZeroAndEmpty(),
-        gap: getSpacingWithArbitrary(),
-        gradientColorStops: [colors],
-        gradientColorStopPositions: [isPercent, isArbitraryLength],
-        inset: getSpacingWithAutoAndArbitrary(),
-        margin: getSpacingWithAutoAndArbitrary(),
-        opacity: getNumberAndArbitrary(),
-        padding: getSpacingWithArbitrary(),
-        saturate: getNumberAndArbitrary(),
-        scale: getNumberAndArbitrary(),
-        sepia: getZeroAndEmpty(),
-        skew: getNumberAndArbitrary(),
-        space: getSpacingWithArbitrary(),
-        translate: getSpacingWithArbitrary()
+        animate: ["spin", "ping", "pulse", "bounce"],
+        aspect: ["video"],
+        blur: [isTshirtSize],
+        breakpoint: [isTshirtSize],
+        color: [isAny],
+        container: [isTshirtSize],
+        "drop-shadow": [isTshirtSize],
+        ease: ["in", "out", "in-out"],
+        font: [isAnyNonArbitrary],
+        "font-weight": ["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black"],
+        "inset-shadow": [isTshirtSize],
+        leading: ["none", "tight", "snug", "normal", "relaxed", "loose"],
+        perspective: ["dramatic", "near", "normal", "midrange", "distant", "none"],
+        radius: [isTshirtSize],
+        shadow: [isTshirtSize],
+        spacing: ["px", isNumber],
+        text: [isTshirtSize],
+        "text-shadow": [isTshirtSize],
+        tracking: ["tighter", "tight", "normal", "wide", "wider", "widest"]
       },
       classGroups: {
-        // Layout
+        // --------------
+        // --- Layout ---
+        // --------------
         /**
          * Aspect Ratio
          * @see https://tailwindcss.com/docs/aspect-ratio
          */
         aspect: [{
-          aspect: ["auto", "square", "video", isArbitraryValue]
+          aspect: ["auto", "square", isFraction, isArbitraryValue, isArbitraryVariable, themeAspect]
         }],
         /**
          * Container
          * @see https://tailwindcss.com/docs/container
+         * @deprecated since Tailwind CSS v4.0.0
          */
         container: ["container"],
+        /**
+         * Container Type
+         * @see https://tailwindcss.com/docs/responsive-design#container-queries
+         */
+        "container-type": [{
+          "@container": ["", "normal", "size", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Container Name
+         * @see https://tailwindcss.com/docs/responsive-design#named-containers
+         */
+        "container-named": [isNamedContainerQuery],
         /**
          * Columns
          * @see https://tailwindcss.com/docs/columns
          */
         columns: [{
-          columns: [isTshirtSize]
+          columns: [isNumber, isArbitraryValue, isArbitraryVariable, themeContainer]
         }],
         /**
          * Break After
          * @see https://tailwindcss.com/docs/break-after
          */
         "break-after": [{
-          "break-after": getBreaks()
+          "break-after": scaleBreak()
         }],
         /**
          * Break Before
          * @see https://tailwindcss.com/docs/break-before
          */
         "break-before": [{
-          "break-before": getBreaks()
+          "break-before": scaleBreak()
         }],
         /**
          * Break Inside
@@ -1508,6 +788,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/display
          */
         display: ["block", "inline-block", "inline", "flex", "inline-flex", "table", "inline-table", "table-caption", "table-cell", "table-column", "table-column-group", "table-footer-group", "table-header-group", "table-row-group", "table-row", "flow-root", "grid", "inline-grid", "contents", "list-item", "hidden"],
+        /**
+         * Screen Reader Only
+         * @see https://tailwindcss.com/docs/display#screen-reader-only
+         */
+        sr: ["sr-only", "not-sr-only"],
         /**
          * Floats
          * @see https://tailwindcss.com/docs/float
@@ -1539,49 +824,49 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/object-position
          */
         "object-position": [{
-          object: [...getPositions(), isArbitraryValue]
+          object: scalePositionWithArbitrary()
         }],
         /**
          * Overflow
          * @see https://tailwindcss.com/docs/overflow
          */
         overflow: [{
-          overflow: getOverflow()
+          overflow: scaleOverflow()
         }],
         /**
          * Overflow X
          * @see https://tailwindcss.com/docs/overflow
          */
         "overflow-x": [{
-          "overflow-x": getOverflow()
+          "overflow-x": scaleOverflow()
         }],
         /**
          * Overflow Y
          * @see https://tailwindcss.com/docs/overflow
          */
         "overflow-y": [{
-          "overflow-y": getOverflow()
+          "overflow-y": scaleOverflow()
         }],
         /**
          * Overscroll Behavior
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         overscroll: [{
-          overscroll: getOverscroll()
+          overscroll: scaleOverscroll()
         }],
         /**
          * Overscroll Behavior X
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         "overscroll-x": [{
-          "overscroll-x": getOverscroll()
+          "overscroll-x": scaleOverscroll()
         }],
         /**
          * Overscroll Behavior Y
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         "overscroll-y": [{
-          "overscroll-y": getOverscroll()
+          "overscroll-y": scaleOverscroll()
         }],
         /**
          * Position
@@ -1589,67 +874,93 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          */
         position: ["static", "fixed", "absolute", "relative", "sticky"],
         /**
-         * Top / Right / Bottom / Left
+         * Inset
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         inset: [{
-          inset: [inset]
+          inset: scaleInset()
         }],
         /**
-         * Right / Left
+         * Inset Inline
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         "inset-x": [{
-          "inset-x": [inset]
+          "inset-x": scaleInset()
         }],
         /**
-         * Top / Bottom
+         * Inset Block
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         "inset-y": [{
-          "inset-y": [inset]
+          "inset-y": scaleInset()
         }],
         /**
-         * Start
+         * Inset Inline Start
          * @see https://tailwindcss.com/docs/top-right-bottom-left
+         * @todo class group will be renamed to `inset-s` in next major release
          */
         start: [{
-          start: [inset]
+          "inset-s": scaleInset(),
+          /**
+           * @deprecated since Tailwind CSS v4.2.0 in favor of `inset-s-*` utilities.
+           * @see https://github.com/tailwindlabs/tailwindcss/pull/19613
+           */
+          start: scaleInset()
         }],
         /**
-         * End
+         * Inset Inline End
          * @see https://tailwindcss.com/docs/top-right-bottom-left
+         * @todo class group will be renamed to `inset-e` in next major release
          */
         end: [{
-          end: [inset]
+          "inset-e": scaleInset(),
+          /**
+           * @deprecated since Tailwind CSS v4.2.0 in favor of `inset-e-*` utilities.
+           * @see https://github.com/tailwindlabs/tailwindcss/pull/19613
+           */
+          end: scaleInset()
+        }],
+        /**
+         * Inset Block Start
+         * @see https://tailwindcss.com/docs/top-right-bottom-left
+         */
+        "inset-bs": [{
+          "inset-bs": scaleInset()
+        }],
+        /**
+         * Inset Block End
+         * @see https://tailwindcss.com/docs/top-right-bottom-left
+         */
+        "inset-be": [{
+          "inset-be": scaleInset()
         }],
         /**
          * Top
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         top: [{
-          top: [inset]
+          top: scaleInset()
         }],
         /**
          * Right
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         right: [{
-          right: [inset]
+          right: scaleInset()
         }],
         /**
          * Bottom
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         bottom: [{
-          bottom: [inset]
+          bottom: scaleInset()
         }],
         /**
          * Left
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         left: [{
-          left: [inset]
+          left: scaleInset()
         }],
         /**
          * Visibility
@@ -1661,15 +972,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/z-index
          */
         z: [{
-          z: ["auto", isInteger, isArbitraryValue]
+          z: [isInteger, "auto", isArbitraryVariable, isArbitraryValue]
         }],
-        // Flexbox and Grid
+        // ------------------------
+        // --- Flexbox and Grid ---
+        // ------------------------
         /**
          * Flex Basis
          * @see https://tailwindcss.com/docs/flex-basis
          */
         basis: [{
-          basis: getSpacingWithAutoAndArbitrary()
+          basis: [isFraction, "full", "auto", themeContainer, ...scaleUnambiguousSpacing()]
         }],
         /**
          * Flex Direction
@@ -1683,95 +996,91 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/flex-wrap
          */
         "flex-wrap": [{
-          flex: ["wrap", "wrap-reverse", "nowrap"]
+          flex: ["nowrap", "wrap", "wrap-reverse"]
         }],
         /**
          * Flex
          * @see https://tailwindcss.com/docs/flex
          */
         flex: [{
-          flex: ["1", "auto", "initial", "none", isArbitraryValue]
+          flex: [isNumber, isFraction, "auto", "initial", "none", isArbitraryValue]
         }],
         /**
          * Flex Grow
          * @see https://tailwindcss.com/docs/flex-grow
          */
         grow: [{
-          grow: getZeroAndEmpty()
+          grow: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Flex Shrink
          * @see https://tailwindcss.com/docs/flex-shrink
          */
         shrink: [{
-          shrink: getZeroAndEmpty()
+          shrink: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Order
          * @see https://tailwindcss.com/docs/order
          */
         order: [{
-          order: ["first", "last", "none", isInteger, isArbitraryValue]
+          order: [isInteger, "first", "last", "none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Grid Template Columns
          * @see https://tailwindcss.com/docs/grid-template-columns
          */
         "grid-cols": [{
-          "grid-cols": [isAny]
+          "grid-cols": scaleGridTemplateColsRows()
         }],
         /**
          * Grid Column Start / End
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-start-end": [{
-          col: ["auto", {
-            span: ["full", isInteger, isArbitraryValue]
-          }, isArbitraryValue]
+          col: scaleGridColRowStartAndEnd()
         }],
         /**
          * Grid Column Start
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-start": [{
-          "col-start": getNumberWithAutoAndArbitrary()
+          "col-start": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Column End
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-end": [{
-          "col-end": getNumberWithAutoAndArbitrary()
+          "col-end": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Template Rows
          * @see https://tailwindcss.com/docs/grid-template-rows
          */
         "grid-rows": [{
-          "grid-rows": [isAny]
+          "grid-rows": scaleGridTemplateColsRows()
         }],
         /**
          * Grid Row Start / End
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-start-end": [{
-          row: ["auto", {
-            span: [isInteger, isArbitraryValue]
-          }, isArbitraryValue]
+          row: scaleGridColRowStartAndEnd()
         }],
         /**
          * Grid Row Start
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-start": [{
-          "row-start": getNumberWithAutoAndArbitrary()
+          "row-start": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Row End
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-end": [{
-          "row-end": getNumberWithAutoAndArbitrary()
+          "row-end": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Auto Flow
@@ -1785,98 +1094,102 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/grid-auto-columns
          */
         "auto-cols": [{
-          "auto-cols": ["auto", "min", "max", "fr", isArbitraryValue]
+          "auto-cols": scaleGridAutoColsRows()
         }],
         /**
          * Grid Auto Rows
          * @see https://tailwindcss.com/docs/grid-auto-rows
          */
         "auto-rows": [{
-          "auto-rows": ["auto", "min", "max", "fr", isArbitraryValue]
+          "auto-rows": scaleGridAutoColsRows()
         }],
         /**
          * Gap
          * @see https://tailwindcss.com/docs/gap
          */
         gap: [{
-          gap: [gap]
+          gap: scaleUnambiguousSpacing()
         }],
         /**
          * Gap X
          * @see https://tailwindcss.com/docs/gap
          */
         "gap-x": [{
-          "gap-x": [gap]
+          "gap-x": scaleUnambiguousSpacing()
         }],
         /**
          * Gap Y
          * @see https://tailwindcss.com/docs/gap
          */
         "gap-y": [{
-          "gap-y": [gap]
+          "gap-y": scaleUnambiguousSpacing()
         }],
         /**
          * Justify Content
          * @see https://tailwindcss.com/docs/justify-content
          */
         "justify-content": [{
-          justify: ["normal", ...getAlign()]
+          justify: [...scaleAlignPrimaryAxis(), "normal"]
         }],
         /**
          * Justify Items
          * @see https://tailwindcss.com/docs/justify-items
          */
         "justify-items": [{
-          "justify-items": ["start", "end", "center", "stretch"]
+          "justify-items": [...scaleAlignSecondaryAxis(), "normal"]
         }],
         /**
          * Justify Self
          * @see https://tailwindcss.com/docs/justify-self
          */
         "justify-self": [{
-          "justify-self": ["auto", "start", "end", "center", "stretch"]
+          "justify-self": ["auto", ...scaleAlignSecondaryAxis()]
         }],
         /**
          * Align Content
          * @see https://tailwindcss.com/docs/align-content
          */
         "align-content": [{
-          content: ["normal", ...getAlign(), "baseline"]
+          content: ["normal", ...scaleAlignPrimaryAxis()]
         }],
         /**
          * Align Items
          * @see https://tailwindcss.com/docs/align-items
          */
         "align-items": [{
-          items: ["start", "end", "center", "baseline", "stretch"]
+          items: [...scaleAlignSecondaryAxis(), {
+            baseline: ["", "last"]
+          }]
         }],
         /**
          * Align Self
          * @see https://tailwindcss.com/docs/align-self
          */
         "align-self": [{
-          self: ["auto", "start", "end", "center", "stretch", "baseline"]
+          self: ["auto", ...scaleAlignSecondaryAxis(), {
+            baseline: ["", "last"]
+          }]
         }],
         /**
          * Place Content
          * @see https://tailwindcss.com/docs/place-content
          */
         "place-content": [{
-          "place-content": [...getAlign(), "baseline"]
+          "place-content": scaleAlignPrimaryAxis()
         }],
         /**
          * Place Items
          * @see https://tailwindcss.com/docs/place-items
          */
         "place-items": [{
-          "place-items": ["start", "end", "center", "baseline", "stretch"]
+          "place-items": [...scaleAlignSecondaryAxis(), "baseline"]
         }],
         /**
          * Place Self
          * @see https://tailwindcss.com/docs/place-self
          */
         "place-self": [{
-          "place-self": ["auto", "start", "end", "center", "stretch"]
+          "place-self": ["auto", ...scaleAlignSecondaryAxis()]
         }],
         // Spacing
         /**
@@ -1884,210 +1197,299 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/padding
          */
         p: [{
-          p: [padding]
+          p: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding X
+         * Padding Inline
          * @see https://tailwindcss.com/docs/padding
          */
         px: [{
-          px: [padding]
+          px: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding Y
+         * Padding Block
          * @see https://tailwindcss.com/docs/padding
          */
         py: [{
-          py: [padding]
+          py: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding Start
+         * Padding Inline Start
          * @see https://tailwindcss.com/docs/padding
          */
         ps: [{
-          ps: [padding]
+          ps: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding End
+         * Padding Inline End
          * @see https://tailwindcss.com/docs/padding
          */
         pe: [{
-          pe: [padding]
+          pe: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Padding Block Start
+         * @see https://tailwindcss.com/docs/padding
+         */
+        pbs: [{
+          pbs: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Padding Block End
+         * @see https://tailwindcss.com/docs/padding
+         */
+        pbe: [{
+          pbe: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Top
          * @see https://tailwindcss.com/docs/padding
          */
         pt: [{
-          pt: [padding]
+          pt: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Right
          * @see https://tailwindcss.com/docs/padding
          */
         pr: [{
-          pr: [padding]
+          pr: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Bottom
          * @see https://tailwindcss.com/docs/padding
          */
         pb: [{
-          pb: [padding]
+          pb: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Left
          * @see https://tailwindcss.com/docs/padding
          */
         pl: [{
-          pl: [padding]
+          pl: scaleUnambiguousSpacing()
         }],
         /**
          * Margin
          * @see https://tailwindcss.com/docs/margin
          */
         m: [{
-          m: [margin]
+          m: scaleMargin()
         }],
         /**
-         * Margin X
+         * Margin Inline
          * @see https://tailwindcss.com/docs/margin
          */
         mx: [{
-          mx: [margin]
+          mx: scaleMargin()
         }],
         /**
-         * Margin Y
+         * Margin Block
          * @see https://tailwindcss.com/docs/margin
          */
         my: [{
-          my: [margin]
+          my: scaleMargin()
         }],
         /**
-         * Margin Start
+         * Margin Inline Start
          * @see https://tailwindcss.com/docs/margin
          */
         ms: [{
-          ms: [margin]
+          ms: scaleMargin()
         }],
         /**
-         * Margin End
+         * Margin Inline End
          * @see https://tailwindcss.com/docs/margin
          */
         me: [{
-          me: [margin]
+          me: scaleMargin()
+        }],
+        /**
+         * Margin Block Start
+         * @see https://tailwindcss.com/docs/margin
+         */
+        mbs: [{
+          mbs: scaleMargin()
+        }],
+        /**
+         * Margin Block End
+         * @see https://tailwindcss.com/docs/margin
+         */
+        mbe: [{
+          mbe: scaleMargin()
         }],
         /**
          * Margin Top
          * @see https://tailwindcss.com/docs/margin
          */
         mt: [{
-          mt: [margin]
+          mt: scaleMargin()
         }],
         /**
          * Margin Right
          * @see https://tailwindcss.com/docs/margin
          */
         mr: [{
-          mr: [margin]
+          mr: scaleMargin()
         }],
         /**
          * Margin Bottom
          * @see https://tailwindcss.com/docs/margin
          */
         mb: [{
-          mb: [margin]
+          mb: scaleMargin()
         }],
         /**
          * Margin Left
          * @see https://tailwindcss.com/docs/margin
          */
         ml: [{
-          ml: [margin]
+          ml: scaleMargin()
         }],
         /**
          * Space Between X
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-x": [{
-          "space-x": [space]
+          "space-x": scaleUnambiguousSpacing()
         }],
         /**
          * Space Between X Reverse
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-x-reverse": ["space-x-reverse"],
         /**
          * Space Between Y
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-y": [{
-          "space-y": [space]
+          "space-y": scaleUnambiguousSpacing()
         }],
         /**
          * Space Between Y Reverse
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-y-reverse": ["space-y-reverse"],
-        // Sizing
+        // --------------
+        // --- Sizing ---
+        // --------------
+        /**
+         * Size
+         * @see https://tailwindcss.com/docs/width#setting-both-width-and-height
+         */
+        size: [{
+          size: scaleSizing()
+        }],
+        /**
+         * Inline Size
+         * @see https://tailwindcss.com/docs/width
+         */
+        "inline-size": [{
+          inline: ["auto", ...scaleSizingInline()]
+        }],
+        /**
+         * Min-Inline Size
+         * @see https://tailwindcss.com/docs/min-width
+         */
+        "min-inline-size": [{
+          "min-inline": ["auto", ...scaleSizingInline()]
+        }],
+        /**
+         * Max-Inline Size
+         * @see https://tailwindcss.com/docs/max-width
+         */
+        "max-inline-size": [{
+          "max-inline": ["none", ...scaleSizingInline()]
+        }],
+        /**
+         * Block Size
+         * @see https://tailwindcss.com/docs/height
+         */
+        "block-size": [{
+          block: ["auto", ...scaleSizingBlock()]
+        }],
+        /**
+         * Min-Block Size
+         * @see https://tailwindcss.com/docs/min-height
+         */
+        "min-block-size": [{
+          "min-block": ["auto", ...scaleSizingBlock()]
+        }],
+        /**
+         * Max-Block Size
+         * @see https://tailwindcss.com/docs/max-height
+         */
+        "max-block-size": [{
+          "max-block": ["none", ...scaleSizingBlock()]
+        }],
         /**
          * Width
          * @see https://tailwindcss.com/docs/width
          */
         w: [{
-          w: ["auto", "min", "max", "fit", "svw", "lvw", "dvw", isArbitraryValue, spacing]
+          w: [themeContainer, "screen", ...scaleSizing()]
         }],
         /**
          * Min-Width
          * @see https://tailwindcss.com/docs/min-width
          */
         "min-w": [{
-          "min-w": [isArbitraryValue, spacing, "min", "max", "fit"]
+          "min-w": [
+            themeContainer,
+            "screen",
+            /** Deprecated. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            "none",
+            ...scaleSizing()
+          ]
         }],
         /**
          * Max-Width
          * @see https://tailwindcss.com/docs/max-width
          */
         "max-w": [{
-          "max-w": [isArbitraryValue, spacing, "none", "full", "min", "max", "fit", "prose", {
-            screen: [isTshirtSize]
-          }, isTshirtSize]
+          "max-w": [
+            themeContainer,
+            "screen",
+            "none",
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            "prose",
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            {
+              screen: [themeBreakpoint]
+            },
+            ...scaleSizing()
+          ]
         }],
         /**
          * Height
          * @see https://tailwindcss.com/docs/height
          */
         h: [{
-          h: [isArbitraryValue, spacing, "auto", "min", "max", "fit", "svh", "lvh", "dvh"]
+          h: ["screen", "lh", ...scaleSizing()]
         }],
         /**
          * Min-Height
          * @see https://tailwindcss.com/docs/min-height
          */
         "min-h": [{
-          "min-h": [isArbitraryValue, spacing, "min", "max", "fit", "svh", "lvh", "dvh"]
+          "min-h": ["screen", "lh", "none", ...scaleSizing()]
         }],
         /**
          * Max-Height
          * @see https://tailwindcss.com/docs/max-height
          */
         "max-h": [{
-          "max-h": [isArbitraryValue, spacing, "min", "max", "fit", "svh", "lvh", "dvh"]
+          "max-h": ["screen", "lh", ...scaleSizing()]
         }],
-        /**
-         * Size
-         * @see https://tailwindcss.com/docs/size
-         */
-        size: [{
-          size: [isArbitraryValue, spacing, "auto", "min", "max", "fit"]
-        }],
-        // Typography
+        // ------------------
+        // --- Typography ---
+        // ------------------
         /**
          * Font Size
          * @see https://tailwindcss.com/docs/font-size
          */
         "font-size": [{
-          text: ["base", isTshirtSize, isArbitraryLength]
+          text: ["base", themeText, isArbitraryVariableLength, isArbitraryLength]
         }],
         /**
          * Font Smoothing
@@ -2104,14 +1506,28 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/font-weight
          */
         "font-weight": [{
-          font: ["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black", isArbitraryNumber]
+          font: [themeFontWeight, isArbitraryVariableWeight, isArbitraryWeight]
+        }],
+        /**
+         * Font Stretch
+         * @see https://tailwindcss.com/docs/font-stretch
+         */
+        "font-stretch": [{
+          "font-stretch": ["ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "normal", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded", isPercent, isArbitraryValue]
         }],
         /**
          * Font Family
          * @see https://tailwindcss.com/docs/font-family
          */
         "font-family": [{
-          font: [isAny]
+          font: [isArbitraryVariableFamilyName, isArbitraryFamilyName, themeFont]
+        }],
+        /**
+         * Font Feature Settings
+         * @see https://tailwindcss.com/docs/font-feature-settings
+         */
+        "font-features": [{
+          "font-features": [isArbitraryValue]
         }],
         /**
          * Font Variant Numeric
@@ -2148,35 +1564,32 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/letter-spacing
          */
         tracking: [{
-          tracking: ["tighter", "tight", "normal", "wide", "wider", "widest", isArbitraryValue]
+          tracking: [themeTracking, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Line Clamp
          * @see https://tailwindcss.com/docs/line-clamp
          */
         "line-clamp": [{
-          "line-clamp": ["none", isNumber, isArbitraryNumber]
+          "line-clamp": [isNumber, "none", isArbitraryVariable, isArbitraryNumber]
         }],
         /**
          * Line Height
          * @see https://tailwindcss.com/docs/line-height
          */
         leading: [{
-          leading: ["none", "tight", "snug", "normal", "relaxed", "loose", isLength, isArbitraryValue]
+          leading: [
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            themeLeading,
+            ...scaleUnambiguousSpacing()
+          ]
         }],
         /**
          * List Style Image
          * @see https://tailwindcss.com/docs/list-style-image
          */
         "list-image": [{
-          "list-image": ["none", isArbitraryValue]
-        }],
-        /**
-         * List Style Type
-         * @see https://tailwindcss.com/docs/list-style-type
-         */
-        "list-style-type": [{
-          list: ["none", "disc", "decimal", isArbitraryValue]
+          "list-image": ["none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * List Style Position
@@ -2186,19 +1599,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           list: ["inside", "outside"]
         }],
         /**
-         * Placeholder Color
-         * @deprecated since Tailwind CSS v3.0.0
-         * @see https://tailwindcss.com/docs/placeholder-color
+         * List Style Type
+         * @see https://tailwindcss.com/docs/list-style-type
          */
-        "placeholder-color": [{
-          placeholder: [colors]
-        }],
-        /**
-         * Placeholder Opacity
-         * @see https://tailwindcss.com/docs/placeholder-opacity
-         */
-        "placeholder-opacity": [{
-          "placeholder-opacity": [opacity]
+        "list-style-type": [{
+          list: ["disc", "decimal", "none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Text Alignment
@@ -2208,18 +1613,19 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           text: ["left", "center", "right", "justify", "start", "end"]
         }],
         /**
+         * Placeholder Color
+         * @deprecated since Tailwind CSS v3.0.0
+         * @see https://v3.tailwindcss.com/docs/placeholder-color
+         */
+        "placeholder-color": [{
+          placeholder: scaleColor()
+        }],
+        /**
          * Text Color
          * @see https://tailwindcss.com/docs/text-color
          */
         "text-color": [{
-          text: [colors]
-        }],
-        /**
-         * Text Opacity
-         * @see https://tailwindcss.com/docs/text-opacity
-         */
-        "text-opacity": [{
-          "text-opacity": [opacity]
+          text: scaleColor()
         }],
         /**
          * Text Decoration
@@ -2231,28 +1637,28 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/text-decoration-style
          */
         "text-decoration-style": [{
-          decoration: [...getLineStyles(), "wavy"]
+          decoration: [...scaleLineStyle(), "wavy"]
         }],
         /**
          * Text Decoration Thickness
          * @see https://tailwindcss.com/docs/text-decoration-thickness
          */
         "text-decoration-thickness": [{
-          decoration: ["auto", "from-font", isLength, isArbitraryLength]
-        }],
-        /**
-         * Text Underline Offset
-         * @see https://tailwindcss.com/docs/text-underline-offset
-         */
-        "underline-offset": [{
-          "underline-offset": ["auto", isLength, isArbitraryValue]
+          decoration: [isNumber, "from-font", "auto", isArbitraryVariable, isArbitraryLength]
         }],
         /**
          * Text Decoration Color
          * @see https://tailwindcss.com/docs/text-decoration-color
          */
         "text-decoration-color": [{
-          decoration: [colors]
+          decoration: scaleColor()
+        }],
+        /**
+         * Text Underline Offset
+         * @see https://tailwindcss.com/docs/text-underline-offset
+         */
+        "underline-offset": [{
+          "underline-offset": [isNumber, "auto", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Text Transform
@@ -2276,14 +1682,21 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/text-indent
          */
         indent: [{
-          indent: getSpacingWithArbitrary()
+          indent: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Tab Size
+         * @see https://tailwindcss.com/docs/tab-size
+         */
+        "tab-size": [{
+          tab: [isInteger, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Vertical Alignment
          * @see https://tailwindcss.com/docs/vertical-align
          */
         "vertical-align": [{
-          align: ["baseline", "top", "middle", "bottom", "text-top", "text-bottom", "sub", "super", isArbitraryValue]
+          align: ["baseline", "top", "middle", "bottom", "text-top", "text-bottom", "sub", "super", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Whitespace
@@ -2300,6 +1713,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           break: ["normal", "words", "all", "keep"]
         }],
         /**
+         * Overflow Wrap
+         * @see https://tailwindcss.com/docs/overflow-wrap
+         */
+        wrap: [{
+          wrap: ["break-word", "anywhere", "normal"]
+        }],
+        /**
          * Hyphens
          * @see https://tailwindcss.com/docs/hyphens
          */
@@ -2311,9 +1731,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/content
          */
         content: [{
-          content: ["none", isArbitraryValue]
+          content: ["none", isArbitraryVariable, isArbitraryValue]
         }],
-        // Backgrounds
+        // -------------------
+        // --- Backgrounds ---
+        // -------------------
         /**
          * Background Attachment
          * @see https://tailwindcss.com/docs/background-attachment
@@ -2329,14 +1751,6 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           "bg-clip": ["border", "padding", "content", "text"]
         }],
         /**
-         * Background Opacity
-         * @deprecated since Tailwind CSS v3.0.0
-         * @see https://tailwindcss.com/docs/background-opacity
-         */
-        "bg-opacity": [{
-          "bg-opacity": [opacity]
-        }],
-        /**
          * Background Origin
          * @see https://tailwindcss.com/docs/background-origin
          */
@@ -2348,23 +1762,21 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/background-position
          */
         "bg-position": [{
-          bg: [...getPositions(), isArbitraryPosition]
+          bg: scaleBgPosition()
         }],
         /**
          * Background Repeat
          * @see https://tailwindcss.com/docs/background-repeat
          */
         "bg-repeat": [{
-          bg: ["no-repeat", {
-            repeat: ["", "x", "y", "round", "space"]
-          }]
+          bg: scaleBgRepeat()
         }],
         /**
          * Background Size
          * @see https://tailwindcss.com/docs/background-size
          */
         "bg-size": [{
-          bg: ["auto", "cover", "contain", isArbitrarySize]
+          bg: scaleBgSize()
         }],
         /**
          * Background Image
@@ -2372,597 +1784,891 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          */
         "bg-image": [{
           bg: ["none", {
-            "gradient-to": ["t", "tr", "r", "br", "b", "bl", "l", "tl"]
-          }, isArbitraryImage]
+            linear: [{
+              to: ["t", "tr", "r", "br", "b", "bl", "l", "tl"]
+            }, isInteger, isArbitraryVariable, isArbitraryValue],
+            radial: ["", isArbitraryVariable, isArbitraryValue],
+            conic: [isInteger, isArbitraryVariable, isArbitraryValue]
+          }, isArbitraryVariableImage, isArbitraryImage]
         }],
         /**
          * Background Color
          * @see https://tailwindcss.com/docs/background-color
          */
         "bg-color": [{
-          bg: [colors]
+          bg: scaleColor()
         }],
         /**
          * Gradient Color Stops From Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-from-pos": [{
-          from: [gradientColorStopPositions]
+          from: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops Via Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-via-pos": [{
-          via: [gradientColorStopPositions]
+          via: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops To Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-to-pos": [{
-          to: [gradientColorStopPositions]
+          to: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops From
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-from": [{
-          from: [gradientColorStops]
+          from: scaleColor()
         }],
         /**
          * Gradient Color Stops Via
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-via": [{
-          via: [gradientColorStops]
+          via: scaleColor()
         }],
         /**
          * Gradient Color Stops To
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-to": [{
-          to: [gradientColorStops]
+          to: scaleColor()
         }],
-        // Borders
+        // ---------------
+        // --- Borders ---
+        // ---------------
         /**
          * Border Radius
          * @see https://tailwindcss.com/docs/border-radius
          */
         rounded: [{
-          rounded: [borderRadius]
+          rounded: scaleRadius()
         }],
         /**
          * Border Radius Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-s": [{
-          "rounded-s": [borderRadius]
+          "rounded-s": scaleRadius()
         }],
         /**
          * Border Radius End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-e": [{
-          "rounded-e": [borderRadius]
+          "rounded-e": scaleRadius()
         }],
         /**
          * Border Radius Top
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-t": [{
-          "rounded-t": [borderRadius]
+          "rounded-t": scaleRadius()
         }],
         /**
          * Border Radius Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-r": [{
-          "rounded-r": [borderRadius]
+          "rounded-r": scaleRadius()
         }],
         /**
          * Border Radius Bottom
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-b": [{
-          "rounded-b": [borderRadius]
+          "rounded-b": scaleRadius()
         }],
         /**
          * Border Radius Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-l": [{
-          "rounded-l": [borderRadius]
+          "rounded-l": scaleRadius()
         }],
         /**
          * Border Radius Start Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-ss": [{
-          "rounded-ss": [borderRadius]
+          "rounded-ss": scaleRadius()
         }],
         /**
          * Border Radius Start End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-se": [{
-          "rounded-se": [borderRadius]
+          "rounded-se": scaleRadius()
         }],
         /**
          * Border Radius End End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-ee": [{
-          "rounded-ee": [borderRadius]
+          "rounded-ee": scaleRadius()
         }],
         /**
          * Border Radius End Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-es": [{
-          "rounded-es": [borderRadius]
+          "rounded-es": scaleRadius()
         }],
         /**
          * Border Radius Top Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-tl": [{
-          "rounded-tl": [borderRadius]
+          "rounded-tl": scaleRadius()
         }],
         /**
          * Border Radius Top Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-tr": [{
-          "rounded-tr": [borderRadius]
+          "rounded-tr": scaleRadius()
         }],
         /**
          * Border Radius Bottom Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-br": [{
-          "rounded-br": [borderRadius]
+          "rounded-br": scaleRadius()
         }],
         /**
          * Border Radius Bottom Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-bl": [{
-          "rounded-bl": [borderRadius]
+          "rounded-bl": scaleRadius()
         }],
         /**
          * Border Width
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w": [{
-          border: [borderWidth]
+          border: scaleBorderWidth()
         }],
         /**
-         * Border Width X
+         * Border Width Inline
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-x": [{
-          "border-x": [borderWidth]
+          "border-x": scaleBorderWidth()
         }],
         /**
-         * Border Width Y
+         * Border Width Block
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-y": [{
-          "border-y": [borderWidth]
+          "border-y": scaleBorderWidth()
         }],
         /**
-         * Border Width Start
+         * Border Width Inline Start
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-s": [{
-          "border-s": [borderWidth]
+          "border-s": scaleBorderWidth()
         }],
         /**
-         * Border Width End
+         * Border Width Inline End
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-e": [{
-          "border-e": [borderWidth]
+          "border-e": scaleBorderWidth()
+        }],
+        /**
+         * Border Width Block Start
+         * @see https://tailwindcss.com/docs/border-width
+         */
+        "border-w-bs": [{
+          "border-bs": scaleBorderWidth()
+        }],
+        /**
+         * Border Width Block End
+         * @see https://tailwindcss.com/docs/border-width
+         */
+        "border-w-be": [{
+          "border-be": scaleBorderWidth()
         }],
         /**
          * Border Width Top
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-t": [{
-          "border-t": [borderWidth]
+          "border-t": scaleBorderWidth()
         }],
         /**
          * Border Width Right
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-r": [{
-          "border-r": [borderWidth]
+          "border-r": scaleBorderWidth()
         }],
         /**
          * Border Width Bottom
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-b": [{
-          "border-b": [borderWidth]
+          "border-b": scaleBorderWidth()
         }],
         /**
          * Border Width Left
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-l": [{
-          "border-l": [borderWidth]
+          "border-l": scaleBorderWidth()
         }],
         /**
-         * Border Opacity
-         * @see https://tailwindcss.com/docs/border-opacity
+         * Divide Width X
+         * @see https://tailwindcss.com/docs/border-width#between-children
          */
-        "border-opacity": [{
-          "border-opacity": [opacity]
+        "divide-x": [{
+          "divide-x": scaleBorderWidth()
         }],
+        /**
+         * Divide Width X Reverse
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-x-reverse": ["divide-x-reverse"],
+        /**
+         * Divide Width Y
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-y": [{
+          "divide-y": scaleBorderWidth()
+        }],
+        /**
+         * Divide Width Y Reverse
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-y-reverse": ["divide-y-reverse"],
         /**
          * Border Style
          * @see https://tailwindcss.com/docs/border-style
          */
         "border-style": [{
-          border: [...getLineStyles(), "hidden"]
-        }],
-        /**
-         * Divide Width X
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-x": [{
-          "divide-x": [borderWidth]
-        }],
-        /**
-         * Divide Width X Reverse
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-x-reverse": ["divide-x-reverse"],
-        /**
-         * Divide Width Y
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-y": [{
-          "divide-y": [borderWidth]
-        }],
-        /**
-         * Divide Width Y Reverse
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-y-reverse": ["divide-y-reverse"],
-        /**
-         * Divide Opacity
-         * @see https://tailwindcss.com/docs/divide-opacity
-         */
-        "divide-opacity": [{
-          "divide-opacity": [opacity]
+          border: [...scaleLineStyle(), "hidden", "none"]
         }],
         /**
          * Divide Style
-         * @see https://tailwindcss.com/docs/divide-style
+         * @see https://tailwindcss.com/docs/border-style#setting-the-divider-style
          */
         "divide-style": [{
-          divide: getLineStyles()
+          divide: [...scaleLineStyle(), "hidden", "none"]
         }],
         /**
          * Border Color
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color": [{
-          border: [borderColor]
+          border: scaleColor()
         }],
         /**
-         * Border Color X
+         * Border Color Inline
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-x": [{
-          "border-x": [borderColor]
+          "border-x": scaleColor()
         }],
         /**
-         * Border Color Y
+         * Border Color Block
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-y": [{
-          "border-y": [borderColor]
+          "border-y": scaleColor()
         }],
         /**
-         * Border Color S
+         * Border Color Inline Start
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-s": [{
-          "border-s": [borderColor]
+          "border-s": scaleColor()
         }],
         /**
-         * Border Color E
+         * Border Color Inline End
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-e": [{
-          "border-e": [borderColor]
+          "border-e": scaleColor()
+        }],
+        /**
+         * Border Color Block Start
+         * @see https://tailwindcss.com/docs/border-color
+         */
+        "border-color-bs": [{
+          "border-bs": scaleColor()
+        }],
+        /**
+         * Border Color Block End
+         * @see https://tailwindcss.com/docs/border-color
+         */
+        "border-color-be": [{
+          "border-be": scaleColor()
         }],
         /**
          * Border Color Top
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-t": [{
-          "border-t": [borderColor]
+          "border-t": scaleColor()
         }],
         /**
          * Border Color Right
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-r": [{
-          "border-r": [borderColor]
+          "border-r": scaleColor()
         }],
         /**
          * Border Color Bottom
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-b": [{
-          "border-b": [borderColor]
+          "border-b": scaleColor()
         }],
         /**
          * Border Color Left
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-l": [{
-          "border-l": [borderColor]
+          "border-l": scaleColor()
         }],
         /**
          * Divide Color
          * @see https://tailwindcss.com/docs/divide-color
          */
         "divide-color": [{
-          divide: [borderColor]
+          divide: scaleColor()
         }],
         /**
          * Outline Style
          * @see https://tailwindcss.com/docs/outline-style
          */
         "outline-style": [{
-          outline: ["", ...getLineStyles()]
+          outline: [...scaleLineStyle(), "none", "hidden"]
         }],
         /**
          * Outline Offset
          * @see https://tailwindcss.com/docs/outline-offset
          */
         "outline-offset": [{
-          "outline-offset": [isLength, isArbitraryValue]
+          "outline-offset": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Outline Width
          * @see https://tailwindcss.com/docs/outline-width
          */
         "outline-w": [{
-          outline: [isLength, isArbitraryLength]
+          outline: ["", isNumber, isArbitraryVariableLength, isArbitraryLength]
         }],
         /**
          * Outline Color
          * @see https://tailwindcss.com/docs/outline-color
          */
         "outline-color": [{
-          outline: [colors]
+          outline: scaleColor()
         }],
-        /**
-         * Ring Width
-         * @see https://tailwindcss.com/docs/ring-width
-         */
-        "ring-w": [{
-          ring: getLengthWithEmptyAndArbitrary()
-        }],
-        /**
-         * Ring Width Inset
-         * @see https://tailwindcss.com/docs/ring-width
-         */
-        "ring-w-inset": ["ring-inset"],
-        /**
-         * Ring Color
-         * @see https://tailwindcss.com/docs/ring-color
-         */
-        "ring-color": [{
-          ring: [colors]
-        }],
-        /**
-         * Ring Opacity
-         * @see https://tailwindcss.com/docs/ring-opacity
-         */
-        "ring-opacity": [{
-          "ring-opacity": [opacity]
-        }],
-        /**
-         * Ring Offset Width
-         * @see https://tailwindcss.com/docs/ring-offset-width
-         */
-        "ring-offset-w": [{
-          "ring-offset": [isLength, isArbitraryLength]
-        }],
-        /**
-         * Ring Offset Color
-         * @see https://tailwindcss.com/docs/ring-offset-color
-         */
-        "ring-offset-color": [{
-          "ring-offset": [colors]
-        }],
-        // Effects
+        // ---------------
+        // --- Effects ---
+        // ---------------
         /**
          * Box Shadow
          * @see https://tailwindcss.com/docs/box-shadow
          */
         shadow: [{
-          shadow: ["", "inner", "none", isTshirtSize, isArbitraryShadow]
+          shadow: [
+            // Deprecated since Tailwind CSS v4.0.0
+            "",
+            "none",
+            themeShadow,
+            isArbitraryVariableShadow,
+            isArbitraryShadow
+          ]
         }],
         /**
          * Box Shadow Color
-         * @see https://tailwindcss.com/docs/box-shadow-color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-shadow-color
          */
         "shadow-color": [{
-          shadow: [isAny]
+          shadow: scaleColor()
+        }],
+        /**
+         * Inset Box Shadow
+         * @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-shadow
+         */
+        "inset-shadow": [{
+          "inset-shadow": ["none", themeInsetShadow, isArbitraryVariableShadow, isArbitraryShadow]
+        }],
+        /**
+         * Inset Box Shadow Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-shadow-color
+         */
+        "inset-shadow-color": [{
+          "inset-shadow": scaleColor()
+        }],
+        /**
+         * Ring Width
+         * @see https://tailwindcss.com/docs/box-shadow#adding-a-ring
+         */
+        "ring-w": [{
+          ring: scaleBorderWidth()
+        }],
+        /**
+         * Ring Width Inset
+         * @see https://v3.tailwindcss.com/docs/ring-width#inset-rings
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-w-inset": ["ring-inset"],
+        /**
+         * Ring Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-ring-color
+         */
+        "ring-color": [{
+          ring: scaleColor()
+        }],
+        /**
+         * Ring Offset Width
+         * @see https://v3.tailwindcss.com/docs/ring-offset-width
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-offset-w": [{
+          "ring-offset": [isNumber, isArbitraryLength]
+        }],
+        /**
+         * Ring Offset Color
+         * @see https://v3.tailwindcss.com/docs/ring-offset-color
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-offset-color": [{
+          "ring-offset": scaleColor()
+        }],
+        /**
+         * Inset Ring Width
+         * @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-ring
+         */
+        "inset-ring-w": [{
+          "inset-ring": scaleBorderWidth()
+        }],
+        /**
+         * Inset Ring Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-ring-color
+         */
+        "inset-ring-color": [{
+          "inset-ring": scaleColor()
+        }],
+        /**
+         * Text Shadow
+         * @see https://tailwindcss.com/docs/text-shadow
+         */
+        "text-shadow": [{
+          "text-shadow": ["none", themeTextShadow, isArbitraryVariableShadow, isArbitraryShadow]
+        }],
+        /**
+         * Text Shadow Color
+         * @see https://tailwindcss.com/docs/text-shadow#setting-the-shadow-color
+         */
+        "text-shadow-color": [{
+          "text-shadow": scaleColor()
         }],
         /**
          * Opacity
          * @see https://tailwindcss.com/docs/opacity
          */
         opacity: [{
-          opacity: [opacity]
+          opacity: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Mix Blend Mode
          * @see https://tailwindcss.com/docs/mix-blend-mode
          */
         "mix-blend": [{
-          "mix-blend": [...getBlendModes(), "plus-lighter", "plus-darker"]
+          "mix-blend": [...scaleBlendMode(), "plus-darker", "plus-lighter"]
         }],
         /**
          * Background Blend Mode
          * @see https://tailwindcss.com/docs/background-blend-mode
          */
         "bg-blend": [{
-          "bg-blend": getBlendModes()
+          "bg-blend": scaleBlendMode()
         }],
-        // Filters
+        /**
+         * Mask Clip
+         * @see https://tailwindcss.com/docs/mask-clip
+         */
+        "mask-clip": [{
+          "mask-clip": ["border", "padding", "content", "fill", "stroke", "view"]
+        }, "mask-no-clip"],
+        /**
+         * Mask Composite
+         * @see https://tailwindcss.com/docs/mask-composite
+         */
+        "mask-composite": [{
+          mask: ["add", "subtract", "intersect", "exclude"]
+        }],
+        /**
+         * Mask Image
+         * @see https://tailwindcss.com/docs/mask-image
+         */
+        "mask-image-linear-pos": [{
+          "mask-linear": [isNumber]
+        }],
+        "mask-image-linear-from-pos": [{
+          "mask-linear-from": scaleMaskImagePosition()
+        }],
+        "mask-image-linear-to-pos": [{
+          "mask-linear-to": scaleMaskImagePosition()
+        }],
+        "mask-image-linear-from-color": [{
+          "mask-linear-from": scaleColor()
+        }],
+        "mask-image-linear-to-color": [{
+          "mask-linear-to": scaleColor()
+        }],
+        "mask-image-t-from-pos": [{
+          "mask-t-from": scaleMaskImagePosition()
+        }],
+        "mask-image-t-to-pos": [{
+          "mask-t-to": scaleMaskImagePosition()
+        }],
+        "mask-image-t-from-color": [{
+          "mask-t-from": scaleColor()
+        }],
+        "mask-image-t-to-color": [{
+          "mask-t-to": scaleColor()
+        }],
+        "mask-image-r-from-pos": [{
+          "mask-r-from": scaleMaskImagePosition()
+        }],
+        "mask-image-r-to-pos": [{
+          "mask-r-to": scaleMaskImagePosition()
+        }],
+        "mask-image-r-from-color": [{
+          "mask-r-from": scaleColor()
+        }],
+        "mask-image-r-to-color": [{
+          "mask-r-to": scaleColor()
+        }],
+        "mask-image-b-from-pos": [{
+          "mask-b-from": scaleMaskImagePosition()
+        }],
+        "mask-image-b-to-pos": [{
+          "mask-b-to": scaleMaskImagePosition()
+        }],
+        "mask-image-b-from-color": [{
+          "mask-b-from": scaleColor()
+        }],
+        "mask-image-b-to-color": [{
+          "mask-b-to": scaleColor()
+        }],
+        "mask-image-l-from-pos": [{
+          "mask-l-from": scaleMaskImagePosition()
+        }],
+        "mask-image-l-to-pos": [{
+          "mask-l-to": scaleMaskImagePosition()
+        }],
+        "mask-image-l-from-color": [{
+          "mask-l-from": scaleColor()
+        }],
+        "mask-image-l-to-color": [{
+          "mask-l-to": scaleColor()
+        }],
+        "mask-image-x-from-pos": [{
+          "mask-x-from": scaleMaskImagePosition()
+        }],
+        "mask-image-x-to-pos": [{
+          "mask-x-to": scaleMaskImagePosition()
+        }],
+        "mask-image-x-from-color": [{
+          "mask-x-from": scaleColor()
+        }],
+        "mask-image-x-to-color": [{
+          "mask-x-to": scaleColor()
+        }],
+        "mask-image-y-from-pos": [{
+          "mask-y-from": scaleMaskImagePosition()
+        }],
+        "mask-image-y-to-pos": [{
+          "mask-y-to": scaleMaskImagePosition()
+        }],
+        "mask-image-y-from-color": [{
+          "mask-y-from": scaleColor()
+        }],
+        "mask-image-y-to-color": [{
+          "mask-y-to": scaleColor()
+        }],
+        "mask-image-radial": [{
+          "mask-radial": [isArbitraryVariable, isArbitraryValue]
+        }],
+        "mask-image-radial-from-pos": [{
+          "mask-radial-from": scaleMaskImagePosition()
+        }],
+        "mask-image-radial-to-pos": [{
+          "mask-radial-to": scaleMaskImagePosition()
+        }],
+        "mask-image-radial-from-color": [{
+          "mask-radial-from": scaleColor()
+        }],
+        "mask-image-radial-to-color": [{
+          "mask-radial-to": scaleColor()
+        }],
+        "mask-image-radial-shape": [{
+          "mask-radial": ["circle", "ellipse"]
+        }],
+        "mask-image-radial-size": [{
+          "mask-radial": [{
+            closest: ["side", "corner"],
+            farthest: ["side", "corner"]
+          }]
+        }],
+        "mask-image-radial-pos": [{
+          "mask-radial-at": scalePosition()
+        }],
+        "mask-image-conic-pos": [{
+          "mask-conic": [isNumber]
+        }],
+        "mask-image-conic-from-pos": [{
+          "mask-conic-from": scaleMaskImagePosition()
+        }],
+        "mask-image-conic-to-pos": [{
+          "mask-conic-to": scaleMaskImagePosition()
+        }],
+        "mask-image-conic-from-color": [{
+          "mask-conic-from": scaleColor()
+        }],
+        "mask-image-conic-to-color": [{
+          "mask-conic-to": scaleColor()
+        }],
+        /**
+         * Mask Mode
+         * @see https://tailwindcss.com/docs/mask-mode
+         */
+        "mask-mode": [{
+          mask: ["alpha", "luminance", "match"]
+        }],
+        /**
+         * Mask Origin
+         * @see https://tailwindcss.com/docs/mask-origin
+         */
+        "mask-origin": [{
+          "mask-origin": ["border", "padding", "content", "fill", "stroke", "view"]
+        }],
+        /**
+         * Mask Position
+         * @see https://tailwindcss.com/docs/mask-position
+         */
+        "mask-position": [{
+          mask: scaleBgPosition()
+        }],
+        /**
+         * Mask Repeat
+         * @see https://tailwindcss.com/docs/mask-repeat
+         */
+        "mask-repeat": [{
+          mask: scaleBgRepeat()
+        }],
+        /**
+         * Mask Size
+         * @see https://tailwindcss.com/docs/mask-size
+         */
+        "mask-size": [{
+          mask: scaleBgSize()
+        }],
+        /**
+         * Mask Type
+         * @see https://tailwindcss.com/docs/mask-type
+         */
+        "mask-type": [{
+          "mask-type": ["alpha", "luminance"]
+        }],
+        /**
+         * Mask Image
+         * @see https://tailwindcss.com/docs/mask-image
+         */
+        "mask-image": [{
+          mask: ["none", isArbitraryVariable, isArbitraryValue]
+        }],
+        // ---------------
+        // --- Filters ---
+        // ---------------
         /**
          * Filter
-         * @deprecated since Tailwind CSS v3.0.0
          * @see https://tailwindcss.com/docs/filter
          */
         filter: [{
-          filter: ["", "none"]
+          filter: [
+            // Deprecated since Tailwind CSS v3.0.0
+            "",
+            "none",
+            isArbitraryVariable,
+            isArbitraryValue
+          ]
         }],
         /**
          * Blur
          * @see https://tailwindcss.com/docs/blur
          */
         blur: [{
-          blur: [blur]
+          blur: scaleBlur()
         }],
         /**
          * Brightness
          * @see https://tailwindcss.com/docs/brightness
          */
         brightness: [{
-          brightness: [brightness]
+          brightness: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Contrast
          * @see https://tailwindcss.com/docs/contrast
          */
         contrast: [{
-          contrast: [contrast]
+          contrast: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Drop Shadow
          * @see https://tailwindcss.com/docs/drop-shadow
          */
         "drop-shadow": [{
-          "drop-shadow": ["", "none", isTshirtSize, isArbitraryValue]
+          "drop-shadow": [
+            // Deprecated since Tailwind CSS v4.0.0
+            "",
+            "none",
+            themeDropShadow,
+            isArbitraryVariableShadow,
+            isArbitraryShadow
+          ]
+        }],
+        /**
+         * Drop Shadow Color
+         * @see https://tailwindcss.com/docs/filter-drop-shadow#setting-the-shadow-color
+         */
+        "drop-shadow-color": [{
+          "drop-shadow": scaleColor()
         }],
         /**
          * Grayscale
          * @see https://tailwindcss.com/docs/grayscale
          */
         grayscale: [{
-          grayscale: [grayscale]
+          grayscale: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Hue Rotate
          * @see https://tailwindcss.com/docs/hue-rotate
          */
         "hue-rotate": [{
-          "hue-rotate": [hueRotate]
+          "hue-rotate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Invert
          * @see https://tailwindcss.com/docs/invert
          */
         invert: [{
-          invert: [invert]
+          invert: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Saturate
          * @see https://tailwindcss.com/docs/saturate
          */
         saturate: [{
-          saturate: [saturate]
+          saturate: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Sepia
          * @see https://tailwindcss.com/docs/sepia
          */
         sepia: [{
-          sepia: [sepia]
+          sepia: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Filter
-         * @deprecated since Tailwind CSS v3.0.0
          * @see https://tailwindcss.com/docs/backdrop-filter
          */
         "backdrop-filter": [{
-          "backdrop-filter": ["", "none"]
+          "backdrop-filter": [
+            // Deprecated since Tailwind CSS v3.0.0
+            "",
+            "none",
+            isArbitraryVariable,
+            isArbitraryValue
+          ]
         }],
         /**
          * Backdrop Blur
          * @see https://tailwindcss.com/docs/backdrop-blur
          */
         "backdrop-blur": [{
-          "backdrop-blur": [blur]
+          "backdrop-blur": scaleBlur()
         }],
         /**
          * Backdrop Brightness
          * @see https://tailwindcss.com/docs/backdrop-brightness
          */
         "backdrop-brightness": [{
-          "backdrop-brightness": [brightness]
+          "backdrop-brightness": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Contrast
          * @see https://tailwindcss.com/docs/backdrop-contrast
          */
         "backdrop-contrast": [{
-          "backdrop-contrast": [contrast]
+          "backdrop-contrast": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Grayscale
          * @see https://tailwindcss.com/docs/backdrop-grayscale
          */
         "backdrop-grayscale": [{
-          "backdrop-grayscale": [grayscale]
+          "backdrop-grayscale": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Hue Rotate
          * @see https://tailwindcss.com/docs/backdrop-hue-rotate
          */
         "backdrop-hue-rotate": [{
-          "backdrop-hue-rotate": [hueRotate]
+          "backdrop-hue-rotate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Invert
          * @see https://tailwindcss.com/docs/backdrop-invert
          */
         "backdrop-invert": [{
-          "backdrop-invert": [invert]
+          "backdrop-invert": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Opacity
          * @see https://tailwindcss.com/docs/backdrop-opacity
          */
         "backdrop-opacity": [{
-          "backdrop-opacity": [opacity]
+          "backdrop-opacity": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Saturate
          * @see https://tailwindcss.com/docs/backdrop-saturate
          */
         "backdrop-saturate": [{
-          "backdrop-saturate": [saturate]
+          "backdrop-saturate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Sepia
          * @see https://tailwindcss.com/docs/backdrop-sepia
          */
         "backdrop-sepia": [{
-          "backdrop-sepia": [sepia]
+          "backdrop-sepia": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
-        // Tables
+        // --------------
+        // --- Tables ---
+        // --------------
         /**
          * Border Collapse
          * @see https://tailwindcss.com/docs/border-collapse
@@ -2975,21 +2681,21 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing": [{
-          "border-spacing": [borderSpacing]
+          "border-spacing": scaleUnambiguousSpacing()
         }],
         /**
          * Border Spacing X
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing-x": [{
-          "border-spacing-x": [borderSpacing]
+          "border-spacing-x": scaleUnambiguousSpacing()
         }],
         /**
          * Border Spacing Y
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing-y": [{
-          "border-spacing-y": [borderSpacing]
+          "border-spacing-y": scaleUnambiguousSpacing()
         }],
         /**
          * Table Layout
@@ -3005,120 +2711,227 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         caption: [{
           caption: ["top", "bottom"]
         }],
-        // Transitions and Animation
+        // ---------------------------------
+        // --- Transitions and Animation ---
+        // ---------------------------------
         /**
-         * Tranisition Property
+         * Transition Property
          * @see https://tailwindcss.com/docs/transition-property
          */
         transition: [{
-          transition: ["none", "all", "", "colors", "opacity", "shadow", "transform", isArbitraryValue]
+          transition: ["", "all", "colors", "opacity", "shadow", "transform", "none", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Transition Behavior
+         * @see https://tailwindcss.com/docs/transition-behavior
+         */
+        "transition-behavior": [{
+          transition: ["normal", "discrete"]
         }],
         /**
          * Transition Duration
          * @see https://tailwindcss.com/docs/transition-duration
          */
         duration: [{
-          duration: getNumberAndArbitrary()
+          duration: [isNumber, "initial", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Transition Timing Function
          * @see https://tailwindcss.com/docs/transition-timing-function
          */
         ease: [{
-          ease: ["linear", "in", "out", "in-out", isArbitraryValue]
+          ease: ["linear", "initial", themeEase, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Transition Delay
          * @see https://tailwindcss.com/docs/transition-delay
          */
         delay: [{
-          delay: getNumberAndArbitrary()
+          delay: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Animation
          * @see https://tailwindcss.com/docs/animation
          */
         animate: [{
-          animate: ["none", "spin", "ping", "pulse", "bounce", isArbitraryValue]
+          animate: ["none", themeAnimate, isArbitraryVariable, isArbitraryValue]
         }],
-        // Transforms
+        // ------------------
+        // --- Transforms ---
+        // ------------------
         /**
-         * Transform
-         * @see https://tailwindcss.com/docs/transform
+         * Backface Visibility
+         * @see https://tailwindcss.com/docs/backface-visibility
          */
-        transform: [{
-          transform: ["", "gpu", "none"]
-        }],
-        /**
-         * Scale
-         * @see https://tailwindcss.com/docs/scale
-         */
-        scale: [{
-          scale: [scale]
+        backface: [{
+          backface: ["hidden", "visible"]
         }],
         /**
-         * Scale X
-         * @see https://tailwindcss.com/docs/scale
+         * Perspective
+         * @see https://tailwindcss.com/docs/perspective
          */
-        "scale-x": [{
-          "scale-x": [scale]
+        perspective: [{
+          perspective: [themePerspective, isArbitraryVariable, isArbitraryValue]
         }],
         /**
-         * Scale Y
-         * @see https://tailwindcss.com/docs/scale
+         * Perspective Origin
+         * @see https://tailwindcss.com/docs/perspective-origin
          */
-        "scale-y": [{
-          "scale-y": [scale]
+        "perspective-origin": [{
+          "perspective-origin": scalePositionWithArbitrary()
         }],
         /**
          * Rotate
          * @see https://tailwindcss.com/docs/rotate
          */
         rotate: [{
-          rotate: [isInteger, isArbitraryValue]
+          rotate: scaleRotate()
         }],
         /**
-         * Translate X
-         * @see https://tailwindcss.com/docs/translate
+         * Rotate X
+         * @see https://tailwindcss.com/docs/rotate
          */
-        "translate-x": [{
-          "translate-x": [translate]
+        "rotate-x": [{
+          "rotate-x": scaleRotate()
         }],
         /**
-         * Translate Y
-         * @see https://tailwindcss.com/docs/translate
+         * Rotate Y
+         * @see https://tailwindcss.com/docs/rotate
          */
-        "translate-y": [{
-          "translate-y": [translate]
+        "rotate-y": [{
+          "rotate-y": scaleRotate()
+        }],
+        /**
+         * Rotate Z
+         * @see https://tailwindcss.com/docs/rotate
+         */
+        "rotate-z": [{
+          "rotate-z": scaleRotate()
+        }],
+        /**
+         * Scale
+         * @see https://tailwindcss.com/docs/scale
+         */
+        scale: [{
+          scale: scaleScale()
+        }],
+        /**
+         * Scale X
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-x": [{
+          "scale-x": scaleScale()
+        }],
+        /**
+         * Scale Y
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-y": [{
+          "scale-y": scaleScale()
+        }],
+        /**
+         * Scale Z
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-z": [{
+          "scale-z": scaleScale()
+        }],
+        /**
+         * Scale 3D
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-3d": ["scale-3d"],
+        /**
+         * Skew
+         * @see https://tailwindcss.com/docs/skew
+         */
+        skew: [{
+          skew: scaleSkew()
         }],
         /**
          * Skew X
          * @see https://tailwindcss.com/docs/skew
          */
         "skew-x": [{
-          "skew-x": [skew]
+          "skew-x": scaleSkew()
         }],
         /**
          * Skew Y
          * @see https://tailwindcss.com/docs/skew
          */
         "skew-y": [{
-          "skew-y": [skew]
+          "skew-y": scaleSkew()
+        }],
+        /**
+         * Transform
+         * @see https://tailwindcss.com/docs/transform
+         */
+        transform: [{
+          transform: [isArbitraryVariable, isArbitraryValue, "", "none", "gpu", "cpu"]
         }],
         /**
          * Transform Origin
          * @see https://tailwindcss.com/docs/transform-origin
          */
         "transform-origin": [{
-          origin: ["center", "top", "top-right", "right", "bottom-right", "bottom", "bottom-left", "left", "top-left", isArbitraryValue]
+          origin: scalePositionWithArbitrary()
         }],
-        // Interactivity
+        /**
+         * Transform Style
+         * @see https://tailwindcss.com/docs/transform-style
+         */
+        "transform-style": [{
+          transform: ["3d", "flat"]
+        }],
+        /**
+         * Translate
+         * @see https://tailwindcss.com/docs/translate
+         */
+        translate: [{
+          translate: scaleTranslate()
+        }],
+        /**
+         * Translate X
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-x": [{
+          "translate-x": scaleTranslate()
+        }],
+        /**
+         * Translate Y
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-y": [{
+          "translate-y": scaleTranslate()
+        }],
+        /**
+         * Translate Z
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-z": [{
+          "translate-z": scaleTranslate()
+        }],
+        /**
+         * Translate None
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-none": ["translate-none"],
+        /**
+         * Zoom
+         * @see https://tailwindcss.com/docs/zoom
+         */
+        zoom: [{
+          zoom: [isInteger, isArbitraryVariable, isArbitraryValue]
+        }],
+        // ---------------------
+        // --- Interactivity ---
+        // ---------------------
         /**
          * Accent Color
          * @see https://tailwindcss.com/docs/accent-color
          */
         accent: [{
-          accent: ["auto", colors]
+          accent: scaleColor()
         }],
         /**
          * Appearance
@@ -3128,32 +2941,46 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           appearance: ["none", "auto"]
         }],
         /**
-         * Cursor
-         * @see https://tailwindcss.com/docs/cursor
-         */
-        cursor: [{
-          cursor: ["auto", "default", "pointer", "wait", "text", "move", "help", "not-allowed", "none", "context-menu", "progress", "cell", "crosshair", "vertical-text", "alias", "copy", "no-drop", "grab", "grabbing", "all-scroll", "col-resize", "row-resize", "n-resize", "e-resize", "s-resize", "w-resize", "ne-resize", "nw-resize", "se-resize", "sw-resize", "ew-resize", "ns-resize", "nesw-resize", "nwse-resize", "zoom-in", "zoom-out", isArbitraryValue]
-        }],
-        /**
          * Caret Color
          * @see https://tailwindcss.com/docs/just-in-time-mode#caret-color-utilities
          */
         "caret-color": [{
-          caret: [colors]
+          caret: scaleColor()
+        }],
+        /**
+         * Color Scheme
+         * @see https://tailwindcss.com/docs/color-scheme
+         */
+        "color-scheme": [{
+          scheme: ["normal", "dark", "light", "light-dark", "only-dark", "only-light"]
+        }],
+        /**
+         * Cursor
+         * @see https://tailwindcss.com/docs/cursor
+         */
+        cursor: [{
+          cursor: ["auto", "default", "pointer", "wait", "text", "move", "help", "not-allowed", "none", "context-menu", "progress", "cell", "crosshair", "vertical-text", "alias", "copy", "no-drop", "grab", "grabbing", "all-scroll", "col-resize", "row-resize", "n-resize", "e-resize", "s-resize", "w-resize", "ne-resize", "nw-resize", "se-resize", "sw-resize", "ew-resize", "ns-resize", "nesw-resize", "nwse-resize", "zoom-in", "zoom-out", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Field Sizing
+         * @see https://tailwindcss.com/docs/field-sizing
+         */
+        "field-sizing": [{
+          "field-sizing": ["fixed", "content"]
         }],
         /**
          * Pointer Events
          * @see https://tailwindcss.com/docs/pointer-events
          */
         "pointer-events": [{
-          "pointer-events": ["none", "auto"]
+          "pointer-events": ["auto", "none"]
         }],
         /**
          * Resize
          * @see https://tailwindcss.com/docs/resize
          */
         resize: [{
-          resize: ["none", "y", "x", ""]
+          resize: ["none", "", "y", "x"]
         }],
         /**
          * Scroll Behavior
@@ -3163,130 +2990,186 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           scroll: ["auto", "smooth"]
         }],
         /**
+         * Scrollbar Thumb Color
+         * @see https://tailwindcss.com/docs/scrollbar-color
+         */
+        "scrollbar-thumb-color": [{
+          "scrollbar-thumb": scaleColor()
+        }],
+        /**
+         * Scrollbar Track Color
+         * @see https://tailwindcss.com/docs/scrollbar-color
+         */
+        "scrollbar-track-color": [{
+          "scrollbar-track": scaleColor()
+        }],
+        /**
+         * Scrollbar Gutter
+         * @see https://tailwindcss.com/docs/scrollbar-gutter
+         */
+        "scrollbar-gutter": [{
+          "scrollbar-gutter": ["auto", "stable", "both"]
+        }],
+        /**
+         * Scrollbar Width
+         * @see https://tailwindcss.com/docs/scrollbar-width
+         */
+        "scrollbar-w": [{
+          scrollbar: ["auto", "thin", "none"]
+        }],
+        /**
          * Scroll Margin
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-m": [{
-          "scroll-m": getSpacingWithArbitrary()
+          "scroll-m": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin X
+         * Scroll Margin Inline
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mx": [{
-          "scroll-mx": getSpacingWithArbitrary()
+          "scroll-mx": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin Y
+         * Scroll Margin Block
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-my": [{
-          "scroll-my": getSpacingWithArbitrary()
+          "scroll-my": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin Start
+         * Scroll Margin Inline Start
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-ms": [{
-          "scroll-ms": getSpacingWithArbitrary()
+          "scroll-ms": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin End
+         * Scroll Margin Inline End
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-me": [{
-          "scroll-me": getSpacingWithArbitrary()
+          "scroll-me": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Margin Block Start
+         * @see https://tailwindcss.com/docs/scroll-margin
+         */
+        "scroll-mbs": [{
+          "scroll-mbs": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Margin Block End
+         * @see https://tailwindcss.com/docs/scroll-margin
+         */
+        "scroll-mbe": [{
+          "scroll-mbe": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Top
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mt": [{
-          "scroll-mt": getSpacingWithArbitrary()
+          "scroll-mt": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Right
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mr": [{
-          "scroll-mr": getSpacingWithArbitrary()
+          "scroll-mr": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Bottom
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mb": [{
-          "scroll-mb": getSpacingWithArbitrary()
+          "scroll-mb": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Left
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-ml": [{
-          "scroll-ml": getSpacingWithArbitrary()
+          "scroll-ml": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-p": [{
-          "scroll-p": getSpacingWithArbitrary()
+          "scroll-p": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding X
+         * Scroll Padding Inline
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-px": [{
-          "scroll-px": getSpacingWithArbitrary()
+          "scroll-px": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding Y
+         * Scroll Padding Block
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-py": [{
-          "scroll-py": getSpacingWithArbitrary()
+          "scroll-py": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding Start
+         * Scroll Padding Inline Start
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-ps": [{
-          "scroll-ps": getSpacingWithArbitrary()
+          "scroll-ps": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding End
+         * Scroll Padding Inline End
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pe": [{
-          "scroll-pe": getSpacingWithArbitrary()
+          "scroll-pe": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Padding Block Start
+         * @see https://tailwindcss.com/docs/scroll-padding
+         */
+        "scroll-pbs": [{
+          "scroll-pbs": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Padding Block End
+         * @see https://tailwindcss.com/docs/scroll-padding
+         */
+        "scroll-pbe": [{
+          "scroll-pbe": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Top
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pt": [{
-          "scroll-pt": getSpacingWithArbitrary()
+          "scroll-pt": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Right
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pr": [{
-          "scroll-pr": getSpacingWithArbitrary()
+          "scroll-pr": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Bottom
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pb": [{
-          "scroll-pb": getSpacingWithArbitrary()
+          "scroll-pb": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Left
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pl": [{
-          "scroll-pl": getSpacingWithArbitrary()
+          "scroll-pl": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Snap Align
@@ -3354,36 +3237,35 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
          * @see https://tailwindcss.com/docs/will-change
          */
         "will-change": [{
-          "will-change": ["auto", "scroll", "contents", "transform", isArbitraryValue]
+          "will-change": ["auto", "scroll", "contents", "transform", isArbitraryVariable, isArbitraryValue]
         }],
-        // SVG
+        // -----------
+        // --- SVG ---
+        // -----------
         /**
          * Fill
          * @see https://tailwindcss.com/docs/fill
          */
         fill: [{
-          fill: [colors, "none"]
+          fill: ["none", ...scaleColor()]
         }],
         /**
          * Stroke Width
          * @see https://tailwindcss.com/docs/stroke-width
          */
         "stroke-w": [{
-          stroke: [isLength, isArbitraryLength, isArbitraryNumber]
+          stroke: [isNumber, isArbitraryVariableLength, isArbitraryLength, isArbitraryNumber]
         }],
         /**
          * Stroke
          * @see https://tailwindcss.com/docs/stroke
          */
         stroke: [{
-          stroke: [colors, "none"]
+          stroke: ["none", ...scaleColor()]
         }],
-        // Accessibility
-        /**
-         * Screen Readers
-         * @see https://tailwindcss.com/docs/screen-readers
-         */
-        sr: ["sr-only", "not-sr-only"],
+        // ---------------------
+        // --- Accessibility ---
+        // ---------------------
         /**
          * Forced Color Adjust
          * @see https://tailwindcss.com/docs/forced-color-adjust
@@ -3393,17 +3275,18 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         }]
       },
       conflictingClassGroups: {
+        "container-named": ["container-type"],
         overflow: ["overflow-x", "overflow-y"],
         overscroll: ["overscroll-x", "overscroll-y"],
-        inset: ["inset-x", "inset-y", "start", "end", "top", "right", "bottom", "left"],
+        inset: ["inset-x", "inset-y", "inset-bs", "inset-be", "start", "end", "top", "right", "bottom", "left"],
         "inset-x": ["right", "left"],
         "inset-y": ["top", "bottom"],
         flex: ["basis", "grow", "shrink"],
         gap: ["gap-x", "gap-y"],
-        p: ["px", "py", "ps", "pe", "pt", "pr", "pb", "pl"],
+        p: ["px", "py", "ps", "pe", "pbs", "pbe", "pt", "pr", "pb", "pl"],
         px: ["pr", "pl"],
         py: ["pt", "pb"],
-        m: ["mx", "my", "ms", "me", "mt", "mr", "mb", "ml"],
+        m: ["mx", "my", "ms", "me", "mbs", "mbe", "mt", "mr", "mb", "ml"],
         mx: ["mr", "ml"],
         my: ["mt", "mb"],
         size: ["w", "h"],
@@ -3423,16 +3306,18 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         "rounded-b": ["rounded-br", "rounded-bl"],
         "rounded-l": ["rounded-tl", "rounded-bl"],
         "border-spacing": ["border-spacing-x", "border-spacing-y"],
-        "border-w": ["border-w-s", "border-w-e", "border-w-t", "border-w-r", "border-w-b", "border-w-l"],
+        "border-w": ["border-w-x", "border-w-y", "border-w-s", "border-w-e", "border-w-bs", "border-w-be", "border-w-t", "border-w-r", "border-w-b", "border-w-l"],
         "border-w-x": ["border-w-r", "border-w-l"],
         "border-w-y": ["border-w-t", "border-w-b"],
-        "border-color": ["border-color-s", "border-color-e", "border-color-t", "border-color-r", "border-color-b", "border-color-l"],
+        "border-color": ["border-color-x", "border-color-y", "border-color-s", "border-color-e", "border-color-bs", "border-color-be", "border-color-t", "border-color-r", "border-color-b", "border-color-l"],
         "border-color-x": ["border-color-r", "border-color-l"],
         "border-color-y": ["border-color-t", "border-color-b"],
-        "scroll-m": ["scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"],
+        translate: ["translate-x", "translate-y", "translate-none"],
+        "translate-none": ["translate", "translate-x", "translate-y", "translate-z"],
+        "scroll-m": ["scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mbs", "scroll-mbe", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"],
         "scroll-mx": ["scroll-mr", "scroll-ml"],
         "scroll-my": ["scroll-mt", "scroll-mb"],
-        "scroll-p": ["scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"],
+        "scroll-p": ["scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pbs", "scroll-pbe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"],
         "scroll-px": ["scroll-pr", "scroll-pl"],
         "scroll-py": ["scroll-pt", "scroll-pb"],
         touch: ["touch-x", "touch-y", "touch-pz"],
@@ -3442,15 +3327,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       },
       conflictingClassGroupModifiers: {
         "font-size": ["leading"]
-      }
+      },
+      postfixLookupClassGroups: ["container-type"],
+      orderSensitiveModifiers: ["*", "**", "after", "backdrop", "before", "details-content", "file", "first-letter", "first-line", "marker", "placeholder", "selection"]
     };
   };
   var twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
-
-  // ../../../packages/shadcn-ui/src/utils.ts
-  function cn(...inputs) {
-    return twMerge(clsx(inputs));
-  }
 
   // src/lib/remote-components/wechat-workbench/src/react-shim.ts
   var react_shim_exports = {};
@@ -3526,13 +3408,27 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
-  var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
+  var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
+  var toCamelCase = (string) => string.replace(
+    /^([A-Z])|[\s-_]+(\w)/g,
+    (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
+  );
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
+  var toPascalCase = (string) => {
+    const camelCase = toCamelCase(string);
+    return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
+  };
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3545,28 +3441,42 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     strokeLinejoin: "round"
   };
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
+  var hasA11yProp = (props) => {
+    for (const prop in props) {
+      if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
+  var LucideContext = createContext({});
+  var useLucideContext = () => useContext(LucideContext);
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
   var Icon = forwardRef(
-    ({
-      color = "currentColor",
-      size: size4 = 24,
-      strokeWidth = 2,
-      absoluteStrokeWidth,
-      className = "",
-      children,
-      iconNode,
-      ...rest
-    }, ref) => {
+    ({ color, size: size4, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
+      const {
+        size: contextSize = 24,
+        strokeWidth: contextStrokeWidth = 2,
+        absoluteStrokeWidth: contextAbsoluteStrokeWidth = false,
+        color: contextColor = "currentColor",
+        className: contextClass = ""
+      } = useLucideContext() ?? {};
+      const calculatedStrokeWidth = absoluteStrokeWidth ?? contextAbsoluteStrokeWidth ? Number(strokeWidth ?? contextStrokeWidth) * 24 / Number(size4 ?? contextSize) : strokeWidth ?? contextStrokeWidth;
       return createElement(
         "svg",
         {
           ref,
           ...defaultAttributes,
-          width: size4,
-          height: size4,
-          stroke: color,
-          strokeWidth: absoluteStrokeWidth ? Number(strokeWidth) * 24 / Number(size4) : strokeWidth,
-          className: mergeClasses("lucide", className),
+          width: size4 ?? contextSize ?? defaultAttributes.width,
+          height: size4 ?? contextSize ?? defaultAttributes.height,
+          stroke: color ?? contextColor,
+          strokeWidth: calculatedStrokeWidth,
+          className: mergeClasses("lucide", contextClass, className),
+          ...!children && !hasA11yProp(rest) && { "aria-hidden": "true" },
           ...rest
         },
         [
@@ -3577,119 +3487,73 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   );
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
         ref,
         iconNode,
-        className: mergeClasses(`lucide-${toKebabCase(iconName)}`, className),
+        className: mergeClasses(
+          `lucide-${toKebabCase(toPascalCase(iconName))}`,
+          `lucide-${iconName}`,
+          className
+        ),
         ...props
       })
     );
-    Component2.displayName = `${iconName}`;
+    Component2.displayName = toPascalCase(iconName);
     return Component2;
   };
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
-  var Check = createLucideIcon("Check", __iconNode);
+  var Check = createLucideIcon("check", __iconNode);
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-  var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
+  var ChevronDown = createLucideIcon("chevron-down", __iconNode2);
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
-  var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-  var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
+  var __iconNode3 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
+  var ChevronUp = createLucideIcon("chevron-up", __iconNode3);
 
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
-  var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
-  var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
-
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
-  var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
-  var Circle = createLucideIcon("Circle", __iconNode5);
-
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
-  var __iconNode6 = [
-    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
-    ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
-  ];
-  var Search = createLucideIcon("Search", __iconNode6);
-
-  // ../../../xpertai/node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
-  var __iconNode7 = [
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
+  var __iconNode4 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
-  var X = createLucideIcon("X", __iconNode7);
+  var X = createLucideIcon("x", __iconNode4);
 
-  // ../../../xpertai/node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
-  var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
-  var cx = clsx;
-  var cva = (base, config) => (props) => {
-    var _config_compoundVariants;
-    if ((config === null || config === void 0 ? void 0 : config.variants) == null) return cx(base, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
-    const { variants, defaultVariants } = config;
-    const getVariantClassNames = Object.keys(variants).map((variant) => {
-      const variantProp = props === null || props === void 0 ? void 0 : props[variant];
-      const defaultVariantProp = defaultVariants === null || defaultVariants === void 0 ? void 0 : defaultVariants[variant];
-      if (variantProp === null) return null;
-      const variantKey = falsyToString(variantProp) || falsyToString(defaultVariantProp);
-      return variants[variant][variantKey];
-    });
-    const propsWithoutUndefined = props && Object.entries(props).reduce((acc, param) => {
-      let [key, value] = param;
-      if (value === void 0) {
-        return acc;
-      }
-      acc[key] = value;
-      return acc;
-    }, {});
-    const getCompoundVariantClassNames = config === null || config === void 0 ? void 0 : (_config_compoundVariants = config.compoundVariants) === null || _config_compoundVariants === void 0 ? void 0 : _config_compoundVariants.reduce((acc, param) => {
-      let { class: cvClass, className: cvClassName, ...compoundVariantOptions } = param;
-      return Object.entries(compoundVariantOptions).every((param2) => {
-        let [key, value] = param2;
-        return Array.isArray(value) ? value.includes({
-          ...defaultVariants,
-          ...propsWithoutUndefined
-        }[key]) : {
-          ...defaultVariants,
-          ...propsWithoutUndefined
-        }[key] === value;
-      }) ? [
-        ...acc,
-        cvClass,
-        cvClassName
-      ] : acc;
-    }, []);
-    return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
-  };
-
-  // ../../../packages/shadcn-ui/src/components/badge.tsx
-  var badgeVariants = cva("xps-badge", {
-    variants: {
-      variant: {
-        default: "xps-badge--default",
-        secondary: "xps-badge--secondary",
-        success: "xps-badge--success",
-        warning: "xps-badge--warning",
-        destructive: "xps-badge--destructive"
-      }
-    },
-    defaultVariants: {
-      variant: "default"
-    }
-  });
-  function Badge({ className, variant, ...props }) {
-    return createElement("span", {
-      className: cn(badgeVariants({ variant }), className),
-      ...props
-    });
+  // src/lib/remote-components/wechat-workbench/src/react-jsx-runtime-shim.ts
+  var ReactGlobal2 = window.React;
+  var Fragment2 = ReactGlobal2.Fragment;
+  function jsx(type, props, key) {
+    return ReactGlobal2.createElement(type, key === void 0 ? props : { ...props, key });
   }
+  var jsxs = jsx;
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // src/lib/remote-components/wechat-workbench/src/react-dom-shim.ts
+  var ReactDOMGlobal = window.ReactDOM;
+  var createPortal = ReactDOMGlobal.createPortal;
+  var flushSync = ReactDOMGlobal.flushSync;
+  var findDOMNode = ReactDOMGlobal.findDOMNode;
+  var hydrate = ReactDOMGlobal.hydrate;
+  var render = ReactDOMGlobal.render;
+  var unstable_batchedUpdates = ReactDOMGlobal.unstable_batchedUpdates;
+  var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
+  var version2 = ReactDOMGlobal.version;
+
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  var dist_exports = {};
+  __export(dist_exports, {
+    Root: () => Slot,
+    Slot: () => Slot,
+    Slottable: () => Slottable,
+    createSlot: () => createSlot,
+    createSlottable: () => createSlottable
+  });
+
+  // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -3725,7 +3589,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3789,6 +3653,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     Slottable2.__radixId = SLOTTABLE_IDENTIFIER;
     return Slottable2;
   }
+  var Slottable = /* @__PURE__ */ createSlottable("Slottable");
   var getSlottableElementFromSlottable = (slottable, child) => {
     if ("child" in slottable.props) {
       const child2 = slottable.props.child;
@@ -3852,107 +3717,73 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   };
   var use = react_shim_exports[" use ".trim().toString()];
 
-  // ../../../packages/shadcn-ui/src/components/button.tsx
-  var buttonVariants = cva("xps-button", {
-    variants: {
-      variant: {
-        default: "xps-button--default",
-        secondary: "xps-button--secondary",
-        outline: "xps-button--outline",
-        ghost: "xps-button--ghost",
-        destructive: "xps-button--destructive",
-        destructiveOutline: "xps-button--destructive-outline"
-      },
-      size: {
-        default: "",
-        sm: "xps-button--sm",
-        lg: "xps-button--lg",
-        icon: "xps-button--icon"
+  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  var NODES = [
+    "a",
+    "button",
+    "div",
+    "form",
+    "h2",
+    "h3",
+    "img",
+    "input",
+    "label",
+    "li",
+    "nav",
+    "ol",
+    "p",
+    "select",
+    "span",
+    "svg",
+    "ul"
+  ];
+  var Primitive = NODES.reduce((primitive, node) => {
+    const Slot4 = createSlot(`Primitive.${node}`);
+    const Node2 = forwardRef((props, forwardedRef) => {
+      const { asChild, ...primitiveProps } = props;
+      const Comp = asChild ? Slot4 : node;
+      if (typeof window !== "undefined") {
+        window[/* @__PURE__ */ Symbol.for("radix-ui")] = true;
       }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
+      return /* @__PURE__ */ jsx(Comp, { ...primitiveProps, ref: forwardedRef });
+    });
+    Node2.displayName = `Primitive.${node}`;
+    return { ...primitive, [node]: Node2 };
+  }, {});
+  function dispatchDiscreteCustomEvent(target, event) {
+    if (target) flushSync(() => target.dispatchEvent(event));
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  var VISUALLY_HIDDEN_STYLES = Object.freeze({
+    // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
+    position: "absolute",
+    border: 0,
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    wordWrap: "normal"
   });
-  var Button = forwardRef(
-    ({ className, variant, size: size4, asChild = false, type, ...props }, ref) => {
-      const Comp = asChild ? Slot : "button";
-      const elementProps = {
-        className: cn(buttonVariants({ variant, size: size4 }), className),
-        ref,
-        ...props
-      };
-      if (!asChild) {
-        elementProps.type = type ?? "button";
-      }
-      return createElement(Comp, elementProps);
+  var NAME = "VisuallyHidden";
+  var VisuallyHidden = forwardRef(
+    (props, forwardedRef) => {
+      return /* @__PURE__ */ jsx(
+        Primitive.span,
+        {
+          ...props,
+          ref: forwardedRef,
+          style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
+        }
+      );
     }
   );
-  Button.displayName = "Button";
+  VisuallyHidden.displayName = NAME;
 
-  // ../../../packages/shadcn-ui/src/components/card.tsx
-  var Card = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card", className),
-    ...props
-  }));
-  Card.displayName = "Card";
-  var CardHeader = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card-header", className),
-    ...props
-  }));
-  CardHeader.displayName = "CardHeader";
-  var CardTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement("h3", {
-      ref,
-      className: cn("xps-card-title", className),
-      ...props
-    })
-  );
-  CardTitle.displayName = "CardTitle";
-  var CardDescription = forwardRef(
-    ({ className, ...props }, ref) => createElement("p", {
-      ref,
-      className: cn("xps-card-description", className),
-      ...props
-    })
-  );
-  CardDescription.displayName = "CardDescription";
-  var CardContent = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card-content", className),
-    ...props
-  }));
-  CardContent.displayName = "CardContent";
-
-  // src/lib/remote-components/wechat-workbench/src/react-jsx-runtime-shim.ts
-  var ReactGlobal2 = window.React;
-  var Fragment2 = ReactGlobal2.Fragment;
-  function jsx(type, props, key) {
-    return ReactGlobal2.createElement(type, key === void 0 ? props : { ...props, key });
-  }
-  var jsxs = jsx;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
-  function createContext2(rootComponentName, defaultContext) {
-    const Context = createContext(defaultContext);
-    Context.displayName = rootComponentName + "Context";
-    const Provider2 = (props) => {
-      const { children, ...context } = props;
-      const value = useMemo(() => context, Object.values(context));
-      return /* @__PURE__ */ jsx(Context.Provider, { value, children });
-    };
-    Provider2.displayName = rootComponentName + "Provider";
-    function useContext2(consumerName) {
-      const context = useContext(Context);
-      if (context) return context;
-      if (defaultContext !== void 0) return defaultContext;
-      throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
-    }
-    return [Provider2, useContext2];
-  }
+  // ../../node_modules/.pnpm/@radix-ui+react-context@1.2.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContextScope(scopeName, createContextScopeDeps = []) {
     let defaultContexts = [];
     function createContext3(rootComponentName, defaultContext) {
@@ -3960,21 +3791,23 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       BaseContext.displayName = rootComponentName + "Context";
       const index2 = defaultContexts.length;
       defaultContexts = [...defaultContexts, defaultContext];
-      const Provider2 = (props) => {
+      const Provider = (props) => {
         const { scope, children, ...context } = props;
         const Context = scope?.[scopeName]?.[index2] || BaseContext;
         const value = useMemo(() => context, Object.values(context));
         return /* @__PURE__ */ jsx(Context.Provider, { value, children });
       };
-      Provider2.displayName = rootComponentName + "Provider";
-      function useContext2(consumerName, scope) {
+      Provider.displayName = rootComponentName + "Provider";
+      function useContext2(consumerName, scope, options = {}) {
+        const { optional = false } = options;
         const Context = scope?.[scopeName]?.[index2] || BaseContext;
         const context = useContext(Context);
         if (context) return context;
         if (defaultContext !== void 0) return defaultContext;
+        if (optional) return void 0;
         throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
       }
-      return [Provider2, useContext2];
+      return [Provider, useContext2];
     }
     const createScope = () => {
       const scopeContexts = defaultContexts.map((defaultContext) => {
@@ -4012,22 +3845,86 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createScope;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
+  function createCollection(name) {
+    const PROVIDER_NAME2 = name + "CollectionProvider";
+    const [createCollectionContext, createCollectionScope2] = createContextScope(PROVIDER_NAME2);
+    const [CollectionProviderImpl, useCollectionContext] = createCollectionContext(
+      PROVIDER_NAME2,
+      { collectionRef: { current: null }, itemMap: /* @__PURE__ */ new Map() }
+    );
+    const CollectionProvider = (props) => {
+      const { scope, children } = props;
+      const ref = useRef(null);
+      const itemMap = useRef(/* @__PURE__ */ new Map()).current;
+      return /* @__PURE__ */ jsx(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
+    };
+    CollectionProvider.displayName = PROVIDER_NAME2;
+    const COLLECTION_SLOT_NAME = name + "CollectionSlot";
+    const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
+    const CollectionSlot = forwardRef(
+      (props, forwardedRef) => {
+        const { scope, children } = props;
+        const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
+        const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
+        return /* @__PURE__ */ jsx(CollectionSlotImpl, { ref: composedRefs, children });
+      }
+    );
+    CollectionSlot.displayName = COLLECTION_SLOT_NAME;
+    const ITEM_SLOT_NAME = name + "CollectionItemSlot";
+    const ITEM_DATA_ATTR = "data-radix-collection-item";
+    const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
+    const CollectionItemSlot = forwardRef(
+      (props, forwardedRef) => {
+        const { scope, children, ...itemData } = props;
+        const ref = useRef(null);
+        const composedRefs = useComposedRefs(forwardedRef, ref);
+        const context = useCollectionContext(ITEM_SLOT_NAME, scope);
+        useEffect(() => {
+          context.itemMap.set(ref, { ref, ...itemData });
+          return () => void context.itemMap.delete(ref);
+        });
+        return /* @__PURE__ */ jsx(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
+      }
+    );
+    CollectionItemSlot.displayName = ITEM_SLOT_NAME;
+    function useCollection2(scope) {
+      const context = useCollectionContext(name + "CollectionConsumer", scope);
+      const getItems = useCallback(() => {
+        const collectionNode = context.collectionRef.current;
+        if (!collectionNode) return [];
+        const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
+        const items = Array.from(context.itemMap.values());
+        const orderedItems = items.sort(
+          (a, b) => orderedNodes.indexOf(a.ref.current) - orderedNodes.indexOf(b.ref.current)
+        );
+        return orderedItems;
+      }, [context.collectionRef, context.itemMap]);
+      return getItems;
+    }
+    return [
+      { Provider: CollectionProvider, Slot: CollectionSlot, ItemSlot: CollectionItemSlot },
+      useCollection2,
+      createCollectionScope2
+    ];
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
       originalEventHandler?.(event);
-      if (checkForDefaultPrevented === false || !event.defaultPrevented) {
+      if (checkForDefaultPrevented === false || !event || !event.defaultPrevented) {
         return ourEventHandler?.(event);
       }
     };
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-layout-effect@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-controllable-state@1.2.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4093,55 +3990,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return typeof value === "function";
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
-  function usePrevious(value) {
-    const ref = useRef({ value, previous: value });
-    return useMemo(() => {
-      if (ref.current.value !== value) {
-        ref.current.previous = ref.current.value;
-        ref.current.value = value;
-      }
-      return ref.current.previous;
-    }, [value]);
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
-  function useSize(element) {
-    const [size4, setSize] = useState(void 0);
-    useLayoutEffect2(() => {
-      if (element) {
-        setSize({ width: element.offsetWidth, height: element.offsetHeight });
-        const resizeObserver = new ResizeObserver((entries) => {
-          if (!Array.isArray(entries)) {
-            return;
-          }
-          if (!entries.length) {
-            return;
-          }
-          const entry = entries[0];
-          let width;
-          let height;
-          if ("borderBoxSize" in entry) {
-            const borderSizeEntry = entry["borderBoxSize"];
-            const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
-            width = borderSize["inlineSize"];
-            height = borderSize["blockSize"];
-          } else {
-            width = element.offsetWidth;
-            height = element.offsetHeight;
-          }
-          setSize({ width, height });
-        });
-        resizeObserver.observe(element, { box: "border-box" });
-        return () => resizeObserver.unobserve(element);
-      } else {
-        setSize(void 0);
-      }
-    }, [element]);
-    return size4;
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_dc6e30df35507eb8a116c12c3da26e18/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4162,6 +4011,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     const stylesRef = useRef(null);
     const prevPresentRef = useRef(present);
     const prevAnimationNameRef = useRef("none");
+    const mountAnimationNameRef = useRef(void 0);
     const initialState = present ? "mounted" : "unmounted";
     const [state, send] = useStateMachine(initialState, {
       mounted: {
@@ -4177,8 +4027,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       }
     });
     useEffect(() => {
-      const currentAnimationName = getAnimationName(stylesRef.current);
-      prevAnimationNameRef.current = state === "mounted" ? currentAnimationName : "none";
+      if (state === "mounted") {
+        prevAnimationNameRef.current = mountAnimationNameRef.current ?? getAnimationName(stylesRef.current);
+        mountAnimationNameRef.current = void 0;
+      } else {
+        prevAnimationNameRef.current = "none";
+      }
     }, [state]);
     useLayoutEffect2(() => {
       const styles = stylesRef.current;
@@ -4188,6 +4042,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         const prevAnimationName = prevAnimationNameRef.current;
         const currentAnimationName = getAnimationName(styles);
         if (present) {
+          mountAnimationNameRef.current = currentAnimationName;
           send("MOUNT");
         } else if (currentAnimationName === "none" || styles?.display === "none") {
           send("UNMOUNT");
@@ -4243,7 +4098,13 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return {
       isPresent: ["mounted", "unmountSuspended"].includes(state),
       ref: useCallback((node2) => {
-        stylesRef.current = node2 ? getComputedStyle(node2) : null;
+        if (node2) {
+          const styles = getComputedStyle(node2);
+          stylesRef.current = styles;
+          mountAnimationNameRef.current = getAnimationName(styles);
+        } else {
+          stylesRef.current = null;
+        }
         setNode(node2);
       }, [])
     };
@@ -4299,361 +4160,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return element.props.ref || element.ref;
   }
 
-  // src/lib/remote-components/wechat-workbench/src/react-dom-shim.ts
-  var ReactDOMGlobal = window.ReactDOM;
-  var createPortal = ReactDOMGlobal.createPortal;
-  var flushSync = ReactDOMGlobal.flushSync;
-  var findDOMNode = ReactDOMGlobal.findDOMNode;
-  var hydrate = ReactDOMGlobal.hydrate;
-  var render = ReactDOMGlobal.render;
-  var unstable_batchedUpdates = ReactDOMGlobal.unstable_batchedUpdates;
-  var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
-  var version2 = ReactDOMGlobal.version;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_9b6ae4cdaf3918ddbf0b21069e38e2ef/node_modules/@radix-ui/react-primitive/dist/index.mjs
-  var NODES = [
-    "a",
-    "button",
-    "div",
-    "form",
-    "h2",
-    "h3",
-    "img",
-    "input",
-    "label",
-    "li",
-    "nav",
-    "ol",
-    "p",
-    "select",
-    "span",
-    "svg",
-    "ul"
-  ];
-  var Primitive = NODES.reduce((primitive, node) => {
-    const Slot5 = createSlot(`Primitive.${node}`);
-    const Node2 = forwardRef((props, forwardedRef) => {
-      const { asChild, ...primitiveProps } = props;
-      const Comp = asChild ? Slot5 : node;
-      if (typeof window !== "undefined") {
-        window[/* @__PURE__ */ Symbol.for("radix-ui")] = true;
-      }
-      return /* @__PURE__ */ jsx(Comp, { ...primitiveProps, ref: forwardedRef });
-    });
-    Node2.displayName = `Primitive.${node}`;
-    return { ...primitive, [node]: Node2 };
-  }, {});
-  function dispatchDiscreteCustomEvent(target, event) {
-    if (target) flushSync(() => target.dispatchEvent(event));
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31__@types+rea_e21be6412c310c083d6755285c4c1ad9/node_modules/@radix-ui/react-checkbox/dist/index.mjs
-  var CHECKBOX_NAME = "Checkbox";
-  var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
-  var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
-  function CheckboxProvider(props) {
-    const {
-      __scopeCheckbox,
-      checked: checkedProp,
-      children,
-      defaultChecked,
-      disabled,
-      form,
-      name,
-      onCheckedChange,
-      required,
-      value = "on",
-      // @ts-expect-error
-      internal_do_not_use_render
-    } = props;
-    const [checked, setChecked] = useControllableState({
-      prop: checkedProp,
-      defaultProp: defaultChecked ?? false,
-      onChange: onCheckedChange,
-      caller: CHECKBOX_NAME
-    });
-    const [control, setControl] = useState(null);
-    const [bubbleInput, setBubbleInput] = useState(null);
-    const hasConsumerStoppedPropagationRef = useRef(false);
-    const isFormControl = control ? !!form || !!control.closest("form") : (
-      // We set this to true by default so that events bubble to forms without JS (SSR)
-      true
-    );
-    const context = {
-      checked,
-      disabled,
-      setChecked,
-      control,
-      setControl,
-      name,
-      form,
-      value,
-      hasConsumerStoppedPropagationRef,
-      required,
-      defaultChecked: isIndeterminate(defaultChecked) ? false : defaultChecked,
-      isFormControl,
-      bubbleInput,
-      setBubbleInput
-    };
-    return /* @__PURE__ */ jsx(
-      CheckboxProviderImpl,
-      {
-        scope: __scopeCheckbox,
-        ...context,
-        children: isFunction2(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
-      }
-    );
-  }
-  var TRIGGER_NAME = "CheckboxTrigger";
-  var CheckboxTrigger = forwardRef(
-    ({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
-      const {
-        control,
-        value,
-        disabled,
-        checked,
-        required,
-        setControl,
-        setChecked,
-        hasConsumerStoppedPropagationRef,
-        isFormControl,
-        bubbleInput
-      } = useCheckboxContext(TRIGGER_NAME, __scopeCheckbox);
-      const composedRefs = useComposedRefs(forwardedRef, setControl);
-      const initialCheckedStateRef = useRef(checked);
-      useEffect(() => {
-        const form = control?.form;
-        if (form) {
-          const reset = () => setChecked(initialCheckedStateRef.current);
-          form.addEventListener("reset", reset);
-          return () => form.removeEventListener("reset", reset);
-        }
-      }, [control, setChecked]);
-      return /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          type: "button",
-          role: "checkbox",
-          "aria-checked": isIndeterminate(checked) ? "mixed" : checked,
-          "aria-required": required,
-          "data-state": getState(checked),
-          "data-disabled": disabled ? "" : void 0,
-          disabled,
-          value,
-          ...checkboxProps,
-          ref: composedRefs,
-          onKeyDown: composeEventHandlers(onKeyDown, (event) => {
-            if (event.key === "Enter") event.preventDefault();
-          }),
-          onClick: composeEventHandlers(onClick, (event) => {
-            setChecked((prevChecked) => isIndeterminate(prevChecked) ? true : !prevChecked);
-            if (bubbleInput && isFormControl) {
-              hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
-              if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
-            }
-          })
-        }
-      );
-    }
-  );
-  CheckboxTrigger.displayName = TRIGGER_NAME;
-  var Checkbox = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeCheckbox,
-        name,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        value,
-        onCheckedChange,
-        form,
-        ...checkboxProps
-      } = props;
-      return /* @__PURE__ */ jsx(
-        CheckboxProvider,
-        {
-          __scopeCheckbox,
-          checked,
-          defaultChecked,
-          disabled,
-          required,
-          onCheckedChange,
-          name,
-          form,
-          value,
-          internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              CheckboxTrigger,
-              {
-                ...checkboxProps,
-                ref: forwardedRef,
-                __scopeCheckbox
-              }
-            ),
-            isFormControl && /* @__PURE__ */ jsx(
-              CheckboxBubbleInput,
-              {
-                __scopeCheckbox
-              }
-            )
-          ] })
-        }
-      );
-    }
-  );
-  Checkbox.displayName = CHECKBOX_NAME;
-  var INDICATOR_NAME = "CheckboxIndicator";
-  var CheckboxIndicator = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
-      const context = useCheckboxContext(INDICATOR_NAME, __scopeCheckbox);
-      return /* @__PURE__ */ jsx(
-        Presence,
-        {
-          present: forceMount || isIndeterminate(context.checked) || context.checked === true,
-          children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              "data-state": getState(context.checked),
-              "data-disabled": context.disabled ? "" : void 0,
-              ...indicatorProps,
-              ref: forwardedRef,
-              style: { pointerEvents: "none", ...props.style }
-            }
-          )
-        }
-      );
-    }
-  );
-  CheckboxIndicator.displayName = INDICATOR_NAME;
-  var BUBBLE_INPUT_NAME = "CheckboxBubbleInput";
-  var CheckboxBubbleInput = forwardRef(
-    ({ __scopeCheckbox, ...props }, forwardedRef) => {
-      const {
-        control,
-        hasConsumerStoppedPropagationRef,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        name,
-        value,
-        form,
-        bubbleInput,
-        setBubbleInput
-      } = useCheckboxContext(BUBBLE_INPUT_NAME, __scopeCheckbox);
-      const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
-      const prevChecked = usePrevious(checked);
-      const controlSize = useSize(control);
-      useEffect(() => {
-        const input = bubbleInput;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(
-          inputProto,
-          "checked"
-        );
-        const setChecked = descriptor.set;
-        const bubbles = !hasConsumerStoppedPropagationRef.current;
-        if (prevChecked !== checked && setChecked) {
-          const event = new Event("click", { bubbles });
-          input.indeterminate = isIndeterminate(checked);
-          setChecked.call(input, isIndeterminate(checked) ? false : checked);
-          input.dispatchEvent(event);
-        }
-      }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
-      const defaultCheckedRef = useRef(isIndeterminate(checked) ? false : checked);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          type: "checkbox",
-          "aria-hidden": true,
-          defaultChecked: defaultChecked ?? defaultCheckedRef.current,
-          required,
-          disabled,
-          name,
-          value,
-          form,
-          ...props,
-          tabIndex: -1,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            ...controlSize,
-            position: "absolute",
-            pointerEvents: "none",
-            opacity: 0,
-            margin: 0,
-            // We transform because the input is absolutely positioned but we have
-            // rendered it **after** the button. This pulls it back to sit on top
-            // of the button.
-            transform: "translateX(-100%)"
-          }
-        }
-      );
-    }
-  );
-  CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME;
-  function isFunction2(value) {
-    return typeof value === "function";
-  }
-  function isIndeterminate(checked) {
-    return checked === "indeterminate";
-  }
-  function getState(checked) {
-    return isIndeterminate(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
-  }
-
-  // ../../../packages/shadcn-ui/src/components/checkbox.tsx
-  var Checkbox2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Checkbox,
-      {
-        ref,
-        className: cn("xps-checkbox", className),
-        ...props
-      },
-      createElement(
-        CheckboxIndicator,
-        {
-          className: "xps-checkbox-indicator"
-        },
-        createElement(Check, { className: "xps-icon" })
-      )
-    )
-  );
-  Checkbox2.displayName = Checkbox.displayName;
-
-  // ../../../xpertai/node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
-  var U = 1;
-  var Y = 0.9;
-  var H = 0.8;
-  var J = 0.17;
-  var p = 0.1;
-  var u = 0.999;
-  var $ = 0.9999;
-  var k = 0.99;
-  var m = /[\\\/_+.#"@\[\(\{&]/;
-  var B = /[\\\/_+.#"@\[\(\{&]/g;
-  var K = /[\s-]/;
-  var X2 = /[\s-]/g;
-  function G(_, C, h2, P2, A, f, O) {
-    if (f === C.length) return A === _.length ? U : k;
-    var T2 = `${A},${f}`;
-    if (O[T2] !== void 0) return O[T2];
-    for (var L2 = P2.charAt(f), c = h2.indexOf(L2, A), S = 0, E, N2, R, M; c >= 0; ) E = G(_, C, h2, P2, c + 1, f + 1, O), E > S && (c === A ? E *= U : m.test(_.charAt(c - 1)) ? (E *= H, R = _.slice(A, c - 1).match(B), R && A > 0 && (E *= Math.pow(u, R.length))) : K.test(_.charAt(c - 1)) ? (E *= Y, M = _.slice(A, c - 1).match(X2), M && A > 0 && (E *= Math.pow(u, M.length))) : (E *= J, A > 0 && (E *= Math.pow(u, c - A))), _.charAt(c) !== C.charAt(f) && (E *= $)), (E < p && h2.charAt(c - 1) === P2.charAt(f + 1) || P2.charAt(f + 1) === P2.charAt(f) && h2.charAt(c - 1) !== P2.charAt(f)) && (N2 = G(_, C, h2, P2, c + 1, f + 2, O), N2 * p > E && (E = N2 * p)), E > S && (S = E), c = h2.indexOf(L2, c + 1);
-    return O[T2] = S, S;
-  }
-  function D(_) {
-    return _.toLowerCase().replace(X2, " ");
-  }
-  function W(_, C, h2) {
-    return _ = h2 && h2.length > 0 ? `${_ + " " + h2.join(" ")}` : _, G(_, C, D(_), D(C), 0, 0, {});
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4664,7 +4171,37 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  var DirectionContext = createContext(void 0);
+  function useDirection(localDir) {
+    const globalDir = useContext(DirectionContext);
+    return localDir || globalDir || "ltr";
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  var dist_exports2 = {};
+  __export(dist_exports2, {
+    Close: () => DialogClose,
+    Content: () => DialogContent,
+    Description: () => DialogDescription,
+    Dialog: () => Dialog,
+    DialogClose: () => DialogClose,
+    DialogContent: () => DialogContent,
+    DialogDescription: () => DialogDescription,
+    DialogOverlay: () => DialogOverlay,
+    DialogPortal: () => DialogPortal,
+    DialogTitle: () => DialogTitle,
+    DialogTrigger: () => DialogTrigger,
+    Overlay: () => DialogOverlay,
+    Portal: () => DialogPortal,
+    Root: () => Dialog,
+    Title: () => DialogTitle,
+    Trigger: () => DialogTrigger,
+    WarningProvider: () => WarningProvider,
+    createDialogScope: () => createDialogScope
+  });
+
+  // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -4673,21 +4210,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
-  function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
-    const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
-    useEffect(() => {
-      const handleKeyDown = (event) => {
-        if (event.key === "Escape") {
-          onEscapeKeyDown(event);
-        }
-      };
-      ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
-      return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
-    }, [onEscapeKeyDown, ownerDocument]);
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31___1202449cfd75d4d3d4e876187986c0d8/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4696,12 +4219,19 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var DismissableLayerContext = createContext({
     layers: /* @__PURE__ */ new Set(),
     layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
-    branches: /* @__PURE__ */ new Set()
+    branches: /* @__PURE__ */ new Set(),
+    // Outside elements that belong to a layer's own dismiss affordance (eg, a
+    // dialog overlay). Pressing them should dismiss the layer regardless of
+    // whether or not they stop propagation.
+    //
+    // See https://github.com/radix-ui/primitives/issues/3346
+    dismissableSurfaces: /* @__PURE__ */ new Set()
   });
   var DismissableLayer = forwardRef(
     (props, forwardedRef) => {
       const {
         disableOutsidePointerEvents = false,
+        deferPointerDownOutside = false,
         onEscapeKeyDown,
         onPointerDownOutside,
         onFocusOutside,
@@ -4713,22 +4243,45 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       const [node, setNode] = useState(null);
       const ownerDocument = node?.ownerDocument ?? globalThis?.document;
       const [, force] = useState({});
-      const composedRefs = useComposedRefs(forwardedRef, (node2) => setNode(node2));
+      const composedRefs = useComposedRefs(forwardedRef, setNode);
       const layers = Array.from(context.layers);
-      const [highestLayerWithOutsidePointerEventsDisabled] = [...context.layersWithOutsidePointerEventsDisabled].slice(-1);
-      const highestLayerWithOutsidePointerEventsDisabledIndex = layers.indexOf(highestLayerWithOutsidePointerEventsDisabled);
+      const [highestLayerWithOutsidePointerEventsDisabled] = [
+        ...context.layersWithOutsidePointerEventsDisabled
+      ].slice(-1);
+      const highestLayerWithOutsidePointerEventsDisabledIndex = highestLayerWithOutsidePointerEventsDisabled ? layers.indexOf(highestLayerWithOutsidePointerEventsDisabled) : -1;
       const index2 = node ? layers.indexOf(node) : -1;
       const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
       const isPointerEventsEnabled = index2 >= highestLayerWithOutsidePointerEventsDisabledIndex;
-      const pointerDownOutside = usePointerDownOutside((event) => {
-        const target = event.target;
-        const isPointerDownOnBranch = [...context.branches].some((branch) => branch.contains(target));
-        if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
-        onPointerDownOutside?.(event);
-        onInteractOutside?.(event);
-        if (!event.defaultPrevented) onDismiss?.();
-      }, ownerDocument);
+      const isDeferredPointerDownOutsideRef = useRef(false);
+      const pointerDownOutside = usePointerDownOutside(
+        (event) => {
+          onPointerDownOutside?.(event);
+          onInteractOutside?.(event);
+          if (!event.defaultPrevented) onDismiss?.();
+        },
+        {
+          ownerDocument,
+          deferPointerDownOutside,
+          isDeferredPointerDownOutsideRef,
+          dismissableSurfaces: context.dismissableSurfaces,
+          shouldHandlePointerDownOutside: useCallback(
+            (target) => {
+              if (!(target instanceof Node)) {
+                return false;
+              }
+              const isPointerDownOnBranch = [...context.branches].some(
+                (branch) => branch.contains(target)
+              );
+              return isPointerEventsEnabled && !isPointerDownOnBranch;
+            },
+            [context.branches, isPointerEventsEnabled]
+          )
+        }
+      );
       const focusOutside = useFocusOutside((event) => {
+        if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+          return;
+        }
         const target = event.target;
         const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
         if (isFocusInBranch) return;
@@ -4736,15 +4289,24 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         onInteractOutside?.(event);
         if (!event.defaultPrevented) onDismiss?.();
       }, ownerDocument);
-      useEscapeKeydown((event) => {
-        const isHighestLayer = index2 === context.layers.size - 1;
-        if (!isHighestLayer) return;
+      const isHighestLayer = node ? index2 === layers.length - 1 : false;
+      const handleKeyDown = useCallbackRef((event) => {
+        if (event.key !== "Escape") {
+          return;
+        }
         onEscapeKeyDown?.(event);
         if (!event.defaultPrevented && onDismiss) {
           event.preventDefault();
           onDismiss();
         }
-      }, ownerDocument);
+      });
+      useEffect(() => {
+        if (!isHighestLayer) {
+          return;
+        }
+        ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
+        return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
+      }, [ownerDocument, isHighestLayer, handleKeyDown]);
       useEffect(() => {
         if (!node) return;
         if (disableOutsidePointerEvents) {
@@ -4815,36 +4377,117 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return /* @__PURE__ */ jsx(Primitive.div, { ...props, ref: composedRefs });
   });
   DismissableLayerBranch.displayName = BRANCH_NAME;
-  function usePointerDownOutside(onPointerDownOutside, ownerDocument = globalThis?.document) {
+  function useDismissableLayerSurface() {
+    const context = useContext(DismissableLayerContext);
+    const [node, setNode] = useState(null);
+    useEffect(() => {
+      if (!node) {
+        return;
+      }
+      context.dismissableSurfaces.add(node);
+      return () => {
+        context.dismissableSurfaces.delete(node);
+      };
+    }, [node, context.dismissableSurfaces]);
+    return setNode;
+  }
+  var IS_TRUE = () => true;
+  function usePointerDownOutside(onPointerDownOutside, args) {
+    const {
+      ownerDocument = globalThis?.document,
+      deferPointerDownOutside = false,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces,
+      shouldHandlePointerDownOutside = IS_TRUE
+    } = args;
     const handlePointerDownOutside = useCallbackRef(onPointerDownOutside);
     const isPointerInsideReactTreeRef = useRef(false);
+    const isPointerDownOutsideRef = useRef(false);
+    const interceptedOutsideInteractionEventsRef = useRef(/* @__PURE__ */ new Map());
     const handleClickRef = useRef(() => {
     });
     useEffect(() => {
+      function resetOutsideInteraction() {
+        isPointerDownOutsideRef.current = false;
+        isDeferredPointerDownOutsideRef.current = false;
+        interceptedOutsideInteractionEventsRef.current.clear();
+      }
+      function isOutsideInteractionIntercepted() {
+        return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
+      }
+      function handleInteractionCapture(event) {
+        if (!isPointerDownOutsideRef.current) {
+          return;
+        }
+        const target = event.target;
+        const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
+        if (!isDismissableSurface) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, true);
+        }
+        if (event.type === "click") {
+          window.setTimeout(() => {
+            if (isPointerDownOutsideRef.current) {
+              handleClickRef.current();
+            }
+          }, 0);
+        }
+      }
+      function handleInteractionBubble(event) {
+        if (isPointerDownOutsideRef.current) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, false);
+        }
+      }
       const handlePointerDown = (event) => {
         if (event.target && !isPointerInsideReactTreeRef.current) {
           let handleAndDispatchPointerDownOutsideEvent2 = function() {
-            handleAndDispatchCustomEvent(
-              POINTER_DOWN_OUTSIDE,
-              handlePointerDownOutside,
-              eventDetail,
-              { discrete: true }
-            );
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
+            resetOutsideInteraction();
+            if (!wasOutsideInteractionIntercepted) {
+              handleAndDispatchCustomEvent(
+                POINTER_DOWN_OUTSIDE,
+                handlePointerDownOutside,
+                eventDetail,
+                { discrete: true }
+              );
+            }
           };
           var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
+          if (!shouldHandlePointerDownOutside(event.target)) {
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            resetOutsideInteraction();
+            isPointerInsideReactTreeRef.current = false;
+            return;
+          }
           const eventDetail = { originalEvent: event };
-          if (event.pointerType === "touch") {
+          isPointerDownOutsideRef.current = true;
+          isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
+          interceptedOutsideInteractionEventsRef.current.clear();
+          if (!deferPointerDownOutside || event.button !== 0) {
+            handleAndDispatchPointerDownOutsideEvent2();
+          } else {
             ownerDocument.removeEventListener("click", handleClickRef.current);
             handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
             ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
-          } else {
-            handleAndDispatchPointerDownOutsideEvent2();
           }
         } else {
           ownerDocument.removeEventListener("click", handleClickRef.current);
+          resetOutsideInteraction();
         }
         isPointerInsideReactTreeRef.current = false;
       };
+      const outsideInteractionEvents = [
+        "pointerup",
+        "mousedown",
+        "mouseup",
+        "touchstart",
+        "touchend",
+        "click"
+      ];
+      for (const eventName of outsideInteractionEvents) {
+        ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
+        ownerDocument.addEventListener(eventName, handleInteractionBubble);
+      }
       const timerId = window.setTimeout(() => {
         ownerDocument.addEventListener("pointerdown", handlePointerDown);
       }, 0);
@@ -4852,8 +4495,19 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         window.clearTimeout(timerId);
         ownerDocument.removeEventListener("pointerdown", handlePointerDown);
         ownerDocument.removeEventListener("click", handleClickRef.current);
+        for (const eventName of outsideInteractionEvents) {
+          ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
+          ownerDocument.removeEventListener(eventName, handleInteractionBubble);
+        }
       };
-    }, [ownerDocument, handlePointerDownOutside]);
+    }, [
+      ownerDocument,
+      handlePointerDownOutside,
+      deferPointerDownOutside,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces,
+      shouldHandlePointerDownOutside
+    ]);
     return {
       // ensures we check React component tree (not just DOM tree)
       onPointerDownCapture: () => isPointerInsideReactTreeRef.current = true
@@ -4894,7 +4548,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_c97f9e7487f0abcea30d185973e4d237/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -4911,7 +4565,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     const onMountAutoFocus = useCallbackRef(onMountAutoFocusProp);
     const onUnmountAutoFocus = useCallbackRef(onUnmountAutoFocusProp);
     const lastFocusedElementRef = useRef(null);
-    const composedRefs = useComposedRefs(forwardedRef, (node) => setContainer(node));
+    const composedRefs = useComposedRefs(forwardedRef, setContainer);
     const focusScope = useRef({
       paused: false,
       pause() {
@@ -5042,8 +4696,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return nodes;
   }
   function findVisible(elements, container) {
+    const canUseCheckVisibility = typeof container.checkVisibility === "function" && container.checkVisibility({ checkVisibilityCSS: true });
     for (const element of elements) {
-      if (!isHidden(element, { upTo: container })) return element;
+      const hidden = canUseCheckVisibility ? !element.checkVisibility({ checkVisibilityCSS: true }) : isHidden(element, { upTo: container });
+      if (!hidden) {
+        return element;
+      }
     }
   }
   function isHidden(node, { upTo }) {
@@ -5096,7 +4754,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_32b1caf40ac61f8d30d412d28d60b4ca/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.13_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5107,7 +4765,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   });
   Portal.displayName = PORTAL_NAME;
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5144,12 +4802,12 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return element;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
         s = arguments[i];
-        for (var p2 in s) if (Object.prototype.hasOwnProperty.call(s, p2)) t[p2] = s[p2];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
       }
       return t;
     };
@@ -5157,32 +4815,32 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   };
   function __rest(s, e) {
     var t = {};
-    for (var p2 in s) if (Object.prototype.hasOwnProperty.call(s, p2) && e.indexOf(p2) < 0)
-      t[p2] = s[p2];
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+      t[p] = s[p];
     if (s != null && typeof Object.getOwnPropertySymbols === "function")
-      for (var i = 0, p2 = Object.getOwnPropertySymbols(s); i < p2.length; i++) {
-        if (e.indexOf(p2[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p2[i]))
-          t[p2[i]] = s[p2[i]];
+      for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+        if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+          t[p[i]] = s[p[i]];
       }
     return t;
   }
   function __spreadArray(to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-      if (ar || !(i in from)) {
-        if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-        ar[i] = from[i];
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar2; i < l; i++) {
+      if (ar2 || !(i in from)) {
+        if (!ar2) ar2 = Array.prototype.slice.call(from, 0, i);
+        ar2[i] = from[i];
       }
     }
-    return to.concat(ar || Array.prototype.slice.call(from));
+    return to.concat(ar2 || Array.prototype.slice.call(from));
   }
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5192,7 +4850,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5219,7 +4877,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return ref.facade;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5250,7 +4908,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return callbackRef;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a) {
     return a;
   }
@@ -5336,7 +4994,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return medium;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5354,10 +5012,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return SideCar;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5389,7 +5047,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     zeroRight: zeroRightClassName
   };
 
-  // ../../../xpertai/node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5401,7 +5059,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return void 0;
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5447,7 +5105,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5460,7 +5118,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5471,7 +5129,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return Sheet;
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5506,7 +5164,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     };
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5546,7 +5204,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -5565,7 +5223,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -5665,7 +5323,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shouldCancelScroll;
   };
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -5836,17 +5494,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return shadowParent;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // ../../../xpertai/node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // ../../../xpertai/node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -5967,7 +5625,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_ef5419b1d5914b6ed85fc377af02cd8c/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6006,11 +5664,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     );
   };
   Dialog.displayName = DIALOG_NAME;
-  var TRIGGER_NAME2 = "DialogTrigger";
+  var TRIGGER_NAME = "DialogTrigger";
   var DialogTrigger = forwardRef(
     (props, forwardedRef) => {
       const { __scopeDialog, ...triggerProps } = props;
-      const context = useDialogContext(TRIGGER_NAME2, __scopeDialog);
+      const context = useDialogContext(TRIGGER_NAME, __scopeDialog);
       const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
       return /* @__PURE__ */ jsx(
         Primitive.button,
@@ -6019,7 +5677,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           "aria-haspopup": "dialog",
           "aria-expanded": context.open,
           "aria-controls": context.open ? context.contentId : void 0,
-          "data-state": getState2(context.open),
+          "data-state": getState(context.open),
           ...triggerProps,
           ref: composedTriggerRef,
           onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
@@ -6027,7 +5685,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       );
     }
   );
-  DialogTrigger.displayName = TRIGGER_NAME2;
+  DialogTrigger.displayName = TRIGGER_NAME;
   var PORTAL_NAME2 = "DialogPortal";
   var [PortalProvider, usePortalContext] = createDialogContext(PORTAL_NAME2, {
     forceMount: void 0
@@ -6053,15 +5711,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     (props, forwardedRef) => {
       const { __scopeDialog, ...overlayProps } = props;
       const context = useDialogContext(OVERLAY_NAME, __scopeDialog);
+      const registerDismissableSurface = useDismissableLayerSurface();
+      const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
       return (
         // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
         // ie. when `Overlay` and `Content` are siblings
         /* @__PURE__ */ jsx(Combination_default, { as: Slot2, allowPinchZoom: true, shards: [context.contentRef], children: /* @__PURE__ */ jsx(
           Primitive.div,
           {
-            "data-state": getState2(context.open),
+            "data-state": getState(context.open),
             ...overlayProps,
-            ref: forwardedRef,
+            ref: composedRefs,
             style: { pointerEvents: "auto", ...overlayProps.style }
           }
         ) })
@@ -6156,38 +5816,31 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     (props, forwardedRef) => {
       const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
       const context = useDialogContext(CONTENT_NAME, __scopeDialog);
-      const contentRef = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, contentRef);
       useFocusGuards();
-      return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          FocusScope,
-          {
-            asChild: true,
-            loop: true,
-            trapped: trapFocus,
-            onMountAutoFocus: onOpenAutoFocus,
-            onUnmountAutoFocus: onCloseAutoFocus,
-            children: /* @__PURE__ */ jsx(
-              DismissableLayer,
-              {
-                role: "dialog",
-                id: context.contentId,
-                "aria-describedby": context.descriptionId,
-                "aria-labelledby": context.titleId,
-                "data-state": getState2(context.open),
-                ...contentProps,
-                ref: composedRefs,
-                onDismiss: () => context.onOpenChange(false)
-              }
-            )
-          }
-        ),
-        /* @__PURE__ */ jsxs(Fragment2, { children: [
-          /* @__PURE__ */ jsx(TitleWarning, { titleId: context.titleId }),
-          /* @__PURE__ */ jsx(DescriptionWarning, { contentRef, descriptionId: context.descriptionId })
-        ] })
-      ] });
+      return /* @__PURE__ */ jsx(Fragment2, { children: /* @__PURE__ */ jsx(
+        FocusScope,
+        {
+          asChild: true,
+          loop: true,
+          trapped: trapFocus,
+          onMountAutoFocus: onOpenAutoFocus,
+          onUnmountAutoFocus: onCloseAutoFocus,
+          children: /* @__PURE__ */ jsx(
+            DismissableLayer,
+            {
+              role: "dialog",
+              id: context.contentId,
+              "aria-describedby": context.descriptionId,
+              "aria-labelledby": context.titleId,
+              "data-state": getState(context.open),
+              ...contentProps,
+              ref: forwardedRef,
+              deferPointerDownOutside: true,
+              onDismiss: () => context.onOpenChange(false)
+            }
+          )
+        }
+      ) });
     }
   );
   var TITLE_NAME = "DialogTitle";
@@ -6225,574 +5878,62 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     }
   );
   DialogClose.displayName = CLOSE_NAME;
-  function getState2(open) {
+  var WarningProvider = (props) => {
+    return props.children;
+  };
+  function getState(open) {
     return open ? "open" : "closed";
   }
-  var TITLE_WARNING_NAME = "DialogTitleWarning";
-  var [WarningProvider, useWarningContext] = createContext2(TITLE_WARNING_NAME, {
-    contentName: CONTENT_NAME,
-    titleName: TITLE_NAME,
-    docsSlug: "dialog"
-  });
-  var TitleWarning = ({ titleId }) => {
-    const titleWarningContext = useWarningContext(TITLE_WARNING_NAME);
-    const MESSAGE = `\`${titleWarningContext.contentName}\` requires a \`${titleWarningContext.titleName}\` for the component to be accessible for screen reader users.
 
-If you want to hide the \`${titleWarningContext.titleName}\`, you can wrap it with our VisuallyHidden component.
+  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  function usePrevious(value) {
+    const ref = useRef({ value, previous: value });
+    return useMemo(() => {
+      if (ref.current.value !== value) {
+        ref.current.previous = ref.current.value;
+        ref.current.value = value;
+      }
+      return ref.current.previous;
+    }, [value]);
+  }
 
-For more information, see https://radix-ui.com/primitives/docs/components/${titleWarningContext.docsSlug}`;
-    useEffect(() => {
-      if (titleId) {
-        const hasTitle = document.getElementById(titleId);
-        if (!hasTitle) console.error(MESSAGE);
-      }
-    }, [MESSAGE, titleId]);
-    return null;
-  };
-  var DESCRIPTION_WARNING_NAME = "DialogDescriptionWarning";
-  var DescriptionWarning = ({ contentRef, descriptionId }) => {
-    const descriptionWarningContext = useWarningContext(DESCRIPTION_WARNING_NAME);
-    const MESSAGE = `Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${descriptionWarningContext.contentName}}.`;
-    useEffect(() => {
-      const describedById = contentRef.current?.getAttribute("aria-describedby");
-      if (descriptionId && describedById) {
-        const hasDescription = document.getElementById(descriptionId);
-        if (!hasDescription) console.warn(MESSAGE);
-      }
-    }, [MESSAGE, contentRef, descriptionId]);
-    return null;
-  };
-  var Root = Dialog;
-  var Portal2 = DialogPortal;
-  var Overlay = DialogOverlay;
-  var Content = DialogContent;
-  var Title = DialogTitle;
-  var Description = DialogDescription;
-  var Close = DialogClose;
-
-  // ../../../xpertai/node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@18.3.31_react-dom_97e75a3ab323022d7998e58a36c32fb5/node_modules/cmdk/dist/index.mjs
-  var N = '[cmdk-group=""]';
-  var Y2 = '[cmdk-group-items=""]';
-  var be = '[cmdk-group-heading=""]';
-  var le = '[cmdk-item=""]';
-  var ce = `${le}:not([aria-disabled="true"])`;
-  var Z = "cmdk-item-select";
-  var T = "data-value";
-  var Re = (r2, o, n) => W(r2, o, n);
-  var ue = createContext(void 0);
-  var K2 = () => useContext(ue);
-  var de = createContext(void 0);
-  var ee = () => useContext(de);
-  var fe = createContext(void 0);
-  var me = forwardRef((r2, o) => {
-    let n = L(() => {
-      var e, a;
-      return { search: "", value: (a = (e = r2.value) != null ? e : r2.defaultValue) != null ? a : "", selectedItemId: void 0, filtered: { count: 0, items: /* @__PURE__ */ new Map(), groups: /* @__PURE__ */ new Set() } };
-    }), u2 = L(() => /* @__PURE__ */ new Set()), c = L(() => /* @__PURE__ */ new Map()), d = L(() => /* @__PURE__ */ new Map()), f = L(() => /* @__PURE__ */ new Set()), p2 = pe(r2), { label: b, children: m2, value: R, onValueChange: x, filter: C, shouldFilter: S, loop: A, disablePointerSelection: ge = false, vimBindings: j = true, ...O } = r2, $2 = useId2(), q = useId2(), _ = useId2(), I = useRef(null), v = ke();
-    k2(() => {
-      if (R !== void 0) {
-        let e = R.trim();
-        n.current.value = e, E.emit();
-      }
-    }, [R]), k2(() => {
-      v(6, ne);
-    }, []);
-    let E = useMemo(() => ({ subscribe: (e) => (f.current.add(e), () => f.current.delete(e)), snapshot: () => n.current, setState: (e, a, s) => {
-      var i, l, g, y;
-      if (!Object.is(n.current[e], a)) {
-        if (n.current[e] = a, e === "search") J2(), z(), v(1, W2);
-        else if (e === "value") {
-          if (document.activeElement.hasAttribute("cmdk-input") || document.activeElement.hasAttribute("cmdk-root")) {
-            let h2 = document.getElementById(_);
-            h2 ? h2.focus() : (i = document.getElementById($2)) == null || i.focus();
-          }
-          if (v(7, () => {
-            var h2;
-            n.current.selectedItemId = (h2 = M()) == null ? void 0 : h2.id, E.emit();
-          }), s || v(5, ne), ((l = p2.current) == null ? void 0 : l.value) !== void 0) {
-            let h2 = a != null ? a : "";
-            (y = (g = p2.current).onValueChange) == null || y.call(g, h2);
+  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  function useSize(element) {
+    const [size4, setSize] = useState(void 0);
+    useLayoutEffect2(() => {
+      if (element) {
+        setSize({ width: element.offsetWidth, height: element.offsetHeight });
+        const resizeObserver = new ResizeObserver((entries) => {
+          if (!Array.isArray(entries)) {
             return;
           }
-        }
-        E.emit();
-      }
-    }, emit: () => {
-      f.current.forEach((e) => e());
-    } }), []), U2 = useMemo(() => ({ value: (e, a, s) => {
-      var i;
-      a !== ((i = d.current.get(e)) == null ? void 0 : i.value) && (d.current.set(e, { value: a, keywords: s }), n.current.filtered.items.set(e, te(a, s)), v(2, () => {
-        z(), E.emit();
-      }));
-    }, item: (e, a) => (u2.current.add(e), a && (c.current.has(a) ? c.current.get(a).add(e) : c.current.set(a, /* @__PURE__ */ new Set([e]))), v(3, () => {
-      J2(), z(), n.current.value || W2(), E.emit();
-    }), () => {
-      d.current.delete(e), u2.current.delete(e), n.current.filtered.items.delete(e);
-      let s = M();
-      v(4, () => {
-        J2(), (s == null ? void 0 : s.getAttribute("id")) === e && W2(), E.emit();
-      });
-    }), group: (e) => (c.current.has(e) || c.current.set(e, /* @__PURE__ */ new Set()), () => {
-      d.current.delete(e), c.current.delete(e);
-    }), filter: () => p2.current.shouldFilter, label: b || r2["aria-label"], getDisablePointerSelection: () => p2.current.disablePointerSelection, listId: $2, inputId: _, labelId: q, listInnerRef: I }), []);
-    function te(e, a) {
-      var i, l;
-      let s = (l = (i = p2.current) == null ? void 0 : i.filter) != null ? l : Re;
-      return e ? s(e, n.current.search, a) : 0;
-    }
-    function z() {
-      if (!n.current.search || p2.current.shouldFilter === false) return;
-      let e = n.current.filtered.items, a = [];
-      n.current.filtered.groups.forEach((i) => {
-        let l = c.current.get(i), g = 0;
-        l.forEach((y) => {
-          let h2 = e.get(y);
-          g = Math.max(h2, g);
-        }), a.push([i, g]);
-      });
-      let s = I.current;
-      V().sort((i, l) => {
-        var h2, F;
-        let g = i.getAttribute("id"), y = l.getAttribute("id");
-        return ((h2 = e.get(y)) != null ? h2 : 0) - ((F = e.get(g)) != null ? F : 0);
-      }).forEach((i) => {
-        let l = i.closest(Y2);
-        l ? l.appendChild(i.parentElement === l ? i : i.closest(`${Y2} > *`)) : s.appendChild(i.parentElement === s ? i : i.closest(`${Y2} > *`));
-      }), a.sort((i, l) => l[1] - i[1]).forEach((i) => {
-        var g;
-        let l = (g = I.current) == null ? void 0 : g.querySelector(`${N}[${T}="${encodeURIComponent(i[0])}"]`);
-        l == null || l.parentElement.appendChild(l);
-      });
-    }
-    function W2() {
-      let e = V().find((s) => s.getAttribute("aria-disabled") !== "true"), a = e == null ? void 0 : e.getAttribute(T);
-      E.setState("value", a || void 0);
-    }
-    function J2() {
-      var a, s, i, l;
-      if (!n.current.search || p2.current.shouldFilter === false) {
-        n.current.filtered.count = u2.current.size;
-        return;
-      }
-      n.current.filtered.groups = /* @__PURE__ */ new Set();
-      let e = 0;
-      for (let g of u2.current) {
-        let y = (s = (a = d.current.get(g)) == null ? void 0 : a.value) != null ? s : "", h2 = (l = (i = d.current.get(g)) == null ? void 0 : i.keywords) != null ? l : [], F = te(y, h2);
-        n.current.filtered.items.set(g, F), F > 0 && e++;
-      }
-      for (let [g, y] of c.current) for (let h2 of y) if (n.current.filtered.items.get(h2) > 0) {
-        n.current.filtered.groups.add(g);
-        break;
-      }
-      n.current.filtered.count = e;
-    }
-    function ne() {
-      var a, s, i;
-      let e = M();
-      e && (((a = e.parentElement) == null ? void 0 : a.firstChild) === e && ((i = (s = e.closest(N)) == null ? void 0 : s.querySelector(be)) == null || i.scrollIntoView({ block: "nearest" })), e.scrollIntoView({ block: "nearest" }));
-    }
-    function M() {
-      var e;
-      return (e = I.current) == null ? void 0 : e.querySelector(`${le}[aria-selected="true"]`);
-    }
-    function V() {
-      var e;
-      return Array.from(((e = I.current) == null ? void 0 : e.querySelectorAll(ce)) || []);
-    }
-    function X3(e) {
-      let s = V()[e];
-      s && E.setState("value", s.getAttribute(T));
-    }
-    function Q(e) {
-      var g;
-      let a = M(), s = V(), i = s.findIndex((y) => y === a), l = s[i + e];
-      (g = p2.current) != null && g.loop && (l = i + e < 0 ? s[s.length - 1] : i + e === s.length ? s[0] : s[i + e]), l && E.setState("value", l.getAttribute(T));
-    }
-    function re(e) {
-      let a = M(), s = a == null ? void 0 : a.closest(N), i;
-      for (; s && !i; ) s = e > 0 ? we(s, N) : De(s, N), i = s == null ? void 0 : s.querySelector(ce);
-      i ? E.setState("value", i.getAttribute(T)) : Q(e);
-    }
-    let oe = () => X3(V().length - 1), ie = (e) => {
-      e.preventDefault(), e.metaKey ? oe() : e.altKey ? re(1) : Q(1);
-    }, se = (e) => {
-      e.preventDefault(), e.metaKey ? X3(0) : e.altKey ? re(-1) : Q(-1);
-    };
-    return createElement(Primitive.div, { ref: o, tabIndex: -1, ...O, "cmdk-root": "", onKeyDown: (e) => {
-      var s;
-      (s = O.onKeyDown) == null || s.call(O, e);
-      let a = e.nativeEvent.isComposing || e.keyCode === 229;
-      if (!(e.defaultPrevented || a)) switch (e.key) {
-        case "n":
-        case "j": {
-          j && e.ctrlKey && ie(e);
-          break;
-        }
-        case "ArrowDown": {
-          ie(e);
-          break;
-        }
-        case "p":
-        case "k": {
-          j && e.ctrlKey && se(e);
-          break;
-        }
-        case "ArrowUp": {
-          se(e);
-          break;
-        }
-        case "Home": {
-          e.preventDefault(), X3(0);
-          break;
-        }
-        case "End": {
-          e.preventDefault(), oe();
-          break;
-        }
-        case "Enter": {
-          e.preventDefault();
-          let i = M();
-          if (i) {
-            let l = new Event(Z);
-            i.dispatchEvent(l);
+          if (!entries.length) {
+            return;
           }
-        }
-      }
-    } }, createElement("label", { "cmdk-label": "", htmlFor: U2.inputId, id: U2.labelId, style: Te }, b), B2(r2, (e) => createElement(de.Provider, { value: E }, createElement(ue.Provider, { value: U2 }, e))));
-  });
-  var he = forwardRef((r2, o) => {
-    var _, I;
-    let n = useId2(), u2 = useRef(null), c = useContext(fe), d = K2(), f = pe(r2), p2 = (I = (_ = f.current) == null ? void 0 : _.forceMount) != null ? I : c == null ? void 0 : c.forceMount;
-    k2(() => {
-      if (!p2) return d.item(n, c == null ? void 0 : c.id);
-    }, [p2]);
-    let b = ve(n, u2, [r2.value, r2.children, u2], r2.keywords), m2 = ee(), R = P((v) => v.value && v.value === b.current), x = P((v) => p2 || d.filter() === false ? true : v.search ? v.filtered.items.get(n) > 0 : true);
-    useEffect(() => {
-      let v = u2.current;
-      if (!(!v || r2.disabled)) return v.addEventListener(Z, C), () => v.removeEventListener(Z, C);
-    }, [x, r2.onSelect, r2.disabled]);
-    function C() {
-      var v, E;
-      S(), (E = (v = f.current).onSelect) == null || E.call(v, b.current);
-    }
-    function S() {
-      m2.setState("value", b.current, true);
-    }
-    if (!x) return null;
-    let { disabled: A, value: ge, onSelect: j, forceMount: O, keywords: $2, ...q } = r2;
-    return createElement(Primitive.div, { ref: composeRefs(u2, o), ...q, id: n, "cmdk-item": "", role: "option", "aria-disabled": !!A, "aria-selected": !!R, "data-disabled": !!A, "data-selected": !!R, onPointerMove: A || d.getDisablePointerSelection() ? void 0 : S, onClick: A ? void 0 : C }, r2.children);
-  });
-  var Ee = forwardRef((r2, o) => {
-    let { heading: n, children: u2, forceMount: c, ...d } = r2, f = useId2(), p2 = useRef(null), b = useRef(null), m2 = useId2(), R = K2(), x = P((S) => c || R.filter() === false ? true : S.search ? S.filtered.groups.has(f) : true);
-    k2(() => R.group(f), []), ve(f, p2, [r2.value, r2.heading, b]);
-    let C = useMemo(() => ({ id: f, forceMount: c }), [c]);
-    return createElement(Primitive.div, { ref: composeRefs(p2, o), ...d, "cmdk-group": "", role: "presentation", hidden: x ? void 0 : true }, n && createElement("div", { ref: b, "cmdk-group-heading": "", "aria-hidden": true, id: m2 }, n), B2(r2, (S) => createElement("div", { "cmdk-group-items": "", role: "group", "aria-labelledby": n ? m2 : void 0 }, createElement(fe.Provider, { value: C }, S))));
-  });
-  var ye = forwardRef((r2, o) => {
-    let { alwaysRender: n, ...u2 } = r2, c = useRef(null), d = P((f) => !f.search);
-    return !n && !d ? null : createElement(Primitive.div, { ref: composeRefs(c, o), ...u2, "cmdk-separator": "", role: "separator" });
-  });
-  var Se = forwardRef((r2, o) => {
-    let { onValueChange: n, ...u2 } = r2, c = r2.value != null, d = ee(), f = P((m2) => m2.search), p2 = P((m2) => m2.selectedItemId), b = K2();
-    return useEffect(() => {
-      r2.value != null && d.setState("search", r2.value);
-    }, [r2.value]), createElement(Primitive.input, { ref: o, ...u2, "cmdk-input": "", autoComplete: "off", autoCorrect: "off", spellCheck: false, "aria-autocomplete": "list", role: "combobox", "aria-expanded": true, "aria-controls": b.listId, "aria-labelledby": b.labelId, "aria-activedescendant": p2, id: b.inputId, type: "text", value: c ? r2.value : f, onChange: (m2) => {
-      c || d.setState("search", m2.target.value), n == null || n(m2.target.value);
-    } });
-  });
-  var Ce = forwardRef((r2, o) => {
-    let { children: n, label: u2 = "Suggestions", ...c } = r2, d = useRef(null), f = useRef(null), p2 = P((m2) => m2.selectedItemId), b = K2();
-    return useEffect(() => {
-      if (f.current && d.current) {
-        let m2 = f.current, R = d.current, x, C = new ResizeObserver(() => {
-          x = requestAnimationFrame(() => {
-            let S = m2.offsetHeight;
-            R.style.setProperty("--cmdk-list-height", S.toFixed(1) + "px");
-          });
+          const entry = entries[0];
+          let width;
+          let height;
+          if ("borderBoxSize" in entry) {
+            const borderSizeEntry = entry["borderBoxSize"];
+            const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
+            width = borderSize["inlineSize"];
+            height = borderSize["blockSize"];
+          } else {
+            width = element.offsetWidth;
+            height = element.offsetHeight;
+          }
+          setSize({ width, height });
         });
-        return C.observe(m2), () => {
-          cancelAnimationFrame(x), C.unobserve(m2);
-        };
+        resizeObserver.observe(element, { box: "border-box" });
+        return () => resizeObserver.unobserve(element);
+      } else {
+        setSize(void 0);
       }
-    }, []), createElement(Primitive.div, { ref: composeRefs(d, o), ...c, "cmdk-list": "", role: "listbox", tabIndex: -1, "aria-activedescendant": p2, "aria-label": u2, id: b.listId }, B2(r2, (m2) => createElement("div", { ref: composeRefs(f, b.listInnerRef), "cmdk-list-sizer": "" }, m2)));
-  });
-  var xe = forwardRef((r2, o) => {
-    let { open: n, onOpenChange: u2, overlayClassName: c, contentClassName: d, container: f, ...p2 } = r2;
-    return createElement(Root, { open: n, onOpenChange: u2 }, createElement(Portal2, { container: f }, createElement(Overlay, { "cmdk-overlay": "", className: c }), createElement(Content, { "aria-label": r2.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
-  });
-  var Ie = forwardRef((r2, o) => P((u2) => u2.filtered.count === 0) ? createElement(Primitive.div, { ref: o, ...r2, "cmdk-empty": "", role: "presentation" }) : null);
-  var Pe = forwardRef((r2, o) => {
-    let { progress: n, children: u2, label: c = "Loading...", ...d } = r2;
-    return createElement(Primitive.div, { ref: o, ...d, "cmdk-loading": "", role: "progressbar", "aria-valuenow": n, "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": c }, B2(r2, (f) => createElement("div", { "aria-hidden": true }, f)));
-  });
-  var _e = Object.assign(me, { List: Ce, Item: he, Input: Se, Group: Ee, Separator: ye, Dialog: xe, Empty: Ie, Loading: Pe });
-  function we(r2, o) {
-    let n = r2.nextElementSibling;
-    for (; n; ) {
-      if (n.matches(o)) return n;
-      n = n.nextElementSibling;
-    }
-  }
-  function De(r2, o) {
-    let n = r2.previousElementSibling;
-    for (; n; ) {
-      if (n.matches(o)) return n;
-      n = n.previousElementSibling;
-    }
-  }
-  function pe(r2) {
-    let o = useRef(r2);
-    return k2(() => {
-      o.current = r2;
-    }), o;
-  }
-  var k2 = typeof window == "undefined" ? useEffect : useLayoutEffect;
-  function L(r2) {
-    let o = useRef();
-    return o.current === void 0 && (o.current = r2()), o;
-  }
-  function P(r2) {
-    let o = ee(), n = () => r2(o.snapshot());
-    return useSyncExternalStore(o.subscribe, n, n);
-  }
-  function ve(r2, o, n, u2 = []) {
-    let c = useRef(), d = K2();
-    return k2(() => {
-      var b;
-      let f = (() => {
-        var m2;
-        for (let R of n) {
-          if (typeof R == "string") return R.trim();
-          if (typeof R == "object" && "current" in R) return R.current ? (m2 = R.current.textContent) == null ? void 0 : m2.trim() : c.current;
-        }
-      })(), p2 = u2.map((m2) => m2.trim());
-      d.value(r2, f, p2), (b = o.current) == null || b.setAttribute(T, f), c.current = f;
-    }), c;
-  }
-  var ke = () => {
-    let [r2, o] = useState(), n = L(() => /* @__PURE__ */ new Map());
-    return k2(() => {
-      n.current.forEach((u2) => u2()), n.current = /* @__PURE__ */ new Map();
-    }, [r2]), (u2, c) => {
-      n.current.set(u2, c), o({});
-    };
-  };
-  function Me(r2) {
-    let o = r2.type;
-    return typeof o == "function" ? o(r2.props) : "render" in o ? o.render(r2.props) : r2;
-  }
-  function B2({ asChild: r2, children: o }, n) {
-    return r2 && isValidElement(o) ? cloneElement(Me(o), { ref: o.ref }, n(o.props.children)) : n(o);
-  }
-  var Te = { position: "absolute", width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: "0" };
-
-  // ../../../packages/shadcn-ui/src/components/command.tsx
-  var Command = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e, {
-      ref,
-      className: cn("xps-command", className),
-      ...props
-    })
-  );
-  Command.displayName = _e.displayName;
-  var CommandInput = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      "div",
-      { className: "xps-command-input-wrapper", "cmdk-input-wrapper": "" },
-      createElement(Search, { className: "xps-icon" }),
-      createElement(_e.Input, {
-        ref,
-        className: cn("xps-command-input", className),
-        ...props
-      })
-    )
-  );
-  CommandInput.displayName = _e.Input.displayName;
-  var CommandList = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.List, {
-      ref,
-      className: cn("xps-command-list", className),
-      ...props
-    })
-  );
-  CommandList.displayName = _e.List.displayName;
-  var CommandEmpty = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Empty, {
-      ref,
-      className: cn("xps-command-empty", className),
-      ...props
-    })
-  );
-  CommandEmpty.displayName = _e.Empty.displayName;
-  var CommandGroup = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Group, {
-      ref,
-      className: cn("xps-command-group", className),
-      ...props
-    })
-  );
-  CommandGroup.displayName = _e.Group.displayName;
-  var CommandItem = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Item, {
-      ref,
-      className: cn("xps-command-item", className),
-      ...props
-    })
-  );
-  CommandItem.displayName = _e.Item.displayName;
-  var CommandSeparator = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Separator, {
-      ref,
-      className: cn("xps-command-separator", className),
-      ...props
-    })
-  );
-  CommandSeparator.displayName = _e.Separator.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/dialog.tsx
-  var Dialog2 = Root;
-  var DialogPortal2 = Portal2;
-  var DialogOverlay2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
-      ref,
-      className: cn("xps-dialog-overlay", className),
-      ...props
-    })
-  );
-  DialogOverlay2.displayName = Overlay.displayName;
-  var DialogContent2 = forwardRef(
-    ({ className, children, showClose = true, ...props }, ref) => createElement(
-      DialogPortal2,
-      null,
-      createElement(DialogOverlay2, null),
-      createElement(
-        Content,
-        {
-          ref,
-          className: cn("xps-dialog-content", className),
-          ...props
-        },
-        children,
-        showClose ? createElement(
-          Close,
-          {
-            className: "xps-dialog-close"
-          },
-          createElement(X, {
-            className: "xps-icon",
-            "aria-hidden": "true"
-          }),
-          createElement("span", { className: "xps-sr-only" }, "Close")
-        ) : null
-      )
-    )
-  );
-  DialogContent2.displayName = Content.displayName;
-  var DialogHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-header", className),
-      ...props
-    })
-  );
-  DialogHeader.displayName = "DialogHeader";
-  var DialogFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-footer", className),
-      ...props
-    })
-  );
-  DialogFooter.displayName = "DialogFooter";
-  var DialogTitle2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
-      ref,
-      className: cn("xps-dialog-title", className),
-      ...props
-    })
-  );
-  DialogTitle2.displayName = Title.displayName;
-  var DialogDescription2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
-      ref,
-      className: cn("xps-dialog-description", className),
-      ...props
-    })
-  );
-  DialogDescription2.displayName = Description.displayName;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+r_9d7b7379fb7a1e56af9d4a8d107ecba8/node_modules/@radix-ui/react-collection/dist/index.mjs
-  function createCollection(name) {
-    const PROVIDER_NAME3 = name + "CollectionProvider";
-    const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
-    const [CollectionProviderImpl, useCollectionContext] = createCollectionContext(
-      PROVIDER_NAME3,
-      { collectionRef: { current: null }, itemMap: /* @__PURE__ */ new Map() }
-    );
-    const CollectionProvider = (props) => {
-      const { scope, children } = props;
-      const ref = useRef(null);
-      const itemMap = useRef(/* @__PURE__ */ new Map()).current;
-      return /* @__PURE__ */ jsx(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
-    };
-    CollectionProvider.displayName = PROVIDER_NAME3;
-    const COLLECTION_SLOT_NAME = name + "CollectionSlot";
-    const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
-    const CollectionSlot = forwardRef(
-      (props, forwardedRef) => {
-        const { scope, children } = props;
-        const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
-        const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
-        return /* @__PURE__ */ jsx(CollectionSlotImpl, { ref: composedRefs, children });
-      }
-    );
-    CollectionSlot.displayName = COLLECTION_SLOT_NAME;
-    const ITEM_SLOT_NAME = name + "CollectionItemSlot";
-    const ITEM_DATA_ATTR = "data-radix-collection-item";
-    const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
-    const CollectionItemSlot = forwardRef(
-      (props, forwardedRef) => {
-        const { scope, children, ...itemData } = props;
-        const ref = useRef(null);
-        const composedRefs = useComposedRefs(forwardedRef, ref);
-        const context = useCollectionContext(ITEM_SLOT_NAME, scope);
-        useEffect(() => {
-          context.itemMap.set(ref, { ref, ...itemData });
-          return () => void context.itemMap.delete(ref);
-        });
-        return /* @__PURE__ */ jsx(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
-      }
-    );
-    CollectionItemSlot.displayName = ITEM_SLOT_NAME;
-    function useCollection5(scope) {
-      const context = useCollectionContext(name + "CollectionConsumer", scope);
-      const getItems = useCallback(() => {
-        const collectionNode = context.collectionRef.current;
-        if (!collectionNode) return [];
-        const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
-        const items = Array.from(context.itemMap.values());
-        const orderedItems = items.sort(
-          (a, b) => orderedNodes.indexOf(a.ref.current) - orderedNodes.indexOf(b.ref.current)
-        );
-        return orderedItems;
-      }, [context.collectionRef, context.itemMap]);
-      return getItems;
-    }
-    return [
-      { Provider: CollectionProvider, Slot: CollectionSlot, ItemSlot: CollectionItemSlot },
-      useCollection5,
-      createCollectionScope5
-    ];
+    }, [element]);
+    return size4;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
-  var DirectionContext = createContext(void 0);
-  function useDirection(localDir) {
-    const globalDir = useContext(DirectionContext);
-    return localDir || globalDir || "ltr";
-  }
-
-  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6921,7 +6062,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7638,7 +6779,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../xpertai/node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7697,11 +6838,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       if (element.matches(":popover-open")) {
         return true;
       }
-    } catch (_e2) {
+    } catch (_e3) {
     }
     try {
       return element.matches(":modal");
-    } catch (_e2) {
+    } catch (_e3) {
       return false;
     }
   }
@@ -7794,7 +6935,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -7825,10 +6966,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const {
       width,
       height,
-      $: $2
+      $
     } = getCssDimensions(domElement);
-    let x = ($2 ? round(rect.width) : rect.width) / width;
-    let y = ($2 ? round(rect.height) : rect.height) / height;
+    let x = ($ ? round(rect.width) : rect.width) / width;
+    let y = ($ ? round(rect.height) : rect.height) / height;
     if (!x || !Number.isFinite(x)) {
       x = 1;
     }
@@ -8308,7 +7449,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           // Handle <iframe>s
           root: root2.ownerDocument
         });
-      } catch (_e2) {
+      } catch (_e3) {
         io = new IntersectionObserver(handleObserve, options);
       }
       io.observe(element);
@@ -8409,7 +7550,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     });
   };
 
-  // ../../../xpertai/node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../node_modules/.pnpm/@floating-ui+react-dom@2.1.8_react-dom@18.3.1_react@18.3.1/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8717,8 +7858,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_b34b7156178de4198a23e93f83c57da5/node_modules/@radix-ui/react-arrow/dist/index.mjs
-  var NAME = "Arrow";
+  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  var NAME2 = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
     return /* @__PURE__ */ jsx(
@@ -8734,10 +7875,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }
     );
   });
-  Arrow.displayName = NAME;
-  var Root2 = Arrow;
+  Arrow.displayName = NAME2;
+  var Root = Arrow;
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_bd7668c1d3a757f9e8c97f0d7e635b5d/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.3_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8813,7 +7954,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         alignOffset = 0,
         arrowPadding = 0,
         avoidCollisions = true,
-        collisionBoundary,
+        collisionBoundary = [],
         collisionPadding: collisionPaddingProp = 0,
         sticky = "partial",
         hideWhenDetached = false,
@@ -8823,18 +7964,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       } = props;
       const context = usePopperContext(CONTENT_NAME2, __scopePopper);
       const [content, setContent] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
+      const composedRefs = useComposedRefs(forwardedRef, setContent);
       const [arrow4, setArrow] = useState(null);
       const arrowSize = useSize(arrow4);
       const arrowWidth = arrowSize?.width ?? 0;
       const arrowHeight = arrowSize?.height ?? 0;
       const desiredPlacement = side + (align !== "center" ? "-" + align : "");
       const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
-      const boundary = collisionBoundary ? Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary] : void 0;
-      const hasExplicitBoundaries = boundary !== void 0 && boundary.length > 0;
+      const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
+      const hasExplicitBoundaries = boundary.length > 0;
       const detectOverflowOptions = {
         padding: collisionPadding,
-        boundary: boundary?.filter(isNotNull),
+        boundary: boundary.filter(isNotNull),
         // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
         altBoundary: hasExplicitBoundaries
       };
@@ -8873,7 +8014,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           }),
           arrow4 && arrow3({ element: arrow4, padding: arrowPadding }),
           transformOrigin({ arrowWidth, arrowHeight }),
-          hideWhenDetached && hide3({ strategy: "referenceHidden", ...detectOverflowOptions })
+          hideWhenDetached && hide3({
+            strategy: "referenceHidden",
+            ...detectOverflowOptions,
+            // `hide` detects whether the anchor (reference) is clipped, so when
+            // no explicit `collisionBoundary` is set we fall back to Floating
+            // UI's default clipping ancestors (e.g. a scrollable menu). This
+            // lets an occluded submenu hide once its anchor scrolls out of view
+            // (#3237). The collision/size middlewares deliberately keep the
+            // viewport-based default to avoid clamping content rendered inside
+            // transformed or overflow-clipping portal containers.
+            boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
+          })
         ]
       });
       const setPlacementState = context.setPlacementState;
@@ -8992,7 +8144,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             visibility: contentContext.shouldHideArrow ? "hidden" : void 0
           },
           children: /* @__PURE__ */ jsx(
-            Root2,
+            Root,
             {
               ...arrowProps,
               ref: forwardedRef,
@@ -9046,1401 +8198,31 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const [side, align = "center"] = placement.split("-");
     return [side, align];
   }
-  var Root22 = Popper;
+  var Root2 = Popper;
   var Anchor = PopperAnchor;
-  var Content2 = PopperContent;
+  var Content = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31__@type_d783d3abe701a7f2fb2c68867b8f1f65/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
-  var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
-  var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
-  var GROUP_NAME = "RovingFocusGroup";
-  var [Collection, useCollection, createCollectionScope] = createCollection(GROUP_NAME);
-  var [createRovingFocusGroupContext, createRovingFocusGroupScope] = createContextScope(
-    GROUP_NAME,
-    [createCollectionScope]
-  );
-  var [RovingFocusProvider, useRovingFocusContext] = createRovingFocusGroupContext(GROUP_NAME);
-  var RovingFocusGroup = forwardRef(
-    (props, forwardedRef) => {
-      return /* @__PURE__ */ jsx(Collection.Provider, { scope: props.__scopeRovingFocusGroup, children: /* @__PURE__ */ jsx(Collection.Slot, { scope: props.__scopeRovingFocusGroup, children: /* @__PURE__ */ jsx(RovingFocusGroupImpl, { ...props, ref: forwardedRef }) }) });
-    }
-  );
-  RovingFocusGroup.displayName = GROUP_NAME;
-  var RovingFocusGroupImpl = forwardRef((props, forwardedRef) => {
-    const {
-      __scopeRovingFocusGroup,
-      orientation,
-      loop = false,
-      dir,
-      currentTabStopId: currentTabStopIdProp,
-      defaultCurrentTabStopId,
-      onCurrentTabStopIdChange,
-      onEntryFocus,
-      preventScrollOnEntryFocus = false,
-      ...groupProps
-    } = props;
-    const ref = useRef(null);
-    const composedRefs = useComposedRefs(forwardedRef, ref);
-    const direction = useDirection(dir);
-    const [currentTabStopId, setCurrentTabStopId] = useControllableState({
-      prop: currentTabStopIdProp,
-      defaultProp: defaultCurrentTabStopId ?? null,
-      onChange: onCurrentTabStopIdChange,
-      caller: GROUP_NAME
-    });
-    const [isTabbingBackOut, setIsTabbingBackOut] = useState(false);
-    const handleEntryFocus = useCallbackRef(onEntryFocus);
-    const getItems = useCollection(__scopeRovingFocusGroup);
-    const isClickFocusRef = useRef(false);
-    const [focusableItemsCount, setFocusableItemsCount] = useState(0);
-    useEffect(() => {
-      const node = ref.current;
-      if (node) {
-        node.addEventListener(ENTRY_FOCUS, handleEntryFocus);
-        return () => node.removeEventListener(ENTRY_FOCUS, handleEntryFocus);
-      }
-    }, [handleEntryFocus]);
-    return /* @__PURE__ */ jsx(
-      RovingFocusProvider,
-      {
-        scope: __scopeRovingFocusGroup,
-        orientation,
-        dir: direction,
-        loop,
-        currentTabStopId,
-        onItemFocus: useCallback(
-          (tabStopId) => setCurrentTabStopId(tabStopId),
-          [setCurrentTabStopId]
-        ),
-        onItemShiftTab: useCallback(() => setIsTabbingBackOut(true), []),
-        onFocusableItemAdd: useCallback(
-          () => setFocusableItemsCount((prevCount) => prevCount + 1),
-          []
-        ),
-        onFocusableItemRemove: useCallback(
-          () => setFocusableItemsCount((prevCount) => prevCount - 1),
-          []
-        ),
-        children: /* @__PURE__ */ jsx(
-          Primitive.div,
-          {
-            tabIndex: isTabbingBackOut || focusableItemsCount === 0 ? -1 : 0,
-            "data-orientation": orientation,
-            ...groupProps,
-            ref: composedRefs,
-            style: { outline: "none", ...props.style },
-            onMouseDown: composeEventHandlers(props.onMouseDown, () => {
-              isClickFocusRef.current = true;
-            }),
-            onFocus: composeEventHandlers(props.onFocus, (event) => {
-              const isKeyboardFocus = !isClickFocusRef.current;
-              if (event.target === event.currentTarget && isKeyboardFocus && !isTabbingBackOut) {
-                const entryFocusEvent = new CustomEvent(ENTRY_FOCUS, EVENT_OPTIONS2);
-                event.currentTarget.dispatchEvent(entryFocusEvent);
-                if (!entryFocusEvent.defaultPrevented) {
-                  const items = getItems().filter((item) => item.focusable);
-                  const activeItem = items.find((item) => item.active);
-                  const currentItem = items.find((item) => item.id === currentTabStopId);
-                  const candidateItems = [activeItem, currentItem, ...items].filter(
-                    Boolean
-                  );
-                  const candidateNodes = candidateItems.map((item) => item.ref.current);
-                  focusFirst2(candidateNodes, preventScrollOnEntryFocus);
-                }
-              }
-              isClickFocusRef.current = false;
-            }),
-            onBlur: composeEventHandlers(props.onBlur, () => setIsTabbingBackOut(false))
-          }
-        )
-      }
-    );
-  });
-  var ITEM_NAME = "RovingFocusGroupItem";
-  var RovingFocusGroupItem = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeRovingFocusGroup,
-        focusable = true,
-        active = false,
-        tabStopId,
-        children,
-        ...itemProps
-      } = props;
-      const autoId = useId2();
-      const id = tabStopId || autoId;
-      const context = useRovingFocusContext(ITEM_NAME, __scopeRovingFocusGroup);
-      const isCurrentTabStop = context.currentTabStopId === id;
-      const getItems = useCollection(__scopeRovingFocusGroup);
-      const { onFocusableItemAdd, onFocusableItemRemove, currentTabStopId } = context;
-      useEffect(() => {
-        if (focusable) {
-          onFocusableItemAdd();
-          return () => onFocusableItemRemove();
-        }
-      }, [focusable, onFocusableItemAdd, onFocusableItemRemove]);
-      return /* @__PURE__ */ jsx(
-        Collection.ItemSlot,
-        {
-          scope: __scopeRovingFocusGroup,
-          id,
-          focusable,
-          active,
-          children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              tabIndex: isCurrentTabStop ? 0 : -1,
-              "data-orientation": context.orientation,
-              ...itemProps,
-              ref: forwardedRef,
-              onMouseDown: composeEventHandlers(props.onMouseDown, (event) => {
-                if (!focusable) event.preventDefault();
-                else context.onItemFocus(id);
-              }),
-              onFocus: composeEventHandlers(props.onFocus, () => context.onItemFocus(id)),
-              onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-                if (event.key === "Tab" && event.shiftKey) {
-                  context.onItemShiftTab();
-                  return;
-                }
-                if (event.target !== event.currentTarget) return;
-                const focusIntent = getFocusIntent(event, context.orientation, context.dir);
-                if (focusIntent !== void 0) {
-                  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-                  event.preventDefault();
-                  const items = getItems().filter((item) => item.focusable);
-                  let candidateNodes = items.map((item) => item.ref.current);
-                  if (focusIntent === "last") candidateNodes.reverse();
-                  else if (focusIntent === "prev" || focusIntent === "next") {
-                    if (focusIntent === "prev") candidateNodes.reverse();
-                    const currentIndex = candidateNodes.indexOf(event.currentTarget);
-                    candidateNodes = context.loop ? wrapArray(candidateNodes, currentIndex + 1) : candidateNodes.slice(currentIndex + 1);
-                  }
-                  setTimeout(() => focusFirst2(candidateNodes));
-                }
-              }),
-              children: typeof children === "function" ? children({ isCurrentTabStop, hasTabStop: currentTabStopId != null }) : children
-            }
-          )
-        }
-      );
-    }
-  );
-  RovingFocusGroupItem.displayName = ITEM_NAME;
-  var MAP_KEY_TO_FOCUS_INTENT = {
-    ArrowLeft: "prev",
-    ArrowUp: "prev",
-    ArrowRight: "next",
-    ArrowDown: "next",
-    PageUp: "first",
-    Home: "first",
-    PageDown: "last",
-    End: "last"
-  };
-  function getDirectionAwareKey(key, dir) {
-    if (dir !== "rtl") return key;
-    return key === "ArrowLeft" ? "ArrowRight" : key === "ArrowRight" ? "ArrowLeft" : key;
-  }
-  function getFocusIntent(event, orientation, dir) {
-    const key = getDirectionAwareKey(event.key, dir);
-    if (orientation === "vertical" && ["ArrowLeft", "ArrowRight"].includes(key)) return void 0;
-    if (orientation === "horizontal" && ["ArrowUp", "ArrowDown"].includes(key)) return void 0;
-    return MAP_KEY_TO_FOCUS_INTENT[key];
-  }
-  function focusFirst2(candidates, preventScroll = false) {
-    const PREVIOUSLY_FOCUSED_ELEMENT = document.activeElement;
-    for (const candidate of candidates) {
-      if (candidate === PREVIOUSLY_FOCUSED_ELEMENT) return;
-      candidate.focus({ preventScroll });
-      if (document.activeElement !== PREVIOUSLY_FOCUSED_ELEMENT) return;
-    }
-  }
-  function wrapArray(array, startIndex) {
-    return array.map((_, index2) => array[(startIndex + index2) % array.length]);
-  }
-  var Root3 = RovingFocusGroup;
-  var Item = RovingFocusGroupItem;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_cc73edd868dbfc82392e3731b66f2e59/node_modules/@radix-ui/react-menu/dist/index.mjs
-  var SELECTION_KEYS = ["Enter", " "];
-  var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
-  var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
-  var FIRST_LAST_KEYS = [...FIRST_KEYS, ...LAST_KEYS];
-  var SUB_OPEN_KEYS = {
-    ltr: [...SELECTION_KEYS, "ArrowRight"],
-    rtl: [...SELECTION_KEYS, "ArrowLeft"]
-  };
-  var SUB_CLOSE_KEYS = {
-    ltr: ["ArrowLeft"],
-    rtl: ["ArrowRight"]
-  };
-  var MENU_NAME = "Menu";
-  var [Collection2, useCollection2, createCollectionScope2] = createCollection(MENU_NAME);
-  var [createMenuContext, createMenuScope] = createContextScope(MENU_NAME, [
-    createCollectionScope2,
-    createPopperScope,
-    createRovingFocusGroupScope
-  ]);
-  var usePopperScope = createPopperScope();
-  var useRovingFocusGroupScope = createRovingFocusGroupScope();
-  var [MenuProvider, useMenuContext] = createMenuContext(MENU_NAME);
-  var [MenuRootProvider, useMenuRootContext] = createMenuContext(MENU_NAME);
-  var Menu = (props) => {
-    const { __scopeMenu, open = false, children, dir, onOpenChange, modal = true } = props;
-    const popperScope = usePopperScope(__scopeMenu);
-    const [content, setContent] = useState(null);
-    const isUsingKeyboardRef = useRef(false);
-    const handleOpenChange = useCallbackRef(onOpenChange);
-    const direction = useDirection(dir);
-    useEffect(() => {
-      const handleKeyDown = () => {
-        isUsingKeyboardRef.current = true;
-        document.addEventListener("pointerdown", handlePointer, { capture: true, once: true });
-        document.addEventListener("pointermove", handlePointer, { capture: true, once: true });
-      };
-      const handlePointer = () => isUsingKeyboardRef.current = false;
-      document.addEventListener("keydown", handleKeyDown, { capture: true });
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown, { capture: true });
-        document.removeEventListener("pointerdown", handlePointer, { capture: true });
-        document.removeEventListener("pointermove", handlePointer, { capture: true });
-      };
-    }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
-      MenuProvider,
-      {
-        scope: __scopeMenu,
-        open,
-        onOpenChange: handleOpenChange,
-        content,
-        onContentChange: setContent,
-        children: /* @__PURE__ */ jsx(
-          MenuRootProvider,
-          {
-            scope: __scopeMenu,
-            onClose: useCallback(() => handleOpenChange(false), [handleOpenChange]),
-            isUsingKeyboardRef,
-            dir: direction,
-            modal,
-            children
-          }
-        )
-      }
-    ) });
-  };
-  Menu.displayName = MENU_NAME;
-  var ANCHOR_NAME2 = "MenuAnchor";
-  var MenuAnchor = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, ...anchorProps } = props;
-      const popperScope = usePopperScope(__scopeMenu);
-      return /* @__PURE__ */ jsx(Anchor, { ...popperScope, ...anchorProps, ref: forwardedRef });
-    }
-  );
-  MenuAnchor.displayName = ANCHOR_NAME2;
-  var PORTAL_NAME3 = "MenuPortal";
-  var [PortalProvider2, usePortalContext2] = createMenuContext(PORTAL_NAME3, {
-    forceMount: void 0
-  });
-  var MenuPortal = (props) => {
-    const { __scopeMenu, forceMount, children, container } = props;
-    const context = useMenuContext(PORTAL_NAME3, __scopeMenu);
-    return /* @__PURE__ */ jsx(PortalProvider2, { scope: __scopeMenu, forceMount, children: /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Portal, { asChild: true, container, children }) }) });
-  };
-  MenuPortal.displayName = PORTAL_NAME3;
-  var CONTENT_NAME3 = "MenuContent";
-  var [MenuContentProvider, useMenuContentContext] = createMenuContext(CONTENT_NAME3);
-  var MenuContent = forwardRef(
-    (props, forwardedRef) => {
-      const portalContext = usePortalContext2(CONTENT_NAME3, props.__scopeMenu);
-      const { forceMount = portalContext.forceMount, ...contentProps } = props;
-      const context = useMenuContext(CONTENT_NAME3, props.__scopeMenu);
-      const rootContext = useMenuRootContext(CONTENT_NAME3, props.__scopeMenu);
-      return /* @__PURE__ */ jsx(Collection2.Provider, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Collection2.Slot, { scope: props.__scopeMenu, children: rootContext.modal ? /* @__PURE__ */ jsx(MenuRootContentModal, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx(MenuRootContentNonModal, { ...contentProps, ref: forwardedRef }) }) }) });
-    }
-  );
-  var MenuRootContentModal = forwardRef(
-    (props, forwardedRef) => {
-      const context = useMenuContext(CONTENT_NAME3, props.__scopeMenu);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      useEffect(() => {
-        const content = ref.current;
-        if (content) return hideOthers(content);
-      }, []);
-      return /* @__PURE__ */ jsx(
-        MenuContentImpl,
-        {
-          ...props,
-          ref: composedRefs,
-          trapFocus: context.open,
-          disableOutsidePointerEvents: context.open,
-          disableOutsideScroll: true,
-          onFocusOutside: composeEventHandlers(
-            props.onFocusOutside,
-            (event) => event.preventDefault(),
-            { checkForDefaultPrevented: false }
-          ),
-          onDismiss: () => context.onOpenChange(false)
-        }
-      );
-    }
-  );
-  var MenuRootContentNonModal = forwardRef((props, forwardedRef) => {
-    const context = useMenuContext(CONTENT_NAME3, props.__scopeMenu);
-    return /* @__PURE__ */ jsx(
-      MenuContentImpl,
-      {
-        ...props,
-        ref: forwardedRef,
-        trapFocus: false,
-        disableOutsidePointerEvents: false,
-        disableOutsideScroll: false,
-        onDismiss: () => context.onOpenChange(false)
-      }
-    );
-  });
-  var Slot3 = createSlot("MenuContent.ScrollLock");
-  var MenuContentImpl = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeMenu,
-        loop = false,
-        trapFocus,
-        onOpenAutoFocus,
-        onCloseAutoFocus,
-        disableOutsidePointerEvents,
-        onEntryFocus,
-        onEscapeKeyDown,
-        onPointerDownOutside,
-        onFocusOutside,
-        onInteractOutside,
-        onDismiss,
-        disableOutsideScroll,
-        ...contentProps
-      } = props;
-      const context = useMenuContext(CONTENT_NAME3, __scopeMenu);
-      const rootContext = useMenuRootContext(CONTENT_NAME3, __scopeMenu);
-      const popperScope = usePopperScope(__scopeMenu);
-      const rovingFocusGroupScope = useRovingFocusGroupScope(__scopeMenu);
-      const getItems = useCollection2(__scopeMenu);
-      const [currentItemId, setCurrentItemId] = useState(null);
-      const contentRef = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, contentRef, context.onContentChange);
-      const timerRef = useRef(0);
-      const searchRef = useRef("");
-      const pointerGraceTimerRef = useRef(0);
-      const pointerGraceIntentRef = useRef(null);
-      const pointerDirRef = useRef("right");
-      const lastPointerXRef = useRef(0);
-      const ScrollLockWrapper = disableOutsideScroll ? Combination_default : Fragment;
-      const scrollLockWrapperProps = disableOutsideScroll ? { as: Slot3, allowPinchZoom: true } : void 0;
-      const handleTypeaheadSearch = (key) => {
-        const search = searchRef.current + key;
-        const items = getItems().filter((item) => !item.disabled);
-        const currentItem = document.activeElement;
-        const currentMatch = items.find((item) => item.ref.current === currentItem)?.textValue;
-        const values = items.map((item) => item.textValue);
-        const nextMatch = getNextMatch(values, search, currentMatch);
-        const newItem = items.find((item) => item.textValue === nextMatch)?.ref.current;
-        (function updateSearch(value) {
-          searchRef.current = value;
-          window.clearTimeout(timerRef.current);
-          if (value !== "") timerRef.current = window.setTimeout(() => updateSearch(""), 1e3);
-        })(search);
-        if (newItem) {
-          setTimeout(() => newItem.focus());
-        }
-      };
-      useEffect(() => {
-        return () => window.clearTimeout(timerRef.current);
-      }, []);
-      useFocusGuards();
-      const isPointerMovingToSubmenu = useCallback((event) => {
-        const isMovingTowards = pointerDirRef.current === pointerGraceIntentRef.current?.side;
-        return isMovingTowards && isPointerInGraceArea(event, pointerGraceIntentRef.current?.area);
-      }, []);
-      return /* @__PURE__ */ jsx(
-        MenuContentProvider,
-        {
-          scope: __scopeMenu,
-          searchRef,
-          onItemEnter: useCallback(
-            (event) => {
-              if (isPointerMovingToSubmenu(event)) event.preventDefault();
-            },
-            [isPointerMovingToSubmenu]
-          ),
-          onItemLeave: useCallback(
-            (event) => {
-              if (isPointerMovingToSubmenu(event)) return;
-              contentRef.current?.focus();
-              setCurrentItemId(null);
-            },
-            [isPointerMovingToSubmenu]
-          ),
-          onTriggerLeave: useCallback(
-            (event) => {
-              if (isPointerMovingToSubmenu(event)) event.preventDefault();
-            },
-            [isPointerMovingToSubmenu]
-          ),
-          pointerGraceTimerRef,
-          onPointerGraceIntentChange: useCallback((intent) => {
-            pointerGraceIntentRef.current = intent;
-          }, []),
-          children: /* @__PURE__ */ jsx(ScrollLockWrapper, { ...scrollLockWrapperProps, children: /* @__PURE__ */ jsx(
-            FocusScope,
-            {
-              asChild: true,
-              trapped: trapFocus,
-              onMountAutoFocus: composeEventHandlers(onOpenAutoFocus, (event) => {
-                event.preventDefault();
-                contentRef.current?.focus({ preventScroll: true });
-              }),
-              onUnmountAutoFocus: onCloseAutoFocus,
-              children: /* @__PURE__ */ jsx(
-                DismissableLayer,
-                {
-                  asChild: true,
-                  disableOutsidePointerEvents,
-                  onEscapeKeyDown,
-                  onPointerDownOutside,
-                  onFocusOutside,
-                  onInteractOutside,
-                  onDismiss,
-                  children: /* @__PURE__ */ jsx(
-                    Root3,
-                    {
-                      asChild: true,
-                      ...rovingFocusGroupScope,
-                      dir: rootContext.dir,
-                      orientation: "vertical",
-                      loop,
-                      currentTabStopId: currentItemId,
-                      onCurrentTabStopIdChange: setCurrentItemId,
-                      onEntryFocus: composeEventHandlers(onEntryFocus, (event) => {
-                        if (!rootContext.isUsingKeyboardRef.current) event.preventDefault();
-                      }),
-                      preventScrollOnEntryFocus: true,
-                      children: /* @__PURE__ */ jsx(
-                        Content2,
-                        {
-                          role: "menu",
-                          "aria-orientation": "vertical",
-                          "data-state": getOpenState(context.open),
-                          "data-radix-menu-content": "",
-                          dir: rootContext.dir,
-                          ...popperScope,
-                          ...contentProps,
-                          ref: composedRefs,
-                          style: { outline: "none", ...contentProps.style },
-                          onKeyDown: composeEventHandlers(contentProps.onKeyDown, (event) => {
-                            const target = event.target;
-                            const isKeyDownInside = target.closest("[data-radix-menu-content]") === event.currentTarget;
-                            const isModifierKey = event.ctrlKey || event.altKey || event.metaKey;
-                            const isCharacterKey = event.key.length === 1;
-                            if (isKeyDownInside) {
-                              if (event.key === "Tab") event.preventDefault();
-                              if (!isModifierKey && isCharacterKey) handleTypeaheadSearch(event.key);
-                            }
-                            const content = contentRef.current;
-                            if (event.target !== content) return;
-                            if (!FIRST_LAST_KEYS.includes(event.key)) return;
-                            event.preventDefault();
-                            const items = getItems().filter((item) => !item.disabled);
-                            const candidateNodes = items.map((item) => item.ref.current);
-                            if (LAST_KEYS.includes(event.key)) candidateNodes.reverse();
-                            focusFirst3(candidateNodes);
-                          }),
-                          onBlur: composeEventHandlers(props.onBlur, (event) => {
-                            if (!event.currentTarget.contains(event.target)) {
-                              window.clearTimeout(timerRef.current);
-                              searchRef.current = "";
-                            }
-                          }),
-                          onPointerMove: composeEventHandlers(
-                            props.onPointerMove,
-                            whenMouse((event) => {
-                              const target = event.target;
-                              const pointerXHasChanged = lastPointerXRef.current !== event.clientX;
-                              if (event.currentTarget.contains(target) && pointerXHasChanged) {
-                                const newDir = event.clientX > lastPointerXRef.current ? "right" : "left";
-                                pointerDirRef.current = newDir;
-                                lastPointerXRef.current = event.clientX;
-                              }
-                            })
-                          )
-                        }
-                      )
-                    }
-                  )
-                }
-              )
-            }
-          ) })
-        }
-      );
-    }
-  );
-  MenuContent.displayName = CONTENT_NAME3;
-  var GROUP_NAME2 = "MenuGroup";
-  var MenuGroup = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, ...groupProps } = props;
-      return /* @__PURE__ */ jsx(Primitive.div, { role: "group", ...groupProps, ref: forwardedRef });
-    }
-  );
-  MenuGroup.displayName = GROUP_NAME2;
-  var LABEL_NAME = "MenuLabel";
-  var MenuLabel = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, ...labelProps } = props;
-      return /* @__PURE__ */ jsx(Primitive.div, { ...labelProps, ref: forwardedRef });
-    }
-  );
-  MenuLabel.displayName = LABEL_NAME;
-  var ITEM_NAME2 = "MenuItem";
-  var ITEM_SELECT = "menu.itemSelect";
-  var MenuItem = forwardRef(
-    (props, forwardedRef) => {
-      const { disabled = false, onSelect, ...itemProps } = props;
-      const ref = useRef(null);
-      const rootContext = useMenuRootContext(ITEM_NAME2, props.__scopeMenu);
-      const contentContext = useMenuContentContext(ITEM_NAME2, props.__scopeMenu);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      const isPointerDownRef = useRef(false);
-      const handleSelect = () => {
-        const menuItem = ref.current;
-        if (!disabled && menuItem) {
-          const itemSelectEvent = new CustomEvent(ITEM_SELECT, { bubbles: true, cancelable: true });
-          menuItem.addEventListener(ITEM_SELECT, (event) => onSelect?.(event), { once: true });
-          dispatchDiscreteCustomEvent(menuItem, itemSelectEvent);
-          if (itemSelectEvent.defaultPrevented) {
-            isPointerDownRef.current = false;
-          } else {
-            rootContext.onClose();
-          }
-        }
-      };
-      return /* @__PURE__ */ jsx(
-        MenuItemImpl,
-        {
-          ...itemProps,
-          ref: composedRefs,
-          disabled,
-          onClick: composeEventHandlers(props.onClick, handleSelect),
-          onPointerDown: (event) => {
-            props.onPointerDown?.(event);
-            isPointerDownRef.current = true;
-          },
-          onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
-            if (!isPointerDownRef.current) event.currentTarget?.click();
-          }),
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            const isTypingAhead = contentContext.searchRef.current !== "";
-            if (disabled || isTypingAhead && event.key === " ") return;
-            if (SELECTION_KEYS.includes(event.key)) {
-              event.currentTarget.click();
-              event.preventDefault();
-            }
-          })
-        }
-      );
-    }
-  );
-  MenuItem.displayName = ITEM_NAME2;
-  var MenuItemImpl = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, disabled = false, textValue, ...itemProps } = props;
-      const contentContext = useMenuContentContext(ITEM_NAME2, __scopeMenu);
-      const rovingFocusGroupScope = useRovingFocusGroupScope(__scopeMenu);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      const [isFocused, setIsFocused] = useState(false);
-      const [textContent, setTextContent] = useState("");
-      useEffect(() => {
-        const menuItem = ref.current;
-        if (menuItem) {
-          setTextContent((menuItem.textContent ?? "").trim());
-        }
-      }, [itemProps.children]);
-      return /* @__PURE__ */ jsx(
-        Collection2.ItemSlot,
-        {
-          scope: __scopeMenu,
-          disabled,
-          textValue: textValue ?? textContent,
-          children: /* @__PURE__ */ jsx(Item, { asChild: true, ...rovingFocusGroupScope, focusable: !disabled, children: /* @__PURE__ */ jsx(
-            Primitive.div,
-            {
-              role: "menuitem",
-              "data-highlighted": isFocused ? "" : void 0,
-              "aria-disabled": disabled || void 0,
-              "data-disabled": disabled ? "" : void 0,
-              ...itemProps,
-              ref: composedRefs,
-              onPointerMove: composeEventHandlers(
-                props.onPointerMove,
-                whenMouse((event) => {
-                  if (disabled) {
-                    contentContext.onItemLeave(event);
-                  } else {
-                    contentContext.onItemEnter(event);
-                    if (!event.defaultPrevented) {
-                      const item = event.currentTarget;
-                      item.focus({ preventScroll: true });
-                    }
-                  }
-                })
-              ),
-              onPointerLeave: composeEventHandlers(
-                props.onPointerLeave,
-                whenMouse((event) => contentContext.onItemLeave(event))
-              ),
-              onFocus: composeEventHandlers(props.onFocus, () => setIsFocused(true)),
-              onBlur: composeEventHandlers(props.onBlur, () => setIsFocused(false))
-            }
-          ) })
-        }
-      );
-    }
-  );
-  var CHECKBOX_ITEM_NAME = "MenuCheckboxItem";
-  var MenuCheckboxItem = forwardRef(
-    (props, forwardedRef) => {
-      const { checked = false, onCheckedChange, ...checkboxItemProps } = props;
-      return /* @__PURE__ */ jsx(ItemIndicatorProvider, { scope: props.__scopeMenu, checked, children: /* @__PURE__ */ jsx(
-        MenuItem,
-        {
-          role: "menuitemcheckbox",
-          "aria-checked": isIndeterminate2(checked) ? "mixed" : checked,
-          ...checkboxItemProps,
-          ref: forwardedRef,
-          "data-state": getCheckedState(checked),
-          onSelect: composeEventHandlers(
-            checkboxItemProps.onSelect,
-            () => onCheckedChange?.(isIndeterminate2(checked) ? true : !checked),
-            { checkForDefaultPrevented: false }
-          )
-        }
-      ) });
-    }
-  );
-  MenuCheckboxItem.displayName = CHECKBOX_ITEM_NAME;
-  var RADIO_GROUP_NAME = "MenuRadioGroup";
-  var [RadioGroupProvider, useRadioGroupContext] = createMenuContext(
-    RADIO_GROUP_NAME,
-    { value: void 0, onValueChange: () => {
-    } }
-  );
-  var MenuRadioGroup = forwardRef(
-    (props, forwardedRef) => {
-      const { value, onValueChange, ...groupProps } = props;
-      const handleValueChange = useCallbackRef(onValueChange);
-      return /* @__PURE__ */ jsx(RadioGroupProvider, { scope: props.__scopeMenu, value, onValueChange: handleValueChange, children: /* @__PURE__ */ jsx(MenuGroup, { ...groupProps, ref: forwardedRef }) });
-    }
-  );
-  MenuRadioGroup.displayName = RADIO_GROUP_NAME;
-  var RADIO_ITEM_NAME = "MenuRadioItem";
-  var MenuRadioItem = forwardRef(
-    (props, forwardedRef) => {
-      const { value, ...radioItemProps } = props;
-      const context = useRadioGroupContext(RADIO_ITEM_NAME, props.__scopeMenu);
-      const checked = value === context.value;
-      return /* @__PURE__ */ jsx(ItemIndicatorProvider, { scope: props.__scopeMenu, checked, children: /* @__PURE__ */ jsx(
-        MenuItem,
-        {
-          role: "menuitemradio",
-          "aria-checked": checked,
-          ...radioItemProps,
-          ref: forwardedRef,
-          "data-state": getCheckedState(checked),
-          onSelect: composeEventHandlers(
-            radioItemProps.onSelect,
-            () => context.onValueChange?.(value),
-            { checkForDefaultPrevented: false }
-          )
-        }
-      ) });
-    }
-  );
-  MenuRadioItem.displayName = RADIO_ITEM_NAME;
-  var ITEM_INDICATOR_NAME = "MenuItemIndicator";
-  var [ItemIndicatorProvider, useItemIndicatorContext] = createMenuContext(
-    ITEM_INDICATOR_NAME,
-    { checked: false }
-  );
-  var MenuItemIndicator = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, forceMount, ...itemIndicatorProps } = props;
-      const indicatorContext = useItemIndicatorContext(ITEM_INDICATOR_NAME, __scopeMenu);
-      return /* @__PURE__ */ jsx(
-        Presence,
-        {
-          present: forceMount || isIndeterminate2(indicatorContext.checked) || indicatorContext.checked === true,
-          children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              ...itemIndicatorProps,
-              ref: forwardedRef,
-              "data-state": getCheckedState(indicatorContext.checked)
-            }
-          )
-        }
-      );
-    }
-  );
-  MenuItemIndicator.displayName = ITEM_INDICATOR_NAME;
-  var SEPARATOR_NAME = "MenuSeparator";
-  var MenuSeparator = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, ...separatorProps } = props;
-      return /* @__PURE__ */ jsx(
-        Primitive.div,
-        {
-          role: "separator",
-          "aria-orientation": "horizontal",
-          ...separatorProps,
-          ref: forwardedRef
-        }
-      );
-    }
-  );
-  MenuSeparator.displayName = SEPARATOR_NAME;
-  var ARROW_NAME2 = "MenuArrow";
-  var MenuArrow = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeMenu, ...arrowProps } = props;
-      const popperScope = usePopperScope(__scopeMenu);
-      return /* @__PURE__ */ jsx(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
-    }
-  );
-  MenuArrow.displayName = ARROW_NAME2;
-  var SUB_NAME = "MenuSub";
-  var [MenuSubProvider, useMenuSubContext] = createMenuContext(SUB_NAME);
-  var MenuSub = (props) => {
-    const { __scopeMenu, children, open = false, onOpenChange } = props;
-    const parentMenuContext = useMenuContext(SUB_NAME, __scopeMenu);
-    const popperScope = usePopperScope(__scopeMenu);
-    const [trigger, setTrigger] = useState(null);
-    const [content, setContent] = useState(null);
-    const handleOpenChange = useCallbackRef(onOpenChange);
-    useEffect(() => {
-      if (parentMenuContext.open === false) handleOpenChange(false);
-      return () => handleOpenChange(false);
-    }, [parentMenuContext.open, handleOpenChange]);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
-      MenuProvider,
-      {
-        scope: __scopeMenu,
-        open,
-        onOpenChange: handleOpenChange,
-        content,
-        onContentChange: setContent,
-        children: /* @__PURE__ */ jsx(
-          MenuSubProvider,
-          {
-            scope: __scopeMenu,
-            contentId: useId2(),
-            triggerId: useId2(),
-            trigger,
-            onTriggerChange: setTrigger,
-            children
-          }
-        )
-      }
-    ) });
-  };
-  MenuSub.displayName = SUB_NAME;
-  var SUB_TRIGGER_NAME = "MenuSubTrigger";
-  var MenuSubTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const context = useMenuContext(SUB_TRIGGER_NAME, props.__scopeMenu);
-      const rootContext = useMenuRootContext(SUB_TRIGGER_NAME, props.__scopeMenu);
-      const subContext = useMenuSubContext(SUB_TRIGGER_NAME, props.__scopeMenu);
-      const contentContext = useMenuContentContext(SUB_TRIGGER_NAME, props.__scopeMenu);
-      const openTimerRef = useRef(null);
-      const { pointerGraceTimerRef, onPointerGraceIntentChange } = contentContext;
-      const scope = { __scopeMenu: props.__scopeMenu };
-      const clearOpenTimer = useCallback(() => {
-        if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
-        openTimerRef.current = null;
-      }, []);
-      useEffect(() => clearOpenTimer, [clearOpenTimer]);
-      useEffect(() => {
-        const pointerGraceTimer = pointerGraceTimerRef.current;
-        return () => {
-          window.clearTimeout(pointerGraceTimer);
-          onPointerGraceIntentChange(null);
-        };
-      }, [pointerGraceTimerRef, onPointerGraceIntentChange]);
-      return /* @__PURE__ */ jsx(MenuAnchor, { asChild: true, ...scope, children: /* @__PURE__ */ jsx(
-        MenuItemImpl,
-        {
-          id: subContext.triggerId,
-          "aria-haspopup": "menu",
-          "aria-expanded": context.open,
-          "aria-controls": context.open ? subContext.contentId : void 0,
-          "data-state": getOpenState(context.open),
-          ...props,
-          ref: composeRefs(forwardedRef, subContext.onTriggerChange),
-          onClick: (event) => {
-            props.onClick?.(event);
-            if (props.disabled || event.defaultPrevented) return;
-            event.currentTarget.focus();
-            if (!context.open) context.onOpenChange(true);
-          },
-          onPointerMove: composeEventHandlers(
-            props.onPointerMove,
-            whenMouse((event) => {
-              contentContext.onItemEnter(event);
-              if (event.defaultPrevented) return;
-              if (!props.disabled && !context.open && !openTimerRef.current) {
-                contentContext.onPointerGraceIntentChange(null);
-                openTimerRef.current = window.setTimeout(() => {
-                  context.onOpenChange(true);
-                  clearOpenTimer();
-                }, 100);
-              }
-            })
-          ),
-          onPointerLeave: composeEventHandlers(
-            props.onPointerLeave,
-            whenMouse((event) => {
-              clearOpenTimer();
-              const contentRect = context.content?.getBoundingClientRect();
-              if (contentRect) {
-                const side = context.content?.dataset.side;
-                const rightSide = side === "right";
-                const bleed = rightSide ? -5 : 5;
-                const contentNearEdge = contentRect[rightSide ? "left" : "right"];
-                const contentFarEdge = contentRect[rightSide ? "right" : "left"];
-                contentContext.onPointerGraceIntentChange({
-                  area: [
-                    // Apply a bleed on clientX to ensure that our exit point is
-                    // consistently within polygon bounds
-                    { x: event.clientX + bleed, y: event.clientY },
-                    { x: contentNearEdge, y: contentRect.top },
-                    { x: contentFarEdge, y: contentRect.top },
-                    { x: contentFarEdge, y: contentRect.bottom },
-                    { x: contentNearEdge, y: contentRect.bottom }
-                  ],
-                  side
-                });
-                window.clearTimeout(pointerGraceTimerRef.current);
-                pointerGraceTimerRef.current = window.setTimeout(
-                  () => contentContext.onPointerGraceIntentChange(null),
-                  300
-                );
-              } else {
-                contentContext.onTriggerLeave(event);
-                if (event.defaultPrevented) return;
-                contentContext.onPointerGraceIntentChange(null);
-              }
-            })
-          ),
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            const isTypingAhead = contentContext.searchRef.current !== "";
-            if (props.disabled || isTypingAhead && event.key === " ") return;
-            if (SUB_OPEN_KEYS[rootContext.dir].includes(event.key)) {
-              context.onOpenChange(true);
-              context.content?.focus();
-              event.preventDefault();
-            }
-          })
-        }
-      ) });
-    }
-  );
-  MenuSubTrigger.displayName = SUB_TRIGGER_NAME;
-  var SUB_CONTENT_NAME = "MenuSubContent";
-  var MenuSubContent = forwardRef(
-    (props, forwardedRef) => {
-      const portalContext = usePortalContext2(CONTENT_NAME3, props.__scopeMenu);
-      const { forceMount = portalContext.forceMount, align = "start", ...subContentProps } = props;
-      const context = useMenuContext(CONTENT_NAME3, props.__scopeMenu);
-      const rootContext = useMenuRootContext(CONTENT_NAME3, props.__scopeMenu);
-      const subContext = useMenuSubContext(SUB_CONTENT_NAME, props.__scopeMenu);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      return /* @__PURE__ */ jsx(Collection2.Provider, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Collection2.Slot, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx(
-        MenuContentImpl,
-        {
-          id: subContext.contentId,
-          "aria-labelledby": subContext.triggerId,
-          ...subContentProps,
-          ref: composedRefs,
-          align,
-          side: rootContext.dir === "rtl" ? "left" : "right",
-          disableOutsidePointerEvents: false,
-          disableOutsideScroll: false,
-          trapFocus: false,
-          onOpenAutoFocus: (event) => {
-            if (rootContext.isUsingKeyboardRef.current) ref.current?.focus();
-            event.preventDefault();
-          },
-          onCloseAutoFocus: (event) => event.preventDefault(),
-          onFocusOutside: composeEventHandlers(props.onFocusOutside, (event) => {
-            if (event.target !== subContext.trigger) context.onOpenChange(false);
-          }),
-          onEscapeKeyDown: composeEventHandlers(props.onEscapeKeyDown, (event) => {
-            rootContext.onClose();
-            event.preventDefault();
-          }),
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            const isKeyDownInside = event.currentTarget.contains(event.target);
-            const isCloseKey = SUB_CLOSE_KEYS[rootContext.dir].includes(event.key);
-            if (isKeyDownInside && isCloseKey) {
-              context.onOpenChange(false);
-              subContext.trigger?.focus();
-              event.preventDefault();
-            }
-          })
-        }
-      ) }) }) });
-    }
-  );
-  MenuSubContent.displayName = SUB_CONTENT_NAME;
-  function getOpenState(open) {
-    return open ? "open" : "closed";
-  }
-  function isIndeterminate2(checked) {
-    return checked === "indeterminate";
-  }
-  function getCheckedState(checked) {
-    return isIndeterminate2(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
-  }
-  function focusFirst3(candidates) {
-    const PREVIOUSLY_FOCUSED_ELEMENT = document.activeElement;
-    for (const candidate of candidates) {
-      if (candidate === PREVIOUSLY_FOCUSED_ELEMENT) return;
-      candidate.focus();
-      if (document.activeElement !== PREVIOUSLY_FOCUSED_ELEMENT) return;
-    }
-  }
-  function wrapArray2(array, startIndex) {
-    return array.map((_, index2) => array[(startIndex + index2) % array.length]);
-  }
-  function getNextMatch(values, search, currentMatch) {
-    const isRepeated = search.length > 1 && Array.from(search).every((char) => char === search[0]);
-    const normalizedSearch = isRepeated ? search[0] : search;
-    const currentMatchIndex = currentMatch ? values.indexOf(currentMatch) : -1;
-    let wrappedValues = wrapArray2(values, Math.max(currentMatchIndex, 0));
-    const excludeCurrentMatch = normalizedSearch.length === 1;
-    if (excludeCurrentMatch) wrappedValues = wrappedValues.filter((v) => v !== currentMatch);
-    const nextMatch = wrappedValues.find(
-      (value) => value.toLowerCase().startsWith(normalizedSearch.toLowerCase())
-    );
-    return nextMatch !== currentMatch ? nextMatch : void 0;
-  }
-  function isPointInPolygon(point, polygon) {
-    const { x, y } = point;
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const ii = polygon[i];
-      const jj = polygon[j];
-      const xi = ii.x;
-      const yi = ii.y;
-      const xj = jj.x;
-      const yj = jj.y;
-      const intersect = yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
-  function isPointerInGraceArea(event, area) {
-    if (!area) return false;
-    const cursorPos = { x: event.clientX, y: event.clientY };
-    return isPointInPolygon(cursorPos, area);
-  }
-  function whenMouse(handler) {
-    return (event) => event.pointerType === "mouse" ? handler(event) : void 0;
-  }
-  var Root32 = Menu;
-  var Anchor2 = MenuAnchor;
-  var Portal3 = MenuPortal;
-  var Content22 = MenuContent;
-  var Group = MenuGroup;
-  var Label = MenuLabel;
-  var Item2 = MenuItem;
-  var CheckboxItem = MenuCheckboxItem;
-  var RadioGroup = MenuRadioGroup;
-  var RadioItem = MenuRadioItem;
-  var ItemIndicator = MenuItemIndicator;
-  var Separator = MenuSeparator;
-  var Arrow22 = MenuArrow;
-  var SubTrigger = MenuSubTrigger;
-  var SubContent = MenuSubContent;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@typ_9dd0889a66ea847559fd572aaa20379b/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
-  var DROPDOWN_MENU_NAME = "DropdownMenu";
-  var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
-    DROPDOWN_MENU_NAME,
-    [createMenuScope]
-  );
-  var useMenuScope = createMenuScope();
-  var [DropdownMenuProvider, useDropdownMenuContext] = createDropdownMenuContext(DROPDOWN_MENU_NAME);
-  var DropdownMenu = (props) => {
-    const {
-      __scopeDropdownMenu,
-      children,
-      dir,
-      open: openProp,
-      defaultOpen,
-      onOpenChange,
-      modal = true
-    } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    const triggerRef = useRef(null);
-    const [open, setOpen] = useControllableState({
-      prop: openProp,
-      defaultProp: defaultOpen ?? false,
-      onChange: onOpenChange,
-      caller: DROPDOWN_MENU_NAME
-    });
-    return /* @__PURE__ */ jsx(
-      DropdownMenuProvider,
-      {
-        scope: __scopeDropdownMenu,
-        triggerId: useId2(),
-        triggerRef,
-        contentId: useId2(),
-        open,
-        onOpenChange: setOpen,
-        onOpenToggle: useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
-        modal,
-        children: /* @__PURE__ */ jsx(Root32, { ...menuScope, open, onOpenChange: setOpen, dir, modal, children })
-      }
-    );
-  };
-  DropdownMenu.displayName = DROPDOWN_MENU_NAME;
-  var TRIGGER_NAME3 = "DropdownMenuTrigger";
-  var DropdownMenuTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, disabled = false, ...triggerProps } = props;
-      const context = useDropdownMenuContext(TRIGGER_NAME3, __scopeDropdownMenu);
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ jsx(Anchor2, { asChild: true, ...menuScope, children: /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          type: "button",
-          id: context.triggerId,
-          "aria-haspopup": "menu",
-          "aria-expanded": context.open,
-          "aria-controls": context.open ? context.contentId : void 0,
-          "data-state": context.open ? "open" : "closed",
-          "data-disabled": disabled ? "" : void 0,
-          disabled,
-          ...triggerProps,
-          ref: composeRefs(forwardedRef, context.triggerRef),
-          onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
-            if (!disabled && event.button === 0 && event.ctrlKey === false) {
-              context.onOpenToggle();
-              if (!context.open) event.preventDefault();
-            }
-          }),
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            if (disabled) return;
-            if (["Enter", " "].includes(event.key)) context.onOpenToggle();
-            if (event.key === "ArrowDown") context.onOpenChange(true);
-            if (["Enter", " ", "ArrowDown"].includes(event.key)) event.preventDefault();
-          })
-        }
-      ) });
-    }
-  );
-  DropdownMenuTrigger.displayName = TRIGGER_NAME3;
-  var PORTAL_NAME4 = "DropdownMenuPortal";
-  var DropdownMenuPortal = (props) => {
-    const { __scopeDropdownMenu, ...portalProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(Portal3, { ...menuScope, ...portalProps });
-  };
-  DropdownMenuPortal.displayName = PORTAL_NAME4;
-  var CONTENT_NAME4 = "DropdownMenuContent";
-  var DropdownMenuContent = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, ...contentProps } = props;
-      const context = useDropdownMenuContext(CONTENT_NAME4, __scopeDropdownMenu);
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      const hasInteractedOutsideRef = useRef(false);
-      return /* @__PURE__ */ jsx(
-        Content22,
-        {
-          id: context.contentId,
-          "aria-labelledby": context.triggerId,
-          ...menuScope,
-          ...contentProps,
-          ref: forwardedRef,
-          onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
-            if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
-            hasInteractedOutsideRef.current = false;
-            event.preventDefault();
-          }),
-          onInteractOutside: composeEventHandlers(props.onInteractOutside, (event) => {
-            const originalEvent = event.detail.originalEvent;
-            const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
-            const isRightClick = originalEvent.button === 2 || ctrlLeftClick;
-            if (!context.modal || isRightClick) hasInteractedOutsideRef.current = true;
-          }),
-          style: {
-            ...props.style,
-            // re-namespace exposed content custom properties
-            ...{
-              "--radix-dropdown-menu-content-transform-origin": "var(--radix-popper-transform-origin)",
-              "--radix-dropdown-menu-content-available-width": "var(--radix-popper-available-width)",
-              "--radix-dropdown-menu-content-available-height": "var(--radix-popper-available-height)",
-              "--radix-dropdown-menu-trigger-width": "var(--radix-popper-anchor-width)",
-              "--radix-dropdown-menu-trigger-height": "var(--radix-popper-anchor-height)"
-            }
-          }
-        }
-      );
-    }
-  );
-  DropdownMenuContent.displayName = CONTENT_NAME4;
-  var GROUP_NAME3 = "DropdownMenuGroup";
-  var DropdownMenuGroup = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, ...groupProps } = props;
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ jsx(Group, { ...menuScope, ...groupProps, ref: forwardedRef });
-    }
-  );
-  DropdownMenuGroup.displayName = GROUP_NAME3;
-  var LABEL_NAME2 = "DropdownMenuLabel";
-  var DropdownMenuLabel = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, ...labelProps } = props;
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ jsx(Label, { ...menuScope, ...labelProps, ref: forwardedRef });
-    }
-  );
-  DropdownMenuLabel.displayName = LABEL_NAME2;
-  var ITEM_NAME3 = "DropdownMenuItem";
-  var DropdownMenuItem = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, ...itemProps } = props;
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ jsx(Item2, { ...menuScope, ...itemProps, ref: forwardedRef });
-    }
-  );
-  DropdownMenuItem.displayName = ITEM_NAME3;
-  var CHECKBOX_ITEM_NAME2 = "DropdownMenuCheckboxItem";
-  var DropdownMenuCheckboxItem = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...checkboxItemProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(CheckboxItem, { ...menuScope, ...checkboxItemProps, ref: forwardedRef });
-  });
-  DropdownMenuCheckboxItem.displayName = CHECKBOX_ITEM_NAME2;
-  var RADIO_GROUP_NAME2 = "DropdownMenuRadioGroup";
-  var DropdownMenuRadioGroup = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...radioGroupProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(RadioGroup, { ...menuScope, ...radioGroupProps, ref: forwardedRef });
-  });
-  DropdownMenuRadioGroup.displayName = RADIO_GROUP_NAME2;
-  var RADIO_ITEM_NAME2 = "DropdownMenuRadioItem";
-  var DropdownMenuRadioItem = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...radioItemProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(RadioItem, { ...menuScope, ...radioItemProps, ref: forwardedRef });
-  });
-  DropdownMenuRadioItem.displayName = RADIO_ITEM_NAME2;
-  var INDICATOR_NAME2 = "DropdownMenuItemIndicator";
-  var DropdownMenuItemIndicator = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...itemIndicatorProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(ItemIndicator, { ...menuScope, ...itemIndicatorProps, ref: forwardedRef });
-  });
-  DropdownMenuItemIndicator.displayName = INDICATOR_NAME2;
-  var SEPARATOR_NAME2 = "DropdownMenuSeparator";
-  var DropdownMenuSeparator = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...separatorProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(Separator, { ...menuScope, ...separatorProps, ref: forwardedRef });
-  });
-  DropdownMenuSeparator.displayName = SEPARATOR_NAME2;
-  var ARROW_NAME3 = "DropdownMenuArrow";
-  var DropdownMenuArrow = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeDropdownMenu, ...arrowProps } = props;
-      const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ jsx(Arrow22, { ...menuScope, ...arrowProps, ref: forwardedRef });
-    }
-  );
-  DropdownMenuArrow.displayName = ARROW_NAME3;
-  var SUB_TRIGGER_NAME2 = "DropdownMenuSubTrigger";
-  var DropdownMenuSubTrigger = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...subTriggerProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(SubTrigger, { ...menuScope, ...subTriggerProps, ref: forwardedRef });
-  });
-  DropdownMenuSubTrigger.displayName = SUB_TRIGGER_NAME2;
-  var SUB_CONTENT_NAME2 = "DropdownMenuSubContent";
-  var DropdownMenuSubContent = forwardRef((props, forwardedRef) => {
-    const { __scopeDropdownMenu, ...subContentProps } = props;
-    const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(
-      SubContent,
-      {
-        ...menuScope,
-        ...subContentProps,
-        ref: forwardedRef,
-        style: {
-          ...props.style,
-          // re-namespace exposed content custom properties
-          ...{
-            "--radix-dropdown-menu-content-transform-origin": "var(--radix-popper-transform-origin)",
-            "--radix-dropdown-menu-content-available-width": "var(--radix-popper-available-width)",
-            "--radix-dropdown-menu-content-available-height": "var(--radix-popper-available-height)",
-            "--radix-dropdown-menu-trigger-width": "var(--radix-popper-anchor-width)",
-            "--radix-dropdown-menu-trigger-height": "var(--radix-popper-anchor-height)"
-          }
-        }
-      }
-    );
-  });
-  DropdownMenuSubContent.displayName = SUB_CONTENT_NAME2;
-  var Portal22 = DropdownMenuPortal;
-  var Content23 = DropdownMenuContent;
-  var Label2 = DropdownMenuLabel;
-  var Item22 = DropdownMenuItem;
-  var CheckboxItem2 = DropdownMenuCheckboxItem;
-  var RadioItem2 = DropdownMenuRadioItem;
-  var ItemIndicator2 = DropdownMenuItemIndicator;
-  var Separator2 = DropdownMenuSeparator;
-  var SubTrigger2 = DropdownMenuSubTrigger;
-  var SubContent2 = DropdownMenuSubContent;
-
-  // ../../../packages/shadcn-ui/src/components/dropdown-menu.tsx
-  var DropdownMenuSubTrigger2 = forwardRef(
-    ({ className, inset, children, ...props }, ref) => createElement(
-      SubTrigger2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-sub-trigger", inset && "xps-dropdown-menu-item--inset", className),
-        ...props
-      },
-      children,
-      createElement(ChevronRight, { className: "xps-icon" })
-    )
-  );
-  DropdownMenuSubTrigger2.displayName = SubTrigger2.displayName;
-  var DropdownMenuSubContent2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SubContent2, {
-      ref,
-      className: cn("xps-dropdown-menu-content", className),
-      ...props
-    })
-  );
-  DropdownMenuSubContent2.displayName = SubContent2.displayName;
-  var DropdownMenuContent2 = forwardRef(
-    ({ className, sideOffset = 4, ...props }, ref) => createElement(
-      Portal22,
-      null,
-      createElement(Content23, {
-        ref,
-        sideOffset,
-        className: cn("xps-dropdown-menu-content", className),
-        ...props
-      })
-    )
-  );
-  DropdownMenuContent2.displayName = Content23.displayName;
-  var DropdownMenuItem2 = forwardRef(
-    ({ className, inset, ...props }, ref) => createElement(Item22, {
-      ref,
-      className: cn("xps-dropdown-menu-item", inset && "xps-dropdown-menu-item--inset", className),
-      ...props
-    })
-  );
-  DropdownMenuItem2.displayName = Item22.displayName;
-  var DropdownMenuCheckboxItem2 = forwardRef(
-    ({ className, children, checked, ...props }, ref) => createElement(
-      CheckboxItem2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-item xps-dropdown-menu-check-item", className),
-        checked,
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-dropdown-menu-item-indicator" },
-        createElement(
-          ItemIndicator2,
-          null,
-          createElement(Check, { className: "xps-icon" })
-        )
-      ),
-      children
-    )
-  );
-  DropdownMenuCheckboxItem2.displayName = CheckboxItem2.displayName;
-  var DropdownMenuRadioItem2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      RadioItem2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-item xps-dropdown-menu-check-item", className),
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-dropdown-menu-item-indicator" },
-        createElement(
-          ItemIndicator2,
-          null,
-          createElement(Circle, { className: "xps-icon xps-icon--filled" })
-        )
-      ),
-      children
-    )
-  );
-  DropdownMenuRadioItem2.displayName = RadioItem2.displayName;
-  var DropdownMenuLabel2 = forwardRef(
-    ({ className, inset, ...props }, ref) => createElement(Label2, {
-      ref,
-      className: cn("xps-dropdown-menu-label", inset && "xps-dropdown-menu-item--inset", className),
-      ...props
-    })
-  );
-  DropdownMenuLabel2.displayName = Label2.displayName;
-  var DropdownMenuSeparator2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Separator2, {
-      ref,
-      className: cn("xps-dropdown-menu-separator", className),
-      ...props
-    })
-  );
-  DropdownMenuSeparator2.displayName = Separator2.displayName;
-  var DropdownMenuShortcut = forwardRef(
-    ({ className, ...props }, ref) => createElement("span", {
-      ref,
-      className: cn("xps-dropdown-menu-shortcut", className),
-      ...props
-    })
-  );
-  DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
-
-  // ../../../packages/shadcn-ui/src/components/input.tsx
-  var Input = forwardRef(({ className, type, ...props }, ref) => createElement("input", {
-    ref,
-    type,
-    className: cn("xps-input", className),
-    ...props
-  }));
-  Input.displayName = "Input";
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types_11143bec678d1605a26ae97f1f701c82/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.14_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  var dist_exports4 = {};
+  __export(dist_exports4, {
+    Corner: () => Corner,
+    Root: () => Root3,
+    ScrollArea: () => ScrollArea,
+    ScrollAreaCorner: () => ScrollAreaCorner,
+    ScrollAreaScrollbar: () => ScrollAreaScrollbar,
+    ScrollAreaThumb: () => ScrollAreaThumb,
+    ScrollAreaViewport: () => ScrollAreaViewport,
+    Scrollbar: () => Scrollbar,
+    Thumb: () => Thumb,
+    Viewport: () => Viewport,
+    createScrollAreaScope: () => createScrollAreaScope
+  });
   function useStateMachine2(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -10468,7 +8250,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const [cornerHeight, setCornerHeight] = useState(0);
       const [scrollbarXEnabled, setScrollbarXEnabled] = useState(false);
       const [scrollbarYEnabled, setScrollbarYEnabled] = useState(false);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setScrollArea(node));
+      const composedRefs = useComposedRefs(forwardedRef, setScrollArea);
       const direction = useDirection(dir);
       return /* @__PURE__ */ jsx(
         ScrollAreaProvider,
@@ -10520,15 +8302,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const ref = useRef(null);
       const composedRefs = useComposedRefs(forwardedRef, ref, context.onViewportChange);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          "style",
-          {
-            dangerouslySetInnerHTML: {
-              __html: `[data-radix-scroll-area-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-scroll-area-viewport]::-webkit-scrollbar{display:none}`
-            },
-            nonce
-          }
-        ),
+        /* @__PURE__ */ jsx(ScrollAreaViewportStyle, { nonce }),
         /* @__PURE__ */ jsx(
           Primitive.div,
           {
@@ -10558,6 +8332,20 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   ScrollAreaViewport.displayName = VIEWPORT_NAME;
+  var ScrollAreaViewportStyle = memo(
+    ({ nonce }) => {
+      return /* @__PURE__ */ jsx(
+        "style",
+        {
+          dangerouslySetInnerHTML: {
+            __html: `[data-radix-scroll-area-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-scroll-area-viewport]::-webkit-scrollbar{display:none}`
+          },
+          nonce
+        }
+      );
+    },
+    (prevProps, nextProps) => prevProps.nonce === nextProps.nonce
+  );
   var SCROLLBAR_NAME = "ScrollAreaScrollbar";
   var ScrollAreaScrollbar = forwardRef(
     (props, forwardedRef) => {
@@ -10878,7 +8666,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     } = props;
     const context = useScrollAreaContext(SCROLLBAR_NAME, __scopeScrollArea);
     const [scrollbar, setScrollbar] = useState(null);
-    const composeRefs2 = useComposedRefs(forwardedRef, (node) => setScrollbar(node));
+    const composeRefs2 = useComposedRefs(forwardedRef, setScrollbar);
     const rectRef = useRef(null);
     const prevWebkitUserSelectRef = useRef("");
     const viewport = context.viewport;
@@ -10962,10 +8750,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const scrollAreaContext = useScrollAreaContext(THUMB_NAME, __scopeScrollArea);
       const scrollbarContext = useScrollbarContext(THUMB_NAME, __scopeScrollArea);
       const { onThumbPositionChange } = scrollbarContext;
-      const composedRef = useComposedRefs(
-        forwardedRef,
-        (node) => scrollbarContext.onThumbChange(node)
-      );
+      const composedRef = useComposedRefs(forwardedRef, scrollbarContext.onThumbChange);
       const removeUnlinkedScrollListenerRef = useRef(void 0);
       const debounceScrollEnd = useDebounceCallback(() => {
         if (removeUnlinkedScrollListenerRef.current) {
@@ -11029,6 +8814,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const [width, setWidth] = useState(0);
     const [height, setHeight] = useState(0);
     const hasSize = Boolean(width && height);
+    const { onCornerWidthChange, onCornerHeightChange } = context;
     useResizeObserver(context.scrollbarX, () => {
       const height2 = context.scrollbarX?.offsetHeight || 0;
       context.onCornerHeightChange(height2);
@@ -11039,6 +8825,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       context.onCornerWidthChange(width2);
       setWidth(width2);
     });
+    useEffect(() => {
+      return () => {
+        onCornerWidthChange(0);
+        onCornerHeightChange(0);
+      };
+    }, [onCornerWidthChange, onCornerHeightChange]);
     return hasSize ? /* @__PURE__ */ jsx(
       Primitive.div,
       {
@@ -11142,85 +8934,62 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }
     }, [element, handleResize]);
   }
-  var Root4 = ScrollArea;
+  var Root3 = ScrollArea;
   var Viewport = ScrollAreaViewport;
+  var Scrollbar = ScrollAreaScrollbar;
+  var Thumb = ScrollAreaThumb;
   var Corner = ScrollAreaCorner;
 
-  // ../../../packages/shadcn-ui/src/components/scroll-area.tsx
-  var ScrollArea2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      Root4,
-      {
-        ref,
-        className: cn("xps-scroll-area", className),
-        ...props
-      },
-      createElement(
-        Viewport,
-        { className: "xps-scroll-area-viewport" },
-        children
-      ),
-      createElement(ScrollBar, null),
-      createElement(Corner, null)
-    )
-  );
-  ScrollArea2.displayName = Root4.displayName;
-  var ScrollBar = forwardRef(
-    ({ className, orientation = "vertical", ...props }, ref) => createElement(
-      ScrollAreaScrollbar,
-      {
-        ref,
-        orientation,
-        className: cn("xps-scroll-bar", orientation === "vertical" ? "xps-scroll-bar-vertical" : "xps-scroll-bar-horizontal", className),
-        ...props
-      },
-      createElement(ScrollAreaThumb, {
-        className: "xps-scroll-thumb"
-      })
-    )
-  );
-  ScrollBar.displayName = ScrollAreaScrollbar.displayName;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31__@ty_fbf0dd0d68bb58b2410fc7a153ed1d9c/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
-  var VISUALLY_HIDDEN_STYLES = Object.freeze({
-    // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
-    position: "absolute",
-    border: 0,
-    width: 1,
-    height: 1,
-    padding: 0,
-    margin: -1,
-    overflow: "hidden",
-    clip: "rect(0, 0, 0, 0)",
-    whiteSpace: "nowrap",
-    wordWrap: "normal"
+  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.3_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
+  var dist_exports5 = {};
+  __export(dist_exports5, {
+    Arrow: () => SelectArrow,
+    Content: () => SelectContent,
+    Group: () => SelectGroup,
+    Icon: () => SelectIcon,
+    Item: () => SelectItem,
+    ItemIndicator: () => SelectItemIndicator,
+    ItemText: () => SelectItemText,
+    Label: () => SelectLabel,
+    Portal: () => SelectPortal,
+    Root: () => Select,
+    ScrollDownButton: () => SelectScrollDownButton,
+    ScrollUpButton: () => SelectScrollUpButton,
+    Select: () => Select,
+    SelectArrow: () => SelectArrow,
+    SelectContent: () => SelectContent,
+    SelectGroup: () => SelectGroup,
+    SelectIcon: () => SelectIcon,
+    SelectItem: () => SelectItem,
+    SelectItemIndicator: () => SelectItemIndicator,
+    SelectItemText: () => SelectItemText,
+    SelectLabel: () => SelectLabel,
+    SelectPortal: () => SelectPortal,
+    SelectScrollDownButton: () => SelectScrollDownButton,
+    SelectScrollUpButton: () => SelectScrollUpButton,
+    SelectSeparator: () => SelectSeparator,
+    SelectTrigger: () => SelectTrigger,
+    SelectValue: () => SelectValue,
+    SelectViewport: () => SelectViewport,
+    Separator: () => SelectSeparator,
+    Trigger: () => SelectTrigger,
+    Value: () => SelectValue,
+    Viewport: () => SelectViewport,
+    createSelectScope: () => createSelectScope,
+    unstable_BubbleInput: () => SelectBubbleInput,
+    unstable_Provider: () => SelectProvider,
+    unstable_SelectBubbleInput: () => SelectBubbleInput,
+    unstable_SelectProvider: () => SelectProvider
   });
-  var NAME2 = "VisuallyHidden";
-  var VisuallyHidden = forwardRef(
-    (props, forwardedRef) => {
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          ...props,
-          ref: forwardedRef,
-          style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
-        }
-      );
-    }
-  );
-  VisuallyHidden.displayName = NAME2;
-  var Root5 = VisuallyHidden;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_b9232b5aa23e604443839e7a081b7527/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
-  var SELECTION_KEYS2 = [" ", "Enter"];
+  var SELECTION_KEYS = [" ", "Enter"];
   var SELECT_NAME = "Select";
-  var [Collection3, useCollection3, createCollectionScope3] = createCollection(SELECT_NAME);
+  var [Collection, useCollection, createCollectionScope] = createCollection(SELECT_NAME);
   var [createSelectContext, createSelectScope] = createContextScope(SELECT_NAME, [
-    createCollectionScope3,
+    createCollectionScope,
     createPopperScope
   ]);
-  var usePopperScope2 = createPopperScope();
+  var usePopperScope = createPopperScope();
   var [SelectProviderImpl, useSelectContext] = createSelectContext(SELECT_NAME);
   var [SelectNativeOptionsProvider, useSelectNativeOptionsContext] = createSelectContext(SELECT_NAME);
   var PROVIDER_NAME = "SelectProvider";
@@ -11243,7 +9012,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       // @ts-expect-error internal render prop used by `Select` to compose its default parts
       internal_do_not_use_render
     } = props;
-    const popperScope = usePopperScope2(__scopeSelect);
+    const popperScope = usePopperScope(__scopeSelect);
     const [trigger, setTrigger] = useState(null);
     const [valueNode, setValueNode] = useState(null);
     const [valueNodeHasChildren, setValueNodeHasChildren] = useState(false);
@@ -11261,6 +9030,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       caller: SELECT_NAME
     });
     const triggerPointerDownPosRef = useRef(null);
+    const initialValueRef = useRef(value);
+    useEffect(() => {
+      const associatedForm = form ? trigger?.ownerDocument.getElementById(form) : trigger?.form;
+      if (associatedForm instanceof HTMLFormElement) {
+        const reset = () => setValue(initialValueRef.current);
+        associatedForm.addEventListener("reset", reset);
+        return () => associatedForm.removeEventListener("reset", reset);
+      }
+    }, [form, trigger, setValue]);
     const isFormControl = trigger ? !!form || !!trigger.closest("form") : true;
     const [nativeOptionsSet, setNativeOptionsSet] = useState(/* @__PURE__ */ new Set());
     const contentId = useId2();
@@ -11298,13 +9076,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       nativeSelectKey,
       isFormControl
     };
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection3.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
       SelectNativeOptionsProvider,
       {
         scope: __scopeSelect,
         onNativeOptionAdd: handleNativeOptionAdd,
         onNativeOptionRemove: handleNativeOptionRemove,
-        children: isFunction3(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
+        children: isFunction2(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
       }
     ) }) }) });
   }
@@ -11329,15 +9107,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     );
   };
   Select.displayName = SELECT_NAME;
-  var TRIGGER_NAME4 = "SelectTrigger";
+  var TRIGGER_NAME2 = "SelectTrigger";
   var SelectTrigger = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, disabled = false, ...triggerProps } = props;
-      const popperScope = usePopperScope2(__scopeSelect);
-      const context = useSelectContext(TRIGGER_NAME4, __scopeSelect);
+      const popperScope = usePopperScope(__scopeSelect);
+      const context = useSelectContext(TRIGGER_NAME2, __scopeSelect);
       const isDisabled = context.disabled || disabled;
       const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
-      const getItems = useCollection3(__scopeSelect);
+      const getItems = useCollection(__scopeSelect);
       const pointerTypeRef = useRef("touch");
       const [searchRef, handleTypeaheadSearch, resetTypeahead] = useTypeaheadSearch((search) => {
         const enabledItems = getItems().filter((item) => !item.disabled);
@@ -11406,7 +9184,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       ) });
     }
   );
-  SelectTrigger.displayName = TRIGGER_NAME4;
+  SelectTrigger.displayName = TRIGGER_NAME2;
   var VALUE_NAME = "SelectValue";
   var SelectValue = forwardRef(
     (props, forwardedRef) => {
@@ -11440,21 +9218,21 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   SelectIcon.displayName = ICON_NAME;
-  var PORTAL_NAME5 = "SelectPortal";
-  var [PortalProvider3, usePortalContext3] = createSelectContext(PORTAL_NAME5, {
+  var PORTAL_NAME3 = "SelectPortal";
+  var [PortalProvider2, usePortalContext2] = createSelectContext(PORTAL_NAME3, {
     forceMount: void 0
   });
   var SelectPortal = (props) => {
     const { __scopeSelect, forceMount, ...portalProps } = props;
-    return /* @__PURE__ */ jsx(PortalProvider3, { scope: props.__scopeSelect, forceMount, children: /* @__PURE__ */ jsx(Portal, { asChild: true, ...portalProps }) });
+    return /* @__PURE__ */ jsx(PortalProvider2, { scope: props.__scopeSelect, forceMount, children: /* @__PURE__ */ jsx(Portal, { asChild: true, ...portalProps }) });
   };
-  SelectPortal.displayName = PORTAL_NAME5;
-  var CONTENT_NAME5 = "SelectContent";
+  SelectPortal.displayName = PORTAL_NAME3;
+  var CONTENT_NAME3 = "SelectContent";
   var SelectContent = forwardRef(
     (props, forwardedRef) => {
-      const portalContext = usePortalContext3(CONTENT_NAME5, props.__scopeSelect);
+      const portalContext = usePortalContext2(CONTENT_NAME3, props.__scopeSelect);
       const { forceMount = portalContext.forceMount, ...contentProps } = props;
-      const context = useSelectContext(CONTENT_NAME5, props.__scopeSelect);
+      const context = useSelectContext(CONTENT_NAME3, props.__scopeSelect);
       const [fragment, setFragment] = useState();
       useLayoutEffect2(() => {
         setFragment(new DocumentFragment());
@@ -11462,20 +9240,20 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       return /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: ({ present }) => present ? /* @__PURE__ */ jsx(SelectContentImpl, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx(SelectContentFragment, { ...contentProps, fragment }) });
     }
   );
-  SelectContent.displayName = CONTENT_NAME5;
+  SelectContent.displayName = CONTENT_NAME3;
   var SelectContentFragment = forwardRef((props, forwardedRef) => {
     const { __scopeSelect, children, fragment } = props;
     if (!fragment) return null;
     return createPortal(
-      /* @__PURE__ */ jsx(SelectContentProvider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(Collection3.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx("div", { ref: forwardedRef, children }) }) }),
+      /* @__PURE__ */ jsx(SelectContentProvider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(Collection.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx("div", { ref: forwardedRef, children }) }) }),
       fragment
     );
   });
   SelectContentFragment.displayName = "SelectContentFragment";
   var CONTENT_MARGIN = 10;
-  var [SelectContentProvider, useSelectContentContext] = createSelectContext(CONTENT_NAME5);
+  var [SelectContentProvider, useSelectContentContext] = createSelectContext(CONTENT_NAME3);
   var CONTENT_IMPL_NAME = "SelectContentImpl";
-  var Slot4 = createSlot("SelectContent.RemoveScroll");
+  var Slot3 = createSlot("SelectContent.RemoveScroll");
   var SelectContentImpl = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect } = props;
@@ -11499,22 +9277,22 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         //
         ...contentProps
       } = props;
-      const context = useSelectContext(CONTENT_NAME5, __scopeSelect);
+      const context = useSelectContext(CONTENT_NAME3, __scopeSelect);
       const [content, setContent] = useState(null);
       const [viewport, setViewport] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
+      const composedRefs = useComposedRefs(forwardedRef, setContent);
       const [selectedItem, setSelectedItem] = useState(null);
       const [selectedItemText, setSelectedItemText] = useState(
         null
       );
-      const getItems = useCollection3(__scopeSelect);
+      const getItems = useCollection(__scopeSelect);
       const [isPositioned, setIsPositioned] = useState(false);
       const firstValidItemFoundRef = useRef(false);
       useEffect(() => {
         if (content) return hideOthers(content);
       }, [content]);
       useFocusGuards();
-      const focusFirst4 = useCallback(
+      const focusFirst2 = useCallback(
         (candidates) => {
           const [firstItem, ...restItems] = getItems().map((item) => item.ref.current);
           const [lastItem] = restItems.slice(-1);
@@ -11531,8 +9309,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         [getItems, viewport]
       );
       const focusSelectedItem = useCallback(
-        () => focusFirst4([selectedItem, content]),
-        [focusFirst4, selectedItem, content]
+        () => focusFirst2([selectedItem, content]),
+        [focusFirst2, selectedItem, content]
       );
       useEffect(() => {
         if (isPositioned) {
@@ -11584,7 +9362,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
         const nextItem = findNextItem(enabledItems, search, currentItem);
         if (nextItem) {
-          setTimeout(() => nextItem.ref.current.focus());
+          setTimeout(() => nextItem.ref.current?.focus());
         }
       });
       const itemRefCallback = useCallback(
@@ -11638,7 +9416,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           position,
           isPositioned,
           searchRef,
-          children: /* @__PURE__ */ jsx(Combination_default, { as: Slot4, allowPinchZoom: true, children: /* @__PURE__ */ jsx(
+          children: /* @__PURE__ */ jsx(Combination_default, { as: Slot3, allowPinchZoom: true, children: /* @__PURE__ */ jsx(
             FocusScope,
             {
               asChild: true,
@@ -11694,7 +9472,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                             const currentIndex = candidateNodes.indexOf(currentElement);
                             candidateNodes = candidateNodes.slice(currentIndex + 1);
                           }
-                          setTimeout(() => focusFirst4(candidateNodes));
+                          setTimeout(() => focusFirst2(candidateNodes));
                           event.preventDefault();
                         }
                       })
@@ -11712,12 +9490,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var ITEM_ALIGNED_POSITION_NAME = "SelectItemAlignedPosition";
   var SelectItemAlignedPosition = forwardRef((props, forwardedRef) => {
     const { __scopeSelect, onPlaced, ...popperProps } = props;
-    const context = useSelectContext(CONTENT_NAME5, __scopeSelect);
-    const contentContext = useSelectContentContext(CONTENT_NAME5, __scopeSelect);
+    const context = useSelectContext(CONTENT_NAME3, __scopeSelect);
+    const contentContext = useSelectContentContext(CONTENT_NAME3, __scopeSelect);
     const [contentWrapper, setContentWrapper] = useState(null);
     const [content, setContent] = useState(null);
-    const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
-    const getItems = useCollection3(__scopeSelect);
+    const composedRefs = useComposedRefs(forwardedRef, setContent);
+    const getItems = useCollection(__scopeSelect);
     const shouldExpandOnScrollRef = useRef(false);
     const shouldRepositionRef = useRef(true);
     const { viewport, selectedItem, selectedItemText, focusSelectedItem } = contentContext;
@@ -11881,9 +9659,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       collisionPadding = CONTENT_MARGIN,
       ...popperProps
     } = props;
-    const popperScope = usePopperScope2(__scopeSelect);
+    const popperScope = usePopperScope(__scopeSelect);
     return /* @__PURE__ */ jsx(
-      Content2,
+      Content,
       {
         ...popperScope,
         ...popperProps,
@@ -11907,7 +9685,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     );
   });
   SelectPopperPosition.displayName = POPPER_POSITION_NAME;
-  var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME5, {});
+  var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME3, {});
   var VIEWPORT_NAME2 = "SelectViewport";
   var SelectViewport = forwardRef(
     (props, forwardedRef) => {
@@ -11926,7 +9704,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             nonce
           }
         ),
-        /* @__PURE__ */ jsx(Collection3.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
+        /* @__PURE__ */ jsx(Collection.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
           Primitive.div,
           {
             "data-radix-select-viewport": "",
@@ -11976,8 +9754,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   SelectViewport.displayName = VIEWPORT_NAME2;
-  var GROUP_NAME4 = "SelectGroup";
-  var [SelectGroupContextProvider, useSelectGroupContext] = createSelectContext(GROUP_NAME4);
+  var GROUP_NAME = "SelectGroup";
+  var [SelectGroupContextProvider, useSelectGroupContext] = createSelectContext(GROUP_NAME);
   var SelectGroup = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, ...groupProps } = props;
@@ -11985,18 +9763,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       return /* @__PURE__ */ jsx(SelectGroupContextProvider, { scope: __scopeSelect, id: groupId, children: /* @__PURE__ */ jsx(Primitive.div, { role: "group", "aria-labelledby": groupId, ...groupProps, ref: forwardedRef }) });
     }
   );
-  SelectGroup.displayName = GROUP_NAME4;
-  var LABEL_NAME3 = "SelectLabel";
+  SelectGroup.displayName = GROUP_NAME;
+  var LABEL_NAME = "SelectLabel";
   var SelectLabel = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, ...labelProps } = props;
-      const groupContext = useSelectGroupContext(LABEL_NAME3, __scopeSelect);
+      const groupContext = useSelectGroupContext(LABEL_NAME, __scopeSelect);
       return /* @__PURE__ */ jsx(Primitive.div, { id: groupContext.id, ...labelProps, ref: forwardedRef });
     }
   );
-  SelectLabel.displayName = LABEL_NAME3;
-  var ITEM_NAME4 = "SelectItem";
-  var [SelectItemContextProvider, useSelectItemContext] = createSelectContext(ITEM_NAME4);
+  SelectLabel.displayName = LABEL_NAME;
+  var ITEM_NAME = "SelectItem";
+  var [SelectItemContextProvider, useSelectItemContext] = createSelectContext(ITEM_NAME);
   var SelectItem = forwardRef(
     (props, forwardedRef) => {
       const {
@@ -12006,15 +9784,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         textValue: textValueProp,
         ...itemProps
       } = props;
-      const context = useSelectContext(ITEM_NAME4, __scopeSelect);
-      const contentContext = useSelectContentContext(ITEM_NAME4, __scopeSelect);
+      const context = useSelectContext(ITEM_NAME, __scopeSelect);
+      const contentContext = useSelectContentContext(ITEM_NAME, __scopeSelect);
       const isSelected = context.value === value;
       const [textValue, setTextValue] = useState(textValueProp ?? "");
       const [isFocused, setIsFocused] = useState(false);
-      const composedRefs = useComposedRefs(
-        forwardedRef,
+      const handleItemRefCallback = useCallbackRef(
         (node) => contentContext.itemRefCallback?.(node, value, disabled)
       );
+      const composedRefs = useComposedRefs(forwardedRef, handleItemRefCallback);
       const textId = useId2();
       const pointerTypeRef = useRef("touch");
       const handleSelect = () => {
@@ -12023,11 +9801,6 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           context.onOpenChange(false);
         }
       };
-      if (value === "") {
-        throw new Error(
-          "A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder."
-        );
-      }
       return /* @__PURE__ */ jsx(
         SelectItemContextProvider,
         {
@@ -12040,7 +9813,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             setTextValue((prevTextValue) => prevTextValue || (node?.textContent ?? "").trim());
           }, []),
           children: /* @__PURE__ */ jsx(
-            Collection3.ItemSlot,
+            Collection.ItemSlot,
             {
               scope: __scopeSelect,
               value,
@@ -12084,10 +9857,19 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                     }
                   }),
                   onKeyDown: composeEventHandlers(itemProps.onKeyDown, (event) => {
+                    if (disabled || event.target !== event.currentTarget) {
+                      return;
+                    }
                     const isTypingAhead = contentContext.searchRef?.current !== "";
-                    if (isTypingAhead && event.key === " ") return;
-                    if (SELECTION_KEYS2.includes(event.key)) handleSelect();
-                    if (event.key === " ") event.preventDefault();
+                    if (isTypingAhead && event.key === " ") {
+                      return;
+                    }
+                    if (SELECTION_KEYS.includes(event.key)) {
+                      handleSelect();
+                    }
+                    if (event.key === " ") {
+                      event.preventDefault();
+                    }
                   })
                 }
               )
@@ -12097,7 +9879,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       );
     }
   );
-  SelectItem.displayName = ITEM_NAME4;
+  SelectItem.displayName = ITEM_NAME;
   var ITEM_TEXT_NAME = "SelectItemText";
   var SelectItemText = forwardRef(
     (props, forwardedRef) => {
@@ -12107,11 +9889,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const itemContext = useSelectItemContext(ITEM_TEXT_NAME, __scopeSelect);
       const nativeOptionsContext = useSelectNativeOptionsContext(ITEM_TEXT_NAME, __scopeSelect);
       const [itemTextNode, setItemTextNode] = useState(null);
+      const handleItemTextRefCallback = useCallbackRef(
+        (node) => contentContext.itemTextRefCallback?.(node, itemContext.value, itemContext.disabled)
+      );
       const composedRefs = useComposedRefs(
         forwardedRef,
-        (node) => setItemTextNode(node),
+        setItemTextNode,
         itemContext.onItemTextChange,
-        (node) => contentContext.itemTextRefCallback?.(node, itemContext.value, itemContext.disabled)
+        handleItemTextRefCallback
       );
       const textContent = itemTextNode?.textContent;
       const nativeOption = useMemo(
@@ -12125,20 +9910,20 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }, [onNativeOptionAdd, onNativeOptionRemove, nativeOption]);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
         /* @__PURE__ */ jsx(Primitive.span, { id: itemContext.textId, ...itemTextProps, ref: composedRefs }),
-        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren ? createPortal(itemTextProps.children, context.valueNode) : null
+        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren && !shouldShowPlaceholder(context.value) ? createPortal(itemTextProps.children, context.valueNode) : null
       ] });
     }
   );
   SelectItemText.displayName = ITEM_TEXT_NAME;
-  var ITEM_INDICATOR_NAME2 = "SelectItemIndicator";
+  var ITEM_INDICATOR_NAME = "SelectItemIndicator";
   var SelectItemIndicator = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, ...itemIndicatorProps } = props;
-      const itemContext = useSelectItemContext(ITEM_INDICATOR_NAME2, __scopeSelect);
+      const itemContext = useSelectItemContext(ITEM_INDICATOR_NAME, __scopeSelect);
       return itemContext.isSelected ? /* @__PURE__ */ jsx(Primitive.span, { "aria-hidden": true, ...itemIndicatorProps, ref: forwardedRef }) : null;
     }
   );
-  SelectItemIndicator.displayName = ITEM_INDICATOR_NAME2;
+  SelectItemIndicator.displayName = ITEM_INDICATOR_NAME;
   var SCROLL_UP_BUTTON_NAME = "SelectScrollUpButton";
   var SelectScrollUpButton = forwardRef((props, forwardedRef) => {
     const contentContext = useSelectContentContext(SCROLL_UP_BUTTON_NAME, props.__scopeSelect);
@@ -12212,7 +9997,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const { __scopeSelect, onAutoScroll, ...scrollIndicatorProps } = props;
     const contentContext = useSelectContentContext("SelectScrollButton", __scopeSelect);
     const autoScrollTimerRef = useRef(null);
-    const getItems = useCollection3(__scopeSelect);
+    const getItems = useCollection(__scopeSelect);
     const clearAutoScrollTimer = useCallback(() => {
       if (autoScrollTimerRef.current !== null) {
         window.clearInterval(autoScrollTimerRef.current);
@@ -12250,34 +10035,37 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }
     );
   });
-  var SEPARATOR_NAME3 = "SelectSeparator";
+  var SEPARATOR_NAME = "SelectSeparator";
   var SelectSeparator = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, ...separatorProps } = props;
       return /* @__PURE__ */ jsx(Primitive.div, { "aria-hidden": true, ...separatorProps, ref: forwardedRef });
     }
   );
-  SelectSeparator.displayName = SEPARATOR_NAME3;
-  var ARROW_NAME4 = "SelectArrow";
+  SelectSeparator.displayName = SEPARATOR_NAME;
+  var ARROW_NAME2 = "SelectArrow";
   var SelectArrow = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, ...arrowProps } = props;
-      const popperScope = usePopperScope2(__scopeSelect);
-      const contentContext = useSelectContentContext(ARROW_NAME4, __scopeSelect);
+      const popperScope = usePopperScope(__scopeSelect);
+      const contentContext = useSelectContentContext(ARROW_NAME2, __scopeSelect);
       return contentContext.position === "popper" ? /* @__PURE__ */ jsx(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef }) : null;
     }
   );
-  SelectArrow.displayName = ARROW_NAME4;
-  var BUBBLE_INPUT_NAME2 = "SelectBubbleInput";
+  SelectArrow.displayName = ARROW_NAME2;
+  var BUBBLE_INPUT_NAME = "SelectBubbleInput";
   var SelectBubbleInput = forwardRef(
     ({ __scopeSelect, ...props }, forwardedRef) => {
-      const context = useSelectContext(BUBBLE_INPUT_NAME2, __scopeSelect);
+      const context = useSelectContext(BUBBLE_INPUT_NAME, __scopeSelect);
       const { value, onValueChange, required, disabled, name, autoComplete, form } = context;
       const { nativeOptions, nativeSelectKey } = context;
       const ref = useRef(null);
       const composedRefs = useComposedRefs(forwardedRef, ref);
       const selectValue = value ?? "";
       const prevValue = usePrevious(selectValue);
+      const hasEmptyValueOption = Array.from(nativeOptions).some(
+        (option) => (option.props.value ?? "") === ""
+      );
       useEffect(() => {
         const select = ref.current;
         if (!select) return;
@@ -12309,7 +10097,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           ref: composedRefs,
           defaultValue: selectValue,
           children: [
-            shouldShowPlaceholder(value) ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
+            shouldShowPlaceholder(value) && !hasEmptyValueOption ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
             Array.from(nativeOptions)
           ]
         },
@@ -12317,8 +10105,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       );
     }
   );
-  SelectBubbleInput.displayName = BUBBLE_INPUT_NAME2;
-  function isFunction3(value) {
+  SelectBubbleInput.displayName = BUBBLE_INPUT_NAME;
+  function isFunction2(value) {
     return typeof value === "function";
   }
   function shouldShowPlaceholder(value) {
@@ -12353,7 +10141,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const isRepeated = search.length > 1 && Array.from(search).every((char) => char === search[0]);
     const normalizedSearch = isRepeated ? search[0] : search;
     const currentItemIndex = currentItem ? items.indexOf(currentItem) : -1;
-    let wrappedItems = wrapArray3(items, Math.max(currentItemIndex, 0));
+    let wrappedItems = wrapArray(items, Math.max(currentItemIndex, 0));
     const excludeCurrentItem = normalizedSearch.length === 1;
     if (excludeCurrentItem) wrappedItems = wrappedItems.filter((v) => v !== currentItem);
     const nextItem = wrappedItems.find(
@@ -12361,1949 +10149,2762 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     );
     return nextItem !== currentItem ? nextItem : void 0;
   }
-  function wrapArray3(array, startIndex) {
+  function wrapArray(array, startIndex) {
     return array.map((_, index2) => array[(startIndex + index2) % array.length]);
   }
 
-  // ../../../packages/shadcn-ui/src/components/select.tsx
-  var Select2 = Select;
-  var SelectValue2 = SelectValue;
-  var SelectTrigger2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      SelectTrigger,
-      {
-        ref,
-        className: cn("xps-select-trigger", className),
-        ...props
-      },
-      children,
-      createElement(
-        SelectIcon,
-        { asChild: true },
-        createElement(ChevronDown, {
-          className: "xps-icon"
-        })
-      )
-    )
-  );
-  SelectTrigger2.displayName = SelectTrigger.displayName;
-  var SelectScrollUpButton2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      SelectScrollUpButton,
-      {
-        ref,
-        className: cn("xps-select-scroll-button", className),
-        ...props
-      },
-      createElement(ChevronUp, {
-        className: "xps-icon"
-      })
-    )
-  );
-  SelectScrollUpButton2.displayName = SelectScrollUpButton.displayName;
-  var SelectScrollDownButton2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      SelectScrollDownButton,
-      {
-        ref,
-        className: cn("xps-select-scroll-button", className),
-        ...props
-      },
-      createElement(ChevronDown, {
-        className: "xps-icon"
-      })
-    )
-  );
-  SelectScrollDownButton2.displayName = SelectScrollDownButton.displayName;
-  var SelectContent2 = forwardRef(
-    ({ className, children, position = "popper", ...props }, ref) => createElement(
-      SelectPortal,
-      null,
-      createElement(
-        SelectContent,
-        {
-          ref,
-          className: cn("xps-select-content", position === "popper" && "xps-select-content-popper", className),
-          position,
-          ...props
-        },
-        createElement(SelectScrollUpButton2, null),
-        createElement(
-          SelectViewport,
-          {
-            className: cn("xps-select-viewport", position === "popper" && "xps-select-viewport-popper")
-          },
-          children
-        ),
-        createElement(SelectScrollDownButton2, null)
-      )
-    )
-  );
-  SelectContent2.displayName = SelectContent.displayName;
-  var SelectLabel2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SelectLabel, {
-      ref,
-      className: cn("xps-select-label", className),
-      ...props
-    })
-  );
-  SelectLabel2.displayName = SelectLabel.displayName;
-  var SelectItem2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      SelectItem,
-      {
-        ref,
-        className: cn("xps-select-item", className),
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-select-item-indicator" },
-        createElement(
-          SelectItemIndicator,
-          null,
-          createElement(Check, {
-            className: "xps-icon"
-          })
-        )
-      ),
-      createElement(SelectItemText, null, children)
-    )
-  );
-  SelectItem2.displayName = SelectItem.displayName;
-  var SelectSeparator2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SelectSeparator, {
-      ref,
-      className: cn("xps-select-separator", className),
-      ...props
-    })
-  );
-  SelectSeparator2.displayName = SelectSeparator.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/separator.tsx
-  var Separator3 = forwardRef(
-    ({ className, orientation = "horizontal", ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-separator", orientation === "vertical" ? "xps-separator--vertical" : "xps-separator--horizontal", className),
-      role: "separator",
-      "aria-orientation": orientation,
-      ...props
-    })
-  );
-  Separator3.displayName = "Separator";
-
-  // ../../../packages/shadcn-ui/src/components/sheet.tsx
-  var SheetPortal = Portal2;
-  var SheetOverlay = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
-      ref,
-      className: cn("xps-dialog-overlay", className),
-      ...props
-    })
-  );
-  SheetOverlay.displayName = Overlay.displayName;
-  var SheetContent = forwardRef(
-    ({ className, children, side = "right", showClose = true, ...props }, ref) => createElement(
-      SheetPortal,
-      null,
-      createElement(SheetOverlay, null),
-      createElement(
-        Content,
-        {
-          ref,
-          className: cn("xps-sheet-content", `xps-sheet-content--${side}`, className),
-          ...props
-        },
-        children,
-        showClose ? createElement(
-          Close,
-          {
-            className: "xps-dialog-close"
-          },
-          createElement(X, {
-            className: "xps-icon",
-            "aria-hidden": "true"
-          }),
-          createElement("span", { className: "xps-sr-only" }, "Close")
-        ) : null
-      )
-    )
-  );
-  SheetContent.displayName = Content.displayName;
-  var SheetHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-header", className),
-      ...props
-    })
-  );
-  SheetHeader.displayName = "SheetHeader";
-  var SheetFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-footer", className),
-      ...props
-    })
-  );
-  SheetFooter.displayName = "SheetFooter";
-  var SheetTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
-      ref,
-      className: cn("xps-dialog-title", className),
-      ...props
-    })
-  );
-  SheetTitle.displayName = Title.displayName;
-  var SheetDescription = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
-      ref,
-      className: cn("xps-dialog-description", className),
-      ...props
-    })
-  );
-  SheetDescription.displayName = Description.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/sidebar.tsx
-  var Sidebar = forwardRef(
-    ({ className, side = "left", collapsed = false, ...props }, ref) => createElement("aside", {
-      ref,
-      className: cn("xps-sidebar", `xps-sidebar--${side}`, collapsed && "xps-sidebar--collapsed", className),
-      "data-side": side,
-      "data-state": collapsed ? "collapsed" : "expanded",
-      "aria-expanded": !collapsed,
-      ...props
-    })
-  );
-  Sidebar.displayName = "Sidebar";
-  var SidebarHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-header", className),
-      ...props
-    })
-  );
-  SidebarHeader.displayName = "SidebarHeader";
-  var SidebarContent = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-content", className),
-      ...props
-    })
-  );
-  SidebarContent.displayName = "SidebarContent";
-  var SidebarFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-footer", className),
-      ...props
-    })
-  );
-  SidebarFooter.displayName = "SidebarFooter";
-  var SidebarTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement("span", {
-      ref,
-      className: cn("xps-sidebar-title", className),
-      ...props
-    })
-  );
-  SidebarTitle.displayName = "SidebarTitle";
-  var SidebarRail = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-rail", className),
-      ...props
-    })
-  );
-  SidebarRail.displayName = "SidebarRail";
-  var SidebarTrigger = forwardRef(
-    ({ className, variant = "ghost", size: size4 = "icon", ...props }, ref) => createElement(Button, {
-      ref,
-      className: cn("xps-sidebar-trigger", className),
-      variant,
-      size: size4,
-      ...props
-    })
-  );
-  SidebarTrigger.displayName = "SidebarTrigger";
-  var SidebarGroup = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-group", className),
-      ...props
-    })
-  );
-  SidebarGroup.displayName = "SidebarGroup";
-  var SidebarGroupLabel = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-group-label", className),
-      ...props
-    })
-  );
-  SidebarGroupLabel.displayName = "SidebarGroupLabel";
-  var SidebarMenu = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-menu", className),
-      ...props
-    })
-  );
-  SidebarMenu.displayName = "SidebarMenu";
-  var SidebarMenuItem = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-menu-item", className),
-      ...props
-    })
-  );
-  SidebarMenuItem.displayName = "SidebarMenuItem";
-  var SidebarMenuButton = forwardRef(
-    ({ className, active = false, variant = "ghost", ...props }, ref) => createElement(Button, {
-      ref,
-      variant,
-      className: cn("xps-sidebar-menu-button", active && "xps-sidebar-menu-button--active", className),
-      ...props
-    })
-  );
-  SidebarMenuButton.displayName = "SidebarMenuButton";
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_cfb70bb4d45c3eedb16b2d4d4cf80f46/node_modules/@radix-ui/react-slider/dist/index.mjs
-  var PAGE_KEYS = ["PageUp", "PageDown"];
-  var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-  var BACK_KEYS = {
-    "from-left": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
-    "from-right": ["Home", "PageDown", "ArrowDown", "ArrowRight"],
-    "from-bottom": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
-    "from-top": ["Home", "PageDown", "ArrowUp", "ArrowLeft"]
+  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
+  var cx = clsx;
+  var cva = (base, config) => (props) => {
+    var _config_compoundVariants;
+    if ((config === null || config === void 0 ? void 0 : config.variants) == null) return cx(base, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
+    const { variants, defaultVariants } = config;
+    const getVariantClassNames = Object.keys(variants).map((variant) => {
+      const variantProp = props === null || props === void 0 ? void 0 : props[variant];
+      const defaultVariantProp = defaultVariants === null || defaultVariants === void 0 ? void 0 : defaultVariants[variant];
+      if (variantProp === null) return null;
+      const variantKey = falsyToString(variantProp) || falsyToString(defaultVariantProp);
+      return variants[variant][variantKey];
+    });
+    const propsWithoutUndefined = props && Object.entries(props).reduce((acc, param) => {
+      let [key, value] = param;
+      if (value === void 0) {
+        return acc;
+      }
+      acc[key] = value;
+      return acc;
+    }, {});
+    const getCompoundVariantClassNames = config === null || config === void 0 ? void 0 : (_config_compoundVariants = config.compoundVariants) === null || _config_compoundVariants === void 0 ? void 0 : _config_compoundVariants.reduce((acc, param) => {
+      let { class: cvClass, className: cvClassName, ...compoundVariantOptions } = param;
+      return Object.entries(compoundVariantOptions).every((param2) => {
+        let [key, value] = param2;
+        return Array.isArray(value) ? value.includes({
+          ...defaultVariants,
+          ...propsWithoutUndefined
+        }[key]) : {
+          ...defaultVariants,
+          ...propsWithoutUndefined
+        }[key] === value;
+      }) ? [
+        ...acc,
+        cvClass,
+        cvClassName
+      ] : acc;
+    }, []);
+    return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
   };
-  var SLIDER_NAME = "Slider";
-  var [Collection4, useCollection4, createCollectionScope4] = createCollection(SLIDER_NAME);
-  var [createSliderContext, createSliderScope] = createContextScope(SLIDER_NAME, [
-    createCollectionScope4
-  ]);
-  var [SliderProvider, useSliderContext] = createSliderContext(SLIDER_NAME);
-  var Slider = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        name,
-        min: min2 = 0,
-        max: max2 = 100,
-        step = 1,
-        orientation = "horizontal",
-        disabled = false,
-        minStepsBetweenThumbs = 0,
-        defaultValue = [min2],
-        value,
-        onValueChange = () => {
-        },
-        onValueCommit = () => {
-        },
-        inverted = false,
-        form,
-        ...sliderProps
-      } = props;
-      const thumbRefs = useRef(/* @__PURE__ */ new Set());
-      const valueIndexToChangeRef = useRef(0);
-      const isKeyboardInteractionRef = useRef(false);
-      const isHorizontal = orientation === "horizontal";
-      const SliderOrientation = isHorizontal ? SliderHorizontal : SliderVertical;
-      const [values = [], setValues] = useControllableState({
-        prop: value,
-        defaultProp: defaultValue,
-        onChange: (value2) => {
-          const thumbs = [...thumbRefs.current];
-          thumbs[valueIndexToChangeRef.current]?.focus({
-            preventScroll: true,
-            focusVisible: isKeyboardInteractionRef.current
-          });
-          isKeyboardInteractionRef.current = false;
-          onValueChange(value2);
-        }
-      });
-      const valuesBeforeSlideStartRef = useRef(values);
-      function handleSlideStart(value2) {
-        const closestIndex = getClosestValueIndex(values, value2);
-        updateValues(value2, closestIndex);
+
+  // ../../node_modules/.pnpm/react-resizable-panels@4.12.1_react-dom@18.3.1_react@18.3.1/node_modules/react-resizable-panels/dist/react-resizable-panels.js
+  function St(e, t) {
+    const n = getComputedStyle(e), o = parseFloat(n.fontSize);
+    return t * o;
+  }
+  function vt(e, t) {
+    const n = getComputedStyle(e.ownerDocument.documentElement), o = parseFloat(n.fontSize);
+    return t * o;
+  }
+  function bt(e) {
+    return e / 100 * window.innerHeight;
+  }
+  function zt(e) {
+    return e / 100 * window.innerWidth;
+  }
+  function xt(e) {
+    switch (typeof e) {
+      case "number":
+        return [e, "px"];
+      case "string": {
+        const t = parseFloat(e);
+        return e.endsWith("%") ? [t, "%"] : e.endsWith("px") ? [t, "px"] : e.endsWith("rem") ? [t, "rem"] : e.endsWith("em") ? [t, "em"] : e.endsWith("vh") ? [t, "vh"] : e.endsWith("vw") ? [t, "vw"] : [t, "%"];
       }
-      function handleSlideMove(value2) {
-        updateValues(value2, valueIndexToChangeRef.current);
+    }
+  }
+  function ie({
+    groupSize: e,
+    panelElement: t,
+    styleProp: n
+  }) {
+    let o;
+    const [i, s] = xt(n);
+    switch (s) {
+      case "%": {
+        o = i / 100 * e;
+        break;
       }
-      function handleSlideEnd() {
-        const prevValue = valuesBeforeSlideStartRef.current[valueIndexToChangeRef.current];
-        const nextValue = values[valueIndexToChangeRef.current];
-        const hasChanged = nextValue !== prevValue;
-        if (hasChanged) onValueCommit(values);
+      case "px": {
+        o = i;
+        break;
       }
-      function updateValues(value2, atIndex, { commit } = { commit: false }) {
-        const decimalCount = getDecimalCount(step);
-        const snapToStep = roundValue(Math.round((value2 - min2) / step) * step + min2, decimalCount);
-        const nextValue = clamp2(snapToStep, [min2, max2]);
-        setValues((prevValues = []) => {
-          const nextValues = getNextSortedValues(prevValues, nextValue, atIndex);
-          if (hasMinStepsBetweenValues(nextValues, minStepsBetweenThumbs * step)) {
-            valueIndexToChangeRef.current = nextValues.indexOf(nextValue);
-            const hasChanged = String(nextValues) !== String(prevValues);
-            if (hasChanged && commit) onValueCommit(nextValues);
-            return hasChanged ? nextValues : prevValues;
-          } else {
-            return prevValues;
-          }
+      case "rem": {
+        o = vt(t, i);
+        break;
+      }
+      case "em": {
+        o = St(t, i);
+        break;
+      }
+      case "vh": {
+        o = bt(i);
+        break;
+      }
+      case "vw": {
+        o = zt(i);
+        break;
+      }
+    }
+    return o;
+  }
+  function T(e) {
+    return parseFloat(e.toFixed(3));
+  }
+  function ne({
+    group: e
+  }) {
+    const { orientation: t, panels: n } = e;
+    return n.reduce((o, i) => (o += t === "horizontal" ? i.element.offsetWidth : i.element.offsetHeight, o), 0);
+  }
+  function ve(e) {
+    const { panels: t } = e, n = ne({ group: e });
+    return n === 0 ? t.map((o) => ({
+      groupResizeBehavior: o.panelConstraints.groupResizeBehavior,
+      collapsedSize: 0,
+      collapsible: o.panelConstraints.collapsible === true,
+      defaultSize: void 0,
+      disabled: o.panelConstraints.disabled,
+      minSize: 0,
+      maxSize: 100,
+      panelId: o.id
+    })) : t.map((o) => {
+      const { element: i, panelConstraints: s } = o;
+      let u = 0;
+      if (s.collapsedSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.collapsedSize
         });
+        u = T(c / n * 100);
       }
-      return /* @__PURE__ */ jsx(
-        SliderProvider,
-        {
-          scope: props.__scopeSlider,
-          name,
-          disabled,
-          min: min2,
-          max: max2,
-          valueIndexToChangeRef,
-          thumbs: thumbRefs.current,
-          values,
-          orientation,
-          form,
-          children: /* @__PURE__ */ jsx(Collection4.Provider, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx(Collection4.Slot, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx(
-            SliderOrientation,
-            {
-              "aria-disabled": disabled,
-              "data-disabled": disabled ? "" : void 0,
-              ...sliderProps,
-              ref: forwardedRef,
-              onPointerDown: composeEventHandlers(sliderProps.onPointerDown, () => {
-                if (!disabled) {
-                  valuesBeforeSlideStartRef.current = values;
-                  isKeyboardInteractionRef.current = false;
-                }
-              }),
-              min: min2,
-              max: max2,
-              inverted,
-              onSlideStart: disabled ? void 0 : handleSlideStart,
-              onSlideMove: disabled ? void 0 : handleSlideMove,
-              onSlideEnd: disabled ? void 0 : handleSlideEnd,
-              onHomeKeyDown: () => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  updateValues(min2, 0, { commit: true });
-                }
-              },
-              onEndKeyDown: () => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  updateValues(max2, values.length - 1, { commit: true });
-                }
-              },
-              onStepKeyDown: ({ event, direction: stepDirection }) => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  const isPageKey = PAGE_KEYS.includes(event.key);
-                  const isSkipKey = isPageKey || event.shiftKey && ARROW_KEYS.includes(event.key);
-                  const multiplier = isSkipKey ? 10 : 1;
-                  const atIndex = valueIndexToChangeRef.current;
-                  const value2 = values[atIndex];
-                  const stepInDirection = step * multiplier * stepDirection;
-                  updateValues(value2 + stepInDirection, atIndex, { commit: true });
-                }
-              }
-            }
-          ) }) })
-        }
-      );
-    }
-  );
-  Slider.displayName = SLIDER_NAME;
-  var [SliderOrientationProvider, useSliderOrientationContext] = createSliderContext(SLIDER_NAME, {
-    startEdge: "left",
-    endEdge: "right",
-    size: "width",
-    direction: 1
-  });
-  var SliderHorizontal = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        min: min2,
-        max: max2,
-        dir,
-        inverted,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const [slider, setSlider] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setSlider(node));
-      const rectRef = useRef(void 0);
-      const direction = useDirection(dir);
-      const isDirectionLTR = direction === "ltr";
-      const isSlidingFromLeft = isDirectionLTR && !inverted || !isDirectionLTR && inverted;
-      function getValueFromPointer(pointerPosition) {
-        const rect = rectRef.current || slider.getBoundingClientRect();
-        const input = [0, rect.width];
-        const output = isSlidingFromLeft ? [min2, max2] : [max2, min2];
-        const value = linearScale2(input, output);
-        rectRef.current = rect;
-        return value(pointerPosition - rect.left);
+      let a;
+      if (s.defaultSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.defaultSize
+        });
+        a = T(c / n * 100);
       }
-      return /* @__PURE__ */ jsx(
-        SliderOrientationProvider,
-        {
-          scope: props.__scopeSlider,
-          startEdge: isSlidingFromLeft ? "left" : "right",
-          endEdge: isSlidingFromLeft ? "right" : "left",
-          direction: isSlidingFromLeft ? 1 : -1,
-          size: "width",
-          children: /* @__PURE__ */ jsx(
-            SliderImpl,
-            {
-              dir: direction,
-              "data-orientation": "horizontal",
-              ...sliderProps,
-              ref: composedRefs,
-              style: {
-                ...sliderProps.style,
-                "--radix-slider-thumb-transform": "translateX(-50%)"
-              },
-              onSlideStart: (event) => {
-                const value = getValueFromPointer(event.clientX);
-                onSlideStart?.(value);
-              },
-              onSlideMove: (event) => {
-                const value = getValueFromPointer(event.clientX);
-                onSlideMove?.(value);
-              },
-              onSlideEnd: () => {
-                rectRef.current = void 0;
-                onSlideEnd?.();
-              },
-              onStepKeyDown: (event) => {
-                const slideDirection = isSlidingFromLeft ? "from-left" : "from-right";
-                const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
-                onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
-              }
-            }
-          )
-        }
-      );
-    }
-  );
-  var SliderVertical = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        min: min2,
-        max: max2,
-        inverted,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const sliderRef = useRef(null);
-      const ref = useComposedRefs(forwardedRef, sliderRef);
-      const rectRef = useRef(void 0);
-      const isSlidingFromBottom = !inverted;
-      function getValueFromPointer(pointerPosition) {
-        const rect = rectRef.current || sliderRef.current.getBoundingClientRect();
-        const input = [0, rect.height];
-        const output = isSlidingFromBottom ? [max2, min2] : [min2, max2];
-        const value = linearScale2(input, output);
-        rectRef.current = rect;
-        return value(pointerPosition - rect.top);
+      let r3 = 0;
+      if (s.minSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.minSize
+        });
+        r3 = T(c / n * 100);
       }
-      return /* @__PURE__ */ jsx(
-        SliderOrientationProvider,
-        {
-          scope: props.__scopeSlider,
-          startEdge: isSlidingFromBottom ? "bottom" : "top",
-          endEdge: isSlidingFromBottom ? "top" : "bottom",
-          size: "height",
-          direction: isSlidingFromBottom ? 1 : -1,
-          children: /* @__PURE__ */ jsx(
-            SliderImpl,
-            {
-              "data-orientation": "vertical",
-              ...sliderProps,
-              ref,
-              style: {
-                ...sliderProps.style,
-                "--radix-slider-thumb-transform": "translateY(50%)"
-              },
-              onSlideStart: (event) => {
-                const value = getValueFromPointer(event.clientY);
-                onSlideStart?.(value);
-              },
-              onSlideMove: (event) => {
-                const value = getValueFromPointer(event.clientY);
-                onSlideMove?.(value);
-              },
-              onSlideEnd: () => {
-                rectRef.current = void 0;
-                onSlideEnd?.();
-              },
-              onStepKeyDown: (event) => {
-                const slideDirection = isSlidingFromBottom ? "from-bottom" : "from-top";
-                const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
-                onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
-              }
-            }
-          )
-        }
-      );
-    }
-  );
-  var SliderImpl = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeSlider,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onHomeKeyDown,
-        onEndKeyDown,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const context = useSliderContext(SLIDER_NAME, __scopeSlider);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          ...sliderProps,
-          ref: forwardedRef,
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            if (event.key === "Home") {
-              onHomeKeyDown(event);
-              event.preventDefault();
-            } else if (event.key === "End") {
-              onEndKeyDown(event);
-              event.preventDefault();
-            } else if (PAGE_KEYS.concat(ARROW_KEYS).includes(event.key)) {
-              onStepKeyDown(event);
-              event.preventDefault();
-            }
-          }),
-          onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
-            const target = event.target;
-            target.setPointerCapture(event.pointerId);
-            event.preventDefault();
-            if (context.thumbs.has(target)) {
-              target.focus({ preventScroll: true, focusVisible: false });
-            } else {
-              onSlideStart(event);
-            }
-          }),
-          onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
-            const target = event.target;
-            if (target.hasPointerCapture(event.pointerId)) onSlideMove(event);
-          }),
-          onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
-            const target = event.target;
-            if (target.hasPointerCapture(event.pointerId)) {
-              target.releasePointerCapture(event.pointerId);
-              onSlideEnd(event);
-            }
-          })
-        }
-      );
-    }
-  );
-  var TRACK_NAME = "SliderTrack";
-  var SliderTrack = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...trackProps } = props;
-      const context = useSliderContext(TRACK_NAME, __scopeSlider);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-disabled": context.disabled ? "" : void 0,
-          "data-orientation": context.orientation,
-          ...trackProps,
-          ref: forwardedRef
-        }
-      );
-    }
-  );
-  SliderTrack.displayName = TRACK_NAME;
-  var RANGE_NAME = "SliderRange";
-  var SliderRange = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...rangeProps } = props;
-      const context = useSliderContext(RANGE_NAME, __scopeSlider);
-      const orientation = useSliderOrientationContext(RANGE_NAME, __scopeSlider);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      const valuesCount = context.values.length;
-      const percentages = context.values.map(
-        (value) => convertValueToPercentage(value, context.min, context.max)
-      );
-      const offsetStart = valuesCount > 1 ? Math.min(...percentages) : 0;
-      const offsetEnd = 100 - Math.max(...percentages);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-orientation": context.orientation,
-          "data-disabled": context.disabled ? "" : void 0,
-          ...rangeProps,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            [orientation.startEdge]: offsetStart + "%",
-            [orientation.endEdge]: offsetEnd + "%"
-          }
-        }
-      );
-    }
-  );
-  SliderRange.displayName = RANGE_NAME;
-  var THUMB_NAME2 = "SliderThumb";
-  var [SliderThumbContextProvider, useSliderThumbContext] = createSliderContext(THUMB_NAME2);
-  var THUMB_PROVIDER_NAME = "SliderThumbProvider";
-  function SliderThumbProvider(props) {
-    const {
-      __scopeSlider,
-      name,
-      children,
-      // @ts-expect-error internal render prop
-      internal_do_not_use_render
-    } = props;
-    const context = useSliderContext(THUMB_PROVIDER_NAME, __scopeSlider);
-    const getItems = useCollection4(__scopeSlider);
-    const [thumb, setThumb] = useState(null);
-    const index2 = useMemo(
-      () => thumb ? getItems().findIndex((item) => item.ref.current === thumb) : -1,
-      [getItems, thumb]
+      let l = 100;
+      if (s.maxSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.maxSize
+        });
+        l = T(c / n * 100);
+      }
+      return {
+        groupResizeBehavior: s.groupResizeBehavior,
+        collapsedSize: u,
+        collapsible: s.collapsible === true,
+        defaultSize: a,
+        disabled: s.disabled,
+        minSize: r3,
+        maxSize: l,
+        panelId: o.id
+      };
+    });
+  }
+  function C(e, t = "Assertion error") {
+    if (!e)
+      throw Error(t);
+  }
+  function be(e, t) {
+    return Array.from(t).sort(
+      e === "horizontal" ? Pt : wt
     );
-    const size4 = useSize(thumb);
-    const isFormControl = thumb ? !!context.form || !!thumb.closest("form") : true;
-    const value = context.values[index2];
-    const resolvedName = name ?? (context.name ? context.name + (context.values.length > 1 ? "[]" : "") : void 0);
-    const percent = value === void 0 ? 0 : convertValueToPercentage(value, context.min, context.max);
-    useEffect(() => {
-      if (thumb) {
-        context.thumbs.add(thumb);
-        return () => {
-          context.thumbs.delete(thumb);
-        };
-      }
-    }, [thumb, context.thumbs]);
-    const thumbContext = {
-      value,
-      name: resolvedName,
-      form: context.form,
-      isFormControl,
-      index: index2,
-      thumb,
-      onThumbChange: setThumb,
-      percent,
-      size: size4
+  }
+  function Pt(e, t) {
+    const n = e.element.offsetLeft - t.element.offsetLeft;
+    return n !== 0 ? n : e.element.offsetWidth - t.element.offsetWidth;
+  }
+  function wt(e, t) {
+    const n = e.element.offsetTop - t.element.offsetTop;
+    return n !== 0 ? n : e.element.offsetHeight - t.element.offsetHeight;
+  }
+  function Ye(e) {
+    return e !== null && typeof e == "object" && "nodeType" in e && e.nodeType === Node.ELEMENT_NODE;
+  }
+  function Je(e, t) {
+    return {
+      x: e.x >= t.left && e.x <= t.right ? 0 : Math.min(
+        Math.abs(e.x - t.left),
+        Math.abs(e.x - t.right)
+      ),
+      y: e.y >= t.top && e.y <= t.bottom ? 0 : Math.min(
+        Math.abs(e.y - t.top),
+        Math.abs(e.y - t.bottom)
+      )
     };
-    return /* @__PURE__ */ jsx(SliderThumbContextProvider, { scope: __scopeSlider, ...thumbContext, children: isFunction4(internal_do_not_use_render) ? internal_do_not_use_render(thumbContext) : children });
   }
-  SliderThumbProvider.displayName = THUMB_PROVIDER_NAME;
-  var THUMB_TRIGGER_NAME = "SliderThumbTrigger";
-  var SliderThumbTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...thumbProps } = props;
-      const context = useSliderContext(THUMB_TRIGGER_NAME, __scopeSlider);
-      const orientation = useSliderOrientationContext(THUMB_TRIGGER_NAME, __scopeSlider);
-      const { index: index2, value, percent, size: size4, onThumbChange } = useSliderThumbContext(
-        THUMB_TRIGGER_NAME,
-        __scopeSlider
-      );
-      const composedRefs = useComposedRefs(forwardedRef, (node) => onThumbChange(node));
-      const label = getLabel(index2, context.values.length);
-      const orientationSize = size4?.[orientation.size];
-      const thumbInBoundsOffset = orientationSize ? getThumbInBoundsOffset(orientationSize, percent, orientation.direction) : 0;
-      return /* @__PURE__ */ jsx(
-        "span",
-        {
-          style: {
-            transform: "var(--radix-slider-thumb-transform)",
-            position: "absolute",
-            [orientation.startEdge]: `calc(${percent}% + ${thumbInBoundsOffset}px)`
-          },
-          children: /* @__PURE__ */ jsx(Collection4.ItemSlot, { scope: __scopeSlider, children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              role: "slider",
-              "aria-label": props["aria-label"] || label,
-              "aria-valuemin": context.min,
-              "aria-valuenow": value,
-              "aria-valuemax": context.max,
-              "aria-orientation": context.orientation,
-              "data-orientation": context.orientation,
-              "data-disabled": context.disabled ? "" : void 0,
-              tabIndex: context.disabled ? void 0 : 0,
-              ...thumbProps,
-              ref: composedRefs,
-              style: value === void 0 ? { display: "none" } : props.style,
-              onFocus: composeEventHandlers(props.onFocus, () => {
-                context.valueIndexToChangeRef.current = index2;
-              })
-            }
-          ) })
-        }
-      );
+  function Lt({
+    orientation: e,
+    rects: t,
+    targetRect: n
+  }) {
+    const o = {
+      x: n.x + n.width / 2,
+      y: n.y + n.height / 2
+    };
+    let i, s = Number.MAX_VALUE;
+    for (const u of t) {
+      const { x: a, y: r3 } = Je(o, u), l = e === "horizontal" ? a : r3;
+      l < s && (s = l, i = u);
     }
-  );
-  SliderThumbTrigger.displayName = THUMB_TRIGGER_NAME;
-  var SliderThumb = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, name, ...thumbProps } = props;
-      return /* @__PURE__ */ jsx(
-        SliderThumbProvider,
-        {
-          __scopeSlider,
-          name,
-          internal_do_not_use_render: ({ index: index2, isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              SliderThumbTrigger,
-              {
-                ...thumbProps,
-                ref: forwardedRef,
-                __scopeSlider
+    return C(i, "No rect found"), i;
+  }
+  var fe;
+  function Ct() {
+    return fe === void 0 && (typeof matchMedia == "function" ? fe = !!matchMedia("(pointer:coarse)").matches : fe = false), fe;
+  }
+  function Ze(e) {
+    const { element: t, orientation: n, panels: o, separators: i } = e, s = be(
+      n,
+      Array.from(t.children).filter(Ye).map((z) => ({ element: z }))
+    ).map(({ element: z }) => z), u = [];
+    let a = false, r3 = false, l = -1, c = -1, m = 0, p, S = [];
+    {
+      let z = -1;
+      for (const f of s)
+        f.hasAttribute("data-panel") && (z++, f.hasAttribute("data-disabled") || (m++, l === -1 && (l = z), c = z));
+    }
+    if (m > 1) {
+      let z = -1;
+      for (const f of s)
+        if (f.hasAttribute("data-panel")) {
+          z++;
+          const d = o.find(
+            (h2) => h2.element === f
+          );
+          if (d) {
+            if (p) {
+              const h2 = p.element.getBoundingClientRect(), y = f.getBoundingClientRect();
+              let b;
+              if (r3) {
+                const v = n === "horizontal" ? new DOMRect(
+                  h2.right,
+                  h2.top,
+                  0,
+                  h2.height
+                ) : new DOMRect(
+                  h2.left,
+                  h2.bottom,
+                  h2.width,
+                  0
+                ), g = n === "horizontal" ? new DOMRect(y.left, y.top, 0, y.height) : new DOMRect(y.left, y.top, y.width, 0);
+                switch (S.length) {
+                  case 0: {
+                    b = [
+                      v,
+                      g
+                    ];
+                    break;
+                  }
+                  case 1: {
+                    const w = S[0], M = Lt({
+                      orientation: n,
+                      rects: [h2, y],
+                      targetRect: w.element.getBoundingClientRect()
+                    });
+                    b = [
+                      w,
+                      M === h2 ? g : v
+                    ];
+                    break;
+                  }
+                  default: {
+                    b = S;
+                    break;
+                  }
+                }
+              } else
+                S.length ? b = S : b = [
+                  n === "horizontal" ? new DOMRect(
+                    h2.right,
+                    y.top,
+                    y.left - h2.right,
+                    y.height
+                  ) : new DOMRect(
+                    y.left,
+                    h2.bottom,
+                    y.width,
+                    y.top - h2.bottom
+                  )
+                ];
+              for (const v of b) {
+                let g = "width" in v ? v : v.element.getBoundingClientRect();
+                const w = Ct() ? e.resizeTargetMinimumSize.coarse : e.resizeTargetMinimumSize.fine;
+                if (g.width < w) {
+                  const L = w - g.width;
+                  g = new DOMRect(
+                    g.x - L / 2,
+                    g.y,
+                    g.width + L,
+                    g.height
+                  );
+                }
+                if (g.height < w) {
+                  const L = w - g.height;
+                  g = new DOMRect(
+                    g.x,
+                    g.y - L / 2,
+                    g.width,
+                    g.height + L
+                  );
+                }
+                const M = z <= l || z > c;
+                !a && !M && u.push({
+                  group: e,
+                  groupSize: ne({ group: e }),
+                  panels: [p, d],
+                  separator: "width" in v ? void 0 : v,
+                  rect: g
+                }), a = false;
               }
-            ),
-            isFormControl ? /* @__PURE__ */ jsx(
-              SliderBubbleInput,
-              {
-                __scopeSlider
-              },
-              index2
-            ) : null
-          ] })
-        }
-      );
+            }
+            r3 = false, p = d, S = [];
+          }
+        } else if (f.hasAttribute("data-separator")) {
+          f.ariaDisabled !== null && (a = true);
+          const d = i.find(
+            (h2) => h2.element === f
+          );
+          d ? S.push(d) : (p = void 0, S = []);
+        } else
+          r3 = true;
     }
-  );
-  SliderThumb.displayName = THUMB_NAME2;
-  var BUBBLE_INPUT_NAME3 = "SliderBubbleInput";
-  var SliderBubbleInput = forwardRef(
-    ({ __scopeSlider, ...props }, forwardedRef) => {
-      const { value, name, form } = useSliderThumbContext(BUBBLE_INPUT_NAME3, __scopeSlider);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(ref, forwardedRef);
-      const prevValue = usePrevious(value);
-      useEffect(() => {
-        const input = ref.current;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(inputProto, "value");
-        const setValue = descriptor.set;
-        if (prevValue !== value && setValue) {
-          const event = new Event("input", { bubbles: true });
-          setValue.call(input, value);
-          input.dispatchEvent(event);
-        }
-      }, [prevValue, value]);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          style: { display: "none" },
-          name,
-          form,
-          ...props,
-          ref: composedRefs,
-          defaultValue: value
-        }
-      );
+    return u;
+  }
+  var _e;
+  var Qe = class {
+    constructor() {
+      __privateAdd(this, _e, {});
     }
-  );
-  SliderBubbleInput.displayName = BUBBLE_INPUT_NAME3;
-  function getNextSortedValues(prevValues = [], nextValue, atIndex) {
-    const nextValues = [...prevValues];
-    nextValues[atIndex] = nextValue;
-    return nextValues.sort((a, b) => a - b);
+    addListener(t, n) {
+      const o = __privateGet(this, _e)[t];
+      return o === void 0 ? __privateGet(this, _e)[t] = [n] : o.includes(n) || o.push(n), () => {
+        this.removeListener(t, n);
+      };
+    }
+    emit(t, n) {
+      const o = __privateGet(this, _e)[t];
+      if (o !== void 0)
+        if (o.length === 1)
+          o[0].call(null, n);
+        else {
+          let i = false, s = null;
+          const u = Array.from(o);
+          for (let a = 0; a < u.length; a++) {
+            const r3 = u[a];
+            try {
+              r3.call(null, n);
+            } catch (l) {
+              s === null && (i = true, s = l);
+            }
+          }
+          if (i)
+            throw s;
+        }
+    }
+    removeAllListeners() {
+      __privateSet(this, _e, {});
+    }
+    removeListener(t, n) {
+      const o = __privateGet(this, _e)[t];
+      if (o !== void 0) {
+        const i = o.indexOf(n);
+        i >= 0 && o.splice(i, 1);
+      }
+    }
+  };
+  _e = new WeakMap();
+  var ee = {
+    cursorFlags: 0,
+    state: "inactive"
+  };
+  var ze = new Qe();
+  function B() {
+    return ee;
   }
-  function convertValueToPercentage(value, min2, max2) {
-    const maxSteps = max2 - min2;
-    const percentPerStep = 100 / maxSteps;
-    const percentage = percentPerStep * (value - min2);
-    return clamp2(percentage, [0, 100]);
+  function Rt(e) {
+    return ze.addListener("change", e);
   }
-  function getLabel(index2, totalValues) {
-    if (totalValues > 2) {
-      return `Value ${index2 + 1} of ${totalValues}`;
-    } else if (totalValues === 2) {
-      return ["Minimum", "Maximum"][index2];
-    } else {
-      return void 0;
+  function Mt(e) {
+    const t = ee, n = { ...ee };
+    n.cursorFlags = e, ee = n, ze.emit("change", {
+      prev: t,
+      next: n
+    });
+  }
+  function te(e) {
+    const t = ee;
+    ee = e, ze.emit("change", {
+      prev: t,
+      next: e
+    });
+  }
+  var Et = (e) => e;
+  var ye = () => {
+  };
+  var et = 1;
+  var tt = 2;
+  var nt = 4;
+  var ot = 8;
+  var Ie = 3;
+  var ke = 12;
+  var de;
+  function De() {
+    return de === void 0 && (de = false, typeof window < "u" && (window.navigator.userAgent.includes("Chrome") || window.navigator.userAgent.includes("Firefox")) && (de = true)), de;
+  }
+  function It({
+    cursorFlags: e,
+    groups: t,
+    state: n
+  }) {
+    let o = 0, i = 0;
+    switch (n) {
+      case "active":
+      case "hover":
+        t.forEach((s) => {
+          if (!s.mutableState.disableCursor)
+            switch (s.orientation) {
+              case "horizontal": {
+                o++;
+                break;
+              }
+              case "vertical": {
+                i++;
+                break;
+              }
+            }
+        });
+    }
+    if (!(o === 0 && i === 0)) {
+      switch (n) {
+        case "active": {
+          if (e && De()) {
+            const s = (e & et) !== 0, u = (e & tt) !== 0, a = (e & nt) !== 0, r3 = (e & ot) !== 0;
+            if (s)
+              return a ? "se-resize" : r3 ? "ne-resize" : "e-resize";
+            if (u)
+              return a ? "sw-resize" : r3 ? "nw-resize" : "w-resize";
+            if (a)
+              return "s-resize";
+            if (r3)
+              return "n-resize";
+          }
+          break;
+        }
+      }
+      return De() ? o > 0 && i > 0 ? "move" : o > 0 ? "ew-resize" : "ns-resize" : o > 0 && i > 0 ? "grab" : o > 0 ? "col-resize" : "row-resize";
     }
   }
-  function getClosestValueIndex(values, nextValue) {
-    if (values.length === 1) return 0;
-    const distances = values.map((value) => Math.abs(value - nextValue));
-    const closestDistance = Math.min(...distances);
-    return distances.indexOf(closestDistance);
+  var Te = /* @__PURE__ */ new WeakMap();
+  function xe(e) {
+    if (e.defaultView === null || e.defaultView === void 0)
+      return;
+    let { prevStyle: t, styleSheet: n } = Te.get(e) ?? {};
+    n === void 0 && (n = new e.defaultView.CSSStyleSheet(), e.adoptedStyleSheets && (Object.isExtensible(e.adoptedStyleSheets) ? e.adoptedStyleSheets.push(n) : e.adoptedStyleSheets = [
+      ...e.adoptedStyleSheets,
+      n
+    ]));
+    const o = B();
+    switch (o.state) {
+      case "active":
+      case "hover": {
+        const i = It({
+          cursorFlags: o.cursorFlags,
+          groups: o.hitRegions.map((u) => u.group),
+          state: o.state
+        }), s = `*, *:hover {cursor: ${i} !important; }`;
+        if (t === s)
+          return;
+        t = s, i ? n.cssRules.length === 0 ? n.insertRule(s) : n.replaceSync(s) : n.cssRules.length === 1 && n.deleteRule(0);
+        break;
+      }
+      case "inactive": {
+        t = void 0, n.cssRules.length === 1 && n.deleteRule(0);
+        break;
+      }
+    }
+    Te.set(e, {
+      prevStyle: t,
+      styleSheet: n
+    });
   }
-  function getThumbInBoundsOffset(width, left, direction) {
-    const halfWidth = width / 2;
-    const halfPercent = 50;
-    const offset4 = linearScale2([0, halfPercent], [0, halfWidth]);
-    return (halfWidth - offset4(left) * direction) * direction;
+  var F = /* @__PURE__ */ new Map();
+  var it = new Qe();
+  function kt(e) {
+    F = new Map(F), F.delete(e);
   }
-  function getStepsBetweenValues(values) {
-    return values.slice(0, -1).map((value, index2) => values[index2 + 1] - value);
+  function Oe(e, t) {
+    for (const [n] of F)
+      if (n.id === e)
+        return n;
   }
-  function hasMinStepsBetweenValues(values, minStepsBetweenValues) {
-    if (minStepsBetweenValues > 0) {
-      const stepsBetweenValues = getStepsBetweenValues(values);
-      const actualMinStepsBetweenValues = Math.min(...stepsBetweenValues);
-      return actualMinStepsBetweenValues >= minStepsBetweenValues;
+  function H(e, t) {
+    for (const [n, o] of F)
+      if (n.id === e)
+        return o;
+    if (t)
+      throw Error(`Could not find data for Group with id ${e}`);
+  }
+  function X2() {
+    return F;
+  }
+  function Pe(e, t) {
+    return it.addListener("groupChange", (n) => {
+      n.group.id === e && t(n);
+    });
+  }
+  function j(e, t, n) {
+    const o = F.get(e);
+    F = new Map(F), F.set(e, t), it.emit("groupChange", {
+      group: e,
+      isUserInteraction: n?.isUserInteraction === true,
+      prev: o,
+      next: t
+    });
+  }
+  function rt(e) {
+    const t = B();
+    let n = false;
+    switch (t.state) {
+      case "active":
+        te({
+          cursorFlags: 0,
+          state: "inactive"
+        }), t.hitRegions.length > 0 && (xe(e), n = true, t.hitRegions.forEach((o) => {
+          const i = H(o.group.id, true);
+          j(o.group, i, {
+            isUserInteraction: true
+          });
+        }));
+    }
+    return n;
+  }
+  function Ge(e) {
+    e.defaultPrevented || rt(e.currentTarget);
+  }
+  function Dt(e, t, n) {
+    let o, i = {
+      x: 1 / 0,
+      y: 1 / 0
+    };
+    for (const s of t) {
+      const u = Je(n, s.rect);
+      switch (e) {
+        case "horizontal": {
+          u.x <= i.x && (o = s, i = u);
+          break;
+        }
+        case "vertical": {
+          u.y <= i.y && (o = s, i = u);
+          break;
+        }
+      }
+    }
+    return o ? {
+      distance: i,
+      hitRegion: o
+    } : void 0;
+  }
+  function Tt(e) {
+    return e !== null && typeof e == "object" && "nodeType" in e && e.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
+  }
+  function Ot(e, t) {
+    if (e === t) throw new Error("Cannot compare node with itself");
+    const n = {
+      a: Ne(e),
+      b: Ne(t)
+    };
+    let o;
+    for (; n.a.at(-1) === n.b.at(-1); )
+      o = n.a.pop(), n.b.pop();
+    C(
+      o,
+      "Stacking order can only be calculated for elements with a common ancestor"
+    );
+    const i = {
+      a: Fe(Ae(n.a)),
+      b: Fe(Ae(n.b))
+    };
+    if (i.a === i.b) {
+      const s = o.childNodes, u = {
+        a: n.a.at(-1),
+        b: n.b.at(-1)
+      };
+      let a = s.length;
+      for (; a--; ) {
+        const r3 = s[a];
+        if (r3 === u.a) return 1;
+        if (r3 === u.b) return -1;
+      }
+    }
+    return Math.sign(i.a - i.b);
+  }
+  var Gt = /\b(?:position|zIndex|opacity|transform|webkitTransform|mixBlendMode|filter|webkitFilter|isolation)\b/;
+  function At(e) {
+    const t = getComputedStyle(st(e) ?? e).display;
+    return t === "flex" || t === "inline-flex";
+  }
+  function Ft(e) {
+    const t = getComputedStyle(e);
+    return !!(t.position === "fixed" || t.zIndex !== "auto" && (t.position !== "static" || At(e)) || +t.opacity < 1 || "transform" in t && t.transform !== "none" || "webkitTransform" in t && t.webkitTransform !== "none" || "mixBlendMode" in t && t.mixBlendMode !== "normal" || "filter" in t && t.filter !== "none" || "webkitFilter" in t && t.webkitFilter !== "none" || "isolation" in t && t.isolation === "isolate" || Gt.test(t.willChange) || t.webkitOverflowScrolling === "touch");
+  }
+  function Ae(e) {
+    let t = e.length;
+    for (; t--; ) {
+      const n = e[t];
+      if (C(n, "Missing node"), Ft(n)) return n;
+    }
+    return null;
+  }
+  function Fe(e) {
+    return e && Number(getComputedStyle(e).zIndex) || 0;
+  }
+  function Ne(e) {
+    const t = [];
+    for (; e; )
+      t.push(e), e = st(e);
+    return t;
+  }
+  function st(e) {
+    const { parentNode: t } = e;
+    return Tt(t) ? t.host : t;
+  }
+  function Nt(e, t) {
+    return e.x < t.x + t.width && e.x + e.width > t.x && e.y < t.y + t.height && e.y + e.height > t.y;
+  }
+  function _t({
+    groupElement: e,
+    hitRegion: t,
+    pointerEventTarget: n
+  }) {
+    if (!Ye(n) || n.contains(e) || e.contains(n))
+      return true;
+    if (Ot(n, e) > 0) {
+      let o = n;
+      for (; o; ) {
+        if (o.contains(e))
+          return true;
+        if (Nt(o.getBoundingClientRect(), t))
+          return false;
+        o = o.parentElement;
+      }
     }
     return true;
   }
-  function linearScale2(input, output) {
-    return (value) => {
-      if (input[0] === input[1] || output[0] === output[1]) return output[0];
-      const ratio = (output[1] - output[0]) / (input[1] - input[0]);
-      return output[0] + ratio * (value - input[0]);
-    };
-  }
-  function getDecimalCount(value) {
-    if (!Number.isFinite(value)) return 0;
-    const str = value.toString();
-    if (str.includes("e")) {
-      const [coefficient, exponent] = str.split("e");
-      const decimalPart2 = coefficient.split(".")[1] || "";
-      const exponentNum = Number(exponent);
-      return Math.max(0, decimalPart2.length - exponentNum);
-    }
-    const decimalPart = str.split(".")[1];
-    return decimalPart ? decimalPart.length : 0;
-  }
-  function roundValue(value, decimalCount) {
-    const rounder = Math.pow(10, decimalCount);
-    return Math.round(value * rounder) / rounder;
-  }
-  function isFunction4(value) {
-    return typeof value === "function";
-  }
-
-  // ../../../packages/shadcn-ui/src/components/slider.tsx
-  var Slider2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Slider,
-      {
-        ref,
-        className: cn("xps-slider", className),
-        ...props
-      },
-      createElement(SliderTrack, { className: "xps-slider-track" }, createElement(SliderRange, { className: "xps-slider-range" })),
-      createElement(SliderThumb, { className: "xps-slider-thumb" })
-    )
-  );
-  Slider2.displayName = Slider.displayName;
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_d2f9574497ecbe08e0e7c2298fb35dc1/node_modules/@radix-ui/react-switch/dist/index.mjs
-  var SWITCH_NAME = "Switch";
-  var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
-  var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
-  function SwitchProvider(props) {
-    const {
-      __scopeSwitch,
-      checked: checkedProp,
-      children,
-      defaultChecked,
-      disabled,
-      form,
-      name,
-      onCheckedChange,
-      required,
-      value = "on",
-      // @ts-expect-error
-      internal_do_not_use_render
-    } = props;
-    const [checked, setChecked] = useControllableState({
-      prop: checkedProp,
-      defaultProp: defaultChecked ?? false,
-      onChange: onCheckedChange,
-      caller: SWITCH_NAME
-    });
-    const [control, setControl] = useState(null);
-    const [bubbleInput, setBubbleInput] = useState(null);
-    const hasConsumerStoppedPropagationRef = useRef(false);
-    const isFormControl = control ? !!form || !!control.closest("form") : (
-      // We set this to true by default so that events bubble to forms without JS (SSR)
-      true
-    );
-    const context = {
-      checked,
-      setChecked,
-      disabled,
-      control,
-      setControl,
-      name,
-      form,
-      value,
-      hasConsumerStoppedPropagationRef,
-      required,
-      defaultChecked,
-      isFormControl,
-      bubbleInput,
-      setBubbleInput
-    };
-    return /* @__PURE__ */ jsx(SwitchProviderImpl, { scope: __scopeSwitch, ...context, children: isFunction5(internal_do_not_use_render) ? internal_do_not_use_render(context) : children });
-  }
-  var TRIGGER_NAME5 = "SwitchTrigger";
-  var SwitchTrigger = forwardRef(
-    ({ __scopeSwitch, onClick, ...switchProps }, forwardedRef) => {
-      const {
-        value,
-        disabled,
-        checked,
-        required,
-        setControl,
-        setChecked,
-        hasConsumerStoppedPropagationRef,
-        isFormControl,
-        bubbleInput
-      } = useSwitchContext(TRIGGER_NAME5, __scopeSwitch);
-      const composedRefs = useComposedRefs(forwardedRef, setControl);
-      return /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          type: "button",
-          role: "switch",
-          "aria-checked": checked,
-          "aria-required": required,
-          "data-state": getState3(checked),
-          "data-disabled": disabled ? "" : void 0,
-          disabled,
-          value,
-          ...switchProps,
-          ref: composedRefs,
-          onClick: composeEventHandlers(onClick, (event) => {
-            setChecked((prevChecked) => !prevChecked);
-            if (bubbleInput && isFormControl) {
-              hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
-              if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
-            }
-          })
-        }
-      );
-    }
-  );
-  SwitchTrigger.displayName = TRIGGER_NAME5;
-  var Switch = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeSwitch,
-        name,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        value,
-        onCheckedChange,
-        form,
-        ...switchProps
-      } = props;
-      return /* @__PURE__ */ jsx(
-        SwitchProvider,
-        {
-          __scopeSwitch,
-          checked,
-          defaultChecked,
-          disabled,
-          required,
-          onCheckedChange,
-          name,
-          form,
-          value,
-          internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              SwitchTrigger,
-              {
-                ...switchProps,
-                ref: forwardedRef,
-                __scopeSwitch
-              }
-            ),
-            isFormControl && /* @__PURE__ */ jsx(
-              SwitchBubbleInput,
-              {
-                __scopeSwitch
-              }
-            )
-          ] })
-        }
-      );
-    }
-  );
-  Switch.displayName = SWITCH_NAME;
-  var THUMB_NAME3 = "SwitchThumb";
-  var SwitchThumb = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSwitch, ...thumbProps } = props;
-      const context = useSwitchContext(THUMB_NAME3, __scopeSwitch);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-state": getState3(context.checked),
-          "data-disabled": context.disabled ? "" : void 0,
-          ...thumbProps,
-          ref: forwardedRef
-        }
-      );
-    }
-  );
-  SwitchThumb.displayName = THUMB_NAME3;
-  var BUBBLE_INPUT_NAME4 = "SwitchBubbleInput";
-  var SwitchBubbleInput = forwardRef(
-    ({ __scopeSwitch, ...props }, forwardedRef) => {
-      const {
-        control,
-        hasConsumerStoppedPropagationRef,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        name,
-        value,
-        form,
-        bubbleInput,
-        setBubbleInput
-      } = useSwitchContext(BUBBLE_INPUT_NAME4, __scopeSwitch);
-      const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
-      const prevChecked = usePrevious(checked);
-      const controlSize = useSize(control);
-      useEffect(() => {
-        const input = bubbleInput;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(
-          inputProto,
-          "checked"
-        );
-        const setChecked = descriptor.set;
-        const bubbles = !hasConsumerStoppedPropagationRef.current;
-        if (prevChecked !== checked && setChecked) {
-          const event = new Event("click", { bubbles });
-          setChecked.call(input, checked);
-          input.dispatchEvent(event);
-        }
-      }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
-      const defaultCheckedRef = useRef(checked);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          type: "checkbox",
-          "aria-hidden": true,
-          defaultChecked: defaultChecked ?? defaultCheckedRef.current,
-          required,
-          disabled,
-          name,
-          value,
-          form,
-          ...props,
-          tabIndex: -1,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            ...controlSize,
-            position: "absolute",
-            pointerEvents: "none",
-            opacity: 0,
-            margin: 0,
-            // We transform because the input is absolutely positioned but we have
-            // rendered it **after** the button. This pulls it back to sit on top
-            // of the button.
-            transform: "translateX(-100%)"
-          }
-        }
-      );
-    }
-  );
-  SwitchBubbleInput.displayName = BUBBLE_INPUT_NAME4;
-  function isFunction5(value) {
-    return typeof value === "function";
-  }
-  function getState3(checked) {
-    return checked ? "checked" : "unchecked";
-  }
-
-  // ../../../packages/shadcn-ui/src/components/switch.tsx
-  var Switch2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Switch,
-      {
-        ref,
-        className: cn("xps-switch", className),
-        ...props
-      },
-      createElement(SwitchThumb, {
-        className: "xps-switch-thumb"
-      })
-    )
-  );
-  Switch2.displayName = Switch.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/table.tsx
-  var Table = forwardRef(
-    ({ className, ...props }, ref) => createElement("table", {
-      ref,
-      className: cn("xps-table", className),
-      ...props
-    })
-  );
-  Table.displayName = "Table";
-  var TableHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("thead", {
-      ref,
-      className: cn("xps-table-header", className),
-      ...props
-    })
-  );
-  TableHeader.displayName = "TableHeader";
-  var TableBody = forwardRef(
-    ({ className, ...props }, ref) => createElement("tbody", {
-      ref,
-      className: cn("xps-table-body", className),
-      ...props
-    })
-  );
-  TableBody.displayName = "TableBody";
-  var TableFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("tfoot", {
-      ref,
-      className: cn("xps-table-footer", className),
-      ...props
-    })
-  );
-  TableFooter.displayName = "TableFooter";
-  var TableRow = forwardRef(
-    ({ className, ...props }, ref) => createElement("tr", {
-      ref,
-      className: cn("xps-table-row", className),
-      ...props
-    })
-  );
-  TableRow.displayName = "TableRow";
-  var TableHead = forwardRef(
-    ({ className, ...props }, ref) => createElement("th", {
-      ref,
-      className: cn("xps-table-head", className),
-      ...props
-    })
-  );
-  TableHead.displayName = "TableHead";
-  var TableCell = forwardRef(
-    ({ className, ...props }, ref) => createElement("td", {
-      ref,
-      className: cn("xps-table-cell", className),
-      ...props
-    })
-  );
-  TableCell.displayName = "TableCell";
-  var TableCaption = forwardRef(
-    ({ className, ...props }, ref) => createElement("caption", {
-      ref,
-      className: cn("xps-table-caption", className),
-      ...props
-    })
-  );
-  TableCaption.displayName = "TableCaption";
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react@_769bbb0130198553b196f258bd99ab92/node_modules/@radix-ui/react-tabs/dist/index.mjs
-  var TABS_NAME = "Tabs";
-  var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
-    createRovingFocusGroupScope
-  ]);
-  var useRovingFocusGroupScope2 = createRovingFocusGroupScope();
-  var [TabsProvider, useTabsContext] = createTabsContext(TABS_NAME);
-  var Tabs = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeTabs,
-        value: valueProp,
-        onValueChange,
-        defaultValue,
-        orientation = "horizontal",
-        dir,
-        activationMode = "automatic",
-        ...tabsProps
-      } = props;
-      const direction = useDirection(dir);
-      const [value, setValue] = useControllableState({
-        prop: valueProp,
-        onChange: onValueChange,
-        defaultProp: defaultValue ?? "",
-        caller: TABS_NAME
+  function we(e, t) {
+    const n = [];
+    return t.forEach((o, i) => {
+      if (i.disabled)
+        return;
+      const s = Ze(i), u = Dt(i.orientation, s, {
+        x: e.clientX,
+        y: e.clientY
       });
-      return /* @__PURE__ */ jsx(
-        TabsProvider,
-        {
-          scope: __scopeTabs,
-          baseId: useId2(),
-          value,
-          onValueChange: setValue,
-          orientation,
-          dir: direction,
-          activationMode,
-          children: /* @__PURE__ */ jsx(
-            Primitive.div,
-            {
-              dir: direction,
-              "data-orientation": orientation,
-              ...tabsProps,
-              ref: forwardedRef
-            }
-          )
-        }
-      );
-    }
-  );
-  Tabs.displayName = TABS_NAME;
-  var TAB_LIST_NAME = "TabsList";
-  var TabsList = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTabs, loop = true, ...listProps } = props;
-      const context = useTabsContext(TAB_LIST_NAME, __scopeTabs);
-      const rovingFocusGroupScope = useRovingFocusGroupScope2(__scopeTabs);
-      return /* @__PURE__ */ jsx(
-        Root3,
-        {
-          asChild: true,
-          ...rovingFocusGroupScope,
-          orientation: context.orientation,
-          dir: context.dir,
-          loop,
-          children: /* @__PURE__ */ jsx(
-            Primitive.div,
-            {
-              role: "tablist",
-              "aria-orientation": context.orientation,
-              ...listProps,
-              ref: forwardedRef
-            }
-          )
-        }
-      );
-    }
-  );
-  TabsList.displayName = TAB_LIST_NAME;
-  var TRIGGER_NAME6 = "TabsTrigger";
-  var TabsTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTabs, value, disabled = false, ...triggerProps } = props;
-      const context = useTabsContext(TRIGGER_NAME6, __scopeTabs);
-      const rovingFocusGroupScope = useRovingFocusGroupScope2(__scopeTabs);
-      const triggerId = makeTriggerId(context.baseId, value);
-      const contentId = makeContentId(context.baseId, value);
-      const isSelected = value === context.value;
-      return /* @__PURE__ */ jsx(
-        Item,
-        {
-          asChild: true,
-          ...rovingFocusGroupScope,
-          focusable: !disabled,
-          active: isSelected,
-          children: /* @__PURE__ */ jsx(
-            Primitive.button,
-            {
-              type: "button",
-              role: "tab",
-              "aria-selected": isSelected,
-              "aria-controls": contentId,
-              "data-state": isSelected ? "active" : "inactive",
-              "data-disabled": disabled ? "" : void 0,
-              disabled,
-              id: triggerId,
-              ...triggerProps,
-              ref: forwardedRef,
-              onMouseDown: composeEventHandlers(props.onMouseDown, (event) => {
-                if (!disabled && event.button === 0 && event.ctrlKey === false) {
-                  context.onValueChange(value);
-                } else {
-                  event.preventDefault();
-                }
-              }),
-              onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-                if ([" ", "Enter"].includes(event.key)) context.onValueChange(value);
-              }),
-              onFocus: composeEventHandlers(props.onFocus, () => {
-                const isAutomaticActivation = context.activationMode !== "manual";
-                if (!isSelected && !disabled && isAutomaticActivation) {
-                  context.onValueChange(value);
-                }
-              })
-            }
-          )
-        }
-      );
-    }
-  );
-  TabsTrigger.displayName = TRIGGER_NAME6;
-  var CONTENT_NAME6 = "TabsContent";
-  var TabsContent = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTabs, value, forceMount, children, ...contentProps } = props;
-      const context = useTabsContext(CONTENT_NAME6, __scopeTabs);
-      const triggerId = makeTriggerId(context.baseId, value);
-      const contentId = makeContentId(context.baseId, value);
-      const isSelected = value === context.value;
-      const isMountAnimationPreventedRef = useRef(isSelected);
-      useEffect(() => {
-        const rAF = requestAnimationFrame(() => isMountAnimationPreventedRef.current = false);
-        return () => cancelAnimationFrame(rAF);
-      }, []);
-      return /* @__PURE__ */ jsx(Presence, { present: forceMount || isSelected, children: ({ present }) => /* @__PURE__ */ jsx(
-        Primitive.div,
-        {
-          "data-state": isSelected ? "active" : "inactive",
-          "data-orientation": context.orientation,
-          role: "tabpanel",
-          "aria-labelledby": triggerId,
-          hidden: !present,
-          id: contentId,
-          tabIndex: 0,
-          ...contentProps,
-          ref: forwardedRef,
-          style: {
-            ...props.style,
-            animationDuration: isMountAnimationPreventedRef.current ? "0s" : void 0
-          },
-          children: present && children
-        }
-      ) });
-    }
-  );
-  TabsContent.displayName = CONTENT_NAME6;
-  function makeTriggerId(baseId, value) {
-    return `${baseId}-trigger-${value}`;
+      u && u.distance.x <= 0 && u.distance.y <= 0 && _t({
+        groupElement: i.element,
+        hitRegion: u.hitRegion.rect,
+        pointerEventTarget: e.target
+      }) && n.push(u.hitRegion);
+    }), n;
   }
-  function makeContentId(baseId, value) {
-    return `${baseId}-content-${value}`;
+  function $t(e, t) {
+    if (e.length !== t.length)
+      return false;
+    for (let n = 0; n < e.length; n++)
+      if (e[n] != t[n])
+        return false;
+    return true;
   }
-  var List = TabsList;
-  var Trigger3 = TabsTrigger;
-  var Content3 = TabsContent;
-
-  // ../../../packages/shadcn-ui/src/components/tabs.tsx
-  var TabsList2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(List, {
-      ref,
-      className: cn("xps-tabs-list", className),
-      ...props
-    })
-  );
-  TabsList2.displayName = List.displayName;
-  var TabsTrigger2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Trigger3, {
-      ref,
-      className: cn("xps-tabs-trigger", className),
-      ...props
-    })
-  );
-  TabsTrigger2.displayName = Trigger3.displayName;
-  var TabsContent2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Content3, {
-      ref,
-      className: cn("xps-tabs-content", className),
-      ...props
-    })
-  );
-  TabsContent2.displayName = Content3.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/textarea.tsx
-  var Textarea = forwardRef(({ className, ...props }, ref) => createElement("textarea", {
-    ref,
-    className: cn("xps-textarea", className),
-    ...props
-  }));
-  Textarea.displayName = "Textarea";
-
-  // ../../../xpertai/node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_02a5bba0cb45f3ddbe548efab47eabcc/node_modules/@radix-ui/react-tooltip/dist/index.mjs
-  var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
-    createPopperScope
-  ]);
-  var usePopperScope3 = createPopperScope();
-  var PROVIDER_NAME2 = "TooltipProvider";
-  var DEFAULT_DELAY_DURATION = 700;
-  var TOOLTIP_OPEN = "tooltip.open";
-  var [TooltipProviderContextProvider, useTooltipProviderContext] = createTooltipContext(PROVIDER_NAME2);
-  var TooltipProvider = (props) => {
+  function k(e, t, n = 0) {
+    return Math.abs(T(e) - T(t)) <= n;
+  }
+  function A(e, t) {
+    return k(e, t) ? 0 : e > t ? 1 : -1;
+  }
+  function Z({
+    overrideDisabledPanels: e,
+    panelConstraints: t,
+    prevSize: n,
+    size: o
+  }) {
     const {
-      __scopeTooltip,
-      delayDuration = DEFAULT_DELAY_DURATION,
-      skipDelayDuration = 300,
-      disableHoverableContent = false,
-      children
-    } = props;
-    const isOpenDelayedRef = useRef(true);
-    const isPointerInTransitRef = useRef(false);
-    const skipDelayTimerRef = useRef(0);
-    useEffect(() => {
-      const skipDelayTimer = skipDelayTimerRef.current;
-      return () => window.clearTimeout(skipDelayTimer);
-    }, []);
-    return /* @__PURE__ */ jsx(
-      TooltipProviderContextProvider,
-      {
-        scope: __scopeTooltip,
-        isOpenDelayedRef,
-        delayDuration,
-        onOpen: useCallback(() => {
-          if (skipDelayDuration <= 0) return;
-          window.clearTimeout(skipDelayTimerRef.current);
-          isOpenDelayedRef.current = false;
-        }, [skipDelayDuration]),
-        onClose: useCallback(() => {
-          if (skipDelayDuration <= 0) return;
-          window.clearTimeout(skipDelayTimerRef.current);
-          skipDelayTimerRef.current = window.setTimeout(
-            () => isOpenDelayedRef.current = true,
-            skipDelayDuration
+      collapsedSize: i = 0,
+      collapsible: s,
+      disabled: u,
+      maxSize: a = 100,
+      minSize: r3 = 0
+    } = t;
+    if (u && !e)
+      return n;
+    if (A(o, r3) < 0)
+      if (s) {
+        const l = (i + r3) / 2;
+        A(o, l) < 0 ? o = i : o = r3;
+      } else
+        o = r3;
+    return o = Math.min(a, o), o = T(o), o;
+  }
+  function le({
+    delta: e,
+    initialLayout: t,
+    panelConstraints: n,
+    pivotIndices: o,
+    prevLayout: i,
+    trigger: s
+  }) {
+    if (k(e, 0))
+      return t;
+    const u = s === "imperative-api", a = Object.values(t), r3 = Object.values(i), l = [...a], [c, m] = o;
+    C(c != null, "Invalid first pivot index"), C(m != null, "Invalid second pivot index");
+    let p = 0;
+    switch (s) {
+      case "keyboard": {
+        {
+          const f = e < 0 ? m : c, d = n[f];
+          C(
+            d,
+            `Panel constraints not found for index ${f}`
           );
-        }, [skipDelayDuration]),
-        isPointerInTransitRef,
-        onPointerInTransitChange: useCallback((inTransit) => {
-          isPointerInTransitRef.current = inTransit;
-        }, []),
-        disableHoverableContent,
-        children
-      }
-    );
-  };
-  TooltipProvider.displayName = PROVIDER_NAME2;
-  var TOOLTIP_NAME = "Tooltip";
-  var [TooltipContextProvider, useTooltipContext] = createTooltipContext(TOOLTIP_NAME);
-  var Tooltip = (props) => {
-    const {
-      __scopeTooltip,
-      children,
-      open: openProp,
-      defaultOpen,
-      onOpenChange,
-      disableHoverableContent: disableHoverableContentProp,
-      delayDuration: delayDurationProp
-    } = props;
-    const providerContext = useTooltipProviderContext(TOOLTIP_NAME, props.__scopeTooltip);
-    const popperScope = usePopperScope3(__scopeTooltip);
-    const [trigger, setTrigger] = useState(null);
-    const contentId = useId2();
-    const openTimerRef = useRef(0);
-    const disableHoverableContent = disableHoverableContentProp ?? providerContext.disableHoverableContent;
-    const delayDuration = delayDurationProp ?? providerContext.delayDuration;
-    const wasOpenDelayedRef = useRef(false);
-    const [open, setOpen] = useControllableState({
-      prop: openProp,
-      defaultProp: defaultOpen ?? false,
-      onChange: (open2) => {
-        if (open2) {
-          providerContext.onOpen();
-          document.dispatchEvent(new CustomEvent(TOOLTIP_OPEN));
-        } else {
-          providerContext.onClose();
-        }
-        onOpenChange?.(open2);
-      },
-      caller: TOOLTIP_NAME
-    });
-    const stateAttribute = useMemo(() => {
-      return open ? wasOpenDelayedRef.current ? "delayed-open" : "instant-open" : "closed";
-    }, [open]);
-    const handleOpen = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = 0;
-      wasOpenDelayedRef.current = false;
-      setOpen(true);
-    }, [setOpen]);
-    const handleClose = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = 0;
-      setOpen(false);
-    }, [setOpen]);
-    const handleDelayedOpen = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = window.setTimeout(() => {
-        wasOpenDelayedRef.current = true;
-        setOpen(true);
-        openTimerRef.current = 0;
-      }, delayDuration);
-    }, [delayDuration, setOpen]);
-    useEffect(() => {
-      return () => {
-        if (openTimerRef.current) {
-          window.clearTimeout(openTimerRef.current);
-          openTimerRef.current = 0;
-        }
-      };
-    }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
-      TooltipContextProvider,
-      {
-        scope: __scopeTooltip,
-        contentId,
-        open,
-        stateAttribute,
-        trigger,
-        onTriggerChange: setTrigger,
-        onTriggerEnter: useCallback(() => {
-          if (providerContext.isOpenDelayedRef.current) handleDelayedOpen();
-          else handleOpen();
-        }, [providerContext.isOpenDelayedRef, handleDelayedOpen, handleOpen]),
-        onTriggerLeave: useCallback(() => {
-          if (disableHoverableContent) {
-            handleClose();
-          } else {
-            window.clearTimeout(openTimerRef.current);
-            openTimerRef.current = 0;
+          const {
+            collapsedSize: h2 = 0,
+            collapsible: y,
+            minSize: b = 0
+          } = d;
+          if (y) {
+            const v = a[f];
+            if (C(
+              v != null,
+              `Previous layout not found for panel index ${f}`
+            ), k(v, h2)) {
+              const g = b - v;
+              A(g, Math.abs(e)) > 0 && (e = e < 0 ? 0 - g : g);
+            }
           }
-        }, [handleClose, disableHoverableContent]),
-        onOpen: handleOpen,
-        onClose: handleClose,
-        disableHoverableContent,
-        children
+        }
+        {
+          const f = e < 0 ? c : m, d = n[f];
+          C(
+            d,
+            `No panel constraints found for index ${f}`
+          );
+          const {
+            collapsedSize: h2 = 0,
+            collapsible: y,
+            minSize: b = 0
+          } = d;
+          if (y) {
+            const v = a[f];
+            if (C(
+              v != null,
+              `Previous layout not found for panel index ${f}`
+            ), k(v, b)) {
+              const g = v - h2;
+              A(g, Math.abs(e)) > 0 && (e = e < 0 ? 0 - g : g);
+            }
+          }
+        }
+        break;
+      }
+      default: {
+        const f = e < 0 ? m : c, d = n[f];
+        C(
+          d,
+          `Panel constraints not found for index ${f}`
+        );
+        const h2 = a[f], { collapsible: y, collapsedSize: b, minSize: v } = d;
+        if (y && A(h2, v) < 0)
+          if (e > 0) {
+            const g = v - b, w = g / 2, M = h2 + e;
+            A(M, v) < 0 && (e = A(e, w) <= 0 ? 0 : g);
+          } else {
+            const g = v - b, w = 100 - g / 2, M = h2 - e;
+            A(M, v) < 0 && (e = A(100 + e, w) > 0 ? 0 : -g);
+          }
+        break;
+      }
+    }
+    {
+      const f = e < 0 ? 1 : -1;
+      let d = e < 0 ? m : c, h2 = 0;
+      for (; ; ) {
+        const b = a[d];
+        C(
+          b != null,
+          `Previous layout not found for panel index ${d}`
+        );
+        const g = Z({
+          overrideDisabledPanels: u,
+          panelConstraints: n[d],
+          prevSize: b,
+          size: 100
+        }) - b;
+        if (h2 += g, d += f, d < 0 || d >= n.length)
+          break;
+      }
+      const y = Math.min(Math.abs(e), Math.abs(h2));
+      e = e < 0 ? 0 - y : y;
+    }
+    {
+      let d = e < 0 ? c : m;
+      for (; d >= 0 && d < n.length; ) {
+        const h2 = Math.abs(e) - Math.abs(p), y = a[d];
+        C(
+          y != null,
+          `Previous layout not found for panel index ${d}`
+        );
+        const b = y - h2, v = Z({
+          overrideDisabledPanels: u,
+          panelConstraints: n[d],
+          prevSize: y,
+          size: b
+        });
+        if (!k(y, v) && (p += y - v, l[d] = v, p.toFixed(3).localeCompare(Math.abs(e).toFixed(3), void 0, {
+          numeric: true
+        }) >= 0))
+          break;
+        e < 0 ? d-- : d++;
+      }
+    }
+    if ($t(r3, l))
+      return i;
+    {
+      const f = e < 0 ? m : c, d = a[f];
+      C(
+        d != null,
+        `Previous layout not found for panel index ${f}`
+      );
+      const h2 = d + p, y = Z({
+        overrideDisabledPanels: u,
+        panelConstraints: n[f],
+        prevSize: d,
+        size: h2
+      });
+      if (l[f] = y, !k(y, h2)) {
+        let b = h2 - y, g = e < 0 ? m : c;
+        for (; g >= 0 && g < n.length; ) {
+          const w = l[g];
+          C(
+            w != null,
+            `Previous layout not found for panel index ${g}`
+          );
+          const M = w + b, L = Z({
+            overrideDisabledPanels: u,
+            panelConstraints: n[g],
+            prevSize: w,
+            size: M
+          });
+          if (k(w, L) || (b -= L - w, l[g] = L), k(b, 0))
+            break;
+          e > 0 ? g-- : g++;
+        }
+      }
+    }
+    const S = Object.values(l).reduce(
+      (f, d) => d + f,
+      0
+    );
+    if (!k(S, 100, 0.1))
+      return i;
+    const z = Object.keys(i);
+    return l.reduce((f, d, h2) => (f[z[h2]] = d, f), {});
+  }
+  function W(e, t) {
+    if (Object.keys(e).length !== Object.keys(t).length)
+      return false;
+    for (const n in e)
+      if (t[n] === void 0 || A(e[n], t[n]) !== 0)
+        return false;
+    return true;
+  }
+  function K({
+    layout: e,
+    panelConstraints: t
+  }) {
+    const n = Object.values(e), o = [...n], i = o.reduce(
+      (a, r3) => a + r3,
+      0
+    );
+    if (o.length !== t.length)
+      throw Error(
+        `Invalid ${t.length} panel layout: ${o.map((a) => `${a}%`).join(", ")}`
+      );
+    if (!k(i, 100) && o.length > 0)
+      for (let a = 0; a < t.length; a++) {
+        const r3 = o[a];
+        C(r3 != null, `No layout data found for index ${a}`);
+        const l = 100 / i * r3;
+        o[a] = l;
+      }
+    let s = 0;
+    for (let a = 0; a < t.length; a++) {
+      const r3 = n[a];
+      C(r3 != null, `No layout data found for index ${a}`);
+      const l = o[a];
+      C(l != null, `No layout data found for index ${a}`);
+      const c = Z({
+        overrideDisabledPanels: true,
+        panelConstraints: t[a],
+        prevSize: r3,
+        size: l
+      });
+      l != c && (s += l - c, o[a] = c);
+    }
+    if (!k(s, 0))
+      for (let a = 0; a < t.length; a++) {
+        const r3 = o[a];
+        C(r3 != null, `No layout data found for index ${a}`);
+        const l = r3 + s, c = Z({
+          overrideDisabledPanels: true,
+          panelConstraints: t[a],
+          prevSize: r3,
+          size: l
+        });
+        if (r3 !== c && (s -= c - r3, o[a] = c, k(s, 0)))
+          break;
+      }
+    const u = Object.keys(e);
+    return o.reduce((a, r3, l) => (a[u[l]] = r3, a), {});
+  }
+  function at({
+    groupId: e,
+    panelId: t
+  }) {
+    const n = () => {
+      const r3 = X2();
+      for (const [
+        l,
+        {
+          defaultLayoutDeferred: c,
+          derivedPanelConstraints: m,
+          layout: p,
+          groupSize: S,
+          separatorToPanels: z
+        }
+      ] of r3)
+        if (l.id === e)
+          return {
+            defaultLayoutDeferred: c,
+            derivedPanelConstraints: m,
+            group: l,
+            groupSize: S,
+            layout: p,
+            separatorToPanels: z
+          };
+      throw Error(`Group ${e} not found`);
+    }, o = () => {
+      const r3 = n().derivedPanelConstraints.find(
+        (l) => l.panelId === t
+      );
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Panel constraints not found for Panel ${t}`);
+    }, i = () => {
+      const r3 = n().group.panels.find((l) => l.id === t);
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Layout not found for Panel ${t}`);
+    }, s = () => {
+      const r3 = n().layout[t];
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Layout not found for Panel ${t}`);
+    }, u = ({
+      nextSize: r3,
+      panels: l,
+      prevLayout: c,
+      derivedPanelConstraints: m
+    }) => {
+      const p = s(), S = l.findIndex((h2) => h2.id === t), z = S === 0, f = S === l.length - 1;
+      if (f && r3 < p && (z || l.slice(0, S).every((h2, y) => {
+        const b = m[y];
+        return b?.collapsible && k(b.collapsedSize, c[b.panelId]);
+      }))) {
+        const h2 = l.slice(0, S).reduce((y, b) => y + c[b.id], 0);
+        return {
+          ...c,
+          [t]: T(100 - h2)
+        };
+      }
+      return le({
+        delta: f ? p - r3 : r3 - p,
+        initialLayout: c,
+        panelConstraints: m,
+        pivotIndices: f ? [S - 1, S] : [S, S + 1],
+        prevLayout: c,
+        trigger: "imperative-api"
+      });
+    }, a = (r3) => {
+      const l = s();
+      if (r3 === l)
+        return;
+      const {
+        defaultLayoutDeferred: c,
+        derivedPanelConstraints: m,
+        group: p,
+        groupSize: S,
+        layout: z,
+        separatorToPanels: f
+      } = n(), d = u({
+        nextSize: r3,
+        panels: p.panels,
+        prevLayout: z,
+        derivedPanelConstraints: m
+      }), h2 = K({
+        layout: d,
+        panelConstraints: m
+      });
+      W(z, h2) || j(p, {
+        defaultLayoutDeferred: c,
+        derivedPanelConstraints: m,
+        groupSize: S,
+        layout: h2,
+        separatorToPanels: f
+      });
+    };
+    return {
+      collapse: () => {
+        const { collapsible: r3, collapsedSize: l } = o(), { mutableValues: c } = i(), m = s();
+        r3 && m !== l && (c.expandToSize = m, a(l));
+      },
+      expand: () => {
+        const { collapsible: r3, collapsedSize: l, minSize: c } = o(), { mutableValues: m } = i(), p = s();
+        if (r3 && p === l) {
+          let S = m.expandToSize ?? c;
+          S === 0 && (S = 1), a(S);
+        }
+      },
+      getSize: () => {
+        const { group: r3 } = n(), l = s(), { element: c } = i(), m = r3.orientation === "horizontal" ? c.offsetWidth : c.offsetHeight;
+        return {
+          asPercentage: l,
+          inPixels: m
+        };
+      },
+      isCollapsed: () => {
+        const { collapsible: r3, collapsedSize: l } = o(), c = s();
+        return r3 && k(l, c);
+      },
+      resize: (r3) => {
+        const { group: l } = n(), { element: c } = i(), m = ne({ group: l }), p = ie({
+          groupSize: m,
+          panelElement: c,
+          styleProp: r3
+        }), S = T(p / m * 100);
+        a(S);
+      }
+    };
+  }
+  function _e2(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = X2();
+    we(e, t).forEach((o) => {
+      if (o.separator && !o.separator.disableDoubleClick) {
+        const i = o.panels.find(
+          (s) => s.panelConstraints.defaultSize !== void 0
+        );
+        if (i) {
+          const s = i.panelConstraints.defaultSize, u = at({
+            groupId: o.group.id,
+            panelId: i.id
+          });
+          u && s !== void 0 && (u.resize(s), e.preventDefault());
+        }
+      }
+    });
+  }
+  function pe(e) {
+    const t = X2();
+    for (const [n] of t)
+      if (n.separators.some(
+        (o) => o.element === e
+      ))
+        return n;
+    throw Error("Could not find parent Group for separator element");
+  }
+  function lt({
+    groupId: e
+  }) {
+    const t = () => {
+      const n = X2();
+      for (const [o, i] of n)
+        if (o.id === e)
+          return { group: o, ...i };
+      throw Error(`Could not find Group with id "${e}"`);
+    };
+    return {
+      getLayout() {
+        const { defaultLayoutDeferred: n, layout: o } = t();
+        return n ? {} : o;
+      },
+      setLayout(n) {
+        const {
+          defaultLayoutDeferred: o,
+          derivedPanelConstraints: i,
+          group: s,
+          groupSize: u,
+          layout: a,
+          separatorToPanels: r3
+        } = t(), l = K({
+          layout: n,
+          panelConstraints: i
+        });
+        return o ? a : (W(a, l) || j(s, {
+          defaultLayoutDeferred: o,
+          derivedPanelConstraints: i,
+          groupSize: u,
+          layout: l,
+          separatorToPanels: r3
+        }), l);
+      }
+    };
+  }
+  function U(e, t) {
+    const n = pe(e), o = H(n.id, true), i = n.separators.find(
+      (m) => m.element === e
+    );
+    C(i, "Matching separator not found");
+    const s = o.separatorToPanels.get(i);
+    C(s, "Matching panels not found");
+    const u = s.map((m) => n.panels.indexOf(m)), r3 = lt({ groupId: n.id }).getLayout(), l = le({
+      delta: t,
+      initialLayout: r3,
+      panelConstraints: o.derivedPanelConstraints,
+      pivotIndices: u,
+      prevLayout: r3,
+      trigger: "keyboard"
+    }), c = K({
+      layout: l,
+      panelConstraints: o.derivedPanelConstraints
+    });
+    W(r3, c) || j(
+      n,
+      {
+        defaultLayoutDeferred: o.defaultLayoutDeferred,
+        derivedPanelConstraints: o.derivedPanelConstraints,
+        groupSize: o.groupSize,
+        layout: c,
+        separatorToPanels: o.separatorToPanels
+      },
+      // Keyboard resizes (arrow keys, Home/End, Enter collapse/expand) originate
+      // from a real DOM event on the separator, so they are user interactions
+      // just like pointer drags. This function is only reached from
+      // onDocumentKeyDown. See #716.
+      { isUserInteraction: true }
+    );
+  }
+  function $e(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = e.currentTarget, n = pe(t);
+    if (!n.disabled)
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault(), n.orientation === "vertical" && U(t, 5);
+          break;
+        }
+        case "ArrowLeft": {
+          e.preventDefault(), n.orientation === "horizontal" && U(t, -5);
+          break;
+        }
+        case "ArrowRight": {
+          e.preventDefault(), n.orientation === "horizontal" && U(t, 5);
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault(), n.orientation === "vertical" && U(t, -5);
+          break;
+        }
+        case "End": {
+          e.preventDefault(), U(t, 100);
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          const o = pe(t), i = H(o.id, true), { derivedPanelConstraints: s, layout: u, separatorToPanels: a } = i, r3 = o.separators.find(
+            (p) => p.element === t
+          );
+          C(r3, "Matching separator not found");
+          const l = a.get(r3);
+          C(l, "Matching panels not found");
+          const c = l[0], m = s.find(
+            (p) => p.panelId === c.id
+          );
+          if (C(m, "Panel metadata not found"), m.collapsible) {
+            const p = u[c.id], S = m.collapsedSize === p ? o.mutableState.expandedPanelSizes[c.id] ?? m.minSize : m.collapsedSize;
+            U(t, S - p);
+          }
+          break;
+        }
+        case "F6": {
+          e.preventDefault();
+          const i = pe(t).separators.map(
+            (r3) => r3.element
+          ), s = Array.from(i).findIndex(
+            (r3) => r3 === e.currentTarget
+          );
+          C(s !== null, "Index not found");
+          const u = e.shiftKey ? s > 0 ? s - 1 : i.length - 1 : s + 1 < i.length ? s + 1 : 0;
+          i[u].focus({
+            preventScroll: true
+          });
+          break;
+        }
+        case "Home": {
+          e.preventDefault(), U(t, -100);
+          break;
+        }
+      }
+  }
+  function je(e) {
+    if (e.defaultPrevented)
+      return;
+    if (e.pointerType === "mouse" && e.button > 0)
+      return;
+    const t = X2(), n = we(e, t), o = /* @__PURE__ */ new Map();
+    let i = false;
+    n.forEach((s) => {
+      s.separator && (i || (i = true, s.separator.element.focus({
+        // @ts-expect-error https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus#browser_compatibility
+        focusVisible: false,
+        preventScroll: true
+      })));
+      const u = t.get(s.group);
+      u && o.set(s.group, u.layout);
+    }), te({
+      cursorFlags: 0,
+      hitRegions: n,
+      initialLayoutMap: o,
+      pointerDownAtPoint: { x: e.clientX, y: e.clientY },
+      state: "active"
+    }), n.length && e.preventDefault();
+  }
+  function ut({
+    document: e,
+    event: t,
+    hitRegions: n,
+    initialLayoutMap: o,
+    mountedGroups: i,
+    pointerDownAtPoint: s,
+    prevCursorFlags: u
+  }) {
+    let a = 0;
+    n.forEach((l) => {
+      const { group: c, groupSize: m } = l, { orientation: p, panels: S } = c, { disableCursor: z } = c.mutableState;
+      let f = 0;
+      s ? p === "horizontal" ? f = (t.clientX - s.x) / m * 100 : f = (t.clientY - s.y) / m * 100 : p === "horizontal" ? f = t.clientX < 0 ? -100 : 100 : f = t.clientY < 0 ? -100 : 100;
+      const d = o.get(c), h2 = i.get(c);
+      if (!d || !h2)
+        return;
+      const {
+        defaultLayoutDeferred: y,
+        derivedPanelConstraints: b,
+        groupSize: v,
+        layout: g,
+        separatorToPanels: w
+      } = h2;
+      if (b && g && w) {
+        const M = le({
+          delta: f,
+          initialLayout: d,
+          panelConstraints: b,
+          pivotIndices: l.panels.map((L) => S.indexOf(L)),
+          prevLayout: g,
+          trigger: "mouse-or-touch"
+        });
+        if (W(M, g)) {
+          if (f !== 0 && !z)
+            switch (p) {
+              case "horizontal": {
+                a |= f < 0 ? et : tt;
+                break;
+              }
+              case "vertical": {
+                a |= f < 0 ? nt : ot;
+                break;
+              }
+            }
+        } else
+          j(l.group, {
+            defaultLayoutDeferred: y,
+            derivedPanelConstraints: b,
+            groupSize: v,
+            layout: M,
+            separatorToPanels: w
+          });
+      }
+    });
+    let r3 = 0;
+    t.movementX === 0 ? r3 |= u & Ie : r3 |= a & Ie, t.movementY === 0 ? r3 |= u & ke : r3 |= a & ke, Mt(r3), xe(e);
+  }
+  function He(e) {
+    const t = X2(), n = B();
+    switch (n.state) {
+      case "active":
+        ut({
+          document: e.currentTarget,
+          event: e,
+          hitRegions: n.hitRegions,
+          initialLayoutMap: n.initialLayoutMap,
+          mountedGroups: t,
+          prevCursorFlags: n.cursorFlags
+        });
+    }
+  }
+  function Ve(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = B(), n = X2();
+    switch (t.state) {
+      case "active": {
+        if (
+          // Skip this check for "pointerleave" events, else Firefox triggers a false positive (see #514)
+          e.buttons === 0
+        ) {
+          te({
+            cursorFlags: 0,
+            state: "inactive"
+          }), t.hitRegions.forEach((o) => {
+            const i = H(o.group.id, true);
+            j(o.group, i, {
+              isUserInteraction: true
+            });
+          });
+          return;
+        }
+        for (const o of t.hitRegions)
+          if (o.separator) {
+            const { element: i } = o.separator;
+            i.hasPointerCapture?.(e.pointerId) || i.setPointerCapture?.(e.pointerId);
+          }
+        ut({
+          document: e.currentTarget,
+          event: e,
+          hitRegions: t.hitRegions,
+          initialLayoutMap: t.initialLayoutMap,
+          mountedGroups: n,
+          pointerDownAtPoint: t.pointerDownAtPoint,
+          prevCursorFlags: t.cursorFlags
+        });
+        break;
+      }
+      default: {
+        const o = we(e, n);
+        o.length === 0 ? t.state !== "inactive" && te({
+          cursorFlags: 0,
+          state: "inactive"
+        }) : te({
+          cursorFlags: 0,
+          hitRegions: o,
+          state: "hover"
+        }), xe(e.currentTarget);
+        break;
+      }
+    }
+  }
+  function Ue(e) {
+    if (e.relatedTarget instanceof HTMLIFrameElement)
+      switch (B().state) {
+        case "hover":
+          te({
+            cursorFlags: 0,
+            state: "inactive"
+          });
+      }
+  }
+  function Be(e) {
+    if (e.defaultPrevented)
+      return;
+    if (e.pointerType === "mouse" && e.button > 0)
+      return;
+    rt(e.currentTarget) && e.preventDefault();
+  }
+  function We(e) {
+    let t = 0, n = 0;
+    const o = {};
+    for (const s of e)
+      if (s.defaultSize !== void 0) {
+        t++;
+        const u = T(s.defaultSize);
+        n += u, o[s.panelId] = u;
+      } else
+        o[s.panelId] = void 0;
+    const i = e.length - t;
+    if (i !== 0) {
+      const s = T((100 - n) / i);
+      for (const u of e)
+        u.defaultSize === void 0 && (o[u.panelId] = s);
+    }
+    return o;
+  }
+  function jt(e, t, n) {
+    if (!n[0])
+      return;
+    const i = e.panels.find((l) => l.element === t);
+    if (!i || !i.onResize)
+      return;
+    const s = ne({ group: e }), u = e.orientation === "horizontal" ? i.element.offsetWidth : i.element.offsetHeight, a = i.mutableValues.prevSize, r3 = {
+      asPercentage: T(u / s * 100),
+      inPixels: u
+    };
+    i.mutableValues.prevSize = r3, i.onResize(r3, i.id, a);
+  }
+  function Ht(e, t) {
+    if (Object.keys(e).length !== Object.keys(t).length)
+      return false;
+    for (const o in e)
+      if (e[o] !== t[o])
+        return false;
+    return true;
+  }
+  function Vt({
+    group: e,
+    nextGroupSize: t,
+    prevGroupSize: n,
+    prevLayout: o
+  }) {
+    if (n <= 0 || t <= 0 || n === t)
+      return o;
+    let i = 0, s = 0, u = false;
+    const a = /* @__PURE__ */ new Map(), r3 = [];
+    for (const m of e.panels) {
+      const p = o[m.id] ?? 0;
+      switch (m.panelConstraints.groupResizeBehavior) {
+        case "preserve-pixel-size": {
+          u = true;
+          const S = p / 100 * n, z = T(
+            S / t * 100
+          );
+          a.set(m.id, z), i += z;
+          break;
+        }
+        case "preserve-relative-size":
+        default: {
+          r3.push(m.id), s += p;
+          break;
+        }
+      }
+    }
+    if (!u || r3.length === 0)
+      return o;
+    const l = 100 - i, c = { ...o };
+    if (a.forEach((m, p) => {
+      c[p] = m;
+    }), s > 0)
+      for (const m of r3) {
+        const p = o[m] ?? 0;
+        c[m] = T(
+          p / s * l
+        );
+      }
+    else {
+      const m = T(
+        l / r3.length
+      );
+      for (const p of r3)
+        c[p] = m;
+    }
+    return c;
+  }
+  function Ut(e, t) {
+    const n = e.map((i) => i.id), o = Object.keys(t);
+    if (n.length !== o.length)
+      return false;
+    for (const i of n)
+      if (!o.includes(i))
+        return false;
+    return true;
+  }
+  var J = /* @__PURE__ */ new Map();
+  function Bt(e) {
+    let t = true;
+    C(
+      e.element.ownerDocument.defaultView,
+      "Cannot register an unmounted Group"
+    );
+    const n = e.element.ownerDocument.defaultView.ResizeObserver, o = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), s = new n((f) => {
+      for (const d of f) {
+        const { borderBoxSize: h2, target: y } = d;
+        if (y === e.element) {
+          if (t) {
+            const b = ne({ group: e });
+            if (b === 0)
+              return;
+            const v = H(e.id);
+            if (!v)
+              return;
+            const g = ve(e), w = v.defaultLayoutDeferred ? We(g) : v.layout, M = Vt({
+              group: e,
+              nextGroupSize: b,
+              prevGroupSize: v.groupSize,
+              prevLayout: w
+            }), L = K({
+              layout: M,
+              panelConstraints: g
+            });
+            if (!v.defaultLayoutDeferred && W(v.layout, L) && Ht(
+              v.derivedPanelConstraints,
+              g
+            ) && v.groupSize === b)
+              return;
+            j(e, {
+              defaultLayoutDeferred: false,
+              derivedPanelConstraints: g,
+              groupSize: b,
+              layout: L,
+              separatorToPanels: v.separatorToPanels
+            });
+          }
+        } else
+          jt(e, y, h2);
+      }
+    });
+    s.observe(e.element), e.panels.forEach((f) => {
+      C(
+        !o.has(f.id),
+        `Panel ids must be unique; id "${f.id}" was used more than once`
+      ), o.add(f.id), f.onResize && s.observe(f.element);
+    });
+    const u = ne({ group: e }), a = ve(e), r3 = e.panels.map(({ id: f }) => f).join(",");
+    let l = e.mutableState.defaultLayout;
+    l && (Ut(e.panels, l) || (l = void 0));
+    const c = e.mutableState.layouts[r3] ?? l ?? We(a), m = K({
+      layout: c,
+      panelConstraints: a
+    }), p = e.element.ownerDocument;
+    J.set(
+      p,
+      (J.get(p) ?? 0) + 1
+    );
+    const S = /* @__PURE__ */ new Map();
+    return Ze(e).forEach((f) => {
+      f.separator && S.set(f.separator, f.panels);
+    }), j(e, {
+      defaultLayoutDeferred: u === 0,
+      derivedPanelConstraints: a,
+      groupSize: u,
+      layout: m,
+      separatorToPanels: S
+    }), e.separators.forEach((f) => {
+      C(
+        !i.has(f.id),
+        `Separator ids must be unique; id "${f.id}" was used more than once`
+      ), i.add(f.id), f.element.addEventListener("keydown", $e);
+    }), J.get(p) === 1 && (p.addEventListener("contextmenu", Ge, true), p.addEventListener("dblclick", _e2, true), p.addEventListener("pointerdown", je, true), p.addEventListener("pointerleave", He), p.addEventListener("pointermove", Ve), p.addEventListener("pointerout", Ue), p.addEventListener("pointerup", Be, true)), function() {
+      t = false, J.set(
+        p,
+        Math.max(0, (J.get(p) ?? 0) - 1)
+      ), kt(e), e.separators.forEach((d) => {
+        d.element.removeEventListener("keydown", $e);
+      }), J.get(p) || (p.removeEventListener(
+        "contextmenu",
+        Ge,
+        true
+      ), p.removeEventListener(
+        "dblclick",
+        _e2,
+        true
+      ), p.removeEventListener(
+        "pointerdown",
+        je,
+        true
+      ), p.removeEventListener("pointerleave", He), p.removeEventListener("pointermove", Ve), p.removeEventListener("pointerout", Ue), p.removeEventListener("pointerup", Be, true)), s.disconnect();
+    };
+  }
+  function Wt() {
+    const [e, t] = useState({}), n = useCallback(() => t({}), []);
+    return [e, n];
+  }
+  function Le(e) {
+    const t = useId();
+    return `${e ?? t}`;
+  }
+  var q = typeof window < "u" ? useLayoutEffect : useEffect;
+  function se(e) {
+    const t = useRef(e);
+    return q(() => {
+      t.current = e;
+    }, [e]), useCallback(
+      (...n) => t.current?.(...n),
+      [t]
+    );
+  }
+  function Ce(...e) {
+    return se((t) => {
+      e.forEach((n) => {
+        if (n)
+          switch (typeof n) {
+            case "function": {
+              n(t);
+              break;
+            }
+            case "object": {
+              n.current = t;
+              break;
+            }
+          }
+      });
+    });
+  }
+  function Re(e) {
+    const t = useRef({ ...e });
+    return q(() => {
+      for (const n in e)
+        t.current[n] = e[n];
+    }, [e]), t.current;
+  }
+  var ct = createContext(null);
+  function Kt(e, t) {
+    const n = useRef({
+      getLayout: () => ({}),
+      setLayout: Et
+    });
+    useImperativeHandle(t, () => n.current, []), q(() => {
+      Object.assign(
+        n.current,
+        lt({ groupId: e })
+      );
+    });
+  }
+  function Xt({
+    children: e,
+    className: t,
+    defaultLayout: n,
+    disableCursor: o,
+    disabled: i,
+    elementRef: s,
+    groupRef: u,
+    id: a,
+    onLayoutChange: r3,
+    onLayoutChanged: l,
+    orientation: c = "horizontal",
+    resizeTargetMinimumSize: m = {
+      coarse: 20,
+      fine: 10
+    },
+    style: p,
+    ...S
+  }) {
+    const z = useRef({
+      onLayoutChange: {},
+      onLayoutChanged: {}
+    }), f = se((x) => {
+      W(z.current.onLayoutChange, x) || (z.current.onLayoutChange = x, r3?.(x));
+    }), d = se(
+      (x, P) => {
+        W(z.current.onLayoutChanged, x) || (z.current.onLayoutChanged = x, l?.(x, { isUserInteraction: P }));
+      }
+    ), h2 = Le(a), y = useRef(null), [b, v] = Wt(), g = useRef({
+      lastExpandedPanelSizes: {},
+      layouts: {},
+      panels: [],
+      resizeTargetMinimumSize: m,
+      separators: []
+    }), w = Ce(y, s);
+    Kt(h2, u);
+    const M = se(
+      (x, P) => {
+        const I2 = B(), R = Oe(x), E = H(x);
+        if (E) {
+          let D = false;
+          switch (I2.state) {
+            case "active": {
+              D = I2.hitRegions.some(
+                (V) => V.group === R
+              );
+              break;
+            }
+          }
+          return {
+            flexGrow: E.layout[P] ?? 1,
+            pointerEvents: D ? "none" : void 0
+          };
+        }
+        if (n?.[P])
+          return {
+            flexGrow: n?.[P]
+          };
+      }
+    ), L = Re({
+      defaultLayout: n,
+      disableCursor: o
+    }), G = useMemo(
+      () => ({
+        get disableCursor() {
+          return !!L.disableCursor;
+        },
+        getPanelStyles: M,
+        id: h2,
+        orientation: c,
+        registerPanel: (x) => {
+          const P = g.current;
+          return P.panels = be(c, [
+            ...P.panels,
+            x
+          ]), v(), () => {
+            P.panels = P.panels.filter(
+              (I2) => I2 !== x
+            ), v();
+          };
+        },
+        registerSeparator: (x) => {
+          const P = g.current;
+          return P.separators = be(c, [
+            ...P.separators,
+            x
+          ]), v(), () => {
+            P.separators = P.separators.filter(
+              (I2) => I2 !== x
+            ), v();
+          };
+        },
+        updatePanelProps: (x, { disabled: P }) => {
+          const R = g.current.panels.find(
+            (V) => V.id === x
+          );
+          R && (R.panelConstraints.disabled = P);
+          const E = Oe(h2), D = H(h2);
+          E && D && j(E, {
+            ...D,
+            derivedPanelConstraints: ve(E)
+          });
+        },
+        updateSeparatorProps: (x, {
+          disabled: P,
+          disableDoubleClick: I2
+        }) => {
+          const E = g.current.separators.find(
+            (D) => D.id === x
+          );
+          E && (E.disabled = P, E.disableDoubleClick = I2);
+        }
+      }),
+      [M, h2, v, c, L]
+    ), N = useRef(null);
+    return q(() => {
+      const x = y.current;
+      if (x === null)
+        return;
+      const P = g.current;
+      let I2;
+      if (L.defaultLayout !== void 0 && Object.keys(L.defaultLayout).length === P.panels.length) {
+        I2 = {};
+        for (const _ of P.panels) {
+          const Y = L.defaultLayout[_.id];
+          Y !== void 0 && (I2[_.id] = Y);
+        }
+      }
+      const R = {
+        disabled: !!i,
+        element: x,
+        id: h2,
+        mutableState: {
+          defaultLayout: I2,
+          disableCursor: !!L.disableCursor,
+          expandedPanelSizes: g.current.lastExpandedPanelSizes,
+          layouts: g.current.layouts
+        },
+        orientation: c,
+        panels: P.panels,
+        resizeTargetMinimumSize: P.resizeTargetMinimumSize,
+        separators: P.separators
+      };
+      N.current = R;
+      const E = Bt(R), { defaultLayoutDeferred: D, derivedPanelConstraints: V, layout: ue2 } = H(R.id, true);
+      !D && V.length > 0 && (f(ue2), d(ue2, false));
+      const oe = Pe(h2, (_) => {
+        const { defaultLayoutDeferred: Y, derivedPanelConstraints: Ee, layout: ce2 } = _.next;
+        if (Y || Ee.length === 0)
+          return;
+        const ft = R.panels.map(({ id: $ }) => $).join(",");
+        R.mutableState.layouts[ft] = ce2, Ee.forEach(($) => {
+          if ($.collapsible) {
+            const { layout: ge2 } = _.prev ?? {};
+            if (ge2) {
+              const pt = k(
+                $.collapsedSize,
+                ce2[$.panelId]
+              ), ht = k(
+                $.collapsedSize,
+                ge2[$.panelId]
+              );
+              pt && !ht && (R.mutableState.expandedPanelSizes[$.panelId] = ge2[$.panelId]);
+            }
+          }
+        });
+        const dt = B().state !== "active";
+        f(ce2), dt && d(ce2, _.isUserInteraction);
+      });
+      return () => {
+        N.current = null, E(), oe();
+      };
+    }, [
+      i,
+      h2,
+      d,
+      f,
+      c,
+      b,
+      L
+    ]), useEffect(() => {
+      const x = N.current;
+      x && (x.mutableState.defaultLayout = n, x.mutableState.disableCursor = !!o);
+    }), /* @__PURE__ */ jsx(ct.Provider, { value: G, children: /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...S,
+        className: t,
+        "data-group": true,
+        "data-testid": h2,
+        id: h2,
+        ref: w,
+        style: {
+          height: "100%",
+          width: "100%",
+          overflow: "hidden",
+          ...p,
+          display: "flex",
+          flexDirection: c === "horizontal" ? "row" : "column",
+          flexWrap: "nowrap",
+          // Inform the browser that the library is handling touch events for this element
+          // but still allow users to scroll content within panels in the non-resizing direction
+          // NOTE This is not an inherited style
+          // See github.com/bvaughn/react-resizable-panels/issues/662
+          touchAction: c === "horizontal" ? "pan-y" : "pan-x"
+        },
+        children: e
       }
     ) });
-  };
-  Tooltip.displayName = TOOLTIP_NAME;
-  var TRIGGER_NAME7 = "TooltipTrigger";
-  var TooltipTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTooltip, ...triggerProps } = props;
-      const context = useTooltipContext(TRIGGER_NAME7, __scopeTooltip);
-      const providerContext = useTooltipProviderContext(TRIGGER_NAME7, __scopeTooltip);
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref, context.onTriggerChange);
-      const isPointerDownRef = useRef(false);
-      const hasPointerMoveOpenedRef = useRef(false);
-      const handlePointerUp = useCallback(() => isPointerDownRef.current = false, []);
-      useEffect(() => {
-        return () => document.removeEventListener("pointerup", handlePointerUp);
-      }, [handlePointerUp]);
-      return /* @__PURE__ */ jsx(Anchor, { asChild: true, ...popperScope, children: /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          "aria-describedby": context.open ? context.contentId : void 0,
-          "data-state": context.stateAttribute,
-          ...triggerProps,
-          ref: composedRefs,
-          onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
-            if (event.pointerType === "touch") return;
-            if (!hasPointerMoveOpenedRef.current && !providerContext.isPointerInTransitRef.current) {
-              context.onTriggerEnter();
-              hasPointerMoveOpenedRef.current = true;
-            }
-          }),
-          onPointerLeave: composeEventHandlers(props.onPointerLeave, () => {
-            context.onTriggerLeave();
-            hasPointerMoveOpenedRef.current = false;
-          }),
-          onPointerDown: composeEventHandlers(props.onPointerDown, () => {
-            if (context.open) {
-              context.onClose();
-            }
-            isPointerDownRef.current = true;
-            document.addEventListener("pointerup", handlePointerUp, { once: true });
-          }),
-          onFocus: composeEventHandlers(props.onFocus, () => {
-            if (!isPointerDownRef.current) context.onOpen();
-          }),
-          onBlur: composeEventHandlers(props.onBlur, context.onClose),
-          onClick: composeEventHandlers(props.onClick, context.onClose)
-        }
-      ) });
-    }
-  );
-  TooltipTrigger.displayName = TRIGGER_NAME7;
-  var PORTAL_NAME6 = "TooltipPortal";
-  var [PortalProvider4, usePortalContext4] = createTooltipContext(PORTAL_NAME6, {
-    forceMount: void 0
-  });
-  var TooltipPortal = (props) => {
-    const { __scopeTooltip, forceMount, children, container } = props;
-    const context = useTooltipContext(PORTAL_NAME6, __scopeTooltip);
-    return /* @__PURE__ */ jsx(PortalProvider4, { scope: __scopeTooltip, forceMount, children: /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Portal, { asChild: true, container, children }) }) });
-  };
-  TooltipPortal.displayName = PORTAL_NAME6;
-  var CONTENT_NAME7 = "TooltipContent";
-  var TooltipContent = forwardRef(
-    (props, forwardedRef) => {
-      const portalContext = usePortalContext4(CONTENT_NAME7, props.__scopeTooltip);
-      const { forceMount = portalContext.forceMount, side = "top", ...contentProps } = props;
-      const context = useTooltipContext(CONTENT_NAME7, props.__scopeTooltip);
-      return /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: context.disableHoverableContent ? /* @__PURE__ */ jsx(TooltipContentImpl, { side, ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx(TooltipContentHoverable, { side, ...contentProps, ref: forwardedRef }) });
-    }
-  );
-  var TooltipContentHoverable = forwardRef((props, forwardedRef) => {
-    const context = useTooltipContext(CONTENT_NAME7, props.__scopeTooltip);
-    const providerContext = useTooltipProviderContext(CONTENT_NAME7, props.__scopeTooltip);
-    const ref = useRef(null);
-    const composedRefs = useComposedRefs(forwardedRef, ref);
-    const [pointerGraceArea, setPointerGraceArea] = useState(null);
-    const { trigger, onClose } = context;
-    const content = ref.current;
-    const { onPointerInTransitChange } = providerContext;
-    const handleRemoveGraceArea = useCallback(() => {
-      setPointerGraceArea(null);
-      onPointerInTransitChange(false);
-    }, [onPointerInTransitChange]);
-    const handleCreateGraceArea = useCallback(
-      (event, hoverTarget) => {
-        const currentTarget = event.currentTarget;
-        const exitPoint = { x: event.clientX, y: event.clientY };
-        const exitSide = getExitSideFromRect(exitPoint, currentTarget.getBoundingClientRect());
-        const paddedExitPoints = getPaddedExitPoints(exitPoint, exitSide);
-        const hoverTargetPoints = getPointsFromRect(hoverTarget.getBoundingClientRect());
-        const graceArea = getHull([...paddedExitPoints, ...hoverTargetPoints]);
-        setPointerGraceArea(graceArea);
-        onPointerInTransitChange(true);
-      },
-      [onPointerInTransitChange]
-    );
-    useEffect(() => {
-      return () => handleRemoveGraceArea();
-    }, [handleRemoveGraceArea]);
-    useEffect(() => {
-      if (trigger && content) {
-        const handleTriggerLeave = (event) => handleCreateGraceArea(event, content);
-        const handleContentLeave = (event) => handleCreateGraceArea(event, trigger);
-        trigger.addEventListener("pointerleave", handleTriggerLeave);
-        content.addEventListener("pointerleave", handleContentLeave);
-        return () => {
-          trigger.removeEventListener("pointerleave", handleTriggerLeave);
-          content.removeEventListener("pointerleave", handleContentLeave);
-        };
+  }
+  Xt.displayName = "Group";
+  function Me() {
+    const e = useContext(ct);
+    return C(
+      e,
+      "Group Context not found; did you render a Panel or Separator outside of a Group?"
+    ), e;
+  }
+  function Jt(e, t) {
+    const { id: n } = Me(), o = useRef({
+      collapse: ye,
+      expand: ye,
+      getSize: () => ({
+        asPercentage: 0,
+        inPixels: 0
+      }),
+      isCollapsed: () => false,
+      resize: ye
+    });
+    useImperativeHandle(t, () => o.current, []), q(() => {
+      Object.assign(
+        o.current,
+        at({ groupId: n, panelId: e })
+      );
+    });
+  }
+  function Zt({
+    children: e,
+    className: t,
+    collapsedSize: n = "0%",
+    collapsible: o = false,
+    defaultSize: i,
+    disabled: s,
+    elementRef: u,
+    groupResizeBehavior: a = "preserve-relative-size",
+    id: r3,
+    maxSize: l = "100%",
+    minSize: c = "0%",
+    onResize: m,
+    panelRef: p,
+    style: S,
+    ...z
+  }) {
+    const f = !!r3, d = Le(r3), h2 = Re({
+      disabled: s
+    }), y = useRef(null), b = Ce(y, u), {
+      getPanelStyles: v,
+      id: g,
+      orientation: w,
+      registerPanel: M,
+      updatePanelProps: L
+    } = Me(), G = m !== null, N = se(
+      (R, E, D) => {
+        m?.(R, r3, D);
       }
-    }, [trigger, content, handleCreateGraceArea, handleRemoveGraceArea]);
-    useEffect(() => {
-      if (pointerGraceArea) {
-        const handleTrackPointerGrace = (event) => {
-          const target = event.target;
-          const pointerPosition = { x: event.clientX, y: event.clientY };
-          const hasEnteredTarget = trigger?.contains(target) || content?.contains(target);
-          const isPointerOutsideGraceArea = !isPointInPolygon2(pointerPosition, pointerGraceArea);
-          if (hasEnteredTarget) {
-            handleRemoveGraceArea();
-          } else if (isPointerOutsideGraceArea) {
-            handleRemoveGraceArea();
-            onClose();
+    );
+    q(() => {
+      const R = y.current;
+      if (R !== null) {
+        const E = {
+          element: R,
+          id: d,
+          idIsStable: f,
+          mutableValues: {
+            expandToSize: void 0,
+            prevSize: void 0
+          },
+          onResize: G ? N : void 0,
+          panelConstraints: {
+            groupResizeBehavior: a,
+            collapsedSize: n,
+            collapsible: o,
+            defaultSize: i,
+            disabled: h2.disabled,
+            maxSize: l,
+            minSize: c
           }
         };
-        document.addEventListener("pointermove", handleTrackPointerGrace);
-        return () => document.removeEventListener("pointermove", handleTrackPointerGrace);
+        return M(E);
       }
-    }, [trigger, content, pointerGraceArea, onClose, handleRemoveGraceArea]);
-    return /* @__PURE__ */ jsx(TooltipContentImpl, { ...props, ref: composedRefs });
-  });
-  var [VisuallyHiddenContentContextProvider, useVisuallyHiddenContentContext] = createTooltipContext(TOOLTIP_NAME, { isInside: false });
-  var Slottable = createSlottable("TooltipContent");
-  var TooltipContentImpl = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeTooltip,
-        children,
-        "aria-label": ariaLabel,
-        onEscapeKeyDown,
-        onPointerDownOutside,
-        ...contentProps
-      } = props;
-      const context = useTooltipContext(CONTENT_NAME7, __scopeTooltip);
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const { onClose } = context;
-      useEffect(() => {
-        document.addEventListener(TOOLTIP_OPEN, onClose);
-        return () => document.removeEventListener(TOOLTIP_OPEN, onClose);
-      }, [onClose]);
-      useEffect(() => {
-        if (context.trigger) {
-          const handleScroll2 = (event) => {
-            if (event.target instanceof Node && event.target.contains(context.trigger)) {
-              onClose();
+    }, [
+      a,
+      n,
+      o,
+      i,
+      G,
+      d,
+      f,
+      l,
+      c,
+      N,
+      M,
+      h2
+    ]), useEffect(() => {
+      L(d, { disabled: s });
+    }, [s, d, L]), Jt(d, p);
+    const x = () => {
+      const R = v(g, d);
+      if (R)
+        return JSON.stringify(R);
+    }, P = useSyncExternalStore(
+      (R) => Pe(g, R),
+      x,
+      x
+    );
+    let I2;
+    return P ? I2 = JSON.parse(P) : i !== void 0 ? I2 = {
+      flexGrow: void 0,
+      flexShrink: void 0,
+      flexBasis: i
+    } : I2 = { flexGrow: 1 }, /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...z,
+        "data-disabled": s || void 0,
+        "data-panel": true,
+        "data-testid": d,
+        id: d,
+        ref: b,
+        style: {
+          ...Qt,
+          display: "flex",
+          flexBasis: 0,
+          flexShrink: 1,
+          overflow: "visible",
+          ...I2
+        },
+        children: /* @__PURE__ */ jsx(
+          "div",
+          {
+            className: t,
+            style: {
+              maxHeight: "100%",
+              maxWidth: "100%",
+              flexGrow: 1,
+              overflow: "auto",
+              ...S,
+              // Inform the browser that the library is handling touch events for this element
+              // but still allow users to scroll content within panels in the non-resizing direction
+              // NOTE This is not an inherited style
+              // See github.com/bvaughn/react-resizable-panels/issues/662
+              touchAction: w === "horizontal" ? "pan-y" : "pan-x"
+            },
+            children: e
+          }
+        )
+      }
+    );
+  }
+  Zt.displayName = "Panel";
+  var Qt = {
+    minHeight: 0,
+    maxHeight: "100%",
+    height: "auto",
+    minWidth: 0,
+    maxWidth: "100%",
+    width: "auto",
+    border: "none",
+    borderWidth: 0,
+    padding: 0,
+    margin: 0
+  };
+  function en({
+    layout: e,
+    panelConstraints: t,
+    panelId: n,
+    panelIndex: o
+  }) {
+    let i, s;
+    const u = e[n], a = t.find(
+      (r3) => r3.panelId === n
+    );
+    if (a) {
+      const r3 = a.maxSize, l = a.collapsible ? a.collapsedSize : a.minSize, c = [o, o + 1];
+      s = K({
+        layout: le({
+          delta: l - u,
+          initialLayout: e,
+          panelConstraints: t,
+          pivotIndices: c,
+          prevLayout: e
+        }),
+        panelConstraints: t
+      })[n], i = K({
+        layout: le({
+          delta: r3 - u,
+          initialLayout: e,
+          panelConstraints: t,
+          pivotIndices: c,
+          prevLayout: e
+        }),
+        panelConstraints: t
+      })[n];
+    }
+    return {
+      valueControls: n,
+      valueMax: i,
+      valueMin: s,
+      valueNow: u
+    };
+  }
+  function tn({
+    children: e,
+    className: t,
+    disabled: n,
+    disableDoubleClick: o,
+    elementRef: i,
+    id: s,
+    style: u,
+    ...a
+  }) {
+    const r3 = Le(s), l = Re({
+      disabled: n,
+      disableDoubleClick: o
+    }), [c, m] = useState({}), [p, S] = useState("inactive"), [z, f] = useState(false), d = useRef(null), h2 = Ce(d, i), {
+      disableCursor: y,
+      id: b,
+      orientation: v,
+      registerSeparator: g,
+      updateSeparatorProps: w
+    } = Me(), M = v === "horizontal" ? "vertical" : "horizontal";
+    q(() => {
+      const N = d.current;
+      if (N !== null) {
+        const x = {
+          disabled: l.disabled,
+          disableDoubleClick: l.disableDoubleClick,
+          element: N,
+          id: r3
+        }, P = g(x), I2 = Rt(
+          (E) => {
+            S(
+              E.next.state !== "inactive" && E.next.hitRegions.some(
+                (D) => D.separator === x
+              ) ? E.next.state : "inactive"
+            );
+          }
+        ), R = Pe(
+          b,
+          (E) => {
+            const { derivedPanelConstraints: D, layout: V, separatorToPanels: ue2 } = E.next, oe = ue2.get(x);
+            if (oe) {
+              const _ = oe[0], Y = oe.indexOf(_);
+              m(
+                en({
+                  layout: V,
+                  panelConstraints: D,
+                  panelId: _.id,
+                  panelIndex: Y
+                })
+              );
             }
-          };
-          window.addEventListener("scroll", handleScroll2, { capture: true });
-          return () => window.removeEventListener("scroll", handleScroll2, { capture: true });
-        }
-      }, [context.trigger, onClose]);
-      return /* @__PURE__ */ jsx(
-        DismissableLayer,
-        {
-          asChild: true,
-          disableOutsidePointerEvents: false,
-          onEscapeKeyDown,
-          onPointerDownOutside,
-          onFocusOutside: (event) => event.preventDefault(),
-          onDismiss: onClose,
-          children: /* @__PURE__ */ jsxs(
-            Content2,
-            {
-              "data-state": context.stateAttribute,
-              ...popperScope,
-              ...contentProps,
-              ref: forwardedRef,
-              style: {
-                ...contentProps.style,
-                // re-namespace exposed content custom properties
-                ...{
-                  "--radix-tooltip-content-transform-origin": "var(--radix-popper-transform-origin)",
-                  "--radix-tooltip-content-available-width": "var(--radix-popper-available-width)",
-                  "--radix-tooltip-content-available-height": "var(--radix-popper-available-height)",
-                  "--radix-tooltip-trigger-width": "var(--radix-popper-anchor-width)",
-                  "--radix-tooltip-trigger-height": "var(--radix-popper-anchor-height)"
-                }
-              },
-              children: [
-                /* @__PURE__ */ jsx(Slottable, { children }),
-                /* @__PURE__ */ jsx(VisuallyHiddenContentContextProvider, { scope: __scopeTooltip, isInside: true, children: /* @__PURE__ */ jsx(Root5, { id: context.contentId, role: "tooltip", children: ariaLabel || children }) })
-              ]
-            }
-          )
-        }
-      );
-    }
-  );
-  TooltipContent.displayName = CONTENT_NAME7;
-  var ARROW_NAME5 = "TooltipArrow";
-  var TooltipArrow = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTooltip, ...arrowProps } = props;
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const visuallyHiddenContentContext = useVisuallyHiddenContentContext(
-        ARROW_NAME5,
-        __scopeTooltip
-      );
-      return visuallyHiddenContentContext.isInside ? null : /* @__PURE__ */ jsx(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
-    }
-  );
-  TooltipArrow.displayName = ARROW_NAME5;
-  function getExitSideFromRect(point, rect) {
-    const top = Math.abs(rect.top - point.y);
-    const bottom = Math.abs(rect.bottom - point.y);
-    const right = Math.abs(rect.right - point.x);
-    const left = Math.abs(rect.left - point.x);
-    switch (Math.min(top, bottom, right, left)) {
-      case left:
-        return "left";
-      case right:
-        return "right";
-      case top:
-        return "top";
-      case bottom:
-        return "bottom";
-      default:
-        throw new Error("unreachable");
-    }
-  }
-  function getPaddedExitPoints(exitPoint, exitSide, padding = 5) {
-    const paddedExitPoints = [];
-    switch (exitSide) {
-      case "top":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y + padding },
-          { x: exitPoint.x + padding, y: exitPoint.y + padding }
+          }
         );
-        break;
-      case "bottom":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y - padding },
-          { x: exitPoint.x + padding, y: exitPoint.y - padding }
-        );
-        break;
-      case "left":
-        paddedExitPoints.push(
-          { x: exitPoint.x + padding, y: exitPoint.y - padding },
-          { x: exitPoint.x + padding, y: exitPoint.y + padding }
-        );
-        break;
-      case "right":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y - padding },
-          { x: exitPoint.x - padding, y: exitPoint.y + padding }
-        );
-        break;
-    }
-    return paddedExitPoints;
-  }
-  function getPointsFromRect(rect) {
-    const { top, right, bottom, left } = rect;
-    return [
-      { x: left, y: top },
-      { x: right, y: top },
-      { x: right, y: bottom },
-      { x: left, y: bottom }
-    ];
-  }
-  function isPointInPolygon2(point, polygon) {
-    const { x, y } = point;
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const ii = polygon[i];
-      const jj = polygon[j];
-      const xi = ii.x;
-      const yi = ii.y;
-      const xj = jj.x;
-      const yj = jj.y;
-      const intersect = yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
-  function getHull(points) {
-    const newPoints = points.slice();
-    newPoints.sort((a, b) => {
-      if (a.x < b.x) return -1;
-      else if (a.x > b.x) return 1;
-      else if (a.y < b.y) return -1;
-      else if (a.y > b.y) return 1;
-      else return 0;
-    });
-    return getHullPresorted(newPoints);
-  }
-  function getHullPresorted(points) {
-    if (points.length <= 1) return points.slice();
-    const upperHull = [];
-    for (let i = 0; i < points.length; i++) {
-      const p2 = points[i];
-      while (upperHull.length >= 2) {
-        const q = upperHull[upperHull.length - 1];
-        const r2 = upperHull[upperHull.length - 2];
-        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) upperHull.pop();
-        else break;
+        return () => {
+          I2(), R(), P();
+        };
       }
-      upperHull.push(p2);
-    }
-    upperHull.pop();
-    const lowerHull = [];
-    for (let i = points.length - 1; i >= 0; i--) {
-      const p2 = points[i];
-      while (lowerHull.length >= 2) {
-        const q = lowerHull[lowerHull.length - 1];
-        const r2 = lowerHull[lowerHull.length - 2];
-        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) lowerHull.pop();
-        else break;
+    }, [b, r3, g, l]), useEffect(() => {
+      w(r3, { disabled: n, disableDoubleClick: o });
+    }, [n, o, r3, w]);
+    let L;
+    n && !y && (L = "not-allowed");
+    let G;
+    if (n)
+      G = "disabled";
+    else
+      switch (p) {
+        case "active": {
+          G = "active";
+          break;
+        }
+        default:
+          z ? G = "focus" : G = p;
       }
-      lowerHull.push(p2);
-    }
-    lowerHull.pop();
-    if (upperHull.length === 1 && lowerHull.length === 1 && upperHull[0].x === lowerHull[0].x && upperHull[0].y === lowerHull[0].y) {
-      return upperHull;
-    } else {
-      return upperHull.concat(lowerHull);
-    }
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...a,
+        "aria-controls": c.valueControls,
+        "aria-disabled": n || void 0,
+        "aria-orientation": M,
+        "aria-valuemax": c.valueMax,
+        "aria-valuemin": c.valueMin,
+        "aria-valuenow": c.valueNow,
+        children: e,
+        className: t,
+        "data-separator": G,
+        "data-testid": r3,
+        id: r3,
+        onBlur: () => f(false),
+        onFocus: () => f(true),
+        ref: h2,
+        role: "separator",
+        style: {
+          flexBasis: "auto",
+          cursor: L,
+          ...u,
+          flexGrow: 0,
+          flexShrink: 0,
+          // Inform the browser that the library is handling touch events for this element
+          // See github.com/bvaughn/react-resizable-panels/issues/662
+          touchAction: "none"
+        },
+        tabIndex: n ? void 0 : 0
+      }
+    );
   }
-  var Portal4 = TooltipPortal;
-  var Content24 = TooltipContent;
+  tn.displayName = "Separator";
 
-  // ../../../packages/shadcn-ui/src/components/tooltip.tsx
-  var TooltipContent2 = forwardRef(
-    ({ className, sideOffset = 4, ...props }, ref) => createElement(
-      Portal4,
-      null,
-      createElement(Content24, {
-        ref,
-        sideOffset,
-        className: cn("xps-tooltip-content", className),
-        ...props
-      })
-    )
+  // ../../../packages/shadcn-ui/dist/index.js
+  function r2(...e) {
+    return twMerge(clsx(e));
+  }
+  var de2 = cva(
+    "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+    {
+      variants: {
+        variant: {
+          default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+          secondary: "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+          destructive: "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+          link: "text-primary underline-offset-4 hover:underline"
+        }
+      },
+      defaultVariants: {
+        variant: "default"
+      }
+    }
   );
-  TooltipContent2.displayName = Content24.displayName;
+  function rt2({
+    className: e,
+    variant: t = "default",
+    asChild: o = false,
+    ...n
+  }) {
+    const i = o ? dist_exports.Root : "span";
+    return /* @__PURE__ */ jsx(
+      i,
+      {
+        "data-slot": "badge",
+        "data-variant": t,
+        className: r2(de2({ variant: t }), e),
+        ...n
+      }
+    );
+  }
+  var se2 = cva(
+    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        variant: {
+          default: "bg-primary text-primary-foreground hover:bg-primary/80",
+          outline: "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          secondary: "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          ghost: "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          link: "text-primary underline-offset-4 hover:underline"
+        },
+        size: {
+          default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+          sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+          lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          icon: "size-8",
+          "icon-xs": "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+          "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+          "icon-lg": "size-9"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  function I({
+    className: e,
+    variant: t = "default",
+    size: o = "default",
+    asChild: n = false,
+    ...i
+  }) {
+    const s = n ? dist_exports.Root : "button";
+    return /* @__PURE__ */ jsx(
+      s,
+      {
+        "data-slot": "button",
+        "data-variant": t,
+        "data-size": o,
+        className: r2(se2({ variant: t, size: o, className: e })),
+        ...i
+      }
+    );
+  }
+  function ot2({
+    className: e,
+    size: t = "default",
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        "data-slot": "card",
+        "data-size": t,
+        className: r2(
+          "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+          e
+        ),
+        ...o
+      }
+    );
+  }
+  function le2({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports2.Root, { "data-slot": "dialog", ...e });
+  }
+  function ue({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports2.Portal, { "data-slot": "dialog-portal", ...e });
+  }
+  function ce({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports2.Overlay,
+      {
+        "data-slot": "dialog-overlay",
+        className: r2(
+          "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function ge({
+    className: e,
+    children: t,
+    showCloseButton: o = true,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsxs(ue, { children: [
+      /* @__PURE__ */ jsx(ce, {}),
+      /* @__PURE__ */ jsxs(
+        dist_exports2.Content,
+        {
+          "data-slot": "dialog-content",
+          className: r2(
+            "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            e
+          ),
+          ...n,
+          children: [
+            t,
+            o && /* @__PURE__ */ jsx(dist_exports2.Close, { "data-slot": "dialog-close", asChild: true, children: /* @__PURE__ */ jsxs(
+              I,
+              {
+                variant: "ghost",
+                className: "absolute top-2 right-2",
+                size: "icon-sm",
+                children: [
+                  /* @__PURE__ */ jsx(
+                    X,
+                    {}
+                  ),
+                  /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Close" })
+                ]
+              }
+            ) })
+          ]
+        }
+      )
+    ] });
+  }
+  function pe2({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        "data-slot": "dialog-header",
+        className: r2("flex flex-col gap-2", e),
+        ...t
+      }
+    );
+  }
+  function vt2({
+    className: e,
+    showCloseButton: t = false,
+    children: o,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsxs(
+      "div",
+      {
+        "data-slot": "dialog-footer",
+        className: r2(
+          "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+          e
+        ),
+        ...n,
+        children: [
+          o,
+          t && /* @__PURE__ */ jsx(dist_exports2.Close, { asChild: true, children: /* @__PURE__ */ jsx(I, { variant: "outline", children: "Close" }) })
+        ]
+      }
+    );
+  }
+  function fe2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports2.Title,
+      {
+        "data-slot": "dialog-title",
+        className: r2(
+          "text-base leading-none font-medium",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function W2({ className: e, type: t, ...o }) {
+    return /* @__PURE__ */ jsx(
+      "input",
+      {
+        type: t,
+        "data-slot": "input",
+        className: r2(
+          "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+          e
+        ),
+        ...o
+      }
+    );
+  }
+  function be2({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "textarea",
+      {
+        "data-slot": "textarea",
+        className: r2(
+          "flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  var he = cva(
+    "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        align: {
+          "inline-start": "order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
+          "inline-end": "order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
+          "block-start": "order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
+          "block-end": "order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2"
+        }
+      },
+      defaultVariants: {
+        align: "inline-start"
+      }
+    }
+  );
+  var we2 = cva(
+    "flex items-center gap-2 text-sm shadow-none",
+    {
+      variants: {
+        size: {
+          xs: "h-6 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
+          sm: "",
+          "icon-xs": "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0",
+          "icon-sm": "size-8 p-0 has-[>svg]:p-0"
+        }
+      },
+      defaultVariants: {
+        size: "xs"
+      }
+    }
+  );
+  function ha({
+    className: e,
+    children: t,
+    ...o
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports4.Root,
+      {
+        "data-slot": "scroll-area",
+        className: r2("relative", e),
+        ...o,
+        children: [
+          /* @__PURE__ */ jsx(
+            dist_exports4.Viewport,
+            {
+              "data-slot": "scroll-area-viewport",
+              className: "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
+              children: t
+            }
+          ),
+          /* @__PURE__ */ jsx(ze2, {}),
+          /* @__PURE__ */ jsx(dist_exports4.Corner, {})
+        ]
+      }
+    );
+  }
+  function ze2({
+    className: e,
+    orientation: t = "vertical",
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports4.ScrollAreaScrollbar,
+      {
+        "data-slot": "scroll-area-scrollbar",
+        "data-orientation": t,
+        orientation: t,
+        className: r2(
+          "flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
+          e
+        ),
+        ...o,
+        children: /* @__PURE__ */ jsx(
+          dist_exports4.ScrollAreaThumb,
+          {
+            "data-slot": "scroll-area-thumb",
+            className: "relative flex-1 rounded-full bg-border"
+          }
+        )
+      }
+    );
+  }
+  function xa({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports5.Root, { "data-slot": "select", ...e });
+  }
+  function za({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports5.Value, { "data-slot": "select-value", ...e });
+  }
+  function ya({
+    className: e,
+    size: t = "default",
+    children: o,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports5.Trigger,
+      {
+        "data-slot": "select-trigger",
+        "data-size": t,
+        className: r2(
+          "flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...n,
+        children: [
+          o,
+          /* @__PURE__ */ jsx(dist_exports5.Icon, { asChild: true, children: /* @__PURE__ */ jsx(ChevronDown, { className: "pointer-events-none size-4 text-muted-foreground" }) })
+        ]
+      }
+    );
+  }
+  function ka({
+    className: e,
+    children: t,
+    position: o = "item-aligned",
+    align: n = "center",
+    ...i
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports5.Portal, { children: /* @__PURE__ */ jsxs(
+      dist_exports5.Content,
+      {
+        "data-slot": "select-content",
+        "data-align-trigger": o === "item-aligned",
+        className: r2("relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", o === "popper" && "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1", e),
+        position: o,
+        align: n,
+        ...i,
+        children: [
+          /* @__PURE__ */ jsx(ye2, {}),
+          /* @__PURE__ */ jsx(
+            dist_exports5.Viewport,
+            {
+              "data-position": o,
+              className: r2(
+                "data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)",
+                o === "popper" && ""
+              ),
+              children: t
+            }
+          ),
+          /* @__PURE__ */ jsx(ke2, {})
+        ]
+      }
+    ) });
+  }
+  function Ca({
+    className: e,
+    children: t,
+    ...o
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports5.Item,
+      {
+        "data-slot": "select-item",
+        className: r2(
+          "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+          e
+        ),
+        ...o,
+        children: [
+          /* @__PURE__ */ jsx("span", { className: "pointer-events-none absolute right-2 flex size-4 items-center justify-center", children: /* @__PURE__ */ jsx(dist_exports5.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { className: "pointer-events-none" }) }) }),
+          /* @__PURE__ */ jsx(dist_exports5.ItemText, { children: t })
+        ]
+      }
+    );
+  }
+  function ye2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports5.ScrollUpButton,
+      {
+        "data-slot": "select-scroll-up-button",
+        className: r2(
+          "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...t,
+        children: /* @__PURE__ */ jsx(
+          ChevronUp,
+          {}
+        )
+      }
+    );
+  }
+  function ke2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports5.ScrollDownButton,
+      {
+        "data-slot": "select-scroll-down-button",
+        className: r2(
+          "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...t,
+        children: /* @__PURE__ */ jsx(
+          ChevronDown,
+          {}
+        )
+      }
+    );
+  }
+  var Be2 = 3600 * 24 * 7;
+  var X3 = createContext(null);
+  var Ve2 = cva(
+    "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+    {
+      variants: {
+        variant: {
+          default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          outline: "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]"
+        },
+        size: {
+          default: "h-8 text-sm",
+          sm: "h-7 text-xs",
+          lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  function ar({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        "data-slot": "table-container",
+        className: "relative w-full overflow-x-auto",
+        children: /* @__PURE__ */ jsx(
+          "table",
+          {
+            "data-slot": "table",
+            className: r2("w-full caption-bottom text-sm", e),
+            ...t
+          }
+        )
+      }
+    );
+  }
+  function rr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "thead",
+      {
+        "data-slot": "table-header",
+        className: r2("[&_tr]:border-b", e),
+        ...t
+      }
+    );
+  }
+  function or({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "tbody",
+      {
+        "data-slot": "table-body",
+        className: r2("[&_tr:last-child]:border-0", e),
+        ...t
+      }
+    );
+  }
+  function ir({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "tr",
+      {
+        "data-slot": "table-row",
+        className: r2(
+          "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function dr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "th",
+      {
+        "data-slot": "table-head",
+        className: r2(
+          "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function sr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "td",
+      {
+        "data-slot": "table-cell",
+        className: r2(
+          "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  var He2 = cva(
+    "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+    {
+      variants: {
+        variant: {
+          default: "bg-muted",
+          line: "gap-1 bg-transparent"
+        }
+      },
+      defaultVariants: {
+        variant: "default"
+      }
+    }
+  );
+  var Z2 = cva(
+    "group/toggle inline-flex items-center justify-center gap-1 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-muted data-[state=on]:bg-muted dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        variant: {
+          default: "bg-transparent",
+          outline: "border border-input bg-transparent hover:bg-muted"
+        },
+        size: {
+          default: "h-8 min-w-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+          lg: "h-9 min-w-9 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  var J2 = createContext({
+    size: "default",
+    variant: "default",
+    spacing: 2,
+    orientation: "horizontal"
+  });
 
   // src/lib/remote-components/wechat-workbench/src/styles.ts
   function injectStyles2() {
@@ -14342,9 +12943,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 .wxp-calendar-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .wxp-calendar-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
 .wxp-calendar-filter { display: flex; gap: 6px; align-items: center; color: var(--xui-color-muted-foreground); font-size: 11px; }
-.wxp-calendar-filter .xps-select-trigger { width: 180px; min-height: 30px; font-size: 12px; }
+.wxp-calendar-filter [data-slot="select-trigger"] { width: 180px; min-height: 30px; font-size: 12px; }
 .wxp-segmented { display: inline-flex; overflow: hidden; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-muted); }
-.wxp-segmented .xps-button { border: 0; border-radius: 0; box-shadow: none; font-size: 12px; font-weight: 700; }
+.wxp-segmented [data-slot="button"] { border: 0; border-radius: 0; box-shadow: none; font-size: 12px; font-weight: 700; }
 .wxp-calendar { display: grid; justify-items: center; gap: 10px; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
 .wxp-calendar-grid, .wxp-calendar-week-grid, .wxp-calendar-months { justify-self: center; }
 .wxp-calendar-grid, .wxp-calendar-week-grid { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 4px; min-width: max-content; }
@@ -14373,18 +12974,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 .wxp-activity-row > div { display: flex; flex-wrap: wrap; gap: 5px; }
 .wxp-activity-row strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; }
 .wxp-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--xui-color-border); }
-.wxp-tabs .xps-button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--xui-color-muted-foreground); padding: 9px 10px; font-weight: 700; box-shadow: none; }
-.wxp-tabs .xps-button.active { border-bottom-color: var(--xui-color-primary); color: var(--xui-color-primary); }
+.wxp-tabs [data-slot="button"] { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--xui-color-muted-foreground); padding: 9px 10px; font-weight: 700; box-shadow: none; }
+.wxp-tabs [data-slot="button"].active { border-bottom-color: var(--xui-color-primary); color: var(--xui-color-primary); }
 .wxp-panel { display: grid; gap: 12px; min-width: 0; }
 .wxp-panel h3 { margin: 0; font-size: 14px; }
 .wxp-table-toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; }
 .wxp-table-toolbar strong { font-size: 13px; }
 .wxp-table-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: center; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 10px; }
-.wxp-table-filters .xps-input, .wxp-table-filters .xps-select-trigger { width: 100%; min-width: 0; }
+.wxp-table-filters [data-slot="input"], .wxp-table-filters [data-slot="select-trigger"] { width: 100%; min-width: 0; }
 .wxp-filter-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .wxp-pagination { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; color: var(--xui-color-muted-foreground); font-size: 12px; }
 .wxp-pagination label { display: flex; gap: 6px; align-items: center; }
-.wxp-pagination .xps-select-trigger { width: 86px; min-height: 30px; font-size: 12px; }
+.wxp-pagination [data-slot="select-trigger"] { width: 86px; min-height: 30px; font-size: 12px; }
 .wxp-pagination strong { color: var(--xui-color-foreground); font-size: 12px; }
 .wxp-table-loading { position: sticky; left: 0; display: inline-block; margin: 0 0 8px; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); color: var(--xui-color-muted-foreground); padding: 6px 8px; font-size: 12px; }
 .wxp-callback { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 12px; }
@@ -14409,7 +13010,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }
 .wxp-tunnel-panel pre { max-width: 100%; }
 .wxp-tunnel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 12px; }
-.wxp-manual-send-panel .xps-button { width: 100%; }
+.wxp-manual-send-panel [data-slot="button"] { width: 100%; }
 .wxp-tunnel-status-cell, .wxp-trigger-route-cell { display: grid; gap: 4px; min-width: 120px; }
 .wxp-tunnel-status-cell small, .wxp-trigger-route-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
 .wxp-sender-cell { display: grid; gap: 3px; min-width: 160px; }
@@ -14436,16 +13037,16 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 	.wxp-messages-table, .wxp-logs-table { width: max-content; }
 	.wxp-messages-table { min-width: 1540px; }
 	.wxp-logs-table { min-width: 1180px; }
-	.wxp-messages-table .xps-table-head,
-	.wxp-messages-table .xps-table-cell,
-	.wxp-logs-table .xps-table-head,
-	.wxp-logs-table .xps-table-cell { white-space: nowrap; }
+	.wxp-messages-table [data-slot="table-head"],
+	.wxp-messages-table [data-slot="table-cell"],
+	.wxp-logs-table [data-slot="table-head"],
+	.wxp-logs-table [data-slot="table-cell"] { white-space: nowrap; }
 	.wxp-messages-table code,
 	.wxp-messages-table .xui-muted,
-	.wxp-messages-table .xps-badge,
+	.wxp-messages-table [data-slot="badge"],
 	.wxp-logs-table code,
 	.wxp-logs-table .xui-muted,
-	.wxp-logs-table .xps-badge { white-space: nowrap; }
+	.wxp-logs-table [data-slot="badge"] { white-space: nowrap; }
 	.wxp-message-log-content { display: block; min-width: 420px; max-width: 560px; white-space: nowrap; }
 	.wxp-message-log-content summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.wxp-message-log-content pre { max-width: min(880px, 74vw); white-space: pre-wrap; }
@@ -15105,7 +13706,6 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
 
   // src/lib/remote-components/wechat-workbench/src/main.tsx
-  installShadcnThemeVars({ styleId: "wechat-workbench-shadcn-ui-vars" });
   var DEFAULT_TABLE_PAGE_SIZE = 20;
   var DEVICE_KEY_PATTERN = /^SD[a-zA-Z0-9]{10}$/;
   var TABLE_KEYS = ["accounts", "messages", "queue", "logs"];
@@ -15601,7 +14201,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       return /* @__PURE__ */ h("div", { className: "wxp-app" }, /* @__PURE__ */ h("div", { className: "xui-notice" }, resolveMessage(data.message, context?.locale) || t("missingIntegrationFallback")));
     }
     return /* @__PURE__ */ h("div", { className: "wxp-app" }, /* @__PURE__ */ h("div", { className: "wxp-sticky-head" }, /* @__PURE__ */ h("div", { className: "wxp-head" }, /* @__PURE__ */ h("div", { className: "wxp-title" }, /* @__PURE__ */ h("strong", null, t("appTitle")), /* @__PURE__ */ h("span", null, t("appSubtitle"))), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         value: search,
         placeholder: t("searchPlaceholder"),
@@ -15612,7 +14212,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       }
-    ), /* @__PURE__ */ h(Button, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "queue", label: t("queue"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab }))), tab === "dashboard" && /* @__PURE__ */ h(
+    ), /* @__PURE__ */ h(I, { disabled: busy, onClick: () => reload() }, busy ? t("refreshing") : t("refresh")))), /* @__PURE__ */ h("div", { className: "wxp-tabs" }, /* @__PURE__ */ h(TabButton, { tabKey: "dashboard", label: t("dashboard"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "accounts", label: t("account"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "messages", label: t("message"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "queue", label: t("queue"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "config", label: t("config"), active: tab, setTab }), /* @__PURE__ */ h(TabButton, { tabKey: "logs", label: t("logs"), active: tab, setTab }))), tab === "dashboard" && /* @__PURE__ */ h(
       DashboardView,
       {
         dashboard,
@@ -15728,7 +14328,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         emptyText: t("noDashboardData"),
         libraryMissingText: t("chartLibraryUnavailable")
       }
-    )), /* @__PURE__ */ h("section", { className: "wxp-analytics-panel wxp-analytics-panel-wide" }, /* @__PURE__ */ h("div", { className: "wxp-calendar-head" }, /* @__PURE__ */ h(PanelTitle, { title: t("wechatMessageActivity"), meta: t("basedOnRecentLogs") }), /* @__PURE__ */ h("div", { className: "wxp-calendar-controls" }, /* @__PURE__ */ h("label", { className: "wxp-calendar-filter" }, /* @__PURE__ */ h("span", null, t("accountFilter")), /* @__PURE__ */ h(Select2, { value: calendarAccount, onValueChange: (value) => setCalendarAccount(value) }, /* @__PURE__ */ h(SelectTrigger2, { "aria-label": t("accountFilter") }, /* @__PURE__ */ h(SelectValue2, { placeholder: t("allAccounts") })), /* @__PURE__ */ h(SelectContent2, null, /* @__PURE__ */ h(SelectItem2, { value: "all" }, t("allAccounts")), dashboard.accountOptions.map((account) => /* @__PURE__ */ h(SelectItem2, { key: account.value, value: account.value }, account.label))))), /* @__PURE__ */ h("div", { className: "wxp-segmented" }, /* @__PURE__ */ h(Button, { variant: calendarMode === "daily" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("daily") }, t("calendarDaily")), /* @__PURE__ */ h(Button, { variant: calendarMode === "weekly" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("weekly") }, t("calendarWeekly")), /* @__PURE__ */ h(Button, { variant: calendarMode === "cumulative" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("cumulative") }, t("calendarCumulative"))))), /* @__PURE__ */ h(
+    )), /* @__PURE__ */ h("section", { className: "wxp-analytics-panel wxp-analytics-panel-wide" }, /* @__PURE__ */ h("div", { className: "wxp-calendar-head" }, /* @__PURE__ */ h(PanelTitle, { title: t("wechatMessageActivity"), meta: t("basedOnRecentLogs") }), /* @__PURE__ */ h("div", { className: "wxp-calendar-controls" }, /* @__PURE__ */ h("label", { className: "wxp-calendar-filter" }, /* @__PURE__ */ h("span", null, t("accountFilter")), /* @__PURE__ */ h(xa, { value: calendarAccount, onValueChange: (value) => setCalendarAccount(value) }, /* @__PURE__ */ h(ya, { "aria-label": t("accountFilter") }, /* @__PURE__ */ h(za, { placeholder: t("allAccounts") })), /* @__PURE__ */ h(ka, null, /* @__PURE__ */ h(Ca, { value: "all" }, t("allAccounts")), dashboard.accountOptions.map((account) => /* @__PURE__ */ h(Ca, { key: account.value, value: account.value }, account.label))))), /* @__PURE__ */ h("div", { className: "wxp-segmented" }, /* @__PURE__ */ h(I, { variant: calendarMode === "daily" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("daily") }, t("calendarDaily")), /* @__PURE__ */ h(I, { variant: calendarMode === "weekly" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("weekly") }, t("calendarWeekly")), /* @__PURE__ */ h(I, { variant: calendarMode === "cumulative" ? "secondary" : "ghost", size: "sm", onClick: () => setCalendarMode("cumulative") }, t("calendarCumulative"))))), /* @__PURE__ */ h(
       WechatActivityCalendar,
       {
         logs: dashboard.logs,
@@ -15741,7 +14341,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function AccountsView(props) {
     const filter = useTableFilterDraft(props.table, props.onTableChange);
-    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h("div", { className: "wxp-table-toolbar" }, /* @__PURE__ */ h("strong", null, props.t("account")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", onClick: props.onSyncStatus, disabled: !props.canSync || props.syncing }, props.syncing ? props.t("syncingStatus") : props.t("syncStatus")), /* @__PURE__ */ h(Button, { onClick: props.onAdd, disabled: !props.canAdd }, props.t("addDevice")))), /* @__PURE__ */ h(
+    return /* @__PURE__ */ h("section", { className: "wxp-panel" }, /* @__PURE__ */ h("div", { className: "wxp-table-toolbar" }, /* @__PURE__ */ h("strong", null, props.t("account")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(I, { variant: "outline", onClick: props.onSyncStatus, disabled: !props.canSync || props.syncing }, props.syncing ? props.t("syncingStatus") : props.t("syncStatus")), /* @__PURE__ */ h(I, { onClick: props.onAdd, disabled: !props.canAdd }, props.t("addDevice")))), /* @__PURE__ */ h(
       TableFilters,
       {
         draft: filter.draft,
@@ -15808,15 +14408,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           time(account.lastCallbackAt),
           time(account.lastSendAt),
           display(account.lastError),
-          /* @__PURE__ */ h("div", { className: "xui-actions" }, canScanLogin(account) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onLogin(account) }, props.t("scanLogin")), canLogout(account) && /* @__PURE__ */ h(Button, { variant: "destructive", size: "sm", onClick: () => props.onLogout(account) }, props.t("logoutAccount")), account.outboundPausedReason && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onResumeOutbound(account) }, props.t("resumeOutbound")), /* @__PURE__ */ h(
-            Button,
+          /* @__PURE__ */ h("div", { className: "xui-actions" }, canScanLogin(account) && /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onLogin(account) }, props.t("scanLogin")), canLogout(account) && /* @__PURE__ */ h(I, { variant: "destructive", size: "sm", onClick: () => props.onLogout(account) }, props.t("logoutAccount")), account.outboundPausedReason && /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onResumeOutbound(account) }, props.t("resumeOutbound")), /* @__PURE__ */ h(
+            I,
             {
               variant: account.enabled === false ? "outline" : "destructive",
               size: "sm",
               onClick: () => props.onToggle(account, account.enabled === false)
             },
             account.enabled === false ? props.t("enable") : props.t("disable")
-          ), /* @__PURE__ */ h(Button, { variant: "destructive", size: "sm", onClick: () => props.onDelete(account) }, props.t("deleteAccount")))
+          ), /* @__PURE__ */ h(I, { variant: "destructive", size: "sm", onClick: () => props.onDelete(account) }, props.t("deleteAccount")))
         ]
       }
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
@@ -15831,7 +14431,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const title = props.state.mode === "add" ? props.t("addDevice") : props.t("scanLogin");
     const statusText = displayText(status.message) || loginActionLabel(nextAction, props.t);
     return /* @__PURE__ */ h(
-      Dialog2,
+      le2,
       {
         open: props.state.open,
         onOpenChange: (open) => {
@@ -15840,17 +14440,17 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       },
-      /* @__PURE__ */ h(DialogContent2, { className: "wxp-login-dialog" }, /* @__PURE__ */ h(DialogHeader, null, /* @__PURE__ */ h(DialogTitle2, null, title)), /* @__PURE__ */ h("div", { className: "wxp-login-body" }, showIntegrationSelect && /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("integration")), /* @__PURE__ */ h(
-        Select2,
+      /* @__PURE__ */ h(ge, { className: "wxp-login-dialog" }, /* @__PURE__ */ h(pe2, null, /* @__PURE__ */ h(fe2, null, title)), /* @__PURE__ */ h("div", { className: "wxp-login-body" }, showIntegrationSelect && /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("integration")), /* @__PURE__ */ h(
+        xa,
         {
           value: displayText(props.state.integrationId),
           onValueChange: (value) => props.onChange({ integrationId: value }),
           disabled: props.state.busy
         },
-        /* @__PURE__ */ h(SelectTrigger2, { "aria-label": props.t("integration") }, /* @__PURE__ */ h(SelectValue2, { placeholder: props.t("integration") })),
-        /* @__PURE__ */ h(SelectContent2, null, props.integrations.map((integration) => /* @__PURE__ */ h(SelectItem2, { key: integration.id, value: integration.id }, integration.name || integration.id)))
+        /* @__PURE__ */ h(ya, { "aria-label": props.t("integration") }, /* @__PURE__ */ h(za, { placeholder: props.t("integration") })),
+        /* @__PURE__ */ h(ka, null, props.integrations.map((integration) => /* @__PURE__ */ h(Ca, { key: integration.id, value: integration.id }, integration.name || integration.id)))
       )), /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("deviceKey")), /* @__PURE__ */ h(
-        Input,
+        W2,
         {
           value: displayText(props.state.key),
           placeholder: props.t("deviceKeyPlaceholder"),
@@ -15864,7 +14464,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       )), status.qrCodeUrl && (nextAction === "SHOW_QR" || nextAction === "SHOW_SCANNED_AVATAR") && /* @__PURE__ */ h("div", { className: "wxp-login-qr" }, /* @__PURE__ */ h("img", { src: status.qrCodeUrl, alt: props.t("loginQrCode") })), status.headImgUrl && nextAction === "SHOW_SCANNED_AVATAR" && /* @__PURE__ */ h("div", { className: "wxp-login-avatar" }, /* @__PURE__ */ h("img", { src: status.headImgUrl, alt: props.t("wechatAvatar") }), /* @__PURE__ */ h("strong", null, displayText(status.nickName || status.wxid) || props.t("scannedWechat"))), nextAction === "LOGIN_SUCCESS" && /* @__PURE__ */ h("div", { className: "wxp-login-result success" }, /* @__PURE__ */ h("strong", null, props.t("loginSuccess")), /* @__PURE__ */ h("span", null, displayText(status.nickName || status.wxid))), (nextAction === "QR_EXPIRED" || nextAction === "FAILED") && /* @__PURE__ */ h("div", { className: "wxp-login-result warning" }, /* @__PURE__ */ h("strong", null, loginActionLabel(nextAction, props.t))), remainingSeconds > 0 && (nextAction === "SHOW_QR" || nextAction === "SHOW_SCANNED_AVATAR") && /* @__PURE__ */ h("div", { className: "wxp-login-countdown" }, /* @__PURE__ */ h("div", { style: { width: `${countdownPercent}%` } }), /* @__PURE__ */ h("span", null, remainingSeconds, "s")), statusText && /* @__PURE__ */ h("div", { className: "wxp-login-message" }, statusText), nextAction === "SHOW_CODE_INPUT" && /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, props.t("loginCode")), /* @__PURE__ */ h(
-        Input,
+        W2,
         {
           value: displayText(props.state.code),
           placeholder: props.t("loginCodePlaceholder"),
@@ -15877,7 +14477,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       )), nextAction === "SHOW_SLIDE" && /* @__PURE__ */ h("div", { className: "wxp-slide-fields" }, /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, "randstr"), /* @__PURE__ */ h(
-        Input,
+        W2,
         {
           value: displayText(props.state.randstr),
           placeholder: "randstr",
@@ -15885,15 +14485,15 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           onChange: (event) => props.onChange({ randstr: event.target.value })
         }
       )), /* @__PURE__ */ h("label", { className: "wxp-field" }, /* @__PURE__ */ h("span", null, "slideticket"), /* @__PURE__ */ h(
-        Input,
+        W2,
         {
           value: displayText(props.state.slideticket),
           placeholder: "slideticket",
           disabled: props.state.busy,
           onChange: (event) => props.onChange({ slideticket: event.target.value })
         }
-      )))), /* @__PURE__ */ h(DialogFooter, null, /* @__PURE__ */ h(Button, { variant: "outline", onClick: props.onClose }, props.t("cancel")), props.state.mode === "add" && !nextAction && /* @__PURE__ */ h(Button, { disabled: props.state.busy || !canSubmitKey, onClick: props.onBindAndLogin }, props.state.busy ? props.t("loading") : props.t("addAndLogin")), (nextAction === "QR_EXPIRED" || nextAction === "FAILED") && /* @__PURE__ */ h(Button, { disabled: props.state.busy, onClick: props.onStartLogin }, props.t("retryLogin")), nextAction === "SHOW_CODE_INPUT" && /* @__PURE__ */ h(Button, { disabled: props.state.busy || !displayText(props.state.code), onClick: props.onVerifyCode }, props.state.busy ? props.t("loading") : props.t("submitCode")), nextAction === "SHOW_SLIDE" && /* @__PURE__ */ h(
-        Button,
+      )))), /* @__PURE__ */ h(vt2, null, /* @__PURE__ */ h(I, { variant: "outline", onClick: props.onClose }, props.t("cancel")), props.state.mode === "add" && !nextAction && /* @__PURE__ */ h(I, { disabled: props.state.busy || !canSubmitKey, onClick: props.onBindAndLogin }, props.state.busy ? props.t("loading") : props.t("addAndLogin")), (nextAction === "QR_EXPIRED" || nextAction === "FAILED") && /* @__PURE__ */ h(I, { disabled: props.state.busy, onClick: props.onStartLogin }, props.t("retryLogin")), nextAction === "SHOW_CODE_INPUT" && /* @__PURE__ */ h(I, { disabled: props.state.busy || !displayText(props.state.code), onClick: props.onVerifyCode }, props.state.busy ? props.t("loading") : props.t("submitCode")), nextAction === "SHOW_SLIDE" && /* @__PURE__ */ h(
+        I,
         {
           disabled: props.state.busy || !displayText(props.state.randstr) || !displayText(props.state.slideticket),
           onClick: props.onVerifySlide
@@ -15965,7 +14565,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           /* @__PURE__ */ h("details", { className: "wxp-message-log-content" }, /* @__PURE__ */ h("summary", null, clip(item.content, 80)), /* @__PURE__ */ h("pre", null, item.payloadSummary || item.content || "")),
           display(item.error),
           time(item.createdAt),
-          item.direction === "outbound" ? /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onResend(item) }, props.t("resend")) : ""
+          item.direction === "outbound" ? /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onResend(item) }, props.t("resend")) : ""
         ]
       }
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
@@ -16023,7 +14623,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           time(item.scheduledAt),
           time(item.sentAt),
           /* @__PURE__ */ h(QueueContentCell, { item, t: props.t }),
-          /* @__PURE__ */ h("div", { className: "xui-actions" }, ["queued", "deferred", "paused"].includes(item.status) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onCancel(item) }, props.t("cancel")), ["failed", "cancelled", "paused"].includes(item.status) && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onRetry(item) }, props.t("retry")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onPause(item) }, props.t("pause")), /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onResume(item) }, props.t("resume")))
+          /* @__PURE__ */ h("div", { className: "xui-actions" }, ["queued", "deferred", "paused"].includes(item.status) && /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onCancel(item) }, props.t("cancel")), ["failed", "cancelled", "paused"].includes(item.status) && /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onRetry(item) }, props.t("retry")), /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onPause(item) }, props.t("pause")), /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onResume(item) }, props.t("resume")))
         ]
       }
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
@@ -16036,7 +14636,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const summary = hasError ? queueErrorSummary(item.error, props.t) : queueContentSummary(item.content, payload, props.t);
     const meta = queueContentMeta(payload, props.t);
     const detail = queueContentDetail(item, payload, props.t);
-    return /* @__PURE__ */ h("div", { className: hasError ? "wxp-message-cell wxp-message-cell-error" : "wxp-message-cell" }, /* @__PURE__ */ h("div", { className: "wxp-message-cell-head" }, /* @__PURE__ */ h(Badge, { variant: hasError ? "destructive" : "secondary" }, hasError ? props.t("error") : type === "image" ? props.t("imageMessage") : props.t("textMessage")), meta && /* @__PURE__ */ h("small", null, meta)), /* @__PURE__ */ h("strong", { title: displayText(hasError ? item.error : item.content) }, summary || "-"), detail && /* @__PURE__ */ h("details", null, /* @__PURE__ */ h("summary", null, hasError ? props.t("errorDetail") : props.t("contentDetail")), /* @__PURE__ */ h("pre", null, detail)));
+    return /* @__PURE__ */ h("div", { className: hasError ? "wxp-message-cell wxp-message-cell-error" : "wxp-message-cell" }, /* @__PURE__ */ h("div", { className: "wxp-message-cell-head" }, /* @__PURE__ */ h(rt2, { variant: hasError ? "destructive" : "secondary" }, hasError ? props.t("error") : type === "image" ? props.t("imageMessage") : props.t("textMessage")), meta && /* @__PURE__ */ h("small", null, meta)), /* @__PURE__ */ h("strong", { title: displayText(hasError ? item.error : item.content) }, summary || "-"), detail && /* @__PURE__ */ h("details", null, /* @__PURE__ */ h("summary", null, hasError ? props.t("errorDetail") : props.t("contentDetail")), /* @__PURE__ */ h("pre", null, detail)));
   }
   function ConfigView(props) {
     return /* @__PURE__ */ h("section", { className: "wxp-config" }, /* @__PURE__ */ h(
@@ -16096,37 +14696,37 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function ManualSendPanel(props) {
     return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-manual-send-panel" }, /* @__PURE__ */ h("h3", null, props.t("manualSend")), props.isOrganizationScope && /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         placeholder: props.t("integrationId"),
         value: props.draft.integrationId,
         onChange: (event) => props.setDraft(Object.assign({}, props.draft, { integrationId: event.target.value }))
       }
     ), /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         placeholder: props.t("uuid"),
         value: props.draft.uuid,
         onChange: (event) => props.setDraft(Object.assign({}, props.draft, { uuid: event.target.value }))
       }
     ), /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         placeholder: props.t("contactId"),
         value: props.draft.contactId,
         onChange: (event) => props.setDraft(Object.assign({}, props.draft, { contactId: event.target.value }))
       }
     ), /* @__PURE__ */ h(
-      Textarea,
+      be2,
       {
         placeholder: props.t("sendTextPlaceholder"),
         value: props.draft.content,
         onChange: (event) => props.setDraft(Object.assign({}, props.draft, { content: event.target.value }))
       }
-    ), /* @__PURE__ */ h(Button, { onClick: props.onSend }, props.t("send")));
+    ), /* @__PURE__ */ h(I, { onClick: props.onSend }, props.t("send")));
   }
   function CallbackPanel(props) {
-    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-config-callback" }, /* @__PURE__ */ h("h3", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("div", { className: "wxp-callback" }, props.isOrganizationScope ? /* @__PURE__ */ h("div", { className: "wxp-integration-list" }, /* @__PURE__ */ h("strong", null, props.t("organizationCallbacks")), (props.integrations || []).map((integration) => /* @__PURE__ */ h("div", { className: "wxp-integration-row", key: integration.id }, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", null, integration.name || integration.id), /* @__PURE__ */ h("code", null, integration.callbackConfig?.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(integration.callbackConfig?.globalWebhookUrl, props.t) }, props.t("copyUrl")))))) : /* @__PURE__ */ h(React.Fragment, null, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("strong", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("code", null, props.callback.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", onClick: () => copyText(props.callback.globalWebhookUrl, props.t) }, props.t("copyUrl"))))));
+    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-config-callback" }, /* @__PURE__ */ h("h3", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("div", { className: "wxp-callback" }, props.isOrganizationScope ? /* @__PURE__ */ h("div", { className: "wxp-integration-list" }, /* @__PURE__ */ h("strong", null, props.t("organizationCallbacks")), (props.integrations || []).map((integration) => /* @__PURE__ */ h("div", { className: "wxp-integration-row", key: integration.id }, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", null, integration.name || integration.id), /* @__PURE__ */ h("code", null, integration.callbackConfig?.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => copyText(integration.callbackConfig?.globalWebhookUrl, props.t) }, props.t("copyUrl")))))) : /* @__PURE__ */ h(React.Fragment, null, /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("strong", null, props.t("callbackGlobalWebhook")), /* @__PURE__ */ h("code", null, props.callback.globalWebhookUrl || "")), /* @__PURE__ */ h("div", { className: "wxp-actions" }, /* @__PURE__ */ h(I, { variant: "outline", onClick: () => copyText(props.callback.globalWebhookUrl, props.t) }, props.t("copyUrl"))))));
   }
   function TunnelPanel(props) {
     const tunnel = props.tunnel || {};
@@ -16138,7 +14738,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     const listenHost = sidecarConfig.ListenHost || sidecar.listenHost;
     const listenPort = sidecarConfig.ListenPort || sidecar.listenPort;
     const msgClientId = tunnel.clientId || sidecarConfig.MsgClientId;
-    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-tunnel-panel" }, /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.t("tunnelSetup")), settingJson && /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => copyText(settingJson, props.t) }, props.t("copyTunnelConfig"))), /* @__PURE__ */ h("div", { className: "wxp-tunnel-grid" }, kv(props.t("tunnelStatus"), tunnelStatusLabel(tunnel, props.t)), kv(props.t("tunnelClientId"), msgClientId), kv(props.t("tunnelLastSeen"), time(tunnel.lastSeenAt)), kv(props.t("tunnelBindings"), tunnel.bindingCount), kv(props.t("sidecarWebsocketUrl"), xpertUrl), kv(props.t("sidecarLocalListen"), listenHost && listenPort ? `${listenHost}:${listenPort}` : "")), /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", { className: "xui-muted" }, props.t("tunnelConfigSnippet")), /* @__PURE__ */ h("pre", null, settingJson || "-")));
+    return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-tunnel-panel" }, /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.t("tunnelSetup")), settingJson && /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => copyText(settingJson, props.t) }, props.t("copyTunnelConfig"))), /* @__PURE__ */ h("div", { className: "wxp-tunnel-grid" }, kv(props.t("tunnelStatus"), tunnelStatusLabel(tunnel, props.t)), kv(props.t("tunnelClientId"), msgClientId), kv(props.t("tunnelLastSeen"), time(tunnel.lastSeenAt)), kv(props.t("tunnelBindings"), tunnel.bindingCount), kv(props.t("sidecarWebsocketUrl"), xpertUrl), kv(props.t("sidecarLocalListen"), listenHost && listenPort ? `${listenHost}:${listenPort}` : "")), /* @__PURE__ */ h("div", null, /* @__PURE__ */ h("span", { className: "xui-muted" }, props.t("tunnelConfigSnippet")), /* @__PURE__ */ h("pre", null, settingJson || "-")));
   }
   function TunnelClientsPanel(props) {
     return /* @__PURE__ */ h("div", { className: "wxp-panel wxp-tunnel-clients-panel" }, /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.t("tunnelClients")), /* @__PURE__ */ h("span", null, props.t("currentProcessTunnelClients"))), /* @__PURE__ */ h(
@@ -16172,7 +14772,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           time(client.lastSyncAt),
           tunnelBindingsCell(client, props.t),
           display(client.lastError),
-          client.connected ? /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: () => props.onDisconnect(client) }, props.t("disconnect")) : "-"
+          client.connected ? /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: () => props.onDisconnect(client) }, props.t("disconnect")) : "-"
         ]
       }
     ));
@@ -16230,7 +14830,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
         renderRow: (item) => [
           ...props.isOrganizationScope ? [code(item.integrationId)] : [],
           translatedPill(item.error || item.status === "failed" ? "error" : "info", props.t),
-          /* @__PURE__ */ h(Badge, { variant: badgeVariant(item.status) }, phaseLabel(item, props.t)),
+          /* @__PURE__ */ h(rt2, { variant: badgeVariant(item.status) }, phaseLabel(item, props.t)),
           code(item.uuid),
           code(item.contactId),
           display(item.error || clip(item.content, 120)),
@@ -16240,7 +14840,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     ), /* @__PURE__ */ h(Pagination, { table: props.table, t: props.t, onChange: props.onTableChange }));
   }
   function Stat(props) {
-    return /* @__PURE__ */ h(Card, { className: "wxp-stat" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
+    return /* @__PURE__ */ h(ot2, { className: "wxp-stat" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
   }
   function TunnelClientStatusStat(props) {
     const clients = asArray(props.clients);
@@ -16252,13 +14852,13 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       state: props.tunnel?.state,
       lastError: props.tunnel?.lastError
     }] : [];
-    return /* @__PURE__ */ h(Card, { className: "wxp-stat wxp-tunnel-client-stat" }, /* @__PURE__ */ h("span", null, props.t("reverseTunnelClientStatus")), items.length ? /* @__PURE__ */ h("div", { className: "wxp-tunnel-lamps" }, items.map((client) => {
+    return /* @__PURE__ */ h(ot2, { className: "wxp-stat wxp-tunnel-client-stat" }, /* @__PURE__ */ h("span", null, props.t("reverseTunnelClientStatus")), items.length ? /* @__PURE__ */ h("div", { className: "wxp-tunnel-lamps" }, items.map((client) => {
       const state = tunnelClientLampState(client);
       return /* @__PURE__ */ h("div", { className: "wxp-tunnel-lamp-row", key: client.clientId || client.integrationId || client.clientName }, /* @__PURE__ */ h("i", { className: `wxp-tunnel-lamp ${state}` }), /* @__PURE__ */ h("strong", { title: displayText(client.clientId) }, clip(client.clientName || client.clientId, 28)), /* @__PURE__ */ h("small", null, tunnelClientLampLabel(client, props.t)));
     })) : /* @__PURE__ */ h("strong", null, props.t("disconnected")));
   }
   function Metric(props) {
-    return /* @__PURE__ */ h(Card, { className: props.tone === "danger" ? "wxp-metric wxp-metric-danger" : "wxp-metric" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
+    return /* @__PURE__ */ h(ot2, { className: props.tone === "danger" ? "wxp-metric wxp-metric-danger" : "wxp-metric" }, /* @__PURE__ */ h("span", null, props.label), /* @__PURE__ */ h("strong", null, String(props.value)), props.helper && /* @__PURE__ */ h("small", null, props.helper));
   }
   function PanelTitle(props) {
     return /* @__PURE__ */ h("div", { className: "wxp-panel-title" }, /* @__PURE__ */ h("strong", null, props.title), props.meta && /* @__PURE__ */ h("span", null, props.meta));
@@ -16445,7 +15045,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function TabButton(props) {
     return /* @__PURE__ */ h(
-      Button,
+      I,
       {
         variant: "ghost",
         className: props.tabKey === props.active ? "active" : "",
@@ -16456,7 +15056,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function TableFilters(props) {
     return /* @__PURE__ */ h("div", { className: "wxp-table-filters" }, /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         value: displayText(props.draft.search),
         placeholder: props.t("tableSearchPlaceholder"),
@@ -16467,11 +15067,11 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           }
         }
       }
-    ), props.children, /* @__PURE__ */ h("div", { className: "wxp-filter-actions" }, /* @__PURE__ */ h(Button, { variant: "outline", size: "sm", onClick: props.onReset }, props.t("resetFilters"))));
+    ), props.children, /* @__PURE__ */ h("div", { className: "wxp-filter-actions" }, /* @__PURE__ */ h(I, { variant: "outline", size: "sm", onClick: props.onReset }, props.t("resetFilters"))));
   }
   function TextFilter(props) {
     return /* @__PURE__ */ h(
-      Input,
+      W2,
       {
         value: displayText(props.draft[props.field]),
         placeholder: props.placeholder,
@@ -16481,7 +15081,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
   }
   function SelectFilter(props) {
     return /* @__PURE__ */ h(
-      Select2,
+      xa,
       {
         value: displayText(props.draft[props.field]) || SELECT_EMPTY_VALUE,
         onValueChange: (value) => {
@@ -16494,17 +15094,17 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
           props.setDraft(nextDraft);
         }
       },
-      /* @__PURE__ */ h(SelectTrigger2, { "aria-label": props.label }, /* @__PURE__ */ h(SelectValue2, { placeholder: props.label })),
-      /* @__PURE__ */ h(SelectContent2, null, /* @__PURE__ */ h(SelectItem2, { value: SELECT_EMPTY_VALUE }, props.label), props.options.map((option) => {
+      /* @__PURE__ */ h(ya, { "aria-label": props.label }, /* @__PURE__ */ h(za, { placeholder: props.label })),
+      /* @__PURE__ */ h(ka, null, /* @__PURE__ */ h(Ca, { value: SELECT_EMPTY_VALUE }, props.label), props.options.map((option) => {
         const item = typeof option === "string" ? { value: option, label: option } : option;
-        return /* @__PURE__ */ h(SelectItem2, { key: item.value, value: item.value }, item.label);
+        return /* @__PURE__ */ h(Ca, { key: item.value, value: item.value }, item.label);
       }))
     );
   }
   function Pagination(props) {
     const totalPages = Math.max(1, Math.ceil((props.table.total || 0) / props.table.pageSize));
-    return /* @__PURE__ */ h("div", { className: "wxp-pagination" }, /* @__PURE__ */ h("span", null, props.t("totalItems"), " ", props.table.total || 0), /* @__PURE__ */ h("label", null, /* @__PURE__ */ h("span", null, props.t("pageSize")), /* @__PURE__ */ h(Select2, { value: String(props.table.pageSize), onValueChange: (value) => props.onChange({ page: 1, pageSize: Number(value) }) }, /* @__PURE__ */ h(SelectTrigger2, { "aria-label": props.t("pageSize") }, /* @__PURE__ */ h(SelectValue2, null)), /* @__PURE__ */ h(SelectContent2, null, [10, 20, 50, 100].map((value) => /* @__PURE__ */ h(SelectItem2, { key: value, value: String(value) }, value))))), /* @__PURE__ */ h(
-      Button,
+    return /* @__PURE__ */ h("div", { className: "wxp-pagination" }, /* @__PURE__ */ h("span", null, props.t("totalItems"), " ", props.table.total || 0), /* @__PURE__ */ h("label", null, /* @__PURE__ */ h("span", null, props.t("pageSize")), /* @__PURE__ */ h(xa, { value: String(props.table.pageSize), onValueChange: (value) => props.onChange({ page: 1, pageSize: Number(value) }) }, /* @__PURE__ */ h(ya, { "aria-label": props.t("pageSize") }, /* @__PURE__ */ h(za, null)), /* @__PURE__ */ h(ka, null, [10, 20, 50, 100].map((value) => /* @__PURE__ */ h(Ca, { key: value, value: String(value) }, value))))), /* @__PURE__ */ h(
+      I,
       {
         variant: "outline",
         size: "sm",
@@ -16513,7 +15113,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
       },
       props.t("previousPage")
     ), /* @__PURE__ */ h("strong", null, props.table.page, " / ", totalPages), /* @__PURE__ */ h(
-      Button,
+      I,
       {
         variant: "outline",
         size: "sm",
@@ -16530,12 +15130,12 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     if (!props.rows?.length) {
       return /* @__PURE__ */ h("div", { className: "xui-empty" }, props.emptyText);
     }
-    const table = /* @__PURE__ */ h(React.Fragment, null, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(Table, { className: ["wxp-data-table", props.tableClassName].filter(Boolean).join(" ") }, /* @__PURE__ */ h(TableHeader, null, /* @__PURE__ */ h(TableRow, null, props.headers.map((header) => /* @__PURE__ */ h(TableHead, { key: header }, header)))), /* @__PURE__ */ h(TableBody, null, props.rows.map((row) => /* @__PURE__ */ h(TableRow, { key: row.id || row.uuid || row.conversationId || row.clientId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(TableCell, { key: index2 }, cell)))))));
+    const table = /* @__PURE__ */ h(React.Fragment, null, props.loading && /* @__PURE__ */ h("div", { className: "wxp-table-loading" }, props.loadingText || "..."), /* @__PURE__ */ h(ar, { className: ["wxp-data-table", props.tableClassName].filter(Boolean).join(" ") }, /* @__PURE__ */ h(rr, null, /* @__PURE__ */ h(ir, null, props.headers.map((header) => /* @__PURE__ */ h(dr, { key: header }, header)))), /* @__PURE__ */ h(or, null, props.rows.map((row) => /* @__PURE__ */ h(ir, { key: row.id || row.uuid || row.conversationId || row.clientId }, props.renderRow(row).map((cell, index2) => /* @__PURE__ */ h(sr, { key: index2 }, cell)))))));
     const wrapperClassName = ["wxp-table-wrap", props.wrapperClassName].filter(Boolean).join(" ");
     if (props.scrollX) {
       return /* @__PURE__ */ h("div", { className: wrapperClassName }, table);
     }
-    return /* @__PURE__ */ h(ScrollArea2, { className: wrapperClassName }, table);
+    return /* @__PURE__ */ h(ha, { className: wrapperClassName }, table);
   }
   function kv(label, value) {
     return /* @__PURE__ */ h("div", { className: "wxp-kv" }, /* @__PURE__ */ h("span", null, label), /* @__PURE__ */ h("strong", null, displayText(value) || "-"));
@@ -16555,7 +15155,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
     return /* @__PURE__ */ h("div", { className: "wxp-sender-cell" }, /* @__PURE__ */ h("strong", { title: name }, clip(name, 28)), id && /* @__PURE__ */ h("small", null, clip(id, 36)));
   }
   function translatedPill(value, t) {
-    return /* @__PURE__ */ h(Badge, { variant: badgeVariant(value) }, translateValue(value, t) || "-");
+    return /* @__PURE__ */ h(rt2, { variant: badgeVariant(value) }, translateValue(value, t) || "-");
   }
   function translatedOptions(values, t) {
     return values.map((value) => ({

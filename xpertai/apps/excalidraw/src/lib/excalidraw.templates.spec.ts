@@ -49,4 +49,21 @@ describe('excalidraw assistant template', () => {
     expect(template.dslContent).toContain('sandbox_shell')
     expect(template.dslContent).toContain('Excalidraw middleware tools remain the system of record')
   })
+
+  it('keeps the technical DiagramIR assistant opt-in with one engine middleware and one technical skill', () => {
+    const template = excalidrawTemplates[1]
+
+    expect(template.key).toBe('excalidraw-technical-diagram-assistant')
+    expect(template.dependencies.skills).toEqual([
+      { componentKey: 'excalidraw-agent-skill', targetAgentKey: 'Agent_Excalidraw_Technical_Diagram' },
+      { componentKey: 'technical-diagram', targetAgentKey: 'Agent_Excalidraw_Technical_Diagram' }
+    ])
+    expect(template.dslContent).toContain('ExcalidrawDiagramEngineMiddleware')
+    expect(template.dslContent).not.toContain('ExcalidrawArtifactTemplateMiddleware')
+    expect(template.dslContent).not.toContain('ExcalidrawDiagramIrMiddleware')
+    expect(template.dslContent).not.toContain('ExcalidrawDiagramQualityMiddleware')
+    expect(template.dslContent).toContain('excalidraw_template_list')
+    expect(template.dslContent).toContain('excalidraw_diagram_create_preview')
+    expect(excalidrawTemplates[0].dslContent).not.toContain('ExcalidrawDiagramEngineMiddleware')
+  })
 })

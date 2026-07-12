@@ -1,0 +1,6 @@
+interface:
+  display_name: "Technical Diagram Engineering"
+  short_description: "Model, render, validate, and visually review semantic technical diagrams."
+  default_prompt: "Use $technical-diagram to create and visually review a technical architecture diagram."
+policy:
+  allow_implicit_invocation: true

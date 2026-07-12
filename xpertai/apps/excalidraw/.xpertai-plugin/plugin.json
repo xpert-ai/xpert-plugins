@@ -1,10 +1,10 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.1.2",
-  "description": "Excalidraw app plugin for agent-created diagrams, reviewable drawing versions, Mermaid drafts, and an editable workbench.",
+  "version": "0.9.0",
+  "description": "Collaborative Excalidraw app with Yjs live editing, secure interactive HTML Artifact sharing, DiagramIR templates, quality review, versions, and an editable workbench.",
   "author": "XpertAI",
-  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/excalidraw",
-  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/excalidraw",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/excalidraw",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/excalidraw",
   "license": "AGPL-3.0",
   "keywords": [
     "excalidraw",
@@ -12,13 +12,18 @@
     "whiteboard",
     "mermaid",
     "agent-drawing",
-    "workbench"
+    "workbench",
+    "diagram-ir",
+    "artifact-template",
+    "diagram-quality",
+    "collaboration",
+    "artifact-sharing"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Excalidraw",
-    "shortDescription": "Agent-managed Excalidraw diagrams",
-    "longDescription": "Create, update, version, review, import, export, and convert Agent-generated Excalidraw diagrams. The plugin includes an installable Xpert skill, Assistant template, middleware tools, and an Excalidraw Workbench for human review.",
+    "shortDescription": "Collaborative Agent-managed Excalidraw diagrams",
+    "longDescription": "Create, co-edit, version, review, import, export, and share Agent-generated Excalidraw diagrams. Live collaboration uses platform-owned Yjs documents and presence. Sharing publishes a safe self-contained read-only Excalidraw HTML viewer through platform Artifacts with controlled access and revocation. The optional technical diagram engine adds templates, DiagramIR, deterministic rendering, and quality review.",
     "developerName": "XpertAI",
     "category": "Productivity",
     "capabilities": [
@@ -32,7 +37,8 @@
     "defaultPrompt": [
       "Create an editable architecture diagram",
       "Turn this flow into an Excalidraw drawing",
-      "Update the current Excalidraw canvas from my feedback"
+      "Update the current Excalidraw canvas from my feedback",
+      "Create and visually review a RAG architecture from a built-in template"
     ],
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
@@ -48,7 +54,7 @@
     "source": "local",
     "path": ".",
     "url": "https://github.com/xpert-ai/xpert-plugins",
-    "sparsePath": "community/apps/excalidraw"
+    "sparsePath": "xpertai/apps/excalidraw"
   },
   "assets": {
     "composerIcon": "./assets/composerIcon.svg",
@@ -71,7 +77,12 @@
         "excalidraw",
         "diagram-workbench",
         "agent-drawing",
-        "excalidraw-assistant-template"
+        "excalidraw-assistant-template",
+        "artifact-template-catalog",
+        "diagram-ir",
+        "diagram-quality",
+        "excalidraw-collaboration",
+        "excalidraw-artifact-sharing"
       ],
       "marketplace": {
         "contents": [
@@ -100,6 +111,25 @@
             }
           },
           {
+            "type": "skill",
+            "name": "technical-diagram",
+            "displayName": "Technical Diagram Engineering",
+            "description": {
+              "en_US": "Template selection, semantic DiagramIR modeling, deterministic validation, preview inspection, and bounded visual correction.",
+              "zh_Hans": "模板选择、DiagramIR 语义建模、确定性校验、预览检查和有界视觉修正。"
+            },
+            "tags": ["skill", "diagram-ir", "technical-diagram", "templates", "diagram-quality", "visual-review"]
+          },
+          {
+            "type": "assistant-template",
+            "name": "excalidraw-technical-diagram-assistant",
+            "displayName": "Excalidraw Technical Diagram Assistant",
+            "description": {
+              "en_US": "Assistant template for the full template-to-DiagramIR quality workflow.",
+              "zh_Hans": "执行从模板到 DiagramIR 再到质量闭环的助手模板。"
+            }
+          },
+          {
             "type": "app",
             "name": "excalidraw",
             "displayName": "Excalidraw",
@@ -121,8 +151,35 @@
         "excalidraw",
         "diagram-workbench",
         "agent-drawing",
-        "excalidraw-assistant-template"
-      ]
+        "excalidraw-assistant-template",
+        "artifact-template-catalog",
+        "diagram-ir",
+        "diagram-quality",
+        "excalidraw-collaboration",
+        "excalidraw-artifact-sharing"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "tool",
+            "name": "ExcalidrawDiagramEngineMiddleware",
+            "displayName": "Excalidraw Technical Diagram Engine"
+          },
+          {
+            "type": "assistant-template",
+            "name": "excalidraw-technical-diagram-assistant",
+            "displayName": "Excalidraw Technical Diagram Assistant"
+          }
+        ]
+      },
+      "runtime": {
+        "middlewareProviders": [
+          "ExcalidrawMiddleware",
+          "ExcalidrawDiagramEngineMiddleware"
+        ],
+        "viewProviders": ["excalidraw"],
+        "templateProviders": ["excalidrawTemplates"]
+      }
     }
   }
 }

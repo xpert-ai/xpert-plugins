@@ -7,6 +7,9 @@ export const SEARCH_DRAWINGS_TOOL_NAME = 'excalidraw_search_drawings'
 export const GET_DRAWING_TOOL_NAME = 'excalidraw_get_drawing'
 export const UPDATE_DRAWING_STATUS_TOOL_NAME = 'excalidraw_update_drawing_status'
 export const REPORT_FAILURE_TOOL_NAME = 'excalidraw_report_failure'
+export const TEMPLATE_INSTANTIATE_TOOL_NAME = 'excalidraw_template_instantiate'
+export const DIAGRAM_CREATE_TOOL_NAME = 'excalidraw_diagram_create'
+export const DIAGRAM_RENDER_TOOL_NAME = 'excalidraw_diagram_render'
 
 export const EXCALIDRAW_TOOL_NAMES = new Set([
   CREATE_DRAWING_TOOL_NAME,
@@ -17,7 +20,21 @@ export const EXCALIDRAW_TOOL_NAMES = new Set([
   SEARCH_DRAWINGS_TOOL_NAME,
   GET_DRAWING_TOOL_NAME,
   UPDATE_DRAWING_STATUS_TOOL_NAME,
-  REPORT_FAILURE_TOOL_NAME
+  REPORT_FAILURE_TOOL_NAME,
+  'excalidraw_template_list',
+  'excalidraw_template_inspect',
+  TEMPLATE_INSTANTIATE_TOOL_NAME,
+  DIAGRAM_CREATE_TOOL_NAME,
+  'excalidraw_diagram_get',
+  'excalidraw_diagram_upsert_group',
+  'excalidraw_diagram_upsert_node',
+  'excalidraw_diagram_upsert_edge',
+  'excalidraw_diagram_remove_items',
+  DIAGRAM_RENDER_TOOL_NAME,
+  'excalidraw_diagram_validate',
+  'excalidraw_diagram_create_preview',
+  'excalidraw_diagram_get_quality_report',
+  'excalidraw_diagram_record_visual_review'
 ])
 
 export const EXCALIDRAW_MUTATION_TOOL_NAMES = new Set([
@@ -27,7 +44,17 @@ export const EXCALIDRAW_MUTATION_TOOL_NAMES = new Set([
   PATCH_SCENE_TOOL_NAME,
   SAVE_MERMAID_DRAFT_TOOL_NAME,
   UPDATE_DRAWING_STATUS_TOOL_NAME,
-  REPORT_FAILURE_TOOL_NAME
+  REPORT_FAILURE_TOOL_NAME,
+  TEMPLATE_INSTANTIATE_TOOL_NAME,
+  DIAGRAM_CREATE_TOOL_NAME,
+  'excalidraw_diagram_upsert_group',
+  'excalidraw_diagram_upsert_node',
+  'excalidraw_diagram_upsert_edge',
+  'excalidraw_diagram_remove_items',
+  DIAGRAM_RENDER_TOOL_NAME,
+  'excalidraw_diagram_validate',
+  'excalidraw_diagram_create_preview',
+  'excalidraw_diagram_record_visual_review'
 ])
 
 export const EXCALIDRAW_ANIMATED_PATCH_TOOL_NAMES = new Set([

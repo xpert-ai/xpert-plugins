@@ -1,4 +1,13 @@
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  ArtifactsRuntimeCapability: Symbol('artifacts'),
+  CollaborationRuntimeCapability: Symbol('collaboration'),
+  WorkspaceFilesRuntimeCapability: Symbol('workspace-files'),
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('runtime-capabilities')
+}))
+
 import { BadRequestException } from '@nestjs/common'
+import { ArtifactsRuntimeCapability, CollaborationRuntimeCapability, WorkspaceFilesRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { summarizeDrawingMutationResult } from './excalidraw-agent-response.js'
 import { ExcalidrawService } from './excalidraw.service.js'
 
@@ -7,12 +16,14 @@ describe('ExcalidrawService patchScene', () => {
   let drawings: MemoryRepository<any>
   let versions: MemoryRepository<any>
   let logs: MemoryRepository<any>
+  let publications: MemoryRepository<any>
 
   beforeEach(() => {
     drawings = new MemoryRepository('drawing')
     versions = new MemoryRepository('version')
     logs = new MemoryRepository('log')
-    service = new ExcalidrawService(drawings as any, versions as any, logs as any)
+    publications = new MemoryRepository('publication')
+    service = new ExcalidrawService(drawings as any, versions as any, logs as any, publications as any)
   })
 
   it('applies add, update, and delete operations into the current version', async () => {
@@ -503,6 +514,281 @@ describe('ExcalidrawService patchScene', () => {
   })
 })
 
+describe('ExcalidrawService Artifact sharing', () => {
+  it('requires explicit confirmation, publishes HTML, and reuses unchanged content', async () => {
+    const drawings = new MemoryRepository<any>('drawing')
+    const versions = new MemoryRepository<any>('version')
+    const logs = new MemoryRepository<any>('log')
+    const publications = new MemoryRepository<any>('publication')
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName, size }) => ({
+        name: originalName,
+        filePath: `files/${originalName}`,
+        workspacePath: `/workspace/files/${originalName}`,
+        mimeType: 'text/html',
+        size,
+        catalog: 'xperts'
+      })),
+      deleteFile: jest.fn()
+    }
+    const artifacts = {
+      createArtifact: jest.fn(async () => ({ id: 'artifact-1' })),
+      createArtifactVersion: jest.fn(async () => ({ id: 'artifact-version-1' })),
+      createArtifactLink: jest.fn(async () => ({
+        id: 'artifact-link-1',
+        versionMode: 'latest',
+        accessMode: 'public_link',
+        allowDownload: false,
+        publicUrl: 'https://example.test/custom/artifact-link/opaque'
+      })),
+      updateArtifactLinkAccess: jest.fn(async (_linkId, patch) => ({
+        id: 'artifact-link-1',
+        versionMode: patch.versionMode,
+        accessMode: patch.access.mode,
+        allowDownload: false,
+        publicUrl: 'https://example.test/custom/artifact-link/opaque'
+      })),
+      revokeArtifactLink: jest.fn(async () => undefined),
+      deleteArtifact: jest.fn(async () => undefined)
+    }
+    const runtime = {
+      get: jest.fn((key) => {
+        if (key === WorkspaceFilesRuntimeCapability) return workspaceFiles
+        if (key === ArtifactsRuntimeCapability) return artifacts
+        if (key === CollaborationRuntimeCapability) return null
+        return null
+      })
+    }
+    const service = new ExcalidrawService(
+      drawings as any,
+      versions as any,
+      logs as any,
+      publications as any,
+      runtime as any,
+      artifactViewer('viewer-checksum') as any
+    )
+    const created = await service.createDrawing(testScope(), {
+      title: 'Share target',
+      elements: [baseElement({ id: 'rect-share' })]
+    })
+    await expect(service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'public_link',
+      userConfirmedPublicLink: false
+    })).rejects.toThrow(/confirmation/i)
+
+    const first = await service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'public_link',
+      userConfirmedPublicLink: true
+    })
+    const second = await service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'public_link',
+      userConfirmedPublicLink: true
+    })
+    const updated = await service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'organization_all'
+    })
+
+    expect(first.shareUrl).toBe('https://example.test/custom/artifact-link/opaque')
+    expect(first.publicUrl).toBe(first.shareUrl)
+    expect(second.artifactLinkId).toBe(first.artifactLinkId)
+    expect(updated.accessMode).toBe('organization_all')
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({
+      mimeType: 'text/html',
+      folder: `files/excalidraw/artifacts/${created.item.id}`
+    }))
+    expect(artifacts.createArtifact).toHaveBeenCalledWith(expect.objectContaining({
+      source: expect.objectContaining({ resourceType: 'excalidraw_drawing_viewer' }),
+      kind: 'html'
+    }))
+    expect(artifacts.createArtifactVersion).toHaveBeenCalledWith(expect.objectContaining({
+      mimeType: 'text/html',
+      fileName: 'Share target.html'
+    }))
+    expect(artifacts.createArtifactVersion).toHaveBeenCalledTimes(1)
+    expect(artifacts.createArtifactLink).toHaveBeenCalledTimes(1)
+    expect(artifacts.createArtifactLink).toHaveBeenCalledWith(expect.objectContaining({
+      presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'interactive' }
+    }))
+    expect(artifacts.updateArtifactLinkAccess).toHaveBeenCalledTimes(1)
+  })
+
+  it('migrates an active SVG publication only after the HTML link succeeds', async () => {
+    const drawings = new MemoryRepository<any>('drawing')
+    const versions = new MemoryRepository<any>('version')
+    const logs = new MemoryRepository<any>('log')
+    const publications = new MemoryRepository<any>('publication')
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName, size }) => ({
+        name: originalName,
+        filePath: `files/${originalName}`,
+        workspacePath: `/workspace/files/${originalName}`,
+        mimeType: 'text/html',
+        size
+      })),
+      deleteFile: jest.fn(async () => undefined)
+    }
+    const artifacts = {
+      createArtifact: jest.fn(async () => ({ id: 'artifact-html' })),
+      createArtifactVersion: jest.fn(async () => ({ id: 'version-html' })),
+      createArtifactLink: jest.fn(async () => ({
+        id: 'link-html',
+        versionMode: 'latest',
+        accessMode: 'organization_all',
+        allowDownload: false,
+        publicUrl: 'https://example.test/artifacts/share/html'
+      })),
+      updateArtifactLinkAccess: jest.fn(),
+      revokeArtifactLink: jest.fn(async () => undefined),
+      deleteArtifact: jest.fn(async () => undefined)
+    }
+    const runtime = {
+      get: jest.fn((key) => key === WorkspaceFilesRuntimeCapability
+        ? workspaceFiles
+        : key === ArtifactsRuntimeCapability ? artifacts : null)
+    }
+    const service = new ExcalidrawService(
+      drawings as any,
+      versions as any,
+      logs as any,
+      publications as any,
+      runtime as any,
+      artifactViewer('html-checksum') as any
+    )
+    const created = await service.createDrawing(testScope(), {
+      title: 'Legacy SVG share',
+      elements: [baseElement({ id: 'legacy-rect' })]
+    })
+    await publications.save({
+      ...testScope(),
+      drawingId: created.item.id,
+      collaborationSequence: 1,
+      checksum: 'legacy-svg-checksum',
+      fileName: 'legacy.svg',
+      mimeType: 'image/svg+xml',
+      size: 120,
+      sha256: 'legacy-svg-checksum',
+      workspaceFileReference: { source: 'platform.workspace.files', filePath: 'files/legacy.svg', workspacePath: '/workspace/files/legacy.svg' },
+      artifactId: 'artifact-svg',
+      artifactVersionId: 'version-svg',
+      artifactLinkId: 'link-svg',
+      artifactLinkVersionMode: 'latest',
+      artifactLinkAccessMode: 'organization_all',
+      allowDownload: true,
+      publicUrl: 'https://example.test/artifacts/share/svg',
+      status: 'active'
+    })
+
+    const result = await service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'organization_all'
+    })
+
+    expect(result.shareUrl).toBe('https://example.test/artifacts/share/html')
+    expect(artifacts.createArtifactLink.mock.invocationCallOrder[0]).toBeLessThan(artifacts.revokeArtifactLink.mock.invocationCallOrder[0])
+    expect(artifacts.revokeArtifactLink).toHaveBeenCalledWith('link-svg')
+    expect(artifacts.deleteArtifact).toHaveBeenCalledWith('artifact-svg')
+    expect(workspaceFiles.deleteFile).toHaveBeenCalledWith(expect.objectContaining({ filePath: 'files/legacy.svg' }))
+    expect((await publications.find({ where: { drawingId: created.item.id, status: 'superseded' } }))).toHaveLength(1)
+  })
+
+  it('keeps the legacy SVG link active when HTML link creation fails', async () => {
+    const drawings = new MemoryRepository<any>('drawing')
+    const versions = new MemoryRepository<any>('version')
+    const publications = new MemoryRepository<any>('publication')
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName, size }) => ({
+        name: originalName,
+        filePath: `files/${originalName}`,
+        workspacePath: `/workspace/files/${originalName}`,
+        mimeType: 'text/html',
+        size
+      })),
+      deleteFile: jest.fn(async () => undefined)
+    }
+    const artifacts = {
+      createArtifact: jest.fn(async () => ({ id: 'artifact-html' })),
+      createArtifactVersion: jest.fn(async () => ({ id: 'version-html' })),
+      createArtifactLink: jest.fn(async () => { throw new Error('link failed') }),
+      updateArtifactLinkAccess: jest.fn(),
+      revokeArtifactLink: jest.fn(async () => undefined),
+      deleteArtifact: jest.fn(async () => undefined)
+    }
+    const runtime = {
+      get: jest.fn((key) => key === WorkspaceFilesRuntimeCapability
+        ? workspaceFiles
+        : key === ArtifactsRuntimeCapability ? artifacts : null)
+    }
+    const service = new ExcalidrawService(
+      drawings as any,
+      versions as any,
+      new MemoryRepository<any>('log') as any,
+      publications as any,
+      runtime as any,
+      artifactViewer('failed-html-checksum') as any
+    )
+    const created = await service.createDrawing(testScope(), {
+      title: 'Failed migration',
+      elements: [baseElement({ id: 'legacy-rect' })]
+    })
+    const legacy = await publications.save({
+      ...testScope(), drawingId: created.item.id, collaborationSequence: 1,
+      checksum: 'legacy', fileName: 'legacy.svg', mimeType: 'image/svg+xml', size: 100, sha256: 'legacy',
+      workspaceFileReference: { source: 'platform.workspace.files', filePath: 'legacy.svg', workspacePath: '/workspace/legacy.svg' },
+      artifactId: 'artifact-svg', artifactVersionId: 'version-svg', artifactLinkId: 'link-svg',
+      artifactLinkVersionMode: 'latest', artifactLinkAccessMode: 'organization_all', allowDownload: true,
+      publicUrl: 'https://example.test/artifacts/share/svg', status: 'active'
+    })
+
+    await expect(service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'organization_all'
+    })).rejects.toThrow('link failed')
+
+    expect((await publications.findOne({ where: { id: legacy.id } }))?.status).toBe('active')
+    expect(artifacts.revokeArtifactLink).not.toHaveBeenCalled()
+    expect(artifacts.deleteArtifact).not.toHaveBeenCalled()
+    expect(workspaceFiles.deleteFile).not.toHaveBeenCalled()
+  })
+
+  it('fails clearly when Workspace Files is unavailable', async () => {
+    const drawings = new MemoryRepository<any>('drawing')
+    const versions = new MemoryRepository<any>('version')
+    const service = new ExcalidrawService(
+      drawings as any,
+      versions as any,
+      new MemoryRepository<any>('log') as any,
+      new MemoryRepository<any>('publication') as any,
+      { get: jest.fn(() => null) } as any,
+      artifactViewer('missing-capability') as any
+    )
+    const created = await service.createDrawing(testScope(), { title: 'Missing capability' })
+    await expect(service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'organization_all'
+    })).rejects.toThrow(/Workspace Files capability/i)
+
+    const workspaceFiles = { uploadBuffer: jest.fn() }
+    const missingArtifactsService = new ExcalidrawService(
+      drawings as any,
+      versions as any,
+      new MemoryRepository<any>('log') as any,
+      new MemoryRepository<any>('publication') as any,
+      { get: jest.fn((key) => key === WorkspaceFilesRuntimeCapability ? workspaceFiles : null) } as any,
+      artifactViewer('missing-artifacts') as any
+    )
+    await expect(missingArtifactsService.publishDrawingViewerArtifact(testScope(), {
+      drawingId: created.item.id,
+      accessMode: 'organization_all'
+    })).rejects.toThrow(/Artifacts capability/i)
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+  })
+})
+
 class MemoryRepository<T extends { id?: string }> {
   private sequence = 0
   private items: T[] = []
@@ -571,6 +857,21 @@ function testScope() {
     userId: 'user-1',
     assistantId: 'assistant-1',
     conversationId: 'conversation-1'
+  }
+}
+
+function artifactViewer(checksum: string) {
+  const buffer = Buffer.from('<!doctype html><html><body><div id="root"></div></body></html>')
+  return {
+    render: jest.fn(async () => ({
+      buffer,
+      checksum,
+      sha256: checksum,
+      size: buffer.byteLength,
+      mimeType: 'text/html' as const,
+      viewerVersion: 1,
+      theme: 'light' as const
+    }))
   }
 }
 

@@ -18,15 +18,6 @@ import {
   Save,
   ScrollArea,
   Separator,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTitle,
-  SidebarTrigger,
   Tabs,
   TabsContent,
   TabsList,
@@ -37,8 +28,9 @@ import {
   TooltipTrigger,
   Trash2,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
 import { canvasWorkbenchDebug } from './debug-logger'
@@ -197,8 +189,6 @@ const h: typeof React.createElement = React.createElement
 function isAiImageHolderFrame(shape: TLShape): shape is TLFrameShape {
   return shape.type === 'frame' && Boolean(shape.meta?.canvasAiImageHolder || shape.meta?.cowartAiImageHolder)
 }
-
-installShadcnThemeVars({ styleId: 'canvas-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {
@@ -1072,7 +1062,7 @@ function App() {
   const current = detail?.item
   const snapshot = mountedSnapshot
   const canvasKey = `${current?.id ?? 'empty'}:${sceneKey}`
-  const statusVariant: 'warning' | 'success' = autosaving ? 'warning' : dirty ? 'warning' : 'success'
+  const statusTone: 'warning' | 'success' = autosaving || dirty ? 'warning' : 'success'
   const statusText = autosaving ? t('saving') : dirty ? t('dirty') : t('synced')
 
   return (
@@ -1133,7 +1123,7 @@ function App() {
                       <SidebarMenuItem key={document.id}>
                         <SidebarMenuButton
                           className="cw-document-button"
-                          active={document.id === current?.id}
+                          isActive={document.id === current?.id}
                           onClick={() => loadData(document.id)}
                         >
                           <span className="cw-item-title">{document.title}</span>
@@ -1159,7 +1149,7 @@ function App() {
               </div>
             </div>
             <div className="cw-toolbar-actions">
-              <Badge className="cw-status" variant={statusVariant}>
+              <Badge className="cw-status" variant="outline" data-status={statusTone}>
                 {statusText}
               </Badge>
               <Tooltip>
@@ -1740,7 +1730,7 @@ function readColorSchemeFromString(value: string | undefined): HostColorScheme |
 }
 
 function colorSchemeFromCssBackground(): HostColorScheme | null {
-  const value = window.getComputedStyle(document.documentElement).getPropertyValue('--xps-background').trim()
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
   const match = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(value)
   if (!match) {
     return null

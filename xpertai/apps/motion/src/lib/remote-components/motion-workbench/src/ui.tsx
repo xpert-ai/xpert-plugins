@@ -1,18 +1,19 @@
 import * as React from 'react'
-import { Button as ShadcnButton, type ButtonProps } from '@xpert-ai/plugin-shadcn-ui/components/button'
+import { Button as ShadcnButton } from '@xpert-ai/plugin-shadcn-ui'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@xpert-ai/plugin-shadcn-ui/components/select'
-import { Slider } from '@xpert-ai/plugin-shadcn-ui/components/slider'
+} from '@xpert-ai/plugin-shadcn-ui'
+import { Slider } from '@xpert-ai/plugin-shadcn-ui'
 
 export const h: typeof React.createElement = React.createElement
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ size = 'sm', ...props }, ref) => <ShadcnButton ref={ref} size={size} {...props} />)
-Button.displayName = 'MotionButton'
+export function Button({ size = 'sm', ...props }: React.ComponentProps<typeof ShadcnButton>) {
+  return <ShadcnButton size={size} {...props} />
+}
 
 export function MotionSelect(props: {
   value: string
@@ -68,4 +69,3 @@ function clampNumber(value: number, min: number, max: number) {
   }
   return Math.min(max, Math.max(min, value))
 }
-

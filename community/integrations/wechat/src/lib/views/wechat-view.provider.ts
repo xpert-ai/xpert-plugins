@@ -280,6 +280,10 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
       join(moduleDir, '..', 'remote-components', WECHAT_REMOTE_ENTRY_KEY, 'app.js'),
       'utf8'
     )
+    const appCss = await readFile(
+      join(moduleDir, '..', 'remote-components', WECHAT_REMOTE_ENTRY_KEY, 'app.css'),
+      'utf8'
+    )
     const react = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
 
@@ -289,7 +293,8 @@ export class WechatViewProvider implements IXpertViewExtensionProvider {
         lang: 'zh-Hans',
         reactUmd: react,
         reactDomUmd: reactDom,
-        appScript
+        appScript,
+        appCss
       }),
       contentType: 'text/html; charset=utf-8'
     }

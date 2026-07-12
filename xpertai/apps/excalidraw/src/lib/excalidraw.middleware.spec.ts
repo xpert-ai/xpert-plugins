@@ -22,7 +22,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import {
   EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
-  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME
+  EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+  EXCALIDRAW_PATCH_SCENE_TOOL_NAME
 } from './constants.js'
 import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { ChatMessageEventTypeEnum } from '@xpert-ai/contracts'
@@ -351,7 +352,7 @@ describe('ExcalidrawMiddleware staged element tools', () => {
         id: 'tool-call-1',
         tool_call_id: 'tool-call-1',
         tool: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
-        title: 'Excalidraw',
+        title: '添加数据分析平台',
         message: '添加数据分析平台',
         status: 'running',
         end_date: null,
@@ -410,6 +411,26 @@ describe('ExcalidrawMiddleware staged element tools', () => {
       })
     )
     expect(result.element.text).toBe('Full text')
+  })
+
+  it('marks a DiagramIR drawing diverged after generic scene mutations', async () => {
+    const patchScene = jest.fn(async () => ({
+      success: true,
+      drawing: { item: { id: 'drawing-1' } },
+      version: { id: 'version-manual', drawingId: 'drawing-1', versionNumber: 2 },
+      patch: { addCount: 1, updateCount: 0, deleteCount: 0 }
+    }))
+    const markDiverged = jest.fn(async () => null)
+    const middleware = await new ExcalidrawMiddleware({ patchScene } as any, { markDiverged } as any).createMiddleware({}, testContext())
+    const patchTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_PATCH_SCENE_TOOL_NAME) as any
+
+    await patchTool.invoke({ drawingId: 'drawing-1', addElements: [{ id: 'rect-1', type: 'rectangle' }] })
+
+    expect(markDiverged).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
+      'drawing-1',
+      'version-manual'
+    )
   })
 })
 

@@ -290,4 +290,24 @@ describe('Excalidraw tool event refresh helpers', () => {
     expect(isAnimatedPatchTool('excalidraw_save_mermaid_draft')).toBe(false)
     expect(isAnimatedPatchTool('excalidraw_create_drawing')).toBe(false)
   })
+
+  it('refreshes a targeted DiagramIR render and protects unsaved canvas changes', () => {
+    const event = normalizeToolCompletedEvent({
+      toolName: 'excalidraw_diagram_render',
+      result: { drawingId: 'drawing-ir', revision: 4, status: 'rendered' }
+    })
+
+    expect(event?.isMutation).toBe(true)
+    expect(event?.drawingId).toBe('drawing-ir')
+    expect(decideToolEventRefresh(event, {
+      selectedDrawingId: 'drawing-ir',
+      isDirty: true
+    })).toMatchObject({
+      shouldReloadList: true,
+      shouldSelectDrawing: false,
+      shouldProtectDirtyScene: true,
+      shouldLoadProtectedDetail: true,
+      targetDrawingId: 'drawing-ir'
+    })
+  })
 })

@@ -11,7 +11,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Input
 } from '@xpert-ai/plugin-shadcn-ui'
 import { executeAction, notify, requestData } from '../bridge'
 import { Icon } from '../icons'
@@ -370,7 +369,8 @@ export function CrmWorkbench({ context }: { context: HostContext }) {
           <div className="crm20-view-actions">
             <label className="crm20-search">
               <Icon name="search" />
-              <Input
+              <input
+                data-slot="input"
                 ref={searchRef}
                 value={searchDraft}
                 placeholder={t.searchPlaceholder}

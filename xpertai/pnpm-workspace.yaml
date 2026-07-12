@@ -23,6 +23,7 @@ allowBuilds:
   '@nestjs/core': true
   '@sap/hana-client': true
   '@swc/core': true
+  core-js: true
   cpu-features: true
   esbuild: true
   msgpackr-extract: true
@@ -31,3 +32,4 @@ allowBuilds:
   sharp: true
   ssh2: true
   unrs-resolver: true
+  vue-demi: true

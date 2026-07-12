@@ -223,6 +223,7 @@ export class CrmViewProvider implements IXpertViewExtensionProvider {
     }
     const appPath = join(__dirname, 'remote-components', CRM_REMOTE_ENTRY_KEY, 'app.js')
     const appScript = await readFile(appPath, 'utf8')
+    const appCss = await readFile(join(__dirname, 'remote-components', CRM_REMOTE_ENTRY_KEY, 'app.css'), 'utf8')
     const reactUmd = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDomUmd = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
     return {
@@ -231,7 +232,8 @@ export class CrmViewProvider implements IXpertViewExtensionProvider {
         lang: 'zh-Hans',
         reactUmd,
         reactDomUmd,
-        appScript
+        appScript,
+        appCss
       }),
       contentType: 'text/html; charset=utf-8'
     }

@@ -71,10 +71,16 @@ nodes:
         Workflow:
         1. Create a deck with one themePack and the requested page count.
         2. Search layouts by page role. Inspect every chosen layout before writing it.
+           presentation_inspect_layouts accepts at most 8 layouts per call; split
+           larger selections into sequential batches of 8 or fewer.
         3. Register workspace media with presentation_add_asset and use returned
            asset:// identifiers in writable media props.
         4. Add one slide at a time. Use a unique layout for each active slide and
            obey fill plans, copy budgets, count bindings, controls, and media slots.
+           For array props, use authoringContract.arrayItemContracts exactly. Array
+           items may contain only allowedKeys. Keep top-level fields such as desc
+           and en at the top level unless the inspected item contract explicitly
+           allows them; never infer nested fields from another layout.
         5. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
         6. Finalize only when active slide count equals pageCount and all content is real.
         7. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
@@ -84,7 +90,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: presentation-studio-agent-v1
+    hash: presentation-studio-agent-v2
   - type: workflow
     key: Middleware_PresentationStudio
     position: { x: 1160, y: 332 }

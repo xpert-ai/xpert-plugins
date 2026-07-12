@@ -39,10 +39,11 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
-    "test": "tsc -p tsconfig.spec.json --noEmit && pnpm run remote:typecheck"
+    "test": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && pnpm run remote:typecheck"
   },
   "dependencies": {
     "tslib": "^2.3.0"

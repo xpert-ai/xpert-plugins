@@ -32,19 +32,11 @@ import {
   SelectValue,
   Send,
   Separator,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTitle,
-  SidebarTrigger,
   Textarea,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
@@ -144,8 +136,6 @@ const QUEUED_LIVE_MUTATION_TOOL_NAMES = new Set([
   'docx_reply_comment',
   'docx_resolve_comment'
 ])
-
-installShadcnThemeVars({ styleId: 'docx-editor-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {
@@ -165,7 +155,6 @@ function App() {
   const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null)
   const editorRef = React.useRef<DocxEditorRef | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
-  const assistantTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const selectedIdRef = React.useRef('')
   const detailRef = React.useRef<DetailPayload | null>(null)
   const bufferRef = React.useRef<ArrayBuffer | null>(null)
@@ -887,7 +876,7 @@ function App() {
                         <SidebarMenuItem key={item.id} className={`docx-document-item ${active ? 'is-active' : ''}`}>
                           <SidebarMenuButton
                             className="docx-document-button"
-                            active={active}
+                            isActive={active}
                             title={title}
                             onClick={() => selectDocument(item.id, { toggleActive: true })}
                           >
@@ -982,7 +971,7 @@ function App() {
                   <SelectItem value="viewing">{t('viewing')}</SelectItem>
                 </SelectContent>
               </Select>
-              <Badge className="docx-status" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
+              <Badge className="docx-status" variant="outline" data-status={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
               <Button className="docx-danger-action" variant="ghost" size="icon" title={t('delete')} aria-label={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
                 <Archive className="docx-button-icon" aria-hidden="true" />
               </Button>
@@ -1118,7 +1107,6 @@ function App() {
                 <section className="docx-section">
                   <div className="docx-section-title">{t('ask')}</div>
                   <Textarea
-                    ref={assistantTextareaRef}
                     className="docx-field"
                     value={assistantInstruction}
                     placeholder={t('assistantPlaceholder')}

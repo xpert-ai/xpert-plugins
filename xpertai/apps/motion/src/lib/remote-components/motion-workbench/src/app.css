@@ -1,26 +1,26 @@
 :root {
   color-scheme: light;
-  --motion-bg: var(--xps-background, var(--xui-color-background, #f8fafc));
-  --motion-fg: var(--xps-foreground, var(--xui-color-foreground, #111827));
-  --motion-card: var(--xps-card, var(--xui-color-card, #ffffff));
-  --motion-muted: var(--xps-muted, var(--xui-color-muted, #f1f5f9));
-  --motion-muted-fg: var(--xps-muted-foreground, var(--xui-color-muted-foreground, #64748b));
-  --motion-border: var(--xps-border, var(--xui-color-border, #dbe3ef));
-  --motion-primary: var(--xps-primary, var(--xui-color-primary, #2563eb));
-  --motion-primary-fg: var(--xps-primary-foreground, var(--xui-color-primary-foreground, #ffffff));
-  --motion-secondary: var(--xps-secondary, var(--xui-color-secondary, #f1f5f9));
-  --motion-success: var(--xps-success, var(--xui-color-success, #0f766e));
-  --motion-success-bg: var(--xps-success-background, var(--xui-color-success-background, #ecfdf5));
-  --motion-warning: var(--xps-warning, var(--xui-color-warning, #9a3412));
-  --motion-warning-bg: var(--xps-warning-background, var(--xui-color-warning-background, #fff7ed));
-  --motion-destructive: var(--xps-destructive, var(--xui-color-destructive, #dc2626));
-  --motion-destructive-bg: var(--xps-destructive-background, var(--xui-color-destructive-background, #fee2e2));
-  --motion-accent: var(--xps-accent, var(--xui-color-accent, #e0f2fe));
-  --motion-accent-fg: var(--xps-accent-foreground, var(--xui-color-accent-foreground, var(--motion-fg)));
+  --motion-bg: var(--background, var(--xui-color-background, #f8fafc));
+  --motion-fg: var(--foreground, var(--xui-color-foreground, #111827));
+  --motion-card: var(--card, var(--xui-color-card, #ffffff));
+  --motion-muted: var(--muted, var(--xui-color-muted, #f1f5f9));
+  --motion-muted-fg: var(--muted-foreground, var(--xui-color-muted-foreground, #64748b));
+  --motion-border: var(--border, var(--xui-color-border, #dbe3ef));
+  --motion-primary: var(--primary, var(--xui-color-primary, #2563eb));
+  --motion-primary-fg: var(--primary-foreground, var(--xui-color-primary-foreground, #ffffff));
+  --motion-secondary: var(--secondary, var(--xui-color-secondary, #f1f5f9));
+  --motion-success: var(--status-success, var(--xui-color-success, #0f766e));
+  --motion-success-bg: var(--status-success-background, var(--xui-color-success-background, #ecfdf5));
+  --motion-warning: var(--status-warning, var(--xui-color-warning, #9a3412));
+  --motion-warning-bg: var(--status-warning-background, var(--xui-color-warning-background, #fff7ed));
+  --motion-destructive: var(--destructive, var(--xui-color-destructive, #dc2626));
+  --motion-destructive-bg: var(--status-destructive-background, var(--xui-color-destructive-background, #fee2e2));
+  --motion-accent: var(--accent, var(--xui-color-accent, #e0f2fe));
+  --motion-accent-fg: var(--accent-foreground, var(--xui-color-accent-foreground, var(--motion-fg)));
   --motion-stage: color-mix(in srgb, var(--motion-muted) 72%, var(--motion-card) 28%);
   --motion-shadow: color-mix(in srgb, var(--motion-fg) 12%, transparent);
-  --motion-radius: var(--xps-radius, var(--xui-radius-md, 8px));
-  font-family: var(--xps-font-sans, var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
+  --motion-radius: var(--radius, var(--xui-radius-md, 8px));
+  font-family: var(--font-sans, var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
   background: var(--motion-bg);
   color: var(--motion-fg);
 }
@@ -192,7 +192,7 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid var(--xps-input, var(--motion-border));
+  border: 1px solid var(--input, var(--motion-border));
   border-radius: var(--motion-radius);
   background: var(--motion-card);
   color: var(--motion-fg);
@@ -654,7 +654,7 @@ label {
   box-shadow: none;
 }
 
-.motion-code-panel.xps-card {
+.motion-code-panel[data-slot="card"] {
   border: 0;
   background: transparent;
 }
@@ -676,8 +676,8 @@ label {
   line-height: 1.5;
 }
 
-.motion-code.xps-textarea,
-.motion-code.xps-textarea:focus {
+.motion-code[data-slot="textarea"],
+.motion-code[data-slot="textarea"]:focus {
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -772,14 +772,14 @@ label {
   font-weight: 800;
 }
 
-.segmented .xps-tabs-trigger,
+.segmented [data-slot="tabs-trigger"],
 .segmented button {
   border-radius: calc(var(--motion-radius) - 3px);
   font-size: 12px;
   font-weight: 800;
 }
 
-.segmented .xps-tabs-trigger[data-state="active"],
+.segmented [data-slot="tabs-trigger"][data-state="active"],
 .segmented button.active {
   background: var(--motion-card);
   color: var(--motion-fg);
@@ -1023,8 +1023,8 @@ label {
   min-width: 0;
 }
 
-.timeline-head .xps-slider,
-.transport-row .xps-slider {
+.timeline-head [data-slot="slider"],
+.transport-row [data-slot="slider"] {
   flex: 1;
 }
 
@@ -1294,7 +1294,7 @@ label {
   gap: 6px;
 }
 
-.scene-duration .xps-input {
+.scene-duration [data-slot="input"] {
   width: 72px;
 }
 
@@ -1491,3 +1491,6 @@ label {
     grid-column: 1 / -1;
   }
 }
+
+[data-slot="badge"][data-status="success"] { border-color: color-mix(in srgb, var(--status-success) 30%, var(--border)); background: var(--status-success-background); color: var(--status-success); }
+[data-slot="badge"][data-status="warning"] { border-color: color-mix(in srgb, var(--status-warning) 30%, var(--border)); background: var(--status-warning-background); color: var(--status-warning); }

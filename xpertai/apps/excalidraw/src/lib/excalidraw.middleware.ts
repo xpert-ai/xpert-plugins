@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
@@ -35,6 +35,7 @@ import {
   summarizeStatusResult
 } from './excalidraw-agent-response.js'
 import { ExcalidrawService } from './excalidraw.service.js'
+import { DiagramIrService } from './diagram-engine/diagram-ir.service.js'
 import type { ExcalidrawScope } from './types.js'
 
 const drawingKindSchema = z.enum(['diagram', 'whiteboard', 'flowchart', 'architecture', 'wireframe', 'other'])
@@ -216,7 +217,10 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
     }
   }
 
-  constructor(private readonly service: ExcalidrawService) {}
+  constructor(
+    private readonly service: ExcalidrawService,
+    @Optional() private readonly diagrams?: DiagramIrService
+  ) {}
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
@@ -241,17 +245,18 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(
-            await this.service.patchScene(scope, {
+          async (input) => {
+            const result = await this.service.patchScene(scope, {
               drawingId: input.drawingId,
               addElements: input.elements,
               appStatePatch: input.appStatePatch,
               files: input.files,
               mermaidSource: input.mermaidSource,
               changeSummary: input.changeSummary
-            }),
-            'Excalidraw elements were added.'
-          )),
+            })
+            await this.markDiverged(scope, result)
+            return stringifyAgentToolResult(summarizeDrawingMutationResult(result, 'Excalidraw elements were added.'))
+          },
           {
             name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
             description:
@@ -260,7 +265,11 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveCurrentScene(scope, input), 'Excalidraw current scene was saved.')),
+          async (input) => {
+            const result = await this.service.saveCurrentScene(scope, input)
+            await this.markDiverged(scope, result)
+            return stringifyAgentToolResult(summarizeDrawingMutationResult(result, 'Excalidraw current scene was saved.'))
+          },
           {
             name: EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
             description:
@@ -269,7 +278,11 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.patchScene(scope, input), 'Excalidraw scene patch was saved.')),
+          async (input) => {
+            const result = await this.service.patchScene(scope, input)
+            await this.markDiverged(scope, result)
+            return stringifyAgentToolResult(summarizeDrawingMutationResult(result, 'Excalidraw scene patch was saved.'))
+          },
           {
             name: EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
             description:
@@ -278,7 +291,11 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
-          async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.saveMermaidDraft(scope, input), 'Mermaid draft was saved.', { includeDrawingId: true })),
+          async (input) => {
+            const result = await this.service.saveMermaidDraft(scope, input)
+            await this.markDiverged(scope, result)
+            return stringifyAgentToolResult(summarizeDrawingMutationResult(result, 'Mermaid draft was saved.', { includeDrawingId: true }))
+          },
           {
             name: EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
             description:
@@ -382,6 +399,22 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
         }
       }
     }
+  }
+
+  private async markDiverged(scope: ExcalidrawScope, result: unknown) {
+    if (!this.diagrams || !result || typeof result !== 'object') return
+    const version = Reflect.get(result, 'version')
+    const drawing = Reflect.get(result, 'drawing')
+    const drawingItem = drawing && typeof drawing === 'object' ? Reflect.get(drawing, 'item') : undefined
+    const drawingId = version && typeof version === 'object' && typeof Reflect.get(version, 'drawingId') === 'string'
+      ? Reflect.get(version, 'drawingId') as string
+      : drawingItem && typeof drawingItem === 'object' && typeof Reflect.get(drawingItem, 'id') === 'string'
+        ? Reflect.get(drawingItem, 'id') as string
+        : undefined
+    const versionId = version && typeof version === 'object' && typeof Reflect.get(version, 'id') === 'string'
+      ? Reflect.get(version, 'id') as string
+      : undefined
+    if (drawingId) await this.diagrams.markDiverged(scope, drawingId, versionId)
   }
 }
 
@@ -623,7 +656,7 @@ async function dispatchExcalidrawToolStepEvent({
   const toolCallId = getToolCallDisplayId(toolCall)
   const toolset = readStringField(metadata, ['toolset']) ?? EXCALIDRAW_MIDDLEWARE_NAME
   const toolsetId = readStringField(metadata, ['toolsetId'])
-  const title = readStringField(metadata, ['toolName', toolName]) ?? toolName
+  const title = message
   const payload = {
     id: toolCallId,
     tool_call_id: toolCall.id,

@@ -12,11 +12,7 @@
     "emitDeclarationOnly": false,
     "strictNullChecks": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@xpert-ai/plugin-shadcn-ui": ["../../../packages/shadcn-ui/src/index.ts"],
-      "@/*": ["../../../packages/shadcn-ui/src/*"]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/lib/remote-components/canvas-workbench/src/**/*.ts",

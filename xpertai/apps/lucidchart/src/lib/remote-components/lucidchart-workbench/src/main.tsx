@@ -26,23 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
   Send,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTitle,
-  SidebarTrigger,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
   Textarea,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'
@@ -134,8 +126,6 @@ const LUCIDCHART_MUTATION_TOOL_NAMES = new Set([
 ])
 
 const DOCUMENT_KINDS: DocumentKind[] = ['diagram', 'flowchart', 'architecture', 'process', 'wireframe', 'orgchart', 'network', 'other']
-
-installShadcnThemeVars({ styleId: 'lucidchart-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {
@@ -868,7 +858,7 @@ function App() {
               <SidebarMenu>
                 {documents.map((document) => (
                   <SidebarMenuItem key={document.id}>
-                    <SidebarMenuButton type="button" active={document.id === selectedId} onClick={() => selectDocumentWithGuard(document.id)}>
+                    <SidebarMenuButton type="button" isActive={document.id === selectedId} onClick={() => selectDocumentWithGuard(document.id)}>
                       <span className="lw-item-title">{document.title || t('untitled')}</span>
                       <span className="lw-item-meta">
                         v{document.currentVersionNumber || 0} · {t((document.status || 'draft') as TranslationKey)} · {t(normalizeDocumentKind(document.kind))}
@@ -920,7 +910,7 @@ function App() {
               <FileJson className="lw-button-icon" aria-hidden="true" />
               {t('openLucid')}
             </Button>
-            <Badge className="lw-status" variant={dirty ? 'warning' : 'secondary'}>
+            <Badge className="lw-status" variant={dirty ? 'outline' : 'secondary'} data-status={dirty ? 'warning' : undefined}>
               {hasUnsavedChanges() ? t('dirty') : t('saved')}
             </Badge>
           </div>
@@ -949,7 +939,7 @@ function App() {
                     <TabsTrigger value="mermaid">{t('mermaid')}</TabsTrigger>
                     <TabsTrigger value="links">{t('links')}</TabsTrigger>
                   </TabsList>
-                  <Badge variant={embeddableUrl || imagePreviewUrl || standardImportPreview ? 'success' : 'secondary'}>{previewBadge}</Badge>
+                  <Badge variant={embeddableUrl || imagePreviewUrl || standardImportPreview ? 'outline' : 'secondary'} data-status={embeddableUrl || imagePreviewUrl || standardImportPreview ? 'success' : undefined}>{previewBadge}</Badge>
                 </div>
 
                 <TabsContent className="lw-tab-content" value="preview">
@@ -969,7 +959,7 @@ function App() {
                 <TabsContent className="lw-tab-content lw-json-tab" value="json">
                   <div className="lw-tab-toolbar">
                     <div className="lw-inline-badges">
-                      <Badge variant={isJsonValid ? 'success' : 'warning'}>{isJsonValid ? t('jsonValid') : t('jsonInvalid')}</Badge>
+                      <Badge variant="outline" data-status={isJsonValid ? 'success' : 'warning'}>{isJsonValid ? t('jsonValid') : t('jsonInvalid')}</Badge>
                       {standardImportParse.error ? <span className="lw-muted">{standardImportParse.error}</span> : null}
                     </div>
                     <div className="lw-inline-actions">
@@ -1092,7 +1082,7 @@ function App() {
                         {t('markReviewed')}
                       </Button>
                     )}
-                    <Button type="button" variant="destructiveOutline" disabled={busy || !selectedId || documentStatus === 'archived'} onClick={archiveDocument}>
+                    <Button type="button" variant="destructive" disabled={busy || !selectedId || documentStatus === 'archived'} onClick={archiveDocument}>
                       <Archive className="lw-button-icon" aria-hidden="true" />
                       {t('archive')}
                     </Button>
@@ -1265,7 +1255,7 @@ function StandardImportPreview({ model }: { model: StandardImportPreviewModel })
       <svg viewBox={model.viewBox} role="img" aria-label="Lucidchart Standard Import preview">
         <defs>
           <marker id="lw-standard-preview-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-            <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--xps-muted-foreground)" />
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--muted-foreground)" />
           </marker>
         </defs>
         {model.lines.map((line) => (
