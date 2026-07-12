@@ -1,5 +1,9 @@
 import 'reflect-metadata'
 
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  CollaborationRuntimeCapability: { id: 'platform.collaboration' }
+}))
+
 jest.mock('@open\u002dpencil/core/scene-graph', () => {
   class MockSceneGraph {
     nodes = new Map<string, Record<string, unknown>>()
@@ -286,6 +290,7 @@ describe('PencilService', () => {
     expect(created.item.title).toBe('Product settings')
     expect(created.item.tenantId).toBe(scope.tenantId)
     expect(created.item.organizationId).toBe(scope.organizationId)
+    expect(created.item.assistantId).toBe(scope.xpertId)
     expect(created.snapshotSummary.nodeCount).toBeGreaterThan(0)
 
     const saved = await service.saveVersion(scope, {
@@ -368,6 +373,28 @@ describe('PencilService', () => {
         documentId: created.item.id
       })
     ).rejects.toThrow('Pencil document was not found')
+  })
+
+  it('isolates documents and versions by xpert within the same workspace', async () => {
+    const xpertA = testScope({ xpertId: 'xpert-a', assistantId: null })
+    const xpertB = testScope({ xpertId: 'xpert-b', assistantId: null })
+    const documentA = await service.createDocument(xpertA, { title: 'Xpert A design' })
+    const documentB = await service.createDocument(xpertB, { title: 'Xpert B design' })
+    await service.saveVersion(xpertA, { documentId: documentA.item.id, changeSummary: 'A checkpoint' })
+    await service.saveVersion(xpertB, { documentId: documentB.item.id, changeSummary: 'B checkpoint' })
+
+    const searchA = await service.searchDocuments(xpertA)
+    const searchB = await service.searchDocuments(xpertB)
+
+    expect(searchA.items.map((item) => item.id)).toEqual([documentA.item.id])
+    expect(searchB.items.map((item) => item.id)).toEqual([documentB.item.id])
+    expect(versionRepository.records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ documentId: documentA.item.id, assistantId: 'xpert-a' }),
+        expect.objectContaining({ documentId: documentB.item.id, assistantId: 'xpert-b' })
+      ])
+    )
+    await expect(service.getDocument(xpertA, { documentId: documentB.item.id })).rejects.toThrow('Pencil document was not found')
   })
 
   it('retains invalid render JSX and commits a small patch as one working-copy revision', async () => {
@@ -598,6 +625,7 @@ function testScope(overrides: Partial<PencilScope> = {}): PencilScope {
     workspaceId: 'workspace',
     projectId: 'project',
     userId: 'user',
+    xpertId: 'assistant',
     assistantId: 'assistant',
     conversationId: 'conversation',
     ...overrides

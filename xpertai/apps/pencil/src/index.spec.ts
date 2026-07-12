@@ -1,5 +1,6 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  XpertServerPlugin: () => (target: Function) => target
+  XpertServerPlugin: () => (target: Function) => target,
+  CollaborationDocumentProvider: () => (target: Function) => target
 }))
 
 jest.mock('@nestjs/typeorm', () => ({

@@ -7,6 +7,8 @@ import vue from '@vitejs/plugin-vue'
 import { build as viteBuild } from 'vite'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
+const workspaceRoot = join(packageRoot, '..', '..', '..')
+const pluginSdkCollaborationClientEntry = join(workspaceRoot, '..', 'xpert', 'packages', 'plugin-sdk', 'src', 'lib', 'collaboration', 'client.ts')
 const require = createRequire(import.meta.url)
 const canvasKitJsPath = require.resolve('canvaskit-wasm/bin/canvaskit.js', { paths: [packageRoot] })
 const canvasKitWasmPath = require.resolve('canvaskit-wasm/bin/canvaskit.wasm', { paths: [packageRoot] })
@@ -151,7 +153,10 @@ async function bundleComponent(componentName) {
     logLevel: 'error',
     plugins: [browserShimPlugin, vue()],
     resolve: {
-      conditions: ['@xpert-plugins-starter/source', 'production']
+      conditions: ['@xpert-plugins-starter/source', 'production'],
+      alias: {
+        '@xpert-ai/plugin-sdk': pluginSdkCollaborationClientEntry
+      }
     },
     define: {
       'process.env.NODE_ENV': '"production"'

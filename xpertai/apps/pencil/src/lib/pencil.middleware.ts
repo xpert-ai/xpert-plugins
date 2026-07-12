@@ -403,23 +403,42 @@ export class PencilMiddleware implements IAgentMiddlewareStrategy<Record<string,
       tools,
       wrapToolCall: async (request, handler) => {
         const changeSummary = readChangeSummaryMessage(request.toolCall.args)
-        if (!changeSummary || !changeSummaryToolNames.has(request.toolCall.name)) {
-          return handler(request)
-        }
+        const presence = agentPresenceTarget(scope, request.toolCall.name, request.toolCall.args, changeSummary)
         const createdAt = new Date()
-        await dispatchPencilToolStepEvent({ request, message: changeSummary, status: 'running', createdAt })
+        if (changeSummary && changeSummaryToolNames.has(request.toolCall.name)) {
+          await dispatchPencilToolStepEvent({ request, message: changeSummary, status: 'running', createdAt })
+        }
+        if (presence) {
+          await this.service.upsertAgentPresence(scope, { ...presence, status: 'editing' }).catch((error) => {
+            console.warn('[PencilMiddleware] publish Agent presence failed:', getErrorMessage(error))
+          })
+        }
         try {
           const result = await handler(request)
-          await dispatchPencilToolStepEvent({ request, message: changeSummary, status: 'success', createdAt })
+          if (changeSummary && changeSummaryToolNames.has(request.toolCall.name)) {
+            await dispatchPencilToolStepEvent({ request, message: changeSummary, status: 'success', createdAt })
+          }
+          if (presence) {
+            await this.service.upsertAgentPresence(scope, { ...presence, status: 'done' }).catch((error) => {
+              console.warn('[PencilMiddleware] complete Agent presence failed:', getErrorMessage(error))
+            })
+          }
           return result
         } catch (error) {
-          await dispatchPencilToolStepEvent({
-            request,
-            message: changeSummary,
-            status: 'fail',
-            createdAt,
-            error: getErrorMessage(error)
-          })
+          if (changeSummary && changeSummaryToolNames.has(request.toolCall.name)) {
+            await dispatchPencilToolStepEvent({
+              request,
+              message: changeSummary,
+              status: 'fail',
+              createdAt,
+              error: getErrorMessage(error)
+            })
+          }
+          if (presence) {
+            await this.service.upsertAgentPresence(scope, { ...presence, status: 'failed' }).catch((presenceError) => {
+              console.warn('[PencilMiddleware] fail Agent presence failed:', getErrorMessage(presenceError))
+            })
+          }
           throw error
         }
       }
@@ -465,7 +484,10 @@ function scopeFromContext(context: IAgentMiddlewareContext): PencilScope {
     projectId: context.projectId ?? null,
     userId: context.userId,
     conversationId: context.conversationId ?? null,
-    assistantId: context.xpertId ?? null
+    xpertId: context.xpertId ?? null,
+    assistantId: context.xpertId ?? null,
+    assistantDisplayName: typeof context.node?.title === 'string' ? context.node.title : null,
+    agentKey: context.agentKey ?? null
   }
 }
 
@@ -518,6 +540,26 @@ function readChangeSummaryMessage(args: ToolArgsValue) {
   }
   const value = args.changeSummary
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function agentPresenceTarget(_scope: PencilScope, toolName: string, args: ToolArgsValue, changeSummary?: string) {
+  if (
+    toolName === PENCIL_SEARCH_DOCUMENTS_TOOL_NAME ||
+    toolName === PENCIL_GET_DOCUMENT_TOOL_NAME ||
+    toolName === PENCIL_GET_NODE_TOOL_NAME
+  ) return null
+  if (!isPlainObject(args)) return null
+  const documentId = readStringField(args, ['documentId'])
+  if (!documentId) return null
+  const elementId = readStringField(args, ['nodeId', 'node_id', 'replace_id', 'parent_id'])
+  const pageId = readStringField(args, ['pageId', 'page_id'])
+  return {
+    documentId,
+    toolName,
+    operationLabel: changeSummary ?? toolName.replace(/^pencil_/, '').replaceAll('_', ' '),
+    elementId: elementId ?? null,
+    pageId: pageId ?? null
+  }
 }
 
 type PencilToolStepStatus = 'running' | 'success' | 'fail'

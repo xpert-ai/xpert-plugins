@@ -1,11 +1,18 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import type { DownloadedFontCache, ExportTarget, ToolDef } from '@open\u002dpencil/core'
+import {
+  CollaborationRuntimeCapability,
+  type AgentMiddlewareRuntimeCapabilityRegistry,
+  type CollaborationMaterializationEvent,
+  type CollaborationProviderContext
+} from '@xpert-ai/plugin-sdk'
 import { Raw, type FindOptionsWhere, type Repository } from 'typeorm'
+import * as Y from 'yjs'
 import { PencilActionLog, PencilDocument, PencilDocumentVersion } from './entities/index.js'
 import {
   PENCIL_CORE_TOOL_PREFIX,
@@ -33,6 +40,15 @@ import {
   normalizePencilRenderJsx
 } from './pencil-jsx.js'
 import { createPencilDataCaseGraph } from './pencil-sample.js'
+import {
+  createPencilCollaborationDoc,
+  decodePencilCollaborationState,
+  encodePencilCollaborationState,
+  materializePencilCollaborationDoc,
+  PENCIL_COLLABORATION_PROVIDER_KEY,
+  PENCIL_COLLABORATION_SCHEMA_VERSION,
+  replacePencilCollaborationState
+} from './pencil-collaboration.js'
 import type {
   CreatePencilSampleDocumentInput,
   CreatePencilDocumentInput,
@@ -86,6 +102,7 @@ type ResolvedExportNodes = {
 }
 
 const PENCIL_IMPORT_EXTENSIONS = new Set(['fig', 'pen'])
+const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 const PENCIL_EXPORT_FORMATS = new Set<PencilExportFormat>(['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'])
 const PENCIL_RUNTIME_EXPORTS_FOLDER = 'files/pencil/exports'
 const PENCIL_RENDER_DRAFT_TTL_MS = 24 * 60 * 60 * 1000
@@ -119,11 +136,114 @@ export class PencilService {
     @InjectRepository(PencilDocumentVersion)
     private readonly versionRepository: Repository<PencilDocumentVersion>,
     @InjectRepository(PencilActionLog)
-    private readonly logRepository: Repository<PencilActionLog>
+    private readonly logRepository: Repository<PencilActionLog>,
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
   ) {}
 
   async getCoreToolDefinitions() {
     return Array.from((await getAllowedCoreToolMap()).values())
+  }
+
+  /** Authorize platform collaboration operations with the same scoped lookup as every Pencil action. */
+  async authorizeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = pencilScopeFromCollaboration(context)
+    const document = await this.documentRepository.findOne({ where: scopedDocumentWhere(scope, { id: context.resourceId }) })
+    return Boolean(document)
+  }
+
+  /** Lazily import the legacy mutable working copy without creating an immutable Pencil version. */
+  async initializeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = pencilScopeFromCollaboration(context)
+    const document = await this.requireDocument(scope, context.resourceId)
+    const current = await this.getLegacyCurrentGraphState(scope, document)
+    const doc = createPencilCollaborationDoc(current.graphSnapshot, collaborativeDocumentMetadata(document))
+    return {
+      stateBase64: encodePencilCollaborationState(doc),
+      schemaVersion: PENCIL_COLLABORATION_SCHEMA_VERSION,
+      initialSequence: currentWorkingCopyRevision(document),
+      metadata: { kind: 'pencil_document' }
+    }
+  }
+
+  /** Project the platform-owned Yjs state into the query/export business aggregate. */
+  async materializeCollaborationDocument(event: CollaborationMaterializationEvent) {
+    const scope = pencilScopeFromCollaboration(event)
+    const materialized = materializePencilCollaborationDoc(decodePencilCollaborationState(event.stateBase64))
+    await this.documentRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(PencilDocument)
+      const document = await repository.findOne({
+        where: scopedDocumentWhere(scope, { id: event.resourceId }),
+        lock: { mode: 'pessimistic_write' }
+      })
+      if (!document) throw new NotFoundException('Pencil document was not found during collaboration materialization.')
+      const now = new Date()
+      document.title = materialized.document.title
+      document.description = materialized.document.description ?? undefined
+      document.kind = materialized.document.kind
+      document.status = materialized.document.status
+      document.tags = materialized.document.tags
+      document.workingGraph = normalizeSnapshotInput(materialized.graphSnapshot)
+      document.workingCopyRevision = event.sequenceNumber
+      document.graphChecksum = checksumGraphSnapshot(materialized.graphSnapshot) ?? undefined
+      document.workingUpdatedAt = now
+      document.lastEditedById = scope.userId ?? scope.assistantId ?? null
+      document.lastEditedAt = now
+      await repository.save(document)
+    })
+  }
+
+  /** Issue a backend-derived, single-document browser collaboration session. */
+  async createCollaborationSession(scope: PencilScope, documentId: string) {
+    const collaboration = this.collaboration()
+    const document = await collaboration.ensureDocument({
+      providerKey: PENCIL_COLLABORATION_PROVIDER_KEY,
+      resourceId: documentId,
+      schemaVersion: PENCIL_COLLABORATION_SCHEMA_VERSION
+    })
+    const session = await collaboration.createSession({ documentId: document.id, access: 'write' })
+    return { ...session, pencilDocumentId: documentId }
+  }
+
+  /** Represent a backend Agent tool execution in the same ephemeral presence list as users. */
+  async upsertAgentPresence(
+    scope: PencilScope,
+    input: {
+      documentId: string
+      toolName: string
+      status: 'thinking' | 'editing' | 'done' | 'failed'
+      operationLabel?: string | null
+      pageId?: string | null
+      elementId?: string | null
+    }
+  ) {
+    const collaboration = this.collaboration()
+    const document = await collaboration.ensureDocument({
+      providerKey: PENCIL_COLLABORATION_PROVIDER_KEY,
+      resourceId: input.documentId,
+      schemaVersion: PENCIL_COLLABORATION_SCHEMA_VERSION
+    })
+    const actorKey = pencilAgentPresenceKey(scope, input.documentId)
+    return collaboration.upsertVirtualPresence({
+      documentId: document.id,
+      actor: {
+        actorType: 'agent',
+        actorKey,
+        displayName: scope.assistantDisplayName ?? scope.agentKey ?? 'Pencil Agent'
+      },
+      presence: {
+        pageId: input.pageId ?? null,
+        focus: input.elementId
+          ? { kind: 'element', key: input.elementId, elementId: input.elementId, pageId: input.pageId ?? null }
+          : input.pageId
+            ? { kind: 'page', key: input.pageId, pageId: input.pageId }
+            : null,
+        status: input.status,
+        toolName: input.toolName,
+        operationLabel: input.operationLabel ?? null,
+        mode: 'edit'
+      }
+    })
   }
 
   async createDocument(scope: PencilScope, input: CreatePencilDocumentInput) {
@@ -134,7 +254,7 @@ export class PencilService {
     const document = await this.documentRepository.save(
       this.documentRepository.create({
         ...scopedCreate(scope),
-        assistantId: scope.assistantId ?? null,
+        assistantId: scopeXpertId(scope) ?? null,
         conversationId: scope.conversationId ?? null,
         title,
         description: normalizeOptional(input.description),
@@ -237,10 +357,18 @@ export class PencilService {
       }
     }
 
+    const current = await this.getCurrentGraphState(scope, document)
+    const collaborative = await this.applyCollaborativeState(scope, document, {
+      graphSnapshot: current.graphSnapshot,
+      expectedSequence: 'sequenceNumber' in current ? current.sequenceNumber : undefined,
+      metadata: { title },
+      origin: scope.assistantId ? 'pencil:agent:rename' : 'pencil:user:rename'
+    })
     document.title = title
+    if (collaborative) document.workingCopyRevision = collaborative.sequenceNumber
     document.lastEditedById = scope.userId ?? scope.assistantId ?? null
     document.lastEditedAt = new Date()
-    const savedDocument = await this.documentRepository.save(document)
+    const savedDocument = collaborative ? document : await this.documentRepository.save(document)
     await this.writeLog(scope, {
       documentId: document.id,
       versionId: document.currentVersionId,
@@ -262,7 +390,7 @@ export class PencilService {
     const pageSize = Math.max(1, Math.min(query.pageSize ?? 20, 100))
     const search = query.search?.trim().toLowerCase() ?? ''
     const documents = await this.documentRepository.find({
-      where: scopedWhere(scope),
+      where: scopedDocumentWhere(scope),
       order: {
         updatedAt: 'DESC'
       }
@@ -298,7 +426,7 @@ export class PencilService {
     const logWhere = scopedWhere(scope, { documentId: document.id }) as object as FindOptionsWhere<PencilActionLog>
     const [versions, logs] = await Promise.all([
       this.versionRepository.find({
-        where: scopedWhere(scope, { documentId: document.id }),
+        where: scopedVersionWhere(scope, { documentId: document.id }),
         order: {
           versionNumber: 'DESC'
         },
@@ -368,12 +496,13 @@ export class PencilService {
 
   async saveWorkingCopy(scope: PencilScope, input: SavePencilWorkingCopyInput) {
     const document = await this.requireDocument(scope, input.documentId)
-    this.assertWorkingCopyBase(document, input)
+    if (!this.optionalCollaboration()) this.assertWorkingCopyBase(document, input)
     const graphSnapshot = normalizeSnapshotInput(input.graphSnapshot)
     const savedDocument = await this.persistWorkingCopy(scope, document, {
       graphSnapshot,
       viewState: normalizeObject(input.viewState),
-      selectionSummary: normalizeObject(input.selectionSummary)
+      selectionSummary: normalizeObject(input.selectionSummary),
+      expectedSequence: input.baseRevision
     })
 
     await this.writeLog(scope, {
@@ -398,6 +527,14 @@ export class PencilService {
     const document = await this.requireDocument(scope, input.documentId)
     const currentState = await this.getCurrentGraphState(scope, document)
     const graphSnapshot = normalizeSnapshotInput(input.graphSnapshot ?? currentState.graphSnapshot)
+    if (input.graphSnapshot && this.optionalCollaboration()) {
+      const applied = await this.applyCollaborativeState(scope, document, {
+        graphSnapshot,
+        expectedSequence: 'sequenceNumber' in currentState ? currentState.sequenceNumber : undefined,
+        origin: scope.assistantId ? 'pencil:agent:version-input' : 'pencil:user:version-input'
+      })
+      if (applied) document.workingCopyRevision = applied.sequenceNumber
+    }
     const version = await this.createVersion(scope, document, {
       sourceType: input.sourceType ?? (scope.assistantId ? 'agent_snapshot' : 'workbench'),
       graphSnapshot,
@@ -573,10 +710,18 @@ export class PencilService {
 
   async updateDocumentStatus(scope: PencilScope, input: UpdatePencilDocumentStatusInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    const current = await this.getCurrentGraphState(scope, document)
+    const collaborative = await this.applyCollaborativeState(scope, document, {
+      graphSnapshot: current.graphSnapshot,
+      expectedSequence: 'sequenceNumber' in current ? current.sequenceNumber : undefined,
+      metadata: { status: input.status },
+      origin: scope.assistantId ? 'pencil:agent:status' : 'pencil:user:status'
+    })
     document.status = input.status
+    if (collaborative) document.workingCopyRevision = collaborative.sequenceNumber
     document.lastEditedById = scope.userId ?? scope.assistantId ?? null
     document.lastEditedAt = new Date()
-    await this.documentRepository.save(document)
+    if (!collaborative) await this.documentRepository.save(document)
     await this.writeLog(scope, {
       documentId: document.id,
       action: input.status === 'archived' ? 'status_updated' : 'status_updated',
@@ -596,10 +741,19 @@ export class PencilService {
     const document = await this.requireDocument(scope, documentId)
     const scopedDocumentId = document.id as string
 
+    const collaboration = this.optionalCollaboration()
+    if (collaboration) {
+      try {
+        await collaboration.deleteDocument({ providerKey: PENCIL_COLLABORATION_PROVIDER_KEY, resourceId: scopedDocumentId })
+      } catch (error) {
+        if (!(error instanceof Error) || !/not found/i.test(error.message)) throw error
+      }
+    }
+
     // Child rows are deleted first so a failed child cleanup never leaves orphan history after the parent is gone.
-    const versionResult = await this.versionRepository.delete(scopedWhere(scope, { documentId: scopedDocumentId }))
+    const versionResult = await this.versionRepository.delete(scopedVersionWhere(scope, { documentId: scopedDocumentId }))
     const logResult = await this.logRepository.delete(scopedWhere(scope, { documentId: scopedDocumentId }))
-    const documentResult = await this.documentRepository.delete(scopedWhere(scope, { id: scopedDocumentId }))
+    const documentResult = await this.documentRepository.delete(scopedDocumentWhere(scope, { id: scopedDocumentId }))
     if ((documentResult.affected ?? 0) !== 1) {
       throw new NotFoundException('Pencil document was not found.')
     }
@@ -616,8 +770,9 @@ export class PencilService {
 
   async restoreVersion(scope: PencilScope, documentId: string, versionId: string, changeSummary?: string | null) {
     const document = await this.requireDocument(scope, documentId)
+    const current = await this.getCurrentGraphState(scope, document)
     const version = await this.versionRepository.findOne({
-      where: scopedWhere(scope, { documentId: document.id, id: versionId })
+      where: scopedVersionWhere(scope, { documentId: document.id, id: versionId })
     })
     if (!version?.graphSnapshot) {
       throw new NotFoundException('Pencil version was not found.')
@@ -626,7 +781,8 @@ export class PencilService {
     const restoredDocument = await this.persistWorkingCopy(scope, document, {
       graphSnapshot,
       viewState: normalizeObject(version.viewState),
-      selectionSummary: normalizeObject(version.selectionSummary)
+      selectionSummary: normalizeObject(version.selectionSummary),
+      expectedSequence: 'sequenceNumber' in current ? current.sequenceNumber : undefined
     })
     await this.writeLog(scope, {
       documentId: document.id,
@@ -648,14 +804,14 @@ export class PencilService {
   async deleteVersion(scope: PencilScope, documentId: string, versionId: string) {
     const document = await this.requireDocument(scope, documentId)
     const version = await this.versionRepository.findOne({
-      where: scopedWhere(scope, { documentId: document.id, id: versionId })
+      where: scopedVersionWhere(scope, { documentId: document.id, id: versionId })
     })
     if (!version) {
       throw new NotFoundException('Pencil version was not found.')
     }
-    await this.versionRepository.delete(scopedWhere(scope, { documentId: document.id, id: version.id }))
+    await this.versionRepository.delete(scopedVersionWhere(scope, { documentId: document.id, id: version.id }))
     const remaining = await this.versionRepository.find({
-      where: scopedWhere(scope, { documentId: document.id }),
+      where: scopedVersionWhere(scope, { documentId: document.id }),
       order: {
         versionNumber: 'DESC'
       }
@@ -793,7 +949,8 @@ export class PencilService {
       toolArgs,
       result,
       changeSummary: normalizeOptional(input.changeSummary) ?? validatingDraft.changeSummary,
-      renderDraftId: draft.id
+      renderDraftId: draft.id,
+      expectedSequence: 'sequenceNumber' in currentState ? currentState.sequenceNumber : undefined
     })
     await this.clearPendingRenderDraft(scope, document.id as string, validatingDraft)
     return {
@@ -830,7 +987,8 @@ export class PencilService {
           toolName: normalizedToolName,
           toolArgs,
           result,
-          changeSummary: input.changeSummary
+          changeSummary: input.changeSummary,
+          expectedSequence: 'sequenceNumber' in currentState ? currentState.sequenceNumber : undefined
         })
       }
     } catch (error) {
@@ -886,6 +1044,7 @@ export class PencilService {
       result: unknown
       changeSummary?: string | null
       renderDraftId?: string
+      expectedSequence?: number
     }
   ) {
     await tryComputeLayouts(input.graph)
@@ -898,7 +1057,8 @@ export class PencilService {
         source: 'pencil_core_tool',
         toolName: input.toolName,
         ...(input.renderDraftId ? { renderDraftId: input.renderDraftId } : {})
-      }
+      },
+      expectedSequence: input.expectedSequence
     })
     await this.writeLog(scope, {
       documentId: input.document.id,
@@ -951,7 +1111,7 @@ export class PencilService {
       expiresAt: new Date(Date.now() + PENCIL_RENDER_DRAFT_TTL_MS).toISOString()
     }
     const stored = await this.documentRepository.update(
-      scopedWhere(scope, { id: documentId }),
+      scopedDocumentWhere(scope, { id: documentId }),
       pendingRenderDraftUpdate(draft)
     )
     if ((stored.affected ?? 0) !== 1) {
@@ -976,7 +1136,7 @@ export class PencilService {
   ) {
     const normalizedDraftId = normalizeRequired(draftId, 'Pencil render draft id is required.')
     const draftOwner = await this.documentRepository.findOne({
-      where: scopedWhere(scope, { id: document.id as string }),
+      where: scopedDocumentWhere(scope, { id: document.id as string }),
       select: { id: true, pendingRenderDraft: true }
     })
     const draft = readPendingRenderDraft(draftOwner?.pendingRenderDraft)
@@ -999,7 +1159,7 @@ export class PencilService {
 
   private async requireDocument(scope: PencilScope, documentId: string) {
     const document = await this.documentRepository.findOne({
-      where: scopedWhere(scope, { id: normalizeRequired(documentId, 'Pencil document id is required.') })
+      where: scopedDocumentWhere(scope, { id: normalizeRequired(documentId, 'Pencil document id is required.') })
     })
     if (!document) {
       throw new NotFoundException('Pencil document was not found.')
@@ -1007,8 +1167,90 @@ export class PencilService {
     return document
   }
 
+  /** Require the platform capability for every browser session and collaborative mutation. */
+  private collaboration() {
+    const capability = this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+    if (!capability) throw new Error('Platform collaboration capability is not available.')
+    return capability
+  }
+
+  private optionalCollaboration() {
+    return this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+  }
+
+  /** Replace graph/document state through a Yjs delta instead of overwriting the business entity. */
+  private async applyCollaborativeState(
+    scope: PencilScope,
+    document: PencilDocument,
+    input: {
+      graphSnapshot: PencilGraphSnapshot
+      expectedSequence?: number | null
+      origin?: string
+      metadata?: Partial<ReturnType<typeof collaborativeDocumentMetadata>>
+    }
+  ) {
+    const collaboration = this.optionalCollaboration()
+    if (!collaboration) return null
+    const collaborative = await collaboration.ensureDocument({
+      providerKey: PENCIL_COLLABORATION_PROVIDER_KEY,
+      resourceId: document.id as string,
+      schemaVersion: PENCIL_COLLABORATION_SCHEMA_VERSION
+    })
+    const state = await collaboration.getDocumentState({ documentId: collaborative.id })
+    if (input.expectedSequence != null && state.sequenceNumber !== input.expectedSequence) {
+      throw new ConflictException(
+        `Pencil working copy changed on the server; expected sequence ${input.expectedSequence}, current sequence is ${state.sequenceNumber}.`
+      )
+    }
+    const doc = decodePencilCollaborationState(state.updateBase64)
+    const beforeVector = Y.encodeStateVector(doc)
+    replacePencilCollaborationState(
+      doc,
+      input.graphSnapshot,
+      { ...collaborativeDocumentMetadata(document), ...input.metadata },
+      input.origin ?? (scope.assistantId ? 'pencil:agent:mutation' : 'pencil:user:mutation')
+    )
+    const update = Y.encodeStateAsUpdate(doc, beforeVector)
+    if (!update.byteLength) {
+      return { sequenceNumber: state.sequenceNumber, stateVectorBase64: state.stateVectorBase64 }
+    }
+    return collaboration.applyUpdate({
+      documentId: collaborative.id,
+      updateBase64: Buffer.from(update).toString('base64'),
+      origin: input.origin ?? (scope.assistantId ? 'pencil:agent:mutation' : 'pencil:user:mutation'),
+      expectedSequence: input.expectedSequence ?? undefined,
+      actor: {
+        actorType: scope.assistantId ? 'agent' : 'user',
+        actorKey: scope.assistantId ?? scope.userId ?? null,
+        displayName: scope.assistantDisplayName ?? scope.agentKey ?? null
+      }
+    })
+  }
+
   private async getCurrentGraphState(scope: PencilScope, document: PencilDocument) {
-    // The mutable working copy always wins; versions are immutable fallbacks for older documents.
+    const collaboration = this.optionalCollaboration()
+    if (collaboration && document.id) {
+      const collaborative = await collaboration.ensureDocument({
+        providerKey: PENCIL_COLLABORATION_PROVIDER_KEY,
+        resourceId: document.id,
+        schemaVersion: PENCIL_COLLABORATION_SCHEMA_VERSION
+      })
+      const state = await collaboration.getDocumentState({ documentId: collaborative.id })
+      const materialized = materializePencilCollaborationDoc(decodePencilCollaborationState(state.updateBase64))
+      return {
+        source: 'working_copy' as const,
+        version: await this.getCurrentVersion(scope, document),
+        graphSnapshot: normalizeSnapshotInput(materialized.graphSnapshot),
+        viewState: normalizeObject(document.workingViewState),
+        selectionSummary: normalizeObject(document.workingSelectionSummary),
+        sequenceNumber: state.sequenceNumber
+      }
+    }
+    return this.getLegacyCurrentGraphState(scope, document)
+  }
+
+  private async getLegacyCurrentGraphState(scope: PencilScope, document: PencilDocument) {
+    // The mutable working copy wins only while lazily importing a legacy document.
     const currentVersion = await this.getCurrentVersion(scope, document)
     if (document.workingGraph) {
       return {
@@ -1042,7 +1284,7 @@ export class PencilService {
       return null
     }
     return this.versionRepository.findOne({
-      where: scopedWhere(scope, { id: document.currentVersionId, documentId: document.id as string })
+      where: scopedVersionWhere(scope, { id: document.currentVersionId, documentId: document.id as string })
     })
   }
 
@@ -1053,8 +1295,23 @@ export class PencilService {
       graphSnapshot: PencilGraphSnapshot
       viewState?: PencilJsonObject | null
       selectionSummary?: PencilJsonObject | null
+      expectedSequence?: number | null
     }
   ) {
+    const collaborationResult = await this.applyCollaborativeState(scope, document, {
+      graphSnapshot: input.graphSnapshot,
+      expectedSequence: input.expectedSequence,
+      origin: scope.assistantId ? 'pencil:agent:working-copy' : 'pencil:user:working-copy'
+    })
+    if (collaborationResult) {
+      document.workingGraph = input.graphSnapshot
+      document.workingViewState = input.viewState ?? null
+      document.workingSelectionSummary = input.selectionSummary ?? null
+      document.workingCopyRevision = collaborationResult.sequenceNumber
+      document.graphChecksum = checksumGraphSnapshot(input.graphSnapshot) ?? undefined
+      document.workingUpdatedAt = new Date()
+      return document
+    }
     // A working-copy save advances revision and checksum together as one concurrency token pair.
     const workingUpdatedAt = new Date()
     const workingCopyRevision = nextWorkingCopyRevision(document)
@@ -1085,7 +1342,7 @@ export class PencilService {
       changeSummary?: string | null
     }
   ) {
-    // Version creation also rebases the mutable working copy onto the new immutable checkpoint.
+    // Version creation records an immutable checkpoint; collaborative revision is advanced only by Yjs updates.
     const versionNumber = (document.currentVersionNumber ?? 0) + 1
     const version = await this.versionRepository.save(
       this.versionRepository.create({
@@ -1097,20 +1354,22 @@ export class PencilService {
         viewState: input.viewState ?? null,
         selectionSummary: input.selectionSummary ?? null,
         changeSummary: normalizeOptional(input.changeSummary),
-        assistantId: scope.assistantId ?? null,
+        assistantId: scopeXpertId(scope) ?? null,
         conversationId: scope.conversationId ?? null
       })
     )
 
     document.currentVersionId = version.id
     document.currentVersionNumber = version.versionNumber
-    document.workingGraph = input.graphSnapshot
-    document.workingViewState = input.viewState ?? null
-    document.workingSelectionSummary = input.selectionSummary ?? null
-    document.workingUpdatedAt = new Date()
     document.workingBaseVersionId = version.id
-    document.workingCopyRevision = nextWorkingCopyRevision(document)
-    document.graphChecksum = checksumGraphSnapshot(input.graphSnapshot) ?? undefined
+    if (!this.optionalCollaboration()) {
+      document.workingGraph = input.graphSnapshot
+      document.workingViewState = input.viewState ?? null
+      document.workingSelectionSummary = input.selectionSummary ?? null
+      document.workingUpdatedAt = new Date()
+      document.workingCopyRevision = nextWorkingCopyRevision(document)
+      document.graphChecksum = checksumGraphSnapshot(input.graphSnapshot) ?? undefined
+    }
     document.lastEditedById = scope.userId ?? scope.assistantId ?? null
     document.lastEditedAt = new Date()
     await this.documentRepository.save(document)
@@ -1202,9 +1461,21 @@ function scopedCreate(scope: PencilScope): ScopedEntity & { createdById?: string
 
 /** Builds the mandatory ownership predicate used by every repository query. */
 function scopedWhere<T extends object>(scope: PencilScope, extra?: T): T & Partial<ScopedEntity> {
-  const where = {
+  return {
+    ...scopedOwnershipWhere(scope),
+    ...(extra ?? {})
+  } as T & Partial<ScopedEntity>
+}
+
+function scopedOwnershipWhere(scope: PencilScope) {
+  const where: {
+    tenantId: string
+    organizationId?: string
+    workspaceId?: string
+    projectId?: string
+  } = {
     tenantId: scope.tenantId
-  } as Partial<ScopedEntity>
+  }
   if (scope.organizationId != null) {
     where.organizationId = scope.organizationId
   }
@@ -1213,10 +1484,38 @@ function scopedWhere<T extends object>(scope: PencilScope, extra?: T): T & Parti
   } else if (scope.workspaceId != null) {
     where.workspaceId = scope.workspaceId
   }
+  return where
+}
+
+/** Restricts document aggregates to the current Xpert in addition to tenant/workspace ownership. */
+function scopedDocumentWhere(
+  scope: PencilScope,
+  extra: FindOptionsWhere<PencilDocument> = {}
+): FindOptionsWhere<PencilDocument> {
+  const xpertId = scopeXpertId(scope)
   return {
-    ...where,
-    ...(extra ?? {})
-  } as T & Partial<ScopedEntity>
+    ...scopedOwnershipWhere(scope),
+    ...(xpertId ? { assistantId: xpertId } : {}),
+    ...extra
+  }
+}
+
+/** Versions inherit the owning document's Xpert boundary for defense-in-depth queries. */
+function scopedVersionWhere(
+  scope: PencilScope,
+  extra: FindOptionsWhere<PencilDocumentVersion> = {}
+): FindOptionsWhere<PencilDocumentVersion> {
+  const xpertId = scopeXpertId(scope)
+  return {
+    ...scopedOwnershipWhere(scope),
+    ...(xpertId ? { assistantId: xpertId } : {}),
+    ...extra
+  }
+}
+
+/** Resolves the platform Xpert id while retaining the persisted assistantId compatibility field. */
+function scopeXpertId(scope: PencilScope) {
+  return normalizeOptional(scope.xpertId) ?? normalizeOptional(scope.assistantId)
 }
 
 function selectRequestedVersion(
@@ -1357,6 +1656,33 @@ function isPlainObject(value: unknown): value is PencilJsonObject {
 
 function currentWorkingCopyRevision(document: PencilDocument) {
   return document.workingCopyRevision ?? 0
+}
+
+function collaborativeDocumentMetadata(document: PencilDocument) {
+  return {
+    title: document.title,
+    description: document.description ?? null,
+    kind: document.kind ?? ('design' as const),
+    status: document.status ?? ('draft' as const),
+    tags: document.tags ?? []
+  }
+}
+
+function pencilScopeFromCollaboration(context: CollaborationProviderContext): PencilScope {
+  return {
+    tenantId: normalizeRequired(context.tenantId, 'Pencil collaboration tenant id is required.'),
+    organizationId: context.organizationId ?? null,
+    workspaceId: context.workspaceId ?? null,
+    projectId: context.projectId ?? null,
+    userId: context.userId ?? null,
+    xpertId: context.xpertId ?? null,
+    assistantId: context.xpertId ?? null
+  }
+}
+
+function pencilAgentPresenceKey(scope: PencilScope, documentId: string) {
+  const identity = [scope.assistantId ?? scope.agentKey ?? 'agent', scope.conversationId ?? '-', documentId].join(':')
+  return `pencil_agent_${createHash('sha256').update(identity).digest('base64url').slice(0, 22)}`
 }
 
 function nextWorkingCopyRevision(document: PencilDocument) {
@@ -1678,7 +2004,7 @@ function pendingRenderDraftWhere(
     ].join(' AND '),
     parameters
   )
-  return scopedWhere(scope, { id: documentId, pendingRenderDraft }) as FindOptionsWhere<PencilDocument>
+  return scopedDocumentWhere(scope, { id: documentId, pendingRenderDraft })
 }
 
 function pendingRenderDraftExpiresAt(draft: PencilPendingRenderDraft) {

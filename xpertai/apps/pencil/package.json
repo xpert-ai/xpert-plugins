@@ -34,6 +34,7 @@
     "assets",
     "skills",
     "README.md",
+    "README_zh-hans.md",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
@@ -56,16 +57,18 @@
     "canvaskit-wasm": "^0.40.0",
     "jspdf": "^4.2.1",
     "prismjs": "^1.30.0",
+    "socket.io-client": "^4.8.1",
     "tslib": "^2.3.0",
-    "vue": "^3.5.29"
+    "vue": "^3.5.29",
+    "yjs": "13.6.31"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.15.10",
+    "@xpert-ai/plugin-sdk": "^3.15.10",
     "typeorm": "^0.3.24",
     "zod": "3.25.67"
   },
@@ -77,8 +80,8 @@
     "@types/node": "^20.19.9",
     "@types/prismjs": "^1.26.6",
     "@vitejs/plugin-vue": "^6.0.7",
-    "@xpert-ai/contracts": "3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "3.15.10",
+    "@xpert-ai/plugin-sdk": "3.15.10",
     "@xpert-ai/plugin-shadcn-vue": "workspace:*",
     "jest": "^30.0.2",
     "reflect-metadata": "^0.2.2",

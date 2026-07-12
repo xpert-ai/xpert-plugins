@@ -62,7 +62,12 @@ export interface PencilScope {
   workspaceId?: string | null
   projectId?: string | null
   userId?: string | null
+  /** Current Xpert owner used to isolate Pencil documents and versions. */
+  xpertId?: string | null
+  /** Persisted compatibility name for xpertId on existing Pencil entities. */
   assistantId?: string | null
+  assistantDisplayName?: string | null
+  agentKey?: string | null
   conversationId?: string | null
 }
 

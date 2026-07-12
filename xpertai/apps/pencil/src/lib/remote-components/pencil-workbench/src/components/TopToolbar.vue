@@ -1,6 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Badge, Select, SelectContent, SelectItem, SelectTrigger } from '@xpert-ai/plugin-shadcn-vue'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@xpert-ai/plugin-shadcn-vue'
 import CreateDocumentMenu from './CreateDocumentMenu.vue'
 import ToolbarButton from './ToolbarButton.vue'
 
@@ -18,6 +33,18 @@ type ToolbarLabels = {
   review: string
   archive: string
   deleteDocument: string
+  connecting: string
+  offline: string
+}
+
+type ToolbarCollaborator = {
+  presenceId: string
+  displayName: string
+  actorType: 'user' | 'agent' | 'system'
+  color: string
+  avatarUrl?: string | null
+  status?: string | null
+  operationLabel?: string | null
 }
 
 withDefaults(
@@ -31,10 +58,13 @@ withDefaults(
     exportFormat: string
     exportFormats: string[]
     statusLabel: string
+    connectionState: 'connecting' | 'connected' | 'disconnected'
+    collaborators: ToolbarCollaborator[]
     labels: ToolbarLabels
   }>(),
   {
-    exportFormats: () => ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx']
+    exportFormats: () => ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'],
+    collaborators: () => []
   }
 )
 
@@ -123,8 +153,24 @@ function updateExportFormat(value: string | number | bigint | object | null) {
     </nav>
 
     <div class="pencil-state">
+      <TooltipProvider v-if="collaborators.length">
+        <AvatarGroup class="pencil-collaborators">
+          <Tooltip v-for="collaborator in collaborators.slice(0, 4)" :key="collaborator.presenceId">
+            <TooltipTrigger as-child>
+              <Avatar size="sm" :style="{ '--pencil-collaborator-color': collaborator.color }">
+                <AvatarImage v-if="collaborator.avatarUrl" :src="collaborator.avatarUrl" :alt="collaborator.displayName" />
+                <AvatarFallback>{{ collaborator.actorType === 'agent' ? 'AI' : collaborator.displayName.slice(0, 1).toUpperCase() }}</AvatarFallback>
+              </Avatar>
+            </TooltipTrigger>
+            <TooltipContent>
+              {{ collaborator.displayName }}<template v-if="collaborator.operationLabel"> · {{ collaborator.operationLabel }}</template>
+            </TooltipContent>
+          </Tooltip>
+          <AvatarGroupCount v-if="collaborators.length > 4">+{{ collaborators.length - 4 }}</AvatarGroupCount>
+        </AvatarGroup>
+      </TooltipProvider>
       <Badge :class="['ui-badge', dirty ? 'ui-badge-warning' : 'ui-badge-secondary']" :variant="dirty ? 'outline' : 'secondary'">
-        {{ statusLabel }}
+        {{ connectionState === 'disconnected' ? labels.offline : connectionState === 'connecting' ? labels.connecting : statusLabel }}
       </Badge>
     </div>
   </header>

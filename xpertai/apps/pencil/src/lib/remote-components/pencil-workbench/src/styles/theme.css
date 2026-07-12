@@ -279,8 +279,10 @@ input[type='number']::-webkit-outer-spin-button {
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex: 1 1 auto;
+  margin-left: auto;
+  flex: 0 1 auto;
   flex-wrap: nowrap;
   overflow: visible;
   scrollbar-width: none;
@@ -299,6 +301,16 @@ input[type='number']::-webkit-outer-spin-button {
   align-self: stretch;
   min-height: 28px;
   background: var(--pencil-border);
+}
+
+.pencil-collaborators {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.pencil-collaborators [data-slot='avatar'] {
+  box-shadow: 0 0 0 2px var(--pencil-background), 0 0 0 3px var(--pencil-collaborator-color, var(--pencil-border));
 }
 
 .pencil-command-button.ui-button-sm {
@@ -960,6 +972,42 @@ input[type='number']::-webkit-outer-spin-button {
 
 .pencil-overlay-canvas {
   touch-action: none;
+}
+
+.pencil-collaboration-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pencil-collaboration-focus {
+  position: absolute;
+  border: 1.5px solid var(--pencil-presence-color);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pencil-presence-color) 20%, transparent);
+}
+
+.pencil-collaboration-focus > span {
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% + 3px);
+  max-width: 180px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--pencil-presence-color);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pencil-collaboration-focus.is-agent {
+  border-style: dashed;
 }
 
 .pencil-editor-toolstrip {

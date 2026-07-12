@@ -4,10 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
+  DropdownMenuTrigger
 } from '@xpert-ai/plugin-shadcn-vue'
 import { PencilIcon } from '../icons.js'
 
@@ -29,26 +26,20 @@ const emit = defineEmits<{
 
 <template>
   <DropdownMenu>
-    <Tooltip>
-      <TooltipTrigger as-child>
-        <DropdownMenuTrigger as-child>
-          <Button
-            class="pencil-command-button pencil-create-menu-trigger"
-            variant="default"
-            size="sm"
-            type="button"
-            :disabled="busy"
-            :aria-label="createLabel"
-          >
-            <PencilIcon name="plus" />
-            <PencilIcon name="chevronDown" class-name="pencil-create-menu-chevron" />
-          </Button>
-        </DropdownMenuTrigger>
-      </TooltipTrigger>
-      <TooltipContent :side-offset="6" class="pencil-tooltip-content">
-        {{ createLabel }}
-      </TooltipContent>
-    </Tooltip>
+    <DropdownMenuTrigger as-child>
+      <Button
+        class="pencil-command-button pencil-create-menu-trigger"
+        variant="default"
+        size="sm"
+        type="button"
+        :disabled="busy"
+        :aria-label="createLabel"
+        :title="createLabel"
+      >
+        <PencilIcon name="plus" />
+        <PencilIcon name="chevronDown" class-name="pencil-create-menu-chevron" />
+      </Button>
+    </DropdownMenuTrigger>
     <DropdownMenuContent align="start" :side-offset="6" class="pencil-create-menu">
       <DropdownMenuItem @select="emit('createBlank')">
         <PencilIcon name="file" />

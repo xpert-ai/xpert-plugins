@@ -22,6 +22,7 @@ import { computeAllLayouts } from '@open\u002dpencil/core/layout'
 import { SceneGraph } from '@open\u002dpencil/core/scene-graph'
 import type { Color, Fill, SceneNode, Stroke } from '@open\u002dpencil/core/scene-graph'
 import type { Tool } from '@open\u002dpencil/vue'
+import * as Y from 'yjs'
 import {
   executeAction,
   executeFileAction,
@@ -39,6 +40,14 @@ import { pencilWorkbenchDebug } from './debug-logger.js'
 import { preparePencilFonts } from './fonts.js'
 import { actionLabel, editorToolLabel, formatDate, normalizeLocale, statusText, translate, uiValueLabel } from './i18n.js'
 import type { MessageKey } from './i18n.js'
+import {
+  createPencilWorkbenchCollaboration,
+  type PencilCollaborationConnectionState,
+  type PencilCollaborationSessionDescriptor,
+  type PencilPresence,
+  type PencilPresenceView,
+  type PencilWorkbenchCollaboration
+} from './collaboration.js'
 import {
   findSnapshotNode,
   flattenLayerTreeItems,
@@ -81,7 +90,6 @@ type LeftPanelTab = 'file' | 'assets'
 type InlineDocumentTitleHandle = { focus: () => void }
 
 const ASSISTANT_CONTEXT_SET_COMMAND = 'assistant.context.set'
-const AUTOSAVE_DELAY_MS = 1200
 const DOCUMENT_CREATING_TOOL_NAMES = new Set(['pencil_create_document', 'pencil_create_sample_document'])
 const PAGE_CREATING_TOOL_NAMES = new Set(['pencil_create_page', 'create_page'])
 const PENCIL_LOGO_DATA_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pencilLogoSvg)}`
@@ -149,6 +157,59 @@ function cloneStrokes(strokes: Stroke[]): Stroke[] {
     color: { ...stroke.color },
     ...(stroke.dashPattern ? { dashPattern: [...stroke.dashPattern] } : {})
   }))
+}
+
+function replaceMapContents<K, V>(target: Map<K, V>, source: Map<K, V>) {
+  target.clear()
+  for (const [key, value] of source) target.set(key, value)
+}
+
+function browserBytesToBase64(bytes: Uint8Array) {
+  let binary = ''
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
+  }
+  return btoa(binary)
+}
+
+function readCollaborationSession(value: RemotePayloadValue | undefined): PencilCollaborationSessionDescriptor | null {
+  if (!isObject(value) || !isObject(value.actor)) return null
+  const sessionId = typeof value.sessionId === 'string' ? value.sessionId : ''
+  const clientKey = typeof value.clientKey === 'string' ? value.clientKey : ''
+  const documentId = typeof value.documentId === 'string' ? value.documentId : ''
+  const namespace = typeof value.namespace === 'string' ? value.namespace : '/api/collaboration'
+  const connectionUrl = typeof value.connectionUrl === 'string' ? value.connectionUrl : ''
+  const presenceId = typeof value.actor.presenceId === 'string' ? value.actor.presenceId : ''
+  const displayName = typeof value.actor.displayName === 'string' ? value.actor.displayName : ''
+  const color = typeof value.actor.color === 'string' ? value.actor.color : '#2563eb'
+  const actorType = value.actor.actorType === 'agent' || value.actor.actorType === 'system' ? value.actor.actorType : 'user'
+  if (!sessionId || !clientKey || !documentId || !connectionUrl || !presenceId || !displayName) return null
+  return {
+    sessionId,
+    clientKey,
+    documentId,
+    namespace,
+    connectionUrl,
+    access: value.access === 'read' ? 'read' : 'write',
+    actor: {
+      presenceId,
+      displayName,
+      color,
+      actorType,
+      avatarUrl: typeof value.actor.avatarUrl === 'string' ? value.actor.avatarUrl : null
+    },
+    expiresAt: typeof value.expiresAt === 'number' ? value.expiresAt : Date.now() + 600_000
+  }
+}
+
+function normalizeDocumentStatus(value: string | undefined): 'draft' | 'reviewed' | 'archived' {
+  return value === 'reviewed' || value === 'archived' ? value : 'draft'
+}
+
+function normalizeDocumentKind(value: string | undefined): 'design' | 'figma-import' | 'wireframe' | 'prototype' | 'component-library' | 'illustration' | 'other' {
+  return value === 'figma-import' || value === 'wireframe' || value === 'prototype' || value === 'component-library' || value === 'illustration' || value === 'other'
+    ? value
+    : 'design'
 }
 
 /** Defers zoom-to-fit until both canvases have measured their final Workbench size. */
@@ -231,9 +292,7 @@ const App = defineComponent({
     let applyingRemoteGraph = false
     let sceneCanvasReady = false
     let graphMutationRevision = 0
-    let autosaveTimer: number | null = null
-    let autosavePromise: Promise<void> | null = null
-    let autosaveQueued = false
+    let collaboration: PencilWorkbenchCollaboration | null = null
     const editor = createEditor({
       getViewportSize: () => ({
         width: Math.max(320, window.innerWidth - 640),
@@ -247,6 +306,7 @@ const App = defineComponent({
       detail: null as DetailPayload | null,
       selectedDocumentId: '',
       selectedNodeId: '',
+      currentPageId: editor.state.currentPageId,
       graphText: '',
       search: '',
       status: '',
@@ -257,6 +317,9 @@ const App = defineComponent({
       exportMessage: '',
       busy: false,
       autosaving: false,
+      collaborationState: 'disconnected' as PencilCollaborationConnectionState,
+      collaborators: [] as PencilPresence[],
+      remoteCollaboratorSessions: [] as PencilPresence[],
       dirty: false,
       error: '',
       editorRevision: 0,
@@ -319,6 +382,75 @@ const App = defineComponent({
     })
     const currentTitle = computed(() => state.detail?.item?.title ?? text('noDocument'))
 
+    function stopCollaboration() {
+      collaboration?.destroy()
+      collaboration = null
+      state.collaborators = []
+      state.remoteCollaboratorSessions = []
+      state.collaborationState = 'disconnected'
+      editor.state.remoteCursors = []
+      editor.requestRepaint()
+    }
+
+    async function startCollaboration(documentId: string) {
+      stopCollaboration()
+      const opened = getActionPayload(await executeAction('open_document', documentId, { documentId }))
+      if (!isObject(opened)) throw new Error('Pencil open_document returned an invalid payload.')
+      const collab = readCollaborationSession(opened.collab)
+      if (!collab) throw new Error('Pencil collaboration session was not returned by the platform.')
+      if (isObject(opened.item) && state.detail) state.detail.item = opened.item as DocumentItem
+      state.collaborationState = 'connecting'
+      collaboration = createPencilWorkbenchCollaboration({
+        session: collab,
+        initialDocument: collaborativeMetadataFromDetail(),
+        snapshot: currentGraphSnapshot,
+        applyRemoteSnapshot: applyRemoteCollaborationSnapshot,
+        captureTextSelection: () => {
+          const current = editor.textEditor?.state
+          return current
+            ? { nodeId: current.nodeId, cursor: current.cursor, selectionAnchor: current.selectionAnchor }
+            : null
+        },
+        restoreTextSelection: (selection) => {
+          const current = editor.textEditor?.state
+          const node = editor.graph.getNode(selection.nodeId)
+          if (!current || current.nodeId !== selection.nodeId || !node) return
+          current.text = node.text
+          current.cursor = Math.min(selection.cursor, node.text.length)
+          current.selectionAnchor = selection.selectionAnchor == null ? null : Math.min(selection.selectionAnchor, node.text.length)
+          editor.textEditor?.rebuildParagraph(node)
+          editor.requestRender()
+        },
+        onPresence: applyCollaborationPresence,
+        onConnectionChange: (connectionState) => {
+          state.collaborationState = connectionState
+          if (connectionState === 'connected') state.error = ''
+        },
+        onSequence: (sequence) => {
+          if (state.detail) {
+            state.detail.workingCopyRevision = sequence
+            if (state.detail.item) state.detail.item.workingCopyRevision = sequence
+          }
+          state.dirty = false
+          state.autosaving = false
+        },
+        onError: (error) => {
+          state.error = friendlyErrorMessage(error)
+        }
+      })
+    }
+
+    function collaborativeMetadataFromDetail() {
+      const item = state.detail?.item
+      return {
+        title: item?.title ?? text('noDocument'),
+        description: null,
+        kind: normalizeDocumentKind(item?.kind),
+        status: normalizeDocumentStatus(item?.status),
+        tags: []
+      }
+    }
+
     /** Loads the paged document list and one full detail graph through the host bridge. */
     async function loadData(documentId?: string, options?: { pageId?: string | null }) {
       state.busy = true
@@ -346,6 +478,8 @@ const App = defineComponent({
         const snapshot = selectedSnapshot.value
         await applySnapshotToEditor(snapshot, options?.pageId ?? editor.state.currentPageId)
         state.dirty = false
+        if (state.selectedDocumentId) await startCollaboration(state.selectedDocumentId)
+        else stopCollaboration()
         await updateAssistantContext()
       } catch (error) {
         state.error = friendlyErrorMessage(error)
@@ -457,13 +591,18 @@ const App = defineComponent({
       if (!documentId) {
         return
       }
-      cancelAutosaveTimer()
       state.busy = true
       state.error = ''
       try {
-        await persistWorkingCopy(documentId, text('workingCopySaved'))
+        if (state.graphTextEdited) {
+          await persistWorkingCopy(documentId, text('workingCopySaved'))
+        } else {
+          collaboration?.syncLocalGraph()
+          collaboration?.flush()
+          state.autosaving = true
+        }
         notify('success', text('workingCopySaved'))
-        await loadData(documentId)
+        await updateAssistantContext()
       } catch (error) {
         state.error = friendlyErrorMessage(error)
       } finally {
@@ -540,28 +679,18 @@ const App = defineComponent({
       return typeof field === 'string' && field.trim() ? field.trim() : undefined
     }
 
-    function cancelAutosaveTimer() {
-      if (autosaveTimer !== null) {
-        window.clearTimeout(autosaveTimer)
-        autosaveTimer = null
-      }
-    }
+    function cancelAutosaveTimer() {}
 
     function scheduleAutosave() {
-      if (!state.detail?.item?.id) {
-        return
-      }
-      cancelAutosaveTimer()
-      autosaveTimer = window.setTimeout(() => {
-        autosaveTimer = null
-        void runAutosave()
-      }, AUTOSAVE_DELAY_MS)
+      if (!state.detail?.item?.id || applyingRemoteGraph) return
+      state.autosaving = true
+      collaboration?.syncLocalGraph()
     }
 
     /** Saves local graph edits as a draft before navigation without forcing a full Workbench reload. */
     async function flushAutosaveNow() {
-      cancelAutosaveTimer()
-      await runAutosave(true)
+      collaboration?.syncLocalGraph()
+      collaboration?.flush()
     }
 
     async function ensureDraftSavedBeforeNavigation() {
@@ -576,39 +705,11 @@ const App = defineComponent({
       }
     }
 
-    async function runAutosave(force = false): Promise<void> {
-      if (autosavePromise) {
-        autosaveQueued = true
-        return autosavePromise
-      }
-      const documentId = state.detail?.item?.id
-      if (!documentId || !state.dirty || applyingRemoteGraph) {
-        return
-      }
-      if (state.busy && !force) {
-        scheduleAutosave()
-        return
-      }
+    async function runAutosave(_force = false): Promise<void> {
+      if (!state.detail?.item?.id || !state.dirty || applyingRemoteGraph) return
+      collaboration?.syncLocalGraph()
+      collaboration?.flush()
       state.autosaving = true
-      autosavePromise = (async () => {
-        try {
-          await persistWorkingCopy(documentId, text('autosaveChangeSummary'))
-        } catch (error) {
-          state.error = friendlyErrorMessage(error)
-          state.dirty = true
-          throw error
-        } finally {
-          state.autosaving = false
-          autosavePromise = null
-          if (autosaveQueued) {
-            autosaveQueued = false
-            if (state.dirty) {
-              scheduleAutosave()
-            }
-          }
-        }
-      })()
-      return autosavePromise
     }
 
     async function saveVersion() {
@@ -1011,6 +1112,83 @@ const App = defineComponent({
       }
     }
 
+    /** Merge a remote Yjs materialization into the mounted SceneGraph without replacing the editor instance. */
+    async function applyRemoteCollaborationSnapshot(
+      snapshot: GraphSnapshot,
+      document: { title: string; status: string; kind: string }
+    ) {
+      const currentPageId = editor.state.currentPageId
+      const selectedIds = Array.from(editor.state.selectedIds)
+      applyingRemoteGraph = true
+      try {
+        const next = graphFromSnapshot(snapshot)
+        if (!editor.graph.nodes.size || editor.graph.rootId !== next.rootId) {
+          await applySnapshotToEditor(snapshot, currentPageId)
+          return
+        }
+        for (const nodeId of Array.from(editor.graph.nodes.keys())) {
+          if (!next.nodes.has(nodeId)) editor.graph.nodes.delete(nodeId)
+        }
+        for (const [nodeId, nextNode] of next.nodes) {
+          const current = editor.graph.nodes.get(nodeId)
+          if (current) Object.assign(current, nextNode, { childIds: [...nextNode.childIds] })
+          else editor.graph.nodes.set(nodeId, nextNode)
+        }
+        replaceMapContents(editor.graph.images, next.images)
+        replaceMapContents(editor.graph.variables, next.variables)
+        replaceMapContents(editor.graph.variableCollections, next.variableCollections)
+        replaceMapContents(editor.graph.activeMode, next.activeMode)
+        editor.graph.instanceIndex.clear()
+        for (const [componentId, instanceIds] of next.instanceIndex) editor.graph.instanceIndex.set(componentId, new Set(instanceIds))
+        editor.graph.rootId = next.rootId
+        editor.graph.figKiwiVersion = next.figKiwiVersion
+        editor.graph.figSchemaDeflated = next.figSchemaDeflated
+        editor.graph.documentColorSpace = next.documentColorSpace
+        recomputeEditorLayouts()
+        const page = editor.graph.getNode(currentPageId)
+        if (!page || page.type !== 'CANVAS') {
+          const firstPage = editor.graph.getPages()[0]
+          if (firstPage) await editor.switchPage(firstPage.id)
+        }
+        const retainedSelection = selectedIds.filter((id) => editor.graph.nodes.has(id))
+        editor.select(retainedSelection)
+        state.selectedNodeId = retainedSelection[0] ?? ''
+        if (state.detail?.item) {
+          state.detail.item.title = document.title
+          state.detail.item.status = document.status
+          state.detail.item.kind = document.kind
+          state.titleDraft = document.title
+        }
+        syncGraphTextFromSnapshot(snapshotFromGraph(editor.graph))
+        state.editorRevision += 1
+        editor.requestRender()
+        await updateAssistantContext()
+      } finally {
+        window.setTimeout(() => {
+          applyingRemoteGraph = false
+        }, 0)
+      }
+    }
+
+    function applyCollaborationPresence(view: PencilPresenceView) {
+      state.collaborators = view.collaborators
+      state.remoteCollaboratorSessions = view.remoteSessions
+      const page = editor.graph.getNode(editor.state.currentPageId)
+      editor.state.remoteCursors = view.remoteSessions.flatMap((presence) => {
+        const pointer = presence.pointer
+        if (!pointer?.visible || presence.actorType !== 'user' || !page || page.type !== 'CANVAS') return []
+        const color = hexToColor(presence.color, 1)
+        return [{
+          name: presence.displayName,
+          color,
+          x: page.x + clampNumber(pointer.x, 0, 1) * Math.max(1, page.width),
+          y: page.y + clampNumber(pointer.y, 0, 1) * Math.max(1, page.height),
+          selection: presence.selection?.kind === 'elements' ? presence.selection.elementIds ?? [] : []
+        }]
+      })
+      editor.requestRepaint()
+    }
+
     function currentGraphSnapshot() {
       return snapshotFromGraph(editor.graph)
     }
@@ -1035,22 +1213,95 @@ const App = defineComponent({
       }, 0)
     }
 
+    function publishCurrentPresence() {
+      if (!collaboration) return
+      const textState = editor.textEditor?.state
+      let selection: PencilPresence['selection'] = {
+        kind: 'elements',
+        elementIds: Array.from(editor.state.selectedIds)
+      }
+      if (textState) {
+        const yText = collaboration.doc.getMap<Y.Text>('texts').get(textState.nodeId)
+        if (yText) {
+          const anchorIndex = textState.selectionAnchor ?? textState.cursor
+          selection = {
+            kind: 'text',
+            fieldKey: textState.nodeId,
+            anchorRelativeBase64: browserBytesToBase64(
+              Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(yText, anchorIndex))
+            ),
+            headRelativeBase64: browserBytesToBase64(
+              Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(yText, textState.cursor))
+            )
+          }
+        }
+      }
+      collaboration.setPresence({
+        pageId: editor.state.currentPageId,
+        focus: textState
+          ? { kind: 'text', key: textState.nodeId, pageId: editor.state.currentPageId, elementId: textState.nodeId, fieldKey: textState.nodeId }
+          : state.selectedNodeId
+            ? { kind: 'element', key: state.selectedNodeId, pageId: editor.state.currentPageId, elementId: state.selectedNodeId }
+            : { kind: 'page', key: editor.state.currentPageId, pageId: editor.state.currentPageId },
+        selection,
+        viewport: {
+          zoom: editor.state.zoom,
+          width: Math.max(1, window.innerWidth),
+          height: Math.max(1, window.innerHeight)
+        },
+        mode: textState ? 'text-edit' : 'edit'
+      })
+    }
+
+    let lastPointerPresenceAt = 0
+    function publishPointerPresence(event: PointerEvent) {
+      if (!collaboration || event.timeStamp - lastPointerPresenceAt < 50) return
+      const canvas = document.querySelector<HTMLCanvasElement>('.pencil-overlay-canvas')
+      const page = editor.graph.getNode(editor.state.currentPageId)
+      if (!canvas || !page || page.type !== 'CANVAS') return
+      const rect = canvas.getBoundingClientRect()
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return
+      lastPointerPresenceAt = event.timeStamp
+      const worldX = (event.clientX - rect.left - editor.state.panX) / Math.max(editor.state.zoom, 0.0001)
+      const worldY = (event.clientY - rect.top - editor.state.panY) / Math.max(editor.state.zoom, 0.0001)
+      collaboration.setPresence({
+        pointer: {
+          pageId: page.id,
+          x: clampNumber((worldX - page.x) / Math.max(1, page.width), 0, 1),
+          y: clampNumber((worldY - page.y) / Math.max(1, page.height), 0, 1),
+          visible: true
+        }
+      })
+    }
+
+    function handleCollaborativeUndoShortcut(event: KeyboardEvent) {
+      if (!collaboration || !(event.metaKey || event.ctrlKey) || event.code !== 'KeyZ') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (event.shiftKey) collaboration.redo()
+      else collaboration.undo()
+    }
+
     function registerEditorEvents() {
       // Structural events mark persistence dirty; selection/tool events only refresh derived UI state.
       editorUnsubscribers.push(
         editor.onEditorEvent('selection:changed', (selectedIds) => {
           state.selectedNodeId = selectedIds[0] ?? ''
           state.editorRevision += 1
+          publishCurrentPresence()
           updateAssistantContext()
         }),
         editor.onEditorEvent('tool:changed', () => {
           state.editorRevision += 1
         }),
-        editor.onEditorEvent('page:changed', () => {
+        editor.onEditorEvent('page:changed', (pageId) => {
+          state.currentPageId = pageId
           state.editorRevision += 1
+          publishCurrentPresence()
         }),
         editor.onEditorEvent('viewport:changed', () => {
           state.editorRevision += 1
+          publishCurrentPresence()
         }),
         editor.onEditorEvent('graph:replaced', () => {
           state.editorRevision += 1
@@ -1078,6 +1329,7 @@ const App = defineComponent({
       if (syncGraphText) {
         syncGraphTextFromEditor()
       }
+      publishCurrentPresence()
       void updateAssistantContext()
       scheduleAutosave()
     }
@@ -1120,10 +1372,23 @@ const App = defineComponent({
     }
 
     async function refreshCurrentDocument(documentId = state.selectedDocumentId, pageId?: string | null) {
-      if (state.dirty && !(await ensureDraftSavedBeforeNavigation())) {
+      if (documentId !== state.selectedDocumentId || !collaboration) {
+        await loadData(documentId, { pageId })
         return
       }
-      await loadData(documentId, { pageId })
+      const response = await requestData({ parameters: { documentId } })
+      const payload = getResponsePayload(response)
+      const nextDetail = isObject(payload) && isObject(payload.detail) ? payload.detail as DetailPayload : null
+      if (nextDetail && state.detail) {
+        state.detail.item = nextDetail.item ?? state.detail.item
+        state.detail.versions = nextDetail.versions ?? state.detail.versions
+        state.detail.logs = nextDetail.logs ?? state.detail.logs
+        state.detail.workingCopyRevision = nextDetail.workingCopyRevision ?? state.detail.workingCopyRevision
+      }
+      if (pageId) {
+        const page = editor.graph.getNode(pageId)
+        if (page?.type === 'CANVAS') await editor.switchPage(page.id)
+      }
     }
 
     function readHostEventToolName(event: RemotePayloadValue | undefined) {
@@ -1238,6 +1503,7 @@ const App = defineComponent({
       }
       try {
         await (switchPage ? switchPage(pageId) : editor.switchPage(pageId))
+        state.currentPageId = editor.state.currentPageId
         state.selectedNodeId = ''
         state.editorRevision += 1
         await updateAssistantContext()
@@ -1425,11 +1691,16 @@ const App = defineComponent({
 
     onMounted(() => {
       registerEditorEvents()
+      window.addEventListener('pointermove', publishPointerPresence, { passive: true })
+      window.addEventListener('keydown', handleCollaborativeUndoShortcut, true)
       loadData()
     })
 
     onUnmounted(() => {
       cancelAutosaveTimer()
+      window.removeEventListener('pointermove', publishPointerPresence)
+      window.removeEventListener('keydown', handleCollaborativeUndoShortcut, true)
+      stopCollaboration()
       while (editorUnsubscribers.length) {
         editorUnsubscribers.pop()?.()
       }
@@ -1461,6 +1732,8 @@ const App = defineComponent({
           summaryText,
           busy: state.busy,
           dirty: !state.busy && (state.dirty || state.autosaving),
+          connectionState: state.collaborationState,
+          collaborators: state.collaborators,
           canUseDocument: canUseDocument.value,
           exportFormat: state.exportFormat,
           exportFormats: ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'],
@@ -1477,7 +1750,9 @@ const App = defineComponent({
             export: text('export'),
             review: text('review'),
             archive: text('archive'),
-            deleteDocument: text('deleteDocument')
+            deleteDocument: text('deleteDocument'),
+            connecting: text('connecting'),
+            offline: text('offline')
           },
           onCreateBlank: () => void createDocument(),
           onCreateSample: () => void createSampleDocument(),
@@ -1754,7 +2029,9 @@ const App = defineComponent({
         actions?: { switch?: (pageId: string) => void | Promise<void> }
       }
       const pages = Array.isArray(pageSlot.pages) ? pageSlot.pages : editor.graph.getPages()
-      const currentPageId = pageSlot.currentPageId ?? editor.state.currentPageId
+      // PageListRoot can briefly retain its previous slot value after the editor switches pages.
+      // The editor event-backed Vue state is the authoritative value for selection styling.
+      const currentPageId = state.currentPageId || editor.state.currentPageId
       if (!pages.length) {
         return h('div', { class: 'pencil-empty-note' }, text('stageEmpty'))
       }
@@ -1854,8 +2131,33 @@ const App = defineComponent({
       return h('div', { class: 'pencil-canvas-root' }, [
         h(PencilSceneCanvas, { onReady: handleSceneCanvasReady }),
         h(PencilOverlayCanvas),
+        renderCollaborationOverlay(),
         renderCanvasToolbar()
       ])
+    }
+
+    function renderCollaborationOverlay() {
+      state.editorRevision
+      const badges = state.remoteCollaboratorSessions.flatMap((presence) => {
+        const elementId = presence.focus?.elementId
+        if (!elementId || presence.pageId && presence.pageId !== editor.state.currentPageId) return []
+        const node = editor.graph.getNode(elementId)
+        if (!node) return []
+        const absolute = editor.graph.getAbsolutePosition(elementId)
+        return [h('div', {
+          class: ['pencil-collaboration-focus', `is-${presence.actorType}`],
+          key: presence.clientId,
+          style: {
+            left: `${absolute.x * editor.state.zoom + editor.state.panX}px`,
+            top: `${absolute.y * editor.state.zoom + editor.state.panY}px`,
+            width: `${Math.max(2, node.width * editor.state.zoom)}px`,
+            height: `${Math.max(2, node.height * editor.state.zoom)}px`,
+            borderColor: presence.color,
+            '--pencil-presence-color': presence.color
+          }
+        }, h('span', `${presence.actorType === 'agent' ? 'AI · ' : ''}${presence.displayName}`))]
+      })
+      return h('div', { class: 'pencil-collaboration-overlay', 'aria-hidden': 'true' }, badges)
     }
 
     function renderCanvasToolbar() {

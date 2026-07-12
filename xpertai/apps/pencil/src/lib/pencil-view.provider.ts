@@ -197,6 +197,7 @@ export class PencilViewProvider implements IXpertViewExtensionProvider {
         ],
         actions: [
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
+          { key: 'open_document', label: text('Open Design', '打开设计'), icon: 'ri-folder-open-line', actionType: 'invoke' },
           { key: 'create_document', label: text('New Design', '新建设计'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'rename_document', label: text('Rename Design', '重命名设计'), icon: 'ri-edit-line', actionType: 'invoke' },
           { key: 'create_sample_document', label: text('Sample Case', '生成案例'), icon: 'ri-dashboard-3-line', actionType: 'invoke' },
@@ -312,6 +313,14 @@ export class PencilViewProvider implements IXpertViewExtensionProvider {
       const scope = scopeFromContext(context)
       if (actionKey === 'refresh') {
         return success('Pencil view refreshed', 'Pencil 视图已刷新')
+      }
+      if (actionKey === 'open_document') {
+        const documentId = requireDocumentId(request)
+        const [detail, collab] = await Promise.all([
+          this.service.getDocument(scope, { documentId, includeSnapshot: false, includeLogs: true }),
+          this.service.createCollaborationSession(scope, documentId)
+        ])
+        return { ...success('Pencil document opened', 'Pencil 文档已打开'), refresh: false, data: { ...detail, collab } }
       }
       if (actionKey === 'create_document') {
         const result = await this.service.createDocument(scope, {
@@ -488,6 +497,7 @@ function scopeFromContext(context: XpertResolvedViewHostContext): PencilScope {
     workspaceId: context.workspaceId ?? null,
     projectId: getProjectId(context),
     userId: context.userId,
+    xpertId: context.hostType === 'agent' ? context.hostId : null,
     assistantId: context.hostType === 'agent' ? context.hostId : null
   }
 }
