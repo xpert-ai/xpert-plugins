@@ -104,7 +104,8 @@ export class PresentationCatalogService {
     if (!layouts.length || layouts.length > 8) {
       throw new BadRequestException('Inspect between 1 and 8 presentation layouts at a time.')
     }
-    return this.runJson('scripts/inspect-layout.mjs', ['--compact', ...layouts])
+    const inspection = await this.runJson('scripts/inspect-layout.mjs', ['--compact', ...layouts])
+    return annotateLayoutInspection(inspection)
   }
 
   async loadNativeThemeRuntime(themePack: PresentationThemePack) {
@@ -140,7 +141,7 @@ export class PresentationCatalogService {
       }
       const result: unknown = JSON.parse(stdout)
       if (!isJsonObject(result)) throw new Error('DashiAI props validator returned a non-object JSON value.')
-      const errors = stringArray(result.errors)
+      const errors = compactValidationErrors(stringArray(result.errors))
       if (errors.length) throw new BadRequestException(errors.join('; '))
       return { warnings: stringArray(result.warnings) }
     } catch (error) {
@@ -262,4 +263,51 @@ function commandStdout(error: unknown) {
 
 function stringArray(value: PresentationJsonValue | undefined) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function annotateLayoutInspection(inspection: PresentationJsonObject): PresentationJsonObject {
+  const layouts = Array.isArray(inspection.layouts)
+    ? inspection.layouts.map((layout) => isJsonObject(layout) ? annotateSingleLayoutInspection(layout) : layout)
+    : undefined
+  return {
+    inspectionLimits: {
+      maximumLayoutsPerCall: 8,
+      batchingRule: 'When more than 8 layouts are selected, call presentation_inspect_layouts repeatedly with batches of at most 8.'
+    },
+    ...(layouts ? { ...inspection, layouts } : annotateSingleLayoutInspection(inspection))
+  }
+}
+
+function annotateSingleLayoutInspection(inspection: PresentationJsonObject): PresentationJsonObject {
+  const propShapes = isJsonObject(inspection.propShapes) ? inspection.propShapes : {}
+  const arrayItemContracts: PresentationJsonObject = {}
+  for (const [key, shape] of Object.entries(propShapes)) {
+    const itemShape = Array.isArray(shape) && isJsonObject(shape[0]) ? shape[0] : null
+    if (!itemShape) continue
+    const allowedKeys = Object.keys(itemShape)
+    arrayItemContracts[key] = {
+      allowedKeys,
+      allowedPaths: allowedKeys.map((itemKey) => `${key}[].${itemKey}`),
+      itemShape
+    }
+  }
+  const { layout, ...rest } = inspection
+  return {
+    ...(typeof layout === 'string' ? { layout } : {}),
+    authoringContract: {
+      strictArrayItems: true,
+      arrayItemContracts,
+      rules: [
+        'Use each array itemShape exactly and do not add inferred nested keys.',
+        'Top-level copy fields remain top-level props; they are not valid inside array items unless listed in allowedKeys.',
+        'Before presentation_add_slide, compare every authored array item with its allowedKeys.'
+      ]
+    },
+    ...rest
+  }
+}
+
+function compactValidationErrors(errors: string[]) {
+  const unique = [...new Set(errors)]
+  return unique.filter((error) => !unique.some((candidate) => candidate !== error && error.includes(candidate)))
 }

@@ -105,6 +105,7 @@ import { executeAction, executeFileAction, invokeClientCommand, isObject, notify
 import { unwrapRemoteResponse } from './response-data'
 import { installDashiRuntimeBridge, loadNativeThemeRuntime, type LoadedNativeRuntime } from './native-runtime'
 import { NativeSlideSurface } from './native-slide-surface'
+import { normalizePresentationToolEvent } from './tool-event-refresh'
 import type {
   AssetPreview,
   AssetSummary,
@@ -210,6 +211,7 @@ function App() {
   const docRef = React.useRef<Y.Doc | null>(null)
   const undoRef = React.useRef<Y.UndoManager | null>(null)
   const selectedRef = React.useRef<string | null>(null)
+  const decksRef = React.useRef<DeckSummary[]>([])
   const detailRef = React.useRef<DeckDetail | null>(null)
   const hostEventRef = React.useRef<(event: JsonObject) => void>(() => undefined)
   const localUpdateCountRef = React.useRef(0)
@@ -220,10 +222,13 @@ function App() {
   const controlTimersRef = React.useRef(new Map<string, number>())
   const autoOpenAttemptedRef = React.useRef(false)
   const pendingActiveSlideIdRef = React.useRef<string | null>(null)
+  const knownServerSlideIdsRef = React.useRef(new Set<string>())
+  const processedHostEventKeysRef = React.useRef<string[]>([])
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const t = React.useMemo(() => translator(context.locale), [context.locale])
 
   React.useEffect(() => { selectedRef.current = selectedId }, [selectedId])
+  React.useEffect(() => { decksRef.current = decks }, [decks])
   React.useEffect(() => { detailRef.current = detail }, [detail])
   React.useEffect(() => persistPanelCollapsed('left', leftCollapsed), [leftCollapsed])
   React.useEffect(() => persistPanelCollapsed('right', rightCollapsed), [rightCollapsed])
@@ -236,6 +241,7 @@ function App() {
     const table = isObject(object.table) ? object.table : undefined
     const items = Array.isArray(table?.items) ? table.items : Array.isArray(object.items) ? object.items : []
     const next = items.map(toDeckSummary).filter((item): item is DeckSummary => item !== null)
+    decksRef.current = next
     setDecks(next)
     return next
   }, [])
@@ -348,6 +354,7 @@ function App() {
       const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [] }
       setSelectedId(deckId)
       setDetail(nextDetail)
+      knownServerSlideIdsRef.current = new Set(deckDetailSlideIds(nextDetail))
       pendingActiveSlideIdRef.current = null
       setActiveSlideId(null)
       setAssetPreviews({})
@@ -408,23 +415,31 @@ function App() {
 
   React.useEffect(() => {
     hostEventRef.current = (event) => {
-      const targetDeckId = hostEventDeckId(event)
-      const toolName = hostEventToolName(event)
-      const slideId = hostEventSlideId(event)
+      const normalized = normalizePresentationToolEvent(event)
+      if (!normalized || !rememberHostEvent(processedHostEventKeysRef.current, normalized.eventKey)) return
       void (async () => {
-        await loadDecks()
-        if (!targetDeckId) return
-        if (toolName === 'presentation_create_deck' && targetDeckId !== selectedRef.current) {
-          await openDeck(targetDeckId)
+        const previousDeckIds = new Set(decksRef.current.map((item) => item.deckId))
+        const previousSlideIds = new Set(knownServerSlideIdsRef.current)
+        const items = await loadDecks()
+        let targetDeckId = normalized.deckId
+
+        if (normalized.toolName === 'presentation_create_deck') {
+          targetDeckId ??= items.filter((item) => !previousDeckIds.has(item.deckId)).map((item) => item.deckId).at(-1)
+          if (targetDeckId && targetDeckId !== selectedRef.current) await openDeck(targetDeckId)
           return
         }
+        if (!targetDeckId) return
         if (targetDeckId !== selectedRef.current) return
-        await refreshDetail(targetDeckId)
-        if (toolName === 'presentation_add_slide' && slideId) {
+        const nextDetail = await refreshDetail(targetDeckId)
+        const nextSlideIds = deckDetailSlideIds(nextDetail)
+        knownServerSlideIdsRef.current = new Set(nextSlideIds)
+        if (normalized.toolName === 'presentation_add_slide') {
+          const slideId = normalized.slideId ?? nextSlideIds.filter((item) => !previousSlideIds.has(item)).at(-1)
+          if (!slideId) return
           pendingActiveSlideIdRef.current = slideId
           setActiveSlideId(slideId)
         }
-      })().catch((caught) => debug.warn('host-event-refresh-failed', { message: messageOf(caught), toolName: toolName ?? null }))
+      })().catch((caught) => debug.warn('host-event-refresh-failed', { message: messageOf(caught), toolName: normalized.toolName }))
     }
   }, [loadDecks, openDeck, refreshDetail])
 
@@ -850,9 +865,17 @@ function App() {
         </div>
         <Button variant="ghost" size="icon" disabled={!undoRef.current?.canUndo()} onClick={() => undoRef.current?.undo()} title={t('undo')}><Undo2 /></Button>
         <Button variant="ghost" size="icon" disabled={!undoRef.current?.canRedo()} onClick={() => undoRef.current?.redo()} title={t('redo')}><Redo2 /></Button>
-        <Button variant="outline" onClick={() => setShowCreate(true)}><Plus />{t('newDeck')}</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" title={t('deckActions')}><Plus /><span>{t('deckActions')}</span><ChevronDown /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowCreate(true)}><Plus />{t('newDeck')}</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!detail || busy} onClick={() => void saveVersion()}><Save />{t('saveVersion')}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" disabled={!activeSlide} onClick={() => void startPresenting()}><Play />{t('play')}</Button>
-        <Button disabled={!detail || busy} onClick={() => void saveVersion()}><Save />{t('saveVersion')}</Button>
         <ExportSharePopover
           item={latestHtmlExport}
           onShare={shareExport}
@@ -1487,35 +1510,18 @@ function stringRecord(value: JsonObject) { return Object.fromEntries(Object.entr
 function objectRecord(value: JsonObject) { return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, JsonObject] => isObject(entry[1]))) }
 function messageOf(error: unknown) { return error instanceof Error ? error.message : String(error ?? 'Operation failed') }
 
-function hostEventDeckId(value: JsonObject) { return findFirstStringByKeys(value, new Set(['deckId', 'deck_id']), 0) }
-function hostEventSlideId(value: JsonObject) { return findFirstStringByKeys(value, new Set(['slideId', 'slide_id']), 0) }
-function hostEventToolName(value: JsonObject) { return findFirstStringByKeys(value, new Set(['toolName', 'tool_name', 'name']), 0) }
-function findFirstStringByKeys(value: JsonValue, keys: Set<string>, depth: number): string | undefined {
-  if (depth > 6) return undefined
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return undefined
-    try { return findFirstStringByKeys(JSON.parse(trimmed) as JsonValue, keys, depth + 1) } catch { return undefined }
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findFirstStringByKeys(item, keys, depth + 1)
-      if (found) return found
-    }
-    return undefined
-  }
-  if (!isObject(value)) return undefined
-  for (const key of keys) {
-    const item = value[key]
-    if (typeof item === 'string' && item.trim()) return item.trim()
-  }
-  for (const key of ['event', 'payload', 'data', 'input', 'args', 'arguments', 'output', 'result', 'target', 'item', 'content', 'tool', 'toolCall', 'tool_call']) {
-    const nested = value[key]
-    if (nested === undefined) continue
-    const found = findFirstStringByKeys(nested, keys, depth + 1)
-    if (found) return found
-  }
-  return undefined
+function deckDetailSlideIds(value: DeckDetail | null | undefined) {
+  const slides = value?.item.deckSpec?.slides
+  if (!Array.isArray(slides)) return []
+  return slides.flatMap((slide) => isObject(slide) && typeof slide.id === 'string' ? [slide.id] : [])
+}
+
+function rememberHostEvent(keys: string[], key?: string) {
+  if (!key) return true
+  if (keys.includes(key)) return false
+  keys.push(key)
+  if (keys.length > 200) keys.splice(0, keys.length - 200)
+  return true
 }
 
 function removeControlDraft(drafts: Record<string, Record<string, JsonValue>>, slideId: string, key: string) {

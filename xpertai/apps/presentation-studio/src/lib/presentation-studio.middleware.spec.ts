@@ -1,6 +1,13 @@
+import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { PresentationStudioMiddleware } from './presentation-studio.middleware.js'
 
+jest.mock('@langchain/core/callbacks/dispatch', () => ({ dispatchCustomEvent: jest.fn().mockResolvedValue(undefined) }))
+
+const mockedDispatchCustomEvent = jest.mocked(dispatchCustomEvent)
+
 describe('PresentationStudioMiddleware agent awareness', () => {
+  beforeEach(() => mockedDispatchCustomEvent.mockReset().mockResolvedValue(undefined))
+
   async function createHarness(options: { currentContext?: Record<string, unknown> | null } = {}) {
     const actor = { presenceId: 'agent_abc', displayName: 'Deck Agent', color: '#7c3aed', actorType: 'agent' as const, avatarUrl: null }
     const service = {
@@ -148,5 +155,94 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       slideId: 'slide-1',
       focus: { kind: 'slide' }
     }))
+  })
+
+  it('describes layout inspection as a read-only planning tool', async () => {
+    const { agentMiddleware } = await createHarness()
+    const inspectTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_inspect_layouts')
+    const addSlideTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_add_slide')
+
+    expect(inspectTool?.description).toContain('read-only planning tool')
+    expect(inspectTool?.description).toContain('HARD LIMIT')
+    expect(inspectTool?.description).toContain('sequential batches of at most 8')
+    expect(addSlideTool?.description).toContain('array items may contain only allowedKeys')
+  })
+
+  it('dispatches changeSummary as running and successful tool timeline messages', async () => {
+    const { agentMiddleware } = await createHarness()
+
+    await agentMiddleware.wrapToolCall?.({
+      toolCall: {
+        id: 'tool-call-1',
+        name: 'presentation_add_slide',
+        args: { deckId: 'deck-1', layout: 'theme01_page001', props: {}, changeSummary: '添加市场概览页' }
+      },
+      tool: {} as never,
+      state: {} as never,
+      runtime: { metadata: { toolName: 'Add slide', toolset: 'Presentation Studio' } } as never
+    } as never, async () => ({ content: '{"deckId":"deck-1","slideId":"slide-2"}' }) as never)
+
+    expect(mockedDispatchCustomEvent).toHaveBeenCalledTimes(2)
+    expect(mockedDispatchCustomEvent).toHaveBeenNthCalledWith(1, expect.any(String), expect.objectContaining({
+      id: 'tool-call-1',
+      tool: 'presentation_add_slide',
+      title: 'Add slide',
+      message: '添加市场概览页',
+      status: 'running'
+    }))
+    expect(mockedDispatchCustomEvent).toHaveBeenNthCalledWith(2, expect.any(String), expect.objectContaining({
+      message: '添加市场概览页',
+      status: 'success',
+      output: '{"deckId":"deck-1","slideId":"slide-2"}'
+    }))
+  })
+
+  it('dispatches failed changeSummary events and preserves the tool error', async () => {
+    const { agentMiddleware } = await createHarness()
+
+    await expect(agentMiddleware.wrapToolCall?.({
+      toolCall: {
+        id: 'tool-call-2',
+        name: 'presentation_patch_slide',
+        args: { deckId: 'deck-1', slideId: 'slide-1', changeSummary: '更新标题' }
+      },
+      tool: {} as never,
+      state: {} as never,
+      runtime: {} as never
+    } as never, async () => { throw new Error('patch failed') })).rejects.toThrow('patch failed')
+
+    expect(mockedDispatchCustomEvent).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({
+      message: '更新标题',
+      status: 'fail',
+      error: 'patch failed'
+    }))
+  })
+
+  it('does not dispatch a timeline event without changeSummary', async () => {
+    const { agentMiddleware } = await createHarness()
+
+    await agentMiddleware.wrapToolCall?.({
+      toolCall: { name: 'presentation_add_slide', args: { deckId: 'deck-1' } },
+      tool: {} as never,
+      state: {} as never,
+      runtime: {} as never
+    } as never, async () => ({ content: 'ok' }) as never)
+
+    expect(mockedDispatchCustomEvent).not.toHaveBeenCalled()
+  })
+
+  it('keeps mutations successful when timeline dispatch fails', async () => {
+    mockedDispatchCustomEvent.mockRejectedValueOnce(new Error('timeline unavailable'))
+    const { agentMiddleware } = await createHarness()
+
+    await expect(agentMiddleware.wrapToolCall?.({
+      toolCall: {
+        name: 'presentation_add_slide',
+        args: { deckId: 'deck-1', changeSummary: '添加页面' }
+      },
+      tool: {} as never,
+      state: {} as never,
+      runtime: {} as never
+    } as never, async () => ({ content: 'ok' }) as never)).resolves.toEqual({ content: 'ok' })
   })
 })

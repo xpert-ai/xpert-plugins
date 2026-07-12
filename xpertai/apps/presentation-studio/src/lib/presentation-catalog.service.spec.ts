@@ -21,6 +21,22 @@ describe('Presentation catalog', () => {
     expect(inspected.layout).toBe(first)
   })
 
+  it('exposes strict array-item authoring contracts for inspected layouts', async () => {
+    const inspected = await service.inspectLayouts(['theme01_page013'])
+
+    expect(inspected.inspectionLimits).toEqual(expect.objectContaining({ maximumLayoutsPerCall: 8 }))
+    expect(inspected.authoringContract).toEqual(expect.objectContaining({
+      strictArrayItems: true,
+      arrayItemContracts: {
+        topics: {
+          allowedKeys: ['label'],
+          allowedPaths: ['topics[].label'],
+          itemShape: { label: 'string' }
+        }
+      }
+    }))
+  })
+
   it('strictly validates authored props while accepting portable asset references', async () => {
     await expect(service.validateLayoutProps('theme01_page001', {
       titleTop: 'Agentic',
@@ -38,6 +54,29 @@ describe('Presentation catalog', () => {
     await expect(service.validateLayoutProps('theme04_page057', {
       images: ['../../secret.png'], slotLabels: ['unsafe'], mediaCount: 1
     })).rejects.toThrow('media source')
+  })
+
+  it('accepts the inspected topic item shape and reports mismatches without duplicate wrappers', async () => {
+    await expect(service.validateLayoutProps('theme01_page013', {
+      topics: [
+        { label: '图纸解析' },
+        { label: '物料识别' },
+        { label: 'BOM 生成' }
+      ],
+      topicCount: 3
+    })).resolves.toEqual({ warnings: [] })
+
+    await expect(service.validateLayoutProps('theme01_page013', {
+      topics: [{ label: '图纸解析', desc: 'unknown nested field', en: 'Drawing parsing' }],
+      topicCount: 1
+    })).rejects.toThrow('props.topics[0].desc: unknown nested prop; expected label')
+
+    await service.validateLayoutProps('theme01_page013', {
+      topics: [{ label: '图纸解析', desc: 'unknown nested field' }],
+      topicCount: 1
+    }).catch((error: Error) => {
+      expect(error.message).not.toContain('slide 1 layout theme01_page013 field props')
+    })
   })
 
   it('loads one verified native theme runtime and inlines its local assets', async () => {

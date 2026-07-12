@@ -84,7 +84,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         subscriptions: [{
           key: 'presentation-studio-tool-completed', event: 'assistant.tool.completed',
           filter: { sources: ['chatkit'], toolNames: [...PRESENTATION_MUTATION_TOOL_NAMES] },
-          action: { type: 'forward', debounceMs: 750 }
+          action: { type: 'forward' }
         }]
       },
       clientCommands: [{
