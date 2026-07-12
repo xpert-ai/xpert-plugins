@@ -1,10 +1,10 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import type { SitesShareLinkStatus } from '../types.js'
+import type { SitesAccessMode, SitesDeploymentStatus } from '../types.js'
 
-@Entity('plugin_sites_share_link')
+@Entity('plugin_sites_deployment')
 @Index(['tenantId', 'organizationId', 'assistantId', 'projectId'])
-@Index(['tenantId', 'organizationId', 'deploymentId'])
-export class SitesShareLink {
+@Index(['tenantId', 'organizationId', 'deploymentUrl'])
+export class SitesDeployment {
   @PrimaryGeneratedColumn('uuid')
   id?: string
 
@@ -34,36 +34,35 @@ export class SitesShareLink {
   @Column({ type: 'varchar' })
   versionId?: string
 
-  @Index()
   @Column({ type: 'varchar' })
-  deploymentId?: string
-
-  @Column({ type: 'varchar' })
-  tokenHash?: string
+  deploymentUrl?: string
 
   @Column({ type: 'varchar', nullable: true })
-  label?: string
-
-  @Column({ type: 'varchar', default: 'active' })
-  status?: SitesShareLinkStatus
-
-  @Column({ type: 'timestamptz', nullable: true })
-  expiresAt?: Date | null
-
-  @Column({ type: 'int', default: 0 })
-  accessCount?: number
-
-  @Column({ type: 'timestamptz', nullable: true })
-  lastAccessedAt?: Date | null
+  artifactId?: string | null
 
   @Column({ type: 'varchar', nullable: true })
-  revokedById?: string
+  artifactVersionId?: string | null
+
+  @Column({ type: 'varchar', nullable: true })
+  artifactLinkId?: string | null
+
+  @Column({ type: 'varchar', default: 'deployed' })
+  status?: SitesDeploymentStatus
+
+  @Column({ type: 'varchar', default: 'admins_only' })
+  accessMode?: SitesAccessMode
+
+  @Column({ type: 'jsonb', nullable: true })
+  customAudience?: string[]
+
+  @Column({ type: 'varchar', nullable: true })
+  environmentFingerprint?: string
 
   @Column({ type: 'timestamptz', nullable: true })
-  revokedAt?: Date | null
+  deployedAt?: Date
 
   @Column({ type: 'text', nullable: true })
-  revokedReason?: string
+  errorMessage?: string
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt?: Date
