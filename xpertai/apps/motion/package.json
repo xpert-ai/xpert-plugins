@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-motion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Motion app plugin for agent-generated animated HTML, launch video compositions, motion recipe routing, reviewable versions, and exportable artifacts.",
   "author": {
     "name": "XpertAI",
