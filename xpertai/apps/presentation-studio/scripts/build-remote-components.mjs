@@ -8,7 +8,6 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
 const shadcnUiSourceEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'dist', 'index.js')
-const pluginSdkSourceEntry = join(workspaceRoot, '..', 'xpert', 'packages', 'plugin-sdk', 'src', 'lib', 'collaboration', 'client.ts')
 const componentName = 'presentation-studio-workbench'
 const sourceExtensions = new Set(['.ts', '.tsx'])
 
@@ -55,7 +54,6 @@ function localWorkspacePackagesPlugin() {
     name: 'xpert-local-workspace-packages',
     setup(api) {
       api.onResolve({ filter: /^@xpert-ai\/plugin-shadcn-ui$/ }, () => ({ path: shadcnUiSourceEntry }))
-      api.onResolve({ filter: /^@xpert-ai\/plugin-sdk$/ }, () => ({ path: pluginSdkSourceEntry }))
     }
   }
 }
@@ -67,7 +65,7 @@ if (!existsSync(entryPoint)) throw new Error(`Missing remote component entry: ${
 await validateSources(sourceDir)
 const result = await build({
   entryPoints: [entryPoint], bundle: true, format: 'iife', platform: 'browser', target: ['es2020'],
-  conditions: ['@xpert-plugins-starter/source', 'production'], outdir: componentDir, entryNames: 'app', write: false,
+  conditions: ['@xpert-plugins-starter/source', 'production', 'module'], outdir: componentDir, entryNames: 'app', write: false,
   logLevel: 'silent', legalComments: 'none', minify: true, jsxFactory: 'h', jsxFragment: 'React.Fragment',
   loader: { '.css': 'css', '.woff2': 'dataurl' }, plugins: [localWorkspacePackagesPlugin(), reactShimPlugin(sourceDir)],
   banner: { js: ';' }, define: { 'process.env.NODE_ENV': '"production"', 'process.env.IS_PREACT': '"false"' }

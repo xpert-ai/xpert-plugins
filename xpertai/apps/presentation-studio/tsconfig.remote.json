@@ -11,11 +11,7 @@
     "declarationMap": false,
     "emitDeclarationOnly": false,
     "strictNullChecks": true,
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@xpert-ai/plugin-sdk": ["../../../../xpert/packages/plugin-sdk/dist/index.d.ts"]
-    }
+    "noEmit": true
   },
   "include": ["src/lib/remote-components/presentation-studio-workbench/src/**/*.ts", "src/lib/remote-components/presentation-studio-workbench/src/**/*.tsx"],
   "exclude": ["dist", "node_modules"]
