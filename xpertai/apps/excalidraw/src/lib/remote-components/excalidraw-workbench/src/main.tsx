@@ -68,7 +68,7 @@ import {
   type CollaborationPresenceStore,
   type CollaborationSessionDescriptor,
   type ICollaborationPresence
-} from '@xpert-ai/plugin-sdk'
+} from '@xpert-ai/plugin-sdk/collaboration-client'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'

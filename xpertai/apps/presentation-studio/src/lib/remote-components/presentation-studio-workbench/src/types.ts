@@ -1,5 +1,5 @@
 import type { ICollaborationActor, ICollaborationPresence } from '@xpert-ai/contracts'
-import type { CollaborationSessionDescriptor } from '@xpert-ai/plugin-sdk'
+import type { CollaborationSessionDescriptor } from '@xpert-ai/plugin-sdk/collaboration-client'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[]

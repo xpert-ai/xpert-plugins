@@ -7,7 +7,7 @@ import {
   type CollaborationPresencePatch,
   type CollaborationPresenceStoreSnapshot,
   type CollaborationSessionDescriptor
-} from '@xpert-ai/plugin-sdk'
+} from '@xpert-ai/plugin-sdk/collaboration-client'
 import type { ICollaborationPresence } from '@xpert-ai/contracts'
 import { io, type Socket } from 'socket.io-client'
 import * as Y from 'yjs'

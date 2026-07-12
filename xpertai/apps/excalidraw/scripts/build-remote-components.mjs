@@ -8,7 +8,6 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const artifactViewerRoot = join(packageRoot, 'src', 'lib', 'artifact-viewer')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
-const pluginSdkCollaborationClientEntry = join(workspaceRoot, '..', 'xpert', 'packages', 'plugin-sdk', 'src', 'lib', 'collaboration', 'client.ts')
 const componentNames = ['excalidraw-workbench']
 const sourceExtensions = new Set(['.ts', '.tsx'])
 
@@ -64,15 +63,6 @@ function reactShimPlugin(componentName) {
   }
 }
 
-function localWorkspacePackagesPlugin() {
-  return {
-    name: 'xpert-local-workspace-packages',
-    setup(buildApi) {
-      buildApi.onResolve({ filter: /^@xpert-ai\/plugin-sdk$/ }, () => ({ path: pluginSdkCollaborationClientEntry }))
-    }
-  }
-}
-
 function workspaceCssDependenciesPlugin() {
   const shadcnNodeModules = join(workspaceRoot, 'packages', 'shadcn-ui', 'node_modules')
   const paths = new Map([
@@ -106,7 +96,7 @@ async function bundleComponent(componentName) {
     format: 'iife',
     platform: 'browser',
     target: ['es2020'],
-    conditions: ['@xpert-plugins-starter/source', 'production'],
+    conditions: ['@xpert-plugins-starter/source', 'production', 'module'],
     outdir: componentDir,
     entryNames: 'app',
     assetNames: 'assets/[name]-[hash]',
@@ -119,7 +109,7 @@ async function bundleComponent(componentName) {
     loader: {
       '.woff2': 'dataurl'
     },
-    plugins: [localWorkspacePackagesPlugin(), workspaceCssDependenciesPlugin(), reactShimPlugin(componentName)],
+    plugins: [workspaceCssDependenciesPlugin(), reactShimPlugin(componentName)],
     banner: {
       js: ';'
     },

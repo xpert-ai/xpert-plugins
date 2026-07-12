@@ -97,7 +97,7 @@ import {
   createYjsDocumentAdapter,
   type CollaborationClient,
   type CollaborationPresenceStore
-} from '@xpert-ai/plugin-sdk'
+} from '@xpert-ai/plugin-sdk/collaboration-client'
 import './styles.css'
 import { debug, setDebugDefault } from './debug-logger'
 import { translator } from './i18n'
