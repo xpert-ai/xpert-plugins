@@ -1,0 +1,72 @@
+const dictionary = {
+  en: {
+    title: 'Presentation Studio', newDeck: 'New deck', refresh: 'Refresh', goal: 'Goal', theme: 'Theme', pages: 'Pages', create: 'Create',
+    saveVersion: 'Save version', upload: 'Upload media', exportHtml: 'Export HTML', exportPdf: 'Export PDF', exportPptx: 'Export PPTX',
+    versions: 'Versions', exports: 'Exports', assets: 'Assets', noDeck: 'Create or select a deck to begin.', collaboration: 'Collaboration',
+    connected: 'Connected', connecting: 'Connecting', disconnected: 'Disconnected', loading: 'Loading preview…', restore: 'Restore', open: 'Open',
+    draft: 'Draft', error: 'Operation failed', rename: 'Rename', archive: 'Archive', markReviewed: 'Mark reviewed', cancel: 'Cancel', renamePrompt: 'New presentation title', unsaved: 'Unsaved changes', collaborators: 'collaborators',
+    exportQueued: 'export queued', exportStatusQueued: 'Queued', exportStatusRunning: 'Running', exportStatusSucceeded: 'Succeeded',
+    exportStatusFailed: 'Failed', exportStatusCancelled: 'Cancelled', exportStatusUnknown: 'Unknown', download: 'Download',
+    share: 'Share', shareHtml: 'Share HTML', copyLink: 'Copy link', copied: 'Copied', shareLinkCopied: 'Share link copied.',
+    shareLinkReady: 'Share link is ready.', shareUnavailable: 'Export HTML first to share this presentation.',
+    alwaysShareLatest: 'Always share latest version', sharingLatestVersion: 'Sharing latest HTML export',
+    sharingThisVersion: 'Sharing this HTML export', anyoneWithLink: 'Anyone with the link', everyoneInOrganization: 'Everyone in this organization',
+    publicLinkNotice: 'Creates a public Artifact link for the self-contained HTML export.',
+    shareWillExportHtml: 'If no completed HTML export exists, Presentation Studio will export HTML first, then create the Artifact link.',
+    sharePreparingExport: 'Preparing an HTML export before sharing…',
+    shareStillPreparing: 'HTML export is still running. Please open the export panel and try copying again in a moment.',
+    downloadStarted: 'Export completed. Download started.', downloadUnavailable: 'Export completed, but its download URL is unavailable.',
+    previewUnavailable: 'The preview response did not include rendered HTML. Please refresh and try again.',
+    syncDeferred: 'Collaboration is disconnected; incremental server updates are deferred to protect local edits.',
+    decks: 'Decks', inspector: 'Inspector', showDeckPanel: 'Show deck panel', hideDeckPanel: 'Hide deck panel',
+    showInspector: 'Show inspector', hideInspector: 'Hide inspector', play: 'Present', export: 'Export', slides: 'Slides',
+    loadingRuntime: 'Loading theme runtime…', presentationConsole: 'Presentation console', waitingForSlides: 'Waiting for the Agent to add slides',
+    design: 'Design', chooseAsset: 'Choose asset', assetDialogDescription: 'The portable reference is synchronized; file bytes remain in Workspace Files.',
+    exit: 'Exit', duplicate: 'Duplicate', skip: 'Skip', unskip: 'Unskip', delete: 'Delete', versionDeleted: 'Version deleted.', exportDeleted: 'Export record deleted.',
+    selectSlideForDesign: 'Select a slide to edit its design.',
+    assetReferenceHelp: 'The asset reference is written to the collaborative document.', you: 'You', undo: 'Undo', redo: 'Redo',
+    agent: 'Agent', agentThinking: 'Thinking', agentEditing: 'Editing', agentDone: 'Done', agentFailed: 'Failed',
+    opCreateDeck: 'Creating presentation', opSearchDecks: 'Searching presentations', opGetDeck: 'Reading presentation',
+    opSearchLayouts: 'Searching layouts', opInspectLayouts: 'Inspecting layouts',
+    opAddSlide: 'Adding slide', opPatchSlide: 'Editing slide', opReorderSlides: 'Reordering slides', opAddAsset: 'Adding media',
+    opFinalizeDeck: 'Saving version', opRequestExport: 'Requesting export', opGetExport: 'Checking export', opUpdateStatus: 'Updating status'
+  },
+  zh: {
+    title: '演示文稿工作室', newDeck: '新建演示稿', refresh: '刷新', goal: '目标', theme: '主题', pages: '页数', create: '创建',
+    saveVersion: '保存版本', upload: '上传媒体', exportHtml: '导出 HTML', exportPdf: '导出 PDF', exportPptx: '导出 PPTX',
+    versions: '版本', exports: '导出', assets: '素材', noDeck: '新建或选择一个演示稿开始编辑。', collaboration: '协作',
+    connected: '已连接', connecting: '连接中', disconnected: '未连接', loading: '正在生成预览…', restore: '恢复', open: '打开',
+    draft: '草稿', error: '操作失败', rename: '重命名', archive: '归档', markReviewed: '标记已审阅', cancel: '取消', renamePrompt: '新的演示稿标题', unsaved: '有未保存更改', collaborators: '位协作者',
+    exportQueued: '已加入导出队列', exportStatusQueued: '排队中', exportStatusRunning: '导出中', exportStatusSucceeded: '已完成',
+    exportStatusFailed: '已失败', exportStatusCancelled: '已取消', exportStatusUnknown: '未知', download: '下载',
+    share: '分享', shareHtml: '分享 HTML', copyLink: '复制链接', copied: '已复制', shareLinkCopied: '分享链接已复制。',
+    shareLinkReady: '分享链接已创建。', shareUnavailable: '请先导出 HTML，再分享这份演示文稿。',
+    alwaysShareLatest: '始终分享最新版本', sharingLatestVersion: '正在分享最新 HTML 导出',
+    sharingThisVersion: '正在分享当前 HTML 导出', anyoneWithLink: '任何拥有链接的人', everyoneInOrganization: '当前组织的所有人',
+    publicLinkNotice: '将为自包含 HTML 导出创建公开 Artifact 链接。',
+    shareWillExportHtml: '如果还没有已完成的 HTML 导出，Presentation Studio 会先在后端导出 HTML，再创建 Artifact 链接。',
+    sharePreparingExport: '正在先准备 HTML 导出，然后生成分享链接…',
+    shareStillPreparing: 'HTML 导出仍在处理中，请稍后在导出面板再次复制链接。',
+    downloadStarted: '导出已完成，开始下载。', downloadUnavailable: '导出已完成，但暂无可用的下载地址。',
+    previewUnavailable: '预览响应未包含渲染后的 HTML，请刷新后重试。',
+    syncDeferred: '协作连接已断开；为保护本地编辑，服务器增量更新已暂缓应用。',
+    decks: '演示稿', inspector: '检查器', showDeckPanel: '展开演示稿面板', hideDeckPanel: '收起演示稿面板',
+    showInspector: '展开检查器', hideInspector: '收起检查器', play: '播放', export: '导出', slides: '幻灯片',
+    loadingRuntime: '正在加载主题 Runtime…', presentationConsole: '演示控制台', waitingForSlides: '等待智能体添加幻灯片',
+    design: '设计', chooseAsset: '选择素材', assetDialogDescription: '只同步可移植素材引用，文件内容仍保存在 Workspace Files。',
+    exit: '退出', duplicate: '复制', skip: '跳过', unskip: '取消跳过', delete: '删除', versionDeleted: '版本已删除。', exportDeleted: '导出记录已删除。',
+    selectSlideForDesign: '选择一张幻灯片查看设计属性。',
+    assetReferenceHelp: '素材引用将写入协作文档。', you: '你', undo: '撤销', redo: '重做',
+    agent: '智能体', agentThinking: '思考中', agentEditing: '编辑中', agentDone: '已完成', agentFailed: '失败',
+    opCreateDeck: '正在创建演示稿', opSearchDecks: '正在搜索演示稿', opGetDeck: '正在读取演示稿',
+    opSearchLayouts: '正在搜索版式', opInspectLayouts: '正在检查版式',
+    opAddSlide: '正在添加幻灯片', opPatchSlide: '正在编辑幻灯片', opReorderSlides: '正在调整顺序', opAddAsset: '正在添加素材',
+    opFinalizeDeck: '正在保存版本', opRequestExport: '正在请求导出', opGetExport: '正在检查导出', opUpdateStatus: '正在更新状态'
+  }
+} as const
+
+type DictionaryKey = keyof typeof dictionary.en
+export function translator(locale?: string) {
+  const values = locale?.toLowerCase().startsWith('en') ? dictionary.en : dictionary.zh
+  return (key: DictionaryKey) => values[key]
+}
