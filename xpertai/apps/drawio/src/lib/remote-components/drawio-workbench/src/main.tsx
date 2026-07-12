@@ -19,19 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
   Send,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTitle,
-  SidebarTrigger,
   Textarea,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'
@@ -91,8 +83,6 @@ const DRAWIO_MUTATION_TOOL_NAMES = new Set([
   'drawio_update_diagram_status',
   'drawio_report_failure'
 ])
-
-installShadcnThemeVars({ styleId: 'drawio-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {
@@ -616,7 +606,7 @@ function App() {
               <SidebarMenu>
                 {drawings.map((drawing) => (
                   <SidebarMenuItem key={drawing.id}>
-                    <SidebarMenuButton type="button" active={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
+                    <SidebarMenuButton type="button" isActive={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
                       <span className="dw-item-title">{drawing.title || t('untitled')}</span>
                       <span className="dw-item-meta">v{drawing.currentVersionNumber || 0} · {t((drawing.status || 'draft') as TranslationKey)}</span>
                     </SidebarMenuButton>
@@ -654,7 +644,7 @@ function App() {
               <FileJson className="dw-button-icon" aria-hidden="true" />
               {t('exportXml')}
             </Button>
-            <Badge className="dw-status" variant={dirty ? 'warning' : 'secondary'}>{dirty ? t('dirty') : t('saved')}</Badge>
+            <Badge className="dw-status" variant={dirty ? 'outline' : 'secondary'} data-status={dirty ? 'warning' : undefined}>{dirty ? t('dirty') : t('saved')}</Badge>
             <Badge variant={editorReady ? 'secondary' : 'outline'}>{editorReady ? t('editorReady') : t('editorLoading')}</Badge>
           </div>
           <input
@@ -695,7 +685,7 @@ function App() {
                     {t('markReviewed')}
                   </Button>
                 )}
-                <Button type="button" variant="destructiveOutline" size="sm" disabled={busy || !selectedId || drawingStatus === 'archived'} onClick={archiveDrawing}>
+                <Button type="button" variant="destructive" size="sm" disabled={busy || !selectedId || drawingStatus === 'archived'} onClick={archiveDrawing}>
                   <Archive className="dw-button-icon" aria-hidden="true" />
                   {t('archive')}
                 </Button>

@@ -6,6 +6,12 @@ export const EXCALIDRAW_FEATURE = 'excalidraw'
 export const EXCALIDRAW_AGENT_DRAWING_CAPABILITY = 'agent-drawing'
 export const EXCALIDRAW_WORKBENCH_CAPABILITY = 'diagram-workbench'
 export const EXCALIDRAW_TEMPLATE_CAPABILITY = 'excalidraw-assistant-template'
+export const EXCALIDRAW_ARTIFACT_TEMPLATE_CAPABILITY = 'artifact-template-catalog'
+export const EXCALIDRAW_DIAGRAM_IR_CAPABILITY = 'diagram-ir'
+export const EXCALIDRAW_DIAGRAM_QUALITY_CAPABILITY = 'diagram-quality'
+export const EXCALIDRAW_COLLABORATION_CAPABILITY = 'excalidraw-collaboration'
+export const EXCALIDRAW_ARTIFACT_SHARING_CAPABILITY = 'excalidraw-artifact-sharing'
+export const EXCALIDRAW_COLLABORATION_PROVIDER_KEY = 'excalidraw.drawing'
 export const EXCALIDRAW_WORKBENCH_VIEW_KEY = 'excalidraw_workbench'
 export const EXCALIDRAW_REMOTE_ENTRY_KEY = 'excalidraw-workbench'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
@@ -34,6 +40,23 @@ export const EXCALIDRAW_MIDDLEWARE_TOOL_NAMES = [
   EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
   EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME,
   EXCALIDRAW_REPORT_FAILURE_TOOL_NAME
+] as const
+
+export const EXCALIDRAW_DIAGRAM_ENGINE_TOOL_NAMES = [
+  'excalidraw_template_list',
+  'excalidraw_template_inspect',
+  'excalidraw_template_instantiate',
+  'excalidraw_diagram_create',
+  'excalidraw_diagram_get',
+  'excalidraw_diagram_upsert_group',
+  'excalidraw_diagram_upsert_node',
+  'excalidraw_diagram_upsert_edge',
+  'excalidraw_diagram_remove_items',
+  'excalidraw_diagram_render',
+  'excalidraw_diagram_validate',
+  'excalidraw_diagram_create_preview',
+  'excalidraw_diagram_get_quality_report',
+  'excalidraw_diagram_record_visual_review'
 ] as const
 
 export const EXCALIDRAW_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">

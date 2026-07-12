@@ -86,8 +86,8 @@ import {
   Upload,
   ZoomIn,
   ZoomOut,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { io, type Socket } from 'socket.io-client'
 import * as Y from 'yjs'
 import {
@@ -171,8 +171,6 @@ const NOOP_SELECTION = (_selection: PresenceState['selection'] | null, _focus: P
 const NOOP_POINTER = (_pointer: { x: number; y: number; visible: boolean }) => undefined
 const NOOP_ELEMENT_MOVE = (_key: string, _position: { x: number; y: number }) => undefined
 const NOOP = () => undefined
-
-installShadcnThemeVars({ styleId: 'presentation-studio-shadcn-ui-vars' })
 
 function App() {
   const [context, setContext] = React.useState<RemoteContext>({})
@@ -857,7 +855,7 @@ function App() {
           <SelectTrigger className="ps-deck-switcher"><SelectValue placeholder={t('noDeck')} /></SelectTrigger>
           <SelectContent>{decks.map((deck) => <SelectItem value={deck.deckId} key={deck.deckId}>{deck.title}</SelectItem>)}</SelectContent>
         </Select>
-        <Badge variant={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : 'secondary'}>{t(collabState)}</Badge>
+        <Badge variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : undefined}>{t(collabState)}</Badge>
       </div>
       <div className="ps-topbar-actions">
         <div className="ps-avatar-stack">
@@ -900,7 +898,7 @@ function App() {
     {error ? <div className="ps-error-banner">{error}<Button variant="ghost" size="sm" onClick={() => setError('')}>×</Button></div> : null}
 
     <main className="ps-workspace">
-      <ResizablePanelGroup direction="horizontal">
+      <ResizablePanelGroup orientation="horizontal">
         {!leftCollapsed ? <>
           <ResizablePanel defaultSize={18} minSize={14} maxSize={24} className="ps-panel ps-left-panel">
             <div className="ps-left-panel-shell">
@@ -976,7 +974,7 @@ function App() {
               <div className="ps-inspector-title"><strong>{t('inspector')}</strong><Button variant="ghost" size="icon" onClick={() => setRightCollapsed(true)}><PanelRightClose /></Button></div>
               <TabsList className="ps-inspector-tabs"><TabsTrigger value="design">{t('design')}</TabsTrigger><TabsTrigger value="versions">{t('versions')} <span>{detail?.versions.length ?? 0}</span></TabsTrigger><TabsTrigger value="exports">{t('exports')} <span>{detail?.exports.length ?? 0}</span></TabsTrigger><TabsTrigger value="assets">{t('assets')} <span>{detail?.assets.length ?? 0}</span></TabsTrigger></TabsList>
               <TabsContent value="design" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><DesignInspector layout={activeLayout} props={activeProps} onCommit={commitProp} onSchedule={scheduleProp} onFocusControl={setControlAwareness} onOpenAssets={openAssetPicker} t={t} /></ScrollArea></TabsContent>
-              <TabsContent value="versions" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.versions.map((version) => <Card key={version.id}><CardContent><div className="ps-card-row"><strong>v{version.versionNumber}</strong><Badge variant="secondary">{version.source}</Badge></div><div className="ps-card-actions"><Button variant="outline" size="sm" onClick={() => void restoreVersion(version.id)}>{t('restore')}</Button><Button variant="destructiveOutline" size="sm" onClick={() => void deleteVersion(version.id)}><Trash2 />{t('delete')}</Button></div></CardContent></Card>)}</div></ScrollArea></TabsContent>
+              <TabsContent value="versions" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.versions.map((version) => <Card key={version.id}><CardContent><div className="ps-card-row"><strong>v{version.versionNumber}</strong><Badge variant="secondary">{version.source}</Badge></div><div className="ps-card-actions"><Button variant="outline" size="sm" onClick={() => void restoreVersion(version.id)}>{t('restore')}</Button><Button variant="destructive" size="sm" onClick={() => void deleteVersion(version.id)}><Trash2 />{t('delete')}</Button></div></CardContent></Card>)}</div></ScrollArea></TabsContent>
               <TabsContent value="exports" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.exports.map((item) => <ExportCard item={item} onCancel={() => void cancelExport(item.exportId)} onDelete={() => void deleteExport(item.exportId)} onDownload={() => void triggerExportDownload(item).then((started) => notify(started ? 'success' : 'warning', started ? t('downloadStarted') : t('downloadUnavailable')))} onShare={shareExport} t={t} key={item.exportId} />)}</div></ScrollArea></TabsContent>
               <TabsContent value="assets" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-asset-toolbar"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload />{t('upload')}</Button></div><div className="ps-asset-grid">{detail?.assets.map((asset) => <button onClick={() => void selectAsset(asset)} key={asset.id}><Image /><span>{asset.fileName}</span></button>)}</div></ScrollArea></TabsContent>
             </Tabs>
@@ -1119,7 +1117,7 @@ function ExportSharePopover({ item, trigger, onShare, onShareDeck, t }: {
   }
 
   return <Popover><PopoverTrigger asChild>{trigger}</PopoverTrigger><PopoverContent align="end" className="ps-share-popover">
-    <div className="ps-share-title"><strong>{t('share')}</strong><Badge variant={existingUrl ? 'success' : 'secondary'}>{existingUrl ? t('shareLinkReady') : t('shareHtml')}</Badge></div>
+    <div className="ps-share-title"><strong>{t('share')}</strong><Badge variant={existingUrl ? 'outline' : 'secondary'} data-status={existingUrl ? 'success' : undefined}>{existingUrl ? t('shareLinkReady') : t('shareHtml')}</Badge></div>
     <label className="ps-share-row">
       <div><span>{t('alwaysShareLatest')}</span><small>{shareLatest ? t('sharingLatestVersion') : t('sharingThisVersion')}</small></div>
       <Switch checked={shareLatest} onCheckedChange={setShareLatest} />
@@ -1147,7 +1145,7 @@ function ExportCard({ item, onCancel, onDelete, onDownload, onShare, t }: {
   t: ReturnType<typeof translator>
 }) {
   const statusKey = exportStatusKey(item.status)
-  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'succeeded' ? 'success' : item.status === 'failed' ? 'destructive' : item.status === 'running' ? 'warning' : 'secondary'}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} t={t} trigger={<Button variant="outline" size="sm"><Copy />{t('share')}</Button>} /> : null}<Button variant="destructiveOutline" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
+  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'failed' ? 'destructive' : item.status === 'succeeded' || item.status === 'running' ? 'outline' : 'secondary'} data-status={item.status === 'succeeded' ? 'success' : item.status === 'running' ? 'warning' : undefined}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} t={t} trigger={<Button variant="outline" size="sm"><Copy />{t('share')}</Button>} /> : null}<Button variant="destructive" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
 }
 
 function CollaboratorAvatar({ actor, t }: { actor: CollaboratorAvatarActor; t: ReturnType<typeof translator> }) {

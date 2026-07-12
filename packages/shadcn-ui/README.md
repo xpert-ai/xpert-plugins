@@ -8,15 +8,14 @@ It is a private build-time workspace package. Published plugins should bundle th
 
 ## Usage
 
-Install the theme variables once in the iframe entry before rendering the view:
+Import the compiled stylesheet once in the iframe entry before rendering the view:
 
 ```ts
-import { Button, Input, installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui'
-
-installShadcnThemeVars()
+import { Button, Input } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 ```
 
-The injected `--xps-*` variables prefer host-provided `--xui-*` values and only fall back to local defaults when the host does not provide them.
+The stylesheet maps official shadcn theme variables to host-provided `--xui-*` values and only falls back to local defaults when the host does not provide them.
 
 ## Updating From shadcn
 
@@ -27,6 +26,6 @@ pnpm --dir packages/shadcn-ui shadcn:preset-b0
 pnpm --dir packages/shadcn-ui shadcn:add dialog dropdown-menu tabs tooltip
 ```
 
-The CLI writes upstream reference files to `src/generated`. `shadcn apply b0` requires an app framework and is not run directly in this library package; the b0 preset is tracked through `components.json`, the `shadcn:preset-b0` decode command, and the host-theme-aware `--xps-*` fallbacks in `src/theme.ts`.
+The CLI writes directly to the single source-owned component tree at `src/components/ui`. Review CLI overwrites before committing local component customizations.
 
-Components exported by this package should remain host-theme-aware wrappers that use `--xps-*` variables, because plugin remote components run inside isolated iframes and cannot rely on the host app's Tailwind build output.
+Run `pnpm build` after adding components. The package compiles Tailwind utilities to `dist/style.css`, which consuming remote components must import explicitly.

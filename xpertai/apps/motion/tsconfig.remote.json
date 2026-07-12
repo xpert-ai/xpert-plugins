@@ -9,20 +9,12 @@
     "strictNullChecks": true,
     "noEmit": true,
     "types": ["node", "react", "react-dom"],
-    "baseUrl": ".",
-    "paths": {
-      "@xpert-ai/plugin-shadcn-ui": ["../../../packages/shadcn-ui/src/index.ts"],
-      "@xpert-ai/plugin-shadcn-ui/theme": ["../../../packages/shadcn-ui/src/theme.ts"],
-      "@xpert-ai/plugin-shadcn-ui/components/*": ["../../../packages/shadcn-ui/src/components/*.tsx"],
-      "@/*": ["../../../packages/shadcn-ui/src/*"]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/lib/types.ts",
     "src/lib/html-motion.ts",
     "src/lib/workbench-model.ts",
-    "../../../packages/shadcn-ui/src/*.ts",
-    "../../../packages/shadcn-ui/src/components/**/*.tsx",
     "src/lib/remote-components/motion-workbench/src/**/*.ts",
     "src/lib/remote-components/motion-workbench/src/**/*.tsx"
   ]

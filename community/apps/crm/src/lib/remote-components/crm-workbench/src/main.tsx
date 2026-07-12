@@ -1,4 +1,4 @@
-import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { installBridgeListener, post, reportResize } from './bridge'
 import { CrmWorkbench } from './components/workbench'
 import { TEXT } from './i18n'
@@ -7,8 +7,6 @@ import type { HostContext } from './types'
 import { React, ReactDOM } from './vendor'
 
 const { useEffect, useState } = React
-
-installShadcnThemeVars({ styleId: 'crm-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {

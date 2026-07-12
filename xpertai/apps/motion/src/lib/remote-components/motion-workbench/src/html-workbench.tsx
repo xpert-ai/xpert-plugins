@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { Card } from '@xpert-ai/plugin-shadcn-ui/components/card'
-import { Input } from '@xpert-ai/plugin-shadcn-ui/components/input'
-import { Textarea } from '@xpert-ai/plugin-shadcn-ui/components/textarea'
+import { Card } from '@xpert-ai/plugin-shadcn-ui'
+import { Input } from '@xpert-ai/plugin-shadcn-ui'
+import { Textarea } from '@xpert-ai/plugin-shadcn-ui'
 import {
   computeHtmlTimelineLayout,
   createDefaultHtmlTracks,

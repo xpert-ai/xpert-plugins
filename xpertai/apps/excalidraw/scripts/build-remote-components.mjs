@@ -6,6 +6,9 @@ import { build, transform } from 'esbuild'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
+const artifactViewerRoot = join(packageRoot, 'src', 'lib', 'artifact-viewer')
+const workspaceRoot = join(packageRoot, '..', '..', '..')
+const pluginSdkCollaborationClientEntry = join(workspaceRoot, '..', 'xpert', 'packages', 'plugin-sdk', 'src', 'lib', 'collaboration', 'client.ts')
 const componentNames = ['excalidraw-workbench']
 const sourceExtensions = new Set(['.ts', '.tsx'])
 
@@ -61,6 +64,32 @@ function reactShimPlugin(componentName) {
   }
 }
 
+function localWorkspacePackagesPlugin() {
+  return {
+    name: 'xpert-local-workspace-packages',
+    setup(buildApi) {
+      buildApi.onResolve({ filter: /^@xpert-ai\/plugin-sdk$/ }, () => ({ path: pluginSdkCollaborationClientEntry }))
+    }
+  }
+}
+
+function workspaceCssDependenciesPlugin() {
+  const shadcnNodeModules = join(workspaceRoot, 'packages', 'shadcn-ui', 'node_modules')
+  const paths = new Map([
+    ['tailwindcss', join(shadcnNodeModules, 'tailwindcss', 'index.css')],
+    ['tw-animate-css', join(shadcnNodeModules, 'tw-animate-css', 'dist', 'tw-animate.css')],
+    ['shadcn/tailwind.css', join(shadcnNodeModules, 'shadcn', 'dist', 'tailwind.css')]
+  ])
+  return {
+    name: 'xpert-workspace-css-dependencies',
+    setup(buildApi) {
+      buildApi.onResolve({ filter: /^(tailwindcss|tw-animate-css|shadcn\/tailwind\.css)$/ }, (args) => ({
+        path: paths.get(args.path)
+      }))
+    }
+  }
+}
+
 async function bundleComponent(componentName) {
   const componentDir = join(remoteRoot, componentName)
   const sourceDir = join(componentDir, 'src')
@@ -90,7 +119,7 @@ async function bundleComponent(componentName) {
     loader: {
       '.woff2': 'dataurl'
     },
-    plugins: [reactShimPlugin(componentName)],
+    plugins: [localWorkspacePackagesPlugin(), workspaceCssDependenciesPlugin(), reactShimPlugin(componentName)],
     banner: {
       js: ';'
     },
@@ -106,13 +135,68 @@ async function bundleComponent(componentName) {
   const cssOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.css'))
   return {
     outputPath: join(componentDir, 'app.js'),
-    text: jsOutput.text,
+    text: normalize(jsOutput.text),
     cssOutputPath: join(componentDir, 'app.css'),
-    cssText: cssOutput ? cssOutput.text : ''
+    cssText: normalize(cssOutput ? cssOutput.text : '')
   }
 }
 
-const outputs = await Promise.all(componentNames.map(bundleComponent))
+async function bundleArtifactViewer() {
+  const sourceDir = join(artifactViewerRoot, 'src')
+  const entryPoint = join(sourceDir, 'main.tsx')
+
+  if (!existsSync(entryPoint)) {
+    throw new Error(`Missing Artifact viewer entry: ${relative(process.cwd(), entryPoint)}`)
+  }
+
+  await validateSources(sourceDir)
+  const result = await build({
+    entryPoints: [entryPoint],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: ['es2020'],
+    conditions: ['production'],
+    outdir: artifactViewerRoot,
+    entryNames: 'app',
+    assetNames: 'assets/[name]-[hash]',
+    write: false,
+    logLevel: 'silent',
+    legalComments: 'none',
+    minify: true,
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    loader: {
+      '.woff2': 'dataurl',
+      '.woff': 'dataurl',
+      '.ttf': 'dataurl',
+      '.png': 'dataurl',
+      '.svg': 'dataurl'
+    },
+    define: {
+      'process.env.NODE_ENV': '"production"',
+      'process.env.IS_PREACT': '"false"'
+    }
+  })
+  const jsOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.js'))
+  if (!jsOutput) throw new Error('esbuild did not produce Artifact viewer app.js output')
+  const cssOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.css'))
+  return {
+    outputPath: join(artifactViewerRoot, 'app.js'),
+    text: normalize(jsOutput.text),
+    cssOutputPath: join(artifactViewerRoot, 'app.css'),
+    cssText: normalize(cssOutput ? cssOutput.text : '')
+  }
+}
+
+function normalize(value) {
+  return value.replace(/[ \t]+$/gm, '')
+}
+
+const outputs = await Promise.all([
+  ...componentNames.map(bundleComponent),
+  bundleArtifactViewer()
+])
 
 if (process.argv.includes('--check')) {
   let hasOutdatedOutput = false

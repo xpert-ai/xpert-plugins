@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
-import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui/theme'
-import { Input } from '@xpert-ai/plugin-shadcn-ui/components/input'
+import { Input } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { canExport, exportMp4 } from './video-export.js'
 import { createTranslator, localizeOptions } from './i18n'
 import { createRenderableComposition } from './video-renderer'
@@ -59,8 +59,6 @@ import {
   resolveHtmlRecipeSelector
 } from './recipe-utils'
 import './app.css'
-
-installShadcnThemeVars({ styleId: 'motion-workbench-shadcn-ui-vars' })
 
 const EMPTY_PAGED = { items: [], total: 0, page: 1, pageSize: 20 }
 

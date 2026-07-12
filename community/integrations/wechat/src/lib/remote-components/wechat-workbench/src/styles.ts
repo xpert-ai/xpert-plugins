@@ -34,9 +34,9 @@ export function injectStyles() {
 .wxp-calendar-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .wxp-calendar-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
 .wxp-calendar-filter { display: flex; gap: 6px; align-items: center; color: var(--xui-color-muted-foreground); font-size: 11px; }
-.wxp-calendar-filter .xps-select-trigger { width: 180px; min-height: 30px; font-size: 12px; }
+.wxp-calendar-filter [data-slot="select-trigger"] { width: 180px; min-height: 30px; font-size: 12px; }
 .wxp-segmented { display: inline-flex; overflow: hidden; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-muted); }
-.wxp-segmented .xps-button { border: 0; border-radius: 0; box-shadow: none; font-size: 12px; font-weight: 700; }
+.wxp-segmented [data-slot="button"] { border: 0; border-radius: 0; box-shadow: none; font-size: 12px; font-weight: 700; }
 .wxp-calendar { display: grid; justify-items: center; gap: 10px; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
 .wxp-calendar-grid, .wxp-calendar-week-grid, .wxp-calendar-months { justify-self: center; }
 .wxp-calendar-grid, .wxp-calendar-week-grid { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 4px; min-width: max-content; }
@@ -65,18 +65,18 @@ export function injectStyles() {
 .wxp-activity-row > div { display: flex; flex-wrap: wrap; gap: 5px; }
 .wxp-activity-row strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; }
 .wxp-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--xui-color-border); }
-.wxp-tabs .xps-button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--xui-color-muted-foreground); padding: 9px 10px; font-weight: 700; box-shadow: none; }
-.wxp-tabs .xps-button.active { border-bottom-color: var(--xui-color-primary); color: var(--xui-color-primary); }
+.wxp-tabs [data-slot="button"] { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--xui-color-muted-foreground); padding: 9px 10px; font-weight: 700; box-shadow: none; }
+.wxp-tabs [data-slot="button"].active { border-bottom-color: var(--xui-color-primary); color: var(--xui-color-primary); }
 .wxp-panel { display: grid; gap: 12px; min-width: 0; }
 .wxp-panel h3 { margin: 0; font-size: 14px; }
 .wxp-table-toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; }
 .wxp-table-toolbar strong { font-size: 13px; }
 .wxp-table-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: center; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 10px; }
-.wxp-table-filters .xps-input, .wxp-table-filters .xps-select-trigger { width: 100%; min-width: 0; }
+.wxp-table-filters [data-slot="input"], .wxp-table-filters [data-slot="select-trigger"] { width: 100%; min-width: 0; }
 .wxp-filter-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .wxp-pagination { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; color: var(--xui-color-muted-foreground); font-size: 12px; }
 .wxp-pagination label { display: flex; gap: 6px; align-items: center; }
-.wxp-pagination .xps-select-trigger { width: 86px; min-height: 30px; font-size: 12px; }
+.wxp-pagination [data-slot="select-trigger"] { width: 86px; min-height: 30px; font-size: 12px; }
 .wxp-pagination strong { color: var(--xui-color-foreground); font-size: 12px; }
 .wxp-table-loading { position: sticky; left: 0; display: inline-block; margin: 0 0 8px; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); color: var(--xui-color-muted-foreground); padding: 6px 8px; font-size: 12px; }
 .wxp-callback { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-card); padding: 12px; }
@@ -101,7 +101,7 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 .wxp-kv strong { overflow-wrap: anywhere; font-size: 12px; }
 .wxp-tunnel-panel pre { max-width: 100%; }
 .wxp-tunnel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 12px; }
-.wxp-manual-send-panel .xps-button { width: 100%; }
+.wxp-manual-send-panel [data-slot="button"] { width: 100%; }
 .wxp-tunnel-status-cell, .wxp-trigger-route-cell { display: grid; gap: 4px; min-width: 120px; }
 .wxp-tunnel-status-cell small, .wxp-trigger-route-cell small { color: var(--xui-color-muted-foreground); font-size: 11px; }
 .wxp-sender-cell { display: grid; gap: 3px; min-width: 160px; }
@@ -128,16 +128,16 @@ pre { max-width: 520px; max-height: 180px; overflow: auto; margin: 8px 0 0; bord
 	.wxp-messages-table, .wxp-logs-table { width: max-content; }
 	.wxp-messages-table { min-width: 1540px; }
 	.wxp-logs-table { min-width: 1180px; }
-	.wxp-messages-table .xps-table-head,
-	.wxp-messages-table .xps-table-cell,
-	.wxp-logs-table .xps-table-head,
-	.wxp-logs-table .xps-table-cell { white-space: nowrap; }
+	.wxp-messages-table [data-slot="table-head"],
+	.wxp-messages-table [data-slot="table-cell"],
+	.wxp-logs-table [data-slot="table-head"],
+	.wxp-logs-table [data-slot="table-cell"] { white-space: nowrap; }
 	.wxp-messages-table code,
 	.wxp-messages-table .xui-muted,
-	.wxp-messages-table .xps-badge,
+	.wxp-messages-table [data-slot="badge"],
 	.wxp-logs-table code,
 	.wxp-logs-table .xui-muted,
-	.wxp-logs-table .xps-badge { white-space: nowrap; }
+	.wxp-logs-table [data-slot="badge"] { white-space: nowrap; }
 	.wxp-message-log-content { display: block; min-width: 420px; max-width: 560px; white-space: nowrap; }
 	.wxp-message-log-content summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.wxp-message-log-content pre { max-width: min(880px, 74vw); white-space: pre-wrap; }

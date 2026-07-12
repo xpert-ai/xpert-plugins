@@ -1,919 +1,361 @@
 "use strict";
 var XpertCrmWorkbench = (() => {
   var __defProp = Object.defineProperty;
+  var __typeError = (msg) => {
+    throw TypeError(msg);
+  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
+  var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+  var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
+  var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+  var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 
-  // ../../../packages/shadcn-ui/src/theme.ts
-  function installShadcnThemeVars(options2 = {}) {
-    const styleId = options2.styleId ?? "xpert-plugin-shadcn-ui-vars";
-    if (typeof document === "undefined" || document.getElementById(styleId)) {
-      return;
-    }
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-    :root {
-      --xps-background: var(--xui-color-background, #f8fafc);
-      --xps-foreground: var(--xui-color-foreground, #0f172a);
-      --xps-card: var(--xui-color-card, #ffffff);
-      --xps-card-foreground: var(--xui-color-card-foreground, var(--xps-foreground));
-      --xps-popover: var(--xui-color-popover, var(--xps-card));
-      --xps-popover-foreground: var(--xui-color-popover-foreground, var(--xps-foreground));
-      --xps-primary: var(--xui-color-primary, #2563eb);
-      --xps-primary-foreground: var(--xui-color-primary-foreground, #ffffff);
-      --xps-secondary: var(--xui-color-secondary, #f1f5f9);
-      --xps-secondary-foreground: var(--xui-color-secondary-foreground, #0f172a);
-      --xps-muted: var(--xui-color-muted, #f1f5f9);
-      --xps-muted-foreground: var(--xui-color-muted-foreground, #64748b);
-      --xps-accent: var(--xui-color-accent, #e0f2fe);
-      --xps-accent-foreground: var(--xui-color-accent-foreground, #0f172a);
-      --xps-destructive: var(--xui-color-destructive, #dc2626);
-      --xps-destructive-foreground: var(--xui-color-destructive-foreground, #ffffff);
-      --xps-destructive-background: var(--xui-color-destructive-background, #fee2e2);
-      --xps-warning: var(--xui-color-warning, #b45309);
-      --xps-warning-background: var(--xui-color-warning-background, #fffbeb);
-      --xps-success: var(--xui-color-success, #047857);
-      --xps-success-background: var(--xui-color-success-background, #ecfdf5);
-      --xps-border: var(--xui-color-border, #e2e8f0);
-      --xps-input: var(--xui-color-input, var(--xps-border));
-      --xps-ring: var(--xui-color-ring, var(--xps-primary));
-      --xps-radius: var(--xui-radius-md, 0.5rem);
-      --xps-font-sans: var(--xui-font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-      --xps-control-height: var(--xui-control-height, 2rem);
-      --xps-control-height-sm: var(--xui-control-height-sm, 1.75rem);
-      --xps-control-height-lg: var(--xui-control-height-lg, 2.25rem);
-      --xps-control-padding-x: var(--xui-control-padding-x, 0.625rem);
-      --xps-control-padding-x-sm: var(--xui-control-padding-x-sm, 0.625rem);
-      --xps-control-padding-x-lg: var(--xui-control-padding-x-lg, 0.875rem);
-      --xps-control-font-size: var(--xui-control-font-size, 0.8125rem);
-      --xps-control-font-size-sm: var(--xui-control-font-size-sm, 0.75rem);
-      --xps-sidebar-rail-width: var(--xui-sidebar-rail-width, 2.75rem);
-    }
-
-    .xps-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      height: var(--xps-control-height);
-      border-radius: calc(var(--xps-radius) - 1px);
-      border: 1px solid transparent;
-      padding: 0 var(--xps-control-padding-x);
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      font-weight: 600;
-      line-height: 1;
-      white-space: nowrap;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-button:focus-visible,
-    .xps-checkbox:focus-visible,
-    .xps-command-input:focus,
-    .xps-dropdown-menu-item:focus,
-    .xps-input:focus,
-    .xps-select-trigger:focus,
-    .xps-slider-thumb:focus-visible,
-    .xps-switch:focus-visible,
-    .xps-tabs-trigger:focus-visible,
-    .xps-textarea:focus {
-      outline: none;
-      border-color: var(--xps-ring);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--xps-ring) 18%, transparent);
-    }
-    .xps-button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-    .xps-button--default {
-      background: var(--xps-primary);
-      color: var(--xps-primary-foreground);
-      border-color: var(--xps-primary);
-    }
-    .xps-button--default:hover {
-      background: color-mix(in srgb, var(--xps-primary) 90%, #000000 10%);
-      border-color: color-mix(in srgb, var(--xps-primary) 90%, #000000 10%);
-    }
-    .xps-button--secondary {
-      background: var(--xps-secondary);
-      color: var(--xps-secondary-foreground);
-      border-color: var(--xps-secondary);
-    }
-    .xps-button--secondary:hover,
-    .xps-button--ghost:hover {
-      background: color-mix(in srgb, var(--xps-muted) 82%, var(--xps-foreground) 6%);
-    }
-    .xps-button--outline {
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      border-color: var(--xps-border);
-    }
-    .xps-button--outline:hover {
-      background: var(--xps-muted);
-    }
-    .xps-button--ghost {
-      background: transparent;
-      color: var(--xps-foreground);
-      border-color: transparent;
-    }
-    .xps-button--destructive {
-      background: var(--xps-destructive);
-      color: var(--xps-destructive-foreground);
-      border-color: var(--xps-destructive);
-    }
-    .xps-button--destructive-outline {
-      background: var(--xps-card);
-      color: var(--xps-destructive);
-      border-color: color-mix(in srgb, var(--xps-destructive) 24%, var(--xps-border));
-    }
-    .xps-button--sm {
-      height: var(--xps-control-height-sm);
-      padding: 0 var(--xps-control-padding-x-sm);
-      font-size: var(--xps-control-font-size-sm);
-    }
-    .xps-button--lg {
-      height: var(--xps-control-height-lg);
-      padding: 0 var(--xps-control-padding-x-lg);
-    }
-    .xps-button--icon {
-      width: var(--xps-control-height);
-      padding: 0;
-    }
-
-    .xps-input,
-    .xps-select-trigger,
-    .xps-textarea {
-      width: 100%;
-      border: 1px solid var(--xps-input);
-      border-radius: calc(var(--xps-radius) - 1px);
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      box-sizing: border-box;
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      transition: border-color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-input,
-    .xps-select-trigger {
-      height: var(--xps-control-height);
-      padding: 0 var(--xps-control-padding-x);
-    }
-    .xps-select-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      cursor: pointer;
-      line-height: 1;
-    }
-    .xps-select-trigger[data-placeholder] {
-      color: var(--xps-muted-foreground);
-    }
-    .xps-select-content {
-      z-index: 2147483647;
-      max-height: min(320px, var(--radix-select-content-available-height));
-      min-width: 8rem;
-      overflow: hidden;
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-    }
-    .xps-select-content-popper {
-      transform-origin: var(--radix-select-content-transform-origin);
-    }
-    .xps-select-viewport {
-      padding: 0.25rem;
-    }
-    .xps-select-viewport-popper {
-      min-width: var(--radix-select-trigger-width);
-    }
-    .xps-select-label {
-      padding: 0.3125rem 1.75rem 0.3125rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-select-item {
-      position: relative;
-      display: flex;
-      min-height: var(--xps-control-height);
-      width: 100%;
-      cursor: pointer;
-      user-select: none;
-      align-items: center;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.3125rem 1.75rem 0.3125rem 0.5rem;
-      font-size: var(--xps-control-font-size);
-      line-height: 1.2;
-      outline: none;
-    }
-    .xps-select-item[data-highlighted] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-select-item[data-disabled] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-select-item-indicator {
-      position: absolute;
-      right: 0.5rem;
-      display: inline-flex;
-      width: 1rem;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-select-scroll-button {
-      display: flex;
-      height: 1.5rem;
-      align-items: center;
-      justify-content: center;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-select-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-    .xps-textarea {
-      min-height: 5rem;
-      padding: 0.5rem var(--xps-control-padding-x);
-      resize: vertical;
-      line-height: 1.45;
-    }
-    .xps-input::placeholder,
-    .xps-textarea::placeholder {
-      color: var(--xps-muted-foreground);
-    }
-
-    .xps-card {
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-    }
-    .xps-card-header {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-      padding: 1rem;
-    }
-    .xps-card-title {
-      margin: 0;
-      font-size: 0.9375rem;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-    .xps-card-description {
-      margin: 0;
-      color: var(--xps-muted-foreground);
-      font-size: 0.8125rem;
-      line-height: 1.35;
-    }
-    .xps-card-content {
-      padding: 0 1rem 1rem;
-    }
-
-    .xps-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      line-height: 1.45;
-    }
-    .xps-table-header {
-      background: color-mix(in srgb, var(--xps-muted) 72%, var(--xps-card) 28%);
-    }
-    .xps-table-row {
-      transition: background-color 120ms ease;
-    }
-    .xps-table-body .xps-table-row:hover {
-      background: color-mix(in srgb, var(--xps-muted) 56%, transparent);
-    }
-    .xps-table-head,
-    .xps-table-cell {
-      border-bottom: 1px solid var(--xps-border);
-      padding: 0.625rem 0.75rem;
-      text-align: left;
-      vertical-align: middle;
-    }
-    .xps-table-head {
-      color: var(--xps-muted-foreground);
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .xps-table-cell {
-      color: var(--xps-foreground);
-    }
-    .xps-table-caption {
-      margin-top: 0.625rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-    }
-    .xps-table-footer {
-      background: var(--xps-muted);
-      font-weight: 700;
-    }
-
-    .xps-badge {
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      padding: 0.0625rem 0.4375rem;
-      font-size: 0.75rem;
-      font-weight: 700;
-      line-height: 1.25;
-      white-space: nowrap;
-    }
-    .xps-badge--default {
-      background: color-mix(in srgb, var(--xps-primary) 12%, transparent);
-      color: var(--xps-primary);
-      border-color: color-mix(in srgb, var(--xps-primary) 18%, transparent);
-    }
-    .xps-badge--secondary {
-      background: var(--xps-muted);
-      color: var(--xps-muted-foreground);
-      border-color: var(--xps-border);
-    }
-    .xps-badge--success {
-      background: var(--xps-success-background);
-      color: var(--xps-success);
-      border-color: color-mix(in srgb, var(--xps-success) 16%, transparent);
-    }
-    .xps-badge--warning {
-      background: var(--xps-warning-background);
-      color: var(--xps-warning);
-      border-color: color-mix(in srgb, var(--xps-warning) 18%, transparent);
-    }
-    .xps-badge--destructive {
-      background: var(--xps-destructive-background);
-      color: var(--xps-destructive);
-      border-color: color-mix(in srgb, var(--xps-destructive) 18%, transparent);
-    }
-    .xps-separator {
-      flex-shrink: 0;
-      background: var(--xps-border);
-    }
-    .xps-separator--horizontal {
-      width: 100%;
-      height: 1px;
-    }
-    .xps-separator--vertical {
-      width: 1px;
-      height: 100%;
-    }
-    .xps-sidebar {
-      min-width: 0;
-      min-height: 0;
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      overflow: hidden;
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-      border-color: var(--xps-border);
-      border-style: solid;
-    }
-    .xps-sidebar--left {
-      border-width: 0 1px 0 0;
-    }
-    .xps-sidebar--right {
-      border-width: 0 0 0 1px;
-    }
-    .xps-sidebar-header {
-      min-height: 2.5rem;
-      padding: 0.375rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      border-bottom: 1px solid var(--xps-border);
-      min-width: 0;
-    }
-    .xps-sidebar-title {
-      min-width: 0;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      font-weight: 750;
-      line-height: 1.2;
-    }
-    .xps-sidebar-content {
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .xps-sidebar-footer {
-      padding: 0.5rem;
-      border-top: 1px solid var(--xps-border);
-    }
-    .xps-sidebar-trigger.xps-button {
-      flex: 0 0 auto;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-sidebar-rail {
-      min-height: 0;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 0.625rem;
-      color: var(--xps-muted-foreground);
-      background: color-mix(in srgb, var(--xps-card) 94%, var(--xps-muted) 6%);
-    }
-    .xps-sidebar-rail > span {
-      writing-mode: vertical-rl;
-      letter-spacing: 0;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-sidebar-group {
-      display: flex;
-      min-width: 0;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .xps-sidebar-group-label {
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-    .xps-sidebar-menu {
-      display: flex;
-      min-width: 0;
-      flex-direction: column;
-      gap: 0.375rem;
-    }
-    .xps-sidebar-menu-item {
-      min-width: 0;
-    }
-    .xps-sidebar-menu-button.xps-button {
-      width: 100%;
-      height: auto;
-      min-height: 3.25rem;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 0.25rem;
-      border: 1px solid transparent;
-      border-radius: var(--xps-radius);
-      padding: 0.5rem;
-      text-align: left;
-      white-space: normal;
-    }
-    .xps-sidebar-menu-button.xps-button:hover {
-      background: var(--xps-muted);
-    }
-    .xps-sidebar-menu-button--active.xps-button {
-      background: color-mix(in srgb, var(--xps-primary) 10%, transparent);
-      border-color: color-mix(in srgb, var(--xps-primary) 26%, var(--xps-border));
-      color: var(--xps-foreground);
-    }
-    .xps-scroll-area {
-      position: relative;
-      min-height: 0;
-      overflow: hidden;
-    }
-    .xps-scroll-area-viewport {
-      width: 100%;
-      height: 100%;
-      min-height: inherit;
-      border-radius: inherit;
-    }
-    .xps-scroll-bar {
-      display: flex;
-      touch-action: none;
-      user-select: none;
-      transition: background-color 120ms ease;
-    }
-    .xps-scroll-bar-vertical {
-      width: 0.5rem;
-      border-left: 1px solid transparent;
-      padding: 1px;
-    }
-    .xps-scroll-bar-horizontal {
-      height: 0.5rem;
-      flex-direction: column;
-      border-top: 1px solid transparent;
-      padding: 1px;
-    }
-    .xps-scroll-thumb {
-      position: relative;
-      flex: 1;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--xps-muted-foreground) 36%, transparent);
-    }
-    .xps-dialog-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 2147483646;
-      background: color-mix(in srgb, var(--xps-foreground) 42%, transparent);
-    }
-    .xps-dialog-content,
-    .xps-sheet-content {
-      position: fixed;
-      z-index: 2147483647;
-      border: 1px solid var(--xps-border);
-      background: var(--xps-card);
-      color: var(--xps-card-foreground);
-      box-shadow: 0 18px 54px color-mix(in srgb, var(--xps-foreground) 20%, transparent);
-    }
-    .xps-dialog-content {
-      left: 50%;
-      top: 50%;
-      width: min(520px, calc(100vw - 2rem));
-      max-height: calc(100vh - 2rem);
-      transform: translate(-50%, -50%);
-      border-radius: var(--xps-radius);
-      padding: 1rem;
-      overflow: auto;
-    }
-    .xps-sheet-content {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .xps-sheet-content--right,
-    .xps-sheet-content--left {
-      top: 0;
-      bottom: 0;
-      width: min(380px, calc(100vw - 2rem));
-    }
-    .xps-sheet-content--right { right: 0; border-radius: var(--xps-radius) 0 0 var(--xps-radius); }
-    .xps-sheet-content--left { left: 0; border-radius: 0 var(--xps-radius) var(--xps-radius) 0; }
-    .xps-sheet-content--top,
-    .xps-sheet-content--bottom {
-      left: 0;
-      right: 0;
-      max-height: min(420px, calc(100vh - 2rem));
-    }
-    .xps-sheet-content--top { top: 0; border-radius: 0 0 var(--xps-radius) var(--xps-radius); }
-    .xps-sheet-content--bottom { bottom: 0; border-radius: var(--xps-radius) var(--xps-radius) 0 0; }
-    .xps-dialog-close {
-      position: absolute;
-      right: 0.625rem;
-      top: 0.625rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: var(--xps-control-height-sm);
-      height: var(--xps-control-height-sm);
-      border: 0;
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: transparent;
-      color: var(--xps-muted-foreground);
-      cursor: pointer;
-    }
-    .xps-dialog-close:hover {
-      background: var(--xps-muted);
-      color: var(--xps-foreground);
-    }
-    .xps-dialog-header,
-    .xps-dialog-footer {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .xps-dialog-header {
-      flex-direction: column;
-      padding-right: 2rem;
-    }
-    .xps-dialog-footer {
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
-    .xps-dialog-title {
-      margin: 0;
-      color: var(--xps-foreground);
-      font-size: 1rem;
-      font-weight: 750;
-      line-height: 1.2;
-    }
-    .xps-dialog-description {
-      margin: 0;
-      color: var(--xps-muted-foreground);
-      font-size: var(--xps-control-font-size);
-      line-height: 1.45;
-    }
-    .xps-dropdown-menu-content {
-      z-index: 2147483647;
-      min-width: 10rem;
-      overflow: hidden;
-      border: 1px solid var(--xps-border);
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-      padding: 0.25rem;
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-    }
-    .xps-dropdown-menu-item,
-    .xps-dropdown-menu-sub-trigger {
-      position: relative;
-      display: flex;
-      min-height: var(--xps-control-height);
-      align-items: center;
-      gap: 0.5rem;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.3125rem 0.5rem;
-      color: var(--xps-foreground);
-      cursor: pointer;
-      font-size: var(--xps-control-font-size);
-      line-height: 1.2;
-      outline: none;
-      user-select: none;
-    }
-    .xps-dropdown-menu-item[data-highlighted],
-    .xps-dropdown-menu-sub-trigger[data-highlighted] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-dropdown-menu-item[data-disabled],
-    .xps-dropdown-menu-sub-trigger[data-disabled] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-dropdown-menu-item--inset {
-      padding-left: 1.75rem;
-    }
-    .xps-dropdown-menu-check-item {
-      padding-left: 1.75rem;
-    }
-    .xps-dropdown-menu-item-indicator {
-      position: absolute;
-      left: 0.5rem;
-      display: inline-flex;
-      width: 1rem;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-dropdown-menu-label {
-      padding: 0.3125rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-dropdown-menu-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-    .xps-dropdown-menu-shortcut {
-      margin-left: auto;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-    }
-
-    .xps-command {
-      width: 100%;
-      overflow: hidden;
-      border-radius: var(--xps-radius);
-      background: var(--xps-popover);
-      color: var(--xps-popover-foreground);
-    }
-    .xps-command-input-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--xps-border);
-      padding: 0 0.625rem;
-      color: var(--xps-muted-foreground);
-    }
-    .xps-command-input {
-      width: 100%;
-      height: 2.25rem;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--xps-foreground);
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-    }
-    .xps-command-input::placeholder {
-      color: var(--xps-muted-foreground);
-    }
-    .xps-command-list {
-      max-height: 18rem;
-      overflow: auto;
-      overscroll-behavior: contain;
-      padding: 0.25rem;
-    }
-    .xps-command-empty {
-      padding: 1.25rem 0.75rem;
-      color: var(--xps-muted-foreground);
-      text-align: center;
-      font-size: var(--xps-control-font-size);
-    }
-    .xps-command-group {
-      overflow: hidden;
-      padding: 0.25rem;
-    }
-    .xps-command-group [cmdk-group-heading] {
-      padding: 0.375rem 0.5rem;
-      color: var(--xps-muted-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .xps-command-item {
-      display: flex;
-      min-height: var(--xps-control-height);
-      cursor: pointer;
-      user-select: none;
-      align-items: center;
-      gap: 0.5rem;
-      border-radius: calc(var(--xps-radius) - 2px);
-      padding: 0.375rem 0.5rem;
-      color: var(--xps-foreground);
-      font-size: var(--xps-control-font-size);
-      outline: none;
-    }
-    .xps-command-item[data-selected="true"] {
-      background: var(--xps-accent);
-      color: var(--xps-accent-foreground);
-    }
-    .xps-command-item[data-disabled="true"] {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-    .xps-command-separator {
-      height: 1px;
-      margin: 0.25rem -0.25rem;
-      background: var(--xps-border);
-    }
-
-    .xps-tabs-list {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.125rem;
-      min-height: var(--xps-control-height);
-      border-radius: var(--xps-radius);
-      background: var(--xps-muted);
-      padding: 0.1875rem;
-    }
-    .xps-tabs-trigger {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(var(--xps-control-height) - 0.375rem);
-      border: 0;
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: transparent;
-      color: var(--xps-muted-foreground);
-      cursor: pointer;
-      font-family: inherit;
-      font-size: var(--xps-control-font-size);
-      font-weight: 650;
-      padding: 0 0.625rem;
-      white-space: nowrap;
-    }
-    .xps-tabs-trigger[data-state='active'] {
-      background: var(--xps-card);
-      color: var(--xps-foreground);
-      box-shadow: 0 1px 2px color-mix(in srgb, var(--xps-foreground) 10%, transparent);
-    }
-    .xps-tabs-trigger:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-tabs-content {
-      min-width: 0;
-      outline: none;
-    }
-    .xps-tooltip-content {
-      z-index: 2147483647;
-      max-width: min(320px, calc(100vw - 2rem));
-      border-radius: calc(var(--xps-radius) - 2px);
-      background: var(--xps-foreground);
-      color: var(--xps-background);
-      padding: 0.375rem 0.625rem;
-      font-size: 0.75rem;
-      line-height: 1.3;
-      box-shadow: 0 10px 30px color-mix(in srgb, var(--xps-foreground) 14%, transparent);
-    }
-    .xps-checkbox {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1rem;
-      height: 1rem;
-      border: 1px solid var(--xps-input);
-      border-radius: calc(var(--xps-radius) - 3px);
-      background: var(--xps-card);
-      color: var(--xps-primary-foreground);
-      cursor: pointer;
-    }
-    .xps-checkbox[data-state='checked'] {
-      background: var(--xps-primary);
-      border-color: var(--xps-primary);
-    }
-    .xps-checkbox:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-checkbox-indicator {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .xps-switch {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      width: 2.25rem;
-      height: 1.25rem;
-      border: 1px solid transparent;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--xps-muted-foreground) 34%, transparent);
-      cursor: pointer;
-      transition: background-color 120ms ease, box-shadow 120ms ease;
-    }
-    .xps-switch[data-state='checked'] {
-      background: var(--xps-primary);
-    }
-    .xps-switch:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-switch-thumb {
-      display: block;
-      width: 1rem;
-      height: 1rem;
-      border-radius: 999px;
-      background: #ffffff;
-      box-shadow: 0 1px 3px color-mix(in srgb, #000000 20%, transparent);
-      transform: translateX(0.125rem);
-      transition: transform 120ms ease;
-    }
-    .xps-switch[data-state='checked'] .xps-switch-thumb {
-      transform: translateX(1rem);
-    }
-    .xps-slider {
-      position: relative;
-      display: flex;
-      width: 100%;
-      touch-action: none;
-      user-select: none;
-      align-items: center;
-    }
-    .xps-slider-track {
-      position: relative;
-      height: 0.375rem;
-      width: 100%;
-      flex: 1;
-      overflow: hidden;
-      border-radius: 999px;
-      background: var(--xps-muted);
-    }
-    .xps-slider-range {
-      position: absolute;
-      height: 100%;
-      background: var(--xps-primary);
-    }
-    .xps-slider-thumb {
-      display: block;
-      width: 1rem;
-      height: 1rem;
-      border: 2px solid var(--xps-primary);
-      border-radius: 999px;
-      background: var(--xps-card);
-      box-shadow: 0 1px 3px color-mix(in srgb, var(--xps-foreground) 12%, transparent);
-      transition: box-shadow 120ms ease;
-    }
-    .xps-slider-thumb:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .xps-icon--filled {
-      fill: currentColor;
-    }
-    .xps-sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-    .xps-icon {
-      width: 1rem;
-      height: 1rem;
-      flex: 0 0 auto;
-      stroke-width: 2;
-    }
-  `;
-    document.head.appendChild(style);
+  // src/lib/remote-components/crm-workbench/src/utils.ts
+  var PAGE_SIZE = 25;
+  function isObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
   }
+  function unwrap(response) {
+    if (!isObject(response)) return {};
+    if (Object.prototype.hasOwnProperty.call(response, "data")) return response.data;
+    if (Object.prototype.hasOwnProperty.call(response, "result")) return response.result;
+    if (Object.prototype.hasOwnProperty.call(response, "payload")) return response.payload;
+    return response;
+  }
+  function buildQuery(context, objectKey, search, recordId) {
+    const payload = context.payload ?? {};
+    const initialQuery = context.initialQuery ?? {};
+    const parameters = {
+      ...payload.parameters ?? {},
+      ...initialQuery.parameters ?? {},
+      objectKey: objectKey || void 0,
+      recordId: recordId || void 0
+    };
+    return {
+      page: 1,
+      pageSize: PAGE_SIZE,
+      ...initialQuery,
+      search: search || void 0,
+      parameters
+    };
+  }
+  function normalizeData(raw) {
+    const value = isObject(raw) ? raw : {};
+    const table = isObject(value.table) ? value.table : {};
+    return {
+      summary: isObject(value.summary) ? value.summary : {},
+      objects: Array.isArray(value.objects) ? value.objects : [],
+      selectedObject: isObject(value.selectedObject) ? value.selectedObject : null,
+      fields: Array.isArray(value.fields) ? value.fields : [],
+      views: Array.isArray(value.views) ? value.views : [],
+      table: {
+        key: typeof table.key === "string" ? table.key : "records",
+        items: Array.isArray(table.items) ? table.items : [],
+        total: typeof table.total === "number" ? table.total : 0,
+        page: typeof table.page === "number" ? table.page : 1,
+        pageSize: typeof table.pageSize === "number" ? table.pageSize : PAGE_SIZE
+      },
+      selectedRecord: isObject(value.selectedRecord) ? value.selectedRecord : null,
+      meta: isObject(value.meta) ? value.meta : {}
+    };
+  }
+  function resolveNextSelection(result, options2) {
+    if (options2.recordId) {
+      return result.table.items.find((item) => item.id === options2.recordId) ?? result.selectedRecord ?? null;
+    }
+    if (options2.keepSelection && options2.selected) {
+      return result.table.items.find((item) => item.id === options2.selected?.id) ?? result.selectedRecord ?? options2.selected;
+    }
+    return null;
+  }
+  function getInitialObjectKey(context) {
+    const fromInitial = context.initialQuery?.parameters?.objectKey;
+    const fromPayload = context.payload?.parameters?.objectKey;
+    const value = Array.isArray(fromInitial) ? fromInitial[0] : fromInitial || fromPayload;
+    return typeof value === "string" && value.trim() ? value.trim() : "company";
+  }
+  function getColumnsFromKeys(fields, columnKeys) {
+    const normalized = columnKeys.map((key) => fields.find((field) => field.fieldKey === key)).filter((field) => Boolean(field)).slice(0, 7);
+    return normalized.length ? normalized : fields.slice(0, 7);
+  }
+  function getDefaultColumnKeys(data, fields) {
+    const view = data?.views?.find((item) => item.isDefault) ?? data?.views?.[0];
+    const keys = Array.isArray(view?.columns) && view.columns.length ? view.columns : fields.slice(0, 6).map((field) => field.fieldKey);
+    return getColumnsFromKeys(fields, keys).map((field) => field.fieldKey);
+  }
+  function getRelationLabels(data) {
+    const value = data?.meta?.relationLabels;
+    if (!isObject(value)) return {};
+    const relationLabels = {};
+    Object.entries(value).forEach(([fieldKey, labels]) => {
+      if (!isObject(labels)) return;
+      relationLabels[fieldKey] = Object.fromEntries(Object.entries(labels).map(([recordId, label]) => [recordId, String(label)]));
+    });
+    return relationLabels;
+  }
+  function getRelatedRecordSections(data) {
+    const value = data?.meta?.relatedRecords;
+    if (!Array.isArray(value)) return [];
+    return value.filter(isObject).map((section) => ({
+      objectKey: typeof section.objectKey === "string" ? section.objectKey : "",
+      objectLabel: typeof section.objectLabel === "string" ? section.objectLabel : void 0,
+      objectPluralLabel: typeof section.objectPluralLabel === "string" ? section.objectPluralLabel : void 0,
+      relationFieldKey: typeof section.relationFieldKey === "string" ? section.relationFieldKey : "",
+      relationFieldLabel: typeof section.relationFieldLabel === "string" ? section.relationFieldLabel : void 0,
+      fields: Array.isArray(section.fields) ? section.fields : [],
+      items: Array.isArray(section.items) ? section.items : [],
+      total: typeof section.total === "number" ? section.total : 0
+    })).filter((section) => section.objectKey && section.relationFieldKey && section.total > 0);
+  }
+  function getTimelineItems(data) {
+    const value = data?.meta?.timeline;
+    if (!Array.isArray(value)) return [];
+    return value.filter(isObject).map((item) => ({
+      id: typeof item.id === "string" ? item.id : "",
+      type: normalizeTimelineType(item.type),
+      objectKey: typeof item.objectKey === "string" ? item.objectKey : null,
+      recordId: typeof item.recordId === "string" ? item.recordId : null,
+      title: typeof item.title === "string" && item.title.trim() ? item.title : "Activity",
+      body: typeof item.body === "string" && item.body.trim() ? item.body : void 0,
+      status: typeof item.status === "string" && item.status.trim() ? item.status : void 0,
+      occurredAt: stringifyDate(item.occurredAt),
+      createdAt: stringifyDate(item.createdAt),
+      updatedAt: stringifyDate(item.updatedAt)
+    })).filter((item) => item.id);
+  }
+  function toFormValues(fields, values, includeDefaults = false) {
+    const form = {};
+    fields.forEach((field) => {
+      if (!field.fieldKey) return;
+      if (Object.prototype.hasOwnProperty.call(values, field.fieldKey)) {
+        form[field.fieldKey] = values[field.fieldKey];
+      } else if (includeDefaults && field.defaultValue !== void 0) {
+        form[field.fieldKey] = field.defaultValue;
+      } else {
+        form[field.fieldKey] = field.type === "boolean" ? false : "";
+      }
+    });
+    return form;
+  }
+  function normalizeFormValues(fields, form) {
+    const values = {};
+    fields.forEach((field) => {
+      const value = form[field.fieldKey];
+      if (field.type === "boolean") {
+        values[field.fieldKey] = Boolean(value);
+        return;
+      }
+      if (value === void 0 || value === null) return;
+      if (typeof value === "string" && value.trim() === "") return;
+      values[field.fieldKey] = value;
+    });
+    return values;
+  }
+  function displayRecordTitle(record, fields, t) {
+    const values = record.values ?? {};
+    const title = values.name || [values.firstName, values.lastName].filter(Boolean).join(" ") || values.title || fields.map((field) => values[field.fieldKey]).find(Boolean);
+    return title ? String(title) : record.id || t.untitled;
+  }
+  function formatText(value, field, _fields, t) {
+    if (value === void 0 || value === null || value === "") return t.noValue;
+    const text = String(value);
+    if (field.type === "rich_text" && text.length > 96) return `${text.slice(0, 96)}...`;
+    if (text.length > 64) return `${text.slice(0, 64)}...`;
+    return text;
+  }
+  function formatCurrency(value, locale) {
+    const numberValue = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString(locale === "zh_Hans" ? "zh-CN" : "en-US", {
+      style: "currency",
+      currency: "CNY",
+      maximumFractionDigits: 0
+    });
+  }
+  function formatDate(value, locale) {
+    if (!value) return "";
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(locale === "zh_Hans" ? "zh-CN" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  }
+  function resolveText(value, locale) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (isObject(value)) {
+      const preferred = locale === "zh_Hans" ? value.zh_Hans : value.en_US;
+      const fallback = locale === "zh_Hans" ? value.en_US : value.zh_Hans;
+      return String(preferred || fallback || "");
+    }
+    return String(value);
+  }
+  function objectIcon(object) {
+    const key = object.objectKey || "";
+    const icon = object.icon || "";
+    if (key === "company" || icon.includes("building")) return "building";
+    if (key === "person" || icon.includes("contacts")) return "person";
+    if (key === "opportunity" || icon.includes("line-chart")) return "target";
+    if (key === "task" || icon.includes("checkbox")) return "check";
+    if (key === "note" || icon.includes("note")) return "note";
+    if (key === "workflow") return "workflow";
+    return "grid";
+  }
+  function fieldIcon(field) {
+    if (field.type === "url") return "link";
+    if (field.type === "email") return "mail";
+    if (field.type === "phone") return "phone";
+    if (field.type === "date" || field.type === "datetime") return "calendar";
+    if (field.type === "currency" || field.type === "number") return "money";
+    if (field.type === "relation") return "link";
+    if (field.type === "select" || field.type === "multi_select") return "list";
+    if (field.fieldKey?.toLowerCase().includes("owner")) return "person";
+    return "hash";
+  }
+  function columnWidth(field, index2) {
+    if (index2 === 0) return 240;
+    if (field.type === "url" || field.type === "email") return 220;
+    if (field.type === "phone") return 170;
+    if (field.type === "select" || field.type === "multi_select") return 180;
+    if (field.type === "currency" || field.type === "number") return 150;
+    if (field.type === "date" || field.type === "datetime") return 160;
+    if (field.type === "boolean") return 130;
+    if (field.type === "relation") return 210;
+    if (field.type === "rich_text") return 280;
+    return 220;
+  }
+  function sortRecords(records, field, sortMode) {
+    if (!field || sortMode === "server") return records;
+    return [...records].sort((a, b) => {
+      const left = String(a.values?.[field.fieldKey] ?? "");
+      const right = String(b.values?.[field.fieldKey] ?? "");
+      return sortMode === "asc" ? left.localeCompare(right) : right.localeCompare(left);
+    });
+  }
+  function countNonEmpty(records, fieldKey) {
+    return records.filter((record) => {
+      const value = record.values?.[fieldKey];
+      return value !== void 0 && value !== null && String(value).trim() !== "";
+    }).length;
+  }
+  function recordInitial(title) {
+    const trimmed = title.trim();
+    if (!trimmed) return "#";
+    const firstTwo = trimmed.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("");
+    return firstTwo.slice(0, 2).toUpperCase();
+  }
+  function isUrlLike(value) {
+    return /^https?:\/\//i.test(value) || /^[a-z0-9-]+\.[a-z]{2,}/i.test(value);
+  }
+  function shortUrl(value) {
+    try {
+      const url = new URL(value.startsWith("http") ? value : `https://${value}`);
+      return url.hostname.replace(/^www\./, "");
+    } catch {
+      return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
+    }
+  }
+  function stringifyDate(value) {
+    if (value === void 0 || value === null || value === "") return void 0;
+    return String(value);
+  }
+  function normalizeTimelineType(value) {
+    if (value === "note" || value === "task") return value;
+    return "activity";
+  }
+
+  // src/lib/remote-components/crm-workbench/src/bridge.ts
+  var CHANNEL = "xpertai.remote_component";
+  var VERSION = 1;
+  var instanceId = null;
+  var requestSequence = 0;
+  var pending = /* @__PURE__ */ new Map();
+  function installBridgeListener(handlers) {
+    const listener = (event) => {
+      const rawMessage = event.data;
+      if (!isObject(rawMessage) || rawMessage.channel !== CHANNEL || rawMessage.protocolVersion !== VERSION) return;
+      const message = rawMessage;
+      if (message.type === "init") {
+        instanceId = typeof message.instanceId === "string" ? message.instanceId : null;
+        handlers.onInit({
+          manifest: message.manifest,
+          payload: message.payload,
+          initialQuery: message.initialQuery ?? {},
+          locale: message.locale,
+          theme: message.theme
+        });
+        setTimeout(reportResize, 0);
+        return;
+      }
+      if (message.instanceId !== instanceId) return;
+      if (message.type === "hostEvent") {
+        handlers.onHostEvent();
+        return;
+      }
+      const requestId = typeof message.requestId === "string" ? message.requestId : "";
+      if (requestId && pending.has(requestId)) {
+        const item = pending.get(requestId);
+        pending.delete(requestId);
+        if (!item) return;
+        if (message.type === "error") {
+          item.reject(new Error(typeof message.message === "string" ? message.message : "Remote CRM request failed"));
+        } else {
+          item.resolve(message);
+        }
+      }
+    };
+    window.addEventListener("message", listener);
+    return () => window.removeEventListener("message", listener);
+  }
+  function post(type, body) {
+    if (!instanceId && type !== "ready") return;
+    window.parent.postMessage(
+      {
+        channel: CHANNEL,
+        protocolVersion: VERSION,
+        instanceId,
+        type,
+        ...body ?? {}
+      },
+      "*"
+    );
+  }
+  function request(type, body) {
+    const requestId = String(++requestSequence);
+    return new Promise((resolve, reject) => {
+      pending.set(requestId, { resolve, reject });
+      try {
+        post(type, { requestId, ...body ?? {} });
+      } catch (error) {
+        pending.delete(requestId);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+  function requestData(query) {
+    return request("requestData", { query });
+  }
+  function executeAction(actionKey, targetId, input, parameters) {
+    return request("executeAction", { actionKey, targetId, input, parameters });
+  }
+  function notify(message, level = "success") {
+    post("notify", { message, level });
+  }
+  function reportResize() {
+    const root2 = document.getElementById("root");
+    const shell = root2?.firstElementChild;
+    const height = Math.max(shell?.scrollHeight ?? 0, 640);
+    post("resize", { height: Math.ceil(height), viewportBound: false });
+  }
+
+  // src/lib/remote-components/crm-workbench/src/vendor.ts
+  var React2 = window.React;
+  var ReactDOM = window.ReactDOM;
 
   // ../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
@@ -930,8 +372,29 @@ var XpertCrmWorkbench = (() => {
     return n;
   }
 
-  // ../../node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  var concatArrays = (array1, array2) => {
+    const combinedArray = new Array(array1.length + array2.length);
+    for (let i = 0; i < array1.length; i++) {
+      combinedArray[i] = array1[i];
+    }
+    for (let i = 0; i < array2.length; i++) {
+      combinedArray[array1.length + i] = array2[i];
+    }
+    return combinedArray;
+  };
+  var createClassValidatorObject = (classGroupId, validator) => ({
+    classGroupId,
+    validator
+  });
+  var createClassPartObject = (nextPart = /* @__PURE__ */ new Map(), validators = null, classGroupId) => ({
+    nextPart,
+    validators,
+    classGroupId
+  });
   var CLASS_PART_SEPARATOR = "-";
+  var EMPTY_CONFLICTS = [];
+  var ARBITRARY_PROPERTY_PREFIX = "arbitrary..";
   var createClassGroupUtils = (config) => {
     const classMap = createClassMap(config);
     const {
@@ -939,121 +402,134 @@ var XpertCrmWorkbench = (() => {
       conflictingClassGroupModifiers
     } = config;
     const getClassGroupId = (className) => {
-      const classParts = className.split(CLASS_PART_SEPARATOR);
-      if (classParts[0] === "" && classParts.length !== 1) {
-        classParts.shift();
+      if (className.startsWith("[") && className.endsWith("]")) {
+        return getGroupIdForArbitraryProperty(className);
       }
-      return getGroupRecursive(classParts, classMap) || getGroupIdForArbitraryProperty(className);
+      const classParts = className.split(CLASS_PART_SEPARATOR);
+      const startIndex = classParts[0] === "" && classParts.length > 1 ? 1 : 0;
+      return getGroupRecursive(classParts, startIndex, classMap);
     };
     const getConflictingClassGroupIds = (classGroupId, hasPostfixModifier) => {
-      const conflicts = conflictingClassGroups[classGroupId] || [];
-      if (hasPostfixModifier && conflictingClassGroupModifiers[classGroupId]) {
-        return [...conflicts, ...conflictingClassGroupModifiers[classGroupId]];
+      if (hasPostfixModifier) {
+        const modifierConflicts = conflictingClassGroupModifiers[classGroupId];
+        const baseConflicts = conflictingClassGroups[classGroupId];
+        if (modifierConflicts) {
+          if (baseConflicts) {
+            return concatArrays(baseConflicts, modifierConflicts);
+          }
+          return modifierConflicts;
+        }
+        return baseConflicts || EMPTY_CONFLICTS;
       }
-      return conflicts;
+      return conflictingClassGroups[classGroupId] || EMPTY_CONFLICTS;
     };
     return {
       getClassGroupId,
       getConflictingClassGroupIds
     };
   };
-  var getGroupRecursive = (classParts, classPartObject) => {
-    if (classParts.length === 0) {
+  var getGroupRecursive = (classParts, startIndex, classPartObject) => {
+    const classPathsLength = classParts.length - startIndex;
+    if (classPathsLength === 0) {
       return classPartObject.classGroupId;
     }
-    const currentClassPart = classParts[0];
+    const currentClassPart = classParts[startIndex];
     const nextClassPartObject = classPartObject.nextPart.get(currentClassPart);
-    const classGroupFromNextClassPart = nextClassPartObject ? getGroupRecursive(classParts.slice(1), nextClassPartObject) : void 0;
-    if (classGroupFromNextClassPart) {
-      return classGroupFromNextClassPart;
+    if (nextClassPartObject) {
+      const result = getGroupRecursive(classParts, startIndex + 1, nextClassPartObject);
+      if (result) return result;
     }
-    if (classPartObject.validators.length === 0) {
+    const validators = classPartObject.validators;
+    if (validators === null) {
       return void 0;
     }
-    const classRest = classParts.join(CLASS_PART_SEPARATOR);
-    return classPartObject.validators.find(({
-      validator
-    }) => validator(classRest))?.classGroupId;
-  };
-  var arbitraryPropertyRegex = /^\[(.+)\]$/;
-  var getGroupIdForArbitraryProperty = (className) => {
-    if (arbitraryPropertyRegex.test(className)) {
-      const arbitraryPropertyClassName = arbitraryPropertyRegex.exec(className)[1];
-      const property = arbitraryPropertyClassName?.substring(0, arbitraryPropertyClassName.indexOf(":"));
-      if (property) {
-        return "arbitrary.." + property;
+    const classRest = startIndex === 0 ? classParts.join(CLASS_PART_SEPARATOR) : classParts.slice(startIndex).join(CLASS_PART_SEPARATOR);
+    const validatorsLength = validators.length;
+    for (let i = 0; i < validatorsLength; i++) {
+      const validatorObj = validators[i];
+      if (validatorObj.validator(classRest)) {
+        return validatorObj.classGroupId;
       }
     }
+    return void 0;
   };
+  var getGroupIdForArbitraryProperty = (className) => className.slice(1, -1).indexOf(":") === -1 ? void 0 : (() => {
+    const content = className.slice(1, -1);
+    const colonIndex = content.indexOf(":");
+    const property = content.slice(0, colonIndex);
+    return property ? ARBITRARY_PROPERTY_PREFIX + property : void 0;
+  })();
   var createClassMap = (config) => {
     const {
       theme,
-      prefix
+      classGroups
     } = config;
-    const classMap = {
-      nextPart: /* @__PURE__ */ new Map(),
-      validators: []
-    };
-    const prefixedClassGroupEntries = getPrefixedClassGroupEntries(Object.entries(config.classGroups), prefix);
-    prefixedClassGroupEntries.forEach(([classGroupId, classGroup]) => {
-      processClassesRecursively(classGroup, classMap, classGroupId, theme);
-    });
+    return processClassGroups(classGroups, theme);
+  };
+  var processClassGroups = (classGroups, theme) => {
+    const classMap = createClassPartObject();
+    for (const classGroupId in classGroups) {
+      const group = classGroups[classGroupId];
+      processClassesRecursively(group, classMap, classGroupId, theme);
+    }
     return classMap;
   };
   var processClassesRecursively = (classGroup, classPartObject, classGroupId, theme) => {
-    classGroup.forEach((classDefinition) => {
-      if (typeof classDefinition === "string") {
-        const classPartObjectToEdit = classDefinition === "" ? classPartObject : getPart(classPartObject, classDefinition);
-        classPartObjectToEdit.classGroupId = classGroupId;
-        return;
-      }
-      if (typeof classDefinition === "function") {
-        if (isThemeGetter(classDefinition)) {
-          processClassesRecursively(classDefinition(theme), classPartObject, classGroupId, theme);
-          return;
-        }
-        classPartObject.validators.push({
-          validator: classDefinition,
-          classGroupId
-        });
-        return;
-      }
-      Object.entries(classDefinition).forEach(([key, classGroup2]) => {
-        processClassesRecursively(classGroup2, getPart(classPartObject, key), classGroupId, theme);
-      });
-    });
+    const len = classGroup.length;
+    for (let i = 0; i < len; i++) {
+      const classDefinition = classGroup[i];
+      processClassDefinition(classDefinition, classPartObject, classGroupId, theme);
+    }
+  };
+  var processClassDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    if (typeof classDefinition === "string") {
+      processStringDefinition(classDefinition, classPartObject, classGroupId);
+      return;
+    }
+    if (typeof classDefinition === "function") {
+      processFunctionDefinition(classDefinition, classPartObject, classGroupId, theme);
+      return;
+    }
+    processObjectDefinition(classDefinition, classPartObject, classGroupId, theme);
+  };
+  var processStringDefinition = (classDefinition, classPartObject, classGroupId) => {
+    const classPartObjectToEdit = classDefinition === "" ? classPartObject : getPart(classPartObject, classDefinition);
+    classPartObjectToEdit.classGroupId = classGroupId;
+  };
+  var processFunctionDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    if (isThemeGetter(classDefinition)) {
+      processClassesRecursively(classDefinition(theme), classPartObject, classGroupId, theme);
+      return;
+    }
+    if (classPartObject.validators === null) {
+      classPartObject.validators = [];
+    }
+    classPartObject.validators.push(createClassValidatorObject(classGroupId, classDefinition));
+  };
+  var processObjectDefinition = (classDefinition, classPartObject, classGroupId, theme) => {
+    const entries = Object.entries(classDefinition);
+    const len = entries.length;
+    for (let i = 0; i < len; i++) {
+      const [key, value] = entries[i];
+      processClassesRecursively(value, getPart(classPartObject, key), classGroupId, theme);
+    }
   };
   var getPart = (classPartObject, path) => {
-    let currentClassPartObject = classPartObject;
-    path.split(CLASS_PART_SEPARATOR).forEach((pathPart) => {
-      if (!currentClassPartObject.nextPart.has(pathPart)) {
-        currentClassPartObject.nextPart.set(pathPart, {
-          nextPart: /* @__PURE__ */ new Map(),
-          validators: []
-        });
+    let current = classPartObject;
+    const parts = path.split(CLASS_PART_SEPARATOR);
+    const len = parts.length;
+    for (let i = 0; i < len; i++) {
+      const part = parts[i];
+      let next = current.nextPart.get(part);
+      if (!next) {
+        next = createClassPartObject();
+        current.nextPart.set(part, next);
       }
-      currentClassPartObject = currentClassPartObject.nextPart.get(pathPart);
-    });
-    return currentClassPartObject;
-  };
-  var isThemeGetter = (func) => func.isThemeGetter;
-  var getPrefixedClassGroupEntries = (classGroupEntries, prefix) => {
-    if (!prefix) {
-      return classGroupEntries;
+      current = next;
     }
-    return classGroupEntries.map(([classGroupId, classGroup]) => {
-      const prefixedClassGroup = classGroup.map((classDefinition) => {
-        if (typeof classDefinition === "string") {
-          return prefix + classDefinition;
-        }
-        if (typeof classDefinition === "object") {
-          return Object.fromEntries(Object.entries(classDefinition).map(([key, value]) => [prefix + key, value]));
-        }
-        return classDefinition;
-      });
-      return [classGroupId, prefixedClassGroup];
-    });
+    return current;
   };
+  var isThemeGetter = (func) => "isThemeGetter" in func && func.isThemeGetter === true;
   var createLruCache = (maxCacheSize) => {
     if (maxCacheSize < 1) {
       return {
@@ -1063,31 +539,31 @@ var XpertCrmWorkbench = (() => {
       };
     }
     let cacheSize = 0;
-    let cache = /* @__PURE__ */ new Map();
-    let previousCache = /* @__PURE__ */ new Map();
+    let cache = /* @__PURE__ */ Object.create(null);
+    let previousCache = /* @__PURE__ */ Object.create(null);
     const update = (key, value) => {
-      cache.set(key, value);
+      cache[key] = value;
       cacheSize++;
       if (cacheSize > maxCacheSize) {
         cacheSize = 0;
         previousCache = cache;
-        cache = /* @__PURE__ */ new Map();
+        cache = /* @__PURE__ */ Object.create(null);
       }
     };
     return {
       get(key) {
-        let value = cache.get(key);
+        let value = cache[key];
         if (value !== void 0) {
           return value;
         }
-        if ((value = previousCache.get(key)) !== void 0) {
+        if ((value = previousCache[key]) !== void 0) {
           update(key, value);
           return value;
         }
       },
       set(key, value) {
-        if (cache.has(key)) {
-          cache.set(key, value);
+        if (key in cache) {
+          cache[key] = value;
         } else {
           update(key, value);
         }
@@ -1095,25 +571,33 @@ var XpertCrmWorkbench = (() => {
     };
   };
   var IMPORTANT_MODIFIER = "!";
+  var MODIFIER_SEPARATOR = ":";
+  var EMPTY_MODIFIERS = [];
+  var createResultObject = (modifiers, hasImportantModifier, baseClassName, maybePostfixModifierPosition, isExternal) => ({
+    modifiers,
+    hasImportantModifier,
+    baseClassName,
+    maybePostfixModifierPosition,
+    isExternal
+  });
   var createParseClassName = (config) => {
     const {
-      separator,
+      prefix,
       experimentalParseClassName
     } = config;
-    const isSeparatorSingleCharacter = separator.length === 1;
-    const firstSeparatorCharacter = separator[0];
-    const separatorLength = separator.length;
-    const parseClassName = (className) => {
+    let parseClassName = (className) => {
       const modifiers = [];
       let bracketDepth = 0;
+      let parenDepth = 0;
       let modifierStart = 0;
       let postfixModifierPosition;
-      for (let index2 = 0; index2 < className.length; index2++) {
-        let currentCharacter = className[index2];
-        if (bracketDepth === 0) {
-          if (currentCharacter === firstSeparatorCharacter && (isSeparatorSingleCharacter || className.slice(index2, index2 + separatorLength) === separator)) {
+      const len = className.length;
+      for (let index2 = 0; index2 < len; index2++) {
+        const currentCharacter = className[index2];
+        if (bracketDepth === 0 && parenDepth === 0) {
+          if (currentCharacter === MODIFIER_SEPARATOR) {
             modifiers.push(className.slice(modifierStart, index2));
-            modifierStart = index2 + separatorLength;
+            modifierStart = index2 + 1;
             continue;
           }
           if (currentCharacter === "/") {
@@ -1121,60 +605,99 @@ var XpertCrmWorkbench = (() => {
             continue;
           }
         }
-        if (currentCharacter === "[") {
-          bracketDepth++;
-        } else if (currentCharacter === "]") {
-          bracketDepth--;
-        }
+        if (currentCharacter === "[") bracketDepth++;
+        else if (currentCharacter === "]") bracketDepth--;
+        else if (currentCharacter === "(") parenDepth++;
+        else if (currentCharacter === ")") parenDepth--;
       }
-      const baseClassNameWithImportantModifier = modifiers.length === 0 ? className : className.substring(modifierStart);
-      const hasImportantModifier = baseClassNameWithImportantModifier.startsWith(IMPORTANT_MODIFIER);
-      const baseClassName = hasImportantModifier ? baseClassNameWithImportantModifier.substring(1) : baseClassNameWithImportantModifier;
+      const baseClassNameWithImportantModifier = modifiers.length === 0 ? className : className.slice(modifierStart);
+      let baseClassName = baseClassNameWithImportantModifier;
+      let hasImportantModifier = false;
+      if (baseClassNameWithImportantModifier.endsWith(IMPORTANT_MODIFIER)) {
+        baseClassName = baseClassNameWithImportantModifier.slice(0, -1);
+        hasImportantModifier = true;
+      } else if (
+        /**
+         * In Tailwind CSS v3 the important modifier was at the start of the base class name. This is still supported for legacy reasons.
+         * @see https://github.com/dcastil/tailwind-merge/issues/513#issuecomment-2614029864
+         */
+        baseClassNameWithImportantModifier.startsWith(IMPORTANT_MODIFIER)
+      ) {
+        baseClassName = baseClassNameWithImportantModifier.slice(1);
+        hasImportantModifier = true;
+      }
       const maybePostfixModifierPosition = postfixModifierPosition && postfixModifierPosition > modifierStart ? postfixModifierPosition - modifierStart : void 0;
-      return {
-        modifiers,
-        hasImportantModifier,
-        baseClassName,
-        maybePostfixModifierPosition
-      };
+      return createResultObject(modifiers, hasImportantModifier, baseClassName, maybePostfixModifierPosition);
     };
+    if (prefix) {
+      const fullPrefix = prefix + MODIFIER_SEPARATOR;
+      const parseClassNameOriginal = parseClassName;
+      parseClassName = (className) => className.startsWith(fullPrefix) ? parseClassNameOriginal(className.slice(fullPrefix.length)) : createResultObject(EMPTY_MODIFIERS, false, className, void 0, true);
+    }
     if (experimentalParseClassName) {
-      return (className) => experimentalParseClassName({
+      const parseClassNameOriginal = parseClassName;
+      parseClassName = (className) => experimentalParseClassName({
         className,
-        parseClassName
+        parseClassName: parseClassNameOriginal
       });
     }
     return parseClassName;
   };
-  var sortModifiers = (modifiers) => {
-    if (modifiers.length <= 1) {
-      return modifiers;
-    }
-    const sortedModifiers = [];
-    let unsortedModifiers = [];
-    modifiers.forEach((modifier) => {
-      const isArbitraryVariant = modifier[0] === "[";
-      if (isArbitraryVariant) {
-        sortedModifiers.push(...unsortedModifiers.sort(), modifier);
-        unsortedModifiers = [];
-      } else {
-        unsortedModifiers.push(modifier);
-      }
+  var createSortModifiers = (config) => {
+    const modifierWeights = /* @__PURE__ */ new Map();
+    config.orderSensitiveModifiers.forEach((mod, index2) => {
+      modifierWeights.set(mod, 1e6 + index2);
     });
-    sortedModifiers.push(...unsortedModifiers.sort());
-    return sortedModifiers;
+    return (modifiers) => {
+      const result = [];
+      let currentSegment = [];
+      for (let i = 0; i < modifiers.length; i++) {
+        const modifier = modifiers[i];
+        const isArbitrary = modifier[0] === "[";
+        const isOrderSensitive = modifierWeights.has(modifier);
+        if (isArbitrary || isOrderSensitive) {
+          if (currentSegment.length > 0) {
+            currentSegment.sort();
+            result.push(...currentSegment);
+            currentSegment = [];
+          }
+          result.push(modifier);
+        } else {
+          currentSegment.push(modifier);
+        }
+      }
+      if (currentSegment.length > 0) {
+        currentSegment.sort();
+        result.push(...currentSegment);
+      }
+      return result;
+    };
   };
   var createConfigUtils = (config) => ({
     cache: createLruCache(config.cacheSize),
     parseClassName: createParseClassName(config),
+    sortModifiers: createSortModifiers(config),
+    postfixLookupClassGroupIds: createPostfixLookupClassGroupIds(config),
     ...createClassGroupUtils(config)
   });
+  var createPostfixLookupClassGroupIds = (config) => {
+    const lookup = /* @__PURE__ */ Object.create(null);
+    const classGroupIds = config.postfixLookupClassGroups;
+    if (classGroupIds) {
+      for (let i = 0; i < classGroupIds.length; i++) {
+        lookup[classGroupIds[i]] = true;
+      }
+    }
+    return lookup;
+  };
   var SPLIT_CLASSES_REGEX = /\s+/;
   var mergeClassList = (classList, configUtils) => {
     const {
       parseClassName,
       getClassGroupId,
-      getConflictingClassGroupIds
+      getConflictingClassGroupIds,
+      sortModifiers,
+      postfixLookupClassGroupIds
     } = configUtils;
     const classGroupsInConflict = [];
     const classNames = classList.trim().split(SPLIT_CLASSES_REGEX);
@@ -1182,13 +705,29 @@ var XpertCrmWorkbench = (() => {
     for (let index2 = classNames.length - 1; index2 >= 0; index2 -= 1) {
       const originalClassName = classNames[index2];
       const {
+        isExternal,
         modifiers,
         hasImportantModifier,
         baseClassName,
         maybePostfixModifierPosition
       } = parseClassName(originalClassName);
-      let hasPostfixModifier = Boolean(maybePostfixModifierPosition);
-      let classGroupId = getClassGroupId(hasPostfixModifier ? baseClassName.substring(0, maybePostfixModifierPosition) : baseClassName);
+      if (isExternal) {
+        result = originalClassName + (result.length > 0 ? " " + result : result);
+        continue;
+      }
+      let hasPostfixModifier = !!maybePostfixModifierPosition;
+      let classGroupId;
+      if (hasPostfixModifier) {
+        const baseClassNameWithoutPostfix = baseClassName.substring(0, maybePostfixModifierPosition);
+        classGroupId = getClassGroupId(baseClassNameWithoutPostfix);
+        const classGroupIdWithPostfix = classGroupId && postfixLookupClassGroupIds[classGroupId] ? getClassGroupId(baseClassName) : void 0;
+        if (classGroupIdWithPostfix && classGroupIdWithPostfix !== classGroupId) {
+          classGroupId = classGroupIdWithPostfix;
+          hasPostfixModifier = false;
+        }
+      } else {
+        classGroupId = getClassGroupId(baseClassName);
+      }
       if (!classGroupId) {
         if (!hasPostfixModifier) {
           result = originalClassName + (result.length > 0 ? " " + result : result);
@@ -1201,10 +740,10 @@ var XpertCrmWorkbench = (() => {
         }
         hasPostfixModifier = false;
       }
-      const variantModifier = sortModifiers(modifiers).join(":");
+      const variantModifier = modifiers.length === 0 ? "" : modifiers.length === 1 ? modifiers[0] : sortModifiers(modifiers).join(":");
       const modifierId = hasImportantModifier ? variantModifier + IMPORTANT_MODIFIER : variantModifier;
       const classId = modifierId + classGroupId;
-      if (classGroupsInConflict.includes(classId)) {
+      if (classGroupsInConflict.indexOf(classId) > -1) {
         continue;
       }
       classGroupsInConflict.push(classId);
@@ -1217,13 +756,13 @@ var XpertCrmWorkbench = (() => {
     }
     return result;
   };
-  function twJoin() {
+  var twJoin = (...classLists) => {
     let index2 = 0;
     let argument;
     let resolvedValue;
     let string = "";
-    while (index2 < arguments.length) {
-      if (argument = arguments[index2++]) {
+    while (index2 < classLists.length) {
+      if (argument = classLists[index2++]) {
         if (resolvedValue = toValue(argument)) {
           string && (string += " ");
           string += resolvedValue;
@@ -1231,16 +770,16 @@ var XpertCrmWorkbench = (() => {
       }
     }
     return string;
-  }
+  };
   var toValue = (mix) => {
     if (typeof mix === "string") {
       return mix;
     }
     let resolvedValue;
     let string = "";
-    for (let k3 = 0; k3 < mix.length; k3++) {
-      if (mix[k3]) {
-        if (resolvedValue = toValue(mix[k3])) {
+    for (let k4 = 0; k4 < mix.length; k4++) {
+      if (mix[k4]) {
+        if (resolvedValue = toValue(mix[k4])) {
           string && (string += " ");
           string += resolvedValue;
         }
@@ -1248,20 +787,20 @@ var XpertCrmWorkbench = (() => {
     }
     return string;
   };
-  function createTailwindMerge(createConfigFirst, ...createConfigRest) {
+  var createTailwindMerge = (createConfigFirst, ...createConfigRest) => {
     let configUtils;
     let cacheGet;
     let cacheSet;
-    let functionToCall = initTailwindMerge;
-    function initTailwindMerge(classList) {
+    let functionToCall;
+    const initTailwindMerge = (classList) => {
       const config = createConfigRest.reduce((previousConfig, createConfigCurrent) => createConfigCurrent(previousConfig), createConfigFirst());
       configUtils = createConfigUtils(config);
       cacheGet = configUtils.cache.get;
       cacheSet = configUtils.cache.set;
       functionToCall = tailwindMerge;
       return tailwindMerge(classList);
-    }
-    function tailwindMerge(classList) {
+    };
+    const tailwindMerge = (classList) => {
       const cachedResult = cacheGet(classList);
       if (cachedResult) {
         return cachedResult;
@@ -1269,49 +808,30 @@ var XpertCrmWorkbench = (() => {
       const result = mergeClassList(classList, configUtils);
       cacheSet(classList, result);
       return result;
-    }
-    return function callTailwindMerge() {
-      return functionToCall(twJoin.apply(null, arguments));
     };
-  }
+    functionToCall = initTailwindMerge;
+    return (...args) => functionToCall(twJoin(...args));
+  };
+  var fallbackThemeArr = [];
   var fromTheme = (key) => {
-    const themeGetter = (theme) => theme[key] || [];
+    const themeGetter = (theme) => theme[key] || fallbackThemeArr;
     themeGetter.isThemeGetter = true;
     return themeGetter;
   };
-  var arbitraryValueRegex = /^\[(?:([a-z-]+):)?(.+)\]$/i;
-  var fractionRegex = /^\d+\/\d+$/;
-  var stringLengths = /* @__PURE__ */ new Set(["px", "full", "screen"]);
+  var arbitraryValueRegex = /^\[(?:(\w[\w-]*):)?(.+)\]$/i;
+  var arbitraryVariableRegex = /^\((?:(\w[\w-]*):)?(.+)\)$/i;
+  var fractionRegex = /^\d+(?:\.\d+)?\/\d+(?:\.\d+)?$/;
   var tshirtUnitRegex = /^(\d+(\.\d+)?)?(xs|sm|md|lg|xl)$/;
   var lengthUnitRegex = /\d+(%|px|r?em|[sdl]?v([hwib]|min|max)|pt|pc|in|cm|mm|cap|ch|ex|r?lh|cq(w|h|i|b|min|max))|\b(calc|min|max|clamp)\(.+\)|^0$/;
   var colorFunctionRegex = /^(rgba?|hsla?|hwb|(ok)?(lab|lch)|color-mix)\(.+\)$/;
   var shadowRegex = /^(inset_)?-?((\d+)?\.?(\d+)[a-z]+|0)_-?((\d+)?\.?(\d+)[a-z]+|0)/;
   var imageRegex = /^(url|image|image-set|cross-fade|element|(repeating-)?(linear|radial|conic)-gradient)\(.+\)$/;
-  var isLength = (value) => isNumber(value) || stringLengths.has(value) || fractionRegex.test(value);
-  var isArbitraryLength = (value) => getIsArbitraryValue(value, "length", isLengthOnly);
-  var isNumber = (value) => Boolean(value) && !Number.isNaN(Number(value));
-  var isArbitraryNumber = (value) => getIsArbitraryValue(value, "number", isNumber);
-  var isInteger = (value) => Boolean(value) && Number.isInteger(Number(value));
+  var isFraction = (value) => fractionRegex.test(value);
+  var isNumber = (value) => !!value && !Number.isNaN(Number(value));
+  var isInteger = (value) => !!value && Number.isInteger(Number(value));
   var isPercent = (value) => value.endsWith("%") && isNumber(value.slice(0, -1));
-  var isArbitraryValue = (value) => arbitraryValueRegex.test(value);
   var isTshirtSize = (value) => tshirtUnitRegex.test(value);
-  var sizeLabels = /* @__PURE__ */ new Set(["length", "size", "percentage"]);
-  var isArbitrarySize = (value) => getIsArbitraryValue(value, sizeLabels, isNever);
-  var isArbitraryPosition = (value) => getIsArbitraryValue(value, "position", isNever);
-  var imageLabels = /* @__PURE__ */ new Set(["image", "url"]);
-  var isArbitraryImage = (value) => getIsArbitraryValue(value, imageLabels, isImage);
-  var isArbitraryShadow = (value) => getIsArbitraryValue(value, "", isShadow);
   var isAny = () => true;
-  var getIsArbitraryValue = (value, label, testValue) => {
-    const result = arbitraryValueRegex.exec(value);
-    if (result) {
-      if (result[1]) {
-        return typeof label === "string" ? result[1] === label : label.has(result[1]);
-      }
-      return testValue(result[2]);
-    }
-    return false;
-  };
   var isLengthOnly = (value) => (
     // `colorFunctionRegex` check is necessary because color functions can have percentages in them which which would be incorrectly classified as lengths.
     // For example, `hsl(0 0% 0%)` would be classified as a length without this check.
@@ -1321,109 +841,218 @@ var XpertCrmWorkbench = (() => {
   var isNever = () => false;
   var isShadow = (value) => shadowRegex.test(value);
   var isImage = (value) => imageRegex.test(value);
+  var isAnyNonArbitrary = (value) => !isArbitraryValue(value) && !isArbitraryVariable(value);
+  var isNamedContainerQuery = (value) => value.startsWith("@container") && (value[10] === "/" && value[11] !== void 0 || value[11] === "s" && value[16] !== void 0 && value.startsWith("-size/", 10) || value[11] === "n" && value[18] !== void 0 && value.startsWith("-normal/", 10));
+  var isArbitrarySize = (value) => getIsArbitraryValue(value, isLabelSize, isNever);
+  var isArbitraryValue = (value) => arbitraryValueRegex.test(value);
+  var isArbitraryLength = (value) => getIsArbitraryValue(value, isLabelLength, isLengthOnly);
+  var isArbitraryNumber = (value) => getIsArbitraryValue(value, isLabelNumber, isNumber);
+  var isArbitraryWeight = (value) => getIsArbitraryValue(value, isLabelWeight, isAny);
+  var isArbitraryFamilyName = (value) => getIsArbitraryValue(value, isLabelFamilyName, isNever);
+  var isArbitraryPosition = (value) => getIsArbitraryValue(value, isLabelPosition, isNever);
+  var isArbitraryImage = (value) => getIsArbitraryValue(value, isLabelImage, isImage);
+  var isArbitraryShadow = (value) => getIsArbitraryValue(value, isLabelShadow, isShadow);
+  var isArbitraryVariable = (value) => arbitraryVariableRegex.test(value);
+  var isArbitraryVariableLength = (value) => getIsArbitraryVariable(value, isLabelLength);
+  var isArbitraryVariableFamilyName = (value) => getIsArbitraryVariable(value, isLabelFamilyName);
+  var isArbitraryVariablePosition = (value) => getIsArbitraryVariable(value, isLabelPosition);
+  var isArbitraryVariableSize = (value) => getIsArbitraryVariable(value, isLabelSize);
+  var isArbitraryVariableImage = (value) => getIsArbitraryVariable(value, isLabelImage);
+  var isArbitraryVariableShadow = (value) => getIsArbitraryVariable(value, isLabelShadow, true);
+  var isArbitraryVariableWeight = (value) => getIsArbitraryVariable(value, isLabelWeight, true);
+  var getIsArbitraryValue = (value, testLabel, testValue) => {
+    const result = arbitraryValueRegex.exec(value);
+    if (result) {
+      if (result[1]) {
+        return testLabel(result[1]);
+      }
+      return testValue(result[2]);
+    }
+    return false;
+  };
+  var getIsArbitraryVariable = (value, testLabel, shouldMatchNoLabel = false) => {
+    const result = arbitraryVariableRegex.exec(value);
+    if (result) {
+      if (result[1]) {
+        return testLabel(result[1]);
+      }
+      return shouldMatchNoLabel;
+    }
+    return false;
+  };
+  var isLabelPosition = (label) => label === "position" || label === "percentage";
+  var isLabelImage = (label) => label === "image" || label === "url";
+  var isLabelSize = (label) => label === "length" || label === "size" || label === "bg-size";
+  var isLabelLength = (label) => label === "length";
+  var isLabelNumber = (label) => label === "number";
+  var isLabelFamilyName = (label) => label === "family-name";
+  var isLabelWeight = (label) => label === "number" || label === "weight";
+  var isLabelShadow = (label) => label === "shadow";
   var getDefaultConfig = () => {
-    const colors = fromTheme("colors");
-    const spacing = fromTheme("spacing");
-    const blur = fromTheme("blur");
-    const brightness = fromTheme("brightness");
-    const borderColor = fromTheme("borderColor");
-    const borderRadius = fromTheme("borderRadius");
-    const borderSpacing = fromTheme("borderSpacing");
-    const borderWidth = fromTheme("borderWidth");
-    const contrast = fromTheme("contrast");
-    const grayscale = fromTheme("grayscale");
-    const hueRotate = fromTheme("hueRotate");
-    const invert = fromTheme("invert");
-    const gap = fromTheme("gap");
-    const gradientColorStops = fromTheme("gradientColorStops");
-    const gradientColorStopPositions = fromTheme("gradientColorStopPositions");
-    const inset = fromTheme("inset");
-    const margin = fromTheme("margin");
-    const opacity = fromTheme("opacity");
-    const padding = fromTheme("padding");
-    const saturate = fromTheme("saturate");
-    const scale = fromTheme("scale");
-    const sepia = fromTheme("sepia");
-    const skew = fromTheme("skew");
-    const space = fromTheme("space");
-    const translate = fromTheme("translate");
-    const getOverscroll = () => ["auto", "contain", "none"];
-    const getOverflow = () => ["auto", "hidden", "clip", "visible", "scroll"];
-    const getSpacingWithAutoAndArbitrary = () => ["auto", isArbitraryValue, spacing];
-    const getSpacingWithArbitrary = () => [isArbitraryValue, spacing];
-    const getLengthWithEmptyAndArbitrary = () => ["", isLength, isArbitraryLength];
-    const getNumberWithAutoAndArbitrary = () => ["auto", isNumber, isArbitraryValue];
-    const getPositions = () => ["bottom", "center", "left", "left-bottom", "left-top", "right", "right-bottom", "right-top", "top"];
-    const getLineStyles = () => ["solid", "dashed", "dotted", "double", "none"];
-    const getBlendModes = () => ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
-    const getAlign = () => ["start", "end", "center", "between", "around", "evenly", "stretch"];
-    const getZeroAndEmpty = () => ["", "0", isArbitraryValue];
-    const getBreaks = () => ["auto", "avoid", "all", "avoid-page", "page", "left", "right", "column"];
-    const getNumberAndArbitrary = () => [isNumber, isArbitraryValue];
+    const themeColor = fromTheme("color");
+    const themeFont = fromTheme("font");
+    const themeText = fromTheme("text");
+    const themeFontWeight = fromTheme("font-weight");
+    const themeTracking = fromTheme("tracking");
+    const themeLeading = fromTheme("leading");
+    const themeBreakpoint = fromTheme("breakpoint");
+    const themeContainer = fromTheme("container");
+    const themeSpacing = fromTheme("spacing");
+    const themeRadius = fromTheme("radius");
+    const themeShadow = fromTheme("shadow");
+    const themeInsetShadow = fromTheme("inset-shadow");
+    const themeTextShadow = fromTheme("text-shadow");
+    const themeDropShadow = fromTheme("drop-shadow");
+    const themeBlur = fromTheme("blur");
+    const themePerspective = fromTheme("perspective");
+    const themeAspect = fromTheme("aspect");
+    const themeEase = fromTheme("ease");
+    const themeAnimate = fromTheme("animate");
+    const scaleBreak = () => ["auto", "avoid", "all", "avoid-page", "page", "left", "right", "column"];
+    const scalePosition = () => [
+      "center",
+      "top",
+      "bottom",
+      "left",
+      "right",
+      "top-left",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "left-top",
+      "top-right",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "right-top",
+      "bottom-right",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "right-bottom",
+      "bottom-left",
+      // Deprecated since Tailwind CSS v4.1.0, see https://github.com/tailwindlabs/tailwindcss/pull/17378
+      "left-bottom"
+    ];
+    const scalePositionWithArbitrary = () => [...scalePosition(), isArbitraryVariable, isArbitraryValue];
+    const scaleOverflow = () => ["auto", "hidden", "clip", "visible", "scroll"];
+    const scaleOverscroll = () => ["auto", "contain", "none"];
+    const scaleUnambiguousSpacing = () => [isArbitraryVariable, isArbitraryValue, themeSpacing];
+    const scaleInset = () => [isFraction, "full", "auto", ...scaleUnambiguousSpacing()];
+    const scaleGridTemplateColsRows = () => [isInteger, "none", "subgrid", isArbitraryVariable, isArbitraryValue];
+    const scaleGridColRowStartAndEnd = () => ["auto", {
+      span: ["full", isInteger, isArbitraryVariable, isArbitraryValue]
+    }, isInteger, isArbitraryVariable, isArbitraryValue];
+    const scaleGridColRowStartOrEnd = () => [isInteger, "auto", isArbitraryVariable, isArbitraryValue];
+    const scaleGridAutoColsRows = () => ["auto", "min", "max", "fr", isArbitraryVariable, isArbitraryValue];
+    const scaleAlignPrimaryAxis = () => ["start", "end", "center", "between", "around", "evenly", "stretch", "baseline", "center-safe", "end-safe"];
+    const scaleAlignSecondaryAxis = () => ["start", "end", "center", "stretch", "center-safe", "end-safe"];
+    const scaleMargin = () => ["auto", ...scaleUnambiguousSpacing()];
+    const scaleSizing = () => [isFraction, "auto", "full", "dvw", "dvh", "lvw", "lvh", "svw", "svh", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleSizingInline = () => [isFraction, "screen", "full", "dvw", "lvw", "svw", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleSizingBlock = () => [isFraction, "screen", "full", "lh", "dvh", "lvh", "svh", "min", "max", "fit", ...scaleUnambiguousSpacing()];
+    const scaleColor = () => [themeColor, isArbitraryVariable, isArbitraryValue];
+    const scaleBgPosition = () => [...scalePosition(), isArbitraryVariablePosition, isArbitraryPosition, {
+      position: [isArbitraryVariable, isArbitraryValue]
+    }];
+    const scaleBgRepeat = () => ["no-repeat", {
+      repeat: ["", "x", "y", "space", "round"]
+    }];
+    const scaleBgSize = () => ["auto", "cover", "contain", isArbitraryVariableSize, isArbitrarySize, {
+      size: [isArbitraryVariable, isArbitraryValue]
+    }];
+    const scaleGradientStopPosition = () => [isPercent, isArbitraryVariableLength, isArbitraryLength];
+    const scaleRadius = () => [
+      // Deprecated since Tailwind CSS v4.0.0
+      "",
+      "none",
+      "full",
+      themeRadius,
+      isArbitraryVariable,
+      isArbitraryValue
+    ];
+    const scaleBorderWidth = () => ["", isNumber, isArbitraryVariableLength, isArbitraryLength];
+    const scaleLineStyle = () => ["solid", "dashed", "dotted", "double"];
+    const scaleBlendMode = () => ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
+    const scaleMaskImagePosition = () => [isNumber, isPercent, isArbitraryVariablePosition, isArbitraryPosition];
+    const scaleBlur = () => [
+      // Deprecated since Tailwind CSS v4.0.0
+      "",
+      "none",
+      themeBlur,
+      isArbitraryVariable,
+      isArbitraryValue
+    ];
+    const scaleRotate = () => ["none", isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleScale = () => ["none", isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleSkew = () => [isNumber, isArbitraryVariable, isArbitraryValue];
+    const scaleTranslate = () => [isFraction, "full", ...scaleUnambiguousSpacing()];
     return {
       cacheSize: 500,
-      separator: ":",
       theme: {
-        colors: [isAny],
-        spacing: [isLength, isArbitraryLength],
-        blur: ["none", "", isTshirtSize, isArbitraryValue],
-        brightness: getNumberAndArbitrary(),
-        borderColor: [colors],
-        borderRadius: ["none", "", "full", isTshirtSize, isArbitraryValue],
-        borderSpacing: getSpacingWithArbitrary(),
-        borderWidth: getLengthWithEmptyAndArbitrary(),
-        contrast: getNumberAndArbitrary(),
-        grayscale: getZeroAndEmpty(),
-        hueRotate: getNumberAndArbitrary(),
-        invert: getZeroAndEmpty(),
-        gap: getSpacingWithArbitrary(),
-        gradientColorStops: [colors],
-        gradientColorStopPositions: [isPercent, isArbitraryLength],
-        inset: getSpacingWithAutoAndArbitrary(),
-        margin: getSpacingWithAutoAndArbitrary(),
-        opacity: getNumberAndArbitrary(),
-        padding: getSpacingWithArbitrary(),
-        saturate: getNumberAndArbitrary(),
-        scale: getNumberAndArbitrary(),
-        sepia: getZeroAndEmpty(),
-        skew: getNumberAndArbitrary(),
-        space: getSpacingWithArbitrary(),
-        translate: getSpacingWithArbitrary()
+        animate: ["spin", "ping", "pulse", "bounce"],
+        aspect: ["video"],
+        blur: [isTshirtSize],
+        breakpoint: [isTshirtSize],
+        color: [isAny],
+        container: [isTshirtSize],
+        "drop-shadow": [isTshirtSize],
+        ease: ["in", "out", "in-out"],
+        font: [isAnyNonArbitrary],
+        "font-weight": ["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black"],
+        "inset-shadow": [isTshirtSize],
+        leading: ["none", "tight", "snug", "normal", "relaxed", "loose"],
+        perspective: ["dramatic", "near", "normal", "midrange", "distant", "none"],
+        radius: [isTshirtSize],
+        shadow: [isTshirtSize],
+        spacing: ["px", isNumber],
+        text: [isTshirtSize],
+        "text-shadow": [isTshirtSize],
+        tracking: ["tighter", "tight", "normal", "wide", "wider", "widest"]
       },
       classGroups: {
-        // Layout
+        // --------------
+        // --- Layout ---
+        // --------------
         /**
          * Aspect Ratio
          * @see https://tailwindcss.com/docs/aspect-ratio
          */
         aspect: [{
-          aspect: ["auto", "square", "video", isArbitraryValue]
+          aspect: ["auto", "square", isFraction, isArbitraryValue, isArbitraryVariable, themeAspect]
         }],
         /**
          * Container
          * @see https://tailwindcss.com/docs/container
+         * @deprecated since Tailwind CSS v4.0.0
          */
         container: ["container"],
+        /**
+         * Container Type
+         * @see https://tailwindcss.com/docs/responsive-design#container-queries
+         */
+        "container-type": [{
+          "@container": ["", "normal", "size", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Container Name
+         * @see https://tailwindcss.com/docs/responsive-design#named-containers
+         */
+        "container-named": [isNamedContainerQuery],
         /**
          * Columns
          * @see https://tailwindcss.com/docs/columns
          */
         columns: [{
-          columns: [isTshirtSize]
+          columns: [isNumber, isArbitraryValue, isArbitraryVariable, themeContainer]
         }],
         /**
          * Break After
          * @see https://tailwindcss.com/docs/break-after
          */
         "break-after": [{
-          "break-after": getBreaks()
+          "break-after": scaleBreak()
         }],
         /**
          * Break Before
          * @see https://tailwindcss.com/docs/break-before
          */
         "break-before": [{
-          "break-before": getBreaks()
+          "break-before": scaleBreak()
         }],
         /**
          * Break Inside
@@ -1451,6 +1080,11 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/display
          */
         display: ["block", "inline-block", "inline", "flex", "inline-flex", "table", "inline-table", "table-caption", "table-cell", "table-column", "table-column-group", "table-footer-group", "table-header-group", "table-row-group", "table-row", "flow-root", "grid", "inline-grid", "contents", "list-item", "hidden"],
+        /**
+         * Screen Reader Only
+         * @see https://tailwindcss.com/docs/display#screen-reader-only
+         */
+        sr: ["sr-only", "not-sr-only"],
         /**
          * Floats
          * @see https://tailwindcss.com/docs/float
@@ -1482,49 +1116,49 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/object-position
          */
         "object-position": [{
-          object: [...getPositions(), isArbitraryValue]
+          object: scalePositionWithArbitrary()
         }],
         /**
          * Overflow
          * @see https://tailwindcss.com/docs/overflow
          */
         overflow: [{
-          overflow: getOverflow()
+          overflow: scaleOverflow()
         }],
         /**
          * Overflow X
          * @see https://tailwindcss.com/docs/overflow
          */
         "overflow-x": [{
-          "overflow-x": getOverflow()
+          "overflow-x": scaleOverflow()
         }],
         /**
          * Overflow Y
          * @see https://tailwindcss.com/docs/overflow
          */
         "overflow-y": [{
-          "overflow-y": getOverflow()
+          "overflow-y": scaleOverflow()
         }],
         /**
          * Overscroll Behavior
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         overscroll: [{
-          overscroll: getOverscroll()
+          overscroll: scaleOverscroll()
         }],
         /**
          * Overscroll Behavior X
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         "overscroll-x": [{
-          "overscroll-x": getOverscroll()
+          "overscroll-x": scaleOverscroll()
         }],
         /**
          * Overscroll Behavior Y
          * @see https://tailwindcss.com/docs/overscroll-behavior
          */
         "overscroll-y": [{
-          "overscroll-y": getOverscroll()
+          "overscroll-y": scaleOverscroll()
         }],
         /**
          * Position
@@ -1532,67 +1166,93 @@ var XpertCrmWorkbench = (() => {
          */
         position: ["static", "fixed", "absolute", "relative", "sticky"],
         /**
-         * Top / Right / Bottom / Left
+         * Inset
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         inset: [{
-          inset: [inset]
+          inset: scaleInset()
         }],
         /**
-         * Right / Left
+         * Inset Inline
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         "inset-x": [{
-          "inset-x": [inset]
+          "inset-x": scaleInset()
         }],
         /**
-         * Top / Bottom
+         * Inset Block
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         "inset-y": [{
-          "inset-y": [inset]
+          "inset-y": scaleInset()
         }],
         /**
-         * Start
+         * Inset Inline Start
          * @see https://tailwindcss.com/docs/top-right-bottom-left
+         * @todo class group will be renamed to `inset-s` in next major release
          */
         start: [{
-          start: [inset]
+          "inset-s": scaleInset(),
+          /**
+           * @deprecated since Tailwind CSS v4.2.0 in favor of `inset-s-*` utilities.
+           * @see https://github.com/tailwindlabs/tailwindcss/pull/19613
+           */
+          start: scaleInset()
         }],
         /**
-         * End
+         * Inset Inline End
          * @see https://tailwindcss.com/docs/top-right-bottom-left
+         * @todo class group will be renamed to `inset-e` in next major release
          */
         end: [{
-          end: [inset]
+          "inset-e": scaleInset(),
+          /**
+           * @deprecated since Tailwind CSS v4.2.0 in favor of `inset-e-*` utilities.
+           * @see https://github.com/tailwindlabs/tailwindcss/pull/19613
+           */
+          end: scaleInset()
+        }],
+        /**
+         * Inset Block Start
+         * @see https://tailwindcss.com/docs/top-right-bottom-left
+         */
+        "inset-bs": [{
+          "inset-bs": scaleInset()
+        }],
+        /**
+         * Inset Block End
+         * @see https://tailwindcss.com/docs/top-right-bottom-left
+         */
+        "inset-be": [{
+          "inset-be": scaleInset()
         }],
         /**
          * Top
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         top: [{
-          top: [inset]
+          top: scaleInset()
         }],
         /**
          * Right
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         right: [{
-          right: [inset]
+          right: scaleInset()
         }],
         /**
          * Bottom
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         bottom: [{
-          bottom: [inset]
+          bottom: scaleInset()
         }],
         /**
          * Left
          * @see https://tailwindcss.com/docs/top-right-bottom-left
          */
         left: [{
-          left: [inset]
+          left: scaleInset()
         }],
         /**
          * Visibility
@@ -1604,15 +1264,17 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/z-index
          */
         z: [{
-          z: ["auto", isInteger, isArbitraryValue]
+          z: [isInteger, "auto", isArbitraryVariable, isArbitraryValue]
         }],
-        // Flexbox and Grid
+        // ------------------------
+        // --- Flexbox and Grid ---
+        // ------------------------
         /**
          * Flex Basis
          * @see https://tailwindcss.com/docs/flex-basis
          */
         basis: [{
-          basis: getSpacingWithAutoAndArbitrary()
+          basis: [isFraction, "full", "auto", themeContainer, ...scaleUnambiguousSpacing()]
         }],
         /**
          * Flex Direction
@@ -1626,95 +1288,91 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/flex-wrap
          */
         "flex-wrap": [{
-          flex: ["wrap", "wrap-reverse", "nowrap"]
+          flex: ["nowrap", "wrap", "wrap-reverse"]
         }],
         /**
          * Flex
          * @see https://tailwindcss.com/docs/flex
          */
         flex: [{
-          flex: ["1", "auto", "initial", "none", isArbitraryValue]
+          flex: [isNumber, isFraction, "auto", "initial", "none", isArbitraryValue]
         }],
         /**
          * Flex Grow
          * @see https://tailwindcss.com/docs/flex-grow
          */
         grow: [{
-          grow: getZeroAndEmpty()
+          grow: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Flex Shrink
          * @see https://tailwindcss.com/docs/flex-shrink
          */
         shrink: [{
-          shrink: getZeroAndEmpty()
+          shrink: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Order
          * @see https://tailwindcss.com/docs/order
          */
         order: [{
-          order: ["first", "last", "none", isInteger, isArbitraryValue]
+          order: [isInteger, "first", "last", "none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Grid Template Columns
          * @see https://tailwindcss.com/docs/grid-template-columns
          */
         "grid-cols": [{
-          "grid-cols": [isAny]
+          "grid-cols": scaleGridTemplateColsRows()
         }],
         /**
          * Grid Column Start / End
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-start-end": [{
-          col: ["auto", {
-            span: ["full", isInteger, isArbitraryValue]
-          }, isArbitraryValue]
+          col: scaleGridColRowStartAndEnd()
         }],
         /**
          * Grid Column Start
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-start": [{
-          "col-start": getNumberWithAutoAndArbitrary()
+          "col-start": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Column End
          * @see https://tailwindcss.com/docs/grid-column
          */
         "col-end": [{
-          "col-end": getNumberWithAutoAndArbitrary()
+          "col-end": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Template Rows
          * @see https://tailwindcss.com/docs/grid-template-rows
          */
         "grid-rows": [{
-          "grid-rows": [isAny]
+          "grid-rows": scaleGridTemplateColsRows()
         }],
         /**
          * Grid Row Start / End
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-start-end": [{
-          row: ["auto", {
-            span: [isInteger, isArbitraryValue]
-          }, isArbitraryValue]
+          row: scaleGridColRowStartAndEnd()
         }],
         /**
          * Grid Row Start
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-start": [{
-          "row-start": getNumberWithAutoAndArbitrary()
+          "row-start": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Row End
          * @see https://tailwindcss.com/docs/grid-row
          */
         "row-end": [{
-          "row-end": getNumberWithAutoAndArbitrary()
+          "row-end": scaleGridColRowStartOrEnd()
         }],
         /**
          * Grid Auto Flow
@@ -1728,98 +1386,102 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/grid-auto-columns
          */
         "auto-cols": [{
-          "auto-cols": ["auto", "min", "max", "fr", isArbitraryValue]
+          "auto-cols": scaleGridAutoColsRows()
         }],
         /**
          * Grid Auto Rows
          * @see https://tailwindcss.com/docs/grid-auto-rows
          */
         "auto-rows": [{
-          "auto-rows": ["auto", "min", "max", "fr", isArbitraryValue]
+          "auto-rows": scaleGridAutoColsRows()
         }],
         /**
          * Gap
          * @see https://tailwindcss.com/docs/gap
          */
         gap: [{
-          gap: [gap]
+          gap: scaleUnambiguousSpacing()
         }],
         /**
          * Gap X
          * @see https://tailwindcss.com/docs/gap
          */
         "gap-x": [{
-          "gap-x": [gap]
+          "gap-x": scaleUnambiguousSpacing()
         }],
         /**
          * Gap Y
          * @see https://tailwindcss.com/docs/gap
          */
         "gap-y": [{
-          "gap-y": [gap]
+          "gap-y": scaleUnambiguousSpacing()
         }],
         /**
          * Justify Content
          * @see https://tailwindcss.com/docs/justify-content
          */
         "justify-content": [{
-          justify: ["normal", ...getAlign()]
+          justify: [...scaleAlignPrimaryAxis(), "normal"]
         }],
         /**
          * Justify Items
          * @see https://tailwindcss.com/docs/justify-items
          */
         "justify-items": [{
-          "justify-items": ["start", "end", "center", "stretch"]
+          "justify-items": [...scaleAlignSecondaryAxis(), "normal"]
         }],
         /**
          * Justify Self
          * @see https://tailwindcss.com/docs/justify-self
          */
         "justify-self": [{
-          "justify-self": ["auto", "start", "end", "center", "stretch"]
+          "justify-self": ["auto", ...scaleAlignSecondaryAxis()]
         }],
         /**
          * Align Content
          * @see https://tailwindcss.com/docs/align-content
          */
         "align-content": [{
-          content: ["normal", ...getAlign(), "baseline"]
+          content: ["normal", ...scaleAlignPrimaryAxis()]
         }],
         /**
          * Align Items
          * @see https://tailwindcss.com/docs/align-items
          */
         "align-items": [{
-          items: ["start", "end", "center", "baseline", "stretch"]
+          items: [...scaleAlignSecondaryAxis(), {
+            baseline: ["", "last"]
+          }]
         }],
         /**
          * Align Self
          * @see https://tailwindcss.com/docs/align-self
          */
         "align-self": [{
-          self: ["auto", "start", "end", "center", "stretch", "baseline"]
+          self: ["auto", ...scaleAlignSecondaryAxis(), {
+            baseline: ["", "last"]
+          }]
         }],
         /**
          * Place Content
          * @see https://tailwindcss.com/docs/place-content
          */
         "place-content": [{
-          "place-content": [...getAlign(), "baseline"]
+          "place-content": scaleAlignPrimaryAxis()
         }],
         /**
          * Place Items
          * @see https://tailwindcss.com/docs/place-items
          */
         "place-items": [{
-          "place-items": ["start", "end", "center", "baseline", "stretch"]
+          "place-items": [...scaleAlignSecondaryAxis(), "baseline"]
         }],
         /**
          * Place Self
          * @see https://tailwindcss.com/docs/place-self
          */
         "place-self": [{
-          "place-self": ["auto", "start", "end", "center", "stretch"]
+          "place-self": ["auto", ...scaleAlignSecondaryAxis()]
         }],
         // Spacing
         /**
@@ -1827,210 +1489,299 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/padding
          */
         p: [{
-          p: [padding]
+          p: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding X
+         * Padding Inline
          * @see https://tailwindcss.com/docs/padding
          */
         px: [{
-          px: [padding]
+          px: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding Y
+         * Padding Block
          * @see https://tailwindcss.com/docs/padding
          */
         py: [{
-          py: [padding]
+          py: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding Start
+         * Padding Inline Start
          * @see https://tailwindcss.com/docs/padding
          */
         ps: [{
-          ps: [padding]
+          ps: scaleUnambiguousSpacing()
         }],
         /**
-         * Padding End
+         * Padding Inline End
          * @see https://tailwindcss.com/docs/padding
          */
         pe: [{
-          pe: [padding]
+          pe: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Padding Block Start
+         * @see https://tailwindcss.com/docs/padding
+         */
+        pbs: [{
+          pbs: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Padding Block End
+         * @see https://tailwindcss.com/docs/padding
+         */
+        pbe: [{
+          pbe: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Top
          * @see https://tailwindcss.com/docs/padding
          */
         pt: [{
-          pt: [padding]
+          pt: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Right
          * @see https://tailwindcss.com/docs/padding
          */
         pr: [{
-          pr: [padding]
+          pr: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Bottom
          * @see https://tailwindcss.com/docs/padding
          */
         pb: [{
-          pb: [padding]
+          pb: scaleUnambiguousSpacing()
         }],
         /**
          * Padding Left
          * @see https://tailwindcss.com/docs/padding
          */
         pl: [{
-          pl: [padding]
+          pl: scaleUnambiguousSpacing()
         }],
         /**
          * Margin
          * @see https://tailwindcss.com/docs/margin
          */
         m: [{
-          m: [margin]
+          m: scaleMargin()
         }],
         /**
-         * Margin X
+         * Margin Inline
          * @see https://tailwindcss.com/docs/margin
          */
         mx: [{
-          mx: [margin]
+          mx: scaleMargin()
         }],
         /**
-         * Margin Y
+         * Margin Block
          * @see https://tailwindcss.com/docs/margin
          */
         my: [{
-          my: [margin]
+          my: scaleMargin()
         }],
         /**
-         * Margin Start
+         * Margin Inline Start
          * @see https://tailwindcss.com/docs/margin
          */
         ms: [{
-          ms: [margin]
+          ms: scaleMargin()
         }],
         /**
-         * Margin End
+         * Margin Inline End
          * @see https://tailwindcss.com/docs/margin
          */
         me: [{
-          me: [margin]
+          me: scaleMargin()
+        }],
+        /**
+         * Margin Block Start
+         * @see https://tailwindcss.com/docs/margin
+         */
+        mbs: [{
+          mbs: scaleMargin()
+        }],
+        /**
+         * Margin Block End
+         * @see https://tailwindcss.com/docs/margin
+         */
+        mbe: [{
+          mbe: scaleMargin()
         }],
         /**
          * Margin Top
          * @see https://tailwindcss.com/docs/margin
          */
         mt: [{
-          mt: [margin]
+          mt: scaleMargin()
         }],
         /**
          * Margin Right
          * @see https://tailwindcss.com/docs/margin
          */
         mr: [{
-          mr: [margin]
+          mr: scaleMargin()
         }],
         /**
          * Margin Bottom
          * @see https://tailwindcss.com/docs/margin
          */
         mb: [{
-          mb: [margin]
+          mb: scaleMargin()
         }],
         /**
          * Margin Left
          * @see https://tailwindcss.com/docs/margin
          */
         ml: [{
-          ml: [margin]
+          ml: scaleMargin()
         }],
         /**
          * Space Between X
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-x": [{
-          "space-x": [space]
+          "space-x": scaleUnambiguousSpacing()
         }],
         /**
          * Space Between X Reverse
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-x-reverse": ["space-x-reverse"],
         /**
          * Space Between Y
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-y": [{
-          "space-y": [space]
+          "space-y": scaleUnambiguousSpacing()
         }],
         /**
          * Space Between Y Reverse
-         * @see https://tailwindcss.com/docs/space
+         * @see https://tailwindcss.com/docs/margin#adding-space-between-children
          */
         "space-y-reverse": ["space-y-reverse"],
-        // Sizing
+        // --------------
+        // --- Sizing ---
+        // --------------
+        /**
+         * Size
+         * @see https://tailwindcss.com/docs/width#setting-both-width-and-height
+         */
+        size: [{
+          size: scaleSizing()
+        }],
+        /**
+         * Inline Size
+         * @see https://tailwindcss.com/docs/width
+         */
+        "inline-size": [{
+          inline: ["auto", ...scaleSizingInline()]
+        }],
+        /**
+         * Min-Inline Size
+         * @see https://tailwindcss.com/docs/min-width
+         */
+        "min-inline-size": [{
+          "min-inline": ["auto", ...scaleSizingInline()]
+        }],
+        /**
+         * Max-Inline Size
+         * @see https://tailwindcss.com/docs/max-width
+         */
+        "max-inline-size": [{
+          "max-inline": ["none", ...scaleSizingInline()]
+        }],
+        /**
+         * Block Size
+         * @see https://tailwindcss.com/docs/height
+         */
+        "block-size": [{
+          block: ["auto", ...scaleSizingBlock()]
+        }],
+        /**
+         * Min-Block Size
+         * @see https://tailwindcss.com/docs/min-height
+         */
+        "min-block-size": [{
+          "min-block": ["auto", ...scaleSizingBlock()]
+        }],
+        /**
+         * Max-Block Size
+         * @see https://tailwindcss.com/docs/max-height
+         */
+        "max-block-size": [{
+          "max-block": ["none", ...scaleSizingBlock()]
+        }],
         /**
          * Width
          * @see https://tailwindcss.com/docs/width
          */
         w: [{
-          w: ["auto", "min", "max", "fit", "svw", "lvw", "dvw", isArbitraryValue, spacing]
+          w: [themeContainer, "screen", ...scaleSizing()]
         }],
         /**
          * Min-Width
          * @see https://tailwindcss.com/docs/min-width
          */
         "min-w": [{
-          "min-w": [isArbitraryValue, spacing, "min", "max", "fit"]
+          "min-w": [
+            themeContainer,
+            "screen",
+            /** Deprecated. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            "none",
+            ...scaleSizing()
+          ]
         }],
         /**
          * Max-Width
          * @see https://tailwindcss.com/docs/max-width
          */
         "max-w": [{
-          "max-w": [isArbitraryValue, spacing, "none", "full", "min", "max", "fit", "prose", {
-            screen: [isTshirtSize]
-          }, isTshirtSize]
+          "max-w": [
+            themeContainer,
+            "screen",
+            "none",
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            "prose",
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            {
+              screen: [themeBreakpoint]
+            },
+            ...scaleSizing()
+          ]
         }],
         /**
          * Height
          * @see https://tailwindcss.com/docs/height
          */
         h: [{
-          h: [isArbitraryValue, spacing, "auto", "min", "max", "fit", "svh", "lvh", "dvh"]
+          h: ["screen", "lh", ...scaleSizing()]
         }],
         /**
          * Min-Height
          * @see https://tailwindcss.com/docs/min-height
          */
         "min-h": [{
-          "min-h": [isArbitraryValue, spacing, "min", "max", "fit", "svh", "lvh", "dvh"]
+          "min-h": ["screen", "lh", "none", ...scaleSizing()]
         }],
         /**
          * Max-Height
          * @see https://tailwindcss.com/docs/max-height
          */
         "max-h": [{
-          "max-h": [isArbitraryValue, spacing, "min", "max", "fit", "svh", "lvh", "dvh"]
+          "max-h": ["screen", "lh", ...scaleSizing()]
         }],
-        /**
-         * Size
-         * @see https://tailwindcss.com/docs/size
-         */
-        size: [{
-          size: [isArbitraryValue, spacing, "auto", "min", "max", "fit"]
-        }],
-        // Typography
+        // ------------------
+        // --- Typography ---
+        // ------------------
         /**
          * Font Size
          * @see https://tailwindcss.com/docs/font-size
          */
         "font-size": [{
-          text: ["base", isTshirtSize, isArbitraryLength]
+          text: ["base", themeText, isArbitraryVariableLength, isArbitraryLength]
         }],
         /**
          * Font Smoothing
@@ -2047,14 +1798,28 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/font-weight
          */
         "font-weight": [{
-          font: ["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black", isArbitraryNumber]
+          font: [themeFontWeight, isArbitraryVariableWeight, isArbitraryWeight]
+        }],
+        /**
+         * Font Stretch
+         * @see https://tailwindcss.com/docs/font-stretch
+         */
+        "font-stretch": [{
+          "font-stretch": ["ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "normal", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded", isPercent, isArbitraryValue]
         }],
         /**
          * Font Family
          * @see https://tailwindcss.com/docs/font-family
          */
         "font-family": [{
-          font: [isAny]
+          font: [isArbitraryVariableFamilyName, isArbitraryFamilyName, themeFont]
+        }],
+        /**
+         * Font Feature Settings
+         * @see https://tailwindcss.com/docs/font-feature-settings
+         */
+        "font-features": [{
+          "font-features": [isArbitraryValue]
         }],
         /**
          * Font Variant Numeric
@@ -2091,35 +1856,32 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/letter-spacing
          */
         tracking: [{
-          tracking: ["tighter", "tight", "normal", "wide", "wider", "widest", isArbitraryValue]
+          tracking: [themeTracking, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Line Clamp
          * @see https://tailwindcss.com/docs/line-clamp
          */
         "line-clamp": [{
-          "line-clamp": ["none", isNumber, isArbitraryNumber]
+          "line-clamp": [isNumber, "none", isArbitraryVariable, isArbitraryNumber]
         }],
         /**
          * Line Height
          * @see https://tailwindcss.com/docs/line-height
          */
         leading: [{
-          leading: ["none", "tight", "snug", "normal", "relaxed", "loose", isLength, isArbitraryValue]
+          leading: [
+            /** Deprecated since Tailwind CSS v4.0.0. @see https://github.com/tailwindlabs/tailwindcss.com/issues/2027#issuecomment-2620152757 */
+            themeLeading,
+            ...scaleUnambiguousSpacing()
+          ]
         }],
         /**
          * List Style Image
          * @see https://tailwindcss.com/docs/list-style-image
          */
         "list-image": [{
-          "list-image": ["none", isArbitraryValue]
-        }],
-        /**
-         * List Style Type
-         * @see https://tailwindcss.com/docs/list-style-type
-         */
-        "list-style-type": [{
-          list: ["none", "disc", "decimal", isArbitraryValue]
+          "list-image": ["none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * List Style Position
@@ -2129,19 +1891,11 @@ var XpertCrmWorkbench = (() => {
           list: ["inside", "outside"]
         }],
         /**
-         * Placeholder Color
-         * @deprecated since Tailwind CSS v3.0.0
-         * @see https://tailwindcss.com/docs/placeholder-color
+         * List Style Type
+         * @see https://tailwindcss.com/docs/list-style-type
          */
-        "placeholder-color": [{
-          placeholder: [colors]
-        }],
-        /**
-         * Placeholder Opacity
-         * @see https://tailwindcss.com/docs/placeholder-opacity
-         */
-        "placeholder-opacity": [{
-          "placeholder-opacity": [opacity]
+        "list-style-type": [{
+          list: ["disc", "decimal", "none", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Text Alignment
@@ -2151,18 +1905,19 @@ var XpertCrmWorkbench = (() => {
           text: ["left", "center", "right", "justify", "start", "end"]
         }],
         /**
+         * Placeholder Color
+         * @deprecated since Tailwind CSS v3.0.0
+         * @see https://v3.tailwindcss.com/docs/placeholder-color
+         */
+        "placeholder-color": [{
+          placeholder: scaleColor()
+        }],
+        /**
          * Text Color
          * @see https://tailwindcss.com/docs/text-color
          */
         "text-color": [{
-          text: [colors]
-        }],
-        /**
-         * Text Opacity
-         * @see https://tailwindcss.com/docs/text-opacity
-         */
-        "text-opacity": [{
-          "text-opacity": [opacity]
+          text: scaleColor()
         }],
         /**
          * Text Decoration
@@ -2174,28 +1929,28 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/text-decoration-style
          */
         "text-decoration-style": [{
-          decoration: [...getLineStyles(), "wavy"]
+          decoration: [...scaleLineStyle(), "wavy"]
         }],
         /**
          * Text Decoration Thickness
          * @see https://tailwindcss.com/docs/text-decoration-thickness
          */
         "text-decoration-thickness": [{
-          decoration: ["auto", "from-font", isLength, isArbitraryLength]
-        }],
-        /**
-         * Text Underline Offset
-         * @see https://tailwindcss.com/docs/text-underline-offset
-         */
-        "underline-offset": [{
-          "underline-offset": ["auto", isLength, isArbitraryValue]
+          decoration: [isNumber, "from-font", "auto", isArbitraryVariable, isArbitraryLength]
         }],
         /**
          * Text Decoration Color
          * @see https://tailwindcss.com/docs/text-decoration-color
          */
         "text-decoration-color": [{
-          decoration: [colors]
+          decoration: scaleColor()
+        }],
+        /**
+         * Text Underline Offset
+         * @see https://tailwindcss.com/docs/text-underline-offset
+         */
+        "underline-offset": [{
+          "underline-offset": [isNumber, "auto", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Text Transform
@@ -2219,14 +1974,21 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/text-indent
          */
         indent: [{
-          indent: getSpacingWithArbitrary()
+          indent: scaleUnambiguousSpacing()
+        }],
+        /**
+         * Tab Size
+         * @see https://tailwindcss.com/docs/tab-size
+         */
+        "tab-size": [{
+          tab: [isInteger, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Vertical Alignment
          * @see https://tailwindcss.com/docs/vertical-align
          */
         "vertical-align": [{
-          align: ["baseline", "top", "middle", "bottom", "text-top", "text-bottom", "sub", "super", isArbitraryValue]
+          align: ["baseline", "top", "middle", "bottom", "text-top", "text-bottom", "sub", "super", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Whitespace
@@ -2243,6 +2005,13 @@ var XpertCrmWorkbench = (() => {
           break: ["normal", "words", "all", "keep"]
         }],
         /**
+         * Overflow Wrap
+         * @see https://tailwindcss.com/docs/overflow-wrap
+         */
+        wrap: [{
+          wrap: ["break-word", "anywhere", "normal"]
+        }],
+        /**
          * Hyphens
          * @see https://tailwindcss.com/docs/hyphens
          */
@@ -2254,9 +2023,11 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/content
          */
         content: [{
-          content: ["none", isArbitraryValue]
+          content: ["none", isArbitraryVariable, isArbitraryValue]
         }],
-        // Backgrounds
+        // -------------------
+        // --- Backgrounds ---
+        // -------------------
         /**
          * Background Attachment
          * @see https://tailwindcss.com/docs/background-attachment
@@ -2272,14 +2043,6 @@ var XpertCrmWorkbench = (() => {
           "bg-clip": ["border", "padding", "content", "text"]
         }],
         /**
-         * Background Opacity
-         * @deprecated since Tailwind CSS v3.0.0
-         * @see https://tailwindcss.com/docs/background-opacity
-         */
-        "bg-opacity": [{
-          "bg-opacity": [opacity]
-        }],
-        /**
          * Background Origin
          * @see https://tailwindcss.com/docs/background-origin
          */
@@ -2291,23 +2054,21 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/background-position
          */
         "bg-position": [{
-          bg: [...getPositions(), isArbitraryPosition]
+          bg: scaleBgPosition()
         }],
         /**
          * Background Repeat
          * @see https://tailwindcss.com/docs/background-repeat
          */
         "bg-repeat": [{
-          bg: ["no-repeat", {
-            repeat: ["", "x", "y", "round", "space"]
-          }]
+          bg: scaleBgRepeat()
         }],
         /**
          * Background Size
          * @see https://tailwindcss.com/docs/background-size
          */
         "bg-size": [{
-          bg: ["auto", "cover", "contain", isArbitrarySize]
+          bg: scaleBgSize()
         }],
         /**
          * Background Image
@@ -2315,597 +2076,891 @@ var XpertCrmWorkbench = (() => {
          */
         "bg-image": [{
           bg: ["none", {
-            "gradient-to": ["t", "tr", "r", "br", "b", "bl", "l", "tl"]
-          }, isArbitraryImage]
+            linear: [{
+              to: ["t", "tr", "r", "br", "b", "bl", "l", "tl"]
+            }, isInteger, isArbitraryVariable, isArbitraryValue],
+            radial: ["", isArbitraryVariable, isArbitraryValue],
+            conic: [isInteger, isArbitraryVariable, isArbitraryValue]
+          }, isArbitraryVariableImage, isArbitraryImage]
         }],
         /**
          * Background Color
          * @see https://tailwindcss.com/docs/background-color
          */
         "bg-color": [{
-          bg: [colors]
+          bg: scaleColor()
         }],
         /**
          * Gradient Color Stops From Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-from-pos": [{
-          from: [gradientColorStopPositions]
+          from: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops Via Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-via-pos": [{
-          via: [gradientColorStopPositions]
+          via: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops To Position
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-to-pos": [{
-          to: [gradientColorStopPositions]
+          to: scaleGradientStopPosition()
         }],
         /**
          * Gradient Color Stops From
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-from": [{
-          from: [gradientColorStops]
+          from: scaleColor()
         }],
         /**
          * Gradient Color Stops Via
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-via": [{
-          via: [gradientColorStops]
+          via: scaleColor()
         }],
         /**
          * Gradient Color Stops To
          * @see https://tailwindcss.com/docs/gradient-color-stops
          */
         "gradient-to": [{
-          to: [gradientColorStops]
+          to: scaleColor()
         }],
-        // Borders
+        // ---------------
+        // --- Borders ---
+        // ---------------
         /**
          * Border Radius
          * @see https://tailwindcss.com/docs/border-radius
          */
         rounded: [{
-          rounded: [borderRadius]
+          rounded: scaleRadius()
         }],
         /**
          * Border Radius Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-s": [{
-          "rounded-s": [borderRadius]
+          "rounded-s": scaleRadius()
         }],
         /**
          * Border Radius End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-e": [{
-          "rounded-e": [borderRadius]
+          "rounded-e": scaleRadius()
         }],
         /**
          * Border Radius Top
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-t": [{
-          "rounded-t": [borderRadius]
+          "rounded-t": scaleRadius()
         }],
         /**
          * Border Radius Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-r": [{
-          "rounded-r": [borderRadius]
+          "rounded-r": scaleRadius()
         }],
         /**
          * Border Radius Bottom
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-b": [{
-          "rounded-b": [borderRadius]
+          "rounded-b": scaleRadius()
         }],
         /**
          * Border Radius Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-l": [{
-          "rounded-l": [borderRadius]
+          "rounded-l": scaleRadius()
         }],
         /**
          * Border Radius Start Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-ss": [{
-          "rounded-ss": [borderRadius]
+          "rounded-ss": scaleRadius()
         }],
         /**
          * Border Radius Start End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-se": [{
-          "rounded-se": [borderRadius]
+          "rounded-se": scaleRadius()
         }],
         /**
          * Border Radius End End
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-ee": [{
-          "rounded-ee": [borderRadius]
+          "rounded-ee": scaleRadius()
         }],
         /**
          * Border Radius End Start
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-es": [{
-          "rounded-es": [borderRadius]
+          "rounded-es": scaleRadius()
         }],
         /**
          * Border Radius Top Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-tl": [{
-          "rounded-tl": [borderRadius]
+          "rounded-tl": scaleRadius()
         }],
         /**
          * Border Radius Top Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-tr": [{
-          "rounded-tr": [borderRadius]
+          "rounded-tr": scaleRadius()
         }],
         /**
          * Border Radius Bottom Right
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-br": [{
-          "rounded-br": [borderRadius]
+          "rounded-br": scaleRadius()
         }],
         /**
          * Border Radius Bottom Left
          * @see https://tailwindcss.com/docs/border-radius
          */
         "rounded-bl": [{
-          "rounded-bl": [borderRadius]
+          "rounded-bl": scaleRadius()
         }],
         /**
          * Border Width
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w": [{
-          border: [borderWidth]
+          border: scaleBorderWidth()
         }],
         /**
-         * Border Width X
+         * Border Width Inline
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-x": [{
-          "border-x": [borderWidth]
+          "border-x": scaleBorderWidth()
         }],
         /**
-         * Border Width Y
+         * Border Width Block
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-y": [{
-          "border-y": [borderWidth]
+          "border-y": scaleBorderWidth()
         }],
         /**
-         * Border Width Start
+         * Border Width Inline Start
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-s": [{
-          "border-s": [borderWidth]
+          "border-s": scaleBorderWidth()
         }],
         /**
-         * Border Width End
+         * Border Width Inline End
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-e": [{
-          "border-e": [borderWidth]
+          "border-e": scaleBorderWidth()
+        }],
+        /**
+         * Border Width Block Start
+         * @see https://tailwindcss.com/docs/border-width
+         */
+        "border-w-bs": [{
+          "border-bs": scaleBorderWidth()
+        }],
+        /**
+         * Border Width Block End
+         * @see https://tailwindcss.com/docs/border-width
+         */
+        "border-w-be": [{
+          "border-be": scaleBorderWidth()
         }],
         /**
          * Border Width Top
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-t": [{
-          "border-t": [borderWidth]
+          "border-t": scaleBorderWidth()
         }],
         /**
          * Border Width Right
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-r": [{
-          "border-r": [borderWidth]
+          "border-r": scaleBorderWidth()
         }],
         /**
          * Border Width Bottom
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-b": [{
-          "border-b": [borderWidth]
+          "border-b": scaleBorderWidth()
         }],
         /**
          * Border Width Left
          * @see https://tailwindcss.com/docs/border-width
          */
         "border-w-l": [{
-          "border-l": [borderWidth]
+          "border-l": scaleBorderWidth()
         }],
         /**
-         * Border Opacity
-         * @see https://tailwindcss.com/docs/border-opacity
+         * Divide Width X
+         * @see https://tailwindcss.com/docs/border-width#between-children
          */
-        "border-opacity": [{
-          "border-opacity": [opacity]
+        "divide-x": [{
+          "divide-x": scaleBorderWidth()
         }],
+        /**
+         * Divide Width X Reverse
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-x-reverse": ["divide-x-reverse"],
+        /**
+         * Divide Width Y
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-y": [{
+          "divide-y": scaleBorderWidth()
+        }],
+        /**
+         * Divide Width Y Reverse
+         * @see https://tailwindcss.com/docs/border-width#between-children
+         */
+        "divide-y-reverse": ["divide-y-reverse"],
         /**
          * Border Style
          * @see https://tailwindcss.com/docs/border-style
          */
         "border-style": [{
-          border: [...getLineStyles(), "hidden"]
-        }],
-        /**
-         * Divide Width X
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-x": [{
-          "divide-x": [borderWidth]
-        }],
-        /**
-         * Divide Width X Reverse
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-x-reverse": ["divide-x-reverse"],
-        /**
-         * Divide Width Y
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-y": [{
-          "divide-y": [borderWidth]
-        }],
-        /**
-         * Divide Width Y Reverse
-         * @see https://tailwindcss.com/docs/divide-width
-         */
-        "divide-y-reverse": ["divide-y-reverse"],
-        /**
-         * Divide Opacity
-         * @see https://tailwindcss.com/docs/divide-opacity
-         */
-        "divide-opacity": [{
-          "divide-opacity": [opacity]
+          border: [...scaleLineStyle(), "hidden", "none"]
         }],
         /**
          * Divide Style
-         * @see https://tailwindcss.com/docs/divide-style
+         * @see https://tailwindcss.com/docs/border-style#setting-the-divider-style
          */
         "divide-style": [{
-          divide: getLineStyles()
+          divide: [...scaleLineStyle(), "hidden", "none"]
         }],
         /**
          * Border Color
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color": [{
-          border: [borderColor]
+          border: scaleColor()
         }],
         /**
-         * Border Color X
+         * Border Color Inline
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-x": [{
-          "border-x": [borderColor]
+          "border-x": scaleColor()
         }],
         /**
-         * Border Color Y
+         * Border Color Block
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-y": [{
-          "border-y": [borderColor]
+          "border-y": scaleColor()
         }],
         /**
-         * Border Color S
+         * Border Color Inline Start
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-s": [{
-          "border-s": [borderColor]
+          "border-s": scaleColor()
         }],
         /**
-         * Border Color E
+         * Border Color Inline End
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-e": [{
-          "border-e": [borderColor]
+          "border-e": scaleColor()
+        }],
+        /**
+         * Border Color Block Start
+         * @see https://tailwindcss.com/docs/border-color
+         */
+        "border-color-bs": [{
+          "border-bs": scaleColor()
+        }],
+        /**
+         * Border Color Block End
+         * @see https://tailwindcss.com/docs/border-color
+         */
+        "border-color-be": [{
+          "border-be": scaleColor()
         }],
         /**
          * Border Color Top
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-t": [{
-          "border-t": [borderColor]
+          "border-t": scaleColor()
         }],
         /**
          * Border Color Right
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-r": [{
-          "border-r": [borderColor]
+          "border-r": scaleColor()
         }],
         /**
          * Border Color Bottom
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-b": [{
-          "border-b": [borderColor]
+          "border-b": scaleColor()
         }],
         /**
          * Border Color Left
          * @see https://tailwindcss.com/docs/border-color
          */
         "border-color-l": [{
-          "border-l": [borderColor]
+          "border-l": scaleColor()
         }],
         /**
          * Divide Color
          * @see https://tailwindcss.com/docs/divide-color
          */
         "divide-color": [{
-          divide: [borderColor]
+          divide: scaleColor()
         }],
         /**
          * Outline Style
          * @see https://tailwindcss.com/docs/outline-style
          */
         "outline-style": [{
-          outline: ["", ...getLineStyles()]
+          outline: [...scaleLineStyle(), "none", "hidden"]
         }],
         /**
          * Outline Offset
          * @see https://tailwindcss.com/docs/outline-offset
          */
         "outline-offset": [{
-          "outline-offset": [isLength, isArbitraryValue]
+          "outline-offset": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Outline Width
          * @see https://tailwindcss.com/docs/outline-width
          */
         "outline-w": [{
-          outline: [isLength, isArbitraryLength]
+          outline: ["", isNumber, isArbitraryVariableLength, isArbitraryLength]
         }],
         /**
          * Outline Color
          * @see https://tailwindcss.com/docs/outline-color
          */
         "outline-color": [{
-          outline: [colors]
+          outline: scaleColor()
         }],
-        /**
-         * Ring Width
-         * @see https://tailwindcss.com/docs/ring-width
-         */
-        "ring-w": [{
-          ring: getLengthWithEmptyAndArbitrary()
-        }],
-        /**
-         * Ring Width Inset
-         * @see https://tailwindcss.com/docs/ring-width
-         */
-        "ring-w-inset": ["ring-inset"],
-        /**
-         * Ring Color
-         * @see https://tailwindcss.com/docs/ring-color
-         */
-        "ring-color": [{
-          ring: [colors]
-        }],
-        /**
-         * Ring Opacity
-         * @see https://tailwindcss.com/docs/ring-opacity
-         */
-        "ring-opacity": [{
-          "ring-opacity": [opacity]
-        }],
-        /**
-         * Ring Offset Width
-         * @see https://tailwindcss.com/docs/ring-offset-width
-         */
-        "ring-offset-w": [{
-          "ring-offset": [isLength, isArbitraryLength]
-        }],
-        /**
-         * Ring Offset Color
-         * @see https://tailwindcss.com/docs/ring-offset-color
-         */
-        "ring-offset-color": [{
-          "ring-offset": [colors]
-        }],
-        // Effects
+        // ---------------
+        // --- Effects ---
+        // ---------------
         /**
          * Box Shadow
          * @see https://tailwindcss.com/docs/box-shadow
          */
         shadow: [{
-          shadow: ["", "inner", "none", isTshirtSize, isArbitraryShadow]
+          shadow: [
+            // Deprecated since Tailwind CSS v4.0.0
+            "",
+            "none",
+            themeShadow,
+            isArbitraryVariableShadow,
+            isArbitraryShadow
+          ]
         }],
         /**
          * Box Shadow Color
-         * @see https://tailwindcss.com/docs/box-shadow-color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-shadow-color
          */
         "shadow-color": [{
-          shadow: [isAny]
+          shadow: scaleColor()
+        }],
+        /**
+         * Inset Box Shadow
+         * @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-shadow
+         */
+        "inset-shadow": [{
+          "inset-shadow": ["none", themeInsetShadow, isArbitraryVariableShadow, isArbitraryShadow]
+        }],
+        /**
+         * Inset Box Shadow Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-shadow-color
+         */
+        "inset-shadow-color": [{
+          "inset-shadow": scaleColor()
+        }],
+        /**
+         * Ring Width
+         * @see https://tailwindcss.com/docs/box-shadow#adding-a-ring
+         */
+        "ring-w": [{
+          ring: scaleBorderWidth()
+        }],
+        /**
+         * Ring Width Inset
+         * @see https://v3.tailwindcss.com/docs/ring-width#inset-rings
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-w-inset": ["ring-inset"],
+        /**
+         * Ring Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-ring-color
+         */
+        "ring-color": [{
+          ring: scaleColor()
+        }],
+        /**
+         * Ring Offset Width
+         * @see https://v3.tailwindcss.com/docs/ring-offset-width
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-offset-w": [{
+          "ring-offset": [isNumber, isArbitraryLength]
+        }],
+        /**
+         * Ring Offset Color
+         * @see https://v3.tailwindcss.com/docs/ring-offset-color
+         * @deprecated since Tailwind CSS v4.0.0
+         * @see https://github.com/tailwindlabs/tailwindcss/blob/v4.0.0/packages/tailwindcss/src/utilities.ts#L4158
+         */
+        "ring-offset-color": [{
+          "ring-offset": scaleColor()
+        }],
+        /**
+         * Inset Ring Width
+         * @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-ring
+         */
+        "inset-ring-w": [{
+          "inset-ring": scaleBorderWidth()
+        }],
+        /**
+         * Inset Ring Color
+         * @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-ring-color
+         */
+        "inset-ring-color": [{
+          "inset-ring": scaleColor()
+        }],
+        /**
+         * Text Shadow
+         * @see https://tailwindcss.com/docs/text-shadow
+         */
+        "text-shadow": [{
+          "text-shadow": ["none", themeTextShadow, isArbitraryVariableShadow, isArbitraryShadow]
+        }],
+        /**
+         * Text Shadow Color
+         * @see https://tailwindcss.com/docs/text-shadow#setting-the-shadow-color
+         */
+        "text-shadow-color": [{
+          "text-shadow": scaleColor()
         }],
         /**
          * Opacity
          * @see https://tailwindcss.com/docs/opacity
          */
         opacity: [{
-          opacity: [opacity]
+          opacity: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Mix Blend Mode
          * @see https://tailwindcss.com/docs/mix-blend-mode
          */
         "mix-blend": [{
-          "mix-blend": [...getBlendModes(), "plus-lighter", "plus-darker"]
+          "mix-blend": [...scaleBlendMode(), "plus-darker", "plus-lighter"]
         }],
         /**
          * Background Blend Mode
          * @see https://tailwindcss.com/docs/background-blend-mode
          */
         "bg-blend": [{
-          "bg-blend": getBlendModes()
+          "bg-blend": scaleBlendMode()
         }],
-        // Filters
+        /**
+         * Mask Clip
+         * @see https://tailwindcss.com/docs/mask-clip
+         */
+        "mask-clip": [{
+          "mask-clip": ["border", "padding", "content", "fill", "stroke", "view"]
+        }, "mask-no-clip"],
+        /**
+         * Mask Composite
+         * @see https://tailwindcss.com/docs/mask-composite
+         */
+        "mask-composite": [{
+          mask: ["add", "subtract", "intersect", "exclude"]
+        }],
+        /**
+         * Mask Image
+         * @see https://tailwindcss.com/docs/mask-image
+         */
+        "mask-image-linear-pos": [{
+          "mask-linear": [isNumber]
+        }],
+        "mask-image-linear-from-pos": [{
+          "mask-linear-from": scaleMaskImagePosition()
+        }],
+        "mask-image-linear-to-pos": [{
+          "mask-linear-to": scaleMaskImagePosition()
+        }],
+        "mask-image-linear-from-color": [{
+          "mask-linear-from": scaleColor()
+        }],
+        "mask-image-linear-to-color": [{
+          "mask-linear-to": scaleColor()
+        }],
+        "mask-image-t-from-pos": [{
+          "mask-t-from": scaleMaskImagePosition()
+        }],
+        "mask-image-t-to-pos": [{
+          "mask-t-to": scaleMaskImagePosition()
+        }],
+        "mask-image-t-from-color": [{
+          "mask-t-from": scaleColor()
+        }],
+        "mask-image-t-to-color": [{
+          "mask-t-to": scaleColor()
+        }],
+        "mask-image-r-from-pos": [{
+          "mask-r-from": scaleMaskImagePosition()
+        }],
+        "mask-image-r-to-pos": [{
+          "mask-r-to": scaleMaskImagePosition()
+        }],
+        "mask-image-r-from-color": [{
+          "mask-r-from": scaleColor()
+        }],
+        "mask-image-r-to-color": [{
+          "mask-r-to": scaleColor()
+        }],
+        "mask-image-b-from-pos": [{
+          "mask-b-from": scaleMaskImagePosition()
+        }],
+        "mask-image-b-to-pos": [{
+          "mask-b-to": scaleMaskImagePosition()
+        }],
+        "mask-image-b-from-color": [{
+          "mask-b-from": scaleColor()
+        }],
+        "mask-image-b-to-color": [{
+          "mask-b-to": scaleColor()
+        }],
+        "mask-image-l-from-pos": [{
+          "mask-l-from": scaleMaskImagePosition()
+        }],
+        "mask-image-l-to-pos": [{
+          "mask-l-to": scaleMaskImagePosition()
+        }],
+        "mask-image-l-from-color": [{
+          "mask-l-from": scaleColor()
+        }],
+        "mask-image-l-to-color": [{
+          "mask-l-to": scaleColor()
+        }],
+        "mask-image-x-from-pos": [{
+          "mask-x-from": scaleMaskImagePosition()
+        }],
+        "mask-image-x-to-pos": [{
+          "mask-x-to": scaleMaskImagePosition()
+        }],
+        "mask-image-x-from-color": [{
+          "mask-x-from": scaleColor()
+        }],
+        "mask-image-x-to-color": [{
+          "mask-x-to": scaleColor()
+        }],
+        "mask-image-y-from-pos": [{
+          "mask-y-from": scaleMaskImagePosition()
+        }],
+        "mask-image-y-to-pos": [{
+          "mask-y-to": scaleMaskImagePosition()
+        }],
+        "mask-image-y-from-color": [{
+          "mask-y-from": scaleColor()
+        }],
+        "mask-image-y-to-color": [{
+          "mask-y-to": scaleColor()
+        }],
+        "mask-image-radial": [{
+          "mask-radial": [isArbitraryVariable, isArbitraryValue]
+        }],
+        "mask-image-radial-from-pos": [{
+          "mask-radial-from": scaleMaskImagePosition()
+        }],
+        "mask-image-radial-to-pos": [{
+          "mask-radial-to": scaleMaskImagePosition()
+        }],
+        "mask-image-radial-from-color": [{
+          "mask-radial-from": scaleColor()
+        }],
+        "mask-image-radial-to-color": [{
+          "mask-radial-to": scaleColor()
+        }],
+        "mask-image-radial-shape": [{
+          "mask-radial": ["circle", "ellipse"]
+        }],
+        "mask-image-radial-size": [{
+          "mask-radial": [{
+            closest: ["side", "corner"],
+            farthest: ["side", "corner"]
+          }]
+        }],
+        "mask-image-radial-pos": [{
+          "mask-radial-at": scalePosition()
+        }],
+        "mask-image-conic-pos": [{
+          "mask-conic": [isNumber]
+        }],
+        "mask-image-conic-from-pos": [{
+          "mask-conic-from": scaleMaskImagePosition()
+        }],
+        "mask-image-conic-to-pos": [{
+          "mask-conic-to": scaleMaskImagePosition()
+        }],
+        "mask-image-conic-from-color": [{
+          "mask-conic-from": scaleColor()
+        }],
+        "mask-image-conic-to-color": [{
+          "mask-conic-to": scaleColor()
+        }],
+        /**
+         * Mask Mode
+         * @see https://tailwindcss.com/docs/mask-mode
+         */
+        "mask-mode": [{
+          mask: ["alpha", "luminance", "match"]
+        }],
+        /**
+         * Mask Origin
+         * @see https://tailwindcss.com/docs/mask-origin
+         */
+        "mask-origin": [{
+          "mask-origin": ["border", "padding", "content", "fill", "stroke", "view"]
+        }],
+        /**
+         * Mask Position
+         * @see https://tailwindcss.com/docs/mask-position
+         */
+        "mask-position": [{
+          mask: scaleBgPosition()
+        }],
+        /**
+         * Mask Repeat
+         * @see https://tailwindcss.com/docs/mask-repeat
+         */
+        "mask-repeat": [{
+          mask: scaleBgRepeat()
+        }],
+        /**
+         * Mask Size
+         * @see https://tailwindcss.com/docs/mask-size
+         */
+        "mask-size": [{
+          mask: scaleBgSize()
+        }],
+        /**
+         * Mask Type
+         * @see https://tailwindcss.com/docs/mask-type
+         */
+        "mask-type": [{
+          "mask-type": ["alpha", "luminance"]
+        }],
+        /**
+         * Mask Image
+         * @see https://tailwindcss.com/docs/mask-image
+         */
+        "mask-image": [{
+          mask: ["none", isArbitraryVariable, isArbitraryValue]
+        }],
+        // ---------------
+        // --- Filters ---
+        // ---------------
         /**
          * Filter
-         * @deprecated since Tailwind CSS v3.0.0
          * @see https://tailwindcss.com/docs/filter
          */
         filter: [{
-          filter: ["", "none"]
+          filter: [
+            // Deprecated since Tailwind CSS v3.0.0
+            "",
+            "none",
+            isArbitraryVariable,
+            isArbitraryValue
+          ]
         }],
         /**
          * Blur
          * @see https://tailwindcss.com/docs/blur
          */
         blur: [{
-          blur: [blur]
+          blur: scaleBlur()
         }],
         /**
          * Brightness
          * @see https://tailwindcss.com/docs/brightness
          */
         brightness: [{
-          brightness: [brightness]
+          brightness: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Contrast
          * @see https://tailwindcss.com/docs/contrast
          */
         contrast: [{
-          contrast: [contrast]
+          contrast: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Drop Shadow
          * @see https://tailwindcss.com/docs/drop-shadow
          */
         "drop-shadow": [{
-          "drop-shadow": ["", "none", isTshirtSize, isArbitraryValue]
+          "drop-shadow": [
+            // Deprecated since Tailwind CSS v4.0.0
+            "",
+            "none",
+            themeDropShadow,
+            isArbitraryVariableShadow,
+            isArbitraryShadow
+          ]
+        }],
+        /**
+         * Drop Shadow Color
+         * @see https://tailwindcss.com/docs/filter-drop-shadow#setting-the-shadow-color
+         */
+        "drop-shadow-color": [{
+          "drop-shadow": scaleColor()
         }],
         /**
          * Grayscale
          * @see https://tailwindcss.com/docs/grayscale
          */
         grayscale: [{
-          grayscale: [grayscale]
+          grayscale: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Hue Rotate
          * @see https://tailwindcss.com/docs/hue-rotate
          */
         "hue-rotate": [{
-          "hue-rotate": [hueRotate]
+          "hue-rotate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Invert
          * @see https://tailwindcss.com/docs/invert
          */
         invert: [{
-          invert: [invert]
+          invert: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Saturate
          * @see https://tailwindcss.com/docs/saturate
          */
         saturate: [{
-          saturate: [saturate]
+          saturate: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Sepia
          * @see https://tailwindcss.com/docs/sepia
          */
         sepia: [{
-          sepia: [sepia]
+          sepia: ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Filter
-         * @deprecated since Tailwind CSS v3.0.0
          * @see https://tailwindcss.com/docs/backdrop-filter
          */
         "backdrop-filter": [{
-          "backdrop-filter": ["", "none"]
+          "backdrop-filter": [
+            // Deprecated since Tailwind CSS v3.0.0
+            "",
+            "none",
+            isArbitraryVariable,
+            isArbitraryValue
+          ]
         }],
         /**
          * Backdrop Blur
          * @see https://tailwindcss.com/docs/backdrop-blur
          */
         "backdrop-blur": [{
-          "backdrop-blur": [blur]
+          "backdrop-blur": scaleBlur()
         }],
         /**
          * Backdrop Brightness
          * @see https://tailwindcss.com/docs/backdrop-brightness
          */
         "backdrop-brightness": [{
-          "backdrop-brightness": [brightness]
+          "backdrop-brightness": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Contrast
          * @see https://tailwindcss.com/docs/backdrop-contrast
          */
         "backdrop-contrast": [{
-          "backdrop-contrast": [contrast]
+          "backdrop-contrast": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Grayscale
          * @see https://tailwindcss.com/docs/backdrop-grayscale
          */
         "backdrop-grayscale": [{
-          "backdrop-grayscale": [grayscale]
+          "backdrop-grayscale": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Hue Rotate
          * @see https://tailwindcss.com/docs/backdrop-hue-rotate
          */
         "backdrop-hue-rotate": [{
-          "backdrop-hue-rotate": [hueRotate]
+          "backdrop-hue-rotate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Invert
          * @see https://tailwindcss.com/docs/backdrop-invert
          */
         "backdrop-invert": [{
-          "backdrop-invert": [invert]
+          "backdrop-invert": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Opacity
          * @see https://tailwindcss.com/docs/backdrop-opacity
          */
         "backdrop-opacity": [{
-          "backdrop-opacity": [opacity]
+          "backdrop-opacity": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Saturate
          * @see https://tailwindcss.com/docs/backdrop-saturate
          */
         "backdrop-saturate": [{
-          "backdrop-saturate": [saturate]
+          "backdrop-saturate": [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Backdrop Sepia
          * @see https://tailwindcss.com/docs/backdrop-sepia
          */
         "backdrop-sepia": [{
-          "backdrop-sepia": [sepia]
+          "backdrop-sepia": ["", isNumber, isArbitraryVariable, isArbitraryValue]
         }],
-        // Tables
+        // --------------
+        // --- Tables ---
+        // --------------
         /**
          * Border Collapse
          * @see https://tailwindcss.com/docs/border-collapse
@@ -2918,21 +2973,21 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing": [{
-          "border-spacing": [borderSpacing]
+          "border-spacing": scaleUnambiguousSpacing()
         }],
         /**
          * Border Spacing X
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing-x": [{
-          "border-spacing-x": [borderSpacing]
+          "border-spacing-x": scaleUnambiguousSpacing()
         }],
         /**
          * Border Spacing Y
          * @see https://tailwindcss.com/docs/border-spacing
          */
         "border-spacing-y": [{
-          "border-spacing-y": [borderSpacing]
+          "border-spacing-y": scaleUnambiguousSpacing()
         }],
         /**
          * Table Layout
@@ -2948,120 +3003,227 @@ var XpertCrmWorkbench = (() => {
         caption: [{
           caption: ["top", "bottom"]
         }],
-        // Transitions and Animation
+        // ---------------------------------
+        // --- Transitions and Animation ---
+        // ---------------------------------
         /**
-         * Tranisition Property
+         * Transition Property
          * @see https://tailwindcss.com/docs/transition-property
          */
         transition: [{
-          transition: ["none", "all", "", "colors", "opacity", "shadow", "transform", isArbitraryValue]
+          transition: ["", "all", "colors", "opacity", "shadow", "transform", "none", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Transition Behavior
+         * @see https://tailwindcss.com/docs/transition-behavior
+         */
+        "transition-behavior": [{
+          transition: ["normal", "discrete"]
         }],
         /**
          * Transition Duration
          * @see https://tailwindcss.com/docs/transition-duration
          */
         duration: [{
-          duration: getNumberAndArbitrary()
+          duration: [isNumber, "initial", isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Transition Timing Function
          * @see https://tailwindcss.com/docs/transition-timing-function
          */
         ease: [{
-          ease: ["linear", "in", "out", "in-out", isArbitraryValue]
+          ease: ["linear", "initial", themeEase, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Transition Delay
          * @see https://tailwindcss.com/docs/transition-delay
          */
         delay: [{
-          delay: getNumberAndArbitrary()
+          delay: [isNumber, isArbitraryVariable, isArbitraryValue]
         }],
         /**
          * Animation
          * @see https://tailwindcss.com/docs/animation
          */
         animate: [{
-          animate: ["none", "spin", "ping", "pulse", "bounce", isArbitraryValue]
+          animate: ["none", themeAnimate, isArbitraryVariable, isArbitraryValue]
         }],
-        // Transforms
+        // ------------------
+        // --- Transforms ---
+        // ------------------
         /**
-         * Transform
-         * @see https://tailwindcss.com/docs/transform
+         * Backface Visibility
+         * @see https://tailwindcss.com/docs/backface-visibility
          */
-        transform: [{
-          transform: ["", "gpu", "none"]
-        }],
-        /**
-         * Scale
-         * @see https://tailwindcss.com/docs/scale
-         */
-        scale: [{
-          scale: [scale]
+        backface: [{
+          backface: ["hidden", "visible"]
         }],
         /**
-         * Scale X
-         * @see https://tailwindcss.com/docs/scale
+         * Perspective
+         * @see https://tailwindcss.com/docs/perspective
          */
-        "scale-x": [{
-          "scale-x": [scale]
+        perspective: [{
+          perspective: [themePerspective, isArbitraryVariable, isArbitraryValue]
         }],
         /**
-         * Scale Y
-         * @see https://tailwindcss.com/docs/scale
+         * Perspective Origin
+         * @see https://tailwindcss.com/docs/perspective-origin
          */
-        "scale-y": [{
-          "scale-y": [scale]
+        "perspective-origin": [{
+          "perspective-origin": scalePositionWithArbitrary()
         }],
         /**
          * Rotate
          * @see https://tailwindcss.com/docs/rotate
          */
         rotate: [{
-          rotate: [isInteger, isArbitraryValue]
+          rotate: scaleRotate()
         }],
         /**
-         * Translate X
-         * @see https://tailwindcss.com/docs/translate
+         * Rotate X
+         * @see https://tailwindcss.com/docs/rotate
          */
-        "translate-x": [{
-          "translate-x": [translate]
+        "rotate-x": [{
+          "rotate-x": scaleRotate()
         }],
         /**
-         * Translate Y
-         * @see https://tailwindcss.com/docs/translate
+         * Rotate Y
+         * @see https://tailwindcss.com/docs/rotate
          */
-        "translate-y": [{
-          "translate-y": [translate]
+        "rotate-y": [{
+          "rotate-y": scaleRotate()
+        }],
+        /**
+         * Rotate Z
+         * @see https://tailwindcss.com/docs/rotate
+         */
+        "rotate-z": [{
+          "rotate-z": scaleRotate()
+        }],
+        /**
+         * Scale
+         * @see https://tailwindcss.com/docs/scale
+         */
+        scale: [{
+          scale: scaleScale()
+        }],
+        /**
+         * Scale X
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-x": [{
+          "scale-x": scaleScale()
+        }],
+        /**
+         * Scale Y
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-y": [{
+          "scale-y": scaleScale()
+        }],
+        /**
+         * Scale Z
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-z": [{
+          "scale-z": scaleScale()
+        }],
+        /**
+         * Scale 3D
+         * @see https://tailwindcss.com/docs/scale
+         */
+        "scale-3d": ["scale-3d"],
+        /**
+         * Skew
+         * @see https://tailwindcss.com/docs/skew
+         */
+        skew: [{
+          skew: scaleSkew()
         }],
         /**
          * Skew X
          * @see https://tailwindcss.com/docs/skew
          */
         "skew-x": [{
-          "skew-x": [skew]
+          "skew-x": scaleSkew()
         }],
         /**
          * Skew Y
          * @see https://tailwindcss.com/docs/skew
          */
         "skew-y": [{
-          "skew-y": [skew]
+          "skew-y": scaleSkew()
+        }],
+        /**
+         * Transform
+         * @see https://tailwindcss.com/docs/transform
+         */
+        transform: [{
+          transform: [isArbitraryVariable, isArbitraryValue, "", "none", "gpu", "cpu"]
         }],
         /**
          * Transform Origin
          * @see https://tailwindcss.com/docs/transform-origin
          */
         "transform-origin": [{
-          origin: ["center", "top", "top-right", "right", "bottom-right", "bottom", "bottom-left", "left", "top-left", isArbitraryValue]
+          origin: scalePositionWithArbitrary()
         }],
-        // Interactivity
+        /**
+         * Transform Style
+         * @see https://tailwindcss.com/docs/transform-style
+         */
+        "transform-style": [{
+          transform: ["3d", "flat"]
+        }],
+        /**
+         * Translate
+         * @see https://tailwindcss.com/docs/translate
+         */
+        translate: [{
+          translate: scaleTranslate()
+        }],
+        /**
+         * Translate X
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-x": [{
+          "translate-x": scaleTranslate()
+        }],
+        /**
+         * Translate Y
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-y": [{
+          "translate-y": scaleTranslate()
+        }],
+        /**
+         * Translate Z
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-z": [{
+          "translate-z": scaleTranslate()
+        }],
+        /**
+         * Translate None
+         * @see https://tailwindcss.com/docs/translate
+         */
+        "translate-none": ["translate-none"],
+        /**
+         * Zoom
+         * @see https://tailwindcss.com/docs/zoom
+         */
+        zoom: [{
+          zoom: [isInteger, isArbitraryVariable, isArbitraryValue]
+        }],
+        // ---------------------
+        // --- Interactivity ---
+        // ---------------------
         /**
          * Accent Color
          * @see https://tailwindcss.com/docs/accent-color
          */
         accent: [{
-          accent: ["auto", colors]
+          accent: scaleColor()
         }],
         /**
          * Appearance
@@ -3071,32 +3233,46 @@ var XpertCrmWorkbench = (() => {
           appearance: ["none", "auto"]
         }],
         /**
-         * Cursor
-         * @see https://tailwindcss.com/docs/cursor
-         */
-        cursor: [{
-          cursor: ["auto", "default", "pointer", "wait", "text", "move", "help", "not-allowed", "none", "context-menu", "progress", "cell", "crosshair", "vertical-text", "alias", "copy", "no-drop", "grab", "grabbing", "all-scroll", "col-resize", "row-resize", "n-resize", "e-resize", "s-resize", "w-resize", "ne-resize", "nw-resize", "se-resize", "sw-resize", "ew-resize", "ns-resize", "nesw-resize", "nwse-resize", "zoom-in", "zoom-out", isArbitraryValue]
-        }],
-        /**
          * Caret Color
          * @see https://tailwindcss.com/docs/just-in-time-mode#caret-color-utilities
          */
         "caret-color": [{
-          caret: [colors]
+          caret: scaleColor()
+        }],
+        /**
+         * Color Scheme
+         * @see https://tailwindcss.com/docs/color-scheme
+         */
+        "color-scheme": [{
+          scheme: ["normal", "dark", "light", "light-dark", "only-dark", "only-light"]
+        }],
+        /**
+         * Cursor
+         * @see https://tailwindcss.com/docs/cursor
+         */
+        cursor: [{
+          cursor: ["auto", "default", "pointer", "wait", "text", "move", "help", "not-allowed", "none", "context-menu", "progress", "cell", "crosshair", "vertical-text", "alias", "copy", "no-drop", "grab", "grabbing", "all-scroll", "col-resize", "row-resize", "n-resize", "e-resize", "s-resize", "w-resize", "ne-resize", "nw-resize", "se-resize", "sw-resize", "ew-resize", "ns-resize", "nesw-resize", "nwse-resize", "zoom-in", "zoom-out", isArbitraryVariable, isArbitraryValue]
+        }],
+        /**
+         * Field Sizing
+         * @see https://tailwindcss.com/docs/field-sizing
+         */
+        "field-sizing": [{
+          "field-sizing": ["fixed", "content"]
         }],
         /**
          * Pointer Events
          * @see https://tailwindcss.com/docs/pointer-events
          */
         "pointer-events": [{
-          "pointer-events": ["none", "auto"]
+          "pointer-events": ["auto", "none"]
         }],
         /**
          * Resize
          * @see https://tailwindcss.com/docs/resize
          */
         resize: [{
-          resize: ["none", "y", "x", ""]
+          resize: ["none", "", "y", "x"]
         }],
         /**
          * Scroll Behavior
@@ -3106,130 +3282,186 @@ var XpertCrmWorkbench = (() => {
           scroll: ["auto", "smooth"]
         }],
         /**
+         * Scrollbar Thumb Color
+         * @see https://tailwindcss.com/docs/scrollbar-color
+         */
+        "scrollbar-thumb-color": [{
+          "scrollbar-thumb": scaleColor()
+        }],
+        /**
+         * Scrollbar Track Color
+         * @see https://tailwindcss.com/docs/scrollbar-color
+         */
+        "scrollbar-track-color": [{
+          "scrollbar-track": scaleColor()
+        }],
+        /**
+         * Scrollbar Gutter
+         * @see https://tailwindcss.com/docs/scrollbar-gutter
+         */
+        "scrollbar-gutter": [{
+          "scrollbar-gutter": ["auto", "stable", "both"]
+        }],
+        /**
+         * Scrollbar Width
+         * @see https://tailwindcss.com/docs/scrollbar-width
+         */
+        "scrollbar-w": [{
+          scrollbar: ["auto", "thin", "none"]
+        }],
+        /**
          * Scroll Margin
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-m": [{
-          "scroll-m": getSpacingWithArbitrary()
+          "scroll-m": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin X
+         * Scroll Margin Inline
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mx": [{
-          "scroll-mx": getSpacingWithArbitrary()
+          "scroll-mx": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin Y
+         * Scroll Margin Block
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-my": [{
-          "scroll-my": getSpacingWithArbitrary()
+          "scroll-my": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin Start
+         * Scroll Margin Inline Start
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-ms": [{
-          "scroll-ms": getSpacingWithArbitrary()
+          "scroll-ms": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Margin End
+         * Scroll Margin Inline End
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-me": [{
-          "scroll-me": getSpacingWithArbitrary()
+          "scroll-me": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Margin Block Start
+         * @see https://tailwindcss.com/docs/scroll-margin
+         */
+        "scroll-mbs": [{
+          "scroll-mbs": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Margin Block End
+         * @see https://tailwindcss.com/docs/scroll-margin
+         */
+        "scroll-mbe": [{
+          "scroll-mbe": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Top
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mt": [{
-          "scroll-mt": getSpacingWithArbitrary()
+          "scroll-mt": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Right
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mr": [{
-          "scroll-mr": getSpacingWithArbitrary()
+          "scroll-mr": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Bottom
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-mb": [{
-          "scroll-mb": getSpacingWithArbitrary()
+          "scroll-mb": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Margin Left
          * @see https://tailwindcss.com/docs/scroll-margin
          */
         "scroll-ml": [{
-          "scroll-ml": getSpacingWithArbitrary()
+          "scroll-ml": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-p": [{
-          "scroll-p": getSpacingWithArbitrary()
+          "scroll-p": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding X
+         * Scroll Padding Inline
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-px": [{
-          "scroll-px": getSpacingWithArbitrary()
+          "scroll-px": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding Y
+         * Scroll Padding Block
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-py": [{
-          "scroll-py": getSpacingWithArbitrary()
+          "scroll-py": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding Start
+         * Scroll Padding Inline Start
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-ps": [{
-          "scroll-ps": getSpacingWithArbitrary()
+          "scroll-ps": scaleUnambiguousSpacing()
         }],
         /**
-         * Scroll Padding End
+         * Scroll Padding Inline End
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pe": [{
-          "scroll-pe": getSpacingWithArbitrary()
+          "scroll-pe": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Padding Block Start
+         * @see https://tailwindcss.com/docs/scroll-padding
+         */
+        "scroll-pbs": [{
+          "scroll-pbs": scaleUnambiguousSpacing()
+        }],
+        /**
+         * Scroll Padding Block End
+         * @see https://tailwindcss.com/docs/scroll-padding
+         */
+        "scroll-pbe": [{
+          "scroll-pbe": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Top
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pt": [{
-          "scroll-pt": getSpacingWithArbitrary()
+          "scroll-pt": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Right
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pr": [{
-          "scroll-pr": getSpacingWithArbitrary()
+          "scroll-pr": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Bottom
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pb": [{
-          "scroll-pb": getSpacingWithArbitrary()
+          "scroll-pb": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Padding Left
          * @see https://tailwindcss.com/docs/scroll-padding
          */
         "scroll-pl": [{
-          "scroll-pl": getSpacingWithArbitrary()
+          "scroll-pl": scaleUnambiguousSpacing()
         }],
         /**
          * Scroll Snap Align
@@ -3297,36 +3529,35 @@ var XpertCrmWorkbench = (() => {
          * @see https://tailwindcss.com/docs/will-change
          */
         "will-change": [{
-          "will-change": ["auto", "scroll", "contents", "transform", isArbitraryValue]
+          "will-change": ["auto", "scroll", "contents", "transform", isArbitraryVariable, isArbitraryValue]
         }],
-        // SVG
+        // -----------
+        // --- SVG ---
+        // -----------
         /**
          * Fill
          * @see https://tailwindcss.com/docs/fill
          */
         fill: [{
-          fill: [colors, "none"]
+          fill: ["none", ...scaleColor()]
         }],
         /**
          * Stroke Width
          * @see https://tailwindcss.com/docs/stroke-width
          */
         "stroke-w": [{
-          stroke: [isLength, isArbitraryLength, isArbitraryNumber]
+          stroke: [isNumber, isArbitraryVariableLength, isArbitraryLength, isArbitraryNumber]
         }],
         /**
          * Stroke
          * @see https://tailwindcss.com/docs/stroke
          */
         stroke: [{
-          stroke: [colors, "none"]
+          stroke: ["none", ...scaleColor()]
         }],
-        // Accessibility
-        /**
-         * Screen Readers
-         * @see https://tailwindcss.com/docs/screen-readers
-         */
-        sr: ["sr-only", "not-sr-only"],
+        // ---------------------
+        // --- Accessibility ---
+        // ---------------------
         /**
          * Forced Color Adjust
          * @see https://tailwindcss.com/docs/forced-color-adjust
@@ -3336,17 +3567,18 @@ var XpertCrmWorkbench = (() => {
         }]
       },
       conflictingClassGroups: {
+        "container-named": ["container-type"],
         overflow: ["overflow-x", "overflow-y"],
         overscroll: ["overscroll-x", "overscroll-y"],
-        inset: ["inset-x", "inset-y", "start", "end", "top", "right", "bottom", "left"],
+        inset: ["inset-x", "inset-y", "inset-bs", "inset-be", "start", "end", "top", "right", "bottom", "left"],
         "inset-x": ["right", "left"],
         "inset-y": ["top", "bottom"],
         flex: ["basis", "grow", "shrink"],
         gap: ["gap-x", "gap-y"],
-        p: ["px", "py", "ps", "pe", "pt", "pr", "pb", "pl"],
+        p: ["px", "py", "ps", "pe", "pbs", "pbe", "pt", "pr", "pb", "pl"],
         px: ["pr", "pl"],
         py: ["pt", "pb"],
-        m: ["mx", "my", "ms", "me", "mt", "mr", "mb", "ml"],
+        m: ["mx", "my", "ms", "me", "mbs", "mbe", "mt", "mr", "mb", "ml"],
         mx: ["mr", "ml"],
         my: ["mt", "mb"],
         size: ["w", "h"],
@@ -3366,16 +3598,18 @@ var XpertCrmWorkbench = (() => {
         "rounded-b": ["rounded-br", "rounded-bl"],
         "rounded-l": ["rounded-tl", "rounded-bl"],
         "border-spacing": ["border-spacing-x", "border-spacing-y"],
-        "border-w": ["border-w-s", "border-w-e", "border-w-t", "border-w-r", "border-w-b", "border-w-l"],
+        "border-w": ["border-w-x", "border-w-y", "border-w-s", "border-w-e", "border-w-bs", "border-w-be", "border-w-t", "border-w-r", "border-w-b", "border-w-l"],
         "border-w-x": ["border-w-r", "border-w-l"],
         "border-w-y": ["border-w-t", "border-w-b"],
-        "border-color": ["border-color-s", "border-color-e", "border-color-t", "border-color-r", "border-color-b", "border-color-l"],
+        "border-color": ["border-color-x", "border-color-y", "border-color-s", "border-color-e", "border-color-bs", "border-color-be", "border-color-t", "border-color-r", "border-color-b", "border-color-l"],
         "border-color-x": ["border-color-r", "border-color-l"],
         "border-color-y": ["border-color-t", "border-color-b"],
-        "scroll-m": ["scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"],
+        translate: ["translate-x", "translate-y", "translate-none"],
+        "translate-none": ["translate", "translate-x", "translate-y", "translate-z"],
+        "scroll-m": ["scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mbs", "scroll-mbe", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"],
         "scroll-mx": ["scroll-mr", "scroll-ml"],
         "scroll-my": ["scroll-mt", "scroll-mb"],
-        "scroll-p": ["scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"],
+        "scroll-p": ["scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pbs", "scroll-pbe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"],
         "scroll-px": ["scroll-pr", "scroll-pl"],
         "scroll-py": ["scroll-pt", "scroll-pb"],
         touch: ["touch-x", "touch-y", "touch-pz"],
@@ -3385,15 +3619,12 @@ var XpertCrmWorkbench = (() => {
       },
       conflictingClassGroupModifiers: {
         "font-size": ["leading"]
-      }
+      },
+      postfixLookupClassGroups: ["container-type"],
+      orderSensitiveModifiers: ["*", "**", "after", "backdrop", "before", "details-content", "file", "first-letter", "first-line", "marker", "placeholder", "selection"]
     };
   };
   var twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
-
-  // ../../../packages/shadcn-ui/src/utils.ts
-  function cn(...inputs) {
-    return twMerge(clsx(inputs));
-  }
 
   // src/lib/remote-components/crm-workbench/src/react-shim.ts
   var react_shim_exports = {};
@@ -3469,13 +3700,27 @@ var XpertCrmWorkbench = (() => {
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils.js
-  var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
+  var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
+  var toCamelCase = (string) => string.replace(
+    /^([A-Z])|[\s-_]+(\w)/g,
+    (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
+  );
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
+  var toPascalCase = (string) => {
+    const camelCase = toCamelCase(string);
+    return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
+  };
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -3488,28 +3733,42 @@ var XpertCrmWorkbench = (() => {
     strokeLinejoin: "round"
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
+  var hasA11yProp = (props) => {
+    for (const prop in props) {
+      if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
+  var LucideContext = createContext({});
+  var useLucideContext = () => useContext(LucideContext);
+
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
   var Icon = forwardRef(
-    ({
-      color = "currentColor",
-      size: size4 = 24,
-      strokeWidth = 2,
-      absoluteStrokeWidth,
-      className = "",
-      children,
-      iconNode,
-      ...rest
-    }, ref) => {
+    ({ color, size: size4, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
+      const {
+        size: contextSize = 24,
+        strokeWidth: contextStrokeWidth = 2,
+        absoluteStrokeWidth: contextAbsoluteStrokeWidth = false,
+        color: contextColor = "currentColor",
+        className: contextClass = ""
+      } = useLucideContext() ?? {};
+      const calculatedStrokeWidth = absoluteStrokeWidth ?? contextAbsoluteStrokeWidth ? Number(strokeWidth ?? contextStrokeWidth) * 24 / Number(size4 ?? contextSize) : strokeWidth ?? contextStrokeWidth;
       return createElement(
         "svg",
         {
           ref,
           ...defaultAttributes,
-          width: size4,
-          height: size4,
-          stroke: color,
-          strokeWidth: absoluteStrokeWidth ? Number(strokeWidth) * 24 / Number(size4) : strokeWidth,
-          className: mergeClasses("lucide", className),
+          width: size4 ?? contextSize ?? defaultAttributes.width,
+          height: size4 ?? contextSize ?? defaultAttributes.height,
+          stroke: color ?? contextColor,
+          strokeWidth: calculatedStrokeWidth,
+          className: mergeClasses("lucide", contextClass, className),
+          ...!children && !hasA11yProp(rest) && { "aria-hidden": "true" },
           ...rest
         },
         [
@@ -3520,117 +3779,78 @@ var XpertCrmWorkbench = (() => {
     }
   );
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
         ref,
         iconNode,
-        className: mergeClasses(`lucide-${toKebabCase(iconName)}`, className),
+        className: mergeClasses(
+          `lucide-${toKebabCase(toPascalCase(iconName))}`,
+          `lucide-${iconName}`,
+          className
+        ),
         ...props
       })
     );
-    Component2.displayName = `${iconName}`;
+    Component2.displayName = toPascalCase(iconName);
     return Component2;
   };
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
-  var Check = createLucideIcon("Check", __iconNode);
+  var Check = createLucideIcon("check", __iconNode);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.js
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-  var ChevronDown = createLucideIcon("ChevronDown", __iconNode2);
+  var ChevronDown = createLucideIcon("chevron-down", __iconNode2);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-right.js
-  var __iconNode3 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-  var ChevronRight = createLucideIcon("ChevronRight", __iconNode3);
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
+  var __iconNode3 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
+  var ChevronUp = createLucideIcon("chevron-up", __iconNode3);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.js
-  var __iconNode4 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
-  var ChevronUp = createLucideIcon("ChevronUp", __iconNode4);
-
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/circle.js
-  var __iconNode5 = [["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]];
-  var Circle = createLucideIcon("Circle", __iconNode5);
-
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
-  var __iconNode6 = [
-    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
-    ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.mjs
+  var __iconNode4 = [
+    ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
+    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
   ];
-  var Search = createLucideIcon("Search", __iconNode6);
+  var Search = createLucideIcon("search", __iconNode4);
 
-  // ../../node_modules/.pnpm/lucide-react@0.475.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.js
-  var __iconNode7 = [
+  // ../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
+  var __iconNode5 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
-  var X = createLucideIcon("X", __iconNode7);
+  var X = createLucideIcon("x", __iconNode5);
 
-  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
-  var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
-  var cx = clsx;
-  var cva = (base, config) => (props) => {
-    var _config_compoundVariants;
-    if ((config === null || config === void 0 ? void 0 : config.variants) == null) return cx(base, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
-    const { variants, defaultVariants } = config;
-    const getVariantClassNames = Object.keys(variants).map((variant) => {
-      const variantProp = props === null || props === void 0 ? void 0 : props[variant];
-      const defaultVariantProp = defaultVariants === null || defaultVariants === void 0 ? void 0 : defaultVariants[variant];
-      if (variantProp === null) return null;
-      const variantKey = falsyToString(variantProp) || falsyToString(defaultVariantProp);
-      return variants[variant][variantKey];
-    });
-    const propsWithoutUndefined = props && Object.entries(props).reduce((acc, param) => {
-      let [key, value] = param;
-      if (value === void 0) {
-        return acc;
-      }
-      acc[key] = value;
-      return acc;
-    }, {});
-    const getCompoundVariantClassNames = config === null || config === void 0 ? void 0 : (_config_compoundVariants = config.compoundVariants) === null || _config_compoundVariants === void 0 ? void 0 : _config_compoundVariants.reduce((acc, param) => {
-      let { class: cvClass, className: cvClassName, ...compoundVariantOptions } = param;
-      return Object.entries(compoundVariantOptions).every((param2) => {
-        let [key, value] = param2;
-        return Array.isArray(value) ? value.includes({
-          ...defaultVariants,
-          ...propsWithoutUndefined
-        }[key]) : {
-          ...defaultVariants,
-          ...propsWithoutUndefined
-        }[key] === value;
-      }) ? [
-        ...acc,
-        cvClass,
-        cvClassName
-      ] : acc;
-    }, []);
-    return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
-  };
-
-  // ../../../packages/shadcn-ui/src/components/badge.tsx
-  var badgeVariants = cva("xps-badge", {
-    variants: {
-      variant: {
-        default: "xps-badge--default",
-        secondary: "xps-badge--secondary",
-        success: "xps-badge--success",
-        warning: "xps-badge--warning",
-        destructive: "xps-badge--destructive"
-      }
-    },
-    defaultVariants: {
-      variant: "default"
-    }
-  });
-  function Badge({ className, variant, ...props }) {
-    return createElement("span", {
-      className: cn(badgeVariants({ variant }), className),
-      ...props
-    });
+  // src/lib/remote-components/crm-workbench/src/react-jsx-runtime-shim.ts
+  var ReactGlobal2 = window.React;
+  var Fragment2 = ReactGlobal2.Fragment;
+  function jsx(type, props, key) {
+    return ReactGlobal2.createElement(type, key === void 0 ? props : { ...props, key });
   }
+  var jsxs = jsx;
+
+  // src/lib/remote-components/crm-workbench/src/react-dom-shim.ts
+  var ReactDOMGlobal = window.ReactDOM;
+  var createPortal = ReactDOMGlobal.createPortal;
+  var flushSync = ReactDOMGlobal.flushSync;
+  var findDOMNode = ReactDOMGlobal.findDOMNode;
+  var hydrate = ReactDOMGlobal.hydrate;
+  var render = ReactDOMGlobal.render;
+  var unstable_batchedUpdates = ReactDOMGlobal.unstable_batchedUpdates;
+  var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
+  var version2 = ReactDOMGlobal.version;
+
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  var dist_exports = {};
+  __export(dist_exports, {
+    Root: () => Slot,
+    Slot: () => Slot,
+    Slottable: () => Slottable,
+    createSlot: () => createSlot,
+    createSlottable: () => createSlottable
+  });
 
   // ../../node_modules/.pnpm/@radix-ui+react-compose-refs@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
@@ -3668,7 +3888,7 @@ var XpertCrmWorkbench = (() => {
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -3732,6 +3952,7 @@ var XpertCrmWorkbench = (() => {
     Slottable2.__radixId = SLOTTABLE_IDENTIFIER;
     return Slottable2;
   }
+  var Slottable = /* @__PURE__ */ createSlottable("Slottable");
   var getSlottableElementFromSlottable = (slottable, child) => {
     if ("child" in slottable.props) {
       const child2 = slottable.props.child;
@@ -3795,107 +4016,73 @@ var XpertCrmWorkbench = (() => {
   };
   var use = react_shim_exports[" use ".trim().toString()];
 
-  // ../../../packages/shadcn-ui/src/components/button.tsx
-  var buttonVariants = cva("xps-button", {
-    variants: {
-      variant: {
-        default: "xps-button--default",
-        secondary: "xps-button--secondary",
-        outline: "xps-button--outline",
-        ghost: "xps-button--ghost",
-        destructive: "xps-button--destructive",
-        destructiveOutline: "xps-button--destructive-outline"
-      },
-      size: {
-        default: "",
-        sm: "xps-button--sm",
-        lg: "xps-button--lg",
-        icon: "xps-button--icon"
+  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  var NODES = [
+    "a",
+    "button",
+    "div",
+    "form",
+    "h2",
+    "h3",
+    "img",
+    "input",
+    "label",
+    "li",
+    "nav",
+    "ol",
+    "p",
+    "select",
+    "span",
+    "svg",
+    "ul"
+  ];
+  var Primitive = NODES.reduce((primitive, node) => {
+    const Slot6 = createSlot(`Primitive.${node}`);
+    const Node2 = forwardRef((props, forwardedRef) => {
+      const { asChild, ...primitiveProps } = props;
+      const Comp = asChild ? Slot6 : node;
+      if (typeof window !== "undefined") {
+        window[/* @__PURE__ */ Symbol.for("radix-ui")] = true;
       }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
+      return /* @__PURE__ */ jsx(Comp, { ...primitiveProps, ref: forwardedRef });
+    });
+    Node2.displayName = `Primitive.${node}`;
+    return { ...primitive, [node]: Node2 };
+  }, {});
+  function dispatchDiscreteCustomEvent(target, event) {
+    if (target) flushSync(() => target.dispatchEvent(event));
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  var VISUALLY_HIDDEN_STYLES = Object.freeze({
+    // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
+    position: "absolute",
+    border: 0,
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    wordWrap: "normal"
   });
-  var Button = forwardRef(
-    ({ className, variant, size: size4, asChild = false, type, ...props }, ref) => {
-      const Comp = asChild ? Slot : "button";
-      const elementProps = {
-        className: cn(buttonVariants({ variant, size: size4 }), className),
-        ref,
-        ...props
-      };
-      if (!asChild) {
-        elementProps.type = type ?? "button";
-      }
-      return createElement(Comp, elementProps);
+  var NAME = "VisuallyHidden";
+  var VisuallyHidden = forwardRef(
+    (props, forwardedRef) => {
+      return /* @__PURE__ */ jsx(
+        Primitive.span,
+        {
+          ...props,
+          ref: forwardedRef,
+          style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
+        }
+      );
     }
   );
-  Button.displayName = "Button";
+  VisuallyHidden.displayName = NAME;
 
-  // ../../../packages/shadcn-ui/src/components/card.tsx
-  var Card = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card", className),
-    ...props
-  }));
-  Card.displayName = "Card";
-  var CardHeader = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card-header", className),
-    ...props
-  }));
-  CardHeader.displayName = "CardHeader";
-  var CardTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement("h3", {
-      ref,
-      className: cn("xps-card-title", className),
-      ...props
-    })
-  );
-  CardTitle.displayName = "CardTitle";
-  var CardDescription = forwardRef(
-    ({ className, ...props }, ref) => createElement("p", {
-      ref,
-      className: cn("xps-card-description", className),
-      ...props
-    })
-  );
-  CardDescription.displayName = "CardDescription";
-  var CardContent = forwardRef(({ className, ...props }, ref) => createElement("div", {
-    ref,
-    className: cn("xps-card-content", className),
-    ...props
-  }));
-  CardContent.displayName = "CardContent";
-
-  // src/lib/remote-components/crm-workbench/src/react-jsx-runtime-shim.ts
-  var ReactGlobal2 = window.React;
-  var Fragment2 = ReactGlobal2.Fragment;
-  function jsx(type, props, key) {
-    return ReactGlobal2.createElement(type, key === void 0 ? props : { ...props, key });
-  }
-  var jsxs = jsx;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
-  function createContext2(rootComponentName, defaultContext) {
-    const Context = createContext(defaultContext);
-    Context.displayName = rootComponentName + "Context";
-    const Provider2 = (props) => {
-      const { children, ...context } = props;
-      const value = useMemo(() => context, Object.values(context));
-      return /* @__PURE__ */ jsx(Context.Provider, { value, children });
-    };
-    Provider2.displayName = rootComponentName + "Provider";
-    function useContext2(consumerName) {
-      const context = useContext(Context);
-      if (context) return context;
-      if (defaultContext !== void 0) return defaultContext;
-      throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
-    }
-    return [Provider2, useContext2];
-  }
+  // ../../node_modules/.pnpm/@radix-ui+react-context@1.2.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContextScope(scopeName, createContextScopeDeps = []) {
     let defaultContexts = [];
     function createContext3(rootComponentName, defaultContext) {
@@ -3903,21 +4090,23 @@ var XpertCrmWorkbench = (() => {
       BaseContext.displayName = rootComponentName + "Context";
       const index2 = defaultContexts.length;
       defaultContexts = [...defaultContexts, defaultContext];
-      const Provider2 = (props) => {
+      const Provider = (props) => {
         const { scope, children, ...context } = props;
         const Context = scope?.[scopeName]?.[index2] || BaseContext;
         const value = useMemo(() => context, Object.values(context));
         return /* @__PURE__ */ jsx(Context.Provider, { value, children });
       };
-      Provider2.displayName = rootComponentName + "Provider";
-      function useContext2(consumerName, scope) {
+      Provider.displayName = rootComponentName + "Provider";
+      function useContext2(consumerName, scope, options2 = {}) {
+        const { optional = false } = options2;
         const Context = scope?.[scopeName]?.[index2] || BaseContext;
         const context = useContext(Context);
         if (context) return context;
         if (defaultContext !== void 0) return defaultContext;
+        if (optional) return void 0;
         throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
       }
-      return [Provider2, useContext2];
+      return [Provider, useContext2];
     }
     const createScope = () => {
       const scopeContexts = defaultContexts.map((defaultContext) => {
@@ -3955,12 +4144,76 @@ var XpertCrmWorkbench = (() => {
     return createScope;
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
+  function createCollection(name) {
+    const PROVIDER_NAME2 = name + "CollectionProvider";
+    const [createCollectionContext, createCollectionScope4] = createContextScope(PROVIDER_NAME2);
+    const [CollectionProviderImpl, useCollectionContext] = createCollectionContext(
+      PROVIDER_NAME2,
+      { collectionRef: { current: null }, itemMap: /* @__PURE__ */ new Map() }
+    );
+    const CollectionProvider = (props) => {
+      const { scope, children } = props;
+      const ref = useRef(null);
+      const itemMap = useRef(/* @__PURE__ */ new Map()).current;
+      return /* @__PURE__ */ jsx(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
+    };
+    CollectionProvider.displayName = PROVIDER_NAME2;
+    const COLLECTION_SLOT_NAME = name + "CollectionSlot";
+    const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
+    const CollectionSlot = forwardRef(
+      (props, forwardedRef) => {
+        const { scope, children } = props;
+        const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
+        const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
+        return /* @__PURE__ */ jsx(CollectionSlotImpl, { ref: composedRefs, children });
+      }
+    );
+    CollectionSlot.displayName = COLLECTION_SLOT_NAME;
+    const ITEM_SLOT_NAME = name + "CollectionItemSlot";
+    const ITEM_DATA_ATTR = "data-radix-collection-item";
+    const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
+    const CollectionItemSlot = forwardRef(
+      (props, forwardedRef) => {
+        const { scope, children, ...itemData } = props;
+        const ref = useRef(null);
+        const composedRefs = useComposedRefs(forwardedRef, ref);
+        const context = useCollectionContext(ITEM_SLOT_NAME, scope);
+        useEffect(() => {
+          context.itemMap.set(ref, { ref, ...itemData });
+          return () => void context.itemMap.delete(ref);
+        });
+        return /* @__PURE__ */ jsx(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
+      }
+    );
+    CollectionItemSlot.displayName = ITEM_SLOT_NAME;
+    function useCollection4(scope) {
+      const context = useCollectionContext(name + "CollectionConsumer", scope);
+      const getItems = useCallback(() => {
+        const collectionNode = context.collectionRef.current;
+        if (!collectionNode) return [];
+        const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
+        const items = Array.from(context.itemMap.values());
+        const orderedItems = items.sort(
+          (a, b) => orderedNodes.indexOf(a.ref.current) - orderedNodes.indexOf(b.ref.current)
+        );
+        return orderedItems;
+      }, [context.collectionRef, context.itemMap]);
+      return getItems;
+    }
+    return [
+      { Provider: CollectionProvider, Slot: CollectionSlot, ItemSlot: CollectionItemSlot },
+      useCollection4,
+      createCollectionScope4
+    ];
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
       originalEventHandler?.(event);
-      if (checkForDefaultPrevented === false || !event.defaultPrevented) {
+      if (checkForDefaultPrevented === false || !event || !event.defaultPrevented) {
         return ourEventHandler?.(event);
       }
     };
@@ -4036,55 +4289,7 @@ var XpertCrmWorkbench = (() => {
     return typeof value === "function";
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
-  function usePrevious(value) {
-    const ref = useRef({ value, previous: value });
-    return useMemo(() => {
-      if (ref.current.value !== value) {
-        ref.current.previous = ref.current.value;
-        ref.current.value = value;
-      }
-      return ref.current.previous;
-    }, [value]);
-  }
-
-  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
-  function useSize(element) {
-    const [size4, setSize] = useState(void 0);
-    useLayoutEffect2(() => {
-      if (element) {
-        setSize({ width: element.offsetWidth, height: element.offsetHeight });
-        const resizeObserver = new ResizeObserver((entries) => {
-          if (!Array.isArray(entries)) {
-            return;
-          }
-          if (!entries.length) {
-            return;
-          }
-          const entry = entries[0];
-          let width;
-          let height;
-          if ("borderBoxSize" in entry) {
-            const borderSizeEntry = entry["borderBoxSize"];
-            const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
-            width = borderSize["inlineSize"];
-            height = borderSize["blockSize"];
-          } else {
-            width = element.offsetWidth;
-            height = element.offsetHeight;
-          }
-          setSize({ width, height });
-        });
-        resizeObserver.observe(element, { box: "border-box" });
-        return () => resizeObserver.unobserve(element);
-      } else {
-        setSize(void 0);
-      }
-    }, [element]);
-    return size4;
-  }
-
-  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4105,6 +4310,7 @@ var XpertCrmWorkbench = (() => {
     const stylesRef = useRef(null);
     const prevPresentRef = useRef(present);
     const prevAnimationNameRef = useRef("none");
+    const mountAnimationNameRef = useRef(void 0);
     const initialState = present ? "mounted" : "unmounted";
     const [state, send] = useStateMachine(initialState, {
       mounted: {
@@ -4120,8 +4326,12 @@ var XpertCrmWorkbench = (() => {
       }
     });
     useEffect(() => {
-      const currentAnimationName = getAnimationName(stylesRef.current);
-      prevAnimationNameRef.current = state === "mounted" ? currentAnimationName : "none";
+      if (state === "mounted") {
+        prevAnimationNameRef.current = mountAnimationNameRef.current ?? getAnimationName(stylesRef.current);
+        mountAnimationNameRef.current = void 0;
+      } else {
+        prevAnimationNameRef.current = "none";
+      }
     }, [state]);
     useLayoutEffect2(() => {
       const styles = stylesRef.current;
@@ -4131,6 +4341,7 @@ var XpertCrmWorkbench = (() => {
         const prevAnimationName = prevAnimationNameRef.current;
         const currentAnimationName = getAnimationName(styles);
         if (present) {
+          mountAnimationNameRef.current = currentAnimationName;
           send("MOUNT");
         } else if (currentAnimationName === "none" || styles?.display === "none") {
           send("UNMOUNT");
@@ -4186,7 +4397,13 @@ var XpertCrmWorkbench = (() => {
     return {
       isPresent: ["mounted", "unmountSuspended"].includes(state),
       ref: useCallback((node2) => {
-        stylesRef.current = node2 ? getComputedStyle(node2) : null;
+        if (node2) {
+          const styles = getComputedStyle(node2);
+          stylesRef.current = styles;
+          mountAnimationNameRef.current = getAnimationName(styles);
+        } else {
+          stylesRef.current = null;
+        }
         setNode(node2);
       }, [])
     };
@@ -4242,360 +4459,6 @@ var XpertCrmWorkbench = (() => {
     return element.props.ref || element.ref;
   }
 
-  // src/lib/remote-components/crm-workbench/src/react-dom-shim.ts
-  var ReactDOMGlobal = window.ReactDOM;
-  var createPortal = ReactDOMGlobal.createPortal;
-  var flushSync = ReactDOMGlobal.flushSync;
-  var findDOMNode = ReactDOMGlobal.findDOMNode;
-  var hydrate = ReactDOMGlobal.hydrate;
-  var render = ReactDOMGlobal.render;
-  var unstable_batchedUpdates = ReactDOMGlobal.unstable_batchedUpdates;
-  var unmountComponentAtNode = ReactDOMGlobal.unmountComponentAtNode;
-  var version2 = ReactDOMGlobal.version;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
-  var NODES = [
-    "a",
-    "button",
-    "div",
-    "form",
-    "h2",
-    "h3",
-    "img",
-    "input",
-    "label",
-    "li",
-    "nav",
-    "ol",
-    "p",
-    "select",
-    "span",
-    "svg",
-    "ul"
-  ];
-  var Primitive = NODES.reduce((primitive, node) => {
-    const Slot5 = createSlot(`Primitive.${node}`);
-    const Node2 = forwardRef((props, forwardedRef) => {
-      const { asChild, ...primitiveProps } = props;
-      const Comp = asChild ? Slot5 : node;
-      if (typeof window !== "undefined") {
-        window[/* @__PURE__ */ Symbol.for("radix-ui")] = true;
-      }
-      return /* @__PURE__ */ jsx(Comp, { ...primitiveProps, ref: forwardedRef });
-    });
-    Node2.displayName = `Primitive.${node}`;
-    return { ...primitive, [node]: Node2 };
-  }, {});
-  function dispatchDiscreteCustomEvent(target, event) {
-    if (target) flushSync(() => target.dispatchEvent(event));
-  }
-
-  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.4_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
-  var CHECKBOX_NAME = "Checkbox";
-  var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
-  var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
-  function CheckboxProvider(props) {
-    const {
-      __scopeCheckbox,
-      checked: checkedProp,
-      children,
-      defaultChecked,
-      disabled,
-      form,
-      name,
-      onCheckedChange,
-      required,
-      value = "on",
-      // @ts-expect-error
-      internal_do_not_use_render
-    } = props;
-    const [checked, setChecked] = useControllableState({
-      prop: checkedProp,
-      defaultProp: defaultChecked ?? false,
-      onChange: onCheckedChange,
-      caller: CHECKBOX_NAME
-    });
-    const [control, setControl] = useState(null);
-    const [bubbleInput, setBubbleInput] = useState(null);
-    const hasConsumerStoppedPropagationRef = useRef(false);
-    const isFormControl = control ? !!form || !!control.closest("form") : (
-      // We set this to true by default so that events bubble to forms without JS (SSR)
-      true
-    );
-    const context = {
-      checked,
-      disabled,
-      setChecked,
-      control,
-      setControl,
-      name,
-      form,
-      value,
-      hasConsumerStoppedPropagationRef,
-      required,
-      defaultChecked: isIndeterminate(defaultChecked) ? false : defaultChecked,
-      isFormControl,
-      bubbleInput,
-      setBubbleInput
-    };
-    return /* @__PURE__ */ jsx(
-      CheckboxProviderImpl,
-      {
-        scope: __scopeCheckbox,
-        ...context,
-        children: isFunction2(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
-      }
-    );
-  }
-  var TRIGGER_NAME = "CheckboxTrigger";
-  var CheckboxTrigger = forwardRef(
-    ({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
-      const {
-        control,
-        value,
-        disabled,
-        checked,
-        required,
-        setControl,
-        setChecked,
-        hasConsumerStoppedPropagationRef,
-        isFormControl,
-        bubbleInput
-      } = useCheckboxContext(TRIGGER_NAME, __scopeCheckbox);
-      const composedRefs = useComposedRefs(forwardedRef, setControl);
-      const initialCheckedStateRef = useRef(checked);
-      useEffect(() => {
-        const form = control?.form;
-        if (form) {
-          const reset = () => setChecked(initialCheckedStateRef.current);
-          form.addEventListener("reset", reset);
-          return () => form.removeEventListener("reset", reset);
-        }
-      }, [control, setChecked]);
-      return /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          type: "button",
-          role: "checkbox",
-          "aria-checked": isIndeterminate(checked) ? "mixed" : checked,
-          "aria-required": required,
-          "data-state": getState(checked),
-          "data-disabled": disabled ? "" : void 0,
-          disabled,
-          value,
-          ...checkboxProps,
-          ref: composedRefs,
-          onKeyDown: composeEventHandlers(onKeyDown, (event) => {
-            if (event.key === "Enter") event.preventDefault();
-          }),
-          onClick: composeEventHandlers(onClick, (event) => {
-            setChecked((prevChecked) => isIndeterminate(prevChecked) ? true : !prevChecked);
-            if (bubbleInput && isFormControl) {
-              hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
-              if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
-            }
-          })
-        }
-      );
-    }
-  );
-  CheckboxTrigger.displayName = TRIGGER_NAME;
-  var Checkbox = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeCheckbox,
-        name,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        value,
-        onCheckedChange,
-        form,
-        ...checkboxProps
-      } = props;
-      return /* @__PURE__ */ jsx(
-        CheckboxProvider,
-        {
-          __scopeCheckbox,
-          checked,
-          defaultChecked,
-          disabled,
-          required,
-          onCheckedChange,
-          name,
-          form,
-          value,
-          internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              CheckboxTrigger,
-              {
-                ...checkboxProps,
-                ref: forwardedRef,
-                __scopeCheckbox
-              }
-            ),
-            isFormControl && /* @__PURE__ */ jsx(
-              CheckboxBubbleInput,
-              {
-                __scopeCheckbox
-              }
-            )
-          ] })
-        }
-      );
-    }
-  );
-  Checkbox.displayName = CHECKBOX_NAME;
-  var INDICATOR_NAME = "CheckboxIndicator";
-  var CheckboxIndicator = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
-      const context = useCheckboxContext(INDICATOR_NAME, __scopeCheckbox);
-      return /* @__PURE__ */ jsx(
-        Presence,
-        {
-          present: forceMount || isIndeterminate(context.checked) || context.checked === true,
-          children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              "data-state": getState(context.checked),
-              "data-disabled": context.disabled ? "" : void 0,
-              ...indicatorProps,
-              ref: forwardedRef,
-              style: { pointerEvents: "none", ...props.style }
-            }
-          )
-        }
-      );
-    }
-  );
-  CheckboxIndicator.displayName = INDICATOR_NAME;
-  var BUBBLE_INPUT_NAME = "CheckboxBubbleInput";
-  var CheckboxBubbleInput = forwardRef(
-    ({ __scopeCheckbox, ...props }, forwardedRef) => {
-      const {
-        control,
-        hasConsumerStoppedPropagationRef,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        name,
-        value,
-        form,
-        bubbleInput,
-        setBubbleInput
-      } = useCheckboxContext(BUBBLE_INPUT_NAME, __scopeCheckbox);
-      const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
-      const prevChecked = usePrevious(checked);
-      const controlSize = useSize(control);
-      useEffect(() => {
-        const input = bubbleInput;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(
-          inputProto,
-          "checked"
-        );
-        const setChecked = descriptor.set;
-        const bubbles = !hasConsumerStoppedPropagationRef.current;
-        if (prevChecked !== checked && setChecked) {
-          const event = new Event("click", { bubbles });
-          input.indeterminate = isIndeterminate(checked);
-          setChecked.call(input, isIndeterminate(checked) ? false : checked);
-          input.dispatchEvent(event);
-        }
-      }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
-      const defaultCheckedRef = useRef(isIndeterminate(checked) ? false : checked);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          type: "checkbox",
-          "aria-hidden": true,
-          defaultChecked: defaultChecked ?? defaultCheckedRef.current,
-          required,
-          disabled,
-          name,
-          value,
-          form,
-          ...props,
-          tabIndex: -1,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            ...controlSize,
-            position: "absolute",
-            pointerEvents: "none",
-            opacity: 0,
-            margin: 0,
-            // We transform because the input is absolutely positioned but we have
-            // rendered it **after** the button. This pulls it back to sit on top
-            // of the button.
-            transform: "translateX(-100%)"
-          }
-        }
-      );
-    }
-  );
-  CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME;
-  function isFunction2(value) {
-    return typeof value === "function";
-  }
-  function isIndeterminate(checked) {
-    return checked === "indeterminate";
-  }
-  function getState(checked) {
-    return isIndeterminate(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
-  }
-
-  // ../../../packages/shadcn-ui/src/components/checkbox.tsx
-  var Checkbox2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Checkbox,
-      {
-        ref,
-        className: cn("xps-checkbox", className),
-        ...props
-      },
-      createElement(
-        CheckboxIndicator,
-        {
-          className: "xps-checkbox-indicator"
-        },
-        createElement(Check, { className: "xps-icon" })
-      )
-    )
-  );
-  Checkbox2.displayName = Checkbox.displayName;
-
-  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
-  var U = 1;
-  var Y = 0.9;
-  var H = 0.8;
-  var J = 0.17;
-  var p = 0.1;
-  var u = 0.999;
-  var $ = 0.9999;
-  var k = 0.99;
-  var m = /[\\\/_+.#"@\[\(\{&]/;
-  var B = /[\\\/_+.#"@\[\(\{&]/g;
-  var K = /[\s-]/;
-  var X2 = /[\s-]/g;
-  function G(_, C, h, P2, A, f, O) {
-    if (f === C.length) return A === _.length ? U : k;
-    var T2 = `${A},${f}`;
-    if (O[T2] !== void 0) return O[T2];
-    for (var L2 = P2.charAt(f), c = h.indexOf(L2, A), S = 0, E, N2, R, M; c >= 0; ) E = G(_, C, h, P2, c + 1, f + 1, O), E > S && (c === A ? E *= U : m.test(_.charAt(c - 1)) ? (E *= H, R = _.slice(A, c - 1).match(B), R && A > 0 && (E *= Math.pow(u, R.length))) : K.test(_.charAt(c - 1)) ? (E *= Y, M = _.slice(A, c - 1).match(X2), M && A > 0 && (E *= Math.pow(u, M.length))) : (E *= J, A > 0 && (E *= Math.pow(u, c - A))), _.charAt(c) !== C.charAt(f) && (E *= $)), (E < p && h.charAt(c - 1) === P2.charAt(f + 1) || P2.charAt(f + 1) === P2.charAt(f) && h.charAt(c - 1) !== P2.charAt(f)) && (N2 = G(_, C, h, P2, c + 1, f + 2, O), N2 * p > E && (E = N2 * p)), E > S && (S = E), c = h.indexOf(L2, c + 1);
-    return O[T2] = S, S;
-  }
-  function D(_) {
-    return _.toLowerCase().replace(X2, " ");
-  }
-  function W(_, C, h) {
-    return _ = h && h.length > 0 ? `${_ + " " + h.join(" ")}` : _, G(_, C, D(_), D(C), 0, 0, {});
-  }
-
   // ../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
@@ -4607,6 +4470,36 @@ var XpertCrmWorkbench = (() => {
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
+  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
+  var DirectionContext = createContext(void 0);
+  function useDirection(localDir) {
+    const globalDir = useContext(DirectionContext);
+    return localDir || globalDir || "ltr";
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  var dist_exports2 = {};
+  __export(dist_exports2, {
+    Close: () => DialogClose,
+    Content: () => DialogContent,
+    Description: () => DialogDescription,
+    Dialog: () => Dialog,
+    DialogClose: () => DialogClose,
+    DialogContent: () => DialogContent,
+    DialogDescription: () => DialogDescription,
+    DialogOverlay: () => DialogOverlay,
+    DialogPortal: () => DialogPortal,
+    DialogTitle: () => DialogTitle,
+    DialogTrigger: () => DialogTrigger,
+    Overlay: () => DialogOverlay,
+    Portal: () => DialogPortal,
+    Root: () => Dialog,
+    Title: () => DialogTitle,
+    Trigger: () => DialogTrigger,
+    WarningProvider: () => WarningProvider,
+    createDialogScope: () => createDialogScope
+  });
+
   // ../../node_modules/.pnpm/@radix-ui+react-use-callback-ref@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
@@ -4616,21 +4509,7 @@ var XpertCrmWorkbench = (() => {
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
-  function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
-    const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
-    useEffect(() => {
-      const handleKeyDown = (event) => {
-        if (event.key === "Escape") {
-          onEscapeKeyDown(event);
-        }
-      };
-      ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
-      return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
-    }, [onEscapeKeyDown, ownerDocument]);
-  }
-
-  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -4639,12 +4518,19 @@ var XpertCrmWorkbench = (() => {
   var DismissableLayerContext = createContext({
     layers: /* @__PURE__ */ new Set(),
     layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
-    branches: /* @__PURE__ */ new Set()
+    branches: /* @__PURE__ */ new Set(),
+    // Outside elements that belong to a layer's own dismiss affordance (eg, a
+    // dialog overlay). Pressing them should dismiss the layer regardless of
+    // whether or not they stop propagation.
+    //
+    // See https://github.com/radix-ui/primitives/issues/3346
+    dismissableSurfaces: /* @__PURE__ */ new Set()
   });
   var DismissableLayer = forwardRef(
     (props, forwardedRef) => {
       const {
         disableOutsidePointerEvents = false,
+        deferPointerDownOutside = false,
         onEscapeKeyDown,
         onPointerDownOutside,
         onFocusOutside,
@@ -4656,22 +4542,45 @@ var XpertCrmWorkbench = (() => {
       const [node, setNode] = useState(null);
       const ownerDocument = node?.ownerDocument ?? globalThis?.document;
       const [, force] = useState({});
-      const composedRefs = useComposedRefs(forwardedRef, (node2) => setNode(node2));
+      const composedRefs = useComposedRefs(forwardedRef, setNode);
       const layers = Array.from(context.layers);
-      const [highestLayerWithOutsidePointerEventsDisabled] = [...context.layersWithOutsidePointerEventsDisabled].slice(-1);
-      const highestLayerWithOutsidePointerEventsDisabledIndex = layers.indexOf(highestLayerWithOutsidePointerEventsDisabled);
+      const [highestLayerWithOutsidePointerEventsDisabled] = [
+        ...context.layersWithOutsidePointerEventsDisabled
+      ].slice(-1);
+      const highestLayerWithOutsidePointerEventsDisabledIndex = highestLayerWithOutsidePointerEventsDisabled ? layers.indexOf(highestLayerWithOutsidePointerEventsDisabled) : -1;
       const index2 = node ? layers.indexOf(node) : -1;
       const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
       const isPointerEventsEnabled = index2 >= highestLayerWithOutsidePointerEventsDisabledIndex;
-      const pointerDownOutside = usePointerDownOutside((event) => {
-        const target = event.target;
-        const isPointerDownOnBranch = [...context.branches].some((branch) => branch.contains(target));
-        if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
-        onPointerDownOutside?.(event);
-        onInteractOutside?.(event);
-        if (!event.defaultPrevented) onDismiss?.();
-      }, ownerDocument);
+      const isDeferredPointerDownOutsideRef = useRef(false);
+      const pointerDownOutside = usePointerDownOutside(
+        (event) => {
+          onPointerDownOutside?.(event);
+          onInteractOutside?.(event);
+          if (!event.defaultPrevented) onDismiss?.();
+        },
+        {
+          ownerDocument,
+          deferPointerDownOutside,
+          isDeferredPointerDownOutsideRef,
+          dismissableSurfaces: context.dismissableSurfaces,
+          shouldHandlePointerDownOutside: useCallback(
+            (target) => {
+              if (!(target instanceof Node)) {
+                return false;
+              }
+              const isPointerDownOnBranch = [...context.branches].some(
+                (branch) => branch.contains(target)
+              );
+              return isPointerEventsEnabled && !isPointerDownOnBranch;
+            },
+            [context.branches, isPointerEventsEnabled]
+          )
+        }
+      );
       const focusOutside = useFocusOutside((event) => {
+        if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+          return;
+        }
         const target = event.target;
         const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
         if (isFocusInBranch) return;
@@ -4679,15 +4588,24 @@ var XpertCrmWorkbench = (() => {
         onInteractOutside?.(event);
         if (!event.defaultPrevented) onDismiss?.();
       }, ownerDocument);
-      useEscapeKeydown((event) => {
-        const isHighestLayer = index2 === context.layers.size - 1;
-        if (!isHighestLayer) return;
+      const isHighestLayer = node ? index2 === layers.length - 1 : false;
+      const handleKeyDown = useCallbackRef((event) => {
+        if (event.key !== "Escape") {
+          return;
+        }
         onEscapeKeyDown?.(event);
         if (!event.defaultPrevented && onDismiss) {
           event.preventDefault();
           onDismiss();
         }
-      }, ownerDocument);
+      });
+      useEffect(() => {
+        if (!isHighestLayer) {
+          return;
+        }
+        ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
+        return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
+      }, [ownerDocument, isHighestLayer, handleKeyDown]);
       useEffect(() => {
         if (!node) return;
         if (disableOutsidePointerEvents) {
@@ -4758,36 +4676,117 @@ var XpertCrmWorkbench = (() => {
     return /* @__PURE__ */ jsx(Primitive.div, { ...props, ref: composedRefs });
   });
   DismissableLayerBranch.displayName = BRANCH_NAME;
-  function usePointerDownOutside(onPointerDownOutside, ownerDocument = globalThis?.document) {
+  function useDismissableLayerSurface() {
+    const context = useContext(DismissableLayerContext);
+    const [node, setNode] = useState(null);
+    useEffect(() => {
+      if (!node) {
+        return;
+      }
+      context.dismissableSurfaces.add(node);
+      return () => {
+        context.dismissableSurfaces.delete(node);
+      };
+    }, [node, context.dismissableSurfaces]);
+    return setNode;
+  }
+  var IS_TRUE = () => true;
+  function usePointerDownOutside(onPointerDownOutside, args) {
+    const {
+      ownerDocument = globalThis?.document,
+      deferPointerDownOutside = false,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces,
+      shouldHandlePointerDownOutside = IS_TRUE
+    } = args;
     const handlePointerDownOutside = useCallbackRef(onPointerDownOutside);
     const isPointerInsideReactTreeRef = useRef(false);
+    const isPointerDownOutsideRef = useRef(false);
+    const interceptedOutsideInteractionEventsRef = useRef(/* @__PURE__ */ new Map());
     const handleClickRef = useRef(() => {
     });
     useEffect(() => {
+      function resetOutsideInteraction() {
+        isPointerDownOutsideRef.current = false;
+        isDeferredPointerDownOutsideRef.current = false;
+        interceptedOutsideInteractionEventsRef.current.clear();
+      }
+      function isOutsideInteractionIntercepted() {
+        return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
+      }
+      function handleInteractionCapture(event) {
+        if (!isPointerDownOutsideRef.current) {
+          return;
+        }
+        const target = event.target;
+        const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
+        if (!isDismissableSurface) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, true);
+        }
+        if (event.type === "click") {
+          window.setTimeout(() => {
+            if (isPointerDownOutsideRef.current) {
+              handleClickRef.current();
+            }
+          }, 0);
+        }
+      }
+      function handleInteractionBubble(event) {
+        if (isPointerDownOutsideRef.current) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, false);
+        }
+      }
       const handlePointerDown = (event) => {
         if (event.target && !isPointerInsideReactTreeRef.current) {
           let handleAndDispatchPointerDownOutsideEvent2 = function() {
-            handleAndDispatchCustomEvent(
-              POINTER_DOWN_OUTSIDE,
-              handlePointerDownOutside,
-              eventDetail,
-              { discrete: true }
-            );
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
+            resetOutsideInteraction();
+            if (!wasOutsideInteractionIntercepted) {
+              handleAndDispatchCustomEvent(
+                POINTER_DOWN_OUTSIDE,
+                handlePointerDownOutside,
+                eventDetail,
+                { discrete: true }
+              );
+            }
           };
           var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
+          if (!shouldHandlePointerDownOutside(event.target)) {
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            resetOutsideInteraction();
+            isPointerInsideReactTreeRef.current = false;
+            return;
+          }
           const eventDetail = { originalEvent: event };
-          if (event.pointerType === "touch") {
+          isPointerDownOutsideRef.current = true;
+          isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
+          interceptedOutsideInteractionEventsRef.current.clear();
+          if (!deferPointerDownOutside || event.button !== 0) {
+            handleAndDispatchPointerDownOutsideEvent2();
+          } else {
             ownerDocument.removeEventListener("click", handleClickRef.current);
             handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
             ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
-          } else {
-            handleAndDispatchPointerDownOutsideEvent2();
           }
         } else {
           ownerDocument.removeEventListener("click", handleClickRef.current);
+          resetOutsideInteraction();
         }
         isPointerInsideReactTreeRef.current = false;
       };
+      const outsideInteractionEvents = [
+        "pointerup",
+        "mousedown",
+        "mouseup",
+        "touchstart",
+        "touchend",
+        "click"
+      ];
+      for (const eventName of outsideInteractionEvents) {
+        ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
+        ownerDocument.addEventListener(eventName, handleInteractionBubble);
+      }
       const timerId = window.setTimeout(() => {
         ownerDocument.addEventListener("pointerdown", handlePointerDown);
       }, 0);
@@ -4795,8 +4794,19 @@ var XpertCrmWorkbench = (() => {
         window.clearTimeout(timerId);
         ownerDocument.removeEventListener("pointerdown", handlePointerDown);
         ownerDocument.removeEventListener("click", handleClickRef.current);
+        for (const eventName of outsideInteractionEvents) {
+          ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
+          ownerDocument.removeEventListener(eventName, handleInteractionBubble);
+        }
       };
-    }, [ownerDocument, handlePointerDownOutside]);
+    }, [
+      ownerDocument,
+      handlePointerDownOutside,
+      deferPointerDownOutside,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces,
+      shouldHandlePointerDownOutside
+    ]);
     return {
       // ensures we check React component tree (not just DOM tree)
       onPointerDownCapture: () => isPointerInsideReactTreeRef.current = true
@@ -4837,7 +4847,7 @@ var XpertCrmWorkbench = (() => {
     }
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -4854,7 +4864,7 @@ var XpertCrmWorkbench = (() => {
     const onMountAutoFocus = useCallbackRef(onMountAutoFocusProp);
     const onUnmountAutoFocus = useCallbackRef(onUnmountAutoFocusProp);
     const lastFocusedElementRef = useRef(null);
-    const composedRefs = useComposedRefs(forwardedRef, (node) => setContainer(node));
+    const composedRefs = useComposedRefs(forwardedRef, setContainer);
     const focusScope = useRef({
       paused: false,
       pause() {
@@ -4985,8 +4995,12 @@ var XpertCrmWorkbench = (() => {
     return nodes;
   }
   function findVisible(elements, container) {
+    const canUseCheckVisibility = typeof container.checkVisibility === "function" && container.checkVisibility({ checkVisibilityCSS: true });
     for (const element of elements) {
-      if (!isHidden(element, { upTo: container })) return element;
+      const hidden = canUseCheckVisibility ? !element.checkVisibility({ checkVisibilityCSS: true }) : isHidden(element, { upTo: container });
+      if (!hidden) {
+        return element;
+      }
     }
   }
   function isHidden(node, { upTo }) {
@@ -5039,7 +5053,7 @@ var XpertCrmWorkbench = (() => {
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.13_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5110,13 +5124,13 @@ var XpertCrmWorkbench = (() => {
     return t;
   }
   function __spreadArray(to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-      if (ar || !(i in from)) {
-        if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-        ar[i] = from[i];
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar2; i < l; i++) {
+      if (ar2 || !(i in from)) {
+        if (!ar2) ar2 = Array.prototype.slice.call(from, 0, i);
+        ar2[i] = from[i];
       }
     }
-    return to.concat(ar || Array.prototype.slice.call(from));
+    return to.concat(ar2 || Array.prototype.slice.call(from));
   }
 
   // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
@@ -5406,12 +5420,12 @@ var XpertCrmWorkbench = (() => {
   // ../../node_modules/.pnpm/react-style-singleton@2.2.3_@types+react@18.3.31_react@18.3.1/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
-    var Sheet2 = function(_a) {
+    var Sheet = function(_a) {
       var styles = _a.styles, dynamic = _a.dynamic;
       useStyle(styles, dynamic);
       return null;
     };
-    return Sheet2;
+    return Sheet;
   };
 
   // ../../node_modules/.pnpm/react-remove-scroll-bar@2.3.8_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
@@ -5910,7 +5924,7 @@ var XpertCrmWorkbench = (() => {
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -5949,11 +5963,11 @@ var XpertCrmWorkbench = (() => {
     );
   };
   Dialog.displayName = DIALOG_NAME;
-  var TRIGGER_NAME2 = "DialogTrigger";
+  var TRIGGER_NAME = "DialogTrigger";
   var DialogTrigger = forwardRef(
     (props, forwardedRef) => {
       const { __scopeDialog, ...triggerProps } = props;
-      const context = useDialogContext(TRIGGER_NAME2, __scopeDialog);
+      const context = useDialogContext(TRIGGER_NAME, __scopeDialog);
       const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
       return /* @__PURE__ */ jsx(
         Primitive.button,
@@ -5962,7 +5976,7 @@ var XpertCrmWorkbench = (() => {
           "aria-haspopup": "dialog",
           "aria-expanded": context.open,
           "aria-controls": context.open ? context.contentId : void 0,
-          "data-state": getState2(context.open),
+          "data-state": getState(context.open),
           ...triggerProps,
           ref: composedTriggerRef,
           onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
@@ -5970,7 +5984,7 @@ var XpertCrmWorkbench = (() => {
       );
     }
   );
-  DialogTrigger.displayName = TRIGGER_NAME2;
+  DialogTrigger.displayName = TRIGGER_NAME;
   var PORTAL_NAME2 = "DialogPortal";
   var [PortalProvider, usePortalContext] = createDialogContext(PORTAL_NAME2, {
     forceMount: void 0
@@ -5996,15 +6010,17 @@ var XpertCrmWorkbench = (() => {
     (props, forwardedRef) => {
       const { __scopeDialog, ...overlayProps } = props;
       const context = useDialogContext(OVERLAY_NAME, __scopeDialog);
+      const registerDismissableSurface = useDismissableLayerSurface();
+      const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
       return (
         // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
         // ie. when `Overlay` and `Content` are siblings
         /* @__PURE__ */ jsx(Combination_default, { as: Slot2, allowPinchZoom: true, shards: [context.contentRef], children: /* @__PURE__ */ jsx(
           Primitive.div,
           {
-            "data-state": getState2(context.open),
+            "data-state": getState(context.open),
             ...overlayProps,
-            ref: forwardedRef,
+            ref: composedRefs,
             style: { pointerEvents: "auto", ...overlayProps.style }
           }
         ) })
@@ -6099,38 +6115,31 @@ var XpertCrmWorkbench = (() => {
     (props, forwardedRef) => {
       const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
       const context = useDialogContext(CONTENT_NAME, __scopeDialog);
-      const contentRef = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, contentRef);
       useFocusGuards();
-      return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          FocusScope,
-          {
-            asChild: true,
-            loop: true,
-            trapped: trapFocus,
-            onMountAutoFocus: onOpenAutoFocus,
-            onUnmountAutoFocus: onCloseAutoFocus,
-            children: /* @__PURE__ */ jsx(
-              DismissableLayer,
-              {
-                role: "dialog",
-                id: context.contentId,
-                "aria-describedby": context.descriptionId,
-                "aria-labelledby": context.titleId,
-                "data-state": getState2(context.open),
-                ...contentProps,
-                ref: composedRefs,
-                onDismiss: () => context.onOpenChange(false)
-              }
-            )
-          }
-        ),
-        /* @__PURE__ */ jsxs(Fragment2, { children: [
-          /* @__PURE__ */ jsx(TitleWarning, { titleId: context.titleId }),
-          /* @__PURE__ */ jsx(DescriptionWarning, { contentRef, descriptionId: context.descriptionId })
-        ] })
-      ] });
+      return /* @__PURE__ */ jsx(Fragment2, { children: /* @__PURE__ */ jsx(
+        FocusScope,
+        {
+          asChild: true,
+          loop: true,
+          trapped: trapFocus,
+          onMountAutoFocus: onOpenAutoFocus,
+          onUnmountAutoFocus: onCloseAutoFocus,
+          children: /* @__PURE__ */ jsx(
+            DismissableLayer,
+            {
+              role: "dialog",
+              id: context.contentId,
+              "aria-describedby": context.descriptionId,
+              "aria-labelledby": context.titleId,
+              "data-state": getState(context.open),
+              ...contentProps,
+              ref: forwardedRef,
+              deferPointerDownOutside: true,
+              onDismiss: () => context.onOpenChange(false)
+            }
+          )
+        }
+      ) });
     }
   );
   var TITLE_NAME = "DialogTitle";
@@ -6168,570 +6177,334 @@ var XpertCrmWorkbench = (() => {
     }
   );
   DialogClose.displayName = CLOSE_NAME;
-  function getState2(open) {
+  var WarningProvider = (props) => {
+    return props.children;
+  };
+  function getState(open) {
     return open ? "open" : "closed";
   }
-  var TITLE_WARNING_NAME = "DialogTitleWarning";
-  var [WarningProvider, useWarningContext] = createContext2(TITLE_WARNING_NAME, {
-    contentName: CONTENT_NAME,
-    titleName: TITLE_NAME,
-    docsSlug: "dialog"
+
+  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  var dist_exports3 = {};
+  __export(dist_exports3, {
+    Checkbox: () => Checkbox,
+    CheckboxIndicator: () => CheckboxIndicator,
+    Indicator: () => CheckboxIndicator,
+    Root: () => Checkbox,
+    createCheckboxScope: () => createCheckboxScope,
+    unstable_BubbleInput: () => CheckboxBubbleInput,
+    unstable_CheckboxBubbleInput: () => CheckboxBubbleInput,
+    unstable_CheckboxProvider: () => CheckboxProvider,
+    unstable_CheckboxTrigger: () => CheckboxTrigger,
+    unstable_Provider: () => CheckboxProvider,
+    unstable_Trigger: () => CheckboxTrigger
   });
-  var TitleWarning = ({ titleId }) => {
-    const titleWarningContext = useWarningContext(TITLE_WARNING_NAME);
-    const MESSAGE = `\`${titleWarningContext.contentName}\` requires a \`${titleWarningContext.titleName}\` for the component to be accessible for screen reader users.
 
-If you want to hide the \`${titleWarningContext.titleName}\`, you can wrap it with our VisuallyHidden component.
+  // ../../node_modules/.pnpm/@radix-ui+react-use-previous@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  function usePrevious(value) {
+    const ref = useRef({ value, previous: value });
+    return useMemo(() => {
+      if (ref.current.value !== value) {
+        ref.current.previous = ref.current.value;
+        ref.current.value = value;
+      }
+      return ref.current.previous;
+    }, [value]);
+  }
 
-For more information, see https://radix-ui.com/primitives/docs/components/${titleWarningContext.docsSlug}`;
-    useEffect(() => {
-      if (titleId) {
-        const hasTitle = document.getElementById(titleId);
-        if (!hasTitle) console.error(MESSAGE);
-      }
-    }, [MESSAGE, titleId]);
-    return null;
-  };
-  var DESCRIPTION_WARNING_NAME = "DialogDescriptionWarning";
-  var DescriptionWarning = ({ contentRef, descriptionId }) => {
-    const descriptionWarningContext = useWarningContext(DESCRIPTION_WARNING_NAME);
-    const MESSAGE = `Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${descriptionWarningContext.contentName}}.`;
-    useEffect(() => {
-      const describedById = contentRef.current?.getAttribute("aria-describedby");
-      if (descriptionId && describedById) {
-        const hasDescription = document.getElementById(descriptionId);
-        if (!hasDescription) console.warn(MESSAGE);
-      }
-    }, [MESSAGE, contentRef, descriptionId]);
-    return null;
-  };
-  var Root = Dialog;
-  var Portal2 = DialogPortal;
-  var Overlay = DialogOverlay;
-  var Content = DialogContent;
-  var Title = DialogTitle;
-  var Description = DialogDescription;
-  var Close = DialogClose;
-
-  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/index.mjs
-  var N = '[cmdk-group=""]';
-  var Y2 = '[cmdk-group-items=""]';
-  var be = '[cmdk-group-heading=""]';
-  var le = '[cmdk-item=""]';
-  var ce = `${le}:not([aria-disabled="true"])`;
-  var Z = "cmdk-item-select";
-  var T = "data-value";
-  var Re = (r2, o, n) => W(r2, o, n);
-  var ue = createContext(void 0);
-  var K2 = () => useContext(ue);
-  var de = createContext(void 0);
-  var ee = () => useContext(de);
-  var fe = createContext(void 0);
-  var me = forwardRef((r2, o) => {
-    let n = L(() => {
-      var e, a;
-      return { search: "", value: (a = (e = r2.value) != null ? e : r2.defaultValue) != null ? a : "", selectedItemId: void 0, filtered: { count: 0, items: /* @__PURE__ */ new Map(), groups: /* @__PURE__ */ new Set() } };
-    }), u2 = L(() => /* @__PURE__ */ new Set()), c = L(() => /* @__PURE__ */ new Map()), d = L(() => /* @__PURE__ */ new Map()), f = L(() => /* @__PURE__ */ new Set()), p2 = pe(r2), { label: b, children: m2, value: R, onValueChange: x, filter: C, shouldFilter: S, loop: A, disablePointerSelection: ge = false, vimBindings: j = true, ...O } = r2, $2 = useId2(), q = useId2(), _ = useId2(), I = useRef(null), v = ke();
-    k2(() => {
-      if (R !== void 0) {
-        let e = R.trim();
-        n.current.value = e, E.emit();
-      }
-    }, [R]), k2(() => {
-      v(6, ne);
-    }, []);
-    let E = useMemo(() => ({ subscribe: (e) => (f.current.add(e), () => f.current.delete(e)), snapshot: () => n.current, setState: (e, a, s) => {
-      var i, l, g, y;
-      if (!Object.is(n.current[e], a)) {
-        if (n.current[e] = a, e === "search") J2(), z(), v(1, W2);
-        else if (e === "value") {
-          if (document.activeElement.hasAttribute("cmdk-input") || document.activeElement.hasAttribute("cmdk-root")) {
-            let h = document.getElementById(_);
-            h ? h.focus() : (i = document.getElementById($2)) == null || i.focus();
-          }
-          if (v(7, () => {
-            var h;
-            n.current.selectedItemId = (h = M()) == null ? void 0 : h.id, E.emit();
-          }), s || v(5, ne), ((l = p2.current) == null ? void 0 : l.value) !== void 0) {
-            let h = a != null ? a : "";
-            (y = (g = p2.current).onValueChange) == null || y.call(g, h);
+  // ../../node_modules/.pnpm/@radix-ui+react-use-size@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  function useSize(element) {
+    const [size4, setSize] = useState(void 0);
+    useLayoutEffect2(() => {
+      if (element) {
+        setSize({ width: element.offsetWidth, height: element.offsetHeight });
+        const resizeObserver = new ResizeObserver((entries) => {
+          if (!Array.isArray(entries)) {
             return;
           }
-        }
-        E.emit();
+          if (!entries.length) {
+            return;
+          }
+          const entry = entries[0];
+          let width;
+          let height;
+          if ("borderBoxSize" in entry) {
+            const borderSizeEntry = entry["borderBoxSize"];
+            const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
+            width = borderSize["inlineSize"];
+            height = borderSize["blockSize"];
+          } else {
+            width = element.offsetWidth;
+            height = element.offsetHeight;
+          }
+          setSize({ width, height });
+        });
+        resizeObserver.observe(element, { box: "border-box" });
+        return () => resizeObserver.unobserve(element);
+      } else {
+        setSize(void 0);
       }
-    }, emit: () => {
-      f.current.forEach((e) => e());
-    } }), []), U2 = useMemo(() => ({ value: (e, a, s) => {
-      var i;
-      a !== ((i = d.current.get(e)) == null ? void 0 : i.value) && (d.current.set(e, { value: a, keywords: s }), n.current.filtered.items.set(e, te(a, s)), v(2, () => {
-        z(), E.emit();
-      }));
-    }, item: (e, a) => (u2.current.add(e), a && (c.current.has(a) ? c.current.get(a).add(e) : c.current.set(a, /* @__PURE__ */ new Set([e]))), v(3, () => {
-      J2(), z(), n.current.value || W2(), E.emit();
-    }), () => {
-      d.current.delete(e), u2.current.delete(e), n.current.filtered.items.delete(e);
-      let s = M();
-      v(4, () => {
-        J2(), (s == null ? void 0 : s.getAttribute("id")) === e && W2(), E.emit();
-      });
-    }), group: (e) => (c.current.has(e) || c.current.set(e, /* @__PURE__ */ new Set()), () => {
-      d.current.delete(e), c.current.delete(e);
-    }), filter: () => p2.current.shouldFilter, label: b || r2["aria-label"], getDisablePointerSelection: () => p2.current.disablePointerSelection, listId: $2, inputId: _, labelId: q, listInnerRef: I }), []);
-    function te(e, a) {
-      var i, l;
-      let s = (l = (i = p2.current) == null ? void 0 : i.filter) != null ? l : Re;
-      return e ? s(e, n.current.search, a) : 0;
-    }
-    function z() {
-      if (!n.current.search || p2.current.shouldFilter === false) return;
-      let e = n.current.filtered.items, a = [];
-      n.current.filtered.groups.forEach((i) => {
-        let l = c.current.get(i), g = 0;
-        l.forEach((y) => {
-          let h = e.get(y);
-          g = Math.max(h, g);
-        }), a.push([i, g]);
-      });
-      let s = I.current;
-      V().sort((i, l) => {
-        var h, F;
-        let g = i.getAttribute("id"), y = l.getAttribute("id");
-        return ((h = e.get(y)) != null ? h : 0) - ((F = e.get(g)) != null ? F : 0);
-      }).forEach((i) => {
-        let l = i.closest(Y2);
-        l ? l.appendChild(i.parentElement === l ? i : i.closest(`${Y2} > *`)) : s.appendChild(i.parentElement === s ? i : i.closest(`${Y2} > *`));
-      }), a.sort((i, l) => l[1] - i[1]).forEach((i) => {
-        var g;
-        let l = (g = I.current) == null ? void 0 : g.querySelector(`${N}[${T}="${encodeURIComponent(i[0])}"]`);
-        l == null || l.parentElement.appendChild(l);
-      });
-    }
-    function W2() {
-      let e = V().find((s) => s.getAttribute("aria-disabled") !== "true"), a = e == null ? void 0 : e.getAttribute(T);
-      E.setState("value", a || void 0);
-    }
-    function J2() {
-      var a, s, i, l;
-      if (!n.current.search || p2.current.shouldFilter === false) {
-        n.current.filtered.count = u2.current.size;
-        return;
-      }
-      n.current.filtered.groups = /* @__PURE__ */ new Set();
-      let e = 0;
-      for (let g of u2.current) {
-        let y = (s = (a = d.current.get(g)) == null ? void 0 : a.value) != null ? s : "", h = (l = (i = d.current.get(g)) == null ? void 0 : i.keywords) != null ? l : [], F = te(y, h);
-        n.current.filtered.items.set(g, F), F > 0 && e++;
-      }
-      for (let [g, y] of c.current) for (let h of y) if (n.current.filtered.items.get(h) > 0) {
-        n.current.filtered.groups.add(g);
-        break;
-      }
-      n.current.filtered.count = e;
-    }
-    function ne() {
-      var a, s, i;
-      let e = M();
-      e && (((a = e.parentElement) == null ? void 0 : a.firstChild) === e && ((i = (s = e.closest(N)) == null ? void 0 : s.querySelector(be)) == null || i.scrollIntoView({ block: "nearest" })), e.scrollIntoView({ block: "nearest" }));
-    }
-    function M() {
-      var e;
-      return (e = I.current) == null ? void 0 : e.querySelector(`${le}[aria-selected="true"]`);
-    }
-    function V() {
-      var e;
-      return Array.from(((e = I.current) == null ? void 0 : e.querySelectorAll(ce)) || []);
-    }
-    function X3(e) {
-      let s = V()[e];
-      s && E.setState("value", s.getAttribute(T));
-    }
-    function Q(e) {
-      var g;
-      let a = M(), s = V(), i = s.findIndex((y) => y === a), l = s[i + e];
-      (g = p2.current) != null && g.loop && (l = i + e < 0 ? s[s.length - 1] : i + e === s.length ? s[0] : s[i + e]), l && E.setState("value", l.getAttribute(T));
-    }
-    function re(e) {
-      let a = M(), s = a == null ? void 0 : a.closest(N), i;
-      for (; s && !i; ) s = e > 0 ? we(s, N) : De(s, N), i = s == null ? void 0 : s.querySelector(ce);
-      i ? E.setState("value", i.getAttribute(T)) : Q(e);
-    }
-    let oe = () => X3(V().length - 1), ie = (e) => {
-      e.preventDefault(), e.metaKey ? oe() : e.altKey ? re(1) : Q(1);
-    }, se = (e) => {
-      e.preventDefault(), e.metaKey ? X3(0) : e.altKey ? re(-1) : Q(-1);
+    }, [element]);
+    return size4;
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-checkbox@1.3.7_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+  var CHECKBOX_NAME = "Checkbox";
+  var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
+  var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
+  function CheckboxProvider(props) {
+    const {
+      __scopeCheckbox,
+      checked: checkedProp,
+      children,
+      defaultChecked,
+      disabled,
+      form,
+      name,
+      onCheckedChange,
+      required,
+      value = "on",
+      // @ts-expect-error
+      internal_do_not_use_render
+    } = props;
+    const [checked, setChecked] = useControllableState({
+      prop: checkedProp,
+      defaultProp: defaultChecked ?? false,
+      onChange: onCheckedChange,
+      caller: CHECKBOX_NAME
+    });
+    const [control, setControl] = useState(null);
+    const [bubbleInput, setBubbleInput] = useState(null);
+    const hasConsumerStoppedPropagationRef = useRef(false);
+    const isFormControl = control ? !!form || !!control.closest("form") : (
+      // We set this to true by default so that events bubble to forms without JS (SSR)
+      true
+    );
+    const context = {
+      checked,
+      disabled,
+      setChecked,
+      control,
+      setControl,
+      name,
+      form,
+      value,
+      hasConsumerStoppedPropagationRef,
+      required,
+      defaultChecked: isIndeterminate(defaultChecked) ? false : defaultChecked,
+      isFormControl,
+      bubbleInput,
+      setBubbleInput
     };
-    return createElement(Primitive.div, { ref: o, tabIndex: -1, ...O, "cmdk-root": "", onKeyDown: (e) => {
-      var s;
-      (s = O.onKeyDown) == null || s.call(O, e);
-      let a = e.nativeEvent.isComposing || e.keyCode === 229;
-      if (!(e.defaultPrevented || a)) switch (e.key) {
-        case "n":
-        case "j": {
-          j && e.ctrlKey && ie(e);
-          break;
+    return /* @__PURE__ */ jsx(
+      CheckboxProviderImpl,
+      {
+        scope: __scopeCheckbox,
+        ...context,
+        children: isFunction2(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
+      }
+    );
+  }
+  var TRIGGER_NAME2 = "CheckboxTrigger";
+  var CheckboxTrigger = forwardRef(
+    ({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
+      const {
+        control,
+        value,
+        disabled,
+        checked,
+        required,
+        setControl,
+        setChecked,
+        hasConsumerStoppedPropagationRef,
+        isFormControl,
+        bubbleInput
+      } = useCheckboxContext(TRIGGER_NAME2, __scopeCheckbox);
+      const composedRefs = useComposedRefs(forwardedRef, setControl);
+      const initialCheckedStateRef = useRef(checked);
+      useEffect(() => {
+        const form = control?.form;
+        if (form) {
+          const reset = () => setChecked(initialCheckedStateRef.current);
+          form.addEventListener("reset", reset);
+          return () => form.removeEventListener("reset", reset);
         }
-        case "ArrowDown": {
-          ie(e);
-          break;
+      }, [control, setChecked]);
+      return /* @__PURE__ */ jsx(
+        Primitive.button,
+        {
+          type: "button",
+          role: "checkbox",
+          "aria-checked": isIndeterminate(checked) ? "mixed" : checked,
+          "aria-required": required,
+          "data-state": getState2(checked),
+          "data-disabled": disabled ? "" : void 0,
+          disabled,
+          value,
+          ...checkboxProps,
+          ref: composedRefs,
+          onKeyDown: composeEventHandlers(onKeyDown, (event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }),
+          onClick: composeEventHandlers(onClick, (event) => {
+            setChecked((prevChecked) => isIndeterminate(prevChecked) ? true : !prevChecked);
+            if (bubbleInput && isFormControl) {
+              hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
+              if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
+            }
+          })
         }
-        case "p":
-        case "k": {
-          j && e.ctrlKey && se(e);
-          break;
+      );
+    }
+  );
+  CheckboxTrigger.displayName = TRIGGER_NAME2;
+  var Checkbox = forwardRef(
+    (props, forwardedRef) => {
+      const {
+        __scopeCheckbox,
+        name,
+        checked,
+        defaultChecked,
+        required,
+        disabled,
+        value,
+        onCheckedChange,
+        form,
+        ...checkboxProps
+      } = props;
+      return /* @__PURE__ */ jsx(
+        CheckboxProvider,
+        {
+          __scopeCheckbox,
+          checked,
+          defaultChecked,
+          disabled,
+          required,
+          onCheckedChange,
+          name,
+          form,
+          value,
+          internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
+            /* @__PURE__ */ jsx(
+              CheckboxTrigger,
+              {
+                ...checkboxProps,
+                ref: forwardedRef,
+                __scopeCheckbox
+              }
+            ),
+            isFormControl && /* @__PURE__ */ jsx(
+              CheckboxBubbleInput,
+              {
+                __scopeCheckbox
+              }
+            )
+          ] })
         }
-        case "ArrowUp": {
-          se(e);
-          break;
+      );
+    }
+  );
+  Checkbox.displayName = CHECKBOX_NAME;
+  var INDICATOR_NAME = "CheckboxIndicator";
+  var CheckboxIndicator = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
+      const context = useCheckboxContext(INDICATOR_NAME, __scopeCheckbox);
+      return /* @__PURE__ */ jsx(
+        Presence,
+        {
+          present: forceMount || isIndeterminate(context.checked) || context.checked === true,
+          children: /* @__PURE__ */ jsx(
+            Primitive.span,
+            {
+              "data-state": getState2(context.checked),
+              "data-disabled": context.disabled ? "" : void 0,
+              ...indicatorProps,
+              ref: forwardedRef,
+              style: { pointerEvents: "none", ...props.style }
+            }
+          )
         }
-        case "Home": {
-          e.preventDefault(), X3(0);
-          break;
+      );
+    }
+  );
+  CheckboxIndicator.displayName = INDICATOR_NAME;
+  var BUBBLE_INPUT_NAME = "CheckboxBubbleInput";
+  var CheckboxBubbleInput = forwardRef(
+    ({ __scopeCheckbox, ...props }, forwardedRef) => {
+      const {
+        control,
+        hasConsumerStoppedPropagationRef,
+        checked,
+        defaultChecked,
+        required,
+        disabled,
+        name,
+        value,
+        form,
+        bubbleInput,
+        setBubbleInput
+      } = useCheckboxContext(BUBBLE_INPUT_NAME, __scopeCheckbox);
+      const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
+      const prevChecked = usePrevious(checked);
+      const controlSize = useSize(control);
+      useEffect(() => {
+        const input = bubbleInput;
+        if (!input) return;
+        const inputProto = window.HTMLInputElement.prototype;
+        const descriptor = Object.getOwnPropertyDescriptor(
+          inputProto,
+          "checked"
+        );
+        const setChecked = descriptor.set;
+        const bubbles = !hasConsumerStoppedPropagationRef.current;
+        if (prevChecked !== checked && setChecked) {
+          const event = new Event("click", { bubbles });
+          input.indeterminate = isIndeterminate(checked);
+          setChecked.call(input, isIndeterminate(checked) ? false : checked);
+          input.dispatchEvent(event);
         }
-        case "End": {
-          e.preventDefault(), oe();
-          break;
-        }
-        case "Enter": {
-          e.preventDefault();
-          let i = M();
-          if (i) {
-            let l = new Event(Z);
-            i.dispatchEvent(l);
+      }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
+      const defaultCheckedRef = useRef(isIndeterminate(checked) ? false : checked);
+      return /* @__PURE__ */ jsx(
+        Primitive.input,
+        {
+          type: "checkbox",
+          "aria-hidden": true,
+          defaultChecked: defaultChecked ?? defaultCheckedRef.current,
+          required,
+          disabled,
+          name,
+          value,
+          form,
+          ...props,
+          tabIndex: -1,
+          ref: composedRefs,
+          style: {
+            ...props.style,
+            ...controlSize,
+            position: "absolute",
+            pointerEvents: "none",
+            opacity: 0,
+            margin: 0,
+            // We transform because the input is absolutely positioned but we have
+            // rendered it **after** the button. This pulls it back to sit on top
+            // of the button.
+            transform: "translateX(-100%)"
           }
         }
-      }
-    } }, createElement("label", { "cmdk-label": "", htmlFor: U2.inputId, id: U2.labelId, style: Te }, b), B2(r2, (e) => createElement(de.Provider, { value: E }, createElement(ue.Provider, { value: U2 }, e))));
-  });
-  var he = forwardRef((r2, o) => {
-    var _, I;
-    let n = useId2(), u2 = useRef(null), c = useContext(fe), d = K2(), f = pe(r2), p2 = (I = (_ = f.current) == null ? void 0 : _.forceMount) != null ? I : c == null ? void 0 : c.forceMount;
-    k2(() => {
-      if (!p2) return d.item(n, c == null ? void 0 : c.id);
-    }, [p2]);
-    let b = ve(n, u2, [r2.value, r2.children, u2], r2.keywords), m2 = ee(), R = P((v) => v.value && v.value === b.current), x = P((v) => p2 || d.filter() === false ? true : v.search ? v.filtered.items.get(n) > 0 : true);
-    useEffect(() => {
-      let v = u2.current;
-      if (!(!v || r2.disabled)) return v.addEventListener(Z, C), () => v.removeEventListener(Z, C);
-    }, [x, r2.onSelect, r2.disabled]);
-    function C() {
-      var v, E;
-      S(), (E = (v = f.current).onSelect) == null || E.call(v, b.current);
+      );
     }
-    function S() {
-      m2.setState("value", b.current, true);
-    }
-    if (!x) return null;
-    let { disabled: A, value: ge, onSelect: j, forceMount: O, keywords: $2, ...q } = r2;
-    return createElement(Primitive.div, { ref: composeRefs(u2, o), ...q, id: n, "cmdk-item": "", role: "option", "aria-disabled": !!A, "aria-selected": !!R, "data-disabled": !!A, "data-selected": !!R, onPointerMove: A || d.getDisablePointerSelection() ? void 0 : S, onClick: A ? void 0 : C }, r2.children);
-  });
-  var Ee = forwardRef((r2, o) => {
-    let { heading: n, children: u2, forceMount: c, ...d } = r2, f = useId2(), p2 = useRef(null), b = useRef(null), m2 = useId2(), R = K2(), x = P((S) => c || R.filter() === false ? true : S.search ? S.filtered.groups.has(f) : true);
-    k2(() => R.group(f), []), ve(f, p2, [r2.value, r2.heading, b]);
-    let C = useMemo(() => ({ id: f, forceMount: c }), [c]);
-    return createElement(Primitive.div, { ref: composeRefs(p2, o), ...d, "cmdk-group": "", role: "presentation", hidden: x ? void 0 : true }, n && createElement("div", { ref: b, "cmdk-group-heading": "", "aria-hidden": true, id: m2 }, n), B2(r2, (S) => createElement("div", { "cmdk-group-items": "", role: "group", "aria-labelledby": n ? m2 : void 0 }, createElement(fe.Provider, { value: C }, S))));
-  });
-  var ye = forwardRef((r2, o) => {
-    let { alwaysRender: n, ...u2 } = r2, c = useRef(null), d = P((f) => !f.search);
-    return !n && !d ? null : createElement(Primitive.div, { ref: composeRefs(c, o), ...u2, "cmdk-separator": "", role: "separator" });
-  });
-  var Se = forwardRef((r2, o) => {
-    let { onValueChange: n, ...u2 } = r2, c = r2.value != null, d = ee(), f = P((m2) => m2.search), p2 = P((m2) => m2.selectedItemId), b = K2();
-    return useEffect(() => {
-      r2.value != null && d.setState("search", r2.value);
-    }, [r2.value]), createElement(Primitive.input, { ref: o, ...u2, "cmdk-input": "", autoComplete: "off", autoCorrect: "off", spellCheck: false, "aria-autocomplete": "list", role: "combobox", "aria-expanded": true, "aria-controls": b.listId, "aria-labelledby": b.labelId, "aria-activedescendant": p2, id: b.inputId, type: "text", value: c ? r2.value : f, onChange: (m2) => {
-      c || d.setState("search", m2.target.value), n == null || n(m2.target.value);
-    } });
-  });
-  var Ce = forwardRef((r2, o) => {
-    let { children: n, label: u2 = "Suggestions", ...c } = r2, d = useRef(null), f = useRef(null), p2 = P((m2) => m2.selectedItemId), b = K2();
-    return useEffect(() => {
-      if (f.current && d.current) {
-        let m2 = f.current, R = d.current, x, C = new ResizeObserver(() => {
-          x = requestAnimationFrame(() => {
-            let S = m2.offsetHeight;
-            R.style.setProperty("--cmdk-list-height", S.toFixed(1) + "px");
-          });
-        });
-        return C.observe(m2), () => {
-          cancelAnimationFrame(x), C.unobserve(m2);
-        };
-      }
-    }, []), createElement(Primitive.div, { ref: composeRefs(d, o), ...c, "cmdk-list": "", role: "listbox", tabIndex: -1, "aria-activedescendant": p2, "aria-label": u2, id: b.listId }, B2(r2, (m2) => createElement("div", { ref: composeRefs(f, b.listInnerRef), "cmdk-list-sizer": "" }, m2)));
-  });
-  var xe = forwardRef((r2, o) => {
-    let { open: n, onOpenChange: u2, overlayClassName: c, contentClassName: d, container: f, ...p2 } = r2;
-    return createElement(Root, { open: n, onOpenChange: u2 }, createElement(Portal2, { container: f }, createElement(Overlay, { "cmdk-overlay": "", className: c }), createElement(Content, { "aria-label": r2.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
-  });
-  var Ie = forwardRef((r2, o) => P((u2) => u2.filtered.count === 0) ? createElement(Primitive.div, { ref: o, ...r2, "cmdk-empty": "", role: "presentation" }) : null);
-  var Pe = forwardRef((r2, o) => {
-    let { progress: n, children: u2, label: c = "Loading...", ...d } = r2;
-    return createElement(Primitive.div, { ref: o, ...d, "cmdk-loading": "", role: "progressbar", "aria-valuenow": n, "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": c }, B2(r2, (f) => createElement("div", { "aria-hidden": true }, f)));
-  });
-  var _e = Object.assign(me, { List: Ce, Item: he, Input: Se, Group: Ee, Separator: ye, Dialog: xe, Empty: Ie, Loading: Pe });
-  function we(r2, o) {
-    let n = r2.nextElementSibling;
-    for (; n; ) {
-      if (n.matches(o)) return n;
-      n = n.nextElementSibling;
-    }
+  );
+  CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME;
+  function isFunction2(value) {
+    return typeof value === "function";
   }
-  function De(r2, o) {
-    let n = r2.previousElementSibling;
-    for (; n; ) {
-      if (n.matches(o)) return n;
-      n = n.previousElementSibling;
-    }
+  function isIndeterminate(checked) {
+    return checked === "indeterminate";
   }
-  function pe(r2) {
-    let o = useRef(r2);
-    return k2(() => {
-      o.current = r2;
-    }), o;
-  }
-  var k2 = typeof window == "undefined" ? useEffect : useLayoutEffect;
-  function L(r2) {
-    let o = useRef();
-    return o.current === void 0 && (o.current = r2()), o;
-  }
-  function P(r2) {
-    let o = ee(), n = () => r2(o.snapshot());
-    return useSyncExternalStore(o.subscribe, n, n);
-  }
-  function ve(r2, o, n, u2 = []) {
-    let c = useRef(), d = K2();
-    return k2(() => {
-      var b;
-      let f = (() => {
-        var m2;
-        for (let R of n) {
-          if (typeof R == "string") return R.trim();
-          if (typeof R == "object" && "current" in R) return R.current ? (m2 = R.current.textContent) == null ? void 0 : m2.trim() : c.current;
-        }
-      })(), p2 = u2.map((m2) => m2.trim());
-      d.value(r2, f, p2), (b = o.current) == null || b.setAttribute(T, f), c.current = f;
-    }), c;
-  }
-  var ke = () => {
-    let [r2, o] = useState(), n = L(() => /* @__PURE__ */ new Map());
-    return k2(() => {
-      n.current.forEach((u2) => u2()), n.current = /* @__PURE__ */ new Map();
-    }, [r2]), (u2, c) => {
-      n.current.set(u2, c), o({});
-    };
-  };
-  function Me(r2) {
-    let o = r2.type;
-    return typeof o == "function" ? o(r2.props) : "render" in o ? o.render(r2.props) : r2;
-  }
-  function B2({ asChild: r2, children: o }, n) {
-    return r2 && isValidElement(o) ? cloneElement(Me(o), { ref: o.ref }, n(o.props.children)) : n(o);
-  }
-  var Te = { position: "absolute", width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: "0" };
-
-  // ../../../packages/shadcn-ui/src/components/command.tsx
-  var Command = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e, {
-      ref,
-      className: cn("xps-command", className),
-      ...props
-    })
-  );
-  Command.displayName = _e.displayName;
-  var CommandInput = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      "div",
-      { className: "xps-command-input-wrapper", "cmdk-input-wrapper": "" },
-      createElement(Search, { className: "xps-icon" }),
-      createElement(_e.Input, {
-        ref,
-        className: cn("xps-command-input", className),
-        ...props
-      })
-    )
-  );
-  CommandInput.displayName = _e.Input.displayName;
-  var CommandList = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.List, {
-      ref,
-      className: cn("xps-command-list", className),
-      ...props
-    })
-  );
-  CommandList.displayName = _e.List.displayName;
-  var CommandEmpty = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Empty, {
-      ref,
-      className: cn("xps-command-empty", className),
-      ...props
-    })
-  );
-  CommandEmpty.displayName = _e.Empty.displayName;
-  var CommandGroup = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Group, {
-      ref,
-      className: cn("xps-command-group", className),
-      ...props
-    })
-  );
-  CommandGroup.displayName = _e.Group.displayName;
-  var CommandItem = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Item, {
-      ref,
-      className: cn("xps-command-item", className),
-      ...props
-    })
-  );
-  CommandItem.displayName = _e.Item.displayName;
-  var CommandSeparator = forwardRef(
-    ({ className, ...props }, ref) => createElement(_e.Separator, {
-      ref,
-      className: cn("xps-command-separator", className),
-      ...props
-    })
-  );
-  CommandSeparator.displayName = _e.Separator.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/dialog.tsx
-  var DialogPortal2 = Portal2;
-  var DialogOverlay2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
-      ref,
-      className: cn("xps-dialog-overlay", className),
-      ...props
-    })
-  );
-  DialogOverlay2.displayName = Overlay.displayName;
-  var DialogContent2 = forwardRef(
-    ({ className, children, showClose = true, ...props }, ref) => createElement(
-      DialogPortal2,
-      null,
-      createElement(DialogOverlay2, null),
-      createElement(
-        Content,
-        {
-          ref,
-          className: cn("xps-dialog-content", className),
-          ...props
-        },
-        children,
-        showClose ? createElement(
-          Close,
-          {
-            className: "xps-dialog-close"
-          },
-          createElement(X, {
-            className: "xps-icon",
-            "aria-hidden": "true"
-          }),
-          createElement("span", { className: "xps-sr-only" }, "Close")
-        ) : null
-      )
-    )
-  );
-  DialogContent2.displayName = Content.displayName;
-  var DialogHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-header", className),
-      ...props
-    })
-  );
-  DialogHeader.displayName = "DialogHeader";
-  var DialogFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-footer", className),
-      ...props
-    })
-  );
-  DialogFooter.displayName = "DialogFooter";
-  var DialogTitle2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
-      ref,
-      className: cn("xps-dialog-title", className),
-      ...props
-    })
-  );
-  DialogTitle2.displayName = Title.displayName;
-  var DialogDescription2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
-      ref,
-      className: cn("xps-dialog-description", className),
-      ...props
-    })
-  );
-  DialogDescription2.displayName = Description.displayName;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-collection@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-collection/dist/index.mjs
-  function createCollection(name) {
-    const PROVIDER_NAME3 = name + "CollectionProvider";
-    const [createCollectionContext, createCollectionScope5] = createContextScope(PROVIDER_NAME3);
-    const [CollectionProviderImpl, useCollectionContext] = createCollectionContext(
-      PROVIDER_NAME3,
-      { collectionRef: { current: null }, itemMap: /* @__PURE__ */ new Map() }
-    );
-    const CollectionProvider = (props) => {
-      const { scope, children } = props;
-      const ref = useRef(null);
-      const itemMap = useRef(/* @__PURE__ */ new Map()).current;
-      return /* @__PURE__ */ jsx(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
-    };
-    CollectionProvider.displayName = PROVIDER_NAME3;
-    const COLLECTION_SLOT_NAME = name + "CollectionSlot";
-    const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
-    const CollectionSlot = forwardRef(
-      (props, forwardedRef) => {
-        const { scope, children } = props;
-        const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
-        const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
-        return /* @__PURE__ */ jsx(CollectionSlotImpl, { ref: composedRefs, children });
-      }
-    );
-    CollectionSlot.displayName = COLLECTION_SLOT_NAME;
-    const ITEM_SLOT_NAME = name + "CollectionItemSlot";
-    const ITEM_DATA_ATTR = "data-radix-collection-item";
-    const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
-    const CollectionItemSlot = forwardRef(
-      (props, forwardedRef) => {
-        const { scope, children, ...itemData } = props;
-        const ref = useRef(null);
-        const composedRefs = useComposedRefs(forwardedRef, ref);
-        const context = useCollectionContext(ITEM_SLOT_NAME, scope);
-        useEffect(() => {
-          context.itemMap.set(ref, { ref, ...itemData });
-          return () => void context.itemMap.delete(ref);
-        });
-        return /* @__PURE__ */ jsx(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
-      }
-    );
-    CollectionItemSlot.displayName = ITEM_SLOT_NAME;
-    function useCollection5(scope) {
-      const context = useCollectionContext(name + "CollectionConsumer", scope);
-      const getItems = useCallback(() => {
-        const collectionNode = context.collectionRef.current;
-        if (!collectionNode) return [];
-        const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
-        const items = Array.from(context.itemMap.values());
-        const orderedItems = items.sort(
-          (a, b) => orderedNodes.indexOf(a.ref.current) - orderedNodes.indexOf(b.ref.current)
-        );
-        return orderedItems;
-      }, [context.collectionRef, context.itemMap]);
-      return getItems;
-    }
-    return [
-      { Provider: CollectionProvider, Slot: CollectionSlot, ItemSlot: CollectionItemSlot },
-      useCollection5,
-      createCollectionScope5
-    ];
-  }
-
-  // ../../node_modules/.pnpm/@radix-ui+react-direction@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs
-  var DirectionContext = createContext(void 0);
-  function useDirection(localDir) {
-    const globalDir = useContext(DirectionContext);
-    return localDir || globalDir || "ltr";
+  function getState2(checked) {
+    return isIndeterminate(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
   }
 
   // ../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
@@ -7639,11 +7412,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       if (element.matches(":popover-open")) {
         return true;
       }
-    } catch (_e2) {
+    } catch (_e5) {
     }
     try {
       return element.matches(":modal");
-    } catch (_e2) {
+    } catch (_e5) {
       return false;
     }
   }
@@ -8250,7 +8023,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           // Handle <iframe>s
           root: root2.ownerDocument
         });
-      } catch (_e2) {
+      } catch (_e5) {
         io = new IntersectionObserver(handleObserve, options2);
       }
       io.observe(element);
@@ -8659,8 +8432,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     };
   };
 
-  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
-  var NAME = "Arrow";
+  // ../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  var NAME2 = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
     return /* @__PURE__ */ jsx(
@@ -8676,10 +8449,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }
     );
   });
-  Arrow.displayName = NAME;
-  var Root2 = Arrow;
+  Arrow.displayName = NAME2;
+  var Root = Arrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-popper@1.3.3_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -8755,7 +8528,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         alignOffset = 0,
         arrowPadding = 0,
         avoidCollisions = true,
-        collisionBoundary,
+        collisionBoundary = [],
         collisionPadding: collisionPaddingProp = 0,
         sticky = "partial",
         hideWhenDetached = false,
@@ -8765,18 +8538,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       } = props;
       const context = usePopperContext(CONTENT_NAME2, __scopePopper);
       const [content, setContent] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
+      const composedRefs = useComposedRefs(forwardedRef, setContent);
       const [arrow4, setArrow] = useState(null);
       const arrowSize = useSize(arrow4);
       const arrowWidth = arrowSize?.width ?? 0;
       const arrowHeight = arrowSize?.height ?? 0;
       const desiredPlacement = side + (align !== "center" ? "-" + align : "");
       const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
-      const boundary = collisionBoundary ? Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary] : void 0;
-      const hasExplicitBoundaries = boundary !== void 0 && boundary.length > 0;
+      const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
+      const hasExplicitBoundaries = boundary.length > 0;
       const detectOverflowOptions = {
         padding: collisionPadding,
-        boundary: boundary?.filter(isNotNull),
+        boundary: boundary.filter(isNotNull),
         // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
         altBoundary: hasExplicitBoundaries
       };
@@ -8815,7 +8588,18 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           }),
           arrow4 && arrow3({ element: arrow4, padding: arrowPadding }),
           transformOrigin({ arrowWidth, arrowHeight }),
-          hideWhenDetached && hide3({ strategy: "referenceHidden", ...detectOverflowOptions })
+          hideWhenDetached && hide3({
+            strategy: "referenceHidden",
+            ...detectOverflowOptions,
+            // `hide` detects whether the anchor (reference) is clipped, so when
+            // no explicit `collisionBoundary` is set we fall back to Floating
+            // UI's default clipping ancestors (e.g. a scrollable menu). This
+            // lets an occluded submenu hide once its anchor scrolls out of view
+            // (#3237). The collision/size middlewares deliberately keep the
+            // viewport-based default to avoid clamping content rendered inside
+            // transformed or overflow-clipping portal containers.
+            boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
+          })
         ]
       });
       const setPlacementState = context.setPlacementState;
@@ -8934,7 +8718,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             visibility: contentContext.shouldHideArrow ? "hidden" : void 0
           },
           children: /* @__PURE__ */ jsx(
-            Root2,
+            Root,
             {
               ...arrowProps,
               ref: forwardedRef,
@@ -8988,12 +8772,38 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const [side, align = "center"] = placement.split("-");
     return [side, align];
   }
-  var Root22 = Popper;
+  var Root2 = Popper;
   var Anchor = PopperAnchor;
-  var Content2 = PopperContent;
+  var Content = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-use-is-hydrated@0.1.1_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs
+  var _isHydrated = false;
+  function useIsHydrated() {
+    const [isHydrated, setIsHydrated] = useState(_isHydrated);
+    useEffect(() => {
+      if (!_isHydrated) {
+        _isHydrated = true;
+        setIsHydrated(true);
+      }
+    }, []);
+    return isHydrated;
+  }
+  var useReactSyncExternalStore = react_shim_exports[" useSyncExternalStore ".trim().toString()];
+  function subscribe() {
+    return () => {
+    };
+  }
+  function useIsHydratedModern() {
+    return useReactSyncExternalStore(
+      subscribe,
+      () => true,
+      () => false
+    );
+  }
+  var useIsHydrated2 = typeof useReactSyncExternalStore === "function" ? useIsHydratedModern : useIsHydrated;
+
+  // ../../node_modules/.pnpm/@radix-ui+react-roving-focus@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -9116,12 +8926,21 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const isCurrentTabStop = context.currentTabStopId === id;
       const getItems = useCollection(__scopeRovingFocusGroup);
       const { onFocusableItemAdd, onFocusableItemRemove, currentTabStopId } = context;
-      useEffect(() => {
-        if (focusable) {
-          onFocusableItemAdd();
-          return () => onFocusableItemRemove();
+      const isHydrated = useIsHydrated2();
+      useLayoutEffect2(() => {
+        if (!isHydrated || !focusable) {
+          return;
         }
-      }, [focusable, onFocusableItemAdd, onFocusableItemRemove]);
+        onFocusableItemAdd();
+        return () => onFocusableItemRemove();
+      }, [isHydrated, focusable, onFocusableItemAdd, onFocusableItemRemove]);
+      useEffect(() => {
+        if (isHydrated || !focusable) {
+          return;
+        }
+        onFocusableItemAdd();
+        return () => onFocusableItemRemove();
+      }, [isHydrated, focusable, onFocusableItemAdd, onFocusableItemRemove]);
       return /* @__PURE__ */ jsx(
         Collection.ItemSlot,
         {
@@ -9204,7 +9023,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var Root3 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-menu@2.1.20_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -9249,7 +9068,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         document.removeEventListener("pointermove", handlePointer, { capture: true });
       };
     }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
+    useEffect(() => {
+      if (!open) {
+        return;
+      }
+      const handleBlur = () => handleOpenChange(false);
+      window.addEventListener("blur", handleBlur);
+      return () => window.removeEventListener("blur", handleBlur);
+    }, [open, handleOpenChange]);
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -9467,7 +9294,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                       }),
                       preventScrollOnEntryFocus: true,
                       children: /* @__PURE__ */ jsx(
-                        Content2,
+                        Content,
                         {
                           role: "menu",
                           "aria-orientation": "vertical",
@@ -9581,8 +9408,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             if (!isPointerDownRef.current) event.currentTarget?.click();
           }),
           onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+            if (disabled || event.target !== event.currentTarget) {
+              return;
+            }
             const isTypingAhead = contentContext.searchRef.current !== "";
-            if (disabled || isTypingAhead && event.key === " ") return;
+            if (isTypingAhead && event.key === " ") {
+              return;
+            }
             if (SELECTION_KEYS.includes(event.key)) {
               event.currentTarget.click();
               event.preventDefault();
@@ -9773,7 +9605,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       if (parentMenuContext.open === false) handleOpenChange(false);
       return () => handleOpenChange(false);
     }, [parentMenuContext.open, handleOpenChange]);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -9818,6 +9650,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           onPointerGraceIntentChange(null);
         };
       }, [pointerGraceTimerRef, onPointerGraceIntentChange]);
+      const composedRefs = useComposedRefs(forwardedRef, subContext.onTriggerChange);
       return /* @__PURE__ */ jsx(MenuAnchor, { asChild: true, ...scope, children: /* @__PURE__ */ jsx(
         MenuItemImpl,
         {
@@ -9827,7 +9660,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           "aria-controls": context.open ? subContext.contentId : void 0,
           "data-state": getOpenState(context.open),
           ...props,
-          ref: composeRefs(forwardedRef, subContext.onTriggerChange),
+          ref: composedRefs,
           onClick: (event) => {
             props.onClick?.(event);
             if (props.disabled || event.defaultPrevented) return;
@@ -9884,8 +9717,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
             })
           ),
           onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+            if (props.disabled || event.target !== event.currentTarget) {
+              return;
+            }
             const isTypingAhead = contentContext.searchRef.current !== "";
-            if (props.disabled || isTypingAhead && event.key === " ") return;
+            if (isTypingAhead && event.key === " ") {
+              return;
+            }
             if (SUB_OPEN_KEYS[rootContext.dir].includes(event.key)) {
               context.onOpenChange(true);
               context.content?.focus();
@@ -9980,9 +9818,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   function isPointInPolygon(point, polygon) {
     const { x, y } = point;
     let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    for (let i = 0, j2 = polygon.length - 1; i < polygon.length; j2 = i++) {
       const ii = polygon[i];
-      const jj = polygon[j];
+      const jj = polygon[j2];
       const xi = ii.x;
       const yi = ii.y;
       const xj = jj.x;
@@ -10002,8 +9840,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }
   var Root32 = Menu;
   var Anchor2 = MenuAnchor;
-  var Portal3 = MenuPortal;
-  var Content22 = MenuContent;
+  var Portal2 = MenuPortal;
+  var Content2 = MenuContent;
   var Group = MenuGroup;
   var Label = MenuLabel;
   var Item2 = MenuItem;
@@ -10013,10 +9851,47 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var ItemIndicator = MenuItemIndicator;
   var Separator = MenuSeparator;
   var Arrow22 = MenuArrow;
+  var Sub = MenuSub;
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-dropdown-menu@2.1.20_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  var dist_exports7 = {};
+  __export(dist_exports7, {
+    Arrow: () => Arrow23,
+    CheckboxItem: () => CheckboxItem2,
+    Content: () => Content22,
+    DropdownMenu: () => DropdownMenu,
+    DropdownMenuArrow: () => DropdownMenuArrow,
+    DropdownMenuCheckboxItem: () => DropdownMenuCheckboxItem,
+    DropdownMenuContent: () => DropdownMenuContent,
+    DropdownMenuGroup: () => DropdownMenuGroup,
+    DropdownMenuItem: () => DropdownMenuItem,
+    DropdownMenuItemIndicator: () => DropdownMenuItemIndicator,
+    DropdownMenuLabel: () => DropdownMenuLabel,
+    DropdownMenuPortal: () => DropdownMenuPortal,
+    DropdownMenuRadioGroup: () => DropdownMenuRadioGroup,
+    DropdownMenuRadioItem: () => DropdownMenuRadioItem,
+    DropdownMenuSeparator: () => DropdownMenuSeparator,
+    DropdownMenuSub: () => DropdownMenuSub,
+    DropdownMenuSubContent: () => DropdownMenuSubContent,
+    DropdownMenuSubTrigger: () => DropdownMenuSubTrigger,
+    DropdownMenuTrigger: () => DropdownMenuTrigger,
+    Group: () => Group2,
+    Item: () => Item22,
+    ItemIndicator: () => ItemIndicator2,
+    Label: () => Label2,
+    Portal: () => Portal22,
+    RadioGroup: () => RadioGroup2,
+    RadioItem: () => RadioItem2,
+    Root: () => Root22,
+    Separator: () => Separator2,
+    Sub: () => Sub2,
+    SubContent: () => SubContent2,
+    SubTrigger: () => SubTrigger2,
+    Trigger: () => Trigger,
+    createDropdownMenuScope: () => createDropdownMenuScope
+  });
   var DROPDOWN_MENU_NAME = "DropdownMenu";
   var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
     DROPDOWN_MENU_NAME,
@@ -10064,6 +9939,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const { __scopeDropdownMenu, disabled = false, ...triggerProps } = props;
       const context = useDropdownMenuContext(TRIGGER_NAME3, __scopeDropdownMenu);
       const menuScope = useMenuScope(__scopeDropdownMenu);
+      const composedRefs = useComposedRefs(forwardedRef, context.triggerRef);
       return /* @__PURE__ */ jsx(Anchor2, { asChild: true, ...menuScope, children: /* @__PURE__ */ jsx(
         Primitive.button,
         {
@@ -10076,7 +9952,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           "data-disabled": disabled ? "" : void 0,
           disabled,
           ...triggerProps,
-          ref: composeRefs(forwardedRef, context.triggerRef),
+          ref: composedRefs,
           onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
             if (!disabled && event.button === 0 && event.ctrlKey === false) {
               context.onOpenToggle();
@@ -10098,7 +9974,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var DropdownMenuPortal = (props) => {
     const { __scopeDropdownMenu, ...portalProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ jsx(Portal3, { ...menuScope, ...portalProps });
+    return /* @__PURE__ */ jsx(Portal2, { ...menuScope, ...portalProps });
   };
   DropdownMenuPortal.displayName = PORTAL_NAME4;
   var CONTENT_NAME4 = "DropdownMenuContent";
@@ -10109,7 +9985,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const menuScope = useMenuScope(__scopeDropdownMenu);
       const hasInteractedOutsideRef = useRef(false);
       return /* @__PURE__ */ jsx(
-        Content22,
+        Content2,
         {
           id: context.contentId,
           "aria-labelledby": context.triggerId,
@@ -10214,6 +10090,17 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   DropdownMenuArrow.displayName = ARROW_NAME3;
+  var DropdownMenuSub = (props) => {
+    const { __scopeDropdownMenu, children, open: openProp, onOpenChange, defaultOpen } = props;
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    const [open, setOpen] = useControllableState({
+      prop: openProp,
+      defaultProp: defaultOpen ?? false,
+      onChange: onOpenChange,
+      caller: "DropdownMenuSub"
+    });
+    return /* @__PURE__ */ jsx(Sub, { ...menuScope, open, onOpenChange: setOpen, children });
+  };
   var SUB_TRIGGER_NAME2 = "DropdownMenuSubTrigger";
   var DropdownMenuSubTrigger = forwardRef((props, forwardedRef) => {
     const { __scopeDropdownMenu, ...subTriggerProps } = props;
@@ -10246,10 +10133,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     );
   });
   DropdownMenuSubContent.displayName = SUB_CONTENT_NAME2;
-  var Root23 = DropdownMenu;
-  var Trigger2 = DropdownMenuTrigger;
+  var Root22 = DropdownMenu;
+  var Trigger = DropdownMenuTrigger;
   var Portal22 = DropdownMenuPortal;
-  var Content23 = DropdownMenuContent;
+  var Content22 = DropdownMenuContent;
+  var Group2 = DropdownMenuGroup;
   var Label2 = DropdownMenuLabel;
   var Item22 = DropdownMenuItem;
   var CheckboxItem2 = DropdownMenuCheckboxItem;
@@ -10257,909 +10145,57 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   var RadioItem2 = DropdownMenuRadioItem;
   var ItemIndicator2 = DropdownMenuItemIndicator;
   var Separator2 = DropdownMenuSeparator;
+  var Arrow23 = DropdownMenuArrow;
+  var Sub2 = DropdownMenuSub;
   var SubTrigger2 = DropdownMenuSubTrigger;
   var SubContent2 = DropdownMenuSubContent;
-
-  // ../../../packages/shadcn-ui/src/components/dropdown-menu.tsx
-  var DropdownMenu2 = Root23;
-  var DropdownMenuTrigger2 = Trigger2;
-  var DropdownMenuRadioGroup2 = RadioGroup2;
-  var DropdownMenuSubTrigger2 = forwardRef(
-    ({ className, inset, children, ...props }, ref) => createElement(
-      SubTrigger2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-sub-trigger", inset && "xps-dropdown-menu-item--inset", className),
-        ...props
-      },
-      children,
-      createElement(ChevronRight, { className: "xps-icon" })
-    )
-  );
-  DropdownMenuSubTrigger2.displayName = SubTrigger2.displayName;
-  var DropdownMenuSubContent2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SubContent2, {
-      ref,
-      className: cn("xps-dropdown-menu-content", className),
-      ...props
-    })
-  );
-  DropdownMenuSubContent2.displayName = SubContent2.displayName;
-  var DropdownMenuContent2 = forwardRef(
-    ({ className, sideOffset = 4, ...props }, ref) => createElement(
-      Portal22,
-      null,
-      createElement(Content23, {
-        ref,
-        sideOffset,
-        className: cn("xps-dropdown-menu-content", className),
-        ...props
-      })
-    )
-  );
-  DropdownMenuContent2.displayName = Content23.displayName;
-  var DropdownMenuItem2 = forwardRef(
-    ({ className, inset, ...props }, ref) => createElement(Item22, {
-      ref,
-      className: cn("xps-dropdown-menu-item", inset && "xps-dropdown-menu-item--inset", className),
-      ...props
-    })
-  );
-  DropdownMenuItem2.displayName = Item22.displayName;
-  var DropdownMenuCheckboxItem2 = forwardRef(
-    ({ className, children, checked, ...props }, ref) => createElement(
-      CheckboxItem2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-item xps-dropdown-menu-check-item", className),
-        checked,
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-dropdown-menu-item-indicator" },
-        createElement(
-          ItemIndicator2,
-          null,
-          createElement(Check, { className: "xps-icon" })
-        )
-      ),
-      children
-    )
-  );
-  DropdownMenuCheckboxItem2.displayName = CheckboxItem2.displayName;
-  var DropdownMenuRadioItem2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      RadioItem2,
-      {
-        ref,
-        className: cn("xps-dropdown-menu-item xps-dropdown-menu-check-item", className),
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-dropdown-menu-item-indicator" },
-        createElement(
-          ItemIndicator2,
-          null,
-          createElement(Circle, { className: "xps-icon xps-icon--filled" })
-        )
-      ),
-      children
-    )
-  );
-  DropdownMenuRadioItem2.displayName = RadioItem2.displayName;
-  var DropdownMenuLabel2 = forwardRef(
-    ({ className, inset, ...props }, ref) => createElement(Label2, {
-      ref,
-      className: cn("xps-dropdown-menu-label", inset && "xps-dropdown-menu-item--inset", className),
-      ...props
-    })
-  );
-  DropdownMenuLabel2.displayName = Label2.displayName;
-  var DropdownMenuSeparator2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Separator2, {
-      ref,
-      className: cn("xps-dropdown-menu-separator", className),
-      ...props
-    })
-  );
-  DropdownMenuSeparator2.displayName = Separator2.displayName;
-  var DropdownMenuShortcut = forwardRef(
-    ({ className, ...props }, ref) => createElement("span", {
-      ref,
-      className: cn("xps-dropdown-menu-shortcut", className),
-      ...props
-    })
-  );
-  DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
-
-  // ../../../packages/shadcn-ui/src/components/input.tsx
-  var Input = forwardRef(({ className, type, ...props }, ref) => createElement("input", {
-    ref,
-    type,
-    className: cn("xps-input", className),
-    ...props
-  }));
-  Input.displayName = "Input";
 
   // ../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // ../../node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
-  function useStateMachine2(initialState, machine) {
-    return useReducer((state, event) => {
-      const nextState = machine[state][event];
-      return nextState ?? state;
-    }, initialState);
-  }
-  var SCROLL_AREA_NAME = "ScrollArea";
-  var [createScrollAreaContext, createScrollAreaScope] = createContextScope(SCROLL_AREA_NAME);
-  var [ScrollAreaProvider, useScrollAreaContext] = createScrollAreaContext(SCROLL_AREA_NAME);
-  var ScrollArea = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeScrollArea,
-        type = "hover",
-        dir,
-        scrollHideDelay = 600,
-        ...scrollAreaProps
-      } = props;
-      const [scrollArea, setScrollArea] = useState(null);
-      const [viewport, setViewport] = useState(null);
-      const [content, setContent] = useState(null);
-      const [scrollbarX, setScrollbarX] = useState(null);
-      const [scrollbarY, setScrollbarY] = useState(null);
-      const [cornerWidth, setCornerWidth] = useState(0);
-      const [cornerHeight, setCornerHeight] = useState(0);
-      const [scrollbarXEnabled, setScrollbarXEnabled] = useState(false);
-      const [scrollbarYEnabled, setScrollbarYEnabled] = useState(false);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setScrollArea(node));
-      const direction = useDirection(dir);
-      return /* @__PURE__ */ jsx(
-        ScrollAreaProvider,
-        {
-          scope: __scopeScrollArea,
-          type,
-          dir: direction,
-          scrollHideDelay,
-          scrollArea,
-          viewport,
-          onViewportChange: setViewport,
-          content,
-          onContentChange: setContent,
-          scrollbarX,
-          onScrollbarXChange: setScrollbarX,
-          scrollbarXEnabled,
-          onScrollbarXEnabledChange: setScrollbarXEnabled,
-          scrollbarY,
-          onScrollbarYChange: setScrollbarY,
-          scrollbarYEnabled,
-          onScrollbarYEnabledChange: setScrollbarYEnabled,
-          onCornerWidthChange: setCornerWidth,
-          onCornerHeightChange: setCornerHeight,
-          children: /* @__PURE__ */ jsx(
-            Primitive.div,
-            {
-              dir: direction,
-              ...scrollAreaProps,
-              ref: composedRefs,
-              style: {
-                position: "relative",
-                // Pass corner sizes as CSS vars to reduce re-renders of context consumers
-                "--radix-scroll-area-corner-width": cornerWidth + "px",
-                "--radix-scroll-area-corner-height": cornerHeight + "px",
-                ...props.style
-              }
-            }
-          )
-        }
-      );
-    }
-  );
-  ScrollArea.displayName = SCROLL_AREA_NAME;
-  var VIEWPORT_NAME = "ScrollAreaViewport";
-  var ScrollAreaViewport = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeScrollArea, children, nonce, ...viewportProps } = props;
-      const context = useScrollAreaContext(VIEWPORT_NAME, __scopeScrollArea);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref, context.onViewportChange);
-      return /* @__PURE__ */ jsxs(Fragment2, { children: [
-        /* @__PURE__ */ jsx(
-          "style",
-          {
-            dangerouslySetInnerHTML: {
-              __html: `[data-radix-scroll-area-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-scroll-area-viewport]::-webkit-scrollbar{display:none}`
-            },
-            nonce
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          Primitive.div,
-          {
-            "data-radix-scroll-area-viewport": "",
-            ...viewportProps,
-            ref: composedRefs,
-            style: {
-              /**
-               * We don't support `visible` because the intention is to have at least one scrollbar
-               * if this component is used and `visible` will behave like `auto` in that case
-               * https://developer.mozilla.org/en-US/docs/Web/CSS/overflow#description
-               *
-               * We don't handle `auto` because the intention is for the native implementation
-               * to be hidden if using this component. We just want to ensure the node is scrollable
-               * so could have used either `scroll` or `auto` here. We picked `scroll` to prevent
-               * the browser from having to work out whether to render native scrollbars or not,
-               * we tell it to with the intention of hiding them in CSS.
-               */
-              overflowX: context.scrollbarXEnabled ? "scroll" : "hidden",
-              overflowY: context.scrollbarYEnabled ? "scroll" : "hidden",
-              ...props.style
-            },
-            children: /* @__PURE__ */ jsx("div", { ref: context.onContentChange, style: { minWidth: "100%", display: "table" }, children })
-          }
-        )
-      ] });
-    }
-  );
-  ScrollAreaViewport.displayName = VIEWPORT_NAME;
-  var SCROLLBAR_NAME = "ScrollAreaScrollbar";
-  var ScrollAreaScrollbar = forwardRef(
-    (props, forwardedRef) => {
-      const { forceMount, ...scrollbarProps } = props;
-      const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-      const { onScrollbarXEnabledChange, onScrollbarYEnabledChange } = context;
-      const isHorizontal = props.orientation === "horizontal";
-      useEffect(() => {
-        isHorizontal ? onScrollbarXEnabledChange(true) : onScrollbarYEnabledChange(true);
-        return () => {
-          isHorizontal ? onScrollbarXEnabledChange(false) : onScrollbarYEnabledChange(false);
-        };
-      }, [isHorizontal, onScrollbarXEnabledChange, onScrollbarYEnabledChange]);
-      return context.type === "hover" ? /* @__PURE__ */ jsx(ScrollAreaScrollbarHover, { ...scrollbarProps, ref: forwardedRef, forceMount }) : context.type === "scroll" ? /* @__PURE__ */ jsx(ScrollAreaScrollbarScroll, { ...scrollbarProps, ref: forwardedRef, forceMount }) : context.type === "auto" ? /* @__PURE__ */ jsx(ScrollAreaScrollbarAuto, { ...scrollbarProps, ref: forwardedRef, forceMount }) : context.type === "always" ? /* @__PURE__ */ jsx(ScrollAreaScrollbarVisible, { ...scrollbarProps, ref: forwardedRef, "data-state": "visible" }) : null;
-    }
-  );
-  ScrollAreaScrollbar.displayName = SCROLLBAR_NAME;
-  var ScrollAreaScrollbarHover = forwardRef((props, forwardedRef) => {
-    const { forceMount, ...scrollbarProps } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const [visible, setVisible] = useState(false);
-    useEffect(() => {
-      const scrollArea = context.scrollArea;
-      let hideTimer = 0;
-      if (scrollArea) {
-        const handlePointerEnter = () => {
-          window.clearTimeout(hideTimer);
-          setVisible(true);
-        };
-        const handlePointerLeave = () => {
-          hideTimer = window.setTimeout(() => setVisible(false), context.scrollHideDelay);
-        };
-        scrollArea.addEventListener("pointerenter", handlePointerEnter);
-        scrollArea.addEventListener("pointerleave", handlePointerLeave);
-        return () => {
-          window.clearTimeout(hideTimer);
-          scrollArea.removeEventListener("pointerenter", handlePointerEnter);
-          scrollArea.removeEventListener("pointerleave", handlePointerLeave);
-        };
-      }
-    }, [context.scrollArea, context.scrollHideDelay]);
-    return /* @__PURE__ */ jsx(Presence, { present: forceMount || visible, children: /* @__PURE__ */ jsx(
-      ScrollAreaScrollbarAuto,
-      {
-        "data-state": visible ? "visible" : "hidden",
-        ...scrollbarProps,
-        ref: forwardedRef
-      }
-    ) });
+  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.3_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
+  var dist_exports9 = {};
+  __export(dist_exports9, {
+    Arrow: () => SelectArrow,
+    Content: () => SelectContent,
+    Group: () => SelectGroup,
+    Icon: () => SelectIcon,
+    Item: () => SelectItem,
+    ItemIndicator: () => SelectItemIndicator,
+    ItemText: () => SelectItemText,
+    Label: () => SelectLabel,
+    Portal: () => SelectPortal,
+    Root: () => Select,
+    ScrollDownButton: () => SelectScrollDownButton,
+    ScrollUpButton: () => SelectScrollUpButton,
+    Select: () => Select,
+    SelectArrow: () => SelectArrow,
+    SelectContent: () => SelectContent,
+    SelectGroup: () => SelectGroup,
+    SelectIcon: () => SelectIcon,
+    SelectItem: () => SelectItem,
+    SelectItemIndicator: () => SelectItemIndicator,
+    SelectItemText: () => SelectItemText,
+    SelectLabel: () => SelectLabel,
+    SelectPortal: () => SelectPortal,
+    SelectScrollDownButton: () => SelectScrollDownButton,
+    SelectScrollUpButton: () => SelectScrollUpButton,
+    SelectSeparator: () => SelectSeparator,
+    SelectTrigger: () => SelectTrigger,
+    SelectValue: () => SelectValue,
+    SelectViewport: () => SelectViewport,
+    Separator: () => SelectSeparator,
+    Trigger: () => SelectTrigger,
+    Value: () => SelectValue,
+    Viewport: () => SelectViewport,
+    createSelectScope: () => createSelectScope,
+    unstable_BubbleInput: () => SelectBubbleInput,
+    unstable_Provider: () => SelectProvider,
+    unstable_SelectBubbleInput: () => SelectBubbleInput,
+    unstable_SelectProvider: () => SelectProvider
   });
-  var ScrollAreaScrollbarScroll = forwardRef((props, forwardedRef) => {
-    const { forceMount, ...scrollbarProps } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const isHorizontal = props.orientation === "horizontal";
-    const debounceScrollEnd = useDebounceCallback(() => send("SCROLL_END"), 100);
-    const [state, send] = useStateMachine2("hidden", {
-      hidden: {
-        SCROLL: "scrolling"
-      },
-      scrolling: {
-        SCROLL_END: "idle",
-        POINTER_ENTER: "interacting"
-      },
-      interacting: {
-        SCROLL: "interacting",
-        POINTER_LEAVE: "idle"
-      },
-      idle: {
-        HIDE: "hidden",
-        SCROLL: "scrolling",
-        POINTER_ENTER: "interacting"
-      }
-    });
-    useEffect(() => {
-      if (state === "idle") {
-        const hideTimer = window.setTimeout(() => send("HIDE"), context.scrollHideDelay);
-        return () => window.clearTimeout(hideTimer);
-      }
-    }, [state, context.scrollHideDelay, send]);
-    useEffect(() => {
-      const viewport = context.viewport;
-      const scrollDirection = isHorizontal ? "scrollLeft" : "scrollTop";
-      if (viewport) {
-        let prevScrollPos = viewport[scrollDirection];
-        const handleScroll2 = () => {
-          const scrollPos = viewport[scrollDirection];
-          const hasScrollInDirectionChanged = prevScrollPos !== scrollPos;
-          if (hasScrollInDirectionChanged) {
-            send("SCROLL");
-            debounceScrollEnd();
-          }
-          prevScrollPos = scrollPos;
-        };
-        viewport.addEventListener("scroll", handleScroll2);
-        return () => viewport.removeEventListener("scroll", handleScroll2);
-      }
-    }, [context.viewport, isHorizontal, send, debounceScrollEnd]);
-    return /* @__PURE__ */ jsx(Presence, { present: forceMount || state !== "hidden", children: /* @__PURE__ */ jsx(
-      ScrollAreaScrollbarVisible,
-      {
-        "data-state": state === "hidden" ? "hidden" : "visible",
-        ...scrollbarProps,
-        ref: forwardedRef,
-        onPointerEnter: composeEventHandlers(props.onPointerEnter, () => send("POINTER_ENTER")),
-        onPointerLeave: composeEventHandlers(props.onPointerLeave, () => send("POINTER_LEAVE"))
-      }
-    ) });
-  });
-  var ScrollAreaScrollbarAuto = forwardRef((props, forwardedRef) => {
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const { forceMount, ...scrollbarProps } = props;
-    const [visible, setVisible] = useState(false);
-    const isHorizontal = props.orientation === "horizontal";
-    const handleResize = useDebounceCallback(() => {
-      if (context.viewport) {
-        const isOverflowX = context.viewport.offsetWidth < context.viewport.scrollWidth;
-        const isOverflowY = context.viewport.offsetHeight < context.viewport.scrollHeight;
-        setVisible(isHorizontal ? isOverflowX : isOverflowY);
-      }
-    }, 10);
-    useResizeObserver(context.viewport, handleResize);
-    useResizeObserver(context.content, handleResize);
-    return /* @__PURE__ */ jsx(Presence, { present: forceMount || visible, children: /* @__PURE__ */ jsx(
-      ScrollAreaScrollbarVisible,
-      {
-        "data-state": visible ? "visible" : "hidden",
-        ...scrollbarProps,
-        ref: forwardedRef
-      }
-    ) });
-  });
-  var ScrollAreaScrollbarVisible = forwardRef((props, forwardedRef) => {
-    const { orientation = "vertical", ...scrollbarProps } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const thumbRef = useRef(null);
-    const pointerOffsetRef = useRef(0);
-    const [sizes, setSizes] = useState({
-      content: 0,
-      viewport: 0,
-      scrollbar: { size: 0, paddingStart: 0, paddingEnd: 0 }
-    });
-    const thumbRatio = getThumbRatio(sizes.viewport, sizes.content);
-    const commonProps = {
-      ...scrollbarProps,
-      sizes,
-      onSizesChange: setSizes,
-      hasThumb: Boolean(thumbRatio > 0 && thumbRatio < 1),
-      onThumbChange: (thumb) => thumbRef.current = thumb,
-      onThumbPointerUp: () => pointerOffsetRef.current = 0,
-      onThumbPointerDown: (pointerPos) => pointerOffsetRef.current = pointerPos
-    };
-    function getScrollPosition(pointerPos, dir) {
-      return getScrollPositionFromPointer(pointerPos, pointerOffsetRef.current, sizes, dir);
-    }
-    if (orientation === "horizontal") {
-      return /* @__PURE__ */ jsx(
-        ScrollAreaScrollbarX,
-        {
-          ...commonProps,
-          ref: forwardedRef,
-          onThumbPositionChange: () => {
-            if (context.viewport && thumbRef.current) {
-              const scrollPos = context.viewport.scrollLeft;
-              const offset4 = getThumbOffsetFromScroll(scrollPos, sizes, context.dir);
-              thumbRef.current.style.transform = `translate3d(${offset4}px, 0, 0)`;
-            }
-          },
-          onWheelScroll: (scrollPos) => {
-            if (context.viewport) context.viewport.scrollLeft = scrollPos;
-          },
-          onDragScroll: (pointerPos) => {
-            if (context.viewport) {
-              context.viewport.scrollLeft = getScrollPosition(pointerPos, context.dir);
-            }
-          }
-        }
-      );
-    }
-    if (orientation === "vertical") {
-      return /* @__PURE__ */ jsx(
-        ScrollAreaScrollbarY,
-        {
-          ...commonProps,
-          ref: forwardedRef,
-          onThumbPositionChange: () => {
-            if (context.viewport && thumbRef.current) {
-              const scrollPos = context.viewport.scrollTop;
-              const offset4 = getThumbOffsetFromScroll(scrollPos, sizes);
-              thumbRef.current.style.transform = `translate3d(0, ${offset4}px, 0)`;
-            }
-          },
-          onWheelScroll: (scrollPos) => {
-            if (context.viewport) context.viewport.scrollTop = scrollPos;
-          },
-          onDragScroll: (pointerPos) => {
-            if (context.viewport) context.viewport.scrollTop = getScrollPosition(pointerPos);
-          }
-        }
-      );
-    }
-    return null;
-  });
-  var ScrollAreaScrollbarX = forwardRef((props, forwardedRef) => {
-    const { sizes, onSizesChange, ...scrollbarProps } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const [computedStyle, setComputedStyle] = useState();
-    const ref = useRef(null);
-    const composeRefs2 = useComposedRefs(forwardedRef, ref, context.onScrollbarXChange);
-    useEffect(() => {
-      if (ref.current) setComputedStyle(getComputedStyle(ref.current));
-    }, [ref]);
-    return /* @__PURE__ */ jsx(
-      ScrollAreaScrollbarImpl,
-      {
-        "data-orientation": "horizontal",
-        ...scrollbarProps,
-        ref: composeRefs2,
-        sizes,
-        style: {
-          bottom: 0,
-          left: context.dir === "rtl" ? "var(--radix-scroll-area-corner-width)" : 0,
-          right: context.dir === "ltr" ? "var(--radix-scroll-area-corner-width)" : 0,
-          "--radix-scroll-area-thumb-width": getThumbSize(sizes) + "px",
-          ...props.style
-        },
-        onThumbPointerDown: (pointerPos) => props.onThumbPointerDown(pointerPos.x),
-        onDragScroll: (pointerPos) => props.onDragScroll(pointerPos.x),
-        onWheelScroll: (event, maxScrollPos) => {
-          if (context.viewport) {
-            const scrollPos = context.viewport.scrollLeft + event.deltaX;
-            props.onWheelScroll(scrollPos);
-            if (isScrollingWithinScrollbarBounds(scrollPos, maxScrollPos)) {
-              event.preventDefault();
-            }
-          }
-        },
-        onResize: () => {
-          if (ref.current && context.viewport && computedStyle) {
-            onSizesChange({
-              content: context.viewport.scrollWidth,
-              viewport: context.viewport.offsetWidth,
-              scrollbar: {
-                size: ref.current.clientWidth,
-                paddingStart: toInt(computedStyle.paddingLeft),
-                paddingEnd: toInt(computedStyle.paddingRight)
-              }
-            });
-          }
-        }
-      }
-    );
-  });
-  var ScrollAreaScrollbarY = forwardRef((props, forwardedRef) => {
-    const { sizes, onSizesChange, ...scrollbarProps } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-    const [computedStyle, setComputedStyle] = useState();
-    const ref = useRef(null);
-    const composeRefs2 = useComposedRefs(forwardedRef, ref, context.onScrollbarYChange);
-    useEffect(() => {
-      if (ref.current) setComputedStyle(getComputedStyle(ref.current));
-    }, [ref]);
-    return /* @__PURE__ */ jsx(
-      ScrollAreaScrollbarImpl,
-      {
-        "data-orientation": "vertical",
-        ...scrollbarProps,
-        ref: composeRefs2,
-        sizes,
-        style: {
-          top: 0,
-          right: context.dir === "ltr" ? 0 : void 0,
-          left: context.dir === "rtl" ? 0 : void 0,
-          bottom: "var(--radix-scroll-area-corner-height)",
-          "--radix-scroll-area-thumb-height": getThumbSize(sizes) + "px",
-          ...props.style
-        },
-        onThumbPointerDown: (pointerPos) => props.onThumbPointerDown(pointerPos.y),
-        onDragScroll: (pointerPos) => props.onDragScroll(pointerPos.y),
-        onWheelScroll: (event, maxScrollPos) => {
-          if (context.viewport) {
-            const scrollPos = context.viewport.scrollTop + event.deltaY;
-            props.onWheelScroll(scrollPos);
-            if (isScrollingWithinScrollbarBounds(scrollPos, maxScrollPos)) {
-              event.preventDefault();
-            }
-          }
-        },
-        onResize: () => {
-          if (ref.current && context.viewport && computedStyle) {
-            onSizesChange({
-              content: context.viewport.scrollHeight,
-              viewport: context.viewport.offsetHeight,
-              scrollbar: {
-                size: ref.current.clientHeight,
-                paddingStart: toInt(computedStyle.paddingTop),
-                paddingEnd: toInt(computedStyle.paddingBottom)
-              }
-            });
-          }
-        }
-      }
-    );
-  });
-  var [ScrollbarProvider, useScrollbarContext] = createScrollAreaContext(SCROLLBAR_NAME);
-  var ScrollAreaScrollbarImpl = forwardRef((props, forwardedRef) => {
-    const {
-      __scopeScrollArea,
-      sizes,
-      hasThumb,
-      onThumbChange,
-      onThumbPointerUp,
-      onThumbPointerDown,
-      onThumbPositionChange,
-      onDragScroll,
-      onWheelScroll,
-      onResize,
-      ...scrollbarProps
-    } = props;
-    const context = useScrollAreaContext(SCROLLBAR_NAME, __scopeScrollArea);
-    const [scrollbar, setScrollbar] = useState(null);
-    const composeRefs2 = useComposedRefs(forwardedRef, (node) => setScrollbar(node));
-    const rectRef = useRef(null);
-    const prevWebkitUserSelectRef = useRef("");
-    const viewport = context.viewport;
-    const maxScrollPos = sizes.content - sizes.viewport;
-    const handleWheelScroll = useCallbackRef(onWheelScroll);
-    const handleThumbPositionChange = useCallbackRef(onThumbPositionChange);
-    const handleResize = useDebounceCallback(onResize, 10);
-    function handleDragScroll(event) {
-      if (rectRef.current) {
-        const x = event.clientX - rectRef.current.left;
-        const y = event.clientY - rectRef.current.top;
-        onDragScroll({ x, y });
-      }
-    }
-    useEffect(() => {
-      const handleWheel = (event) => {
-        const element = event.target;
-        const isScrollbarWheel = scrollbar?.contains(element);
-        if (isScrollbarWheel) handleWheelScroll(event, maxScrollPos);
-      };
-      document.addEventListener("wheel", handleWheel, { passive: false });
-      return () => document.removeEventListener("wheel", handleWheel, { passive: false });
-    }, [viewport, scrollbar, maxScrollPos, handleWheelScroll]);
-    useEffect(handleThumbPositionChange, [sizes, handleThumbPositionChange]);
-    useResizeObserver(scrollbar, handleResize);
-    useResizeObserver(context.content, handleResize);
-    return /* @__PURE__ */ jsx(
-      ScrollbarProvider,
-      {
-        scope: __scopeScrollArea,
-        scrollbar,
-        hasThumb,
-        onThumbChange: useCallbackRef(onThumbChange),
-        onThumbPointerUp: useCallbackRef(onThumbPointerUp),
-        onThumbPositionChange: handleThumbPositionChange,
-        onThumbPointerDown: useCallbackRef(onThumbPointerDown),
-        children: /* @__PURE__ */ jsx(
-          Primitive.div,
-          {
-            ...scrollbarProps,
-            ref: composeRefs2,
-            style: { position: "absolute", ...scrollbarProps.style },
-            onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
-              const mainPointer = 0;
-              if (event.button === mainPointer) {
-                const element = event.target;
-                element.setPointerCapture(event.pointerId);
-                rectRef.current = scrollbar.getBoundingClientRect();
-                prevWebkitUserSelectRef.current = document.body.style.webkitUserSelect;
-                document.body.style.webkitUserSelect = "none";
-                if (context.viewport) context.viewport.style.scrollBehavior = "auto";
-                handleDragScroll(event);
-              }
-            }),
-            onPointerMove: composeEventHandlers(props.onPointerMove, handleDragScroll),
-            onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
-              const element = event.target;
-              if (element.hasPointerCapture(event.pointerId)) {
-                element.releasePointerCapture(event.pointerId);
-              }
-              document.body.style.webkitUserSelect = prevWebkitUserSelectRef.current;
-              if (context.viewport) context.viewport.style.scrollBehavior = "";
-              rectRef.current = null;
-            })
-          }
-        )
-      }
-    );
-  });
-  var THUMB_NAME = "ScrollAreaThumb";
-  var ScrollAreaThumb = forwardRef(
-    (props, forwardedRef) => {
-      const { forceMount, ...thumbProps } = props;
-      const scrollbarContext = useScrollbarContext(THUMB_NAME, props.__scopeScrollArea);
-      return /* @__PURE__ */ jsx(Presence, { present: forceMount || scrollbarContext.hasThumb, children: /* @__PURE__ */ jsx(ScrollAreaThumbImpl, { ref: forwardedRef, ...thumbProps }) });
-    }
-  );
-  var ScrollAreaThumbImpl = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeScrollArea, style, ...thumbProps } = props;
-      const scrollAreaContext = useScrollAreaContext(THUMB_NAME, __scopeScrollArea);
-      const scrollbarContext = useScrollbarContext(THUMB_NAME, __scopeScrollArea);
-      const { onThumbPositionChange } = scrollbarContext;
-      const composedRef = useComposedRefs(
-        forwardedRef,
-        (node) => scrollbarContext.onThumbChange(node)
-      );
-      const removeUnlinkedScrollListenerRef = useRef(void 0);
-      const debounceScrollEnd = useDebounceCallback(() => {
-        if (removeUnlinkedScrollListenerRef.current) {
-          removeUnlinkedScrollListenerRef.current();
-          removeUnlinkedScrollListenerRef.current = void 0;
-        }
-      }, 100);
-      useEffect(() => {
-        const viewport = scrollAreaContext.viewport;
-        if (viewport) {
-          const handleScroll2 = () => {
-            debounceScrollEnd();
-            if (!removeUnlinkedScrollListenerRef.current) {
-              const listener = addUnlinkedScrollListener(viewport, onThumbPositionChange);
-              removeUnlinkedScrollListenerRef.current = listener;
-              onThumbPositionChange();
-            }
-          };
-          onThumbPositionChange();
-          viewport.addEventListener("scroll", handleScroll2);
-          return () => viewport.removeEventListener("scroll", handleScroll2);
-        }
-      }, [scrollAreaContext.viewport, debounceScrollEnd, onThumbPositionChange]);
-      return /* @__PURE__ */ jsx(
-        Primitive.div,
-        {
-          "data-state": scrollbarContext.hasThumb ? "visible" : "hidden",
-          ...thumbProps,
-          ref: composedRef,
-          style: {
-            width: "var(--radix-scroll-area-thumb-width)",
-            height: "var(--radix-scroll-area-thumb-height)",
-            ...style
-          },
-          onPointerDownCapture: composeEventHandlers(props.onPointerDownCapture, (event) => {
-            const thumb = event.target;
-            const thumbRect = thumb.getBoundingClientRect();
-            const x = event.clientX - thumbRect.left;
-            const y = event.clientY - thumbRect.top;
-            scrollbarContext.onThumbPointerDown({ x, y });
-          }),
-          onPointerUp: composeEventHandlers(props.onPointerUp, scrollbarContext.onThumbPointerUp)
-        }
-      );
-    }
-  );
-  ScrollAreaThumb.displayName = THUMB_NAME;
-  var CORNER_NAME = "ScrollAreaCorner";
-  var ScrollAreaCorner = forwardRef(
-    (props, forwardedRef) => {
-      const context = useScrollAreaContext(CORNER_NAME, props.__scopeScrollArea);
-      const hasBothScrollbarsVisible = Boolean(context.scrollbarX && context.scrollbarY);
-      const hasCorner = context.type !== "scroll" && hasBothScrollbarsVisible;
-      return hasCorner ? /* @__PURE__ */ jsx(ScrollAreaCornerImpl, { ...props, ref: forwardedRef }) : null;
-    }
-  );
-  ScrollAreaCorner.displayName = CORNER_NAME;
-  var ScrollAreaCornerImpl = forwardRef((props, forwardedRef) => {
-    const { __scopeScrollArea, ...cornerProps } = props;
-    const context = useScrollAreaContext(CORNER_NAME, __scopeScrollArea);
-    const [width, setWidth] = useState(0);
-    const [height, setHeight] = useState(0);
-    const hasSize = Boolean(width && height);
-    useResizeObserver(context.scrollbarX, () => {
-      const height2 = context.scrollbarX?.offsetHeight || 0;
-      context.onCornerHeightChange(height2);
-      setHeight(height2);
-    });
-    useResizeObserver(context.scrollbarY, () => {
-      const width2 = context.scrollbarY?.offsetWidth || 0;
-      context.onCornerWidthChange(width2);
-      setWidth(width2);
-    });
-    return hasSize ? /* @__PURE__ */ jsx(
-      Primitive.div,
-      {
-        ...cornerProps,
-        ref: forwardedRef,
-        style: {
-          width,
-          height,
-          position: "absolute",
-          right: context.dir === "ltr" ? 0 : void 0,
-          left: context.dir === "rtl" ? 0 : void 0,
-          bottom: 0,
-          ...props.style
-        }
-      }
-    ) : null;
-  });
-  function toInt(value) {
-    return value ? parseInt(value, 10) : 0;
-  }
-  function getThumbRatio(viewportSize, contentSize) {
-    const ratio = viewportSize / contentSize;
-    return isNaN(ratio) ? 0 : ratio;
-  }
-  function getThumbSize(sizes) {
-    const ratio = getThumbRatio(sizes.viewport, sizes.content);
-    const scrollbarPadding = sizes.scrollbar.paddingStart + sizes.scrollbar.paddingEnd;
-    const thumbSize = (sizes.scrollbar.size - scrollbarPadding) * ratio;
-    return Math.max(thumbSize, 18);
-  }
-  function getScrollPositionFromPointer(pointerPos, pointerOffset, sizes, dir = "ltr") {
-    const thumbSizePx = getThumbSize(sizes);
-    const thumbCenter = thumbSizePx / 2;
-    const offset4 = pointerOffset || thumbCenter;
-    const thumbOffsetFromEnd = thumbSizePx - offset4;
-    const minPointerPos = sizes.scrollbar.paddingStart + offset4;
-    const maxPointerPos = sizes.scrollbar.size - sizes.scrollbar.paddingEnd - thumbOffsetFromEnd;
-    const maxScrollPos = sizes.content - sizes.viewport;
-    const scrollRange = dir === "ltr" ? [0, maxScrollPos] : [maxScrollPos * -1, 0];
-    const interpolate = linearScale([minPointerPos, maxPointerPos], scrollRange);
-    return interpolate(pointerPos);
-  }
-  function getThumbOffsetFromScroll(scrollPos, sizes, dir = "ltr") {
-    const thumbSizePx = getThumbSize(sizes);
-    const scrollbarPadding = sizes.scrollbar.paddingStart + sizes.scrollbar.paddingEnd;
-    const scrollbar = sizes.scrollbar.size - scrollbarPadding;
-    const maxScrollPos = sizes.content - sizes.viewport;
-    const maxThumbPos = scrollbar - thumbSizePx;
-    const scrollClampRange = dir === "ltr" ? [0, maxScrollPos] : [maxScrollPos * -1, 0];
-    const scrollWithoutMomentum = clamp2(scrollPos, scrollClampRange);
-    const interpolate = linearScale([0, maxScrollPos], [0, maxThumbPos]);
-    return interpolate(scrollWithoutMomentum);
-  }
-  function linearScale(input, output) {
-    return (value) => {
-      if (input[0] === input[1] || output[0] === output[1]) return output[0];
-      const ratio = (output[1] - output[0]) / (input[1] - input[0]);
-      return output[0] + ratio * (value - input[0]);
-    };
-  }
-  function isScrollingWithinScrollbarBounds(scrollPos, maxScrollPos) {
-    return scrollPos > 0 && scrollPos < maxScrollPos;
-  }
-  var addUnlinkedScrollListener = (node, handler = () => {
-  }) => {
-    let prevPosition = { left: node.scrollLeft, top: node.scrollTop };
-    let rAF = 0;
-    (function loop() {
-      const position = { left: node.scrollLeft, top: node.scrollTop };
-      const isHorizontalScroll = prevPosition.left !== position.left;
-      const isVerticalScroll = prevPosition.top !== position.top;
-      if (isHorizontalScroll || isVerticalScroll) handler();
-      prevPosition = position;
-      rAF = window.requestAnimationFrame(loop);
-    })();
-    return () => window.cancelAnimationFrame(rAF);
-  };
-  function useDebounceCallback(callback, delay) {
-    const handleCallback = useCallbackRef(callback);
-    const debounceTimerRef = useRef(0);
-    useEffect(() => () => window.clearTimeout(debounceTimerRef.current), []);
-    return useCallback(() => {
-      window.clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = window.setTimeout(handleCallback, delay);
-    }, [handleCallback, delay]);
-  }
-  function useResizeObserver(element, onResize) {
-    const handleResize = useCallbackRef(onResize);
-    useLayoutEffect2(() => {
-      let rAF = 0;
-      if (element) {
-        const resizeObserver = new ResizeObserver(() => {
-          cancelAnimationFrame(rAF);
-          rAF = window.requestAnimationFrame(handleResize);
-        });
-        resizeObserver.observe(element);
-        return () => {
-          window.cancelAnimationFrame(rAF);
-          resizeObserver.unobserve(element);
-        };
-      }
-    }, [element, handleResize]);
-  }
-  var Root4 = ScrollArea;
-  var Viewport = ScrollAreaViewport;
-  var Corner = ScrollAreaCorner;
-
-  // ../../../packages/shadcn-ui/src/components/scroll-area.tsx
-  var ScrollArea2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      Root4,
-      {
-        ref,
-        className: cn("xps-scroll-area", className),
-        ...props
-      },
-      createElement(
-        Viewport,
-        { className: "xps-scroll-area-viewport" },
-        children
-      ),
-      createElement(ScrollBar, null),
-      createElement(Corner, null)
-    )
-  );
-  ScrollArea2.displayName = Root4.displayName;
-  var ScrollBar = forwardRef(
-    ({ className, orientation = "vertical", ...props }, ref) => createElement(
-      ScrollAreaScrollbar,
-      {
-        ref,
-        orientation,
-        className: cn("xps-scroll-bar", orientation === "vertical" ? "xps-scroll-bar-vertical" : "xps-scroll-bar-horizontal", className),
-        ...props
-      },
-      createElement(ScrollAreaThumb, {
-        className: "xps-scroll-thumb"
-      })
-    )
-  );
-  ScrollBar.displayName = ScrollAreaScrollbar.displayName;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-visually-hidden@1.2.5_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
-  var VISUALLY_HIDDEN_STYLES = Object.freeze({
-    // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
-    position: "absolute",
-    border: 0,
-    width: 1,
-    height: 1,
-    padding: 0,
-    margin: -1,
-    overflow: "hidden",
-    clip: "rect(0, 0, 0, 0)",
-    whiteSpace: "nowrap",
-    wordWrap: "normal"
-  });
-  var NAME2 = "VisuallyHidden";
-  var VisuallyHidden = forwardRef(
-    (props, forwardedRef) => {
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          ...props,
-          ref: forwardedRef,
-          style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
-        }
-      );
-    }
-  );
-  VisuallyHidden.displayName = NAME2;
-  var Root5 = VisuallyHidden;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-select@2.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-select/dist/index.mjs
   var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
   var SELECTION_KEYS2 = [" ", "Enter"];
   var SELECT_NAME = "Select";
@@ -11209,6 +10245,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       caller: SELECT_NAME
     });
     const triggerPointerDownPosRef = useRef(null);
+    const initialValueRef = useRef(value);
+    useEffect(() => {
+      const associatedForm = form ? trigger?.ownerDocument.getElementById(form) : trigger?.form;
+      if (associatedForm instanceof HTMLFormElement) {
+        const reset = () => setValue(initialValueRef.current);
+        associatedForm.addEventListener("reset", reset);
+        return () => associatedForm.removeEventListener("reset", reset);
+      }
+    }, [form, trigger, setValue]);
     const isFormControl = trigger ? !!form || !!trigger.closest("form") : true;
     const [nativeOptionsSet, setNativeOptionsSet] = useState(/* @__PURE__ */ new Set());
     const contentId = useId2();
@@ -11246,7 +10291,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       nativeSelectKey,
       isFormControl
     };
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection3.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
+    return /* @__PURE__ */ jsx(Root2, { ...popperScope, children: /* @__PURE__ */ jsx(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx(Collection3.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
       SelectNativeOptionsProvider,
       {
         scope: __scopeSelect,
@@ -11450,7 +10495,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const context = useSelectContext(CONTENT_NAME5, __scopeSelect);
       const [content, setContent] = useState(null);
       const [viewport, setViewport] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
+      const composedRefs = useComposedRefs(forwardedRef, setContent);
       const [selectedItem, setSelectedItem] = useState(null);
       const [selectedItemText, setSelectedItemText] = useState(
         null
@@ -11462,7 +10507,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         if (content) return hideOthers(content);
       }, [content]);
       useFocusGuards();
-      const focusFirst4 = useCallback(
+      const focusFirst5 = useCallback(
         (candidates) => {
           const [firstItem, ...restItems] = getItems().map((item) => item.ref.current);
           const [lastItem] = restItems.slice(-1);
@@ -11479,8 +10524,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         [getItems, viewport]
       );
       const focusSelectedItem = useCallback(
-        () => focusFirst4([selectedItem, content]),
-        [focusFirst4, selectedItem, content]
+        () => focusFirst5([selectedItem, content]),
+        [focusFirst5, selectedItem, content]
       );
       useEffect(() => {
         if (isPositioned) {
@@ -11532,7 +10577,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
         const nextItem = findNextItem(enabledItems, search, currentItem);
         if (nextItem) {
-          setTimeout(() => nextItem.ref.current.focus());
+          setTimeout(() => nextItem.ref.current?.focus());
         }
       });
       const itemRefCallback = useCallback(
@@ -11642,7 +10687,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                             const currentIndex = candidateNodes.indexOf(currentElement);
                             candidateNodes = candidateNodes.slice(currentIndex + 1);
                           }
-                          setTimeout(() => focusFirst4(candidateNodes));
+                          setTimeout(() => focusFirst5(candidateNodes));
                           event.preventDefault();
                         }
                       })
@@ -11664,7 +10709,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const contentContext = useSelectContentContext(CONTENT_NAME5, __scopeSelect);
     const [contentWrapper, setContentWrapper] = useState(null);
     const [content, setContent] = useState(null);
-    const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
+    const composedRefs = useComposedRefs(forwardedRef, setContent);
     const getItems = useCollection3(__scopeSelect);
     const shouldExpandOnScrollRef = useRef(false);
     const shouldRepositionRef = useRef(true);
@@ -11831,7 +10876,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     } = props;
     const popperScope = usePopperScope2(__scopeSelect);
     return /* @__PURE__ */ jsx(
-      Content2,
+      Content,
       {
         ...popperScope,
         ...popperProps,
@@ -11856,12 +10901,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   });
   SelectPopperPosition.displayName = POPPER_POSITION_NAME;
   var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME5, {});
-  var VIEWPORT_NAME2 = "SelectViewport";
+  var VIEWPORT_NAME = "SelectViewport";
   var SelectViewport = forwardRef(
     (props, forwardedRef) => {
       const { __scopeSelect, nonce, ...viewportProps } = props;
-      const contentContext = useSelectContentContext(VIEWPORT_NAME2, __scopeSelect);
-      const viewportContext = useSelectViewportContext(VIEWPORT_NAME2, __scopeSelect);
+      const contentContext = useSelectContentContext(VIEWPORT_NAME, __scopeSelect);
+      const viewportContext = useSelectViewportContext(VIEWPORT_NAME, __scopeSelect);
       const composedRefs = useComposedRefs(forwardedRef, contentContext.onViewportChange);
       const prevScrollTopRef = useRef(0);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
@@ -11923,7 +10968,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       ] });
     }
   );
-  SelectViewport.displayName = VIEWPORT_NAME2;
+  SelectViewport.displayName = VIEWPORT_NAME;
   var GROUP_NAME4 = "SelectGroup";
   var [SelectGroupContextProvider, useSelectGroupContext] = createSelectContext(GROUP_NAME4);
   var SelectGroup = forwardRef(
@@ -11959,10 +11004,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const isSelected = context.value === value;
       const [textValue, setTextValue] = useState(textValueProp ?? "");
       const [isFocused, setIsFocused] = useState(false);
-      const composedRefs = useComposedRefs(
-        forwardedRef,
+      const handleItemRefCallback = useCallbackRef(
         (node) => contentContext.itemRefCallback?.(node, value, disabled)
       );
+      const composedRefs = useComposedRefs(forwardedRef, handleItemRefCallback);
       const textId = useId2();
       const pointerTypeRef = useRef("touch");
       const handleSelect = () => {
@@ -11971,11 +11016,6 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           context.onOpenChange(false);
         }
       };
-      if (value === "") {
-        throw new Error(
-          "A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder."
-        );
-      }
       return /* @__PURE__ */ jsx(
         SelectItemContextProvider,
         {
@@ -12032,10 +11072,19 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                     }
                   }),
                   onKeyDown: composeEventHandlers(itemProps.onKeyDown, (event) => {
+                    if (disabled || event.target !== event.currentTarget) {
+                      return;
+                    }
                     const isTypingAhead = contentContext.searchRef?.current !== "";
-                    if (isTypingAhead && event.key === " ") return;
-                    if (SELECTION_KEYS2.includes(event.key)) handleSelect();
-                    if (event.key === " ") event.preventDefault();
+                    if (isTypingAhead && event.key === " ") {
+                      return;
+                    }
+                    if (SELECTION_KEYS2.includes(event.key)) {
+                      handleSelect();
+                    }
+                    if (event.key === " ") {
+                      event.preventDefault();
+                    }
                   })
                 }
               )
@@ -12055,11 +11104,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const itemContext = useSelectItemContext(ITEM_TEXT_NAME, __scopeSelect);
       const nativeOptionsContext = useSelectNativeOptionsContext(ITEM_TEXT_NAME, __scopeSelect);
       const [itemTextNode, setItemTextNode] = useState(null);
+      const handleItemTextRefCallback = useCallbackRef(
+        (node) => contentContext.itemTextRefCallback?.(node, itemContext.value, itemContext.disabled)
+      );
       const composedRefs = useComposedRefs(
         forwardedRef,
-        (node) => setItemTextNode(node),
+        setItemTextNode,
         itemContext.onItemTextChange,
-        (node) => contentContext.itemTextRefCallback?.(node, itemContext.value, itemContext.disabled)
+        handleItemTextRefCallback
       );
       const textContent = itemTextNode?.textContent;
       const nativeOption = useMemo(
@@ -12073,7 +11125,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }, [onNativeOptionAdd, onNativeOptionRemove, nativeOption]);
       return /* @__PURE__ */ jsxs(Fragment2, { children: [
         /* @__PURE__ */ jsx(Primitive.span, { id: itemContext.textId, ...itemTextProps, ref: composedRefs }),
-        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren ? createPortal(itemTextProps.children, context.valueNode) : null
+        itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren && !shouldShowPlaceholder(context.value) ? createPortal(itemTextProps.children, context.valueNode) : null
       ] });
     }
   );
@@ -12226,6 +11278,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       const composedRefs = useComposedRefs(forwardedRef, ref);
       const selectValue = value ?? "";
       const prevValue = usePrevious(selectValue);
+      const hasEmptyValueOption = Array.from(nativeOptions).some(
+        (option) => (option.props.value ?? "") === ""
+      );
       useEffect(() => {
         const select = ref.current;
         if (!select) return;
@@ -12257,7 +11312,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           ref: composedRefs,
           defaultValue: selectValue,
           children: [
-            shouldShowPlaceholder(value) ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
+            shouldShowPlaceholder(value) && !hasEmptyValueOption ? /* @__PURE__ */ jsx("option", { value: "" }) : null,
             Array.from(nativeOptions)
           ]
         },
@@ -12313,1249 +11368,49 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return array.map((_, index2) => array[(startIndex + index2) % array.length]);
   }
 
-  // ../../../packages/shadcn-ui/src/components/select.tsx
-  var Select2 = Select;
-  var SelectValue2 = SelectValue;
-  var SelectTrigger2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      SelectTrigger,
-      {
-        ref,
-        className: cn("xps-select-trigger", className),
-        ...props
-      },
-      children,
-      createElement(
-        SelectIcon,
-        { asChild: true },
-        createElement(ChevronDown, {
-          className: "xps-icon"
-        })
-      )
-    )
-  );
-  SelectTrigger2.displayName = SelectTrigger.displayName;
-  var SelectScrollUpButton2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      SelectScrollUpButton,
-      {
-        ref,
-        className: cn("xps-select-scroll-button", className),
-        ...props
-      },
-      createElement(ChevronUp, {
-        className: "xps-icon"
-      })
-    )
-  );
-  SelectScrollUpButton2.displayName = SelectScrollUpButton.displayName;
-  var SelectScrollDownButton2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      SelectScrollDownButton,
-      {
-        ref,
-        className: cn("xps-select-scroll-button", className),
-        ...props
-      },
-      createElement(ChevronDown, {
-        className: "xps-icon"
-      })
-    )
-  );
-  SelectScrollDownButton2.displayName = SelectScrollDownButton.displayName;
-  var SelectContent2 = forwardRef(
-    ({ className, children, position = "popper", ...props }, ref) => createElement(
-      SelectPortal,
-      null,
-      createElement(
-        SelectContent,
-        {
-          ref,
-          className: cn("xps-select-content", position === "popper" && "xps-select-content-popper", className),
-          position,
-          ...props
-        },
-        createElement(SelectScrollUpButton2, null),
-        createElement(
-          SelectViewport,
-          {
-            className: cn("xps-select-viewport", position === "popper" && "xps-select-viewport-popper")
-          },
-          children
-        ),
-        createElement(SelectScrollDownButton2, null)
-      )
-    )
-  );
-  SelectContent2.displayName = SelectContent.displayName;
-  var SelectLabel2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SelectLabel, {
-      ref,
-      className: cn("xps-select-label", className),
-      ...props
-    })
-  );
-  SelectLabel2.displayName = SelectLabel.displayName;
-  var SelectItem2 = forwardRef(
-    ({ className, children, ...props }, ref) => createElement(
-      SelectItem,
-      {
-        ref,
-        className: cn("xps-select-item", className),
-        ...props
-      },
-      createElement(
-        "span",
-        { className: "xps-select-item-indicator" },
-        createElement(
-          SelectItemIndicator,
-          null,
-          createElement(Check, {
-            className: "xps-icon"
-          })
-        )
-      ),
-      createElement(SelectItemText, null, children)
-    )
-  );
-  SelectItem2.displayName = SelectItem.displayName;
-  var SelectSeparator2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(SelectSeparator, {
-      ref,
-      className: cn("xps-select-separator", className),
-      ...props
-    })
-  );
-  SelectSeparator2.displayName = SelectSeparator.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/separator.tsx
-  var Separator3 = forwardRef(
-    ({ className, orientation = "horizontal", ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-separator", orientation === "vertical" ? "xps-separator--vertical" : "xps-separator--horizontal", className),
-      role: "separator",
-      "aria-orientation": orientation,
-      ...props
-    })
-  );
-  Separator3.displayName = "Separator";
-
-  // ../../../packages/shadcn-ui/src/components/sheet.tsx
-  var Sheet = Root;
-  var SheetPortal = Portal2;
-  var SheetOverlay = forwardRef(
-    ({ className, ...props }, ref) => createElement(Overlay, {
-      ref,
-      className: cn("xps-dialog-overlay", className),
-      ...props
-    })
-  );
-  SheetOverlay.displayName = Overlay.displayName;
-  var SheetContent = forwardRef(
-    ({ className, children, side = "right", showClose = true, ...props }, ref) => createElement(
-      SheetPortal,
-      null,
-      createElement(SheetOverlay, null),
-      createElement(
-        Content,
-        {
-          ref,
-          className: cn("xps-sheet-content", `xps-sheet-content--${side}`, className),
-          ...props
-        },
-        children,
-        showClose ? createElement(
-          Close,
-          {
-            className: "xps-dialog-close"
-          },
-          createElement(X, {
-            className: "xps-icon",
-            "aria-hidden": "true"
-          }),
-          createElement("span", { className: "xps-sr-only" }, "Close")
-        ) : null
-      )
-    )
-  );
-  SheetContent.displayName = Content.displayName;
-  var SheetHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-header", className),
-      ...props
-    })
-  );
-  SheetHeader.displayName = "SheetHeader";
-  var SheetFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-dialog-footer", className),
-      ...props
-    })
-  );
-  SheetFooter.displayName = "SheetFooter";
-  var SheetTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement(Title, {
-      ref,
-      className: cn("xps-dialog-title", className),
-      ...props
-    })
-  );
-  SheetTitle.displayName = Title.displayName;
-  var SheetDescription = forwardRef(
-    ({ className, ...props }, ref) => createElement(Description, {
-      ref,
-      className: cn("xps-dialog-description", className),
-      ...props
-    })
-  );
-  SheetDescription.displayName = Description.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/sidebar.tsx
-  var Sidebar = forwardRef(
-    ({ className, side = "left", collapsed = false, ...props }, ref) => createElement("aside", {
-      ref,
-      className: cn("xps-sidebar", `xps-sidebar--${side}`, collapsed && "xps-sidebar--collapsed", className),
-      "data-side": side,
-      "data-state": collapsed ? "collapsed" : "expanded",
-      "aria-expanded": !collapsed,
-      ...props
-    })
-  );
-  Sidebar.displayName = "Sidebar";
-  var SidebarHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-header", className),
-      ...props
-    })
-  );
-  SidebarHeader.displayName = "SidebarHeader";
-  var SidebarContent = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-content", className),
-      ...props
-    })
-  );
-  SidebarContent.displayName = "SidebarContent";
-  var SidebarFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-footer", className),
-      ...props
-    })
-  );
-  SidebarFooter.displayName = "SidebarFooter";
-  var SidebarTitle = forwardRef(
-    ({ className, ...props }, ref) => createElement("span", {
-      ref,
-      className: cn("xps-sidebar-title", className),
-      ...props
-    })
-  );
-  SidebarTitle.displayName = "SidebarTitle";
-  var SidebarRail = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-rail", className),
-      ...props
-    })
-  );
-  SidebarRail.displayName = "SidebarRail";
-  var SidebarTrigger = forwardRef(
-    ({ className, variant = "ghost", size: size4 = "icon", ...props }, ref) => createElement(Button, {
-      ref,
-      className: cn("xps-sidebar-trigger", className),
-      variant,
-      size: size4,
-      ...props
-    })
-  );
-  SidebarTrigger.displayName = "SidebarTrigger";
-  var SidebarGroup = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-group", className),
-      ...props
-    })
-  );
-  SidebarGroup.displayName = "SidebarGroup";
-  var SidebarGroupLabel = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-group-label", className),
-      ...props
-    })
-  );
-  SidebarGroupLabel.displayName = "SidebarGroupLabel";
-  var SidebarMenu = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-menu", className),
-      ...props
-    })
-  );
-  SidebarMenu.displayName = "SidebarMenu";
-  var SidebarMenuItem = forwardRef(
-    ({ className, ...props }, ref) => createElement("div", {
-      ref,
-      className: cn("xps-sidebar-menu-item", className),
-      ...props
-    })
-  );
-  SidebarMenuItem.displayName = "SidebarMenuItem";
-  var SidebarMenuButton = forwardRef(
-    ({ className, active = false, variant = "ghost", ...props }, ref) => createElement(Button, {
-      ref,
-      variant,
-      className: cn("xps-sidebar-menu-button", active && "xps-sidebar-menu-button--active", className),
-      ...props
-    })
-  );
-  SidebarMenuButton.displayName = "SidebarMenuButton";
-
-  // ../../node_modules/.pnpm/@radix-ui+react-slider@1.4.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-slider/dist/index.mjs
-  var PAGE_KEYS = ["PageUp", "PageDown"];
-  var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-  var BACK_KEYS = {
-    "from-left": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
-    "from-right": ["Home", "PageDown", "ArrowDown", "ArrowRight"],
-    "from-bottom": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
-    "from-top": ["Home", "PageDown", "ArrowUp", "ArrowLeft"]
-  };
-  var SLIDER_NAME = "Slider";
-  var [Collection4, useCollection4, createCollectionScope4] = createCollection(SLIDER_NAME);
-  var [createSliderContext, createSliderScope] = createContextScope(SLIDER_NAME, [
-    createCollectionScope4
-  ]);
-  var [SliderProvider, useSliderContext] = createSliderContext(SLIDER_NAME);
-  var Slider = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        name,
-        min: min2 = 0,
-        max: max2 = 100,
-        step = 1,
-        orientation = "horizontal",
-        disabled = false,
-        minStepsBetweenThumbs = 0,
-        defaultValue = [min2],
-        value,
-        onValueChange = () => {
-        },
-        onValueCommit = () => {
-        },
-        inverted = false,
-        form,
-        ...sliderProps
-      } = props;
-      const thumbRefs = useRef(/* @__PURE__ */ new Set());
-      const valueIndexToChangeRef = useRef(0);
-      const isKeyboardInteractionRef = useRef(false);
-      const isHorizontal = orientation === "horizontal";
-      const SliderOrientation = isHorizontal ? SliderHorizontal : SliderVertical;
-      const [values = [], setValues] = useControllableState({
-        prop: value,
-        defaultProp: defaultValue,
-        onChange: (value2) => {
-          const thumbs = [...thumbRefs.current];
-          thumbs[valueIndexToChangeRef.current]?.focus({
-            preventScroll: true,
-            focusVisible: isKeyboardInteractionRef.current
-          });
-          isKeyboardInteractionRef.current = false;
-          onValueChange(value2);
-        }
-      });
-      const valuesBeforeSlideStartRef = useRef(values);
-      function handleSlideStart(value2) {
-        const closestIndex = getClosestValueIndex(values, value2);
-        updateValues(value2, closestIndex);
-      }
-      function handleSlideMove(value2) {
-        updateValues(value2, valueIndexToChangeRef.current);
-      }
-      function handleSlideEnd() {
-        const prevValue = valuesBeforeSlideStartRef.current[valueIndexToChangeRef.current];
-        const nextValue = values[valueIndexToChangeRef.current];
-        const hasChanged = nextValue !== prevValue;
-        if (hasChanged) onValueCommit(values);
-      }
-      function updateValues(value2, atIndex, { commit } = { commit: false }) {
-        const decimalCount = getDecimalCount(step);
-        const snapToStep = roundValue(Math.round((value2 - min2) / step) * step + min2, decimalCount);
-        const nextValue = clamp2(snapToStep, [min2, max2]);
-        setValues((prevValues = []) => {
-          const nextValues = getNextSortedValues(prevValues, nextValue, atIndex);
-          if (hasMinStepsBetweenValues(nextValues, minStepsBetweenThumbs * step)) {
-            valueIndexToChangeRef.current = nextValues.indexOf(nextValue);
-            const hasChanged = String(nextValues) !== String(prevValues);
-            if (hasChanged && commit) onValueCommit(nextValues);
-            return hasChanged ? nextValues : prevValues;
-          } else {
-            return prevValues;
-          }
-        });
-      }
-      return /* @__PURE__ */ jsx(
-        SliderProvider,
-        {
-          scope: props.__scopeSlider,
-          name,
-          disabled,
-          min: min2,
-          max: max2,
-          valueIndexToChangeRef,
-          thumbs: thumbRefs.current,
-          values,
-          orientation,
-          form,
-          children: /* @__PURE__ */ jsx(Collection4.Provider, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx(Collection4.Slot, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx(
-            SliderOrientation,
-            {
-              "aria-disabled": disabled,
-              "data-disabled": disabled ? "" : void 0,
-              ...sliderProps,
-              ref: forwardedRef,
-              onPointerDown: composeEventHandlers(sliderProps.onPointerDown, () => {
-                if (!disabled) {
-                  valuesBeforeSlideStartRef.current = values;
-                  isKeyboardInteractionRef.current = false;
-                }
-              }),
-              min: min2,
-              max: max2,
-              inverted,
-              onSlideStart: disabled ? void 0 : handleSlideStart,
-              onSlideMove: disabled ? void 0 : handleSlideMove,
-              onSlideEnd: disabled ? void 0 : handleSlideEnd,
-              onHomeKeyDown: () => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  updateValues(min2, 0, { commit: true });
-                }
-              },
-              onEndKeyDown: () => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  updateValues(max2, values.length - 1, { commit: true });
-                }
-              },
-              onStepKeyDown: ({ event, direction: stepDirection }) => {
-                if (!disabled) {
-                  isKeyboardInteractionRef.current = true;
-                  const isPageKey = PAGE_KEYS.includes(event.key);
-                  const isSkipKey = isPageKey || event.shiftKey && ARROW_KEYS.includes(event.key);
-                  const multiplier = isSkipKey ? 10 : 1;
-                  const atIndex = valueIndexToChangeRef.current;
-                  const value2 = values[atIndex];
-                  const stepInDirection = step * multiplier * stepDirection;
-                  updateValues(value2 + stepInDirection, atIndex, { commit: true });
-                }
-              }
-            }
-          ) }) })
-        }
-      );
-    }
-  );
-  Slider.displayName = SLIDER_NAME;
-  var [SliderOrientationProvider, useSliderOrientationContext] = createSliderContext(SLIDER_NAME, {
-    startEdge: "left",
-    endEdge: "right",
-    size: "width",
-    direction: 1
+  // ../../node_modules/.pnpm/@radix-ui+react-separator@1.1.11_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-separator/dist/index.mjs
+  var dist_exports10 = {};
+  __export(dist_exports10, {
+    Root: () => Root4,
+    Separator: () => Separator3
   });
-  var SliderHorizontal = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        min: min2,
-        max: max2,
-        dir,
-        inverted,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const [slider, setSlider] = useState(null);
-      const composedRefs = useComposedRefs(forwardedRef, (node) => setSlider(node));
-      const rectRef = useRef(void 0);
-      const direction = useDirection(dir);
-      const isDirectionLTR = direction === "ltr";
-      const isSlidingFromLeft = isDirectionLTR && !inverted || !isDirectionLTR && inverted;
-      function getValueFromPointer(pointerPosition) {
-        const rect = rectRef.current || slider.getBoundingClientRect();
-        const input = [0, rect.width];
-        const output = isSlidingFromLeft ? [min2, max2] : [max2, min2];
-        const value = linearScale2(input, output);
-        rectRef.current = rect;
-        return value(pointerPosition - rect.left);
-      }
-      return /* @__PURE__ */ jsx(
-        SliderOrientationProvider,
-        {
-          scope: props.__scopeSlider,
-          startEdge: isSlidingFromLeft ? "left" : "right",
-          endEdge: isSlidingFromLeft ? "right" : "left",
-          direction: isSlidingFromLeft ? 1 : -1,
-          size: "width",
-          children: /* @__PURE__ */ jsx(
-            SliderImpl,
-            {
-              dir: direction,
-              "data-orientation": "horizontal",
-              ...sliderProps,
-              ref: composedRefs,
-              style: {
-                ...sliderProps.style,
-                "--radix-slider-thumb-transform": "translateX(-50%)"
-              },
-              onSlideStart: (event) => {
-                const value = getValueFromPointer(event.clientX);
-                onSlideStart?.(value);
-              },
-              onSlideMove: (event) => {
-                const value = getValueFromPointer(event.clientX);
-                onSlideMove?.(value);
-              },
-              onSlideEnd: () => {
-                rectRef.current = void 0;
-                onSlideEnd?.();
-              },
-              onStepKeyDown: (event) => {
-                const slideDirection = isSlidingFromLeft ? "from-left" : "from-right";
-                const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
-                onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
-              }
-            }
-          )
-        }
-      );
-    }
-  );
-  var SliderVertical = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        min: min2,
-        max: max2,
-        inverted,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const sliderRef = useRef(null);
-      const ref = useComposedRefs(forwardedRef, sliderRef);
-      const rectRef = useRef(void 0);
-      const isSlidingFromBottom = !inverted;
-      function getValueFromPointer(pointerPosition) {
-        const rect = rectRef.current || sliderRef.current.getBoundingClientRect();
-        const input = [0, rect.height];
-        const output = isSlidingFromBottom ? [max2, min2] : [min2, max2];
-        const value = linearScale2(input, output);
-        rectRef.current = rect;
-        return value(pointerPosition - rect.top);
-      }
-      return /* @__PURE__ */ jsx(
-        SliderOrientationProvider,
-        {
-          scope: props.__scopeSlider,
-          startEdge: isSlidingFromBottom ? "bottom" : "top",
-          endEdge: isSlidingFromBottom ? "top" : "bottom",
-          size: "height",
-          direction: isSlidingFromBottom ? 1 : -1,
-          children: /* @__PURE__ */ jsx(
-            SliderImpl,
-            {
-              "data-orientation": "vertical",
-              ...sliderProps,
-              ref,
-              style: {
-                ...sliderProps.style,
-                "--radix-slider-thumb-transform": "translateY(50%)"
-              },
-              onSlideStart: (event) => {
-                const value = getValueFromPointer(event.clientY);
-                onSlideStart?.(value);
-              },
-              onSlideMove: (event) => {
-                const value = getValueFromPointer(event.clientY);
-                onSlideMove?.(value);
-              },
-              onSlideEnd: () => {
-                rectRef.current = void 0;
-                onSlideEnd?.();
-              },
-              onStepKeyDown: (event) => {
-                const slideDirection = isSlidingFromBottom ? "from-bottom" : "from-top";
-                const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
-                onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
-              }
-            }
-          )
-        }
-      );
-    }
-  );
-  var SliderImpl = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeSlider,
-        onSlideStart,
-        onSlideMove,
-        onSlideEnd,
-        onHomeKeyDown,
-        onEndKeyDown,
-        onStepKeyDown,
-        ...sliderProps
-      } = props;
-      const context = useSliderContext(SLIDER_NAME, __scopeSlider);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          ...sliderProps,
-          ref: forwardedRef,
-          onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-            if (event.key === "Home") {
-              onHomeKeyDown(event);
-              event.preventDefault();
-            } else if (event.key === "End") {
-              onEndKeyDown(event);
-              event.preventDefault();
-            } else if (PAGE_KEYS.concat(ARROW_KEYS).includes(event.key)) {
-              onStepKeyDown(event);
-              event.preventDefault();
-            }
-          }),
-          onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
-            const target = event.target;
-            target.setPointerCapture(event.pointerId);
-            event.preventDefault();
-            if (context.thumbs.has(target)) {
-              target.focus({ preventScroll: true, focusVisible: false });
-            } else {
-              onSlideStart(event);
-            }
-          }),
-          onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
-            const target = event.target;
-            if (target.hasPointerCapture(event.pointerId)) onSlideMove(event);
-          }),
-          onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
-            const target = event.target;
-            if (target.hasPointerCapture(event.pointerId)) {
-              target.releasePointerCapture(event.pointerId);
-              onSlideEnd(event);
-            }
-          })
-        }
-      );
-    }
-  );
-  var TRACK_NAME = "SliderTrack";
-  var SliderTrack = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...trackProps } = props;
-      const context = useSliderContext(TRACK_NAME, __scopeSlider);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-disabled": context.disabled ? "" : void 0,
-          "data-orientation": context.orientation,
-          ...trackProps,
-          ref: forwardedRef
-        }
-      );
-    }
-  );
-  SliderTrack.displayName = TRACK_NAME;
-  var RANGE_NAME = "SliderRange";
-  var SliderRange = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...rangeProps } = props;
-      const context = useSliderContext(RANGE_NAME, __scopeSlider);
-      const orientation = useSliderOrientationContext(RANGE_NAME, __scopeSlider);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref);
-      const valuesCount = context.values.length;
-      const percentages = context.values.map(
-        (value) => convertValueToPercentage(value, context.min, context.max)
-      );
-      const offsetStart = valuesCount > 1 ? Math.min(...percentages) : 0;
-      const offsetEnd = 100 - Math.max(...percentages);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-orientation": context.orientation,
-          "data-disabled": context.disabled ? "" : void 0,
-          ...rangeProps,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            [orientation.startEdge]: offsetStart + "%",
-            [orientation.endEdge]: offsetEnd + "%"
-          }
-        }
-      );
-    }
-  );
-  SliderRange.displayName = RANGE_NAME;
-  var THUMB_NAME2 = "SliderThumb";
-  var [SliderThumbContextProvider, useSliderThumbContext] = createSliderContext(THUMB_NAME2);
-  var THUMB_PROVIDER_NAME = "SliderThumbProvider";
-  function SliderThumbProvider(props) {
-    const {
-      __scopeSlider,
-      name,
-      children,
-      // @ts-expect-error internal render prop
-      internal_do_not_use_render
-    } = props;
-    const context = useSliderContext(THUMB_PROVIDER_NAME, __scopeSlider);
-    const getItems = useCollection4(__scopeSlider);
-    const [thumb, setThumb] = useState(null);
-    const index2 = useMemo(
-      () => thumb ? getItems().findIndex((item) => item.ref.current === thumb) : -1,
-      [getItems, thumb]
-    );
-    const size4 = useSize(thumb);
-    const isFormControl = thumb ? !!context.form || !!thumb.closest("form") : true;
-    const value = context.values[index2];
-    const resolvedName = name ?? (context.name ? context.name + (context.values.length > 1 ? "[]" : "") : void 0);
-    const percent = value === void 0 ? 0 : convertValueToPercentage(value, context.min, context.max);
-    useEffect(() => {
-      if (thumb) {
-        context.thumbs.add(thumb);
-        return () => {
-          context.thumbs.delete(thumb);
-        };
-      }
-    }, [thumb, context.thumbs]);
-    const thumbContext = {
-      value,
-      name: resolvedName,
-      form: context.form,
-      isFormControl,
-      index: index2,
-      thumb,
-      onThumbChange: setThumb,
-      percent,
-      size: size4
-    };
-    return /* @__PURE__ */ jsx(SliderThumbContextProvider, { scope: __scopeSlider, ...thumbContext, children: isFunction4(internal_do_not_use_render) ? internal_do_not_use_render(thumbContext) : children });
-  }
-  SliderThumbProvider.displayName = THUMB_PROVIDER_NAME;
-  var THUMB_TRIGGER_NAME = "SliderThumbTrigger";
-  var SliderThumbTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, ...thumbProps } = props;
-      const context = useSliderContext(THUMB_TRIGGER_NAME, __scopeSlider);
-      const orientation = useSliderOrientationContext(THUMB_TRIGGER_NAME, __scopeSlider);
-      const { index: index2, value, percent, size: size4, onThumbChange } = useSliderThumbContext(
-        THUMB_TRIGGER_NAME,
-        __scopeSlider
-      );
-      const composedRefs = useComposedRefs(forwardedRef, (node) => onThumbChange(node));
-      const label = getLabel(index2, context.values.length);
-      const orientationSize = size4?.[orientation.size];
-      const thumbInBoundsOffset = orientationSize ? getThumbInBoundsOffset(orientationSize, percent, orientation.direction) : 0;
-      return /* @__PURE__ */ jsx(
-        "span",
-        {
-          style: {
-            transform: "var(--radix-slider-thumb-transform)",
-            position: "absolute",
-            [orientation.startEdge]: `calc(${percent}% + ${thumbInBoundsOffset}px)`
-          },
-          children: /* @__PURE__ */ jsx(Collection4.ItemSlot, { scope: __scopeSlider, children: /* @__PURE__ */ jsx(
-            Primitive.span,
-            {
-              role: "slider",
-              "aria-label": props["aria-label"] || label,
-              "aria-valuemin": context.min,
-              "aria-valuenow": value,
-              "aria-valuemax": context.max,
-              "aria-orientation": context.orientation,
-              "data-orientation": context.orientation,
-              "data-disabled": context.disabled ? "" : void 0,
-              tabIndex: context.disabled ? void 0 : 0,
-              ...thumbProps,
-              ref: composedRefs,
-              style: value === void 0 ? { display: "none" } : props.style,
-              onFocus: composeEventHandlers(props.onFocus, () => {
-                context.valueIndexToChangeRef.current = index2;
-              })
-            }
-          ) })
-        }
-      );
-    }
-  );
-  SliderThumbTrigger.displayName = THUMB_TRIGGER_NAME;
-  var SliderThumb = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSlider, name, ...thumbProps } = props;
-      return /* @__PURE__ */ jsx(
-        SliderThumbProvider,
-        {
-          __scopeSlider,
-          name,
-          internal_do_not_use_render: ({ index: index2, isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              SliderThumbTrigger,
-              {
-                ...thumbProps,
-                ref: forwardedRef,
-                __scopeSlider
-              }
-            ),
-            isFormControl ? /* @__PURE__ */ jsx(
-              SliderBubbleInput,
-              {
-                __scopeSlider
-              },
-              index2
-            ) : null
-          ] })
-        }
-      );
-    }
-  );
-  SliderThumb.displayName = THUMB_NAME2;
-  var BUBBLE_INPUT_NAME3 = "SliderBubbleInput";
-  var SliderBubbleInput = forwardRef(
-    ({ __scopeSlider, ...props }, forwardedRef) => {
-      const { value, name, form } = useSliderThumbContext(BUBBLE_INPUT_NAME3, __scopeSlider);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(ref, forwardedRef);
-      const prevValue = usePrevious(value);
-      useEffect(() => {
-        const input = ref.current;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(inputProto, "value");
-        const setValue = descriptor.set;
-        if (prevValue !== value && setValue) {
-          const event = new Event("input", { bubbles: true });
-          setValue.call(input, value);
-          input.dispatchEvent(event);
-        }
-      }, [prevValue, value]);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          style: { display: "none" },
-          name,
-          form,
-          ...props,
-          ref: composedRefs,
-          defaultValue: value
-        }
-      );
-    }
-  );
-  SliderBubbleInput.displayName = BUBBLE_INPUT_NAME3;
-  function getNextSortedValues(prevValues = [], nextValue, atIndex) {
-    const nextValues = [...prevValues];
-    nextValues[atIndex] = nextValue;
-    return nextValues.sort((a, b) => a - b);
-  }
-  function convertValueToPercentage(value, min2, max2) {
-    const maxSteps = max2 - min2;
-    const percentPerStep = 100 / maxSteps;
-    const percentage = percentPerStep * (value - min2);
-    return clamp2(percentage, [0, 100]);
-  }
-  function getLabel(index2, totalValues) {
-    if (totalValues > 2) {
-      return `Value ${index2 + 1} of ${totalValues}`;
-    } else if (totalValues === 2) {
-      return ["Minimum", "Maximum"][index2];
-    } else {
-      return void 0;
-    }
-  }
-  function getClosestValueIndex(values, nextValue) {
-    if (values.length === 1) return 0;
-    const distances = values.map((value) => Math.abs(value - nextValue));
-    const closestDistance = Math.min(...distances);
-    return distances.indexOf(closestDistance);
-  }
-  function getThumbInBoundsOffset(width, left, direction) {
-    const halfWidth = width / 2;
-    const halfPercent = 50;
-    const offset4 = linearScale2([0, halfPercent], [0, halfWidth]);
-    return (halfWidth - offset4(left) * direction) * direction;
-  }
-  function getStepsBetweenValues(values) {
-    return values.slice(0, -1).map((value, index2) => values[index2 + 1] - value);
-  }
-  function hasMinStepsBetweenValues(values, minStepsBetweenValues) {
-    if (minStepsBetweenValues > 0) {
-      const stepsBetweenValues = getStepsBetweenValues(values);
-      const actualMinStepsBetweenValues = Math.min(...stepsBetweenValues);
-      return actualMinStepsBetweenValues >= minStepsBetweenValues;
-    }
-    return true;
-  }
-  function linearScale2(input, output) {
-    return (value) => {
-      if (input[0] === input[1] || output[0] === output[1]) return output[0];
-      const ratio = (output[1] - output[0]) / (input[1] - input[0]);
-      return output[0] + ratio * (value - input[0]);
-    };
-  }
-  function getDecimalCount(value) {
-    if (!Number.isFinite(value)) return 0;
-    const str = value.toString();
-    if (str.includes("e")) {
-      const [coefficient, exponent] = str.split("e");
-      const decimalPart2 = coefficient.split(".")[1] || "";
-      const exponentNum = Number(exponent);
-      return Math.max(0, decimalPart2.length - exponentNum);
-    }
-    const decimalPart = str.split(".")[1];
-    return decimalPart ? decimalPart.length : 0;
-  }
-  function roundValue(value, decimalCount) {
-    const rounder = Math.pow(10, decimalCount);
-    return Math.round(value * rounder) / rounder;
-  }
-  function isFunction4(value) {
-    return typeof value === "function";
-  }
-
-  // ../../../packages/shadcn-ui/src/components/slider.tsx
-  var Slider2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Slider,
+  var NAME3 = "Separator";
+  var DEFAULT_ORIENTATION = "horizontal";
+  var ORIENTATIONS = ["horizontal", "vertical"];
+  var Separator3 = forwardRef((props, forwardedRef) => {
+    const { decorative, orientation: orientationProp = DEFAULT_ORIENTATION, ...domProps } = props;
+    const orientation = isValidOrientation(orientationProp) ? orientationProp : DEFAULT_ORIENTATION;
+    const ariaOrientation = orientation === "vertical" ? orientation : void 0;
+    const semanticProps = decorative ? { role: "none" } : { "aria-orientation": ariaOrientation, role: "separator" };
+    return /* @__PURE__ */ jsx(
+      Primitive.div,
       {
-        ref,
-        className: cn("xps-slider", className),
-        ...props
-      },
-      createElement(SliderTrack, { className: "xps-slider-track" }, createElement(SliderRange, { className: "xps-slider-range" })),
-      createElement(SliderThumb, { className: "xps-slider-thumb" })
-    )
-  );
-  Slider2.displayName = Slider.displayName;
-
-  // ../../node_modules/.pnpm/@radix-ui+react-switch@1.3.0_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-switch/dist/index.mjs
-  var SWITCH_NAME = "Switch";
-  var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
-  var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
-  function SwitchProvider(props) {
-    const {
-      __scopeSwitch,
-      checked: checkedProp,
-      children,
-      defaultChecked,
-      disabled,
-      form,
-      name,
-      onCheckedChange,
-      required,
-      value = "on",
-      // @ts-expect-error
-      internal_do_not_use_render
-    } = props;
-    const [checked, setChecked] = useControllableState({
-      prop: checkedProp,
-      defaultProp: defaultChecked ?? false,
-      onChange: onCheckedChange,
-      caller: SWITCH_NAME
-    });
-    const [control, setControl] = useState(null);
-    const [bubbleInput, setBubbleInput] = useState(null);
-    const hasConsumerStoppedPropagationRef = useRef(false);
-    const isFormControl = control ? !!form || !!control.closest("form") : (
-      // We set this to true by default so that events bubble to forms without JS (SSR)
-      true
+        "data-orientation": orientation,
+        ...semanticProps,
+        ...domProps,
+        ref: forwardedRef
+      }
     );
-    const context = {
-      checked,
-      setChecked,
-      disabled,
-      control,
-      setControl,
-      name,
-      form,
-      value,
-      hasConsumerStoppedPropagationRef,
-      required,
-      defaultChecked,
-      isFormControl,
-      bubbleInput,
-      setBubbleInput
-    };
-    return /* @__PURE__ */ jsx(SwitchProviderImpl, { scope: __scopeSwitch, ...context, children: isFunction5(internal_do_not_use_render) ? internal_do_not_use_render(context) : children });
+  });
+  Separator3.displayName = NAME3;
+  function isValidOrientation(orientation) {
+    return ORIENTATIONS.includes(orientation);
   }
-  var TRIGGER_NAME5 = "SwitchTrigger";
-  var SwitchTrigger = forwardRef(
-    ({ __scopeSwitch, onClick, ...switchProps }, forwardedRef) => {
-      const {
-        value,
-        disabled,
-        checked,
-        required,
-        setControl,
-        setChecked,
-        hasConsumerStoppedPropagationRef,
-        isFormControl,
-        bubbleInput
-      } = useSwitchContext(TRIGGER_NAME5, __scopeSwitch);
-      const composedRefs = useComposedRefs(forwardedRef, setControl);
-      return /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          type: "button",
-          role: "switch",
-          "aria-checked": checked,
-          "aria-required": required,
-          "data-state": getState3(checked),
-          "data-disabled": disabled ? "" : void 0,
-          disabled,
-          value,
-          ...switchProps,
-          ref: composedRefs,
-          onClick: composeEventHandlers(onClick, (event) => {
-            setChecked((prevChecked) => !prevChecked);
-            if (bubbleInput && isFormControl) {
-              hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
-              if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
-            }
-          })
-        }
-      );
-    }
-  );
-  SwitchTrigger.displayName = TRIGGER_NAME5;
-  var Switch = forwardRef(
-    (props, forwardedRef) => {
-      const {
-        __scopeSwitch,
-        name,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        value,
-        onCheckedChange,
-        form,
-        ...switchProps
-      } = props;
-      return /* @__PURE__ */ jsx(
-        SwitchProvider,
-        {
-          __scopeSwitch,
-          checked,
-          defaultChecked,
-          disabled,
-          required,
-          onCheckedChange,
-          name,
-          form,
-          value,
-          internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs(Fragment2, { children: [
-            /* @__PURE__ */ jsx(
-              SwitchTrigger,
-              {
-                ...switchProps,
-                ref: forwardedRef,
-                __scopeSwitch
-              }
-            ),
-            isFormControl && /* @__PURE__ */ jsx(
-              SwitchBubbleInput,
-              {
-                __scopeSwitch
-              }
-            )
-          ] })
-        }
-      );
-    }
-  );
-  Switch.displayName = SWITCH_NAME;
-  var THUMB_NAME3 = "SwitchThumb";
-  var SwitchThumb = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeSwitch, ...thumbProps } = props;
-      const context = useSwitchContext(THUMB_NAME3, __scopeSwitch);
-      return /* @__PURE__ */ jsx(
-        Primitive.span,
-        {
-          "data-state": getState3(context.checked),
-          "data-disabled": context.disabled ? "" : void 0,
-          ...thumbProps,
-          ref: forwardedRef
-        }
-      );
-    }
-  );
-  SwitchThumb.displayName = THUMB_NAME3;
-  var BUBBLE_INPUT_NAME4 = "SwitchBubbleInput";
-  var SwitchBubbleInput = forwardRef(
-    ({ __scopeSwitch, ...props }, forwardedRef) => {
-      const {
-        control,
-        hasConsumerStoppedPropagationRef,
-        checked,
-        defaultChecked,
-        required,
-        disabled,
-        name,
-        value,
-        form,
-        bubbleInput,
-        setBubbleInput
-      } = useSwitchContext(BUBBLE_INPUT_NAME4, __scopeSwitch);
-      const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
-      const prevChecked = usePrevious(checked);
-      const controlSize = useSize(control);
-      useEffect(() => {
-        const input = bubbleInput;
-        if (!input) return;
-        const inputProto = window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(
-          inputProto,
-          "checked"
-        );
-        const setChecked = descriptor.set;
-        const bubbles = !hasConsumerStoppedPropagationRef.current;
-        if (prevChecked !== checked && setChecked) {
-          const event = new Event("click", { bubbles });
-          setChecked.call(input, checked);
-          input.dispatchEvent(event);
-        }
-      }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
-      const defaultCheckedRef = useRef(checked);
-      return /* @__PURE__ */ jsx(
-        Primitive.input,
-        {
-          type: "checkbox",
-          "aria-hidden": true,
-          defaultChecked: defaultChecked ?? defaultCheckedRef.current,
-          required,
-          disabled,
-          name,
-          value,
-          form,
-          ...props,
-          tabIndex: -1,
-          ref: composedRefs,
-          style: {
-            ...props.style,
-            ...controlSize,
-            position: "absolute",
-            pointerEvents: "none",
-            opacity: 0,
-            margin: 0,
-            // We transform because the input is absolutely positioned but we have
-            // rendered it **after** the button. This pulls it back to sit on top
-            // of the button.
-            transform: "translateX(-100%)"
-          }
-        }
-      );
-    }
-  );
-  SwitchBubbleInput.displayName = BUBBLE_INPUT_NAME4;
-  function isFunction5(value) {
-    return typeof value === "function";
-  }
-  function getState3(checked) {
-    return checked ? "checked" : "unchecked";
-  }
+  var Root4 = Separator3;
 
-  // ../../../packages/shadcn-ui/src/components/switch.tsx
-  var Switch2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(
-      Switch,
-      {
-        ref,
-        className: cn("xps-switch", className),
-        ...props
-      },
-      createElement(SwitchThumb, {
-        className: "xps-switch-thumb"
-      })
-    )
-  );
-  Switch2.displayName = Switch.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/table.tsx
-  var Table = forwardRef(
-    ({ className, ...props }, ref) => createElement("table", {
-      ref,
-      className: cn("xps-table", className),
-      ...props
-    })
-  );
-  Table.displayName = "Table";
-  var TableHeader = forwardRef(
-    ({ className, ...props }, ref) => createElement("thead", {
-      ref,
-      className: cn("xps-table-header", className),
-      ...props
-    })
-  );
-  TableHeader.displayName = "TableHeader";
-  var TableBody = forwardRef(
-    ({ className, ...props }, ref) => createElement("tbody", {
-      ref,
-      className: cn("xps-table-body", className),
-      ...props
-    })
-  );
-  TableBody.displayName = "TableBody";
-  var TableFooter = forwardRef(
-    ({ className, ...props }, ref) => createElement("tfoot", {
-      ref,
-      className: cn("xps-table-footer", className),
-      ...props
-    })
-  );
-  TableFooter.displayName = "TableFooter";
-  var TableRow = forwardRef(
-    ({ className, ...props }, ref) => createElement("tr", {
-      ref,
-      className: cn("xps-table-row", className),
-      ...props
-    })
-  );
-  TableRow.displayName = "TableRow";
-  var TableHead = forwardRef(
-    ({ className, ...props }, ref) => createElement("th", {
-      ref,
-      className: cn("xps-table-head", className),
-      ...props
-    })
-  );
-  TableHead.displayName = "TableHead";
-  var TableCell = forwardRef(
-    ({ className, ...props }, ref) => createElement("td", {
-      ref,
-      className: cn("xps-table-cell", className),
-      ...props
-    })
-  );
-  TableCell.displayName = "TableCell";
-  var TableCaption = forwardRef(
-    ({ className, ...props }, ref) => createElement("caption", {
-      ref,
-      className: cn("xps-table-caption", className),
-      ...props
-    })
-  );
-  TableCaption.displayName = "TableCaption";
-
-  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.14_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  // ../../node_modules/.pnpm/@radix-ui+react-tabs@1.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tabs/dist/index.mjs
+  var dist_exports11 = {};
+  __export(dist_exports11, {
+    Content: () => Content3,
+    List: () => List,
+    Root: () => Root23,
+    Tabs: () => Tabs,
+    TabsContent: () => TabsContent,
+    TabsList: () => TabsList,
+    TabsTrigger: () => TabsTrigger,
+    Trigger: () => Trigger2,
+    createTabsScope: () => createTabsScope
+  });
   var TABS_NAME = "Tabs";
   var [createTabsContext, createTabsScope] = createContextScope(TABS_NAME, [
     createRovingFocusGroupScope
@@ -13633,11 +11488,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     }
   );
   TabsList.displayName = TAB_LIST_NAME;
-  var TRIGGER_NAME6 = "TabsTrigger";
+  var TRIGGER_NAME5 = "TabsTrigger";
   var TabsTrigger = forwardRef(
     (props, forwardedRef) => {
       const { __scopeTabs, value, disabled = false, ...triggerProps } = props;
-      const context = useTabsContext(TRIGGER_NAME6, __scopeTabs);
+      const context = useTabsContext(TRIGGER_NAME5, __scopeTabs);
       const rovingFocusGroupScope = useRovingFocusGroupScope2(__scopeTabs);
       const triggerId = makeTriggerId(context.baseId, value);
       const contentId = makeContentId(context.baseId, value);
@@ -13670,7 +11525,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                 }
               }),
               onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
-                if ([" ", "Enter"].includes(event.key)) context.onValueChange(value);
+                if (disabled || event.target !== event.currentTarget) {
+                  return;
+                }
+                if ([" ", "Enter"].includes(event.key)) {
+                  context.onValueChange(value);
+                }
               }),
               onFocus: composeEventHandlers(props.onFocus, () => {
                 const isAutomaticActivation = context.activationMode !== "manual";
@@ -13684,7 +11544,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       );
     }
   );
-  TabsTrigger.displayName = TRIGGER_NAME6;
+  TabsTrigger.displayName = TRIGGER_NAME5;
   var CONTENT_NAME6 = "TabsContent";
   var TabsContent = forwardRef(
     (props, forwardedRef) => {
@@ -13726,879 +11586,4461 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   function makeContentId(baseId, value) {
     return `${baseId}-content-${value}`;
   }
-  var Root24 = Tabs;
+  var Root23 = Tabs;
   var List = TabsList;
-  var Trigger3 = TabsTrigger;
+  var Trigger2 = TabsTrigger;
   var Content3 = TabsContent;
 
-  // ../../../packages/shadcn-ui/src/components/tabs.tsx
-  var Tabs2 = Root24;
-  var TabsList2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(List, {
-      ref,
-      className: cn("xps-tabs-list", className),
-      ...props
-    })
-  );
-  TabsList2.displayName = List.displayName;
-  var TabsTrigger2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Trigger3, {
-      ref,
-      className: cn("xps-tabs-trigger", className),
-      ...props
-    })
-  );
-  TabsTrigger2.displayName = Trigger3.displayName;
-  var TabsContent2 = forwardRef(
-    ({ className, ...props }, ref) => createElement(Content3, {
-      ref,
-      className: cn("xps-tabs-content", className),
-      ...props
-    })
-  );
-  TabsContent2.displayName = Content3.displayName;
-
-  // ../../../packages/shadcn-ui/src/components/textarea.tsx
-  var Textarea = forwardRef(({ className, ...props }, ref) => createElement("textarea", {
-    ref,
-    className: cn("xps-textarea", className),
-    ...props
-  }));
-  Textarea.displayName = "Textarea";
-
-  // ../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2.9_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-tooltip/dist/index.mjs
-  var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
-    createPopperScope
-  ]);
-  var usePopperScope3 = createPopperScope();
-  var PROVIDER_NAME2 = "TooltipProvider";
-  var DEFAULT_DELAY_DURATION = 700;
-  var TOOLTIP_OPEN = "tooltip.open";
-  var [TooltipProviderContextProvider, useTooltipProviderContext] = createTooltipContext(PROVIDER_NAME2);
-  var TooltipProvider = (props) => {
-    const {
-      __scopeTooltip,
-      delayDuration = DEFAULT_DELAY_DURATION,
-      skipDelayDuration = 300,
-      disableHoverableContent = false,
-      children
-    } = props;
-    const isOpenDelayedRef = useRef(true);
-    const isPointerInTransitRef = useRef(false);
-    const skipDelayTimerRef = useRef(0);
-    useEffect(() => {
-      const skipDelayTimer = skipDelayTimerRef.current;
-      return () => window.clearTimeout(skipDelayTimer);
-    }, []);
-    return /* @__PURE__ */ jsx(
-      TooltipProviderContextProvider,
-      {
-        scope: __scopeTooltip,
-        isOpenDelayedRef,
-        delayDuration,
-        onOpen: useCallback(() => {
-          if (skipDelayDuration <= 0) return;
-          window.clearTimeout(skipDelayTimerRef.current);
-          isOpenDelayedRef.current = false;
-        }, [skipDelayDuration]),
-        onClose: useCallback(() => {
-          if (skipDelayDuration <= 0) return;
-          window.clearTimeout(skipDelayTimerRef.current);
-          skipDelayTimerRef.current = window.setTimeout(
-            () => isOpenDelayedRef.current = true,
-            skipDelayDuration
-          );
-        }, [skipDelayDuration]),
-        isPointerInTransitRef,
-        onPointerInTransitChange: useCallback((inTransit) => {
-          isPointerInTransitRef.current = inTransit;
-        }, []),
-        disableHoverableContent,
-        children
-      }
-    );
-  };
-  TooltipProvider.displayName = PROVIDER_NAME2;
-  var TOOLTIP_NAME = "Tooltip";
-  var [TooltipContextProvider, useTooltipContext] = createTooltipContext(TOOLTIP_NAME);
-  var Tooltip = (props) => {
-    const {
-      __scopeTooltip,
-      children,
-      open: openProp,
-      defaultOpen,
-      onOpenChange,
-      disableHoverableContent: disableHoverableContentProp,
-      delayDuration: delayDurationProp
-    } = props;
-    const providerContext = useTooltipProviderContext(TOOLTIP_NAME, props.__scopeTooltip);
-    const popperScope = usePopperScope3(__scopeTooltip);
-    const [trigger, setTrigger] = useState(null);
-    const contentId = useId2();
-    const openTimerRef = useRef(0);
-    const disableHoverableContent = disableHoverableContentProp ?? providerContext.disableHoverableContent;
-    const delayDuration = delayDurationProp ?? providerContext.delayDuration;
-    const wasOpenDelayedRef = useRef(false);
-    const [open, setOpen] = useControllableState({
-      prop: openProp,
-      defaultProp: defaultOpen ?? false,
-      onChange: (open2) => {
-        if (open2) {
-          providerContext.onOpen();
-          document.dispatchEvent(new CustomEvent(TOOLTIP_OPEN));
-        } else {
-          providerContext.onClose();
-        }
-        onOpenChange?.(open2);
-      },
-      caller: TOOLTIP_NAME
+  // ../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
+  var cx = clsx;
+  var cva = (base, config) => (props) => {
+    var _config_compoundVariants;
+    if ((config === null || config === void 0 ? void 0 : config.variants) == null) return cx(base, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
+    const { variants, defaultVariants } = config;
+    const getVariantClassNames = Object.keys(variants).map((variant) => {
+      const variantProp = props === null || props === void 0 ? void 0 : props[variant];
+      const defaultVariantProp = defaultVariants === null || defaultVariants === void 0 ? void 0 : defaultVariants[variant];
+      if (variantProp === null) return null;
+      const variantKey = falsyToString(variantProp) || falsyToString(defaultVariantProp);
+      return variants[variant][variantKey];
     });
-    const stateAttribute = useMemo(() => {
-      return open ? wasOpenDelayedRef.current ? "delayed-open" : "instant-open" : "closed";
-    }, [open]);
-    const handleOpen = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = 0;
-      wasOpenDelayedRef.current = false;
-      setOpen(true);
-    }, [setOpen]);
-    const handleClose = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = 0;
-      setOpen(false);
-    }, [setOpen]);
-    const handleDelayedOpen = useCallback(() => {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = window.setTimeout(() => {
-        wasOpenDelayedRef.current = true;
-        setOpen(true);
-        openTimerRef.current = 0;
-      }, delayDuration);
-    }, [delayDuration, setOpen]);
+    const propsWithoutUndefined = props && Object.entries(props).reduce((acc, param) => {
+      let [key, value] = param;
+      if (value === void 0) {
+        return acc;
+      }
+      acc[key] = value;
+      return acc;
+    }, {});
+    const getCompoundVariantClassNames = config === null || config === void 0 ? void 0 : (_config_compoundVariants = config.compoundVariants) === null || _config_compoundVariants === void 0 ? void 0 : _config_compoundVariants.reduce((acc, param) => {
+      let { class: cvClass, className: cvClassName, ...compoundVariantOptions } = param;
+      return Object.entries(compoundVariantOptions).every((param2) => {
+        let [key, value] = param2;
+        return Array.isArray(value) ? value.includes({
+          ...defaultVariants,
+          ...propsWithoutUndefined
+        }[key]) : {
+          ...defaultVariants,
+          ...propsWithoutUndefined
+        }[key] === value;
+      }) ? [
+        ...acc,
+        cvClass,
+        cvClassName
+      ] : acc;
+    }, []);
+    return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
+  };
+
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
+  var U = 1;
+  var Y = 0.9;
+  var H = 0.8;
+  var J = 0.17;
+  var p = 0.1;
+  var u = 0.999;
+  var $ = 0.9999;
+  var k = 0.99;
+  var m = /[\\\/_+.#"@\[\(\{&]/;
+  var B = /[\\\/_+.#"@\[\(\{&]/g;
+  var K = /[\s-]/;
+  var X2 = /[\s-]/g;
+  function G(_, C2, h, P2, A2, f, O) {
+    if (f === C2.length) return A2 === _.length ? U : k;
+    var T3 = `${A2},${f}`;
+    if (O[T3] !== void 0) return O[T3];
+    for (var L2 = P2.charAt(f), c = h.indexOf(L2, A2), S = 0, E, N2, R, M; c >= 0; ) E = G(_, C2, h, P2, c + 1, f + 1, O), E > S && (c === A2 ? E *= U : m.test(_.charAt(c - 1)) ? (E *= H, R = _.slice(A2, c - 1).match(B), R && A2 > 0 && (E *= Math.pow(u, R.length))) : K.test(_.charAt(c - 1)) ? (E *= Y, M = _.slice(A2, c - 1).match(X2), M && A2 > 0 && (E *= Math.pow(u, M.length))) : (E *= J, A2 > 0 && (E *= Math.pow(u, c - A2))), _.charAt(c) !== C2.charAt(f) && (E *= $)), (E < p && h.charAt(c - 1) === P2.charAt(f + 1) || P2.charAt(f + 1) === P2.charAt(f) && h.charAt(c - 1) !== P2.charAt(f)) && (N2 = G(_, C2, h, P2, c + 1, f + 2, O), N2 * p > E && (E = N2 * p)), E > S && (S = E), c = h.indexOf(L2, c + 1);
+    return O[T3] = S, S;
+  }
+  function D(_) {
+    return _.toLowerCase().replace(X2, " ");
+  }
+  function W(_, C2, h) {
+    return _ = h && h.length > 0 ? `${_ + " " + h.join(" ")}` : _, G(_, C2, D(_), D(C2), 0, 0, {});
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+primitive@1.1.4/node_modules/@radix-ui/primitive/dist/index.mjs
+  var canUseDOM2 = !!(typeof window !== "undefined" && window.document && window.document.createElement);
+  function composeEventHandlers2(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
+    return function handleEvent(event) {
+      originalEventHandler?.(event);
+      if (checkForDefaultPrevented === false || !event.defaultPrevented) {
+        return ourEventHandler?.(event);
+      }
+    };
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-context@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-context/dist/index.mjs
+  function createContextScope2(scopeName, createContextScopeDeps = []) {
+    let defaultContexts = [];
+    function createContext3(rootComponentName, defaultContext) {
+      const BaseContext = createContext(defaultContext);
+      BaseContext.displayName = rootComponentName + "Context";
+      const index2 = defaultContexts.length;
+      defaultContexts = [...defaultContexts, defaultContext];
+      const Provider = (props) => {
+        const { scope, children, ...context } = props;
+        const Context = scope?.[scopeName]?.[index2] || BaseContext;
+        const value = useMemo(() => context, Object.values(context));
+        return /* @__PURE__ */ jsx(Context.Provider, { value, children });
+      };
+      Provider.displayName = rootComponentName + "Provider";
+      function useContext2(consumerName, scope) {
+        const Context = scope?.[scopeName]?.[index2] || BaseContext;
+        const context = useContext(Context);
+        if (context) return context;
+        if (defaultContext !== void 0) return defaultContext;
+        throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
+      }
+      return [Provider, useContext2];
+    }
+    const createScope = () => {
+      const scopeContexts = defaultContexts.map((defaultContext) => {
+        return createContext(defaultContext);
+      });
+      return function useScope(scope) {
+        const contexts = scope?.[scopeName] || scopeContexts;
+        return useMemo(
+          () => ({ [`__scope${scopeName}`]: { ...scope, [scopeName]: contexts } }),
+          [scope, contexts]
+        );
+      };
+    };
+    createScope.scopeName = scopeName;
+    return [createContext3, composeContextScopes2(createScope, ...createContextScopeDeps)];
+  }
+  function composeContextScopes2(...scopes) {
+    const baseScope = scopes[0];
+    if (scopes.length === 1) return baseScope;
+    const createScope = () => {
+      const scopeHooks = scopes.map((createScope2) => ({
+        useScope: createScope2(),
+        scopeName: createScope2.scopeName
+      }));
+      return function useComposedScopes(overrideScopes) {
+        const nextScopes = scopeHooks.reduce((nextScopes2, { useScope, scopeName }) => {
+          const scopeProps = useScope(overrideScopes);
+          const currentScope = scopeProps[`__scope${scopeName}`];
+          return { ...nextScopes2, ...currentScope };
+        }, {});
+        return useMemo(() => ({ [`__scope${baseScope.scopeName}`]: nextScopes }), [nextScopes]);
+      };
+    };
+    createScope.scopeName = baseScope.scopeName;
+    return createScope;
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-primitive@2.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  var NODES2 = [
+    "a",
+    "button",
+    "div",
+    "form",
+    "h2",
+    "h3",
+    "img",
+    "input",
+    "label",
+    "li",
+    "nav",
+    "ol",
+    "p",
+    "select",
+    "span",
+    "svg",
+    "ul"
+  ];
+  var Primitive2 = NODES2.reduce((primitive, node) => {
+    const Slot6 = createSlot(`Primitive.${node}`);
+    const Node2 = forwardRef((props, forwardedRef) => {
+      const { asChild, ...primitiveProps } = props;
+      const Comp = asChild ? Slot6 : node;
+      if (typeof window !== "undefined") {
+        window[/* @__PURE__ */ Symbol.for("radix-ui")] = true;
+      }
+      return /* @__PURE__ */ jsx(Comp, { ...primitiveProps, ref: forwardedRef });
+    });
+    Node2.displayName = `Primitive.${node}`;
+    return { ...primitive, [node]: Node2 };
+  }, {});
+  function dispatchDiscreteCustomEvent2(target, event) {
+    if (target) flushSync(() => target.dispatchEvent(event));
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-use-escape-keydown@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs
+  function useEscapeKeydown(onEscapeKeyDownProp, ownerDocument = globalThis?.document) {
+    const onEscapeKeyDown = useCallbackRef(onEscapeKeyDownProp);
     useEffect(() => {
-      return () => {
-        if (openTimerRef.current) {
-          window.clearTimeout(openTimerRef.current);
-          openTimerRef.current = 0;
+      const handleKeyDown = (event) => {
+        if (event.key === "Escape") {
+          onEscapeKeyDown(event);
         }
       };
-    }, []);
-    return /* @__PURE__ */ jsx(Root22, { ...popperScope, children: /* @__PURE__ */ jsx(
-      TooltipContextProvider,
-      {
-        scope: __scopeTooltip,
-        contentId,
-        open,
-        stateAttribute,
-        trigger,
-        onTriggerChange: setTrigger,
-        onTriggerEnter: useCallback(() => {
-          if (providerContext.isOpenDelayedRef.current) handleDelayedOpen();
-          else handleOpen();
-        }, [providerContext.isOpenDelayedRef, handleDelayedOpen, handleOpen]),
-        onTriggerLeave: useCallback(() => {
-          if (disableHoverableContent) {
-            handleClose();
-          } else {
-            window.clearTimeout(openTimerRef.current);
-            openTimerRef.current = 0;
-          }
-        }, [handleClose, disableHoverableContent]),
-        onOpen: handleOpen,
-        onClose: handleClose,
-        disableHoverableContent,
-        children
-      }
-    ) });
-  };
-  Tooltip.displayName = TOOLTIP_NAME;
-  var TRIGGER_NAME7 = "TooltipTrigger";
-  var TooltipTrigger = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTooltip, ...triggerProps } = props;
-      const context = useTooltipContext(TRIGGER_NAME7, __scopeTooltip);
-      const providerContext = useTooltipProviderContext(TRIGGER_NAME7, __scopeTooltip);
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const ref = useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, ref, context.onTriggerChange);
-      const isPointerDownRef = useRef(false);
-      const hasPointerMoveOpenedRef = useRef(false);
-      const handlePointerUp = useCallback(() => isPointerDownRef.current = false, []);
-      useEffect(() => {
-        return () => document.removeEventListener("pointerup", handlePointerUp);
-      }, [handlePointerUp]);
-      return /* @__PURE__ */ jsx(Anchor, { asChild: true, ...popperScope, children: /* @__PURE__ */ jsx(
-        Primitive.button,
-        {
-          "aria-describedby": context.open ? context.contentId : void 0,
-          "data-state": context.stateAttribute,
-          ...triggerProps,
-          ref: composedRefs,
-          onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
-            if (event.pointerType === "touch") return;
-            if (!hasPointerMoveOpenedRef.current && !providerContext.isPointerInTransitRef.current) {
-              context.onTriggerEnter();
-              hasPointerMoveOpenedRef.current = true;
-            }
-          }),
-          onPointerLeave: composeEventHandlers(props.onPointerLeave, () => {
-            context.onTriggerLeave();
-            hasPointerMoveOpenedRef.current = false;
-          }),
-          onPointerDown: composeEventHandlers(props.onPointerDown, () => {
-            if (context.open) {
-              context.onClose();
-            }
-            isPointerDownRef.current = true;
-            document.addEventListener("pointerup", handlePointerUp, { once: true });
-          }),
-          onFocus: composeEventHandlers(props.onFocus, () => {
-            if (!isPointerDownRef.current) context.onOpen();
-          }),
-          onBlur: composeEventHandlers(props.onBlur, context.onClose),
-          onClick: composeEventHandlers(props.onClick, context.onClose)
-        }
-      ) });
-    }
-  );
-  TooltipTrigger.displayName = TRIGGER_NAME7;
-  var PORTAL_NAME6 = "TooltipPortal";
-  var [PortalProvider4, usePortalContext4] = createTooltipContext(PORTAL_NAME6, {
-    forceMount: void 0
+      ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
+      return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
+    }, [onEscapeKeyDown, ownerDocument]);
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.13_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  var DISMISSABLE_LAYER_NAME2 = "DismissableLayer";
+  var CONTEXT_UPDATE2 = "dismissableLayer.update";
+  var POINTER_DOWN_OUTSIDE2 = "dismissableLayer.pointerDownOutside";
+  var FOCUS_OUTSIDE2 = "dismissableLayer.focusOutside";
+  var originalBodyPointerEvents2;
+  var DismissableLayerContext2 = createContext({
+    layers: /* @__PURE__ */ new Set(),
+    layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
+    branches: /* @__PURE__ */ new Set(),
+    // Outside elements that belong to a layer's own dismiss affordance (eg, a
+    // dialog overlay). Pressing them should dismiss the layer regardless of
+    // whether or not they stop propagation.
+    //
+    // See https://github.com/radix-ui/primitives/issues/3346
+    dismissableSurfaces: /* @__PURE__ */ new Set()
   });
-  var TooltipPortal = (props) => {
-    const { __scopeTooltip, forceMount, children, container } = props;
-    const context = useTooltipContext(PORTAL_NAME6, __scopeTooltip);
-    return /* @__PURE__ */ jsx(PortalProvider4, { scope: __scopeTooltip, forceMount, children: /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Portal, { asChild: true, container, children }) }) });
-  };
-  TooltipPortal.displayName = PORTAL_NAME6;
-  var CONTENT_NAME7 = "TooltipContent";
-  var TooltipContent = forwardRef(
-    (props, forwardedRef) => {
-      const portalContext = usePortalContext4(CONTENT_NAME7, props.__scopeTooltip);
-      const { forceMount = portalContext.forceMount, side = "top", ...contentProps } = props;
-      const context = useTooltipContext(CONTENT_NAME7, props.__scopeTooltip);
-      return /* @__PURE__ */ jsx(Presence, { present: forceMount || context.open, children: context.disableHoverableContent ? /* @__PURE__ */ jsx(TooltipContentImpl, { side, ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx(TooltipContentHoverable, { side, ...contentProps, ref: forwardedRef }) });
-    }
-  );
-  var TooltipContentHoverable = forwardRef((props, forwardedRef) => {
-    const context = useTooltipContext(CONTENT_NAME7, props.__scopeTooltip);
-    const providerContext = useTooltipProviderContext(CONTENT_NAME7, props.__scopeTooltip);
-    const ref = useRef(null);
-    const composedRefs = useComposedRefs(forwardedRef, ref);
-    const [pointerGraceArea, setPointerGraceArea] = useState(null);
-    const { trigger, onClose } = context;
-    const content = ref.current;
-    const { onPointerInTransitChange } = providerContext;
-    const handleRemoveGraceArea = useCallback(() => {
-      setPointerGraceArea(null);
-      onPointerInTransitChange(false);
-    }, [onPointerInTransitChange]);
-    const handleCreateGraceArea = useCallback(
-      (event, hoverTarget) => {
-        const currentTarget = event.currentTarget;
-        const exitPoint = { x: event.clientX, y: event.clientY };
-        const exitSide = getExitSideFromRect(exitPoint, currentTarget.getBoundingClientRect());
-        const paddedExitPoints = getPaddedExitPoints(exitPoint, exitSide);
-        const hoverTargetPoints = getPointsFromRect(hoverTarget.getBoundingClientRect());
-        const graceArea = getHull([...paddedExitPoints, ...hoverTargetPoints]);
-        setPointerGraceArea(graceArea);
-        onPointerInTransitChange(true);
-      },
-      [onPointerInTransitChange]
-    );
-    useEffect(() => {
-      return () => handleRemoveGraceArea();
-    }, [handleRemoveGraceArea]);
-    useEffect(() => {
-      if (trigger && content) {
-        const handleTriggerLeave = (event) => handleCreateGraceArea(event, content);
-        const handleContentLeave = (event) => handleCreateGraceArea(event, trigger);
-        trigger.addEventListener("pointerleave", handleTriggerLeave);
-        content.addEventListener("pointerleave", handleContentLeave);
-        return () => {
-          trigger.removeEventListener("pointerleave", handleTriggerLeave);
-          content.removeEventListener("pointerleave", handleContentLeave);
-        };
-      }
-    }, [trigger, content, handleCreateGraceArea, handleRemoveGraceArea]);
-    useEffect(() => {
-      if (pointerGraceArea) {
-        const handleTrackPointerGrace = (event) => {
-          const target = event.target;
-          const pointerPosition = { x: event.clientX, y: event.clientY };
-          const hasEnteredTarget = trigger?.contains(target) || content?.contains(target);
-          const isPointerOutsideGraceArea = !isPointInPolygon2(pointerPosition, pointerGraceArea);
-          if (hasEnteredTarget) {
-            handleRemoveGraceArea();
-          } else if (isPointerOutsideGraceArea) {
-            handleRemoveGraceArea();
-            onClose();
-          }
-        };
-        document.addEventListener("pointermove", handleTrackPointerGrace);
-        return () => document.removeEventListener("pointermove", handleTrackPointerGrace);
-      }
-    }, [trigger, content, pointerGraceArea, onClose, handleRemoveGraceArea]);
-    return /* @__PURE__ */ jsx(TooltipContentImpl, { ...props, ref: composedRefs });
-  });
-  var [VisuallyHiddenContentContextProvider, useVisuallyHiddenContentContext] = createTooltipContext(TOOLTIP_NAME, { isInside: false });
-  var Slottable = createSlottable("TooltipContent");
-  var TooltipContentImpl = forwardRef(
+  var DismissableLayer2 = forwardRef(
     (props, forwardedRef) => {
       const {
-        __scopeTooltip,
-        children,
-        "aria-label": ariaLabel,
+        disableOutsidePointerEvents = false,
+        deferPointerDownOutside = false,
         onEscapeKeyDown,
         onPointerDownOutside,
-        ...contentProps
+        onFocusOutside,
+        onInteractOutside,
+        onDismiss,
+        ...layerProps
       } = props;
-      const context = useTooltipContext(CONTENT_NAME7, __scopeTooltip);
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const { onClose } = context;
-      useEffect(() => {
-        document.addEventListener(TOOLTIP_OPEN, onClose);
-        return () => document.removeEventListener(TOOLTIP_OPEN, onClose);
-      }, [onClose]);
-      useEffect(() => {
-        if (context.trigger) {
-          const handleScroll2 = (event) => {
-            if (event.target instanceof Node && event.target.contains(context.trigger)) {
-              onClose();
-            }
-          };
-          window.addEventListener("scroll", handleScroll2, { capture: true });
-          return () => window.removeEventListener("scroll", handleScroll2, { capture: true });
-        }
-      }, [context.trigger, onClose]);
-      return /* @__PURE__ */ jsx(
-        DismissableLayer,
+      const context = useContext(DismissableLayerContext2);
+      const [node, setNode] = useState(null);
+      const ownerDocument = node?.ownerDocument ?? globalThis?.document;
+      const [, force] = useState({});
+      const composedRefs = useComposedRefs(forwardedRef, (node2) => setNode(node2));
+      const layers = Array.from(context.layers);
+      const [highestLayerWithOutsidePointerEventsDisabled] = [...context.layersWithOutsidePointerEventsDisabled].slice(-1);
+      const highestLayerWithOutsidePointerEventsDisabledIndex = layers.indexOf(highestLayerWithOutsidePointerEventsDisabled);
+      const index2 = node ? layers.indexOf(node) : -1;
+      const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
+      const isPointerEventsEnabled = index2 >= highestLayerWithOutsidePointerEventsDisabledIndex;
+      const isDeferredPointerDownOutsideRef = useRef(false);
+      const pointerDownOutside = usePointerDownOutside2(
+        (event) => {
+          const target = event.target;
+          if (!(target instanceof Node)) {
+            return;
+          }
+          const isPointerDownOnBranch = [...context.branches].some(
+            (branch) => branch.contains(target)
+          );
+          if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
+          onPointerDownOutside?.(event);
+          onInteractOutside?.(event);
+          if (!event.defaultPrevented) onDismiss?.();
+        },
         {
-          asChild: true,
-          disableOutsidePointerEvents: false,
-          onEscapeKeyDown,
-          onPointerDownOutside,
-          onFocusOutside: (event) => event.preventDefault(),
-          onDismiss: onClose,
-          children: /* @__PURE__ */ jsxs(
-            Content2,
-            {
-              "data-state": context.stateAttribute,
-              ...popperScope,
-              ...contentProps,
-              ref: forwardedRef,
-              style: {
-                ...contentProps.style,
-                // re-namespace exposed content custom properties
-                ...{
-                  "--radix-tooltip-content-transform-origin": "var(--radix-popper-transform-origin)",
-                  "--radix-tooltip-content-available-width": "var(--radix-popper-available-width)",
-                  "--radix-tooltip-content-available-height": "var(--radix-popper-available-height)",
-                  "--radix-tooltip-trigger-width": "var(--radix-popper-anchor-width)",
-                  "--radix-tooltip-trigger-height": "var(--radix-popper-anchor-height)"
-                }
-              },
-              children: [
-                /* @__PURE__ */ jsx(Slottable, { children }),
-                /* @__PURE__ */ jsx(VisuallyHiddenContentContextProvider, { scope: __scopeTooltip, isInside: true, children: /* @__PURE__ */ jsx(Root5, { id: context.contentId, role: "tooltip", children: ariaLabel || children }) })
-              ]
+          ownerDocument,
+          deferPointerDownOutside,
+          isDeferredPointerDownOutsideRef,
+          dismissableSurfaces: context.dismissableSurfaces
+        }
+      );
+      const focusOutside = useFocusOutside2((event) => {
+        if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+          return;
+        }
+        const target = event.target;
+        const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
+        if (isFocusInBranch) return;
+        onFocusOutside?.(event);
+        onInteractOutside?.(event);
+        if (!event.defaultPrevented) onDismiss?.();
+      }, ownerDocument);
+      useEscapeKeydown((event) => {
+        const isHighestLayer = index2 === context.layers.size - 1;
+        if (!isHighestLayer) return;
+        onEscapeKeyDown?.(event);
+        if (!event.defaultPrevented && onDismiss) {
+          event.preventDefault();
+          onDismiss();
+        }
+      }, ownerDocument);
+      useEffect(() => {
+        if (!node) return;
+        if (disableOutsidePointerEvents) {
+          if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
+            originalBodyPointerEvents2 = ownerDocument.body.style.pointerEvents;
+            ownerDocument.body.style.pointerEvents = "none";
+          }
+          context.layersWithOutsidePointerEventsDisabled.add(node);
+        }
+        context.layers.add(node);
+        dispatchUpdate2();
+        return () => {
+          if (disableOutsidePointerEvents) {
+            context.layersWithOutsidePointerEventsDisabled.delete(node);
+            if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
+              ownerDocument.body.style.pointerEvents = originalBodyPointerEvents2;
             }
+          }
+        };
+      }, [node, ownerDocument, disableOutsidePointerEvents, context]);
+      useEffect(() => {
+        return () => {
+          if (!node) return;
+          context.layers.delete(node);
+          context.layersWithOutsidePointerEventsDisabled.delete(node);
+          dispatchUpdate2();
+        };
+      }, [node, context]);
+      useEffect(() => {
+        const handleUpdate = () => force({});
+        document.addEventListener(CONTEXT_UPDATE2, handleUpdate);
+        return () => document.removeEventListener(CONTEXT_UPDATE2, handleUpdate);
+      }, []);
+      return /* @__PURE__ */ jsx(
+        Primitive2.div,
+        {
+          ...layerProps,
+          ref: composedRefs,
+          style: {
+            pointerEvents: isBodyPointerEventsDisabled ? isPointerEventsEnabled ? "auto" : "none" : void 0,
+            ...props.style
+          },
+          onFocusCapture: composeEventHandlers2(props.onFocusCapture, focusOutside.onFocusCapture),
+          onBlurCapture: composeEventHandlers2(props.onBlurCapture, focusOutside.onBlurCapture),
+          onPointerDownCapture: composeEventHandlers2(
+            props.onPointerDownCapture,
+            pointerDownOutside.onPointerDownCapture
           )
         }
       );
     }
   );
-  TooltipContent.displayName = CONTENT_NAME7;
-  var ARROW_NAME5 = "TooltipArrow";
-  var TooltipArrow = forwardRef(
-    (props, forwardedRef) => {
-      const { __scopeTooltip, ...arrowProps } = props;
-      const popperScope = usePopperScope3(__scopeTooltip);
-      const visuallyHiddenContentContext = useVisuallyHiddenContentContext(
-        ARROW_NAME5,
-        __scopeTooltip
-      );
-      return visuallyHiddenContentContext.isInside ? null : /* @__PURE__ */ jsx(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
-    }
-  );
-  TooltipArrow.displayName = ARROW_NAME5;
-  function getExitSideFromRect(point, rect) {
-    const top = Math.abs(rect.top - point.y);
-    const bottom = Math.abs(rect.bottom - point.y);
-    const right = Math.abs(rect.right - point.x);
-    const left = Math.abs(rect.left - point.x);
-    switch (Math.min(top, bottom, right, left)) {
-      case left:
-        return "left";
-      case right:
-        return "right";
-      case top:
-        return "top";
-      case bottom:
-        return "bottom";
-      default:
-        throw new Error("unreachable");
-    }
+  DismissableLayer2.displayName = DISMISSABLE_LAYER_NAME2;
+  var BRANCH_NAME2 = "DismissableLayerBranch";
+  var DismissableLayerBranch2 = forwardRef((props, forwardedRef) => {
+    const context = useContext(DismissableLayerContext2);
+    const ref = useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    useEffect(() => {
+      const node = ref.current;
+      if (node) {
+        context.branches.add(node);
+        return () => {
+          context.branches.delete(node);
+        };
+      }
+    }, [context.branches]);
+    return /* @__PURE__ */ jsx(Primitive2.div, { ...props, ref: composedRefs });
+  });
+  DismissableLayerBranch2.displayName = BRANCH_NAME2;
+  function useDismissableLayerSurface2() {
+    const context = useContext(DismissableLayerContext2);
+    const [node, setNode] = useState(null);
+    useEffect(() => {
+      if (!node) {
+        return;
+      }
+      context.dismissableSurfaces.add(node);
+      return () => {
+        context.dismissableSurfaces.delete(node);
+      };
+    }, [node, context.dismissableSurfaces]);
+    return setNode;
   }
-  function getPaddedExitPoints(exitPoint, exitSide, padding = 5) {
-    const paddedExitPoints = [];
-    switch (exitSide) {
-      case "top":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y + padding },
-          { x: exitPoint.x + padding, y: exitPoint.y + padding }
-        );
-        break;
-      case "bottom":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y - padding },
-          { x: exitPoint.x + padding, y: exitPoint.y - padding }
-        );
-        break;
-      case "left":
-        paddedExitPoints.push(
-          { x: exitPoint.x + padding, y: exitPoint.y - padding },
-          { x: exitPoint.x + padding, y: exitPoint.y + padding }
-        );
-        break;
-      case "right":
-        paddedExitPoints.push(
-          { x: exitPoint.x - padding, y: exitPoint.y - padding },
-          { x: exitPoint.x - padding, y: exitPoint.y + padding }
-        );
-        break;
-    }
-    return paddedExitPoints;
-  }
-  function getPointsFromRect(rect) {
-    const { top, right, bottom, left } = rect;
-    return [
-      { x: left, y: top },
-      { x: right, y: top },
-      { x: right, y: bottom },
-      { x: left, y: bottom }
-    ];
-  }
-  function isPointInPolygon2(point, polygon) {
-    const { x, y } = point;
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const ii = polygon[i];
-      const jj = polygon[j];
-      const xi = ii.x;
-      const yi = ii.y;
-      const xj = jj.x;
-      const yj = jj.y;
-      const intersect = yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
-  function getHull(points) {
-    const newPoints = points.slice();
-    newPoints.sort((a, b) => {
-      if (a.x < b.x) return -1;
-      else if (a.x > b.x) return 1;
-      else if (a.y < b.y) return -1;
-      else if (a.y > b.y) return 1;
-      else return 0;
+  function usePointerDownOutside2(onPointerDownOutside, args) {
+    const {
+      ownerDocument = globalThis?.document,
+      deferPointerDownOutside = false,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces
+    } = args;
+    const handlePointerDownOutside = useCallbackRef(onPointerDownOutside);
+    const isPointerInsideReactTreeRef = useRef(false);
+    const isPointerDownOutsideRef = useRef(false);
+    const interceptedOutsideInteractionEventsRef = useRef(/* @__PURE__ */ new Map());
+    const handleClickRef = useRef(() => {
     });
-    return getHullPresorted(newPoints);
+    useEffect(() => {
+      function resetOutsideInteraction() {
+        isPointerDownOutsideRef.current = false;
+        isDeferredPointerDownOutsideRef.current = false;
+        interceptedOutsideInteractionEventsRef.current.clear();
+      }
+      function isOutsideInteractionIntercepted() {
+        return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
+      }
+      function handleInteractionCapture(event) {
+        if (!isPointerDownOutsideRef.current) {
+          return;
+        }
+        const target = event.target;
+        const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
+        if (!isDismissableSurface) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, true);
+        }
+        if (event.type === "click") {
+          window.setTimeout(() => {
+            if (isPointerDownOutsideRef.current) {
+              handleClickRef.current();
+            }
+          }, 0);
+        }
+      }
+      function handleInteractionBubble(event) {
+        if (isPointerDownOutsideRef.current) {
+          interceptedOutsideInteractionEventsRef.current.set(event.type, false);
+        }
+      }
+      const handlePointerDown = (event) => {
+        if (event.target && !isPointerInsideReactTreeRef.current) {
+          let handleAndDispatchPointerDownOutsideEvent2 = function() {
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
+            resetOutsideInteraction();
+            if (!wasOutsideInteractionIntercepted) {
+              handleAndDispatchCustomEvent2(
+                POINTER_DOWN_OUTSIDE2,
+                handlePointerDownOutside,
+                eventDetail,
+                { discrete: true }
+              );
+            }
+          };
+          var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
+          const eventDetail = { originalEvent: event };
+          isPointerDownOutsideRef.current = true;
+          isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
+          interceptedOutsideInteractionEventsRef.current.clear();
+          if (!deferPointerDownOutside || event.button !== 0) {
+            handleAndDispatchPointerDownOutsideEvent2();
+          } else {
+            ownerDocument.removeEventListener("click", handleClickRef.current);
+            handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
+            ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
+          }
+        } else {
+          ownerDocument.removeEventListener("click", handleClickRef.current);
+          resetOutsideInteraction();
+        }
+        isPointerInsideReactTreeRef.current = false;
+      };
+      const outsideInteractionEvents = [
+        "pointerup",
+        "mousedown",
+        "mouseup",
+        "touchstart",
+        "touchend",
+        "click"
+      ];
+      for (const eventName of outsideInteractionEvents) {
+        ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
+        ownerDocument.addEventListener(eventName, handleInteractionBubble);
+      }
+      const timerId = window.setTimeout(() => {
+        ownerDocument.addEventListener("pointerdown", handlePointerDown);
+      }, 0);
+      return () => {
+        window.clearTimeout(timerId);
+        ownerDocument.removeEventListener("pointerdown", handlePointerDown);
+        ownerDocument.removeEventListener("click", handleClickRef.current);
+        for (const eventName of outsideInteractionEvents) {
+          ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
+          ownerDocument.removeEventListener(eventName, handleInteractionBubble);
+        }
+      };
+    }, [
+      ownerDocument,
+      handlePointerDownOutside,
+      deferPointerDownOutside,
+      isDeferredPointerDownOutsideRef,
+      dismissableSurfaces
+    ]);
+    return {
+      // ensures we check React component tree (not just DOM tree)
+      onPointerDownCapture: () => isPointerInsideReactTreeRef.current = true
+    };
   }
-  function getHullPresorted(points) {
-    if (points.length <= 1) return points.slice();
-    const upperHull = [];
-    for (let i = 0; i < points.length; i++) {
-      const p2 = points[i];
-      while (upperHull.length >= 2) {
-        const q = upperHull[upperHull.length - 1];
-        const r2 = upperHull[upperHull.length - 2];
-        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) upperHull.pop();
-        else break;
-      }
-      upperHull.push(p2);
-    }
-    upperHull.pop();
-    const lowerHull = [];
-    for (let i = points.length - 1; i >= 0; i--) {
-      const p2 = points[i];
-      while (lowerHull.length >= 2) {
-        const q = lowerHull[lowerHull.length - 1];
-        const r2 = lowerHull[lowerHull.length - 2];
-        if ((q.x - r2.x) * (p2.y - r2.y) >= (q.y - r2.y) * (p2.x - r2.x)) lowerHull.pop();
-        else break;
-      }
-      lowerHull.push(p2);
-    }
-    lowerHull.pop();
-    if (upperHull.length === 1 && lowerHull.length === 1 && upperHull[0].x === lowerHull[0].x && upperHull[0].y === lowerHull[0].y) {
-      return upperHull;
+  function useFocusOutside2(onFocusOutside, ownerDocument = globalThis?.document) {
+    const handleFocusOutside = useCallbackRef(onFocusOutside);
+    const isFocusInsideReactTreeRef = useRef(false);
+    useEffect(() => {
+      const handleFocus = (event) => {
+        if (event.target && !isFocusInsideReactTreeRef.current) {
+          const eventDetail = { originalEvent: event };
+          handleAndDispatchCustomEvent2(FOCUS_OUTSIDE2, handleFocusOutside, eventDetail, {
+            discrete: false
+          });
+        }
+      };
+      ownerDocument.addEventListener("focusin", handleFocus);
+      return () => ownerDocument.removeEventListener("focusin", handleFocus);
+    }, [ownerDocument, handleFocusOutside]);
+    return {
+      onFocusCapture: () => isFocusInsideReactTreeRef.current = true,
+      onBlurCapture: () => isFocusInsideReactTreeRef.current = false
+    };
+  }
+  function dispatchUpdate2() {
+    const event = new CustomEvent(CONTEXT_UPDATE2);
+    document.dispatchEvent(event);
+  }
+  function handleAndDispatchCustomEvent2(name, handler, detail, { discrete }) {
+    const target = detail.originalEvent.target;
+    const event = new CustomEvent(name, { bubbles: false, cancelable: true, detail });
+    if (handler) target.addEventListener(name, handler, { once: true });
+    if (discrete) {
+      dispatchDiscreteCustomEvent2(target, event);
     } else {
-      return upperHull.concat(lowerHull);
+      target.dispatchEvent(event);
     }
   }
-  var Portal4 = TooltipPortal;
-  var Content24 = TooltipContent;
 
-  // ../../../packages/shadcn-ui/src/components/tooltip.tsx
-  var TooltipContent2 = forwardRef(
-    ({ className, sideOffset = 4, ...props }, ref) => createElement(
-      Portal4,
-      null,
-      createElement(Content24, {
-        ref,
-        sideOffset,
-        className: cn("xps-tooltip-content", className),
-        ...props
-      })
-    )
-  );
-  TooltipContent2.displayName = Content24.displayName;
-
-  // src/lib/remote-components/crm-workbench/src/utils.ts
-  var PAGE_SIZE = 25;
-  function isObject(value) {
-    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-  }
-  function unwrap(response) {
-    if (!isObject(response)) return {};
-    if (Object.prototype.hasOwnProperty.call(response, "data")) return response.data;
-    if (Object.prototype.hasOwnProperty.call(response, "result")) return response.result;
-    if (Object.prototype.hasOwnProperty.call(response, "payload")) return response.payload;
-    return response;
-  }
-  function buildQuery(context, objectKey, search, recordId) {
-    const payload = context.payload ?? {};
-    const initialQuery = context.initialQuery ?? {};
-    const parameters = {
-      ...payload.parameters ?? {},
-      ...initialQuery.parameters ?? {},
-      objectKey: objectKey || void 0,
-      recordId: recordId || void 0
-    };
-    return {
-      page: 1,
-      pageSize: PAGE_SIZE,
-      ...initialQuery,
-      search: search || void 0,
-      parameters
-    };
-  }
-  function normalizeData(raw) {
-    const value = isObject(raw) ? raw : {};
-    const table = isObject(value.table) ? value.table : {};
-    return {
-      summary: isObject(value.summary) ? value.summary : {},
-      objects: Array.isArray(value.objects) ? value.objects : [],
-      selectedObject: isObject(value.selectedObject) ? value.selectedObject : null,
-      fields: Array.isArray(value.fields) ? value.fields : [],
-      views: Array.isArray(value.views) ? value.views : [],
-      table: {
-        key: typeof table.key === "string" ? table.key : "records",
-        items: Array.isArray(table.items) ? table.items : [],
-        total: typeof table.total === "number" ? table.total : 0,
-        page: typeof table.page === "number" ? table.page : 1,
-        pageSize: typeof table.pageSize === "number" ? table.pageSize : PAGE_SIZE
+  // ../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  var AUTOFOCUS_ON_MOUNT2 = "focusScope.autoFocusOnMount";
+  var AUTOFOCUS_ON_UNMOUNT2 = "focusScope.autoFocusOnUnmount";
+  var EVENT_OPTIONS3 = { bubbles: false, cancelable: true };
+  var FOCUS_SCOPE_NAME2 = "FocusScope";
+  var FocusScope2 = forwardRef((props, forwardedRef) => {
+    const {
+      loop = false,
+      trapped = false,
+      onMountAutoFocus: onMountAutoFocusProp,
+      onUnmountAutoFocus: onUnmountAutoFocusProp,
+      ...scopeProps
+    } = props;
+    const [container, setContainer] = useState(null);
+    const onMountAutoFocus = useCallbackRef(onMountAutoFocusProp);
+    const onUnmountAutoFocus = useCallbackRef(onUnmountAutoFocusProp);
+    const lastFocusedElementRef = useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, (node) => setContainer(node));
+    const focusScope = useRef({
+      paused: false,
+      pause() {
+        this.paused = true;
       },
-      selectedRecord: isObject(value.selectedRecord) ? value.selectedRecord : null,
-      meta: isObject(value.meta) ? value.meta : {}
+      resume() {
+        this.paused = false;
+      }
+    }).current;
+    useEffect(() => {
+      if (trapped) {
+        let handleFocusIn2 = function(event) {
+          if (focusScope.paused || !container) return;
+          const target = event.target;
+          if (container.contains(target)) {
+            lastFocusedElementRef.current = target;
+          } else {
+            focus2(lastFocusedElementRef.current, { select: true });
+          }
+        }, handleFocusOut2 = function(event) {
+          if (focusScope.paused || !container) return;
+          const relatedTarget = event.relatedTarget;
+          if (relatedTarget === null) return;
+          if (!container.contains(relatedTarget)) {
+            focus2(lastFocusedElementRef.current, { select: true });
+          }
+        }, handleMutations2 = function(mutations) {
+          const focusedElement = document.activeElement;
+          if (focusedElement !== document.body) return;
+          for (const mutation of mutations) {
+            if (mutation.removedNodes.length > 0) focus2(container);
+          }
+        };
+        var handleFocusIn = handleFocusIn2, handleFocusOut = handleFocusOut2, handleMutations = handleMutations2;
+        document.addEventListener("focusin", handleFocusIn2);
+        document.addEventListener("focusout", handleFocusOut2);
+        const mutationObserver = new MutationObserver(handleMutations2);
+        if (container) mutationObserver.observe(container, { childList: true, subtree: true });
+        return () => {
+          document.removeEventListener("focusin", handleFocusIn2);
+          document.removeEventListener("focusout", handleFocusOut2);
+          mutationObserver.disconnect();
+        };
+      }
+    }, [trapped, container, focusScope.paused]);
+    useEffect(() => {
+      if (container) {
+        focusScopesStack2.add(focusScope);
+        const previouslyFocusedElement = document.activeElement;
+        const hasFocusedCandidate = container.contains(previouslyFocusedElement);
+        if (!hasFocusedCandidate) {
+          const mountEvent = new CustomEvent(AUTOFOCUS_ON_MOUNT2, EVENT_OPTIONS3);
+          container.addEventListener(AUTOFOCUS_ON_MOUNT2, onMountAutoFocus);
+          container.dispatchEvent(mountEvent);
+          if (!mountEvent.defaultPrevented) {
+            focusFirst4(removeLinks2(getTabbableCandidates2(container)), { select: true });
+            if (document.activeElement === previouslyFocusedElement) {
+              focus2(container);
+            }
+          }
+        }
+        return () => {
+          container.removeEventListener(AUTOFOCUS_ON_MOUNT2, onMountAutoFocus);
+          setTimeout(() => {
+            const unmountEvent = new CustomEvent(AUTOFOCUS_ON_UNMOUNT2, EVENT_OPTIONS3);
+            container.addEventListener(AUTOFOCUS_ON_UNMOUNT2, onUnmountAutoFocus);
+            container.dispatchEvent(unmountEvent);
+            if (!unmountEvent.defaultPrevented) {
+              focus2(previouslyFocusedElement ?? document.body, { select: true });
+            }
+            container.removeEventListener(AUTOFOCUS_ON_UNMOUNT2, onUnmountAutoFocus);
+            focusScopesStack2.remove(focusScope);
+          }, 0);
+        };
+      }
+    }, [container, onMountAutoFocus, onUnmountAutoFocus, focusScope]);
+    const handleKeyDown = useCallback(
+      (event) => {
+        if (!loop && !trapped) return;
+        if (focusScope.paused) return;
+        const isTabKey = event.key === "Tab" && !event.altKey && !event.ctrlKey && !event.metaKey;
+        const focusedElement = document.activeElement;
+        if (isTabKey && focusedElement) {
+          const container2 = event.currentTarget;
+          const [first, last] = getTabbableEdges2(container2);
+          const hasTabbableElementsInside = first && last;
+          if (!hasTabbableElementsInside) {
+            if (focusedElement === container2) event.preventDefault();
+          } else {
+            if (!event.shiftKey && focusedElement === last) {
+              event.preventDefault();
+              if (loop) focus2(first, { select: true });
+            } else if (event.shiftKey && focusedElement === first) {
+              event.preventDefault();
+              if (loop) focus2(last, { select: true });
+            }
+          }
+        }
+      },
+      [loop, trapped, focusScope.paused]
+    );
+    return /* @__PURE__ */ jsx(Primitive2.div, { tabIndex: -1, ...scopeProps, ref: composedRefs, onKeyDown: handleKeyDown });
+  });
+  FocusScope2.displayName = FOCUS_SCOPE_NAME2;
+  function focusFirst4(candidates, { select = false } = {}) {
+    const previouslyFocusedElement = document.activeElement;
+    for (const candidate of candidates) {
+      focus2(candidate, { select });
+      if (document.activeElement !== previouslyFocusedElement) return;
+    }
+  }
+  function getTabbableEdges2(container) {
+    const candidates = getTabbableCandidates2(container);
+    const first = findVisible2(candidates, container);
+    const last = findVisible2(candidates.reverse(), container);
+    return [first, last];
+  }
+  function getTabbableCandidates2(container) {
+    const nodes = [];
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
+      acceptNode: (node) => {
+        const isHiddenInput = node.tagName === "INPUT" && node.type === "hidden";
+        if (node.disabled || node.hidden || isHiddenInput) return NodeFilter.FILTER_SKIP;
+        return node.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    return nodes;
+  }
+  function findVisible2(elements, container) {
+    for (const element of elements) {
+      if (!isHidden2(element, { upTo: container })) return element;
+    }
+  }
+  function isHidden2(node, { upTo }) {
+    if (getComputedStyle(node).visibility === "hidden") return true;
+    while (node) {
+      if (upTo !== void 0 && node === upTo) return false;
+      if (getComputedStyle(node).display === "none") return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+  function isSelectableInput2(element) {
+    return element instanceof HTMLInputElement && "select" in element;
+  }
+  function focus2(element, { select = false } = {}) {
+    if (element && element.focus) {
+      const previouslyFocusedElement = document.activeElement;
+      element.focus({ preventScroll: true });
+      if (element !== previouslyFocusedElement && isSelectableInput2(element) && select)
+        element.select();
+    }
+  }
+  var focusScopesStack2 = createFocusScopesStack2();
+  function createFocusScopesStack2() {
+    let stack = [];
+    return {
+      add(focusScope) {
+        const activeFocusScope = stack[0];
+        if (focusScope !== activeFocusScope) {
+          activeFocusScope?.pause();
+        }
+        stack = arrayRemove2(stack, focusScope);
+        stack.unshift(focusScope);
+      },
+      remove(focusScope) {
+        stack = arrayRemove2(stack, focusScope);
+        stack[0]?.resume();
+      }
     };
   }
-  function resolveNextSelection(result, options2) {
-    if (options2.recordId) {
-      return result.table.items.find((item) => item.id === options2.recordId) ?? result.selectedRecord ?? null;
+  function arrayRemove2(array, item) {
+    const updatedArray = [...array];
+    const index2 = updatedArray.indexOf(item);
+    if (index2 !== -1) {
+      updatedArray.splice(index2, 1);
     }
-    if (options2.keepSelection && options2.selected) {
-      return result.table.items.find((item) => item.id === options2.selected?.id) ?? result.selectedRecord ?? options2.selected;
+    return updatedArray;
+  }
+  function removeLinks2(items) {
+    return items.filter((item) => item.tagName !== "A");
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-portal@1.1.12_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-portal/dist/index.mjs
+  var PORTAL_NAME6 = "Portal";
+  var Portal3 = forwardRef((props, forwardedRef) => {
+    const { container: containerProp, ...portalProps } = props;
+    const [mounted, setMounted] = useState(false);
+    useLayoutEffect2(() => setMounted(true), []);
+    const container = containerProp || mounted && globalThis?.document?.body;
+    return container ? createPortal(/* @__PURE__ */ jsx(Primitive2.div, { ...portalProps, ref: forwardedRef }), container) : null;
+  });
+  Portal3.displayName = PORTAL_NAME6;
+
+  // ../../node_modules/.pnpm/@radix-ui+react-presence@1.1.6_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-presence/dist/index.mjs
+  function useStateMachine2(initialState, machine) {
+    return useReducer((state, event) => {
+      const nextState = machine[state][event];
+      return nextState ?? state;
+    }, initialState);
+  }
+  var Presence2 = (props) => {
+    const { present, children } = props;
+    const presence = usePresence2(present);
+    const child = typeof children === "function" ? children({ present: presence.isPresent }) : Children.only(children);
+    const ref = useStableComposedRefs2(presence.ref, getElementRef3(child));
+    const forceMount = typeof children === "function";
+    return forceMount || presence.isPresent ? cloneElement(child, { ref }) : null;
+  };
+  Presence2.displayName = "Presence";
+  function usePresence2(present) {
+    const [node, setNode] = useState();
+    const stylesRef = useRef(null);
+    const prevPresentRef = useRef(present);
+    const prevAnimationNameRef = useRef("none");
+    const initialState = present ? "mounted" : "unmounted";
+    const [state, send] = useStateMachine2(initialState, {
+      mounted: {
+        UNMOUNT: "unmounted",
+        ANIMATION_OUT: "unmountSuspended"
+      },
+      unmountSuspended: {
+        MOUNT: "mounted",
+        ANIMATION_END: "unmounted"
+      },
+      unmounted: {
+        MOUNT: "mounted"
+      }
+    });
+    useEffect(() => {
+      const currentAnimationName = getAnimationName2(stylesRef.current);
+      prevAnimationNameRef.current = state === "mounted" ? currentAnimationName : "none";
+    }, [state]);
+    useLayoutEffect2(() => {
+      const styles = stylesRef.current;
+      const wasPresent = prevPresentRef.current;
+      const hasPresentChanged = wasPresent !== present;
+      if (hasPresentChanged) {
+        const prevAnimationName = prevAnimationNameRef.current;
+        const currentAnimationName = getAnimationName2(styles);
+        if (present) {
+          send("MOUNT");
+        } else if (currentAnimationName === "none" || styles?.display === "none") {
+          send("UNMOUNT");
+        } else {
+          const isAnimating = prevAnimationName !== currentAnimationName;
+          if (wasPresent && isAnimating) {
+            send("ANIMATION_OUT");
+          } else {
+            send("UNMOUNT");
+          }
+        }
+        prevPresentRef.current = present;
+      }
+    }, [present, send]);
+    useLayoutEffect2(() => {
+      if (node) {
+        let timeoutId;
+        const ownerWindow = node.ownerDocument.defaultView ?? window;
+        const handleAnimationEnd = (event) => {
+          const currentAnimationName = getAnimationName2(stylesRef.current);
+          const isCurrentAnimation = currentAnimationName.includes(CSS.escape(event.animationName));
+          if (event.target === node && isCurrentAnimation) {
+            send("ANIMATION_END");
+            if (!prevPresentRef.current) {
+              const currentFillMode = node.style.animationFillMode;
+              node.style.animationFillMode = "forwards";
+              timeoutId = ownerWindow.setTimeout(() => {
+                if (node.style.animationFillMode === "forwards") {
+                  node.style.animationFillMode = currentFillMode;
+                }
+              });
+            }
+          }
+        };
+        const handleAnimationStart = (event) => {
+          if (event.target === node) {
+            prevAnimationNameRef.current = getAnimationName2(stylesRef.current);
+          }
+        };
+        node.addEventListener("animationstart", handleAnimationStart);
+        node.addEventListener("animationcancel", handleAnimationEnd);
+        node.addEventListener("animationend", handleAnimationEnd);
+        return () => {
+          ownerWindow.clearTimeout(timeoutId);
+          node.removeEventListener("animationstart", handleAnimationStart);
+          node.removeEventListener("animationcancel", handleAnimationEnd);
+          node.removeEventListener("animationend", handleAnimationEnd);
+        };
+      } else {
+        send("ANIMATION_END");
+      }
+    }, [node, send]);
+    return {
+      isPresent: ["mounted", "unmountSuspended"].includes(state),
+      ref: useCallback((node2) => {
+        stylesRef.current = node2 ? getComputedStyle(node2) : null;
+        setNode(node2);
+      }, [])
+    };
+  }
+  function setRef3(ref, value) {
+    if (typeof ref === "function") {
+      return ref(value);
+    } else if (ref !== null && ref !== void 0) {
+      ref.current = value;
+    }
+  }
+  function useStableComposedRefs2(...refs) {
+    const refsRef = useRef(refs);
+    refsRef.current = refs;
+    return useCallback((node) => {
+      const currentRefs = refsRef.current;
+      let hasCleanup = false;
+      const cleanups = currentRefs.map((ref) => {
+        const cleanup = setRef3(ref, node);
+        if (!hasCleanup && typeof cleanup === "function") {
+          hasCleanup = true;
+        }
+        return cleanup;
+      });
+      if (hasCleanup) {
+        return () => {
+          for (let i = 0; i < cleanups.length; i++) {
+            const cleanup = cleanups[i];
+            if (typeof cleanup === "function") {
+              cleanup();
+            } else {
+              setRef3(currentRefs[i], null);
+            }
+          }
+        };
+      }
+    }, []);
+  }
+  function getAnimationName2(styles) {
+    return styles?.animationName || "none";
+  }
+  function getElementRef3(element) {
+    let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
+    let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+    if (mayWarn) {
+      return element.ref;
+    }
+    getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
+    mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+    if (mayWarn) {
+      return element.props.ref;
+    }
+    return element.props.ref || element.ref;
+  }
+
+  // ../../node_modules/.pnpm/@radix-ui+react-dialog@1.1.17_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  var DIALOG_NAME2 = "Dialog";
+  var [createDialogContext2, createDialogScope2] = createContextScope2(DIALOG_NAME2);
+  var [DialogProvider2, useDialogContext2] = createDialogContext2(DIALOG_NAME2);
+  var Dialog2 = (props) => {
+    const {
+      __scopeDialog,
+      children,
+      open: openProp,
+      defaultOpen,
+      onOpenChange,
+      modal = true
+    } = props;
+    const triggerRef = useRef(null);
+    const contentRef = useRef(null);
+    const [open, setOpen] = useControllableState({
+      prop: openProp,
+      defaultProp: defaultOpen ?? false,
+      onChange: onOpenChange,
+      caller: DIALOG_NAME2
+    });
+    return /* @__PURE__ */ jsx(
+      DialogProvider2,
+      {
+        scope: __scopeDialog,
+        triggerRef,
+        contentRef,
+        contentId: useId2(),
+        titleId: useId2(),
+        descriptionId: useId2(),
+        open,
+        onOpenChange: setOpen,
+        onOpenToggle: useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
+        modal,
+        children
+      }
+    );
+  };
+  Dialog2.displayName = DIALOG_NAME2;
+  var TRIGGER_NAME6 = "DialogTrigger";
+  var DialogTrigger2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, ...triggerProps } = props;
+      const context = useDialogContext2(TRIGGER_NAME6, __scopeDialog);
+      const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
+      return /* @__PURE__ */ jsx(
+        Primitive2.button,
+        {
+          type: "button",
+          "aria-haspopup": "dialog",
+          "aria-expanded": context.open,
+          "aria-controls": context.open ? context.contentId : void 0,
+          "data-state": getState3(context.open),
+          ...triggerProps,
+          ref: composedTriggerRef,
+          onClick: composeEventHandlers2(props.onClick, context.onOpenToggle)
+        }
+      );
+    }
+  );
+  DialogTrigger2.displayName = TRIGGER_NAME6;
+  var PORTAL_NAME7 = "DialogPortal";
+  var [PortalProvider4, usePortalContext4] = createDialogContext2(PORTAL_NAME7, {
+    forceMount: void 0
+  });
+  var DialogPortal2 = (props) => {
+    const { __scopeDialog, forceMount, children, container } = props;
+    const context = useDialogContext2(PORTAL_NAME7, __scopeDialog);
+    return /* @__PURE__ */ jsx(PortalProvider4, { scope: __scopeDialog, forceMount, children: Children.map(children, (child) => /* @__PURE__ */ jsx(Presence2, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(Portal3, { asChild: true, container, children: child }) })) });
+  };
+  DialogPortal2.displayName = PORTAL_NAME7;
+  var OVERLAY_NAME2 = "DialogOverlay";
+  var DialogOverlay2 = forwardRef(
+    (props, forwardedRef) => {
+      const portalContext = usePortalContext4(OVERLAY_NAME2, props.__scopeDialog);
+      const { forceMount = portalContext.forceMount, ...overlayProps } = props;
+      const context = useDialogContext2(OVERLAY_NAME2, props.__scopeDialog);
+      return context.modal ? /* @__PURE__ */ jsx(Presence2, { present: forceMount || context.open, children: /* @__PURE__ */ jsx(DialogOverlayImpl2, { ...overlayProps, ref: forwardedRef }) }) : null;
+    }
+  );
+  DialogOverlay2.displayName = OVERLAY_NAME2;
+  var Slot5 = createSlot("DialogOverlay.RemoveScroll");
+  var DialogOverlayImpl2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, ...overlayProps } = props;
+      const context = useDialogContext2(OVERLAY_NAME2, __scopeDialog);
+      const registerDismissableSurface = useDismissableLayerSurface2();
+      const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
+      return (
+        // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
+        // ie. when `Overlay` and `Content` are siblings
+        /* @__PURE__ */ jsx(Combination_default, { as: Slot5, allowPinchZoom: true, shards: [context.contentRef], children: /* @__PURE__ */ jsx(
+          Primitive2.div,
+          {
+            "data-state": getState3(context.open),
+            ...overlayProps,
+            ref: composedRefs,
+            style: { pointerEvents: "auto", ...overlayProps.style }
+          }
+        ) })
+      );
+    }
+  );
+  var CONTENT_NAME7 = "DialogContent";
+  var DialogContent2 = forwardRef(
+    (props, forwardedRef) => {
+      const portalContext = usePortalContext4(CONTENT_NAME7, props.__scopeDialog);
+      const { forceMount = portalContext.forceMount, ...contentProps } = props;
+      const context = useDialogContext2(CONTENT_NAME7, props.__scopeDialog);
+      return /* @__PURE__ */ jsx(Presence2, { present: forceMount || context.open, children: context.modal ? /* @__PURE__ */ jsx(DialogContentModal2, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx(DialogContentNonModal2, { ...contentProps, ref: forwardedRef }) });
+    }
+  );
+  DialogContent2.displayName = CONTENT_NAME7;
+  var DialogContentModal2 = forwardRef(
+    (props, forwardedRef) => {
+      const context = useDialogContext2(CONTENT_NAME7, props.__scopeDialog);
+      const contentRef = useRef(null);
+      const composedRefs = useComposedRefs(forwardedRef, context.contentRef, contentRef);
+      useEffect(() => {
+        const content = contentRef.current;
+        if (content) return hideOthers(content);
+      }, []);
+      return /* @__PURE__ */ jsx(
+        DialogContentImpl2,
+        {
+          ...props,
+          ref: composedRefs,
+          trapFocus: context.open,
+          disableOutsidePointerEvents: context.open,
+          onCloseAutoFocus: composeEventHandlers2(props.onCloseAutoFocus, (event) => {
+            event.preventDefault();
+            context.triggerRef.current?.focus();
+          }),
+          onPointerDownOutside: composeEventHandlers2(props.onPointerDownOutside, (event) => {
+            const originalEvent = event.detail.originalEvent;
+            const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
+            const isRightClick = originalEvent.button === 2 || ctrlLeftClick;
+            if (isRightClick) event.preventDefault();
+          }),
+          onFocusOutside: composeEventHandlers2(
+            props.onFocusOutside,
+            (event) => event.preventDefault()
+          )
+        }
+      );
+    }
+  );
+  var DialogContentNonModal2 = forwardRef(
+    (props, forwardedRef) => {
+      const context = useDialogContext2(CONTENT_NAME7, props.__scopeDialog);
+      const hasInteractedOutsideRef = useRef(false);
+      const hasPointerDownOutsideRef = useRef(false);
+      return /* @__PURE__ */ jsx(
+        DialogContentImpl2,
+        {
+          ...props,
+          ref: forwardedRef,
+          trapFocus: false,
+          disableOutsidePointerEvents: false,
+          onCloseAutoFocus: (event) => {
+            props.onCloseAutoFocus?.(event);
+            if (!event.defaultPrevented) {
+              if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
+              event.preventDefault();
+            }
+            hasInteractedOutsideRef.current = false;
+            hasPointerDownOutsideRef.current = false;
+          },
+          onInteractOutside: (event) => {
+            props.onInteractOutside?.(event);
+            if (!event.defaultPrevented) {
+              hasInteractedOutsideRef.current = true;
+              if (event.detail.originalEvent.type === "pointerdown") {
+                hasPointerDownOutsideRef.current = true;
+              }
+            }
+            const target = event.target;
+            const targetIsTrigger = context.triggerRef.current?.contains(target);
+            if (targetIsTrigger) event.preventDefault();
+            if (event.detail.originalEvent.type === "focusin" && hasPointerDownOutsideRef.current) {
+              event.preventDefault();
+            }
+          }
+        }
+      );
+    }
+  );
+  var DialogContentImpl2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
+      const context = useDialogContext2(CONTENT_NAME7, __scopeDialog);
+      useFocusGuards();
+      return /* @__PURE__ */ jsx(Fragment2, { children: /* @__PURE__ */ jsx(
+        FocusScope2,
+        {
+          asChild: true,
+          loop: true,
+          trapped: trapFocus,
+          onMountAutoFocus: onOpenAutoFocus,
+          onUnmountAutoFocus: onCloseAutoFocus,
+          children: /* @__PURE__ */ jsx(
+            DismissableLayer2,
+            {
+              role: "dialog",
+              id: context.contentId,
+              "aria-describedby": context.descriptionId,
+              "aria-labelledby": context.titleId,
+              "data-state": getState3(context.open),
+              ...contentProps,
+              ref: forwardedRef,
+              deferPointerDownOutside: true,
+              onDismiss: () => context.onOpenChange(false)
+            }
+          )
+        }
+      ) });
+    }
+  );
+  var TITLE_NAME2 = "DialogTitle";
+  var DialogTitle2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, ...titleProps } = props;
+      const context = useDialogContext2(TITLE_NAME2, __scopeDialog);
+      return /* @__PURE__ */ jsx(Primitive2.h2, { id: context.titleId, ...titleProps, ref: forwardedRef });
+    }
+  );
+  DialogTitle2.displayName = TITLE_NAME2;
+  var DESCRIPTION_NAME2 = "DialogDescription";
+  var DialogDescription2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, ...descriptionProps } = props;
+      const context = useDialogContext2(DESCRIPTION_NAME2, __scopeDialog);
+      return /* @__PURE__ */ jsx(Primitive2.p, { id: context.descriptionId, ...descriptionProps, ref: forwardedRef });
+    }
+  );
+  DialogDescription2.displayName = DESCRIPTION_NAME2;
+  var CLOSE_NAME2 = "DialogClose";
+  var DialogClose2 = forwardRef(
+    (props, forwardedRef) => {
+      const { __scopeDialog, ...closeProps } = props;
+      const context = useDialogContext2(CLOSE_NAME2, __scopeDialog);
+      return /* @__PURE__ */ jsx(
+        Primitive2.button,
+        {
+          type: "button",
+          ...closeProps,
+          ref: forwardedRef,
+          onClick: composeEventHandlers2(props.onClick, () => context.onOpenChange(false))
+        }
+      );
+    }
+  );
+  DialogClose2.displayName = CLOSE_NAME2;
+  function getState3(open) {
+    return open ? "open" : "closed";
+  }
+
+  // ../../node_modules/.pnpm/cmdk@1.1.1_@types+react-dom@18.3.7_@types+react@18.3.31_react-dom@18.3.1_react@18.3.1/node_modules/cmdk/dist/index.mjs
+  var N = '[cmdk-group=""]';
+  var Y2 = '[cmdk-group-items=""]';
+  var be = '[cmdk-group-heading=""]';
+  var le = '[cmdk-item=""]';
+  var ce = `${le}:not([aria-disabled="true"])`;
+  var Z = "cmdk-item-select";
+  var T = "data-value";
+  var Re = (r3, o, n) => W(r3, o, n);
+  var ue = createContext(void 0);
+  var K2 = () => useContext(ue);
+  var de = createContext(void 0);
+  var ee = () => useContext(de);
+  var fe = createContext(void 0);
+  var me = forwardRef((r3, o) => {
+    let n = L(() => {
+      var e, a;
+      return { search: "", value: (a = (e = r3.value) != null ? e : r3.defaultValue) != null ? a : "", selectedItemId: void 0, filtered: { count: 0, items: /* @__PURE__ */ new Map(), groups: /* @__PURE__ */ new Set() } };
+    }), u2 = L(() => /* @__PURE__ */ new Set()), c = L(() => /* @__PURE__ */ new Map()), d = L(() => /* @__PURE__ */ new Map()), f = L(() => /* @__PURE__ */ new Set()), p2 = pe(r3), { label: b, children: m2, value: R, onValueChange: x, filter: C2, shouldFilter: S, loop: A2, disablePointerSelection: ge = false, vimBindings: j2 = true, ...O } = r3, $2 = useId2(), q2 = useId2(), _ = useId2(), I2 = useRef(null), v = ke();
+    k2(() => {
+      if (R !== void 0) {
+        let e = R.trim();
+        n.current.value = e, E.emit();
+      }
+    }, [R]), k2(() => {
+      v(6, ne2);
+    }, []);
+    let E = useMemo(() => ({ subscribe: (e) => (f.current.add(e), () => f.current.delete(e)), snapshot: () => n.current, setState: (e, a, s) => {
+      var i, l, g, y;
+      if (!Object.is(n.current[e], a)) {
+        if (n.current[e] = a, e === "search") J4(), z(), v(1, W4);
+        else if (e === "value") {
+          if (document.activeElement.hasAttribute("cmdk-input") || document.activeElement.hasAttribute("cmdk-root")) {
+            let h = document.getElementById(_);
+            h ? h.focus() : (i = document.getElementById($2)) == null || i.focus();
+          }
+          if (v(7, () => {
+            var h;
+            n.current.selectedItemId = (h = M()) == null ? void 0 : h.id, E.emit();
+          }), s || v(5, ne2), ((l = p2.current) == null ? void 0 : l.value) !== void 0) {
+            let h = a != null ? a : "";
+            (y = (g = p2.current).onValueChange) == null || y.call(g, h);
+            return;
+          }
+        }
+        E.emit();
+      }
+    }, emit: () => {
+      f.current.forEach((e) => e());
+    } }), []), U3 = useMemo(() => ({ value: (e, a, s) => {
+      var i;
+      a !== ((i = d.current.get(e)) == null ? void 0 : i.value) && (d.current.set(e, { value: a, keywords: s }), n.current.filtered.items.set(e, te2(a, s)), v(2, () => {
+        z(), E.emit();
+      }));
+    }, item: (e, a) => (u2.current.add(e), a && (c.current.has(a) ? c.current.get(a).add(e) : c.current.set(a, /* @__PURE__ */ new Set([e]))), v(3, () => {
+      J4(), z(), n.current.value || W4(), E.emit();
+    }), () => {
+      d.current.delete(e), u2.current.delete(e), n.current.filtered.items.delete(e);
+      let s = M();
+      v(4, () => {
+        J4(), (s == null ? void 0 : s.getAttribute("id")) === e && W4(), E.emit();
+      });
+    }), group: (e) => (c.current.has(e) || c.current.set(e, /* @__PURE__ */ new Set()), () => {
+      d.current.delete(e), c.current.delete(e);
+    }), filter: () => p2.current.shouldFilter, label: b || r3["aria-label"], getDisablePointerSelection: () => p2.current.disablePointerSelection, listId: $2, inputId: _, labelId: q2, listInnerRef: I2 }), []);
+    function te2(e, a) {
+      var i, l;
+      let s = (l = (i = p2.current) == null ? void 0 : i.filter) != null ? l : Re;
+      return e ? s(e, n.current.search, a) : 0;
+    }
+    function z() {
+      if (!n.current.search || p2.current.shouldFilter === false) return;
+      let e = n.current.filtered.items, a = [];
+      n.current.filtered.groups.forEach((i) => {
+        let l = c.current.get(i), g = 0;
+        l.forEach((y) => {
+          let h = e.get(y);
+          g = Math.max(h, g);
+        }), a.push([i, g]);
+      });
+      let s = I2.current;
+      V().sort((i, l) => {
+        var h, F2;
+        let g = i.getAttribute("id"), y = l.getAttribute("id");
+        return ((h = e.get(y)) != null ? h : 0) - ((F2 = e.get(g)) != null ? F2 : 0);
+      }).forEach((i) => {
+        let l = i.closest(Y2);
+        l ? l.appendChild(i.parentElement === l ? i : i.closest(`${Y2} > *`)) : s.appendChild(i.parentElement === s ? i : i.closest(`${Y2} > *`));
+      }), a.sort((i, l) => l[1] - i[1]).forEach((i) => {
+        var g;
+        let l = (g = I2.current) == null ? void 0 : g.querySelector(`${N}[${T}="${encodeURIComponent(i[0])}"]`);
+        l == null || l.parentElement.appendChild(l);
+      });
+    }
+    function W4() {
+      let e = V().find((s) => s.getAttribute("aria-disabled") !== "true"), a = e == null ? void 0 : e.getAttribute(T);
+      E.setState("value", a || void 0);
+    }
+    function J4() {
+      var a, s, i, l;
+      if (!n.current.search || p2.current.shouldFilter === false) {
+        n.current.filtered.count = u2.current.size;
+        return;
+      }
+      n.current.filtered.groups = /* @__PURE__ */ new Set();
+      let e = 0;
+      for (let g of u2.current) {
+        let y = (s = (a = d.current.get(g)) == null ? void 0 : a.value) != null ? s : "", h = (l = (i = d.current.get(g)) == null ? void 0 : i.keywords) != null ? l : [], F2 = te2(y, h);
+        n.current.filtered.items.set(g, F2), F2 > 0 && e++;
+      }
+      for (let [g, y] of c.current) for (let h of y) if (n.current.filtered.items.get(h) > 0) {
+        n.current.filtered.groups.add(g);
+        break;
+      }
+      n.current.filtered.count = e;
+    }
+    function ne2() {
+      var a, s, i;
+      let e = M();
+      e && (((a = e.parentElement) == null ? void 0 : a.firstChild) === e && ((i = (s = e.closest(N)) == null ? void 0 : s.querySelector(be)) == null || i.scrollIntoView({ block: "nearest" })), e.scrollIntoView({ block: "nearest" }));
+    }
+    function M() {
+      var e;
+      return (e = I2.current) == null ? void 0 : e.querySelector(`${le}[aria-selected="true"]`);
+    }
+    function V() {
+      var e;
+      return Array.from(((e = I2.current) == null ? void 0 : e.querySelectorAll(ce)) || []);
+    }
+    function X5(e) {
+      let s = V()[e];
+      s && E.setState("value", s.getAttribute(T));
+    }
+    function Q(e) {
+      var g;
+      let a = M(), s = V(), i = s.findIndex((y) => y === a), l = s[i + e];
+      (g = p2.current) != null && g.loop && (l = i + e < 0 ? s[s.length - 1] : i + e === s.length ? s[0] : s[i + e]), l && E.setState("value", l.getAttribute(T));
+    }
+    function re(e) {
+      let a = M(), s = a == null ? void 0 : a.closest(N), i;
+      for (; s && !i; ) s = e > 0 ? we(s, N) : De(s, N), i = s == null ? void 0 : s.querySelector(ce);
+      i ? E.setState("value", i.getAttribute(T)) : Q(e);
+    }
+    let oe = () => X5(V().length - 1), ie2 = (e) => {
+      e.preventDefault(), e.metaKey ? oe() : e.altKey ? re(1) : Q(1);
+    }, se3 = (e) => {
+      e.preventDefault(), e.metaKey ? X5(0) : e.altKey ? re(-1) : Q(-1);
+    };
+    return createElement(Primitive2.div, { ref: o, tabIndex: -1, ...O, "cmdk-root": "", onKeyDown: (e) => {
+      var s;
+      (s = O.onKeyDown) == null || s.call(O, e);
+      let a = e.nativeEvent.isComposing || e.keyCode === 229;
+      if (!(e.defaultPrevented || a)) switch (e.key) {
+        case "n":
+        case "j": {
+          j2 && e.ctrlKey && ie2(e);
+          break;
+        }
+        case "ArrowDown": {
+          ie2(e);
+          break;
+        }
+        case "p":
+        case "k": {
+          j2 && e.ctrlKey && se3(e);
+          break;
+        }
+        case "ArrowUp": {
+          se3(e);
+          break;
+        }
+        case "Home": {
+          e.preventDefault(), X5(0);
+          break;
+        }
+        case "End": {
+          e.preventDefault(), oe();
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          let i = M();
+          if (i) {
+            let l = new Event(Z);
+            i.dispatchEvent(l);
+          }
+        }
+      }
+    } }, createElement("label", { "cmdk-label": "", htmlFor: U3.inputId, id: U3.labelId, style: Te }, b), B2(r3, (e) => createElement(de.Provider, { value: E }, createElement(ue.Provider, { value: U3 }, e))));
+  });
+  var he = forwardRef((r3, o) => {
+    var _, I2;
+    let n = useId2(), u2 = useRef(null), c = useContext(fe), d = K2(), f = pe(r3), p2 = (I2 = (_ = f.current) == null ? void 0 : _.forceMount) != null ? I2 : c == null ? void 0 : c.forceMount;
+    k2(() => {
+      if (!p2) return d.item(n, c == null ? void 0 : c.id);
+    }, [p2]);
+    let b = ve(n, u2, [r3.value, r3.children, u2], r3.keywords), m2 = ee(), R = P((v) => v.value && v.value === b.current), x = P((v) => p2 || d.filter() === false ? true : v.search ? v.filtered.items.get(n) > 0 : true);
+    useEffect(() => {
+      let v = u2.current;
+      if (!(!v || r3.disabled)) return v.addEventListener(Z, C2), () => v.removeEventListener(Z, C2);
+    }, [x, r3.onSelect, r3.disabled]);
+    function C2() {
+      var v, E;
+      S(), (E = (v = f.current).onSelect) == null || E.call(v, b.current);
+    }
+    function S() {
+      m2.setState("value", b.current, true);
+    }
+    if (!x) return null;
+    let { disabled: A2, value: ge, onSelect: j2, forceMount: O, keywords: $2, ...q2 } = r3;
+    return createElement(Primitive2.div, { ref: composeRefs(u2, o), ...q2, id: n, "cmdk-item": "", role: "option", "aria-disabled": !!A2, "aria-selected": !!R, "data-disabled": !!A2, "data-selected": !!R, onPointerMove: A2 || d.getDisablePointerSelection() ? void 0 : S, onClick: A2 ? void 0 : C2 }, r3.children);
+  });
+  var Ee = forwardRef((r3, o) => {
+    let { heading: n, children: u2, forceMount: c, ...d } = r3, f = useId2(), p2 = useRef(null), b = useRef(null), m2 = useId2(), R = K2(), x = P((S) => c || R.filter() === false ? true : S.search ? S.filtered.groups.has(f) : true);
+    k2(() => R.group(f), []), ve(f, p2, [r3.value, r3.heading, b]);
+    let C2 = useMemo(() => ({ id: f, forceMount: c }), [c]);
+    return createElement(Primitive2.div, { ref: composeRefs(p2, o), ...d, "cmdk-group": "", role: "presentation", hidden: x ? void 0 : true }, n && createElement("div", { ref: b, "cmdk-group-heading": "", "aria-hidden": true, id: m2 }, n), B2(r3, (S) => createElement("div", { "cmdk-group-items": "", role: "group", "aria-labelledby": n ? m2 : void 0 }, createElement(fe.Provider, { value: C2 }, S))));
+  });
+  var ye = forwardRef((r3, o) => {
+    let { alwaysRender: n, ...u2 } = r3, c = useRef(null), d = P((f) => !f.search);
+    return !n && !d ? null : createElement(Primitive2.div, { ref: composeRefs(c, o), ...u2, "cmdk-separator": "", role: "separator" });
+  });
+  var Se = forwardRef((r3, o) => {
+    let { onValueChange: n, ...u2 } = r3, c = r3.value != null, d = ee(), f = P((m2) => m2.search), p2 = P((m2) => m2.selectedItemId), b = K2();
+    return useEffect(() => {
+      r3.value != null && d.setState("search", r3.value);
+    }, [r3.value]), createElement(Primitive2.input, { ref: o, ...u2, "cmdk-input": "", autoComplete: "off", autoCorrect: "off", spellCheck: false, "aria-autocomplete": "list", role: "combobox", "aria-expanded": true, "aria-controls": b.listId, "aria-labelledby": b.labelId, "aria-activedescendant": p2, id: b.inputId, type: "text", value: c ? r3.value : f, onChange: (m2) => {
+      c || d.setState("search", m2.target.value), n == null || n(m2.target.value);
+    } });
+  });
+  var Ce = forwardRef((r3, o) => {
+    let { children: n, label: u2 = "Suggestions", ...c } = r3, d = useRef(null), f = useRef(null), p2 = P((m2) => m2.selectedItemId), b = K2();
+    return useEffect(() => {
+      if (f.current && d.current) {
+        let m2 = f.current, R = d.current, x, C2 = new ResizeObserver(() => {
+          x = requestAnimationFrame(() => {
+            let S = m2.offsetHeight;
+            R.style.setProperty("--cmdk-list-height", S.toFixed(1) + "px");
+          });
+        });
+        return C2.observe(m2), () => {
+          cancelAnimationFrame(x), C2.unobserve(m2);
+        };
+      }
+    }, []), createElement(Primitive2.div, { ref: composeRefs(d, o), ...c, "cmdk-list": "", role: "listbox", tabIndex: -1, "aria-activedescendant": p2, "aria-label": u2, id: b.listId }, B2(r3, (m2) => createElement("div", { ref: composeRefs(f, b.listInnerRef), "cmdk-list-sizer": "" }, m2)));
+  });
+  var xe = forwardRef((r3, o) => {
+    let { open: n, onOpenChange: u2, overlayClassName: c, contentClassName: d, container: f, ...p2 } = r3;
+    return createElement(Dialog2, { open: n, onOpenChange: u2 }, createElement(DialogPortal2, { container: f }, createElement(DialogOverlay2, { "cmdk-overlay": "", className: c }), createElement(DialogContent2, { "aria-label": r3.label, "cmdk-dialog": "", className: d }, createElement(me, { ref: o, ...p2 }))));
+  });
+  var Ie = forwardRef((r3, o) => P((u2) => u2.filtered.count === 0) ? createElement(Primitive2.div, { ref: o, ...r3, "cmdk-empty": "", role: "presentation" }) : null);
+  var Pe = forwardRef((r3, o) => {
+    let { progress: n, children: u2, label: c = "Loading...", ...d } = r3;
+    return createElement(Primitive2.div, { ref: o, ...d, "cmdk-loading": "", role: "progressbar", "aria-valuenow": n, "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": c }, B2(r3, (f) => createElement("div", { "aria-hidden": true }, f)));
+  });
+  var _e = Object.assign(me, { List: Ce, Item: he, Input: Se, Group: Ee, Separator: ye, Dialog: xe, Empty: Ie, Loading: Pe });
+  function we(r3, o) {
+    let n = r3.nextElementSibling;
+    for (; n; ) {
+      if (n.matches(o)) return n;
+      n = n.nextElementSibling;
+    }
+  }
+  function De(r3, o) {
+    let n = r3.previousElementSibling;
+    for (; n; ) {
+      if (n.matches(o)) return n;
+      n = n.previousElementSibling;
+    }
+  }
+  function pe(r3) {
+    let o = useRef(r3);
+    return k2(() => {
+      o.current = r3;
+    }), o;
+  }
+  var k2 = typeof window == "undefined" ? useEffect : useLayoutEffect;
+  function L(r3) {
+    let o = useRef();
+    return o.current === void 0 && (o.current = r3()), o;
+  }
+  function P(r3) {
+    let o = ee(), n = () => r3(o.snapshot());
+    return useSyncExternalStore(o.subscribe, n, n);
+  }
+  function ve(r3, o, n, u2 = []) {
+    let c = useRef(), d = K2();
+    return k2(() => {
+      var b;
+      let f = (() => {
+        var m2;
+        for (let R of n) {
+          if (typeof R == "string") return R.trim();
+          if (typeof R == "object" && "current" in R) return R.current ? (m2 = R.current.textContent) == null ? void 0 : m2.trim() : c.current;
+        }
+      })(), p2 = u2.map((m2) => m2.trim());
+      d.value(r3, f, p2), (b = o.current) == null || b.setAttribute(T, f), c.current = f;
+    }), c;
+  }
+  var ke = () => {
+    let [r3, o] = useState(), n = L(() => /* @__PURE__ */ new Map());
+    return k2(() => {
+      n.current.forEach((u2) => u2()), n.current = /* @__PURE__ */ new Map();
+    }, [r3]), (u2, c) => {
+      n.current.set(u2, c), o({});
+    };
+  };
+  function Me(r3) {
+    let o = r3.type;
+    return typeof o == "function" ? o(r3.props) : "render" in o ? o.render(r3.props) : r3;
+  }
+  function B2({ asChild: r3, children: o }, n) {
+    return r3 && isValidElement(o) ? cloneElement(Me(o), { ref: o.ref }, n(o.props.children)) : n(o);
+  }
+  var Te = { position: "absolute", width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: "0" };
+
+  // ../../node_modules/.pnpm/react-resizable-panels@4.12.1_react-dom@18.3.1_react@18.3.1/node_modules/react-resizable-panels/dist/react-resizable-panels.js
+  function St(e, t) {
+    const n = getComputedStyle(e), o = parseFloat(n.fontSize);
+    return t * o;
+  }
+  function vt(e, t) {
+    const n = getComputedStyle(e.ownerDocument.documentElement), o = parseFloat(n.fontSize);
+    return t * o;
+  }
+  function bt(e) {
+    return e / 100 * window.innerHeight;
+  }
+  function zt(e) {
+    return e / 100 * window.innerWidth;
+  }
+  function xt(e) {
+    switch (typeof e) {
+      case "number":
+        return [e, "px"];
+      case "string": {
+        const t = parseFloat(e);
+        return e.endsWith("%") ? [t, "%"] : e.endsWith("px") ? [t, "px"] : e.endsWith("rem") ? [t, "rem"] : e.endsWith("em") ? [t, "em"] : e.endsWith("vh") ? [t, "vh"] : e.endsWith("vw") ? [t, "vw"] : [t, "%"];
+      }
+    }
+  }
+  function ie({
+    groupSize: e,
+    panelElement: t,
+    styleProp: n
+  }) {
+    let o;
+    const [i, s] = xt(n);
+    switch (s) {
+      case "%": {
+        o = i / 100 * e;
+        break;
+      }
+      case "px": {
+        o = i;
+        break;
+      }
+      case "rem": {
+        o = vt(t, i);
+        break;
+      }
+      case "em": {
+        o = St(t, i);
+        break;
+      }
+      case "vh": {
+        o = bt(i);
+        break;
+      }
+      case "vw": {
+        o = zt(i);
+        break;
+      }
+    }
+    return o;
+  }
+  function T2(e) {
+    return parseFloat(e.toFixed(3));
+  }
+  function ne({
+    group: e
+  }) {
+    const { orientation: t, panels: n } = e;
+    return n.reduce((o, i) => (o += t === "horizontal" ? i.element.offsetWidth : i.element.offsetHeight, o), 0);
+  }
+  function ve2(e) {
+    const { panels: t } = e, n = ne({ group: e });
+    return n === 0 ? t.map((o) => ({
+      groupResizeBehavior: o.panelConstraints.groupResizeBehavior,
+      collapsedSize: 0,
+      collapsible: o.panelConstraints.collapsible === true,
+      defaultSize: void 0,
+      disabled: o.panelConstraints.disabled,
+      minSize: 0,
+      maxSize: 100,
+      panelId: o.id
+    })) : t.map((o) => {
+      const { element: i, panelConstraints: s } = o;
+      let u2 = 0;
+      if (s.collapsedSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.collapsedSize
+        });
+        u2 = T2(c / n * 100);
+      }
+      let a;
+      if (s.defaultSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.defaultSize
+        });
+        a = T2(c / n * 100);
+      }
+      let r3 = 0;
+      if (s.minSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.minSize
+        });
+        r3 = T2(c / n * 100);
+      }
+      let l = 100;
+      if (s.maxSize !== void 0) {
+        const c = ie({
+          groupSize: n,
+          panelElement: i,
+          styleProp: s.maxSize
+        });
+        l = T2(c / n * 100);
+      }
+      return {
+        groupResizeBehavior: s.groupResizeBehavior,
+        collapsedSize: u2,
+        collapsible: s.collapsible === true,
+        defaultSize: a,
+        disabled: s.disabled,
+        minSize: r3,
+        maxSize: l,
+        panelId: o.id
+      };
+    });
+  }
+  function C(e, t = "Assertion error") {
+    if (!e)
+      throw Error(t);
+  }
+  function be2(e, t) {
+    return Array.from(t).sort(
+      e === "horizontal" ? Pt : wt
+    );
+  }
+  function Pt(e, t) {
+    const n = e.element.offsetLeft - t.element.offsetLeft;
+    return n !== 0 ? n : e.element.offsetWidth - t.element.offsetWidth;
+  }
+  function wt(e, t) {
+    const n = e.element.offsetTop - t.element.offsetTop;
+    return n !== 0 ? n : e.element.offsetHeight - t.element.offsetHeight;
+  }
+  function Ye(e) {
+    return e !== null && typeof e == "object" && "nodeType" in e && e.nodeType === Node.ELEMENT_NODE;
+  }
+  function Je(e, t) {
+    return {
+      x: e.x >= t.left && e.x <= t.right ? 0 : Math.min(
+        Math.abs(e.x - t.left),
+        Math.abs(e.x - t.right)
+      ),
+      y: e.y >= t.top && e.y <= t.bottom ? 0 : Math.min(
+        Math.abs(e.y - t.top),
+        Math.abs(e.y - t.bottom)
+      )
+    };
+  }
+  function Lt({
+    orientation: e,
+    rects: t,
+    targetRect: n
+  }) {
+    const o = {
+      x: n.x + n.width / 2,
+      y: n.y + n.height / 2
+    };
+    let i, s = Number.MAX_VALUE;
+    for (const u2 of t) {
+      const { x: a, y: r3 } = Je(o, u2), l = e === "horizontal" ? a : r3;
+      l < s && (s = l, i = u2);
+    }
+    return C(i, "No rect found"), i;
+  }
+  var fe2;
+  function Ct() {
+    return fe2 === void 0 && (typeof matchMedia == "function" ? fe2 = !!matchMedia("(pointer:coarse)").matches : fe2 = false), fe2;
+  }
+  function Ze(e) {
+    const { element: t, orientation: n, panels: o, separators: i } = e, s = be2(
+      n,
+      Array.from(t.children).filter(Ye).map((z) => ({ element: z }))
+    ).map(({ element: z }) => z), u2 = [];
+    let a = false, r3 = false, l = -1, c = -1, m2 = 0, p2, S = [];
+    {
+      let z = -1;
+      for (const f of s)
+        f.hasAttribute("data-panel") && (z++, f.hasAttribute("data-disabled") || (m2++, l === -1 && (l = z), c = z));
+    }
+    if (m2 > 1) {
+      let z = -1;
+      for (const f of s)
+        if (f.hasAttribute("data-panel")) {
+          z++;
+          const d = o.find(
+            (h) => h.element === f
+          );
+          if (d) {
+            if (p2) {
+              const h = p2.element.getBoundingClientRect(), y = f.getBoundingClientRect();
+              let b;
+              if (r3) {
+                const v = n === "horizontal" ? new DOMRect(
+                  h.right,
+                  h.top,
+                  0,
+                  h.height
+                ) : new DOMRect(
+                  h.left,
+                  h.bottom,
+                  h.width,
+                  0
+                ), g = n === "horizontal" ? new DOMRect(y.left, y.top, 0, y.height) : new DOMRect(y.left, y.top, y.width, 0);
+                switch (S.length) {
+                  case 0: {
+                    b = [
+                      v,
+                      g
+                    ];
+                    break;
+                  }
+                  case 1: {
+                    const w = S[0], M = Lt({
+                      orientation: n,
+                      rects: [h, y],
+                      targetRect: w.element.getBoundingClientRect()
+                    });
+                    b = [
+                      w,
+                      M === h ? g : v
+                    ];
+                    break;
+                  }
+                  default: {
+                    b = S;
+                    break;
+                  }
+                }
+              } else
+                S.length ? b = S : b = [
+                  n === "horizontal" ? new DOMRect(
+                    h.right,
+                    y.top,
+                    y.left - h.right,
+                    y.height
+                  ) : new DOMRect(
+                    y.left,
+                    h.bottom,
+                    y.width,
+                    y.top - h.bottom
+                  )
+                ];
+              for (const v of b) {
+                let g = "width" in v ? v : v.element.getBoundingClientRect();
+                const w = Ct() ? e.resizeTargetMinimumSize.coarse : e.resizeTargetMinimumSize.fine;
+                if (g.width < w) {
+                  const L2 = w - g.width;
+                  g = new DOMRect(
+                    g.x - L2 / 2,
+                    g.y,
+                    g.width + L2,
+                    g.height
+                  );
+                }
+                if (g.height < w) {
+                  const L2 = w - g.height;
+                  g = new DOMRect(
+                    g.x,
+                    g.y - L2 / 2,
+                    g.width,
+                    g.height + L2
+                  );
+                }
+                const M = z <= l || z > c;
+                !a && !M && u2.push({
+                  group: e,
+                  groupSize: ne({ group: e }),
+                  panels: [p2, d],
+                  separator: "width" in v ? void 0 : v,
+                  rect: g
+                }), a = false;
+              }
+            }
+            r3 = false, p2 = d, S = [];
+          }
+        } else if (f.hasAttribute("data-separator")) {
+          f.ariaDisabled !== null && (a = true);
+          const d = i.find(
+            (h) => h.element === f
+          );
+          d ? S.push(d) : (p2 = void 0, S = []);
+        } else
+          r3 = true;
+    }
+    return u2;
+  }
+  var _e2;
+  var Qe = class {
+    constructor() {
+      __privateAdd(this, _e2, {});
+    }
+    addListener(t, n) {
+      const o = __privateGet(this, _e2)[t];
+      return o === void 0 ? __privateGet(this, _e2)[t] = [n] : o.includes(n) || o.push(n), () => {
+        this.removeListener(t, n);
+      };
+    }
+    emit(t, n) {
+      const o = __privateGet(this, _e2)[t];
+      if (o !== void 0)
+        if (o.length === 1)
+          o[0].call(null, n);
+        else {
+          let i = false, s = null;
+          const u2 = Array.from(o);
+          for (let a = 0; a < u2.length; a++) {
+            const r3 = u2[a];
+            try {
+              r3.call(null, n);
+            } catch (l) {
+              s === null && (i = true, s = l);
+            }
+          }
+          if (i)
+            throw s;
+        }
+    }
+    removeAllListeners() {
+      __privateSet(this, _e2, {});
+    }
+    removeListener(t, n) {
+      const o = __privateGet(this, _e2)[t];
+      if (o !== void 0) {
+        const i = o.indexOf(n);
+        i >= 0 && o.splice(i, 1);
+      }
+    }
+  };
+  _e2 = new WeakMap();
+  var ee2 = {
+    cursorFlags: 0,
+    state: "inactive"
+  };
+  var ze = new Qe();
+  function B3() {
+    return ee2;
+  }
+  function Rt(e) {
+    return ze.addListener("change", e);
+  }
+  function Mt(e) {
+    const t = ee2, n = { ...ee2 };
+    n.cursorFlags = e, ee2 = n, ze.emit("change", {
+      prev: t,
+      next: n
+    });
+  }
+  function te(e) {
+    const t = ee2;
+    ee2 = e, ze.emit("change", {
+      prev: t,
+      next: e
+    });
+  }
+  var Et = (e) => e;
+  var ye2 = () => {
+  };
+  var et = 1;
+  var tt = 2;
+  var nt = 4;
+  var ot = 8;
+  var Ie2 = 3;
+  var ke2 = 12;
+  var de2;
+  function De2() {
+    return de2 === void 0 && (de2 = false, typeof window < "u" && (window.navigator.userAgent.includes("Chrome") || window.navigator.userAgent.includes("Firefox")) && (de2 = true)), de2;
+  }
+  function It({
+    cursorFlags: e,
+    groups: t,
+    state: n
+  }) {
+    let o = 0, i = 0;
+    switch (n) {
+      case "active":
+      case "hover":
+        t.forEach((s) => {
+          if (!s.mutableState.disableCursor)
+            switch (s.orientation) {
+              case "horizontal": {
+                o++;
+                break;
+              }
+              case "vertical": {
+                i++;
+                break;
+              }
+            }
+        });
+    }
+    if (!(o === 0 && i === 0)) {
+      switch (n) {
+        case "active": {
+          if (e && De2()) {
+            const s = (e & et) !== 0, u2 = (e & tt) !== 0, a = (e & nt) !== 0, r3 = (e & ot) !== 0;
+            if (s)
+              return a ? "se-resize" : r3 ? "ne-resize" : "e-resize";
+            if (u2)
+              return a ? "sw-resize" : r3 ? "nw-resize" : "w-resize";
+            if (a)
+              return "s-resize";
+            if (r3)
+              return "n-resize";
+          }
+          break;
+        }
+      }
+      return De2() ? o > 0 && i > 0 ? "move" : o > 0 ? "ew-resize" : "ns-resize" : o > 0 && i > 0 ? "grab" : o > 0 ? "col-resize" : "row-resize";
+    }
+  }
+  var Te2 = /* @__PURE__ */ new WeakMap();
+  function xe2(e) {
+    if (e.defaultView === null || e.defaultView === void 0)
+      return;
+    let { prevStyle: t, styleSheet: n } = Te2.get(e) ?? {};
+    n === void 0 && (n = new e.defaultView.CSSStyleSheet(), e.adoptedStyleSheets && (Object.isExtensible(e.adoptedStyleSheets) ? e.adoptedStyleSheets.push(n) : e.adoptedStyleSheets = [
+      ...e.adoptedStyleSheets,
+      n
+    ]));
+    const o = B3();
+    switch (o.state) {
+      case "active":
+      case "hover": {
+        const i = It({
+          cursorFlags: o.cursorFlags,
+          groups: o.hitRegions.map((u2) => u2.group),
+          state: o.state
+        }), s = `*, *:hover {cursor: ${i} !important; }`;
+        if (t === s)
+          return;
+        t = s, i ? n.cssRules.length === 0 ? n.insertRule(s) : n.replaceSync(s) : n.cssRules.length === 1 && n.deleteRule(0);
+        break;
+      }
+      case "inactive": {
+        t = void 0, n.cssRules.length === 1 && n.deleteRule(0);
+        break;
+      }
+    }
+    Te2.set(e, {
+      prevStyle: t,
+      styleSheet: n
+    });
+  }
+  var F = /* @__PURE__ */ new Map();
+  var it = new Qe();
+  function kt(e) {
+    F = new Map(F), F.delete(e);
+  }
+  function Oe(e, t) {
+    for (const [n] of F)
+      if (n.id === e)
+        return n;
+  }
+  function H2(e, t) {
+    for (const [n, o] of F)
+      if (n.id === e)
+        return o;
+    if (t)
+      throw Error(`Could not find data for Group with id ${e}`);
+  }
+  function X3() {
+    return F;
+  }
+  function Pe2(e, t) {
+    return it.addListener("groupChange", (n) => {
+      n.group.id === e && t(n);
+    });
+  }
+  function j(e, t, n) {
+    const o = F.get(e);
+    F = new Map(F), F.set(e, t), it.emit("groupChange", {
+      group: e,
+      isUserInteraction: n?.isUserInteraction === true,
+      prev: o,
+      next: t
+    });
+  }
+  function rt(e) {
+    const t = B3();
+    let n = false;
+    switch (t.state) {
+      case "active":
+        te({
+          cursorFlags: 0,
+          state: "inactive"
+        }), t.hitRegions.length > 0 && (xe2(e), n = true, t.hitRegions.forEach((o) => {
+          const i = H2(o.group.id, true);
+          j(o.group, i, {
+            isUserInteraction: true
+          });
+        }));
+    }
+    return n;
+  }
+  function Ge(e) {
+    e.defaultPrevented || rt(e.currentTarget);
+  }
+  function Dt(e, t, n) {
+    let o, i = {
+      x: 1 / 0,
+      y: 1 / 0
+    };
+    for (const s of t) {
+      const u2 = Je(n, s.rect);
+      switch (e) {
+        case "horizontal": {
+          u2.x <= i.x && (o = s, i = u2);
+          break;
+        }
+        case "vertical": {
+          u2.y <= i.y && (o = s, i = u2);
+          break;
+        }
+      }
+    }
+    return o ? {
+      distance: i,
+      hitRegion: o
+    } : void 0;
+  }
+  function Tt(e) {
+    return e !== null && typeof e == "object" && "nodeType" in e && e.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
+  }
+  function Ot(e, t) {
+    if (e === t) throw new Error("Cannot compare node with itself");
+    const n = {
+      a: Ne(e),
+      b: Ne(t)
+    };
+    let o;
+    for (; n.a.at(-1) === n.b.at(-1); )
+      o = n.a.pop(), n.b.pop();
+    C(
+      o,
+      "Stacking order can only be calculated for elements with a common ancestor"
+    );
+    const i = {
+      a: Fe(Ae(n.a)),
+      b: Fe(Ae(n.b))
+    };
+    if (i.a === i.b) {
+      const s = o.childNodes, u2 = {
+        a: n.a.at(-1),
+        b: n.b.at(-1)
+      };
+      let a = s.length;
+      for (; a--; ) {
+        const r3 = s[a];
+        if (r3 === u2.a) return 1;
+        if (r3 === u2.b) return -1;
+      }
+    }
+    return Math.sign(i.a - i.b);
+  }
+  var Gt = /\b(?:position|zIndex|opacity|transform|webkitTransform|mixBlendMode|filter|webkitFilter|isolation)\b/;
+  function At(e) {
+    const t = getComputedStyle(st(e) ?? e).display;
+    return t === "flex" || t === "inline-flex";
+  }
+  function Ft(e) {
+    const t = getComputedStyle(e);
+    return !!(t.position === "fixed" || t.zIndex !== "auto" && (t.position !== "static" || At(e)) || +t.opacity < 1 || "transform" in t && t.transform !== "none" || "webkitTransform" in t && t.webkitTransform !== "none" || "mixBlendMode" in t && t.mixBlendMode !== "normal" || "filter" in t && t.filter !== "none" || "webkitFilter" in t && t.webkitFilter !== "none" || "isolation" in t && t.isolation === "isolate" || Gt.test(t.willChange) || t.webkitOverflowScrolling === "touch");
+  }
+  function Ae(e) {
+    let t = e.length;
+    for (; t--; ) {
+      const n = e[t];
+      if (C(n, "Missing node"), Ft(n)) return n;
     }
     return null;
   }
-  function getInitialObjectKey(context) {
-    const fromInitial = context.initialQuery?.parameters?.objectKey;
-    const fromPayload = context.payload?.parameters?.objectKey;
-    const value = Array.isArray(fromInitial) ? fromInitial[0] : fromInitial || fromPayload;
-    return typeof value === "string" && value.trim() ? value.trim() : "company";
+  function Fe(e) {
+    return e && Number(getComputedStyle(e).zIndex) || 0;
   }
-  function getColumnsFromKeys(fields, columnKeys) {
-    const normalized = columnKeys.map((key) => fields.find((field) => field.fieldKey === key)).filter((field) => Boolean(field)).slice(0, 7);
-    return normalized.length ? normalized : fields.slice(0, 7);
+  function Ne(e) {
+    const t = [];
+    for (; e; )
+      t.push(e), e = st(e);
+    return t;
   }
-  function getDefaultColumnKeys(data, fields) {
-    const view = data?.views?.find((item) => item.isDefault) ?? data?.views?.[0];
-    const keys = Array.isArray(view?.columns) && view.columns.length ? view.columns : fields.slice(0, 6).map((field) => field.fieldKey);
-    return getColumnsFromKeys(fields, keys).map((field) => field.fieldKey);
+  function st(e) {
+    const { parentNode: t } = e;
+    return Tt(t) ? t.host : t;
   }
-  function getRelationLabels(data) {
-    const value = data?.meta?.relationLabels;
-    if (!isObject(value)) return {};
-    const relationLabels = {};
-    Object.entries(value).forEach(([fieldKey, labels]) => {
-      if (!isObject(labels)) return;
-      relationLabels[fieldKey] = Object.fromEntries(Object.entries(labels).map(([recordId, label]) => [recordId, String(label)]));
-    });
-    return relationLabels;
+  function Nt(e, t) {
+    return e.x < t.x + t.width && e.x + e.width > t.x && e.y < t.y + t.height && e.y + e.height > t.y;
   }
-  function getRelatedRecordSections(data) {
-    const value = data?.meta?.relatedRecords;
-    if (!Array.isArray(value)) return [];
-    return value.filter(isObject).map((section) => ({
-      objectKey: typeof section.objectKey === "string" ? section.objectKey : "",
-      objectLabel: typeof section.objectLabel === "string" ? section.objectLabel : void 0,
-      objectPluralLabel: typeof section.objectPluralLabel === "string" ? section.objectPluralLabel : void 0,
-      relationFieldKey: typeof section.relationFieldKey === "string" ? section.relationFieldKey : "",
-      relationFieldLabel: typeof section.relationFieldLabel === "string" ? section.relationFieldLabel : void 0,
-      fields: Array.isArray(section.fields) ? section.fields : [],
-      items: Array.isArray(section.items) ? section.items : [],
-      total: typeof section.total === "number" ? section.total : 0
-    })).filter((section) => section.objectKey && section.relationFieldKey && section.total > 0);
-  }
-  function getTimelineItems(data) {
-    const value = data?.meta?.timeline;
-    if (!Array.isArray(value)) return [];
-    return value.filter(isObject).map((item) => ({
-      id: typeof item.id === "string" ? item.id : "",
-      type: normalizeTimelineType(item.type),
-      objectKey: typeof item.objectKey === "string" ? item.objectKey : null,
-      recordId: typeof item.recordId === "string" ? item.recordId : null,
-      title: typeof item.title === "string" && item.title.trim() ? item.title : "Activity",
-      body: typeof item.body === "string" && item.body.trim() ? item.body : void 0,
-      status: typeof item.status === "string" && item.status.trim() ? item.status : void 0,
-      occurredAt: stringifyDate(item.occurredAt),
-      createdAt: stringifyDate(item.createdAt),
-      updatedAt: stringifyDate(item.updatedAt)
-    })).filter((item) => item.id);
-  }
-  function toFormValues(fields, values, includeDefaults = false) {
-    const form = {};
-    fields.forEach((field) => {
-      if (!field.fieldKey) return;
-      if (Object.prototype.hasOwnProperty.call(values, field.fieldKey)) {
-        form[field.fieldKey] = values[field.fieldKey];
-      } else if (includeDefaults && field.defaultValue !== void 0) {
-        form[field.fieldKey] = field.defaultValue;
-      } else {
-        form[field.fieldKey] = field.type === "boolean" ? false : "";
+  function _t({
+    groupElement: e,
+    hitRegion: t,
+    pointerEventTarget: n
+  }) {
+    if (!Ye(n) || n.contains(e) || e.contains(n))
+      return true;
+    if (Ot(n, e) > 0) {
+      let o = n;
+      for (; o; ) {
+        if (o.contains(e))
+          return true;
+        if (Nt(o.getBoundingClientRect(), t))
+          return false;
+        o = o.parentElement;
       }
-    });
-    return form;
+    }
+    return true;
   }
-  function normalizeFormValues(fields, form) {
-    const values = {};
-    fields.forEach((field) => {
-      const value = form[field.fieldKey];
-      if (field.type === "boolean") {
-        values[field.fieldKey] = Boolean(value);
+  function we2(e, t) {
+    const n = [];
+    return t.forEach((o, i) => {
+      if (i.disabled)
         return;
+      const s = Ze(i), u2 = Dt(i.orientation, s, {
+        x: e.clientX,
+        y: e.clientY
+      });
+      u2 && u2.distance.x <= 0 && u2.distance.y <= 0 && _t({
+        groupElement: i.element,
+        hitRegion: u2.hitRegion.rect,
+        pointerEventTarget: e.target
+      }) && n.push(u2.hitRegion);
+    }), n;
+  }
+  function $t(e, t) {
+    if (e.length !== t.length)
+      return false;
+    for (let n = 0; n < e.length; n++)
+      if (e[n] != t[n])
+        return false;
+    return true;
+  }
+  function k3(e, t, n = 0) {
+    return Math.abs(T2(e) - T2(t)) <= n;
+  }
+  function A(e, t) {
+    return k3(e, t) ? 0 : e > t ? 1 : -1;
+  }
+  function Z2({
+    overrideDisabledPanels: e,
+    panelConstraints: t,
+    prevSize: n,
+    size: o
+  }) {
+    const {
+      collapsedSize: i = 0,
+      collapsible: s,
+      disabled: u2,
+      maxSize: a = 100,
+      minSize: r3 = 0
+    } = t;
+    if (u2 && !e)
+      return n;
+    if (A(o, r3) < 0)
+      if (s) {
+        const l = (i + r3) / 2;
+        A(o, l) < 0 ? o = i : o = r3;
+      } else
+        o = r3;
+    return o = Math.min(a, o), o = T2(o), o;
+  }
+  function le2({
+    delta: e,
+    initialLayout: t,
+    panelConstraints: n,
+    pivotIndices: o,
+    prevLayout: i,
+    trigger: s
+  }) {
+    if (k3(e, 0))
+      return t;
+    const u2 = s === "imperative-api", a = Object.values(t), r3 = Object.values(i), l = [...a], [c, m2] = o;
+    C(c != null, "Invalid first pivot index"), C(m2 != null, "Invalid second pivot index");
+    let p2 = 0;
+    switch (s) {
+      case "keyboard": {
+        {
+          const f = e < 0 ? m2 : c, d = n[f];
+          C(
+            d,
+            `Panel constraints not found for index ${f}`
+          );
+          const {
+            collapsedSize: h = 0,
+            collapsible: y,
+            minSize: b = 0
+          } = d;
+          if (y) {
+            const v = a[f];
+            if (C(
+              v != null,
+              `Previous layout not found for panel index ${f}`
+            ), k3(v, h)) {
+              const g = b - v;
+              A(g, Math.abs(e)) > 0 && (e = e < 0 ? 0 - g : g);
+            }
+          }
+        }
+        {
+          const f = e < 0 ? c : m2, d = n[f];
+          C(
+            d,
+            `No panel constraints found for index ${f}`
+          );
+          const {
+            collapsedSize: h = 0,
+            collapsible: y,
+            minSize: b = 0
+          } = d;
+          if (y) {
+            const v = a[f];
+            if (C(
+              v != null,
+              `Previous layout not found for panel index ${f}`
+            ), k3(v, b)) {
+              const g = v - h;
+              A(g, Math.abs(e)) > 0 && (e = e < 0 ? 0 - g : g);
+            }
+          }
+        }
+        break;
       }
-      if (value === void 0 || value === null) return;
-      if (typeof value === "string" && value.trim() === "") return;
-      values[field.fieldKey] = value;
-    });
-    return values;
-  }
-  function displayRecordTitle(record, fields, t) {
-    const values = record.values ?? {};
-    const title = values.name || [values.firstName, values.lastName].filter(Boolean).join(" ") || values.title || fields.map((field) => values[field.fieldKey]).find(Boolean);
-    return title ? String(title) : record.id || t.untitled;
-  }
-  function formatText(value, field, _fields, t) {
-    if (value === void 0 || value === null || value === "") return t.noValue;
-    const text = String(value);
-    if (field.type === "rich_text" && text.length > 96) return `${text.slice(0, 96)}...`;
-    if (text.length > 64) return `${text.slice(0, 64)}...`;
-    return text;
-  }
-  function formatCurrency(value, locale) {
-    const numberValue = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(numberValue)) return String(value);
-    return numberValue.toLocaleString(locale === "zh_Hans" ? "zh-CN" : "en-US", {
-      style: "currency",
-      currency: "CNY",
-      maximumFractionDigits: 0
-    });
-  }
-  function formatDate(value, locale) {
-    if (!value) return "";
-    const date = new Date(String(value));
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleDateString(locale === "zh_Hans" ? "zh-CN" : "en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
-  }
-  function resolveText(value, locale) {
-    if (!value) return "";
-    if (typeof value === "string") return value;
-    if (isObject(value)) {
-      const preferred = locale === "zh_Hans" ? value.zh_Hans : value.en_US;
-      const fallback = locale === "zh_Hans" ? value.en_US : value.zh_Hans;
-      return String(preferred || fallback || "");
+      default: {
+        const f = e < 0 ? m2 : c, d = n[f];
+        C(
+          d,
+          `Panel constraints not found for index ${f}`
+        );
+        const h = a[f], { collapsible: y, collapsedSize: b, minSize: v } = d;
+        if (y && A(h, v) < 0)
+          if (e > 0) {
+            const g = v - b, w = g / 2, M = h + e;
+            A(M, v) < 0 && (e = A(e, w) <= 0 ? 0 : g);
+          } else {
+            const g = v - b, w = 100 - g / 2, M = h - e;
+            A(M, v) < 0 && (e = A(100 + e, w) > 0 ? 0 : -g);
+          }
+        break;
+      }
     }
-    return String(value);
-  }
-  function objectIcon(object) {
-    const key = object.objectKey || "";
-    const icon = object.icon || "";
-    if (key === "company" || icon.includes("building")) return "building";
-    if (key === "person" || icon.includes("contacts")) return "person";
-    if (key === "opportunity" || icon.includes("line-chart")) return "target";
-    if (key === "task" || icon.includes("checkbox")) return "check";
-    if (key === "note" || icon.includes("note")) return "note";
-    if (key === "workflow") return "workflow";
-    return "grid";
-  }
-  function fieldIcon(field) {
-    if (field.type === "url") return "link";
-    if (field.type === "email") return "mail";
-    if (field.type === "phone") return "phone";
-    if (field.type === "date" || field.type === "datetime") return "calendar";
-    if (field.type === "currency" || field.type === "number") return "money";
-    if (field.type === "relation") return "link";
-    if (field.type === "select" || field.type === "multi_select") return "list";
-    if (field.fieldKey?.toLowerCase().includes("owner")) return "person";
-    return "hash";
-  }
-  function columnWidth(field, index2) {
-    if (index2 === 0) return 240;
-    if (field.type === "url" || field.type === "email") return 220;
-    if (field.type === "phone") return 170;
-    if (field.type === "select" || field.type === "multi_select") return 180;
-    if (field.type === "currency" || field.type === "number") return 150;
-    if (field.type === "date" || field.type === "datetime") return 160;
-    if (field.type === "boolean") return 130;
-    if (field.type === "relation") return 210;
-    if (field.type === "rich_text") return 280;
-    return 220;
-  }
-  function sortRecords(records, field, sortMode) {
-    if (!field || sortMode === "server") return records;
-    return [...records].sort((a, b) => {
-      const left = String(a.values?.[field.fieldKey] ?? "");
-      const right = String(b.values?.[field.fieldKey] ?? "");
-      return sortMode === "asc" ? left.localeCompare(right) : right.localeCompare(left);
-    });
-  }
-  function countNonEmpty(records, fieldKey) {
-    return records.filter((record) => {
-      const value = record.values?.[fieldKey];
-      return value !== void 0 && value !== null && String(value).trim() !== "";
-    }).length;
-  }
-  function recordInitial(title) {
-    const trimmed = title.trim();
-    if (!trimmed) return "#";
-    const firstTwo = trimmed.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("");
-    return firstTwo.slice(0, 2).toUpperCase();
-  }
-  function isUrlLike(value) {
-    return /^https?:\/\//i.test(value) || /^[a-z0-9-]+\.[a-z]{2,}/i.test(value);
-  }
-  function shortUrl(value) {
-    try {
-      const url = new URL(value.startsWith("http") ? value : `https://${value}`);
-      return url.hostname.replace(/^www\./, "");
-    } catch {
-      return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
+    {
+      const f = e < 0 ? 1 : -1;
+      let d = e < 0 ? m2 : c, h = 0;
+      for (; ; ) {
+        const b = a[d];
+        C(
+          b != null,
+          `Previous layout not found for panel index ${d}`
+        );
+        const g = Z2({
+          overrideDisabledPanels: u2,
+          panelConstraints: n[d],
+          prevSize: b,
+          size: 100
+        }) - b;
+        if (h += g, d += f, d < 0 || d >= n.length)
+          break;
+      }
+      const y = Math.min(Math.abs(e), Math.abs(h));
+      e = e < 0 ? 0 - y : y;
     }
-  }
-  function stringifyDate(value) {
-    if (value === void 0 || value === null || value === "") return void 0;
-    return String(value);
-  }
-  function normalizeTimelineType(value) {
-    if (value === "note" || value === "task") return value;
-    return "activity";
-  }
-
-  // src/lib/remote-components/crm-workbench/src/bridge.ts
-  var CHANNEL = "xpertai.remote_component";
-  var VERSION = 1;
-  var instanceId = null;
-  var requestSequence = 0;
-  var pending = /* @__PURE__ */ new Map();
-  function installBridgeListener(handlers) {
-    const listener = (event) => {
-      const rawMessage = event.data;
-      if (!isObject(rawMessage) || rawMessage.channel !== CHANNEL || rawMessage.protocolVersion !== VERSION) return;
-      const message = rawMessage;
-      if (message.type === "init") {
-        instanceId = typeof message.instanceId === "string" ? message.instanceId : null;
-        handlers.onInit({
-          manifest: message.manifest,
-          payload: message.payload,
-          initialQuery: message.initialQuery ?? {},
-          locale: message.locale,
-          theme: message.theme
+    {
+      let d = e < 0 ? c : m2;
+      for (; d >= 0 && d < n.length; ) {
+        const h = Math.abs(e) - Math.abs(p2), y = a[d];
+        C(
+          y != null,
+          `Previous layout not found for panel index ${d}`
+        );
+        const b = y - h, v = Z2({
+          overrideDisabledPanels: u2,
+          panelConstraints: n[d],
+          prevSize: y,
+          size: b
         });
-        setTimeout(reportResize, 0);
-        return;
+        if (!k3(y, v) && (p2 += y - v, l[d] = v, p2.toFixed(3).localeCompare(Math.abs(e).toFixed(3), void 0, {
+          numeric: true
+        }) >= 0))
+          break;
+        e < 0 ? d-- : d++;
       }
-      if (message.instanceId !== instanceId) return;
-      if (message.type === "hostEvent") {
-        handlers.onHostEvent();
-        return;
-      }
-      const requestId = typeof message.requestId === "string" ? message.requestId : "";
-      if (requestId && pending.has(requestId)) {
-        const item = pending.get(requestId);
-        pending.delete(requestId);
-        if (!item) return;
-        if (message.type === "error") {
-          item.reject(new Error(typeof message.message === "string" ? message.message : "Remote CRM request failed"));
-        } else {
-          item.resolve(message);
+    }
+    if ($t(r3, l))
+      return i;
+    {
+      const f = e < 0 ? m2 : c, d = a[f];
+      C(
+        d != null,
+        `Previous layout not found for panel index ${f}`
+      );
+      const h = d + p2, y = Z2({
+        overrideDisabledPanels: u2,
+        panelConstraints: n[f],
+        prevSize: d,
+        size: h
+      });
+      if (l[f] = y, !k3(y, h)) {
+        let b = h - y, g = e < 0 ? m2 : c;
+        for (; g >= 0 && g < n.length; ) {
+          const w = l[g];
+          C(
+            w != null,
+            `Previous layout not found for panel index ${g}`
+          );
+          const M = w + b, L2 = Z2({
+            overrideDisabledPanels: u2,
+            panelConstraints: n[g],
+            prevSize: w,
+            size: M
+          });
+          if (k3(w, L2) || (b -= L2 - w, l[g] = L2), k3(b, 0))
+            break;
+          e > 0 ? g-- : g++;
         }
       }
-    };
-    window.addEventListener("message", listener);
-    return () => window.removeEventListener("message", listener);
-  }
-  function post(type, body) {
-    if (!instanceId && type !== "ready") return;
-    window.parent.postMessage(
-      {
-        channel: CHANNEL,
-        protocolVersion: VERSION,
-        instanceId,
-        type,
-        ...body ?? {}
-      },
-      "*"
+    }
+    const S = Object.values(l).reduce(
+      (f, d) => d + f,
+      0
     );
+    if (!k3(S, 100, 0.1))
+      return i;
+    const z = Object.keys(i);
+    return l.reduce((f, d, h) => (f[z[h]] = d, f), {});
   }
-  function request(type, body) {
-    const requestId = String(++requestSequence);
-    return new Promise((resolve, reject) => {
-      pending.set(requestId, { resolve, reject });
-      try {
-        post(type, { requestId, ...body ?? {} });
-      } catch (error) {
-        pending.delete(requestId);
-        reject(error instanceof Error ? error : new Error(String(error)));
+  function W2(e, t) {
+    if (Object.keys(e).length !== Object.keys(t).length)
+      return false;
+    for (const n in e)
+      if (t[n] === void 0 || A(e[n], t[n]) !== 0)
+        return false;
+    return true;
+  }
+  function K3({
+    layout: e,
+    panelConstraints: t
+  }) {
+    const n = Object.values(e), o = [...n], i = o.reduce(
+      (a, r3) => a + r3,
+      0
+    );
+    if (o.length !== t.length)
+      throw Error(
+        `Invalid ${t.length} panel layout: ${o.map((a) => `${a}%`).join(", ")}`
+      );
+    if (!k3(i, 100) && o.length > 0)
+      for (let a = 0; a < t.length; a++) {
+        const r3 = o[a];
+        C(r3 != null, `No layout data found for index ${a}`);
+        const l = 100 / i * r3;
+        o[a] = l;
+      }
+    let s = 0;
+    for (let a = 0; a < t.length; a++) {
+      const r3 = n[a];
+      C(r3 != null, `No layout data found for index ${a}`);
+      const l = o[a];
+      C(l != null, `No layout data found for index ${a}`);
+      const c = Z2({
+        overrideDisabledPanels: true,
+        panelConstraints: t[a],
+        prevSize: r3,
+        size: l
+      });
+      l != c && (s += l - c, o[a] = c);
+    }
+    if (!k3(s, 0))
+      for (let a = 0; a < t.length; a++) {
+        const r3 = o[a];
+        C(r3 != null, `No layout data found for index ${a}`);
+        const l = r3 + s, c = Z2({
+          overrideDisabledPanels: true,
+          panelConstraints: t[a],
+          prevSize: r3,
+          size: l
+        });
+        if (r3 !== c && (s -= c - r3, o[a] = c, k3(s, 0)))
+          break;
+      }
+    const u2 = Object.keys(e);
+    return o.reduce((a, r3, l) => (a[u2[l]] = r3, a), {});
+  }
+  function at({
+    groupId: e,
+    panelId: t
+  }) {
+    const n = () => {
+      const r3 = X3();
+      for (const [
+        l,
+        {
+          defaultLayoutDeferred: c,
+          derivedPanelConstraints: m2,
+          layout: p2,
+          groupSize: S,
+          separatorToPanels: z
+        }
+      ] of r3)
+        if (l.id === e)
+          return {
+            defaultLayoutDeferred: c,
+            derivedPanelConstraints: m2,
+            group: l,
+            groupSize: S,
+            layout: p2,
+            separatorToPanels: z
+          };
+      throw Error(`Group ${e} not found`);
+    }, o = () => {
+      const r3 = n().derivedPanelConstraints.find(
+        (l) => l.panelId === t
+      );
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Panel constraints not found for Panel ${t}`);
+    }, i = () => {
+      const r3 = n().group.panels.find((l) => l.id === t);
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Layout not found for Panel ${t}`);
+    }, s = () => {
+      const r3 = n().layout[t];
+      if (r3 !== void 0)
+        return r3;
+      throw Error(`Layout not found for Panel ${t}`);
+    }, u2 = ({
+      nextSize: r3,
+      panels: l,
+      prevLayout: c,
+      derivedPanelConstraints: m2
+    }) => {
+      const p2 = s(), S = l.findIndex((h) => h.id === t), z = S === 0, f = S === l.length - 1;
+      if (f && r3 < p2 && (z || l.slice(0, S).every((h, y) => {
+        const b = m2[y];
+        return b?.collapsible && k3(b.collapsedSize, c[b.panelId]);
+      }))) {
+        const h = l.slice(0, S).reduce((y, b) => y + c[b.id], 0);
+        return {
+          ...c,
+          [t]: T2(100 - h)
+        };
+      }
+      return le2({
+        delta: f ? p2 - r3 : r3 - p2,
+        initialLayout: c,
+        panelConstraints: m2,
+        pivotIndices: f ? [S - 1, S] : [S, S + 1],
+        prevLayout: c,
+        trigger: "imperative-api"
+      });
+    }, a = (r3) => {
+      const l = s();
+      if (r3 === l)
+        return;
+      const {
+        defaultLayoutDeferred: c,
+        derivedPanelConstraints: m2,
+        group: p2,
+        groupSize: S,
+        layout: z,
+        separatorToPanels: f
+      } = n(), d = u2({
+        nextSize: r3,
+        panels: p2.panels,
+        prevLayout: z,
+        derivedPanelConstraints: m2
+      }), h = K3({
+        layout: d,
+        panelConstraints: m2
+      });
+      W2(z, h) || j(p2, {
+        defaultLayoutDeferred: c,
+        derivedPanelConstraints: m2,
+        groupSize: S,
+        layout: h,
+        separatorToPanels: f
+      });
+    };
+    return {
+      collapse: () => {
+        const { collapsible: r3, collapsedSize: l } = o(), { mutableValues: c } = i(), m2 = s();
+        r3 && m2 !== l && (c.expandToSize = m2, a(l));
+      },
+      expand: () => {
+        const { collapsible: r3, collapsedSize: l, minSize: c } = o(), { mutableValues: m2 } = i(), p2 = s();
+        if (r3 && p2 === l) {
+          let S = m2.expandToSize ?? c;
+          S === 0 && (S = 1), a(S);
+        }
+      },
+      getSize: () => {
+        const { group: r3 } = n(), l = s(), { element: c } = i(), m2 = r3.orientation === "horizontal" ? c.offsetWidth : c.offsetHeight;
+        return {
+          asPercentage: l,
+          inPixels: m2
+        };
+      },
+      isCollapsed: () => {
+        const { collapsible: r3, collapsedSize: l } = o(), c = s();
+        return r3 && k3(l, c);
+      },
+      resize: (r3) => {
+        const { group: l } = n(), { element: c } = i(), m2 = ne({ group: l }), p2 = ie({
+          groupSize: m2,
+          panelElement: c,
+          styleProp: r3
+        }), S = T2(p2 / m2 * 100);
+        a(S);
+      }
+    };
+  }
+  function _e3(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = X3();
+    we2(e, t).forEach((o) => {
+      if (o.separator && !o.separator.disableDoubleClick) {
+        const i = o.panels.find(
+          (s) => s.panelConstraints.defaultSize !== void 0
+        );
+        if (i) {
+          const s = i.panelConstraints.defaultSize, u2 = at({
+            groupId: o.group.id,
+            panelId: i.id
+          });
+          u2 && s !== void 0 && (u2.resize(s), e.preventDefault());
+        }
       }
     });
   }
-  function requestData(query) {
-    return request("requestData", { query });
+  function pe2(e) {
+    const t = X3();
+    for (const [n] of t)
+      if (n.separators.some(
+        (o) => o.element === e
+      ))
+        return n;
+    throw Error("Could not find parent Group for separator element");
   }
-  function executeAction(actionKey, targetId, input, parameters) {
-    return request("executeAction", { actionKey, targetId, input, parameters });
+  function lt({
+    groupId: e
+  }) {
+    const t = () => {
+      const n = X3();
+      for (const [o, i] of n)
+        if (o.id === e)
+          return { group: o, ...i };
+      throw Error(`Could not find Group with id "${e}"`);
+    };
+    return {
+      getLayout() {
+        const { defaultLayoutDeferred: n, layout: o } = t();
+        return n ? {} : o;
+      },
+      setLayout(n) {
+        const {
+          defaultLayoutDeferred: o,
+          derivedPanelConstraints: i,
+          group: s,
+          groupSize: u2,
+          layout: a,
+          separatorToPanels: r3
+        } = t(), l = K3({
+          layout: n,
+          panelConstraints: i
+        });
+        return o ? a : (W2(a, l) || j(s, {
+          defaultLayoutDeferred: o,
+          derivedPanelConstraints: i,
+          groupSize: u2,
+          layout: l,
+          separatorToPanels: r3
+        }), l);
+      }
+    };
   }
-  function notify(message, level = "success") {
-    post("notify", { message, level });
+  function U2(e, t) {
+    const n = pe2(e), o = H2(n.id, true), i = n.separators.find(
+      (m2) => m2.element === e
+    );
+    C(i, "Matching separator not found");
+    const s = o.separatorToPanels.get(i);
+    C(s, "Matching panels not found");
+    const u2 = s.map((m2) => n.panels.indexOf(m2)), r3 = lt({ groupId: n.id }).getLayout(), l = le2({
+      delta: t,
+      initialLayout: r3,
+      panelConstraints: o.derivedPanelConstraints,
+      pivotIndices: u2,
+      prevLayout: r3,
+      trigger: "keyboard"
+    }), c = K3({
+      layout: l,
+      panelConstraints: o.derivedPanelConstraints
+    });
+    W2(r3, c) || j(
+      n,
+      {
+        defaultLayoutDeferred: o.defaultLayoutDeferred,
+        derivedPanelConstraints: o.derivedPanelConstraints,
+        groupSize: o.groupSize,
+        layout: c,
+        separatorToPanels: o.separatorToPanels
+      },
+      // Keyboard resizes (arrow keys, Home/End, Enter collapse/expand) originate
+      // from a real DOM event on the separator, so they are user interactions
+      // just like pointer drags. This function is only reached from
+      // onDocumentKeyDown. See #716.
+      { isUserInteraction: true }
+    );
   }
-  function reportResize() {
-    const root2 = document.getElementById("root");
-    const shell = root2?.firstElementChild;
-    const height = Math.max(shell?.scrollHeight ?? 0, 640);
-    post("resize", { height: Math.ceil(height), viewportBound: false });
+  function $e(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = e.currentTarget, n = pe2(t);
+    if (!n.disabled)
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault(), n.orientation === "vertical" && U2(t, 5);
+          break;
+        }
+        case "ArrowLeft": {
+          e.preventDefault(), n.orientation === "horizontal" && U2(t, -5);
+          break;
+        }
+        case "ArrowRight": {
+          e.preventDefault(), n.orientation === "horizontal" && U2(t, 5);
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault(), n.orientation === "vertical" && U2(t, -5);
+          break;
+        }
+        case "End": {
+          e.preventDefault(), U2(t, 100);
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          const o = pe2(t), i = H2(o.id, true), { derivedPanelConstraints: s, layout: u2, separatorToPanels: a } = i, r3 = o.separators.find(
+            (p2) => p2.element === t
+          );
+          C(r3, "Matching separator not found");
+          const l = a.get(r3);
+          C(l, "Matching panels not found");
+          const c = l[0], m2 = s.find(
+            (p2) => p2.panelId === c.id
+          );
+          if (C(m2, "Panel metadata not found"), m2.collapsible) {
+            const p2 = u2[c.id], S = m2.collapsedSize === p2 ? o.mutableState.expandedPanelSizes[c.id] ?? m2.minSize : m2.collapsedSize;
+            U2(t, S - p2);
+          }
+          break;
+        }
+        case "F6": {
+          e.preventDefault();
+          const i = pe2(t).separators.map(
+            (r3) => r3.element
+          ), s = Array.from(i).findIndex(
+            (r3) => r3 === e.currentTarget
+          );
+          C(s !== null, "Index not found");
+          const u2 = e.shiftKey ? s > 0 ? s - 1 : i.length - 1 : s + 1 < i.length ? s + 1 : 0;
+          i[u2].focus({
+            preventScroll: true
+          });
+          break;
+        }
+        case "Home": {
+          e.preventDefault(), U2(t, -100);
+          break;
+        }
+      }
   }
+  function je(e) {
+    if (e.defaultPrevented)
+      return;
+    if (e.pointerType === "mouse" && e.button > 0)
+      return;
+    const t = X3(), n = we2(e, t), o = /* @__PURE__ */ new Map();
+    let i = false;
+    n.forEach((s) => {
+      s.separator && (i || (i = true, s.separator.element.focus({
+        // @ts-expect-error https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus#browser_compatibility
+        focusVisible: false,
+        preventScroll: true
+      })));
+      const u2 = t.get(s.group);
+      u2 && o.set(s.group, u2.layout);
+    }), te({
+      cursorFlags: 0,
+      hitRegions: n,
+      initialLayoutMap: o,
+      pointerDownAtPoint: { x: e.clientX, y: e.clientY },
+      state: "active"
+    }), n.length && e.preventDefault();
+  }
+  function ut({
+    document: e,
+    event: t,
+    hitRegions: n,
+    initialLayoutMap: o,
+    mountedGroups: i,
+    pointerDownAtPoint: s,
+    prevCursorFlags: u2
+  }) {
+    let a = 0;
+    n.forEach((l) => {
+      const { group: c, groupSize: m2 } = l, { orientation: p2, panels: S } = c, { disableCursor: z } = c.mutableState;
+      let f = 0;
+      s ? p2 === "horizontal" ? f = (t.clientX - s.x) / m2 * 100 : f = (t.clientY - s.y) / m2 * 100 : p2 === "horizontal" ? f = t.clientX < 0 ? -100 : 100 : f = t.clientY < 0 ? -100 : 100;
+      const d = o.get(c), h = i.get(c);
+      if (!d || !h)
+        return;
+      const {
+        defaultLayoutDeferred: y,
+        derivedPanelConstraints: b,
+        groupSize: v,
+        layout: g,
+        separatorToPanels: w
+      } = h;
+      if (b && g && w) {
+        const M = le2({
+          delta: f,
+          initialLayout: d,
+          panelConstraints: b,
+          pivotIndices: l.panels.map((L2) => S.indexOf(L2)),
+          prevLayout: g,
+          trigger: "mouse-or-touch"
+        });
+        if (W2(M, g)) {
+          if (f !== 0 && !z)
+            switch (p2) {
+              case "horizontal": {
+                a |= f < 0 ? et : tt;
+                break;
+              }
+              case "vertical": {
+                a |= f < 0 ? nt : ot;
+                break;
+              }
+            }
+        } else
+          j(l.group, {
+            defaultLayoutDeferred: y,
+            derivedPanelConstraints: b,
+            groupSize: v,
+            layout: M,
+            separatorToPanels: w
+          });
+      }
+    });
+    let r3 = 0;
+    t.movementX === 0 ? r3 |= u2 & Ie2 : r3 |= a & Ie2, t.movementY === 0 ? r3 |= u2 & ke2 : r3 |= a & ke2, Mt(r3), xe2(e);
+  }
+  function He(e) {
+    const t = X3(), n = B3();
+    switch (n.state) {
+      case "active":
+        ut({
+          document: e.currentTarget,
+          event: e,
+          hitRegions: n.hitRegions,
+          initialLayoutMap: n.initialLayoutMap,
+          mountedGroups: t,
+          prevCursorFlags: n.cursorFlags
+        });
+    }
+  }
+  function Ve(e) {
+    if (e.defaultPrevented)
+      return;
+    const t = B3(), n = X3();
+    switch (t.state) {
+      case "active": {
+        if (
+          // Skip this check for "pointerleave" events, else Firefox triggers a false positive (see #514)
+          e.buttons === 0
+        ) {
+          te({
+            cursorFlags: 0,
+            state: "inactive"
+          }), t.hitRegions.forEach((o) => {
+            const i = H2(o.group.id, true);
+            j(o.group, i, {
+              isUserInteraction: true
+            });
+          });
+          return;
+        }
+        for (const o of t.hitRegions)
+          if (o.separator) {
+            const { element: i } = o.separator;
+            i.hasPointerCapture?.(e.pointerId) || i.setPointerCapture?.(e.pointerId);
+          }
+        ut({
+          document: e.currentTarget,
+          event: e,
+          hitRegions: t.hitRegions,
+          initialLayoutMap: t.initialLayoutMap,
+          mountedGroups: n,
+          pointerDownAtPoint: t.pointerDownAtPoint,
+          prevCursorFlags: t.cursorFlags
+        });
+        break;
+      }
+      default: {
+        const o = we2(e, n);
+        o.length === 0 ? t.state !== "inactive" && te({
+          cursorFlags: 0,
+          state: "inactive"
+        }) : te({
+          cursorFlags: 0,
+          hitRegions: o,
+          state: "hover"
+        }), xe2(e.currentTarget);
+        break;
+      }
+    }
+  }
+  function Ue(e) {
+    if (e.relatedTarget instanceof HTMLIFrameElement)
+      switch (B3().state) {
+        case "hover":
+          te({
+            cursorFlags: 0,
+            state: "inactive"
+          });
+      }
+  }
+  function Be(e) {
+    if (e.defaultPrevented)
+      return;
+    if (e.pointerType === "mouse" && e.button > 0)
+      return;
+    rt(e.currentTarget) && e.preventDefault();
+  }
+  function We(e) {
+    let t = 0, n = 0;
+    const o = {};
+    for (const s of e)
+      if (s.defaultSize !== void 0) {
+        t++;
+        const u2 = T2(s.defaultSize);
+        n += u2, o[s.panelId] = u2;
+      } else
+        o[s.panelId] = void 0;
+    const i = e.length - t;
+    if (i !== 0) {
+      const s = T2((100 - n) / i);
+      for (const u2 of e)
+        u2.defaultSize === void 0 && (o[u2.panelId] = s);
+    }
+    return o;
+  }
+  function jt(e, t, n) {
+    if (!n[0])
+      return;
+    const i = e.panels.find((l) => l.element === t);
+    if (!i || !i.onResize)
+      return;
+    const s = ne({ group: e }), u2 = e.orientation === "horizontal" ? i.element.offsetWidth : i.element.offsetHeight, a = i.mutableValues.prevSize, r3 = {
+      asPercentage: T2(u2 / s * 100),
+      inPixels: u2
+    };
+    i.mutableValues.prevSize = r3, i.onResize(r3, i.id, a);
+  }
+  function Ht(e, t) {
+    if (Object.keys(e).length !== Object.keys(t).length)
+      return false;
+    for (const o in e)
+      if (e[o] !== t[o])
+        return false;
+    return true;
+  }
+  function Vt({
+    group: e,
+    nextGroupSize: t,
+    prevGroupSize: n,
+    prevLayout: o
+  }) {
+    if (n <= 0 || t <= 0 || n === t)
+      return o;
+    let i = 0, s = 0, u2 = false;
+    const a = /* @__PURE__ */ new Map(), r3 = [];
+    for (const m2 of e.panels) {
+      const p2 = o[m2.id] ?? 0;
+      switch (m2.panelConstraints.groupResizeBehavior) {
+        case "preserve-pixel-size": {
+          u2 = true;
+          const S = p2 / 100 * n, z = T2(
+            S / t * 100
+          );
+          a.set(m2.id, z), i += z;
+          break;
+        }
+        case "preserve-relative-size":
+        default: {
+          r3.push(m2.id), s += p2;
+          break;
+        }
+      }
+    }
+    if (!u2 || r3.length === 0)
+      return o;
+    const l = 100 - i, c = { ...o };
+    if (a.forEach((m2, p2) => {
+      c[p2] = m2;
+    }), s > 0)
+      for (const m2 of r3) {
+        const p2 = o[m2] ?? 0;
+        c[m2] = T2(
+          p2 / s * l
+        );
+      }
+    else {
+      const m2 = T2(
+        l / r3.length
+      );
+      for (const p2 of r3)
+        c[p2] = m2;
+    }
+    return c;
+  }
+  function Ut(e, t) {
+    const n = e.map((i) => i.id), o = Object.keys(t);
+    if (n.length !== o.length)
+      return false;
+    for (const i of n)
+      if (!o.includes(i))
+        return false;
+    return true;
+  }
+  var J2 = /* @__PURE__ */ new Map();
+  function Bt(e) {
+    let t = true;
+    C(
+      e.element.ownerDocument.defaultView,
+      "Cannot register an unmounted Group"
+    );
+    const n = e.element.ownerDocument.defaultView.ResizeObserver, o = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), s = new n((f) => {
+      for (const d of f) {
+        const { borderBoxSize: h, target: y } = d;
+        if (y === e.element) {
+          if (t) {
+            const b = ne({ group: e });
+            if (b === 0)
+              return;
+            const v = H2(e.id);
+            if (!v)
+              return;
+            const g = ve2(e), w = v.defaultLayoutDeferred ? We(g) : v.layout, M = Vt({
+              group: e,
+              nextGroupSize: b,
+              prevGroupSize: v.groupSize,
+              prevLayout: w
+            }), L2 = K3({
+              layout: M,
+              panelConstraints: g
+            });
+            if (!v.defaultLayoutDeferred && W2(v.layout, L2) && Ht(
+              v.derivedPanelConstraints,
+              g
+            ) && v.groupSize === b)
+              return;
+            j(e, {
+              defaultLayoutDeferred: false,
+              derivedPanelConstraints: g,
+              groupSize: b,
+              layout: L2,
+              separatorToPanels: v.separatorToPanels
+            });
+          }
+        } else
+          jt(e, y, h);
+      }
+    });
+    s.observe(e.element), e.panels.forEach((f) => {
+      C(
+        !o.has(f.id),
+        `Panel ids must be unique; id "${f.id}" was used more than once`
+      ), o.add(f.id), f.onResize && s.observe(f.element);
+    });
+    const u2 = ne({ group: e }), a = ve2(e), r3 = e.panels.map(({ id: f }) => f).join(",");
+    let l = e.mutableState.defaultLayout;
+    l && (Ut(e.panels, l) || (l = void 0));
+    const c = e.mutableState.layouts[r3] ?? l ?? We(a), m2 = K3({
+      layout: c,
+      panelConstraints: a
+    }), p2 = e.element.ownerDocument;
+    J2.set(
+      p2,
+      (J2.get(p2) ?? 0) + 1
+    );
+    const S = /* @__PURE__ */ new Map();
+    return Ze(e).forEach((f) => {
+      f.separator && S.set(f.separator, f.panels);
+    }), j(e, {
+      defaultLayoutDeferred: u2 === 0,
+      derivedPanelConstraints: a,
+      groupSize: u2,
+      layout: m2,
+      separatorToPanels: S
+    }), e.separators.forEach((f) => {
+      C(
+        !i.has(f.id),
+        `Separator ids must be unique; id "${f.id}" was used more than once`
+      ), i.add(f.id), f.element.addEventListener("keydown", $e);
+    }), J2.get(p2) === 1 && (p2.addEventListener("contextmenu", Ge, true), p2.addEventListener("dblclick", _e3, true), p2.addEventListener("pointerdown", je, true), p2.addEventListener("pointerleave", He), p2.addEventListener("pointermove", Ve), p2.addEventListener("pointerout", Ue), p2.addEventListener("pointerup", Be, true)), function() {
+      t = false, J2.set(
+        p2,
+        Math.max(0, (J2.get(p2) ?? 0) - 1)
+      ), kt(e), e.separators.forEach((d) => {
+        d.element.removeEventListener("keydown", $e);
+      }), J2.get(p2) || (p2.removeEventListener(
+        "contextmenu",
+        Ge,
+        true
+      ), p2.removeEventListener(
+        "dblclick",
+        _e3,
+        true
+      ), p2.removeEventListener(
+        "pointerdown",
+        je,
+        true
+      ), p2.removeEventListener("pointerleave", He), p2.removeEventListener("pointermove", Ve), p2.removeEventListener("pointerout", Ue), p2.removeEventListener("pointerup", Be, true)), s.disconnect();
+    };
+  }
+  function Wt() {
+    const [e, t] = useState({}), n = useCallback(() => t({}), []);
+    return [e, n];
+  }
+  function Le(e) {
+    const t = useId();
+    return `${e ?? t}`;
+  }
+  var q = typeof window < "u" ? useLayoutEffect : useEffect;
+  function se(e) {
+    const t = useRef(e);
+    return q(() => {
+      t.current = e;
+    }, [e]), useCallback(
+      (...n) => t.current?.(...n),
+      [t]
+    );
+  }
+  function Ce2(...e) {
+    return se((t) => {
+      e.forEach((n) => {
+        if (n)
+          switch (typeof n) {
+            case "function": {
+              n(t);
+              break;
+            }
+            case "object": {
+              n.current = t;
+              break;
+            }
+          }
+      });
+    });
+  }
+  function Re2(e) {
+    const t = useRef({ ...e });
+    return q(() => {
+      for (const n in e)
+        t.current[n] = e[n];
+    }, [e]), t.current;
+  }
+  var ct = createContext(null);
+  function Kt(e, t) {
+    const n = useRef({
+      getLayout: () => ({}),
+      setLayout: Et
+    });
+    useImperativeHandle(t, () => n.current, []), q(() => {
+      Object.assign(
+        n.current,
+        lt({ groupId: e })
+      );
+    });
+  }
+  function Xt({
+    children: e,
+    className: t,
+    defaultLayout: n,
+    disableCursor: o,
+    disabled: i,
+    elementRef: s,
+    groupRef: u2,
+    id: a,
+    onLayoutChange: r3,
+    onLayoutChanged: l,
+    orientation: c = "horizontal",
+    resizeTargetMinimumSize: m2 = {
+      coarse: 20,
+      fine: 10
+    },
+    style: p2,
+    ...S
+  }) {
+    const z = useRef({
+      onLayoutChange: {},
+      onLayoutChanged: {}
+    }), f = se((x) => {
+      W2(z.current.onLayoutChange, x) || (z.current.onLayoutChange = x, r3?.(x));
+    }), d = se(
+      (x, P2) => {
+        W2(z.current.onLayoutChanged, x) || (z.current.onLayoutChanged = x, l?.(x, { isUserInteraction: P2 }));
+      }
+    ), h = Le(a), y = useRef(null), [b, v] = Wt(), g = useRef({
+      lastExpandedPanelSizes: {},
+      layouts: {},
+      panels: [],
+      resizeTargetMinimumSize: m2,
+      separators: []
+    }), w = Ce2(y, s);
+    Kt(h, u2);
+    const M = se(
+      (x, P2) => {
+        const I2 = B3(), R = Oe(x), E = H2(x);
+        if (E) {
+          let D2 = false;
+          switch (I2.state) {
+            case "active": {
+              D2 = I2.hitRegions.some(
+                (V) => V.group === R
+              );
+              break;
+            }
+          }
+          return {
+            flexGrow: E.layout[P2] ?? 1,
+            pointerEvents: D2 ? "none" : void 0
+          };
+        }
+        if (n?.[P2])
+          return {
+            flexGrow: n?.[P2]
+          };
+      }
+    ), L2 = Re2({
+      defaultLayout: n,
+      disableCursor: o
+    }), G2 = useMemo(
+      () => ({
+        get disableCursor() {
+          return !!L2.disableCursor;
+        },
+        getPanelStyles: M,
+        id: h,
+        orientation: c,
+        registerPanel: (x) => {
+          const P2 = g.current;
+          return P2.panels = be2(c, [
+            ...P2.panels,
+            x
+          ]), v(), () => {
+            P2.panels = P2.panels.filter(
+              (I2) => I2 !== x
+            ), v();
+          };
+        },
+        registerSeparator: (x) => {
+          const P2 = g.current;
+          return P2.separators = be2(c, [
+            ...P2.separators,
+            x
+          ]), v(), () => {
+            P2.separators = P2.separators.filter(
+              (I2) => I2 !== x
+            ), v();
+          };
+        },
+        updatePanelProps: (x, { disabled: P2 }) => {
+          const R = g.current.panels.find(
+            (V) => V.id === x
+          );
+          R && (R.panelConstraints.disabled = P2);
+          const E = Oe(h), D2 = H2(h);
+          E && D2 && j(E, {
+            ...D2,
+            derivedPanelConstraints: ve2(E)
+          });
+        },
+        updateSeparatorProps: (x, {
+          disabled: P2,
+          disableDoubleClick: I2
+        }) => {
+          const E = g.current.separators.find(
+            (D2) => D2.id === x
+          );
+          E && (E.disabled = P2, E.disableDoubleClick = I2);
+        }
+      }),
+      [M, h, v, c, L2]
+    ), N2 = useRef(null);
+    return q(() => {
+      const x = y.current;
+      if (x === null)
+        return;
+      const P2 = g.current;
+      let I2;
+      if (L2.defaultLayout !== void 0 && Object.keys(L2.defaultLayout).length === P2.panels.length) {
+        I2 = {};
+        for (const _ of P2.panels) {
+          const Y3 = L2.defaultLayout[_.id];
+          Y3 !== void 0 && (I2[_.id] = Y3);
+        }
+      }
+      const R = {
+        disabled: !!i,
+        element: x,
+        id: h,
+        mutableState: {
+          defaultLayout: I2,
+          disableCursor: !!L2.disableCursor,
+          expandedPanelSizes: g.current.lastExpandedPanelSizes,
+          layouts: g.current.layouts
+        },
+        orientation: c,
+        panels: P2.panels,
+        resizeTargetMinimumSize: P2.resizeTargetMinimumSize,
+        separators: P2.separators
+      };
+      N2.current = R;
+      const E = Bt(R), { defaultLayoutDeferred: D2, derivedPanelConstraints: V, layout: ue2 } = H2(R.id, true);
+      !D2 && V.length > 0 && (f(ue2), d(ue2, false));
+      const oe = Pe2(h, (_) => {
+        const { defaultLayoutDeferred: Y3, derivedPanelConstraints: Ee2, layout: ce2 } = _.next;
+        if (Y3 || Ee2.length === 0)
+          return;
+        const ft = R.panels.map(({ id: $2 }) => $2).join(",");
+        R.mutableState.layouts[ft] = ce2, Ee2.forEach(($2) => {
+          if ($2.collapsible) {
+            const { layout: ge } = _.prev ?? {};
+            if (ge) {
+              const pt = k3(
+                $2.collapsedSize,
+                ce2[$2.panelId]
+              ), ht = k3(
+                $2.collapsedSize,
+                ge[$2.panelId]
+              );
+              pt && !ht && (R.mutableState.expandedPanelSizes[$2.panelId] = ge[$2.panelId]);
+            }
+          }
+        });
+        const dt = B3().state !== "active";
+        f(ce2), dt && d(ce2, _.isUserInteraction);
+      });
+      return () => {
+        N2.current = null, E(), oe();
+      };
+    }, [
+      i,
+      h,
+      d,
+      f,
+      c,
+      b,
+      L2
+    ]), useEffect(() => {
+      const x = N2.current;
+      x && (x.mutableState.defaultLayout = n, x.mutableState.disableCursor = !!o);
+    }), /* @__PURE__ */ jsx(ct.Provider, { value: G2, children: /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...S,
+        className: t,
+        "data-group": true,
+        "data-testid": h,
+        id: h,
+        ref: w,
+        style: {
+          height: "100%",
+          width: "100%",
+          overflow: "hidden",
+          ...p2,
+          display: "flex",
+          flexDirection: c === "horizontal" ? "row" : "column",
+          flexWrap: "nowrap",
+          // Inform the browser that the library is handling touch events for this element
+          // but still allow users to scroll content within panels in the non-resizing direction
+          // NOTE This is not an inherited style
+          // See github.com/bvaughn/react-resizable-panels/issues/662
+          touchAction: c === "horizontal" ? "pan-y" : "pan-x"
+        },
+        children: e
+      }
+    ) });
+  }
+  Xt.displayName = "Group";
+  function Me2() {
+    const e = useContext(ct);
+    return C(
+      e,
+      "Group Context not found; did you render a Panel or Separator outside of a Group?"
+    ), e;
+  }
+  function Jt(e, t) {
+    const { id: n } = Me2(), o = useRef({
+      collapse: ye2,
+      expand: ye2,
+      getSize: () => ({
+        asPercentage: 0,
+        inPixels: 0
+      }),
+      isCollapsed: () => false,
+      resize: ye2
+    });
+    useImperativeHandle(t, () => o.current, []), q(() => {
+      Object.assign(
+        o.current,
+        at({ groupId: n, panelId: e })
+      );
+    });
+  }
+  function Zt({
+    children: e,
+    className: t,
+    collapsedSize: n = "0%",
+    collapsible: o = false,
+    defaultSize: i,
+    disabled: s,
+    elementRef: u2,
+    groupResizeBehavior: a = "preserve-relative-size",
+    id: r3,
+    maxSize: l = "100%",
+    minSize: c = "0%",
+    onResize: m2,
+    panelRef: p2,
+    style: S,
+    ...z
+  }) {
+    const f = !!r3, d = Le(r3), h = Re2({
+      disabled: s
+    }), y = useRef(null), b = Ce2(y, u2), {
+      getPanelStyles: v,
+      id: g,
+      orientation: w,
+      registerPanel: M,
+      updatePanelProps: L2
+    } = Me2(), G2 = m2 !== null, N2 = se(
+      (R, E, D2) => {
+        m2?.(R, r3, D2);
+      }
+    );
+    q(() => {
+      const R = y.current;
+      if (R !== null) {
+        const E = {
+          element: R,
+          id: d,
+          idIsStable: f,
+          mutableValues: {
+            expandToSize: void 0,
+            prevSize: void 0
+          },
+          onResize: G2 ? N2 : void 0,
+          panelConstraints: {
+            groupResizeBehavior: a,
+            collapsedSize: n,
+            collapsible: o,
+            defaultSize: i,
+            disabled: h.disabled,
+            maxSize: l,
+            minSize: c
+          }
+        };
+        return M(E);
+      }
+    }, [
+      a,
+      n,
+      o,
+      i,
+      G2,
+      d,
+      f,
+      l,
+      c,
+      N2,
+      M,
+      h
+    ]), useEffect(() => {
+      L2(d, { disabled: s });
+    }, [s, d, L2]), Jt(d, p2);
+    const x = () => {
+      const R = v(g, d);
+      if (R)
+        return JSON.stringify(R);
+    }, P2 = useSyncExternalStore(
+      (R) => Pe2(g, R),
+      x,
+      x
+    );
+    let I2;
+    return P2 ? I2 = JSON.parse(P2) : i !== void 0 ? I2 = {
+      flexGrow: void 0,
+      flexShrink: void 0,
+      flexBasis: i
+    } : I2 = { flexGrow: 1 }, /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...z,
+        "data-disabled": s || void 0,
+        "data-panel": true,
+        "data-testid": d,
+        id: d,
+        ref: b,
+        style: {
+          ...Qt,
+          display: "flex",
+          flexBasis: 0,
+          flexShrink: 1,
+          overflow: "visible",
+          ...I2
+        },
+        children: /* @__PURE__ */ jsx(
+          "div",
+          {
+            className: t,
+            style: {
+              maxHeight: "100%",
+              maxWidth: "100%",
+              flexGrow: 1,
+              overflow: "auto",
+              ...S,
+              // Inform the browser that the library is handling touch events for this element
+              // but still allow users to scroll content within panels in the non-resizing direction
+              // NOTE This is not an inherited style
+              // See github.com/bvaughn/react-resizable-panels/issues/662
+              touchAction: w === "horizontal" ? "pan-y" : "pan-x"
+            },
+            children: e
+          }
+        )
+      }
+    );
+  }
+  Zt.displayName = "Panel";
+  var Qt = {
+    minHeight: 0,
+    maxHeight: "100%",
+    height: "auto",
+    minWidth: 0,
+    maxWidth: "100%",
+    width: "auto",
+    border: "none",
+    borderWidth: 0,
+    padding: 0,
+    margin: 0
+  };
+  function en({
+    layout: e,
+    panelConstraints: t,
+    panelId: n,
+    panelIndex: o
+  }) {
+    let i, s;
+    const u2 = e[n], a = t.find(
+      (r3) => r3.panelId === n
+    );
+    if (a) {
+      const r3 = a.maxSize, l = a.collapsible ? a.collapsedSize : a.minSize, c = [o, o + 1];
+      s = K3({
+        layout: le2({
+          delta: l - u2,
+          initialLayout: e,
+          panelConstraints: t,
+          pivotIndices: c,
+          prevLayout: e
+        }),
+        panelConstraints: t
+      })[n], i = K3({
+        layout: le2({
+          delta: r3 - u2,
+          initialLayout: e,
+          panelConstraints: t,
+          pivotIndices: c,
+          prevLayout: e
+        }),
+        panelConstraints: t
+      })[n];
+    }
+    return {
+      valueControls: n,
+      valueMax: i,
+      valueMin: s,
+      valueNow: u2
+    };
+  }
+  function tn({
+    children: e,
+    className: t,
+    disabled: n,
+    disableDoubleClick: o,
+    elementRef: i,
+    id: s,
+    style: u2,
+    ...a
+  }) {
+    const r3 = Le(s), l = Re2({
+      disabled: n,
+      disableDoubleClick: o
+    }), [c, m2] = useState({}), [p2, S] = useState("inactive"), [z, f] = useState(false), d = useRef(null), h = Ce2(d, i), {
+      disableCursor: y,
+      id: b,
+      orientation: v,
+      registerSeparator: g,
+      updateSeparatorProps: w
+    } = Me2(), M = v === "horizontal" ? "vertical" : "horizontal";
+    q(() => {
+      const N2 = d.current;
+      if (N2 !== null) {
+        const x = {
+          disabled: l.disabled,
+          disableDoubleClick: l.disableDoubleClick,
+          element: N2,
+          id: r3
+        }, P2 = g(x), I2 = Rt(
+          (E) => {
+            S(
+              E.next.state !== "inactive" && E.next.hitRegions.some(
+                (D2) => D2.separator === x
+              ) ? E.next.state : "inactive"
+            );
+          }
+        ), R = Pe2(
+          b,
+          (E) => {
+            const { derivedPanelConstraints: D2, layout: V, separatorToPanels: ue2 } = E.next, oe = ue2.get(x);
+            if (oe) {
+              const _ = oe[0], Y3 = oe.indexOf(_);
+              m2(
+                en({
+                  layout: V,
+                  panelConstraints: D2,
+                  panelId: _.id,
+                  panelIndex: Y3
+                })
+              );
+            }
+          }
+        );
+        return () => {
+          I2(), R(), P2();
+        };
+      }
+    }, [b, r3, g, l]), useEffect(() => {
+      w(r3, { disabled: n, disableDoubleClick: o });
+    }, [n, o, r3, w]);
+    let L2;
+    n && !y && (L2 = "not-allowed");
+    let G2;
+    if (n)
+      G2 = "disabled";
+    else
+      switch (p2) {
+        case "active": {
+          G2 = "active";
+          break;
+        }
+        default:
+          z ? G2 = "focus" : G2 = p2;
+      }
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        ...a,
+        "aria-controls": c.valueControls,
+        "aria-disabled": n || void 0,
+        "aria-orientation": M,
+        "aria-valuemax": c.valueMax,
+        "aria-valuemin": c.valueMin,
+        "aria-valuenow": c.valueNow,
+        children: e,
+        className: t,
+        "data-separator": G2,
+        "data-testid": r3,
+        id: r3,
+        onBlur: () => f(false),
+        onFocus: () => f(true),
+        ref: h,
+        role: "separator",
+        style: {
+          flexBasis: "auto",
+          cursor: L2,
+          ...u2,
+          flexGrow: 0,
+          flexShrink: 0,
+          // Inform the browser that the library is handling touch events for this element
+          // See github.com/bvaughn/react-resizable-panels/issues/662
+          touchAction: "none"
+        },
+        tabIndex: n ? void 0 : 0
+      }
+    );
+  }
+  tn.displayName = "Separator";
 
-  // src/lib/remote-components/crm-workbench/src/vendor.ts
-  var React2 = window.React;
-  var ReactDOM = window.ReactDOM;
+  // ../../../packages/shadcn-ui/dist/index.js
+  function r2(...e) {
+    return twMerge(clsx(e));
+  }
+  var de3 = cva(
+    "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+    {
+      variants: {
+        variant: {
+          default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+          secondary: "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+          destructive: "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+          link: "text-primary underline-offset-4 hover:underline"
+        }
+      },
+      defaultVariants: {
+        variant: "default"
+      }
+    }
+  );
+  function rt2({
+    className: e,
+    variant: t = "default",
+    asChild: o = false,
+    ...n
+  }) {
+    const i = o ? dist_exports.Root : "span";
+    return /* @__PURE__ */ jsx(
+      i,
+      {
+        "data-slot": "badge",
+        "data-variant": t,
+        className: r2(de3({ variant: t }), e),
+        ...n
+      }
+    );
+  }
+  var se2 = cva(
+    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        variant: {
+          default: "bg-primary text-primary-foreground hover:bg-primary/80",
+          outline: "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          secondary: "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          ghost: "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          link: "text-primary underline-offset-4 hover:underline"
+        },
+        size: {
+          default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+          sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+          lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          icon: "size-8",
+          "icon-xs": "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+          "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+          "icon-lg": "size-9"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  function I({
+    className: e,
+    variant: t = "default",
+    size: o = "default",
+    asChild: n = false,
+    ...i
+  }) {
+    const s = n ? dist_exports.Root : "button";
+    return /* @__PURE__ */ jsx(
+      s,
+      {
+        "data-slot": "button",
+        "data-variant": t,
+        "data-size": o,
+        className: r2(se2({ variant: t, size: o, className: e })),
+        ...i
+      }
+    );
+  }
+  function ct2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports3.Root,
+      {
+        "data-slot": "checkbox",
+        className: r2(
+          "peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+          e
+        ),
+        ...t,
+        children: /* @__PURE__ */ jsx(
+          dist_exports3.Indicator,
+          {
+            "data-slot": "checkbox-indicator",
+            className: "grid place-content-center text-current transition-none [&>svg]:size-3.5",
+            children: /* @__PURE__ */ jsx(
+              Check,
+              {}
+            )
+          }
+        )
+      }
+    );
+  }
+  function W3({ className: e, type: t, ...o }) {
+    return /* @__PURE__ */ jsx(
+      "input",
+      {
+        type: t,
+        "data-slot": "input",
+        className: r2(
+          "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+          e
+        ),
+        ...o
+      }
+    );
+  }
+  function be3({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "textarea",
+      {
+        "data-slot": "textarea",
+        className: r2(
+          "flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function ve3({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        "data-slot": "input-group",
+        role: "group",
+        className: r2(
+          "group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg border border-input transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-3 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  var he2 = cva(
+    "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        align: {
+          "inline-start": "order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
+          "inline-end": "order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
+          "block-start": "order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
+          "block-end": "order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2"
+        }
+      },
+      defaultVariants: {
+        align: "inline-start"
+      }
+    }
+  );
+  function xe3({
+    className: e,
+    align: t = "inline-start",
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        role: "group",
+        "data-slot": "input-group-addon",
+        "data-align": t,
+        className: r2(he2({ align: t }), e),
+        onClick: (n) => {
+          n.target.closest("button") || n.currentTarget.parentElement?.querySelector("input")?.focus();
+        },
+        ...o
+      }
+    );
+  }
+  var we3 = cva(
+    "flex items-center gap-2 text-sm shadow-none",
+    {
+      variants: {
+        size: {
+          xs: "h-6 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
+          sm: "",
+          "icon-xs": "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0",
+          "icon-sm": "size-8 p-0 has-[>svg]:p-0"
+        }
+      },
+      defaultVariants: {
+        size: "xs"
+      }
+    }
+  );
+  function yt({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      _e,
+      {
+        "data-slot": "command",
+        className: r2(
+          "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function Nt2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx("div", { "data-slot": "command-input-wrapper", className: "p-1 pb-0", children: /* @__PURE__ */ jsxs(ve3, { className: "h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!", children: [
+      /* @__PURE__ */ jsx(
+        _e.Input,
+        {
+          "data-slot": "command-input",
+          className: r2(
+            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            e
+          ),
+          ...t
+        }
+      ),
+      /* @__PURE__ */ jsx(xe3, { children: /* @__PURE__ */ jsx(Search, { className: "size-4 shrink-0 opacity-50" }) })
+    ] }) });
+  }
+  function Ct2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      _e.List,
+      {
+        "data-slot": "command-list",
+        className: r2(
+          "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function St2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      _e.Empty,
+      {
+        "data-slot": "command-empty",
+        className: r2("py-6 text-center text-sm", e),
+        ...t
+      }
+    );
+  }
+  function _t2({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      _e.Group,
+      {
+        "data-slot": "command-group",
+        className: r2(
+          "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function It2({
+    className: e,
+    children: t,
+    ...o
+  }) {
+    return /* @__PURE__ */ jsxs(
+      _e.Item,
+      {
+        "data-slot": "command-item",
+        className: r2(
+          "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+          e
+        ),
+        ...o,
+        children: [
+          t,
+          /* @__PURE__ */ jsx(Check, { className: "ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" })
+        ]
+      }
+    );
+  }
+  function Ut2({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports7.Root, { "data-slot": "dropdown-menu", ...e });
+  }
+  function Wt2({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports7.Trigger,
+      {
+        "data-slot": "dropdown-menu-trigger",
+        ...e
+      }
+    );
+  }
+  function Xt2({
+    className: e,
+    align: t = "start",
+    sideOffset: o = 4,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports7.Portal, { children: /* @__PURE__ */ jsx(
+      dist_exports7.Content,
+      {
+        "data-slot": "dropdown-menu-content",
+        sideOffset: o,
+        align: t,
+        className: r2("z-50 max-h-(--radix-dropdown-menu-content-available-height) w-(--radix-dropdown-menu-trigger-width) min-w-32 origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", e),
+        ...n
+      }
+    ) });
+  }
+  function Jt2({
+    className: e,
+    inset: t,
+    variant: o = "default",
+    ...n
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports7.Item,
+      {
+        "data-slot": "dropdown-menu-item",
+        "data-inset": t,
+        "data-variant": o,
+        className: r2(
+          "group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
+          e
+        ),
+        ...n
+      }
+    );
+  }
+  function Yt({
+    className: e,
+    children: t,
+    checked: o,
+    inset: n,
+    ...i
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports7.CheckboxItem,
+      {
+        "data-slot": "dropdown-menu-checkbox-item",
+        "data-inset": n,
+        className: r2(
+          "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        checked: o,
+        ...i,
+        children: [
+          /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: "pointer-events-none absolute right-2 flex items-center justify-center",
+              "data-slot": "dropdown-menu-checkbox-item-indicator",
+              children: /* @__PURE__ */ jsx(dist_exports7.ItemIndicator, { children: /* @__PURE__ */ jsx(
+                Check,
+                {}
+              ) })
+            }
+          ),
+          t
+        ]
+      }
+    );
+  }
+  function Qt2({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports7.RadioGroup,
+      {
+        "data-slot": "dropdown-menu-radio-group",
+        ...e
+      }
+    );
+  }
+  function ea({
+    className: e,
+    children: t,
+    inset: o,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports7.RadioItem,
+      {
+        "data-slot": "dropdown-menu-radio-item",
+        "data-inset": o,
+        className: r2(
+          "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...n,
+        children: [
+          /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: "pointer-events-none absolute right-2 flex items-center justify-center",
+              "data-slot": "dropdown-menu-radio-item-indicator",
+              children: /* @__PURE__ */ jsx(dist_exports7.ItemIndicator, { children: /* @__PURE__ */ jsx(
+                Check,
+                {}
+              ) })
+            }
+          ),
+          t
+        ]
+      }
+    );
+  }
+  function ta({
+    className: e,
+    inset: t,
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports7.Label,
+      {
+        "data-slot": "dropdown-menu-label",
+        "data-inset": t,
+        className: r2(
+          "px-1.5 py-1 text-xs font-medium text-muted-foreground data-inset:pl-7",
+          e
+        ),
+        ...o
+      }
+    );
+  }
+  function aa({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports7.Separator,
+      {
+        "data-slot": "dropdown-menu-separator",
+        className: r2("-mx-1 my-1 h-px bg-border", e),
+        ...t
+      }
+    );
+  }
+  function xa({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports9.Root, { "data-slot": "select", ...e });
+  }
+  function za({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports9.Value, { "data-slot": "select-value", ...e });
+  }
+  function ya({
+    className: e,
+    size: t = "default",
+    children: o,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports9.Trigger,
+      {
+        "data-slot": "select-trigger",
+        "data-size": t,
+        className: r2(
+          "flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...n,
+        children: [
+          o,
+          /* @__PURE__ */ jsx(dist_exports9.Icon, { asChild: true, children: /* @__PURE__ */ jsx(ChevronDown, { className: "pointer-events-none size-4 text-muted-foreground" }) })
+        ]
+      }
+    );
+  }
+  function ka({
+    className: e,
+    children: t,
+    position: o = "item-aligned",
+    align: n = "center",
+    ...i
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports9.Portal, { children: /* @__PURE__ */ jsxs(
+      dist_exports9.Content,
+      {
+        "data-slot": "select-content",
+        "data-align-trigger": o === "item-aligned",
+        className: r2("relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", o === "popper" && "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1", e),
+        position: o,
+        align: n,
+        ...i,
+        children: [
+          /* @__PURE__ */ jsx(ye3, {}),
+          /* @__PURE__ */ jsx(
+            dist_exports9.Viewport,
+            {
+              "data-position": o,
+              className: r2(
+                "data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)",
+                o === "popper" && ""
+              ),
+              children: t
+            }
+          ),
+          /* @__PURE__ */ jsx(ke3, {})
+        ]
+      }
+    ) });
+  }
+  function Ca({
+    className: e,
+    children: t,
+    ...o
+  }) {
+    return /* @__PURE__ */ jsxs(
+      dist_exports9.Item,
+      {
+        "data-slot": "select-item",
+        className: r2(
+          "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+          e
+        ),
+        ...o,
+        children: [
+          /* @__PURE__ */ jsx("span", { className: "pointer-events-none absolute right-2 flex size-4 items-center justify-center", children: /* @__PURE__ */ jsx(dist_exports9.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { className: "pointer-events-none" }) }) }),
+          /* @__PURE__ */ jsx(dist_exports9.ItemText, { children: t })
+        ]
+      }
+    );
+  }
+  function ye3({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports9.ScrollUpButton,
+      {
+        "data-slot": "select-scroll-up-button",
+        className: r2(
+          "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...t,
+        children: /* @__PURE__ */ jsx(
+          ChevronUp,
+          {}
+        )
+      }
+    );
+  }
+  function ke3({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports9.ScrollDownButton,
+      {
+        "data-slot": "select-scroll-down-button",
+        className: r2(
+          "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+          e
+        ),
+        ...t,
+        children: /* @__PURE__ */ jsx(
+          ChevronDown,
+          {}
+        )
+      }
+    );
+  }
+  function Ne2({
+    className: e,
+    orientation: t = "horizontal",
+    decorative: o = true,
+    ...n
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports10.Root,
+      {
+        "data-slot": "separator",
+        decorative: o,
+        orientation: t,
+        className: r2(
+          "shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+          e
+        ),
+        ...n
+      }
+    );
+  }
+  function Ce3({ ...e }) {
+    return /* @__PURE__ */ jsx(dist_exports2.Root, { "data-slot": "sheet", ...e });
+  }
+  function Se2({
+    ...e
+  }) {
+    return /* @__PURE__ */ jsx(dist_exports2.Portal, { "data-slot": "sheet-portal", ...e });
+  }
+  function _e4({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports2.Overlay,
+      {
+        "data-slot": "sheet-overlay",
+        className: r2(
+          "fixed inset-0 z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function Te3({
+    className: e,
+    children: t,
+    side: o = "right",
+    showCloseButton: n = true,
+    ...i
+  }) {
+    return /* @__PURE__ */ jsxs(Se2, { children: [
+      /* @__PURE__ */ jsx(_e4, {}),
+      /* @__PURE__ */ jsxs(
+        dist_exports2.Content,
+        {
+          "data-slot": "sheet-content",
+          "data-side": o,
+          className: r2(
+            "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-[side=bottom]:data-open:slide-in-from-bottom-10 data-[side=left]:data-open:slide-in-from-left-10 data-[side=right]:data-open:slide-in-from-right-10 data-[side=top]:data-open:slide-in-from-top-10 data-closed:animate-out data-closed:fade-out-0 data-[side=bottom]:data-closed:slide-out-to-bottom-10 data-[side=left]:data-closed:slide-out-to-left-10 data-[side=right]:data-closed:slide-out-to-right-10 data-[side=top]:data-closed:slide-out-to-top-10",
+            e
+          ),
+          ...i,
+          children: [
+            t,
+            n && /* @__PURE__ */ jsx(dist_exports2.Close, { "data-slot": "sheet-close", asChild: true, children: /* @__PURE__ */ jsxs(
+              I,
+              {
+                variant: "ghost",
+                className: "absolute top-3 right-3",
+                size: "icon-sm",
+                children: [
+                  /* @__PURE__ */ jsx(
+                    X,
+                    {}
+                  ),
+                  /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Close" })
+                ]
+              }
+            ) })
+          ]
+        }
+      )
+    ] });
+  }
+  var Be2 = 3600 * 24 * 7;
+  var X4 = createContext(null);
+  var Ve2 = cva(
+    "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+    {
+      variants: {
+        variant: {
+          default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          outline: "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]"
+        },
+        size: {
+          default: "h-8 text-sm",
+          sm: "h-7 text-xs",
+          lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  function ar({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "div",
+      {
+        "data-slot": "table-container",
+        className: "relative w-full overflow-x-auto",
+        children: /* @__PURE__ */ jsx(
+          "table",
+          {
+            "data-slot": "table",
+            className: r2("w-full caption-bottom text-sm", e),
+            ...t
+          }
+        )
+      }
+    );
+  }
+  function rr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "thead",
+      {
+        "data-slot": "table-header",
+        className: r2("[&_tr]:border-b", e),
+        ...t
+      }
+    );
+  }
+  function or({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "tbody",
+      {
+        "data-slot": "table-body",
+        className: r2("[&_tr:last-child]:border-0", e),
+        ...t
+      }
+    );
+  }
+  function ir({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "tr",
+      {
+        "data-slot": "table-row",
+        className: r2(
+          "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function dr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "th",
+      {
+        "data-slot": "table-head",
+        className: r2(
+          "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function sr({ className: e, ...t }) {
+    return /* @__PURE__ */ jsx(
+      "td",
+      {
+        "data-slot": "table-cell",
+        className: r2(
+          "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function ur({
+    className: e,
+    orientation: t = "horizontal",
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports11.Root,
+      {
+        "data-slot": "tabs",
+        "data-orientation": t,
+        className: r2(
+          "group/tabs flex gap-2 data-horizontal:flex-col",
+          e
+        ),
+        ...o
+      }
+    );
+  }
+  var He2 = cva(
+    "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+    {
+      variants: {
+        variant: {
+          default: "bg-muted",
+          line: "gap-1 bg-transparent"
+        }
+      },
+      defaultVariants: {
+        variant: "default"
+      }
+    }
+  );
+  function cr({
+    className: e,
+    variant: t = "default",
+    ...o
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports11.List,
+      {
+        "data-slot": "tabs-list",
+        "data-variant": t,
+        className: r2(He2({ variant: t }), e),
+        ...o
+      }
+    );
+  }
+  function gr({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports11.Trigger,
+      {
+        "data-slot": "tabs-trigger",
+        className: r2(
+          "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+          "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
+          "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
+          "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+          e
+        ),
+        ...t
+      }
+    );
+  }
+  function pr({
+    className: e,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports11.Content,
+      {
+        "data-slot": "tabs-content",
+        className: r2("flex-1 text-sm outline-none", e),
+        ...t
+      }
+    );
+  }
+  var Z3 = cva(
+    "group/toggle inline-flex items-center justify-center gap-1 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-muted data-[state=on]:bg-muted dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    {
+      variants: {
+        variant: {
+          default: "bg-transparent",
+          outline: "border border-input bg-transparent hover:bg-muted"
+        },
+        size: {
+          default: "h-8 min-w-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+          lg: "h-9 min-w-9 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2"
+        }
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default"
+      }
+    }
+  );
+  var J3 = createContext({
+    size: "default",
+    variant: "default",
+    spacing: 2,
+    orientation: "horizontal"
+  });
 
   // src/lib/remote-components/crm-workbench/src/icons.tsx
   function Icon2({ name }) {
@@ -14948,11 +16390,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       setQuery("");
     }
     if (!targetObjectKey) {
-      return /* @__PURE__ */ React2.createElement(Button, { variant: "outline", className: "crm20-relation-trigger", disabled: true }, t.relationReference);
+      return /* @__PURE__ */ React2.createElement(I, { variant: "outline", className: "crm20-relation-trigger", disabled: true }, t.relationReference);
     }
-    return /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-picker" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-row" }, /* @__PURE__ */ React2.createElement(Button, { variant: "outline", className: "crm20-relation-trigger", onClick: () => setOpen((current) => !current) }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-record-mark crm20-object-${targetObjectKey}` }, selectedRecord ? recordInitial(selectedTitle) : "#"), /* @__PURE__ */ React2.createElement("span", { className: "crm20-relation-title" }, selectedTitle), /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, targetObjectKey)), valueText ? /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", title: t.clearRelation, onClick: clearRelation }, /* @__PURE__ */ React2.createElement(Icon2, { name: "close" })) : null), open ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-command" }, /* @__PURE__ */ React2.createElement(Command, { shouldFilter: false }, /* @__PURE__ */ React2.createElement(CommandInput, { value: query, onValueChange: setQuery, placeholder: t.searchRelation }), /* @__PURE__ */ React2.createElement(CommandList, null, /* @__PURE__ */ React2.createElement(CommandEmpty, null, busy ? t.loadingRelatedRecords : t.relationNoResults), /* @__PURE__ */ React2.createElement(CommandGroup, { heading: t.relatedRecords }, records.map((record) => {
+    return /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-picker" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-row" }, /* @__PURE__ */ React2.createElement(I, { variant: "outline", className: "crm20-relation-trigger", onClick: () => setOpen((current) => !current) }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-record-mark crm20-object-${targetObjectKey}` }, selectedRecord ? recordInitial(selectedTitle) : "#"), /* @__PURE__ */ React2.createElement("span", { className: "crm20-relation-title" }, selectedTitle), /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, targetObjectKey)), valueText ? /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", title: t.clearRelation, onClick: clearRelation }, /* @__PURE__ */ React2.createElement(Icon2, { name: "close" })) : null), open ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-relation-command" }, /* @__PURE__ */ React2.createElement(yt, { shouldFilter: false }, /* @__PURE__ */ React2.createElement(Nt2, { value: query, onValueChange: setQuery, placeholder: t.searchRelation }), /* @__PURE__ */ React2.createElement(Ct2, null, /* @__PURE__ */ React2.createElement(St2, null, busy ? t.loadingRelatedRecords : t.relationNoResults), /* @__PURE__ */ React2.createElement(_t2, { heading: t.relatedRecords }, records.map((record) => {
       const title = displayRecordTitle(record, targetFields, t);
-      return /* @__PURE__ */ React2.createElement(CommandItem, { key: record.id, value: `${record.id} ${title}`, onSelect: () => selectRecord(record) }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-record-mark crm20-object-${record.objectKey || targetObjectKey}` }, recordInitial(title)), /* @__PURE__ */ React2.createElement("span", { className: "crm20-relation-option-text" }, /* @__PURE__ */ React2.createElement("strong", null, title), /* @__PURE__ */ React2.createElement("small", null, locale === "zh_Hans" ? "\u8BB0\u5F55" : "Record", " #", record.id.slice(0, 8))));
+      return /* @__PURE__ */ React2.createElement(It2, { key: record.id, value: `${record.id} ${title}`, onSelect: () => selectRecord(record) }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-record-mark crm20-object-${record.objectKey || targetObjectKey}` }, recordInitial(title)), /* @__PURE__ */ React2.createElement("span", { className: "crm20-relation-option-text" }, /* @__PURE__ */ React2.createElement("strong", null, title), /* @__PURE__ */ React2.createElement("small", null, locale === "zh_Hans" ? "\u8BB0\u5F55" : "Record", " #", record.id.slice(0, 8))));
     }))))) : null);
   }
 
@@ -14964,11 +16406,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     onOpenRecord
   }) {
     if (!sections.length) return null;
-    return /* @__PURE__ */ React2.createElement("section", { className: "crm20-related-panel" }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-related-heading" }, /* @__PURE__ */ React2.createElement("strong", null, t.relatedRecords)), sections.map((section, index2) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-section", key: `${section.objectKey}-${section.relationFieldKey}` }, index2 > 0 ? /* @__PURE__ */ React2.createElement(Separator3, null) : null, /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-section-header" }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-object-icon crm20-object-${section.objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: objectIcon({ objectKey: section.objectKey }) })), /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("strong", null, section.objectPluralLabel || section.objectLabel || section.objectKey), /* @__PURE__ */ React2.createElement("small", null, t.linkedBy, " ", section.relationFieldLabel || section.relationFieldKey)), /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, section.total)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-list" }, section.items.map((record) => {
+    return /* @__PURE__ */ React2.createElement("section", { className: "crm20-related-panel" }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-related-heading" }, /* @__PURE__ */ React2.createElement("strong", null, t.relatedRecords)), sections.map((section, index2) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-section", key: `${section.objectKey}-${section.relationFieldKey}` }, index2 > 0 ? /* @__PURE__ */ React2.createElement(Ne2, null) : null, /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-section-header" }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-object-icon crm20-object-${section.objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: objectIcon({ objectKey: section.objectKey }) })), /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("strong", null, section.objectPluralLabel || section.objectLabel || section.objectKey), /* @__PURE__ */ React2.createElement("small", null, t.linkedBy, " ", section.relationFieldLabel || section.relationFieldKey)), /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, section.total)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-related-list" }, section.items.map((record) => {
       const title = displayRecordTitle(record, section.fields, t);
       const subtitle = relatedSubtitle(record, section.fields, section.relationFieldKey, locale, t);
       return /* @__PURE__ */ React2.createElement(
-        Button,
+        I,
         {
           variant: "ghost",
           className: "crm20-related-record",
@@ -15014,8 +16456,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     if (!items.length) {
       return /* @__PURE__ */ React2.createElement("section", { className: "crm20-timeline-empty" }, /* @__PURE__ */ React2.createElement("span", { className: "crm20-timeline-dot" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "workflow" })), /* @__PURE__ */ React2.createElement("strong", null, t.noTimelineItems));
     }
-    return /* @__PURE__ */ React2.createElement("section", { className: "crm20-timeline-panel" }, items.map((item, index2) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-item", key: `${item.type}-${item.id}` }, index2 > 0 ? /* @__PURE__ */ React2.createElement(Separator3, null) : null, /* @__PURE__ */ React2.createElement("div", { className: `crm20-timeline-dot crm20-timeline-${item.type}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: timelineIcon(item.type) })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-content" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-meta" }, /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, timelineLabel(item.type, t)), item.status ? /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, item.status) : null, /* @__PURE__ */ React2.createElement("time", null, formatDate(item.occurredAt || item.updatedAt || item.createdAt, locale))), item.type === "note" || item.type === "task" ? /* @__PURE__ */ React2.createElement(
-      Button,
+    return /* @__PURE__ */ React2.createElement("section", { className: "crm20-timeline-panel" }, items.map((item, index2) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-item", key: `${item.type}-${item.id}` }, index2 > 0 ? /* @__PURE__ */ React2.createElement(Ne2, null) : null, /* @__PURE__ */ React2.createElement("div", { className: `crm20-timeline-dot crm20-timeline-${item.type}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: timelineIcon(item.type) })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-content" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-timeline-meta" }, /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, timelineLabel(item.type, t)), item.status ? /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, item.status) : null, /* @__PURE__ */ React2.createElement("time", null, formatDate(item.occurredAt || item.updatedAt || item.createdAt, locale))), item.type === "note" || item.type === "task" ? /* @__PURE__ */ React2.createElement(
+      I,
       {
         variant: "ghost",
         className: "crm20-timeline-record",
@@ -15066,7 +16508,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }) {
     const isEditing = mode === "edit" || mode === "create";
     const title = mode === "create" ? t.newRecord : record ? displayRecordTitle(record, fields, t) : t.details;
-    return /* @__PURE__ */ React2.createElement(Sheet, { open: mode !== "closed", onOpenChange: (open) => !open && onClose() }, /* @__PURE__ */ React2.createElement(SheetContent, { className: "crm20-inspector-content", side: "right", showClose: false }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-inspector-header" }, /* @__PURE__ */ React2.createElement("div", { className: `crm20-inspector-avatar crm20-object-${objectKey}` }, mode === "create" ? /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }) : /* @__PURE__ */ React2.createElement("span", null, recordInitial(title))), /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("span", null, objectLabel), /* @__PURE__ */ React2.createElement("strong", null, title)), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", title: t.close, onClick: onClose }, /* @__PURE__ */ React2.createElement(Icon2, { name: "close" }))), /* @__PURE__ */ React2.createElement("div", { className: "crm20-inspector-meta" }, /* @__PURE__ */ React2.createElement("span", null, t.created, ": ", record?.createdAt ? formatDate(record.createdAt, locale) : t.noValue), /* @__PURE__ */ React2.createElement("span", null, t.updated, ": ", record?.updatedAt ? formatDate(record.updatedAt, locale) : t.noValue)), isEditing ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-form" }, fields.map((field) => /* @__PURE__ */ React2.createElement("label", { className: "crm20-field", key: field.fieldKey }, /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey, field.required ? /* @__PURE__ */ React2.createElement("em", null, t.required) : null, /* @__PURE__ */ React2.createElement("small", null, field.type || "text")), /* @__PURE__ */ React2.createElement(FieldInput, { field, value: draft[field.fieldKey], locale, t, onChange: (value) => onChange(field.fieldKey, value) })))) : /* @__PURE__ */ React2.createElement(Tabs2, { className: "crm20-inspector-tabs", defaultValue: "properties" }, /* @__PURE__ */ React2.createElement(TabsList2, null, /* @__PURE__ */ React2.createElement(TabsTrigger2, { value: "properties" }, t.properties), /* @__PURE__ */ React2.createElement(TabsTrigger2, { value: "timeline" }, t.timeline)), /* @__PURE__ */ React2.createElement(TabsContent2, { value: "properties" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-read-fields" }, fields.map((field) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-read-field", key: field.fieldKey }, /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey), /* @__PURE__ */ React2.createElement("strong", null, /* @__PURE__ */ React2.createElement(FieldValue, { value: record?.values?.[field.fieldKey], field, fields, locale, relationLabels, t })))), /* @__PURE__ */ React2.createElement(RelatedRecordsPanel, { sections: relatedSections, locale, t, onOpenRecord: onOpenRelatedRecord }))), /* @__PURE__ */ React2.createElement(TabsContent2, { value: "timeline" }, /* @__PURE__ */ React2.createElement(TimelinePanel, { items: timelineItems, locale, t, onOpenRecord: onOpenRelatedRecord }))), /* @__PURE__ */ React2.createElement("footer", { className: "crm20-inspector-actions" }, isEditing ? /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(Button, { variant: "outline", onClick: onCancel, disabled: busy }, t.cancel), /* @__PURE__ */ React2.createElement(Button, { onClick: onSave, disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "save" }), /* @__PURE__ */ React2.createElement("span", null, busy ? t.saving : t.save))) : /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(Button, { variant: "outline", onClick: onClose }, t.close), /* @__PURE__ */ React2.createElement(Button, { onClick: onEdit }, /* @__PURE__ */ React2.createElement(Icon2, { name: "edit" }), /* @__PURE__ */ React2.createElement("span", null, t.edit))))));
+    return /* @__PURE__ */ React2.createElement(Ce3, { open: mode !== "closed", onOpenChange: (open) => !open && onClose() }, /* @__PURE__ */ React2.createElement(Te3, { className: "crm20-inspector-content", side: "right", showCloseButton: false }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-inspector-header" }, /* @__PURE__ */ React2.createElement("div", { className: `crm20-inspector-avatar crm20-object-${objectKey}` }, mode === "create" ? /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }) : /* @__PURE__ */ React2.createElement("span", null, recordInitial(title))), /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("span", null, objectLabel), /* @__PURE__ */ React2.createElement("strong", null, title)), /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", title: t.close, onClick: onClose }, /* @__PURE__ */ React2.createElement(Icon2, { name: "close" }))), /* @__PURE__ */ React2.createElement("div", { className: "crm20-inspector-meta" }, /* @__PURE__ */ React2.createElement("span", null, t.created, ": ", record?.createdAt ? formatDate(record.createdAt, locale) : t.noValue), /* @__PURE__ */ React2.createElement("span", null, t.updated, ": ", record?.updatedAt ? formatDate(record.updatedAt, locale) : t.noValue)), isEditing ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-form" }, fields.map((field) => /* @__PURE__ */ React2.createElement("label", { className: "crm20-field", key: field.fieldKey }, /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey, field.required ? /* @__PURE__ */ React2.createElement("em", null, t.required) : null, /* @__PURE__ */ React2.createElement("small", null, field.type || "text")), /* @__PURE__ */ React2.createElement(FieldInput, { field, value: draft[field.fieldKey], locale, t, onChange: (value) => onChange(field.fieldKey, value) })))) : /* @__PURE__ */ React2.createElement(ur, { className: "crm20-inspector-tabs", defaultValue: "properties" }, /* @__PURE__ */ React2.createElement(cr, null, /* @__PURE__ */ React2.createElement(gr, { value: "properties" }, t.properties), /* @__PURE__ */ React2.createElement(gr, { value: "timeline" }, t.timeline)), /* @__PURE__ */ React2.createElement(pr, { value: "properties" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-read-fields" }, fields.map((field) => /* @__PURE__ */ React2.createElement("div", { className: "crm20-read-field", key: field.fieldKey }, /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey), /* @__PURE__ */ React2.createElement("strong", null, /* @__PURE__ */ React2.createElement(FieldValue, { value: record?.values?.[field.fieldKey], field, fields, locale, relationLabels, t })))), /* @__PURE__ */ React2.createElement(RelatedRecordsPanel, { sections: relatedSections, locale, t, onOpenRecord: onOpenRelatedRecord }))), /* @__PURE__ */ React2.createElement(pr, { value: "timeline" }, /* @__PURE__ */ React2.createElement(TimelinePanel, { items: timelineItems, locale, t, onOpenRecord: onOpenRelatedRecord }))), /* @__PURE__ */ React2.createElement("footer", { className: "crm20-inspector-actions" }, isEditing ? /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(I, { variant: "outline", onClick: onCancel, disabled: busy }, t.cancel), /* @__PURE__ */ React2.createElement(I, { onClick: onSave, disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "save" }), /* @__PURE__ */ React2.createElement("span", null, busy ? t.saving : t.save))) : /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(I, { variant: "outline", onClick: onClose }, t.close), /* @__PURE__ */ React2.createElement(I, { onClick: onEdit }, /* @__PURE__ */ React2.createElement(Icon2, { name: "edit" }), /* @__PURE__ */ React2.createElement("span", null, t.edit))))));
   }
   function FieldInput({
     field,
@@ -15077,27 +16519,27 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }) {
     if (field.type === "select" && Array.isArray(field.options)) {
       const selectedValue = value === void 0 || value === null || value === "" ? EMPTY_SELECT_VALUE : String(value);
-      return /* @__PURE__ */ React2.createElement(Select2, { value: selectedValue, onValueChange: (next) => onChange(next === EMPTY_SELECT_VALUE ? "" : next) }, /* @__PURE__ */ React2.createElement(SelectTrigger2, null, /* @__PURE__ */ React2.createElement(SelectValue2, { placeholder: "-" })), /* @__PURE__ */ React2.createElement(SelectContent2, null, /* @__PURE__ */ React2.createElement(SelectItem2, { value: EMPTY_SELECT_VALUE }, "-"), field.options.map((option) => /* @__PURE__ */ React2.createElement(SelectItem2, { key: option.value, value: option.value }, option.label || option.value))));
+      return /* @__PURE__ */ React2.createElement(xa, { value: selectedValue, onValueChange: (next) => onChange(next === EMPTY_SELECT_VALUE ? "" : next) }, /* @__PURE__ */ React2.createElement(ya, null, /* @__PURE__ */ React2.createElement(za, { placeholder: "-" })), /* @__PURE__ */ React2.createElement(ka, null, /* @__PURE__ */ React2.createElement(Ca, { value: EMPTY_SELECT_VALUE }, "-"), field.options.map((option) => /* @__PURE__ */ React2.createElement(Ca, { key: option.value, value: option.value }, option.label || option.value))));
     }
     if (field.type === "boolean") {
-      return /* @__PURE__ */ React2.createElement("label", { className: "crm20-checkbox-field" }, /* @__PURE__ */ React2.createElement(Checkbox2, { checked: Boolean(value), onCheckedChange: (checked) => onChange(checked === true) }));
+      return /* @__PURE__ */ React2.createElement("label", { className: "crm20-checkbox-field" }, /* @__PURE__ */ React2.createElement(ct2, { checked: Boolean(value), onCheckedChange: (checked) => onChange(checked === true) }));
     }
     if (field.type === "rich_text") {
-      return /* @__PURE__ */ React2.createElement(Textarea, { rows: 5, value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
+      return /* @__PURE__ */ React2.createElement(be3, { rows: 5, value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
     }
     if (field.type === "date") {
-      return /* @__PURE__ */ React2.createElement(Input, { type: "date", value: value === void 0 || value === null ? "" : String(value).slice(0, 10), onChange: (event) => onChange(event.currentTarget.value) });
+      return /* @__PURE__ */ React2.createElement(W3, { type: "date", value: value === void 0 || value === null ? "" : String(value).slice(0, 10), onChange: (event) => onChange(event.currentTarget.value) });
     }
     if (field.type === "datetime") {
-      return /* @__PURE__ */ React2.createElement(Input, { type: "datetime-local", value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
+      return /* @__PURE__ */ React2.createElement(W3, { type: "datetime-local", value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
     }
     if (field.type === "number" || field.type === "currency") {
-      return /* @__PURE__ */ React2.createElement(Input, { type: "number", value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
+      return /* @__PURE__ */ React2.createElement(W3, { type: "number", value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
     }
     if (field.type === "relation") {
       return /* @__PURE__ */ React2.createElement(RelationPicker, { field, value, locale, t, onChange });
     }
-    return /* @__PURE__ */ React2.createElement(Input, { value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
+    return /* @__PURE__ */ React2.createElement(W3, { value: value === void 0 || value === null ? "" : String(value), onChange: (event) => onChange(event.currentTarget.value) });
   }
 
   // src/lib/remote-components/crm-workbench/src/components/record-grid.tsx
@@ -15119,28 +16561,28 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }) {
     const allVisibleChecked = records.length > 0 && records.every((record) => checkedIds.has(record.id));
     if (!records.length && !busy) {
-      return /* @__PURE__ */ React2.createElement("div", { className: "crm20-empty-table" }, /* @__PURE__ */ React2.createElement("div", { className: `crm20-empty-icon crm20-object-${objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: "table" })), /* @__PURE__ */ React2.createElement("strong", null, t.empty), /* @__PURE__ */ React2.createElement(Button, { onClick: onCreate }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, t.newRecord)));
+      return /* @__PURE__ */ React2.createElement("div", { className: "crm20-empty-table" }, /* @__PURE__ */ React2.createElement("div", { className: `crm20-empty-icon crm20-object-${objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: "table" })), /* @__PURE__ */ React2.createElement("strong", null, t.empty), /* @__PURE__ */ React2.createElement(I, { onClick: onCreate }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, t.newRecord)));
     }
-    return /* @__PURE__ */ React2.createElement("div", { className: "crm20-grid-scroll" }, /* @__PURE__ */ React2.createElement(Table, { className: "crm20-grid" }, /* @__PURE__ */ React2.createElement("colgroup", null, /* @__PURE__ */ React2.createElement("col", { className: "crm20-check-col" }), columns.map((field, index2) => /* @__PURE__ */ React2.createElement("col", { key: field.fieldKey, style: { width: `${columnWidth(field, index2)}px` } })), /* @__PURE__ */ React2.createElement("col", { className: "crm20-extra-col" })), /* @__PURE__ */ React2.createElement(TableHeader, null, /* @__PURE__ */ React2.createElement(TableRow, null, /* @__PURE__ */ React2.createElement(TableHead, { className: "crm20-check-cell" }, /* @__PURE__ */ React2.createElement(
-      Checkbox2,
+    return /* @__PURE__ */ React2.createElement("div", { className: "crm20-grid-scroll" }, /* @__PURE__ */ React2.createElement(ar, { className: "crm20-grid" }, /* @__PURE__ */ React2.createElement("colgroup", null, /* @__PURE__ */ React2.createElement("col", { className: "crm20-check-col" }), columns.map((field, index2) => /* @__PURE__ */ React2.createElement("col", { key: field.fieldKey, style: { width: `${columnWidth(field, index2)}px` } })), /* @__PURE__ */ React2.createElement("col", { className: "crm20-extra-col" })), /* @__PURE__ */ React2.createElement(rr, null, /* @__PURE__ */ React2.createElement(ir, null, /* @__PURE__ */ React2.createElement(dr, { className: "crm20-check-cell" }, /* @__PURE__ */ React2.createElement(
+      ct2,
       {
         "aria-label": t.selectAll,
         checked: allVisibleChecked,
         onClick: (event) => event.stopPropagation(),
         onCheckedChange: (checked) => onToggleAll(checked === true)
       }
-    )), columns.map((field) => /* @__PURE__ */ React2.createElement(TableHead, { key: field.fieldKey, title: field.label || field.fieldKey }, /* @__PURE__ */ React2.createElement("span", { className: "crm20-th-content" }, /* @__PURE__ */ React2.createElement(Icon2, { name: fieldIcon(field) }), /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey)))), /* @__PURE__ */ React2.createElement(TableHead, { className: "crm20-extra-cell" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" })))), /* @__PURE__ */ React2.createElement(TableBody, null, records.map((record) => {
+    )), columns.map((field) => /* @__PURE__ */ React2.createElement(dr, { key: field.fieldKey, title: field.label || field.fieldKey }, /* @__PURE__ */ React2.createElement("span", { className: "crm20-th-content" }, /* @__PURE__ */ React2.createElement(Icon2, { name: fieldIcon(field) }), /* @__PURE__ */ React2.createElement("span", null, field.label || field.fieldKey)))), /* @__PURE__ */ React2.createElement(dr, { className: "crm20-extra-cell" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" })))), /* @__PURE__ */ React2.createElement(or, null, records.map((record) => {
       const isChecked = checkedIds.has(record.id);
       const className = [record.id === selectedId ? "is-selected" : "", isChecked ? "is-checked" : ""].filter(Boolean).join(" ");
-      return /* @__PURE__ */ React2.createElement(TableRow, { key: record.id, className, onClick: () => onSelect(record), onDoubleClick: () => onSelect(record) }, /* @__PURE__ */ React2.createElement(TableCell, { className: "crm20-check-cell" }, /* @__PURE__ */ React2.createElement(
-        Checkbox2,
+      return /* @__PURE__ */ React2.createElement(ir, { key: record.id, className, onClick: () => onSelect(record), onDoubleClick: () => onSelect(record) }, /* @__PURE__ */ React2.createElement(sr, { className: "crm20-check-cell" }, /* @__PURE__ */ React2.createElement(
+        ct2,
         {
           "aria-label": "Select row",
           checked: isChecked,
           onClick: (event) => event.stopPropagation(),
           onCheckedChange: (checked) => onToggleRecord(record.id, checked === true)
         }
-      )), columns.map((field, index2) => /* @__PURE__ */ React2.createElement(TableCell, { key: field.fieldKey }, index2 === 0 ? /* @__PURE__ */ React2.createElement(
+      )), columns.map((field, index2) => /* @__PURE__ */ React2.createElement(sr, { key: field.fieldKey }, index2 === 0 ? /* @__PURE__ */ React2.createElement(
         NameCell,
         {
           field,
@@ -15151,7 +16593,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           relationLabels,
           t
         }
-      ) : /* @__PURE__ */ React2.createElement(FieldValue, { value: record.values?.[field.fieldKey], field, fields, locale, relationLabels, t }))), /* @__PURE__ */ React2.createElement(TableCell, { className: "crm20-extra-cell" }));
+      ) : /* @__PURE__ */ React2.createElement(FieldValue, { value: record.values?.[field.fieldKey], field, fields, locale, relationLabels, t }))), /* @__PURE__ */ React2.createElement(sr, { className: "crm20-extra-cell" }));
     }))), busy ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-loading-line" }) : null);
   }
 
@@ -15389,8 +16831,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const selectedCount = checkedIds.size;
     const sortTarget = columns[0]?.label || columns[0]?.fieldKey || objectLabel;
     const sortLabel = sortMode === "asc" ? t.ascending : sortMode === "desc" ? t.descending : t.noSorting;
-    return /* @__PURE__ */ React2.createElement("main", { className: `crm20-shell crm20-${density}` }, /* @__PURE__ */ React2.createElement("aside", { className: "crm20-sidebar", "aria-label": t.objects }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-workspace" }, /* @__PURE__ */ React2.createElement("span", { className: "crm20-workspace-mark" }, "X"), /* @__PURE__ */ React2.createElement("span", { className: "crm20-workspace-name" }, t.workspace), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-sidebar-switcher", "aria-label": t.viewMode }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", className: "crm20-switcher-active", title: "Home" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "home" })), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", title: t.searchPlaceholder, onClick: () => searchRef.current?.focus() }, /* @__PURE__ */ React2.createElement(Icon2, { name: "message" }))), /* @__PURE__ */ React2.createElement(Button, { variant: "outline", className: "crm20-chat-button" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "message-plus" }), /* @__PURE__ */ React2.createElement("span", null, t.newChat)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-nav-section" }, t.nativeCrm), /* @__PURE__ */ React2.createElement("nav", { className: "crm20-object-nav" }, objects.map((object) => /* @__PURE__ */ React2.createElement(
-      Button,
+    return /* @__PURE__ */ React2.createElement("main", { className: `crm20-shell crm20-${density}` }, /* @__PURE__ */ React2.createElement("aside", { className: "crm20-sidebar", "aria-label": t.objects }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-workspace" }, /* @__PURE__ */ React2.createElement("span", { className: "crm20-workspace-mark" }, "X"), /* @__PURE__ */ React2.createElement("span", { className: "crm20-workspace-name" }, t.workspace), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-sidebar-switcher", "aria-label": t.viewMode }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", className: "crm20-switcher-active", title: "Home" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "home" })), /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", title: t.searchPlaceholder, onClick: () => searchRef.current?.focus() }, /* @__PURE__ */ React2.createElement(Icon2, { name: "message" }))), /* @__PURE__ */ React2.createElement(I, { variant: "outline", className: "crm20-chat-button" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "message-plus" }), /* @__PURE__ */ React2.createElement("span", null, t.newChat)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-nav-section" }, t.nativeCrm), /* @__PURE__ */ React2.createElement("nav", { className: "crm20-object-nav" }, objects.map((object) => /* @__PURE__ */ React2.createElement(
+      I,
       {
         variant: "ghost",
         key: object.objectKey,
@@ -15399,9 +16841,10 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       },
       /* @__PURE__ */ React2.createElement("span", { className: `crm20-object-icon crm20-object-${object.objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: objectIcon(object) })),
       /* @__PURE__ */ React2.createElement("span", null, object.pluralLabel || object.label || object.objectKey)
-    )))), /* @__PURE__ */ React2.createElement("section", { className: "crm20-main" }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-object-header" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-object-title" }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-title-icon crm20-object-${objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: currentObject ? objectIcon(currentObject) : "grid" })), /* @__PURE__ */ React2.createElement("strong", null, objectTitle)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-header-actions" }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", title: t.refresh, onClick: () => loadData({ keepSelection: true }), disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "refresh" })), /* @__PURE__ */ React2.createElement(Button, { onClick: startCreate, disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, locale === "zh_Hans" ? `${t.create} ${objectLabel}` : `New ${objectLabel}`)), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "icon", title: t.options, onClick: toggleDensity }, /* @__PURE__ */ React2.createElement(Icon2, { name: "more" })))), /* @__PURE__ */ React2.createElement("div", { className: "crm20-viewbar" }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", className: "crm20-view-name" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "list" }), /* @__PURE__ */ React2.createElement("span", null, data?.views?.[0]?.name || `${t.allRecords} ${objectTitle}`), /* @__PURE__ */ React2.createElement("span", { className: "crm20-view-count" }, table.total || 0), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-view-actions" }, /* @__PURE__ */ React2.createElement("label", { className: "crm20-search" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "search" }), /* @__PURE__ */ React2.createElement(
-      Input,
+    )))), /* @__PURE__ */ React2.createElement("section", { className: "crm20-main" }, /* @__PURE__ */ React2.createElement("header", { className: "crm20-object-header" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-object-title" }, /* @__PURE__ */ React2.createElement("span", { className: `crm20-title-icon crm20-object-${objectKey}` }, /* @__PURE__ */ React2.createElement(Icon2, { name: currentObject ? objectIcon(currentObject) : "grid" })), /* @__PURE__ */ React2.createElement("strong", null, objectTitle)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-header-actions" }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", title: t.refresh, onClick: () => loadData({ keepSelection: true }), disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "refresh" })), /* @__PURE__ */ React2.createElement(I, { onClick: startCreate, disabled: busy }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, locale === "zh_Hans" ? `${t.create} ${objectLabel}` : `New ${objectLabel}`)), /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "icon", title: t.options, onClick: toggleDensity }, /* @__PURE__ */ React2.createElement(Icon2, { name: "more" })))), /* @__PURE__ */ React2.createElement("div", { className: "crm20-viewbar" }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", className: "crm20-view-name" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "list" }), /* @__PURE__ */ React2.createElement("span", null, data?.views?.[0]?.name || `${t.allRecords} ${objectTitle}`), /* @__PURE__ */ React2.createElement("span", { className: "crm20-view-count" }, table.total || 0), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" })), /* @__PURE__ */ React2.createElement("div", { className: "crm20-view-actions" }, /* @__PURE__ */ React2.createElement("label", { className: "crm20-search" }, /* @__PURE__ */ React2.createElement(Icon2, { name: "search" }), /* @__PURE__ */ React2.createElement(
+      "input",
       {
+        "data-slot": "input",
         ref: searchRef,
         value: searchDraft,
         placeholder: t.searchPlaceholder,
@@ -15410,8 +16853,8 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           if (event.key === "Enter") applySearch();
         }
       }
-    )), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", className: "crm20-toolbar-button", onClick: () => searchRef.current?.focus() }, t.filter, searchQuery ? /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, t.searchActive) : null), /* @__PURE__ */ React2.createElement(DropdownMenu2, null, /* @__PURE__ */ React2.createElement(DropdownMenuTrigger2, { asChild: true }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", className: sortMode === "server" ? "crm20-toolbar-button" : "crm20-toolbar-button is-active" }, t.sort, /* @__PURE__ */ React2.createElement("span", { className: "crm20-toolbar-meta" }, sortLabel))), /* @__PURE__ */ React2.createElement(DropdownMenuContent2, { align: "end", className: "crm20-dropdown" }, /* @__PURE__ */ React2.createElement(DropdownMenuLabel2, null, t.sortBy, " ", sortTarget), /* @__PURE__ */ React2.createElement(DropdownMenuRadioGroup2, { value: sortMode, onValueChange: (value) => setSortMode(value) }, /* @__PURE__ */ React2.createElement(DropdownMenuRadioItem2, { value: "server" }, t.noSorting), /* @__PURE__ */ React2.createElement(DropdownMenuRadioItem2, { value: "asc" }, t.ascending), /* @__PURE__ */ React2.createElement(DropdownMenuRadioItem2, { value: "desc" }, t.descending)))), /* @__PURE__ */ React2.createElement(DropdownMenu2, null, /* @__PURE__ */ React2.createElement(DropdownMenuTrigger2, { asChild: true }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", className: density === "compact" ? "crm20-toolbar-button is-active" : "crm20-toolbar-button" }, t.options)), /* @__PURE__ */ React2.createElement(DropdownMenuContent2, { align: "end", className: "crm20-dropdown" }, /* @__PURE__ */ React2.createElement(DropdownMenuLabel2, null, t.tableDensity), /* @__PURE__ */ React2.createElement(DropdownMenuItem2, { onSelect: () => setDensity("comfortable") }, t.comfortableDensity), /* @__PURE__ */ React2.createElement(DropdownMenuItem2, { onSelect: () => setDensity("compact") }, t.compactDensity), /* @__PURE__ */ React2.createElement(DropdownMenuSeparator2, null), /* @__PURE__ */ React2.createElement(DropdownMenuLabel2, null, t.visibleFields), fields.map((field) => /* @__PURE__ */ React2.createElement(
-      DropdownMenuCheckboxItem2,
+    )), /* @__PURE__ */ React2.createElement(I, { variant: "ghost", className: "crm20-toolbar-button", onClick: () => searchRef.current?.focus() }, t.filter, searchQuery ? /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, t.searchActive) : null), /* @__PURE__ */ React2.createElement(Ut2, null, /* @__PURE__ */ React2.createElement(Wt2, { asChild: true }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", className: sortMode === "server" ? "crm20-toolbar-button" : "crm20-toolbar-button is-active" }, t.sort, /* @__PURE__ */ React2.createElement("span", { className: "crm20-toolbar-meta" }, sortLabel))), /* @__PURE__ */ React2.createElement(Xt2, { align: "end", className: "crm20-dropdown" }, /* @__PURE__ */ React2.createElement(ta, null, t.sortBy, " ", sortTarget), /* @__PURE__ */ React2.createElement(Qt2, { value: sortMode, onValueChange: (value) => setSortMode(value) }, /* @__PURE__ */ React2.createElement(ea, { value: "server" }, t.noSorting), /* @__PURE__ */ React2.createElement(ea, { value: "asc" }, t.ascending), /* @__PURE__ */ React2.createElement(ea, { value: "desc" }, t.descending)))), /* @__PURE__ */ React2.createElement(Ut2, null, /* @__PURE__ */ React2.createElement(Wt2, { asChild: true }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", className: density === "compact" ? "crm20-toolbar-button is-active" : "crm20-toolbar-button" }, t.options)), /* @__PURE__ */ React2.createElement(Xt2, { align: "end", className: "crm20-dropdown" }, /* @__PURE__ */ React2.createElement(ta, null, t.tableDensity), /* @__PURE__ */ React2.createElement(Jt2, { onSelect: () => setDensity("comfortable") }, t.comfortableDensity), /* @__PURE__ */ React2.createElement(Jt2, { onSelect: () => setDensity("compact") }, t.compactDensity), /* @__PURE__ */ React2.createElement(aa, null), /* @__PURE__ */ React2.createElement(ta, null, t.visibleFields), fields.map((field) => /* @__PURE__ */ React2.createElement(
+      Yt,
       {
         key: field.fieldKey,
         checked: (visibleColumnKeys.length ? visibleColumnKeys : defaultColumnKeys).includes(field.fieldKey),
@@ -15419,7 +16862,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         onCheckedChange: (checked) => updateVisibleColumns(field.fieldKey, checked === true)
       },
       field.label || field.fieldKey
-    )), /* @__PURE__ */ React2.createElement(DropdownMenuSeparator2, null), /* @__PURE__ */ React2.createElement(DropdownMenuItem2, { onSelect: () => loadData({ keepSelection: true }) }, t.refresh))))), notice ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-notice" }, notice) : null, /* @__PURE__ */ React2.createElement("section", { className: "crm20-content" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-table-panel" }, /* @__PURE__ */ React2.createElement("div", { className: selectedCount ? "crm20-selection-slot is-visible" : "crm20-selection-slot" }, selectedCount ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-selection-bar" }, /* @__PURE__ */ React2.createElement(Badge, { variant: "secondary" }, selectedCount), /* @__PURE__ */ React2.createElement("strong", null, selectedCount, " ", t.selectedCount), /* @__PURE__ */ React2.createElement("span", null, t.visibleRows, " ", sortedItems.length), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", size: "sm", onClick: () => setCheckedIds(/* @__PURE__ */ new Set()) }, t.clearSelection)) : null), /* @__PURE__ */ React2.createElement(
+    )), /* @__PURE__ */ React2.createElement(aa, null), /* @__PURE__ */ React2.createElement(Jt2, { onSelect: () => loadData({ keepSelection: true }) }, t.refresh))))), notice ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-notice" }, notice) : null, /* @__PURE__ */ React2.createElement("section", { className: "crm20-content" }, /* @__PURE__ */ React2.createElement("div", { className: "crm20-table-panel" }, /* @__PURE__ */ React2.createElement("div", { className: selectedCount ? "crm20-selection-slot is-visible" : "crm20-selection-slot" }, selectedCount ? /* @__PURE__ */ React2.createElement("div", { className: "crm20-selection-bar" }, /* @__PURE__ */ React2.createElement(rt2, { variant: "secondary" }, selectedCount), /* @__PURE__ */ React2.createElement("strong", null, selectedCount, " ", t.selectedCount), /* @__PURE__ */ React2.createElement("span", null, t.visibleRows, " ", sortedItems.length), /* @__PURE__ */ React2.createElement(I, { variant: "ghost", size: "sm", onClick: () => setCheckedIds(/* @__PURE__ */ new Set()) }, t.clearSelection)) : null), /* @__PURE__ */ React2.createElement(
       RecordGrid,
       {
         columns,
@@ -15437,7 +16880,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         onToggleAll: toggleAllVisible,
         onCreate: startCreate
       }
-    ), /* @__PURE__ */ React2.createElement("footer", { className: "crm20-table-footer" }, /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", className: "crm20-add-row", onClick: startCreate }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, t.addNew)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-calculation" }, /* @__PURE__ */ React2.createElement("span", null, t.calculate), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" }), /* @__PURE__ */ React2.createElement("strong", null, t.countAll, " ", table.total || sortedItems.length), firstMeasureColumn ? /* @__PURE__ */ React2.createElement("strong", null, t.notEmpty, " ", firstMeasureColumn.label || firstMeasureColumn.fieldKey, " ", countNonEmpty(sortedItems, firstMeasureColumn.fieldKey)) : null))), /* @__PURE__ */ React2.createElement(
+    ), /* @__PURE__ */ React2.createElement("footer", { className: "crm20-table-footer" }, /* @__PURE__ */ React2.createElement(I, { variant: "ghost", className: "crm20-add-row", onClick: startCreate }, /* @__PURE__ */ React2.createElement(Icon2, { name: "plus" }), /* @__PURE__ */ React2.createElement("span", null, t.addNew)), /* @__PURE__ */ React2.createElement("div", { className: "crm20-calculation" }, /* @__PURE__ */ React2.createElement("span", null, t.calculate), /* @__PURE__ */ React2.createElement(Icon2, { name: "chevron" }), /* @__PURE__ */ React2.createElement("strong", null, t.countAll, " ", table.total || sortedItems.length), firstMeasureColumn ? /* @__PURE__ */ React2.createElement("strong", null, t.notEmpty, " ", firstMeasureColumn.label || firstMeasureColumn.fieldKey, " ", countNonEmpty(sortedItems, firstMeasureColumn.fieldKey)) : null))), /* @__PURE__ */ React2.createElement(
       Inspector,
       {
         mode,
@@ -15485,7 +16928,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       --crm20-border-soft: #f0f1f3;
       --crm20-hover: #f7f7f8;
       --crm20-active: #f1f5ff;
-	      --crm20-primary: var(--xps-primary, var(--xui-color-primary, #2563eb));
+	      --crm20-primary: var(--primary, var(--xui-color-primary, #2563eb));
 	      --xui-radius-md: 0.375rem;
       --xui-control-height: 1.875rem;
       --xui-control-height-sm: 1.75rem;
@@ -15503,13 +16946,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     .crm20-workspace-mark { width: 22px; height: 22px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; background: #9de0e4; color: #1f4b53; font-size: 12px; font-weight: 800; }
     .crm20-workspace-name, .crm20-object-title strong, .crm20-view-name span:first-of-type, .crm20-object-nav button span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .crm20-sidebar-switcher { width: 84px; height: 36px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--crm20-border); background: var(--crm20-panel); border-radius: 18px; }
-    .crm20-sidebar-switcher .xps-button { height: 28px; min-width: 0; border-radius: 14px; color: var(--crm20-muted); }
-    .crm20-sidebar-switcher .crm20-switcher-active, .crm20-sidebar-switcher .xps-button:hover { background: #f3f4f6; color: #111827; }
+    .crm20-sidebar-switcher [data-slot="button"] { height: 28px; min-width: 0; border-radius: 14px; color: var(--crm20-muted); }
+    .crm20-sidebar-switcher .crm20-switcher-active, .crm20-sidebar-switcher [data-slot="button"]:hover { background: #f3f4f6; color: #111827; }
     .crm20-chat-button { align-self: flex-end; border-radius: 18px; color: #4b5563; }
     .crm20-nav-section { color: var(--crm20-soft); font-size: 12px; font-weight: 700; padding: 8px 2px 0; }
     .crm20-object-nav { display: grid; gap: 2px; }
-    .crm20-object-nav .xps-button { height: 36px; justify-content: flex-start; border: 0; color: #5f6368; font-weight: 600; padding: 0 8px; }
-    .crm20-object-nav .xps-button:hover, .crm20-object-nav .xps-button.is-active { background: #e9eaec; color: #2f3337; }
+    .crm20-object-nav [data-slot="button"] { height: 36px; justify-content: flex-start; border: 0; color: #5f6368; font-weight: 600; padding: 0 8px; }
+    .crm20-object-nav [data-slot="button"]:hover, .crm20-object-nav [data-slot="button"].is-active { background: #e9eaec; color: #2f3337; }
     .crm20-object-icon, .crm20-title-icon, .crm20-record-mark, .crm20-empty-icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; background: #e5e7eb; color: #4b5563; }
     .crm20-object-icon { width: 20px; height: 20px; }
     .crm20-title-icon { width: 24px; height: 24px; }
@@ -15534,12 +16977,12 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 	    .crm20-view-count { color: #a1a1aa; font-weight: 600; }
 	    .crm20-search { height: 32px; min-width: 240px; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 6px; border: 1px solid var(--crm20-border); background: #fbfbfc; border-radius: 5px; padding: 0 8px; color: var(--crm20-soft); }
 	    .crm20-search:focus-within { border-color: #a9bdf7; box-shadow: 0 0 0 3px rgba(65, 105, 225, 0.12); }
-	    .crm20-search .xps-input { height: 28px; border: 0; padding: 0; background: transparent; box-shadow: none; }
+	    .crm20-search [data-slot="input"] { height: 28px; border: 0; padding: 0; background: transparent; box-shadow: none; }
 	    .crm20-toolbar-button { color: #5f6368; gap: 6px; }
 	    .crm20-toolbar-button.is-active { color: #1f2937; background: #eff3ff; border-color: #ccd8ff; }
 	    .crm20-toolbar-meta { color: var(--crm20-soft); font-weight: 600; }
-	    .crm20-dropdown.xps-dropdown-menu-content { min-width: 178px; z-index: 30; }
-	    .crm20-toolbar-button .xps-badge { height: 18px; padding: 0 6px; font-size: 10px; }
+	    .crm20-dropdown[data-slot="dropdown-menu-content"] { min-width: 178px; z-index: 30; }
+	    .crm20-toolbar-button [data-slot="badge"] { height: 18px; padding: 0 6px; font-size: 10px; }
 	    .crm20-notice { margin: 8px 12px 0; border: 1px solid #f2c94c; background: #fffbeb; color: #7a4d00; padding: 8px 10px; border-radius: 5px; font-size: 13px; }
 	    .crm20-content { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; position: relative; overflow: hidden; }
 	    .crm20-table-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) 78px; }
@@ -15547,21 +16990,21 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 	    .crm20-selection-slot.is-visible { min-height: 38px; border-bottom-color: var(--crm20-border-soft); }
 	    .crm20-selection-bar { height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 18px; background: #f8fbff; color: #64748b; }
 	    .crm20-selection-bar strong { color: #334155; font-weight: 700; }
-	    .crm20-selection-bar .xps-badge { height: 20px; min-width: 24px; justify-content: center; }
-	    .crm20-selection-bar .xps-button { margin-left: auto; color: #4169e1; }
+	    .crm20-selection-bar [data-slot="badge"] { height: 20px; min-width: 24px; justify-content: center; }
+	    .crm20-selection-bar [data-slot="button"] { margin-left: auto; color: #4169e1; }
 	    .crm20-grid-scroll { min-width: 0; min-height: 0; overflow: auto; position: relative; background: var(--crm20-panel); }
 	    .crm20-grid { width: 100%; min-width: 1040px; table-layout: fixed; }
-	    .crm20-grid .xps-table-head, .crm20-grid .xps-table-cell { height: 39px; border-right: 1px solid var(--crm20-border-soft); border-bottom: 1px solid #eeeeef; text-align: left; vertical-align: middle; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #4b5563; }
-	    .crm20-compact .crm20-grid .xps-table-head, .crm20-compact .crm20-grid .xps-table-cell { height: 34px; padding: 0 10px; }
-	    .crm20-grid .xps-table-head { position: sticky; top: 0; z-index: 2; background: #fbfbfc; color: var(--crm20-soft); font-weight: 650; }
-	    .crm20-grid .xps-table-row:hover .xps-table-cell { background: #fafafa; }
-	    .crm20-grid .xps-table-row.is-selected .xps-table-cell { background: var(--crm20-active); }
-	    .crm20-grid .xps-table-row.is-checked .xps-table-cell { background: #f8fbff; }
-	    .crm20-grid .xps-table-row.is-selected.is-checked .xps-table-cell { background: #ecf3ff; }
+	    .crm20-grid [data-slot="table-head"], .crm20-grid [data-slot="table-cell"] { height: 39px; border-right: 1px solid var(--crm20-border-soft); border-bottom: 1px solid #eeeeef; text-align: left; vertical-align: middle; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #4b5563; }
+	    .crm20-compact .crm20-grid [data-slot="table-head"], .crm20-compact .crm20-grid [data-slot="table-cell"] { height: 34px; padding: 0 10px; }
+	    .crm20-grid [data-slot="table-head"] { position: sticky; top: 0; z-index: 2; background: #fbfbfc; color: var(--crm20-soft); font-weight: 650; }
+	    .crm20-grid [data-slot="table-row"]:hover [data-slot="table-cell"] { background: #fafafa; }
+	    .crm20-grid [data-slot="table-row"].is-selected [data-slot="table-cell"] { background: var(--crm20-active); }
+	    .crm20-grid [data-slot="table-row"].is-checked [data-slot="table-cell"] { background: #f8fbff; }
+	    .crm20-grid [data-slot="table-row"].is-selected.is-checked [data-slot="table-cell"] { background: #ecf3ff; }
     .crm20-check-col { width: 44px; }
     .crm20-extra-col { width: 52px; }
     .crm20-check-cell, .crm20-extra-cell { width: 44px; text-align: center !important; padding: 0 !important; color: var(--crm20-soft); }
-    .crm20-grid .xps-checkbox { vertical-align: middle; }
+    .crm20-grid [data-slot="checkbox"] { vertical-align: middle; }
     .crm20-th-content, .crm20-name-cell, .crm20-multi-value { min-width: 0; display: inline-flex; align-items: center; gap: 7px; max-width: 100%; }
     .crm20-th-content span, .crm20-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .crm20-name-text { color: #374151; font-weight: 650; }
@@ -15579,7 +17022,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     .crm20-calculation strong { color: #71717a; font-weight: 650; white-space: nowrap; }
     .crm20-empty-table, .crm20-empty { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--crm20-muted); padding: 28px; text-align: center; }
     .crm20-empty-icon { width: 42px; height: 42px; }
-	    .crm20-inspector-content.xps-sheet-content { width: min(400px, calc(100vw - 24px)); max-width: calc(100vw - 24px); padding: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; }
+	    .crm20-inspector-content[data-slot="sheet-content"] { width: min(400px, calc(100vw - 24px)); max-width: calc(100vw - 24px); padding: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; }
 	    .crm20-inspector-header { min-height: 76px; border-bottom: 1px solid var(--crm20-border); display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: flex-start; gap: 12px; padding: 14px; }
 	    .crm20-inspector-avatar { width: 36px; height: 36px; border-radius: 8px; color: #fff; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 	    .crm20-inspector-avatar span { display: inline; color: inherit; font-size: 12px; margin: 0; }
@@ -15589,9 +17032,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     .crm20-inspector-meta { min-height: 42px; border-bottom: 1px solid var(--crm20-border); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 14px; color: var(--crm20-muted); font-size: 12px; }
     .crm20-inspector-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .crm20-inspector-tabs { min-height: 0; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-    .crm20-inspector-tabs .xps-tabs-list { margin: 10px 14px 0; width: calc(100% - 28px); }
-    .crm20-inspector-tabs .xps-tabs-trigger { flex: 1 1 0; }
-    .crm20-inspector-tabs .xps-tabs-content { min-height: 0; overflow: hidden; margin: 0; }
+    .crm20-inspector-tabs [data-slot="tabs-list"] { margin: 10px 14px 0; width: calc(100% - 28px); }
+    .crm20-inspector-tabs [data-slot="tabs-trigger"] { flex: 1 1 0; }
+    .crm20-inspector-tabs [data-slot="tabs-content"] { min-height: 0; overflow: hidden; margin: 0; }
     .crm20-read-fields, .crm20-form { min-height: 0; overflow: auto; padding: 14px; display: grid; align-content: start; gap: 10px; }
     .crm20-read-field { display: grid; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--crm20-border-soft); }
 	    .crm20-read-field span, .crm20-field > span { color: var(--crm20-muted); font-size: 12px; font-weight: 650; }
@@ -15600,14 +17043,14 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 	    .crm20-related-heading { min-height: 24px; display: flex; align-items: center; justify-content: space-between; color: #1f2937; }
 	    .crm20-related-heading strong { font-size: 13px; font-weight: 750; }
 	    .crm20-related-section { display: grid; gap: 8px; }
-	    .crm20-related-section .xps-separator { background: var(--crm20-border-soft); }
+	    .crm20-related-section [data-slot="separator"] { background: var(--crm20-border-soft); }
 	    .crm20-related-section-header { min-width: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 	    .crm20-related-section-header > div { min-width: 0; display: grid; gap: 2px; }
 	    .crm20-related-section-header strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #374151; font-size: 12px; font-weight: 750; }
 	    .crm20-related-section-header small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--crm20-soft); font-size: 11px; font-weight: 600; }
 	    .crm20-related-list { display: grid; gap: 4px; }
-	    .crm20-related-record.xps-button { width: 100%; height: auto; min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 8px; justify-content: stretch; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: #374151; }
-	    .crm20-related-record.xps-button:hover { border-color: var(--crm20-border); background: var(--crm20-hover); }
+	    .crm20-related-record[data-slot="button"] { width: 100%; height: auto; min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 8px; justify-content: stretch; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: #374151; }
+	    .crm20-related-record[data-slot="button"]:hover { border-color: var(--crm20-border); background: var(--crm20-hover); }
 	    .crm20-related-record > span:not(.crm20-record-mark) { min-width: 0; display: grid; gap: 2px; text-align: left; }
 	    .crm20-related-record strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
 	    .crm20-related-record small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--crm20-muted); font-size: 11px; font-weight: 600; }
@@ -15615,15 +17058,15 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 	    .crm20-related-more { min-height: 24px; display: inline-flex; align-items: center; color: var(--crm20-muted); font-size: 12px; font-weight: 600; padding: 0 8px; }
 	    .crm20-timeline-panel { min-height: 0; overflow: auto; padding: 14px; display: grid; align-content: start; gap: 0; }
 	    .crm20-timeline-item { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 8px 0; }
-	    .crm20-timeline-item .xps-separator { grid-column: 1 / -1; margin-bottom: 8px; background: var(--crm20-border-soft); }
+	    .crm20-timeline-item [data-slot="separator"] { grid-column: 1 / -1; margin-bottom: 8px; background: var(--crm20-border-soft); }
 	    .crm20-timeline-dot { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #f3f4f6; color: #64748b; }
 	    .crm20-timeline-note { background: #e8f7f4; color: #0f766e; }
 	    .crm20-timeline-task { background: #dcf7ef; color: #0f9f6e; }
 	    .crm20-timeline-activity { background: #eef2ff; color: #5b5fc7; }
 	    .crm20-timeline-content { min-width: 0; display: grid; gap: 6px; }
 	    .crm20-timeline-meta { min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--crm20-soft); font-size: 11px; font-weight: 600; }
-	    .crm20-timeline-record.xps-button { width: 100%; height: auto; min-height: 42px; justify-content: stretch; display: grid; grid-template-columns: minmax(0, 1fr) 16px; gap: 8px; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: #374151; }
-	    .crm20-timeline-record.xps-button:hover { border-color: var(--crm20-border); background: var(--crm20-hover); }
+	    .crm20-timeline-record[data-slot="button"] { width: 100%; height: auto; min-height: 42px; justify-content: stretch; display: grid; grid-template-columns: minmax(0, 1fr) 16px; gap: 8px; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: #374151; }
+	    .crm20-timeline-record[data-slot="button"]:hover { border-color: var(--crm20-border); background: var(--crm20-hover); }
 	    .crm20-timeline-record span, .crm20-timeline-activity-body { min-width: 0; display: grid; gap: 2px; text-align: left; }
 	    .crm20-timeline-record strong, .crm20-timeline-activity-body strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937; font-size: 12px; font-weight: 720; }
 	    .crm20-timeline-record small, .crm20-timeline-activity-body small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--crm20-muted); font-size: 11px; font-weight: 600; }
@@ -15633,13 +17076,13 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 	    .crm20-field { display: grid; gap: 5px; }
 	    .crm20-field em { margin-left: 6px; color: #dc2626; font-style: normal; font-weight: 600; }
 	    .crm20-field small { margin-left: 8px; color: var(--crm20-soft); font-size: 11px; font-weight: 600; text-transform: uppercase; }
-	    .crm20-field .xps-textarea { min-height: 88px; resize: vertical; }
+	    .crm20-field [data-slot="textarea"] { min-height: 88px; resize: vertical; }
 	    .crm20-checkbox-field { justify-content: flex-start; }
 	    .crm20-relation-picker { display: grid; gap: 6px; position: relative; }
 	    .crm20-relation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
-	    .crm20-relation-trigger.xps-button { width: 100%; justify-content: flex-start; min-width: 0; }
+	    .crm20-relation-trigger[data-slot="button"] { width: 100%; justify-content: flex-start; min-width: 0; }
 	    .crm20-relation-title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-	    .crm20-relation-command { border: 1px solid var(--crm20-border); border-radius: var(--xps-radius, 6px); background: var(--xps-popover, #fff); box-shadow: 0 14px 34px color-mix(in srgb, var(--crm20-text) 12%, transparent); overflow: hidden; }
+	    .crm20-relation-command { border: 1px solid var(--crm20-border); border-radius: var(--radius, 6px); background: var(--popover, #fff); box-shadow: 0 14px 34px color-mix(in srgb, var(--crm20-text) 12%, transparent); overflow: hidden; }
 	    .crm20-relation-option-text { min-width: 0; display: grid; gap: 2px; }
 	    .crm20-relation-option-text strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--crm20-text); font-size: 13px; }
 	    .crm20-relation-option-text small { color: var(--crm20-soft); font-size: 11px; font-weight: 600; text-transform: none; }
@@ -15670,7 +17113,6 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
 
   // src/lib/remote-components/crm-workbench/src/main.tsx
   var { useEffect: useEffect4, useState: useState4 } = React2;
-  installShadcnThemeVars({ styleId: "crm-workbench-shadcn-ui-vars" });
   injectStyles2();
   function App() {
     const [context, setContext] = useState4(null);

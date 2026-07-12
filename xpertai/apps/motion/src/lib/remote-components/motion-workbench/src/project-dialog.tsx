@@ -5,9 +5,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle
-} from '@xpert-ai/plugin-shadcn-ui/components/dialog'
-import { Input } from '@xpert-ai/plugin-shadcn-ui/components/input'
-import { Textarea } from '@xpert-ai/plugin-shadcn-ui/components/textarea'
+} from '@xpert-ai/plugin-shadcn-ui'
+import { Input } from '@xpert-ai/plugin-shadcn-ui'
+import { Textarea } from '@xpert-ai/plugin-shadcn-ui'
 import type { MotionSurface, ProjectSummary } from './motion-types'
 import { labelForStatus, type Translator } from './i18n'
 import { Button, h } from './ui'

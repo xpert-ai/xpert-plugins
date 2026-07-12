@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { Badge } from '@xpert-ai/plugin-shadcn-ui/components/badge'
-import { Card } from '@xpert-ai/plugin-shadcn-ui/components/card'
-import { Input } from '@xpert-ai/plugin-shadcn-ui/components/input'
+import { Badge } from '@xpert-ai/plugin-shadcn-ui'
+import { Card } from '@xpert-ai/plugin-shadcn-ui'
+import { Input } from '@xpert-ai/plugin-shadcn-ui'
 import { getSceneList } from '../../../workbench-model'
 import type { HtmlTimelineLayout } from '../../../workbench-model'
 import type { MotionVideoLayer } from '../../../types'
@@ -74,7 +74,7 @@ export function TimelinePanel(props: {
         <strong>{(props.time / 1000).toFixed(2)}s</strong>
         <span>{props.t('timeline')}</span>
         <Badge variant="secondary">{props.t(props.scope === 'all' ? 'timelineScopeAll' : 'timelineScopeSelection')}</Badge>
-        {props.layout.restraintWarning ? <Badge variant="warning">{props.t('timelineRestraintWarning')}</Badge> : null}
+        {props.layout.restraintWarning ? <Badge variant="outline" data-status="warning">{props.t('timelineRestraintWarning')}</Badge> : null}
         <MotionSlider min={0} max={duration} step={20} value={props.time} onChange={props.onSeek} />
       </div>
       <div className="timeline-ruler">

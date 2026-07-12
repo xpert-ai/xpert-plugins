@@ -22,8 +22,8 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { injectStyles } from './styles'
 import { createTranslator, TranslationKey } from './i18n'
 import {
@@ -39,8 +39,6 @@ import {
   setRuntimeText,
   startRemoteBridge
 } from './runtime'
-
-installShadcnThemeVars({ styleId: 'wechat-workbench-shadcn-ui-vars' })
 
 type TabKey = 'dashboard' | 'accounts' | 'messages' | 'queue' | 'config' | 'logs'
 type TableKey = 'accounts' | 'messages' | 'queue' | 'logs'

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Card } from '@xpert-ai/plugin-shadcn-ui/components/card'
+import { Card } from '@xpert-ai/plugin-shadcn-ui'
 import type { RemotePayloadObject } from './runtime'
 import type { MotionViewData, ProjectSummary, RecipeSummary } from './motion-types'
 import type { Translator } from './i18n'

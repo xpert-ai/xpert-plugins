@@ -70,8 +70,8 @@ import {
   Textarea,
   Trash2,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
@@ -131,8 +131,6 @@ const univerLocaleBundles = {
     SlidesUIZhCN
   )
 }
-
-installShadcnThemeVars({ styleId: 'office-editor-workbench-shadcn-ui-vars' })
 injectStyles()
 
 function App() {
@@ -609,8 +607,8 @@ function App() {
               <Upload className="oe-icon" aria-hidden="true" />
               {t('import')}
             </Button>
-            <Badge className="oe-status-badge" variant={collabState === 'connected' ? 'success' : 'secondary'}>{t('collab')}: {t(collabState)}</Badge>
-            <Badge className="oe-status-badge" variant={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
+            <Badge className="oe-status-badge" variant={collabState === 'connected' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : undefined}>{t('collab')}: {t(collabState)}</Badge>
+            <Badge className="oe-status-badge" variant="outline" data-status={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
             <Button variant="outline" title={t('sync')} disabled={!selectedId || busy} onClick={syncCollabState}>
               <RotateCcw className="oe-icon" aria-hidden="true" />
               {t('sync')}
@@ -619,7 +617,7 @@ function App() {
               <Save className="oe-icon" aria-hidden="true" />
               {t('save')}
             </Button>
-            <Button variant="destructiveOutline" size="icon" title={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
+            <Button variant="destructive" size="icon" title={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
               <Trash2 className="oe-icon" aria-hidden="true" />
             </Button>
           </div>
@@ -681,7 +679,7 @@ function App() {
               <div className="oe-operation" key={operation.id}>
                 <div className="oe-operation-row">
                   <strong>{operationLabel(operation.operationType, t)}</strong>
-                  <Badge className="oe-status-badge" variant={operation.status === 'applied' ? 'success' : operation.status === 'failed' ? 'warning' : 'secondary'}>
+                  <Badge className="oe-status-badge" variant={operation.status === 'applied' || operation.status === 'failed' ? 'outline' : 'secondary'} data-status={operation.status === 'applied' ? 'success' : operation.status === 'failed' ? 'warning' : undefined}>
                     {t(operation.status || 'queued')}
                   </Badge>
                 </div>

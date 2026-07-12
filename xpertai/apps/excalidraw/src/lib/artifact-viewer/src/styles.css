@@ -1,0 +1,178 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+.artifact-shell {
+  --artifact-bg: #f7f7f8;
+  --artifact-panel: rgba(255, 255, 255, 0.94);
+  --artifact-border: #e3e3e8;
+  --artifact-text: #202124;
+  --artifact-muted: #6f7178;
+  display: grid;
+  grid-template-rows: 64px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  color: var(--artifact-text);
+  background: var(--artifact-bg);
+}
+
+.artifact-shell.theme-dark {
+  --artifact-bg: #121212;
+  --artifact-panel: rgba(30, 30, 32, 0.96);
+  --artifact-border: #37373c;
+  --artifact-text: #f5f5f6;
+  --artifact-muted: #aaaab2;
+}
+
+.artifact-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--artifact-border);
+  background: var(--artifact-panel);
+  backdrop-filter: blur(14px);
+}
+
+.artifact-title-block {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.artifact-title-block h1 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--artifact-text);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-title-block p {
+  margin: 2px 0 0;
+  color: var(--artifact-muted);
+  font-size: 11px;
+}
+
+.artifact-logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  color: #5b5bd6;
+  background: #ececff;
+  font-size: 18px;
+}
+
+.theme-dark .artifact-logo {
+  color: #c8c8ff;
+  background: #33335a;
+}
+
+.artifact-header button {
+  flex: 0 0 auto;
+  padding: 8px 13px;
+  border: 1px solid var(--artifact-border);
+  border-radius: 9px;
+  color: var(--artifact-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.artifact-header button:hover {
+  background: color-mix(in srgb, var(--artifact-text) 7%, transparent);
+}
+
+.artifact-canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.artifact-canvas .excalidraw {
+  width: 100%;
+  height: 100%;
+}
+
+.artifact-message {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  color: #202124;
+  background: #f7f7f8;
+}
+
+.artifact-message-card {
+  width: min(420px, 100%);
+  padding: 34px;
+  border: 1px solid #e3e3e8;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(30, 30, 40, 0.08);
+  text-align: center;
+}
+
+.artifact-message-card h1 {
+  margin: 14px 0 7px;
+  font-size: 21px;
+}
+
+.artifact-message-card p {
+  margin: 0;
+  color: #70727a;
+  line-height: 1.55;
+}
+
+.artifact-mark {
+  color: #5b5bd6;
+  font-size: 28px;
+}
+
+@media (max-width: 620px) {
+  .artifact-shell {
+    grid-template-rows: 58px minmax(0, 1fr);
+  }
+
+  .artifact-header {
+    padding: 8px 10px;
+  }
+
+  .artifact-title-block p {
+    display: none;
+  }
+
+  .artifact-header button {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+}

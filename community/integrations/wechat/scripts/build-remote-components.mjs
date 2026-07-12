@@ -118,7 +118,7 @@ function resolveWorkspaceSourcePackage(packageName, relativeEntry) {
 function workspaceSourcePackagePlugin() {
   const shadcnUiEntry = resolveWorkspaceSourcePackage(
     '@xpert-ai/plugin-shadcn-ui',
-    join('packages', 'shadcn-ui', 'src', 'index.ts')
+    join('packages', 'shadcn-ui', 'dist', 'index.js')
   )
 
   return {
@@ -146,6 +146,9 @@ async function bundleComponent(componentName) {
     platform: 'browser',
     target: ['es2020'],
     conditions: ['@xpert-plugins-starter/source', 'production'],
+    outdir: componentDir,
+    entryNames: 'app',
+    assetNames: 'assets/[name]-[hash]',
     write: false,
     logLevel: 'silent',
     legalComments: 'none',
@@ -160,13 +163,16 @@ async function bundleComponent(componentName) {
       'process.env.IS_PREACT': '"false"'
     }
   })
-  const output = result.outputFiles?.[0]
-  if (!output) {
+  const jsOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.js'))
+  if (!jsOutput) {
     throw new Error(`esbuild did not produce ${componentName}/app.js output`)
   }
+  const cssOutput = result.outputFiles?.find((outputFile) => outputFile.path.endsWith('.css'))
   return {
     outputPath: join(componentDir, 'app.js'),
-    text: `${echartsUmd}\n${output.text}`
+    text: `${echartsUmd}\n${jsOutput.text}`,
+    cssOutputPath: join(componentDir, 'app.css'),
+    cssText: cssOutput?.text ?? ''
   }
 }
 
@@ -175,17 +181,29 @@ const outputs = await Promise.all(componentNames.map(bundleComponent))
 if (process.argv.includes('--check')) {
   let hasOutdatedOutput = false
   await Promise.all(
-    outputs.map(async ({ outputPath, text }) => {
-      const currentOutput = await readFile(outputPath, 'utf8')
-      if (currentOutput !== text) {
-        console.error(`${relative(process.cwd(), outputPath)} is out of date. Run pnpm build.`)
-        hasOutdatedOutput = true
-      }
-    })
+    outputs.flatMap(({ outputPath, text, cssOutputPath, cssText }) => [
+      (async () => {
+        const currentOutput = existsSync(outputPath) ? await readFile(outputPath, 'utf8') : ''
+        if (currentOutput !== text) {
+          console.error(`${relative(process.cwd(), outputPath)} is out of date. Run pnpm build.`)
+          hasOutdatedOutput = true
+        }
+      })(),
+      (async () => {
+        const currentOutput = existsSync(cssOutputPath) ? await readFile(cssOutputPath, 'utf8') : ''
+        if (currentOutput !== cssText) {
+          console.error(`${relative(process.cwd(), cssOutputPath)} is out of date. Run pnpm build.`)
+          hasOutdatedOutput = true
+        }
+      })()
+    ])
   )
   if (hasOutdatedOutput) {
     process.exit(1)
   }
 } else {
-  await Promise.all(outputs.map(({ outputPath, text }) => writeFile(outputPath, text)))
+  await Promise.all(outputs.flatMap(({ outputPath, text, cssOutputPath, cssText }) => [
+    writeFile(outputPath, text),
+    writeFile(cssOutputPath, cssText)
+  ]))
 }

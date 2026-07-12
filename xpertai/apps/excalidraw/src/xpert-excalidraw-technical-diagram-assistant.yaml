@@ -1,0 +1,79 @@
+team:
+  name: excalidraw-technical-diagram-assistant
+  type: agent
+  title: Excalidraw Technical Diagram Assistant
+  description:
+    en_US: Template-driven DiagramIR assistant with deterministic rendering and bounded visual review
+    zh_Hans: 采用模板、DiagramIR、确定性渲染和有界视觉审核的技术图助手
+  options:
+    templateKey: excalidraw-technical-diagram-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: excalidraw-technical-diagram-assistant
+      assistantKind: business-assistant
+      businessDomain: excalidraw-technical-diagram
+      requiredPlugin: '@xpert-ai/plugin-excalidraw'
+      requiredPlugins:
+        - '@xpert-ai/plugin-excalidraw'
+      requiredCapabilities:
+        - excalidraw
+        - diagram-ir
+        - diagram-quality
+  agentConfig:
+    stateVariables: []
+    recursionLimit: 10000
+  version: "1"
+  agent:
+    key: Agent_Excalidraw_Technical_Diagram
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.1
+      maxRetries: 6
+      max_tokens: 8192
+nodes:
+  - type: agent
+    key: Agent_Excalidraw_Technical_Diagram
+    position: { x: 800, y: 20 }
+    entity:
+      key: Agent_Excalidraw_Technical_Diagram
+      name: excalidraw-technical-diagram-assistant
+      title: Excalidraw Technical Diagram Assistant
+      prompt: >
+        You create technical diagrams through semantic DiagramIR. Read the enabled
+        technical-diagram skill. Follow this
+        order: search and inspect templates; instantiate or create DiagramIR; make
+        small revision-safe IR changes; validate; render; create a PNG preview;
+        inspect it; record passed, skipped, or targeted needs_revision; perform no
+        more than two correction passes. Never overwrite a diverged manual scene
+        without explicit user confirmation. Excalidraw tools remain the system of
+        record for drawing versions. Start with excalidraw_template_list and
+        excalidraw_template_inspect, then use excalidraw_diagram_validate,
+        excalidraw_diagram_render, and excalidraw_diagram_create_preview in that
+        order. Match the user's language.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: excalidraw-technical-diagram-agent-v1
+  - type: workflow
+    key: Middleware_Excalidraw
+    position: { x: 300, y: 300 }
+    entity: { type: middleware, key: Middleware_Excalidraw, title: Excalidraw Tools, provider: ExcalidrawMiddleware, required: true }
+    hash: excalidraw-tools-v1
+  - type: workflow
+    key: Middleware_DiagramEngine
+    position: { x: 750, y: 300 }
+    entity: { type: middleware, key: Middleware_DiagramEngine, title: Technical Diagram Engine, provider: ExcalidrawDiagramEngineMiddleware, required: true }
+    hash: excalidraw-diagram-engine-tools-v1
+  - type: workflow
+    key: Middleware_Skills
+    position: { x: 1200, y: 300 }
+    entity: { type: middleware, key: Middleware_Skills, title: Skills Middleware, provider: skillsMiddleware, required: true }
+    hash: excalidraw-technical-skills-v1
+connections:
+  - { type: workflow, key: Agent_Excalidraw_Technical_Diagram/Middleware_Excalidraw, from: Agent_Excalidraw_Technical_Diagram, to: Middleware_Excalidraw }
+  - { type: workflow, key: Agent_Excalidraw_Technical_Diagram/Middleware_DiagramEngine, from: Agent_Excalidraw_Technical_Diagram, to: Middleware_DiagramEngine }
+  - { type: workflow, key: Agent_Excalidraw_Technical_Diagram/Middleware_Skills, from: Agent_Excalidraw_Technical_Diagram, to: Middleware_Skills }

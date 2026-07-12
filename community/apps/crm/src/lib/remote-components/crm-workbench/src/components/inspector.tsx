@@ -69,7 +69,7 @@ export function Inspector({
   const title = mode === 'create' ? t.newRecord : record ? displayRecordTitle(record, fields, t) : t.details
   return (
     <Sheet open={mode !== 'closed'} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="crm20-inspector-content" side="right" showClose={false}>
+      <SheetContent className="crm20-inspector-content" side="right" showCloseButton={false}>
         <header className="crm20-inspector-header">
           <div className={`crm20-inspector-avatar crm20-object-${objectKey}`}>
             {mode === 'create' ? <Icon name="plus" /> : <span>{recordInitial(title)}</span>}

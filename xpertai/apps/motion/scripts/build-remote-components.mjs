@@ -7,8 +7,7 @@ import { build, transform } from 'esbuild'
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
-const shadcnUiSourceRoot = join(workspaceRoot, 'packages', 'shadcn-ui', 'src')
-const shadcnUiSourceEntry = join(shadcnUiSourceRoot, 'index.ts')
+const shadcnUiDistEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'dist', 'index.js')
 const componentNames = ['motion-workbench']
 const sourceExtensions = new Set(['.ts', '.tsx'])
 
@@ -68,20 +67,7 @@ function localWorkspacePackagesPlugin() {
   return {
     name: 'xpert-motion-local-workspace-packages',
     setup(buildApi) {
-      buildApi.onResolve({ filter: /^@xpert-ai\/plugin-shadcn-ui(?:\/.+)?$/ }, (args) => {
-        if (args.path === '@xpert-ai/plugin-shadcn-ui') {
-          return { path: shadcnUiSourceEntry }
-        }
-        const relativePath = args.path.slice('@xpert-ai/plugin-shadcn-ui/'.length)
-        const candidates = [
-          join(shadcnUiSourceRoot, `${relativePath}.ts`),
-          join(shadcnUiSourceRoot, `${relativePath}.tsx`),
-          join(shadcnUiSourceRoot, relativePath, 'index.ts'),
-          join(shadcnUiSourceRoot, relativePath, 'index.tsx')
-        ]
-        const path = candidates.find((candidate) => existsSync(candidate))
-        return path ? { path } : undefined
-      })
+      buildApi.onResolve({ filter: /^@xpert-ai\/plugin-shadcn-ui$/ }, () => ({ path: shadcnUiDistEntry }))
     }
   }
 }

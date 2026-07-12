@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.8.2",
-  "description": "Excalidraw app plugin for agent-created diagrams, reviewable drawing versions, Mermaid drafts, and an editable workbench.",
+  "version": "0.9.0",
+  "description": "Collaborative Excalidraw plugin with Agent-created diagrams, Yjs multiplayer editing, interactive HTML Artifact sharing, reviewable versions, DiagramIR, and an editable workbench.",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -34,14 +34,16 @@
     "assets",
     "skills",
     "README.md",
+    "README_zh-hans.md",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "typecheck": "tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "npm run build && node scripts/verify-package-output.mjs"
+    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {
@@ -51,15 +53,20 @@
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
     "@excalidraw/mermaid-to-excalidraw": "2.2.2",
-    "tslib": "^2.3.0"
+    "@fontsource-variable/noto-sans-sc": "5.2.10",
+    "@resvg/resvg-js": "2.6.2",
+    "ajv": "^8.18.0",
+    "socket.io-client": "^4.8.1",
+    "tslib": "^2.3.0",
+    "yjs": "13.6.31"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.15.10",
+    "@xpert-ai/plugin-sdk": "^3.15.10",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -71,9 +78,9 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "3.10.1",
+    "@xpert-ai/contracts": "3.15.10",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "3.15.10",
     "esbuild": "^0.27.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

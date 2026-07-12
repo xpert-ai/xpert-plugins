@@ -9,17 +9,30 @@ import {
 } from '@excalidraw/excalidraw'
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Archive,
   Badge,
   Button,
+  buttonVariants,
   Check,
   ChevronDown,
+  Copy,
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   FileJson,
   Image as ImageIcon,
   Input,
@@ -30,26 +43,32 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Send,
   ScrollArea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTitle,
-  SidebarTrigger,
+  Switch,
   Textarea,
   Trash2,
   Upload,
-  installShadcnThemeVars
 } from '@xpert-ai/plugin-shadcn-ui'
+import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
+import { io, type Socket } from 'socket.io-client'
+import * as Y from 'yjs'
+import {
+  createCollaborationClient,
+  createCollaborationPresenceStore,
+  createSocketIoTransportAdapter,
+  createYjsDocumentAdapter,
+  type CollaborationClient,
+  type CollaborationPresenceStore,
+  type CollaborationSessionDescriptor,
+  type ICollaborationPresence
+} from '@xpert-ai/plugin-sdk'
 import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'
@@ -59,6 +78,7 @@ import {
   createMermaidAutoSaveKey,
   finishMermaidAutoSave
 } from './mermaid-auto-save'
+import { decideDiagramIrRerender, decideTemplateInstantiation } from './diagram-template-actions'
 import {
   decideToolEventRefresh,
   isAnimatedPatchTool,
@@ -72,6 +92,11 @@ import {
 } from './scene-diff-animation'
 import { normalizeMermaidSourceForExcalidrawConversion } from './mermaid-source-normalization'
 import {
+  copyArtifactShareText,
+  decideArtifactPublishSync,
+  isArtifactShareSelectionCurrent
+} from './artifact-share-actions'
+import {
   countSceneFiles,
   isSingleImageMermaidResult
 } from './mermaid-conversion-result'
@@ -82,8 +107,10 @@ import {
   getSelectedElementIds
 } from './selection-context'
 import { normalizeExcalidrawElementsForPersistence } from '../../../excalidraw-scene.validation'
+import { materializeExcalidrawYDoc, writeExcalidrawSceneToYDoc } from '../../../excalidraw-yjs'
 import {
   executeAction,
+  executeFileAction,
   getErrorMessage,
   getResponsePayload,
   invokeClientCommand,
@@ -105,12 +132,56 @@ type DetailPayload = {
   currentVersion?: DrawingVersion | null
   versions?: DrawingVersion[]
   logs?: any[]
+  diagramTemplates?: DiagramTemplateSummary[]
+  diagramQuality?: DiagramQualitySummary | null
+  artifactShare?: ArtifactShareSummary | null
+}
+type ArtifactShareSummary = {
+  artifactId?: string
+  artifactVersionId?: string
+  artifactLinkId?: string
+  versionMode?: 'latest' | 'version'
+  accessMode?: string
+  shareUrl?: string
+  sharedAt?: string
+  status?: string
+  revision?: number
+}
+type ArtifactAccessSelection = 'public_link' | 'organization_all' | 'workspace_all'
+type ArtifactVersionSelection = 'latest' | 'version'
+type CollaborationDescriptor = CollaborationSessionDescriptor & { drawingId: string; revision: number }
+type DiagramTemplateSummary = {
+  key: string
+  version: string
+  artifactType: string
+  title: Record<string, string>
+  description?: Record<string, string>
+  category: string
+  tags: string[]
+  preview?: { assetPath: string; alt: Record<string, string> }
+  previewDataUrl?: string
+  inputSchema?: Record<string, any>
+  defaults?: Record<string, any>
+}
+type DiagramQualitySummary = {
+  drawingId: string
+  revision: number
+  status: string
+  renderedExcalidrawVersionId?: string | null
+  validationReport?: { valid?: boolean; issues?: any[] } | null
+  visualReviews?: any[]
+  qualityArtifacts?: Record<string, any> | null
 }
 type SceneApplyPayload = {
   elements: any[]
   appState: Record<string, unknown>
   files: Record<string, unknown>
   mermaidSource: string
+}
+type DraftRecoverySnapshot = SceneApplyPayload & {
+  drawingId: string
+  signature: string
+  savedAt: number
 }
 type SaveCurrentSceneOptions = {
   force?: boolean
@@ -132,6 +203,12 @@ type DeleteTarget =
       drawingId: string
       title: string
     }
+type ConfirmationRequest = {
+  title: string
+  description: string
+  confirmLabel: string
+  destructive?: boolean
+}
   | {
       type: 'version'
       drawingId: string
@@ -155,9 +232,9 @@ const SCENE_APP_STATE_SIGNATURE_KEYS = [
   'frameRendering'
 ]
 const AUTO_SAVE_DELAY_MS = 1200
+const MAX_DRAFT_RECOVERY_SNAPSHOTS = 20
 const HOST_EVENT_DETAIL_RETRY_DELAYS_MS = [150, 350, 700, 1200]
-
-installShadcnThemeVars({ styleId: 'excalidraw-workbench-shadcn-ui-vars' })
+const LOCAL_COLLABORATION_ORIGIN = { source: 'excalidraw-workbench' }
 injectStyles()
 
 function App() {
@@ -169,16 +246,34 @@ function App() {
   const [status, setStatus] = React.useState<StatusFilter>('')
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
+  const [draftRecoveryCount, setDraftRecoveryCount] = React.useState(0)
   const [newTitle, setNewTitle] = React.useState('')
   const [changeSummary, setChangeSummary] = React.useState('')
+  const [diagramTemplates, setDiagramTemplates] = React.useState<DiagramTemplateSummary[]>([])
+  const [selectedTemplateKey, setSelectedTemplateKey] = React.useState('')
+  const [templateSearch, setTemplateSearch] = React.useState('')
+  const [templateCategory, setTemplateCategory] = React.useState('all')
+  const [templateTag, setTemplateTag] = React.useState('all')
+  const [templateTitle, setTemplateTitle] = React.useState('')
+  const [templateColorScheme, setTemplateColorScheme] = React.useState<ExcalidrawTheme>('light')
+  const [templateRendering, setTemplateRendering] = React.useState<'clean' | 'sketch'>('clean')
   const [mermaidSource, setMermaidSource] = React.useState(DEFAULT_MERMAID)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(true)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
   const [versionsOpen, setVersionsOpen] = React.useState(false)
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null)
+  const [confirmationRequest, setConfirmationRequest] = React.useState<ConfirmationRequest | null>(null)
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false)
+  const [shareAccessMode, setShareAccessMode] = React.useState<ArtifactAccessSelection>('public_link')
+  const [shareVersionMode, setShareVersionMode] = React.useState<ArtifactVersionSelection>('latest')
+  const [collaborationState, setCollaborationState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
+  const [collaborators, setCollaborators] = React.useState<ICollaborationPresence[]>([])
+  const [remoteSessions, setRemoteSessions] = React.useState<ICollaborationPresence[]>([])
   const [excalidrawTheme, setExcalidrawTheme] = React.useState<ExcalidrawTheme>(() => resolveExcalidrawTheme(null))
   const [api, setApi] = React.useState<any>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const shareLinkInputRef = React.useRef<HTMLInputElement | null>(null)
+  const confirmationResolverRef = React.useRef<((confirmed: boolean) => void) | null>(null)
   const apiRef = React.useRef<any>(null)
   const contextRef = React.useRef<any>(null)
   const detailRef = React.useRef<DetailPayload | null>(null)
@@ -204,7 +299,16 @@ function App() {
   const autoSaveInFlightRef = React.useRef(false)
   const autoSaveRequestedRef = React.useRef(false)
   const autoSaveFailureNotifiedRef = React.useRef(false)
+  const lastSavedSnapshotRef = React.useRef<DraftRecoverySnapshot | null>(null)
+  const draftRecoverySnapshotsRef = React.useRef<DraftRecoverySnapshot[]>([])
   const suppressedDetailSceneVersionRef = React.useRef<string | null>(null)
+  const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
+  const collaborationSocketRef = React.useRef<Socket | null>(null)
+  const collaborationPresenceStoreRef = React.useRef<CollaborationPresenceStore | null>(null)
+  const collaborationDocRef = React.useRef<Y.Doc | null>(null)
+  const collaborationDrawingIdRef = React.useRef('')
+  const applyingCollaborativeSceneRef = React.useRef(false)
+  const lastCollaborativeSignatureRef = React.useRef('')
   const t = createTranslator(context?.locale)
 
   React.useEffect(() => {
@@ -247,9 +351,200 @@ function App() {
     apiRef.current = api
   }, [api])
 
+  React.useEffect(() => () => {
+    confirmationResolverRef.current?.(false)
+    confirmationResolverRef.current = null
+  }, [])
+
   function setCurrentDetail(nextDetail: DetailPayload | null) {
     detailRef.current = nextDetail
     setDetail(nextDetail)
+  }
+
+  function requestConfirmation(request: ConfirmationRequest): Promise<boolean> {
+    confirmationResolverRef.current?.(false)
+    return new Promise((resolve) => {
+      confirmationResolverRef.current = resolve
+      setConfirmationRequest(request)
+    })
+  }
+
+  function settleConfirmation(confirmed: boolean) {
+    const resolve = confirmationResolverRef.current
+    confirmationResolverRef.current = null
+    setConfirmationRequest(null)
+    resolve?.(confirmed)
+  }
+
+  function stopCollaboration() {
+    collaborationClientRef.current?.disconnect()
+    collaborationClientRef.current = null
+    collaborationSocketRef.current = null
+    collaborationPresenceStoreRef.current?.clear()
+    collaborationPresenceStoreRef.current = null
+    collaborationDocRef.current?.destroy()
+    collaborationDocRef.current = null
+    collaborationDrawingIdRef.current = ''
+    lastCollaborativeSignatureRef.current = ''
+    setCollaborationState('disconnected')
+    setCollaborators([])
+    setRemoteSessions([])
+    updateSceneSafely({ collaborators: new Map() }, { fallbackToBlank: false })
+  }
+
+  async function startCollaboration(drawingId: string) {
+    if (!drawingId || collaborationDrawingIdRef.current === drawingId) return
+    stopCollaboration()
+    setCollaborationState('connecting')
+    try {
+      const response = await executeAction('open_collaboration', drawingId, { drawingId })
+      const actionResult = getResponsePayload(response)
+      const opened = (actionResult?.data ?? actionResult) as CollaborationDescriptor
+      if (!opened?.connectionUrl || !opened?.sessionId || selectedIdRef.current !== drawingId) {
+        throw new Error('Collaboration session was not returned for this drawing.')
+      }
+      const doc = new Y.Doc()
+      const socket = io(opened.connectionUrl, {
+        autoConnect: false,
+        transports: ['websocket'],
+        auth: {
+          sessionId: opened.sessionId,
+          clientKey: opened.clientKey,
+          documentId: opened.documentId
+        }
+      })
+      collaborationDrawingIdRef.current = drawingId
+      collaborationDocRef.current = doc
+      collaborationSocketRef.current = socket
+      const presenceStore = createCollaborationPresenceStore({
+        selfActor: opened.actor,
+        includeSelf: true,
+        onChange: (view) => {
+          if (collaborationDrawingIdRef.current !== drawingId) return
+          setCollaborators(view.collaborators)
+          setRemoteSessions(view.remoteSessions)
+          applyNativeCollaborators(view.remoteSessions)
+        }
+      })
+      collaborationPresenceStoreRef.current = presenceStore
+
+      doc.on('update', (_update, origin) => {
+        if (origin === LOCAL_COLLABORATION_ORIGIN) return
+        window.queueMicrotask(() => {
+          if (collaborationDocRef.current === doc && selectedIdRef.current === drawingId) {
+            applyCollaborativeDocument(doc)
+          }
+        })
+      })
+      socket.on('connect_error', (error: Error) => {
+        if (collaborationDrawingIdRef.current !== drawingId) return
+        setCollaborationState('disconnected')
+        notify('warning', `${t('collaborationUnavailable')}: ${error.message}`)
+      })
+      const client = createCollaborationClient({
+        session: opened,
+        transport: createSocketIoTransportAdapter(socket),
+        document: createYjsDocumentAdapter(doc, {
+          applyUpdate: (document, update, origin) => Y.applyUpdate(document, update, origin),
+          encodeStateVector: (document) => Y.encodeStateVector(document),
+          mergeUpdates: (updates) => Y.mergeUpdates(updates)
+        }),
+        initialPresence: { mode: 'edit', status: 'editing' },
+        batchMs: 40,
+        syncIntervalMs: 2_000,
+        presenceHeartbeatMs: 5_000,
+        onAck: (ack) => {
+          setCurrentDetail(detailRef.current ? {
+            ...detailRef.current,
+            item: { ...detailRef.current.item, revision: ack.sequenceNumber }
+          } : null)
+          const currentSignature = createSceneSignature(
+            elementsRef.current,
+            appStateRef.current,
+            filesRef.current,
+            mermaidSourceRef.current
+          )
+          if (lastCollaborativeSignatureRef.current === currentSignature) markCurrentSceneSaved()
+        },
+        onPresence: (presence) => presenceStore.upsert(presence),
+        onPresenceSnapshot: (items, metadata) => presenceStore.replace(items, metadata.selfClientId),
+        onPresenceRemove: (clientId) => presenceStore.remove(clientId),
+        onConnectionChange: (state) => {
+          if (collaborationDrawingIdRef.current !== drawingId) return
+          setCollaborationState(state)
+          if (state === 'connected') publishCollaborationPresence()
+        },
+        onError: (error) => notify('warning', `${t('collaborationUnavailable')}: ${error.message}`)
+      })
+      collaborationClientRef.current = client
+      client.connect()
+    } catch (error) {
+      if (selectedIdRef.current === drawingId) notify('warning', getErrorMessage(error))
+      stopCollaboration()
+    }
+  }
+
+  function applyCollaborativeDocument(doc: Y.Doc) {
+    const collaborative = materializeExcalidrawYDoc(doc)
+    const restored = restoreExcalidrawScenePayload(collaborative, excalidrawThemeRef.current)
+    const signature = createSceneSignature(restored.elements, restored.appState, restored.files, collaborative.mermaidSource ?? '')
+    const currentSignature = createSceneSignature(elementsRef.current, appStateRef.current, filesRef.current, mermaidSourceRef.current)
+    lastCollaborativeSignatureRef.current = signature
+    if (signature === currentSignature) {
+      markCurrentSceneSaved(collaborative.mermaidSource ?? '')
+      return
+    }
+    applyingCollaborativeSceneRef.current = true
+    elementsRef.current = restored.elements
+    appStateRef.current = restored.appState
+    filesRef.current = restored.files
+    updateMermaidSource(collaborative.mermaidSource ?? '')
+    void addFilesSafely(restored.files)
+    updateSceneSafely({
+      elements: restored.elements,
+      appState: restored.appState,
+      collaborators: buildExcalidrawCollaborators(collaborationPresenceStoreRef.current?.snapshot().remoteSessions ?? [], restored.appState)
+    }, { fallbackToBlank: true })
+    markCurrentSceneSaved(collaborative.mermaidSource ?? '')
+    window.setTimeout(() => {
+      applyingCollaborativeSceneRef.current = false
+    }, 0)
+  }
+
+  function publishSceneToCollaboration() {
+    const doc = collaborationDocRef.current
+    if (!doc || applyingCollaborativeSceneRef.current || themeSyncRef.current) return
+    const scene = currentSerializableScene()
+    const signature = createSceneSignature(scene.elements, scene.appState, scene.files, mermaidSourceRef.current)
+    if (signature === lastCollaborativeSignatureRef.current) return
+    lastCollaborativeSignatureRef.current = signature
+    writeExcalidrawSceneToYDoc(doc, {
+      ...scene,
+      mermaidSource: mermaidSourceRef.current || null
+    }, LOCAL_COLLABORATION_ORIGIN)
+  }
+
+  function publishCollaborationPresence(pointer?: { x: number; y: number; visible: boolean } | null) {
+    const appState = appStateRef.current
+    collaborationClientRef.current?.setPresence({
+      mode: 'edit',
+      status: 'editing',
+      pageId: selectedIdRef.current || null,
+      pointer,
+      selection: {
+        kind: 'elements',
+        elementIds: getSelectedElementIds(appState, selectedElementIdsRef.current)
+      },
+      viewport: {
+        zoom: readZoom(appState),
+        width: readPositiveNumber(appState.width, window.innerWidth),
+        height: readPositiveNumber(appState.height, window.innerHeight)
+      }
+    })
+  }
+
+  function applyNativeCollaborators(items: ICollaborationPresence[]) {
+    updateSceneSafely({ collaborators: buildExcalidrawCollaborators(items, appStateRef.current) }, { fallbackToBlank: false })
   }
 
   React.useEffect(() => {
@@ -297,13 +592,14 @@ function App() {
     return () => {
       cancelSceneAnimation()
       cancelAutoSave()
+      stopCollaboration()
       if (selectionContextSyncTimerRef.current !== null) {
         window.clearTimeout(selectionContextSyncTimerRef.current)
       }
     }
   }, [])
 
-  React.useEffect(reportResize, [drawings, detail, busy, dirty, leftPanelCollapsed, rightPanelCollapsed, versionsOpen, deleteTarget])
+  React.useEffect(reportResize, [drawings, detail, busy, dirty, collaborators, collaborationState, leftPanelCollapsed, rightPanelCollapsed, versionsOpen, deleteTarget])
 
   React.useEffect(() => {
     if (!api) {
@@ -388,6 +684,7 @@ function App() {
     if (!payload) {
       return
     }
+    applyDiagramTemplatesPayload(payload)
     if (Array.isArray(payload.items)) {
       setDrawings(payload.items)
       if (!selectedIdRef.current && payload.items[0]?.id) {
@@ -412,6 +709,12 @@ function App() {
         applyBlankScene({ clearMermaid: true })
       }
     }
+  }
+
+  function applyDiagramTemplatesPayload(payload: any) {
+    if (!Array.isArray(payload?.diagramTemplates)) return
+    setDiagramTemplates(payload.diagramTemplates)
+    setSelectedTemplateKey((current) => current || payload.diagramTemplates[0]?.key || '')
   }
 
   async function reloadAfterHostEvent(event: unknown) {
@@ -578,6 +881,7 @@ function App() {
         }
       })
       const payload = getResponsePayload(response) || {}
+      applyDiagramTemplatesPayload(payload)
       const items = Array.isArray(payload.items) ? payload.items : []
       console.info('[excalidraw-workbench] reloadList result', {
         search: nextSearch,
@@ -656,6 +960,7 @@ function App() {
     const clearChangeSummary = options.clearChangeSummary ?? true
     if (resetDirty && drawingId !== selectedIdRef.current) {
       cancelAutoSave()
+      clearDraftRecovery()
     }
     setBusy(true)
     try {
@@ -665,6 +970,7 @@ function App() {
         }
       })
       const payload = getResponsePayload(response) || {}
+      applyDiagramTemplatesPayload(payload)
       if (!payload.item) {
         console.warn('[excalidraw-workbench] loadDrawingDetail returned no drawing item', {
           drawingId,
@@ -712,6 +1018,11 @@ function App() {
         } else if (apiRef.current) {
           applyBlankScene({ clearMermaid: true })
         }
+      }
+      if (payload.item.status !== 'archived' && collaborationDrawingIdRef.current !== drawingId) {
+        void startCollaboration(drawingId)
+      } else if (payload.item.status === 'archived') {
+        stopCollaboration()
       }
       return payload
     } catch (error) {
@@ -762,6 +1073,86 @@ function App() {
     }
   }
 
+  async function instantiateSelectedTemplate(applyToCurrent: boolean) {
+    const template = diagramTemplates.find((item) => item.key === selectedTemplateKey)
+    if (!template) return
+    const decision = decideTemplateInstantiation({ applyToCurrent, selectedDrawingId: selectedId, dirty: dirtyRef.current })
+    if (decision.blockReason === 'no-drawing') {
+      notify('warning', t('noDrawing'))
+      return
+    }
+    if (decision.blockReason === 'dirty') {
+      notify('warning', t('templateDirtyBlocked'))
+      return
+    }
+    if (!decision.allowed) return
+    if (decision.requiresConfirmation && !(await requestConfirmation({
+      title: t('confirmTemplateReplaceTitle'),
+      description: t('confirmTemplateReplace'),
+      confirmLabel: t('confirmAction')
+    }))) return
+    const title = templateTitle.trim() || localizedText(template.title, contextRef.current?.locale) || template.key
+    setBusy(true)
+    try {
+      const response = await executeAction('instantiate_diagram_template', applyToCurrent ? selectedId : null, {
+        key: template.key,
+        version: template.version,
+        ...(applyToCurrent ? {
+          drawingId: selectedId,
+          confirmedReplace: true,
+          ...(detailRef.current?.diagramQuality?.revision ? { expectedRevision: detailRef.current.diagramQuality.revision } : {})
+        } : {}),
+        parameters: {
+          title,
+          colorScheme: templateColorScheme,
+          rendering: templateRendering
+        }
+      })
+      const result = getResponsePayload(response)
+      const drawingId = result?.data?.drawingId || result?.drawingId
+      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('templateCreated'))
+      await reloadList()
+      if (drawingId) await selectDrawing(drawingId)
+      setTemplateTitle('')
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function renderCurrentDiagramIr() {
+    const quality = detailRef.current?.diagramQuality
+    const diverged = quality?.status === 'diverged'
+    const decision = decideDiagramIrRerender({ selectedDrawingId: selectedId, revision: quality?.revision, dirty: dirtyRef.current, diverged })
+    if (decision.blockReason === 'dirty') {
+      notify('warning', t('rerenderDirtyBlocked'))
+      return
+    }
+    if (!decision.allowed || !quality?.revision) return
+    if (decision.requiresConfirmation && !(await requestConfirmation({
+      title: t('confirmIrReplaceTitle'),
+      description: t('confirmIrReplace'),
+      confirmLabel: t('confirmAction')
+    }))) return
+    setBusy(true)
+    try {
+      const response = await executeAction('render_diagram_ir', selectedId, {
+        drawingId: selectedId,
+        expectedRevision: quality.revision,
+        confirmedReplace: diverged
+      })
+      const result = getResponsePayload(response)
+      notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('diagramRendered'))
+      await selectDrawing(selectedId)
+      await reloadList()
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function saveCurrentScene(
     sourceAction = 'save_current_scene',
     options: SaveCurrentSceneOptions = {}
@@ -784,6 +1175,8 @@ function App() {
       setBusy(true)
     }
     try {
+      publishSceneToCollaboration()
+      await synchronizeCollaboration(collaborationClientRef.current, collaborationSocketRef.current)
       const scene = currentSerializableScene()
       const mermaidSourceAtSave = mermaidSourceRef.current
       const savedSceneSignature = createSceneSignature(
@@ -792,6 +1185,11 @@ function App() {
         scene.files,
         mermaidSourceAtSave
       )
+      const savedSnapshot = createDraftRecoverySnapshot(drawingId, {
+        ...scene,
+        mermaidSource: mermaidSourceAtSave
+      }, savedSceneSignature)
+      const previousSavedSnapshot = lastSavedSnapshotRef.current
       const response = await executeAction(sourceAction, drawingId, {
         drawingId,
         elements: scene.elements,
@@ -808,12 +1206,20 @@ function App() {
       if (options.background && selectedIdRef.current !== drawingId) {
         return true
       }
-      markSceneSignatureSaved(savedSceneSignature)
+      if (previousSavedSnapshot?.drawingId === drawingId && previousSavedSnapshot.signature !== savedSceneSignature) {
+        rememberDraftRecovery(previousSavedSnapshot)
+      }
+      markSceneSignatureSaved(savedSceneSignature, savedSnapshot)
       if (!options.background) {
         setChangeSummary('')
       }
       if (options.reloadAfterSave !== false) {
-        await selectDrawing(drawingId)
+        await loadDrawingDetail(drawingId, {
+          applyScene: false,
+          resetDirty: false,
+          closeVersions: false,
+          clearChangeSummary: false
+        })
         await reloadList()
       }
       return true
@@ -871,6 +1277,7 @@ function App() {
         drawingId: selectedId
       })
       notify('success', t('operationCompleted'))
+      stopCollaboration()
       setCurrentDetail(null)
       setSelectedId('')
       await reloadList()
@@ -922,6 +1329,7 @@ function App() {
         setDeleteTarget(null)
         setDrawings((items) => items.filter((item) => item?.id !== target.drawingId))
         if (deletingSelectedDrawing) {
+          stopCollaboration()
           await selectFallbackDrawingAfterDelete(target.drawingId)
         } else {
           await reloadList()
@@ -1572,20 +1980,30 @@ function App() {
     setMermaidSource(nextSource)
     if (options.compareDirty) {
       updateDirtyState(nextSource)
+      publishSceneToCollaboration()
     }
   }
 
   function markCurrentSceneSaved(mermaidOverride = mermaidSourceRef.current) {
-    markSceneSignatureSaved(createSceneSignature(
+    const signature = createSceneSignature(
       elementsRef.current,
       appStateRef.current,
       filesRef.current,
       mermaidOverride
-    ))
+    )
+    markSceneSignatureSaved(signature, createDraftRecoverySnapshot(selectedIdRef.current, {
+      elements: elementsRef.current,
+      appState: appStateRef.current,
+      files: filesRef.current,
+      mermaidSource: mermaidOverride
+    }, signature))
   }
 
-  function markSceneSignatureSaved(savedSceneSignature: string) {
+  function markSceneSignatureSaved(savedSceneSignature: string, savedSnapshot?: DraftRecoverySnapshot) {
     savedSceneSignatureRef.current = savedSceneSignature
+    if (savedSnapshot?.drawingId) {
+      lastSavedSnapshotRef.current = savedSnapshot
+    }
     const currentSceneSignature = createSceneSignature(
       elementsRef.current,
       appStateRef.current,
@@ -1597,9 +2015,42 @@ function App() {
     setDirty(nextDirty)
     scheduleAssistantSelectionContextSync()
     if (nextDirty) {
+      publishSceneToCollaboration()
       scheduleAutoSave()
     } else {
       cancelAutoSave()
+    }
+  }
+
+  function rememberDraftRecovery(snapshot: DraftRecoverySnapshot) {
+    const snapshots = draftRecoverySnapshotsRef.current
+    if (snapshots[snapshots.length - 1]?.signature === snapshot.signature) return
+    draftRecoverySnapshotsRef.current = [...snapshots, cloneDraftRecoverySnapshot(snapshot)]
+      .slice(-MAX_DRAFT_RECOVERY_SNAPSHOTS)
+    setDraftRecoveryCount(draftRecoverySnapshotsRef.current.length)
+  }
+
+  function clearDraftRecovery() {
+    draftRecoverySnapshotsRef.current = []
+    lastSavedSnapshotRef.current = null
+    setDraftRecoveryCount(0)
+  }
+
+  async function recoverPreviousDraft() {
+    const snapshot = draftRecoverySnapshotsRef.current.pop()
+    setDraftRecoveryCount(draftRecoverySnapshotsRef.current.length)
+    if (!snapshot || snapshot.drawingId !== selectedIdRef.current) {
+      notify('info', t('noRecoveryDraft'))
+      return
+    }
+    cancelAutoSave()
+    const applied = await applySceneImmediately(snapshot, {
+      clearBeforeApply: true,
+      markSaved: false,
+      preloadFiles: true
+    })
+    if (applied) {
+      notify('success', t('draftRecovered'))
     }
   }
 
@@ -1629,7 +2080,7 @@ function App() {
   }
 
   function scheduleAutoSave() {
-    if (!selectedIdRef.current || !dirtyRef.current) {
+    if (!selectedIdRef.current || !dirtyRef.current || collaborationClientRef.current) {
       return
     }
     if (autoSaveTimerRef.current !== null) {
@@ -1734,9 +2185,135 @@ function App() {
     downloadBlob(new Blob([svg.outerHTML], { type: 'image/svg+xml' }), `${detail?.item?.title || 'drawing'}.svg`)
   }
 
+  function openShareDialog() {
+    const activeShare = normalizeArtifactShare(detailRef.current?.artifactShare)
+    if (isArtifactAccessSelection(activeShare?.accessMode)) setShareAccessMode(activeShare.accessMode)
+    if (activeShare?.versionMode === 'latest' || activeShare?.versionMode === 'version') {
+      setShareVersionMode(activeShare.versionMode)
+    }
+    setShareDialogOpen(true)
+  }
+
+  async function publishArtifact(accessMode: ArtifactAccessSelection, versionMode: ArtifactVersionSelection) {
+    const drawingId = selectedIdRef.current
+    if (!drawingId) return null
+    if (accessMode === 'public_link' && !(await requestConfirmation({
+      title: t('confirmPublicShareTitle'),
+      description: t('confirmPublicShare'),
+      confirmLabel: t('confirmAction')
+    }))) return null
+    setBusy(true)
+    try {
+      const collaborationClient = collaborationClientRef.current
+      const collaborationSocket = collaborationSocketRef.current
+      const syncDecision = decideArtifactPublishSync({
+        dirty: dirtyRef.current,
+        hasCollaborationClient: Boolean(collaborationClient),
+        collaborationConnected: Boolean(collaborationSocket?.connected)
+      })
+      if (!syncDecision.allowed) throw new Error(t('shareSyncRequired'))
+      if (syncDecision.shouldSynchronize && collaborationClient && collaborationSocket) {
+        publishSceneToCollaboration()
+        const synchronized = await synchronizeCollaboration(collaborationClient, collaborationSocket)
+        if (dirtyRef.current && !synchronized) throw new Error(t('shareSyncTimeout'))
+      }
+      const response = await executeAction('publish_artifact', drawingId, {
+        drawingId,
+        versionMode,
+        accessMode,
+        userConfirmedPublicLink: accessMode === 'public_link'
+      }, { drawingId })
+      const actionResult = getResponsePayload(response)
+      const share = normalizeArtifactShare(actionResult)
+      if (!share?.shareUrl) throw new Error(t('shareLinkMissing'))
+      if (detailRef.current) {
+        setCurrentDetail({
+          ...detailRef.current,
+          item: { ...detailRef.current.item, ...(share.revision !== undefined ? { revision: share.revision } : {}) },
+          artifactShare: share
+        })
+      }
+      notify('success', t('artifactShared'))
+      return share
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+      return null
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function copyArtifactShareLink() {
+    const shareUrl = normalizeArtifactShare(detailRef.current?.artifactShare)?.shareUrl
+    if (!shareUrl) return
+    try {
+      await copyArtifactShareText(shareUrl, {
+        writeClipboard: navigator.clipboard?.writeText
+          ? (value) => navigator.clipboard.writeText(value)
+          : undefined,
+        fallbackCopy: copyTextWithTextarea
+      })
+      notify('success', t('shareLinkCopied'))
+    } catch (error) {
+      shareLinkInputRef.current?.focus()
+      shareLinkInputRef.current?.select()
+      notify('warning', t('shareManualCopy'))
+    }
+  }
+
+  async function createOrCopyArtifactShare() {
+    const activeShare = normalizeArtifactShare(detailRef.current?.artifactShare)
+    if (isArtifactShareSelectionCurrent(activeShare, {
+      accessMode: shareAccessMode,
+      versionMode: shareVersionMode,
+      revision: detailRef.current?.item?.revision
+    })) {
+      await copyArtifactShareLink()
+      return
+    }
+    await publishArtifact(shareAccessMode, shareVersionMode)
+  }
+
+  async function revokeArtifactShare() {
+    const drawingId = selectedIdRef.current
+    if (!drawingId || !(await requestConfirmation({
+      title: t('confirmRevokeShareTitle'),
+      description: t('confirmRevokeShare'),
+      confirmLabel: t('revokeShare'),
+      destructive: true
+    }))) return
+    setBusy(true)
+    try {
+      await executeAction('revoke_artifact_share', drawingId, { drawingId })
+      if (detailRef.current) setCurrentDetail({ ...detailRef.current, artifactShare: null })
+      notify('success', t('shareRevoked'))
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const currentVersion = detail?.currentVersion || null
   const versionCount = detail?.versions?.length || 0
   const drawingStatus = (detail?.item?.status || 'draft') as StatusFilter
+  const diagramQuality = detail?.diagramQuality ?? null
+  const activeArtifactShare = normalizeArtifactShare(detail?.artifactShare)
+  const shareSelectionMatches = isArtifactShareSelectionCurrent(activeArtifactShare, {
+    accessMode: shareAccessMode,
+    versionMode: shareVersionMode,
+    revision: detail?.item?.revision
+  })
+  const selectedTemplate = diagramTemplates.find((item) => item.key === selectedTemplateKey) ?? null
+  const templateCategories = Array.from(new Set(diagramTemplates.map((item) => item.category))).sort()
+  const templateTags = Array.from(new Set(diagramTemplates.flatMap((item) => item.tags || []))).sort()
+  const filteredTemplates = diagramTemplates.filter((item) => {
+    const searchValue = templateSearch.trim().toLowerCase()
+    return (templateCategory === 'all' || item.category === templateCategory)
+      && (templateTag === 'all' || item.tags?.includes(templateTag))
+      && (!searchValue || [item.key, item.category, ...(item.tags || []), ...Object.values(item.title || {})]
+        .some((value) => String(value).toLowerCase().includes(searchValue)))
+  })
   const canSaveScene = Boolean(selectedId && dirty && !busy)
   const saveButtonTitle = !selectedId ? t('noDrawing') : dirty ? t('saveChanges') : t('saveNoChanges')
   const initialData = {
@@ -1754,25 +2331,152 @@ function App() {
 
   return (
     <div className={shellClassName}>
-      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open: boolean) => {
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open: boolean) => {
         if (!open && !busy) {
           setDeleteTarget(null)
         }
       }}>
-        <DialogContent className="exw-confirm-dialog">
-          <DialogHeader>
-            <DialogTitle>{deleteDialogTitle}</DialogTitle>
-            <DialogDescription>{deleteDialogDescription}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => setDeleteTarget(null)}>
+        <AlertDialogContent className="exw-confirm-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{deleteDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{deleteDialogDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy} onClick={() => setDeleteTarget(null)}>
               {t('cancel')}
-            </Button>
-            <Button type="button" variant="destructive" disabled={busy} onClick={confirmDeleteTarget}>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busy}
+              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                event.preventDefault()
+                void confirmDeleteTarget()
+              }}
+            >
               <Trash2 className="exw-button-icon" aria-hidden="true" />
               {t('confirmDelete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={Boolean(confirmationRequest)} onOpenChange={(open: boolean) => {
+        if (!open) settleConfirmation(false)
+      }}>
+        <AlertDialogContent className="exw-confirm-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmationRequest?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmationRequest?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy} onClick={() => settleConfirmation(false)}>
+              {t('cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant={confirmationRequest?.destructive ? 'destructive' : 'default'}
+              disabled={busy}
+              onClick={() => settleConfirmation(true)}
+            >
+              {confirmationRequest?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Dialog open={shareDialogOpen} onOpenChange={(open: boolean) => {
+        if (!busy) setShareDialogOpen(open)
+      }}>
+        <DialogContent className="exw-share-dialog">
+          <DialogHeader className="exw-share-header">
+            <DialogTitle>{t('shareDrawing')}</DialogTitle>
+            <DialogDescription>{t('shareDescription')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="exw-share-version-section">
+            <div className="exw-share-setting-row">
+              <div className="exw-share-setting-copy">
+                <strong>{t('alwaysShareLatest')}</strong>
+                <span>{t('alwaysShareLatestDescription')}</span>
+              </div>
+              <Switch
+                checked={shareVersionMode === 'latest'}
+                aria-label={t('alwaysShareLatest')}
+                onCheckedChange={(checked: boolean) => setShareVersionMode(checked ? 'latest' : 'version')}
+              />
+            </div>
+            <div className="exw-share-version-row">
+              <span>{shareVersionMode === 'latest' ? t('sharingLatestScene') : t('sharingCurrentVersion')}</span>
+              <Badge variant="secondary">v{detail?.item?.currentVersionNumber ?? currentVersion?.versionNumber ?? 0}</Badge>
+            </div>
+          </div>
+
+          <div className="exw-share-access-row">
+            <Select
+              value={shareAccessMode}
+              onValueChange={(value: string) => {
+                if (isArtifactAccessSelection(value)) setShareAccessMode(value)
+              }}
+            >
+              <SelectTrigger className="exw-share-access-select" aria-label={t('shareAccess')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public_link">{t('sharePublicLink')}</SelectItem>
+                <SelectItem value="organization_all">{t('shareOrganization')}</SelectItem>
+                <SelectItem value="workspace_all">{t('shareWorkspace')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              className="exw-share-primary-action"
+              disabled={!selectedId || busy}
+              onClick={() => void createOrCopyArtifactShare()}
+            >
+              {shareSelectionMatches ? <Copy className="exw-button-icon" aria-hidden="true" /> : <Send className="exw-button-icon" aria-hidden="true" />}
+              {shareSelectionMatches ? t('copyShareLink') : activeArtifactShare?.artifactLinkId ? t('updateShareLink') : t('createShareLink')}
             </Button>
-          </DialogFooter>
+          </div>
+
+          <div className="exw-share-link-status">
+            <span>{activeArtifactShare?.shareUrl ? t('shareLinkReady') : t('shareLinkNotCreated')}</span>
+            {activeArtifactShare?.artifactLinkId ? (
+              <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void revokeArtifactShare()}>
+                <Archive className="exw-button-icon" aria-hidden="true" />
+                {t('revokeShare')}
+              </Button>
+            ) : null}
+          </div>
+
+          {activeArtifactShare?.shareUrl ? (
+            <div className="exw-share-link-field">
+              <Input
+                ref={shareLinkInputRef}
+                readOnly
+                value={activeArtifactShare.shareUrl}
+                aria-label={t('shareLinkReady')}
+                onFocus={(event: React.FocusEvent<HTMLInputElement>) => event.currentTarget.select()}
+              />
+            </div>
+          ) : null}
+
+          <div className="exw-share-export-section">
+            <div className="exw-share-export-heading">
+              <strong>{t('exportDrawing')}</strong>
+              <span>{t('exportDrawingDescription')}</span>
+            </div>
+            <div className="exw-share-export-actions">
+              <Button type="button" variant="outline" disabled={!selectedId || busy} onClick={exportJson}>
+                <FileJson className="exw-button-icon" aria-hidden="true" />
+                {t('exportJson')}
+              </Button>
+              <Button type="button" variant="outline" disabled={!selectedId || busy} onClick={exportPng}>
+                <ImageIcon className="exw-button-icon" aria-hidden="true" />
+                {t('exportPng')}
+              </Button>
+              <Button type="button" variant="outline" disabled={!selectedId || busy} onClick={exportSvgFile}>
+                <ImageIcon className="exw-button-icon" aria-hidden="true" />
+                {t('exportSvg')}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       <Sidebar className="exw-sidebar" side="left" collapsed={leftPanelCollapsed}>
@@ -1835,7 +2539,7 @@ function App() {
                 {drawings.map((drawing) => (
                   <SidebarMenuItem key={drawing.id}>
                     <div className="exw-list-row">
-                      <SidebarMenuButton className="exw-list-select" type="button" active={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
+                      <SidebarMenuButton className="exw-list-select" type="button" isActive={drawing.id === selectedId} onClick={() => selectDrawing(drawing.id)}>
                         <span className="exw-item-title">{drawing.title || t('untitled')}</span>
                         <span className="exw-item-meta">
                           v{drawing.currentVersionNumber || 0} · {t((drawing.status || 'draft') as TranslationKey)}
@@ -1873,10 +2577,26 @@ function App() {
             />
           </div>
           <div className="exw-toolbar-actions">
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={createDrawing}>
-              <Plus className="exw-button-icon" aria-hidden="true" />
-              {t('newDrawing')}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                disabled={busy}
+              >
+                <Plus className="exw-button-icon" aria-hidden="true" />
+                {t('newDrawing')}
+                <ChevronDown className="exw-button-icon" aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => void createDrawing()}>
+                  <Plus className="exw-button-icon" aria-hidden="true" />
+                  {t('newDrawingMenu')}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={!selectedId || busy} onSelect={() => void saveNewVersion()}>
+                  <Save className="exw-button-icon" aria-hidden="true" />
+                  {t('newVersion')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               type="button"
               size="sm"
@@ -1888,35 +2608,50 @@ function App() {
               <Save className="exw-button-icon" aria-hidden="true" />
               {t('save')}
             </Button>
+            <Badge
+              className="exw-collaboration-status"
+              variant={collaborationState === 'connected' ? 'secondary' : 'outline'}
+              data-status={collaborationState === 'connecting' ? 'warning' : undefined}
+              title={t(collaborationState === 'connected' ? 'collaborationConnected' : collaborationState === 'connecting' ? 'collaborationConnecting' : 'collaborationDisconnected')}
+            >
+              <span className="exw-presence-dot" aria-hidden="true" />
+              {collaborationState === 'connected' ? collaborators.length : '—'}
+            </Badge>
+            {collaborators.length > 0 ? (
+              <div className="exw-collaborators" aria-label={t('collaborators')}>
+                {collaborators.slice(0, 4).map((item) => (
+                  <span
+                    key={item.presenceId}
+                    className="exw-collaborator"
+                    title={item.displayName}
+                    style={{ '--exw-collaborator-color': item.color } as any}
+                  >
+                    {collaboratorInitials(item.displayName)}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" disabled={!selectedId || busy} onClick={openShareDialog}>
+              <Send className="exw-button-icon" aria-hidden="true" />
+              {t('share')}
+            </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={!selectedId || busy}
-              title={t('newVersion')}
-              aria-label={t('newVersion')}
-              onClick={saveNewVersion}
+              disabled={!selectedId || busy || draftRecoveryCount === 0}
+              title={t('recoverPreviousDraft')}
+              aria-label={t('recoverPreviousDraft')}
+              onClick={recoverPreviousDraft}
             >
-              <Plus className="exw-button-icon" aria-hidden="true" />
-              {t('newVersion')}
+              <RotateCcw className="exw-button-icon" aria-hidden="true" />
+              {t('recoverDraft')} {draftRecoveryCount > 0 ? `(${draftRecoveryCount})` : ''}
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileInputRef.current?.click()}>
               <Upload className="exw-button-icon" aria-hidden="true" />
               {t('import')}
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportJson}>
-              <FileJson className="exw-button-icon" aria-hidden="true" />
-              {t('exportJson')}
-            </Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportPng}>
-              <ImageIcon className="exw-button-icon" aria-hidden="true" />
-              {t('exportPng')}
-            </Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedId} onClick={exportSvgFile}>
-              <ImageIcon className="exw-button-icon" aria-hidden="true" />
-              {t('exportSvg')}
-            </Button>
-            <Badge className="exw-status" variant={dirty ? 'warning' : 'secondary'}>
+            <Badge className="exw-status" variant={dirty ? 'outline' : 'secondary'} data-status={dirty ? 'warning' : undefined}>
               {dirty ? t('dirty') : t('saved')}
             </Badge>
           </div>
@@ -1935,6 +2670,8 @@ function App() {
                 key={selectedId || 'unselected'}
                 initialData={initialData as any}
                 theme={excalidrawTheme}
+                autoFocus={false}
+                isCollaborating={collaborationState !== 'disconnected'}
                 excalidrawAPI={(nextApi: any) => {
                   apiRef.current = nextApi
                   setApi(nextApi)
@@ -1946,10 +2683,19 @@ function App() {
                   selectedElementIdsRef.current = getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current)
                   if (!themeSyncRef.current) {
                     updateDirtyState()
+                    publishSceneToCollaboration()
                   }
-                  if (themeSyncRef.current) {
-                    scheduleAssistantSelectionContextSync()
-                  }
+                  scheduleAssistantSelectionContextSync()
+                  publishCollaborationPresence()
+                }}
+                onPointerUpdate={(payload: any) => {
+                  const pointer = payload?.pointer
+                  const appState = appStateRef.current
+                  const width = readPositiveNumber(appState.width, window.innerWidth)
+                  const height = readPositiveNumber(appState.height, window.innerHeight)
+                  publishCollaborationPresence(pointer && Number.isFinite(pointer.x) && Number.isFinite(pointer.y)
+                    ? normalizeExcalidrawPointer(pointer, appState, width, height)
+                    : null)
                 }}
               />
             </CanvasErrorBoundary>
@@ -1996,11 +2742,11 @@ function App() {
                     {t('markReviewed')}
                   </Button>
                 )}
-                <Button type="button" variant="destructiveOutline" size="sm" disabled={busy || !selectedId || drawingStatus === 'archived'} onClick={archiveDrawing}>
+                <Button type="button" variant="destructive" size="sm" disabled={busy || !selectedId || drawingStatus === 'archived'} onClick={archiveDrawing}>
                   <Archive className="exw-button-icon" aria-hidden="true" />
                   {t('archive')}
                 </Button>
-                <Button type="button" variant="destructiveOutline" size="sm" disabled={busy || !selectedId} onClick={() => requestDeleteDrawing()}>
+                <Button type="button" variant="destructive" size="sm" disabled={busy || !selectedId} onClick={() => requestDeleteDrawing()}>
                   <Trash2 className="exw-button-icon" aria-hidden="true" />
                   {t('delete')}
                 </Button>
@@ -2047,7 +2793,7 @@ function App() {
                           <Button
                             className="exw-version-action"
                             type="button"
-                            variant="destructiveOutline"
+                            variant="destructive"
                             size="icon"
                             title={t('deleteVersion')}
                             aria-label={`${t('deleteVersion')} v${version.versionNumber}`}
@@ -2065,6 +2811,79 @@ function App() {
             </div>
             <ScrollArea className="exw-inspector-scroll">
               <div className="exw-inspector-stack">
+                <section className="exw-section exw-template-panel">
+                  <div className="exw-section-title">{t('diagramTemplates')}</div>
+                  <Input value={templateSearch} placeholder={t('searchTemplates')} onChange={(event: any) => setTemplateSearch(event.target.value)} />
+                  <div className="exw-template-filters">
+                    <Select value={templateCategory} onValueChange={setTemplateCategory}>
+                      <SelectTrigger aria-label={t('templateCategory')}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('allCategories')}</SelectItem>
+                        {templateCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={templateTag} onValueChange={setTemplateTag}>
+                      <SelectTrigger aria-label={t('templateTag')}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('allTags')}</SelectItem>
+                        {templateTags.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="exw-template-list">
+                    {filteredTemplates.map((template) => (
+                      <button
+                        type="button"
+                        key={`${template.key}@${template.version}`}
+                        className={`exw-template-card ${selectedTemplateKey === template.key ? 'is-selected' : ''}`}
+                        onClick={() => {
+                          setSelectedTemplateKey(template.key)
+                          setTemplateTitle(String(template.defaults?.title || localizedText(template.title, context?.locale) || template.key))
+                          setTemplateColorScheme(template.defaults?.colorScheme === 'dark' ? 'dark' : 'light')
+                          setTemplateRendering(template.defaults?.rendering === 'sketch' ? 'sketch' : 'clean')
+                        }}
+                      >
+                        {template.previewDataUrl ? <img className="exw-template-thumbnail" src={template.previewDataUrl} alt={localizedText(template.preview?.alt, context?.locale)} /> : null}
+                        <span className="exw-template-card-title">{localizedText(template.title, context?.locale) || template.key}</span>
+                        <span className="exw-template-card-meta">{template.category} · {template.tags?.slice(0, 2).join(', ')}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTemplate ? (
+                    <div className="exw-template-form">
+                      <Input value={templateTitle} placeholder={t('templateTitle')} onChange={(event: any) => setTemplateTitle(event.target.value)} />
+                      <div className="exw-template-filters">
+                        <Select value={templateColorScheme} onValueChange={(value: ExcalidrawTheme) => setTemplateColorScheme(value)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="light">Light</SelectItem><SelectItem value="dark">Dark</SelectItem></SelectContent>
+                        </Select>
+                        <Select value={templateRendering} onValueChange={(value: 'clean' | 'sketch') => setTemplateRendering(value)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="clean">Clean</SelectItem><SelectItem value="sketch">Sketch</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                      <div className="exw-inline-actions">
+                        <Button type="button" size="sm" disabled={busy} onClick={() => instantiateSelectedTemplate(false)}>{t('createFromTemplate')}</Button>
+                        <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId} onClick={() => instantiateSelectedTemplate(true)}>{t('applyToCurrent')}</Button>
+                      </div>
+                      <div className="exw-muted">{t('templateReplaceNotice')}</div>
+                    </div>
+                  ) : null}
+                </section>
+
+                {diagramQuality ? (
+                  <section className="exw-section exw-quality-panel">
+                    <div className="exw-section-title">{t('diagramQuality')}</div>
+                    <div className="exw-quality-grid">
+                      <span>{t('irRevision')}</span><strong>r{diagramQuality.revision}</strong>
+                      <span>{t('syncState')}</span><Badge variant={diagramQuality.status === 'diverged' ? 'outline' : 'secondary'} data-status={diagramQuality.status === 'diverged' ? 'warning' : undefined}>{diagramQuality.status === 'diverged' ? t('diverged') : diagramQuality.renderedExcalidrawVersionId ? t('synced') : t('pendingRender')}</Badge>
+                      <span>{t('validationIssues')}</span><strong>{diagramQuality.validationReport?.issues?.length || 0}</strong>
+                      <span>{t('visualReviews')}</span><strong>{diagramQuality.visualReviews?.length || 0}/3</strong>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" disabled={busy} onClick={renderCurrentDiagramIr}>{t('rerenderFromIr')}</Button>
+                  </section>
+                ) : null}
+
                 <section className="exw-section">
                   <div className="exw-section-title">{t('changeSummary')}</div>
                   <Input
@@ -2270,7 +3089,7 @@ function resolveExcalidrawTheme(hostTheme: unknown): ExcalidrawTheme {
     return documentTheme
   }
 
-  const backgroundTheme = themeFromCssColor(readCssColor('--xps-background') || readCssColor('--xui-color-background'))
+  const backgroundTheme = themeFromCssColor(readCssColor('--background') || readCssColor('--xui-color-background'))
   if (backgroundTheme) {
     return backgroundTheme
   }
@@ -2384,6 +3203,38 @@ function createSceneSignature(
   })
 }
 
+function createDraftRecoverySnapshot(
+  drawingId: string,
+  scene: SceneApplyPayload,
+  signature = createSceneSignature(scene.elements, scene.appState, scene.files, scene.mermaidSource)
+): DraftRecoverySnapshot {
+  const cloned = cloneScenePayload(scene)
+  return {
+    drawingId,
+    signature,
+    savedAt: Date.now(),
+    ...cloned
+  }
+}
+
+function cloneDraftRecoverySnapshot(snapshot: DraftRecoverySnapshot): DraftRecoverySnapshot {
+  return createDraftRecoverySnapshot(snapshot.drawingId, snapshot, snapshot.signature)
+}
+
+function cloneScenePayload(scene: SceneApplyPayload): SceneApplyPayload {
+  try {
+    return structuredClone(scene)
+  } catch {
+    const normalized = normalizeJsonValue(scene) as SceneApplyPayload
+    return {
+      elements: Array.isArray(normalized?.elements) ? normalized.elements : [],
+      appState: isObject(normalized?.appState) ? normalized.appState : {},
+      files: isObject(normalized?.files) ? normalized.files : {},
+      mermaidSource: typeof normalized?.mermaidSource === 'string' ? normalized.mermaidSource : ''
+    }
+  }
+}
+
 function stableStringify(value: unknown) {
   return JSON.stringify(normalizeJsonValue(value))
 }
@@ -2430,6 +3281,148 @@ function normalizeJsonValue(value: unknown, seen = new WeakSet<object>()): unkno
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function synchronizeCollaboration(client: CollaborationClient | null, socket: Socket | null) {
+  if (!client || !socket?.connected) return Promise.resolve(false)
+  client.flush()
+  return new Promise<boolean>((resolve) => {
+    const complete = () => {
+      window.clearTimeout(timer)
+      resolve(true)
+    }
+    const timer = window.setTimeout(() => {
+      socket.off('sync', complete)
+      resolve(false)
+    }, 3_000)
+    socket.once('sync', complete)
+    client.requestSync()
+  })
+}
+
+function buildExcalidrawCollaborators(items: ICollaborationPresence[], appState: Record<string, unknown>) {
+  const width = readPositiveNumber(appState.width, window.innerWidth)
+  const height = readPositiveNumber(appState.height, window.innerHeight)
+  const zoom = readZoom(appState)
+  const scrollX = readFiniteNumber(appState.scrollX, 0)
+  const scrollY = readFiniteNumber(appState.scrollY, 0)
+  const collaborators = new Map<string, Record<string, unknown>>()
+  for (const item of items) {
+    const pointer = item.pointer?.visible
+      ? {
+          x: item.pointer.x * width / zoom - scrollX,
+          y: item.pointer.y * height / zoom - scrollY,
+          tool: 'pointer'
+        }
+      : null
+    const selectedIds = item.selection?.kind === 'elements' ? item.selection.elementIds ?? [] : []
+    collaborators.set(item.clientId, {
+      id: item.presenceId,
+      socketId: item.clientId,
+      username: item.displayName,
+      avatarUrl: item.avatarUrl ?? undefined,
+      color: {
+        background: item.color,
+        stroke: item.color
+      },
+      pointer,
+      button: 'up',
+      selectedElementIds: Object.fromEntries(selectedIds.map((id) => [id, true]))
+    })
+  }
+  return collaborators
+}
+
+function normalizeExcalidrawPointer(
+  pointer: { x: number; y: number },
+  appState: Record<string, unknown>,
+  width: number,
+  height: number
+) {
+  const zoom = readZoom(appState)
+  const scrollX = readFiniteNumber(appState.scrollX, 0)
+  const scrollY = readFiniteNumber(appState.scrollY, 0)
+  return {
+    x: clamp((pointer.x + scrollX) * zoom / width, 0, 1),
+    y: clamp((pointer.y + scrollY) * zoom / height, 0, 1),
+    visible: true
+  }
+}
+
+function readZoom(appState: Record<string, unknown>) {
+  const zoom = appState.zoom
+  if (typeof zoom === 'number') return readPositiveNumber(zoom, 1)
+  if (isObject(zoom)) return readPositiveNumber(zoom.value, 1)
+  return 1
+}
+
+function readPositiveNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function readFiniteNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function collaboratorInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  return parts.slice(0, 2).map((part) => part.slice(0, 1).toUpperCase()).join('')
+}
+
+function copyTextWithTextarea(value: string) {
+  const input = document.createElement('textarea')
+  input.value = value
+  input.style.position = 'fixed'
+  input.style.opacity = '0'
+  document.body.appendChild(input)
+  input.focus()
+  input.select()
+  const copied = document.execCommand('copy')
+  input.remove()
+  return copied
+}
+
+function normalizeArtifactShare(value: unknown, depth = 0): ArtifactShareSummary | null {
+  if (!isObject(value) || depth > 4) return null
+  const nested = normalizeArtifactShare(value.data, depth + 1)
+  if (nested) return nested
+  const shareUrl = readOptionalString(value.shareUrl)
+    ?? readOptionalString(value.publicUrl)
+    ?? readOptionalString(value.artifactPublicUrl)
+  const artifactId = readOptionalString(value.artifactId)
+  const artifactVersionId = readOptionalString(value.artifactVersionId)
+  const artifactLinkId = readOptionalString(value.artifactLinkId)
+  if (!shareUrl && !artifactId && !artifactVersionId && !artifactLinkId) return null
+  return {
+    artifactId,
+    artifactVersionId,
+    artifactLinkId,
+    versionMode: value.versionMode === 'latest' || value.versionMode === 'version' ? value.versionMode : undefined,
+    accessMode: readOptionalString(value.accessMode),
+    shareUrl,
+    sharedAt: readOptionalString(value.sharedAt),
+    status: readOptionalString(value.status),
+    revision: typeof value.revision === 'number' && Number.isInteger(value.revision) ? value.revision : undefined
+  }
+}
+
+function readOptionalString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function isArtifactAccessSelection(value: unknown): value is ArtifactAccessSelection {
+  return value === 'public_link' || value === 'organization_all' || value === 'workspace_all'
+}
+
+function localizedText(value: Record<string, string> | undefined, locale: unknown) {
+  if (!value) return ''
+  const chinese = String(locale || '').toLowerCase().startsWith('zh')
+  return chinese ? value.zh_Hans || value.en_US || '' : value.en_US || value.zh_Hans || ''
 }
 
 function removeExcalidrawExtension(name: string) {

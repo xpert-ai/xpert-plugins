@@ -37,11 +37,12 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "typecheck": "tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "npm run build && node scripts/verify-package-output.mjs"
+    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {

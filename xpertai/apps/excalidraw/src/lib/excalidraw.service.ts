@@ -1,7 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { createHash } from 'node:crypto'
 import { Repository } from 'typeorm'
-import { ExcalidrawActionLog, ExcalidrawDrawing, ExcalidrawDrawingVersion } from './entities/index.js'
+import * as Y from 'yjs'
+import {
+  ArtifactsRuntimeCapability,
+  CollaborationRuntimeCapability,
+  WorkspaceFilesRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type ArtifactAccessMode,
+  type ArtifactLinkVersionMode,
+  type CollaborationMaterializationEvent,
+  type CollaborationProviderContext,
+  type RuntimeCapabilityRegistry,
+  type WorkspaceFile,
+  type WorkspacePortableFileReference
+} from '@xpert-ai/plugin-sdk'
+import { EXCALIDRAW_COLLABORATION_PROVIDER_KEY, EXCALIDRAW_PLUGIN_NAME } from './constants.js'
+import { ExcalidrawActionLog, ExcalidrawArtifactPublication, ExcalidrawDrawing, ExcalidrawDrawingVersion } from './entities/index.js'
+import { createExcalidrawYDoc, EXCALIDRAW_YJS_SCHEMA_VERSION, materializeExcalidrawYDoc, writeExcalidrawSceneToYDoc } from './excalidraw-yjs.js'
 import {
   createStableJsonSignature,
   ExcalidrawSceneValidationError,
@@ -10,6 +28,7 @@ import {
   type NormalizedExcalidrawScene
 } from './excalidraw-scene.validation.js'
 import { buildAgentDrawingResponse, buildAgentSceneItemResponse } from './excalidraw-agent-response.js'
+import { ExcalidrawArtifactViewerService } from './excalidraw-artifact-viewer.service.js'
 import type {
   CreateExcalidrawDrawingInput,
   ExcalidrawActionType,
@@ -42,7 +61,13 @@ export class ExcalidrawService {
     @InjectRepository(ExcalidrawDrawingVersion)
     private readonly versionRepository: Repository<ExcalidrawDrawingVersion>,
     @InjectRepository(ExcalidrawActionLog)
-    private readonly logRepository: Repository<ExcalidrawActionLog>
+    private readonly logRepository: Repository<ExcalidrawActionLog>,
+    @InjectRepository(ExcalidrawArtifactPublication)
+    private readonly publicationRepository: Repository<ExcalidrawArtifactPublication>,
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactViewerService?: ExcalidrawArtifactViewerService
   ) {}
 
   async createDrawing(scope: ExcalidrawScope, input: CreateExcalidrawDrawingInput) {
@@ -98,13 +123,25 @@ export class ExcalidrawService {
   }
 
   async saveSceneVersion(scope: ExcalidrawScope, input: SaveExcalidrawSceneVersionInput) {
-    const drawing = await this.requireDrawing(scope, input.drawingId)
+    let drawing = await this.requireDrawing(scope, input.drawingId)
+    let sceneInput: ExcalidrawSceneInput = input
+    if (this.collaborationOrNull()) {
+      await this.replaceCollaborativeScene(scope, drawing, input, `excalidraw:${input.sourceType ?? 'agent_json'}:checkpoint`)
+      drawing = await this.requireCanonicalDrawing(scope, input.drawingId)
+      const working = await this.getCurrentVersion(scope, drawing)
+      sceneInput = {
+        elements: working?.elements,
+        appState: working?.appState,
+        files: working?.files,
+        mermaidSource: working?.mermaidSource
+      }
+    }
     const version = await this.createVersion(scope, drawing, {
       sourceType: input.sourceType ?? 'agent_json',
-      elements: input.elements,
-      appState: input.appState,
-      files: input.files,
-      mermaidSource: normalizeNullableText(input.mermaidSource),
+      elements: sceneInput.elements,
+      appState: sceneInput.appState,
+      files: sceneInput.files,
+      mermaidSource: normalizeNullableText(sceneInput.mermaidSource),
       changeSummary: normalizeOptional(input.changeSummary)
     })
 
@@ -118,6 +155,20 @@ export class ExcalidrawService {
 
   async saveCurrentScene(scope: ExcalidrawScope, input: SaveExcalidrawSceneVersionInput) {
     const drawing = await this.requireDrawing(scope, input.drawingId)
+    if (this.collaborationOrNull()) {
+      const version = await this.replaceCollaborativeScene(
+        scope,
+        drawing,
+        input,
+        `excalidraw:${input.sourceType ?? 'agent_json'}:save-current`
+      )
+      return {
+        success: true,
+        message: 'Excalidraw collaborative scene was synchronized.',
+        drawing: await this.getDrawing(scope, drawing.id as string),
+        version
+      }
+    }
     const version = await this.updateCurrentVersion(scope, drawing, {
       sourceType: input.sourceType ?? 'agent_json',
       elements: input.elements,
@@ -136,7 +187,9 @@ export class ExcalidrawService {
   }
 
   async patchScene(scope: ExcalidrawScope, input: PatchExcalidrawSceneInput) {
-    const drawing = await this.requireDrawing(scope, input.drawingId)
+    const drawing = this.collaborationOrNull()
+      ? await this.requireCanonicalDrawing(scope, input.drawingId)
+      : await this.requireDrawing(scope, input.drawingId)
     const currentVersion = await this.getCurrentVersion(scope, drawing)
     const currentScene = validateScene(
       {
@@ -288,7 +341,7 @@ export class ExcalidrawService {
 
   async getDrawing(scope: ExcalidrawScope, drawingId: string) {
     const drawing = await this.requireDrawing(scope, drawingId)
-    const [versions, logs] = await Promise.all([
+    const [versions, logs, artifactShare] = await Promise.all([
       this.versionRepository.find({
         where: scopedWhere(scope, { drawingId }),
         order: {
@@ -300,6 +353,10 @@ export class ExcalidrawService {
         order: {
           createdAt: 'DESC'
         }
+      }),
+      this.publicationRepository.findOne({
+        where: scopedWhere(scope, { drawingId, status: 'active' }),
+        order: { createdAt: 'DESC' }
       })
     ])
     const currentVersion = versions.find((version) => version.id === drawing.currentVersionId) ?? versions[0] ?? null
@@ -309,6 +366,7 @@ export class ExcalidrawService {
       currentVersion,
       versions,
       logs,
+      artifactShare: artifactShare ? compactArtifactShare(artifactShare) : null,
       total: versions.length,
       summary: {
         versionCount: versions.length,
@@ -365,6 +423,315 @@ export class ExcalidrawService {
     }
   }
 
+  async createCollaborationSession(scope: ExcalidrawScope, drawingId: string) {
+    const drawing = await this.requireDrawing(scope, drawingId)
+    if (drawing.status === 'archived') throw new BadRequestException('Archived Excalidraw drawings are read-only.')
+    const collaboration = this.collaboration()
+    const document = await collaboration.ensureDocument({
+      providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+      resourceId: drawingId,
+      schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION,
+      metadata: { kind: drawing.kind ?? 'diagram' }
+    })
+    const session = await collaboration.createSession({ documentId: document.id, access: 'write' })
+    return { ...session, drawingId, revision: document.sequenceNumber }
+  }
+
+  async authorizeCollaborationDocument(context: CollaborationProviderContext) {
+    const drawing = await this.drawingRepository.findOne({
+      where: scopedWhere(collaborationScope(context), { id: context.resourceId })
+    })
+    if (!drawing) return false
+    return context.operation !== 'write' || drawing.status !== 'archived'
+  }
+
+  async initializeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = collaborationScope(context)
+    const drawing = await this.requireDrawing(scope, context.resourceId)
+    const version = await this.getCurrentVersion(scope, drawing)
+    const scene = validateScene({
+      elements: version?.elements,
+      appState: version?.appState,
+      files: version?.files
+    }, 'Collaborative Excalidraw scene')
+    const doc = createExcalidrawYDoc({
+      ...scene,
+      mermaidSource: normalizeNullableText(version?.mermaidSource)
+    })
+    return {
+      stateBase64: Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64'),
+      schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION,
+      initialSequence: Math.max(drawing.revision ?? 0, drawing.currentVersionNumber ?? 0),
+      metadata: { kind: drawing.kind ?? 'diagram' }
+    }
+  }
+
+  async materializeCollaborationDocument(event: CollaborationMaterializationEvent) {
+    const scope = collaborationScope(event)
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, Buffer.from(event.stateBase64, 'base64'))
+    const materialized = materializeExcalidrawYDoc(doc)
+    const scene = validateScene(materialized, 'Collaborative Excalidraw scene')
+    await this.drawingRepository.manager.transaction(async (manager) => {
+      const drawingRepository = manager.getRepository(ExcalidrawDrawing)
+      const versionRepository = manager.getRepository(ExcalidrawDrawingVersion)
+      const drawing = await drawingRepository.findOne({
+        where: scopedWhere(scope, { id: event.resourceId }),
+        lock: { mode: 'pessimistic_write' }
+      })
+      if (!drawing) throw new NotFoundException('Excalidraw drawing was not found during collaboration materialization.')
+      let version = drawing.currentVersionId
+        ? await versionRepository.findOne({ where: scopedWhere(scope, { id: drawing.currentVersionId, drawingId: event.resourceId }) })
+        : null
+      if (version) {
+        version = await versionRepository.save({
+          ...version,
+          sourceType: 'workbench',
+          elements: scene.elements,
+          appState: scene.appState,
+          files: scene.files,
+          mermaidSource: materialized.mermaidSource
+        })
+      } else {
+        const versionNumber = (drawing.currentVersionNumber ?? 0) + 1
+        version = await versionRepository.save(versionRepository.create({
+          ...scopedCreate(scope),
+          drawingId: event.resourceId,
+          versionNumber,
+          sourceType: 'workbench',
+          elements: scene.elements,
+          appState: scene.appState,
+          files: scene.files,
+          mermaidSource: materialized.mermaidSource,
+          changeSummary: 'Initialized collaborative working scene',
+          createdById: scope.userId ?? null,
+          assistantId: scope.assistantId ?? null,
+          conversationId: scope.conversationId ?? null
+        }))
+        drawing.currentVersionId = version.id
+        drawing.currentVersionNumber = versionNumber
+      }
+      drawing.revision = event.sequenceNumber
+      drawing.yjsStateBase64 = event.stateBase64
+      drawing.yjsStateVectorBase64 = event.stateVectorBase64
+      drawing.yjsUpdateCount = (drawing.yjsUpdateCount ?? 0) + (event.updateBase64 ? 1 : 0)
+      drawing.lastEditedById = scope.userId ?? null
+      drawing.lastEditedAt = new Date()
+      await drawingRepository.save(drawing)
+    })
+  }
+
+  async publishDrawingViewerArtifact(
+    scope: ExcalidrawScope,
+    input: {
+      drawingId: string
+      versionMode?: ArtifactLinkVersionMode | null
+      accessMode?: ArtifactAccessMode | null
+      userConfirmedPublicLink?: boolean | null
+    }
+  ) {
+    const drawing = await this.requireCanonicalDrawing(scope, input.drawingId)
+    const accessMode = normalizeArtifactAccessMode(input.accessMode)
+    if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) {
+      throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
+    }
+    const workspaceFiles = this.workspaceFiles()
+    const artifacts = this.artifacts()
+    const versionMode = input.versionMode === 'version' ? 'version' : 'latest'
+    const allowDownload = false
+    const currentVersion = await this.getCurrentVersion(scope, drawing)
+    const scene = validateScene({
+      elements: currentVersion?.elements ?? [],
+      appState: currentVersion?.appState ?? {},
+      files: currentVersion?.files ?? {}
+    }, 'Published Excalidraw scene')
+    const rendered = await this.artifactViewer().render({
+      title: drawing.title,
+      description: drawing.description,
+      revision: drawing.revision ?? 0,
+      versionNumber: drawing.currentVersionNumber ?? currentVersion?.versionNumber ?? 0,
+      scene
+    })
+    const checksum = rendered.checksum
+    const active = await this.publicationRepository.findOne({
+      where: scopedWhere(scope, { drawingId: input.drawingId, status: 'active' }),
+      order: { createdAt: 'DESC' }
+    })
+    const canReuseContent = Boolean(
+      active?.checksum === checksum &&
+      active.mimeType === 'text/html' &&
+      active.artifactId &&
+      active.artifactVersionId
+    )
+
+    const createLink = (artifactId: string, artifactVersionId: string) => artifacts.createArtifactLink({
+      artifactId,
+      artifactVersionId: versionMode === 'version' ? artifactVersionId : null,
+      versionMode,
+      access: {
+        mode: accessMode,
+        userConfirmedPublicLink: accessMode === 'public_link' ? true : null
+      },
+      presentation: { disposition: 'inline', allowDownload, safeHtmlProfile: 'interactive' },
+      metadata: artifactMetadata(drawing, {
+        collaborationSequence: drawing.revision ?? 0,
+        viewerVersion: rendered.viewerVersion
+      })
+    })
+    const updateLink = (linkId: string, artifactVersionId: string) => artifacts.updateArtifactLinkAccess(linkId, {
+      artifactVersionId: versionMode === 'version' ? artifactVersionId : null,
+      versionMode,
+      access: {
+        mode: accessMode,
+        userConfirmedPublicLink: accessMode === 'public_link' ? true : null
+      },
+      presentation: { disposition: 'inline', allowDownload, safeHtmlProfile: 'interactive' }
+    })
+    const updateOrReplaceLink = async (linkId: string, artifactId: string, artifactVersionId: string) => {
+      try {
+        return await updateLink(linkId, artifactVersionId)
+      } catch {
+        return createLink(artifactId, artifactVersionId)
+      }
+    }
+
+    if (canReuseContent && active) {
+      const settingsMatch = Boolean(
+        active.artifactLinkId &&
+        normalizeArtifactPublicUrl(active.publicUrl) &&
+        active.artifactLinkVersionMode === versionMode &&
+        active.artifactLinkAccessMode === accessMode &&
+        active.allowDownload === allowDownload
+      )
+      if (settingsMatch) {
+        return compactArtifactShare(active, 'Excalidraw Artifact share link is ready.')
+      }
+      const previousLinkId = active.artifactLinkId
+      const link = previousLinkId && normalizeArtifactPublicUrl(active.publicUrl)
+        ? await updateOrReplaceLink(previousLinkId, active.artifactId, active.artifactVersionId)
+        : await createLink(active.artifactId, active.artifactVersionId)
+      active.artifactLinkId = link.id
+      active.artifactLinkVersionMode = link.versionMode
+      active.artifactLinkAccessMode = link.accessMode
+      active.allowDownload = link.allowDownload
+      active.publicUrl = link.publicUrl
+      active.sharedAt = new Date()
+      await this.publicationRepository.save(active)
+      if (previousLinkId && previousLinkId !== link.id) await this.revokeArtifactLinkBestEffort(previousLinkId)
+      return compactArtifactShare(active, 'Excalidraw Artifact share link is ready.')
+    }
+
+    const workspaceFileName = `${checksum}.html`
+    const artifactFileName = normalizeHtmlFileName(drawing.title)
+    const workspaceScope = explicitWorkspaceScope(drawing, scope)
+    const file = await workspaceFiles.uploadBuffer({
+      ...workspaceScope,
+      buffer: rendered.buffer,
+      originalName: workspaceFileName,
+      mimeType: rendered.mimeType,
+      size: rendered.size,
+      folder: `files/excalidraw/artifacts/${input.drawingId}`
+    })
+    const fileReference = portableReference(file, workspaceScope, workspaceFileName, rendered.size, rendered.mimeType)
+    const artifact = await artifacts.createArtifact({
+      source: {
+        pluginName: EXCALIDRAW_PLUGIN_NAME,
+        resourceType: 'excalidraw_drawing_viewer',
+        resourceId: input.drawingId,
+        checksum
+      },
+      kind: 'html',
+      title: drawing.title,
+      description: drawing.description,
+      scope: artifactScope(drawing, scope),
+      metadata: artifactMetadata(drawing, {
+        collaborationSequence: drawing.revision ?? 0,
+        viewerVersion: rendered.viewerVersion
+      })
+    })
+    const artifactVersion = await artifacts.createArtifactVersion({
+      artifactId: artifact.id,
+      workspaceFileRef: fileReference,
+      mimeType: rendered.mimeType,
+      fileName: artifactFileName,
+      title: drawing.title,
+      description: drawing.description,
+      size: rendered.size,
+      sha256: rendered.sha256,
+      sourceVersionId: drawing.currentVersionId ?? `working-r${drawing.revision ?? 0}`,
+      checksum,
+      setCurrent: true,
+      metadata: artifactMetadata(drawing, {
+        collaborationSequence: drawing.revision ?? 0,
+        viewerVersion: rendered.viewerVersion
+      })
+    })
+    const publication = this.publicationRepository.create({
+      ...scopedCreate(scope),
+      userId: scope.userId ?? null,
+      drawingId: input.drawingId,
+      collaborationSequence: drawing.revision ?? 0,
+      sourceVersionId: drawing.currentVersionId ?? null,
+      checksum,
+      fileName: artifactFileName,
+      mimeType: rendered.mimeType,
+      size: rendered.size,
+      sha256: rendered.sha256,
+      workspaceFileReference: fileReference,
+      artifactId: artifact.id,
+      artifactVersionId: artifactVersion.id,
+      artifactLinkVersionMode: versionMode,
+      artifactLinkAccessMode: accessMode,
+      allowDownload,
+      status: 'active',
+      createdById: scope.userId ?? null
+    })
+
+    const canUpdateHtmlLink = Boolean(
+      active?.mimeType === 'text/html' &&
+      active.artifactId === artifact.id &&
+      active?.artifactLinkId &&
+      normalizeArtifactPublicUrl(active.publicUrl)
+    )
+    const link = canUpdateHtmlLink && active?.artifactLinkId
+      ? await updateOrReplaceLink(active.artifactLinkId, artifact.id, artifactVersion.id)
+      : await createLink(artifact.id, artifactVersion.id)
+    publication.artifactLinkId = link.id
+    publication.artifactLinkVersionMode = link.versionMode
+    publication.artifactLinkAccessMode = link.accessMode
+    publication.allowDownload = link.allowDownload
+    publication.publicUrl = link.publicUrl
+    publication.sharedAt = new Date()
+
+    const saved = await this.publicationRepository.save(publication)
+    if (active?.id) {
+      active.status = 'superseded'
+      await this.publicationRepository.save(active)
+    }
+    if (active?.artifactLinkId && active.artifactLinkId !== link.id) {
+      await this.revokeArtifactLinkBestEffort(active.artifactLinkId)
+    }
+    if (active?.mimeType === 'image/svg+xml') {
+      if (active.artifactId !== artifact.id) await artifacts.deleteArtifact(active.artifactId).catch(() => undefined)
+      await workspaceFiles.deleteFile(active.workspaceFileReference).catch(() => undefined)
+    }
+    return compactArtifactShare(saved, 'Excalidraw Artifact share link is ready.')
+  }
+
+  async revokeArtifactShare(scope: ExcalidrawScope, drawingId: string) {
+    await this.requireDrawing(scope, drawingId)
+    const active = await this.publicationRepository.findOne({
+      where: scopedWhere(scope, { drawingId, status: 'active' }),
+      order: { createdAt: 'DESC' }
+    })
+    if (!active) return { message: 'Excalidraw drawing has no active Artifact share.', drawingId, revoked: false }
+    if (active.artifactLinkId) await this.artifacts().revokeArtifactLink(active.artifactLinkId)
+    active.status = 'revoked'
+    active.publicUrl = null
+    await this.publicationRepository.save(active)
+    return { message: 'Excalidraw Artifact share was revoked.', drawingId, revoked: true }
+  }
+
   async updateDrawingStatus(scope: ExcalidrawScope, input: UpdateExcalidrawDrawingStatusInput) {
     const drawing = await this.requireDrawing(scope, input.drawingId)
     const updated = await this.drawingRepository.save({
@@ -383,6 +750,21 @@ export class ExcalidrawService {
       snapshot: { status: input.status }
     })
 
+    if (input.status === 'archived') {
+      const collaboration = this.collaborationOrNull()
+      if (collaboration) {
+        await collaboration.ensureDocument({
+          providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+          resourceId: drawing.id as string,
+          schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION
+        })
+        await collaboration.archiveDocument({
+          providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+          resourceId: drawing.id as string
+        })
+      }
+    }
+
     return {
       success: true,
       message: 'Excalidraw drawing status was updated.',
@@ -394,6 +776,34 @@ export class ExcalidrawService {
     const drawing = await this.requireDrawing(scope, drawingId)
     const scopedDrawingId = drawing.id as string
 
+    const collaboration = this.collaborationOrNull()
+    if (collaboration) {
+      await collaboration.ensureDocument({
+        providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+        resourceId: scopedDrawingId,
+        schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION
+      })
+      await collaboration.deleteDocument({
+        providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+        resourceId: scopedDrawingId
+      })
+    }
+    const publications = await this.publicationRepository.find({
+      where: scopedWhere(scope, { drawingId: scopedDrawingId })
+    })
+    const artifactIds = new Set<string>()
+    for (const publication of publications) {
+      if (publication.artifactLinkId && publication.status === 'active') {
+        await this.revokeArtifactLinkBestEffort(publication.artifactLinkId)
+      }
+      artifactIds.add(publication.artifactId)
+      await this.workspaceFiles().deleteFile(publication.workspaceFileReference).catch(() => undefined)
+    }
+    for (const artifactId of artifactIds) {
+      await this.artifacts().deleteArtifact(artifactId).catch(() => undefined)
+    }
+
+    await this.publicationRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId }))
     await this.logRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId }))
     await this.versionRepository.delete(scopedWhere(scope, { drawingId: scopedDrawingId }))
     await this.drawingRepository.delete(scopedWhere(scope, { id: scopedDrawingId }))
@@ -453,7 +863,7 @@ export class ExcalidrawService {
   }
 
   async restoreVersion(scope: ExcalidrawScope, drawingId: string, versionId: string, changeSummary?: string) {
-    const drawing = await this.requireDrawing(scope, drawingId)
+    let drawing = await this.requireDrawing(scope, drawingId)
     const version = await this.versionRepository.findOne({
       where: scopedWhere(scope, { id: versionId, drawingId })
     })
@@ -461,14 +871,19 @@ export class ExcalidrawService {
       throw new NotFoundException('Excalidraw drawing version was not found.')
     }
 
-    const restored = await this.createVersion(scope, drawing, {
+    const restoredInput = {
       sourceType: 'restore',
       elements: version.elements,
       appState: version.appState,
       files: version.files,
       mermaidSource: normalizeNullableText(version.mermaidSource),
       changeSummary: normalizeOptional(changeSummary) ?? `Restored version ${version.versionNumber}`
-    })
+    } satisfies ExcalidrawSceneInput & { sourceType: ExcalidrawVersionSource; changeSummary: string }
+    if (this.collaborationOrNull()) {
+      await this.replaceCollaborativeScene(scope, drawing, restoredInput, `excalidraw:restore-version:${versionId}`)
+      drawing = await this.requireCanonicalDrawing(scope, drawingId)
+    }
+    const restored = await this.createVersion(scope, drawing, restoredInput)
 
     await this.writeLog(scope, {
       drawingId,
@@ -569,6 +984,9 @@ export class ExcalidrawService {
       changeSummary?: string
     }
   ) {
+    if (this.collaborationOrNull()) {
+      return this.replaceCollaborativeScene(scope, drawing, input, `excalidraw:${input.sourceType}:update-current`)
+    }
     const scene = validateScene(input, `Excalidraw ${input.sourceType} scene`)
     const currentVersion = await this.getCurrentVersion(scope, drawing)
     if (!currentVersion) {
@@ -610,6 +1028,112 @@ export class ExcalidrawService {
     })
 
     return version
+  }
+
+  private async replaceCollaborativeScene(
+    scope: ExcalidrawScope,
+    drawing: ExcalidrawDrawing,
+    input: ExcalidrawSceneInput,
+    origin: string
+  ) {
+    const drawingId = drawing.id as string
+    const scene = validateScene(input, 'Collaborative Excalidraw scene replacement')
+    const collaboration = this.collaboration()
+    const document = await collaboration.ensureDocument({
+      providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+      resourceId: drawingId,
+      schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION
+    })
+    const state = await collaboration.getDocumentState({ documentId: document.id })
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, Buffer.from(state.updateBase64, 'base64'))
+    const current = materializeExcalidrawYDoc(doc)
+    const next = {
+      ...scene,
+      mermaidSource: normalizeNullableText(input.mermaidSource)
+    }
+    if (collaborationSceneSignature(current) !== collaborationSceneSignature(next)) {
+      const before = Y.encodeStateVector(doc)
+      writeExcalidrawSceneToYDoc(doc, next, origin)
+      const update = Y.encodeStateAsUpdate(doc, before)
+      await collaboration.applyUpdate({
+        documentId: document.id,
+        updateBase64: Buffer.from(update).toString('base64'),
+        origin,
+        expectedSequence: state.sequenceNumber,
+        actor: {
+          actorType: origin.includes('agent') ? 'agent' : 'user',
+          actorKey: scope.assistantId ?? scope.userId ?? null,
+          displayName: scope.assistantId ? 'Excalidraw Agent' : null
+        }
+      })
+    }
+    const canonical = await this.requireCanonicalDrawing(scope, drawingId)
+    const version = await this.getCurrentVersion(scope, canonical)
+    if (!version) throw new NotFoundException('Collaborative Excalidraw working scene was not materialized.')
+    Object.assign(drawing, canonical)
+    return version
+  }
+
+  private async requireCanonicalDrawing(scope: ExcalidrawScope, drawingId: string) {
+    const drawing = await this.requireDrawing(scope, drawingId)
+    const collaboration = this.collaborationOrNull()
+    if (!collaboration) return drawing
+    const document = await collaboration.ensureDocument({
+      providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+      resourceId: drawingId,
+      schemaVersion: EXCALIDRAW_YJS_SCHEMA_VERSION
+    })
+    const state = await collaboration.getDocumentState({ documentId: document.id })
+    if (drawing.revision !== state.sequenceNumber || drawing.yjsStateVectorBase64 !== state.stateVectorBase64) {
+      await this.materializeCollaborationDocument({
+        ...scope,
+        xpertId: scope.assistantId ?? null,
+        providerKey: EXCALIDRAW_COLLABORATION_PROVIDER_KEY,
+        resourceId: drawingId,
+        operation: 'materialize',
+        documentId: document.id,
+        stateBase64: state.updateBase64,
+        stateVectorBase64: state.stateVectorBase64,
+        sequenceNumber: state.sequenceNumber,
+        origin: 'excalidraw:canonical-read'
+      })
+    }
+    return this.requireDrawing(scope, drawingId)
+  }
+
+  private collaborationOrNull() {
+    return this.runtimeCapabilities?.get(CollaborationRuntimeCapability) ?? null
+  }
+
+  private collaboration() {
+    const capability = this.collaborationOrNull()
+    if (!capability) throw new Error('Platform collaboration capability is not available.')
+    return capability
+  }
+
+  private workspaceFiles() {
+    const capability = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+    if (!capability) throw new Error('Platform Workspace Files capability is not available.')
+    return capability
+  }
+
+  private artifacts() {
+    const capability = this.runtimeCapabilities?.get(ArtifactsRuntimeCapability)
+    if (!capability) throw new Error('Platform Artifacts capability is not available.')
+    return capability
+  }
+
+  private artifactViewer() {
+    return this.artifactViewerService ?? new ExcalidrawArtifactViewerService()
+  }
+
+  private async revokeArtifactLinkBestEffort(linkId: string) {
+    try {
+      await this.artifacts().revokeArtifactLink(linkId)
+    } catch {
+      // Link cleanup is idempotent and must not hide the primary publish/delete operation.
+    }
   }
 
   private async getCurrentVersion(scope: ExcalidrawScope, drawing: ExcalidrawDrawing) {
@@ -667,6 +1191,138 @@ function scopedCreate(scope: ExcalidrawScope): ScopedEntity & { createdById?: st
     projectId: scope.projectId ?? null,
     createdById: scope.userId ?? null
   }
+}
+
+function collaborationScope(
+  context: CollaborationProviderContext | CollaborationMaterializationEvent
+): ExcalidrawScope {
+  return {
+    tenantId: normalizeRequired(context.tenantId, 'Collaboration tenant id is required.'),
+    organizationId: context.organizationId ?? null,
+    workspaceId: context.workspaceId ?? null,
+    projectId: context.projectId ?? null,
+    userId: context.userId ?? null,
+    assistantId: context.xpertId ?? null
+  }
+}
+
+function collaborationSceneSignature(scene: ExcalidrawSceneInput) {
+  return createStableJsonSignature({
+    elements: scene.elements ?? [],
+    appState: scene.appState ?? {},
+    files: scene.files ?? {},
+    mermaidSource: normalizeNullableText(scene.mermaidSource)
+  })
+}
+
+function explicitWorkspaceScope(drawing: ExcalidrawDrawing, scope: ExcalidrawScope) {
+  if (drawing.projectId) {
+    return {
+      tenantId: drawing.tenantId,
+      userId: scope.userId,
+      catalog: 'projects' as const,
+      scopeId: drawing.projectId,
+      projectId: drawing.projectId
+    }
+  }
+  if (drawing.assistantId) {
+    return {
+      tenantId: drawing.tenantId,
+      userId: scope.userId,
+      catalog: 'xperts' as const,
+      scopeId: drawing.assistantId,
+      xpertId: drawing.assistantId,
+      isolateByUser: false
+    }
+  }
+  throw new BadRequestException('Excalidraw drawing has no project or Xpert workspace scope.')
+}
+
+function portableReference(
+  file: WorkspaceFile,
+  scope: ReturnType<typeof explicitWorkspaceScope>,
+  originalName: string,
+  size: number,
+  mimeType: string
+): WorkspacePortableFileReference {
+  return {
+    source: WORKSPACE_FILES_SOURCE,
+    filePath: file.filePath,
+    workspacePath: file.workspacePath,
+    catalog: scope.catalog,
+    scopeId: scope.scopeId,
+    tenantId: scope.tenantId,
+    userId: scope.userId,
+    ...('projectId' in scope ? { projectId: scope.projectId } : {}),
+    ...('xpertId' in scope ? { xpertId: scope.xpertId, isolateByUser: false } : {}),
+    originalName,
+    name: file.name,
+    mimeType: file.mimeType ?? mimeType,
+    size: file.size ?? size
+  }
+}
+
+function artifactScope(drawing: ExcalidrawDrawing, scope: ExcalidrawScope) {
+  return {
+    tenantId: drawing.tenantId ?? scope.tenantId ?? null,
+    organizationId: drawing.organizationId ?? scope.organizationId ?? null,
+    userId: scope.userId ?? drawing.createdById ?? null,
+    workspaceId: drawing.workspaceId ?? scope.workspaceId ?? null,
+    projectId: drawing.projectId ?? scope.projectId ?? null,
+    xpertId: drawing.assistantId ?? scope.assistantId ?? null
+  }
+}
+
+function artifactMetadata(drawing: ExcalidrawDrawing, extra?: Record<string, unknown>) {
+  return {
+    drawingId: drawing.id,
+    drawingTitle: drawing.title,
+    drawingKind: drawing.kind,
+    currentVersionId: drawing.currentVersionId,
+    currentVersionNumber: drawing.currentVersionNumber ?? 0,
+    ...extra
+  }
+}
+
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined): ArtifactAccessMode {
+  if (!value) return 'public_link'
+  const allowed = new Set<ArtifactAccessMode>(['owner_only', 'workspace_all', 'organization_all', 'public_link'])
+  if (allowed.has(value)) return value
+  throw new BadRequestException(`Unsupported artifact access mode: ${value}`)
+}
+
+function normalizeHtmlFileName(value: string | null | undefined) {
+  const base = (normalizeOptional(value) ?? 'excalidraw-drawing')
+    .replace(/\.html?$/i, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'excalidraw-drawing'
+  return `${base}.html`
+}
+
+function compactArtifactShare(publication: ExcalidrawArtifactPublication, message?: string) {
+  const publicUrl = normalizeArtifactPublicUrl(publication.publicUrl)
+  return {
+    ...(message ? { message } : {}),
+    drawingId: publication.drawingId,
+    revision: publication.collaborationSequence,
+    artifactId: publication.artifactId,
+    artifactVersionId: publication.artifactVersionId,
+    artifactLinkId: publication.artifactLinkId,
+    versionMode: publication.artifactLinkVersionMode,
+    accessMode: publication.artifactLinkAccessMode,
+    allowDownload: publication.allowDownload,
+    shareUrl: publicUrl,
+    publicUrl,
+    sharedAt: publication.sharedAt,
+    status: publication.status
+  }
+}
+
+function normalizeArtifactPublicUrl(value: string | null | undefined) {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  return trimmed || undefined
 }
 
 function selectRequestedVersion(payload: Record<string, any>, input: { versionId?: string; versionNumber?: number }) {

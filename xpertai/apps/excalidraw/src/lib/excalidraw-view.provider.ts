@@ -27,12 +27,15 @@ import {
   ASSISTANT_CONTEXT_SET_COMMAND,
   EXCALIDRAW_FEATURE,
   EXCALIDRAW_ICON,
+  EXCALIDRAW_DIAGRAM_ENGINE_TOOL_NAMES,
   EXCALIDRAW_MIDDLEWARE_TOOL_NAMES,
   EXCALIDRAW_PLUGIN_NAME,
   EXCALIDRAW_PROVIDER_KEY,
   EXCALIDRAW_REMOTE_ENTRY_KEY,
   EXCALIDRAW_WORKBENCH_VIEW_KEY
 } from './constants.js'
+import { ArtifactTemplateCatalogService, BUILTIN_DIAGRAM_TEMPLATES } from './diagram-engine/artifact-template-catalog.service.js'
+import { DiagramIrService } from './diagram-engine/diagram-ir.service.js'
 import { ExcalidrawService } from './excalidraw.service.js'
 import type { ExcalidrawDrawingKind, ExcalidrawDrawingStatus, ExcalidrawScope } from './types.js'
 
@@ -44,7 +47,11 @@ const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans }
 @Injectable()
 @ViewExtensionProvider(EXCALIDRAW_PROVIDER_KEY)
 export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: ExcalidrawService) {}
+  constructor(
+    private readonly service: ExcalidrawService,
+    private readonly templateCatalog: ArtifactTemplateCatalogService,
+    private readonly diagrams: DiagramIrService
+  ) {}
 
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'agent'
@@ -129,7 +136,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
               event: 'assistant.tool.completed',
               filter: {
                 sources: ['chatkit'],
-                toolNames: [...EXCALIDRAW_MIDDLEWARE_TOOL_NAMES]
+                toolNames: [...EXCALIDRAW_MIDDLEWARE_TOOL_NAMES, ...EXCALIDRAW_DIAGRAM_ENGINE_TOOL_NAMES]
               },
               action: {
                 type: 'forward',
@@ -149,6 +156,18 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           { key: 'create_drawing', label: text('New Drawing', '新建图形'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_current_scene', label: text('Save', '保存'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_scene_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'open_collaboration', label: text('Collaborate', '多人协作'), icon: 'ri-team-line', placement: 'toolbar', actionType: 'invoke' },
+          {
+            key: 'publish_artifact',
+            label: text('Share Artifact', '分享 Artifact'),
+            icon: 'ri-share-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
+          { key: 'inspect_diagram_template', label: text('Inspect Template', '查看模板'), icon: 'ri-layout-grid-line', actionType: 'invoke' },
+          { key: 'instantiate_diagram_template', label: text('Create from Template', '从模板新建'), icon: 'ri-layout-grid-line', actionType: 'invoke' },
+          { key: 'render_diagram_ir', label: text('Render DiagramIR', '渲染 DiagramIR'), icon: 'ri-flow-chart', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
           { key: 'mark_reviewed', label: text('Mark Reviewed', '标记已审核'), icon: 'ri-check-line', actionType: 'invoke' },
           { key: 'mark_draft', label: text('Move Back to Draft', '退回草稿'), icon: 'ri-edit-line', actionType: 'invoke' },
@@ -220,14 +239,45 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
     if (viewKey !== EXCALIDRAW_WORKBENCH_VIEW_KEY) {
       return {}
     }
-    return this.service.getWorkbenchData(scopeFromContext(context), {
-      drawingId: getStringParameter(query.parameters, 'drawingId') ?? query.selectionId,
+    const scope = scopeFromContext(context)
+    const drawingId = getStringParameter(query.parameters, 'drawingId') ?? query.selectionId
+    const data = await this.service.getWorkbenchData(scope, {
+      drawingId,
       status: getStringParameter(query.parameters, 'status') as ExcalidrawDrawingStatus | undefined,
       kind: getStringParameter(query.parameters, 'kind') as ExcalidrawDrawingKind | undefined,
       search: query.search,
       page: query.page,
       pageSize: query.pageSize
     })
+    let diagramQuality: Awaited<ReturnType<DiagramIrService['qualityReport']>> | null = null
+    if (drawingId) {
+      try {
+        diagramQuality = await this.diagrams.qualityReport(scope, drawingId)
+      } catch {
+        // A normal freeform Excalidraw drawing has no DiagramIR state.
+      }
+    }
+    const diagramTemplates = await Promise.all(BUILTIN_DIAGRAM_TEMPLATES.map(async (definition) => {
+          const descriptor = definition.descriptor
+          let previewDataUrl: string | undefined
+          if (descriptor.preview?.assetPath) {
+            const previewPath = join(moduleDir, '..', '..', descriptor.preview.assetPath)
+            if (existsSync(previewPath)) {
+              previewDataUrl = `data:image/svg+xml;base64,${(await readFile(previewPath)).toString('base64')}`
+            }
+          }
+          return {
+            ...descriptor,
+            inputSchema: definition.inputSchema,
+            defaults: definition.defaults,
+            previewDataUrl
+          }
+        }))
+    return {
+      ...data,
+      diagramTemplates,
+      diagramQuality
+    } as unknown as XpertViewDataResult
   }
 
   async executeViewAction(
@@ -246,6 +296,26 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         return success('Excalidraw view refreshed', 'Excalidraw 视图已刷新')
       }
 
+      if (actionKey === 'open_collaboration') {
+        const result = await this.service.createCollaborationSession(scope, requireDrawingId(request))
+        return { ...success('Collaboration session opened', '协作会话已开启'), refresh: false, data: result }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishDrawingViewerArtifact(scope, {
+          drawingId: requireDrawingId(request),
+          versionMode: getStringInput(request.input, 'versionMode') as 'latest' | 'version' | undefined,
+          accessMode: getStringInput(request.input, 'accessMode') as 'owner_only' | 'workspace_all' | 'organization_all' | 'public_link' | undefined,
+          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink')
+        })
+        return { ...success('Excalidraw Artifact shared', 'Excalidraw Artifact 已分享'), data: result }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDrawingId(request))
+        return { ...success('Artifact share revoked', 'Artifact 分享已撤销'), data: result }
+      }
+
       if (actionKey === 'create_drawing') {
         const result = await this.service.createDrawing(scope, {
           title: requireStringInput(request.input, 'title', 'Drawing title is required.'),
@@ -260,6 +330,52 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         }
       }
 
+      if (actionKey === 'inspect_diagram_template') {
+        if (!this.templateCatalog) throw new Error('Diagram template catalog is not available.')
+        const template = this.templateCatalog.get(
+          requireStringInput(request.input, 'key', 'Template key is required.'),
+          getStringInput(request.input, 'version')
+        )
+        return { ...success('Template loaded', '模板已加载'), refresh: false, data: template }
+      }
+
+      if (actionKey === 'instantiate_diagram_template') {
+        if (!this.diagrams) throw new Error('Diagram engine is not available.')
+        const drawingId = getStringInput(request.input, 'drawingId') ?? getStringParameter(request.parameters, 'drawingId')
+        const confirmedReplace = getBooleanInput(request.input, 'confirmedReplace')
+        if (drawingId && !confirmedReplace) {
+          throw new Error('Applying a template to the current drawing requires explicit replacement confirmation.')
+        }
+        const instantiated = await this.diagrams.instantiateTemplate(scope, {
+          key: requireStringInput(request.input, 'key', 'Template key is required.'),
+          version: getStringInput(request.input, 'version'),
+          parameters: getRecordInput(request.input, 'parameters') as never,
+          drawingId,
+          expectedRevision: getOptionalNumberInput(request.input, 'expectedRevision'),
+          replaceCurrent: Boolean(drawingId && confirmedReplace)
+        })
+        const rendered = await this.diagrams.render(scope, {
+          drawingId: instantiated.drawingId,
+          expectedRevision: instantiated.revision,
+          replaceDiverged: Boolean(drawingId && confirmedReplace)
+        })
+        return {
+          ...success('Diagram created from template', '已从模板创建图表'),
+          data: rendered
+        }
+      }
+
+      if (actionKey === 'render_diagram_ir') {
+        if (!this.diagrams) throw new Error('Diagram engine is not available.')
+        const confirmedReplace = getBooleanInput(request.input, 'confirmedReplace')
+        const result = await this.diagrams.render(scope, {
+          drawingId: requireDrawingId(request),
+          expectedRevision: requireNumberInput(request.input, 'expectedRevision', 'Expected DiagramIR revision is required.'),
+          replaceDiverged: confirmedReplace
+        })
+        return { ...success('DiagramIR rendered', 'DiagramIR 已渲染'), data: result }
+      }
+
       if (actionKey === 'save_current_scene' || actionKey === 'save_converted_mermaid_scene') {
         const drawingId = requireDrawingId(request)
         const result = await this.service.saveCurrentScene(scope, {
@@ -271,6 +387,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           sourceType: actionKey === 'save_converted_mermaid_scene' ? 'workbench_mermaid' : 'workbench',
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
+        await this.diagrams?.markDiverged(scope, drawingId, result.version.id)
         return {
           ...success('Drawing saved', '图形已保存'),
           data: result
@@ -288,6 +405,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           sourceType: 'workbench',
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
+        await this.diagrams?.markDiverged(scope, drawingId, result.version.id)
         return {
           ...success('Drawing version saved', '图形版本已保存'),
           data: result
@@ -303,7 +421,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         }
         const changeSummary = getStringInput(request.input, 'changeSummary') ?? 'Imported Excalidraw file'
         const result = drawingId
-          ? await this.service.saveCurrentScene(scope, {
+            ? await this.service.saveCurrentScene(scope, {
               drawingId,
               ...scene,
               sourceType: 'import',
@@ -318,6 +436,8 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
               changeSummary
             })
 
+        if (drawingId) await this.diagrams?.markDiverged(scope, drawingId, readResultVersionId(result))
+
         return {
           ...success('Excalidraw file imported', 'Excalidraw 文件已导入'),
           data: result
@@ -331,6 +451,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           requireStringInput(request.input, 'versionId', 'Version id is required.'),
           getStringInput(request.input, 'changeSummary')
         )
+        await this.diagrams?.markDiverged(scope, requireDrawingId(request), result.version.id)
         return {
           ...success('Drawing version restored', '图形版本已恢复'),
           data: result
@@ -410,9 +531,9 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
     }
 
     try {
+      const scope = scopeFromContext(context)
       const scene = parseExcalidrawJsonFile(file)
       const drawingId = getStringInput(request.input, 'drawingId') ?? getStringParameter(request.parameters, 'drawingId')
-      const scope = scopeFromContext(context)
       const result = drawingId
         ? await this.service.saveCurrentScene(scope, {
             drawingId,
@@ -432,6 +553,8 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
             files: scene.files,
             changeSummary: `Imported ${file.originalname ?? 'Excalidraw file'}`
           })
+
+      if (drawingId) await this.diagrams?.markDiverged(scope, drawingId, readResultVersionId(result))
 
       return {
         ...success('Excalidraw file imported', 'Excalidraw 文件已导入'),
@@ -521,6 +644,21 @@ function getRecordInput(input: XpertViewActionRequest['input'], key: string) {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 }
 
+function getBooleanInput(input: XpertViewActionRequest['input'], key: string) {
+  return input?.[key] === true
+}
+
+function requireNumberInput(input: XpertViewActionRequest['input'], key: string, message: string) {
+  const value = input?.[key]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw new Error(message)
+  return value
+}
+
+function getOptionalNumberInput(input: XpertViewActionRequest['input'], key: string) {
+  const value = input?.[key]
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : undefined
+}
+
 function getStringParameter(parameters: XpertViewActionRequest['parameters'] | XpertViewQuery['parameters'], key: string) {
   const value = parameters?.[key]
   if (typeof value === 'string' && value.trim()) {
@@ -531,6 +669,14 @@ function getStringParameter(parameters: XpertViewActionRequest['parameters'] | X
 
 function getActionErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
+}
+
+function readResultVersionId(value: unknown) {
+  if (!value || typeof value !== 'object') return undefined
+  const version = Reflect.get(value, 'version') ?? Reflect.get(value, 'currentVersion')
+  return version && typeof version === 'object' && typeof Reflect.get(version, 'id') === 'string'
+    ? Reflect.get(version, 'id') as string
+    : undefined
 }
 
 function parseExcalidrawJsonFile(file: XpertViewFileActionFile) {

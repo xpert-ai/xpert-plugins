@@ -3,6 +3,7 @@ export type ExcalidrawDrawingKind = 'diagram' | 'whiteboard' | 'flowchart' | 'ar
 export type ExcalidrawVersionSource =
   | 'agent_json'
   | 'agent_patch'
+  | 'agent_diagram_ir'
   | 'agent_mermaid'
   | 'workbench'
   | 'workbench_mermaid'

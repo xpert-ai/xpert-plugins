@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Badge } from '@xpert-ai/plugin-shadcn-ui/components/badge'
-import { Tabs, TabsList, TabsTrigger } from '@xpert-ai/plugin-shadcn-ui/components/tabs'
+import { Badge } from '@xpert-ai/plugin-shadcn-ui'
+import { Tabs, TabsList, TabsTrigger } from '@xpert-ai/plugin-shadcn-ui'
 import { DEVICE_OPTIONS, TABS, type HeaderContext } from './motion-types'
 import { labelForStatus, labelForTab, localizeOptions, type Translator } from './i18n'
 import { Button, MotionSelect, h } from './ui'
@@ -117,7 +117,7 @@ function HeaderIdentity(props: { title: string; label: string }) {
 }
 
 function HeaderStatus(props: { dirty: boolean; statusLabel: string; t: Translator }) {
-  return props.dirty ? <Badge variant="warning">{props.t('unsaved')}</Badge> : <Badge variant="secondary">{labelForStatus(props.statusLabel, props.t)}</Badge>
+  return props.dirty ? <Badge variant="outline" data-status="warning">{props.t('unsaved')}</Badge> : <Badge variant="secondary">{labelForStatus(props.statusLabel, props.t)}</Badge>
 }
 
 function HeaderViewSelect(props: { header: HeaderContext; t: Translator }) {

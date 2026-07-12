@@ -36,7 +36,7 @@ function resolveWorkspaceSourcePackage(packageName, relativeEntry) {
 function workspaceSourcePackagePlugin() {
   const shadcnUiEntry = resolveWorkspaceSourcePackage(
     '@xpert-ai/plugin-shadcn-ui',
-    join('packages', 'shadcn-ui', 'src', 'index.ts')
+    join('packages', 'shadcn-ui', 'dist', 'index.js')
   )
 
   return {
