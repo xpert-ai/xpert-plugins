@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/chuspeeism/dashiAI-ppt-skill",
+  "commit": "69ac66443e36e11cfca4a7f30721dc71a4278d28",
+  "version": "0.1.38",
+  "license": "AGPL-3.0",
+  "localChanges": [
+    "project/src/renderDeck.jsx resolves runtime dependencies from the containing plugin package",
+    "presentation fonts are supplied by exact-version Fontsource dependencies and staged per selected theme instead of being committed as vendor binaries",
+    "project/assets/template-swiss.html loads the generated theme-aware font pack and its license inventory",
+    "project/scripts/export-pptx.mjs can emit a machine-readable export warning report",
+    "project/scripts/serve-preview-https.mjs accepts DASHI_PPT_CERT_DIR so export jobs keep certificates inside their temporary directory",
+    "volatile project/output/https-preview development certificates are excluded from the vendored tree"
+  ],
+  "fileCount": 166,
+  "treeSha256": "09d67f9248daed37c8b71e88184b864d5a7203108dfd01b130e8238b0941e9e8",
+  "sha256": {
+    "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+    "dashiai-ppt/project/layout-manifest.json": "1cec2c24f72890da88afee59f12f6daf7c8254c6852abd5ac17efa6731bbf8e2",
+    "dashiai-ppt/project/assets/template-swiss.html": "4f133ee08c02606316f4467c599a1e88721b2301f577da844438d6406d4375c4",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme01.js": "d70e823cf81af5fd2214490b8d73eb960ae3781a1612260b4a6facb09688d4a1",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme02.js": "bda4604d89af0d0e679a3df1d3e066d7ec47b29d3adb25479206b4f155c6867c",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme03.js": "d576513fd72979fd6c6082fc6ca6d3a5132da775c60715075ae841f96fb62a11",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme04.js": "70d66d5a056a03b1642a63bef2f041d771aa22ac4e4b365389ae42c394a907ab",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme05.js": "7479819fd9612489fe3173bfd027a350a44563af18c514eda736abb0a3e3019c",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme06.js": "a678d9e25e884145c217dd137c349c37dbb3d25f324f6285ba09db09cebe1d62",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme07.js": "374c829304ec7e5c5c56ec9c5fb39d832c5f7c742ca394a285b7966ac82efff4",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme08.js": "fd5d8abad7211d4264ad3a3867f31abb46b660319c3792d31de8e80e48303985",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme09.js": "d469acbd8a1d7115c06f2c7990226b49a8a7d4ba304afcb9b10538fb16e74b9c",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme10.js": "bad33a5ed142d3c0d6ebd726caf64ba1adefa395268e5f34da1a9f9e076eb237",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme11.js": "9bb957893021d1d0c6f895ec9779b0c819f5e17807267f2ee7c6e8d341b79fe5",
+    "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme12.js": "11d868ad901e40082b44de2da02202931e8573efddc96fd2f40bd732b1c0b527"
+  }
+}

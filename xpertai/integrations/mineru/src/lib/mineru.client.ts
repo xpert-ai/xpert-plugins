@@ -1,4 +1,4 @@
-import { IIntegration } from '@metad/contracts';
+import { IIntegration } from '@xpert-ai/contracts';
 import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getErrorMessage, XpFileSystem } from '@xpert-ai/plugin-sdk';

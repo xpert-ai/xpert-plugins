@@ -11,7 +11,7 @@ import {
 } from '@langchain/core/messages'
 import { RunnableConfig } from '@langchain/core/runnables'
 import { tool, type DynamicStructuredTool } from '@langchain/core/tools'
-import { getToolCallIdFromConfig, type TAgentRunnableConfigurable } from '@metad/contracts'
+import { getToolCallIdFromConfig, type TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { BaseSandbox, type ModelRequest } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'

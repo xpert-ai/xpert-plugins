@@ -22,7 +22,7 @@ pnpm add @xpert-ai/plugin-long-term-memory
 npm install @xpert-ai/plugin-long-term-memory
 ```
 
-> **注意**: 确保主机服务已提供 `@xpert-ai/plugin-sdk`、`@nestjs/common@^11`、`@nestjs/cqrs@^11`、`@langchain/core@^0.3`、`@langchain/langgraph@^0.4`、`@metad/contracts`、`zod` 和 `chalk`。这些被视为对等/运行时依赖项。
+> **注意**: 确保主机服务已提供 `@xpert-ai/plugin-sdk`、`@nestjs/common@^11`、`@nestjs/cqrs@^11`、`@langchain/core@^0.3`、`@langchain/langgraph@^0.4`、`@xpert-ai/contracts`、`zod` 和 `chalk`。这些被视为对等/运行时依赖项。
 
 ## 快速开始
 

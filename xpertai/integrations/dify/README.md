@@ -17,7 +17,7 @@
 npm install @xpert-ai/plugin-dify
 ```
 
-> **Peer dependencies:** the host project must already provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@metad/contracts`, `@langchain/core`, `chalk`, `lodash-es`, and `zod` (see `package.json` for exact versions).
+> **Peer dependencies:** the host project must already provide `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@xpert-ai/contracts`, `@langchain/core`, `chalk`, `lodash-es`, and `zod` (see `package.json` for exact versions).
 
 When using an Nx workspace, ensure the package lives inside the workspace `packages` folder or add it to your preferred structure.
 

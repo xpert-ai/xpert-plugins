@@ -1,6 +1,6 @@
 const validateCredentials = jest.fn()
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   AiModelTypeEnum: {
     LLM: 'llm'
   }

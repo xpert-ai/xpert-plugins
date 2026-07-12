@@ -2,7 +2,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => null,
 }))
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   WorkflowNodeTypeEnum: {
     MIDDLEWARE: 'middleware',
   },

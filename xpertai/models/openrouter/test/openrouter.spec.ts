@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 import { OpenRouterProviderStrategy } from '../src/provider.strategy.js';
 import { OpenRouterLargeLanguageModel } from '../src/llm/llm.js';
 import { OpenRouterModelCredentials } from '../src/types.js';
-import { ICopilotModel } from '@metad/contracts';
+import { ICopilotModel } from '@xpert-ai/contracts';
 
 config();
 

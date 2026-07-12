@@ -3,7 +3,7 @@ import { BaseChatModel, BaseChatModelParams } from '@langchain/core/language_mod
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages'
 import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs'
 import { getEnvironmentVariable } from '@langchain/core/utils/env'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { OpenAI } from "openai";
 import { TChatModelOptions, TextToSpeechModel } from '@xpert-ai/plugin-sdk'

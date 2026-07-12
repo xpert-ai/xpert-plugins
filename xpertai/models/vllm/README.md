@@ -18,7 +18,7 @@
 npm install @xpert-ai/plugin-vllm
 ```
 
-> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@metad/contracts`, `@langchain/openai`, `lodash-es`, `chalk`, and `zod`. Please refer to `package.json` for version requirements.
+> **Peer Dependencies**: The host project must also provide libraries such as `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@xpert-ai/contracts`, `@langchain/openai`, `lodash-es`, `chalk`, and `zod`. Please refer to `package.json` for version requirements.
 
 ## Enabling in XpertAI
 

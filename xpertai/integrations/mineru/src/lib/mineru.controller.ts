@@ -1,4 +1,4 @@
-import { type IIntegration, LanguagesEnum } from '@metad/contracts'
+import { type IIntegration, LanguagesEnum } from '@xpert-ai/contracts'
 import { BadRequestException, Body, Controller, Inject, Post } from '@nestjs/common'
 import { I18nLang } from 'nestjs-i18n'
 import { MinerUIntegrationStrategy } from './integration.strategy.js'

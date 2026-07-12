@@ -1,0 +1,23 @@
+---
+name: presentation-studio-agent-skill
+description: Generate, review, collaborate on, version, and export DashiAI presentations through Presentation Studio.
+---
+
+# Presentation Studio Workflow
+
+Use this skill for structured presentation generation with the Presentation Studio Workbench.
+
+## Required order
+
+1. Create a deck with `presentation_create_deck`.
+2. Search layouts for each page role with `presentation_search_layouts`.
+3. Inspect every selected layout with `presentation_inspect_layouts`.
+4. Register existing workspace media with `presentation_add_asset`; use returned `asset://` values in writable media props.
+5. Add slides one at a time with `presentation_add_slide` and obey copy budgets, prop shapes, controls, and count bindings.
+6. Re-read the deck after revision conflicts, then use narrow patches.
+7. Finalize with `presentation_finalize_deck` only when active slides equal the requested page count.
+8. Request HTML, PDF, or PPTX with `presentation_request_export`, then poll `presentation_get_export`.
+
+Use one theme per deck and a unique layout per active slide. Never reuse default template copy as final content. Do not parse binary documents in this plugin; use structured content and file references already available from Xpert. Record failures through `presentation_report_failure`.
+
+Version creation is explicit: only `presentation_finalize_deck` creates an immutable version. `presentation_request_export` can export a supplied version or an immutable snapshot of the current working revision, but it never creates a version implicitly.

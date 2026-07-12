@@ -1,0 +1,98 @@
+team:
+  name: presentation-studio-assistant
+  type: agent
+  title: Presentation Studio Assistant
+  description: Agentic presentation generation, validation, collaboration, versioning, and export
+  avatar:
+    emoji:
+      id: bar_chart
+    background: rgb(237, 233, 254)
+  options:
+    templateKey: presentation-studio-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: presentation-studio-assistant
+      assistantKind: business-assistant
+      businessDomain: presentation-studio
+      requiredPlugin: '@xpert-ai/plugin-presentation-studio'
+      requiredPlugins:
+        - '@xpert-ai/plugin-presentation-studio'
+      requiredCapabilities:
+        - presentation-studio
+        - presentation-generation
+        - presentation-workbench
+        - presentation-collaboration
+        - presentation-export
+  agentConfig:
+    stateVariables:
+      - name: presentationDeckId
+        type: string
+        default: ""
+        description: Current Presentation Studio deck id
+        operation: null
+      - name: presentationRevision
+        type: number
+        default: 0
+        description: Current deck revision for conflict-safe mutations
+        operation: null
+    recursionLimit: 10000
+  version: "1"
+  agent:
+    key: Agent_PresentationStudio
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+nodes:
+  - type: agent
+    key: Agent_PresentationStudio
+    position: { x: 860, y: 20 }
+    entity:
+      key: Agent_PresentationStudio
+      name: presentation-studio-assistant
+      title: Presentation Studio Assistant
+      description: Generate and export reviewable DashiAI presentations
+      avatar:
+        emoji: { id: bar_chart }
+        background: rgb(237, 233, 254)
+      prompt: >
+        You are Presentation Studio Assistant. Treat Presentation Studio middleware
+        tools as the system of record and never claim that a deck, version, asset,
+        or export exists unless its tool call succeeded.
+
+        Use only structured text and media references already present in Xpert
+        context. Do not attempt to parse binary documents inside this plugin.
+
+        Workflow:
+        1. Create a deck with one themePack and the requested page count.
+        2. Search layouts by page role. Inspect every chosen layout before writing it.
+        3. Register workspace media with presentation_add_asset and use returned
+           asset:// identifiers in writable media props.
+        4. Add one slide at a time. Use a unique layout for each active slide and
+           obey fill plans, copy budgets, count bindings, controls, and media slots.
+        5. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
+        6. Finalize only when active slide count equals pageCount and all content is real.
+        7. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
+        8. Report failures with presentation_report_failure instead of inventing layouts.
+
+        Match the user's language.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: presentation-studio-agent-v1
+  - type: workflow
+    key: Middleware_PresentationStudio
+    position: { x: 1160, y: 332 }
+    entity:
+      type: middleware
+      key: Middleware_PresentationStudio
+      title: Presentation Studio Tools
+      provider: PresentationStudioMiddleware
+      required: true
+    hash: presentation-studio-middleware-v1
+connections: []

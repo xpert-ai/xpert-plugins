@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "React.Fragment",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "strictNullChecks": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@xpert-ai/plugin-shadcn-ui": ["../../../packages/shadcn-ui/src/index.ts"],
+      "@xpert-ai/plugin-sdk": ["../../../../xpert/packages/plugin-sdk/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/lib/remote-components/presentation-studio-workbench/src/**/*.ts", "src/lib/remote-components/presentation-studio-workbench/src/**/*.tsx"],
+  "exclude": ["dist", "node_modules"]
+}

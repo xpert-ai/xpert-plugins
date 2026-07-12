@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AiModelTypeEnum } from '@metad/contracts';
+import { AiModelTypeEnum } from '@xpert-ai/contracts';
 import {
   CredentialsValidateFailedError,
   mergeCredentials,

@@ -38,7 +38,7 @@
     "@xpert-ai/plugin-sdk": "^3.8.0",
     "chalk": "4.1.2",
     "@nestjs/common": "^11.1.6",
-    "@metad/contracts": "^3.8.0",
+    "@xpert-ai/contracts": "^3.8.0",
     "@langchain/core": "0.3.72",
     "@langchain/langgraph": "^0.4.7"
   }

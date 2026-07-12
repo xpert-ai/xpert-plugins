@@ -1,0 +1,156 @@
+team:
+  name: pencil-assistant
+  type: agent
+  title: Pencil Assistant
+  description: Agentic design assistant for Pencil documents, Figma imports, node edits, exports, and reviewable versions
+  avatar:
+    url: data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNy41LjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgdmlld0JveD0iMCAwIDIyMDAgMjIwMCIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMjIwMCAyMjAwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8ZyBpZD0iYmFja2dyb3VuZCI+DQoJPHJlY3Qgc3R5bGU9ImZpbGw6I0ZGRkZGRjsiIHdpZHRoPSIyMjAwIiBoZWlnaHQ9IjIyMDAiLz4NCjwvZz4NCjxnIGlkPSJPYmplY3RzIj4NCgk8Zz4NCgkJPGc+DQoJCQk8Zz4NCgkJCQk8cGF0aCBzdHlsZT0iZmlsbDojRTI0RDREOyIgZD0iTTE3MTUuNDc4LDgyNy44OTVsLTM4MS45MDQtMzgxLjkwNGwxNTQuMzI4LTE1NC4zMjdjMjQuOTAyLTI0LjkwMiw2NS4yNzUtMjQuOTAyLDkwLjE3NywwDQoJCQkJCWwyOTEuNzI3LDI5MS43MjdjMjQuOTAyLDI0LjkwMiwyNC45MDIsNjUuMjc1LDAsOTAuMTc3TDE3MTUuNDc4LDgyNy44OTV6Ii8+DQoJCQkJPHBhdGggc3R5bGU9ImZpbGw6I0Q4RDhEODsiIGQ9Ik0xNjY3LjgxOCw4NzYuNjkxYzE0LjEwNywxNC4xMDcsMTQuMTA3LDM2Ljk3LDAsNTEuMDc3bC05LjU4Niw5LjU4Ng0KCQkJCQljLTE0LjEwNywxNC4xMDctMzYuOTcsMTQuMTA3LTUxLjA3NywwbC0zODMuMDQtMzgzLjA0Yy0xNC4xMDctMTQuMTA3LTE0LjEwNy0zNi45NywwLTUxLjA3N2w5LjU4Ni05LjU4Ng0KCQkJCQljMTQuMTA3LTE0LjEwNywzNi45Ny0xNC4xMDcsNTEuMDc3LDBjLTE0LjEwNy0xNC4xMDctMTQuMDk5LTM2Ljk3OCwwLjAwOC01MS4wODVsOS41ODYtOS41ODYNCgkJCQkJYzE0LjA5OS0xNC4wOTksMzYuOTctMTQuMTA3LDUxLjA3NywwbDM4My4wNCwzODMuMDRjMTQuMTA3LDE0LjEwNywxNC4wOTksMzYuOTc4LDAsNTEuMDc3bC05LjU4Niw5LjU4Ng0KCQkJCQlDMTcwNC43OTYsODkwLjc5LDE2ODEuOTI1LDg5MC43OTgsMTY2Ny44MTgsODc2LjY5MXoiLz4NCgkJCQk8cGF0aCBzdHlsZT0iZmlsbDojNDI0MjQyOyIgZD0iTTQ3OC43MzUsMTgwMS40MDdsLTEwOS40NTIsMTMuNTY0Yy0xMy4yMDcsMS42MzYtMjQuNDIyLTkuNTc4LTIyLjc4NS0yMi43ODVsMTMuNTY0LTEwOS40NTINCgkJCQkJYzI5LjE0NSwzLjU5OCw1Ny4zNTksMTYuNTgxLDc5LjcyNiwzOC45NDhTNDc1LjEzNiwxNzcyLjI2Miw0NzguNzM1LDE4MDEuNDA3eiIvPg0KCQkJCTxwYXRoIHN0eWxlPSJmaWxsOiNGMkRGQUY7IiBkPSJNNzc5LjIxMSwxNzY0LjE2NmwtMzAwLjQ3NiwzNy4yNDJjLTMuNTk4LTI5LjE0NS0xNi41ODEtNTcuMzU5LTM4Ljk0OC03OS43MjYNCgkJCQkJcy01MC41ODEtMzUuMzQ5LTc5LjcyNi0zOC45NDhsMzcuMjQyLTMwMC40NzZsMTYzLjMyOSw0MC40MjFsMjcuNjI1LDE1MC41MzNsMTUwLjUzMywyNy42MjVMNzc5LjIxMSwxNzY0LjE2NnoiLz4NCgkJCQk8cG9seWdvbiBzdHlsZT0iZmlsbDojRUZDMDNDOyIgcG9pbnRzPSIxNTA0LjcxMyw4MzQuOTE0IDczOC43ODksMTYwMC44MzcgNTg4LjI1NywxNTczLjIxMiA1NjAuNjMyLDE0MjIuNjc5IDEzMjYuNTU1LDY1Ni43NTYgDQoJCQkJCQkJCQkiLz4NCgkJCQk8cG9seWdvbiBzdHlsZT0iZmlsbDojRjlDRDQxOyIgcG9pbnRzPSIxMzI2LjU1NSw2NTYuNzU2IDU2MC42MzIsMTQyMi42NzkgMzk3LjMwMywxMzgyLjI1OCAxMjI0LjY4LDU1NC44ODEgCQkJCSIvPg0KCQkJCTxwb2x5Z29uIHN0eWxlPSJmaWxsOiNGOUNENDE7IiBwb2ludHM9IjE2MDYuNTg4LDkzNi43ODkgNzc5LjIxMSwxNzY0LjE2NiA3MzguNzg5LDE2MDAuODM3IDE1MDQuNzEzLDgzNC45MTQgCQkJCSIvPg0KCQkJPC9nPg0KCQkJPHBhdGggZD0iTTE4NjUuNzI5LDU5My42NjFjMC0yMC4yNTQtNy44ODgtMzkuMjk3LTIyLjIxLTUzLjYxOWwtMjkxLjcyNy0yOTEuNzI4Yy0yOS41NjYtMjkuNTY0LTc3LjY3My0yOS41NjUtMTA3LjIzOSwwDQoJCQkJTDEzMTAuMjYsMzgyLjYwN2MtNy41LTQuNjEyLTE2LjE0My03LjA4Ni0yNS4xNjktNy4wODZjLTEyLjg3MSwwLTI0Ljk3Miw1LjAxMi0zNC4wNzIsMTQuMTEzbC05LjU4NSw5LjU4NA0KCQkJCWMtOS4xMDEsOS4xMDEtMTQuMTEzLDIxLjIwMi0xNC4xMTMsMzQuMDcyYzAsMS4wMDUsMC4wNDIsMi4wMDQsMC4xMDIsMi45OTljLTAuOTk1LTAuMDYxLTEuOTkzLTAuMTAyLTIuOTk5LTAuMTAyDQoJCQkJYy0xMi44NzEsMC0yNC45NzIsNS4wMTItMzQuMDcyLDE0LjExM2wtOS41ODUsOS41ODRjLTkuMTAxLDkuMTAxLTE0LjExMywyMS4yMDItMTQuMTEzLDM0LjA3Mg0KCQkJCWMwLDkuMDI2LDIuNDc0LDE3LjY2OSw3LjA4NiwyNS4xNjljMCwwLTgxOS43MDgsODE5LjcwOC04MTkuNzg1LDgxOS43ODVjLTAuMzUxLDAuMzUtMC42NzIsMC43MzYtMC45ODEsMS4xMjMNCgkJCQljLTAuODgyLDEuMTA3LTEuNTM0LDIuMzgtMS45NjcsMy43MjZjLTAuMjE5LDAuNjc5LTAuMzg0LDEuMzkxLTAuNDc4LDIuMDk5Yy0wLjAwNCwwLjAzMy0wLjAxMiwwLjA2Ni0wLjAxNiwwLjA5OQ0KCQkJCWwtNTAuODA4LDQwOS45MjVjLTEuMjQxLDEwLjAxLDIuMTM4LDE5Ljg0MSw5LjI3LDI2Ljk3NGM2LjE2Myw2LjE2MywxNC4zNCw5LjUyMywyMi45MDgsOS41MjNjMS4zNDgsMCwyLjcwNy0wLjA4Myw0LjA2Ny0wLjI1Mg0KCQkJCWw0MDkuODU5LTUwLjgwMWMwLjAxNS0wLjAwMiwwLjAyOS0wLjAwNCwwLjA2Ny0wLjAwOGMxLjMwMy0wLjE2MiwyLjYtMC41NDcsMy43ODItMS4xMmMxLjIwMS0wLjU4MiwyLjMyLTEuMzc3LDMuMjY1LTIuMzIyDQoJCQkJbDgxOS43ODUtODE5Ljc4NWM3LjUsNC42MTIsMTYuMTQyLDcuMDg1LDI1LjE2OCw3LjA4NWMxMi44NywwLDI0Ljk3MS01LjAxMiwzNC4wNzItMTQuMTEzbDkuNTg1LTkuNTg1DQoJCQkJYzEwLjE1NS0xMC4xNTYsMTQuODA5LTIzLjc1NCwxMy45ODUtMzcuMDczYzEuMDAzLDAuMDYyLDIuMDEsMC4xMDQsMy4wMjQsMC4xMDRjMTIuODcsMCwyNC45NzEtNS4wMTIsMzQuMDcyLTE0LjExM2w5LjU4NS05LjU4NQ0KCQkJCWMxNi4wNDMtMTYuMDQ0LDE4LjM3NC00MC42NzUsNy4wMTUtNTkuMjI4bDEzNC4zMDQtMTM0LjMwNEMxODU3Ljg0MSw2MzIuOTU4LDE4NjUuNzI5LDYxMy45MTYsMTg2NS43MjksNTkzLjY2MXoNCgkJCQkgTTc1MC45NjksMTcwNS43MDdsLTMzLjY1LTEzNS45NzJsNzUyLjU3Ny03NTIuNTc4bDg0LjgxMiw4NC44MTJMNzUwLjk2OSwxNzA1LjcwN3ogTTQ1My45MzIsMTc1My4xOTINCgkJCQljLTUuODI4LTI4LjQtMTkuNjYyLTU0LjA4Ny00MC40MzMtNzQuODU4Yy0yMC43NzEtMjAuNzcxLTQ2LjQ1OC0zNC42MDUtNzQuODU3LTQwLjQzM2wzNC4xNDQtMjc1LjQ4bDE0Mi41NjcsMzUuMjgyDQoJCQkJbDI2LjIxOSwxNDIuODY5YzAuOTA0LDQuOTI4LDQuNzYxLDguNzg0LDkuNjg4LDkuNjg4bDE0Mi44NywyNi4yMmwzNS4yODIsMTQyLjU2Nkw0NTMuOTMyLDE3NTMuMTkyeiBNMTQ1Mi44MzMsODAwLjA5Ng0KCQkJCWwtNzUyLjkxNSw3NTIuOTE1bC0xMzYuMTE1LTI0Ljk4bC0yNC45OC0xMzYuMTE0bDc1Mi45MTUtNzUyLjkxNmw4MC41NDgsODAuNTQ4TDE0NTIuODMzLDgwMC4wOTZ6IE0xMjc0LjY3Niw2MjEuOTM5DQoJCQkJbC03NTIuNTc3LDc1Mi41NzdsLTEzNS45NzMtMzMuNjVsODAzLjczOC04MDMuNzM4TDEyNzQuNjc2LDYyMS45Mzl6IE0zMzIuOTgyLDE3NjguMTg0Yy0zLjUyNywwLjQzNS01Ljg2Ni0xLjMwOS02Ljk0NS0yLjM4OA0KCQkJCXMtMi44MjQtMy40MTYtMi4zODYtNi45NDNsMTIuMDEtOTYuODk0YzIzLjAxOSw1LjEwMSw0My44NDksMTYuNTA5LDYwLjc3NywzMy40MzhjMTYuOTI5LDE2LjkyOCwyOC4zMzYsMzcuNzU4LDMzLjQzNyw2MC43NzcNCgkJCQlMMzMyLjk4MiwxNzY4LjE4NHogTTE2MjQuNDcsODg0LjQxOWwtOS41ODUsOS41ODRjLTQuNTQzLDQuNTQ0LTEwLjU4NSw3LjA0Ni0xNy4wMSw3LjA0NmMtNi40MjYsMC0xMi40NjctMi41MDItMTcuMDEtNy4wNDUNCgkJCQlMMTE5Ny44Myw1MTAuOTY4Yy00LjU0NC00LjU0My03LjA0Ny0xMC41ODQtNy4wNDctMTcuMDFzMi41MDMtMTIuNDY2LDcuMDQ3LTE3LjAxbDkuNTg1LTkuNTg1DQoJCQkJYzQuNTQzLTQuNTQzLDEwLjU4NC03LjA0NSwxNy4wMS03LjA0NWM2LjQyNSwwLDEyLjQ2NywyLjUwMiwxNy4wMSw3LjA0NWwzODMuMDM1LDM4My4wMzUNCgkJCQlDMTYzMy44NDksODU5Ljc3OCwxNjMzLjg0OSw4NzUuMDQsMTYyNC40Nyw4ODQuNDE5eiBNMTY4NS4xMzcsODIzLjc1MmwtOS41ODUsOS41ODRjLTQuNTQzLDQuNTQ0LTEwLjU4NSw3LjA0Ni0xNy4wMSw3LjA0Ng0KCQkJCWMtNi40MjYsMC0xMi40NjctMi41MDItMTcuMDEtNy4wNDVsLTM4My4wMzUtMzgzLjAzNmMtNC41NDQtNC41NDMtNy4wNDctMTAuNTg0LTcuMDQ3LTE3LjAxczIuNTAzLTEyLjQ2Niw3LjA0Ny0xNy4wMQ0KCQkJCWw5LjU4NS05LjU4NWM0LjU0My00LjU0MywxMC41ODQtNy4wNDUsMTcuMDEtNy4wNDVjNi40MjUsMCwxMi40NjcsMi41MDIsMTcuMDEsNy4wNDVsMC41NjEsMC41NjENCgkJCQljMC4wMDIsMC4wMDIsMC4wMDMsMC4wMDQsMC4wMDUsMC4wMDVsMzgxLjkwNCwzODEuOTA0bDAuNTY1LDAuNTY1QzE2OTQuNTE2LDc5OS4xMTEsMTY5NC41MTYsODE0LjM3MywxNjg1LjEzNyw4MjMuNzUyeg0KCQkJCSBNMTgyNi40NTYsNjMwLjIxOWwtMTMzLjM1NCwxMzMuMzU0TDEzMjguMjYsMzk4LjczMWwxMzMuMzU1LTEzMy4zNTRjMjAuMTU2LTIwLjE1Nyw1Mi45NTYtMjAuMTU3LDczLjExNCwwbDI5MS43MjcsMjkxLjcyOA0KCQkJCWM5Ljc2Niw5Ljc2NSwxNS4xNDQsMjIuNzQ4LDE1LjE0NCwzNi41NTdDMTg0MS42LDYwNy40NzEsMTgzNi4yMjIsNjIwLjQ1NCwxODI2LjQ1Niw2MzAuMjE5eiIvPg0KCQk8L2c+DQoJCTxlbGxpcHNlIHN0eWxlPSJmaWxsOiNEM0QzRDM7IiBjeD0iMTEwMCIgY3k9IjE5NDAuMzEzIiByeD0iNzc1LjU2MiIgcnk9IjIxLjUxNyIvPg0KCTwvZz4NCjwvZz4NCjwvc3ZnPg0K
+    background: rgb(255, 255, 255)
+  options:
+    templateKey: pencil-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: pencil-assistant
+      assistantKind: business-assistant
+      businessDomain: pencil
+      requiredPlugin: '@xpert-ai/plugin-pencil'
+      requiredPlugins:
+        - '@xpert-ai/plugin-pencil'
+        - '@xpert-ai/plugin-view-image'
+      requiredCapabilities:
+        - pencil
+        - pencil-workbench
+        - agent-pencil
+  agentConfig:
+    stateVariables:
+      - name: pencilDocumentId
+        type: string
+        default: ""
+        description: Current Pencil document id selected in the workbench
+        operation: null
+      - name: pencilVersionId
+        type: string
+        default: ""
+        description: Current Pencil version id selected in the workbench
+        operation: null
+      - name: pencilNodeId
+        type: string
+        default: ""
+        description: Current Pencil node id selected in the workbench
+        operation: null
+      - name: pencilSelectionJson
+        type: string
+        default: ""
+        description: Current Pencil selection context JSON from the workbench
+        operation: null
+      - name: pencilContextJson
+        type: string
+        default: ""
+        description: Current Pencil document and working graph context JSON from the workbench
+        operation: null
+      - name: pencilDirty
+        type: string
+        default: ""
+        description: Whether the current Pencil workbench has unsaved local changes
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_Pencil
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Pencil
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_Pencil
+      name: pencil-assistant
+      title: Pencil Assistant
+      description: Agentic design assistant for Pencil documents, Figma imports, node edits, exports, and reviewable versions
+      avatar:
+        url: data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNy41LjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgdmlld0JveD0iMCAwIDIyMDAgMjIwMCIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMjIwMCAyMjAwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8ZyBpZD0iYmFja2dyb3VuZCI+DQoJPHJlY3Qgc3R5bGU9ImZpbGw6I0ZGRkZGRjsiIHdpZHRoPSIyMjAwIiBoZWlnaHQ9IjIyMDAiLz4NCjwvZz4NCjxnIGlkPSJPYmplY3RzIj4NCgk8Zz4NCgkJPGc+DQoJCQk8Zz4NCgkJCQk8cGF0aCBzdHlsZT0iZmlsbDojRTI0RDREOyIgZD0iTTE3MTUuNDc4LDgyNy44OTVsLTM4MS45MDQtMzgxLjkwNGwxNTQuMzI4LTE1NC4zMjdjMjQuOTAyLTI0LjkwMiw2NS4yNzUtMjQuOTAyLDkwLjE3NywwDQoJCQkJCWwyOTEuNzI3LDI5MS43MjdjMjQuOTAyLDI0LjkwMiwyNC45MDIsNjUuMjc1LDAsOTAuMTc3TDE3MTUuNDc4LDgyNy44OTV6Ii8+DQoJCQkJPHBhdGggc3R5bGU9ImZpbGw6I0Q4RDhEODsiIGQ9Ik0xNjY3LjgxOCw4NzYuNjkxYzE0LjEwNywxNC4xMDcsMTQuMTA3LDM2Ljk3LDAsNTEuMDc3bC05LjU4Niw5LjU4Ng0KCQkJCQljLTE0LjEwNywxNC4xMDctMzYuOTcsMTQuMTA3LTUxLjA3NywwbC0zODMuMDQtMzgzLjA0Yy0xNC4xMDctMTQuMTA3LTE0LjEwNy0zNi45NywwLTUxLjA3N2w5LjU4Ni05LjU4Ng0KCQkJCQljMTQuMTA3LTE0LjEwNywzNi45Ny0xNC4xMDcsNTEuMDc3LDBjLTE0LjEwNy0xNC4xMDctMTQuMDk5LTM2Ljk3OCwwLjAwOC01MS4wODVsOS41ODYtOS41ODYNCgkJCQkJYzE0LjA5OS0xNC4wOTksMzYuOTctMTQuMTA3LDUxLjA3NywwbDM4My4wNCwzODMuMDRjMTQuMTA3LDE0LjEwNywxNC4wOTksMzYuOTc4LDAsNTEuMDc3bC05LjU4Niw5LjU4Ng0KCQkJCQlDMTcwNC43OTYsODkwLjc5LDE2ODEuOTI1LDg5MC43OTgsMTY2Ny44MTgsODc2LjY5MXoiLz4NCgkJCQk8cGF0aCBzdHlsZT0iZmlsbDojNDI0MjQyOyIgZD0iTTQ3OC43MzUsMTgwMS40MDdsLTEwOS40NTIsMTMuNTY0Yy0xMy4yMDcsMS42MzYtMjQuNDIyLTkuNTc4LTIyLjc4NS0yMi43ODVsMTMuNTY0LTEwOS40NTINCgkJCQkJYzI5LjE0NSwzLjU5OCw1Ny4zNTksMTYuNTgxLDc5LjcyNiwzOC45NDhTNDc1LjEzNiwxNzcyLjI2Miw0NzguNzM1LDE4MDEuNDA3eiIvPg0KCQkJCTxwYXRoIHN0eWxlPSJmaWxsOiNGMkRGQUY7IiBkPSJNNzc5LjIxMSwxNzY0LjE2NmwtMzAwLjQ3NiwzNy4yNDJjLTMuNTk4LTI5LjE0NS0xNi41ODEtNTcuMzU5LTM4Ljk0OC03OS43MjYNCgkJCQkJcy01MC41ODEtMzUuMzQ5LTc5LjcyNi0zOC45NDhsMzcuMjQyLTMwMC40NzZsMTYzLjMyOSw0MC40MjFsMjcuNjI1LDE1MC41MzNsMTUwLjUzMywyNy42MjVMNzc5LjIxMSwxNzY0LjE2NnoiLz4NCgkJCQk8cG9seWdvbiBzdHlsZT0iZmlsbDojRUZDMDNDOyIgcG9pbnRzPSIxNTA0LjcxMyw4MzQuOTE0IDczOC43ODksMTYwMC44MzcgNTg4LjI1NywxNTczLjIxMiA1NjAuNjMyLDE0MjIuNjc5IDEzMjYuNTU1LDY1Ni43NTYgDQoJCQkJCQkJCQkiLz4NCgkJCQk8cG9seWdvbiBzdHlsZT0iZmlsbDojRjlDRDQxOyIgcG9pbnRzPSIxMzI2LjU1NSw2NTYuNzU2IDU2MC42MzIsMTQyMi42NzkgMzk3LjMwMywxMzgyLjI1OCAxMjI0LjY4LDU1NC44ODEgCQkJCSIvPg0KCQkJCTxwb2x5Z29uIHN0eWxlPSJmaWxsOiNGOUNENDE7IiBwb2ludHM9IjE2MDYuNTg4LDkzNi43ODkgNzc5LjIxMSwxNzY0LjE2NiA3MzguNzg5LDE2MDAuODM3IDE1MDQuNzEzLDgzNC45MTQgCQkJCSIvPg0KCQkJPC9nPg0KCQkJPHBhdGggZD0iTTE4NjUuNzI5LDU5My42NjFjMC0yMC4yNTQtNy44ODgtMzkuMjk3LTIyLjIxLTUzLjYxOWwtMjkxLjcyNy0yOTEuNzI4Yy0yOS41NjYtMjkuNTY0LTc3LjY3My0yOS41NjUtMTA3LjIzOSwwDQoJCQkJTDEzMTAuMjYsMzgyLjYwN2MtNy41LTQuNjEyLTE2LjE0My03LjA4Ni0yNS4xNjktNy4wODZjLTEyLjg3MSwwLTI0Ljk3Miw1LjAxMi0zNC4wNzIsMTQuMTEzbC05LjU4NSw5LjU4NA0KCQkJCWMtOS4xMDEsOS4xMDEtMTQuMTEzLDIxLjIwMi0xNC4xMTMsMzQuMDcyYzAsMS4wMDUsMC4wNDIsMi4wMDQsMC4xMDIsMi45OTljLTAuOTk1LTAuMDYxLTEuOTkzLTAuMTAyLTIuOTk5LTAuMTAyDQoJCQkJYy0xMi44NzEsMC0yNC45NzIsNS4wMTItMzQuMDcyLDE0LjExM2wtOS41ODUsOS41ODRjLTkuMTAxLDkuMTAxLTE0LjExMywyMS4yMDItMTQuMTEzLDM0LjA3Mg0KCQkJCWMwLDkuMDI2LDIuNDc0LDE3LjY2OSw3LjA4NiwyNS4xNjljMCwwLTgxOS43MDgsODE5LjcwOC04MTkuNzg1LDgxOS43ODVjLTAuMzUxLDAuMzUtMC42NzIsMC43MzYtMC45ODEsMS4xMjMNCgkJCQljLTAuODgyLDEuMTA3LTEuNTM0LDIuMzgtMS45NjcsMy43MjZjLTAuMjE5LDAuNjc5LTAuMzg0LDEuMzkxLTAuNDc4LDIuMDk5Yy0wLjAwNCwwLjAzMy0wLjAxMiwwLjA2Ni0wLjAxNiwwLjA5OQ0KCQkJCWwtNTAuODA4LDQwOS45MjVjLTEuMjQxLDEwLjAxLDIuMTM4LDE5Ljg0MSw5LjI3LDI2Ljk3NGM2LjE2Myw2LjE2MywxNC4zNCw5LjUyMywyMi45MDgsOS41MjNjMS4zNDgsMCwyLjcwNy0wLjA4Myw0LjA2Ny0wLjI1Mg0KCQkJCWw0MDkuODU5LTUwLjgwMWMwLjAxNS0wLjAwMiwwLjAyOS0wLjAwNCwwLjA2Ny0wLjAwOGMxLjMwMy0wLjE2MiwyLjYtMC41NDcsMy43ODItMS4xMmMxLjIwMS0wLjU4MiwyLjMyLTEuMzc3LDMuMjY1LTIuMzIyDQoJCQkJbDgxOS43ODUtODE5Ljc4NWM3LjUsNC42MTIsMTYuMTQyLDcuMDg1LDI1LjE2OCw3LjA4NWMxMi44NywwLDI0Ljk3MS01LjAxMiwzNC4wNzItMTQuMTEzbDkuNTg1LTkuNTg1DQoJCQkJYzEwLjE1NS0xMC4xNTYsMTQuODA5LTIzLjc1NCwxMy45ODUtMzcuMDczYzEuMDAzLDAuMDYyLDIuMDEsMC4xMDQsMy4wMjQsMC4xMDRjMTIuODcsMCwyNC45NzEtNS4wMTIsMzQuMDcyLTE0LjExM2w5LjU4NS05LjU4NQ0KCQkJCWMxNi4wNDMtMTYuMDQ0LDE4LjM3NC00MC42NzUsNy4wMTUtNTkuMjI4bDEzNC4zMDQtMTM0LjMwNEMxODU3Ljg0MSw2MzIuOTU4LDE4NjUuNzI5LDYxMy45MTYsMTg2NS43MjksNTkzLjY2MXoNCgkJCQkgTTc1MC45NjksMTcwNS43MDdsLTMzLjY1LTEzNS45NzJsNzUyLjU3Ny03NTIuNTc4bDg0LjgxMiw4NC44MTJMNzUwLjk2OSwxNzA1LjcwN3ogTTQ1My45MzIsMTc1My4xOTINCgkJCQljLTUuODI4LTI4LjQtMTkuNjYyLTU0LjA4Ny00MC40MzMtNzQuODU4Yy0yMC43NzEtMjAuNzcxLTQ2LjQ1OC0zNC42MDUtNzQuODU3LTQwLjQzM2wzNC4xNDQtMjc1LjQ4bDE0Mi41NjcsMzUuMjgyDQoJCQkJbDI2LjIxOSwxNDIuODY5YzAuOTA0LDQuOTI4LDQuNzYxLDguNzg0LDkuNjg4LDkuNjg4bDE0Mi44NywyNi4yMmwzNS4yODIsMTQyLjU2Nkw0NTMuOTMyLDE3NTMuMTkyeiBNMTQ1Mi44MzMsODAwLjA5Ng0KCQkJCWwtNzUyLjkxNSw3NTIuOTE1bC0xMzYuMTE1LTI0Ljk4bC0yNC45OC0xMzYuMTE0bDc1Mi45MTUtNzUyLjkxNmw4MC41NDgsODAuNTQ4TDE0NTIuODMzLDgwMC4wOTZ6IE0xMjc0LjY3Niw2MjEuOTM5DQoJCQkJbC03NTIuNTc3LDc1Mi41NzdsLTEzNS45NzMtMzMuNjVsODAzLjczOC04MDMuNzM4TDEyNzQuNjc2LDYyMS45Mzl6IE0zMzIuOTgyLDE3NjguMTg0Yy0zLjUyNywwLjQzNS01Ljg2Ni0xLjMwOS02Ljk0NS0yLjM4OA0KCQkJCXMtMi44MjQtMy40MTYtMi4zODYtNi45NDNsMTIuMDEtOTYuODk0YzIzLjAxOSw1LjEwMSw0My44NDksMTYuNTA5LDYwLjc3NywzMy40MzhjMTYuOTI5LDE2LjkyOCwyOC4zMzYsMzcuNzU4LDMzLjQzNyw2MC43NzcNCgkJCQlMMzMyLjk4MiwxNzY4LjE4NHogTTE2MjQuNDcsODg0LjQxOWwtOS41ODUsOS41ODRjLTQuNTQzLDQuNTQ0LTEwLjU4NSw3LjA0Ni0xNy4wMSw3LjA0NmMtNi40MjYsMC0xMi40NjctMi41MDItMTcuMDEtNy4wNDUNCgkJCQlMMTE5Ny44Myw1MTAuOTY4Yy00LjU0NC00LjU0My03LjA0Ny0xMC41ODQtNy4wNDctMTcuMDFzMi41MDMtMTIuNDY2LDcuMDQ3LTE3LjAxbDkuNTg1LTkuNTg1DQoJCQkJYzQuNTQzLTQuNTQzLDEwLjU4NC03LjA0NSwxNy4wMS03LjA0NWM2LjQyNSwwLDEyLjQ2NywyLjUwMiwxNy4wMSw3LjA0NWwzODMuMDM1LDM4My4wMzUNCgkJCQlDMTYzMy44NDksODU5Ljc3OCwxNjMzLjg0OSw4NzUuMDQsMTYyNC40Nyw4ODQuNDE5eiBNMTY4NS4xMzcsODIzLjc1MmwtOS41ODUsOS41ODRjLTQuNTQzLDQuNTQ0LTEwLjU4NSw3LjA0Ni0xNy4wMSw3LjA0Ng0KCQkJCWMtNi40MjYsMC0xMi40NjctMi41MDItMTcuMDEtNy4wNDVsLTM4My4wMzUtMzgzLjAzNmMtNC41NDQtNC41NDMtNy4wNDctMTAuNTg0LTcuMDQ3LTE3LjAxczIuNTAzLTEyLjQ2Niw3LjA0Ny0xNy4wMQ0KCQkJCWw5LjU4NS05LjU4NWM0LjU0My00LjU0MywxMC41ODQtNy4wNDUsMTcuMDEtNy4wNDVjNi40MjUsMCwxMi40NjcsMi41MDIsMTcuMDEsNy4wNDVsMC41NjEsMC41NjENCgkJCQljMC4wMDIsMC4wMDIsMC4wMDMsMC4wMDQsMC4wMDUsMC4wMDVsMzgxLjkwNCwzODEuOTA0bDAuNTY1LDAuNTY1QzE2OTQuNTE2LDc5OS4xMTEsMTY5NC41MTYsODE0LjM3MywxNjg1LjEzNyw4MjMuNzUyeg0KCQkJCSBNMTgyNi40NTYsNjMwLjIxOWwtMTMzLjM1NCwxMzMuMzU0TDEzMjguMjYsMzk4LjczMWwxMzMuMzU1LTEzMy4zNTRjMjAuMTU2LTIwLjE1Nyw1Mi45NTYtMjAuMTU3LDczLjExNCwwbDI5MS43MjcsMjkxLjcyOA0KCQkJCWM5Ljc2Niw5Ljc2NSwxNS4xNDQsMjIuNzQ4LDE1LjE0NCwzNi41NTdDMTg0MS42LDYwNy40NzEsMTgzNi4yMjIsNjIwLjQ1NCwxODI2LjQ1Niw2MzAuMjE5eiIvPg0KCQk8L2c+DQoJCTxlbGxpcHNlIHN0eWxlPSJmaWxsOiNEM0QzRDM7IiBjeD0iMTEwMCIgY3k9IjE5NDAuMzEzIiByeD0iNzc1LjU2MiIgcnk9IjIxLjUxNyIvPg0KCTwvZz4NCjwvZz4NCjwvc3ZnPg0K
+        background: rgb(255, 255, 255)
+      prompt: >
+        You are Pencil Assistant, a data-xpert business assistant for creating
+        and managing reviewable Pencil design documents.
+
+        Use Pencil middleware tools as the system of record. Do not claim that
+        a document, version, import, export, or node edit was saved unless the
+        relevant tool call succeeded.
+
+        Runtime Pencil Workbench context rendered from request state variables
+        may be empty when no document or node is selected:
+        - pencilDocumentId: {{env.pencilDocumentId}}
+        - pencilVersionId: {{env.pencilVersionId}}
+        - pencilNodeId: {{env.pencilNodeId}}
+        - pencilSelectionJson: {{{env.pencilSelectionJson}}}
+        - pencilContextJson: {{{env.pencilContextJson}}}
+        - pencilDirty: {{env.pencilDirty}}
+
+        If pencilContextJson is non-empty, parse it as the current Workbench
+        context. Prefer pencilDocumentId as the current document unless the
+        user explicitly asks to work on another document.
+
+        Pencil workflow:
+        1. If pencilDocumentId is non-empty and the user asks for edits,
+           imports into the current file, exports, or review, use that document.
+           Do not create a new document unless the user asks for one.
+        2. Before modifying an existing document, call pencil_get_document.
+           For targeted changes to a node, call pencil_get_node first.
+        3. Use the selected Pencil core tools with the pencil_ prefix for
+           node, layout, style, structure, variable, analysis, and export helper
+           operations. The documentId must always be provided.
+           For a complex page, do not render the complete page in one large
+           pencil_render call. First render a small empty root frame, retain its
+           returned id, then render one major region at a time with parent_id and
+           insert_index. Use replace_id to replace only one incorrect region.
+           When using pencil_render JSX, use OpenPencil layout props:
+           flex="col" or flex="row" for auto-layout direction, gap for spacing,
+           p/px/py/pt/pr/pb/pl for padding, w/h for size, bg for fill, rounded
+           for radius, and stroke/strokeWidth for borders. Do not use flow for
+           auto-layout direction; flow is reserved for reading direction.
+           If pencil_render returns success=false with a renderDraftId, do not
+           resend the complete JSX. Call pencil_render_patch with that draft id,
+           expected revision, and the smallest uniquely matching oldText/newText
+           edit suggested by the diagnostic. Repeat against the returned revision
+           until it commits successfully.
+        4. Use pencil_save_version only after an intentional save point.
+           Mutating core tools update the working copy but do not create a new
+           version by themselves.
+        5. Use pencil_import_file for .fig/.pen files in the workspace.
+           Accept /workspace paths, relative workspace paths, or portable fileRef
+           objects returned by other tools.
+        6. Use pencil_export_file for .fig, png, jpg, webp, svg, pdf, or jsx
+           exports. Return the workspace reference, path, mime type, size, and
+           sha256 to the user.
+        7. If a graph edit, import, or export cannot be completed, call
+           pencil_report_failure with the operation, errorMessage,
+           recoverable flag, and compact evidence.
+
+        Auxiliary tools:
+        - Use sandbox_shell only for file inspection, conversion, and workspace
+          checks. Do not use it as the persistence path for Pencil documents.
+        - Use read_skill_file when an enabled skill applies to the user's design,
+          visual, research, or file-processing task.
+        - Use web_search/web_fetch when the user asks for current external facts
+          or external design references.
+      toolsetIds: []
+connections: []

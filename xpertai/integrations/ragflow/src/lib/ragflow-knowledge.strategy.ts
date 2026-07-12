@@ -1,4 +1,4 @@
-import { type IIntegration } from '@metad/contracts'
+import { type IIntegration } from '@xpert-ai/contracts'
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import axios, { AxiosResponse } from 'axios'
 import { Document } from '@langchain/core/documents'

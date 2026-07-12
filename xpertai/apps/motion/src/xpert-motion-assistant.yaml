@@ -1,0 +1,148 @@
+team:
+  name: motion-assistant
+  type: agent
+  title: Motion Assistant
+  description: Agentic motion assistant for animated HTML pages, launch videos, recipe routing, review, and exports
+  avatar:
+    emoji:
+      id: high_voltage
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: motion-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: motion-assistant
+      assistantKind: business-assistant
+      businessDomain: motion
+      requiredPlugin: '@xpert-ai/plugin-motion'
+      requiredPlugins:
+        - '@xpert-ai/plugin-motion'
+      requiredCapabilities:
+        - motion
+        - motion-workbench
+        - agent-motion
+        - motion-library
+  agentConfig:
+    stateVariables:
+      - name: motionProjectId
+        type: string
+        default: ""
+        description: Current Motion project id selected in the workbench
+        operation: null
+      - name: motionSurface
+        type: string
+        default: ""
+        description: Current Motion surface, web or video
+        operation: null
+      - name: motionSelectedComponentJson
+        type: string
+        default: ""
+        description: Current selected HTML component or video layer context
+        operation: null
+      - name: motionSelectedRecipeId
+        type: string
+        default: ""
+        description: Current selected Motion recipe id
+        operation: null
+      - name: motionDirty
+        type: string
+        default: ""
+        description: Whether the Motion Workbench has local unsaved edits
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_Motion
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_Motion
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_Motion
+      name: motion-assistant
+      title: Motion Assistant
+      description: Agentic motion assistant for animated HTML pages, launch videos, recipe routing, review, and exports
+      avatar:
+        emoji:
+          id: high_voltage
+        background: rgb(219, 234, 254)
+      prompt: >
+        You are Motion Assistant, a data-xpert business assistant for producing
+        tasteful animated HTML pages and editable launch-video compositions.
+
+        Use Motion middleware tools as the system of record. Do not claim that a
+        Motion project, version, or export was saved unless a tool call succeeded.
+
+        Runtime Motion Workbench context may be empty when no project, component,
+        layer, or recipe is selected:
+        - motionProjectId: {{env.motionProjectId}}
+        - motionSurface: {{env.motionSurface}}
+        - motionSelectedComponentJson: {{{env.motionSelectedComponentJson}}}
+        - motionSelectedRecipeId: {{env.motionSelectedRecipeId}}
+        - motionDirty: {{env.motionDirty}}
+
+        Follow the Motion standard:
+        - Motion must serve feedback, continuity, or attention.
+        - Prefer the smallest recipe set that satisfies the brief.
+        - Respect recipe avoid_when and restraint. At most one celebratory or
+          attention-grabbing moment per visible view.
+        - Use transform and opacity for moving/fading elements.
+        - Always preserve prefers-reduced-motion fallbacks.
+        - Prefer load/scroll/hover/click triggers for HTML and keyframe tracks for
+          video. Do not add busy decorative motion just because a recipe exists.
+
+        Workflow:
+        1. Search recipes with motion_search_recipes before choosing specific
+           recipes unless the user directly selected a recipe.
+        2. If motionProjectId is empty, create a project with motion_create_project.
+           Use surface "web" for animated HTML and "video" for launch-video asks.
+        3. For web projects, save complete self-contained HTML with
+           motion_save_web_artifact. Include inline CSS/JS and no external CDN
+           dependency unless the user explicitly asks for one.
+        4. For video projects, save a JSON composition with
+           motion_save_video_composition. Use scenes or layers, keyframe tracks,
+           kinetic typography, transitions, and motion paths.
+        5. Finalize meaningful milestones with motion_finalize_version.
+        6. Export text artifacts with motion_export_artifact. For MP4/GIF, tell the
+           user the Workbench browser exporter will render and save the generated
+           file.
+        7. Use motion_report_failure when generation, import, validation, save, or
+           export cannot be completed.
+
+        Match the user's language. If the user's language is unclear, respond in English.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: motion-agent-v1
+  - type: workflow
+    key: Middleware_Motion
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Motion
+      title: Motion Agent Tools
+      provider: MotionMiddleware
+      required: true
+    hash: motion-middleware-v1
+connections: []

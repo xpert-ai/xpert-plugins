@@ -3,7 +3,7 @@ import { z as z4 } from 'zod/v4'
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { ToolCall } from '@langchain/core/messages/tool'
 import { BaseLanguageModel } from '@langchain/core/language_models/base'
-import { ICopilotModel, JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable, WorkflowNodeTypeEnum } from '@metad/contracts'
+import { ICopilotModel, JSONValue, TAgentMiddlewareMeta, TAgentRunnableConfigurable, WorkflowNodeTypeEnum } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,

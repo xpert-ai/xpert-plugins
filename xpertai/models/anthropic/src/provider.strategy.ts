@@ -4,7 +4,7 @@ import {
   CredentialsValidateFailedError,
   ModelProvider
 } from '@xpert-ai/plugin-sdk'
-import { AiModelTypeEnum } from '@metad/contracts'
+import { AiModelTypeEnum } from '@xpert-ai/contracts'
 import { Anthropic, AnthropicCredentials } from './types.js'
 
 @Injectable()

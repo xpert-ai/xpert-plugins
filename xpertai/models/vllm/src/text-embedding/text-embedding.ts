@@ -1,5 +1,5 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts'
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { toCredentialKwargs, VLLMModelCredentials } from '../types.js'
 import { CredentialsValidateFailedError, getErrorMessage, TChatModelOptions, TextEmbeddingModelManager } from '@xpert-ai/plugin-sdk'

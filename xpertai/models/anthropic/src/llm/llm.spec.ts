@@ -1,4 +1,4 @@
-import { ModelFeature } from '@metad/contracts'
+import { ModelFeature } from '@xpert-ai/contracts'
 import { AnthropicInput } from '@langchain/anthropic'
 import { TChatModelOptions, CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
 import { AnthropicLargeLanguageModel } from './llm.js'

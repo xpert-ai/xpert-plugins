@@ -1,6 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages'
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   LongTermMemoryTypeEnum: {
     PROFILE: 'profile',
     QA: 'qa'

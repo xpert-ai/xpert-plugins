@@ -2,7 +2,7 @@ import {
   IIntegration,
   IntegrationFeatureEnum,
   TIntegrationProvider,
-} from '@metad/contracts';
+} from '@xpert-ai/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   IntegrationStrategy,

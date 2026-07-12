@@ -8,7 +8,7 @@ import {
   ModelFeature,
   ModelPropertyKey,
   ParameterType
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   ChatOAICompatReasoningModel,

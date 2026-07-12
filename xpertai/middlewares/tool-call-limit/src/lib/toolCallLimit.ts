@@ -9,7 +9,7 @@ import {
 import {
   TAgentMiddlewareMeta,
   JsonSchemaObjectType,
-} from "@metad/contracts";
+} from "@xpert-ai/contracts";
 import {
   interopSafeParse,
   InferInteropZodInput,

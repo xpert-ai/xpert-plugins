@@ -1,4 +1,4 @@
-import { IconType, IKnowledgeDocument } from '@metad/contracts'
+import { IconType, IKnowledgeDocument } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {

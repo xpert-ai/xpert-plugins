@@ -18,7 +18,7 @@
 npm install @xpert-ai/plugin-openai-compatible
 ```
 
-> **Peer dependencies**: Ensure your host project already provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/openai`, `chalk`, and `zod`. See `package.json` for exact version ranges.
+> **Peer dependencies**: Ensure your host project already provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/openai`, `chalk`, and `zod`. See `package.json` for exact version ranges.
 
 ## Enabling in XpertAI
 

@@ -10,7 +10,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined
 }))
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   getToolCallFromConfig: jest.fn(() => ({ id: 'tool-call-1' }))
 }))
 

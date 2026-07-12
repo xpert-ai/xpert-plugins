@@ -4,7 +4,7 @@ import {
   IWFNMiddleware,
   TXpertTeamDraft,
   TXpertTeamNode
-} from '@metad/contracts'
+} from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { MARKITDOWN_SKILL_MIDDLEWARE_NAME } from './markitdown.types.js'

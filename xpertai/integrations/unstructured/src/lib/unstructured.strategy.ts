@@ -1,5 +1,5 @@
 import { Document } from '@langchain/core/documents';
-import { IconType, IKnowledgeDocument, TDocumentAsset } from '@metad/contracts';
+import { IconType, IKnowledgeDocument, TDocumentAsset } from '@xpert-ai/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ChunkMetadata,

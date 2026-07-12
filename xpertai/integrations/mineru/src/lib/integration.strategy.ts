@@ -1,4 +1,4 @@
-import { type IIntegration, TIntegrationProvider } from '@metad/contracts';
+import { type IIntegration, TIntegrationProvider } from '@xpert-ai/contracts';
 import {
   forwardRef,
   Inject,

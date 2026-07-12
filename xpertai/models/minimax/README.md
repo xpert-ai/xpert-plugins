@@ -18,7 +18,7 @@
 npm install @xpert-ai/plugin-minimax
 ```
 
-> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@metad/contracts`, `@langchain/core`, `@langchain/openai`, `zod`, and `tslib`. Refer to `package.json` for exact versions.
+> **Peer Dependencies**: Ensure your host service also provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/core`, `@langchain/openai`, `zod`, and `tslib`. Refer to `package.json` for exact versions.
 
 ## Enabling in XpertAI
 

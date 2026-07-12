@@ -1,6 +1,6 @@
 import { XinferenceLargeLanguageModel } from './llm.js'
 import { XinferenceProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature } from '@metad/contracts'
+import { ModelFeature } from '@xpert-ai/contracts'
 
 describe('getCustomizableModelSchemaFromCredentials', () => {
   let llm: XinferenceLargeLanguageModel

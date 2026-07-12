@@ -1,6 +1,6 @@
 import { AIMessage, SystemMessage } from '@langchain/core/messages'
 
-jest.mock('@metad/contracts', () => ({}))
+jest.mock('@xpert-ai/contracts', () => ({}))
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined
 }))

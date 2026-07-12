@@ -17,7 +17,7 @@
 npm install @xpert-ai/plugin-anthropic
 ```
 
-> ** peer 依赖项**：主项目还必须提供以下库：`@xpert-ai/plugin-sdk`、`@nestjs/common`、`@nestjs/config`、`@metad/contracts`、`@langchain/anthropic`、`chalk` 和 `zod`。请参考 `package.json` 了解版本要求。
+> ** peer 依赖项**：主项目还必须提供以下库：`@xpert-ai/plugin-sdk`、`@nestjs/common`、`@nestjs/config`、`@xpert-ai/contracts`、`@langchain/anthropic`、`chalk` 和 `zod`。请参考 `package.json` 了解版本要求。
 
 ## 在 XpertAI 中启用
 

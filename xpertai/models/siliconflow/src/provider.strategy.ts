@@ -1,4 +1,4 @@
-import { AiModelTypeEnum } from '@metad/contracts'
+import { AiModelTypeEnum } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { AIModelProviderStrategy, ModelProvider } from '@xpert-ai/plugin-sdk'
 import {

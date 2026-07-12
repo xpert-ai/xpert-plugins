@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 import { GeminiProviderStrategy } from '../src/provider.strategy.js';
 import { GeminiModelCredentials } from '../src/types.js';
-import { ICopilotModel } from '@metad/contracts';
+import { ICopilotModel } from '@xpert-ai/contracts';
 import { GeminiLargeLanguageModel } from '../src/llm/llm.js';
 
 config();

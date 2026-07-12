@@ -1,4 +1,4 @@
-import type { ICopilotModel } from '@metad/contracts'
+import type { ICopilotModel } from '@xpert-ai/contracts'
 import { z } from 'zod/v3'
 
 export type SensitiveRule = {

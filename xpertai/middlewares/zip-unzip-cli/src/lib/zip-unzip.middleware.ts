@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages'
-import { TAgentMiddlewareMeta } from '@metad/contracts'
+import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,

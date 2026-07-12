@@ -1,4 +1,4 @@
-import { IconType } from '@metad/contracts'
+import { IconType } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { BuiltinToolset, IToolsetStrategy, ToolsetStrategy } from '@xpert-ai/plugin-sdk'
 import { Zip, icon } from './types.js'

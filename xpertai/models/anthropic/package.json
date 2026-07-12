@@ -39,7 +39,7 @@
   },
   "peerDependencies": {
     "@langchain/core": "^0.3.72",
-    "@metad/contracts": "^3.7.0",
+    "@xpert-ai/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@xpert-ai/plugin-sdk": "^3.7.1",

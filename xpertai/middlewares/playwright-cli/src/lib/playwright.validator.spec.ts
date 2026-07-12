@@ -1,4 +1,4 @@
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   getAgentMiddlewareNodes: jest.fn((graph, agentKey) =>
     (graph.connections ?? [])
       .filter((connection) => connection.type === 'workflow' && connection.from === agentKey)

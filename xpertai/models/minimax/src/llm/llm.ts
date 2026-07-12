@@ -2,7 +2,7 @@ import { AIMessage, AIMessageChunk, BaseMessage } from '@langchain/core/messages
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import { OpenAIClient } from '@langchain/openai';
 import { Injectable } from '@nestjs/common';
-import { AiModelTypeEnum, ICopilotModel } from '@metad/contracts';
+import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import {
   ChatOAICompatReasoningModel,
   CredentialsValidateFailedError,
