@@ -9,12 +9,13 @@ describe('self-contained HTML inliner', () => {
     try {
       await mkdir(join(root, 'assets'))
       await writeFile(join(root, 'assets', 'pixel.png'), Buffer.from([137, 80, 78, 71]))
-      await writeFile(join(root, 'assets', 'app.css'), '.hero{background:url("pixel.png")}')
+      await writeFile(join(root, 'assets', 'app.css'), '.hero{background:url("pixel.png")}.logo{background:url("/assets/pixel.png")}')
       await writeFile(join(root, 'assets', 'app.js'), 'window.__asset="assets/pixel.png"')
       await writeFile(join(root, 'index.html'), '<html><head><link rel="stylesheet" href="assets/app.css"></head><body><img src="assets/pixel.png"><script src="assets/app.js"></script></body></html>')
       const html = await inlinePresentationHtml(root, 1024 * 1024)
       expect(html).toContain('<style>')
       expect(html).toContain('data:image/png;base64,')
+      expect(html).not.toContain('/data:image/')
       expect(html).not.toContain('src="assets/')
       expect(html).not.toContain('href="assets/')
     } finally {
@@ -38,6 +39,8 @@ describe('self-contained HTML inliner', () => {
 
       expect(html).toContain('data:font/woff2;base64,')
       expect(html).toContain('data:text/plain;base64,')
+      expect(html).not.toContain('./data:font/')
+      expect(html).not.toContain('/data:font/')
       expect(html).not.toContain('assets/fonts/')
     } finally {
       await rm(root, { recursive: true, force: true })

@@ -1,7 +1,28 @@
+import { renderRemoteModuleIframeHtml } from '@xpert-ai/plugin-sdk'
 import { PRESENTATION_MUTATION_TOOL_NAMES, PRESENTATION_TOOL_NAMES } from './constants.js'
 import { PresentationStudioViewProvider } from './presentation-studio-view.provider.js'
 
 describe('PresentationStudioViewProvider incremental host events', () => {
+  it('renders a self-contained module iframe without host React UMD scripts', async () => {
+    const provider = new PresentationStudioViewProvider(null!)
+
+    const result = await provider.getRemoteComponentEntry({
+      tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-1',
+      hostType: 'agent', hostId: 'assistant-1', slots: []
+    }, 'presentation_studio', { isolation: 'iframe', entry: 'presentation-studio-workbench' })
+
+    expect(result.contentType).toBe('text/html; charset=utf-8')
+    expect(jest.mocked(renderRemoteModuleIframeHtml)).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Presentation Studio',
+      appScript: expect.stringContaining('19.2.7'),
+      appCss: expect.any(String)
+    }))
+    expect(jest.mocked(renderRemoteModuleIframeHtml).mock.calls[0]?.[0]).not.toEqual(expect.objectContaining({
+      reactUmd: expect.anything(),
+      reactDomUmd: expect.anything()
+    }))
+  })
+
   it('forwards only mutations and never asks the host to refresh the remote component', () => {
     const provider = new PresentationStudioViewProvider(null!)
     const [manifest] = provider.getViewManifests({

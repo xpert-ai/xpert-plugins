@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -19,7 +18,7 @@ import type {
 import { ASSISTANT_CONTEXT_SET_COMMAND } from '@xpert-ai/contracts'
 import {
   IXpertViewExtensionProvider,
-  renderRemoteReactIframeHtml,
+  renderRemoteModuleIframeHtml,
   ViewExtensionProvider,
   type XpertViewFileActionFile
 } from '@xpert-ai/plugin-sdk'
@@ -41,7 +40,6 @@ import type { PresentationExportKind, PresentationJsonObject, PresentationScope,
 
 const moduleFilename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(moduleFilename)
-const requireFromHere = createRequire(moduleFilename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 const VIEW_ICON = { type: 'svg', value: PRESENTATION_ICON, alt: 'Presentation Studio' } satisfies IconDefinition
 const VIEW_ICON_COMPAT = VIEW_ICON as XpertExtensionViewManifest['icon']
@@ -125,10 +123,8 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
     const appScript = await readFile(join(componentDir, 'app.js'), 'utf8')
     const cssPath = join(componentDir, 'app.css')
     const appCss = existsSync(cssPath) ? await readFile(cssPath, 'utf8') : ''
-    const react = await readPackageFile('react', 'umd/react.production.min.js')
-    const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
     return {
-      html: renderRemoteReactIframeHtml({ title: 'Presentation Studio', lang: 'zh-Hans', reactUmd: react, reactDomUmd: reactDom, appScript, appCss }),
+      html: renderRemoteModuleIframeHtml({ title: 'Presentation Studio', lang: 'zh-Hans', appScript, appCss }),
       contentType: 'text/html; charset=utf-8'
     }
   }
@@ -275,11 +271,6 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
       return failure(error instanceof Error ? error.message : 'Presentation media upload failed')
     }
   }
-}
-
-async function readPackageFile(packageName: string, path: string) {
-  const root = dirname(requireFromHere.resolve(`${packageName}/package.json`))
-  return readFile(join(root, path), 'utf8')
 }
 
 function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {

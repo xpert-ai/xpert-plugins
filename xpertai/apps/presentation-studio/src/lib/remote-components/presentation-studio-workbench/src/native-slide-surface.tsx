@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { createElement as h } from 'react'
 import * as Y from 'yjs'
 import { collectNativeRuntimeStyleText, releaseNativeSlide, renderNativeSlide, type LoadedNativeRuntime } from './native-runtime'
 import type { JsonObject, JsonValue, PresenceState } from './types'

@@ -14,6 +14,11 @@ for (const file of [
 ]) await access(join(root, file))
 
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+const remoteApp = await readFile(join(root, 'dist/lib/remote-components/presentation-studio-workbench/app.js'), 'utf8')
+const expectedReactVersion = packageJson.devDependencies?.react
+if (!/^19\.\d+\.\d+$/.test(expectedReactVersion ?? '') || !remoteApp.includes(expectedReactVersion)) {
+  throw new Error(`Presentation Studio iframe bundle does not contain the declared React 19 runtime: ${expectedReactVersion ?? 'missing'}`)
+}
 for (const packageName of [
   '@fontsource/anton',
   '@fontsource/archivo',
