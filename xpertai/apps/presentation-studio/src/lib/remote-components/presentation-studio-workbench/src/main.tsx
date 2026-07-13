@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   DndContext,
@@ -879,7 +878,7 @@ function App() {
           onShare={shareExport}
           onShareDeck={shareCurrentDeck}
           t={t}
-          trigger={<Button variant="outline" disabled={!detail || busy}><Copy />{t('share')}</Button>}
+          disabled={!detail || busy}
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="outline" disabled={!detail || busy}><Download />{t('export')}<ChevronDown /></Button></DropdownMenuTrigger>
@@ -900,7 +899,7 @@ function App() {
     <main className="ps-workspace">
       <ResizablePanelGroup orientation="horizontal">
         {!leftCollapsed ? <>
-          <ResizablePanel defaultSize={18} minSize={14} maxSize={24} className="ps-panel ps-left-panel">
+          <ResizablePanel defaultSize="18%" minSize="14%" maxSize="24%" className="ps-panel ps-left-panel">
             <div className="ps-left-panel-shell">
               <div className="ps-panel-title"><strong>{t('slides')}</strong><span>{visibleSlides.length}</span></div>
               <ScrollArea className="ps-panel-scroll">
@@ -932,7 +931,7 @@ function App() {
           <ResizableHandle />
         </> : null}
 
-        <ResizablePanel minSize={38} className="ps-center-panel">
+        <ResizablePanel minSize="38%" className="ps-center-panel">
           <div className="ps-canvas-toolbar">
             <div><span className="ps-live-dot" /> <strong>{activeSlide ? runtimePayload?.layouts[activeSlide.layout]?.label ?? activeSlide.layout : t('presentationConsole')}</strong><span className="ps-page-indicator">{activeIndex + 1}/{visibleSlides.length}</span></div>
             <div className="ps-zoom-controls">
@@ -969,7 +968,7 @@ function App() {
 
         {!rightCollapsed ? <>
           <ResizableHandle />
-          <ResizablePanel defaultSize={27} minSize={22} maxSize={38} className="ps-panel ps-right-panel">
+          <ResizablePanel defaultSize="27%" minSize="22%" maxSize="38%" className="ps-panel ps-right-panel">
             <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="ps-panel-tabs">
               <div className="ps-inspector-title"><strong>{t('inspector')}</strong><Button variant="ghost" size="icon" onClick={() => setRightCollapsed(true)}><PanelRightClose /></Button></div>
               <TabsList className="ps-inspector-tabs"><TabsTrigger value="design">{t('design')}</TabsTrigger><TabsTrigger value="versions">{t('versions')} <span>{detail?.versions.length ?? 0}</span></TabsTrigger><TabsTrigger value="exports">{t('exports')} <span>{detail?.exports.length ?? 0}</span></TabsTrigger><TabsTrigger value="assets">{t('assets')} <span>{detail?.assets.length ?? 0}</span></TabsTrigger></TabsList>
@@ -1073,9 +1072,10 @@ function ControlEditor({ control, value, onCommit, onSchedule, onFocusControl, o
   return null
 }
 
-function ExportSharePopover({ item, trigger, onShare, onShareDeck, t }: {
+function ExportSharePopover({ item, disabled = false, compact = false, onShare, onShareDeck, t }: {
   item?: ExportSummary | null
-  trigger: React.ReactElement
+  disabled?: boolean
+  compact?: boolean
   onShare(item: ExportSummary, options: { versionMode: 'latest' | 'version'; accessMode: ShareAccessMode }): Promise<string | undefined>
   onShareDeck?(options: { versionMode: 'latest' | 'version'; accessMode: ShareAccessMode }): Promise<string | undefined>
   t: ReturnType<typeof translator>
@@ -1116,7 +1116,7 @@ function ExportSharePopover({ item, trigger, onShare, onShareDeck, t }: {
     }
   }
 
-  return <Popover><PopoverTrigger asChild>{trigger}</PopoverTrigger><PopoverContent align="end" className="ps-share-popover">
+  return <Popover><PopoverTrigger asChild><Button variant="outline" size={compact ? 'sm' : 'default'} disabled={disabled}><Copy />{t('share')}</Button></PopoverTrigger><PopoverContent align="end" className="ps-share-popover">
     <div className="ps-share-title"><strong>{t('share')}</strong><Badge variant={existingUrl ? 'outline' : 'secondary'} data-status={existingUrl ? 'success' : undefined}>{existingUrl ? t('shareLinkReady') : t('shareHtml')}</Badge></div>
     <label className="ps-share-row">
       <div><span>{t('alwaysShareLatest')}</span><small>{shareLatest ? t('sharingLatestVersion') : t('sharingThisVersion')}</small></div>
@@ -1145,7 +1145,7 @@ function ExportCard({ item, onCancel, onDelete, onDownload, onShare, t }: {
   t: ReturnType<typeof translator>
 }) {
   const statusKey = exportStatusKey(item.status)
-  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'failed' ? 'destructive' : item.status === 'succeeded' || item.status === 'running' ? 'outline' : 'secondary'} data-status={item.status === 'succeeded' ? 'success' : item.status === 'running' ? 'warning' : undefined}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} t={t} trigger={<Button variant="outline" size="sm"><Copy />{t('share')}</Button>} /> : null}<Button variant="destructive" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
+  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'failed' ? 'destructive' : item.status === 'succeeded' || item.status === 'running' ? 'outline' : 'secondary'} data-status={item.status === 'succeeded' ? 'success' : item.status === 'running' ? 'warning' : undefined}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} t={t} compact /> : null}<Button variant="destructive" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
 }
 
 function CollaboratorAvatar({ actor, t }: { actor: CollaboratorAvatarActor; t: ReturnType<typeof translator> }) {
@@ -1179,7 +1179,7 @@ function agentOperationText(actor: CollaboratorAvatarActor, t: ReturnType<typeof
                             : actor.operationLabel ?? t('agentThinking')
 }
 
-function useNearViewport(ref: React.RefObject<HTMLElement>) {
+function useNearViewport(ref: React.RefObject<HTMLElement | null>) {
   const [visible, setVisible] = React.useState(false)
   React.useEffect(() => {
     const element = ref.current
@@ -1560,4 +1560,5 @@ class StudioErrorBoundary extends React.Component<React.PropsWithChildren, { err
   }
 }
 
+document.documentElement.dataset.reactVersion = React.version
 createRoot(document.getElementById('root') ?? document.body.appendChild(document.createElement('div'))).render(<StudioErrorBoundary><App /></StudioErrorBoundary>)

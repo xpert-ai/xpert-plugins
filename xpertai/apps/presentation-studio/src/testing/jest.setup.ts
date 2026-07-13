@@ -14,5 +14,5 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   XpertServerPlugin: () => <T extends object>(target: T) => target,
   PluginJobProcessor: () => <T extends object>(target: T) => target,
   RequestContext: { getOrganizationId: () => null, currentUser: () => null, currentUserId: () => null },
-  renderRemoteReactIframeHtml: () => '<html><body><div id="root"></div></body></html>'
+  renderRemoteModuleIframeHtml: jest.fn(() => '<html><body><div id="root"></div></body></html>')
 }))

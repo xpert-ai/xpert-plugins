@@ -117,10 +117,6 @@ button, input { font: inherit; }
 .ps-control-label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .875rem; font-weight: 600; }
 .ps-control-label strong { font-variant-numeric: tabular-nums; }
 .ps-control small { display: block; color: var(--muted-foreground); font-size: .6875rem; line-height: 1.5; }
-.ps-control [data-slot="switch"] { width: 2rem; height: 1.125rem; border-color: transparent; background: color-mix(in srgb, var(--foreground) 16%, transparent); }
-.ps-control [data-slot="switch"][data-state='checked'] { background: var(--foreground); }
-.ps-control [data-slot="switch-thumb"] { width: .875rem; height: .875rem; transform: translateX(.125rem); background: var(--card); }
-.ps-control [data-slot="switch"][data-state='checked'] [data-slot="switch-thumb"] { transform: translateX(.875rem); }
 .ps-control .ps-color-options[data-slot="toggle-group"],
 .ps-color-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .625rem; width: 100%; }
 .ps-color-options [data-slot="toggle-group-item"] { min-width: 0; height: 2.625rem; border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); border-radius: calc(var(--radius) + 3px); padding: 0; color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 26%, transparent); transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease; }

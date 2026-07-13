@@ -92,7 +92,9 @@ function rewriteAssetReferences(text: string, dataUrls: Map<string, string>, sou
       candidates.add(fromSource)
       candidates.add(`./${fromSource}`)
     }
-    for (const candidate of candidates) result = result.split(candidate).join(dataUrl)
+    for (const candidate of [...candidates].sort((left, right) => right.length - left.length)) {
+      result = result.split(candidate).join(dataUrl)
+    }
   }
   return result
 }
