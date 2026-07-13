@@ -2,11 +2,13 @@ team:
   name: motion-assistant
   type: agent
   title: Motion Assistant
-  description: Agentic motion assistant for animated HTML pages, launch videos, recipe routing, review, and exports
+  description: Agentic motion assistant for animated HTML pages, launch videos,
+    recipe routing, review, and exports
   avatar:
     emoji:
       id: high_voltage
     background: rgb(219, 234, 254)
+  starters: null
   options:
     templateKey: motion-assistant
     dataXpert:
@@ -14,14 +16,56 @@ team:
       templateKey: motion-assistant
       assistantKind: business-assistant
       businessDomain: motion
-      requiredPlugin: '@xpert-ai/plugin-motion'
+      requiredPlugin: "@xpert-ai/plugin-motion"
       requiredPlugins:
-        - '@xpert-ai/plugin-motion'
+        - "@xpert-ai/plugin-motion"
       requiredCapabilities:
         - motion
         - motion-workbench
         - agent-motion
         - motion-library
+    position:
+      x: -499.553009521484
+      y: 92.94311791992189
+    scale: 0.9699842529296875
+    agent:
+      Agent_Motion:
+        position:
+          x: 860
+          y: 20
+    workflow:
+      Middleware_Motion:
+        position:
+          x: 820
+          y: 400
+      Middleware_URdcLmqWpT:
+        position:
+          x: 580
+          y: 340
+      Middleware_A844uYR0y9:
+        position:
+          x: 1200
+          y: 340
+      Middleware_hFTsqEWZS1:
+        position:
+          x: 1460
+          y: 340
+      Middleware_aGyP20FjEp:
+        position:
+          x: 1281
+          y: 692
+      Middleware_4BSEKi9Fmv:
+        position:
+          x: 960
+          y: 820
+      Middleware_zZl4L6CA2h:
+        position:
+          x: 1160
+          y: 580
+      Middleware_oA3RvmYZxE:
+        position:
+          x: 1720
+          y: 740
   agentConfig:
     stateVariables:
       - name: motionProjectId
@@ -50,6 +94,8 @@ team:
         description: Whether the Motion Workbench has local unsaved edits
         operation: null
     recursionLimit: 10000
+  memory: null
+  summarize: null
   features:
     sandbox:
       enabled: true
@@ -58,6 +104,7 @@ team:
   agent:
     key: Agent_Motion
   copilotModel:
+    copilotId: 25c9a0e3-e4a9-4328-8d5f-14927d6afa4b
     referencedId: null
     modelType: llm
     model: qwen3.6-plus
@@ -66,7 +113,7 @@ team:
       temperature: 0.2
       maxRetries: 6
       max_tokens: 8192
-      top_p: 0.95
+      top_p: 0.9
   knowledgebases: []
   toolsets: []
   tags: []
@@ -80,7 +127,8 @@ nodes:
       key: Agent_Motion
       name: motion-assistant
       title: Motion Assistant
-      description: Agentic motion assistant for animated HTML pages, launch videos, recipe routing, review, and exports
+      description: Agentic motion assistant for animated HTML pages, launch videos,
+        recipe routing, review, and exports
       avatar:
         emoji:
           id: high_voltage
@@ -90,30 +138,30 @@ nodes:
         tasteful animated HTML pages and editable launch-video compositions.
 
         Use Motion middleware tools as the system of record. Do not claim that a
-        Motion project, version, or export was saved unless a tool call succeeded.
+        Motion project, version, or export was saved unless a tool call
+        succeeded.
 
-        Runtime Motion Workbench context may be empty when no project, component,
-        layer, or recipe is selected:
-        - motionProjectId: {{env.motionProjectId}}
-        - motionSurface: {{env.motionSurface}}
-        - motionSelectedComponentJson: {{{env.motionSelectedComponentJson}}}
-        - motionSelectedRecipeId: {{env.motionSelectedRecipeId}}
-        - motionDirty: {{env.motionDirty}}
+        Runtime Motion Workbench context may be empty when no project,
+        component, layer, or recipe is selected: - motionProjectId:
+        {{env.motionProjectId}} - motionSurface: {{env.motionSurface}} -
+        motionSelectedComponentJson: {{{env.motionSelectedComponentJson}}} -
+        motionSelectedRecipeId: {{env.motionSelectedRecipeId}} - motionDirty:
+        {{env.motionDirty}}
 
-        Follow the Motion standard:
-        - Motion must serve feedback, continuity, or attention.
-        - Prefer the smallest recipe set that satisfies the brief.
-        - Respect recipe avoid_when and restraint. At most one celebratory or
+        Follow the Motion standard: - Motion must serve feedback, continuity, or
+        attention. - Prefer the smallest recipe set that satisfies the brief. -
+        Respect recipe avoid_when and restraint. At most one celebratory or
           attention-grabbing moment per visible view.
-        - Use transform and opacity for moving/fading elements.
-        - Always preserve prefers-reduced-motion fallbacks.
-        - Prefer load/scroll/hover/click triggers for HTML and keyframe tracks for
+        - Use transform and opacity for moving/fading elements. - Always
+        preserve prefers-reduced-motion fallbacks. - Prefer
+        load/scroll/hover/click triggers for HTML and keyframe tracks for
           video. Do not add busy decorative motion just because a recipe exists.
 
-        Workflow:
-        1. Search recipes with motion_search_recipes before choosing specific
+        Workflow: 1. Search recipes with motion_search_recipes before choosing
+        specific
            recipes unless the user directly selected a recipe.
-        2. If motionProjectId is empty, create a project with motion_create_project.
+        2. If motionProjectId is empty, create a project with
+        motion_create_project.
            Use surface "web" for animated HTML and "video" for launch-video asks.
         3. For web projects, save complete self-contained HTML with
            motion_save_web_artifact. Include inline CSS/JS and no external CDN
@@ -121,14 +169,32 @@ nodes:
         4. For video projects, save a JSON composition with
            motion_save_video_composition. Use scenes or layers, keyframe tracks,
            kinetic typography, transitions, and motion paths.
-        5. Finalize meaningful milestones with motion_finalize_version.
-        6. Export text artifacts with motion_export_artifact. For MP4/GIF, tell the
+        5. Finalize meaningful milestones with motion_finalize_version. 6.
+        Export text artifacts with motion_export_artifact. For MP4/GIF, tell the
            user the Workbench browser exporter will render and save the generated
            file.
-        7. Use motion_report_failure when generation, import, validation, save, or
+        7. Use motion_report_failure when generation, import, validation, save,
+        or
            export cannot be completed.
 
-        Match the user's language. If the user's language is unclear, respond in English.
+        Match the user's language. If the user's language is unclear, respond in
+        English.
+      promptTemplates: null
+      parameters: null
+      outputVariables: null
+      options: null
+      copilotModel:
+        copilotId: 25c9a0e3-e4a9-4328-8d5f-14927d6afa4b
+        referencedId: null
+        modelType: llm
+        model: qwen3.6-plus
+        options:
+          context_size: 1000000
+          temperature: 0.2
+          maxRetries: 6
+          max_tokens: 8192
+          top_p: 0.9
+      leaderKey: null
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
@@ -136,17 +202,143 @@ nodes:
   - type: workflow
     key: Middleware_Motion
     position:
-      x: 1160
-      y: 332
+      x: 820
+      y: 400
     entity:
       type: middleware
       key: Middleware_Motion
       title: Motion Agent Tools
       provider: MotionMiddleware
       required: true
-    hash: motion-middleware-v1
+    hash: 080eaa8125eae83fe69fbf21e49d21514649c8778d3747bd640935767204dde3
+  - type: workflow
+    key: Middleware_URdcLmqWpT
+    position:
+      x: 580
+      y: 340
+    entity:
+      id: Middleware_URdcLmqWpT
+      type: middleware
+      key: Middleware_URdcLmqWpT
+      title: skillsMiddleware
+      provider: skillsMiddleware
+      required: true
+      options:
+        skills:
+          - 30b7955a-f618-407c-b782-c4fb5c44741d
+    hash: 1152d22519836ee41ecc7300ee3ac3b96573c77eaa24c88b34af32f192567f5c
+  - type: workflow
+    key: Middleware_A844uYR0y9
+    position:
+      x: 1200
+      y: 340
+    entity:
+      type: middleware
+      key: Middleware_A844uYR0y9
+      title: 中间件 3
+      provider: WebTools
+      required: true
+    hash: 2dd0c7ab9fd7fd3fe48216f0a8467dc374e1ef4923dd7ff98bf21c7d39355761
+  - type: workflow
+    key: Middleware_hFTsqEWZS1
+    position:
+      x: 1460
+      y: 340
+    entity:
+      type: middleware
+      key: Middleware_hFTsqEWZS1
+      title: 中间件 4
+      provider: SandboxFile
+      required: true
+    hash: a675047631c81c774f5e3b0c5f66cd7574e3fafa10862631720ab18df685c1b6
+  - type: workflow
+    key: Middleware_aGyP20FjEp
+    position:
+      x: 1281
+      y: 692
+    entity:
+      type: middleware
+      key: Middleware_aGyP20FjEp
+      title: 中间件 5
+      provider: SandboxShell
+      required: true
+  - type: workflow
+    key: Middleware_4BSEKi9Fmv
+    position:
+      x: 960
+      y: 820
+    entity:
+      type: middleware
+      key: Middleware_4BSEKi9Fmv
+      title: 中间件 6
+      provider: LoopGuardMiddleware
+      required: true
+    hash: 6a89f0825e6e7f90a5bb4e2c4bd7c75594936aaa433b4a05016a6dae023fd6ef
+  - type: workflow
+    key: Middleware_zZl4L6CA2h
+    position:
+      x: 1160
+      y: 580
+    entity:
+      type: middleware
+      key: Middleware_zZl4L6CA2h
+      title: 中间件 7
+      provider: ModelRetryMiddleware
+      required: true
+      options:
+        maxRetries: 2
+        initialDelayMs: 1000
+        backoffFactor: 2
+        maxDelayMs: 60000
+        jitter: true
+        retryAllErrors: true
+        retryableErrorNames: []
+        retryableStatusCodes: []
+        retryableMessageIncludes: []
+        onFailure: continue
+    hash: 44bd8bad13dfac4b430de900b408d8b8ae4d2eae537ba11f318e9d1cc7dec320
+  - type: workflow
+    key: Middleware_oA3RvmYZxE
+    position:
+      x: 1720
+      y: 740
+    entity:
+      type: middleware
+      key: Middleware_oA3RvmYZxE
+      title: 中间件 8
+      provider: ViewImageMiddleware
+      required: true
+    hash: 33cb91a7c27c118eb4ba5e8c91a2cebf37f19134a6c3b0c8ee8e916f3726daa1
 connections:
+  - type: workflow
+    key: Agent_Motion/Middleware_URdcLmqWpT
+    from: Agent_Motion
+    to: Middleware_URdcLmqWpT
   - type: workflow
     key: Agent_Motion/Middleware_Motion
     from: Agent_Motion
     to: Middleware_Motion
+  - type: workflow
+    key: Agent_Motion/Middleware_A844uYR0y9
+    from: Agent_Motion
+    to: Middleware_A844uYR0y9
+  - type: workflow
+    key: Agent_Motion/Middleware_hFTsqEWZS1
+    from: Agent_Motion
+    to: Middleware_hFTsqEWZS1
+  - type: workflow
+    key: Agent_Motion/Middleware_aGyP20FjEp
+    from: Agent_Motion
+    to: Middleware_aGyP20FjEp
+  - type: workflow
+    key: Agent_Motion/Middleware_zZl4L6CA2h
+    from: Agent_Motion
+    to: Middleware_zZl4L6CA2h
+  - type: workflow
+    key: Agent_Motion/Middleware_4BSEKi9Fmv
+    from: Agent_Motion
+    to: Middleware_4BSEKi9Fmv
+  - type: workflow
+    key: Agent_Motion/Middleware_oA3RvmYZxE
+    from: Agent_Motion
+    to: Middleware_oA3RvmYZxE
