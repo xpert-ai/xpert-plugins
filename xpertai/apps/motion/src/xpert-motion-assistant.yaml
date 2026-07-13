@@ -145,4 +145,8 @@ nodes:
       provider: MotionMiddleware
       required: true
     hash: motion-middleware-v1
-connections: []
+connections:
+  - type: workflow
+    key: Agent_Motion/Middleware_Motion
+    from: Agent_Motion
+    to: Middleware_Motion
