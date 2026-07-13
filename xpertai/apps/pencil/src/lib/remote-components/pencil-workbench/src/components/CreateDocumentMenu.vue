@@ -4,6 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@xpert-ai/plugin-shadcn-vue'
 import { PencilIcon } from '../icons.js'
@@ -14,13 +15,16 @@ withDefaults(
     createLabel: string
     blankLabel: string
     sampleLabel: string
+    saveVersionLabel: string
+    canSaveVersion?: boolean
   }>(),
-  { busy: false }
+  { busy: false, canSaveVersion: false }
 )
 
 const emit = defineEmits<{
   createBlank: []
   createSample: []
+  saveVersion: []
 }>()
 </script>
 
@@ -48,6 +52,11 @@ const emit = defineEmits<{
       <DropdownMenuItem @select="emit('createSample')">
         <PencilIcon name="assets" />
         <span>{{ sampleLabel }}</span>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem :disabled="busy || !canSaveVersion" @select="emit('saveVersion')">
+        <PencilIcon name="history" />
+        <span>{{ saveVersionLabel }}</span>
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

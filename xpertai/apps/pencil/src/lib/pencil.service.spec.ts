@@ -1,7 +1,11 @@
 import 'reflect-metadata'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  CollaborationRuntimeCapability: { id: 'platform.collaboration' }
+  ArtifactsRuntimeCapability: { id: 'platform.artifacts' },
+  CollaborationRuntimeCapability: { id: 'platform.collaboration' },
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('XPERT_RUNTIME_CAPABILITIES_TOKEN')
 }))
 
 jest.mock('@open\u002dpencil/core/scene-graph', () => {
@@ -176,6 +180,10 @@ jest.mock('@open\u002dpencil/core/tools', () => ({
     }
   ],
   EXTENDED_TOOLS: []
+}))
+
+jest.mock('@open\u002dpencil/core/io', () => ({
+  renderNodesToSVG: jest.fn(() => '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"></svg>')
 }))
 
 import { PencilService } from './pencil.service.js'
@@ -612,10 +620,497 @@ describe('PencilService', () => {
       })
     )
   })
+
+  it('requires public confirmation and restores an unchanged share from platform Artifacts', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Shareable design' })
+    const uploadBuffer = jest.fn(async () => ({
+      name: 'viewer.html',
+      filePath: `files/pencil/artifacts/${created.item.id}/viewer.html`,
+      workspacePath: `/workspace/files/pencil/artifacts/${created.item.id}/viewer.html`,
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const artifactFixture = createArtifactFixture()
+    const capabilities = runtimeCapabilities({
+      artifacts: artifactFixture.api,
+      workspaceFiles: { uploadBuffer, deleteFile: jest.fn() }
+    })
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      capabilities,
+      artifactViewer()
+    )
+
+    await expect(
+      sharingService.publishArtifact(scope, {
+        documentId: created.item.id,
+        accessMode: 'public_link',
+        targetMode: 'version'
+      })
+    ).rejects.toThrow('explicit user confirmation')
+
+    const first = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      targetMode: 'version',
+      userConfirmedPublicLink: true
+    })
+    const second = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      targetMode: 'version',
+      userConfirmedPublicLink: true
+    })
+
+    expect(first).toEqual(expect.objectContaining({ publicUrl: '/artifacts/share/share-1', reused: false }))
+    expect(second).toEqual(expect.objectContaining({ publicUrl: '/artifacts/share/share-1', reused: true }))
+    expect(uploadBuffer).toHaveBeenCalledTimes(1)
+    expect(artifactFixture.api.createArtifact).toHaveBeenCalledTimes(1)
+    expect(artifactFixture.versions).toHaveLength(1)
+    expect(artifactFixture.activeShares).toHaveLength(1)
+
+    const restartedService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      capabilities,
+      artifactViewer()
+    )
+    const restored = await restartedService.getDocument(scope, { documentId: created.item.id })
+    expect(restored.artifactShare).toEqual(expect.objectContaining({ publicUrl: '/artifacts/share/share-1', revision: 1 }))
+  })
+
+  it('replaces a link when the access policy changes without duplicating content', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Policy design' })
+    const artifactFixture = createArtifactFixture()
+    const uploadBuffer = jest.fn(async () => ({
+      name: 'viewer.html',
+      filePath: 'files/pencil/artifacts/viewer.html',
+      workspacePath: '/workspace/files/pencil/artifacts/viewer.html',
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      runtimeCapabilities({
+        artifacts: artifactFixture.api,
+        workspaceFiles: { uploadBuffer, deleteFile: jest.fn() }
+      }),
+      artifactViewer()
+    )
+
+    const publicShare = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      userConfirmedPublicLink: true
+    })
+    const organizationShare = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'organization_all'
+    })
+
+    expect(organizationShare).toEqual(
+      expect.objectContaining({ publicUrl: '/artifacts/share/share-2', accessMode: 'organization_all' })
+    )
+    expect(organizationShare.publicUrl).not.toBe(publicShare.publicUrl)
+    expect(uploadBuffer).toHaveBeenCalledTimes(1)
+    expect(artifactFixture.versions).toHaveLength(1)
+    expect(artifactFixture.activeShares).toHaveLength(1)
+    expect(artifactFixture.revokedShares).toHaveLength(1)
+  })
+
+  it('keeps the latest share URL while replacing a fixed-version share', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Version modes' })
+    const artifactFixture = createArtifactFixture()
+    const uploadBuffer = jest.fn(async (input: { originalName: string; folder: string }) => ({
+      name: input.originalName,
+      filePath: `${input.folder}/${input.originalName}`,
+      workspacePath: `/workspace/${input.folder}/${input.originalName}`,
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      runtimeCapabilities({
+        artifacts: artifactFixture.api,
+        workspaceFiles: { uploadBuffer, deleteFile: jest.fn() }
+      }),
+      artifactViewerSequence(['checksum-a', 'checksum-b', 'checksum-c'])
+    )
+
+    const first = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      targetMode: 'latest',
+      userConfirmedPublicLink: true
+    })
+    const latest = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      targetMode: 'latest',
+      userConfirmedPublicLink: true
+    })
+    const fixed = await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'public_link',
+      targetMode: 'version',
+      userConfirmedPublicLink: true
+    })
+
+    expect(latest.publicUrl).toBe(first.publicUrl)
+    expect(fixed.publicUrl).not.toBe(latest.publicUrl)
+    expect(artifactFixture.versions).toHaveLength(3)
+    expect(artifactFixture.activeShares).toHaveLength(1)
+    expect(artifactFixture.revokedShares).toHaveLength(1)
+  })
+
+  it('deletes a shared design in Link, Artifact, Workspace Files order', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Disposable design' })
+    const artifactFixture = createArtifactFixture()
+    const uploadBuffer = jest.fn(async (input: { originalName: string; folder: string }) => ({
+      name: input.originalName,
+      filePath: `${input.folder}/${input.originalName}`,
+      workspacePath: `/workspace/${input.folder}/${input.originalName}`,
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const deleteFile = jest.fn(async () => undefined)
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      runtimeCapabilities({ artifacts: artifactFixture.api, workspaceFiles: { uploadBuffer, deleteFile } }),
+      artifactViewer()
+    )
+    await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'organization_all'
+    })
+
+    await sharingService.deleteDocument(scope, created.item.id)
+
+    expect(artifactFixture.api.revokeArtifactShare.mock.invocationCallOrder[0])
+      .toBeLessThan(artifactFixture.api.deleteArtifact.mock.invocationCallOrder[0])
+    expect(artifactFixture.api.deleteArtifact.mock.invocationCallOrder[0])
+      .toBeLessThan(deleteFile.mock.invocationCallOrder[0])
+    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({
+      filePath: `files/pencil/artifacts/${created.item.id}`
+    }))
+    expect(documentRepository.records).toHaveLength(0)
+  })
+
+  it('does not archive the Pencil document when Artifact archival fails', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Archive safety' })
+    const artifactFixture = createArtifactFixture()
+    const uploadBuffer = jest.fn(async (input: { originalName: string; folder: string }) => ({
+      name: input.originalName,
+      filePath: `${input.folder}/${input.originalName}`,
+      workspacePath: `/workspace/${input.folder}/${input.originalName}`,
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      runtimeCapabilities({
+        artifacts: artifactFixture.api,
+        workspaceFiles: { uploadBuffer, deleteFile: jest.fn() }
+      }),
+      artifactViewer()
+    )
+    await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'organization_all'
+    })
+    artifactFixture.api.archiveArtifact.mockRejectedValueOnce(new Error('Artifact archive unavailable'))
+
+    await expect(
+      sharingService.updateDocumentStatus(scope, {
+        documentId: created.item.id,
+        status: 'archived'
+      })
+    ).rejects.toThrow('Artifact archive unavailable')
+
+    expect(artifactFixture.api.revokeArtifactShare.mock.invocationCallOrder[0])
+      .toBeLessThan(artifactFixture.api.archiveArtifact.mock.invocationCallOrder[0])
+    expect(documentRepository.records[0].status).not.toBe('archived')
+  })
+
+  it('keeps the Pencil document retryable when Workspace Artifact cleanup partially fails', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Retryable cleanup' })
+    const artifactFixture = createArtifactFixture()
+    const uploadBuffer = jest.fn(async (input: { originalName: string; folder: string }) => ({
+      name: input.originalName,
+      filePath: `${input.folder}/${input.originalName}`,
+      workspacePath: `/workspace/${input.folder}/${input.originalName}`,
+      mimeType: 'text/html',
+      size: 32,
+      catalog: 'projects' as const,
+      scopeId: scope.projectId
+    }))
+    const deleteFile = jest
+      .fn(async (_input: unknown) => undefined)
+      .mockRejectedValueOnce(new Error('Workspace volume unavailable'))
+      .mockResolvedValue(undefined)
+    const sharingService = new PencilService(
+      asRepository(documentRepository),
+      asRepository(versionRepository),
+      asRepository(logRepository),
+      runtimeCapabilities({ artifacts: artifactFixture.api, workspaceFiles: { uploadBuffer, deleteFile } }),
+      artifactViewer()
+    )
+    await sharingService.publishArtifact(scope, {
+      documentId: created.item.id,
+      accessMode: 'organization_all'
+    })
+
+    await expect(sharingService.deleteDocument(scope, created.item.id)).rejects.toThrow('Workspace volume unavailable')
+    expect(documentRepository.records).toHaveLength(1)
+    await expect(sharingService.deleteDocument(scope, created.item.id)).resolves.toEqual(
+      expect.objectContaining({ deletedDocumentId: created.item.id })
+    )
+    expect(artifactFixture.api.findArtifactBySource).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: created.item.id, includeDeleted: true })
+    )
+    expect(deleteFile).toHaveBeenCalledTimes(2)
+    expect(documentRepository.records).toHaveLength(0)
+  })
 })
 
 function asRepository<T extends FakeEntity>(repository: FakeRepository<T>) {
   return repository as unknown as Repository<T>
+}
+
+function artifactViewer() {
+  return {
+    render: jest.fn(async () => ({
+      buffer: Buffer.from('<!doctype html><title>viewer</title>'),
+      checksum: 'content-checksum',
+      sha256: 'content-checksum',
+      mimeType: 'text/html',
+      size: 32,
+      viewerVersion: 1,
+      pageCount: 1
+    }))
+  } as never
+}
+
+function artifactViewerSequence(checksums: string[]) {
+  let index = 0
+  return {
+    render: jest.fn(async () => {
+      const checksum = checksums[Math.min(index++, checksums.length - 1)] ?? 'content-checksum'
+      return {
+        buffer: Buffer.from(`<!doctype html><title>${checksum}</title>`),
+        checksum,
+        sha256: checksum,
+        mimeType: 'text/html',
+        size: 32,
+        viewerVersion: 1,
+        pageCount: 1
+      }
+    })
+  } as never
+}
+
+type FakeArtifactVersion = {
+  id: string
+  artifactId: string
+  versionNumber: number
+  status: 'active'
+  idempotencyKey: string
+  mimeType: string
+  sha256: string
+  workspaceFileRef: Record<string, unknown>
+  metadata?: Record<string, unknown> | null
+}
+
+type FakeArtifactShare = {
+  id: string
+  artifactId: string
+  artifactVersionId?: string | null
+  shareKey: string
+  versionMode: 'version' | 'latest'
+  slug: string
+  publicUrl: string
+  accessMode: 'public_link' | 'organization_all' | 'workspace_all'
+  status: 'active' | 'revoked'
+  disposition: 'inline'
+  allowDownload: false
+  safeHtmlProfile: 'interactive'
+  metadata?: Record<string, unknown> | null
+  createdAt: Date
+  version?: FakeArtifactVersion | null
+}
+
+function createArtifactFixture() {
+  let artifact: Record<string, unknown> | null = null
+  let currentVersionId: string | null = null
+  const versions: FakeArtifactVersion[] = []
+  const shares: FakeArtifactShare[] = []
+  const versionForShare = (share: FakeArtifactShare) =>
+    versions.find((version) => version.id === (share.versionMode === 'latest' ? currentVersionId : share.artifactVersionId)) ?? null
+
+  const api = {
+    findArtifactBySource: jest.fn(async () => artifact),
+    createArtifact: jest.fn(async (input: {
+      source: { pluginName: string; resourceType: string; resourceId: string }
+      kind: string
+      title?: string | null
+      description?: string | null
+      metadata?: Record<string, unknown> | null
+    }) => {
+      artifact ??= {
+        id: 'artifact-1',
+        pluginName: input.source.pluginName,
+        resourceType: input.source.resourceType,
+        resourceId: input.source.resourceId,
+        kind: input.kind,
+        status: 'active',
+        title: input.title,
+        description: input.description,
+        metadata: input.metadata
+      }
+      return artifact
+    }),
+    listArtifactVersions: jest.fn(async (input: { idempotencyKey?: string | null }) =>
+      versions.filter((version) => !input.idempotencyKey || version.idempotencyKey === input.idempotencyKey)
+    ),
+    ensureArtifactVersion: jest.fn(async (input: {
+      artifactId: string
+      idempotencyKey: string
+      workspaceFileRef: Record<string, unknown>
+      mimeType: string
+      sha256?: string | null
+      metadata?: Record<string, unknown> | null
+      setCurrent?: boolean | null
+    }) => {
+      const existing = versions.find((version) => version.idempotencyKey === input.idempotencyKey)
+      if (existing) {
+        if (existing.sha256 !== input.sha256) throw new Error('Artifact version idempotency conflict')
+        if (input.setCurrent) currentVersionId = existing.id
+        return { version: existing, outcome: 'reused' as const }
+      }
+      const version: FakeArtifactVersion = {
+        id: `artifact-version-${versions.length + 1}`,
+        artifactId: input.artifactId,
+        versionNumber: versions.length + 1,
+        status: 'active',
+        idempotencyKey: input.idempotencyKey,
+        mimeType: input.mimeType,
+        sha256: input.sha256 ?? input.idempotencyKey,
+        workspaceFileRef: input.workspaceFileRef,
+        metadata: input.metadata
+      }
+      versions.push(version)
+      if (input.setCurrent) currentVersionId = version.id
+      return { version, outcome: 'created' as const }
+    }),
+    getArtifactShare: jest.fn(async () => {
+      const share = shares.find((candidate) => candidate.status === 'active')
+      return share ? { ...share, version: versionForShare(share) } : null
+    }),
+    ensureArtifactShare: jest.fn(async (input: {
+      artifactId: string
+      artifactVersionId?: string | null
+      shareKey: string
+      versionMode?: 'version' | 'latest' | null
+      access: { mode: 'public_link' | 'organization_all' | 'workspace_all' }
+      metadata?: Record<string, unknown> | null
+    }) => {
+      const versionMode = input.versionMode === 'latest' ? 'latest' : 'version'
+      const active = shares.find((candidate) => candidate.status === 'active')
+      if (
+        active &&
+        active.shareKey === input.shareKey &&
+        active.versionMode === versionMode &&
+        active.accessMode === input.access.mode &&
+        (versionMode === 'latest' || active.artifactVersionId === input.artifactVersionId)
+      ) {
+        return { link: { ...active, version: versionForShare(active) }, outcome: 'reused' as const }
+      }
+      if (active) active.status = 'revoked'
+      const id = `share-${shares.length + 1}`
+      const link: FakeArtifactShare = {
+        id,
+        artifactId: input.artifactId,
+        artifactVersionId: versionMode === 'version' ? input.artifactVersionId : null,
+        shareKey: input.shareKey,
+        versionMode,
+        slug: id,
+        publicUrl: `/artifacts/share/${id}`,
+        accessMode: input.access.mode,
+        status: 'active',
+        disposition: 'inline',
+        allowDownload: false,
+        safeHtmlProfile: 'interactive',
+        metadata: input.metadata,
+        createdAt: new Date()
+      }
+      shares.push(link)
+      return {
+        link: { ...link, version: versionForShare(link) },
+        outcome: active ? 'replaced' as const : 'created' as const,
+        replacedLinkId: active?.id
+      }
+    }),
+    revokeArtifactShare: jest.fn(async () => {
+      const active = shares.find((candidate) => candidate.status === 'active')
+      if (!active) return null
+      active.status = 'revoked'
+      return active
+    }),
+    archiveArtifact: jest.fn(async () => artifact),
+    deleteArtifact: jest.fn(async () => artifact)
+  }
+
+  return {
+    api,
+    versions,
+    shares,
+    get activeShares() {
+      return shares.filter((share) => share.status === 'active')
+    },
+    get revokedShares() {
+      return shares.filter((share) => share.status === 'revoked')
+    }
+  }
+}
+
+function runtimeCapabilities(input: {
+  artifacts: Record<string, unknown>
+  workspaceFiles: Record<string, unknown>
+}) {
+  return {
+    get(capability: { id?: string }) {
+      if (capability?.id === 'platform.artifacts') return input.artifacts
+      if (capability?.id === 'platform.workspace.files') return input.workspaceFiles
+      return undefined
+    }
+  } as never
 }
 
 function testScope(overrides: Partial<PencilScope> = {}): PencilScope {

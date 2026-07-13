@@ -203,6 +203,8 @@ export class PencilViewProvider implements IXpertViewExtensionProvider {
           { key: 'create_sample_document', label: text('Sample Case', '生成案例'), icon: 'ri-dashboard-3-line', actionType: 'invoke' },
           { key: 'save_working_copy', label: text('Save Working Copy', '保存工作副本'), icon: 'ri-save-2-line', actionType: 'invoke' },
           { key: 'save_version', label: text('Save Version', '保存版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'publish_artifact', label: text('Share Design', '分享设计'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
           { key: 'export_document', label: text('Export', '导出'), icon: 'ri-download-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
           { key: 'delete_version', label: text('Delete Version', '删除版本'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
@@ -374,6 +376,19 @@ export class PencilViewProvider implements IXpertViewExtensionProvider {
           changeSummary: getStringInput(request.input, 'changeSummary') ?? 'Workbench version'
         })
         return { ...success('Pencil version saved', 'Pencil 版本已保存'), data: result }
+      }
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishArtifact(scope, {
+          documentId: requireDocumentId(request),
+          targetMode: getStringInput(request.input, 'targetMode') as 'latest' | 'version' | undefined,
+          accessMode: getStringInput(request.input, 'accessMode') as 'workspace_all' | 'organization_all' | 'public_link' | undefined,
+          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink')
+        })
+        return { ...success('Pencil Artifact shared', 'Pencil Artifact 已分享'), refresh: false, data: result }
+      }
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDocumentId(request))
+        return { ...success('Pencil Artifact share revoked', 'Pencil Artifact 分享已撤销'), refresh: false, data: result }
       }
       if (actionKey === 'export_document') {
         const result = await this.service.exportDocument(scope, {

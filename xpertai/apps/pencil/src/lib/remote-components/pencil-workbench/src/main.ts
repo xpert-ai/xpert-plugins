@@ -78,13 +78,15 @@ import {
   renderTabButton,
   renderTextAreaControl
 } from './ui.js'
-import type { DetailPayload, DocumentItem, GraphSnapshot, InspectorTab, Summary } from './types.js'
+import type { ArtifactShare, DetailPayload, DocumentItem, GraphSnapshot, InspectorTab, Summary } from './types.js'
 import CodeInspector from './components/CodeInspector.vue'
 import DeleteDocumentDialog from './components/DeleteDocumentDialog.vue'
 import DocumentSwitcher from './components/DocumentSwitcher.vue'
 import InlineDocumentTitle from './components/InlineDocumentTitle.vue'
+import ShareDesignDialog from './components/ShareDesignDialog.vue'
 import TopToolbar from './components/TopToolbar.vue'
 import WorkbenchShell from './components/WorkbenchShell.vue'
+import { synchronizeArtifactShareState } from './artifact-share.js'
 
 type LeftPanelTab = 'file' | 'assets'
 type InlineDocumentTitleHandle = { focus: () => void }
@@ -111,6 +113,54 @@ const DEFAULT_STROKE: Stroke = {
   opacity: 1,
   visible: true,
   align: 'INSIDE'
+}
+
+function normalizeArtifactShare(value: RemotePayloadValue | undefined): ArtifactShare | null {
+  if (!isObject(value)) return null
+  const accessMode = value.accessMode
+  const targetMode = value.targetMode
+  const publicUrl = typeof value.publicUrl === 'string' ? value.publicUrl.trim() : ''
+  if (
+    !publicUrl ||
+    (accessMode !== 'public_link' && accessMode !== 'organization_all' && accessMode !== 'workspace_all') ||
+    (targetMode !== 'version' && targetMode !== 'latest')
+  ) {
+    return null
+  }
+  return {
+    documentId: typeof value.documentId === 'string' ? value.documentId : undefined,
+    revision: typeof value.revision === 'number' ? value.revision : undefined,
+    artifactId: typeof value.artifactId === 'string' ? value.artifactId : undefined,
+    artifactVersionId: typeof value.artifactVersionId === 'string' ? value.artifactVersionId : undefined,
+    artifactLinkId: typeof value.artifactLinkId === 'string' ? value.artifactLinkId : undefined,
+    accessMode,
+    targetMode,
+    publicUrl,
+    shareUrl: typeof value.shareUrl === 'string' ? value.shareUrl : publicUrl,
+    status: typeof value.status === 'string' ? value.status : undefined,
+    sharedAt: typeof value.sharedAt === 'string' ? value.sharedAt : undefined
+  }
+}
+
+async function copyTextToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Sandboxed hosts can expose Clipboard while still denying permission; use the selection fallback below.
+    }
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Clipboard is unavailable.')
 }
 
 type PencilEditor = ReturnType<typeof createEditor>
@@ -313,6 +363,7 @@ const App = defineComponent({
       titleDraft: '',
       editingTitle: false,
       deleteDialogOpen: false,
+      shareDialogOpen: false,
       exportFormat: 'fig',
       exportMessage: '',
       busy: false,
@@ -822,6 +873,74 @@ const App = defineComponent({
         notify('success', state.exportMessage)
       } catch (error) {
         state.error = exportErrorMessage(error)
+      } finally {
+        state.busy = false
+      }
+    }
+
+    async function synchronizeForArtifactShare() {
+      const documentId = state.detail?.item?.id
+      const afterSequence = state.detail?.workingCopyRevision ?? state.detail?.item?.workingCopyRevision ?? 0
+      await synchronizeArtifactShareState({
+        documentId,
+        dirty: state.dirty,
+        autosaving: state.autosaving,
+        graphTextEdited: state.graphTextEdited,
+        collaborationState: state.collaborationState,
+        afterSequence,
+        collaboration,
+        cancelAutosave: cancelAutosaveTimer,
+        persistWorkingCopy: (id) => persistWorkingCopy(id, text('workingCopySaved')),
+        syncRequiredMessage: text('shareSyncRequired'),
+        syncTimeoutMessage: text('shareSyncTimeout')
+      })
+    }
+
+    async function publishArtifact(input: {
+      accessMode: 'public_link' | 'organization_all' | 'workspace_all'
+      targetMode: 'version' | 'latest'
+      userConfirmedPublicLink: boolean
+    }) {
+      const documentId = state.detail?.item?.id
+      if (!documentId || state.busy) return
+      state.busy = true
+      state.error = ''
+      try {
+        await synchronizeForArtifactShare()
+        const response = await executeAction('publish_artifact', documentId, { documentId, ...input }, { documentId })
+        const share = normalizeArtifactShare(getActionPayload(response))
+        if (!share) throw new Error(text('errorEmptyResponse'))
+        if (state.detail) state.detail.artifactShare = share
+        notify('success', text('sharePublished'))
+      } catch (error) {
+        state.error = friendlyErrorMessage(error)
+      } finally {
+        state.busy = false
+      }
+    }
+
+    async function copyArtifactShare() {
+      const url = state.detail?.artifactShare?.publicUrl ?? state.detail?.artifactShare?.shareUrl
+      if (!url) return
+      try {
+        await copyTextToClipboard(url)
+        notify('success', text('copied'))
+      } catch (error) {
+        state.error = friendlyErrorMessage(error)
+      }
+    }
+
+    async function revokeArtifactShare() {
+      const documentId = state.detail?.item?.id
+      if (!documentId || state.busy) return
+      state.busy = true
+      state.error = ''
+      try {
+        await executeAction('revoke_artifact_share', documentId, { documentId }, { documentId })
+        if (state.detail) state.detail.artifactShare = null
+        notify('success', text('shareRevoked'))
+      } catch (error) {
+        state.error = friendlyErrorMessage(error)
       } finally {
         state.busy = false
       }
@@ -1735,8 +1854,6 @@ const App = defineComponent({
           connectionState: state.collaborationState,
           collaborators: state.collaborators,
           canUseDocument: canUseDocument.value,
-          exportFormat: state.exportFormat,
-          exportFormats: ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'],
           statusLabel: state.busy ? text('busy') : state.autosaving ? text('savingDraft') : state.dirty ? text('save') : text('saved'),
           labels: {
             actions: text('actionsLabel'),
@@ -1747,7 +1864,7 @@ const App = defineComponent({
             refresh: text('refresh'),
             save: text('save'),
             saveVersion: text('saveVersion'),
-            export: text('export'),
+            share: text('share'),
             review: text('review'),
             archive: text('archive'),
             deleteDocument: text('deleteDocument'),
@@ -1760,10 +1877,9 @@ const App = defineComponent({
           onRefresh: () => void refreshCurrentDocument(),
           onSave: () => void saveWorkingCopy(),
           onSaveVersion: () => void saveVersion(),
-          'onUpdate:exportFormat': (value: string) => {
-            state.exportFormat = value
+          onShare: () => {
+            state.shareDialogOpen = true
           },
-          onExport: () => void exportDocument(),
           onReview: () => void updateStatus('reviewed'),
           onArchive: () => void updateStatus('archived'),
           onDeleteDocument: () => {
@@ -2656,18 +2772,61 @@ const App = defineComponent({
           stage: () => renderStagePanel(),
           inspector: () => renderInspectorPanel(),
           dialogs: () =>
-            h(DeleteDocumentDialog, {
-              open: state.deleteDialogOpen,
-              busy: state.busy,
-              title: text('deleteDocumentTitle'),
-              description: text('deleteDocumentDescription', { title: currentTitle.value }),
-              cancelLabel: text('cancel'),
-              confirmLabel: text('deleteDocumentConfirm'),
-              'onUpdate:open': (open: boolean) => {
-                state.deleteDialogOpen = open
-              },
-              onConfirm: () => void deleteDocument()
-            })
+            [
+              h(DeleteDocumentDialog, {
+                open: state.deleteDialogOpen,
+                busy: state.busy,
+                title: text('deleteDocumentTitle'),
+                description: text('deleteDocumentDescription', { title: currentTitle.value }),
+                cancelLabel: text('cancel'),
+                confirmLabel: text('deleteDocumentConfirm'),
+                'onUpdate:open': (open: boolean) => {
+                  state.deleteDialogOpen = open
+                },
+                onConfirm: () => void deleteDocument()
+              }),
+              h(ShareDesignDialog, {
+                open: state.shareDialogOpen,
+                busy: state.busy,
+                hasWorkspace: Boolean(state.detail?.item?.workspaceId),
+                exportFormat: state.exportFormat,
+                exportFormats: ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'],
+                share: state.detail?.artifactShare ?? null,
+                labels: {
+                  title: text('shareTitle'),
+                  description: text('shareDescription'),
+                  access: text('shareAccess'),
+                  publicAccess: text('sharePublic'),
+                  organizationAccess: text('shareOrganization'),
+                  workspaceAccess: text('shareWorkspace'),
+                  target: text('shareTarget'),
+                  fixedVersion: text('shareFixed'),
+                  latestVersion: text('shareLatest'),
+                  publicConfirm: text('sharePublicConfirm'),
+                  publish: text('sharePublish'),
+                  update: text('shareUpdate'),
+                  copy: text('copy'),
+                  revoke: text('shareRevoke'),
+                  cancel: text('cancel'),
+                  currentLink: text('shareCurrentLink'),
+                  currentRevision: text('shareCurrentRevision'),
+                  currentStatus: text('shareCurrentStatus'),
+                  workspaceUnavailable: text('shareWorkspaceUnavailable'),
+                  exportFormat: text('exportFormat'),
+                  exportAction: text('export')
+                },
+                'onUpdate:open': (open: boolean) => {
+                  state.shareDialogOpen = open
+                },
+                onPublish: (input) => void publishArtifact(input),
+                'onUpdate:exportFormat': (value: string) => {
+                  state.exportFormat = value
+                },
+                onExport: () => void exportDocument(),
+                onCopy: () => void copyArtifactShare(),
+                onRevoke: () => void revokeArtifactShare()
+              })
+            ]
         }
       )
   }

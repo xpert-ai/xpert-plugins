@@ -25,6 +25,7 @@ export type DocumentItem = {
   currentVersionNumber?: number
   workingCopyRevision?: number
   graphChecksum?: string
+  workspaceId?: string
   updatedAt?: string
 }
 
@@ -52,6 +53,21 @@ export type DetailPayload = {
   snapshotSummary?: RemotePayloadObject
   graphChecksum?: string
   workingCopyRevision?: number
+  artifactShare?: ArtifactShare | null
+}
+
+export type ArtifactShare = {
+  documentId?: string
+  revision?: number
+  artifactId?: string
+  artifactVersionId?: string
+  artifactLinkId?: string
+  targetMode?: 'version' | 'latest'
+  accessMode?: 'public_link' | 'organization_all' | 'workspace_all'
+  publicUrl?: string
+  shareUrl?: string
+  status?: string
+  sharedAt?: string
 }
 
 export type Summary = {

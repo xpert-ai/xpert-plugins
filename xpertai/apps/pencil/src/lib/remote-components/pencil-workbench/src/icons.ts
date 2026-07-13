@@ -30,6 +30,7 @@ export type PencilIconName =
   | 'rectangle'
   | 'refresh'
   | 'save'
+  | 'share'
   | 'sparkles'
   | 'text'
   | 'trash'
@@ -140,6 +141,8 @@ function iconPaths(name: PencilIconName | string): SvgChild[] {
       return [path('M20 6v5h-5'), path('M4 18v-5h5'), path('M18 9a6 6 0 0 0-10-3L4 10'), path('M6 15a6 6 0 0 0 10 3l4-4')]
     case 'save':
       return [path('M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z'), path('M17 21v-8H7v8'), path('M7 3v5h8')]
+    case 'share':
+      return [circle(18, 5, 3), circle(6, 12, 3), circle(18, 19, 3), line(8.7, 10.6, 15.3, 6.4), line(8.7, 13.4, 15.3, 17.6)]
     case 'sparkles':
       return [path('M12 3 9.8 8.8 4 11l5.8 2.2L12 19l2.2-5.8L20 11l-5.8-2.2Z'), path('M19 3v4'), path('M21 5h-4')]
     case 'text':

@@ -15,6 +15,7 @@ Traditional design automation often stops at generated code or a flattened previ
 - **Collaborate in real time** — users and Agents share the same Yjs-backed working document, with collaborator presence, live pointers, selections, focused-element indicators, reconnect recovery, and collaboration-aware undo/redo.
 - **Keep intentional history** — ordinary edits update the working copy without creating noisy versions. An immutable version is created only when a user or Agent explicitly saves one.
 - **Move files in and out** — import `.fig` and `.pen` files from Xpert Workspace Files, then export `.fig`, PNG, JPG, WebP, SVG, PDF, or JSX.
+- **Share safely** — publish a self-contained read-only viewer with public, organization, or workspace access and fixed or always-latest version behavior.
 - **Stay in context** — the Assistant receives the currently open document, page, node, selection, revision, and dirty-state context so requests modify the active design instead of accidentally creating a new one.
 
 ## Product experience
@@ -28,7 +29,7 @@ The full-screen Workbench is the visual home for Pencil documents. It provides:
 - Page, layer, and asset panels
 - Design and code inspection
 - Zoom, pan, selection, and direct canvas editing
-- Import, export, save, restore, review, archive, and deletion actions
+- Import, export, read-only sharing, save, restore, review, archive, and deletion actions
 - Collaborator avatars, connection state, live cursors, selections, and Agent operation badges
 - Host theme integration through Xpert CSS variables
 
@@ -82,6 +83,7 @@ Exports are written to Xpert Workspace Files and returned as portable file refer
 - Tenant-, workspace-, project-, and Xpert-scoped persistence
 - Working copies, immutable versions, action logs, and structured failure reports
 - Workspace Files import and export integration
+- Platform Artifacts publication with a plugin-owned, network-free read-only viewer
 
 ## Typical workflow
 
@@ -90,7 +92,7 @@ Exports are written to Xpert Workspace Files and returned as portable file refer
 3. Collaborate with teammates and Agents while observing their current page, cursor, selection, or target element.
 4. Save a version at a meaningful review milestone.
 5. Mark the document as draft, reviewed, or archived.
-6. Export the required design or delivery format to Workspace Files.
+6. Share a read-only fixed revision or always-latest link, or export the required delivery format to Workspace Files.
 
 ## Development
 
@@ -104,7 +106,7 @@ npx -y node@20 plugin-dev-harness/dist/index.js \
   --plugin @xpert-ai/plugin-pencil
 ```
 
-The plugin requires an Xpert host that provides Workspace Files and the `platform.collaboration` runtime capability.
+The plugin requires an Xpert host that provides Workspace Files plus the `platform.collaboration` and `platform.artifacts` runtime capabilities.
 
 ## License
 
