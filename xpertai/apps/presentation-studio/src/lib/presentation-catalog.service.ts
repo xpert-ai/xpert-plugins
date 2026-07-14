@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { DASHIAI_LAYOUT_COUNT, PRESENTATION_THEME_PACKS } from './constants.js'
@@ -67,7 +68,10 @@ export class PresentationCatalogService {
   }>>()
 
   vendorProjectRoot() {
-    return join(moduleDir, '..', '..', 'assets', 'upstream', 'dashiai-ppt', 'project')
+    const actionBundle = join(moduleDir, '..', 'sandbox-actions', 'presentation-export', 'bundle', 'project')
+    return existsSync(actionBundle)
+      ? actionBundle
+      : join(moduleDir, '..', '..', 'assets', 'upstream', 'dashiai-ppt', 'project')
   }
 
   async stats() {

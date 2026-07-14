@@ -20,6 +20,7 @@ export type PresentationExportStatus = (typeof PRESENTATION_EXPORT_STATUSES)[num
 export type PresentationVersionSource = (typeof PRESENTATION_VERSION_SOURCES)[number]
 
 export interface PresentationStudioConfig {
+  exportBackend: 'sandbox-job' | 'local'
   chromiumExecutablePath?: string
   exportConcurrency: number
   maxPageCount: number
@@ -105,13 +106,38 @@ export interface PresentationAwarenessV2 {
   operationLabel?: string | null
 }
 
+/** Minimal Managed Queue payload; deck snapshots and assets stay in persistent storage. */
 export interface PresentationExportJobData {
   exportId: string
-  deckId: string
-  versionId: string
-  checksum: string
   tenantId?: string | null
   organizationId?: string | null
+}
+
+/** Structured reason used to disable PDF/PPTX while keeping HTML independently available. */
+export type PresentationExportCapabilityReason =
+  | 'ACTION_MISSING'
+  | 'ACTION_INVALID'
+  | 'PROFILE_MISSING'
+  | 'VERSION_MISMATCH'
+  | 'RUNTIME_UNBOUND'
+  | 'PROVIDER_UNAVAILABLE'
+  | 'PROFILE_UNHEALTHY'
+  | 'WORKER_UNAVAILABLE'
+  | 'LOCAL_BROWSER_UNAVAILABLE'
+
+/** Health-derived export availability and optional Runtime evidence for the Workbench. */
+export interface PresentationExportCapabilities {
+  html: { available: boolean }
+  pdf: { available: boolean; reason?: PresentationExportCapabilityReason; message?: string }
+  pptx: { available: boolean; reason?: PresentationExportCapabilityReason; message?: string }
+  backend: 'sandbox-job' | 'local'
+  action?: string
+  actionVersion?: string
+  runtimeProfile?: string
+  sandboxRuntimeVersion?: string
+  provider?: string
+  runtimeBindingId?: string
+  artifactDigest?: string
 }
 
 export interface PresentationAssetReference {

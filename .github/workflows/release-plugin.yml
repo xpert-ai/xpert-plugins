@@ -26,6 +26,7 @@ concurrency:
 
 permissions:
   contents: write
+  packages: write
   pull-requests: write
   id-token: write
 
@@ -37,6 +38,7 @@ jobs:
     outputs:
       xpertai: ${{ steps.filter.outputs.xpertai }}
       community: ${{ steps.filter.outputs.community }}
+      presentation_action: ${{ steps.filter.outputs.presentation_action }}
 
     steps:
       - name: Checkout
@@ -53,11 +55,74 @@ jobs:
               - "xpertai/**"
             community:
               - "community/**"
+            presentation_action:
+              - "xpertai/apps/presentation-studio/**"
+  presentation-action:
+    name: Build Presentation Sandbox Action
+    needs: detect
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (needs.detect.outputs.presentation_action == 'true' ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.workspace == 'xpertai' || github.event.inputs.workspace == 'all')))
+    runs-on: ubuntu-latest
+    env:
+      BROWSER_RUNTIME_IMAGE: ${{ vars.XPERT_SANDBOX_BROWSER_IMAGE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Install plugin dependencies
+        run: pnpm -C xpertai install --frozen-lockfile
+
+      - name: Build plugin and verify Action Bundle
+        run: |
+          pnpm --dir xpertai/apps/presentation-studio build
+          pnpm --dir xpertai/apps/presentation-studio verify:sandbox-action
+
+      - name: Require immutable Browser Runtime
+        shell: bash
+        run: |
+          if [[ ! "$BROWSER_RUNTIME_IMAGE" =~ @sha256:[a-f0-9]{64}$ ]]; then
+            echo "Set XPERT_SANDBOX_BROWSER_IMAGE to an immutable Browser Runtime digest." >&2
+            exit 1
+          fi
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke PDF and PPTX with Browser Runtime
+        run: node xpertai/apps/presentation-studio/scripts/smoke-sandbox-action.mjs --image "$BROWSER_RUNTIME_IMAGE"
+
+      - name: Upload Action Bundle manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: presentation-sandbox-action
+          path: xpertai/apps/presentation-studio/dist/sandbox-actions/presentation-export/action.json
 
   release:
     name: Version Or Publish (${{ matrix.workspace }})
-    needs: detect
-    if: github.ref == 'refs/heads/main'
+    needs:
+      - detect
+      - presentation-action
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      (needs['presentation-action'].result == 'success' || needs['presentation-action'].result == 'skipped')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

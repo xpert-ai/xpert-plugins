@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { basename, dirname, extname, join } from 'node:path'
@@ -8,16 +9,35 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import {
+  MANAGED_QUEUE_SERVICE_TOKEN,
+  SandboxJobsRuntimeCapability,
   WorkspaceFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AgentMiddlewareRuntimeCapabilityRegistry,
+  type ManagedQueueService,
+  type SandboxJobOutput,
+  type SandboxJobsApi,
+  type WorkspaceFileScope,
   type WorkspaceFilesApi
 } from '@xpert-ai/plugin-sdk'
-import { DASHIAI_UPSTREAM_COMMIT } from './constants.js'
+import {
+  DASHIAI_UPSTREAM_COMMIT,
+  PRESENTATION_SANDBOX_ACTION,
+  PRESENTATION_SANDBOX_ACTION_VERSION,
+  PRESENTATION_STUDIO_PLUGIN_NAME
+} from './constants.js'
 import { PresentationConfigService } from './presentation-config.service.js'
 import { inlinePresentationHtml } from './presentation-html-inliner.js'
 import type { PresentationAsset, PresentationDeckVersion } from './entities/index.js'
-import type { PresentationDeckSpec, PresentationEditorState, PresentationExportKind, PresentationJsonObject, PresentationJsonValue, PresentationRenderResult } from './types.js'
+import type {
+  PresentationDeckSpec,
+  PresentationEditorState,
+  PresentationExportCapabilities,
+  PresentationExportKind,
+  PresentationJsonObject,
+  PresentationJsonValue,
+  PresentationRenderResult
+} from './types.js'
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 
 const execFileAsync = promisify(execFile)
@@ -43,14 +63,23 @@ body[data-presentation-export="true"] #deck-viewport {
 
 const PRESENTATION_EXPORT_GUARD = `<script id="xpert-presentation-export-guard">(function(){addEventListener('keydown',function(event){if(event.key==='Escape'&&document.body?.dataset.presentationExport==='true')event.stopImmediatePropagation()},true)})();</script>`
 
+/**
+ * Builds the shared Presentation render input and routes browser-backed exports
+ * through the registered `presentation.export` Sandbox Action.
+ */
 @Injectable()
 export class PresentationRendererService {
+  private actionHealthCache?: { expiresAt: number; value: PresentationExportCapabilities }
+
   constructor(
     private readonly catalog: PresentationCatalogService,
     private readonly config: PresentationConfigService,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    @Inject(MANAGED_QUEUE_SERVICE_TOKEN)
+    private readonly managedQueue?: ManagedQueueService
   ) {}
 
   async renderVersion(version: PresentationDeckVersion, assets: PresentationAsset[]): Promise<PresentationRenderResult> {
@@ -101,6 +130,159 @@ export class PresentationRendererService {
     }
   }
 
+  /** Executes PDF/PPTX in Sandbox Jobs using only structured payload and portable asset references. */
+  async exportVersionInSandbox(input: {
+    exportId: string
+    checksum: string
+    version: PresentationDeckVersion
+    assets: PresentationAsset[]
+    kind: 'pdf' | 'pptx'
+    title: string
+    fileName: string
+    tenantId: string
+    organizationId?: string | null
+    userId?: string | null
+    destination: WorkspaceFileScope & { folder: string }
+  }): Promise<{ jobId: string; output: SandboxJobOutput; report: PresentationJsonObject }> {
+    const assetPaths = new Map<string, string>()
+    const files = input.assets.flatMap((asset) => {
+      if (!asset.id || !asset.fileReference?.reference) return []
+      const safeName = sanitizeFileName(asset.fileName, asset.mimeType)
+      const targetPath = `assets/user-media/${asset.id}/${safeName}`
+      assetPaths.set(asset.id, targetPath)
+      return [{
+        reference: asset.fileReference.reference,
+        targetPath,
+        size: asset.size,
+        sha256: asset.sha256
+      }]
+    })
+    const goal = transformDeckForDashi(input.version.deckSpec, assetPaths, input.version.editorState)
+    const mimeType = input.kind === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    const result = await this.sandboxJobs().run({
+      jobId: input.exportId,
+      action: PRESENTATION_SANDBOX_ACTION,
+      actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
+      idempotencyKey: `presentation-export:${input.exportId}:${input.checksum}`,
+      scope: {
+        tenantId: input.tenantId,
+        organizationId: input.organizationId,
+        userId: input.userId,
+        pluginName: PRESENTATION_STUDIO_PLUGIN_NAME,
+        businessResourceType: 'presentation-export',
+        businessResourceId: input.exportId
+      },
+      payload: {
+        kind: input.kind,
+        title: input.title,
+        goal
+      },
+      files,
+      outputs: [{
+        path: `presentation.${input.kind}`,
+        originalName: input.fileName,
+        mimeType,
+        destination: input.destination
+      }],
+      timeoutMs: 300_000
+    })
+    const output = result.outputs.find((candidate) => candidate.path === `presentation.${input.kind}`)
+    if (!output) throw new Error(`Sandbox export did not return presentation.${input.kind}.`)
+    return {
+      jobId: result.id,
+      output,
+      report: {
+        upstreamCommit: DASHIAI_UPSTREAM_COMMIT,
+        renderer: 'sandbox-job',
+        action: PRESENTATION_SANDBOX_ACTION,
+        actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
+        runtimeProfile: result.runtimeProfile,
+        sandboxRuntimeVersion: result.sandboxRuntimeVersion,
+        sandboxJobId: result.id,
+        attempt: result.attempt
+      }
+    }
+  }
+
+  /**
+   * Aggregates Action/Runtime health with Managed Queue pool health. HTML never
+   * depends on Browser Runtime and remains available when PDF/PPTX are disabled.
+   */
+  async getExportCapabilities(force = false): Promise<PresentationExportCapabilities> {
+    const config = this.config.get()
+    if (config.exportBackend === 'local') {
+      const chromium = resolveLocalChromium(config.chromiumExecutablePath)
+      const reason = chromium ? undefined : 'LOCAL_BROWSER_UNAVAILABLE' as const
+      return {
+        backend: 'local',
+        html: { available: true },
+        pdf: { available: Boolean(chromium), ...(reason ? { reason, message: 'Local Chromium is unavailable.' } : {}) },
+        pptx: { available: Boolean(chromium), ...(reason ? { reason, message: 'Local Chromium is unavailable.' } : {}) }
+      }
+    }
+    if (!force && this.actionHealthCache && this.actionHealthCache.expiresAt > Date.now()) {
+      return this.actionHealthCache.value
+    }
+    const jobs = this.runtimeCapabilities?.get(SandboxJobsRuntimeCapability)
+    if (!jobs) {
+      return sandboxUnavailableCapabilities(
+        'PROVIDER_UNAVAILABLE',
+        capabilityWarning('PROVIDER_UNAVAILABLE', 'Platform Sandbox Jobs capability is unavailable.')
+      )
+    }
+    const health = await jobs.getActionHealth({
+        pluginName: PRESENTATION_STUDIO_PLUGIN_NAME,
+        action: PRESENTATION_SANDBOX_ACTION,
+        actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION
+      }).catch((error) => ({
+        available: false as const,
+        reason: 'PROFILE_UNHEALTHY' as const,
+        message: error instanceof Error ? error.message : String(error)
+      }))
+    let value: PresentationExportCapabilities
+    if (!health.available) {
+      const reason = health.reason ?? 'PROFILE_UNHEALTHY'
+      value = sandboxUnavailableCapabilities(reason, capabilityWarning(reason, health.message))
+    } else if (!this.managedQueue) {
+      value = sandboxUnavailableCapabilities(
+        'WORKER_UNAVAILABLE',
+        capabilityWarning('WORKER_UNAVAILABLE', 'Managed Queue is unavailable; PDF/PPTX export cannot be scheduled.')
+      )
+    } else {
+      const poolHealth = await this.managedQueue.getExecutionPoolHealth({ executionPool: 'sandbox-browser' }).catch((error) => ({
+        executionPool: 'sandbox-browser' as const,
+        available: false,
+        workerCount: 0,
+        warning: error instanceof Error ? error.message : String(error)
+      }))
+      value = poolHealth.available
+        ? {
+          backend: 'sandbox-job',
+          action: PRESENTATION_SANDBOX_ACTION,
+          actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
+          runtimeProfile: health.runtimeProfile,
+          sandboxRuntimeVersion: health.sandboxRuntimeVersion,
+          provider: health.provider,
+          runtimeBindingId: health.runtimeBindingId,
+          artifactDigest: health.artifactDigest,
+          html: { available: true },
+          pdf: { available: true },
+          pptx: { available: true }
+        }
+        : sandboxUnavailableCapabilities(
+            'WORKER_UNAVAILABLE',
+            capabilityWarning(
+              'WORKER_UNAVAILABLE',
+              poolHealth.warning ?? 'No active worker is consuming the sandbox-browser execution pool.'
+            )
+          )
+    }
+    this.actionHealthCache = { expiresAt: Date.now() + 30_000, value }
+    return value
+  }
+
   async cleanup(directory: string) {
     if (basename(directory).startsWith('presentation-studio-')) await rm(directory, { recursive: true, force: true })
   }
@@ -109,6 +291,12 @@ export class PresentationRendererService {
     const files = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
     if (!files) throw new Error('Platform workspace files capability is not available.')
     return files
+  }
+
+  private sandboxJobs(): SandboxJobsApi {
+    const jobs = this.runtimeCapabilities?.get(SandboxJobsRuntimeCapability)
+    if (!jobs) throw new Error('Platform Sandbox Jobs capability is not available.')
+    return jobs
   }
 
   private async stageAssets(pptDir: string, assets: PresentationAsset[]) {
@@ -156,6 +344,43 @@ export class PresentationRendererService {
       throw new Error(scrubRendererError(message))
     }
   }
+}
+
+function sandboxUnavailableCapabilities(
+  reason: NonNullable<PresentationExportCapabilities['pdf']['reason']>,
+  message?: string
+): PresentationExportCapabilities {
+  return {
+    backend: 'sandbox-job',
+    action: PRESENTATION_SANDBOX_ACTION,
+    actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
+    html: { available: true },
+    pdf: { available: false, reason, ...(message ? { message } : {}) },
+    pptx: { available: false, reason, ...(message ? { message } : {}) }
+  }
+}
+
+function capabilityWarning(
+  reason: NonNullable<PresentationExportCapabilities['pdf']['reason']>,
+  detail?: string
+): string {
+  const guidance: Partial<Record<NonNullable<PresentationExportCapabilities['pdf']['reason']>, string>> = {
+    ACTION_MISSING: 'Update or reinstall Presentation Studio so its Sandbox Action Bundle is registered.',
+    ACTION_INVALID: 'Rebuild Presentation Studio and verify the Action Bundle hash and package contents.',
+    PROFILE_MISSING: 'Upgrade Xpert so the required Browser Runtime Definition is installed.',
+    VERSION_MISMATCH: 'Install matching Presentation Studio and Sandbox Runtime Suite versions.',
+    RUNTIME_UNBOUND: 'A Runtime worker is online but has no compatible Binding. Provider distributions must bind the Browser Runtime Definition; Pro supplies the Docker Binding.',
+    PROVIDER_UNAVAILABLE: 'The OSS base deployment intentionally does not include a Sandbox Runtime worker. HTML remains available. Install a compatible Provider/worker distribution; Pro includes the Docker Provider worker.',
+    PROFILE_UNHEALTHY: 'Check the Provider-owned Sandbox Runtime worker; the Browser Runtime artifact may still be warming or may have failed manifest validation.',
+    WORKER_UNAVAILABLE: 'No worker is consuming the sandbox-browser execution pool. The OSS base deployment does not deploy one; install a Provider distribution or use the Pro Docker worker overlay.',
+    LOCAL_BROWSER_UNAVAILABLE: 'Local export is deprecated; use Sandbox Jobs or install Chromium for development only.'
+  }
+  return [detail?.trim(), guidance[reason]].filter(Boolean).join(' ')
+}
+
+function resolveLocalChromium(configured?: string) {
+  return [configured, process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium']
+    .find((candidate): candidate is string => Boolean(candidate && existsSync(candidate)))
 }
 
 function transformDeckForDashi(spec: PresentationDeckSpec, assets: Map<string, string>, editorState?: PresentationEditorState) {

@@ -348,7 +348,7 @@ function App() {
     setError('')
     try {
       const opened = actionData<OpenDeckPayload>(await executeAction('open_deck', deckId, { deckId }))
-      const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [] }
+      const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [], exportCapabilities: opened.exportCapabilities }
       setSelectedId(deckId)
       setDetail(nextDetail)
       knownServerSlideIdsRef.current = new Set(deckDetailSlideIds(nextDetail))
@@ -378,7 +378,8 @@ function App() {
       item: { ...current.item, ...next.item, deckSpec: current.item.deckSpec, editorState: current.item.editorState },
       versions: next.versions,
       exports: next.exports,
-      assets: next.assets
+      assets: next.assets,
+      exportCapabilities: next.exportCapabilities
     } : next)
     setDecks((current) => current.map((item) => item.deckId === deckId ? { ...item, ...next.item } : item))
     return next
@@ -840,6 +841,11 @@ function App() {
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const exportCapabilityWarning = detail?.exportCapabilities?.pdf.available === false
+    ? detail.exportCapabilities.pdf.message ?? detail.exportCapabilities.pdf.reason
+    : detail?.exportCapabilities?.pptx.available === false
+      ? detail.exportCapabilities.pptx.message ?? detail.exportCapabilities.pptx.reason
+      : undefined
 
   if (!ready) return <div className="ps-loading">Presentation Studio</div>
 
@@ -884,8 +890,12 @@ function App() {
           <DropdownMenuTrigger asChild><Button variant="outline" disabled={!detail || busy}><Download />{t('export')}<ChevronDown /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => void requestExport('html')}>{t('exportHtml')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => void requestExport('pdf')}>{t('exportPdf')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => void requestExport('pptx')}>{t('exportPptx')}</DropdownMenuItem>
+            {exportCapabilityWarning ? <>
+              <DropdownMenuSeparator />
+              <div className="ps-export-capability-warning" role="status">{t('browserExportUnavailable')} {exportCapabilityWarning}</div>
+            </> : null}
+            <DropdownMenuItem disabled={detail?.exportCapabilities?.pdf.available === false} title={detail?.exportCapabilities?.pdf.message ?? detail?.exportCapabilities?.pdf.reason} onClick={() => void requestExport('pdf')}>{t('exportPdf')}</DropdownMenuItem>
+            <DropdownMenuItem disabled={detail?.exportCapabilities?.pptx.available === false} title={detail?.exportCapabilities?.pptx.message ?? detail?.exportCapabilities?.pptx.reason} onClick={() => void requestExport('pptx')}>{t('exportPptx')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="ghost" size="icon" title={rightCollapsed ? t('showInspector') : t('hideInspector')} onClick={() => setRightCollapsed((value) => !value)}>
@@ -1294,7 +1304,30 @@ function deckDetailFromResponse(response: JsonObject): DeckDetail {
     item: { ...item, ...(isObject(value.item.deckSpec) ? { deckSpec: value.item.deckSpec } : {}), ...(isObject(value.item.editorState) ? { editorState: toEditorState(value.item.editorState) } : {}) },
     versions: Array.isArray(value.versions) ? value.versions.map(toVersionSummary).filter((entry): entry is VersionSummary => entry !== null) : [],
     exports: Array.isArray(value.exports) ? value.exports.map(toExportSummary).filter((entry): entry is ExportSummary => entry !== null) : [],
-    assets: Array.isArray(value.assets) ? value.assets.map(toAssetSummary).filter((entry): entry is AssetSummary => entry !== null) : []
+    assets: Array.isArray(value.assets) ? value.assets.map(toAssetSummary).filter((entry): entry is AssetSummary => entry !== null) : [],
+    exportCapabilities: toExportCapabilities(value.exportCapabilities)
+  }
+}
+
+function toExportCapabilities(value: JsonValue | undefined) {
+  if (!isObject(value) || !isObject(value.html) || !isObject(value.pdf) || !isObject(value.pptx)) return undefined
+  const capability = (entry: JsonObject) => ({
+    available: entry.available === true,
+    ...(typeof entry.reason === 'string' ? { reason: entry.reason } : {}),
+    ...(typeof entry.message === 'string' ? { message: entry.message } : {})
+  })
+  return {
+    backend: value.backend === 'local' ? 'local' as const : 'sandbox-job' as const,
+    html: capability(value.html),
+    pdf: capability(value.pdf),
+    pptx: capability(value.pptx),
+    ...(typeof value.action === 'string' ? { action: value.action } : {}),
+    ...(typeof value.actionVersion === 'string' ? { actionVersion: value.actionVersion } : {}),
+    ...(typeof value.runtimeProfile === 'string' ? { runtimeProfile: value.runtimeProfile } : {}),
+    ...(typeof value.sandboxRuntimeVersion === 'string' ? { sandboxRuntimeVersion: value.sandboxRuntimeVersion } : {}),
+    ...(typeof value.provider === 'string' ? { provider: value.provider } : {}),
+    ...(typeof value.runtimeBindingId === 'string' ? { runtimeBindingId: value.runtimeBindingId } : {}),
+    ...(typeof value.artifactDigest === 'string' ? { artifactDigest: value.artifactDigest } : {})
   }
 }
 

@@ -17,6 +17,7 @@ export class PresentationExport {
   @Column({ type: 'varchar' }) kind!: PresentationExportKind
   @Column({ type: 'varchar', default: 'queued' }) status!: PresentationExportStatus
   @Column({ type: 'varchar', nullable: true }) jobId?: string
+  @Column({ type: 'varchar', nullable: true }) sandboxJobId?: string
   @Column({ type: 'int', default: 0 }) progress!: number
   @Column({ type: 'varchar', nullable: true }) stage?: string
   @Column({ type: 'varchar' }) checksum!: string

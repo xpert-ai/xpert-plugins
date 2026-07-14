@@ -22,5 +22,7 @@ describe('Presentation Studio plugin', () => {
       PRESENTATION_EXPORT_CAPABILITY
     ]))
     expect(plugin.templates).toHaveLength(1)
+    expect(plugin.config?.defaults).toEqual(expect.objectContaining({ exportBackend: 'sandbox-job' }))
+    expect(plugin.config?.defaults).not.toHaveProperty('sandboxExportEnabled')
   })
 })
