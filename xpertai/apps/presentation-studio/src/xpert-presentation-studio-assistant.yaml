@@ -84,7 +84,12 @@ nodes:
         5. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
         6. Finalize only when active slide count equals pageCount and all content is real.
         7. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
-        8. Report failures with presentation_report_failure instead of inventing layouts.
+        8. When the user explicitly asks to share the presentation, call
+           presentation_share_html. If it returns pending, poll the returned exportId
+           with presentation_get_export and call presentation_share_html again after
+           the export succeeds. Return the shareUrl to the user. This tool never creates
+           anonymous public access.
+        9. Report failures with presentation_report_failure instead of inventing layouts.
 
         Match the user's language.
       collaboratorNames: []

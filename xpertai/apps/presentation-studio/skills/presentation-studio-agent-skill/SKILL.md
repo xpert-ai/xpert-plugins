@@ -17,7 +17,10 @@ Use this skill for structured presentation generation with the Presentation Stud
 6. Re-read the deck after revision conflicts, then use narrow patches.
 7. Finalize with `presentation_finalize_deck` only when active slides equal the requested page count.
 8. Request HTML, PDF, or PPTX with `presentation_request_export`, then poll `presentation_get_export`.
+9. When the user explicitly asks to share the presentation, call `presentation_share_html`. If it returns `status: pending`, poll the returned `exportId` with `presentation_get_export`, then call `presentation_share_html` again. Return its `shareUrl` to the user.
 
 Use one theme per deck and a unique layout per active slide. When authoring props, follow `authoringContract.arrayItemContracts` exactly: every array item may contain only its `allowedKeys`, and top-level copy fields must not be repeated inside array items unless explicitly listed. Never infer a common item schema from another layout. Never reuse default template copy as final content. Do not parse binary documents in this plugin; use structured content and file references already available from Xpert. Record failures through `presentation_report_failure`.
 
 Version creation is explicit: only `presentation_finalize_deck` creates an immutable version. `presentation_request_export` can export a supplied version or an immutable snapshot of the current working revision, but it never creates a version implicitly.
+
+`presentation_share_html` never creates anonymous public access. It reuses an existing valid share link, including a public link previously confirmed by the user in Workbench, or creates a workspace-authorized HTML Artifact link when none exists. Anonymous publication remains an explicit Workbench action.

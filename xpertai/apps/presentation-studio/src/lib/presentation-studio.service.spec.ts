@@ -684,6 +684,90 @@ describe('PresentationStudioService export versioning', () => {
     })
   })
 
+  it('preserves an existing valid public link when an Agent requests a workspace share', async () => {
+    const deck = {
+      id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      assistantId: 'assistant-1',
+      title: 'Already shared deck',
+      goal: 'Keep the user-confirmed public link'
+    }
+    const publicUrl = 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
+    const item = {
+      id: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      deckId: deck.id,
+      versionId: 'version-1',
+      kind: 'html',
+      status: 'succeeded',
+      progress: 100,
+      checksum: 'html-checksum',
+      fileName: 'shared-deck.html',
+      mimeType: 'text/html',
+      size: 128,
+      artifactLinkId: 'public-link-1',
+      artifactLinkVersionMode: 'latest',
+      artifactLinkAccessMode: 'public_link',
+      artifactPublicUrl: publicUrl,
+      artifactVersionId: 'artifact-version-1',
+      fileReference: {
+        reference: {
+          source: 'platform.workspace.files',
+          filePath: 'files/presentation-studio/export.html',
+          workspacePath: '/workspace/export.html'
+        },
+        sha256: 'sha256',
+        fileName: 'shared-deck.html',
+        mimeType: 'text/html',
+        size: 128
+      }
+    }
+    const exportRepository = {
+      findOne: jest.fn().mockResolvedValue(item),
+      save: jest.fn(async (value) => value)
+    }
+    const artifacts = {
+      createArtifact: jest.fn().mockResolvedValue({ id: 'artifact-1' }),
+      createArtifactVersion: jest.fn(),
+      createArtifactLink: jest.fn(),
+      revokeArtifactLink: jest.fn()
+    }
+    const runtimeCapabilities = {
+      has: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts'),
+      get: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts' ? artifacts : undefined)
+    }
+    const service = new PresentationStudioService(
+      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      exportRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+
+    const result = await service.shareHtmlExport({ tenantId: 'tenant-1', organizationId: 'org-1' }, {
+      deckId: deck.id,
+      exportId: item.id,
+      versionMode: 'latest',
+      accessMode: 'workspace_all',
+      actor: 'agent',
+      preserveExistingLink: true
+    })
+
+    expect(artifacts.revokeArtifactLink).not.toHaveBeenCalled()
+    expect(artifacts.createArtifactLink).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      publicUrl,
+      shareUrl: publicUrl,
+      accessMode: 'public_link'
+    })
+  })
+
   it('queues an HTML export when sharing a deck without a completed HTML export', async () => {
     const deck = {
       id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',

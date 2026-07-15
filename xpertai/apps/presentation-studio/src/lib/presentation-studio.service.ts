@@ -549,6 +549,8 @@ export class PresentationStudioService {
       versionMode?: ArtifactLinkVersionMode | null
       accessMode?: ArtifactAccessMode | null
       allowDownload?: boolean | null
+      actor?: 'agent' | 'workbench' | null
+      preserveExistingLink?: boolean | null
     }
   ) {
     const item = await this.requireScopedExport(scope, input.exportId)
@@ -563,8 +565,10 @@ export class PresentationStudioService {
       item.artifactLinkId &&
       item.artifactPublicUrl &&
       isCurrentArtifactPublicUrl(item.artifactPublicUrl) &&
-      item.artifactLinkVersionMode === versionMode &&
-      item.artifactLinkAccessMode === accessMode
+      (input.preserveExistingLink === true || (
+        item.artifactLinkVersionMode === versionMode &&
+        item.artifactLinkAccessMode === accessMode
+      ))
     ) {
       return {
         message: 'Presentation HTML share link is ready.',
@@ -573,8 +577,8 @@ export class PresentationStudioService {
         artifactId,
         artifactVersionId,
         artifactLinkId: item.artifactLinkId,
-        versionMode,
-        accessMode
+        versionMode: item.artifactLinkVersionMode ?? versionMode,
+        accessMode: item.artifactLinkAccessMode ?? accessMode
       }
     }
     if (item.artifactLinkId) await this.revokeArtifactLinkBestEffort(item.artifactLinkId)
@@ -604,7 +608,7 @@ export class PresentationStudioService {
       versionId: item.versionId,
       exportId: requireId(item.id, 'Export id is required for share logging.'),
       action: 'export_shared',
-      actor: 'workbench',
+      actor: input.actor ?? 'workbench',
       message: 'Shared HTML export as an Artifact link.',
       summary: { artifactId, artifactVersionId, artifactLinkId: link.id, versionMode: link.versionMode, accessMode: link.accessMode }
     })
@@ -628,6 +632,8 @@ export class PresentationStudioService {
       versionMode?: ArtifactLinkVersionMode | null
       accessMode?: ArtifactAccessMode | null
       allowDownload?: boolean | null
+      actor?: 'agent' | 'workbench' | null
+      preserveExistingLink?: boolean | null
     }
   ) {
     const deck = await this.requireDeck(scope, input.deckId)
@@ -643,7 +649,9 @@ export class PresentationStudioService {
         exportId: requireId(completed.id, 'Export id is required.'),
         versionMode: input.versionMode,
         accessMode: input.accessMode,
-        allowDownload: input.allowDownload
+        allowDownload: input.allowDownload,
+        actor: input.actor,
+        preserveExistingLink: input.preserveExistingLink
       })
     }
 
