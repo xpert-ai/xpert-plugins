@@ -78,7 +78,7 @@ jobs:
     if: >-
       always() &&
       github.ref == 'refs/heads/main' &&
-      (needs['presentation-action'].result == 'success' || needs['presentation-action'].result == 'skipped')
+      needs.detect.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
