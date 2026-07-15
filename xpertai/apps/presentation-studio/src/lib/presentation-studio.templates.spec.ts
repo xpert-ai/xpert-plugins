@@ -8,4 +8,36 @@ describe('Presentation Studio assistant template', () => {
     expect(dsl.toLowerCase()).toContain('items may contain only allowedkeys')
     expect(dsl).toContain('presentation-studio-agent-v2')
   })
+
+  it('connects the presentation and common middlewares to the Agent', () => {
+    const dsl = presentationStudioTemplates[0]?.dslContent ?? ''
+    const middlewareKeys = [
+      'Middleware_PresentationStudio',
+      'Middleware_Skills',
+      'Middleware_WebTools',
+      'Middleware_SandboxFile',
+      'Middleware_SandboxShell',
+      'Middleware_LoopGuard',
+      'Middleware_ModelRetry',
+      'Middleware_ViewImage'
+    ]
+    const providers = [
+      'PresentationStudioMiddleware',
+      'skillsMiddleware',
+      'WebTools',
+      'SandboxFile',
+      'SandboxShell',
+      'LoopGuardMiddleware',
+      'ModelRetryMiddleware',
+      'ViewImageMiddleware'
+    ]
+
+    expect(dsl).toContain('provider: docker-sandbox')
+    for (const provider of providers) expect(dsl).toContain(`provider: ${provider}`)
+    for (const middlewareKey of middlewareKeys) {
+      expect(dsl).toContain(`key: Agent_PresentationStudio/${middlewareKey}`)
+      expect(dsl).toContain('from: Agent_PresentationStudio')
+      expect(dsl).toContain(`to: ${middlewareKey}`)
+    }
+  })
 })
