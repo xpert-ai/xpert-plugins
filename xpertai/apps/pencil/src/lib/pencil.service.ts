@@ -6,20 +6,37 @@ import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import type { DownloadedFontCache, ExportTarget, ToolDef } from '@open\u002dpencil/core'
 import {
+  ArtifactsRuntimeCapability,
   CollaborationRuntimeCapability,
+  WorkspaceFilesRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AgentMiddlewareRuntimeCapabilityRegistry,
+  type ArtifactAccessMode,
+  type ArtifactLinkRecord,
+  type ArtifactLinkVersionMode,
+  type ArtifactRecord,
+  type ArtifactVersionRecord,
+  type ArtifactsApi,
+  type CreateArtifactLinkInput,
+  type CreateArtifactVersionInput,
   type CollaborationMaterializationEvent,
-  type CollaborationProviderContext
+  type CollaborationProviderContext,
+  type WorkspaceFile,
+  type WorkspaceFileScope,
+  type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
 import { Raw, type FindOptionsWhere, type Repository } from 'typeorm'
 import * as Y from 'yjs'
 import { PencilActionLog, PencilDocument, PencilDocumentVersion } from './entities/index.js'
 import {
+  PENCIL_PLUGIN_NAME,
   PENCIL_CORE_TOOL_PREFIX,
   PENCIL_EXCLUDED_CORE_TOOL_NAMES,
   PENCIL_BASE_MIDDLEWARE_TOOL_NAMES,
   PENCIL_SELECTED_CORE_TOOL_NAMES
 } from './constants.js'
+import { PencilArtifactViewerService } from './pencil-artifact-viewer.service.js'
 import {
   checksumGraphSnapshot,
   compactGraphSnapshotForAgent,
@@ -101,10 +118,50 @@ type ResolvedExportNodes = {
   nodeIds: string[]
 }
 
+type PencilArtifactVersionRecord = ArtifactVersionRecord & {
+  idempotencyKey?: string | null
+  workspaceFileRef?: WorkspacePortableFileReference | null
+  metadata?: Record<string, unknown> | null
+}
+type PencilArtifactRecord = ArtifactRecord & {
+  metadata?: Record<string, unknown> | null
+  currentVersion?: PencilArtifactVersionRecord | null
+}
+type PencilArtifactLinkRecord = ArtifactLinkRecord & {
+  shareKey?: string | null
+  metadata?: Record<string, unknown> | null
+  version?: PencilArtifactVersionRecord | null
+}
+type PencilArtifactsApi = ArtifactsApi & {
+  findArtifactBySource(input: {
+    pluginName: string
+    resourceType: string
+    resourceId: string
+    includeDeleted?: boolean | null
+  }): Promise<PencilArtifactRecord | null>
+  listArtifactVersions(input: {
+    artifactId: string
+    idempotencyKey?: string | null
+    status?: 'active' | 'deleted' | 'all' | null
+  }): Promise<PencilArtifactVersionRecord[]>
+  ensureArtifactVersion(input: CreateArtifactVersionInput & { idempotencyKey: string }): Promise<{
+    version: PencilArtifactVersionRecord
+    outcome: 'created' | 'reused'
+  }>
+  getArtifactShare(input: { artifactId: string; shareKey: string }): Promise<PencilArtifactLinkRecord | null>
+  ensureArtifactShare(input: CreateArtifactLinkInput & { shareKey: string }): Promise<{
+    link: PencilArtifactLinkRecord
+    outcome: 'created' | 'reused' | 'replaced'
+    replacedLinkId?: string | null
+  }>
+  revokeArtifactShare(input: { artifactId: string; shareKey: string }): Promise<PencilArtifactLinkRecord | null>
+}
+
 const PENCIL_IMPORT_EXTENSIONS = new Set(['fig', 'pen'])
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 const PENCIL_EXPORT_FORMATS = new Set<PencilExportFormat>(['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'])
 const PENCIL_RUNTIME_EXPORTS_FOLDER = 'files/pencil/exports'
+const PENCIL_ARTIFACT_RESOURCE_TYPE = 'pencil_design_viewer'
+const PENCIL_ARTIFACT_SHARE_KEY = 'readonly-default'
 const PENCIL_RENDER_DRAFT_TTL_MS = 24 * 60 * 60 * 1000
 const SERVER_CJK_FONT_ALIAS_PREFIX = 'Pencil CJK'
 const SERVER_CJK_FONT_STYLE = 'Regular'
@@ -138,7 +195,9 @@ export class PencilService {
     @InjectRepository(PencilActionLog)
     private readonly logRepository: Repository<PencilActionLog>,
     @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactViewer?: PencilArtifactViewerService
   ) {}
 
   async getCoreToolDefinitions() {
@@ -424,7 +483,7 @@ export class PencilService {
     const versionLimit = Math.max(1, Math.min(input.versionLimit ?? 20, 100))
     const logLimit = Math.max(1, Math.min(input.logLimit ?? 10, 50))
     const logWhere = scopedWhere(scope, { documentId: document.id }) as object as FindOptionsWhere<PencilActionLog>
-    const [versions, logs] = await Promise.all([
+    const [versions, logs, artifactShare] = await Promise.all([
       this.versionRepository.find({
         where: scopedVersionWhere(scope, { documentId: document.id }),
         order: {
@@ -440,7 +499,11 @@ export class PencilService {
             },
             take: logLimit
           })
-        : Promise.resolve([])
+        : Promise.resolve([]),
+      this.getArtifactShareForDocument(document).catch((error) => {
+        if (isMissingArtifactError(error) || isMissingArtifactCapabilityError(error)) return null
+        throw error
+      })
     ])
     const currentVersion = versions.find((version) => version.id === document.currentVersionId) ?? versions[0] ?? null
     const requestedVersion = selectRequestedVersion({ currentVersion, versions }, input)
@@ -463,6 +526,7 @@ export class PencilService {
       graphSnapshot: input.includeSnapshot ? effectiveSnapshot : undefined,
       graph: input.includeSnapshot ? effectiveSnapshot : compactGraphSnapshotForAgent(effectiveSnapshot),
       graphSource,
+      artifactShare: artifactShare ? compactArtifactShare(document.id as string, artifactShare) : null,
       nextActions: [
         'Use the Pencil Workbench for manual review and version save.',
         'Use pencil_get_node before targeted node changes.',
@@ -710,6 +774,7 @@ export class PencilService {
 
   async updateDocumentStatus(scope: PencilScope, input: UpdatePencilDocumentStatusInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    if (input.status === 'archived') await this.archiveArtifact(scope, document)
     const current = await this.getCurrentGraphState(scope, document)
     const collaborative = await this.applyCollaborativeState(scope, document, {
       graphSnapshot: current.graphSnapshot,
@@ -741,6 +806,8 @@ export class PencilService {
     const document = await this.requireDocument(scope, documentId)
     const scopedDocumentId = document.id as string
 
+    await this.deleteArtifact(scope, document)
+
     const collaboration = this.optionalCollaboration()
     if (collaboration) {
       try {
@@ -766,6 +833,160 @@ export class PencilService {
       deletedVersionCount: versionResult.affected ?? 0,
       deletedActionLogCount: logResult.affected ?? 0
     }
+  }
+
+  async publishArtifact(
+    scope: PencilScope,
+    input: {
+      documentId: string
+      accessMode?: ArtifactAccessMode | null
+      targetMode?: ArtifactLinkVersionMode | null
+      userConfirmedPublicLink?: boolean | null
+    }
+  ) {
+    const document = await this.requireDocument(scope, input.documentId)
+    if (document.status === 'archived') throw new BadRequestException('Archived Pencil designs cannot be shared.')
+    const accessMode = normalizeArtifactAccessMode(input.accessMode)
+    if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) {
+      throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
+    }
+    if (accessMode === 'workspace_all' && !document.workspaceId) {
+      throw new BadRequestException('Workspace sharing requires a workspace-scoped Pencil design.')
+    }
+    const targetMode: ArtifactLinkVersionMode = input.targetMode === 'latest' ? 'latest' : 'version'
+    const current = await this.getCurrentGraphState(scope, document)
+    const revision = 'sequenceNumber' in current ? current.sequenceNumber : currentWorkingCopyRevision(document)
+    const graphChecksum = checksumGraphSnapshot(current.graphSnapshot) ?? createHash('sha256').update(JSON.stringify(current.graphSnapshot)).digest('hex')
+    const artifacts = this.artifacts()
+    const workspaceFiles = this.workspaceFiles()
+    let stage = 'render_viewer'
+    try {
+      const rendered = await this.artifactViewerService().render({
+        title: document.title,
+        description: document.description,
+        revision,
+        graphSnapshot: current.graphSnapshot
+      })
+      const metadata = pencilArtifactMetadata(document, revision, graphChecksum, rendered.viewerVersion, rendered.pageCount)
+
+      stage = 'artifact'
+      const artifact =
+        (await this.findPencilArtifact(input.documentId)) ??
+        (await artifacts.createArtifact({
+          source: {
+            pluginName: PENCIL_PLUGIN_NAME,
+            resourceType: PENCIL_ARTIFACT_RESOURCE_TYPE,
+            resourceId: input.documentId,
+            checksum: graphChecksum
+          },
+          kind: 'html',
+          title: document.title,
+          description: document.description,
+          scope: artifactRuntimeScope(document, scope),
+          metadata
+        }))
+
+      stage = 'artifact_version_lookup'
+      const [existingVersion] = await artifacts.listArtifactVersions({
+        artifactId: artifact.id,
+        idempotencyKey: rendered.sha256,
+        status: 'active'
+      })
+      let workspaceFileRef = existingVersion?.workspaceFileRef ?? null
+      if (!workspaceFileRef) {
+        stage = 'workspace_file'
+        const workspaceScope = artifactWorkspaceScope(document, scope)
+        const workspaceName = `${rendered.sha256}.html`
+        const file = await workspaceFiles.uploadBuffer({
+          ...workspaceScope,
+          buffer: rendered.buffer,
+          originalName: workspaceName,
+          fileName: workspaceName,
+          mimeType: rendered.mimeType,
+          size: rendered.size,
+          folder: `files/pencil/artifacts/${input.documentId}`
+        })
+        workspaceFileRef = portableArtifactReference(file, workspaceScope, workspaceName, rendered)
+      }
+
+      stage = 'artifact_version'
+      const versionResult = await artifacts.ensureArtifactVersion({
+        artifactId: artifact.id,
+        idempotencyKey: rendered.sha256,
+        workspaceFileRef,
+        mimeType: rendered.mimeType,
+        fileName: normalizeArtifactFileName(document.title),
+        title: document.title,
+        description: document.description,
+        size: rendered.size,
+        sha256: rendered.sha256,
+        sourceVersionId: `working-r${revision}`,
+        checksum: rendered.checksum,
+        setCurrent: true,
+        metadata
+      })
+
+      stage = 'artifact_share'
+      const shareResult = await artifacts.ensureArtifactShare({
+        artifactId: artifact.id,
+        shareKey: PENCIL_ARTIFACT_SHARE_KEY,
+        artifactVersionId: targetMode === 'version' ? versionResult.version.id : null,
+        versionMode: targetMode,
+        access: {
+          mode: accessMode,
+          userConfirmedPublicLink: accessMode === 'public_link' ? true : null
+        },
+        presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'interactive' },
+        metadata
+      })
+      await this.writeLog(scope, {
+        documentId: document.id,
+        versionId: document.currentVersionId,
+        action: 'artifact_published',
+        actorType: 'user',
+        message: 'Published Pencil read-only Artifact.',
+        snapshot: {
+          revision,
+          accessMode,
+          targetMode,
+          artifactId: artifact.id,
+          artifactVersionId: versionResult.version.id,
+          versionOutcome: versionResult.outcome,
+          shareOutcome: shareResult.outcome
+        }
+      })
+      return compactArtifactShare(
+        document.id as string,
+        { ...shareResult.link, version: shareResult.link.version ?? versionResult.version },
+        'Pencil Artifact share link is ready.',
+        shareResult.outcome === 'reused' && versionResult.outcome === 'reused'
+      )
+    } catch (error) {
+      await this.writeLog(scope, {
+        documentId: document.id,
+        versionId: document.currentVersionId,
+        action: 'artifact_share_failed',
+        actorType: 'user',
+        message: `Pencil Artifact publish failed at ${stage}.`,
+        snapshot: { revision, accessMode, targetMode, stage }
+      }).catch(() => undefined)
+      throw error
+    }
+  }
+
+  async revokeArtifactShare(scope: PencilScope, documentId: string) {
+    await this.requireDocument(scope, documentId)
+    const artifact = await this.findPencilArtifact(documentId)
+    if (!artifact) return { message: 'Pencil design has no active Artifact share.', documentId, revoked: false }
+    const revoked = await this.artifacts().revokeArtifactShare({ artifactId: artifact.id, shareKey: PENCIL_ARTIFACT_SHARE_KEY })
+    if (!revoked) return { message: 'Pencil design has no active Artifact share.', documentId, revoked: false }
+    await this.writeLog(scope, {
+      documentId,
+      action: 'artifact_share_revoked',
+      actorType: 'user',
+      message: 'Revoked Pencil Artifact share.'
+    })
+    return { message: 'Pencil Artifact share was revoked.', documentId, revoked: true }
   }
 
   async restoreVersion(scope: PencilScope, documentId: string, versionId: string, changeSummary?: string | null) {
@@ -1178,6 +1399,94 @@ export class PencilService {
     return this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
   }
 
+  private artifactViewerService() {
+    if (!this.artifactViewer) throw new Error('Pencil Artifact viewer is not available.')
+    return this.artifactViewer
+  }
+
+  private artifacts(): PencilArtifactsApi {
+    const capability = this.optionalArtifacts()
+    if (!capability) throw new Error('Platform Artifacts capability is not available.')
+    return capability
+  }
+
+  private optionalArtifacts() {
+    return this.runtimeCapabilities?.get(ArtifactsRuntimeCapability) as PencilArtifactsApi | undefined
+  }
+
+  private workspaceFiles() {
+    const capability = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+    if (!capability) throw new Error('Platform Workspace Files capability is not available.')
+    return capability
+  }
+
+  private async findPencilArtifact(documentId: string, includeDeleted = false) {
+    return this.artifacts().findArtifactBySource({
+      pluginName: PENCIL_PLUGIN_NAME,
+      resourceType: PENCIL_ARTIFACT_RESOURCE_TYPE,
+      resourceId: documentId,
+      includeDeleted
+    })
+  }
+
+  private async getArtifactShareForDocument(document: PencilDocument) {
+    if (!document.id) return null
+    const artifact = await this.findPencilArtifact(document.id)
+    if (!artifact) return null
+    return this.artifacts().getArtifactShare({ artifactId: artifact.id, shareKey: PENCIL_ARTIFACT_SHARE_KEY })
+  }
+
+  private async archiveArtifact(_scope: PencilScope, document: PencilDocument) {
+    if (!document.id) return
+    const artifacts = this.optionalArtifacts()
+    if (!artifacts) return
+    const artifact = await artifacts.findArtifactBySource({
+      pluginName: PENCIL_PLUGIN_NAME,
+      resourceType: PENCIL_ARTIFACT_RESOURCE_TYPE,
+      resourceId: document.id
+    })
+    if (!artifact) return
+    await artifacts.revokeArtifactShare({ artifactId: artifact.id, shareKey: PENCIL_ARTIFACT_SHARE_KEY })
+    try {
+      await artifacts.archiveArtifact(artifact.id)
+    } catch (error) {
+      if (!isMissingArtifactError(error)) throw error
+    }
+  }
+
+  private async deleteArtifact(scope: PencilScope, document: PencilDocument) {
+    if (!document.id) return
+    const artifacts = this.optionalArtifacts()
+    if (!artifacts) return
+    const artifact = await artifacts.findArtifactBySource({
+      pluginName: PENCIL_PLUGIN_NAME,
+      resourceType: PENCIL_ARTIFACT_RESOURCE_TYPE,
+      resourceId: document.id,
+      includeDeleted: true
+    })
+    if (artifact) {
+      try {
+        await artifacts.revokeArtifactShare({ artifactId: artifact.id, shareKey: PENCIL_ARTIFACT_SHARE_KEY })
+      } catch (error) {
+        if (!isMissingArtifactError(error)) throw error
+      }
+      try {
+        await artifacts.deleteArtifact(artifact.id)
+      } catch (error) {
+        if (!isMissingArtifactError(error)) throw error
+      }
+    }
+    const workspaceScope = artifactWorkspaceScope(document, scope)
+    try {
+      await this.workspaceFiles().deleteFile({
+        ...workspaceScope,
+        filePath: `files/pencil/artifacts/${document.id}`
+      })
+    } catch (error) {
+      if (!isMissingArtifactError(error)) throw error
+    }
+  }
+
   /** Replace graph/document state through a Yjs delta instead of overwriting the business entity. */
   private async applyCollaborativeState(
     scope: PencilScope,
@@ -1511,6 +1820,137 @@ function scopedVersionWhere(
     ...(xpertId ? { assistantId: xpertId } : {}),
     ...extra
   }
+}
+
+type PencilArtifactWorkspaceScope = WorkspaceFileScope & {
+  catalog: 'projects' | 'xperts'
+  scopeId: string
+}
+
+function artifactWorkspaceScope(document: PencilDocument, scope: PencilScope): PencilArtifactWorkspaceScope {
+  const tenantId = document.tenantId ?? scope.tenantId
+  const userId = normalizeRequired(scope.userId ?? document.createdById, 'Pencil Artifact publishing requires a user-scoped operation.')
+  const projectId = document.projectId ?? scope.projectId ?? null
+  const xpertId = document.assistantId ?? scopeXpertId(scope) ?? null
+  const catalog = document.workspaceCatalog ?? (projectId ? 'projects' : 'xperts')
+  const scopeId = document.workspaceScopeId ?? (catalog === 'projects' ? projectId : xpertId)
+  if (!scopeId) throw new BadRequestException('Pencil Artifact publishing requires a project or Xpert workspace scope.')
+  return {
+    tenantId,
+    userId,
+    catalog,
+    scopeId,
+    projectId: catalog === 'projects' ? scopeId : null,
+    xpertId: catalog === 'xperts' ? scopeId : null,
+    isolateByUser: catalog === 'xperts' ? false : null
+  }
+}
+
+function portableArtifactReference(
+  file: WorkspaceFile,
+  scope: PencilArtifactWorkspaceScope,
+  originalName: string,
+  rendered: { mimeType: string; size: number }
+): WorkspacePortableFileReference {
+  return {
+    source: WORKSPACE_FILES_SOURCE,
+    ...scope,
+    filePath: file.filePath,
+    workspacePath: file.workspacePath,
+    originalName,
+    name: file.name,
+    mimeType: file.mimeType ?? rendered.mimeType,
+    size: file.size ?? rendered.size
+  }
+}
+
+function artifactRuntimeScope(document: PencilDocument, scope: PencilScope) {
+  return {
+    tenantId: document.tenantId ?? scope.tenantId,
+    organizationId: document.organizationId ?? scope.organizationId ?? null,
+    userId: scope.userId ?? document.createdById ?? null,
+    workspaceId: document.workspaceId ?? scope.workspaceId ?? null,
+    projectId: document.projectId ?? scope.projectId ?? null,
+    xpertId: document.assistantId ?? scopeXpertId(scope) ?? null
+  }
+}
+
+function pencilArtifactMetadata(
+  document: PencilDocument,
+  revision: number,
+  graphChecksum: string,
+  viewerVersion: number,
+  pageCount: number
+) {
+  return {
+    documentId: document.id,
+    currentVersionId: document.currentVersionId ?? null,
+    currentVersionNumber: document.currentVersionNumber ?? 0,
+    workingCopyRevision: revision,
+    graphChecksum,
+    viewerVersion,
+    pageCount
+  }
+}
+
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined): ArtifactAccessMode {
+  const normalized = value ?? 'public_link'
+  if (normalized === 'public_link' || normalized === 'organization_all' || normalized === 'workspace_all') return normalized
+  throw new BadRequestException(`Unsupported Pencil Artifact access mode: ${normalized}`)
+}
+
+function normalizeArtifactFileName(value: string | null | undefined) {
+  const base = (normalizeOptional(value) ?? 'pencil-design')
+    .replace(/\.html?$/i, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'pencil-design'
+  return `${base}.html`
+}
+
+function compactArtifactShare(
+  documentId: string,
+  link: PencilArtifactLinkRecord,
+  message?: string,
+  reused?: boolean
+) {
+  const publicUrl = normalizeArtifactUrl(link.publicUrl)
+  const revision = readMetadataNumber(link.version?.metadata, 'workingCopyRevision') ?? readMetadataNumber(link.metadata, 'workingCopyRevision')
+  return {
+    ...(message ? { message } : {}),
+    documentId,
+    revision,
+    artifactId: link.artifactId,
+    artifactVersionId: link.version?.id ?? link.artifactVersionId,
+    artifactLinkId: link.id,
+    targetMode: link.versionMode,
+    accessMode: link.accessMode,
+    allowDownload: link.allowDownload,
+    shareUrl: publicUrl,
+    publicUrl,
+    sharedAt: link.createdAt,
+    status: link.status,
+    reused: reused ?? false
+  }
+}
+
+function readMetadataNumber(metadata: Record<string, unknown> | null | undefined, key: string) {
+  const value = metadata?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function normalizeArtifactUrl(value: string | null | undefined) {
+  const normalized = value?.trim()
+  return normalized || undefined
+}
+
+function isMissingArtifactError(error: unknown) {
+  return error instanceof Error && /not found|already (?:deleted|revoked)|no longer exists/i.test(error.message)
+}
+
+function isMissingArtifactCapabilityError(error: unknown) {
+  return error instanceof Error && /Artifacts capability is not available/i.test(error.message)
 }
 
 /** Resolves the platform Xpert id while retaining the persisted assistantId compatibility field. */

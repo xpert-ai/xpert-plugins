@@ -13,7 +13,11 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     const service = {
       createAgentCollabActor: jest.fn().mockReturnValue(actor),
       publishAgentAwareness: jest.fn().mockResolvedValue({}),
-      getWorkbenchAgentContext: jest.fn().mockResolvedValue(options.currentContext ?? null)
+      getWorkbenchAgentContext: jest.fn().mockResolvedValue(options.currentContext ?? null),
+      shareDeckHtmlExport: jest.fn().mockResolvedValue({
+        exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+        publicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
+      })
     }
     const middleware = new PresentationStudioMiddleware(
       service as never,
@@ -166,6 +170,42 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     expect(inspectTool?.description).toContain('HARD LIMIT')
     expect(inspectTool?.description).toContain('sequential batches of at most 8')
     expect(addSlideTool?.description).toContain('array items may contain only allowedKeys')
+  })
+
+  it('returns only the share URL when an HTML share is ready', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    const shareTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_share_html')
+    const deckId = '97aab7a0-f241-49a8-b52a-88cb6eb84c8e'
+
+    await expect(shareTool?.invoke({ deckId })).resolves.toEqual({
+      shareUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
+    })
+    expect(service.shareDeckHtmlExport).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1'
+    }), {
+      deckId,
+      versionMode: 'latest',
+      accessMode: 'workspace_all',
+      allowDownload: true,
+      actor: 'agent',
+      preserveExistingLink: true
+    })
+  })
+
+  it('returns only pending status and export id while preparing an HTML share', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    service.shareDeckHtmlExport.mockResolvedValueOnce({
+      exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      sharePending: true
+    })
+    const shareTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_share_html')
+
+    await expect(shareTool?.invoke({ deckId: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e' })).resolves.toEqual({
+      status: 'pending',
+      exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d'
+    })
   })
 
   it('dispatches changeSummary as running and successful tool timeline messages', async () => {

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   PENCIL_AGENT_CAPABILITY,
+  PENCIL_ARTIFACT_SHARING_CAPABILITY,
   PENCIL_FEATURE,
   PENCIL_ICON,
   PENCIL_MIDDLEWARE_NAME,
@@ -46,6 +47,12 @@ const pencilMarketplaceOperations = [
     displayName: 'Review Pencil Workbench',
     description: 'Open the Pencil Workbench to inspect, edit, version, restore, and archive design documents.',
     access: 'read' as const
+  },
+  {
+    name: 'share-pencil-designs',
+    displayName: 'Share Pencil designs',
+    description: 'Publish and revoke read-only Artifact links from the trusted Pencil Workbench.',
+    access: 'write' as const
   }
 ]
 
@@ -59,7 +66,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
-        capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY],
+        capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
           contents: [
             {
@@ -112,7 +119,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       },
       xpert: {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
-        capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY],
+        capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
           contents: [
             {

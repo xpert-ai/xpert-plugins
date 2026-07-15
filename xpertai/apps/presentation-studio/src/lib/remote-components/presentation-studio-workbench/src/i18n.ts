@@ -2,6 +2,7 @@ const dictionary = {
   en: {
     title: 'Presentation Studio', deckActions: 'Deck', newDeck: 'New deck', refresh: 'Refresh', goal: 'Goal', theme: 'Theme', pages: 'Pages', create: 'Create',
     saveVersion: 'Save version', upload: 'Upload media', exportHtml: 'Export HTML', exportPdf: 'Export PDF', exportPptx: 'Export PPTX',
+    browserExportUnavailable: 'PDF/PPTX export is temporarily unavailable:',
     versions: 'Versions', exports: 'Exports', assets: 'Assets', noDeck: 'Create or select a deck to begin.', collaboration: 'Collaboration',
     connected: 'Connected', connecting: 'Connecting', disconnected: 'Disconnected', loading: 'Loading preview…', restore: 'Restore', open: 'Open',
     draft: 'Draft', error: 'Operation failed', rename: 'Rename', archive: 'Archive', markReviewed: 'Mark reviewed', cancel: 'Cancel', renamePrompt: 'New presentation title', unsaved: 'Unsaved changes', collaborators: 'collaborators',
@@ -34,6 +35,7 @@ const dictionary = {
   zh: {
     title: '演示文稿工作室', deckActions: '文稿', newDeck: '新建演示稿', refresh: '刷新', goal: '目标', theme: '主题', pages: '页数', create: '创建',
     saveVersion: '保存版本', upload: '上传媒体', exportHtml: '导出 HTML', exportPdf: '导出 PDF', exportPptx: '导出 PPTX',
+    browserExportUnavailable: 'PDF/PPTX 导出暂不可用：',
     versions: '版本', exports: '导出', assets: '素材', noDeck: '新建或选择一个演示稿开始编辑。', collaboration: '协作',
     connected: '已连接', connecting: '连接中', disconnected: '未连接', loading: '正在生成预览…', restore: '恢复', open: '打开',
     draft: '草稿', error: '操作失败', rename: '重命名', archive: '归档', markReviewed: '标记已审阅', cancel: '取消', renamePrompt: '新的演示稿标题', unsaved: '有未保存更改', collaborators: '位协作者',

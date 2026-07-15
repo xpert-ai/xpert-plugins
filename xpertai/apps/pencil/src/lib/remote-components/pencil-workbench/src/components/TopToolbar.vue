@@ -7,10 +7,6 @@ import {
   AvatarGroupCount,
   AvatarImage,
   Badge,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -29,7 +25,7 @@ type ToolbarLabels = {
   refresh: string
   save: string
   saveVersion: string
-  export: string
+  share: string
   review: string
   archive: string
   deleteDocument: string
@@ -55,15 +51,12 @@ withDefaults(
     busy: boolean
     dirty: boolean
     canUseDocument: boolean
-    exportFormat: string
-    exportFormats: string[]
     statusLabel: string
     connectionState: 'connecting' | 'connected' | 'disconnected'
     collaborators: ToolbarCollaborator[]
     labels: ToolbarLabels
   }>(),
   {
-    exportFormats: () => ['fig', 'png', 'jpg', 'webp', 'svg', 'pdf', 'jsx'],
     collaborators: () => []
   }
 )
@@ -75,8 +68,7 @@ const emit = defineEmits<{
   refresh: []
   save: []
   saveVersion: []
-  'update:exportFormat': [format: string]
-  export: []
+  share: []
   review: []
   archive: []
   deleteDocument: []
@@ -91,9 +83,6 @@ function handleImport(event: Event) {
   input.value = ''
 }
 
-function updateExportFormat(value: string | number | bigint | object | null) {
-  if (typeof value === 'string') emit('update:exportFormat', value)
-}
 </script>
 
 <template>
@@ -119,27 +108,19 @@ function updateExportFormat(value: string | number | bigint | object | null) {
         :create-label="labels.create"
         :blank-label="labels.blankDesign"
         :sample-label="labels.sample"
+        :save-version-label="labels.saveVersion"
+        :can-save-version="canUseDocument"
         @create-blank="emit('createBlank')"
         @create-sample="emit('createSample')"
+        @save-version="emit('saveVersion')"
       />
       <input ref="importInput" class="pencil-file-input" type="file" accept=".fig,.pen" @change="handleImport" />
       <ToolbarButton icon="upload" :label="labels.importFile" :disabled="busy" @click="importInput?.click()" />
       <span class="pencil-toolbar-divider" />
       <ToolbarButton icon="refresh" :label="labels.refresh" :disabled="busy" @click="emit('refresh')" />
       <ToolbarButton icon="save" :label="labels.save" :disabled="busy || !canUseDocument" @click="emit('save')" />
-      <ToolbarButton icon="history" :label="labels.saveVersion" :disabled="busy || !canUseDocument" @click="emit('saveVersion')" />
       <span class="pencil-toolbar-divider" />
-      <Select :model-value="exportFormat" @update:model-value="updateExportFormat">
-        <SelectTrigger class="pencil-format-select" :aria-label="labels.export">
-          <span>{{ exportFormat }}</span>
-        </SelectTrigger>
-        <SelectContent class="pencil-shadcn-select-content" position="popper">
-          <SelectItem v-for="format in exportFormats" :key="format" :value="format">
-            {{ format }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <ToolbarButton icon="download" :label="labels.export" :disabled="busy || !canUseDocument" @click="emit('export')" />
+      <ToolbarButton icon="share" :label="labels.share" :disabled="busy || !canUseDocument" @click="emit('share')" />
       <span class="pencil-toolbar-divider" />
       <ToolbarButton icon="check" :label="labels.review" :disabled="busy || !canUseDocument" @click="emit('review')" />
       <ToolbarButton icon="archive" :label="labels.archive" :disabled="busy || !canUseDocument" @click="emit('archive')" />

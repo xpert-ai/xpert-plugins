@@ -89,6 +89,7 @@ const requestExportSchema = z.object({
   deckId: z.string().uuid(), versionId: z.string().uuid().optional(), kind: exportKindSchema, fileName: z.string().optional(), expectedRevision: z.number().int().min(0).optional()
 })
 const getExportSchema = z.object({ exportId: z.string().uuid() })
+const shareHtmlSchema = z.object({ deckId: z.string().uuid() })
 const updateStatusSchema = z.object({ deckId: z.string().uuid(), status: statusSchema, reason: z.string().optional() })
 const failureSchema = z.object({
   deckId: z.string().uuid().optional(), operation: z.string().min(1), errorMessage: z.string().min(1), recoverable: z.boolean().optional(), evidence: jsonValueSchema.optional()
@@ -120,6 +121,7 @@ const TOOL_OPERATION_LABELS: Record<string, string> = {
   presentation_finalize_deck: 'Saving version',
   presentation_request_export: 'Requesting export',
   presentation_get_export: 'Checking export',
+  presentation_share_html: 'Sharing presentation',
   presentation_update_status: 'Updating status'
 }
 
@@ -215,6 +217,27 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         }, {
           name: 'presentation_get_export', description: toolDescription(currentDeckHint, 'Get export progress and return the generated workspace file artifact when it succeeds.'),
           schema: getExportSchema, responseFormat: 'content_and_artifact', verboseParsingErrors: true
+        }),
+        tool(async (input) => {
+          const result = await this.service.shareDeckHtmlExport(scope, {
+            deckId: input.deckId,
+            versionMode: 'latest',
+            accessMode: 'workspace_all',
+            allowDownload: true,
+            actor: 'agent',
+            preserveExistingLink: true
+          })
+          const shareUrl = 'publicUrl' in result && typeof result.publicUrl === 'string'
+            ? result.publicUrl
+            : 'shareUrl' in result && typeof result.shareUrl === 'string'
+              ? result.shareUrl
+              : undefined
+          return shareUrl ? { shareUrl } : { status: 'pending' as const, exportId: result.exportId }
+        }, {
+          name: 'presentation_share_html',
+          description: toolDescription(currentDeckHint, 'Reuse an existing valid HTML share link or create a workspace-authorized link only when the user explicitly asks to share the presentation. This tool never creates anonymous public access. If the result is pending, poll presentation_get_export with exportId and call this tool again after the export succeeds. Returns only shareUrl when ready.'),
+          schema: shareHtmlSchema,
+          verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.updateStatus(scope, input.deckId, input.status, input.reason)), {
           name: 'presentation_update_status', description: toolDescription(currentDeckHint, 'Update a deck to draft, reviewed, archived, or failed after user confirmation.'), schema: updateStatusSchema, verboseParsingErrors: true

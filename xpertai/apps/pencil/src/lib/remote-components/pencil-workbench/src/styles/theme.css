@@ -1826,6 +1826,92 @@ input[type='number']::-webkit-outer-spin-button {
   white-space: nowrap;
 }
 
+.pencil-share-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.pencil-share-form {
+  display: grid;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.pencil-share-form > label {
+  display: grid;
+  gap: 6px;
+  color: var(--pencil-muted-foreground);
+  font-size: 12px;
+}
+
+.pencil-share-select {
+  width: 100%;
+  color: var(--pencil-foreground);
+}
+
+.pencil-share-confirm {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  color: var(--pencil-foreground) !important;
+  line-height: 1.45;
+}
+
+.pencil-share-confirm input {
+  margin-top: 2px;
+}
+
+.pencil-share-export {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.pencil-share-export > label {
+  display: grid;
+  gap: 6px;
+  color: var(--pencil-muted-foreground);
+  font-size: 12px;
+}
+
+.pencil-share-export .ui-button {
+  gap: 7px;
+  min-width: 104px;
+}
+
+.pencil-share-warning {
+  margin: -8px 0 0;
+  color: var(--pencil-destructive);
+  font-size: 12px;
+}
+
+.pencil-share-current {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--pencil-border);
+  border-radius: 8px;
+  background: var(--pencil-muted);
+  font-size: 12px;
+}
+
+.pencil-share-current code {
+  overflow: hidden;
+  color: var(--pencil-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pencil-share-current p {
+  margin: 0;
+  color: var(--pencil-muted-foreground);
+}
+
+.pencil-share-current > div {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 1280px) {
   .pencil-layout {
     grid-template-columns: minmax(230px, 276px) minmax(360px, 1fr) minmax(292px, 340px);

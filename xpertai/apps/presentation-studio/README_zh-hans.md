@@ -77,7 +77,11 @@
 
 HTML 导出可以通过 Xpert Artifacts 发布。公开分享必须由用户显式触发；分享出去的只有演示文稿产物，不会暴露对话内容、工作空间、协作 session 或平台凭证。
 
-PDF 和 PPTX 需要 Xpert 部署环境提供受支持的 Chrome 或 Chromium；没有浏览器运行时仍可使用 HTML 导出。
+生产环境中的 PDF 和 PPTX 会进入 Xpert 的 Sandbox 浏览器任务池，并在短生命周期 Job Sandbox 中执行。Xpert 统一 Browser Runtime 提供 Playwright、Chromium、字体和通用 Runner Host；插件只发布版本化的 `presentation.export` Sandbox Action Bundle。Xpert 自动注册 `browser/playwright-1.61/v1`。PDF/PPTX 能力探测默认开启；Action、Runtime artifact、Provider 或 Worker 不可用时显示可操作的 warning，HTML 仍可独立使用。
+
+OSS 基础部署有意不启动 Sandbox Runtime Worker，也不挂载 Docker socket。兼容 Provider 发行物可以提供自己的 Worker 部署；Xpert Pro 会随 Docker Provider 打包 Worker overlay 和不可变 Runtime artifact lock，终端用户无需配置 Provider、Profile、Image、`CHROME_PATH` 或功能开关。
+
+`exportBackend: local` 与 `chromiumExecutablePath`/`CHROME_PATH` 仅作为已废弃的开发、测试兼容配置保留。生产环境始终强制使用 `exportBackend: sandbox-job`，不会在 API 容器内启动或下载 Chromium。
 
 ## 典型使用流程
 

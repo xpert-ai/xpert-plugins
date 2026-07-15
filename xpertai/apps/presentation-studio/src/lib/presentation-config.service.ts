@@ -4,6 +4,7 @@ import { PRESENTATION_STUDIO_PLUGIN_NAME } from './constants.js'
 import type { PresentationStudioConfig } from './types.js'
 
 export const PRESENTATION_CONFIG_DEFAULTS: PresentationStudioConfig = {
+  exportBackend: 'sandbox-job',
   exportConcurrency: 1,
   maxPageCount: 30,
   maxAssetBytes: 100 * 1024 * 1024,
@@ -24,9 +25,11 @@ export class PresentationConfigService {
     const value = this.resolver?.resolve<PresentationStudioConfig>(PRESENTATION_STUDIO_PLUGIN_NAME, {
       defaults: PRESENTATION_CONFIG_DEFAULTS
     }) ?? PRESENTATION_CONFIG_DEFAULTS
+    const requestedBackend = value.exportBackend === 'local' ? 'local' : 'sandbox-job'
     return {
       ...PRESENTATION_CONFIG_DEFAULTS,
       ...value,
+      exportBackend: process.env.NODE_ENV === 'production' ? 'sandbox-job' : requestedBackend,
       exportConcurrency: clampInteger(value.exportConcurrency, 1, 4, 1),
       maxPageCount: clampInteger(value.maxPageCount, 3, 30, 30)
     }

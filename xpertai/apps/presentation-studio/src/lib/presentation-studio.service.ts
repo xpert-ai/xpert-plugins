@@ -5,7 +5,9 @@ import { extname } from 'node:path'
 import {
   ArtifactsRuntimeCapability,
   CollaborationRuntimeCapability,
+  isSandboxJobRuntimeError,
   MANAGED_QUEUE_SERVICE_TOKEN,
+  SandboxJobsRuntimeCapability,
   SYSTEM_GLOBAL_SCOPE,
   WorkspaceFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
@@ -17,6 +19,8 @@ import {
   type CollaborationPresencePatch,
   type CollaborationProviderContext,
   type ManagedQueueService,
+  type SandboxJobErrorCode,
+  type SandboxJobsApi,
   type WorkspaceFile,
   type WorkspaceFilesApi,
   type WorkspacePortableFileReference,
@@ -105,6 +109,7 @@ interface PatchSlideInput {
 
 const WORKING_EXPORT_SNAPSHOT_KEY = '__presentationWorkingSnapshot'
 const WORKBENCH_AGENT_CONTEXT_TTL_SECONDS = 30 * 60
+/** Business façade for deck state, collaboration, versioning, exports, and sharing. */
 @Injectable()
 export class PresentationStudioService {
   private readonly workbenchAgentContexts = new Map<string, { value: PresentationWorkbenchAgentContext; expiresAt: number }>()
@@ -184,23 +189,26 @@ export class PresentationStudioService {
       items: filtered.map((item) => compactDeck(item)),
       total: search ? filtered.length : total,
       page,
-      pageSize
+      pageSize,
+      exportCapabilities: await this.renderer.getExportCapabilities()
     }
   }
 
   async getDeck(scope: PresentationScope, deckId: string, includeSlides = true) {
     const deck = await this.requireDeck(scope, deckId)
-    const [versions, exportRecords, assets] = await Promise.all([
+    const [versions, exportRecords, assets, exportCapabilities] = await Promise.all([
       this.versionRepository.find({ where: scopedVersionWhere(scope, deckId), order: { versionNumber: 'DESC' }, take: 20 }),
       this.exportRepository.find({ where: scopedExportWhere(scope, { deckId }), order: { createdAt: 'DESC' }, take: 20 }),
-      this.assetRepository.find({ where: scopedAssetWhere(scope, deckId), order: { createdAt: 'DESC' }, take: 100 })
+      this.assetRepository.find({ where: scopedAssetWhere(scope, deckId), order: { createdAt: 'DESC' }, take: 100 }),
+      this.renderer.getExportCapabilities()
     ])
     const exports = await this.reconcileExportRecords(scope, exportRecords)
     return {
       item: { ...compactDeck(deck), ...(includeSlides ? { deckSpec: deck.deckSpec, editorState: deck.editorState } : {}) },
       versions: versions.map(compactVersion),
       exports: exports.map(compactExport),
-      assets: assets.map(compactAsset)
+      assets: assets.map(compactAsset),
+      exportCapabilities
     }
   }
 
@@ -462,9 +470,21 @@ export class PresentationStudioService {
     return { message: 'Presentation failure recorded.', deckId: input.deckId, logId: log.id }
   }
 
+  /**
+   * Rejects unavailable browser formats before creating business state, then
+   * queues only the Export id in the format-specific execution pool.
+   */
   async requestExport(scope: PresentationScope, input: { deckId: string; versionId?: string; kind: PresentationExportKind; fileName?: string; expectedRevision?: number }) {
     const deck = await this.requireCanonicalDeck(scope, input.deckId)
     const kind = requireExportKind(input.kind)
+    if (kind !== 'html') {
+      const capability = (await this.renderer.getExportCapabilities())[kind]
+      if (!capability.available) {
+        throw new BadRequestException(
+          capability.message ?? `${kind.toUpperCase()} export is unavailable: ${capability.reason ?? 'unknown reason'}.`
+        )
+      }
+    }
     let version: PresentationDeckVersion
     let workingRevision: number | undefined
     if (input.versionId) {
@@ -487,7 +507,7 @@ export class PresentationStudioService {
     const exportId = requireId(exportRecord.id, 'Export id is required.')
     const jobId = `presentation-studio-${exportId}`
     const payload: PresentationExportJobData = {
-      exportId, deckId: deck.id as string, versionId: version.id as string, checksum: version.checksum,
+      exportId,
       tenantId: optionalText(scope.tenantId), organizationId: optionalText(scope.organizationId)
     }
     try {
@@ -496,6 +516,7 @@ export class PresentationStudioService {
         payload, tenantId: scope.tenantId, organizationId: scope.organizationId,
         scopeKey: SYSTEM_GLOBAL_SCOPE,
         userId: scope.userId, jobId, attempts: 3, backoffMs: { type: 'exponential', delay: 1500 },
+        executionPool: exportExecutionPool(kind),
         removeOnComplete: { age: 24 * 60 * 60, count: 100 }, removeOnFail: { age: 7 * 24 * 60 * 60, count: 100 }
       })
       exportRecord.jobId = queued.jobId
@@ -528,6 +549,8 @@ export class PresentationStudioService {
       versionMode?: ArtifactLinkVersionMode | null
       accessMode?: ArtifactAccessMode | null
       allowDownload?: boolean | null
+      actor?: 'agent' | 'workbench' | null
+      preserveExistingLink?: boolean | null
     }
   ) {
     const item = await this.requireScopedExport(scope, input.exportId)
@@ -542,8 +565,10 @@ export class PresentationStudioService {
       item.artifactLinkId &&
       item.artifactPublicUrl &&
       isCurrentArtifactPublicUrl(item.artifactPublicUrl) &&
-      item.artifactLinkVersionMode === versionMode &&
-      item.artifactLinkAccessMode === accessMode
+      (input.preserveExistingLink === true || (
+        item.artifactLinkVersionMode === versionMode &&
+        item.artifactLinkAccessMode === accessMode
+      ))
     ) {
       return {
         message: 'Presentation HTML share link is ready.',
@@ -552,8 +577,8 @@ export class PresentationStudioService {
         artifactId,
         artifactVersionId,
         artifactLinkId: item.artifactLinkId,
-        versionMode,
-        accessMode
+        versionMode: item.artifactLinkVersionMode ?? versionMode,
+        accessMode: item.artifactLinkAccessMode ?? accessMode
       }
     }
     if (item.artifactLinkId) await this.revokeArtifactLinkBestEffort(item.artifactLinkId)
@@ -583,7 +608,7 @@ export class PresentationStudioService {
       versionId: item.versionId,
       exportId: requireId(item.id, 'Export id is required for share logging.'),
       action: 'export_shared',
-      actor: 'workbench',
+      actor: input.actor ?? 'workbench',
       message: 'Shared HTML export as an Artifact link.',
       summary: { artifactId, artifactVersionId, artifactLinkId: link.id, versionMode: link.versionMode, accessMode: link.accessMode }
     })
@@ -607,6 +632,8 @@ export class PresentationStudioService {
       versionMode?: ArtifactLinkVersionMode | null
       accessMode?: ArtifactAccessMode | null
       allowDownload?: boolean | null
+      actor?: 'agent' | 'workbench' | null
+      preserveExistingLink?: boolean | null
     }
   ) {
     const deck = await this.requireDeck(scope, input.deckId)
@@ -622,7 +649,9 @@ export class PresentationStudioService {
         exportId: requireId(completed.id, 'Export id is required.'),
         versionMode: input.versionMode,
         accessMode: input.accessMode,
-        allowDownload: input.allowDownload
+        allowDownload: input.allowDownload,
+        actor: input.actor,
+        preserveExistingLink: input.preserveExistingLink
       })
     }
 
@@ -660,7 +689,10 @@ export class PresentationStudioService {
   async cancelExport(scope: PresentationScope, exportId: string) {
     const item = await this.requireScopedExport(scope, exportId)
     if (!item.jobId || !this.queue) throw new BadRequestException('Presentation export cannot be cancelled.')
-    const result = await this.queue.cancel({ jobId: item.jobId })
+    if (item.sandboxJobId) {
+      await this.sandboxJobs()?.cancel({ jobId: item.sandboxJobId }).catch(() => undefined)
+    }
+    const result = await this.queue.cancel({ jobId: item.jobId, executionPool: exportExecutionPool(item.kind) })
     if (result.success) {
       item.status = 'cancelled'; item.stage = 'cancelled'; await this.exportRepository.save(item)
     } else if (result.reason === 'not_found' && (item.status === 'queued' || item.status === 'running')) {
@@ -674,7 +706,8 @@ export class PresentationStudioService {
     const item = await this.requireScopedExport(scope, exportId)
     if ((item.status === 'queued' || item.status === 'running') && item.jobId && this.queue) {
       try {
-        await this.queue.cancel({ jobId: item.jobId })
+        if (item.sandboxJobId) await this.sandboxJobs()?.cancel({ jobId: item.sandboxJobId }).catch(() => undefined)
+        await this.queue.cancel({ jobId: item.jobId, executionPool: exportExecutionPool(item.kind) })
       } catch {
         // Queue cleanup is best-effort; the export row deletion is authoritative for the Workbench.
       }
@@ -697,22 +730,59 @@ export class PresentationStudioService {
     const scope: PresentationScope = { tenantId: data.tenantId, organizationId: data.organizationId }
     const item = await this.exportRepository.findOne({ where: scopedExportWhere(scope, { id: data.exportId }) })
     if (!item || item.status === 'cancelled' || item.status === 'succeeded') return
-    if (item.deckId !== data.deckId || item.versionId !== data.versionId) throw new Error('Presentation export job identity mismatch.')
-    const deck = await this.requireDeck(scope, data.deckId)
+    const deckId = requireId(item.deckId, 'Presentation export deck id is required.')
+    const versionId = requireId(item.versionId, 'Presentation export version id is required.')
+    const checksum = requireText(item.checksum, 'Presentation export checksum is required.')
+    const deck = await this.requireDeck(scope, deckId)
     const version = deserializeWorkingExportVersion(item.report, this.versionRepository)
-      ?? await this.requireVersion(scope, data.deckId, data.versionId)
-    if (version.checksum !== data.checksum || item.checksum !== data.checksum) throw new Error('Presentation export checksum mismatch.')
+      ?? await this.requireVersion(scope, deckId, versionId)
+    if (version.checksum !== checksum) throw new Error('Presentation export checksum mismatch.')
     item.status = 'running'; item.stage = 'rendering'; item.progress = 10; await this.exportRepository.save(item)
     let rendered
     try {
-      const assets = await this.assetRepository.find({ where: scopedAssetWhere(scope, data.deckId) })
+      const assets = await this.assetRepository.find({ where: scopedAssetWhere(scope, deckId) })
+      const workspaceScope = explicitWorkspaceScope(deck, { ...scope, userId: item.userId })
+      if (item.kind !== 'html' && this.config.get().exportBackend === 'sandbox-job') {
+        item.sandboxJobId = data.exportId
+        item.stage = 'sandbox-starting'; item.progress = 20; await this.exportRepository.save(item)
+        const tenantId = optionalText(deck.tenantId) ?? optionalText(scope.tenantId)
+        if (!tenantId) throw new Error('Presentation Sandbox Job requires a tenant id.')
+        const result = await this.renderer.exportVersionInSandbox({
+          exportId: data.exportId,
+          checksum,
+          version,
+          assets,
+          kind: item.kind,
+          title: deck.title,
+          fileName: item.fileName ?? normalizeExportName(deck.title, item.kind),
+          tenantId,
+          organizationId: deck.organizationId ?? scope.organizationId,
+          userId: item.userId,
+          destination: { ...workspaceScope, folder: `files/presentation-studio/${deck.id}/exports` }
+        })
+        if (await this.exportWasCancelled(scope, data.exportId)) return
+        item.sandboxJobId = result.jobId
+        item.status = 'succeeded'; item.stage = 'complete'; item.progress = 100
+        item.mimeType = result.output.mimeType; item.size = result.output.size
+        item.fileReference = {
+          reference: result.output.reference,
+          fileName: result.output.originalName,
+          mimeType: result.output.mimeType,
+          size: result.output.size,
+          sha256: result.output.sha256,
+          fileUrl: result.output.fileUrl,
+          workspacePath: result.output.workspacePath
+        }
+        item.report = result.report
+        await this.exportRepository.save(item)
+        return
+      }
       rendered = await this.renderer.renderVersion(version, assets)
       if (await this.exportWasCancelled(scope, data.exportId)) return
       item.stage = 'exporting'; item.progress = 55; await this.exportRepository.save(item)
       const output = await this.renderer.exportRendered(rendered, item.kind, deck.title)
       if (await this.exportWasCancelled(scope, data.exportId)) return
       item.stage = 'uploading'; item.progress = 85; await this.exportRepository.save(item)
-      const workspaceScope = explicitWorkspaceScope(deck, { ...scope, userId: item.userId })
       const uploaded = await this.workspaceFiles().uploadBuffer({
         ...workspaceScope, buffer: output.buffer, originalName: item.fileName ?? normalizeExportName(deck.title, item.kind),
         mimeType: output.mimeType, size: output.buffer.byteLength, folder: `files/presentation-studio/${deck.id}/exports`
@@ -727,8 +797,10 @@ export class PresentationStudioService {
       await this.tryEnsureHtmlExportArtifactVersion(scope, item, deck)
     } catch (error) {
       if (await this.exportWasCancelled(scope, data.exportId)) return
-      item.status = 'failed'; item.stage = 'failed'; item.errorMessage = errorMessage(error); await this.exportRepository.save(item)
-      throw error
+      const code = isSandboxJobRuntimeError(error) ? error.code : null
+      item.status = code === 'SANDBOX_CANCELLED' ? 'cancelled' : 'failed'
+      item.stage = 'failed'; item.errorMessage = errorMessage(error); await this.exportRepository.save(item)
+      if (!code || isRetryableSandboxError(code)) throw error
     } finally {
       if (rendered) await this.renderer.cleanup(rendered.directory)
     }
@@ -747,7 +819,7 @@ export class PresentationStudioService {
     if (!this.queue || !item.jobId || (item.status !== 'queued' && item.status !== 'running')) return item
     let job
     try {
-      job = await this.queue.getJob({ jobId: item.jobId })
+      job = await this.queue.getJob({ jobId: item.jobId, executionPool: exportExecutionPool(item.kind) })
     } catch {
       return item
     }
@@ -975,6 +1047,10 @@ export class PresentationStudioService {
     const capability = this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
     if (!capability) throw new Error('Platform collaboration capability is not available.')
     return capability
+  }
+
+  private sandboxJobs(): SandboxJobsApi | undefined {
+    return this.runtimeCapabilities?.get(SandboxJobsRuntimeCapability)
   }
 
   private async createVersion(scope: PresentationScope, deck: PresentationDeck, source: PresentationVersionSource, changeSummary?: string) {
@@ -1403,7 +1479,7 @@ function compactAsset(asset: PresentationAsset) { return { id: asset.id, role: a
 function compactExport(item: PresentationExport) {
   const workingRevision = item.versionId.startsWith('working-r') ? Number(item.versionId.slice('working-r'.length)) : undefined
   return { exportId: item.id, deckId: item.deckId, versionId: workingRevision === undefined ? item.versionId : null,
-    ...(workingRevision === undefined || !Number.isFinite(workingRevision) ? {} : { workingRevision }), kind: item.kind, status: item.status, jobId: item.jobId,
+    ...(workingRevision === undefined || !Number.isFinite(workingRevision) ? {} : { workingRevision }), kind: item.kind, status: item.status, jobId: item.jobId, sandboxJobId: item.sandboxJobId,
     progress: item.progress, stage: item.stage, fileName: item.fileName, mimeType: item.mimeType, size: item.size,
     fileRef: item.fileReference?.reference, fileUrl: item.fileReference?.fileUrl, workspacePath: item.fileReference?.workspacePath,
     artifactId: item.artifactId, artifactVersionId: item.artifactVersionId, artifactLinkId: item.artifactLinkId,
@@ -1499,6 +1575,10 @@ function stableStringify(value: PresentationJsonValue | PresentationDeckSpec): s
 }
 function parseBase64(value: string, label: string) { const buffer = Buffer.from(value, 'base64'); if (!buffer.byteLength) throw new BadRequestException(`${label} must be non-empty base64.`); return buffer }
 function normalizeExportName(value: string, kind: PresentationExportKind) { const base = requireText(value, 'Export fileName is required.').replace(/\.(html|pdf|pptx)$/i, '').replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'presentation'; return `${base}.${kind}` }
+function exportExecutionPool(kind: PresentationExportKind) { return kind === 'html' ? 'default' as const : 'sandbox-browser' as const }
+function isRetryableSandboxError(code: SandboxJobErrorCode) {
+  return code === 'SANDBOX_CAPACITY_UNAVAILABLE' || code === 'SANDBOX_START_FAILED' || code === 'BROWSER_LAUNCH_FAILED' || code === 'EXPORT_TIMEOUT' || code === 'EXPORT_OOM'
+}
 function errorMessage(error: unknown) { return error instanceof Error && error.message ? error.message : 'Presentation operation failed.' }
 
 function mergePresentationObjects(base: PresentationJsonObject, patch: PresentationJsonObject): PresentationJsonObject {

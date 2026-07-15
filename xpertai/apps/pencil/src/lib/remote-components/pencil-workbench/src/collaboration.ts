@@ -49,6 +49,7 @@ export type PencilWorkbenchCollaboration = {
   readonly doc: Y.Doc
   readonly undoManager: Y.UndoManager
   syncLocalGraph(): void
+  syncAndWaitForAck(afterSequence: number, timeoutMs?: number): Promise<number>
   setDocumentMetadata(patch: Partial<PencilCollaborativeDocument>): void
   setPresence(patch: PencilPresencePatch): void
   flush(): void
@@ -94,6 +95,13 @@ export function createPencilWorkbenchCollaboration(options: PencilWorkbenchColla
     selectionAnchor: Y.RelativePosition | null
   } | null = null
   let client: CollaborationClient
+  let latestSequence = 0
+  const sequenceWaiters = new Set<{
+    afterSequence: number
+    resolve: (sequence: number) => void
+    reject: (error: Error) => void
+    timeoutId: number
+  }>()
 
   const presenceStore = createCollaborationPresenceStore({
     selfActor: options.session.actor,
@@ -156,7 +164,16 @@ export function createPencilWorkbenchCollaboration(options: PencilWorkbenchColla
     batchMs: 40,
     syncIntervalMs: 2_000,
     presenceHeartbeatMs: 5_000,
-    onAck: (ack) => options.onSequence(ack.sequenceNumber),
+    onAck: (ack) => {
+      latestSequence = Math.max(latestSequence, ack.sequenceNumber)
+      options.onSequence(ack.sequenceNumber)
+      for (const waiter of sequenceWaiters) {
+        if (ack.sequenceNumber <= waiter.afterSequence) continue
+        window.clearTimeout(waiter.timeoutId)
+        sequenceWaiters.delete(waiter)
+        waiter.resolve(ack.sequenceNumber)
+      }
+    },
     onPresence: (presence) => presenceStore.upsert(presence),
     onPresenceSnapshot: (items, metadata) =>
       presenceStore.replace(items, metadata.selfClientId),
@@ -175,6 +192,23 @@ export function createPencilWorkbenchCollaboration(options: PencilWorkbenchColla
     doc,
     undoManager,
     syncLocalGraph,
+    syncAndWaitForAck(afterSequence, timeoutMs = 10_000) {
+      const baseline = Math.max(afterSequence, latestSequence)
+      return new Promise<number>((resolve, reject) => {
+        const waiter = {
+          afterSequence: baseline,
+          resolve,
+          reject,
+          timeoutId: window.setTimeout(() => {
+            sequenceWaiters.delete(waiter)
+            reject(new Error('Timed out while waiting for Pencil collaboration acknowledgement.'))
+          }, timeoutMs)
+        }
+        sequenceWaiters.add(waiter)
+        syncLocalGraph()
+        client.flush()
+      })
+    },
     setDocumentMetadata(patch) {
       documentMetadata = { ...documentMetadata, ...patch }
       syncLocalGraph()
@@ -184,6 +218,11 @@ export function createPencilWorkbenchCollaboration(options: PencilWorkbenchColla
     undo: () => undoManager.undo(),
     redo: () => undoManager.redo(),
     destroy() {
+      for (const waiter of sequenceWaiters) {
+        window.clearTimeout(waiter.timeoutId)
+        waiter.reject(new Error('Pencil collaboration session was closed.'))
+      }
+      sequenceWaiters.clear()
       client.disconnect()
       socket.removeAllListeners()
       undoManager.destroy()

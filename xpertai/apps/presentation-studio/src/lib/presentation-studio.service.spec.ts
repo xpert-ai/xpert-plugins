@@ -1,5 +1,13 @@
 import { PresentationStudioService } from './presentation-studio.service.js'
 
+const availableExportCapabilities = () => ({
+  getExportCapabilities: jest.fn().mockResolvedValue({
+    html: { available: true },
+    pdf: { available: true },
+    pptx: { available: true }
+  })
+})
+
 describe('PresentationStudioService export versioning', () => {
   it('filters deck lists by the current Xpert id', async () => {
     const deckRepository = {
@@ -13,7 +21,7 @@ describe('PresentationStudioService export versioning', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      availableExportCapabilities() as never,
       {} as never
     )
 
@@ -104,7 +112,7 @@ describe('PresentationStudioService export versioning', () => {
       exportRepository as never,
       {} as never,
       catalog as never,
-      {} as never,
+      availableExportCapabilities() as never,
       config as never,
       queue as never
     )
@@ -120,12 +128,54 @@ describe('PresentationStudioService export versioning', () => {
     expect(deckRepository.manager.transaction).not.toHaveBeenCalled()
     expect(queue.enqueue).toHaveBeenCalledWith(expect.objectContaining({
       jobId: 'presentation-studio-b06d4bbd-9659-4496-b051-300900ab6c0d',
+      payload: { exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d' },
+      executionPool: 'sandbox-browser',
       scopeKey: 'system:global',
       removeOnComplete: { age: 24 * 60 * 60, count: 100 },
       removeOnFail: { age: 7 * 24 * 60 * 60, count: 100 }
     }))
     expect(String(queue.enqueue.mock.calls[0][0].jobId)).not.toContain(':')
     expect(savedExport).toMatchObject({ versionId: 'working-r42', checksum: 'working-checksum' })
+  })
+
+  it('does not create or enqueue a browser export when the OSS runtime worker is unavailable', async () => {
+    const deck = { id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e', revision: 42 }
+    const deckRepository = { findOne: jest.fn().mockResolvedValue(deck) }
+    const exportRepository = { create: jest.fn(), save: jest.fn() }
+    const queue = { enqueue: jest.fn() }
+    const renderer = {
+      getExportCapabilities: jest.fn().mockResolvedValue({
+        html: { available: true },
+        pdf: {
+          available: false,
+          reason: 'PROVIDER_UNAVAILABLE',
+          message: 'The OSS base deployment intentionally does not include a Sandbox Runtime worker. HTML remains available.'
+        },
+        pptx: { available: false, reason: 'PROVIDER_UNAVAILABLE' }
+      })
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      exportRepository as never,
+      {} as never,
+      {} as never,
+      renderer as never,
+      {} as never,
+      queue as never
+    )
+
+    await expect(service.requestExport({}, {
+      deckId: deck.id,
+      kind: 'pdf',
+      expectedRevision: deck.revision
+    })).rejects.toThrow('OSS base deployment intentionally does not include')
+
+    expect(exportRepository.create).not.toHaveBeenCalled()
+    expect(exportRepository.save).not.toHaveBeenCalled()
+    expect(queue.enqueue).not.toHaveBeenCalled()
   })
 
   it('returns a backend collaboration URL with the one-deck session', async () => {
@@ -277,7 +327,7 @@ describe('PresentationStudioService export versioning', () => {
       exportRepository as never,
       {} as never,
       {} as never,
-      {} as never,
+      availableExportCapabilities() as never,
       {} as never,
       queue as never
     )
@@ -315,7 +365,7 @@ describe('PresentationStudioService export versioning', () => {
       exportRepository as never,
       {} as never,
       {} as never,
-      {} as never,
+      availableExportCapabilities() as never,
       {} as never,
       { getJob: jest.fn().mockResolvedValue(null) } as never
     )
@@ -424,7 +474,7 @@ describe('PresentationStudioService export versioning', () => {
 
     const result = await service.deleteExport({}, item.id)
 
-    expect(queue.cancel).toHaveBeenCalledWith({ jobId: item.jobId })
+    expect(queue.cancel).toHaveBeenCalledWith({ jobId: item.jobId, executionPool: 'default' })
     expect(workspaceFiles.deleteFile).toHaveBeenCalledWith(expect.objectContaining({ filePath: item.fileReference.reference.filePath }))
     expect(exportRepository.delete).toHaveBeenCalled()
     expect(logRepository.create).toHaveBeenCalledWith(expect.objectContaining({ action: 'export_deleted' }))
@@ -631,6 +681,90 @@ describe('PresentationStudioService export versioning', () => {
     expect(result).toMatchObject({
       publicUrl: 'https://xpert.test/artifacts/share/QwErTy234567',
       shareUrl: 'https://xpert.test/artifacts/share/QwErTy234567'
+    })
+  })
+
+  it('preserves an existing valid public link when an Agent requests a workspace share', async () => {
+    const deck = {
+      id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      assistantId: 'assistant-1',
+      title: 'Already shared deck',
+      goal: 'Keep the user-confirmed public link'
+    }
+    const publicUrl = 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
+    const item = {
+      id: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      deckId: deck.id,
+      versionId: 'version-1',
+      kind: 'html',
+      status: 'succeeded',
+      progress: 100,
+      checksum: 'html-checksum',
+      fileName: 'shared-deck.html',
+      mimeType: 'text/html',
+      size: 128,
+      artifactLinkId: 'public-link-1',
+      artifactLinkVersionMode: 'latest',
+      artifactLinkAccessMode: 'public_link',
+      artifactPublicUrl: publicUrl,
+      artifactVersionId: 'artifact-version-1',
+      fileReference: {
+        reference: {
+          source: 'platform.workspace.files',
+          filePath: 'files/presentation-studio/export.html',
+          workspacePath: '/workspace/export.html'
+        },
+        sha256: 'sha256',
+        fileName: 'shared-deck.html',
+        mimeType: 'text/html',
+        size: 128
+      }
+    }
+    const exportRepository = {
+      findOne: jest.fn().mockResolvedValue(item),
+      save: jest.fn(async (value) => value)
+    }
+    const artifacts = {
+      createArtifact: jest.fn().mockResolvedValue({ id: 'artifact-1' }),
+      createArtifactVersion: jest.fn(),
+      createArtifactLink: jest.fn(),
+      revokeArtifactLink: jest.fn()
+    }
+    const runtimeCapabilities = {
+      has: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts'),
+      get: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts' ? artifacts : undefined)
+    }
+    const service = new PresentationStudioService(
+      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      exportRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+
+    const result = await service.shareHtmlExport({ tenantId: 'tenant-1', organizationId: 'org-1' }, {
+      deckId: deck.id,
+      exportId: item.id,
+      versionMode: 'latest',
+      accessMode: 'workspace_all',
+      actor: 'agent',
+      preserveExistingLink: true
+    })
+
+    expect(artifacts.revokeArtifactLink).not.toHaveBeenCalled()
+    expect(artifacts.createArtifactLink).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      publicUrl,
+      shareUrl: publicUrl,
+      accessMode: 'public_link'
     })
   })
 

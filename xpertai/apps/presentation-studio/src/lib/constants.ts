@@ -21,6 +21,8 @@ export const PRESENTATION_ROUTE_NAMESPACE = 'presentation-studio'
 export const PRESENTATION_COLLABORATION_PROVIDER_KEY = 'presentation-studio.deck'
 export const PRESENTATION_EXPORT_QUEUE = 'presentation-studio.export'
 export const PRESENTATION_EXPORT_JOB = 'render'
+export const PRESENTATION_SANDBOX_ACTION = 'presentation.export'
+export const PRESENTATION_SANDBOX_ACTION_VERSION = '1.0.0'
 export const DASHIAI_UPSTREAM_COMMIT = '69ac66443e36e11cfca4a7f30721dc71a4278d28'
 export const DASHIAI_LAYOUT_COUNT = 1020
 export const DASHIAI_CONTROL_COUNT = 8576
@@ -46,6 +48,7 @@ export const PRESENTATION_TOOL_NAMES = [
   'presentation_finalize_deck',
   'presentation_request_export',
   'presentation_get_export',
+  'presentation_share_html',
   'presentation_update_status',
   'presentation_report_failure'
 ] as const
@@ -58,6 +61,7 @@ export const PRESENTATION_MUTATION_TOOL_NAMES = [
   'presentation_add_asset',
   'presentation_finalize_deck',
   'presentation_request_export',
+  'presentation_share_html',
   'presentation_update_status'
 ] as const
 

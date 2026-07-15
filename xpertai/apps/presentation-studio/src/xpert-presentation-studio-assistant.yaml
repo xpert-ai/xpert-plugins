@@ -36,6 +36,10 @@ team:
         description: Current deck revision for conflict-safe mutations
         operation: null
     recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
   version: "1"
   agent:
     key: Agent_PresentationStudio
@@ -84,7 +88,12 @@ nodes:
         5. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
         6. Finalize only when active slide count equals pageCount and all content is real.
         7. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
-        8. Report failures with presentation_report_failure instead of inventing layouts.
+        8. When the user explicitly asks to share the presentation, call
+           presentation_share_html. If it returns pending, poll the returned exportId
+           with presentation_get_export and call presentation_share_html again after
+           the export succeeds. Return the shareUrl to the user. This tool never creates
+           anonymous public access.
+        9. Report failures with presentation_report_failure instead of inventing layouts.
 
         Match the user's language.
       collaboratorNames: []
@@ -101,4 +110,117 @@ nodes:
       provider: PresentationStudioMiddleware
       required: true
     hash: presentation-studio-middleware-v1
-connections: []
+  - type: workflow
+    key: Middleware_Skills
+    position: { x: 580, y: 332 }
+    entity:
+      type: middleware
+      key: Middleware_Skills
+      title: Skills Middleware
+      provider: skillsMiddleware
+      required: true
+    hash: presentation-studio-skills-middleware-v1
+  - type: workflow
+    key: Middleware_WebTools
+    position: { x: 820, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_WebTools
+      title: Web Tools
+      provider: WebTools
+      required: true
+    hash: presentation-studio-web-tools-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxFile
+    position: { x: 1460, y: 332 }
+    entity:
+      type: middleware
+      key: Middleware_SandboxFile
+      title: Sandbox File
+      provider: SandboxFile
+      required: true
+    hash: presentation-studio-sandbox-file-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxShell
+    position: { x: 1460, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_SandboxShell
+      title: Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: presentation-studio-sandbox-shell-middleware-v1
+  - type: workflow
+    key: Middleware_LoopGuard
+    position: { x: 960, y: 660 }
+    entity:
+      type: middleware
+      key: Middleware_LoopGuard
+      title: Loop Guard
+      provider: LoopGuardMiddleware
+      required: true
+    hash: presentation-studio-loop-guard-middleware-v1
+  - type: workflow
+    key: Middleware_ModelRetry
+    position: { x: 1160, y: 520 }
+    entity:
+      type: middleware
+      key: Middleware_ModelRetry
+      title: Model Retry
+      provider: ModelRetryMiddleware
+      required: true
+      options:
+        maxRetries: 2
+        initialDelayMs: 1000
+        backoffFactor: 2
+        maxDelayMs: 60000
+        jitter: true
+        retryAllErrors: true
+        retryableErrorNames: []
+        retryableStatusCodes: []
+        retryableMessageIncludes: []
+        onFailure: continue
+    hash: presentation-studio-model-retry-middleware-v1
+  - type: workflow
+    key: Middleware_ViewImage
+    position: { x: 1720, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_ViewImage
+      title: View Image
+      provider: ViewImageMiddleware
+      required: true
+    hash: presentation-studio-view-image-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_PresentationStudio
+    from: Agent_PresentationStudio
+    to: Middleware_PresentationStudio
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_Skills
+    from: Agent_PresentationStudio
+    to: Middleware_Skills
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_WebTools
+    from: Agent_PresentationStudio
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_SandboxFile
+    from: Agent_PresentationStudio
+    to: Middleware_SandboxFile
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_SandboxShell
+    from: Agent_PresentationStudio
+    to: Middleware_SandboxShell
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_LoopGuard
+    from: Agent_PresentationStudio
+    to: Middleware_LoopGuard
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_ModelRetry
+    from: Agent_PresentationStudio
+    to: Middleware_ModelRetry
+  - type: workflow
+    key: Agent_PresentationStudio/Middleware_ViewImage
+    from: Agent_PresentationStudio
+    to: Middleware_ViewImage

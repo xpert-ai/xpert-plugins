@@ -6,6 +6,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES',
   WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
   WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
+  SandboxJobsRuntimeCapability: { id: 'platform.sandbox.jobs' },
+  isSandboxJobRuntimeError: (error: unknown) => error instanceof Error && error.name === 'SandboxJobRuntimeError',
   ArtifactsRuntimeCapability: { id: 'platform.artifacts' },
   CollaborationRuntimeCapability: { id: 'platform.collaboration' },
   CollaborationDocumentProvider: () => <T extends object>(target: T) => target,

@@ -172,3 +172,11 @@ button, input { font: inherit; }
 
 [data-slot="badge"][data-status="success"] { border-color: color-mix(in srgb, var(--status-success) 30%, var(--border)); background: var(--status-success-background); color: var(--status-success); }
 [data-slot="badge"][data-status="warning"] { border-color: color-mix(in srgb, var(--status-warning) 30%, var(--border)); background: var(--status-warning-background); color: var(--status-warning); }
+.ps-export-capability-warning {
+  max-width: 22rem;
+  padding: 0.45rem 0.55rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
+}

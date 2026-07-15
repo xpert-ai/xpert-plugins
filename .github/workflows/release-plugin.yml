@@ -26,6 +26,7 @@ concurrency:
 
 permissions:
   contents: write
+  packages: read
   pull-requests: write
   id-token: write
 
@@ -37,6 +38,7 @@ jobs:
     outputs:
       xpertai: ${{ steps.filter.outputs.xpertai }}
       community: ${{ steps.filter.outputs.community }}
+      presentation_action: ${{ steps.filter.outputs.presentation_action }}
 
     steps:
       - name: Checkout
@@ -53,11 +55,30 @@ jobs:
               - "xpertai/**"
             community:
               - "community/**"
+            presentation_action:
+              - "xpertai/apps/presentation-studio/**"
+  presentation-action:
+    name: Verify Presentation Sandbox Action
+    needs: detect
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (needs.detect.outputs.presentation_action == 'true' ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.workspace == 'xpertai' || github.event.inputs.workspace == 'all')))
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/presentation-sandbox-action.yml
 
   release:
     name: Version Or Publish (${{ matrix.workspace }})
-    needs: detect
-    if: github.ref == 'refs/heads/main'
+    needs:
+      - detect
+      - presentation-action
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      (needs['presentation-action'].result == 'success' || needs['presentation-action'].result == 'skipped')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

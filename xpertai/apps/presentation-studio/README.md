@@ -77,7 +77,11 @@ Complex visual effects may be flattened in PPTX while editable text is restored 
 
 HTML exports can be published through Xpert Artifacts. Public sharing is always an explicit user action. The shared Artifact contains the presentation output only; it does not expose the conversation, workspace, collaboration session, or platform credentials.
 
-PDF and PPTX availability depends on the Xpert deployment having a supported Chrome or Chromium runtime. HTML export remains available without it.
+In production, PDF and PPTX run as short-lived jobs in the Xpert Sandbox browser pool. Xpert's shared Browser Runtime supplies Playwright, Chromium, fonts, and the generic Runner Host; this plugin publishes only the versioned `presentation.export` Sandbox Action Bundle. Xpert registers `browser/playwright-1.61/v1` automatically. PDF/PPTX capability detection is enabled by default and shows an actionable warning when the Action, Runtime artifact, Provider, or worker is unavailable; HTML remains available independently.
+
+The OSS base deployment intentionally does not start a Sandbox Runtime worker and does not mount the Docker socket. A compatible Provider distribution may supply its own worker deployment. Xpert Pro packages the Docker Provider and its worker overlay, including the immutable Runtime artifact lock, so end users do not configure a Provider, profile, image, `CHROME_PATH`, or feature switch.
+
+`exportBackend: local` and `chromiumExecutablePath`/`CHROME_PATH` are deprecated development and test compatibility options. Production always uses `exportBackend: sandbox-job`; it never launches or downloads Chromium in the API container.
 
 ## Typical workflow
 

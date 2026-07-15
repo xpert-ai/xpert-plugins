@@ -24,6 +24,22 @@ export interface DeckDetail {
   versions: VersionSummary[]
   exports: ExportSummary[]
   assets: AssetSummary[]
+  exportCapabilities?: ExportCapabilities
+}
+
+export interface ExportCapability { available: boolean; reason?: string; message?: string }
+export interface ExportCapabilities {
+  backend: 'sandbox-job' | 'local'
+  html: ExportCapability
+  pdf: ExportCapability
+  pptx: ExportCapability
+  action?: string
+  actionVersion?: string
+  runtimeProfile?: string
+  sandboxRuntimeVersion?: string
+  provider?: string
+  runtimeBindingId?: string
+  artifactDigest?: string
 }
 
 export interface VersionSummary { id: string; versionNumber: number; source: string; checksum: string; changeSummary?: string }
@@ -45,6 +61,7 @@ export interface ExportSummary {
   artifactLinkVersionMode?: 'latest' | 'version'
   artifactLinkAccessMode?: string
   shareUrl?: string
+  sandboxJobId?: string
 }
 export interface AssetSummary { id: string; role: string; fileName: string; size: number; reference: string }
 
