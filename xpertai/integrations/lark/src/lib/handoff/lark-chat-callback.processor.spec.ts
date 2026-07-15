@@ -1,3 +1,30 @@
+jest.mock('@xpert-ai/plugin-sdk', () => {
+	const { createLarkPluginSdkMock } = require('../../../../../test-utils/larkPluginSdkMock.cjs')
+	return createLarkPluginSdkMock(jest, {
+		HandoffProcessorStrategy: () => (target: unknown) => target
+	})
+})
+
+jest.mock('@xpert-ai/chatkit-types', () => ({
+	ChatMessageEventTypeEnum: {
+		ON_CONVERSATION_START: 'on_conversation_start',
+		ON_CONVERSATION_END: 'on_conversation_end',
+		ON_MESSAGE_START: 'on_message_start',
+		ON_MESSAGE_END: 'on_message_end',
+		ON_TOOL_START: 'on_tool_start',
+		ON_TOOL_END: 'on_tool_end',
+		ON_TOOL_ERROR: 'on_tool_error',
+		ON_TOOL_MESSAGE: 'on_tool_message',
+		ON_AGENT_START: 'on_agent_start',
+		ON_AGENT_END: 'on_agent_end',
+		ON_CHAT_EVENT: 'on_chat_event'
+	},
+	ChatMessageTypeEnum: {
+		MESSAGE: 'message',
+		EVENT: 'event'
+	}
+}))
+
 import {
 	XpertAgentExecutionStatusEnum
 } from '@xpert-ai/contracts'
@@ -159,6 +186,23 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		}
 	}
 
+	function createComponentMessage(
+		sequence: number,
+		id: string,
+		data: Record<string, unknown>,
+		sourceMessageId: string = 'run-1'
+	) {
+		return createStreamMessage(
+			sequence,
+			{
+				id,
+				type: 'component',
+				data
+			},
+			sourceMessageId
+		)
+	}
+
 	function createCompleteMessage(sequence: number, sourceMessageId: string = 'run-1') {
 		return {
 			id: `callback-${sequence}`,
@@ -232,12 +276,12 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		}
 	}
 
-	function getManagedEventElements(elements: any[]) {
+	function getManagedProgressElements(elements: any[]) {
 		return (elements ?? []).filter(
 			(element) =>
 				element?.tag === 'markdown' &&
 				typeof element?.content === 'string' &&
-				element.content.includes('**Event:**')
+				element.content.includes('**执行过程：')
 		)
 	}
 
@@ -247,6 +291,7 @@ describe('LarkChatStreamCallbackProcessor', () => {
 				element?.tag === 'markdown' &&
 				typeof element?.content === 'string' &&
 				!element.content.includes('**Event:**') &&
+				!element.content.includes('**执行过程：') &&
 				!element.content.includes("color='wathet'")
 		)
 	}
@@ -421,17 +466,20 @@ describe('LarkChatStreamCallbackProcessor', () => {
 
 		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(2)
 		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[1][2]
-		const eventElements = getManagedEventElements(patchPayload.elements)
-		expect(eventElements).toHaveLength(1)
-		expect(eventElements[0].content).toContain(`**Event:** ${ChatMessageEventTypeEnum.ON_CHAT_EVENT}`)
-		expect(eventElements[0].content).toContain('**Title:** Ready')
-		expect(eventElements[0].content).toContain('Resources ready')
-		expect(eventElements[0].content).toContain('**Status:** success')
-		expect(eventElements[0].content).not.toContain('Preparing')
+		const progressElements = getManagedProgressElements(patchPayload.elements)
+		expect(progressElements).toHaveLength(1)
+		expect(progressElements[0].content).toContain('**执行过程：Ready**')
+		expect(progressElements[0].content).toContain('Resources ready')
+		expect(progressElements[0].content).not.toContain('Preparing')
 		const state = await runStateService.get('run-1')
-		const eventItems = state?.renderItems.filter((item: any) => item.kind === 'event')
-		expect(eventItems).toHaveLength(1)
-		expect(eventItems?.[0]).toMatchObject({ id: 'event-1' })
+		const progressItems = state?.renderItems.filter((item: any) => item.kind === 'progress')
+		expect(progressItems).toHaveLength(1)
+		expect(progressItems?.[0]).toMatchObject({
+			id: 'event-1',
+			title: 'Ready',
+			detail: 'Resources ready',
+			status: 'success'
+		})
 	})
 
 	it('skips explicitly typed hidden chat events when rendering Lark messages', async () => {
@@ -480,55 +528,66 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(state?.renderItems).toEqual([])
 	})
 
-	it('renders tool lifecycle events and updates event content by tool id', async () => {
+	it('skips tool component details and still renders the final assistant response', async () => {
 		const { processor, runStateService, larkChannel } = createFixture()
 		await runStateService.save(createRunState())
 
 		await processor.process(
-			createEventMessage(1, ChatMessageEventTypeEnum.ON_TOOL_START, {
-				id: 'tool-1',
-				tool: 'answer_question',
-				title: 'Answer Question',
+			createComponentMessage(1, 'tool-project-1', {
+				category: 'Tool',
+				tool: 'sites_create_project',
+				title: 'sites_create_project',
 				status: 'running'
 			}) as any,
 			createProcessContext() as any
 		)
 		await processor.process(
-			createEventMessage(2, ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, {
-				id: 'tool-1',
-				tool: 'answer_question',
-				message: 'Querying cube'
+			createComponentMessage(2, 'tool-project-1', {
+				status: 'success',
+				output: '/workspace/sites/claw-xpert-intro/index.html'
 			}) as any,
 			createProcessContext() as any
 		)
 		await processor.process(
-			createEventMessage(3, ChatMessageEventTypeEnum.ON_TOOL_END, {
-				output: {
-					tool_call_id: 'tool-1'
-				},
-				tool: 'answer_question',
-				status: 'success',
-				message: 'Completed'
+			createComponentMessage(3, 'tool-write-1', {
+				category: 'Tool',
+				tool: 'sandbox_write_file',
+				title: 'sandbox_write_file',
+				status: 'fail',
+				error: 'Received tool input did not match expected schema',
+				output: 'L1: private tool output'
 			}) as any,
 			createProcessContext() as any
 		)
 
-		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(3)
-		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[2][2]
-		const eventElements = getManagedEventElements(patchPayload.elements)
-		expect(eventElements).toHaveLength(1)
-		expect(eventElements[0].content).toContain(`**Event:** ${ChatMessageEventTypeEnum.ON_TOOL_END}`)
-		expect(eventElements[0].content).toContain('**Tool:** answer_question')
-		expect(eventElements[0].content).toContain('Completed')
-		expect(eventElements[0].content).toContain('**Status:** success')
-		expect(eventElements[0].content).not.toContain('Querying cube')
-		const state = await runStateService.get('run-1')
-		const eventItems = state?.renderItems.filter((item: any) => item.kind === 'event')
-		expect(eventItems).toHaveLength(1)
-		expect(eventItems?.[0]).toMatchObject({ id: 'tool-1' })
+		expect(larkChannel.patchInteractiveMessage).not.toHaveBeenCalled()
+		expect((await runStateService.get('run-1'))?.renderItems).toEqual([])
+
+		await processor.process(
+			createStreamMessage(4, '页面已经搭建完成') as any,
+			createProcessContext() as any
+		)
+		await processor.process(createCompleteMessage(5) as any, createProcessContext() as any)
+
+		const calls = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls
+		expect(calls.length).toBeGreaterThan(0)
+		const finalPayload = calls[calls.length - 1][2]
+		const markdown = finalPayload.elements
+			.filter((element: { tag?: string; content?: string }) => element.tag === 'markdown')
+			.map((element: { content?: string }) => element.content ?? '')
+			.join('\n')
+
+		expect(markdown).toContain('页面已经搭建完成')
+		expect(markdown).not.toContain('sites_create_project')
+		expect(markdown).not.toContain('sandbox_write_file')
+		expect(markdown).not.toContain('/workspace/sites/claw-xpert-intro/index.html')
+		expect(markdown).not.toContain('Received tool input did not match expected schema')
+		expect(markdown).not.toContain('L1: private tool output')
+		expect(markdown).not.toContain('工具结果：')
+		expect(markdown).not.toContain('工具失败：')
 	})
 
-	it('summarizes lark notify tool output without rendering raw payload JSON', async () => {
+	it('suppresses raw tool payload JSON from MESSAGE text', async () => {
 		const { processor, runStateService, larkChannel } = createFixture()
 		await runStateService.save(createRunState())
 
@@ -545,60 +604,99 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(state?.responseMessageContent).toBe('')
 	})
 
-	it('renders a concise notify tool summary instead of raw payload JSON', async () => {
+	it('skips legacy tool lifecycle events without appending render items', async () => {
 		const { processor, runStateService, larkChannel } = createFixture()
 		await runStateService.save(createRunState())
 
 		await processor.process(
-			createEventMessage(1, ChatMessageEventTypeEnum.ON_TOOL_END, {
-				id: 'tool-notify-1',
-				tool: 'lark_send_text_notification',
-				status: 'success',
-				message:
-					'{"tool":"lark_send_text_notification","integrationId":"integration-id","successCount":1,"failureCount":0,"results":[{"target":"open_id:ou_test","success":true,"messageId":"om_123"}]}'
+			createEventMessage(1, ChatMessageEventTypeEnum.ON_TOOL_START, {
+				id: 'tool-1',
+				tool: 'answer_question',
+				status: 'running'
 			}) as any,
 			createProcessContext() as any
 		)
-
-		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(1)
-		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
-		const markdown = patchPayload.elements
-			.filter((element: { tag?: string; content?: string }) => element.tag === 'markdown')
-			.map((element: { content?: string }) => element.content ?? '')
-			.join('\n')
-
-		expect(markdown).toContain('lark_send_text_notification')
-		expect(markdown).toContain('已发送通知 1 条')
-		expect(markdown).not.toContain('"successCount":1')
-		expect(markdown).not.toContain('open_id:ou_test')
-	})
-
-	it('renders ON_TOOL_ERROR as event and resolves id from toolCall.id', async () => {
-		const { processor, runStateService, larkChannel } = createFixture()
-		await runStateService.save(createRunState())
-
 		await processor.process(
-			createEventMessage(1, ChatMessageEventTypeEnum.ON_TOOL_ERROR, {
+			createEventMessage(2, ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, {
+				id: 'tool-1',
+				tool: 'answer_question',
+				message: 'Querying cube'
+			}) as any,
+			createProcessContext() as any
+		)
+		await processor.process(
+			createEventMessage(3, ChatMessageEventTypeEnum.ON_TOOL_END, {
+				id: 'tool-1',
+				tool: 'answer_question',
+				status: 'success',
+				message: 'Completed'
+			}) as any,
+			createProcessContext() as any
+		)
+		await processor.process(
+			createEventMessage(4, ChatMessageEventTypeEnum.ON_TOOL_ERROR, {
 				toolCall: {
 					id: 'tool-err-1',
 					name: 'answer_question'
 				},
-				error: 'Lexical error'
+				error: 'Received tool input did not match expected schema'
 			}) as any,
 			createProcessContext() as any
 		)
 
+		expect(larkChannel.patchInteractiveMessage).not.toHaveBeenCalled()
+		expect((await runStateService.get('run-1'))?.renderItems).toEqual([])
+	})
+
+	it('does not serialize legacy tool traces restored from run state', async () => {
+		const { processor, runStateService, larkChannel } = createFixture()
+		await runStateService.save(
+			createRunState({
+				renderItems: [
+					{
+						kind: 'tool_trace',
+						id: 'legacy-tool-1',
+						tool: 'sandbox_write_file',
+						title: '/workspace/sites/claw-xpert-intro/index.html',
+						detail: 'L1: private tool output',
+						status: 'fail',
+						error: 'Received tool input did not match expected schema'
+					},
+					{
+						kind: 'event',
+						id: 'legacy-tool-event-1',
+						eventType: ChatMessageEventTypeEnum.ON_TOOL_ERROR,
+						tool: 'sandbox_write_file',
+						title: '/workspace/sites/legacy-tool-event/index.html',
+						message: 'L2: private legacy tool event output',
+						status: 'fail',
+						error: 'Legacy tool event error'
+					},
+					{
+						kind: 'stream_text',
+						text: '页面已经搭建完成'
+					}
+				]
+			})
+		)
+
+		await processor.process(createCompleteMessage(1) as any, createProcessContext() as any)
+
 		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledTimes(1)
-		const patchPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
-		const eventElements = getManagedEventElements(patchPayload.elements)
-		expect(eventElements).toHaveLength(1)
-		expect(eventElements[0].content).toContain(`**Event:** ${ChatMessageEventTypeEnum.ON_TOOL_ERROR}`)
-		expect(eventElements[0].content).toContain('**Tool:** answer_question')
-		expect(eventElements[0].content).toContain('**Error:** Lexical error')
-		const state = await runStateService.get('run-1')
-		const eventItems = state?.renderItems.filter((item: any) => item.kind === 'event')
-		expect(eventItems).toHaveLength(1)
-		expect(eventItems?.[0]).toMatchObject({ id: 'tool-err-1' })
+		const finalPayload = (larkChannel.patchInteractiveMessage as jest.Mock).mock.calls[0][2]
+		const markdown = finalPayload.elements
+			.filter((element: { tag?: string; content?: string }) => element.tag === 'markdown')
+			.map((element: { content?: string }) => element.content ?? '')
+			.join('\n')
+
+		expect(markdown).toContain('页面已经搭建完成')
+		expect(markdown).not.toContain('sandbox_write_file')
+		expect(markdown).not.toContain('/workspace/sites/claw-xpert-intro/index.html')
+		expect(markdown).not.toContain('L1: private tool output')
+		expect(markdown).not.toContain('Received tool input did not match expected schema')
+		expect(markdown).not.toContain('/workspace/sites/legacy-tool-event/index.html')
+		expect(markdown).not.toContain('L2: private legacy tool event output')
+		expect(markdown).not.toContain('Legacy tool event error')
 	})
 
 	it('updates active message cache when ON_MESSAGE_START is received', async () => {
@@ -876,13 +974,11 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(firstTextIndex).toBeLessThan(chartIndex)
 		expect(chartIndex).toBeLessThan(secondTextIndex)
 
-		const eventElements = getManagedEventElements(finalPayload.elements)
-		expect(eventElements).toHaveLength(1)
-		expect(eventElements[0].content).toContain(`**Event:** ${ChatMessageEventTypeEnum.ON_CHAT_EVENT}`)
-		expect(eventElements[0].content).toContain('**Title:** Done')
-		expect(eventElements[0].content).toContain('Loaded')
-		expect(eventElements[0].content).toContain('**Status:** success')
-		expect(eventElements[0].content).not.toContain('Preparing')
+		const progressElements = getManagedProgressElements(finalPayload.elements)
+		expect(progressElements).toHaveLength(1)
+		expect(progressElements[0].content).toContain('**执行过程：Done**')
+		expect(progressElements[0].content).toContain('Loaded')
+		expect(progressElements[0].content).not.toContain('Preparing')
 	})
 
 	it('keeps interrupted status when complete arrives after interrupted conversation end event', async () => {

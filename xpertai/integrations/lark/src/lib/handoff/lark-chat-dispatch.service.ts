@@ -1,4 +1,4 @@
-import type { LanguagesEnum as TLanguagesEnum, TChatOptions, TChatRequest } from '@xpert-ai/contracts'
+import type { LanguagesEnum as TLanguagesEnum, TChatRequest } from '@xpert-ai/contracts'
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import {
 	AGENT_CHAT_DISPATCH_MESSAGE_TYPE,
@@ -23,6 +23,19 @@ import {
 } from './lark-chat.types.js'
 
 export type TLarkChatDispatchInput = DispatchLarkChatPayload
+
+type LarkAgentChatDispatchOptions = AgentChatDispatchPayload['options'] & {
+	tenantId: string
+	organizationId?: string
+	channelType: 'lark'
+	integrationId: string
+	chatId: string
+	channelUserId: string
+	user: {
+		id: string
+		tenantId: string
+	}
+}
 
 /**
  * Builds and enqueues handoff messages for Lark chat requests.
@@ -88,8 +101,8 @@ export class LarkChatDispatchService {
 		)
 		const tenantId = dispatchContext.tenantId ?? requestTenantId
 		const organizationId = dispatchContext.organizationId ?? requestOrganizationId
-		const executorUserId =
-			input.options?.executorUserId ?? dispatchContext.createdById ?? requestUserId
+		const mappedExecutorUserId = input.options?.executorUserId
+		const executorUserId = mappedExecutorUserId ?? dispatchContext.createdById ?? requestUserId
 		if (!tenantId) {
 			throw new Error('Missing tenantId in resolved dispatch context')
 		}
@@ -170,6 +183,54 @@ export class LarkChatDispatchService {
 			input: input.input,
 			files: input.files
 		})
+		const dispatchOptions: LarkAgentChatDispatchOptions = {
+			xpertId,
+			from: 'feishu',
+			...(!mappedExecutorUserId
+				? {
+						runtimePrincipal: {
+							type: 'assistant',
+							xpertId,
+							sourceIntegrationId: larkMessage.integrationId
+						}
+				  }
+				: {}),
+			// Keep the inbound Lark user as end-user identity for conversation attribution.
+			...(input.options?.fromEndUserId
+				? { fromEndUserId: input.options.fromEndUserId }
+				: {}),
+			tenantId,
+			organizationId,
+			// Retain user context for Lark callbacks; runtimePrincipal controls assistant execution.
+			user: {
+				id: executorUserId,
+				tenantId
+			},
+			language: language as TLanguagesEnum,
+			channelType: 'lark',
+			integrationId: larkMessage.integrationId,
+			chatId: larkMessage.chatId,
+			channelUserId: larkMessage.senderOpenId
+		}
+		const payload: AgentChatDispatchPayload = {
+			request,
+			options: dispatchOptions,
+			callback: {
+				messageType: LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
+				headers: {
+					...(organizationId ? { organizationId } : {}),
+					// Callback headers keep the user context needed by the Lark response path.
+					...(executorUserId ? { userId: executorUserId } : {}),
+					...(language ? { language } : {}),
+					...(conversationId ? { conversationId } : {}),
+					source: 'lark',
+					handoffQueue: 'integration',
+					requestedLane: 'main',
+					...(larkMessage.integrationId ? { integrationId: larkMessage.integrationId } : {})
+				},
+				context: callbackContext
+			}
+		}
 
 		return {
 			id: runId,
@@ -182,47 +243,10 @@ export class LarkChatDispatchService {
 			maxAttempts: 1,
 			enqueuedAt: Date.now(),
 			traceId: runId,
-			payload: {
-				request,
-				options: {
-					xpertId,
-					from: 'feishu',
-					// Keep the inbound Lark user as end-user identity for conversation attribution.
-					...(input.options?.fromEndUserId
-						? { fromEndUserId: input.options.fromEndUserId }
-						: {}),
-					tenantId,
-					organizationId,
-					// Force execution user to xpert creator (minimal shape is enough for downstream context).
-					user: {
-						id: executorUserId,
-						tenantId
-					},
-					language: language as TLanguagesEnum,
-					channelType: 'lark',
-					integrationId: larkMessage.integrationId,
-					chatId: larkMessage.chatId,
-					channelUserId: larkMessage.senderOpenId
-				} as TChatOptions & { xpertId: string },
-				callback: {
-					messageType: LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
-					headers: {
-						...(organizationId ? { organizationId } : {}),
-						// Callback/user headers must use executor user so agent-chat runs in creator context.
-						...(executorUserId ? { userId: executorUserId } : {}),
-						...(language ? { language } : {}),
-						...(conversationId ? { conversationId } : {}),
-						source: 'lark',
-						handoffQueue: 'integration',
-						requestedLane: 'main',
-						...(larkMessage.integrationId ? { integrationId: larkMessage.integrationId } : {})
-					},
-					context: callbackContext
-				}
-			} as unknown as AgentChatDispatchPayload,
+			payload,
 			headers: {
 				...(organizationId ? { organizationId } : {}),
-				// Queue-level user header drives request context reconstruction in agent-chat processor.
+				// Legacy user context is retained; assistant runtime principal takes precedence when present.
 				...(executorUserId ? { userId: executorUserId } : {}),
 				...(language ? { language } : {}),
 				...(conversationId ? { conversationId } : {}),

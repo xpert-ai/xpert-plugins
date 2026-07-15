@@ -26,7 +26,6 @@ import {
 	LarkChatStreamCallbackPayload,
 	LarkProgressRenderItem,
 	LarkRenderItem,
-	LarkToolTraceRenderItem,
 } from './lark-chat.types.js'
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
@@ -261,16 +260,8 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					await this.syncActiveMessageCache(context)
 					return
 				} else if (structuredMessageData?.type === 'component') {
-					if (this.upsertComponentRenderItem(state, structuredMessageData)) {
-						if (!streamingEnabled) {
-							return
-						}
-						const message = ensureLarkMessage()
-						message.renderItems = state.renderItems
-						await message.update()
-						context.message = this.toMessageSnapshot(message, context.message?.text)
-						await this.syncActiveMessageCache(context)
-					}
+					// ChatKit components are Web UI and execution payloads. Lark renders
+					// assistant text, structured update elements, and explicit chat progress events.
 					return
 				} else if (structuredMessageData?.type !== 'text') {
 					if (structuredMessageData?.type === 'reasoning') {
@@ -358,7 +349,10 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			case ChatMessageEventTypeEnum.ON_TOOL_START:
 			case ChatMessageEventTypeEnum.ON_TOOL_END:
 			case ChatMessageEventTypeEnum.ON_TOOL_ERROR:
-			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE:
+			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE: {
+				// Keep legacy tool lifecycle callbacks out of the user-facing card.
+				break
+			}
 			case ChatMessageEventTypeEnum.ON_CHAT_EVENT: {
 				const data = (eventPayload.data ?? {}) as Record<string, unknown>
 				if (!this.upsertManagedEventElement(state, String(eventPayload.event), data)) {
@@ -581,7 +575,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		state: LarkChatRunState,
 		eventType: string,
 		data: Record<string, unknown>
-	): LarkProgressRenderItem | LarkToolTraceRenderItem | null {
+	): LarkProgressRenderItem | null {
 		if (eventType === ChatMessageEventTypeEnum.ON_CHAT_EVENT) {
 			const chatEventType = this.toNonEmptyString(data?.type)
 			if (this.isHiddenLarkChatEventType(chatEventType)) {
@@ -596,14 +590,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 
 		const existing = this.findManagedRenderItemById(state.renderItems, id)
-		if (
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_START ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_END ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_ERROR ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_MESSAGE
-		) {
-			return this.buildToolTraceItem(id, data, existing?.kind === 'tool_trace' ? existing : null)
-		}
 
 		return {
 			kind: 'progress',
@@ -617,63 +603,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				(existing?.kind === 'progress' ? existing.detail : null) ??
 				null,
 			status: this.toNonEmptyString(data?.status) ?? (existing?.kind === 'progress' ? existing.status : null) ?? null
-		}
-	}
-
-	private upsertComponentRenderItem(
-		state: LarkChatRunState,
-		componentEnvelope: Record<string, unknown>
-	): boolean {
-		const component = this.toRecord(componentEnvelope.data)
-		if (!component) {
-			return false
-		}
-
-		const id =
-			this.toNonEmptyString(componentEnvelope.id) ??
-			this.resolveManagedEventId(component) ??
-			this.buildSyntheticManagedEventId(state, 'component', component)
-		if (!id) {
-			return false
-		}
-
-		const existing = this.findManagedRenderItemById(state.renderItems, id)
-		const item = this.buildToolTraceItem(id, component, existing?.kind === 'tool_trace' ? existing : null)
-		const existingIndex = this.findManagedRenderItemIndex(state.renderItems, id)
-		if (existingIndex >= 0) {
-			state.renderItems[existingIndex] = item
-		} else {
-			state.renderItems.push(item)
-		}
-		return true
-	}
-
-	private buildToolTraceItem(
-		id: string,
-		data: Record<string, unknown>,
-		existing?: LarkToolTraceRenderItem | null
-	): LarkToolTraceRenderItem {
-		const errorData = this.toRecord(data?.error)
-		const tool = this.resolveManagedEventTool(data) ?? existing?.tool ?? null
-		return {
-			kind: 'tool_trace',
-			id,
-			tool,
-			title:
-				this.toNonEmptyString(data?.title) ??
-				existing?.title ??
-				tool ??
-				'工具',
-			detail:
-				this.resolveToolTraceDetail(data, tool) ??
-				existing?.detail ??
-				null,
-			status: this.toNonEmptyString(data?.status) ?? existing?.status ?? null,
-			error:
-				this.toNonEmptyString(data?.error) ??
-				this.toNonEmptyString(errorData?.message) ??
-				existing?.error ??
-				null
 		}
 	}
 
@@ -738,120 +667,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 
 		return null
-	}
-
-	private resolveToolTraceDetail(data: Record<string, unknown>, tool: string | null): string | null {
-		const directMessage = this.toNonEmptyString(data?.message)
-		if (directMessage && !this.shouldSuppressToolPayloadText(directMessage, tool)) {
-			return directMessage
-		}
-
-		const error =
-			this.toNonEmptyString(data?.error) ??
-			this.toNonEmptyString(this.toRecord(data?.error)?.message)
-		if (error) {
-			return error
-		}
-
-		if (this.toNonEmptyString(data?.status) === 'running') {
-			return this.summarizeToolInput(data?.input, tool)
-		}
-
-		return this.summarizeToolOutput(data?.output ?? directMessage, tool)
-	}
-
-	private summarizeToolInput(value: unknown, tool: string | null): string | null {
-		switch (tool) {
-			case 'lark_list_messages':
-				return '正在查看当前群聊上下文'
-			case 'lark_get_message':
-				return '正在读取消息详情'
-			case 'lark_get_message_resource':
-				return '正在读取消息资源'
-			default:
-				return this.summarizeUnknownValue(value, '正在准备执行工具')
-		}
-	}
-
-	private summarizeToolOutput(value: unknown, tool: string | null): string | null {
-		const parsed = this.parseJsonLikeValue(value)
-		const record = this.toRecord(parsed)
-		const data = this.toRecord(record?.data)
-		const effective = data ?? record
-
-		switch (tool) {
-			case 'lark_list_messages': {
-				const items = Array.isArray(effective?.items) ? effective.items : []
-				const hasMore = effective?.hasMore === true
-				return `已获取 ${items.length} 条消息${hasMore ? '，还有更多内容可继续加载' : ''}`
-			}
-			case 'lark_get_message':
-				return '已获取消息详情'
-			case 'lark_get_message_resource':
-				return '已获取消息资源'
-			case 'lark_send_text_notification':
-				return this.summarizeCountedToolResult(effective, '已发送通知')
-			case 'lark_send_rich_notification':
-				return this.summarizeCountedToolResult(effective, '已发送富文本通知')
-			case 'lark_update_message':
-				return this.summarizeCountedToolResult(effective, '已更新消息')
-			case 'lark_recall_message':
-				return this.summarizeCountedToolResult(effective, '已撤回消息')
-			default: {
-				if (Array.isArray(effective?.items)) {
-					return `已返回 ${effective.items.length} 条结果`
-				}
-				if (effective?.item && typeof effective.item === 'object') {
-					return '已返回工具结果'
-				}
-				return this.summarizeUnknownValue(parsed, '已返回工具结果')
-			}
-		}
-	}
-
-	private summarizeCountedToolResult(
-		value: Record<string, unknown> | null,
-		actionLabel: string
-	): string {
-		const successCount = this.toInteger(value?.successCount)
-		const failureCount = this.toInteger(value?.failureCount)
-		const resultsCount = Array.isArray(value?.results) ? value.results.length : null
-
-		const success = successCount ?? (resultsCount && resultsCount > 0 ? resultsCount : null)
-		const failure = failureCount ?? 0
-
-		if (success && success > 0 && failure > 0) {
-			return `${actionLabel} ${success} 条，失败 ${failure} 条`
-		}
-		if (success && success > 0) {
-			return `${actionLabel} ${success} 条`
-		}
-		if (failure > 0) {
-			return `${actionLabel}失败 ${failure} 条`
-		}
-		return actionLabel
-	}
-
-	private summarizeUnknownValue(value: unknown, fallback: string): string {
-		if (typeof value === 'string') {
-			const normalized = value.trim()
-			if (!normalized) {
-				return fallback
-			}
-			if (this.shouldSuppressToolPayloadText(normalized)) {
-				return fallback
-			}
-			return normalized.length > 240 ? `${normalized.slice(0, 240)}...` : normalized
-		}
-
-		if (value && typeof value === 'object') {
-			if (Array.isArray(value)) {
-				return value.length ? `已返回 ${value.length} 条结果` : fallback
-			}
-			return fallback
-		}
-
-		return fallback
 	}
 
 	private parseJsonLikeValue(value: unknown): unknown {
@@ -972,15 +787,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		const text = value.trim()
 		return text.length ? text : null
 	}
-
-	private toInteger(value: unknown): number | null {
-		const candidate = typeof value === 'number' ? value : Number(value)
-		if (!Number.isFinite(candidate)) {
-			return null
-		}
-		return Math.trunc(candidate)
-	}
-
 	private toRecord(value: unknown): Record<string, unknown> | null {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
 			return null
