@@ -147,7 +147,7 @@ describe('LarkChatDispatchService', () => {
 		}
 	}
 
-	it('buildDispatchMessage uses creator context when exact binding context is resolved', async () => {
+	it('buildDispatchMessage uses assistant runtime principal with creator callback context', async () => {
 		mockRequestContext({
 			userId: 'request-user-id',
 			tenantId: 'request-tenant-id',
@@ -210,6 +210,11 @@ describe('LarkChatDispatchService', () => {
 			tenantId: 'binding-tenant-id'
 		})
 		expect((message.payload as any).options.organizationId).toBe('binding-organization-id')
+		expect((message.payload as any).options.runtimePrincipal).toEqual({
+			type: 'assistant',
+			xpertId: 'xpert-1',
+			sourceIntegrationId: 'integration-1'
+		})
 		expect(message.headers?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).callback.headers?.userId).toBe('binding-creator-id')
 		expect((message.payload as any).callback.context?.userId).toBe('binding-creator-id')
@@ -443,9 +448,9 @@ describe('LarkChatDispatchService', () => {
 		})
 	})
 
-	it('buildDispatchMessage falls back to request context when binding context is unavailable', async () => {
+	it('buildDispatchMessage keeps mapped sender as end user and runs as assistant when binding is unavailable', async () => {
 		mockRequestContext({
-			userId: 'request-user-id',
+			userId: 'mapped-user-id',
 			tenantId: 'request-tenant-id',
 			organizationId: 'request-organization-id'
 		})
@@ -459,17 +464,25 @@ describe('LarkChatDispatchService', () => {
 		const message = await service.buildDispatchMessage({
 			xpertId: 'xpert-1',
 			input: 'hello',
-			larkMessage: larkMessage as any
+			larkMessage: larkMessage as any,
+			options: {
+				fromEndUserId: 'mapped-user-id'
+			}
 		})
 
 		expect((message.payload as any).options.user).toEqual({
-			id: 'request-user-id',
+			id: 'mapped-user-id',
 			tenantId: 'request-tenant-id'
 		})
-		expect((message.payload as any).options.fromEndUserId).toBeUndefined()
+		expect((message.payload as any).options.fromEndUserId).toBe('mapped-user-id')
 		expect((message.payload as any).options.organizationId).toBe('request-organization-id')
-		expect(message.headers?.userId).toBe('request-user-id')
-		expect((message.payload as any).callback.context?.userId).toBe('request-user-id')
+		expect((message.payload as any).options.runtimePrincipal).toEqual({
+			type: 'assistant',
+			xpertId: 'xpert-1',
+			sourceIntegrationId: 'integration-1'
+		})
+		expect(message.headers?.userId).toBe('mapped-user-id')
+		expect((message.payload as any).callback.context?.userId).toBe('mapped-user-id')
 	})
 
 	it('buildDispatchMessage uses explicit executor and fromEndUser overrides when provided', async () => {
@@ -505,6 +518,7 @@ describe('LarkChatDispatchService', () => {
 		})
 		expect((message.payload as any).callback.context?.userId).toBe('mapped-user-id')
 		expect(message.headers?.userId).toBe('mapped-user-id')
+		expect((message.payload as any).options.runtimePrincipal).toBeUndefined()
 	})
 
 	it('buildDispatchMessage passes streaming enabled flag into callback context', async () => {

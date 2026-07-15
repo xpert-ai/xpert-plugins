@@ -7,6 +7,7 @@ import {
   INTEGRATION_LARK,
   LARK_APP_CREDENTIALS_HELP_LABEL,
   LARK_APP_CREDENTIALS_HELP_URL,
+  LARK_INTEGRATION_HELP_LINKS,
   TLarkIntegrationProvider,
   TIntegrationLarkOptions
 } from './types.js'
@@ -66,6 +67,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     webhook: true,
     helpUrl: LARK_APP_CREDENTIALS_HELP_URL,
     helpLabel: LARK_APP_CREDENTIALS_HELP_LABEL,
+    helpLinks: LARK_INTEGRATION_HELP_LINKS,
     schema: {
       type: 'object',
       properties: {

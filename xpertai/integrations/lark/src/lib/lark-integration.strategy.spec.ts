@@ -38,7 +38,25 @@ describe('LarkIntegrationStrategy', () => {
 		expect(disconnect).not.toHaveBeenCalled()
 	})
 
-	it('exposes a credential help button for the host integration form', () => {
+	it('exposes ordered configuration and credential links for the host integration form', () => {
+		expect(strategy.meta.helpLinks).toEqual([
+			{
+				url: 'https://docs.xpertai.cn/zh-Hans/ai/plugin/integration/lark-integration',
+				label: {
+					en_US: 'Configuration Guide',
+					zh_Hans: '配置手册'
+				}
+			},
+			{
+				url: 'https://open.feishu.cn/document/home/introduction-to-custom-app-development/self-built-application-development-process',
+				label: {
+					en_US: 'Get App ID',
+					zh_Hans: '获取App ID'
+				}
+			}
+		])
+
+		// Keep the legacy single-link metadata for older hosts.
 		expect(strategy.meta.helpUrl).toBe(
 			'https://open.feishu.cn/document/home/introduction-to-custom-app-development/self-built-application-development-process'
 		)
