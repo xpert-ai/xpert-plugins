@@ -39,6 +39,10 @@ export interface LarkTriggerAggregationState {
 	version: number
 	inputParts: string[]
 	files?: LarkInboundFile[]
+	historyContext?: string
+	historyFiles?: LarkInboundFile[]
+	currentInboundLogIds?: string[]
+	historyBefore?: string
 	lastMessageAt: number
 	tenantId?: string
 	organizationId?: string

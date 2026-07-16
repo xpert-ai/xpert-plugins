@@ -1,10 +1,18 @@
+jest.mock('@xpert-ai/plugin-sdk', () => {
+  const { createLarkPluginSdkMock } = require('../../../../../test-utils/larkPluginSdkMock.cjs')
+  return createLarkPluginSdkMock(jest, {
+    AgentMiddlewareStrategy: () => (target: unknown) => target,
+    WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
+    WorkspaceFilesRuntimeCapability: Symbol.for('WorkspaceFilesRuntimeCapability')
+  })
+})
+
 import { SystemMessage } from '@langchain/core/messages'
 import { Command } from '@langchain/langgraph'
 import * as langgraph from '@langchain/langgraph'
-import {
-  LarkNotifyMiddleware,
-  LarkNotifyMiddlewareConfig
-} from './lark-notify.middleware.js'
+import { WORKSPACE_FILES_SOURCE, WorkspaceFilesRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { LARK_SEND_FILE_TOOL_NAME } from '../constants.js'
+import { LarkNotifyMiddleware, LarkNotifyMiddlewareConfig } from './lark-notify.middleware.js'
 
 function createBaseConfig(): LarkNotifyMiddlewareConfig {
   return {
@@ -45,7 +53,7 @@ function mergeConfig(partial?: Partial<LarkNotifyMiddlewareConfig>): LarkNotifyM
   }
 }
 
-async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
+async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>, context: Record<string, unknown> = {}) {
   const messageCreate = jest.fn().mockResolvedValue({
     data: {
       message_id: 'msg-default'
@@ -53,6 +61,9 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
   })
   const messagePatch = jest.fn().mockResolvedValue({})
   const messageDelete = jest.fn().mockResolvedValue({})
+  const fileCreate = jest.fn().mockResolvedValue({
+    file_key: 'file-default'
+  })
   const listUsers = jest.fn().mockResolvedValue({
     data: {
       items: [
@@ -103,6 +114,9 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
         patch: messagePatch,
         delete: messageDelete
       },
+      file: {
+        create: fileCreate
+      },
       chat: {
         list: listChats
       }
@@ -117,7 +131,8 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
   }
 
   const larkChannel = {
-    getOrCreateLarkClientById: jest.fn().mockResolvedValue(client)
+    getOrCreateLarkClientById: jest.fn().mockResolvedValue(client),
+    assertCardPayloadSupportedByIntegrationId: jest.fn().mockResolvedValue(undefined)
   }
   const conversationService = {
     setConversation: jest.fn().mockResolvedValue(undefined)
@@ -132,7 +147,7 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
     conversationService as any,
     recipientDirectoryService as any
   )
-  const middleware = await Promise.resolve(strategy.createMiddleware(mergeConfig(config), {} as any))
+  const middleware = await Promise.resolve(strategy.createMiddleware(mergeConfig(config), context as any))
 
   return {
     middleware,
@@ -140,6 +155,7 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>) {
     messageCreate,
     messagePatch,
     messageDelete,
+    fileCreate,
     listUsers,
     listChats,
     conversationService,
@@ -155,6 +171,51 @@ function getTool(middleware: any, name: string) {
   return tool
 }
 
+function createWorkspaceFiles(
+  options: {
+    content?: string
+    name?: string
+    mimeType?: string
+    filePath?: string
+  } = {}
+) {
+  const buffer = Buffer.from(options.content ?? 'workspace file content')
+  const name = options.name ?? 'report.docx'
+  const filePath = options.filePath ?? `files/${name}`
+  return {
+    buffer,
+    api: {
+      readRuntimeBuffer: jest.fn(async (_input: unknown) => ({
+        name,
+        filePath,
+        workspacePath: `/workspace/${filePath}`,
+        mimeType: options.mimeType ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: buffer.length,
+        buffer,
+        reference: {
+          source: WORKSPACE_FILES_SOURCE,
+          filePath,
+          workspacePath: `/workspace/${filePath}`,
+          originalName: name,
+          mimeType: options.mimeType ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+      }))
+    }
+  }
+}
+
+function createWorkspaceContext(workspaceFiles: { readRuntimeBuffer: jest.Mock }) {
+  return {
+    xpertId: 'xpert-1',
+    conversationId: 'conversation-1',
+    runtime: {
+      capabilities: {
+        get: jest.fn((key) => (key === WorkspaceFilesRuntimeCapability ? workspaceFiles : undefined))
+      }
+    }
+  }
+}
+
 describe('LarkNotifyMiddleware', () => {
   beforeEach(() => {
     jest.restoreAllMocks()
@@ -166,6 +227,7 @@ describe('LarkNotifyMiddleware', () => {
 
     expect(middleware.tools.map((tool) => tool.name)).toEqual([
       'lark_send_text_notification',
+      LARK_SEND_FILE_TOOL_NAME,
       'lark_send_rich_notification',
       'lark_update_message',
       'lark_recall_message'
@@ -181,12 +243,344 @@ describe('LarkNotifyMiddleware', () => {
 
     expect(middleware.tools.map((tool) => tool.name)).toEqual([
       'lark_send_text_notification',
+      LARK_SEND_FILE_TOOL_NAME,
       'lark_send_rich_notification',
       'lark_update_message',
       'lark_recall_message',
       'lark_list_users',
       'lark_list_chats'
     ])
+  })
+
+  it('does not expose integration, recipient, or workspace scope overrides in the file tool schema', async () => {
+    const { middleware } = await createFixture()
+    const schemaKeys = Object.keys(getTool(middleware, LARK_SEND_FILE_TOOL_NAME).schema.shape)
+
+    expect(schemaKeys).toEqual(
+      expect.arrayContaining(['file', 'fileRef', 'path', 'filePath', 'workspacePath', 'fileName', 'mimeType'])
+    )
+    expect(schemaKeys).not.toEqual(
+      expect.arrayContaining([
+        'integrationId',
+        'chatId',
+        'recipient_id',
+        'userId',
+        'tenantId',
+        'catalog',
+        'scopeId',
+        'xpertId'
+      ])
+    )
+  })
+
+  it('uploads once and sends a workspace file to the current Lark group with runtime integration priority', async () => {
+    const workspace = createWorkspaceFiles()
+    const { middleware, larkChannel, fileCreate, messageCreate } = await createFixture(
+      {
+        integrationId: 'integration-config',
+        recipient_type: 'chat_id',
+        recipient_id: 'chat-config'
+      },
+      createWorkspaceContext(workspace.api)
+    )
+
+    const result = await getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+      {
+        file: {
+          fileRef: {
+            source: WORKSPACE_FILES_SOURCE,
+            filePath: 'files/report.docx',
+            workspacePath: '/workspace/files/report.docx',
+            tenantId: 'tenant-attacker',
+            catalog: 'users',
+            scopeId: 'scope-attacker'
+          }
+        },
+        file_name: '业务报告.docx',
+        mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        integrationId: 'integration-attacker',
+        chatId: 'chat-attacker',
+        recipient_id: 'user-attacker'
+      } as any,
+      {
+        configurable: {
+          context: {
+            from: 'lark',
+            channelType: 'lark',
+            sourceIntegrationId: 'integration-runtime',
+            chatId: 'chat-runtime',
+            chatType: 'group',
+            senderOpenId: 'ou-sender'
+          }
+        },
+        metadata: {
+          tool_call_id: 'tool-file-1'
+        }
+      }
+    )
+
+    expect(larkChannel.getOrCreateLarkClientById).toHaveBeenCalledWith('integration-runtime')
+    const runtimeLocator = workspace.api.readRuntimeBuffer.mock.calls[0][0]
+    expect(runtimeLocator).toEqual(
+      expect.objectContaining({
+        path: 'files/report.docx',
+        originalName: '业务报告.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      })
+    )
+    expect(runtimeLocator).not.toHaveProperty('tenantId')
+    expect(runtimeLocator).not.toHaveProperty('catalog')
+    expect(runtimeLocator).not.toHaveProperty('scopeId')
+    expect(fileCreate).toHaveBeenCalledTimes(1)
+    expect(fileCreate).toHaveBeenCalledWith({
+      data: {
+        file_type: 'stream',
+        file_name: '业务报告.docx',
+        file: workspace.buffer
+      }
+    })
+    expect(messageCreate).toHaveBeenCalledTimes(1)
+    expect(messageCreate).toHaveBeenCalledWith({
+      params: {
+        receive_id_type: 'chat_id'
+      },
+      data: {
+        receive_id: 'chat-runtime',
+        msg_type: 'file',
+        content: JSON.stringify({ file_key: 'file-default' }),
+        uuid: expect.stringMatching(/^lfs_[a-f0-9]+$/)
+      }
+    })
+
+    const safeFile = result.update.lark_notify_last_result.file
+    expect(safeFile).toEqual({
+      fileName: '业务报告.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: workspace.buffer.length,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      messageType: 'file'
+    })
+    const serializedResult = JSON.stringify(result.update.lark_notify_last_result)
+    expect(serializedResult).not.toContain('file-default')
+    expect(serializedResult).not.toContain('/workspace/')
+    expect(serializedResult).not.toContain(workspace.buffer.toString('base64'))
+    expect(serializedResult).not.toContain('integration-runtime')
+    expect(serializedResult).not.toContain('chat-runtime')
+  })
+
+  it('falls back to the current sender open_id only for a private Lark chat without chatId', async () => {
+    const workspace = createWorkspaceFiles({ name: 'voice.opus', mimeType: 'audio/opus' })
+    const { middleware, fileCreate, messageCreate } = await createFixture(
+      {
+        integrationId: 'integration-config',
+        recipient_type: 'chat_id',
+        recipient_id: 'chat-config'
+      },
+      createWorkspaceContext(workspace.api)
+    )
+
+    await getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+      {
+        path: '/workspace/files/voice.opus'
+      },
+      {
+        configurable: {
+          runtimePrincipal: {
+            sourceIntegrationId: 'integration-runtime'
+          },
+          context: {
+            from: 'lark',
+            chatType: 'p2p',
+            senderOpenId: 'ou-current-user'
+          }
+        },
+        metadata: {
+          tool_call_id: 'tool-file-p2p'
+        }
+      }
+    )
+
+    expect(fileCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          file_type: 'opus'
+        })
+      })
+    )
+    expect(messageCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { receive_id_type: 'open_id' },
+        data: expect.objectContaining({
+          receive_id: 'ou-current-user',
+          msg_type: 'audio'
+        })
+      })
+    )
+  })
+
+  it('does not combine a runtime chat target with a configured integration', async () => {
+    const workspace = createWorkspaceFiles()
+    const { middleware } = await createFixture(
+      {
+        integrationId: 'integration-config',
+        recipient_type: 'chat_id',
+        recipient_id: 'chat-config'
+      },
+      createWorkspaceContext(workspace.api)
+    )
+
+    await expect(
+      getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+        {
+          path: 'files/report.docx'
+        },
+        {
+          configurable: {
+            context: {
+              from: 'lark',
+              chatId: 'chat-runtime',
+              chatType: 'group'
+            }
+          }
+        }
+      )
+    ).rejects.toThrow('missing its trusted runtime integrationId')
+    expect(workspace.api.readRuntimeBuffer).not.toHaveBeenCalled()
+  })
+
+  it('uses only configured recipients for proactive file sends and reuses one upload for a batch', async () => {
+    const workspace = createWorkspaceFiles({ name: 'report.pdf', mimeType: 'application/pdf' })
+    const { middleware, fileCreate, messageCreate } = await createFixture(
+      {
+        integrationId: 'integration-config',
+        recipient_type: 'chat_id',
+        recipient_id: '{{runtime.chatIds}}'
+      },
+      createWorkspaceContext(workspace.api)
+    )
+    jest.spyOn(langgraph, 'getCurrentTaskInput').mockReturnValue({
+      runtime: {
+        chatIds: ['chat-ok', 'chat-failed']
+      }
+    } as any)
+    messageCreate.mockImplementation(({ data }) => {
+      if (data.receive_id === 'chat-failed') {
+        return Promise.reject(new Error('mock send failure'))
+      }
+      return Promise.resolve({
+        data: {
+          message_id: 'message-ok'
+        }
+      })
+    })
+
+    const result = await getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+      {
+        filePath: 'files/report.pdf'
+      },
+      {
+        metadata: {
+          tool_call_id: 'tool-file-batch'
+        }
+      }
+    )
+
+    expect(workspace.api.readRuntimeBuffer).toHaveBeenCalledTimes(1)
+    expect(fileCreate).toHaveBeenCalledTimes(1)
+    expect(messageCreate).toHaveBeenCalledTimes(2)
+    expect(messageCreate.mock.calls.map(([request]) => request.data.uuid)).toHaveLength(2)
+    expect(messageCreate.mock.calls[0][0].data.uuid).not.toBe(messageCreate.mock.calls[1][0].data.uuid)
+    expect(result.update.lark_notify_last_result).toEqual(
+      expect.objectContaining({
+        successCount: 1,
+        failureCount: 1,
+        results: expect.arrayContaining([
+          expect.objectContaining({ index: 1, success: true, messageId: 'message-ok' }),
+          expect.objectContaining({ index: 2, success: false, error: 'mock send failure' })
+        ])
+      })
+    )
+    expect(result.update.lark_notify_last_result.results.every((item) => item.target === undefined)).toBe(true)
+  })
+
+  it('does not let file tool arguments select a Lark target', async () => {
+    const workspace = createWorkspaceFiles()
+    const { middleware } = await createFixture(
+      {
+        integrationId: 'integration-config',
+        recipient_type: null,
+        recipient_id: null
+      },
+      createWorkspaceContext(workspace.api)
+    )
+
+    await expect(
+      getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke({
+        path: 'files/report.docx',
+        integrationId: 'integration-attacker',
+        chatId: 'chat-attacker',
+        recipient_id: 'ou-attacker',
+        userId: 'ou-attacker'
+      } as any)
+    ).rejects.toThrow('No trusted Lark file recipient was found')
+    expect(workspace.api.readRuntimeBuffer).not.toHaveBeenCalled()
+  })
+
+  it('fails before upload when workspace capability is missing', async () => {
+    const { middleware, larkChannel, fileCreate, messageCreate } = await createFixture()
+
+    await expect(
+      getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+        {
+          path: 'files/report.docx'
+        },
+        {
+          configurable: {
+            context: {
+              sourceIntegrationId: 'integration-runtime',
+              chatId: 'chat-runtime',
+              chatType: 'group'
+            }
+          }
+        }
+      )
+    ).rejects.toThrow('platform.workspace.files runtime capability is required')
+    expect(larkChannel.getOrCreateLarkClientById).not.toHaveBeenCalled()
+    expect(fileCreate).not.toHaveBeenCalled()
+    expect(messageCreate).not.toHaveBeenCalled()
+  })
+
+  it('does not send when upload fails or returns no file_key', async () => {
+    const workspace = createWorkspaceFiles()
+    const { middleware, fileCreate, messageCreate } = await createFixture(
+      undefined,
+      createWorkspaceContext(workspace.api)
+    )
+    const sendFile = getTool(middleware, LARK_SEND_FILE_TOOL_NAME)
+    const runtimeConfig = {
+      configurable: {
+        context: {
+          sourceIntegrationId: 'integration-runtime',
+          chatId: 'chat-runtime',
+          chatType: 'group'
+        }
+      },
+      metadata: {
+        tool_call_id: 'tool-file-upload'
+      }
+    }
+
+    fileCreate.mockRejectedValueOnce(new Error('mock upload failure'))
+    await expect(sendFile.invoke({ path: 'files/report.docx' }, runtimeConfig)).rejects.toThrow(
+      "Failed to upload 'report.docx'"
+    )
+    expect(messageCreate).not.toHaveBeenCalled()
+
+    fileCreate.mockResolvedValueOnce({})
+    await expect(sendFile.invoke({ path: 'files/report.docx' }, runtimeConfig)).rejects.toThrow(
+      'did not return file_key'
+    )
+    expect(messageCreate).not.toHaveBeenCalled()
   })
 
   it('resolves recipient_name from callback context directory key', async () => {
@@ -243,6 +637,21 @@ describe('LarkNotifyMiddleware', () => {
     )
   })
 
+  it('uses the trigger runtime integration before a stored notification integration', async () => {
+    const { middleware, larkChannel } = await createFixture({
+      integrationId: 'integration-stored',
+      recipient_type: 'chat_id',
+      recipient_id: 'chat-current'
+    })
+    jest.spyOn(langgraph, 'getCurrentTaskInput').mockReturnValue({
+      lark_conversation_context_current_integration_id: 'integration-trigger'
+    } as any)
+
+    await getTool(middleware, 'lark_send_text_notification').invoke({ content: 'hello' })
+
+    expect(larkChannel.getOrCreateLarkClientById).toHaveBeenCalledWith('integration-trigger')
+  })
+
   it('asks user to mention first when recipient_name is missing from directory', async () => {
     const { middleware, recipientDirectoryService } = await createFixture({
       recipient_id: null,
@@ -265,7 +674,7 @@ describe('LarkNotifyMiddleware', () => {
         recipient_name: 'Unknown User',
         content: 'hello'
       })
-    ).rejects.toThrow('请先在群里 @ Unknown User 一次')
+    ).rejects.toThrow('请先让用户在当前会话中 @ Unknown User')
   })
 
   it('resolves recipient_name when recipientDirectoryKey is nested under an agent channel state', async () => {
@@ -891,7 +1300,7 @@ describe('LarkNotifyMiddleware', () => {
       typeof middleware.beforeAgent === 'function' ? middleware.beforeAgent : middleware.beforeAgent?.hook
     expect(beforeAgent).toBeDefined()
 
-    const stateUpdate = await beforeAgent?.(
+    const stateUpdate = (await beforeAgent?.(
       {
         lark_notify_known_recipients_summary: '',
         lark_notify_agent_guidance: ''
@@ -905,12 +1314,16 @@ describe('LarkNotifyMiddleware', () => {
           }
         }
       } as any
-    )
+    )) as any
 
     expect(recipientDirectoryService.get).toHaveBeenCalledWith('lark:recipient-dir:integration-1:chat:chat-1')
     expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Tom Jerry')
     expect(stateUpdate?.lark_notify_known_recipients_summary).toContain('Alice')
-    expect(stateUpdate?.lark_notify_agent_guidance).toContain('Do not call lark_list_users as the default discovery step.')
+    expect(stateUpdate?.lark_notify_agent_guidance).toContain(
+      'Do not call lark_list_users as the default discovery step.'
+    )
+    expect(stateUpdate?.lark_notify_agent_guidance).toContain('Use lark_send_file')
+    expect(stateUpdate?.lark_notify_agent_guidance).toContain('Never paste a local or workspace path')
     expect(stateUpdate?.lark_notify_recipient_directory_key).toBe('lark:recipient-dir:integration-1:chat:chat-1')
 
     const handler = jest.fn().mockResolvedValue('ok')
@@ -965,6 +1378,6 @@ describe('LarkNotifyMiddleware', () => {
       getTool(noRecipients.middleware, 'lark_send_text_notification').invoke({
         content: 'no recipients'
       })
-    ).rejects.toThrow('recipients is required')
+    ).rejects.toThrow('No valid Lark recipient was found')
   })
 })

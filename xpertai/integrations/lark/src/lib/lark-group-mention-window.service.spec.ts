@@ -1,6 +1,12 @@
+jest.mock('@xpert-ai/plugin-sdk', () => {
+	const { createLarkPluginSdkMock } = require('../../../../test-utils/larkPluginSdkMock.cjs')
+	return createLarkPluginSdkMock(jest)
+})
+
 import { buildLarkGroupWindowPrompt } from './lark-agent-prompt.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
+import { buildLarkInboundJobId } from './lark-job-id.js'
 import { LARK_TYPING_REACTION_EMOJI_TYPE } from './types.js'
 
 class MemoryCache {
@@ -103,14 +109,32 @@ describe('LarkGroupMentionWindowService', () => {
 		} as any
 	}
 
+	it('uses a deterministic colon-free job id for the inbound group window', async () => {
+		const { service, flushQueue } = createService()
+
+		await service.ingest(createContext())
+
+		const firstJobId = flushQueue.add.mock.calls[0][1].jobId
+		expect(firstJobId).not.toContain(':')
+		expect(firstJobId).toMatch(/^lark_group_window_flush_[a-f0-9]{32}$/)
+		expect((service as any).toFlushJobId('lark:mention-window:integration-1:chat-1')).toBe(firstJobId)
+	})
+
 	it('merges multiple group mentions into one flushed context', async () => {
 		const { service, scopeQueue, larkChannel } = createService({
 			maxMessages: 2
 		})
 
-		await service.ingest(createContext())
 		await service.ingest(
 			createContext({
+				currentInboundLogIds: ['log-1'],
+				historyBefore: '2026-07-15T08:00:00.000Z'
+			})
+		)
+		await service.ingest(
+			createContext({
+				currentInboundLogIds: ['log-2'],
+				historyBefore: '2026-07-15T08:00:02.000Z',
 				userId: 'user-2',
 				senderOpenId: 'ou-2',
 				senderName: 'Bob',
@@ -126,7 +150,19 @@ describe('LarkGroupMentionWindowService', () => {
 
 		expect(scopeQueue.add).toHaveBeenCalledTimes(1)
 		const flushed = (scopeQueue.add as jest.Mock).mock.calls[0][0]
+		const queueOptions = (scopeQueue.add as jest.Mock).mock.calls[0][1]
+		expect(queueOptions).toEqual({
+			jobId: buildLarkInboundJobId('log-1'),
+			removeOnComplete: true
+		})
+		expect(queueOptions.jobId).not.toContain(':')
 		expect(flushed.groupWindow.items).toHaveLength(2)
+		expect(flushed.currentInboundLogIds).toEqual(['log-1', 'log-2'])
+		expect(flushed.historyBefore).toBe('2026-07-15T08:00:00.000Z')
+		expect(flushed.groupWindow.items.map((item: any) => item.messageLogId)).toEqual([
+			'log-1',
+			'log-2'
+		])
 		expect(flushed.replyToMessageId).toBe('m-1')
 		expect(flushed.typingReaction).toEqual({
 			messageId: 'm-1',
@@ -177,7 +213,11 @@ describe('LarkGroupMentionWindowService', () => {
 		} as any)
 		;(first as any).flushQueue = createFlushQueueMock()
 
-		await first.ingest(createContext())
+		await first.ingest(
+			createContext({
+				currentInboundLogIds: ['log-1']
+			})
+		)
 
 		const scopeQueue = {
 			add: jest.fn().mockResolvedValue(undefined)
@@ -213,6 +253,10 @@ describe('LarkGroupMentionWindowService', () => {
 
 		expect(scopeQueue.add).toHaveBeenCalledTimes(1)
 		const flushed = (scopeQueue.add as jest.Mock).mock.calls[0][0]
+		expect((scopeQueue.add as jest.Mock).mock.calls[0][1]).toEqual({
+			jobId: buildLarkInboundJobId('log-1'),
+			removeOnComplete: true
+		})
 		expect(flushed.groupWindow.items).toHaveLength(1)
 		expect(flushed.input).toBe('Alice: hello')
 	})

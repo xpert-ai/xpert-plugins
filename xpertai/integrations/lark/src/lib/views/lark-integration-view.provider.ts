@@ -1,6 +1,8 @@
 import type {
   I18nObject,
   XpertExtensionViewManifest,
+  XpertRemoteComponentEntry,
+  XpertRemoteComponentViewSchema,
   XpertResolvedViewHostContext,
   XpertViewActionRequest,
   XpertViewActionResult,
@@ -23,6 +25,12 @@ import {
   LarkManagedConnectionInfo
 } from '../lark-long-connection.service.js'
 import { LARK_PLUGIN_NAME, LARK_VIEW_PROVIDER_KEY } from '../constants.js'
+import { LarkMessageHistoryService } from '../lark-message-history.service.js'
+import type { LarkMessageFileEntity, LarkMessageLogEntity } from '../entities/index.js'
+import {
+  LARK_MESSAGE_HISTORY_REMOTE_ENTRY,
+  renderLarkMessageHistoryRemoteHtml
+} from './lark-message-history.remote.js'
 
 const DEFAULT_PAGE_SIZE = 10
 
@@ -73,6 +81,21 @@ type LarkConversationViewRow = {
   updatedAt: string | null
 }
 
+type LarkMessageViewRow = {
+  id: string
+  createdAt: string | null
+  direction: string
+  status: string
+  conversation: string
+  sender: string | null
+  messageType: string | null
+  content: string | null
+  attachmentStatus: string | null
+  botMentioned: boolean
+  xpertId: string
+  error: string | null
+}
+
 @Injectable()
 @ViewExtensionProvider(LARK_VIEW_PROVIDER_KEY)
 export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider {
@@ -80,7 +103,8 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
     private readonly longConnectionService: LarkLongConnectionService,
     private readonly larkChannel: LarkChannelStrategy,
     private readonly recipientDirectoryService: LarkRecipientDirectoryService,
-    private readonly conversationService: LarkConversationService
+    private readonly conversationService: LarkConversationService,
+    private readonly messageHistoryService: LarkMessageHistoryService
   ) {}
 
   supports(context: XpertResolvedViewHostContext) {
@@ -320,8 +344,62 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
             ttlMs: 30 * 1000
           }
         }
+      },
+      {
+        key: 'messages',
+        title: text('Messages', '消息'),
+        hostType: context.hostType,
+        slot,
+        order: 50,
+        refreshable: true,
+        source: {
+          provider: LARK_VIEW_PROVIDER_KEY,
+          plugin: LARK_PLUGIN_NAME
+        },
+        view: {
+          type: 'remote_component',
+          runtime: 'react',
+          protocolVersion: 1,
+          component: {
+            isolation: 'iframe',
+            entry: LARK_MESSAGE_HISTORY_REMOTE_ENTRY
+          },
+          dataSource: {
+            mode: 'platform'
+          }
+        },
+        dataSource: {
+          mode: 'platform',
+          querySchema: {
+            supportsPagination: true,
+            supportsSearch: true,
+            supportsSort: true,
+            defaultPageSize: DEFAULT_PAGE_SIZE
+          },
+          cache: {
+            enabled: false
+          }
+        }
       }
     ]
+  }
+
+  getRemoteComponentEntry(
+    _context: XpertResolvedViewHostContext,
+    viewKey: string,
+    component: XpertRemoteComponentViewSchema['component']
+  ): XpertRemoteComponentEntry {
+    if (viewKey !== 'messages' || component.entry !== LARK_MESSAGE_HISTORY_REMOTE_ENTRY) {
+      return {
+        html: '<!doctype html><html><body>Unsupported Lark remote component.</body></html>',
+        contentType: 'text/html; charset=utf-8'
+      }
+    }
+
+    return {
+      html: renderLarkMessageHistoryRemoteHtml(),
+      contentType: 'text/html; charset=utf-8'
+    }
   }
 
   async getViewData(
@@ -374,6 +452,33 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
       }
     }
 
+    if (viewKey === 'messages') {
+      const result = await this.messageHistoryService.listMessageLogs({
+        integrationId: context.hostId,
+        tenantId: context.tenantId,
+        organizationId: context.organizationId,
+        cursor: query.cursor,
+        page: query.page,
+        pageSize: query.pageSize,
+        search: query.search,
+        sortBy: normalizeMessageSort(query.sortBy),
+        sortDirection: query.sortDirection ?? null
+      })
+      const files = await this.messageHistoryService.listMessageFiles({
+        integrationId: context.hostId,
+        tenantId: context.tenantId,
+        organizationId: context.organizationId,
+        messageLogIds: result.items.map((item) => item.id)
+      })
+      const filesByLogId = groupMessageFiles(files)
+
+      return {
+        items: result.items.map((item) => this.mapMessageRow(item, filesByLogId.get(item.id) ?? [])),
+        total: result.total,
+        ...(result.nextCursor ? { nextCursor: result.nextCursor } : {})
+      }
+    }
+
     return {}
   }
 
@@ -383,7 +488,7 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
     actionKey: string,
     _request: XpertViewActionRequest
   ): Promise<XpertViewActionResult> {
-    if (viewKey !== 'status' && viewKey !== 'connections') {
+    if (viewKey !== 'status' && viewKey !== 'connections' && viewKey !== 'messages') {
       return {
         success: false,
         message: text('Unsupported action', '不支持的操作')
@@ -521,6 +626,57 @@ export class LarkIntegrationViewProvider implements IXpertViewExtensionProvider 
       updatedAt: formatDateTime(item.updatedAt)
     }
   }
+
+  private mapMessageRow(item: LarkMessageLogEntity, files: LarkMessageFileEntity[]): LarkMessageViewRow {
+    return {
+      id: item.id,
+      createdAt: formatDateTime(item.createdAt),
+      direction: item.direction,
+      status: item.status,
+      conversation: item.chatId ?? item.scopeKey,
+      sender: item.senderName ?? item.senderOpenId ?? null,
+      messageType: item.messageType ?? null,
+      content: item.content ?? null,
+      attachmentStatus: summarizeAttachmentStatuses(files),
+      botMentioned: item.botMentioned,
+      xpertId: item.xpertId,
+      error: item.error ?? null
+    }
+  }
+}
+
+function normalizeMessageSort(
+  value: string | null | undefined
+): 'createdAt' | 'messageCreatedAt' | 'direction' | 'status' | 'senderName' | 'botMentioned' | null {
+  return value === 'createdAt' ||
+    value === 'messageCreatedAt' ||
+    value === 'direction' ||
+    value === 'status' ||
+    value === 'senderName' ||
+    value === 'botMentioned'
+    ? value
+    : null
+}
+
+function groupMessageFiles(files: LarkMessageFileEntity[]): Map<string, LarkMessageFileEntity[]> {
+  const result = new Map<string, LarkMessageFileEntity[]>()
+  for (const file of files) {
+    const items = result.get(file.messageLogId) ?? []
+    items.push(file)
+    result.set(file.messageLogId, items)
+  }
+  return result
+}
+
+function summarizeAttachmentStatuses(files: LarkMessageFileEntity[]): string | null {
+  if (!files.length) {
+    return null
+  }
+  const counts = new Map<string, number>()
+  for (const file of files) {
+    counts.set(file.status, (counts.get(file.status) ?? 0) + 1)
+  }
+  return [...counts.entries()].map(([status, count]) => `${status} (${count})`).join(', ')
 }
 
 function buildFallbackStatusSummary(hostSnapshot: unknown): LarkStatusSummary {

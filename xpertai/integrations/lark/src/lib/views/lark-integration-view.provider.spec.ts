@@ -22,6 +22,7 @@ import { LarkConversationService } from '../conversation.service.js'
 import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkLongConnectionService } from '../lark-long-connection.service.js'
+import { LarkMessageHistoryService } from '../lark-message-history.service.js'
 import { TIntegrationLarkOptions } from '../types.js'
 import { LarkIntegrationViewProvider } from './lark-integration-view.provider.js'
 
@@ -153,17 +154,52 @@ describe('LarkIntegrationViewProvider', () => {
         total: 1
       })
     }
+    const messageHistoryService = {
+      listMessageLogs: jest.fn().mockResolvedValue({
+        items: [
+          {
+            id: 'message-log-1',
+            createdAt: new Date('2026-04-03T00:00:00.000Z'),
+            messageCreatedAt: new Date('2026-04-03T00:00:00.000Z'),
+            sentAt: null,
+            direction: 'inbound',
+            status: 'history_only',
+            chatId: 'chat-1',
+            scopeKey: 'group:chat-1',
+            senderName: 'Alice',
+            senderOpenId: 'ou_user_1',
+            messageType: 'file',
+            content: 'quarterly report',
+            botMentioned: false,
+            xpertId: 'xpert-1',
+            error: null
+          }
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 10
+      }),
+      listMessageFiles: jest.fn().mockResolvedValue([
+        {
+          id: 'message-file-1',
+          messageLogId: 'message-log-1',
+          status: 'ready'
+        }
+      ])
+    }
 
     return {
       longConnectionService,
       larkChannel,
       recipientDirectoryService,
       conversationService,
+      messageHistoryService,
       provider: new LarkIntegrationViewProvider(
         longConnectionService as unknown as LarkLongConnectionService,
         larkChannel as unknown as LarkChannelStrategy,
         recipientDirectoryService as unknown as LarkRecipientDirectoryService,
-        conversationService as unknown as LarkConversationService
+        conversationService as unknown as LarkConversationService,
+        messageHistoryService as unknown as LarkMessageHistoryService
       )
     }
   }
@@ -179,13 +215,50 @@ describe('LarkIntegrationViewProvider', () => {
     expect(provider.supports(createContext('slack'))).toBe(false)
   })
 
-  it('declares status, connections, users, and conversations tabs for integration detail main tabs', () => {
+  it('declares status, connections, users, conversations, and messages tabs for integration detail main tabs', () => {
     const { provider } = createFixture()
 
-    expect(
-      provider.getViewManifests(createContext(), 'detail.main_tabs').map((manifest) => manifest.key)
-    ).toEqual(['status', 'connections', 'users', 'conversations'])
+    const manifests = provider.getViewManifests(createContext(), 'detail.main_tabs')
+    expect(manifests.map((manifest) => manifest.key)).toEqual([
+      'status',
+      'connections',
+      'users',
+      'conversations',
+      'messages'
+    ])
+    expect(manifests.find((manifest) => manifest.key === 'messages')).toEqual(
+      expect.objectContaining({
+        refreshable: true,
+        view: expect.objectContaining({
+          type: 'remote_component',
+          component: expect.objectContaining({ isolation: 'iframe', entry: 'lark-message-history' })
+        }),
+        dataSource: expect.objectContaining({
+          querySchema: expect.objectContaining({
+            supportsPagination: true,
+            supportsSearch: true,
+            supportsSort: true
+          }),
+          cache: { enabled: false }
+        })
+      })
+    )
     expect(provider.getViewManifests(createContext(), 'detail.sidebar')).toEqual([])
+  })
+
+  it('serves the plugin-owned scrollable message history component', () => {
+    const { provider } = createFixture()
+
+    const result = provider.getRemoteComponentEntry(createContext(), 'messages', {
+      isolation: 'iframe',
+      entry: 'lark-message-history'
+    })
+
+    expect(result.contentType).toBe('text/html; charset=utf-8')
+    expect(result.html).toContain('id="search"')
+    expect(result.html).toContain('id="refresh"')
+    expect(result.html).toContain("overflow: auto")
+    expect(result.html).toContain("post('requestData'")
   })
 
   it('loads status data from runtime status and bot info', async () => {
@@ -283,10 +356,66 @@ describe('LarkIntegrationViewProvider', () => {
     })
   })
 
+  it('loads paginated local message history without calling Lark APIs', async () => {
+    const { provider, messageHistoryService } = createFixture()
+
+    await expect(
+      provider.getViewData(createContext(), 'messages', {
+        page: 1,
+        pageSize: 10,
+        search: 'report',
+        sortBy: 'createdAt',
+        sortDirection: 'desc'
+      })
+    ).resolves.toEqual({
+      items: [
+        {
+          id: 'message-log-1',
+          createdAt: '2026-04-03T00:00:00.000Z',
+          direction: 'inbound',
+          status: 'history_only',
+          conversation: 'chat-1',
+          sender: 'Alice',
+          messageType: 'file',
+          content: 'quarterly report',
+          attachmentStatus: 'ready (1)',
+          botMentioned: false,
+          xpertId: 'xpert-1',
+          error: null
+        }
+      ],
+      total: 1
+    })
+
+    expect(messageHistoryService.listMessageLogs).toHaveBeenCalledWith({
+      integrationId: 'integration-1',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      cursor: undefined,
+      page: 1,
+      pageSize: 10,
+      search: 'report',
+      sortBy: 'createdAt',
+      sortDirection: 'desc'
+    })
+    expect(messageHistoryService.listMessageFiles).toHaveBeenCalledWith({
+      integrationId: 'integration-1',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      messageLogIds: ['message-log-1']
+    })
+  })
+
   it('refreshes and invokes reconnect or disconnect for long connection integrations', async () => {
     const { provider, longConnectionService } = createFixture('long_connection')
 
     await expect(provider.executeViewAction(createContext(), 'status', 'refresh', {})).resolves.toEqual(
+      expect.objectContaining({
+        success: true,
+        refresh: true
+      })
+    )
+    await expect(provider.executeViewAction(createContext(), 'messages', 'refresh', {})).resolves.toEqual(
       expect.objectContaining({
         success: true,
         refresh: true

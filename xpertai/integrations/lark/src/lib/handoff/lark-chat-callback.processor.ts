@@ -3,10 +3,13 @@ import {
 	HandoffMessage,
 	HandoffProcessorStrategy,
 	IHandoffProcessor,
+	MANAGED_QUEUE_SERVICE_TOKEN,
+	type ManagedQueueService,
 	type PluginContext,
 	ProcessContext,
 	ProcessResult,
 } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'node:crypto'
 import { ChatEventEnvelope, ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { ChatLarkMessage, cloneStructuredElement } from '../message.js'
 import { LarkConversationService } from '../conversation.service.js'
@@ -30,6 +33,8 @@ import {
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
 import { messageContentText, XpertAgentExecutionStatusEnum } from '../contracts-compat.js'
+import { LarkMessageHistoryService } from '../lark-message-history.service.js'
+import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
 
 const HIDDEN_LARK_CHAT_EVENT_TYPES = [
 	'thread_context_usage',
@@ -38,6 +43,11 @@ const HIDDEN_LARK_CHAT_EVENT_TYPES = [
 
 type HiddenLarkChatEventType = (typeof HIDDEN_LARK_CHAT_EVENT_TYPES)[number]
 const HIDDEN_LARK_CHAT_EVENT_TYPE_SET = new Set<HiddenLarkChatEventType>(HIDDEN_LARK_CHAT_EVENT_TYPES)
+const STALE_STEER_ERROR_CODE = 'steer_target_not_running'
+const STALE_STEER_RETRY_DELAY_MS = 1000
+const STALE_STEER_PROCESSING_TTL_MS = 10 * 60 * 1000
+const STALE_STEER_DONE_TTL_MS = 10 * 60 * 1000
+const STALE_STEER_ENQUEUED_MARKER = 'stale_steer_fallback_enqueued'
 
 /**
  * Callback processor for Lark stream events.
@@ -68,6 +78,8 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 	constructor(
 		private readonly larkChannel: LarkChannelStrategy,
 		private readonly runStateService: LarkChatRunStateService,
+		private readonly messageHistoryService: LarkMessageHistoryService,
+		private readonly dispatchService: LarkChatDispatchService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext<IntegrationLarkPluginConfig>
 	) {}
@@ -88,6 +100,25 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				status: 'dead',
 				reason: 'Missing sequence in Lark callback payload'
 			}
+		}
+		if (payload.context?.followUpMode === 'steer') {
+			// A steer follow-up is consumed by the already running Xpert execution.
+			// It must not create or update a second Lark card/run state.
+			if (payload.kind === 'error') {
+				if (payload.errorCode === STALE_STEER_ERROR_CODE && payload.context.steerFallback) {
+					return this.recoverStaleSteer(payload)
+				}
+				const error = payload.error || 'Lark steer follow-up failed'
+				await this.messageHistoryService.updateInboundStatus(
+					payload.context.currentInboundLogIds ?? [],
+					'failed',
+					error
+				)
+				this.logger.warn(
+					`Lark steer follow-up "${payload.sourceMessageId}" failed without creating a second response card: ${error}`
+				)
+			}
+			return { status: 'ok' }
 		}
 
 		return this.runWithSourceLock(payload.sourceMessageId, async () => {
@@ -120,6 +151,202 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 
 			return { status: 'ok' }
 		})
+	}
+
+	private async recoverStaleSteer(payload: LarkChatStreamCallbackPayload): Promise<ProcessResult> {
+		const context = payload.context!
+		const fallback = context.steerFallback!
+		if (!context.scopeKey || !context.xpertId) {
+			return { status: 'dead', reason: 'Missing trusted Lark scope for stale steer fallback' }
+		}
+
+		const active = await this.conversationService.getActiveMessage(context.scopeKey, context.xpertId, {
+			legacyConversationUserKey: context.legacyConversationUserKey
+		})
+		if (active?.thirdPartyMessage?.id !== fallback.message.id) {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'failed',
+				'stale_steer_active_card_changed'
+			)
+			return { status: 'dead', reason: 'Active Lark response card changed before stale steer fallback' }
+		}
+		if (this.isInProgressStatus(active.thirdPartyMessage?.status)) {
+			return {
+				status: 'retry',
+				delayMs: STALE_STEER_RETRY_DELAY_MS,
+				reason: 'Waiting for the previous Lark response card to finish before stale steer fallback'
+			}
+		}
+		if (
+			await this.messageHistoryService.areInboundLogsInStatusWithError(
+				context.currentInboundLogIds ?? [],
+				'queued',
+				STALE_STEER_ENQUEUED_MARKER
+			)
+		) {
+			return { status: 'ok' }
+		}
+
+		const claim = await this.claimStaleSteerFallback(payload.sourceMessageId, context.integrationId)
+		if (claim.state === 'done') {
+			return { status: 'ok' }
+		}
+		if (claim.state !== 'claimed') {
+			return {
+				status: 'retry',
+				delayMs: STALE_STEER_RETRY_DELAY_MS,
+				reason: 'Another worker is recovering the stale Lark steer fallback'
+			}
+		}
+		const claimOwnerToken = claim.ownerToken
+		const claimedLogs = await this.messageHistoryService.claimInboundStatus(
+			context.currentInboundLogIds ?? [],
+			['dispatched', 'failed'],
+			'queued'
+		)
+		const alreadyQueued =
+			!claimedLogs &&
+			(context.currentInboundLogIds?.length ?? 0) > 0 &&
+			(await this.messageHistoryService.areInboundLogsInStatus(
+				context.currentInboundLogIds ?? [],
+				'queued'
+			))
+		if (!claimedLogs && !alreadyQueued) {
+			await this.completeStaleSteerFallbackClaim(
+				payload.sourceMessageId,
+				context.integrationId,
+				claimOwnerToken
+			)
+			return { status: 'ok' }
+		}
+
+		const fallbackContext: LarkChatCallbackContext = {
+			...context,
+			message: fallback.message,
+			followUpMode: undefined,
+			steerFallback: undefined
+		}
+		const larkMessage = this.createLarkMessage(fallbackContext)
+		try {
+			await this.dispatchService.enqueueDispatch({
+				xpertId: context.xpertId,
+				input: fallback.input,
+				files: fallback.files,
+				currentInboundLogIds: context.currentInboundLogIds,
+				larkMessage,
+				options: {
+					forceNewRun: true,
+					fromEndUserId: fallback.fromEndUserId,
+					executorUserId: fallback.executorUserId,
+					streamingEnabled: fallback.streamingEnabled
+				}
+			})
+		} catch (error) {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'failed',
+				String(error)
+			)
+			await this.releaseStaleSteerFallbackClaim(
+				payload.sourceMessageId,
+				context.integrationId,
+				claimOwnerToken
+			)
+			throw error
+		}
+		try {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'queued',
+				STALE_STEER_ENQUEUED_MARKER
+			)
+		} catch (error) {
+			this.logger.warn(`Unable to persist stale Lark steer enqueue marker: ${String(error)}`)
+		}
+		await this.completeStaleSteerFallbackClaim(
+			payload.sourceMessageId,
+			context.integrationId,
+			claimOwnerToken
+		)
+		return { status: 'ok' }
+	}
+
+	private isInProgressStatus(status: unknown): boolean {
+		return status === 'thinking' || status === 'continuing'
+	}
+
+	private async claimStaleSteerFallback(
+		sourceMessageId: string,
+		integrationId?: string
+	): Promise<{ state: 'claimed'; ownerToken: string } | { state: 'processing' | 'done' }> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			const key = this.staleSteerFallbackKey(sourceMessageId, integrationId)
+			const ownerToken = randomUUID()
+			const processingValue = `processing:${ownerToken}`
+			const result = await redis.set(
+				key,
+				processingValue,
+				'PX',
+				STALE_STEER_PROCESSING_TTL_MS,
+				'NX'
+			)
+			if (result === 'OK') {
+				return { state: 'claimed', ownerToken }
+			}
+			const state = await redis.get(key)
+			return { state: state === 'done' ? 'done' : 'processing' }
+		} catch (error) {
+			this.logger.error(`Unable to claim stale Lark steer fallback: ${String(error)}`)
+			throw error
+		}
+	}
+
+	private async completeStaleSteerFallbackClaim(
+		sourceMessageId: string,
+		integrationId: string | undefined,
+		ownerToken: string
+	): Promise<void> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			await redis.eval(
+				`if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('SET', KEYS[1], 'done', 'PX', ARGV[2]) else return 0 end`,
+				1,
+				this.staleSteerFallbackKey(sourceMessageId, integrationId),
+				`processing:${ownerToken}`,
+				String(STALE_STEER_DONE_TTL_MS)
+			)
+		} catch (error) {
+			// The durable inbound marker prevents re-dispatch even if this best-effort
+			// completion marker cannot be written after enqueue succeeds.
+			this.logger.warn(`Unable to complete stale Lark steer fallback claim: ${String(error)}`)
+		}
+	}
+
+	private async releaseStaleSteerFallbackClaim(
+		sourceMessageId: string,
+		integrationId: string | undefined,
+		ownerToken: string
+	): Promise<void> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			await redis.eval(
+				`if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end`,
+				1,
+				this.staleSteerFallbackKey(sourceMessageId, integrationId),
+				`processing:${ownerToken}`
+			)
+		} catch (error) {
+			this.logger.warn(`Unable to release stale Lark steer fallback claim: ${String(error)}`)
+		}
+	}
+
+	private staleSteerFallbackKey(sourceMessageId: string, integrationId?: string): string {
+		return `lark:steer-fallback:${integrationId ?? 'unknown'}:${sourceMessageId}`
 	}
 
 	private async runWithSourceLock(
@@ -300,6 +527,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				const conversationUserKey = this.resolveConversationUserKey(context)
 				const conversationId = this.toNonEmptyString(eventData?.id)
 				if (conversationUserKey && conversationId) {
+					context.conversationId = conversationId
 					await this.conversationService.setConversation(
 						conversationUserKey,
 						context.xpertId,
@@ -313,6 +541,12 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 							senderOpenId: context.senderOpenId,
 							legacyConversationUserKey: context.legacyConversationUserKey
 						}
+					)
+					await this.messageHistoryService.updateInboundStatus(
+						context.currentInboundLogIds ?? [],
+						'dispatched',
+						undefined,
+						conversationId
 					)
 				}
 				break
@@ -401,6 +635,12 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 
 		context.message = this.toMessageSnapshot(larkMessage, context.message?.text)
 		await this.syncActiveMessageCache(context)
+		await this.recordRunHistory(
+			state,
+			keepTerminalState ? 'failed' : 'sent',
+			larkMessage,
+			keepTerminalState ? String(currentStatus ?? 'agent_execution_failed') : undefined
+		)
 	}
 
 	private async failRun(state: LarkChatRunState, error?: string) {
@@ -408,6 +648,39 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		await larkMessage.error(error || 'Internal Error')
 		state.context.message = this.toMessageSnapshot(larkMessage, state.context.message?.text)
 		await this.syncActiveMessageCache(state.context)
+		await this.recordRunHistory(state, 'failed', larkMessage, error || 'Internal Error')
+	}
+
+	private async recordRunHistory(
+		state: LarkChatRunState,
+		status: 'sent' | 'failed',
+		larkMessage: ChatLarkMessage,
+		error?: string
+	): Promise<void> {
+		const context = state.context
+		if (
+			!context.currentInboundLogIds?.length ||
+			!context.integrationId ||
+			!context.scopeKey ||
+			!context.xpertId
+		) {
+			return
+		}
+		await this.messageHistoryService.recordOutbound({
+			integrationId: context.integrationId,
+			scopeKey: context.scopeKey,
+			xpertId: context.xpertId,
+			tenantId: context.tenantId,
+			organizationId: context.organizationId,
+			runId: state.sourceMessageId,
+			status,
+			content: state.responseMessageContent,
+			messageId: larkMessage.messageId ?? larkMessage.id,
+			conversationId: context.conversationId,
+			error,
+			sentAt: status === 'sent' ? new Date() : undefined,
+			createdById: context.userId
+		})
 	}
 
 	private createLarkMessage(context: LarkChatCallbackContext): ChatLarkMessage {

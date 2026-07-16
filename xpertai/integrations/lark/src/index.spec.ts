@@ -13,10 +13,9 @@ jest.mock('./lib/integration-lark.module.js', () => ({
 import plugin from './index.js'
 import {
   LARK_ADMIN_TEMPLATE_KEY,
-  LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
   LARK_CONVERSATION_TEMPLATE_KEY,
   LARK_FEATURE,
-  LARK_NOTIFY_MIDDLEWARE_NAME,
+  LARK_RUNTIME_MIDDLEWARE_NAME,
   LARK_PLUGIN_NAME,
   LARK_PROVIDER_KEY,
   LARK_VIEW_PROVIDER_KEY
@@ -45,9 +44,7 @@ describe('Lark Plugin', () => {
     expect(xpertMeta?.capabilities).toEqual(expect.arrayContaining([LARK_FEATURE]))
     expect(xpertMeta?.runtime?.integrationProviders).toEqual([LARK_PROVIDER_KEY])
     expect(xpertMeta?.runtime?.channelProviders).toEqual([LARK_PROVIDER_KEY])
-    expect(xpertMeta?.runtime?.middlewareProviders).toEqual(
-      expect.arrayContaining([LARK_NOTIFY_MIDDLEWARE_NAME, LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME])
-    )
+    expect(xpertMeta?.runtime?.middlewareProviders).toEqual([LARK_RUNTIME_MIDDLEWARE_NAME])
     expect(xpertMeta?.runtime?.viewProviders).toEqual([LARK_VIEW_PROVIDER_KEY])
 
     const contents = xpertMeta?.marketplace?.contents ?? []
@@ -55,8 +52,7 @@ describe('Lark Plugin', () => {
       expect.arrayContaining([
         `app:${LARK_PROVIDER_KEY}`,
         `view:${LARK_VIEW_PROVIDER_KEY}`,
-        `tool:${LARK_NOTIFY_MIDDLEWARE_NAME}`,
-        `tool:${LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME}`,
+        `tool:${LARK_RUNTIME_MIDDLEWARE_NAME}`,
         `assistant-template:${LARK_ADMIN_TEMPLATE_KEY}`,
         `assistant-template:${LARK_CONVERSATION_TEMPLATE_KEY}`
       ])
@@ -64,6 +60,14 @@ describe('Lark Plugin', () => {
     expect(contents.find((item) => item.type === 'app')?.operations?.map((operation) => operation.access)).toEqual(
       expect.arrayContaining(['read', 'write', 'admin'])
     )
+    expect(
+      contents
+        .find((item) => item.type === 'app')
+        ?.operations?.find((operation) => operation.name === 'send-lark-messages')?.description
+    ).toContain('workspace file')
+    expect(
+      contents.find((item) => item.type === 'tool' && item.name === LARK_RUNTIME_MIDDLEWARE_NAME)?.description
+    ).toContain('workspace file')
   })
 
   it('registers assistant templates with xpert target metadata', () => {

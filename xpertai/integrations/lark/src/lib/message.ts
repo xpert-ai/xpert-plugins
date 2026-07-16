@@ -72,7 +72,7 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     img_key: ChatLarkMessage.logoImgKey,
     corner_radius: '30%'
   }
-  static readonly helpUrl = 'https://docs.xpertai.cn/en/ai/toolset/chatbi-toolset/bot'
+  static readonly helpUrl = 'https://docs.xpertai.cn/zh-Hans/ai/plugin/trigger/lark-trigger'
   static readonly cardConfig = {
     wide_screen_mode: true
   }

@@ -10,17 +10,27 @@ import {
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
   PromiseOrValue,
+  WORKSPACE_FILES_SOURCE,
+  WorkspaceFilesRuntimeCapability,
   getErrorMessage
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { getToolCallIdFromConfig } from '../contracts-compat.js'
 import { LarkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
-import { LARK_NOTIFY_MIDDLEWARE_NAME } from '../constants.js'
+import { LARK_NOTIFY_MIDDLEWARE_NAME, LARK_SEND_FILE_TOOL_NAME } from '../constants.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
+import {
+  buildLarkFileSendUuid,
+  readLarkUploadedFileKey,
+  resolveLarkSendFileFromWorkspace,
+  toLarkSendFileMetadata,
+  type LarkSendFileDescriptor
+} from '../lark-send-file.js'
 import { iconImage } from '../types.js'
 import { toLarkApiErrorMessage } from '../utils.js'
+import { resolveLarkTrustedRuntimeContext } from './lark-trusted-runtime-context.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_POST_LOCALE = 'en_us'
@@ -35,6 +45,7 @@ const PostLocaleSchema = z.enum(['en_us', 'zh_cn', 'ja_jp'])
 
 const middlewareConfigSchema = z.object({
   integrationId: z.string().optional().nullable(),
+  trustedTriggerOnly: z.boolean().optional().default(false),
   // recipient_type 和 recipient_id 作为中间件级默认接收人配置
   recipient_type: RecipientTypeSchema.optional().nullable().describe('Lark receive_id_type (optional)'),
   recipient_id: z.string().optional().nullable().describe('Lark receive_id value (optional)'),
@@ -57,7 +68,7 @@ const middlewareConfigSchema = z.object({
     .default({})
 })
 
-const larkNotifyStateSchema = z.object({
+export const larkNotifyStateSchema = z.object({
   lark_notify_last_result: z.record(z.any()).nullable().default(null),
   lark_notify_last_message_ids: z.array(z.string()).default([]),
   lark_notify_known_recipients_summary: z.string().default(''),
@@ -79,7 +90,13 @@ const sendTextNotificationSchema = z.object({
   recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
   // 兜底 ID：当中间件没有配置 recipient_id 时使用。
   // 当前 recipient_id 默认按 open_id 解释。
-  recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
+  recipient_id: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      'Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'
+    ),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -94,7 +111,60 @@ const sendRichNotificationSchema = z.object({
   recipient_names: z.array(z.string()).optional().nullable().describe(RECIPIENT_NAMES_FIELD_DESCRIPTION),
   // 兜底 ID：当中间件没有配置 recipient_id 时使用。
   // 当前 recipient_id 默认按 open_id 解释。
-  recipient_id: z.string().optional().nullable().describe('Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'),
+  recipient_id: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      'Fallback recipient ID. Prefer recipient_name first; only use recipient_id when an explicit open_id-style target is already known in configuration.'
+    ),
+  timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
+})
+
+const sendFileReferenceSchema = z
+  .object({
+    source: z.literal(WORKSPACE_FILES_SOURCE).optional(),
+    filePath: z.string().optional().describe('Workspace-relative file path.'),
+    workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.')
+  })
+
+const sendFileDescriptorSchema = z
+  .object({
+    path: z.string().optional().describe('Sandbox /workspace path or workspace-relative path.'),
+    filePath: z.string().optional().describe('Workspace-relative file path alias.'),
+    workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+    fileRef: sendFileReferenceSchema
+      .optional()
+      .describe('Xpert workspace file reference returned by a file or history tool.'),
+    originalName: z.string().optional().describe('Filename to show in Lark.'),
+    name: z.string().optional().describe('Alias for originalName.'),
+    mimeType: z.string().optional().describe('Optional MIME type.'),
+    mimetype: z.string().optional().describe('Alias for mimeType.'),
+    extension: z.string().optional().describe('Optional file extension without a leading dot.'),
+    size: z.number().int().positive().optional().describe('Optional expected file size in bytes.')
+  })
+
+const sendFileSchema = z.object({
+  file: sendFileDescriptorSchema
+    .optional()
+    .describe('File descriptor returned by Xpert file tools or local Lark history search.'),
+  path: z.string().optional().describe('Sandbox /workspace path or workspace-relative path.'),
+  filePath: z.string().optional().describe('Workspace-relative file path alias.'),
+  workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+  fileRef: sendFileReferenceSchema.optional(),
+  originalName: z.string().optional().describe('Filename to show in Lark.'),
+  original_name: z.string().optional().describe('Alias for originalName.'),
+  fileName: z.string().optional().describe('Alias for originalName.'),
+  file_name: z.string().optional().describe('Alias for originalName.'),
+  filename: z.string().optional().describe('Alias for originalName.'),
+  name: z.string().optional().describe('Alias for originalName.'),
+  mimeType: z.string().optional().describe('Optional MIME type.'),
+  mime_type: z.string().optional().describe('Alias for mimeType.'),
+  mimetype: z.string().optional().describe('Alias for mimeType.'),
+  contentType: z.string().optional().describe('Alias for mimeType.'),
+  content_type: z.string().optional().describe('Alias for mimeType.'),
+  extension: z.string().optional().describe('Optional file extension without a leading dot.'),
+  size: z.number().int().positive().optional().describe('Optional expected file size in bytes.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -142,7 +212,15 @@ export type LarkNotifyResult = {
   data?: Record<string, unknown>
 }
 
-type LarkRecipient = {type: z.infer<typeof RecipientTypeSchema>; id: string}
+type LarkCommandResult = {
+  failureCount: number
+  results: Array<{
+    success: boolean
+    messageId?: string | null
+  }>
+}
+
+type LarkRecipient = { type: z.infer<typeof RecipientTypeSchema>; id: string }
 type LarkNotifyState = z.infer<typeof larkNotifyStateSchema>
 type LarkNotifyMiddlewareConfig = InferInteropZodInput<typeof middlewareConfigSchema>
 type LarkRecipientNameResolution =
@@ -256,6 +334,172 @@ function normalizeString(value: unknown): string | null {
   return trimmed ? trimmed : null
 }
 
+type LarkFileRuntimeContext = {
+  integrationId: string | null
+  chatId: string | null
+  chatType: string | null
+  senderOpenId: string | null
+}
+
+function buildLarkSendFileDescriptor(input: Record<string, unknown>): LarkSendFileDescriptor {
+  const nestedFile = isPlainObject(input.file) ? input.file : {}
+  const fileRef = readFirstRecord([nestedFile, input], ['fileRef', 'file_ref'])
+  const metadataRecords = [nestedFile, input, fileRef]
+  return {
+    path: readFirstString(metadataRecords, ['path']),
+    filePath: readFirstString(metadataRecords, ['filePath', 'file_path']),
+    workspacePath: readFirstString(metadataRecords, ['workspacePath', 'workspace_path']),
+    ...(fileRef
+      ? {
+          fileRef: {
+            source: readFirstString([fileRef], ['source']),
+            filePath: readFirstString([fileRef], ['filePath', 'file_path']),
+            workspacePath: readFirstString([fileRef], ['workspacePath', 'workspace_path']),
+            originalName: readFirstString([fileRef], ['originalName', 'original_name']),
+            name: readFirstString([fileRef], ['name']),
+            mimeType: readFirstString([fileRef], ['mimeType', 'mime_type', 'mimetype']),
+            size: readFirstNumber([fileRef], ['size'])
+          }
+        }
+      : {}),
+    originalName: readFirstString(metadataRecords, [
+      'originalName',
+      'original_name',
+      'fileName',
+      'file_name',
+      'filename'
+    ]),
+    name: readFirstString(metadataRecords, ['name']),
+    mimeType: readFirstString(metadataRecords, ['mimeType', 'mime_type', 'contentType', 'content_type']),
+    mimetype: readFirstString(metadataRecords, ['mimetype']),
+    extension: readFirstString(metadataRecords, ['extension', 'ext']),
+    size: readFirstNumber(metadataRecords, ['size'])
+  }
+}
+
+function resolveLarkFileRuntimeContext(
+  config: unknown,
+  state: Record<string, unknown>,
+  trustedTriggerOnly = false
+): LarkFileRuntimeContext {
+  const trusted = resolveLarkTrustedRuntimeContext(config)
+  if (trustedTriggerOnly) {
+    return {
+      integrationId: trusted.integrationId ?? null,
+      chatId: trusted.chatId ?? null,
+      chatType: trusted.chatType ?? null,
+      senderOpenId: trusted.senderOpenId ?? null
+    }
+  }
+  const configRecord = isPlainObject(config) ? config : {}
+  const configurable = isPlainObject(configRecord.configurable) ? configRecord.configurable : {}
+  const configurableContext = isPlainObject(configurable.context) ? configurable.context : undefined
+  const runtimePrincipal = isPlainObject(configurable.runtimePrincipal) ? configurable.runtimePrincipal : undefined
+  const metadata = isPlainObject(configRecord.metadata) ? configRecord.metadata : {}
+  const metadataContext = isPlainObject(metadata.context) ? metadata.context : undefined
+  const stateRecords = findCurrentLarkStateRecords(state)
+  const records = [configurableContext, metadataContext, runtimePrincipal, ...stateRecords]
+
+  return {
+    integrationId: readFirstString(records, ['sourceIntegrationId', 'integrationId']),
+    chatId:
+      readFirstString(records, ['chatId', 'openChatId', 'open_chat_id']) ||
+      readFirstString(stateRecords, ['lark_conversation_context_current_chat_id']),
+    chatType:
+      readFirstString(records, ['chatType', 'chat_type']) ||
+      readFirstString(stateRecords, ['lark_conversation_context_current_chat_type']),
+    senderOpenId:
+      readFirstString(records, ['senderOpenId', 'channelUserId', 'sender_open_id']) ||
+      readFirstString(stateRecords, ['lark_conversation_context_current_sender_open_id'])
+  }
+}
+
+function findCurrentLarkStateRecords(
+  source: unknown,
+  maxDepth = 4,
+  visited = new WeakSet<object>()
+): Array<Record<string, unknown>> {
+  if (!source || typeof source !== 'object' || Array.isArray(source) || maxDepth < 0) {
+    return []
+  }
+  const record = source as Record<string, unknown>
+  if (visited.has(record)) {
+    return []
+  }
+  visited.add(record)
+
+  const currentContext = isPlainObject(record.lark_current_context) ? record.lark_current_context : undefined
+  if (
+    currentContext ||
+    normalizeString(record.lark_conversation_context_current_chat_id) ||
+    normalizeString(record.lark_conversation_context_current_sender_open_id)
+  ) {
+    return currentContext ? [currentContext, record] : [record]
+  }
+
+  for (const value of Object.values(record)) {
+    const found = findCurrentLarkStateRecords(value, maxDepth - 1, visited)
+    if (found.length) {
+      return found
+    }
+  }
+  return []
+}
+
+function resolveRuntimeIntegrationId(state: Record<string, unknown>): string | null {
+  return readFirstString(
+    [state, ...findCurrentLarkStateRecords(state)],
+    ['sourceIntegrationId', 'integrationId', 'lark_conversation_context_current_integration_id']
+  )
+}
+
+function readFirstRecord(
+  records: Array<Record<string, unknown> | undefined>,
+  keys: string[]
+): Record<string, unknown> | undefined {
+  for (const record of records) {
+    if (!record) {
+      continue
+    }
+    for (const key of keys) {
+      if (isPlainObject(record[key])) {
+        return record[key] as Record<string, unknown>
+      }
+    }
+  }
+  return undefined
+}
+
+function readFirstString(records: Array<Record<string, unknown> | undefined>, keys: string[]): string | null {
+  for (const record of records) {
+    if (!record) {
+      continue
+    }
+    for (const key of keys) {
+      const value = normalizeString(record[key])
+      if (value) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
+function readFirstNumber(records: Array<Record<string, unknown> | undefined>, keys: string[]): number | null {
+  for (const record of records) {
+    if (!record) {
+      continue
+    }
+    for (const key of keys) {
+      const value = record[key]
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
 function normalizeTimeout(value: unknown, fallback: number): number {
   const timeout = typeof value === 'number' ? value : Number(value)
   if (Number.isFinite(timeout) && timeout >= 100) {
@@ -323,10 +567,7 @@ function toSystemMessageText(content: unknown): string {
   return String(content)
 }
 
-function resolveFirstStringByPaths(
-  source: Record<string, unknown>,
-  paths: readonly string[]
-): string | null {
+function resolveFirstStringByPaths(source: Record<string, unknown>, paths: readonly string[]): string | null {
   for (const path of paths) {
     const value = getValueByPath(source, path)
     const normalized = normalizeString(value)
@@ -337,11 +578,7 @@ function resolveFirstStringByPaths(
   return null
 }
 
-function findRecipientDirectoryKeyDeep(
-  source: unknown,
-  maxDepth = 4,
-  visited = new WeakSet<object>()
-): string | null {
+function findRecipientDirectoryKeyDeep(source: unknown, maxDepth = 4, visited = new WeakSet<object>()): string | null {
   if (!source || typeof source !== 'object' || maxDepth < 0) {
     return null
   }
@@ -398,8 +635,7 @@ function normalizeRecipients(value: unknown, state: Record<string, unknown>): La
     const rawId = item.id
     const path = normalizeString(rawId)
     const resolvedValue = path ? getValueByPath(state, path) : undefined
-    const resolvedIds =
-      resolvedValue === undefined ? [] : normalizeRecipientIdValues(resolvedValue)
+    const resolvedIds = resolvedValue === undefined ? [] : normalizeRecipientIdValues(resolvedValue)
     const ids = resolvedIds.length ? resolvedIds : normalizeRecipientIdValues(rawId)
 
     ids.forEach((id) => {
@@ -428,15 +664,12 @@ function resolveStateBackedString(value: unknown, state: Record<string, unknown>
   return resolvedValues[0] ?? normalized
 }
 
-function collectMessageIds(result: LarkNotifyResult): string[] {
-  return result.results
-    .filter((item) => item.success && !!item.messageId)
-    .map((item) => item.messageId as string)
+function collectMessageIds(result: LarkCommandResult): string[] {
+  return result.results.filter((item) => item.success && !!item.messageId).map((item) => item.messageId as string)
 }
 
-function toToolMessageContent(result: LarkNotifyResult) {
-  const payload = result.data ? { ...result, data: result.data } : result
-  return JSON.stringify(payload)
+function toToolMessageContent(result: LarkCommandResult) {
+  return JSON.stringify(result)
 }
 
 function formatError(error: unknown): string {
@@ -503,15 +736,17 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
     const summaryNames = names.slice(0, MAX_KNOWN_RECIPIENT_SUMMARY_NAMES)
     const remainingCount = names.length - summaryNames.length
-    const suffix =
-      remainingCount > 0
-        ? ` plus ${remainingCount} more recent recipients.`
-        : '.'
+    const suffix = remainingCount > 0 ? ` plus ${remainingCount} more recent recipients.` : '.'
 
-    return `Known Lark recipients in this chat (use these exact names with recipient_name): ${summaryNames.join(', ')}${suffix}`
+    return `Known Lark recipients in this chat (use these exact names with recipient_name): ${summaryNames.join(
+      ', '
+    )}${suffix}`
   }
 
-  private formatAgentGuidance(summary: string, directory: Awaited<ReturnType<LarkRecipientDirectoryService['get']>>): string {
+  private formatAgentGuidance(
+    summary: string,
+    directory: Awaited<ReturnType<LarkRecipientDirectoryService['get']>>
+  ): string {
     const entries = directory?.entries ?? []
     const duplicateNames = new Set<string>()
     const seenNames = new Set<string>()
@@ -530,17 +765,20 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
     const lines = [
       'Lark notify operating rules:',
-      '- Default to lark_send_text_notification or lark_send_rich_notification.',
+      '- Default to lark_send_text_notification or lark_send_rich_notification for message notifications.',
+      '- Use lark_send_file for generated or edited workspace files. Never paste a local or workspace path into the user-facing reply.',
       '- Prefer recipient_name and real display names from the current group context.',
       `- ${summary}`,
       '- Do not ask the user for open_id and do not expose open_id in normal conversation.',
       '- Do not call lark_list_users as the default discovery step.',
-      '- If the target person is not known in this chat yet, ask the user to @mention that person first.',
+      '- If the target person is not known in this chat yet, ask the user to @mention that person first.'
     ]
 
     if (duplicateNames.size > 0) {
       lines.push(
-        `- These names are currently ambiguous in this chat: ${Array.from(duplicateNames).join(', ')}. If the user refers to one of them, ask the user to @mention the target person again.`
+        `- These names are currently ambiguous in this chat: ${Array.from(duplicateNames).join(
+          ', '
+        )}. If the user refers to one of them, ask the user to @mention the target person again.`
       )
     } else {
       lines.push('- If multiple people might match the same name, ask the user to @mention the target person again.')
@@ -626,13 +864,16 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       )
     } catch (error) {
       this.logger.warn(
-        `[${LARK_NOTIFY_MIDDLEWARE_NAME}] Failed to bind recipient ${recipient.type}:${recipient.id} to conversation "${conversationId}": ${formatError(error)}`
+        `[${LARK_NOTIFY_MIDDLEWARE_NAME}] Failed to bind recipient ${recipient.type}:${
+          recipient.id
+        } to conversation "${conversationId}": ${formatError(error)}`
       )
     }
   }
 
   meta: TAgentMiddlewareMeta = {
     name: LARK_NOTIFY_MIDDLEWARE_NAME,
+    builtin: true,
     icon: {
       type: 'image',
       value: iconImage
@@ -643,9 +884,9 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     },
     description: {
       en_US:
-        'Provides Lark notification tools. Prefer sending by recipient_name from the current chat context instead of exposing open_id. If the target user has not appeared in this group context yet, ask the user to @mention that person first.',
+        'Provides Lark notification and workspace file sending tools. File sends use the trusted current conversation or configured scheduled recipient. Prefer sending message notifications by recipient_name instead of exposing open_id.',
       zh_Hans:
-        '提供飞书通知工具。优先基于当前对话中的真实姓名发送，而不是直接暴露 open_id；如果目标用户还没出现在当前群上下文中，请先让用户 @ 对方。'
+        '提供飞书通知和 workspace 文件发送工具。文件只发送到可信的当前会话或定时任务预配置接收人；消息通知优先基于当前对话中的真实姓名发送，而不是直接暴露 open_id。'
     },
     configSchema: {
       type: 'object',
@@ -664,7 +905,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             component: 'remoteSelect',
             selectUrl: '/api/integration/select-options?provider=lark',
             variable: true,
-            span: 2,
+            span: 2
           }
         },
         // TODO: 当前 UI 先只支持 open_id。
@@ -681,12 +922,13 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           description: {
             en_US: 'Currently only open_id is supported in UI. Backend supports other types via configuration.',
             zh_Hans: '当前 UI 仅支持 open_id。后端仍可通过配置使用其他类型。'
-          },
+          }
         },
         recipient_id: {
           type: 'string',
           description: {
-            en_US: 'Optional fallback recipient ID. For normal conversations, prefer recipient_name so the model can work with real names instead of open_id.',
+            en_US:
+              'Optional fallback recipient ID. For normal conversations, prefer recipient_name so the model can work with real names instead of open_id.',
             zh_Hans:
               '可选的兜底接收方 ID。普通对话中优先使用 recipient_name，让模型基于真实姓名工作，而不是直接依赖 open_id。'
           },
@@ -697,7 +939,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             depends: [
               {
                 name: 'integrationId',
-                alias: 'integration',
+                alias: 'integration'
               }
             ]
           }
@@ -763,16 +1005,16 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
                 zh_Hans: '启用查询工具'
               },
               description: {
-                en_US: 'Expose list users/chats tools for admin or debugging only. Keep disabled for normal name-based chat flows.',
-                zh_Hans:
-                  '仅为管理或调试场景暴露用户/群组列表工具。普通基于姓名的对话流程建议保持关闭。'
+                en_US:
+                  'Expose list users/chats tools for admin or debugging only. Keep disabled for normal name-based chat flows.',
+                zh_Hans: '仅为管理或调试场景暴露用户/群组列表工具。普通基于姓名的对话流程建议保持关闭。'
               }
             }
           },
           'x-ui': {
             span: 2
           }
-        },
+        }
       }
     } as TAgentMiddlewareMeta['configSchema']
   }
@@ -799,12 +1041,17 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
      * 2. tool call 的 recipient_id 当前默认按 open_id 处理。
      * 3. 如果后续需要更多类型，再扩展 recipient_type override。
      */
-    const resolveInput = <T extends Record<string, unknown>>(value: T) => {
+    const resolveInput = <T extends Record<string, unknown>>(value: T, config?: unknown) => {
       const state = getCurrentStateSafe()
+      const trustedRuntimeContext = resolveLarkFileRuntimeContext(config, state, true)
       const renderedInput = renderTemplateValue(value, state, templateOptions)
       const renderedDefaults = renderTemplateValue(parsed.defaults, state, templateOptions)
       const renderedIntegration = renderTemplateValue(parsed.integrationId, state, templateOptions)
-      const integrationId = resolveStateBackedString(renderedIntegration, state)
+      const integrationId =
+        trustedRuntimeContext.integrationId ??
+        (parsed.trustedTriggerOnly
+          ? null
+          : resolveRuntimeIntegrationId(state) ?? resolveStateBackedString(renderedIntegration, state))
       const recipientDirectoryKey = this.resolveRecipientDirectoryKey(state)
       const timeoutMs = normalizeTimeout(
         (renderedInput as Record<string, unknown>)?.timeoutMs,
@@ -816,7 +1063,11 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       let renderedRecipients: unknown = null
       if (parsed.recipient_id) {
         const recipientType = parsed.recipient_type || 'open_id'
-        renderedRecipients = renderTemplateValue([{type: recipientType, id: parsed.recipient_id}], state, templateOptions)
+        renderedRecipients = renderTemplateValue(
+          [{ type: recipientType, id: parsed.recipient_id }],
+          state,
+          templateOptions
+        )
       }
 
       return {
@@ -825,6 +1076,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         renderedRecipients,
         renderedDefaults,
         integrationId,
+        trustedRuntimeContext,
         recipientDirectoryKey,
         timeoutMs
       }
@@ -851,16 +1103,14 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       if (unresolved.length > 0) {
         const [first] = unresolved
         if (first.status === 'ambiguous') {
-          throw new Error(
-            `无法唯一定位接收人 ${first.name}。请让用户在当前会话里通过 @ 明确指向该成员。`
-          )
+          throw new Error(`无法唯一定位接收人 ${first.name}。请让用户在当前会话里通过 @ 明确指向该成员。`)
         }
-        throw new Error(
-          `找不到接收人 ${first.name}。请先让用户在当前会话中 @ ${first.name}。`
-        )
+        throw new Error(`找不到接收人 ${first.name}。请先让用户在当前会话中 @ ${first.name}。`)
       }
       const nameRecipients = nameResolutions
-        .filter((item): item is Extract<LarkRecipientNameResolution, { status: 'resolved' }> => item.status === 'resolved')
+        .filter(
+          (item): item is Extract<LarkRecipientNameResolution, { status: 'resolved' }> => item.status === 'resolved'
+        )
         .map((item) => item.recipient)
       if (nameRecipients.length > 0) {
         return nameRecipients
@@ -877,12 +1127,13 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       if (toolRecipientIdStr) {
         // 允许 recipient_id 指向一个 Mustache 渲染后的状态变量。
         const resolvedValue = getValueByPath(state, toolRecipientIdStr)
-        const resolvedIds = resolvedValue !== undefined 
-          ? normalizeRecipientIdValues(resolvedValue) 
-          : normalizeRecipientIdValues(toolRecipientIdStr)
-        
+        const resolvedIds =
+          resolvedValue !== undefined
+            ? normalizeRecipientIdValues(resolvedValue)
+            : normalizeRecipientIdValues(toolRecipientIdStr)
+
         if (resolvedIds.length > 0) {
-          return resolvedIds.map(id => ({
+          return resolvedIds.map((id) => ({
             type: 'open_id' as const,
             id
           }))
@@ -890,6 +1141,49 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       }
 
       return []
+    }
+
+    const resolveFileTarget = (
+      runtimeContext: LarkFileRuntimeContext,
+      configuredIntegrationId: string | null,
+      renderedRecipients: unknown,
+      state: Record<string, unknown>
+    ): {
+      source: 'runtime' | 'configured'
+      integrationId: string | null
+      recipients: LarkRecipient[]
+    } => {
+      if (runtimeContext.chatId) {
+        return {
+          source: 'runtime',
+          integrationId: runtimeContext.integrationId,
+          recipients: [{ type: 'chat_id', id: runtimeContext.chatId }]
+        }
+      }
+
+      const chatType = runtimeContext.chatType?.toLowerCase()
+      if (runtimeContext.senderOpenId && (chatType === 'p2p' || chatType === 'private' || chatType === 'single')) {
+        return {
+          source: 'runtime',
+          integrationId: runtimeContext.integrationId,
+          recipients: [{ type: 'open_id', id: runtimeContext.senderOpenId }]
+        }
+      }
+
+      return {
+        source: 'configured',
+        integrationId: configuredIntegrationId,
+        recipients: normalizeRecipients(renderedRecipients, state)
+      }
+    }
+
+    const requireFileRecipients = (recipients: LarkRecipient[]) => {
+      if (!recipients.length) {
+        throw new Error(
+          `[${LARK_SEND_FILE_TOOL_NAME}] No trusted Lark file recipient was found. Run this tool from a Lark conversation, or configure a middleware recipient for a scheduled/proactive run.`
+        )
+      }
+      return recipients
     }
 
     const requireIntegrationId = (integrationId: string | null, toolName: string) => {
@@ -923,7 +1217,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       }
     }
 
-    const buildCommand = (toolName: string, toolCallId: string, result: LarkNotifyResult) => {
+    const buildCommand = <T extends LarkCommandResult>(toolName: string, toolCallId: string, result: T) => {
       return new Command({
         update: {
           lark_notify_last_result: result,
@@ -964,7 +1258,9 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
                 await params.onSuccess(recipient, result)
               } catch (error) {
                 this.logger.warn(
-                  `[${params.toolName}] post-send hook failed for ${recipient.type}:${recipient.id}: ${formatError(error)}`
+                  `[${params.toolName}] post-send hook failed for ${recipient.type}:${recipient.id}: ${formatError(
+                    error
+                  )}`
                 )
               }
             }
@@ -1012,7 +1308,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_send_text_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, integrationId, recipientDirectoryKey, timeoutMs } = resolveInput(parameters)
+          const { state, renderedInput, renderedRecipients, integrationId, recipientDirectoryKey, timeoutMs } =
+            resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           // 接收人优先级：当前会话姓名 > middleware 默认配置 > tool call recipient_id
           const recipients = requireRecipients(
@@ -1081,10 +1378,129 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
     tools.push(
       tool(
         async (parameters, config) => {
+          const toolName = LARK_SEND_FILE_TOOL_NAME
+          const toolCallId = getToolCallIdFromConfig(config)
+          const { state, renderedInput, renderedRecipients, integrationId, trustedRuntimeContext, timeoutMs } =
+            resolveInput(parameters, config)
+          const runtimeContext = parsed.trustedTriggerOnly
+            ? trustedRuntimeContext
+            : resolveLarkFileRuntimeContext(config, state)
+          const fileTarget = resolveFileTarget(runtimeContext, integrationId, renderedRecipients, state)
+          if (fileTarget.source === 'runtime' && !fileTarget.integrationId) {
+            throw new Error(`[${toolName}] The current Lark conversation is missing its trusted runtime integrationId.`)
+          }
+          const resolvedIntegrationId = requireIntegrationId(fileTarget.integrationId, toolName)
+          const recipients = requireFileRecipients(fileTarget.recipients)
+          const workspaceFiles = context.runtime?.capabilities?.get(WorkspaceFilesRuntimeCapability)
+          if (!workspaceFiles?.readRuntimeBuffer) {
+            throw new Error(
+              `[${toolName}] platform.workspace.files runtime capability is required to read workspace files.`
+            )
+          }
+
+          const file = await resolveLarkSendFileFromWorkspace(
+            buildLarkSendFileDescriptor(renderedInput as Record<string, unknown>),
+            { workspaceFiles }
+          )
+          const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
+
+          let uploadResponse: unknown
+          try {
+            uploadResponse = await withTimeout(
+              client.im.file.create({
+                data: {
+                  file_type: file.fileType,
+                  file_name: file.fileName,
+                  file: file.buffer
+                }
+              }),
+              timeoutMs,
+              `[${toolName}] upload '${file.fileName}'`
+            )
+          } catch (error) {
+            throw new Error(`[${toolName}] Failed to upload '${file.fileName}': ${formatError(error)}`)
+          }
+
+          const fileKey = readLarkUploadedFileKey(uploadResponse)
+          if (!fileKey) {
+            throw new Error(`[${toolName}] Lark file upload did not return file_key.`)
+          }
+
+          const batchResult = await runSendTaskBatch({
+            integrationId: resolvedIntegrationId,
+            toolName,
+            recipients,
+            timeoutMs,
+            onSuccess: async (recipient) => {
+              await this.tryBindConversationForRecipient({
+                integrationId: resolvedIntegrationId,
+                recipient,
+                context
+              })
+            },
+            task: async (recipient) => {
+              const uuid = buildLarkFileSendUuid({
+                toolCallId,
+                integrationId: resolvedIntegrationId,
+                recipientType: recipient.type,
+                recipientId: recipient.id,
+                sha256: file.sha256
+              })
+              const response = await client.im.message.create({
+                params: {
+                  receive_id_type: recipient.type
+                },
+                data: {
+                  receive_id: recipient.id,
+                  msg_type: file.messageType,
+                  content: JSON.stringify({ file_key: fileKey }),
+                  ...(uuid ? { uuid } : {})
+                }
+              })
+
+              return {
+                messageId: response?.data?.message_id ?? null
+              }
+            }
+          })
+          const result = {
+            file: toLarkSendFileMetadata(file),
+            successCount: batchResult.successCount,
+            failureCount: batchResult.failureCount,
+            results: batchResult.results.map((item, index) => ({
+              index: index + 1,
+              success: item.success,
+              ...(item.messageId ? { messageId: item.messageId } : {}),
+              ...(item.error ? { error: item.error } : {})
+            }))
+          }
+
+          return buildCommand(toolName, toolCallId, result)
+        },
+        {
+          name: LARK_SEND_FILE_TOOL_NAME,
+          description:
+            'Send a generated, edited, or previously found Xpert workspace file to the trusted current Lark conversation. Scheduled/proactive runs use only the middleware-configured recipient. The tool cannot choose another integration, chat, or user.',
+          schema: sendFileSchema,
+          verboseParsingErrors: true
+        }
+      )
+    )
+
+    tools.push(
+      tool(
+        async (parameters, config) => {
           const toolName = 'lark_send_rich_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, renderedDefaults, integrationId, recipientDirectoryKey, timeoutMs } =
-            resolveInput(parameters)
+          const {
+            state,
+            renderedInput,
+            renderedRecipients,
+            renderedDefaults,
+            integrationId,
+            recipientDirectoryKey,
+            timeoutMs
+          } = resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           // 接收人优先级：当前会话姓名 > middleware 默认配置 > tool call recipient_id
           const recipients = requireRecipients(
@@ -1102,9 +1518,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           )
           const mode = renderedInput.mode as 'post' | 'interactive'
           const localeCandidate =
-            normalizeString(renderedInput.locale) ||
-            normalizeString(renderedDefaults.postLocale) ||
-            DEFAULT_POST_LOCALE
+            normalizeString(renderedInput.locale) || normalizeString(renderedDefaults.postLocale) || DEFAULT_POST_LOCALE
 
           if (!PostLocaleSchema.options.includes(localeCandidate as any)) {
             throw new Error(`[${toolName}] locale must be one of: ${PostLocaleSchema.options.join(', ')}`)
@@ -1197,7 +1611,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_update_message'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           const messageId = normalizeString(renderedInput.messageId)
           const mode = renderedInput.mode as 'text' | 'interactive'
@@ -1281,7 +1695,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_recall_message'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           const messageId = normalizeString(renderedInput.messageId)
 
@@ -1337,14 +1751,14 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           async (parameters, config) => {
             const toolName = 'lark_list_users'
             const toolCallId = getToolCallIdFromConfig(config)
-            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters, config)
             const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
             const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
             const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
             const pageToken = normalizeString(renderedInput.pageToken)
 
             const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
-            let response: Awaited<ReturnType<typeof client.contact.v3.user.findByDepartment>>;
+            let response: Awaited<ReturnType<typeof client.contact.v3.user.findByDepartment>>
             try {
               response = await withTimeout(
                 client.contact.v3.user.findByDepartment({
@@ -1354,7 +1768,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
                     department_id: '0',
                     page_size: pageSize,
                     page_token: pageToken || undefined
-                  },
+                  }
                 }),
                 timeoutMs,
                 `[${toolName}] list users`
@@ -1375,7 +1789,11 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
                   return true
                 }
                 const values = [item.name, item.email, item.mobile]
-                return values.some((value) => String(value || '').toLowerCase().includes(keyword))
+                return values.some((value) =>
+                  String(value || '')
+                    .toLowerCase()
+                    .includes(keyword)
+                )
               })
 
             const result: LarkNotifyResult = {
@@ -1410,14 +1828,14 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           async (parameters, config) => {
             const toolName = 'lark_list_chats'
             const toolCallId = getToolCallIdFromConfig(config)
-            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
+            const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters, config)
             const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
             const keyword = normalizeString(renderedInput.keyword)?.toLowerCase()
             const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
             const pageToken = normalizeString(renderedInput.pageToken)
 
             const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
-            let response: Awaited<ReturnType<typeof client.im.chat.list>>;
+            let response: Awaited<ReturnType<typeof client.im.chat.list>>
             try {
               response = await withTimeout(
                 client.im.chat.list({
@@ -1439,14 +1857,18 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
                 chat_id: item?.chat_id ?? null,
                 name: item?.name ?? null,
                 avatar: item?.avatar ?? null,
-                description: item?.description ?? null,
+                description: item?.description ?? null
               }))
               .filter((item) => {
                 if (!keyword) {
                   return true
                 }
                 const values = [item.name, item.chat_id, item.description]
-                return values.some((value) => String(value || '').toLowerCase().includes(keyword))
+                return values.some((value) =>
+                  String(value || '')
+                    .toLowerCase()
+                    .includes(keyword)
+                )
               })
 
             const result: LarkNotifyResult = {
@@ -1468,7 +1890,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           },
           {
             name: 'lark_list_chats',
-            description: 'List chats available for Lark notifications. This tool is mainly intended for admin or debugging flows.',
+            description:
+              'List chats available for Lark notifications. This tool is mainly intended for admin or debugging flows.',
             schema: listChatsSchema,
             verboseParsingErrors: true
           }
@@ -1481,10 +1904,10 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       stateSchema: larkNotifyStateSchema,
       beforeAgent: async (state, runtime) => {
         const rootState =
-          ((runtime as Record<string, unknown> | undefined)?.state as Record<string, unknown> | undefined) ??
-          {}
+          ((runtime as Record<string, unknown> | undefined)?.state as Record<string, unknown> | undefined) ?? {}
         const recipientDirectoryKey =
-          this.resolveRecipientDirectoryKey(rootState) || this.resolveRecipientDirectoryKey((state ?? {}) as Record<string, unknown>)
+          this.resolveRecipientDirectoryKey(rootState) ||
+          this.resolveRecipientDirectoryKey((state ?? {}) as Record<string, unknown>)
         const directory = await this.recipientDirectoryService.get(recipientDirectoryKey)
         const summary = this.formatKnownRecipientsSummary(directory)
         const guidance = this.formatAgentGuidance(summary, directory)
@@ -1502,12 +1925,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         }
 
         const baseSystemContent = toSystemMessageText(request.systemMessage?.content).trim()
-        const mergedSystemContent = [
-          baseSystemContent,
-          '<lark_notify_guidance>',
-          guidance,
-          '</lark_notify_guidance>'
-        ]
+        const mergedSystemContent = [baseSystemContent, '<lark_notify_guidance>', guidance, '</lark_notify_guidance>']
           .filter(Boolean)
           .join('\n\n')
 

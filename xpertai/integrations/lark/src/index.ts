@@ -1,37 +1,37 @@
-import { z } from 'zod';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { initI18n } from './lib/i18n.js';
-import { iconImage } from './lib/types.js';
-import { IntegrationLarkPluginConfigSchema } from './lib/plugin-config.js';
-import { IntegrationLarkPlugin } from './lib/integration-lark.module.js';
-import { LARK_PLUGIN_CONTEXT } from './lib/tokens.js';
+import { z } from 'zod'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import { initI18n } from './lib/i18n.js'
+import { iconImage } from './lib/types.js'
+import { IntegrationLarkPluginConfigSchema } from './lib/plugin-config.js'
+import { IntegrationLarkPlugin } from './lib/integration-lark.module.js'
+import { LARK_PLUGIN_CONTEXT } from './lib/tokens.js'
 import {
   LARK_ADMIN_TEMPLATE_KEY,
   LARK_ADMIN_VIEW_FEATURE,
   LARK_ASSISTANT_TEMPLATE_FEATURE,
-  LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
   LARK_CONVERSATION_TEMPLATE_KEY,
   LARK_DOCUMENT_SOURCE_FEATURE,
   LARK_FEATURE,
+  LARK_LOCAL_HISTORY_FEATURE,
   LARK_LONG_CONNECTION_FEATURE,
   LARK_MESSAGING_FEATURE,
-  LARK_NOTIFY_MIDDLEWARE_NAME,
+  LARK_RUNTIME_MIDDLEWARE_NAME,
   LARK_PLUGIN_NAME,
   LARK_PROVIDER_KEY,
   LARK_TEMPLATE_PROVIDER_KEY,
   LARK_VIEW_PROVIDER_KEY
-} from './lib/constants.js';
-import { larkTemplates } from './lib/lark.templates.js';
-import type { LarkXpertPlugin } from './lib/plugin-metadata-compat.js';
+} from './lib/constants.js'
+import { larkTemplates } from './lib/lark.templates.js'
+import type { LarkXpertPlugin } from './lib/plugin-metadata-compat.js'
 
-const moduleDir = dirname(fileURLToPath(import.meta.url));
+const moduleDir = dirname(fileURLToPath(import.meta.url))
 
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
-  name: string;
-  version: string;
-};
+  name: string
+  version: string
+}
 
 const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>> = {
   meta: {
@@ -48,7 +48,8 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
           LARK_LONG_CONNECTION_FEATURE,
           LARK_DOCUMENT_SOURCE_FEATURE,
           LARK_ADMIN_VIEW_FEATURE,
-          LARK_ASSISTANT_TEMPLATE_FEATURE
+          LARK_ASSISTANT_TEMPLATE_FEATURE,
+          LARK_LOCAL_HISTORY_FEATURE
         ],
         marketplace: {
           category: 'communication',
@@ -66,19 +67,22 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
                 {
                   name: 'receive-lark-messages',
                   displayName: 'Receive Lark messages',
-                  description: 'Receive Lark webhook or long-connection events and dispatch normalized chat messages to an Agent.',
+                  description:
+                    'Receive Lark webhook or long-connection events and dispatch normalized chat messages to an Agent.',
                   access: 'read'
                 },
                 {
                   name: 'send-lark-messages',
                   displayName: 'Send Lark messages',
-                  description: 'Send text, rich post, or interactive card messages through Lark OpenAPI.',
+                  description:
+                    'Send text, rich post, interactive card, or workspace file messages through Lark OpenAPI.',
                   access: 'write'
                 },
                 {
                   name: 'manage-lark-connections',
                   displayName: 'Manage Lark connections',
-                  description: 'Review and operate webhook or long-connection sessions, users, and conversation bindings.',
+                  description:
+                    'Review and operate webhook or long-connection sessions, users, and conversation bindings.',
                   access: 'admin'
                 }
               ]
@@ -87,19 +91,15 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
               type: 'view',
               name: LARK_VIEW_PROVIDER_KEY,
               displayName: 'Lark Integration View',
-              description: 'Extension view for Lark connection status, managed connections, users, and conversations.'
+              description:
+                'Extension view for Lark connection status, managed connections, users, conversations, and local messages.'
             },
             {
               type: 'tool',
-              name: LARK_NOTIFY_MIDDLEWARE_NAME,
-              displayName: 'Lark Notify Tools',
-              description: 'Assistant middleware for sending, updating, recalling, and routing Lark messages.'
-            },
-            {
-              type: 'tool',
-              name: LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
-              displayName: 'Lark Conversation Context Tools',
-              description: 'Assistant middleware for reading Lark message history and message resources.'
+              name: LARK_RUNTIME_MIDDLEWARE_NAME,
+              displayName: 'Lark Runtime',
+              description:
+                'Unified assistant middleware for local history, Lark message and workspace file sending, and remote message access.'
             },
             {
               type: 'feature',
@@ -115,7 +115,8 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
               type: 'assistant-template',
               name: LARK_ADMIN_TEMPLATE_KEY,
               displayName: 'Lark Admin Assistant Template',
-              description: 'Organization-level assistant template for managing Lark integrations, long connections, users, and conversations.',
+              description:
+                'Organization-level assistant template for managing Lark integrations, long connections, users, and conversations.',
               metadata: {
                 templateId: LARK_ADMIN_TEMPLATE_KEY
               }
@@ -124,7 +125,8 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
               type: 'assistant-template',
               name: LARK_CONVERSATION_TEMPLATE_KEY,
               displayName: 'Lark Conversation Assistant Template',
-              description: 'End-user assistant template with a Lark trigger, conversation context, and notification tools.',
+              description:
+                'End-user assistant template with a Lark trigger, locally stored history and attachments, and message/file tools.',
               metadata: {
                 templateId: LARK_CONVERSATION_TEMPLATE_KEY
               }
@@ -134,7 +136,7 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
         runtime: {
           integrationProviders: [LARK_PROVIDER_KEY],
           channelProviders: [LARK_PROVIDER_KEY],
-          middlewareProviders: [LARK_NOTIFY_MIDDLEWARE_NAME, LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME],
+          middlewareProviders: [LARK_RUNTIME_MIDDLEWARE_NAME],
           viewProviders: [LARK_VIEW_PROVIDER_KEY],
           templateProviders: [LARK_TEMPLATE_PROVIDER_KEY],
           triggerProviders: [LARK_PROVIDER_KEY],
@@ -150,7 +152,7 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
     displayName: 'Lark/Feishu Plugin',
     description: 'Bidirectional messaging integration with Lark (Feishu) platform',
     keywords: ['lark', 'feishu', 'document source', 'knowledge', 'integration'],
-    author: 'XpertAI team',
+    author: 'XpertAI team'
   },
   config: {
     schema: IntegrationLarkPluginConfigSchema
@@ -178,9 +180,9 @@ const plugin: LarkXpertPlugin<z.infer<typeof IntegrationLarkPluginConfigSchema>>
   async onStop(ctx) {
     ctx.logger.log('Lark integration plugin stopped')
   }
-};
+}
 
-export default plugin;
-export * from './lib/constants.js';
-export * from './lib/plugin-metadata-compat.js';
-export * from './lib/lark.templates.js';
+export default plugin
+export * from './lib/constants.js'
+export * from './lib/plugin-metadata-compat.js'
+export * from './lib/lark.templates.js'

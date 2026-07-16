@@ -11,6 +11,8 @@ import {
 	IChatChannel,
 	INTEGRATION_PERMISSION_SERVICE_TOKEN,
 	IntegrationPermissionService,
+	MANAGED_QUEUE_SERVICE_TOKEN,
+	type ManagedQueueService,
 	type PluginContext,
 	TChatCardAction,
 	TChatChannelCapabilities,
@@ -63,6 +65,10 @@ type LarkRecipient = {
 	type: 'chat_id' | 'open_id' | 'user_id' | 'union_id' | 'email'
 	id: string
 }
+
+const LARK_CARD_ACTION_DEDUP_TTL_MS = 10 * 60 * 1000
+const LARK_CARD_ACTION_DEDUP_KEY_PREFIX = 'plugin_lark:card_action:event'
+const larkCardActionFallbackClaims = new Map<string, number>()
 
 @Injectable()
 @ChatChannel('lark')
@@ -195,11 +201,22 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 					if (action) {
 						// Lark webhook callbacks should return within 3s, so we ack first and process in background.
 						this.runBackgroundEventHandler('card action', async () => {
+							if (!(await this.claimCardActionEvent(data, integration.id))) {
+								this.logger.debug(
+									`Skip duplicate Lark card action event integration=${integration.id} event=${
+										this.getCardActionEventId(data) ?? 'unknown'
+									}`
+								)
+								return
+							}
 							await eventHandlers.onCardAction?.(action, ctx)
 						})
 					}
 
-					return true
+					// Card callbacks must return a valid card response object. An empty
+					// object acknowledges the action while keeping the current card as-is;
+					// the actual action continues asynchronously above.
+					return {}
 				}
 			})
 		}
@@ -225,6 +242,66 @@ export class LarkChannelStrategy implements IChatChannel<TIntegrationLarkOptions
 					stack
 				)
 			})
+	}
+
+	private async claimCardActionEvent(data: unknown, integrationId: string): Promise<boolean> {
+		const eventId = this.getCardActionEventId(data)
+		if (!eventId) {
+			return true
+		}
+
+		const claimKey = `${integrationId}:${eventId}`
+		try {
+			const managedQueue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await managedQueue.getRedis()
+			const result = await redis.set(
+				`${LARK_CARD_ACTION_DEDUP_KEY_PREFIX}:${claimKey}`,
+				'1',
+				'PX',
+				LARK_CARD_ACTION_DEDUP_TTL_MS,
+				'NX'
+			)
+			if (result === 'OK') {
+				return true
+			}
+			if (result === null) {
+				return false
+			}
+			throw new Error(`Unexpected Redis SET response: ${String(result)}`)
+		} catch (error) {
+			this.logger.warn(
+				`Unable to claim Lark card action event in Redis; using process-local fallback: ${getErrorMessage(error)}`
+			)
+			return this.claimCardActionEventLocally(claimKey)
+		}
+	}
+
+	private claimCardActionEventLocally(claimKey: string): boolean {
+		const now = Date.now()
+		for (const [key, expiresAt] of larkCardActionFallbackClaims) {
+			if (expiresAt <= now) {
+				larkCardActionFallbackClaims.delete(key)
+			}
+		}
+
+		if ((larkCardActionFallbackClaims.get(claimKey) ?? 0) > now) {
+			return false
+		}
+		larkCardActionFallbackClaims.set(claimKey, now + LARK_CARD_ACTION_DEDUP_TTL_MS)
+		return true
+	}
+
+	private getCardActionEventId(data: unknown): string | null {
+		if (!data || typeof data !== 'object') {
+			return null
+		}
+		const record = data as Record<string, unknown>
+		const header =
+			record.header && typeof record.header === 'object'
+				? (record.header as Record<string, unknown>)
+				: null
+		const eventId = record.event_id ?? header?.event_id
+		return typeof eventId === 'string' && eventId.trim() ? eventId.trim() : null
 	}
 
 	parseInboundMessage(event: any, _ctx: TChatEventContext<TIntegrationLarkOptions>): TChatInboundMessage | null {

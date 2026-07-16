@@ -3,7 +3,7 @@ import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
 } from '@xpert-ai/plugin-sdk'
-import { LarkCardElement, LarkGroupWindow, LarkStructuredElement } from '../types.js'
+import { LarkCardElement, LarkGroupWindow, LarkInboundFile, LarkStructuredElement } from '../types.js'
 
 export const LARK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
 	'lark',
@@ -74,6 +74,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	organizationId?: string
 	userId: string
 	xpertId: string
+	conversationId?: string
 	connectionMode?: 'webhook' | 'long_connection'
 	preferLanguage?: string
 	integrationId?: string
@@ -87,6 +88,16 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 	recipientDirectoryKey?: string
 	groupWindowId?: string
 	groupWindow?: LarkGroupWindow
+	currentInboundLogIds?: string[]
+	followUpMode?: 'steer'
+	steerFallback?: {
+		input?: string
+		files?: LarkInboundFile[]
+		message: LarkChatMessageSnapshot
+		fromEndUserId?: string
+		executorUserId?: string
+		streamingEnabled?: boolean
+	}
 	reject?: boolean
 	streaming?: {
 		enabled?: boolean
@@ -96,6 +107,7 @@ export interface LarkChatCallbackContext extends Record<string, unknown> {
 }
 
 export interface LarkChatStreamCallbackPayload extends AgentChatCallbackEnvelopePayload {
+	errorCode?: 'steer_target_not_running'
 	context?: LarkChatCallbackContext
 }
 

@@ -15,6 +15,8 @@ import {
 } from './types.js'
 import { buildLarkGroupWindowPrompt } from './lark-agent-prompt.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
+import { extractLarkMessageResourceRefs } from './lark-message-semantics.js'
+import { buildLarkGroupWindowFlushJobId, buildLarkInboundJobId } from './lark-job-id.js'
 import {
 	DEFAULT_GROUP_MENTION_DEBOUNCE_MS,
 	DEFAULT_GROUP_MENTION_MAX_MESSAGES,
@@ -169,13 +171,19 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 	private toWindowItem(context: ChatLarkContext<TLarkEvent>): LarkGroupWindowItem | null {
 		const messageId = this.resolveMessageId(context)
 		const senderOpenId = typeof context.senderOpenId === 'string' ? context.senderOpenId.trim() : ''
-		const text = typeof context.input === 'string' ? context.input.trim() : ''
+		const inputText = typeof context.input === 'string' ? context.input.trim() : ''
+		const text =
+			inputText || extractLarkMessageResourceRefs(context.message).length > 0
+				? inputText || '[附件消息]'
+				: ''
 		if (!messageId || !senderOpenId || !text) {
 			return null
 		}
 
 		return {
 			messageId,
+			messageLogId: context.currentInboundLogIds?.[0],
+			messageLogCreatedAt: context.historyBefore,
 			senderOpenId,
 			userId: context.mappedUserId,
 			senderName: context.senderName,
@@ -283,6 +291,17 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 	private buildFlushContext(state: LarkGroupMentionWindowState): ChatLarkContext<TLarkEvent> {
 		const groupWindow = this.toGroupWindow(state)
 		const firstItem = state.items[0]
+		const currentInboundLogIds = Array.from(
+			new Set(
+				[
+					...(state.baseContext.currentInboundLogIds ?? []),
+					...state.items.map((item) => item.messageLogId)
+				].filter((id): id is string => Boolean(id))
+			)
+		)
+		const historyBefore =
+			state.items.map((item) => item.messageLogCreatedAt).find((value) => Boolean(value)) ??
+			state.baseContext.historyBefore
 		return {
 			...state.baseContext,
 			userId: state.baseContext.userId,
@@ -294,7 +313,9 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			groupWindowId: groupWindow.windowId,
 			scopeKey: groupWindow.scopeKey,
 			replyToMessageId: firstItem?.messageId ?? state.baseContext.replyToMessageId,
-			typingReaction: state.typingReaction
+			typingReaction: state.typingReaction,
+			...(currentInboundLogIds.length ? { currentInboundLogIds } : {}),
+			...(historyBefore ? { historyBefore } : {})
 		}
 	}
 
@@ -384,10 +405,17 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 			throw new Error('Lark conversation queue service is unavailable')
 		}
 		const scopeQueue = await conversationQueueService.getScopeQueue(scopeKey)
-		await scopeQueue.add({
-			...flushContext,
-			tenantId: flushContext.tenantId ?? flushContext.tenant?.id
-		})
+		const inboundIdentity = flushContext.currentInboundLogIds?.[0] ?? flushContext.groupWindowId ?? scopeKey
+		await scopeQueue.add(
+			{
+				...flushContext,
+				tenantId: flushContext.tenantId ?? flushContext.tenant?.id
+			},
+			{
+				jobId: buildLarkInboundJobId(inboundIdentity),
+				removeOnComplete: true
+			}
+		)
 	}
 
 	private async createTypingReaction(
@@ -453,7 +481,7 @@ export class LarkGroupMentionWindowService implements OnModuleDestroy {
 	}
 
 	private toFlushJobId(key: string): string {
-		return `flush:${key}`
+		return buildLarkGroupWindowFlushJobId(key)
 	}
 
 	private getBullRedisConfig(): Bull.QueueOptions['redis'] {

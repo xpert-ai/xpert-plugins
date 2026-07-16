@@ -3,8 +3,16 @@ import { ChatLarkMessage } from '../../message.js'
 
 export type DispatchLarkChatPayload = {
 	xpertId: string
+	executionContext?: {
+		tenantId?: string
+		organizationId?: string
+		createdById?: string
+	}
 	input?: string
 	files?: LarkInboundFile[]
+	historyContext?: string
+	historyFiles?: LarkInboundFile[]
+	currentInboundLogIds?: string[]
 	larkMessage: ChatLarkMessage
 	options?: {
 		confirm?: boolean
@@ -13,6 +21,8 @@ export type DispatchLarkChatPayload = {
 		executorUserId?: string
 		streamingEnabled?: boolean
 		groupWindow?: LarkGroupWindow
+		/** Internal stale-steer recovery: reuse the existing card and start a normal run. */
+		forceNewRun?: boolean
 	}
 }
 
