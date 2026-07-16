@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./dist/tsconfig.spec.tsbuildinfo"
+  },
+  "files": [
+    "src/lib/remote-components/cut-workbench/src/cut-local-transcription-model.ts",
+    "src/lib/remote-components/cut-workbench/src/cut-media-analysis.ts"
+  ],
+  "include": ["src/**/*.ts", "jest.config.ts"],
+  "exclude": ["src/lib/remote-components/**"]
+}

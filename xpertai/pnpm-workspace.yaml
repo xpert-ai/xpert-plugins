@@ -28,6 +28,8 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
   nx: true
+  # Cut bundles only the browser runtime; never execute the unused native Node installer.
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
   ssh2: true

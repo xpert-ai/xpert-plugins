@@ -1,0 +1,84 @@
+{
+  "name": "@xpert-ai/plugin-cut",
+  "version": "0.1.0",
+  "description": "Agentic non-linear video editor adapted from pinned OpenCut architecture.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/cut",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/cut",
+  "license": "AGPL-3.0",
+  "keywords": ["cut", "video", "timeline", "opencut", "agentic-app"],
+  "skills": "./skills/",
+  "sandboxActions": "./dist/sandbox-actions/cut-render/action.json",
+  "interface": {
+    "displayName": "Cut",
+    "shortDescription": "Agentic non-linear video editor",
+    "longDescription": "Import workspace media, edit a revision-safe timeline with Agent tools or Cut Workbench, review evidence-backed proposals, and render MP4 locally or through a bounded Sandbox Job.",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": [
+      "Create a 30-second 1080p Cut project.",
+      "Import this media and make a rough cut.",
+      "Split and trim the selected clip."
+    ],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#0EA5E9",
+    "screenshots": []
+  },
+  "policy": { "installation": "AVAILABLE", "authentication": "ON_FIRST_USE", "pluginSharing": true },
+  "source": { "source": "local", "path": ".", "url": "https://github.com/xpert-ai/xpert-plugins", "sparsePath": "xpertai/apps/cut" },
+  "assets": { "composerIcon": "./assets/composerIcon.svg", "logo": "./assets/logo.svg", "screenshots": [] },
+  "targetApps": ["data-xpert", "xpert"],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": ["workbench-view", "assistant-tool", "business-app"],
+      "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template"]
+    },
+    "xpert": {
+      "types": ["assistant-template", "skill", "app", "xpertai-bundle", "mcp-server", "tool"],
+      "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template", "cut-mcp"],
+      "marketplace": {
+        "contents": [
+          { "type": "skill", "name": "cut-agent-skill", "displayName": "Cut Agent Skill", "description": "Revision-safe Cut project, media, timeline, version, and failure workflow.", "tags": ["skill", "cut", "video", "timeline"] },
+          { "type": "assistant-template", "name": "cut-assistant", "displayName": "Cut Assistant", "description": "Assistant template for video editing.", "metadata": { "app": "cut" } },
+          { "type": "app", "name": "cut", "displayName": "Cut", "description": "Agentic non-linear video editor.", "operations": [
+            { "name": "cut_create_projects", "displayName": "Create Cut projects", "description": "Create scoped versioned video projects.", "access": "write" },
+            { "name": "cut_edit_timelines", "displayName": "Edit Cut timelines", "description": "Import media and edit timelines.", "access": "write" },
+            { "name": "cut_review_export", "displayName": "Review and export", "description": "Review timelines and export MP4 locally or through a bounded Sandbox Job.", "access": "write" }
+          ] },
+          { "type": "view", "name": "cut_workbench", "displayName": "Cut Workbench", "description": "Media, timeline, version, and export Workbench.", "metadata": { "app": "cut" } },
+          { "type": "middleware", "name": "CutMiddleware", "displayName": "Cut Agent Tools", "description": "Scoped Cut editing tools.", "metadata": { "app": "cut" } },
+          { "type": "tool", "name": "cut-ir-mcp", "displayName": "Cut IR MCP Tools", "description": "Portable, side-effect-free Cut project validation, comparison, and in-memory editing tools.", "metadata": { "app": "cut", "protocol": "mcp" } }
+        ]
+      }
+    }
+  },
+  "mcpServers": {
+    "cut-ir": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/dist/mcp-server.js"],
+      "policy": {
+        "enabled": true,
+        "defaultToolsApprovalMode": "approve",
+        "enabledTools": [
+          "cut_ir_create_project",
+          "cut_ir_validate_project",
+          "cut_ir_apply_operations",
+          "cut_ir_compare_projects"
+        ],
+        "runtime": {
+          "provider": "local-process",
+          "startupTimeoutMs": 15000,
+          "idleTimeoutMs": 900000,
+          "maxLifetimeMs": 3600000,
+          "allowedCommands": ["node"]
+        }
+      }
+    }
+  }
+}
