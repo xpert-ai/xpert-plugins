@@ -480,6 +480,7 @@ export const LARK_TYPING_REACTION_EMOJI_TYPE = 'Typing'
 
 export type ChatLarkContext<T = any> = {
 	tenant: ITenant
+	tenantId?: string
 	organizationId: string
 	integrationId: string
 	connectionMode?: TLarkConnectionMode
@@ -508,6 +509,13 @@ export type ChatLarkContext<T = any> = {
 	message?: T
 	input?: string
 	files?: LarkInboundFile[]
+	/** Log rows represented by this inbound dispatch (one row normally, multiple rows for windows). */
+	currentInboundLogIds?: string[]
+	/** Timestamp used as the exclusive upper bound for automatic history lookup. */
+	historyBefore?: string
+	/** First history snapshot carried through group/summary aggregation and composed at final dispatch. */
+	historyContext?: string
+	historyFiles?: LarkInboundFile[]
 	replyToMessageId?: string
 	semanticMessage?: LarkSemanticMessage
 	recipientDirectoryKey?: string
@@ -518,10 +526,21 @@ export type ChatLarkContext<T = any> = {
 }
 
 export type LarkInboundFile = {
-	fileUrl: string
+	id?: string
+	fileUrl?: string
+	url?: string
 	mimeType?: string
+	mimetype?: string
 	originalName?: string
+	name?: string
 	fileKey?: string
+	fileId?: string
+	fileAssetId?: string
+	storageFileId?: string
+	filePath?: string
+	workspacePath?: string
+	size?: number
+	extension?: string
 }
 
 export type TLarkEventMention = {
@@ -563,8 +582,8 @@ export type TLarkEvent = {
 		}
 		create_time: string
 		message_id: string
-		message_type?: 'text' | 'post' | 'image' | 'file' | 'audio'
-		msg_type?: 'text' | 'post' | 'image' | 'file' | 'audio'
+		message_type?: 'text' | 'post' | 'image' | 'file' | 'audio' | 'media'
+		msg_type?: 'text' | 'post' | 'image' | 'file' | 'audio' | 'media'
 		update_time: string
 		mentions?: TLarkEventMention[]
 	}
@@ -649,6 +668,8 @@ export type LarkGroupWindowParticipant = {
 
 export type LarkGroupWindowItem = {
 	messageId: string
+	messageLogId?: string
+	messageLogCreatedAt?: string
 	senderOpenId: string
 	userId?: string
 	senderName?: string
@@ -715,7 +736,8 @@ export type LarkRenderElement =
 export enum LarkCardActionEnum {
 	Confirm = 'lark-confirm',
 	Reject = 'lark-reject',
-	EndConversation = 'lark-end-conversation'
+	EndConversation = 'lark-end-conversation',
+	DismissPermissionGuide = 'lark-dismiss-permission-guide'
 }
 
 export type LarkCardActionPayload = {
@@ -727,6 +749,7 @@ export type LarkCardActionValue = string | LarkCardActionPayload
 export const LARK_END_CONVERSATION = LarkCardActionEnum.EndConversation
 export const LARK_CONFIRM = LarkCardActionEnum.Confirm
 export const LARK_REJECT = LarkCardActionEnum.Reject
+export const LARK_DISMISS_PERMISSION_GUIDE = LarkCardActionEnum.DismissPermissionGuide
 
 export type TLarkConversationStatus = TChatConversationStatus | 'end'
 

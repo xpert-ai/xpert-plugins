@@ -3,6 +3,7 @@ import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-
 import { CqrsModule } from '@nestjs/cqrs'
 import { DiscoveryModule } from '@nestjs/core'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { Logger } from '@nestjs/common'
 
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { LarkIntegrationStrategy } from './lark-integration.strategy.js'
@@ -21,10 +22,13 @@ import { LarkGroupMentionWindowService } from './lark-group-mention-window.servi
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
+import { LarkMessageFileEntity, LarkMessageLogEntity } from './entities/index.js'
 import {
-	ChatBILarkMiddleware,
-	LarkConversationContextMiddleware,
-	LarkNotifyMiddleware
+  ChatBILarkMiddleware,
+  LarkConversationContextMiddleware,
+  LarkLocalHistoryMiddleware,
+  LarkNotifyMiddleware,
+  LarkRuntimeMiddleware
 } from './middlewares/index.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
 import { LarkTriggerAggregationService } from './workflow/lark-trigger-aggregation.service.js'
@@ -34,76 +38,102 @@ import { LarkDocTransformerStrategy } from './transformer.strategy.js'
 import { Handlers } from './handoff/commands/handlers/index.js'
 import { LARK_CONVERSATION_QUEUE_SERVICE, LARK_LONG_CONNECTION_SERVICE } from './tokens.js'
 import { LarkIntegrationViewProvider } from './views/index.js'
+import { LarkMessageHistoryService } from './lark-message-history.service.js'
+import { LarkMessageHistoryQueueService } from './lark-message-history-queue.service.js'
+import { LarkMessageHistoryQueueProcessor } from './lark-message-history-queue.processor.js'
+import { LarkMessageHistorySchemaService } from './lark-message-history-schema.service.js'
 
 @XpertServerPlugin({
-	imports: [
-		DiscoveryModule,
-		CqrsModule,
-		TypeOrmModule.forFeature([LarkConversationBindingEntity, LarkTriggerBindingEntity]),
-	],
-	entities: [LarkConversationBindingEntity, LarkTriggerBindingEntity],
-	controllers: [LarkHooksController],
-	providers: [
-		LarkConversationService,
-		LarkConversationBindingSchemaService,
-		LarkContextToolService,
-		LarkGroupMentionWindowService,
-		LarkChannelStrategy,
-		LarkCapabilityService,
-		LarkInboundIdentityService,
-		LarkIntegrationStrategy,
-		LarkTriggerStrategy,
-		LarkTriggerAggregationService,
-		LarkTriggerFlushProcessor,
-		LarkLongConnectionService,
-		LarkChatDispatchService,
-		LarkChatRunStateService,
-		LarkChatStreamCallbackProcessor,
-		LarkRecipientDirectoryService,
-		LarkIntegrationViewProvider,
-		LarkTokenStrategy,
-		ChatBILarkMiddleware,
-		LarkConversationContextMiddleware,
-		LarkNotifyMiddleware,
-		LarkSourceStrategy,
-		LarkDocTransformerStrategy,
-		{
-			provide: LARK_LONG_CONNECTION_SERVICE,
-			useExisting: LarkLongConnectionService
-		},
-		{
-			provide: LARK_CONVERSATION_QUEUE_SERVICE,
-			useExisting: LarkConversationService
-		},
-		...Handlers
-	],
-	exports: [
-		LarkChannelStrategy,
-		LarkCapabilityService,
-		LarkIntegrationStrategy,
-		LarkTriggerStrategy,
-		LarkLongConnectionService,
-		LarkChatDispatchService,
-		LarkRecipientDirectoryService,
-		LarkGroupMentionWindowService,
-		LarkContextToolService,
-		ChatBILarkMiddleware,
-		LarkConversationContextMiddleware,
-		LarkNotifyMiddleware
-	]
+  imports: [
+    DiscoveryModule,
+    CqrsModule,
+    TypeOrmModule.forFeature([
+      LarkConversationBindingEntity,
+      LarkTriggerBindingEntity,
+      LarkMessageLogEntity,
+      LarkMessageFileEntity
+    ])
+  ],
+  entities: [LarkConversationBindingEntity, LarkTriggerBindingEntity, LarkMessageLogEntity, LarkMessageFileEntity],
+  controllers: [LarkHooksController],
+  providers: [
+    LarkConversationService,
+    LarkConversationBindingSchemaService,
+    LarkContextToolService,
+    LarkGroupMentionWindowService,
+    LarkChannelStrategy,
+    LarkCapabilityService,
+    LarkInboundIdentityService,
+    LarkIntegrationStrategy,
+    LarkTriggerStrategy,
+    LarkTriggerAggregationService,
+    LarkTriggerFlushProcessor,
+    LarkLongConnectionService,
+    LarkChatDispatchService,
+    LarkChatRunStateService,
+    LarkChatStreamCallbackProcessor,
+    LarkRecipientDirectoryService,
+    LarkMessageHistoryService,
+    LarkMessageHistorySchemaService,
+    LarkMessageHistoryQueueService,
+    LarkMessageHistoryQueueProcessor,
+    LarkIntegrationViewProvider,
+    LarkTokenStrategy,
+    ChatBILarkMiddleware,
+    LarkConversationContextMiddleware,
+    LarkLocalHistoryMiddleware,
+    LarkNotifyMiddleware,
+    LarkRuntimeMiddleware,
+    LarkSourceStrategy,
+    LarkDocTransformerStrategy,
+    {
+      provide: LARK_LONG_CONNECTION_SERVICE,
+      useExisting: LarkLongConnectionService
+    },
+    {
+      provide: LARK_CONVERSATION_QUEUE_SERVICE,
+      useExisting: LarkConversationService
+    },
+    ...Handlers
+  ],
+  exports: [
+    LarkChannelStrategy,
+    LarkCapabilityService,
+    LarkIntegrationStrategy,
+    LarkTriggerStrategy,
+    LarkLongConnectionService,
+    LarkChatDispatchService,
+    LarkRecipientDirectoryService,
+    LarkGroupMentionWindowService,
+    LarkContextToolService,
+    LarkMessageHistoryService,
+    LarkLocalHistoryMiddleware,
+    ChatBILarkMiddleware,
+    LarkConversationContextMiddleware,
+    LarkNotifyMiddleware,
+    LarkRuntimeMiddleware
+  ]
 })
 export class IntegrationLarkPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
-	private logEnabled = true
+  private logEnabled = true
+  private readonly logger = new Logger(IntegrationLarkPlugin.name)
 
-	onPluginBootstrap(): void | Promise<void> {
-		if (this.logEnabled) {
-			console.log(chalk.green(`${IntegrationLarkPlugin.name} is being bootstrapped...`))
-		}
-	}
+  constructor(private readonly messageHistorySchemaService: LarkMessageHistorySchemaService) {}
 
-	onPluginDestroy(): void | Promise<void> {
-		if (this.logEnabled) {
-			console.log(chalk.green(`${IntegrationLarkPlugin.name} is being destroyed...`))
-		}
-	}
+  onPluginBootstrap(): void {
+    // Index creation may scan a large history table. Keep plugin startup and
+    // trigger publishing available while the PostgreSQL concurrent build runs.
+    void this.messageHistorySchemaService
+      .ensureSchema()
+      .catch((error) => this.logger.warn(`Unable to initialize Lark history search schema: ${String(error)}`))
+    if (this.logEnabled) {
+      console.log(chalk.green(`${IntegrationLarkPlugin.name} is being bootstrapped...`))
+    }
+  }
+
+  onPluginDestroy(): void | Promise<void> {
+    if (this.logEnabled) {
+      console.log(chalk.green(`${IntegrationLarkPlugin.name} is being destroyed...`))
+    }
+  }
 }

@@ -6,13 +6,13 @@ import {
   LARK_ADMIN_TEMPLATE_KEY,
   LARK_ADMIN_VIEW_FEATURE,
   LARK_ASSISTANT_TEMPLATE_FEATURE,
-  LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
   LARK_CONVERSATION_TEMPLATE_KEY,
   LARK_DOCUMENT_SOURCE_FEATURE,
   LARK_FEATURE,
+  LARK_LOCAL_HISTORY_FEATURE,
   LARK_LONG_CONNECTION_FEATURE,
   LARK_MESSAGING_FEATURE,
-  LARK_NOTIFY_MIDDLEWARE_NAME,
+  LARK_RUNTIME_MIDDLEWARE_NAME,
   LARK_PLUGIN_NAME,
   LARK_TEMPLATE_PROVIDER_KEY,
   LARK_VIEW_PROVIDER_KEY
@@ -67,7 +67,7 @@ export const larkTemplates: LarkXpertTemplateContribution[] = [
           businessDomain: 'lark',
           role: 'admin',
           managedBy: 'xpert',
-          middlewareProviders: [LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME],
+          middlewareProviders: [],
           viewProvider: LARK_VIEW_PROVIDER_KEY
         }
       }
@@ -88,7 +88,7 @@ export const larkTemplates: LarkXpertTemplateContribution[] = [
     key: LARK_CONVERSATION_TEMPLATE_KEY,
     name: 'Lark Conversation Assistant',
     title: '飞书会话助手',
-    description: '通过飞书/Lark 接收消息、理解会话上下文，并自然回复或发送通知的助手模板。',
+    description: '通过飞书/Lark 接收消息、读取本地会话附件，并自然回复或发送消息与文件的助手模板。',
     category: 'Integration',
     type: XpertTypeEnum.Agent,
     targetApps: ['xpert'],
@@ -100,6 +100,7 @@ export const larkTemplates: LarkXpertTemplateContribution[] = [
           LARK_MESSAGING_FEATURE,
           LARK_LONG_CONNECTION_FEATURE,
           LARK_DOCUMENT_SOURCE_FEATURE,
+          LARK_LOCAL_HISTORY_FEATURE,
           LARK_ASSISTANT_TEMPLATE_FEATURE
         ],
         requiredPlugins: [LARK_PLUGIN_NAME],
@@ -108,7 +109,7 @@ export const larkTemplates: LarkXpertTemplateContribution[] = [
           businessDomain: 'lark',
           role: 'conversation',
           managedBy: 'xpert',
-          middlewareProviders: [LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME, LARK_NOTIFY_MIDDLEWARE_NAME],
+          middlewareProviders: [LARK_RUNTIME_MIDDLEWARE_NAME],
           viewProvider: LARK_VIEW_PROVIDER_KEY
         }
       }
@@ -119,9 +120,10 @@ export const larkTemplates: LarkXpertTemplateContribution[] = [
     startPrompts: [
       '请作为飞书会话助手，帮我自然回复当前飞书消息。',
       '请查看当前群聊最近消息，再回答用户刚才的问题。',
-      '请给刚才提到的同事发送一条简短的飞书提醒。'
+      '请给刚才提到的同事发送一条简短的飞书提醒。',
+      '请生成一份简短报告并作为文件发回当前飞书会话。'
     ],
-    releaseNotes: '创建飞书消息收发与会话上下文助手。',
+    releaseNotes: '创建飞书消息、文件收发与本地会话历史助手。',
     xpertName: '飞书会话助手',
     providerKey: LARK_TEMPLATE_PROVIDER_KEY
   } as LarkXpertTemplateContribution

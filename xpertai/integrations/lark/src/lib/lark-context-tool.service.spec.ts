@@ -1,3 +1,8 @@
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  ...require('../../../../test-utils/larkPluginSdkMock.cjs').createLarkPluginSdkMock(jest),
+  getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error))
+}))
+
 import { Readable } from 'node:stream'
 import { LarkContextToolService } from './lark-context-tool.service.js'
 
@@ -86,7 +91,12 @@ async function createFixture() {
   }
 
   const larkChannel = {
-    getOrCreateLarkClientById: jest.fn().mockResolvedValue(client)
+    getOrCreateLarkClientById: jest.fn().mockResolvedValue(client),
+    readIntegrationById: jest.fn().mockResolvedValue({
+      id: 'integration-1',
+      options: { appId: 'cli_test_app', isLark: false }
+    }),
+    createMessage: jest.fn().mockResolvedValue({ data: { message_id: 'permission-card-1' } })
   }
 
   return {
@@ -113,17 +123,17 @@ describe('LarkContextToolService', () => {
       params: {
         container_id_type: 'chat',
         container_id: 'oc_chat_1',
-        start_time: undefined,
-        end_time: undefined,
+        start_time: null,
+        end_time: null,
         sort_type: undefined,
         page_size: undefined,
-        page_token: undefined
+        page_token: null
       }
     })
     expect(result.pageToken).toBe('next-page')
     expect(result.hasMore).toBe(true)
     expect(result.items).toEqual([
-      {
+      expect.objectContaining({
         messageId: 'om_text_1',
         chatId: 'oc_chat_1',
         senderOpenId: 'ou_sender_1',
@@ -139,12 +149,11 @@ describe('LarkContextToolService', () => {
         createTime: '1710000000000',
         hasResource: false,
         resourceRefs: undefined
-      },
-      {
+      }),
+      expect.objectContaining({
         messageId: 'om_file_1',
         chatId: 'oc_chat_1',
         msgType: 'file',
-        text: 'report.pdf',
         hasResource: true,
         resourceRefs: [
           {
@@ -153,8 +162,187 @@ describe('LarkContextToolService', () => {
             name: 'report.pdf'
           }
         ]
-      }
+      })
     ])
+  })
+
+  it('preserves structured application permission failures for the runtime middleware', async () => {
+    const { service, messageList } = await createFixture()
+    messageList.mockRejectedValue({
+      code: 99991679,
+      msg: 'Access denied',
+      error: {
+        message: 'missing permission',
+        permission_violations: [
+          { type: 'action_privilege_required', subject: 'im:message.group_msg' }
+        ]
+      }
+    })
+
+    await expect(
+      service.listMessages({
+        integrationId: 'integration-1',
+        containerIdType: 'chat',
+        containerId: 'oc_chat_1'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'LarkApplicationPermissionError',
+        code: 99991679,
+        scopes: ['im:message.group_msg']
+      })
+    )
+  })
+
+  it('preserves application permission failures returned as successful SDK responses', async () => {
+    const { service, messageList } = await createFixture()
+    messageList.mockResolvedValue({
+      code: 99991679,
+      msg: 'Access denied',
+      error: {
+        message: 'missing permission',
+        permission_violations: [
+          { type: 'action_privilege_required', subject: 'im:message.group_msg' }
+        ]
+      }
+    })
+
+    await expect(
+      service.listMessages({
+        integrationId: 'integration-1',
+        containerIdType: 'chat',
+        containerId: 'oc_chat_1'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'LarkApplicationPermissionError',
+        code: 99991679,
+        scopes: ['im:message.group_msg']
+      })
+    )
+  })
+
+  it('extracts required scopes from a trusted application permission error message', async () => {
+    const { service, messageList } = await createFixture()
+    messageList.mockResolvedValue({
+      code: 99991679,
+      msg: 'Access denied. Required scope: im:message.group_msg',
+      error: {
+        message: 'The app does not have im:message.group_msg permission'
+      }
+    })
+
+    await expect(
+      service.listMessages({
+        integrationId: 'integration-1',
+        containerIdType: 'chat',
+        containerId: 'oc_chat_1'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'LarkApplicationPermissionError',
+        code: 99991679,
+        scopes: ['im:message.group_msg']
+      })
+    )
+  })
+
+  it('handles the missing-scope code returned by the Lark message list API', async () => {
+    const { service, messageList } = await createFixture()
+    messageList.mockResolvedValue({
+      code: 230027,
+      msg: 'Lack of necessary permissions, ext=need scope: im:message.group_msg',
+      error: {
+        message: 'Lack of necessary permissions'
+      }
+    })
+
+    await expect(
+      service.listMessages({
+        integrationId: 'integration-1',
+        containerIdType: 'chat',
+        containerId: 'oc_chat_1'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'LarkApplicationPermissionError',
+        code: 230027,
+        scopes: ['im:message.group_msg']
+      })
+    )
+  })
+
+  it('sends a deterministic administrator permission guide card to the trusted chat', async () => {
+    const { service, larkChannel } = await createFixture()
+
+    await expect(
+      service.sendApplicationPermissionGuideCard({
+        integrationId: 'integration-1',
+        chatId: 'oc_chat_1',
+        scopes: ['im:message.group_msg'],
+        toolCallId: 'tool-call-1'
+      })
+    ).resolves.toEqual({
+      messageId: 'permission-card-1',
+      consoleUrl:
+        'https://open.feishu.cn/app/cli_test_app/auth?q=im%3Amessage.group_msg&op_from=openapi&token_type=tenant'
+    })
+
+    expect(larkChannel.createMessage).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        params: { receive_id_type: 'chat_id' },
+        data: expect.objectContaining({
+          receive_id: 'oc_chat_1',
+          msg_type: 'interactive',
+          uuid: expect.stringMatching(/^lark_permission_[a-f0-9]{32}$/)
+        })
+      })
+    )
+    const card = JSON.parse(larkChannel.createMessage.mock.calls[0][1].data.content)
+    expect(card.header.title.content).toBe('🔐 请管理员开启以下权限')
+    expect(card.elements[0].content).toContain('im:message.group_msg')
+    expect(card.elements[1].elements[0].content).toContain('cli_test_app')
+    expect(card.elements[2].actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          text: { tag: 'plain_text', content: '开启权限' },
+          multi_url: {
+            url: 'https://open.feishu.cn/app/cli_test_app/auth?q=im%3Amessage.group_msg&op_from=openapi&token_type=tenant'
+          }
+        }),
+        expect.objectContaining({
+          text: { tag: 'plain_text', content: '取消' },
+          value: { action: 'lark-dismiss-permission-guide' }
+        })
+      ])
+    )
+  })
+
+  it('rejects list responses containing messages outside the trusted current chat', async () => {
+    const { service, messageList } = await createFixture()
+    messageList.mockResolvedValue({
+      data: {
+        items: [
+          {
+            message_id: 'om_other_chat',
+            chat_id: 'oc_chat_other',
+            msg_type: 'text',
+            body: { content: JSON.stringify({ text: 'private' }) }
+          }
+        ]
+      }
+    })
+
+    await expect(
+      service.listMessages({
+        integrationId: 'integration-1',
+        containerIdType: 'chat',
+        containerId: 'oc_chat_current',
+        expectedChatId: 'oc_chat_current',
+        timeoutMs: 1000
+      })
+    ).rejects.toThrow('Lark returned a message outside the current chat')
   })
 
   it('normalizes getMessageResource into metadata plus optional base64 payload', async () => {
@@ -188,5 +376,58 @@ describe('LarkContextToolService', () => {
       contentEncoding: 'base64',
       contentBase64: 'YWJj'
     })
+  })
+
+  it('rejects messages returned outside the trusted current chat', async () => {
+    const { service, messageGet } = await createFixture()
+    messageGet.mockResolvedValue({
+      data: {
+        items: [
+          {
+            message_id: 'om_other_chat',
+            chat_id: 'oc_chat_other',
+            msg_type: 'text',
+            body: { content: JSON.stringify({ text: 'private' }) }
+          }
+        ]
+      }
+    })
+
+    await expect(
+      service.getMessage({
+        integrationId: 'integration-1',
+        messageId: 'om_other_chat',
+        expectedChatId: 'oc_chat_current',
+        timeoutMs: 1000
+      })
+    ).rejects.toThrow('Lark returned a message outside the current chat')
+  })
+
+  it('does not download resources until current-chat membership is verified', async () => {
+    const { service, messageGet, messageResourceGet } = await createFixture()
+    messageGet.mockResolvedValue({
+      data: {
+        items: [
+          {
+            message_id: 'om_other_chat',
+            chat_id: 'oc_chat_other',
+            msg_type: 'file',
+            body: { content: JSON.stringify({ file_key: 'file_1' }) }
+          }
+        ]
+      }
+    })
+
+    await expect(
+      service.getMessageResource({
+        integrationId: 'integration-1',
+        messageId: 'om_other_chat',
+        fileKey: 'file_1',
+        type: 'file',
+        expectedChatId: 'oc_chat_current',
+        timeoutMs: 1000
+      })
+    ).rejects.toThrow('Lark returned a message outside the current chat')
+    expect(messageResourceGet).not.toHaveBeenCalled()
   })
 })

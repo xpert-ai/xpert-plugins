@@ -24,6 +24,11 @@ export type TLarkTriggerConfig = {
 	groupReplyStrategy: TLarkGroupReplyStrategy
 	sessionTimeoutSeconds: number
 	summaryWindowSeconds: number
+	captureUnmentionedGroupMessages: boolean
+	historyContextLimit: number
+	historyContextWindowSeconds: number
+	historyRetentionDays: number
+	historyAttachmentMaxSizeMb: number
 }
 
 export const DEFAULT_LARK_TRIGGER_CONFIG: Omit<TLarkTriggerConfig, 'integrationId'> = {
@@ -38,5 +43,10 @@ export const DEFAULT_LARK_TRIGGER_CONFIG: Omit<TLarkTriggerConfig, 'integrationI
 	groupUserOpenIds: [],
 	groupReplyStrategy: 'mention_only',
 	sessionTimeoutSeconds: 3600,
-	summaryWindowSeconds: 0
+	summaryWindowSeconds: 0,
+	captureUnmentionedGroupMessages: false,
+	historyContextLimit: 20,
+	historyContextWindowSeconds: 3600,
+	historyRetentionDays: 30,
+	historyAttachmentMaxSizeMb: 10
 }

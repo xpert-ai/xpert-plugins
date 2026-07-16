@@ -73,10 +73,19 @@ nodes:
         configured trigger policy. Do not broaden the conversation beyond the current user request unless
         the user asks.
 
-        Use Lark conversation context tools when the user asks about previous messages, group context,
-        shared files, message resources, or when you need to verify what was said earlier. Treat open_id,
+        Files attached to the current user message are already available in the request files; read them
+        directly. Use lark_search_chat_history with includeFiles=true for older shared files or when the
+        user asks about previous messages and group context. This tool searches only the locally stored
+        history for the current conversation. Use lark_list_messages, lark_get_message, and
+        lark_get_message_resource only when the user explicitly needs remote Feishu message data that is
+        not present in local history. Never ask for or invent another chat id. Treat open_id,
         chat_id, message_id, and file keys as internal identifiers; do not present them as people names or
         user-facing explanations unless the administrator explicitly asks for diagnostics.
+
+        When the user asks you to generate, edit, or return a file, finish writing it into the Xpert
+        workspace and call lark_send_file. Never paste a local path or workspace path into the user-facing
+        reply. lark_send_file automatically uses the trusted current Lark conversation and cannot be used
+        to choose another chat or user.
 
         Use Lark notification tools only when the user clearly asks you to send, update, or recall a Lark
         message. Prefer recipient_name or recipient_names from the current chat context instead of exposing
@@ -89,7 +98,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: lark-conversation-agent-v1
+    hash: lark-conversation-agent-v3
   - type: workflow
     key: Trigger_Lark
     position:
@@ -112,59 +121,39 @@ nodes:
         groupUserScope: all_users
         groupUserOpenIds: []
         groupReplyStrategy: mention_only
-    hash: lark-conversation-trigger-v1
+        captureUnmentionedGroupMessages: true
+        historyContextLimit: 20
+        historyContextWindowSeconds: 3600
+        historyRetentionDays: 30
+        historyAttachmentMaxSizeMb: 10
+    hash: lark-conversation-trigger-v2
   - type: workflow
-    key: Middleware_LarkConversationContext
+    key: Middleware_LarkRuntime
     position:
       x: 1160
       y: 250
     entity:
       type: middleware
-      key: Middleware_LarkConversationContext
-      title: Lark Conversation Context
-      provider: LarkConversationContextMiddleware
-      required: true
-      options:
-        integrationId: ""
-        defaults:
-          timeoutMs: 10000
-          pageSize: 20
-          resourceContentMode: metadata
-    hash: lark-conversation-context-middleware-v1
-  - type: workflow
-    key: Middleware_LarkNotify
-    position:
-      x: 1160
-      y: 460
-    entity:
-      type: middleware
-      key: Middleware_LarkNotify
-      title: Lark Notify Tools
-      provider: LarkNotifyMiddleware
+      key: Middleware_LarkRuntime
+      title: 飞书运行时
+      provider: LarkRuntimeMiddleware
       required: false
       options:
-        integrationId: ""
-        recipient_type: open_id
-        recipient_id: ""
         template:
           enabled: true
           strict: false
         defaults:
           postLocale: zh_cn
           timeoutMs: 10000
-        lookupTools:
-          enabled: true
-    hash: lark-notify-middleware-v1
+          pageSize: 20
+          resourceContentMode: metadata
+    hash: lark-runtime-middleware-v2
 connections:
   - type: workflow
     key: Trigger_Lark/Agent_LarkConversation
     from: Trigger_Lark
     to: Agent_LarkConversation
   - type: workflow
-    key: Agent_LarkConversation/Middleware_LarkConversationContext
+    key: Agent_LarkConversation/Middleware_LarkRuntime
     from: Agent_LarkConversation
-    to: Middleware_LarkConversationContext
-  - type: workflow
-    key: Agent_LarkConversation/Middleware_LarkNotify
-    from: Agent_LarkConversation
-    to: Middleware_LarkNotify
+    to: Middleware_LarkRuntime

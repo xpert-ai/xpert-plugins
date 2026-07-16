@@ -9,10 +9,16 @@ export const LARK_LONG_CONNECTION_FEATURE = 'lark-long-connection'
 export const LARK_DOCUMENT_SOURCE_FEATURE = 'lark-document-source'
 export const LARK_ADMIN_VIEW_FEATURE = 'lark-admin-view'
 export const LARK_ASSISTANT_TEMPLATE_FEATURE = 'lark-assistant-template'
+export const LARK_LOCAL_HISTORY_FEATURE = 'lark-local-history'
 
 export const LARK_NOTIFY_MIDDLEWARE_NAME = 'LarkNotifyMiddleware'
 export const LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME = 'LarkConversationContextMiddleware'
+export const LARK_LOCAL_HISTORY_MIDDLEWARE_NAME = 'LarkLocalHistoryMiddleware'
+export const LARK_RUNTIME_MIDDLEWARE_NAME = 'LarkRuntimeMiddleware'
 export const CHATBI_LARK_MIDDLEWARE_NAME = 'ChatBILarkMiddleware'
+
+export const LARK_SEARCH_CHAT_HISTORY_TOOL_NAME = 'lark_search_chat_history'
+export const LARK_SEND_FILE_TOOL_NAME = 'lark_send_file'
 
 export const LARK_ADMIN_TEMPLATE_KEY = 'lark-admin-assistant'
 export const LARK_CONVERSATION_TEMPLATE_KEY = 'lark-conversation-assistant'

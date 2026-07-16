@@ -14,14 +14,21 @@ import {
 import { z } from 'zod/v3'
 import { LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME } from '../constants.js'
 import { getToolCallIdFromConfig } from '../contracts-compat.js'
-import { LarkContextToolService } from '../lark-context-tool.service.js'
+import {
+  LarkApplicationPermissionError,
+  LarkContextToolService
+} from '../lark-context-tool.service.js'
 import { iconImage } from '../types.js'
+import { resolveLarkTrustedRuntimeContext } from './lark-trusted-runtime-context.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_PAGE_SIZE = 20
+const MAX_ALLOWED_MESSAGE_IDS = 500
 
 const middlewareConfigSchema = z.object({
   integrationId: z.string().optional().nullable(),
+  currentChatOnly: z.literal(true).optional().default(true),
+  trustedTriggerOnly: z.boolean().optional().default(false),
   defaults: z
     .object({
       timeoutMs: z.number().int().min(100).default(DEFAULT_TIMEOUT_MS),
@@ -31,12 +38,14 @@ const middlewareConfigSchema = z.object({
     .default({})
 })
 
-const middlewareStateSchema = z.object({
+export const larkConversationContextStateSchema = z.object({
   lark_conversation_context_last_result: z.record(z.any()).nullable().default(null),
+  lark_conversation_context_current_integration_id: z.string().default(''),
   lark_conversation_context_current_chat_id: z.string().default(''),
   lark_conversation_context_current_chat_type: z.string().default(''),
   lark_conversation_context_current_sender_open_id: z.string().default(''),
   lark_conversation_context_current_sender_name: z.string().default(''),
+  lark_conversation_context_allowed_message_ids: z.array(z.string()).default([]),
   lark_conversation_context_agent_guidance: z.string().default('')
 })
 
@@ -62,9 +71,21 @@ const listMessagesSchema = z.object({
     .optional()
     .nullable()
     .describe('Message order, default is descending by create time.'),
-  pageSize: z.number().int().min(1).max(100).optional().nullable().describe('Page size, default comes from middleware config.'),
+  pageSize: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .nullable()
+    .describe('Page size, default comes from middleware config.'),
   pageToken: z.string().optional().nullable().describe('Pagination token from the previous response.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds.')
+})
+
+const currentChatListMessagesSchema = listMessagesSchema.omit({
+  containerIdType: true,
+  containerId: true
 })
 
 const getMessageSchema = z.object({
@@ -92,6 +113,7 @@ const getMessageResourceSchema = z.object({
 type LarkConversationContextMiddlewareConfig = InferInteropZodInput<typeof middlewareConfigSchema>
 
 type ResolvedCurrentLarkContext = {
+  integrationId: string | null
   chatId: string | null
   chatType: string | null
   senderOpenId: string | null
@@ -201,6 +223,7 @@ function findLarkContextDeep(
 ): ResolvedCurrentLarkContext {
   if (!source || typeof source !== 'object' || maxDepth < 0) {
     return {
+      integrationId: null,
       chatId: null,
       chatType: null,
       senderOpenId: null,
@@ -211,6 +234,7 @@ function findLarkContextDeep(
   const record = source as Record<string, unknown>
   if (visited.has(record)) {
     return {
+      integrationId: null,
       chatId: null,
       chatType: null,
       senderOpenId: null,
@@ -219,6 +243,20 @@ function findLarkContextDeep(
   }
   visited.add(record)
 
+  const integrationId = resolveFirstStringByPaths(record, [
+    'sourceIntegrationId',
+    'integrationId',
+    'runtime.sourceIntegrationId',
+    'runtime.integrationId',
+    'callback.context.sourceIntegrationId',
+    'callback.context.integrationId',
+    'message.sourceIntegrationId',
+    'message.integrationId',
+    'lark_current_context.sourceIntegrationId',
+    'lark_current_context.integrationId',
+    'lark_conversation_context_current_integration_id'
+  ])
+
   const chatId = resolveFirstStringByPaths(record, [
     'chatId',
     'runtime.chatId',
@@ -226,6 +264,7 @@ function findLarkContextDeep(
     'message.chatId',
     'options.chatId',
     'lark_group_window.chatId',
+    'lark_current_context.chatId',
     'lark_conversation_context_current_chat_id'
   ])
   const chatType = resolveFirstStringByPaths(record, [
@@ -234,6 +273,7 @@ function findLarkContextDeep(
     'callback.context.chatType',
     'message.chatType',
     'options.chatType',
+    'lark_current_context.chatType',
     'lark_conversation_context_current_chat_type'
   ])
   const senderOpenId = resolveFirstStringByPaths(record, [
@@ -254,8 +294,9 @@ function findLarkContextDeep(
     'lark_current_context.senderName'
   ])
 
-  if (chatId || chatType || senderOpenId || senderName) {
+  if (integrationId || chatId || chatType || senderOpenId || senderName) {
     return {
+      integrationId,
       chatId,
       chatType,
       senderOpenId,
@@ -268,12 +309,13 @@ function findLarkContextDeep(
       continue
     }
     const nested = findLarkContextDeep(value, maxDepth - 1, visited)
-    if (nested.chatId || nested.chatType || nested.senderOpenId || nested.senderName) {
+    if (nested.integrationId || nested.chatId || nested.chatType || nested.senderOpenId || nested.senderName) {
       return nested
     }
   }
 
   return {
+    integrationId: null,
     chatId: null,
     chatType: null,
     senderOpenId: null,
@@ -283,6 +325,14 @@ function findLarkContextDeep(
 
 function resolveCurrentLarkContext(state: Record<string, unknown>): ResolvedCurrentLarkContext {
   return findLarkContextDeep(state)
+}
+
+function getAllowedMessageIds(state: Record<string, unknown>): Set<string> {
+  const values = state.lark_conversation_context_allowed_message_ids
+  if (!Array.isArray(values)) {
+    return new Set()
+  }
+  return new Set(values.map((value) => normalizeString(value)).filter((value): value is string => Boolean(value)))
 }
 
 function validateChatContainerId(containerId: string, source: ResolvedListMessagesContainer['source']) {
@@ -338,18 +388,30 @@ function resolveListMessagesContainer(
   )
 }
 
-function buildConversationContextGuidance(context: ResolvedCurrentLarkContext): string {
-  const lines = [
-    'Lark conversation context rules:',
-    '- Use lark_list_messages to inspect message history.',
-    '- If you do not explicitly specify containerIdType/containerId, default to the current Lark chat.',
-    '- In group chats, this means the current group chat.',
-    '- When the user asks who they are, what was said earlier, what this group discussed before, or why you made a judgment, inspect the current group history first.',
-    '- In group chats, you may inspect the current group context before answering context-dependent questions.',
-    '- Treat open_id values as internal identifiers. Do not present open_id as a person name in user-facing answers.',
-    "- For chat containers, use chat_id (usually starts with 'oc_'), not message_id (usually starts with 'om_').",
-    '- Only override containerIdType/containerId when the user explicitly asks about another chat or another user.'
-  ]
+function buildConversationContextGuidance(
+  context: ResolvedCurrentLarkContext,
+  currentChatOnly: boolean
+): string {
+  const lines = currentChatOnly
+    ? [
+        'Lark conversation context rules:',
+        '- Remote Lark message tools may only read the current Lark chat.',
+        '- Use lark_list_messages without a chat or user identifier to inspect the current chat history.',
+        '- Never attempt to query another chat or user container.',
+        '- lark_get_message and lark_get_message_resource only accept message ids returned by lark_list_messages for the current chat.',
+        '- Treat open_id values as internal identifiers. Do not present open_id as a person name in user-facing answers.'
+      ]
+    : [
+        'Lark conversation context rules:',
+        '- Use lark_list_messages to inspect message history.',
+        '- If you do not explicitly specify containerIdType/containerId, default to the current Lark chat.',
+        '- In group chats, this means the current group chat.',
+        '- When the user asks who they are, what was said earlier, what this group discussed before, or why you made a judgment, inspect the current group history first.',
+        '- In group chats, you may inspect the current group context before answering context-dependent questions.',
+        '- Treat open_id values as internal identifiers. Do not present open_id as a person name in user-facing answers.',
+        "- For chat containers, use chat_id (usually starts with 'oc_'), not message_id (usually starts with 'om_').",
+        '- Only override containerIdType/containerId when the user explicitly asks about another chat or another user.'
+      ]
 
   if (context.chatId) {
     lines.push(`- Current chat_id available in context: ${context.chatId}`)
@@ -377,10 +439,7 @@ function enrichCurrentSpeakerName<T>(result: T, context: ResolvedCurrentLarkCont
     }
 
     const record = { ...(value as Record<string, unknown>) }
-    if (
-      record.senderOpenId === context.senderOpenId &&
-      !normalizeString(record.senderName)
-    ) {
+    if (record.senderOpenId === context.senderOpenId && !normalizeString(record.senderName)) {
       record.senderName = context.senderName
     }
     return record
@@ -403,6 +462,7 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
 
   meta: TAgentMiddlewareMeta = {
     name: LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
+    builtin: true,
     icon: {
       type: 'image',
       value: iconImage
@@ -506,10 +566,52 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
 
     const parsed = data!
 
-    const requireIntegrationId = (toolName: string) => {
-      const integrationId = normalizeString(parsed.integrationId)
+    const resolveToolContext = (config: unknown, state: Record<string, unknown>): ResolvedCurrentLarkContext => {
+      const trusted = resolveLarkTrustedRuntimeContext(config)
+      const legacy = parsed.trustedTriggerOnly ? null : resolveCurrentLarkContext(state)
+      return {
+        integrationId: trusted.integrationId ?? legacy?.integrationId ?? null,
+        chatId: trusted.chatId ?? legacy?.chatId ?? null,
+        chatType: trusted.chatType ?? legacy?.chatType ?? null,
+        senderOpenId: trusted.senderOpenId ?? legacy?.senderOpenId ?? null,
+        senderName: trusted.senderName ?? legacy?.senderName ?? null
+      }
+    }
+
+    const requireCurrentChatId = (toolName: string, state: Record<string, unknown>, config: unknown) => {
+      const chatId = resolveToolContext(config, state).chatId
+      if (!chatId) {
+        throw new Error(
+          `[${toolName}] no trusted current Lark chat was found. Run this tool from a Lark-triggered conversation.`
+        )
+      }
+      validateChatContainerId(chatId, 'current-chat')
+      return chatId
+    }
+
+    const requireAllowedCurrentChatMessage = (
+      toolName: string,
+      messageId: string,
+      state: Record<string, unknown>,
+      config: unknown
+    ) => {
+      const chatId = requireCurrentChatId(toolName, state, config)
+      if (!getAllowedMessageIds(state).has(messageId)) {
+        throw new Error(
+          `[${toolName}] messageId must come from lark_list_messages for the current Lark chat.`
+        )
+      }
+      return chatId
+    }
+
+    const requireIntegrationId = (toolName: string, config: unknown) => {
+      const integrationId =
+        resolveToolContext(config, getCurrentStateSafe()).integrationId ??
+        (parsed.trustedTriggerOnly ? null : normalizeString(parsed.integrationId))
       if (!integrationId) {
-        throw new Error(`[${toolName}] integrationId is required. Configure middleware integration first.`)
+        throw new Error(
+          `[${toolName}] no trusted Lark trigger integration was found. Run this tool from a Lark-triggered conversation.`
+        )
       }
       return integrationId
     }
@@ -518,7 +620,8 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
       toolName: string,
       toolCallId: string | undefined,
       integrationId: string,
-      data: Record<string, unknown>
+      data: Record<string, unknown>,
+      stateUpdate: Record<string, unknown> = {}
     ) => {
       const result = {
         tool: toolName,
@@ -529,6 +632,7 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
 
       return new Command({
         update: {
+          ...stateUpdate,
           lark_conversation_context_last_result: result,
           messages: [
             new ToolMessage({
@@ -542,57 +646,174 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
       })
     }
 
+    const buildApplicationPermissionCommand = async (params: {
+      error: unknown
+      toolName: string
+      toolCallId?: string
+      integrationId: string
+      state: Record<string, unknown>
+      config: unknown
+    }): Promise<Command | null> => {
+      if (!(params.error instanceof LarkApplicationPermissionError)) {
+        return null
+      }
+      const chatId = resolveToolContext(params.config, params.state).chatId
+      let permissionGuideSent = false
+      let permissionGuideError: string | undefined
+      if (chatId) {
+        try {
+          await this.contextToolService.sendApplicationPermissionGuideCard({
+            integrationId: params.integrationId,
+            chatId,
+            scopes: params.error.scopes,
+            toolCallId: params.toolCallId
+          })
+          permissionGuideSent = true
+        } catch (error) {
+          permissionGuideError = error instanceof Error ? error.message : String(error)
+        }
+      } else {
+        permissionGuideError = 'No trusted current Lark chat was available for the permission guide.'
+      }
+      const result = {
+        tool: params.toolName,
+        integrationId: params.integrationId,
+        success: false,
+        error: 'lark_application_permission_required',
+        requiredScopes: params.error.scopes,
+        permissionGuideSent,
+        ...(permissionGuideError ? { permissionGuideError } : {}),
+        message: permissionGuideSent
+          ? 'An administrator permission guide card was sent to the current Lark chat. Do not retry this tool until an administrator enables the permissions and publishes the app.'
+          : 'The Lark application is missing required permissions. Ask an administrator to enable the listed scopes and publish the app before retrying.'
+      }
+      return new Command({
+        update: {
+          lark_conversation_context_last_result: result,
+          messages: [
+            new ToolMessage({
+              content: toToolMessageContent(result),
+              name: params.toolName,
+              tool_call_id: params.toolCallId,
+              status: 'success'
+            })
+          ]
+        },
+        ...(permissionGuideSent ? { goto: 'end' } : {})
+      })
+    }
+
     const tools = [
       tool(
         async (parameters, config) => {
           const toolName = 'lark_list_messages'
-          const integrationId = requireIntegrationId(toolName)
+          const integrationId = requireIntegrationId(toolName, config)
           const toolCallId = getToolCallIdFromConfig(config)
           const timeoutMs = normalizeTimeout(parameters.timeoutMs, parsed.defaults.timeoutMs)
           const state = getCurrentStateSafe()
-          const currentContext = resolveCurrentLarkContext(state)
-          const resolvedContainer = resolveListMessagesContainer(parameters, state)
+          const currentContext = resolveToolContext(config, state)
+          const listParameters: z.infer<typeof listMessagesSchema> = parameters
+          const resolvedContainer = parsed.currentChatOnly
+            ? {
+                containerIdType: 'chat' as const,
+                containerId: requireCurrentChatId(toolName, state, config),
+                source: 'current-chat' as const
+              }
+            : resolveListMessagesContainer(listParameters, state)
 
-          const result = await this.contextToolService.listMessages({
-            integrationId,
-            containerIdType: resolvedContainer.containerIdType,
-            containerId: resolvedContainer.containerId,
-            startTime: parameters.startTime,
-            endTime: parameters.endTime,
-            sortType: parameters.sortType ?? 'ByCreateTimeDesc',
-            pageSize: normalizePageSize(parameters.pageSize, parsed.defaults.pageSize),
-            pageToken: parameters.pageToken,
-            timeoutMs
-          })
+          let result: Awaited<ReturnType<LarkContextToolService['listMessages']>>
+          try {
+            result = await this.contextToolService.listMessages({
+              integrationId,
+              containerIdType: resolvedContainer.containerIdType,
+              containerId: resolvedContainer.containerId,
+              startTime: parameters.startTime,
+              endTime: parameters.endTime,
+              sortType: parameters.sortType ?? 'ByCreateTimeDesc',
+              pageSize: normalizePageSize(parameters.pageSize, parsed.defaults.pageSize),
+              pageToken: parameters.pageToken,
+              timeoutMs,
+              expectedChatId: parsed.currentChatOnly ? resolvedContainer.containerId : undefined
+            })
+          } catch (error) {
+            const permissionCommand = await buildApplicationPermissionCommand({
+              error,
+              toolName,
+              toolCallId,
+              integrationId,
+              state,
+              config
+            })
+            if (permissionCommand) {
+              return permissionCommand
+            }
+            throw error
+          }
           const enrichedResult = enrichCurrentSpeakerName(result, currentContext)
+          const allowedMessageIds = parsed.currentChatOnly
+            ? Array.from(
+                new Set([
+                  ...getAllowedMessageIds(state),
+                  ...result.items.map((item) => item.messageId).filter(Boolean)
+                ])
+              ).slice(-MAX_ALLOWED_MESSAGE_IDS)
+            : undefined
 
-          return buildCommand(toolName, toolCallId, integrationId, {
-            ...enrichedResult,
-            resolvedContainer
-          } as Record<string, unknown>)
+          return buildCommand(
+            toolName,
+            toolCallId,
+            integrationId,
+            {
+              ...enrichedResult,
+              resolvedContainer
+            } as Record<string, unknown>,
+            allowedMessageIds ? { lark_conversation_context_allowed_message_ids: allowedMessageIds } : {}
+          )
         },
         {
           name: 'lark_list_messages',
-          description:
-            "List historical messages from a Lark conversation. If containerIdType/containerId are omitted, this tool defaults to the current Lark chat. In group chats, that means the current group. Only override the container when the user explicitly asks about another chat or another user.",
-          schema: listMessagesSchema,
+          description: parsed.currentChatOnly
+            ? 'List historical messages from the current Lark chat. The chat is fixed by the trusted trigger runtime and cannot be overridden.'
+            : 'List historical messages from a Lark conversation. If containerIdType/containerId are omitted, this tool defaults to the current Lark chat. In group chats, that means the current group. Only override the container when the user explicitly asks about another chat or another user.',
+          schema: parsed.currentChatOnly ? currentChatListMessagesSchema : listMessagesSchema,
           verboseParsingErrors: true
         }
       ),
       tool(
         async (parameters, config) => {
           const toolName = 'lark_get_message'
-          const integrationId = requireIntegrationId(toolName)
+          const integrationId = requireIntegrationId(toolName, config)
           const toolCallId = getToolCallIdFromConfig(config)
           const timeoutMs = normalizeTimeout(parameters.timeoutMs, parsed.defaults.timeoutMs)
-          const currentContext = resolveCurrentLarkContext(getCurrentStateSafe())
+          const state = getCurrentStateSafe()
+          const currentContext = resolveToolContext(config, state)
+          const expectedChatId = parsed.currentChatOnly
+            ? requireAllowedCurrentChatMessage(toolName, parameters.messageId, state, config)
+            : undefined
 
-          const result = await this.contextToolService.getMessage({
-            integrationId,
-            messageId: parameters.messageId,
-            userIdType: parameters.userIdType,
-            timeoutMs
-          })
+          let result: Awaited<ReturnType<LarkContextToolService['getMessage']>>
+          try {
+            result = await this.contextToolService.getMessage({
+              integrationId,
+              messageId: parameters.messageId,
+              userIdType: parameters.userIdType,
+              timeoutMs,
+              expectedChatId
+            })
+          } catch (error) {
+            const permissionCommand = await buildApplicationPermissionCommand({
+              error,
+              toolName,
+              toolCallId,
+              integrationId,
+              state,
+              config
+            })
+            if (permissionCommand) {
+              return permissionCommand
+            }
+            throw error
+          }
 
           return buildCommand(
             toolName,
@@ -603,8 +824,9 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
         },
         {
           name: 'lark_get_message',
-          description:
-            'Fetch a single Lark message by message id and return a normalized message shape instead of the raw Lark payload.',
+          description: parsed.currentChatOnly
+            ? 'Fetch a message previously returned by lark_list_messages for the current Lark chat.'
+            : 'Fetch a single Lark message by message id and return a normalized message shape instead of the raw Lark payload.',
           schema: getMessageSchema,
           verboseParsingErrors: true
         }
@@ -612,25 +834,47 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
       tool(
         async (parameters, config) => {
           const toolName = 'lark_get_message_resource'
-          const integrationId = requireIntegrationId(toolName)
+          const integrationId = requireIntegrationId(toolName, config)
           const toolCallId = getToolCallIdFromConfig(config)
           const timeoutMs = normalizeTimeout(parameters.timeoutMs, parsed.defaults.timeoutMs)
+          const state = getCurrentStateSafe()
+          const expectedChatId = parsed.currentChatOnly
+            ? requireAllowedCurrentChatMessage(toolName, parameters.messageId, state, config)
+            : undefined
 
-          const result = await this.contextToolService.getMessageResource({
-            integrationId,
-            messageId: parameters.messageId,
-            fileKey: parameters.fileKey,
-            type: parameters.type,
-            contentMode: parameters.contentMode ?? parsed.defaults.resourceContentMode,
-            timeoutMs
-          })
+          let result: Awaited<ReturnType<LarkContextToolService['getMessageResource']>>
+          try {
+            result = await this.contextToolService.getMessageResource({
+              integrationId,
+              messageId: parameters.messageId,
+              fileKey: parameters.fileKey,
+              type: parameters.type,
+              contentMode: parameters.contentMode ?? parsed.defaults.resourceContentMode,
+              timeoutMs,
+              expectedChatId
+            })
+          } catch (error) {
+            const permissionCommand = await buildApplicationPermissionCommand({
+              error,
+              toolName,
+              toolCallId,
+              integrationId,
+              state,
+              config
+            })
+            if (permissionCommand) {
+              return permissionCommand
+            }
+            throw error
+          }
 
           return buildCommand(toolName, toolCallId, integrationId, result as unknown as Record<string, unknown>)
         },
         {
           name: 'lark_get_message_resource',
-          description:
-            'Fetch a resource referenced by a Lark message and return normalized metadata, with optional inline base64 content.',
+          description: parsed.currentChatOnly
+            ? 'Fetch a resource from a message previously returned by lark_list_messages for the current Lark chat.'
+            : 'Fetch a resource referenced by a Lark message and return normalized metadata, with optional inline base64 content.',
           schema: getMessageResourceSchema,
           verboseParsingErrors: true
         }
@@ -639,7 +883,7 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
 
     return {
       name: LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME,
-      stateSchema: middlewareStateSchema,
+      stateSchema: larkConversationContextStateSchema,
       beforeAgent: async (state, runtime) => {
         const rootState =
           ((runtime as Record<string, unknown> | undefined)?.state as Record<string, unknown> | undefined) ?? {}
@@ -647,9 +891,10 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
           ...rootState,
           ...((state ?? {}) as Record<string, unknown>)
         })
-        const guidance = buildConversationContextGuidance(currentContext)
+        const guidance = buildConversationContextGuidance(currentContext, parsed.currentChatOnly)
 
         return {
+          lark_conversation_context_current_integration_id: currentContext.integrationId ?? '',
           lark_conversation_context_current_chat_id: currentContext.chatId ?? '',
           lark_conversation_context_current_chat_type: currentContext.chatType ?? '',
           lark_conversation_context_current_sender_open_id: currentContext.senderOpenId ?? '',
@@ -658,13 +903,20 @@ export class LarkConversationContextMiddleware implements IAgentMiddlewareStrate
         }
       },
       wrapModelCall: async (request, handler) => {
-        const guidance = normalizeString((request.state as Record<string, unknown>)?.lark_conversation_context_agent_guidance)
+        const guidance = normalizeString(
+          (request.state as Record<string, unknown>)?.lark_conversation_context_agent_guidance
+        )
         if (!guidance) {
           return handler(request)
         }
 
         const baseSystemContent = toSystemMessageText(request.systemMessage?.content).trim()
-        const mergedSystemContent = [baseSystemContent, '<lark_conversation_context_guidance>', guidance, '</lark_conversation_context_guidance>']
+        const mergedSystemContent = [
+          baseSystemContent,
+          '<lark_conversation_context_guidance>',
+          guidance,
+          '</lark_conversation_context_guidance>'
+        ]
           .filter(Boolean)
           .join('\n\n')
 

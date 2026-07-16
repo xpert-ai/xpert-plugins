@@ -75,12 +75,25 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		}
 		const conversationService = {
 			setConversation: jest.fn().mockResolvedValue(undefined),
-			setActiveMessage: jest.fn().mockResolvedValue(undefined)
+			setActiveMessage: jest.fn().mockResolvedValue(undefined),
+			getActiveMessage: jest.fn().mockResolvedValue(null)
+		}
+		const messageHistoryService = {
+			updateInboundStatus: jest.fn().mockResolvedValue(undefined),
+			claimInboundStatus: jest.fn().mockResolvedValue(true),
+			areInboundLogsInStatus: jest.fn().mockResolvedValue(false),
+			areInboundLogsInStatusWithError: jest.fn().mockResolvedValue(false),
+			recordOutbound: jest.fn().mockResolvedValue({ created: true })
+		}
+		const dispatchService = {
+			enqueueDispatch: jest.fn().mockResolvedValue(undefined)
 		}
 
 		const processor = new LarkChatStreamCallbackProcessor(
 			larkChannel as any,
 			runStateService,
+			messageHistoryService as any,
+			dispatchService as any,
 			pluginContext as any
 		)
 		;(processor as any).conversationService = conversationService as any
@@ -89,7 +102,10 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			runStateService,
 			larkChannel,
 			conversationService,
-			processor
+			messageHistoryService,
+			dispatchService,
+			processor,
+			pluginContext
 		}
 	}
 
@@ -157,6 +173,34 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			runId: 'run-id',
 			traceId: 'trace-id',
 			abortSignal: new AbortController().signal
+		}
+	}
+
+	function createStaleSteerContext() {
+		return {
+			tenantId: 'tenant-id',
+			userId: 'user-id',
+			xpertId: 'xpert-1',
+			conversationId: 'conversation-1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'group',
+			senderOpenId: 'sender-1',
+			scopeKey: 'group:chat-1',
+			currentInboundLogIds: ['inbound-follow-up-1'],
+			followUpMode: 'steer',
+			message: { id: 'unused-current-message' },
+			steerFallback: {
+				input: 'follow up',
+				message: {
+					id: 'lark-card-1',
+					messageId: 'ai-1',
+					deliveryMode: 'interactive',
+					status: 'thinking',
+					language: 'zh-Hans',
+					elements: []
+				}
+			}
 		}
 	}
 
@@ -1000,9 +1044,40 @@ describe('LarkChatStreamCallbackProcessor', () => {
 		expect(await runStateService.get('run-1')).toBeNull()
 	})
 
+	it('records one final sent row after merging stream patches', async () => {
+		const { processor, runStateService, messageHistoryService } = createFixture()
+		await runStateService.save(
+			createRunState({
+				context: {
+					currentInboundLogIds: ['inbound-log-1'],
+					conversationId: 'conversation-1'
+				} as any
+			})
+		)
+
+		await processor.process(createStreamMessage(1, 'final ') as any, createProcessContext() as any)
+		await processor.process(createStreamMessage(2, 'answer') as any, createProcessContext() as any)
+		await processor.process(createCompleteMessage(3) as any, createProcessContext() as any)
+
+		expect(messageHistoryService.recordOutbound).toHaveBeenCalledTimes(1)
+		expect(messageHistoryService.recordOutbound).toHaveBeenCalledWith(
+			expect.objectContaining({
+				integrationId: 'integration-id',
+				scopeKey: 'lark:v2:scope:integration-id:group:chat-id',
+				xpertId: 'xpert-id',
+				runId: 'run-1',
+				status: 'sent',
+				content: 'final answer',
+				conversationId: 'conversation-1'
+			})
+		)
+	})
+
 	it('handles error callback and clears run state', async () => {
-		const { processor, runStateService, larkChannel } = createFixture()
-		await runStateService.save(createRunState())
+		const { processor, runStateService, larkChannel, messageHistoryService } = createFixture()
+		await runStateService.save(
+			createRunState({ context: { currentInboundLogIds: ['inbound-log-1'] } as any })
+		)
 
 		await processor.process(createErrorMessage(1, 'boom') as any, createProcessContext() as any)
 
@@ -1012,7 +1087,268 @@ describe('LarkChatStreamCallbackProcessor', () => {
 			tag: 'markdown',
 			content: 'boom'
 		})
+		expect(messageHistoryService.recordOutbound).toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'failed', runId: 'run-1', error: 'boom' })
+		)
 		expect(await runStateService.get('run-1')).toBeNull()
+	})
+
+	it('ignores callbacks for steer follow-ups without creating a second Lark card state', async () => {
+		const { processor, runStateService, larkChannel, conversationService, messageHistoryService } =
+			createFixture()
+		const getRunState = jest.spyOn(runStateService, 'get')
+		const message = createCompleteMessage(1, 'follow-up-run-1') as any
+		message.payload.context = {
+			followUpMode: 'steer'
+		}
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({
+			status: 'ok'
+		})
+
+		expect(getRunState).not.toHaveBeenCalled()
+		expect(larkChannel.interactiveMessage).not.toHaveBeenCalled()
+		expect(larkChannel.patchInteractiveMessage).not.toHaveBeenCalled()
+		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
+		expect(messageHistoryService.recordOutbound).not.toHaveBeenCalled()
+	})
+
+	it('records steer callback errors without creating a second Lark card', async () => {
+		const { processor, runStateService, larkChannel, conversationService, messageHistoryService } =
+			createFixture()
+		const getRunState = jest.spyOn(runStateService, 'get')
+		const message = createErrorMessage(1, 'steer failed') as any
+		message.payload.context = {
+			followUpMode: 'steer',
+			currentInboundLogIds: ['inbound-follow-up-1']
+		}
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({
+			status: 'ok'
+		})
+
+		expect(getRunState).not.toHaveBeenCalled()
+		expect(messageHistoryService.updateInboundStatus).toHaveBeenCalledWith(
+			['inbound-follow-up-1'],
+			'failed',
+			'steer failed'
+		)
+		expect(larkChannel.interactiveMessage).not.toHaveBeenCalled()
+		expect(larkChannel.patchInteractiveMessage).not.toHaveBeenCalled()
+		expect(conversationService.setActiveMessage).not.toHaveBeenCalled()
+		expect(messageHistoryService.recordOutbound).not.toHaveBeenCalled()
+	})
+
+	it('retries stale steer recovery until the existing response card is terminal', async () => {
+		const { processor, conversationService, dispatchService, pluginContext } = createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'thinking' }
+		})
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual(
+			expect.objectContaining({ status: 'retry', delayMs: 1000 })
+		)
+
+		expect(pluginContext.resolve).not.toHaveBeenCalled()
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+	})
+
+	it('claims and reuses the existing card exactly once for stale steer fallback', async () => {
+		const { processor, conversationService, dispatchService, messageHistoryService, pluginContext } =
+			createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		let claimState: string | null = null
+		const redis = {
+			set: jest.fn().mockImplementation(async (_key: string, value: string, ...args: unknown[]) => {
+				if (args.includes('NX')) {
+					if (claimState !== null) return null
+					claimState = value
+					return 'OK'
+				}
+				claimState = value
+				return 'OK'
+			}),
+			get: jest.fn().mockImplementation(async () => claimState),
+			eval: jest.fn().mockImplementation(async (script: string, _keys: number, _key: string, owner: string) => {
+				if (claimState !== owner) return 0
+				if (script.includes("'done'")) {
+					claimState = 'done'
+					return 'OK'
+				}
+				claimState = null
+				return 1
+			}),
+			del: jest.fn().mockImplementation(async () => {
+				claimState = null
+			})
+		}
+		pluginContext.resolve.mockReturnValue({ getRedis: jest.fn().mockResolvedValue(redis) })
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({ status: 'ok' })
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({ status: 'ok' })
+
+		expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+			['inbound-follow-up-1'],
+			['dispatched', 'failed'],
+			'queued'
+		)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(claimState).toBe('done')
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				xpertId: 'xpert-1',
+				input: 'follow up',
+				currentInboundLogIds: ['inbound-follow-up-1'],
+				larkMessage: expect.objectContaining({ id: 'lark-card-1', messageId: 'ai-1' }),
+				options: expect.objectContaining({ forceNewRun: true })
+			})
+		)
+	})
+
+	it('retries a processing stale-steer claim instead of acknowledging lost work', async () => {
+		const { processor, conversationService, dispatchService, pluginContext } = createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		pluginContext.resolve.mockReturnValue({
+			getRedis: jest.fn().mockResolvedValue({
+				set: jest.fn().mockResolvedValue(null),
+				get: jest.fn().mockResolvedValue('processing:other-worker')
+			})
+		})
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual(
+			expect.objectContaining({ status: 'retry', delayMs: 1000 })
+		)
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+	})
+
+	it('releases a stale-steer processing claim when enqueue fails so callback retry can recover', async () => {
+		const { processor, conversationService, dispatchService, pluginContext } = createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		const redis = {
+			set: jest.fn().mockResolvedValue('OK'),
+			get: jest.fn(),
+			eval: jest.fn().mockResolvedValue(1)
+		}
+		pluginContext.resolve.mockReturnValue({ getRedis: jest.fn().mockResolvedValue(redis) })
+		dispatchService.enqueueDispatch.mockRejectedValue(new Error('queue unavailable'))
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).rejects.toThrow('queue unavailable')
+		expect(redis.eval).toHaveBeenCalledWith(
+			expect.stringContaining("redis.call('DEL'"),
+			1,
+			'lark:steer-fallback:integration-1:run-1',
+			expect.stringMatching(/^processing:/)
+		)
+	})
+
+	it('does not roll back an enqueued stale-steer recovery when Redis completion fails', async () => {
+		const { processor, conversationService, dispatchService, messageHistoryService, pluginContext } =
+			createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		pluginContext.resolve.mockReturnValue({
+			getRedis: jest.fn().mockResolvedValue({
+				set: jest.fn().mockResolvedValue('OK'),
+				get: jest.fn(),
+				eval: jest.fn().mockRejectedValue(new Error('redis unavailable'))
+			})
+		})
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({ status: 'ok' })
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(messageHistoryService.updateInboundStatus).toHaveBeenLastCalledWith(
+			['inbound-follow-up-1'],
+			'queued',
+			'stale_steer_fallback_enqueued'
+		)
+		expect(messageHistoryService.updateInboundStatus).not.toHaveBeenCalledWith(
+			['inbound-follow-up-1'],
+			'failed',
+			expect.anything()
+		)
+	})
+
+	it('recovers stale steer when the inbound row is still queued during callback delivery', async () => {
+		const { processor, conversationService, dispatchService, messageHistoryService, pluginContext } =
+			createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		pluginContext.resolve.mockReturnValue({
+			getRedis: jest.fn().mockResolvedValue({
+				set: jest.fn().mockResolvedValue('OK'),
+				eval: jest.fn().mockResolvedValue('OK')
+			})
+		})
+		messageHistoryService.claimInboundStatus.mockResolvedValue(false)
+		messageHistoryService.areInboundLogsInStatus.mockResolvedValue(true)
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({ status: 'ok' })
+
+		expect(messageHistoryService.areInboundLogsInStatus).toHaveBeenCalledWith(
+			['inbound-follow-up-1'],
+			'queued'
+		)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+	})
+
+	it('acknowledges a durable stale-steer enqueue marker without enqueueing again', async () => {
+		const { processor, conversationService, dispatchService, messageHistoryService, pluginContext } =
+			createFixture()
+		conversationService.getActiveMessage.mockResolvedValue({
+			id: 'ai-1',
+			thirdPartyMessage: { id: 'lark-card-1', status: 'success' }
+		})
+		pluginContext.resolve.mockReturnValue({
+			getRedis: jest.fn().mockResolvedValue({
+				set: jest.fn().mockResolvedValue('OK'),
+				eval: jest.fn().mockResolvedValue('OK')
+			})
+		})
+		messageHistoryService.areInboundLogsInStatusWithError.mockResolvedValue(true)
+		const message = createErrorMessage(1, 'target ended') as any
+		message.payload.errorCode = 'steer_target_not_running'
+		message.payload.context = createStaleSteerContext()
+
+		await expect(processor.process(message, createProcessContext() as any)).resolves.toEqual({ status: 'ok' })
+
+		expect(messageHistoryService.areInboundLogsInStatusWithError).toHaveBeenCalledWith(
+			['inbound-follow-up-1'],
+			'queued',
+			'stale_steer_fallback_enqueued'
+		)
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
 	})
 
 	it('serializes same-source callbacks to avoid stale state overwrite', async () => {

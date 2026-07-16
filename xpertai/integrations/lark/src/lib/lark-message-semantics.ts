@@ -1,4 +1,11 @@
-import { LarkMentionIdentity, LarkSemanticMessage, TLarkEvent, TLarkEventMention } from './types.js'
+import {
+  LarkMentionIdentity,
+  LarkMessageResourceType,
+  LarkSemanticMessage,
+  NormalizedMessageResourceRef,
+  TLarkEvent,
+  TLarkEventMention
+} from './types.js'
 
 type TLarkEventEnvelope = {
   header?: TLarkEvent['header']
@@ -44,6 +51,79 @@ export function getLarkMessageContent(message: unknown): string | null {
   }
 
   return isRecord(message.body) ? normalizeString(message.body.content) : null
+}
+
+/**
+ * Extract stable Lark resource keys from an inbound event without calling the
+ * remote history/context API. The same parser covers standalone resources and
+ * images embedded in post messages.
+ */
+export function extractLarkMessageResourceRefs(event: unknown): NormalizedMessageResourceRef[] {
+  const payload = unwrapLarkEventPayload(event)
+  const message = payload?.message
+  const messageType = getLarkMessageType(message)
+  const rawContent = getLarkMessageContent(message)
+  if (!message || !messageType || !rawContent) {
+    return []
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawContent)
+  } catch {
+    return []
+  }
+
+  const refs = new Map<string, NormalizedMessageResourceRef>()
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (!isRecord(value)) {
+      return
+    }
+
+    const name =
+      normalizeString(value.file_name) ??
+      normalizeString(value.name) ??
+      normalizeString(value.title) ??
+      undefined
+    const candidates: Array<{ key: string; type: LarkMessageResourceType }> = []
+    const fileKey = normalizeString(value.file_key)
+    const imageKey = normalizeString(value.image_key)
+    const audioKey = normalizeString(value.audio_key)
+    const mediaKey = normalizeString(value.media_key) ?? normalizeString(value.video_key)
+    if (fileKey) {
+      candidates.push({
+        key: fileKey,
+        type: messageType === 'audio' ? 'audio' : messageType === 'media' ? 'media' : 'file'
+      })
+    }
+    if (imageKey) {
+      candidates.push({ key: imageKey, type: 'image' })
+    }
+    if (audioKey) {
+      candidates.push({ key: audioKey, type: 'audio' })
+    }
+    if (mediaKey) {
+      candidates.push({ key: mediaKey, type: 'media' })
+    }
+
+    for (const candidate of candidates) {
+      if (!refs.has(candidate.key)) {
+        refs.set(candidate.key, {
+          fileKey: candidate.key,
+          type: candidate.type,
+          name
+        })
+      }
+    }
+    Object.values(value).forEach(visit)
+  }
+
+  visit(parsed)
+  return Array.from(refs.values())
 }
 
 function collectPostInlineText(value: unknown): string[] {

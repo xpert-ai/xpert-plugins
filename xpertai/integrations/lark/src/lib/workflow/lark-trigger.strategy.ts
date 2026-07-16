@@ -17,6 +17,8 @@ import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
 import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.js'
+import { LarkMessageHistoryQueueService } from '../lark-message-history-queue.service.js'
+import { LarkMessageHistoryService } from '../lark-message-history.service.js'
 import { ChatLarkMessage } from '../message.js'
 import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
 import type { LarkGroupWindow, LarkInboundFile, TIntegrationLarkOptions } from '../types.js'
@@ -40,6 +42,13 @@ import {
 
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
 const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
+const DEFAULT_HISTORY_CONTEXT_LIMIT = 20
+const MAX_HISTORY_CONTEXT_LIMIT = 100
+const DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS = 3600
+const DEFAULT_HISTORY_RETENTION_DAYS = 30
+const DEFAULT_HISTORY_ATTACHMENT_MAX_SIZE_MB = 10
+const MIN_HISTORY_ATTACHMENT_MAX_SIZE_MB = 1
+const MAX_HISTORY_ATTACHMENT_MAX_SIZE_MB = 25
 
 type TLarkInboundDispatchOptions = {
 	confirm?: boolean
@@ -130,6 +139,60 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 						zh_Hans: '连续消息会在该窗口内汇总后再发送给数字专家。'
 					},
 					default: DEFAULT_SUMMARY_WINDOW_SECONDS
+				},
+				historyContextLimit: {
+					type: 'number',
+					title: {
+						en_US: 'History Context Limit',
+						zh_Hans: '历史上下文条数'
+					},
+					description: {
+						en_US: 'Recent stored messages to prepend as context. Set to 0 to disable.',
+						zh_Hans: '作为上下文附加的最近已存消息条数。设为 0 表示关闭。'
+					},
+					default: DEFAULT_HISTORY_CONTEXT_LIMIT,
+					minimum: 0,
+					maximum: MAX_HISTORY_CONTEXT_LIMIT
+				},
+				historyContextWindowSeconds: {
+					type: 'number',
+					title: {
+						en_US: 'History Context Window (seconds)',
+						zh_Hans: '历史上下文时间窗口（秒）'
+					},
+					description: {
+						en_US: 'Only messages newer than this window are included. Set to 0 for no time limit.',
+						zh_Hans: '只附加该时间窗口内的消息。设为 0 表示不限制时间。'
+					},
+					default: DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS,
+					minimum: 0
+				},
+				historyRetentionDays: {
+					type: 'number',
+					title: {
+						en_US: 'History Retention (days)',
+						zh_Hans: '历史消息保留天数'
+					},
+					description: {
+						en_US: 'Stored message history is deleted after this many days. Set to 0 to retain forever.',
+						zh_Hans: '已存消息超过该天数后删除。设为 0 表示永久保留。'
+					},
+					default: DEFAULT_HISTORY_RETENTION_DAYS,
+					minimum: 0
+				},
+				historyAttachmentMaxSizeMb: {
+					type: 'number',
+					title: {
+						en_US: 'History Attachment Max Size (MiB)',
+						zh_Hans: '历史附件最大大小（MiB）'
+					},
+					description: {
+						en_US: 'Attachments larger than this value are not retained for history context.',
+						zh_Hans: '超过该大小的附件不会保留用于历史上下文。'
+					},
+					default: DEFAULT_HISTORY_ATTACHMENT_MAX_SIZE_MB,
+					minimum: MIN_HISTORY_ATTACHMENT_MAX_SIZE_MB,
+					maximum: MAX_HISTORY_ATTACHMENT_MAX_SIZE_MB
 				},
 				singleChatScope: {
 					type: 'string',
@@ -304,6 +367,18 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 							}
 						}
 					} as any
+				},
+				captureUnmentionedGroupMessages: {
+					type: 'boolean',
+					title: {
+						en_US: 'Capture Unmentioned Group Messages',
+						zh_Hans: '记录群聊中未 @ 机器人的消息'
+					},
+					description: {
+						en_US: 'Store in-scope group messages even when the bot is not mentioned, so they can be used as later history context.',
+						zh_Hans: '记录范围内未 @ 机器人的群消息，供后续触发时作为历史上下文。'
+					},
+					default: false
 				}
 			},
 			required: ['enabled', 'integrationId'],
@@ -324,6 +399,8 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		private readonly larkChannel: LarkChannelStrategy,
 		@InjectRepository(LarkTriggerBindingEntity)
 		private readonly bindingRepository: Repository<LarkTriggerBindingEntity>,
+		private readonly messageHistoryService: LarkMessageHistoryService,
+		private readonly messageHistoryQueue: LarkMessageHistoryQueueService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext
 	) {}
@@ -358,6 +435,24 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			singleChatUserOpenIds: this.normalizeStringArray(config?.singleChatUserOpenIds),
 			allowedGroupChatIds: this.normalizeStringArray(config?.allowedGroupChatIds),
 			groupUserOpenIds: this.normalizeStringArray(config?.groupUserOpenIds),
+			// Missing fields identify bindings persisted before message history was introduced.
+			// Keep those bindings opt-in instead of silently enabling capture or history context.
+			captureUnmentionedGroupMessages: config?.captureUnmentionedGroupMessages === true,
+			historyContextLimit:
+				config?.historyContextLimit === undefined
+					? 0
+					: this.normalizeHistoryContextLimit(config.historyContextLimit),
+			historyContextWindowSeconds: this.normalizeNonNegativeSeconds(
+				merged.historyContextWindowSeconds,
+				DEFAULT_HISTORY_CONTEXT_WINDOW_SECONDS
+			),
+			historyRetentionDays: this.normalizeNonNegativeSeconds(
+				merged.historyRetentionDays,
+				DEFAULT_HISTORY_RETENTION_DAYS
+			),
+			historyAttachmentMaxSizeMb: this.normalizeHistoryAttachmentMaxSizeMb(
+				merged.historyAttachmentMaxSizeMb
+			),
 			sessionTimeoutSeconds: this.normalizePositiveSeconds(
 				merged.sessionTimeoutSeconds,
 				DEFAULT_SESSION_TIMEOUT_SECONDS
@@ -369,12 +464,16 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		}
 	}
 
-	matchesInboundMessage(params: TLarkInboundMatchParams): boolean {
+	matchesInboundScope(params: TLarkInboundMatchParams): boolean {
 		const config = this.normalizeConfig(
 			params.binding?.config ?? params.config,
 			params.integrationId
 		)
 		if (!config.enabled || !config.integrationId) {
+			return false
+		}
+		const inboundIntegrationId = this.normalizeString(params.integrationId)
+		if (inboundIntegrationId && inboundIntegrationId !== config.integrationId) {
 			return false
 		}
 
@@ -404,11 +503,22 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			return false
 		}
 
-		if (config.groupReplyStrategy === 'mention_only' && !params.botMentioned) {
+		return true
+	}
+
+	matchesInboundMessage(params: TLarkInboundMatchParams): boolean {
+		if (!this.matchesInboundScope(params)) {
 			return false
 		}
+		if (params.chatType !== 'group') {
+			return true
+		}
 
-		return true
+		const config = this.normalizeConfig(
+			params.binding?.config ?? params.config,
+			params.integrationId
+		)
+		return config.groupReplyStrategy === 'all_messages' || Boolean(params.botMentioned)
 	}
 
 	async validate(payload: TWorkflowTriggerParams<TLarkTriggerConfig>) {
@@ -600,6 +710,22 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			},
 			['integrationId']
 		)
+		if (normalizedConfig.captureUnmentionedGroupMessages || normalizedConfig.historyContextLimit > 0) {
+			try {
+				await this.messageHistoryQueue.scheduleCleanup({
+					integrationId,
+					tenantId: context.tenantId ?? undefined,
+					organizationId: context.organizationId ?? undefined,
+					retentionDays: normalizedConfig.historyRetentionDays
+				})
+			} catch (error) {
+				this.logger.warn(
+					`Failed to schedule Lark history cleanup while publishing integration ${integrationId}: ${
+						error instanceof Error ? error.message : String(error)
+					}`
+				)
+			}
+		}
 
 		// Keep only runtime callback in memory; integration/xpert binding source of truth is DB.
 		this.callbacks.set(integrationId, callback)
@@ -652,6 +778,10 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		integrationId: string
 		input?: string
 		files?: LarkInboundFile[]
+		historyContext?: string
+		historyFiles?: LarkInboundFile[]
+		currentInboundLogIds?: string[]
+		historyBefore?: string
 		larkMessage: ChatLarkMessage
 		options?: TLarkInboundDispatchOptions
 	}): Promise<boolean> {
@@ -682,6 +812,11 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		)
 
 		const dispatchOptions = this.resolveDispatchOptions(binding, params.options)
+		const bindingExecutionContext = {
+			tenantId: this.normalizeString(binding.tenantId),
+			organizationId: this.normalizeString(binding.organizationId),
+			createdById: this.normalizeString(binding.createdById)
+		}
 		const normalizedConfig = this.normalizeConfig(binding.config, params.integrationId)
 		const summaryWindowSeconds = this.normalizeNonNegativeSeconds(
 			normalizedConfig.summaryWindowSeconds,
@@ -694,8 +829,12 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 				dispatchMode: 'immediate',
 				dispatchPayload: {
 					xpertId: binding.xpertId,
+					executionContext: bindingExecutionContext,
 					input: params.input,
 					files: params.files,
+					historyContext: params.historyContext,
+					historyFiles: params.historyFiles,
+					currentInboundLogIds: params.currentInboundLogIds,
 					larkMessage: params.larkMessage,
 					options: dispatchOptions
 				}
@@ -715,6 +854,21 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		const sameRoutingTarget =
 			currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
 		const nextVersion = (currentState?.version ?? 0) + 1
+		const tenantId =
+			bindingExecutionContext.tenantId ??
+			(sameRoutingTarget ? currentState?.tenantId : undefined) ??
+			RequestContext.currentTenantId() ??
+			undefined
+		const organizationId =
+			bindingExecutionContext.organizationId ??
+			(sameRoutingTarget ? currentState?.organizationId : undefined) ??
+			RequestContext.getOrganizationId() ??
+			undefined
+		const executorUserId =
+			bindingExecutionContext.createdById ??
+			(sameRoutingTarget ? currentState?.executorUserId : undefined) ??
+			RequestContext.currentUserId() ??
+			undefined
 		const aggregateState: LarkTriggerAggregationState = {
 			aggregateKey,
 			integrationId: params.integrationId,
@@ -725,10 +879,23 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 				...(sameRoutingTarget ? currentState?.files ?? [] : []),
 				...(params.files ?? [])
 			],
+			historyContext: sameRoutingTarget
+				? currentState?.historyContext ?? params.historyContext
+				: params.historyContext,
+			historyFiles: sameRoutingTarget
+				? currentState?.historyFiles ?? params.historyFiles
+				: params.historyFiles,
+			currentInboundLogIds: this.uniqueIds([
+				...(sameRoutingTarget ? currentState?.currentInboundLogIds ?? [] : []),
+				...(params.currentInboundLogIds ?? [])
+			]),
+			historyBefore: sameRoutingTarget
+				? currentState?.historyBefore ?? params.historyBefore
+				: params.historyBefore,
 			lastMessageAt: Date.now(),
-			tenantId: RequestContext.currentTenantId() ?? undefined,
-			organizationId: RequestContext.getOrganizationId() ?? undefined,
-			executorUserId: RequestContext.currentUserId() ?? undefined,
+			tenantId,
+			organizationId,
+			executorUserId,
 			endUserId: dispatchOptions?.fromEndUserId,
 			options: {
 				...(dispatchOptions?.fromEndUserId ? { fromEndUserId: dispatchOptions.fromEndUserId } : {}),
@@ -740,7 +907,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			},
 			latestMessage: {
 				integrationId: params.larkMessage.integrationId,
-				organizationId: RequestContext.getOrganizationId() ?? undefined,
+				organizationId,
 				connectionMode: params.larkMessage.connectionMode,
 				chatId: params.larkMessage.chatId,
 				chatType: params.larkMessage.chatType,
@@ -790,8 +957,16 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			dispatchMode: `buffered version=${state.version}`,
 			dispatchPayload: {
 				xpertId: state.xpertId,
+				executionContext: {
+					tenantId: state.tenantId,
+					organizationId: state.organizationId,
+					createdById: state.executorUserId
+				},
 				input,
 				files: state.files,
+				historyContext: state.historyContext,
+				historyFiles: state.historyFiles,
+				currentInboundLogIds: state.currentInboundLogIds,
 				larkMessage: new ChatLarkMessage(
 					{
 						tenant: null as any,
@@ -820,6 +995,10 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 				options: state.options ?? (state.endUserId ? { fromEndUserId: state.endUserId } : undefined)
 			}
 		})
+		await this.messageHistoryService.updateInboundStatus(
+			state.currentInboundLogIds ?? [],
+			'dispatched'
+		)
 
 		await this.aggregationService.clear(aggregateKey)
 		return true
@@ -860,6 +1039,17 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		return normalized || undefined
 	}
 
+	private uniqueIds(ids: Array<string | undefined | null>): string[] | undefined {
+		const values = Array.from(
+			new Set(
+				ids
+					.map((id) => (typeof id === 'string' ? id.trim() : ''))
+					.filter((id): id is string => Boolean(id))
+			)
+		)
+		return values.length ? values : undefined
+	}
+
 	private normalizePositiveSeconds(value: unknown, defaultValue: number): number {
 		if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
 			return Math.floor(value)
@@ -872,6 +1062,24 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			return Math.floor(value)
 		}
 		return defaultValue
+	}
+
+	private normalizeHistoryContextLimit(value: unknown): number {
+		if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+			return Math.min(Math.floor(value), MAX_HISTORY_CONTEXT_LIMIT)
+		}
+		return DEFAULT_HISTORY_CONTEXT_LIMIT
+	}
+
+	private normalizeHistoryAttachmentMaxSizeMb(value: unknown): number {
+		if (
+			typeof value !== 'number' ||
+			!Number.isFinite(value) ||
+			value < MIN_HISTORY_ATTACHMENT_MAX_SIZE_MB
+		) {
+			return DEFAULT_HISTORY_ATTACHMENT_MAX_SIZE_MB
+		}
+		return Math.min(Math.floor(value), MAX_HISTORY_ATTACHMENT_MAX_SIZE_MB)
 	}
 
 	private async dispatchInboundMessage(params: {

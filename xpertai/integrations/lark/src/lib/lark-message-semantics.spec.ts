@@ -1,4 +1,7 @@
-import { extractLarkSemanticMessage } from './lark-message-semantics.js'
+import {
+  extractLarkMessageResourceRefs,
+  extractLarkSemanticMessage
+} from './lark-message-semantics.js'
 
 describe('lark-message-semantics', () => {
   it('extracts semantic message from real event envelope structure', () => {
@@ -99,5 +102,37 @@ describe('lark-message-semantics', () => {
         name: 'Tom'
       })
     )
+  })
+
+  it('extracts standalone and rich-post resource references locally', () => {
+    expect(
+      extractLarkMessageResourceRefs({
+        message: {
+          message_type: 'file',
+          content: JSON.stringify({ file_key: 'file-1', file_name: 'report.pdf' })
+        }
+      })
+    ).toEqual([{ fileKey: 'file-1', type: 'file', name: 'report.pdf' }])
+
+    expect(
+      extractLarkMessageResourceRefs({
+        event: {
+          message: {
+            message_type: 'post',
+            content: JSON.stringify({
+              zh_cn: {
+                content: [
+                  [{ tag: 'img', image_key: 'img-1' }],
+                  [{ tag: 'media', file_key: 'media-1', name: 'clip.mp4' }]
+                ]
+              }
+            })
+          }
+        }
+      })
+    ).toEqual([
+      { fileKey: 'img-1', type: 'image', name: undefined },
+      { fileKey: 'media-1', type: 'file', name: 'clip.mp4' }
+    ])
   })
 })
