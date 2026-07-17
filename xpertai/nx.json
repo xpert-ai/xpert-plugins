@@ -103,6 +103,7 @@
       "@xpert-ai/plugin-loop-guard",
       "@xpert-ai/plugin-view-image",
       "@xpert-ai/plugin-lark-cli",
+      "@xpert-ai/plugin-github-connector",
       "@xpert-ai/plugin-file-memory"
     ],
     "version": {
