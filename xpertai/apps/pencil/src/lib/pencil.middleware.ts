@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -14,6 +15,7 @@ import type { ParamDef, ToolDef } from '@open\u002dpencil/core'
 import { z } from 'zod/v3'
 import {
   PENCIL_AGENT_CAPABILITY,
+  PENCIL_ARTIFACT_SHARING_CAPABILITY,
   PENCIL_BASE_MIDDLEWARE_TOOL_NAMES,
   PENCIL_CREATE_DOCUMENT_TOOL_NAME,
   PENCIL_CREATE_SAMPLE_DOCUMENT_TOOL_NAME,
@@ -24,8 +26,10 @@ import {
   PENCIL_ICON,
   PENCIL_IMPORT_FILE_TOOL_NAME,
   PENCIL_MIDDLEWARE_NAME,
+  PENCIL_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   PENCIL_REPORT_FAILURE_TOOL_NAME,
   PENCIL_RENDER_PATCH_TOOL_NAME,
+  PENCIL_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   PENCIL_SAVE_VERSION_TOOL_NAME,
   PENCIL_SEARCH_DOCUMENTS_TOOL_NAME,
   PENCIL_UPDATE_STATUS_TOOL_NAME,
@@ -166,6 +170,13 @@ const exportFileSchema = z.object({
   writeToWorkspace: z.boolean().optional().describe('Defaults to true for Agent calls. Keep true unless the user explicitly wants inline content.')
 })
 
+const artifactAccessModeSchema = z.enum(['public_link', 'organization_all', 'workspace_all'])
+const publishArtifactLinkSchema = z.object({
+  documentId: z.string().min(1),
+  accessMode: artifactAccessModeSchema.optional().describe('Defaults to public_link.')
+})
+const revokeArtifactLinkSchema = z.object({ documentId: z.string().min(1) })
+
 const updateDocumentStatusSchema = z.object({
   documentId: z.string().min(1),
   status: documentStatusSchema,
@@ -213,7 +224,7 @@ export class PencilMiddleware implements IAgentMiddlewareStrategy<Record<string,
       value: PENCIL_ICON,
       color: '#2563eb'
     },
-    features: [PENCIL_FEATURE, PENCIL_AGENT_CAPABILITY, PENCIL_WORKBENCH_CAPABILITY],
+    features: [PENCIL_FEATURE, PENCIL_AGENT_CAPABILITY, PENCIL_WORKBENCH_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {},
@@ -350,6 +361,33 @@ export class PencilMiddleware implements IAgentMiddlewareStrategy<Record<string,
         }
       ),
       tool(
+        async (input) => {
+          const result = await this.service.publishArtifact(scope, {
+            documentId: input.documentId,
+            accessMode: input.accessMode ?? 'public_link',
+            targetMode: 'version',
+            userConfirmedPublicLink: true
+          })
+          return stringifyAgentToolResult({ shareUrl: result.publicUrl ?? result.shareUrl })
+        },
+        {
+          name: PENCIL_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+          description:
+            'Create or reuse a fixed-version, read-only HTML Artifact link for a synchronized Pencil design. accessMode defaults to public_link and also supports organization_all or workspace_all. The link never enables download. Returns only shareUrl.',
+          schema: publishArtifactLinkSchema,
+          verboseParsingErrors: true
+        }
+      ),
+      tool(
+        async (input) => stringifyAgentToolResult(await this.service.revokeArtifactShare(scope, input.documentId)),
+        {
+          name: PENCIL_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+          description: 'Revoke the active Artifact link for a Pencil design.',
+          schema: revokeArtifactLinkSchema,
+          verboseParsingErrors: true
+        }
+      ),
+      tool(
         async (input) =>
           stringifyAgentToolResult(
             summarizeDocumentMutationResult(
@@ -402,6 +440,8 @@ export class PencilMiddleware implements IAgentMiddlewareStrategy<Record<string,
       name: PENCIL_MIDDLEWARE_NAME,
       tools,
       wrapToolCall: async (request, handler) => {
+        const synchronizationError = pencilShareSynchronizationError(request)
+        if (synchronizationError) return synchronizationError
         const changeSummary = readChangeSummaryMessage(request.toolCall.args)
         const presence = agentPresenceTarget(scope, request.toolCall.name, request.toolCall.args, changeSummary)
         const createdAt = new Date()
@@ -533,6 +573,60 @@ function zodForParam(param: ParamDef): z.ZodTypeAny {
 }
 
 type ToolArgsValue = PencilJsonValue | object | null | undefined
+type RuntimeContextRecord = Record<string, unknown>
+type PencilToolCallRequest = Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
+
+function pencilShareSynchronizationError(request: PencilToolCallRequest) {
+  if (request.toolCall.name !== PENCIL_PUBLISH_ARTIFACT_LINK_TOOL_NAME) return null
+  const args = isPlainObject(request.toolCall.args) ? request.toolCall.args : {}
+  const targetDocumentId = readStringField(args, ['documentId'])
+  if (!targetDocumentId) return null
+  const runtimeContext = resolveRuntimeContext(request.runtime)
+  const env = runtimeRecord(runtimeContext, 'env')
+  const contextJson = parseRuntimeJson(runtimeString(env, 'pencilContextJson'))
+  const currentDocumentId = runtimeString(env, 'pencilDocumentId') ?? runtimeString(contextJson, 'documentId')
+  const dirty = runtimeBoolean(env, 'pencilDirty')
+  if (dirty !== true || currentDocumentId !== targetDocumentId) return null
+  return new ToolMessage({
+    content: 'The current Pencil Workbench design has unsynchronized changes. Save or synchronize it before creating an Artifact link.',
+    tool_call_id: request.toolCall.id ?? 'unknown',
+    name: request.toolCall.name,
+    status: 'error'
+  })
+}
+
+function resolveRuntimeContext(runtime: unknown): RuntimeContextRecord | null {
+  if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) return null
+  const record = runtime as RuntimeContextRecord
+  return runtimeRecord(record, 'context') ?? runtimeRecord(runtimeRecord(record, 'configurable'), 'context')
+}
+
+function runtimeRecord(record: RuntimeContextRecord | null, key: string) {
+  const value = record?.[key]
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as RuntimeContextRecord : null
+}
+
+function runtimeString(record: RuntimeContextRecord | null, key: string) {
+  const value = record?.[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function runtimeBoolean(record: RuntimeContextRecord | null, key: string) {
+  const value = record?.[key]
+  if (value === true || value === 'true') return true
+  if (value === false || value === 'false') return false
+  return undefined
+}
+
+function parseRuntimeJson(value: string | undefined) {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as RuntimeContextRecord : null
+  } catch {
+    return null
+  }
+}
 
 function readChangeSummaryMessage(args: ToolArgsValue) {
   if (!isPlainObject(args)) {
