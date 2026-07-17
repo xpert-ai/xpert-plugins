@@ -94,11 +94,15 @@ async function createFixture(options: {
   const recipientDirectoryService = {
     resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' })
   }
+  const contextToolService = {
+    sendApplicationPermissionGuideCard: jest.fn().mockResolvedValue({})
+  }
 
   const strategy = new LarkNotifyMiddleware(
     larkChannel as any,
     conversationService as any,
-    recipientDirectoryService as any
+    recipientDirectoryService as any,
+    contextToolService as any
   )
   const middleware = await Promise.resolve(
     strategy.createMiddleware(mergeConfig(options.config), createContext(options.context))

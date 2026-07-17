@@ -4,7 +4,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { Readable } from 'node:stream'
-import { LarkContextToolService } from './lark-context-tool.service.js'
+import { LarkApplicationPermissionError, LarkContextToolService } from './lark-context-tool.service.js'
 
 async function createFixture() {
   const messageList = jest.fn().mockResolvedValue({
@@ -166,10 +166,10 @@ describe('LarkContextToolService', () => {
     ])
   })
 
-  it('preserves structured application permission failures for the runtime middleware', async () => {
+  it('preserves structured application permission failures without relying on a known error code', async () => {
     const { service, messageList } = await createFixture()
     messageList.mockRejectedValue({
-      code: 99991679,
+      code: 12345678,
       msg: 'Access denied',
       error: {
         message: 'missing permission',
@@ -188,7 +188,7 @@ describe('LarkContextToolService', () => {
     ).rejects.toEqual(
       expect.objectContaining({
         name: 'LarkApplicationPermissionError',
-        code: 99991679,
+        code: 12345678,
         scopes: ['im:message.group_msg']
       })
     )
@@ -222,32 +222,29 @@ describe('LarkContextToolService', () => {
     )
   })
 
-  it('extracts required scopes from a trusted application permission error message', async () => {
+  it('does not infer application permissions from an error code or free-form message', async () => {
     const { service, messageList } = await createFixture()
     messageList.mockResolvedValue({
-      code: 99991679,
+      code: 99991672,
       msg: 'Access denied. Required scope: im:message.group_msg',
       error: {
         message: 'The app does not have im:message.group_msg permission'
       }
     })
 
-    await expect(
-      service.listMessages({
+    const error = await service
+      .listMessages({
         integrationId: 'integration-1',
         containerIdType: 'chat',
         containerId: 'oc_chat_1'
       })
-    ).rejects.toEqual(
-      expect.objectContaining({
-        name: 'LarkApplicationPermissionError',
-        code: 99991679,
-        scopes: ['im:message.group_msg']
-      })
-    )
+      .catch((caught) => caught)
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(LarkApplicationPermissionError)
   })
 
-  it('handles the missing-scope code returned by the Lark message list API', async () => {
+  it('does not treat a generic message operation error as missing application permission', async () => {
     const { service, messageList } = await createFixture()
     messageList.mockResolvedValue({
       code: 230027,
@@ -257,19 +254,16 @@ describe('LarkContextToolService', () => {
       }
     })
 
-    await expect(
-      service.listMessages({
+    const error = await service
+      .listMessages({
         integrationId: 'integration-1',
         containerIdType: 'chat',
         containerId: 'oc_chat_1'
       })
-    ).rejects.toEqual(
-      expect.objectContaining({
-        name: 'LarkApplicationPermissionError',
-        code: 230027,
-        scopes: ['im:message.group_msg']
-      })
-    )
+      .catch((caught) => caught)
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(LarkApplicationPermissionError)
   })
 
   it('sends a deterministic administrator permission guide card to the trusted chat', async () => {
