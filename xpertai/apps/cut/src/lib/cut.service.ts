@@ -13,6 +13,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { appendCutMediaClip, applyCutEdit, createStarterCutProject, validateCutProjectDocument } from './cut-project.js'
 import { probeCutMediaMetadata } from './cut-media-metadata.js'
+import { cutExportProfile, normalizeCutExportSettings, type CutExportFormat } from './cut-export-settings.js'
 import { CutActionLog, CutExport, CutMediaAsset, CutProject, CutProjectVersion } from './entities/index.js'
 import type {
   ApplyCutEditInput,
@@ -277,22 +278,27 @@ export class CutService {
     changeSummary: string
   ) {
     const project = await this.requireProject(scope, projectId)
+    const kind = browserExportKind(file.mimeType, file.originalName)
+    const profile = cutExportProfile(normalizeCutExportSettings({ format: kind }))
+    const originalName = file.originalName?.toLowerCase().endsWith(`.${profile.extension}`)
+      ? file.originalName
+      : `${safeName(project.title)}.${profile.extension}`
     const target = workspaceTarget(scope, project)
     const uploaded = await this.workspaceFiles().uploadBuffer({
       ...target,
       buffer: file.buffer,
-      originalName: file.originalName ?? `${safeName(project.title)}.mp4`,
-      mimeType: file.mimeType ?? 'video/mp4',
+      originalName,
+      mimeType: profile.mimeType,
       size: file.size ?? file.buffer.byteLength,
       folder: `files/cut/${projectId}/exports`,
-      metadata: { plugin: 'cut', cutProjectId: projectId, kind: 'mp4' }
+      metadata: { plugin: 'cut', cutProjectId: projectId, kind }
     })
     const record = await this.exports.save(
       this.exports.create({
         ...scopedCreate(scope),
         cutProjectId: projectId,
-        kind: 'mp4',
-        mimeType: uploaded.mimeType ?? 'video/mp4',
+        kind,
+        mimeType: uploaded.mimeType ?? profile.mimeType,
         size: uploaded.size ?? file.buffer.byteLength,
         checksum: sha256(file.buffer),
         fileReference: portableReference(uploaded, target),
@@ -345,6 +351,22 @@ export class CutService {
       mimeType: asset.mimeType,
       size: asset.size
     }
+  }
+
+  async resolveExportFile(scope: CutScope, projectId: string, exportId: string) {
+    const project = await this.requireProject(scope, projectId)
+    if ((scope.assistantId && project.assistantId !== scope.assistantId)
+      || (scope.projectId && project.platformProjectId !== scope.projectId)) {
+      throw new NotFoundException('Cut export was not found in the current host project.')
+    }
+    const record = await this.exports.findOne({
+      where: scopedWhere<CutExport>(scope, { id: exportId, cutProjectId: projectId })
+    })
+    if (!record || !['video/mp4', 'video/webm'].includes(record.mimeType)) {
+      throw new NotFoundException('Cut export was not found in the current project.')
+    }
+    const fileName = record.fileReference.originalName ?? record.fileReference.name ?? `${safeName(project.title)}.${record.kind}`
+    return { reference: record.fileReference, fileName, mimeType: record.mimeType, size: record.size }
   }
 
   private async registerMedia(
@@ -410,8 +432,18 @@ export class CutService {
         duration: mediaMetadata.duration ?? undefined
       })
       await this.persistDocumentAtRevision(scope, project, input.baseRevision, nextDocument)
-    } else if (hasNewMediaMetadata(asset, mediaMetadata)) {
-      asset = await this.media.save({ ...asset, ...mediaMetadata })
+    } else {
+      const referenceChanged = JSON.stringify(asset.fileReference) !== JSON.stringify(reference)
+      if (referenceChanged || hasNewMediaMetadata(asset, mediaMetadata)) {
+        asset = await this.media.save({
+          ...asset,
+          originalName: input.name,
+          mimeType: input.mimeType,
+          size: input.size,
+          fileReference: reference,
+          ...mediaMetadata
+        })
+      }
     }
     await this.writeLog(scope, {
       cutProjectId: projectId,
@@ -601,6 +633,7 @@ function compactExport(record: CutExport) {
   return {
     id: record.id,
     kind: record.kind,
+    fileName: record.fileReference.originalName ?? record.fileReference.name ?? `cut-export.${record.kind}`,
     mimeType: record.mimeType,
     size: record.size,
     checksum: record.checksum,
@@ -613,6 +646,14 @@ function compactExport(record: CutExport) {
     report: record.report ?? null,
     createdAt: record.createdAt?.toISOString?.() ?? null
   }
+}
+
+function browserExportKind(mimeType?: string, originalName?: string): CutExportFormat {
+  const normalizedMimeType = mimeType?.split(';', 1)[0]?.trim().toLowerCase()
+  const normalizedName = originalName?.trim().toLowerCase()
+  if (normalizedMimeType === 'video/webm' || normalizedName?.endsWith('.webm')) return 'webm'
+  if (normalizedMimeType === 'video/mp4' || normalizedName?.endsWith('.mp4')) return 'mp4'
+  throw new BadRequestException('Cut browser export must be an MP4 or WebM video.')
 }
 
 function compactLog(log: CutActionLog) {

@@ -12,7 +12,7 @@ import { CutActionLog, CutExport, CutMediaAsset, CutProject, CutProjectVersion }
 import type { CutScope } from './types.js'
 
 describe('CutService scoped persistence and Workspace Files', () => {
-  it('uploads media, preserves portable references across iframe saves, and writes MP4 exports', async () => {
+  it('uploads media, preserves portable references, and writes downloadable MP4/WebM exports', async () => {
     const projects = memoryRepository<CutProject>()
     const versions = memoryRepository<CutProjectVersion>()
     const media = memoryRepository<CutMediaAsset>()
@@ -78,6 +78,27 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-a', catalog: 'projects', scopeId: 'platform-project-a', folder: `files/cut/${projectId}/media`
     }))
+
+    uploadBuffer.mockResolvedValueOnce({
+      name: 'gate.svg',
+      filePath: `files/cut/${projectId}/media/recovered-gate.svg`,
+      workspacePath: `/workspace/files/cut/${projectId}/media/recovered-gate.svg`,
+      fileUrl: 'https://files.example.test/recovered-gate.svg',
+      mimeType: 'image/svg+xml',
+      size: 6,
+      catalog: 'projects',
+      scopeId: 'platform-project-a'
+    })
+    const repaired = await service.uploadMedia(scope, projectId, {
+      buffer: Buffer.from('<svg/>'), originalName: 'gate.svg', mimeType: 'image/svg+xml', size: 6
+    }, 5, imported.project.revision, 'Repaired the missing Workspace media reference.')
+    expect(repaired.project.revision).toBe(imported.project.revision)
+    expect(repaired.document.tracks[0]!.clips).toHaveLength(1)
+    expect(repaired.media.fileReference).toMatchObject({
+      filePath: `files/cut/${projectId}/media/recovered-gate.svg`,
+      workspacePath: `/workspace/files/cut/${projectId}/media/recovered-gate.svg`
+    })
+    expect(media.rows).toHaveLength(1)
 
     const iframeDocument = structuredClone(imported.document)
     delete iframeDocument.tracks[0]!.clips[0]!.source
@@ -148,6 +169,21 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(uploadBuffer).toHaveBeenLastCalledWith(expect.objectContaining({
       folder: `files/cut/${projectId}/exports`, mimeType: 'video/mp4'
     }))
+
+    const webm = await service.saveExport(scope, projectId, {
+      buffer: Buffer.from('webm-gate'), originalName: 'gate.webm', mimeType: 'video/webm', size: 9
+    }, 'Saved compact WebM gate.')
+    expect(webm.export).toMatchObject({ kind: 'webm', fileName: 'gate.webm', mimeType: 'video/webm' })
+    expect(uploadBuffer).toHaveBeenLastCalledWith(expect.objectContaining({
+      folder: `files/cut/${projectId}/exports`, originalName: 'gate.webm', mimeType: 'video/webm',
+      metadata: { plugin: 'cut', cutProjectId: projectId, kind: 'webm' }
+    }))
+    await expect(service.resolveExportFile(scope, projectId, webm.export.id!)).resolves.toMatchObject({
+      fileName: 'gate.webm', mimeType: 'video/webm', size: 9,
+      reference: { source: 'platform.workspace.files', tenantId: 'tenant-a' }
+    })
+    await expect(service.resolveExportFile({ ...scope, assistantId: 'assistant-b' }, projectId, webm.export.id!))
+      .rejects.toThrow('current host project')
 
     await expect(service.getProject({ ...scope, organizationId: 'org-b' }, projectId)).rejects.toThrow('current tenant and organization')
   })

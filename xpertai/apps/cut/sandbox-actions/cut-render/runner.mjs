@@ -28,6 +28,7 @@ async function main() {
   const requestPath = argument('--request')
   const outputDir = argument('--output')
   const request = parseRequest(JSON.parse(await readFile(requestPath, 'utf8')))
+  const exportProfile = videoExportProfile(request.payload.exportSettings)
   const mediaRoot = path.join(path.dirname(requestPath), 'media')
   await validateMediaReferences(request.payload.document, mediaRoot)
   await mkdir(outputDir, { recursive: true })
@@ -57,15 +58,15 @@ async function main() {
     if ('error' in result) throw new Error(`RENDER_FAILED: ${result.error}`)
     const temporaryPath = await result.download.path()
     if (!temporaryPath) throw new Error('RENDER_OUTPUT_INVALID: Browser Runtime produced no download path.')
-    const outputPath = path.join(outputDir, 'cut.mp4')
+    const outputPath = path.join(outputDir, `cut.${exportProfile.extension}`)
     await copyFile(temporaryPath, outputPath)
     await rm(temporaryPath, { force: true })
-    const output = await validateMp4(outputPath)
+    const output = await validateVideo(outputPath, exportProfile.format)
     const state = await page.evaluate(() => window.__cutRenderState)
     const report = {
       contractVersion: '1',
       action: 'cut.render-mp4',
-      actionVersion: '1.0.0',
+      actionVersion: '1.1.0',
       sourceRevision: request.payload.sourceRevision,
       width: request.payload.document.settings.width,
       height: request.payload.document.settings.height,
@@ -73,7 +74,10 @@ async function main() {
       durationSeconds: request.payload.document.settings.durationSeconds,
       frameCount: Math.round(request.payload.document.settings.durationSeconds * request.payload.document.settings.fps),
       bytes: output.size,
-      hasMovieBox: output.hasMovieBox,
+      format: exportProfile.format,
+      quality: request.payload.exportSettings.quality,
+      includeAudio: request.payload.exportSettings.includeAudio,
+      ...(output.hasMovieBox === undefined ? {} : { hasMovieBox: output.hasMovieBox }),
       progress: state?.progress ?? 1
     }
     await writeFile(path.join(outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`)
@@ -85,7 +89,7 @@ async function main() {
 }
 
 function parseRequest(value) {
-  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'cut.render-mp4' || value.actionVersion !== '1.0.0') {
+  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'cut.render-mp4' || value.actionVersion !== '1.1.0') {
     throw new Error('RENDER_INPUT_INVALID: Sandbox Action contract or version does not match.')
   }
   const payload = value.payload
@@ -109,6 +113,7 @@ function parseRequest(value) {
   const timeoutMs = payload.timeoutMs ?? 15 * 60_000
   integerWithin(timeoutMs, 10_000, 30 * 60_000, 'timeoutMs')
   payload.timeoutMs = timeoutMs
+  payload.exportSettings = parseExportSettings(payload.exportSettings)
   return value
 }
 
@@ -190,6 +195,10 @@ function mediaRelativePath(value) {
   return decoded
 }
 
+async function validateVideo(outputPath, format) {
+  return format === 'webm' ? validateWebM(outputPath) : validateMp4(outputPath)
+}
+
 async function validateMp4(outputPath) {
   const file = await stat(outputPath)
   if (!file.isFile() || file.size < 32) throw new Error('RENDER_OUTPUT_INVALID: MP4 output is empty.')
@@ -207,6 +216,41 @@ async function validateMp4(outputPath) {
   } finally {
     await handle.close()
   }
+}
+
+async function validateWebM(outputPath) {
+  const file = await stat(outputPath)
+  if (!file.isFile() || file.size < 32) throw new Error('RENDER_OUTPUT_INVALID: WebM output is empty.')
+  const handle = await open(outputPath, 'r')
+  try {
+    const head = Buffer.alloc(Math.min(file.size, 4096))
+    await handle.read(head, 0, head.length, 0)
+    if (!head.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) {
+      throw new Error('RENDER_OUTPUT_INVALID: WebM EBML header is missing.')
+    }
+    if (!head.includes(Buffer.from('webm'))) throw new Error('RENDER_OUTPUT_INVALID: WebM document type is missing.')
+    return { size: file.size }
+  } finally {
+    await handle.close()
+  }
+}
+
+function parseExportSettings(value) {
+  const settings = value == null ? {} : value
+  if (!isObject(settings)) throw new Error('RENDER_INPUT_INVALID: exportSettings must be an object.')
+  const format = settings.format ?? 'mp4'
+  const quality = settings.quality ?? 'high'
+  const includeAudio = settings.includeAudio ?? true
+  if (!['mp4', 'webm'].includes(format)) throw new Error('RENDER_INPUT_INVALID: export format must be mp4 or webm.')
+  if (!['low', 'medium', 'high', 'very_high'].includes(quality)) throw new Error('RENDER_INPUT_INVALID: export quality is invalid.')
+  if (typeof includeAudio !== 'boolean') throw new Error('RENDER_INPUT_INVALID: includeAudio must be boolean.')
+  return { format, quality, includeAudio }
+}
+
+function videoExportProfile(settings) {
+  return settings.format === 'webm'
+    ? { format: 'webm', extension: 'webm', mimeType: 'video/webm' }
+    : { format: 'mp4', extension: 'mp4', mimeType: 'video/mp4' }
 }
 
 function parseRange(value, size) {

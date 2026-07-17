@@ -241,13 +241,17 @@ try {
   const captionReviewCommit = await frame.locator('.timeline-clip.text').count() === 2
   console.log('cut-e2e: caption import, review, and commit verified')
 
-  await frame.getByRole('button', { name: 'Headless MP4', exact: true }).click()
-  await frame.getByText(/complete · 100% · saved/).waitFor({ timeout: 15_000 })
+  await frame.getByRole('button', { name: 'Export', exact: true }).click()
+  await frame.getByRole('button', { name: /Background export/ }).click()
+  await frame.getByRole('button', { name: 'Queue export', exact: true }).click()
+  await frame.getByTitle('Tasks').click()
+  await frame.getByText(/complete · 100%/).waitFor({ timeout: 15_000 })
   const headlessRenderWorkflow = await page.evaluate(() => window.__cutHost.analysisJobs[0]?.status === 'succeeded' && window.__cutHost.exports[0]?.analysisJobId === window.__cutHost.analysisJobs[0]?.id)
   console.log('cut-e2e: headless render capability, queue progress, and saved export verified')
 
-  const exportButton = frame.getByRole('button', { name: 'Export MP4' })
-  await exportButton.click()
+  await frame.getByRole('button', { name: 'Export', exact: true }).click()
+  await frame.getByRole('button', { name: /This browser/ }).click()
+  await frame.getByRole('button', { name: 'Export now', exact: true }).click()
   console.log('cut-e2e: 900-frame export started')
   await page.waitForFunction(() => window.__cutHost.exportSize > 1000 || Boolean(window.__cutHost.lastError), null, { timeout: 240_000 })
   const exportError = await page.evaluate(() => window.__cutHost.lastError)

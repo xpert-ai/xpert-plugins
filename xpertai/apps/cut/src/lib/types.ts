@@ -1,5 +1,6 @@
 import type { TCopilotModel } from '@xpert-ai/contracts'
 import type { WorkspacePortableFileReference, WorkspaceRuntimeFileDescriptor } from '@xpert-ai/plugin-sdk'
+import type { CutExportSettings } from './cut-export-settings.js'
 
 export type CutProjectStatus = 'draft' | 'reviewed' | 'archived' | 'failed'
 export type CutClipType = 'video' | 'image' | 'audio' | 'text' | 'color'
@@ -96,6 +97,7 @@ export interface StartCutHeadlessRenderInput {
   projectId: string
   baseRevision: number
   variants?: CutRenderVariantInput[]
+  exportSettings?: Partial<CutExportSettings>
   idempotencyKey?: string
   changeSummary: string
 }

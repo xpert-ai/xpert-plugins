@@ -3,14 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
 import {
   MANAGED_QUEUE_SERVICE_TOKEN,
+  SANDBOX_JOB_ERROR_CODES,
   SYSTEM_GLOBAL_SCOPE,
   SandboxJobsRuntimeCapability,
   WorkspaceFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
-  isSandboxJobRuntimeError,
   type ManagedQueueJob,
   type ManagedQueueService,
   type RuntimeCapabilityRegistry,
+  type SandboxJobErrorCode,
   type SandboxJobOutput,
   type SandboxJobsApi,
   type WorkspaceFilesApi,
@@ -25,6 +26,7 @@ import {
   CUT_RENDER_SANDBOX_ACTION_VERSION
 } from './constants.js'
 import { reconcileCutAnalysisJobWithQueue } from './cut-analysis-job-reconciliation.js'
+import { cutExportProfile, normalizeCutExportSettings, type CutExportSettings } from './cut-export-settings.js'
 import { validateCutProjectDocument } from './cut-project.js'
 import { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutExport, CutMediaAsset } from './entities/index.js'
@@ -44,10 +46,11 @@ const MAX_TEMPLATE_VALUE_LENGTH = 5_000
 const MAX_MEDIA_MAPPINGS = 100
 const MAX_RENDER_DURATION_SECONDS = 600
 const MAX_RENDER_FRAMES = 18_000
-// Sandbox Jobs v1 materializes at most 350 MiB of portable input files. Keep
-// the plugin's advertised and enforced limit aligned so oversized source media
-// falls back to the browser exporter before a queue record is created.
-const MAX_RENDER_MEDIA_BYTES = 350 * 1024 * 1024
+// Workspace-backed media is exposed to the Sandbox as a read-only seekable
+// input, so Chromium reads only requested byte ranges instead of materializing
+// the complete file through API memory. Keep this Action-level safety bound in
+// sync with the Cut Runner's staged-media validation.
+const MAX_RENDER_MEDIA_BYTES = 4 * 1024 * 1024 * 1024
 
 type RenderScopedEntity = {
   tenantId: string
@@ -64,6 +67,7 @@ type RenderMetadata = {
   documentChecksum: string
   renderDocument: CutProjectDocument
   assetIds: string[]
+  exportSettings: CutExportSettings
   sandboxReport?: Record<string, unknown>
   reportFile?: Record<string, unknown>
   errorCode?: string | null
@@ -133,6 +137,8 @@ export class CutRenderService {
       throw new ConflictException(`Cut project revision changed from ${input.baseRevision} to ${detail.item.revision}; reload before rendering.`)
     }
     const variants = normalizeVariants(input.variants, detail.document)
+    const exportSettings = normalizeCutExportSettings(input.exportSettings)
+    const exportProfile = cutExportProfile(exportSettings)
     const assets = new Map(detail.media.map((asset) => [asset.id?.toLowerCase(), asset]))
     // Validate every requested variant before any database row or queue job is created.
     const plans = variants.map((variant) => {
@@ -142,15 +148,16 @@ export class CutRenderService {
       const referencedAssets = assetIds.map((id) => requireAsset(assets, id))
       const mediaBytes = referencedAssets.reduce((sum, asset) => sum + asset.size, 0)
       if (mediaBytes > MAX_RENDER_MEDIA_BYTES) {
-        throw new Error(`Cut headless render media exceeds ${MAX_RENDER_MEDIA_BYTES} bytes; use browser MP4 export or a smaller workspace proxy.`)
+        throw new Error(`Cut headless render media exceeds the ${MAX_RENDER_MEDIA_BYTES}-byte seekable renderer safety limit.`)
       }
       const documentChecksum = hashJson({
         sourceRevision: input.baseRevision,
+        exportSettings,
         document: renderDocument,
         assets: referencedAssets.map((asset) => ({ id: asset.id, checksum: asset.checksum, size: asset.size }))
       })
       const idempotencyKey = boundedIdempotencyKey(input.idempotencyKey
-        ? `${input.idempotencyKey}:${input.baseRevision}:${variant.name}`
+        ? `${input.idempotencyKey}:${input.baseRevision}:${variant.name}:${documentChecksum}`
         : `render:${input.projectId}:${input.baseRevision}:${variant.name}:${documentChecksum}`)
       return { variant, renderDocument, assetIds, documentChecksum, idempotencyKey }
     })
@@ -175,11 +182,12 @@ export class CutRenderService {
       const metadata: RenderMetadata = {
         stage: 'queued',
         variantName: variant.name,
-        outputName: `${safeName(detail.item.title)}-${safeName(variant.name)}-r${input.baseRevision}-${documentChecksum.slice(0, 8)}.mp4`,
+        outputName: `${safeName(detail.item.title)}-${safeName(variant.name)}-r${input.baseRevision}-${documentChecksum.slice(0, 8)}.${exportProfile.extension}`,
         changeSummary: input.changeSummary,
         documentChecksum,
         renderDocument,
-        assetIds
+        assetIds,
+        exportSettings
       }
       const row = await this.jobs.save(this.jobs.create({
         ...renderCreate(scope),
@@ -258,6 +266,8 @@ export class CutRenderService {
     const row = await this.requireJob(scope, input.projectId, input.jobId)
     if (row.status === 'succeeded' || row.status === 'cancelled' || row.cancellationRequested) return
     const metadata = requireRenderMetadata(row.metadata)
+    const exportProfile = cutExportProfile(metadata.exportSettings)
+    const outputPath = `cut.${exportProfile.extension}`
     row.status = 'running'
     row.progress = 10
     row.startedAt ??= new Date()
@@ -273,6 +283,13 @@ export class CutRenderService {
       row.progress = 20
       row.metadata = { ...metadata, stage: 'rendering' } as unknown as CutJsonValue
       await this.jobs.save(row)
+      const files = assets.map((asset) => ({
+        reference: asset.fileReference,
+        targetPath: `media/${asset.id}/${safeMediaName(asset.originalName, asset.mimeType)}`,
+        size: asset.size,
+        sha256: asset.checksum,
+        access: 'read-only-seekable' as const
+      }))
       const result = await sandbox.run({
         jobId: requireId(row.id, 'render job'),
         action: CUT_RENDER_SANDBOX_ACTION,
@@ -289,23 +306,19 @@ export class CutRenderService {
         payload: {
           sourceRevision: row.inputRevision,
           timeoutMs: 15 * 60_000,
-          document: metadata.renderDocument
+          document: metadata.renderDocument,
+          exportSettings: metadata.exportSettings
         } as never,
-        files: assets.map((asset) => ({
-          reference: asset.fileReference,
-          targetPath: `media/${asset.id}/${safeMediaName(asset.originalName, asset.mimeType)}`,
-          size: asset.size,
-          sha256: asset.checksum
-        })),
+        files,
         outputs: [
-          { path: 'cut.mp4', originalName: metadata.outputName, mimeType: 'video/mp4', destination: { ...destination, folder: `files/cut/${input.projectId}/exports` } },
+          { path: outputPath, originalName: metadata.outputName, mimeType: exportProfile.mimeType, destination: { ...destination, folder: `files/cut/${input.projectId}/exports` } },
           { path: 'report.json', originalName: `${metadata.outputName}.report.json`, mimeType: 'application/json', destination: { ...destination, folder: `files/cut/${input.projectId}/exports/reports` } }
         ],
         timeoutMs: 16 * 60_000
       })
       const current = await this.requireJob(scope, input.projectId, input.jobId)
       if (current.status === 'cancelled' || current.cancellationRequested) return
-      const mp4 = requireOutput(result.outputs, 'cut.mp4')
+      const video = requireOutput(result.outputs, outputPath)
       const reportFile = requireOutput(result.outputs, 'report.json')
       let exported = await this.exports.findOne({ where: renderWhere<CutExport>(scope, { analysisJobId: input.jobId }) })
       if (!exported) {
@@ -314,14 +327,14 @@ export class CutRenderService {
           cutProjectId: input.projectId,
           analysisJobId: input.jobId,
           sourceRevision: row.inputRevision,
-          kind: 'mp4',
-          mimeType: mp4.mimeType,
-          size: mp4.size,
-          checksum: mp4.sha256,
-          fileReference: mp4.reference,
-          fileUrl: mp4.fileUrl ?? null,
+          kind: metadata.exportSettings.format,
+          mimeType: video.mimeType,
+          size: video.size,
+          checksum: video.sha256,
+          fileReference: video.reference,
+          fileUrl: video.fileUrl ?? null,
           changeSummary: metadata.changeSummary,
-          renderer: 'sandbox-job:cut.render-mp4@1.0.0',
+          renderer: `sandbox-job:${CUT_RENDER_SANDBOX_ACTION}@${CUT_RENDER_SANDBOX_ACTION_VERSION}`,
           report: {
             action: result.action,
             actionVersion: result.actionVersion,
@@ -332,6 +345,7 @@ export class CutRenderService {
             sourceRevision: row.inputRevision,
             documentChecksum: metadata.documentChecksum,
             variantName: metadata.variantName,
+            exportSettings: metadata.exportSettings,
             reportFile: portableOutput(reportFile)
           }
         }))
@@ -360,13 +374,17 @@ export class CutRenderService {
         exportId: exported.id ?? null,
         sandboxJobId: result.id,
         variantName: metadata.variantName,
+        format: metadata.exportSettings.format,
+        quality: metadata.exportSettings.quality,
+        includeAudio: metadata.exportSettings.includeAudio,
         sourceRevision: row.inputRevision,
-        size: mp4.size,
-        checksum: mp4.sha256
+        size: video.size,
+        checksum: video.sha256
       })
     } catch (error) {
       const current = await this.requireJob(scope, input.projectId, input.jobId)
-      if (current.cancellationRequested || (isSandboxJobRuntimeError(error) && error.code === 'SANDBOX_CANCELLED')) {
+      const sandboxFailure = readSandboxJobFailure(error)
+      if (current.cancellationRequested || sandboxFailure?.code === 'SANDBOX_CANCELLED') {
         current.status = 'cancelled'
         current.progress = 0
         current.completedAt = new Date()
@@ -377,7 +395,7 @@ export class CutRenderService {
       }
       const attempt = job.attemptsMade + 1
       const attempts = readAttempts(job.opts)
-      const retryable = isSandboxJobRuntimeError(error) ? error.retryable : true
+      const retryable = sandboxFailure?.retryable ?? true
       const willRetry = retryable && attempt < attempts
       current.status = willRetry ? 'queued' : 'failed'
       current.progress = 0
@@ -386,7 +404,7 @@ export class CutRenderService {
       current.metadata = {
         ...metadata,
         stage: willRetry ? 'retrying' : 'failed',
-        errorCode: isSandboxJobRuntimeError(error) ? error.code : 'RENDER_FAILED',
+        errorCode: sandboxFailure?.code ?? 'RENDER_FAILED',
         attempt,
         willRetry
       } as unknown as CutJsonValue
@@ -396,7 +414,7 @@ export class CutRenderService {
           jobId: input.jobId,
           variantName: metadata.variantName,
           attempt,
-          errorCode: isSandboxJobRuntimeError(error) ? error.code : 'RENDER_FAILED',
+          errorCode: sandboxFailure?.code ?? 'RENDER_FAILED',
           errorMessage: current.errorMessage ?? 'Unknown render failure.'
         })
         return
@@ -626,7 +644,7 @@ function requireRenderMetadata(value: CutJsonValue | null | undefined): RenderMe
   if (!metadata.renderDocument || !metadata.documentChecksum || !metadata.outputName || !metadata.variantName || !Array.isArray(metadata.assetIds)) {
     throw new Error('Cut render job metadata is incomplete.')
   }
-  return metadata as RenderMetadata
+  return { ...metadata, exportSettings: normalizeCutExportSettings(metadata.exportSettings) } as RenderMetadata
 }
 function optionalRenderMetadata(value: CutJsonValue | null | undefined) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as unknown as Partial<RenderMetadata> : {}
@@ -641,6 +659,7 @@ function compactRenderJob(row: CutAnalysisJob) {
     progress: row.progress,
     sourceRevision: row.inputRevision,
     variantName: metadata.variantName ?? null,
+    exportSettings: normalizeCutExportSettings(metadata.exportSettings),
     width: metadata.renderDocument?.settings.width ?? null,
     height: metadata.renderDocument?.settings.height ?? null,
     fps: metadata.renderDocument?.settings.fps ?? null,
@@ -691,6 +710,12 @@ function boundedIdempotencyKey(value: string) { return value.length <= 240 ? val
 function hashJson(value: unknown) { return createHash('sha256').update(JSON.stringify(value)).digest('hex') }
 function requireId(value: string | undefined, label: string) { if (!value) throw new Error(`Cut persistence did not return a ${label} id.`); return value }
 function readAttempts(options: Record<string, unknown> | undefined) { const value = options?.attempts; return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 1 }
+function readSandboxJobFailure(error: unknown): { code: SandboxJobErrorCode; retryable: boolean } | null {
+  if (!error || typeof error !== 'object') return null
+  const candidate = error as { code?: unknown; retryable?: unknown }
+  const code = SANDBOX_JOB_ERROR_CODES.find((value) => value === candidate.code)
+  return code && typeof candidate.retryable === 'boolean' ? { code, retryable: candidate.retryable } : null
+}
 function errorMessage(error: unknown) { return error instanceof Error ? error.message : String(error) }
 function isString(value: string | undefined): value is string { return typeof value === 'string' && Boolean(value) }
 function isUuid(value: string) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) }

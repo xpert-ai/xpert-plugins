@@ -1,3 +1,5 @@
+import type { CutExportSettings } from '../../../cut-export-settings'
+
 export type ClipType = 'video' | 'image' | 'audio' | 'text' | 'color'
 export type CutClip = {
   id: string
@@ -60,7 +62,7 @@ export type ProjectDetail = {
   document: CutDocument
   media: MediaSummary[]
   versions: Array<{ id?: string; versionNumber: number; revision: number; changeSummary: string }>
-  exports: Array<{ id?: string; kind: string; mimeType: string; size: number; fileUrl?: string | null; changeSummary: string; analysisJobId?: string | null; sourceRevision?: number | null; renderer?: string | null }>
+  exports: Array<{ id?: string; kind: string; fileName: string; mimeType: string; size: number; fileUrl?: string | null; changeSummary: string; analysisJobId?: string | null; sourceRevision?: number | null; renderer?: string | null; createdAt?: string | null }>
   logs: Array<{ id?: string; action: string; message: string; errorMessage?: string | null }>
 }
 export type CaptionDraftSummary = {
@@ -90,6 +92,7 @@ export type AnalysisJobSummary = {
   executionMode: 'local' | 'server' | 'import'
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
   progress: number
+  inputRevision: number
   mediaAssetId?: string | null
   language?: string | null
   model?: string | null
@@ -98,6 +101,7 @@ export type AnalysisJobSummary = {
   sandboxJobId?: string | null
   stage?: string | null
   variantName?: string | null
+  exportSettings?: CutExportSettings | null
   failureCode?: string | null
   errorMessage?: string | null
   cancellationRequested?: boolean

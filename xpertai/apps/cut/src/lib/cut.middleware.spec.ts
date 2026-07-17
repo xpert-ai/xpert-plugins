@@ -470,16 +470,19 @@ describe('CutMiddleware', () => {
     const payload = {
       projectId: '11111111-1111-4111-8111-111111111111',
       baseRevision: 8,
+      exportSettings: { format: 'webm', quality: 'medium', includeAudio: false },
       variants: [{ name: 'vertical', width: 1080, height: 1920, variables: { customer: 'Acme' } }],
       changeSummary: 'Queued a vertical campaign export.'
     }
     expect(() => renderTool.schema.parse({ ...payload, unexpected: true })).toThrow()
+    expect(() => renderTool.schema.parse({ ...payload, exportSettings: { ...payload.exportSettings, format: 'avi' } })).toThrow()
     expect(() => renderTool.schema.parse({ ...payload, variants: Array.from({ length: 6 }, (_, index) => ({ name: `v${index}` })) })).toThrow()
     const input = renderTool.schema.parse(payload)
     const output = JSON.parse(await renderTool.invoke(input))
     expect(output).toMatchObject({ sourceRevision: 8, jobs: [{ variantName: 'vertical', status: 'queued' }] })
     expect(output).not.toHaveProperty('document')
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }), input)
+    expect(input).toMatchObject({ exportSettings: { format: 'webm', quality: 'medium', includeAudio: false } })
   })
 })
 

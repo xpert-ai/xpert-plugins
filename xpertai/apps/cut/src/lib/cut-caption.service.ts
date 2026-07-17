@@ -10,6 +10,7 @@ import {
 import type { FindOptionsWhere, Repository } from 'typeorm'
 import { detectCutSubtitleFormat, parseCutSubtitle, serializeCutSubtitle, type CutSubtitleFormat } from './cut-caption.js'
 import { reconcileCutAnalysisJobWithQueue } from './cut-analysis-job-reconciliation.js'
+import { isCutExportFormat, isCutExportQuality, normalizeCutExportSettings } from './cut-export-settings.js'
 import { cutTimeAfterRippleDelete, normalizeCutTimeRanges, validateCutProjectDocument } from './cut-project.js'
 import { estimateCutTranscriptSegments } from './cut-transcription.js'
 import { CutService } from './cut.service.js'
@@ -1392,6 +1393,12 @@ function requireId(id: string | undefined, label: string) {
 
 function compactJob(job: CutAnalysisJob) {
   const metadata = jsonObject(job.metadata)
+  const rawExportSettings = jsonObject(metadata.exportSettings)
+  const exportSettings = job.type === 'render' ? normalizeCutExportSettings({
+    format: isCutExportFormat(rawExportSettings.format) ? rawExportSettings.format : undefined,
+    quality: isCutExportQuality(rawExportSettings.quality) ? rawExportSettings.quality : undefined,
+    includeAudio: typeof rawExportSettings.includeAudio === 'boolean' ? rawExportSettings.includeAudio : undefined
+  }) : null
   return {
     id: job.id,
     projectId: job.cutProjectId,
@@ -1410,6 +1417,7 @@ function compactJob(job: CutAnalysisJob) {
     sandboxJobId: job.sandboxJobId ?? null,
     stage: typeof metadata.stage === 'string' ? metadata.stage : null,
     variantName: typeof metadata.variantName === 'string' ? metadata.variantName : null,
+    exportSettings,
     failureCode: typeof metadata.errorCode === 'string' ? metadata.errorCode : null,
     errorMessage: job.errorMessage ?? null,
     createdAt: job.createdAt?.toISOString?.() ?? null,

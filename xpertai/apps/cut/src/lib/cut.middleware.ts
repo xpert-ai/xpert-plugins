@@ -165,6 +165,11 @@ const startTranscriptionSchema = z.object({
 const startHeadlessExportSchema = z.object({
   projectId: currentProjectId,
   baseRevision: z.number().int().positive(),
+  exportSettings: z.object({
+    format: z.enum(['mp4', 'webm']).default('mp4'),
+    quality: z.enum(['low', 'medium', 'high', 'very_high']).default('high'),
+    includeAudio: z.boolean().default(true)
+  }).strict().default({ format: 'mp4', quality: 'high', includeAudio: true }),
   variants: z.array(z.object({
     name: z.string().trim().min(1).max(80),
     width: z.number().int().min(16).max(3840).optional(),
@@ -514,7 +519,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.renders.start(scope, input))
         }, {
           name: CUT_START_HEADLESS_EXPORT_TOOL_NAME,
-          description: 'Queue 1-5 immutable-revision MP4 variants through the bounded Cut Sandbox Action. Supports per-variant dimensions, {{template}} text variables, and explicit source-to-replacement mediaAssetId maps; returns durable render job ids immediately.',
+          description: 'Queue 1-5 immutable-revision MP4/H.264 or WebM/VP9 variants through the bounded Cut Sandbox Action. Supports low through very-high quality, optional audio, per-variant dimensions, {{template}} text variables, and explicit source-to-replacement mediaAssetId maps; returns durable render job ids immediately.',
           schema: startHeadlessExportSchema,
           verboseParsingErrors: true
         }),

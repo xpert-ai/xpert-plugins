@@ -13,15 +13,16 @@ try {
   await mkdir(path.join(inputRoot, 'media'), { recursive: true })
   await mkdir(outputRoot, { recursive: true })
   await writeFile(path.join(inputRoot, 'media', 'tone.wav'), toneWav(1.5))
-  await writeFile(path.join(inputRoot, 'job.json'), JSON.stringify({
+  const request = {
     contractVersion: '1',
     runtimeProfile: 'browser/playwright-1.61/v1',
     sandboxRuntimeVersion: '1.0.0',
     action: 'cut.render-mp4',
-    actionVersion: '1.0.0',
+    actionVersion: '1.1.0',
     payload: {
       sourceRevision: 7,
       timeoutMs: 120_000,
+      exportSettings: { format: 'mp4', quality: 'high', includeAudio: true },
       document: {
         schemaVersion: 1,
         settings: { width: 320, height: 180, fps: 12, durationSeconds: 1.5, background: '#020617' },
@@ -40,9 +41,11 @@ try {
         ]
       }
     }
-  }))
+  }
+  const requestPath = path.join(inputRoot, 'job.json')
+  await writeFile(requestPath, JSON.stringify(request))
   const executable = await browserExecutable()
-  await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', path.join(inputRoot, 'job.json'), '--output', outputRoot], {
+  await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
     CUT_SANDBOX_CHROMIUM_EXECUTABLE: executable
   }, 150_000)
   const mp4 = await readFile(path.join(outputRoot, 'cut.mp4'))
@@ -50,7 +53,16 @@ try {
   if (!mp4.includes(Buffer.from('ftyp')) || !mp4.includes(Buffer.from('moov'))) throw new Error('Smoke MP4 is structurally invalid.')
   if (!mp4.includes(Buffer.from('vide')) || !mp4.includes(Buffer.from('soun'))) throw new Error('Smoke MP4 must contain video and audio tracks.')
   if (report.sourceRevision !== 7 || report.frameCount !== 18 || report.progress !== 1) throw new Error('Smoke report does not match the deterministic input snapshot.')
-  process.stdout.write(`${JSON.stringify({ action: 'cut.render-mp4', bytes: mp4.length, frameCount: report.frameCount, video: true, audio: true, browser: executable })}\n`)
+  request.payload.exportSettings = { format: 'webm', quality: 'medium', includeAudio: false }
+  await writeFile(requestPath, JSON.stringify(request))
+  await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
+    CUT_SANDBOX_CHROMIUM_EXECUTABLE: executable
+  }, 150_000)
+  const webm = await readFile(path.join(outputRoot, 'cut.webm'))
+  const webmReport = JSON.parse(await readFile(path.join(outputRoot, 'report.json'), 'utf8'))
+  if (!webm.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) || !webm.includes(Buffer.from('webm'))) throw new Error('Smoke WebM is structurally invalid.')
+  if (webmReport.format !== 'webm' || webmReport.quality !== 'medium' || webmReport.includeAudio !== false) throw new Error('Smoke WebM report does not preserve export settings.')
+  process.stdout.write(`${JSON.stringify({ action: 'cut.render-mp4', mp4Bytes: mp4.length, webmBytes: webm.length, frameCount: report.frameCount, video: true, audio: true, browser: executable })}\n`)
 } finally {
   await rm(workspace, { recursive: true, force: true })
 }

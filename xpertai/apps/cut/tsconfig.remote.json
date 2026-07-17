@@ -14,6 +14,7 @@
   "include": [
     "src/lib/constants.ts",
     "src/lib/types.ts",
+    "src/lib/cut-export-settings.ts",
     "src/lib/cut-assistant-context.ts",
     "src/lib/cut-canvas-transform.ts",
     "src/lib/cut-waveform.ts",

@@ -5,11 +5,11 @@ import type { Repository } from 'typeorm'
 jest.mock('./cut.service.js', () => ({ CutService: class CutService {} }))
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
+  SANDBOX_JOB_ERROR_CODES: ['SANDBOX_CAPACITY_UNAVAILABLE', 'EXPORT_INPUT_INVALID', 'SANDBOX_CANCELLED'],
   SYSTEM_GLOBAL_SCOPE: 'system:global',
   SandboxJobsRuntimeCapability: { id: 'platform.sandbox.jobs' },
   WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
-  XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES',
-  isSandboxJobRuntimeError: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && 'retryable' in error)
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES'
 }))
 
 import { applyCutEdit, createStarterCutProject } from './cut-project.js'
@@ -75,17 +75,17 @@ describe('CutRenderService', () => {
     expect(harness.queue.enqueue).not.toHaveBeenCalled()
   })
 
-  it('rejects media above the Sandbox Jobs input limit before enqueue and advertises the same limit', async () => {
-    const harness = createHarness({ assetSize: 351 * 1024 * 1024 })
+  it('rejects media above the seekable renderer safety limit before enqueue and advertises the same limit', async () => {
+    const harness = createHarness({ assetSize: 4 * 1024 * 1024 * 1024 + 1 })
     await expect(harness.service.start(scope, {
       projectId: PROJECT_ID,
       baseRevision: 7,
       variants: [{ name: 'oversized' }],
       changeSummary: 'Attempted an oversized headless export.'
-    })).rejects.toThrow('use browser MP4 export or a smaller workspace proxy')
+    })).rejects.toThrow('seekable renderer safety limit')
     expect(harness.jobs.rows).toHaveLength(0)
     expect(harness.queue.enqueue).not.toHaveBeenCalled()
-    await expect(harness.service.getCapability()).resolves.toMatchObject({ limits: { maxMediaBytes: 350 * 1024 * 1024 } })
+    await expect(harness.service.getCapability()).resolves.toMatchObject({ limits: { maxMediaBytes: 4 * 1024 * 1024 * 1024 } })
   })
 
   it('compensates already queued variants when a later batch enqueue fails', async () => {
@@ -116,11 +116,12 @@ describe('CutRenderService', () => {
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       jobId,
       action: 'cut.render-mp4',
-      actionVersion: '1.0.0',
+      actionVersion: '1.1.0',
       files: [expect.objectContaining({
         targetPath: `media/${ASSET_ID}/voice.wav`,
         size: 4_096,
         sha256: 'a'.repeat(64),
+        access: 'read-only-seekable',
         reference: expect.objectContaining({ filePath: 'files/voice.wav', tenantId: scope.tenantId })
       })],
       outputs: expect.arrayContaining([expect.objectContaining({ path: 'cut.mp4' }), expect.objectContaining({ path: 'report.json' })])
@@ -131,10 +132,36 @@ describe('CutRenderService', () => {
       analysisJobId: jobId,
       sourceRevision: 7,
       checksum: 'b'.repeat(64),
-      renderer: 'sandbox-job:cut.render-mp4@1.0.0'
+      kind: 'mp4',
+      renderer: 'sandbox-job:cut.render-mp4@1.1.0'
     })
     expect(harness.jobs.rows[0]).toMatchObject({ status: 'succeeded', progress: 100, resultExportId: harness.exports.rows[0]!.id, sandboxJobId: jobId })
     expect(harness.logs.rows.map((row) => row.action)).toEqual(['cut_render_started', 'cut_render_completed'])
+  })
+
+  it('propagates WebM quality and silent-audio settings into the Action and persisted export', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID,
+      baseRevision: 7,
+      variants: [{ name: 'compact' }],
+      exportSettings: { format: 'webm', quality: 'medium', includeAudio: false },
+      changeSummary: 'Rendered a compact silent WebM.'
+    })
+    expect(started.jobs[0]).toMatchObject({ exportSettings: { format: 'webm', quality: 'medium', includeAudio: false } })
+    expect(harness.jobs.rows[0]!.metadata).toMatchObject({
+      outputName: expect.stringMatching(/\.webm$/),
+      exportSettings: { format: 'webm', quality: 'medium', includeAudio: false }
+    })
+
+    const jobId = started.jobs[0]!.jobId!
+    await harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+
+    expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ exportSettings: { format: 'webm', quality: 'medium', includeAudio: false } }),
+      outputs: expect.arrayContaining([expect.objectContaining({ path: 'cut.webm', mimeType: 'video/webm' })])
+    }))
+    expect(harness.exports.rows[0]).toMatchObject({ kind: 'webm', mimeType: 'video/webm' })
   })
 
   it('records retryable Sandbox failure and cooperatively cancels queued or active work', async () => {
@@ -154,6 +181,22 @@ describe('CutRenderService', () => {
     expect(cancelled).toMatchObject({ success: true, status: 'cancelled', cancellationRequested: true })
     expect(retryHarness.sandbox.cancel).toHaveBeenCalledWith({ jobId })
     expect(retryHarness.queue.cancel).toHaveBeenCalledWith({ jobId, executionPool: 'sandbox-browser' })
+  })
+
+  it('does not retry a structurally compatible non-retryable Sandbox input failure', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID, baseRevision: 7, changeSummary: 'Rendered missing Workspace media.'
+    })
+    const jobId = started.jobs[0]!.jobId!
+    harness.sandbox.run.mockRejectedValueOnce(Object.assign(new Error('Workspace file not found'), {
+      name: 'SandboxJobRuntimeError', code: 'EXPORT_INPUT_INVALID', retryable: false, jobId
+    }))
+
+    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+      .resolves.toBeUndefined()
+    expect(harness.jobs.rows[0]).toMatchObject({ status: 'failed', progress: 0, errorMessage: 'Workspace file not found' })
+    expect(harness.jobs.rows[0]!.metadata).toMatchObject({ stage: 'failed', errorCode: 'EXPORT_INPUT_INVALID', attempt: 1, willRetry: false })
   })
 })
 
@@ -226,14 +269,17 @@ function createHarness(options: { assetSize?: number } = {}) {
     cancel: jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
   } as unknown as jest.Mocked<ManagedQueueService>
   const sandbox = {
-    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.0.0', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
-    run: jest.fn(async (input: { jobId?: string }) => ({
-      id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.0.0', status: 'succeeded' as const, attempt: 1,
-      outputs: [
-        output('cut.mp4', 'video/mp4', 'master.mp4', 12_345, 'b'.repeat(64)),
-        output('report.json', 'application/json', 'master.report.json', 512, 'c'.repeat(64))
-      ]
-    })),
+    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.0', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
+    run: jest.fn(async (input: { jobId?: string; outputs?: Array<{ path: string; originalName: string; mimeType: string }> }) => {
+      const video = input.outputs?.find((item) => item.path !== 'report.json') ?? { path: 'cut.mp4', originalName: 'master.mp4', mimeType: 'video/mp4' }
+      return {
+        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.0', status: 'succeeded' as const, attempt: 1,
+        outputs: [
+          output(video.path, video.mimeType, video.originalName, 12_345, 'b'.repeat(64)),
+          output('report.json', 'application/json', 'master.report.json', 512, 'c'.repeat(64))
+        ]
+      }
+    }),
     cancel: jest.fn(async (input: { jobId: string }) => ({ id: input.jobId, status: 'cancelled' as const, outputs: [] })),
     getJob: jest.fn()
   } as unknown as jest.Mocked<SandboxJobsApi>

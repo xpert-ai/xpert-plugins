@@ -30,7 +30,7 @@ export class CutExport {
   sourceRevision?: number | null
 
   @Column({ type: 'varchar', default: 'mp4' })
-  kind!: 'mp4'
+  kind!: 'mp4' | 'webm'
 
   @Column({ type: 'varchar' })
   mimeType!: string

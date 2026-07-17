@@ -5,15 +5,35 @@
  * IR instead of OpenCut scene nodes. Visual frames are rendered through Canvas
  * while audible timeline tracks are mixed with the Web Audio API.
  */
-import { AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, QUALITY_HIGH, canEncodeAudio, canEncodeVideo } from 'mediabunny'
+import {
+  AudioBufferSource,
+  BufferTarget,
+  CanvasSource,
+  Mp4OutputFormat,
+  Output,
+  QUALITY_HIGH,
+  QUALITY_LOW,
+  QUALITY_MEDIUM,
+  QUALITY_VERY_HIGH,
+  WebMOutputFormat,
+  canEncodeAudio,
+  canEncodeVideo
+} from 'mediabunny'
 import { audibleTimelineClips } from '../../../cut-media-playback'
 import { cutMediaDrawRect } from '../../../cut-media-layout'
+import {
+  DEFAULT_CUT_EXPORT_SETTINGS,
+  cutExportProfile,
+  normalizeCutExportSettings,
+  type CutExportQuality,
+  type CutExportSettings
+} from '../../../cut-export-settings'
 import type { CutClip, CutDocument } from './cut-types'
 
 type MediaElement = HTMLImageElement | HTMLVideoElement
 
 export async function canExportCutMp4(width = 1920, height = 1080) {
-  return canEncodeVideo('avc', { width, height, bitrate: QUALITY_HIGH })
+  return canExportCutVideo(DEFAULT_CUT_EXPORT_SETTINGS, width, height)
 }
 
 export async function exportCutMp4(
@@ -22,15 +42,43 @@ export async function exportCutMp4(
   onProgress: (progress: number) => void,
   signal?: AbortSignal
 ) {
+  return exportCutVideo(canvas, document, DEFAULT_CUT_EXPORT_SETTINGS, onProgress, signal)
+}
+
+export async function canExportCutVideo(
+  value: Partial<CutExportSettings>,
+  width = 1920,
+  height = 1080
+) {
+  const settings = normalizeCutExportSettings(value)
+  const profile = cutExportProfile(settings)
+  const videoAvailable = await canEncodeVideo(profile.videoCodec, { width, height, bitrate: exportQuality(settings.quality) })
+  return videoAvailable && (!settings.includeAudio || await canEncodeAudio(profile.audioCodec))
+}
+
+export async function exportCutVideo(
+  canvas: HTMLCanvasElement,
+  document: CutDocument,
+  value: Partial<CutExportSettings>,
+  onProgress: (progress: number) => void,
+  signal?: AbortSignal
+) {
+  const settings = normalizeCutExportSettings(value)
+  const profile = cutExportProfile(settings)
+  const quality = exportQuality(settings.quality)
   canvas.width = document.settings.width
   canvas.height = document.settings.height
   const context = canvas.getContext('2d', { alpha: false })
   if (!context) throw new Error('Canvas 2D is unavailable.')
-  const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() })
-  const source = new CanvasSource(canvas, { codec: 'avc', bitrate: QUALITY_HIGH })
+  const target = new BufferTarget()
+  const output = new Output({
+    format: settings.format === 'webm' ? new WebMOutputFormat() : new Mp4OutputFormat(),
+    target
+  })
+  const source = new CanvasSource(canvas, { codec: profile.videoCodec, bitrate: quality })
   output.addVideoTrack(source, { frameRate: document.settings.fps })
-  const audioMix = await renderAudioMix(document)
-  const audioSource = audioMix ? new AudioBufferSource({ codec: 'aac', bitrate: 128_000 }) : null
+  const audioMix = settings.includeAudio ? await renderAudioMix(document, profile.audioCodec) : null
+  const audioSource = audioMix ? new AudioBufferSource({ codec: profile.audioCodec, bitrate: quality }) : null
   if (audioSource) output.addAudioTrack(audioSource)
   const cache = new Map<string, Promise<MediaElement>>()
   await output.start()
@@ -51,14 +99,21 @@ export async function exportCutMp4(
     throw error
   }
   onProgress(1)
-  if (!output.target.buffer) throw new Error('MediaBunny did not produce an MP4 buffer.')
-  return new Blob([output.target.buffer], { type: 'video/mp4' })
+  if (!target.buffer) throw new Error(`MediaBunny did not produce a ${settings.format.toUpperCase()} buffer.`)
+  return new Blob([target.buffer], { type: profile.mimeType })
 }
 
-async function renderAudioMix(document: CutDocument) {
+function exportQuality(quality: CutExportQuality) {
+  if (quality === 'low') return QUALITY_LOW
+  if (quality === 'medium') return QUALITY_MEDIUM
+  if (quality === 'very_high') return QUALITY_VERY_HIGH
+  return QUALITY_HIGH
+}
+
+async function renderAudioMix(document: CutDocument, codec: 'aac' | 'opus') {
   const clips = audibleTimelineClips(document)
   if (!clips.length) return null
-  if (!(await canEncodeAudio('aac'))) throw new Error('AAC audio encoding is unavailable in this browser.')
+  if (!(await canEncodeAudio(codec))) throw new Error(`${codec.toUpperCase()} audio encoding is unavailable in this browser.`)
   const sampleRate = 44_100
   const context = new AudioContext({ sampleRate })
   const decoded = await Promise.all(clips.map(async (clip) => {

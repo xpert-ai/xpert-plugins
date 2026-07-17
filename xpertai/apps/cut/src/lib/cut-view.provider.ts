@@ -35,6 +35,7 @@ import {
   CUT_WORKBENCH_VIEW_KEY
 } from './constants.js'
 import { CutCaptionService } from './cut-caption.service.js'
+import { isCutExportFormat, isCutExportQuality, normalizeCutExportSettings } from './cut-export-settings.js'
 import { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
 import { CutProposalService } from './cut-proposal.service.js'
 import { CutRenderService } from './cut-render.service.js'
@@ -49,7 +50,7 @@ type CutViewFileAccessRequest = {
 }
 
 type CutViewManifest = XpertExtensionViewManifest & {
-  fileAccess: { purposes: Array<'preview'> }
+  fileAccess: { purposes: Array<'preview' | 'download'> }
 }
 
 const moduleFile = fileURLToPath(import.meta.url)
@@ -89,7 +90,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
     const manifest: CutViewManifest = {
       key: CUT_WORKBENCH_VIEW_KEY,
       title: i18n('Cut Workbench', 'Cut 视频工作台'),
-      description: i18n('Import media, edit a non-linear timeline, save versions, and export MP4.', '导入媒体、编辑非线性时间线、保存版本并导出 MP4。'),
+      description: i18n('Import media, edit a non-linear timeline, save versions, and export video.', '导入媒体、编辑非线性时间线、保存版本并导出视频。'),
       icon: { type: 'svg', value: CUT_ICON, color: '#0ea5e9', alt: 'Cut' },
       hostType: 'agent',
       slot,
@@ -98,7 +99,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
       activation: { requiredFeatures: [CUT_FEATURE] },
       ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: i18n('Cut', 'Cut 剪辑'), order: 44, icon: { type: 'svg', value: CUT_ICON, alt: 'Cut' } } } } : {}),
       source: { provider: CUT_PROVIDER_KEY, plugin: CUT_PLUGIN_NAME },
-      fileAccess: { purposes: ['preview'] },
+      fileAccess: { purposes: ['preview', 'download'] },
       view: {
         type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: CUT_REMOTE_ENTRY_KEY },
@@ -133,11 +134,11 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
         { key: 'cut_apply_edit_proposal', label: i18n('Apply Edit Proposal', '应用剪辑提案'), icon: 'ri-check-double-line', actionType: 'invoke' },
         { key: 'cut_reject_edit_proposal', label: i18n('Reject Edit Proposal', '拒绝剪辑提案'), icon: 'ri-close-circle-line', actionType: 'invoke' },
         { key: 'cut_revert_edit_proposal', label: i18n('Revert Edit Proposal', '回滚剪辑提案'), icon: 'ri-arrow-go-back-line', actionType: 'invoke' },
-        { key: 'cut_start_headless_export', label: i18n('Headless MP4 Export', '后台 MP4 导出'), icon: 'ri-movie-2-line', placement: 'toolbar', actionType: 'invoke' },
+        { key: 'cut_start_headless_export', label: i18n('Background Export', '后台导出'), icon: 'ri-movie-2-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'cut_cancel_analysis_job', label: i18n('Cancel Analysis Job', '取消分析任务'), icon: 'ri-stop-circle-line', actionType: 'invoke' },
         { key: 'cut_upload_media_file', label: i18n('Upload Media', '上传媒体'), icon: 'ri-upload-cloud-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
         { key: 'cut_import_subtitle_file', label: i18n('Import Subtitles', '导入字幕'), icon: 'ri-subtitle-line', actionType: 'invoke', transport: 'file' },
-        { key: 'cut_save_export_file', label: i18n('Save MP4 Export', '保存 MP4 导出'), icon: 'ri-save-2-line', actionType: 'invoke', transport: 'file' }
+        { key: 'cut_save_export_file', label: i18n('Save Video Export', '保存视频导出'), icon: 'ri-save-2-line', actionType: 'invoke', transport: 'file' }
       ]
     }
     return [manifest]
@@ -148,10 +149,12 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
     viewKey: string,
     request: CutViewFileAccessRequest
   ) {
-    if (viewKey !== CUT_WORKBENCH_VIEW_KEY || request.purpose !== 'preview' || !request.targetId) {
-      throw new Error('Cut media preview request is invalid.')
+    if (viewKey !== CUT_WORKBENCH_VIEW_KEY || !request.targetId) {
+      throw new Error('Cut file access request is invalid.')
     }
-    return this.service.resolveMediaFile(scopeFromContext(context), request.targetId, request.fileKey)
+    return request.purpose === 'download'
+      ? this.service.resolveExportFile(scopeFromContext(context), request.targetId, request.fileKey)
+      : this.service.resolveMediaFile(scopeFromContext(context), request.targetId, request.fileKey)
   }
 
   async getRemoteComponentEntry(
@@ -371,10 +374,11 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           projectId: requestProjectId(request),
           baseRevision: requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.'),
           variants: optionalArray(request.input, 'variants') as never,
+          exportSettings: inputExportSettings(request.input),
           idempotencyKey: inputString(request.input, 'idempotencyKey'),
-          changeSummary: inputString(request.input, 'changeSummary') ?? 'Queued a revision-bound Cut headless MP4 export.'
+          changeSummary: inputString(request.input, 'changeSummary') ?? 'Queued a revision-bound Cut background video export.'
         })
-        return { ...success('Cut headless MP4 export queued.'), refresh: true, data: result }
+        return { ...success('Cut background video export queued.'), refresh: true, data: result }
       }
       if (actionKey === 'cut_cancel_analysis_job') {
         const projectId = requestProjectId(request)
@@ -429,8 +433,8 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
       if (actionKey === 'cut_save_export_file') {
         const result = await this.service.saveExport(scope, requestProjectId(request), {
           buffer: file.buffer, originalName: file.originalname, mimeType: file.mimetype, size: file.size
-        }, inputString(request.input, 'changeSummary') ?? 'Saved browser-rendered Cut MP4 export.')
-        return { ...success('Cut MP4 export saved.'), data: { success: true, export: sanitizeExport(result.export) } }
+        }, inputString(request.input, 'changeSummary') ?? 'Saved browser-rendered Cut video export.')
+        return { ...success('Cut video export saved.'), data: { success: true, export: sanitizeExport(result.export) } }
       }
       return failure('Unsupported Cut file action.')
     } catch (error) {
@@ -537,6 +541,16 @@ function inputNumber(input: XpertViewActionRequest['input'], key: string) {
 function inputSubtitleFormat(input: XpertViewActionRequest['input']): CutSubtitleFormat | undefined {
   const value = inputString(input, 'format')
   return value === 'srt' || value === 'vtt' || value === 'ass' ? value : undefined
+}
+
+function inputExportSettings(input: XpertViewActionRequest['input']) {
+  const value = inputRecord(input).exportSettings
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return normalizeCutExportSettings()
+  return normalizeCutExportSettings({
+    format: isCutExportFormat(value.format) ? value.format : undefined,
+    quality: isCutExportQuality(value.quality) ? value.quality : undefined,
+    includeAudio: typeof value.includeAudio === 'boolean' ? value.includeAudio : undefined
+  })
 }
 
 function requiredNumber(input: XpertViewActionRequest['input'], key: string, message: string) {
