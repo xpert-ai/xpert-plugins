@@ -21,6 +21,7 @@ import {
 } from 'mediabunny'
 import { audibleTimelineClips } from '../../../cut-media-playback'
 import { cutMediaDrawRect } from '../../../cut-media-layout'
+import { cutVideoFrameTimeoutMessage, isCutVideoFrameAcceptable } from '../../../cut-video-frame'
 import {
   DEFAULT_CUT_EXPORT_SETTINGS,
   cutExportProfile,
@@ -199,7 +200,9 @@ async function drawClip(
     context.fillText(clip.text ?? clip.name, 0, 0, transform.width * 0.9)
   } else if ((clip.type === 'video' || clip.type === 'image') && clip.previewUrl) {
     const media = await loadMedia(clip, cache)
-    if (media instanceof HTMLVideoElement) await seekVideo(media, clip.trimIn + (time - clip.start) * (clip.playbackRate ?? 1))
+    if (media instanceof HTMLVideoElement) {
+      await seekVideo(media, clip.trimIn + (time - clip.start) * (clip.playbackRate ?? 1), 1 / document.settings.fps)
+    }
     const source = media instanceof HTMLVideoElement
       ? { width: media.videoWidth, height: media.videoHeight }
       : { width: media.naturalWidth, height: media.naturalHeight }
@@ -274,12 +277,13 @@ function loadVideo(url: string) {
   })
 }
 
-async function seekVideo(video: HTMLVideoElement, time: number) {
+async function seekVideo(video: HTMLVideoElement, time: number, frameDuration: number) {
   const bounded = Math.max(0, Math.min(time, Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.001) : time))
   if (Math.abs(video.currentTime - bounded) < 0.0005 && video.readyState >= 2) return
   await new Promise<void>((resolve, reject) => {
     let seeked = false
     let framePresented = false
+    let lastMediaTime: number | null = null
     let frameCallbackId: number | null = null
     let animationFrameId: number | null = null
     let timeoutId: number | null = null
@@ -301,7 +305,13 @@ async function seekVideo(video: HTMLVideoElement, time: number) {
     }
     const onError = () => failed(new Error('Cut video seek failed during export.'))
     const onPresentedFrame: VideoFrameRequestCallback = (_now, metadata) => {
-      if (Math.abs(metadata.mediaTime - bounded) <= 0.075) {
+      lastMediaTime = metadata.mediaTime
+      if (isCutVideoFrameAcceptable({
+        targetTime: bounded,
+        mediaTime: metadata.mediaTime,
+        mediaDuration: video.duration,
+        frameDuration
+      })) {
         framePresented = true
         complete()
         return
@@ -310,6 +320,12 @@ async function seekVideo(video: HTMLVideoElement, time: number) {
     }
     const onSeeked = () => {
       seeked = true
+      if (lastMediaTime != null && isCutVideoFrameAcceptable({
+        targetTime: bounded,
+        mediaTime: lastMediaTime,
+        mediaDuration: video.duration,
+        frameDuration
+      })) framePresented = true
       if (typeof video.requestVideoFrameCallback !== 'function') {
         animationFrameId = window.requestAnimationFrame(() => {
           animationFrameId = window.requestAnimationFrame(() => {
@@ -323,7 +339,11 @@ async function seekVideo(video: HTMLVideoElement, time: number) {
     video.addEventListener('seeked', onSeeked, { once: true })
     video.addEventListener('error', onError, { once: true })
     if (typeof video.requestVideoFrameCallback === 'function') frameCallbackId = video.requestVideoFrameCallback(onPresentedFrame)
-    timeoutId = window.setTimeout(() => failed(new Error('Cut video frame decode timed out during export.')), 10_000)
+    timeoutId = window.setTimeout(() => failed(new Error(cutVideoFrameTimeoutMessage({
+      targetTime: bounded,
+      mediaDuration: video.duration,
+      lastMediaTime
+    }))), 10_000)
     video.currentTime = bounded
   })
 }

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import { createServer } from 'node:http'
+import { createReadStream } from 'node:fs'
 import { copyFile, mkdir, open, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
+const actionVersion = '1.1.2'
+const progressLogIntervalMs = 5_000
 const limits = Object.freeze({
   maxWidth: 3840,
   maxHeight: 2160,
@@ -34,6 +37,7 @@ async function main() {
   await mkdir(outputDir, { recursive: true })
   const server = await startServer(request, mediaRoot)
   let browser
+  let progressMonitor
   try {
     const executablePath = process.env.CUT_SANDBOX_CHROMIUM_EXECUTABLE?.trim() || undefined
     browser = await chromium.launch({
@@ -49,6 +53,7 @@ async function main() {
     page.on('pageerror', (error) => browserErrors.push(error.message))
     const downloadPromise = page.waitForEvent('download', { timeout: request.payload.timeoutMs })
     await page.goto(server.url, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+    progressMonitor = startProgressMonitor(page, request)
     const result = await Promise.race([
       downloadPromise.then((download) => ({ download })),
       page.waitForFunction(() => window.__cutRenderState?.state === 'failed', undefined, {
@@ -66,7 +71,7 @@ async function main() {
     const report = {
       contractVersion: '1',
       action: 'cut.render-mp4',
-      actionVersion: '1.1.0',
+      actionVersion,
       sourceRevision: request.payload.sourceRevision,
       width: request.payload.document.settings.width,
       height: request.payload.document.settings.height,
@@ -83,13 +88,53 @@ async function main() {
     await writeFile(path.join(outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`)
     if (browserErrors.length) process.stderr.write(`${browserErrors.slice(-10).join('\n')}\n`)
   } finally {
+    await progressMonitor?.stop()
     await browser?.close().catch(() => undefined)
     await server.close()
   }
 }
 
+function startProgressMonitor(page, request) {
+  const startedAt = Date.now()
+  const frameCount = Math.round(request.payload.document.settings.durationSeconds * request.payload.document.settings.fps)
+  let stopped = false
+  let lastPercent = -1
+  let pending = Promise.resolve()
+  const report = async (force = false) => {
+    if (stopped) return
+    const state = await page.evaluate(() => window.__cutRenderState ?? null).catch(() => null)
+    const progress = Math.min(1, Math.max(0, Number.isFinite(state?.progress) ? state.progress : 0))
+    const percent = Math.round(progress * 100)
+    if (!force && percent === lastPercent) return
+    lastPercent = percent
+    process.stdout.write(`CUT_RENDER_PROGRESS ${JSON.stringify({
+      state: typeof state?.state === 'string' ? state.state : 'starting',
+      progress,
+      percent,
+      frame: Math.min(frameCount, Math.round(progress * frameCount)),
+      frameCount,
+      elapsedMs: Date.now() - startedAt
+    })}\n`)
+  }
+  const schedule = (force = false) => {
+    pending = pending.then(() => report(force))
+    return pending
+  }
+  void schedule(true)
+  const timer = setInterval(() => void schedule(), progressLogIntervalMs)
+  timer.unref()
+  return {
+    async stop() {
+      if (stopped) return
+      clearInterval(timer)
+      await schedule(true)
+      stopped = true
+    }
+  }
+}
+
 function parseRequest(value) {
-  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'cut.render-mp4' || value.actionVersion !== '1.1.0') {
+  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'cut.render-mp4' || value.actionVersion !== actionVersion) {
     throw new Error('RENDER_INPUT_INVALID: Sandbox Action contract or version does not match.')
   }
   const payload = value.payload
@@ -161,16 +206,17 @@ async function startServer(request, mediaRoot) {
 async function sendMedia(request, response, mediaRoot, relativePath) {
   const file = await safeMediaFile(mediaRoot, relativePath)
   const range = parseRange(request.headers.range, file.size)
-  const handle = await open(file.path, 'r')
-  const stream = handle.createReadStream(range ? { start: range.start, end: range.end } : undefined)
+  const stream = createReadStream(file.path, range ? { start: range.start, end: range.end } : undefined)
   response.statusCode = range ? 206 : 200
   response.setHeader('Accept-Ranges', 'bytes')
   response.setHeader('Content-Type', mimeType(file.path))
   response.setHeader('Content-Length', String(range ? range.end - range.start + 1 : file.size))
   response.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
   if (range) response.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${file.size}`)
+  const stop = () => stream.destroy()
+  request.once('aborted', stop)
+  response.once('close', stop)
   stream.once('error', () => response.destroy())
-  stream.once('close', () => void handle.close().catch(() => undefined))
   stream.pipe(response)
 }
 

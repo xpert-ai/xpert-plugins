@@ -21,6 +21,8 @@
     "src/lib/cut-editor-model.ts",
     "src/lib/cut-media-playback.ts",
     "src/lib/cut-media-layout.ts",
+    "src/lib/cut-media-duration.ts",
+    "src/lib/cut-video-frame.ts",
     "src/lib/cut-host-event.ts",
     "src/lib/cut-timeline.ts",
     "src/lib/remote-components/cut-workbench/src/**/*.ts",

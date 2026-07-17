@@ -11,6 +11,42 @@ export type CutClipboard = {
   span: number
 }
 
+/** Places imported media without hiding an existing clip under an overlapping clip. */
+export function placeCutMediaClip(
+  document: CutProjectDocument,
+  clip: CutClip,
+  trackKind: CutTrackKind,
+  targetTrackId: string | undefined,
+  makeId: () => string
+): CutProjectDocument {
+  const compatibleTracks = document.tracks.filter((track) => track.kind === trackKind)
+  const requestedTrack = compatibleTracks.find((track) => track.id === targetTrackId)
+  const destination = requestedTrack
+    ? (requestedTrack.clips.some((candidate) => clipsOverlap(candidate, clip)) ? null : requestedTrack)
+    : compatibleTracks.find((track) => !track.clips.some((candidate) => clipsOverlap(candidate, clip))) ?? null
+
+  if (destination) {
+    return {
+      ...document,
+      tracks: document.tracks.map((track) => track.id === destination.id
+        ? { ...track, clips: [...track.clips, clip].sort((left, right) => left.start - right.start) }
+        : track)
+    }
+  }
+
+  const newTrack = {
+    id: makeId(),
+    name: `${trackKind === 'audio' ? 'Audio' : 'Video'} ${compatibleTracks.length + 1}`,
+    kind: trackKind,
+    muted: false,
+    hidden: false,
+    clips: [clip]
+  }
+  const requestedIndex = targetTrackId ? document.tracks.findIndex((track) => track.id === targetTrackId) : -1
+  const insertAt = requestedIndex >= 0 ? requestedIndex + 1 : document.tracks.length
+  return { ...document, tracks: [...document.tracks.slice(0, insertAt), newTrack, ...document.tracks.slice(insertAt)] }
+}
+
 export function copyCutClips(document: CutProjectDocument, clipIds: readonly string[]): CutClipboard | null {
   const ids = new Set(clipIds)
   const selected = document.tracks.flatMap((track) => track.clips.filter((clip) => ids.has(clip.id)).map((clip) => ({ clip, trackKind: track.kind })))
@@ -139,4 +175,9 @@ export function toggleCutBookmark(documentInput: CutProjectDocument, time: numbe
 
 function roundTime(value: number) {
   return Math.round(value * 1000) / 1000
+}
+
+function clipsOverlap(left: CutClip, right: CutClip) {
+  return left.start < right.start + right.duration - 0.001
+    && right.start < left.start + left.duration - 0.001
 }

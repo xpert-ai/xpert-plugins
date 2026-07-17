@@ -8,13 +8,27 @@ import {
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AgentMiddlewareRuntimeCapabilityRegistry,
   type WorkspaceFile,
+  type WorkspaceFileReference,
   type WorkspacePortableFileReference,
   type WorkspaceRuntimeFileBuffer
 } from '@xpert-ai/plugin-sdk'
 import { appendCutMediaClip, applyCutEdit, createStarterCutProject, validateCutProjectDocument } from './cut-project.js'
+import { normalizeCutFileName } from './cut-file-name.js'
 import { probeCutMediaMetadata } from './cut-media-metadata.js'
 import { cutExportProfile, normalizeCutExportSettings, type CutExportFormat } from './cut-export-settings.js'
-import { CutActionLog, CutExport, CutMediaAsset, CutProject, CutProjectVersion } from './entities/index.js'
+import {
+  CutActionLog,
+  CutAnalysisJob,
+  CutCaptionDraft,
+  CutEditProposal,
+  CutExport,
+  CutMediaAsset,
+  CutMediaSegment,
+  CutProject,
+  CutProjectVersion,
+  CutTranscript,
+  CutTranscriptSegment
+} from './entities/index.js'
 import type {
   ApplyCutEditInput,
   ApplyCutEditBatchInput,
@@ -104,6 +118,67 @@ export class CutService {
       versions: versions.map(compactVersion),
       exports: exports.map(compactExport),
       logs: logs.map(compactLog)
+    }
+  }
+
+  async deleteProject(scope: CutScope, projectId: string, baseRevision: number | undefined) {
+    const project = await this.requireProject(scope, projectId)
+    assertRevision(project, baseRevision)
+    const [media, exports] = await Promise.all([
+      this.media.find({ where: scopedWhere<CutMediaAsset>(scope, { cutProjectId: projectId }) }),
+      this.exports.find({ where: scopedWhere<CutExport>(scope, { cutProjectId: projectId }) })
+    ])
+    const workspaceFolders = projectWorkspaceFolders(scope, project, media, exports)
+    const deletedRows = await this.projects.manager.transaction(async (manager) => {
+      const jobs = await manager.getRepository(CutAnalysisJob).find({
+        where: scopedWhere<CutAnalysisJob>(scope, { cutProjectId: projectId })
+      })
+      if (jobs.some((job) => job.status === 'queued' || job.status === 'running')) {
+        throw new ConflictException('Cancel active Cut tasks before permanently deleting this project.')
+      }
+
+      const counts: Record<string, number> = {}
+      const deleteRows = async <T extends ScopedEntity>(name: string, entity: new () => T, where: Partial<T>) => {
+        const result = await manager.getRepository(entity).delete(scopedWhere<T>(scope, where))
+        counts[name] = result.affected ?? 0
+      }
+
+      await deleteRows('transcriptSegments', CutTranscriptSegment, { cutProjectId: projectId } as Partial<CutTranscriptSegment>)
+      await deleteRows('captionDrafts', CutCaptionDraft, { cutProjectId: projectId } as Partial<CutCaptionDraft>)
+      await deleteRows('transcripts', CutTranscript, { cutProjectId: projectId } as Partial<CutTranscript>)
+      await deleteRows('mediaSegments', CutMediaSegment, { cutProjectId: projectId } as Partial<CutMediaSegment>)
+      await deleteRows('editProposals', CutEditProposal, { cutProjectId: projectId } as Partial<CutEditProposal>)
+      await deleteRows('exports', CutExport, { cutProjectId: projectId } as Partial<CutExport>)
+      await deleteRows('analysisJobs', CutAnalysisJob, { cutProjectId: projectId } as Partial<CutAnalysisJob>)
+      await deleteRows('versions', CutProjectVersion, { cutProjectId: projectId } as Partial<CutProjectVersion>)
+      await deleteRows('media', CutMediaAsset, { cutProjectId: projectId } as Partial<CutMediaAsset>)
+      await deleteRows('logs', CutActionLog, { cutProjectId: projectId } as Partial<CutActionLog>)
+      const projectResult = await manager.getRepository(CutProject).delete(scopedWhere<CutProject>(scope, {
+        id: projectId,
+        revision: baseRevision
+      }))
+      if (projectResult.affected !== 1) {
+        throw new ConflictException(`Cut project revision changed from ${baseRevision}; reload before deleting.`)
+      }
+      counts.projects = 1
+      return counts
+    })
+
+    let workspaceFilesDeleted = true
+    try {
+      const workspaceFiles = this.workspaceFiles()
+      for (const folder of workspaceFolders) await workspaceFiles.deleteFile(folder)
+    } catch (error) {
+      workspaceFilesDeleted = false
+      console.warn(`Cut project ${projectId} was deleted, but its Workspace files could not be removed: ${errorMessage(error)}`)
+    }
+    return {
+      success: true,
+      deleted: true,
+      projectId,
+      deletedRows,
+      workspaceFilesDeleted,
+      ...(workspaceFilesDeleted ? {} : { warning: 'The project was deleted, but some Workspace files could not be removed automatically.' })
     }
   }
 
@@ -347,7 +422,7 @@ export class CutService {
     }
     return {
       reference: asset.fileReference,
-      fileName: asset.originalName,
+      fileName: normalizeCutFileName(asset.originalName, 'cut-media'),
       mimeType: asset.mimeType,
       size: asset.size
     }
@@ -415,6 +490,9 @@ export class CutService {
           fileReference: reference,
           previewUrl: null,
           duration: mediaMetadata.duration ?? null,
+          containerDuration: mediaMetadata.containerDuration ?? null,
+          videoDuration: mediaMetadata.videoDuration ?? null,
+          audioDuration: mediaMetadata.audioDuration ?? null,
           codedWidth: mediaMetadata.codedWidth ?? null,
           codedHeight: mediaMetadata.codedHeight ?? null,
           displayWidth: mediaMetadata.displayWidth ?? null,
@@ -567,11 +645,46 @@ function portableReference(file: WorkspaceFile, target: ReturnType<typeof worksp
   }
 }
 
+function projectWorkspaceFolders(
+  scope: CutScope,
+  project: CutProject,
+  media: CutMediaAsset[],
+  exports: CutExport[]
+): WorkspaceFileReference[] {
+  const filePath = `files/cut/${requireId(project.id)}`
+  const fallback: WorkspaceFileReference = { ...workspaceTarget(scope, project), filePath }
+  const candidates: WorkspaceFileReference[] = [
+    fallback,
+    ...media.map((asset) => ({ ...asset.fileReference, filePath })),
+    ...exports.map((record) => ({ ...record.fileReference, filePath }))
+  ]
+  const seen = new Set<string>()
+  return candidates.filter((candidate) => {
+    const key = JSON.stringify([
+      candidate.tenantId ?? null,
+      candidate.userId ?? null,
+      candidate.catalog ?? null,
+      candidate.scopeId ?? null,
+      candidate.projectId ?? null,
+      candidate.xpertId ?? null,
+      candidate.isolateByUser ?? null,
+      candidate.filePath
+    ])
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 function assertRevision(project: CutProject, baseRevision: number | undefined) {
   if (baseRevision === undefined) throw new BadRequestException('Cut baseRevision is required for project mutations.')
   if (baseRevision !== project.revision) {
     throw new ConflictException(`Cut project revision changed from ${baseRevision} to ${project.revision}; reload before saving.`)
   }
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function compactProject(project: CutProject) {
@@ -592,13 +705,16 @@ function compactProject(project: CutProject) {
 function compactMedia(asset: CutMediaAsset) {
   return {
     id: asset.id,
-    originalName: asset.originalName,
+    originalName: normalizeCutFileName(asset.originalName, 'cut-media'),
     mimeType: asset.mimeType,
     size: asset.size,
     checksum: asset.checksum,
     fileReference: asset.fileReference,
     previewUrl: asset.previewUrl ?? null,
     duration: asset.duration ?? null,
+    containerDuration: asset.containerDuration ?? null,
+    videoDuration: asset.videoDuration ?? null,
+    audioDuration: asset.audioDuration ?? null,
     codedWidth: asset.codedWidth ?? null,
     codedHeight: asset.codedHeight ?? null,
     displayWidth: asset.displayWidth ?? null,
@@ -612,6 +728,9 @@ function compactMediaMetadata(metadata: CutMediaMetadata): CutMediaMetadata {
   const rotation = metadata.rotationDegrees
   return {
     ...(typeof metadata.duration === 'number' && Number.isFinite(metadata.duration) && metadata.duration > 0 ? { duration: metadata.duration } : {}),
+    ...(typeof metadata.containerDuration === 'number' && Number.isFinite(metadata.containerDuration) && metadata.containerDuration > 0 ? { containerDuration: metadata.containerDuration } : {}),
+    ...(typeof metadata.videoDuration === 'number' && Number.isFinite(metadata.videoDuration) && metadata.videoDuration > 0 ? { videoDuration: metadata.videoDuration } : {}),
+    ...(typeof metadata.audioDuration === 'number' && Number.isFinite(metadata.audioDuration) && metadata.audioDuration > 0 ? { audioDuration: metadata.audioDuration } : {}),
     ...(positiveInteger(metadata.codedWidth) ? { codedWidth: metadata.codedWidth } : {}),
     ...(positiveInteger(metadata.codedHeight) ? { codedHeight: metadata.codedHeight } : {}),
     ...(positiveInteger(metadata.displayWidth) ? { displayWidth: metadata.displayWidth } : {}),
@@ -621,7 +740,7 @@ function compactMediaMetadata(metadata: CutMediaMetadata): CutMediaMetadata {
 }
 
 function hasNewMediaMetadata(asset: CutMediaAsset, metadata: CutMediaMetadata) {
-  return (['duration', 'codedWidth', 'codedHeight', 'displayWidth', 'displayHeight', 'rotationDegrees'] as const)
+  return (['duration', 'containerDuration', 'videoDuration', 'audioDuration', 'codedWidth', 'codedHeight', 'displayWidth', 'displayHeight', 'rotationDegrees'] as const)
     .some((key) => metadata[key] != null && asset[key] !== metadata[key])
 }
 

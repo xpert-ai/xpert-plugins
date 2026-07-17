@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common'
+import { ConflictException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
 import {
@@ -51,6 +51,7 @@ const MAX_RENDER_FRAMES = 18_000
 // the complete file through API memory. Keep this Action-level safety bound in
 // sync with the Cut Runner's staged-media validation.
 const MAX_RENDER_MEDIA_BYTES = 4 * 1024 * 1024 * 1024
+const RENDER_HEARTBEAT_INTERVAL_MS = 15_000
 
 type RenderScopedEntity = {
   tenantId: string
@@ -77,6 +78,7 @@ type RenderMetadata = {
 
 @Injectable()
 export class CutRenderService {
+  private readonly logger = new Logger(CutRenderService.name)
   private healthCache?: { expiresAt: number; value: ReturnType<typeof unavailableCapability> | RenderCapability }
 
   constructor(
@@ -276,6 +278,7 @@ export class CutRenderService {
     row.sandboxJobId = requireId(row.id, 'render job')
     row.metadata = { ...metadata, stage: 'sandbox-starting' } as unknown as CutJsonValue
     await this.jobs.save(row)
+    this.logRenderProgress('sandbox-starting', input, metadata, { progress: 10 })
     try {
       const assets = await this.loadAssets(scope, input.projectId, metadata.assetIds)
       const destination = renderDestination(scope, input.projectId)
@@ -283,6 +286,7 @@ export class CutRenderService {
       row.progress = 20
       row.metadata = { ...metadata, stage: 'rendering' } as unknown as CutJsonValue
       await this.jobs.save(row)
+      const stopHeartbeat = this.startRenderHeartbeat(input, metadata)
       const files = assets.map((asset) => ({
         reference: asset.fileReference,
         targetPath: `media/${asset.id}/${safeMediaName(asset.originalName, asset.mimeType)}`,
@@ -315,7 +319,7 @@ export class CutRenderService {
           { path: 'report.json', originalName: `${metadata.outputName}.report.json`, mimeType: 'application/json', destination: { ...destination, folder: `files/cut/${input.projectId}/exports/reports` } }
         ],
         timeoutMs: 16 * 60_000
-      })
+      }).finally(stopHeartbeat)
       const current = await this.requireJob(scope, input.projectId, input.jobId)
       if (current.status === 'cancelled' || current.cancellationRequested) return
       const video = requireOutput(result.outputs, outputPath)
@@ -369,6 +373,11 @@ export class CutRenderService {
         reportFile: portableOutput(reportFile)
       } as unknown as CutJsonValue
       await this.jobs.save(current)
+      this.logRenderProgress('complete', input, metadata, {
+        progress: 100,
+        elapsedSeconds: elapsedSeconds(row.startedAt),
+        outputBytes: video.size
+      })
       await this.writeLog(scope, input.projectId, 'cut_render_completed', metadata.changeSummary, {
         jobId: input.jobId,
         exportId: exported.id ?? null,
@@ -391,6 +400,7 @@ export class CutRenderService {
         current.errorMessage = null
         current.metadata = { ...metadata, stage: 'cancelled' } as unknown as CutJsonValue
         await this.jobs.save(current)
+        this.logRenderProgress('cancelled', input, metadata, { progress: 0, elapsedSeconds: elapsedSeconds(row.startedAt) })
         return
       }
       const attempt = job.attemptsMade + 1
@@ -409,6 +419,12 @@ export class CutRenderService {
         willRetry
       } as unknown as CutJsonValue
       await this.jobs.save(current)
+      this.logRenderProgress(willRetry ? 'retrying' : 'failed', input, metadata, {
+        progress: 0,
+        elapsedSeconds: elapsedSeconds(row.startedAt),
+        attempt,
+        errorCode: sandboxFailure?.code ?? 'RENDER_FAILED'
+      })
       if (!willRetry) {
         await this.writeLog(scope, input.projectId, 'cut_render_failed', 'Cut headless render failed.', {
           jobId: input.jobId,
@@ -513,6 +529,40 @@ export class CutRenderService {
     return files
   }
 
+  private startRenderHeartbeat(input: CutRenderQueueJobData, metadata: RenderMetadata) {
+    const startedAt = Date.now()
+    this.logRenderProgress('rendering', input, metadata, { progress: 20, progressMode: 'indeterminate', elapsedSeconds: 0 })
+    const timer = setInterval(() => {
+      this.logRenderProgress('rendering-heartbeat', input, metadata, {
+        progressMode: 'indeterminate',
+        elapsedSeconds: Math.round((Date.now() - startedAt) / 1_000)
+      })
+    }, RENDER_HEARTBEAT_INTERVAL_MS)
+    timer.unref()
+    return () => {
+      clearInterval(timer)
+      this.logRenderProgress('sandbox-finished', input, metadata, {
+        progressMode: 'indeterminate',
+        elapsedSeconds: Math.round((Date.now() - startedAt) / 1_000)
+      })
+    }
+  }
+
+  private logRenderProgress(event: string, input: CutRenderQueueJobData, metadata: RenderMetadata, details: Record<string, string | number | boolean | null>) {
+    const settings = metadata.renderDocument.settings
+    this.logger.log(`cut.render.progress ${JSON.stringify({
+      event,
+      jobId: input.jobId,
+      projectId: input.projectId,
+      variantName: metadata.variantName,
+      width: settings.width,
+      height: settings.height,
+      fps: settings.fps,
+      frameCount: Math.round(settings.durationSeconds * settings.fps),
+      ...details
+    })}`)
+  }
+
   private async writeLog(scope: CutScope, projectId: string, action: CutActionType, message: string, snapshot: CutJsonValue) {
     await this.logs.save(this.logs.create({
       ...renderCreate(scope),
@@ -525,6 +575,10 @@ export class CutRenderService {
       snapshot
     }))
   }
+}
+
+function elapsedSeconds(startedAt?: Date | null) {
+  return startedAt ? Math.max(0, Math.round((Date.now() - startedAt.getTime()) / 1_000)) : 0
 }
 
 type RenderCapability = {

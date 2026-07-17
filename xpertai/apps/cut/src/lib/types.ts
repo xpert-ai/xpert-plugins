@@ -189,6 +189,9 @@ export interface CutClip {
 
 export interface CutMediaMetadata {
   duration?: number | null
+  containerDuration?: number | null
+  videoDuration?: number | null
+  audioDuration?: number | null
   codedWidth?: number | null
   codedHeight?: number | null
   displayWidth?: number | null

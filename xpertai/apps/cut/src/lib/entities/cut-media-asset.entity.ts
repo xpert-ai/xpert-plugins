@@ -43,6 +43,15 @@ export class CutMediaAsset {
   @Column({ type: 'float', nullable: true })
   duration?: number | null
 
+  @Column({ type: 'float', nullable: true })
+  containerDuration?: number | null
+
+  @Column({ type: 'float', nullable: true })
+  videoDuration?: number | null
+
+  @Column({ type: 'float', nullable: true })
+  audioDuration?: number | null
+
   @Column({ type: 'int', nullable: true })
   codedWidth?: number | null
 

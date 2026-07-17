@@ -1,13 +1,15 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input,
-  Progress, ResizableHandle, ResizablePanel, ResizablePanelGroup, ScrollArea, Slider, Switch, Tabs, TabsContent,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, Input, Progress, ResizableHandle, ResizablePanel, ResizablePanelGroup, ScrollArea,
+  Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue, Slider, Switch, Tabs, TabsContent,
   TabsList, TabsTrigger
 } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import {
-  Bookmark, Captions, Check, ChevronDown, ClipboardCopy, ClipboardPaste, CopyPlus, Download, Eye, EyeOff,
+  Bookmark, Captions, Check, ClipboardCopy, ClipboardPaste, CopyPlus, Download, Eye, EyeOff,
   Film, Image, Layers3, ListChecks, Magnet, Maximize2, Music2, PanelLeftClose, PanelRightClose, Pause, Play, Plus, Redo2,
   RotateCcw, Save, Scissors, Settings2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Sticker, Trash2,
   Type, Undo2, Unlink, Upload, Volume2, VolumeX, WandSparkles, Waves, ZoomIn, ZoomOut
@@ -26,7 +28,7 @@ import { computeCutWaveform } from '../../../cut-waveform'
 import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
-  toggleCutBookmark, type CutClipboard
+  placeCutMediaClip, toggleCutBookmark, type CutClipboard
 } from '../../../cut-editor-model'
 import { clipStartFromDrag } from '../../../cut-timeline'
 import { canExportCutVideo, exportCutVideo } from './cut-exporter'
@@ -77,6 +79,11 @@ const TRANSITION_TYPES = ['fade', 'slide', 'zoom'] as const
 const FILE_ACCESS_REFRESH_WINDOW_MS = 5 * 60 * 1_000
 const FILE_ACCESS_REFRESH_RETRY_MS = 30_000
 const FILE_ACCESS_CONCURRENCY = 4
+const CREATE_PROJECT_SELECT_VALUE = '__cut_create_project__'
+const LIBRARY_TAB_TITLES: Record<string, CutMessageKey> = {
+  media: 'library', sounds: 'sounds', text: 'text', stickers: 'stickers', effects: 'effects', transitions: 'transitions',
+  captions: 'captions', tasks: 'tasks', adjustment: 'adjustment', settings: 'settings'
+}
 
 type Translator = (key: CutMessageKey) => string
 type DragMode = 'move' | 'trim-start' | 'trim-end'
@@ -140,6 +147,9 @@ function App() {
   const [status, setStatus] = React.useState('Connecting…')
   const [exportProgress, setExportProgress] = React.useState<number | null>(null)
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false)
+  const [createProjectDialogOpen, setCreateProjectDialogOpen] = React.useState(false)
+  const [newProjectTitle, setNewProjectTitle] = React.useState('')
+  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = React.useState(false)
   const [exportMode, setExportMode] = React.useState<ExportMode>('browser')
   const [exportSettings, setExportSettings] = React.useState<CutExportSettings>(() => ({ ...DEFAULT_CUT_EXPORT_SETTINGS }))
   const [libraryTab, setLibraryTab] = React.useState('media')
@@ -502,8 +512,13 @@ function App() {
     setIsPlaying(nextPlaying)
   }, [duration, isPlaying, seek])
 
+  const openCreateProjectDialog = () => {
+    setNewProjectTitle(t('defaultProjectTitle'))
+    setCreateProjectDialogOpen(true)
+  }
+
   const createProject = async () => {
-    const title = window.prompt(t('projectTitle'), t('defaultProjectTitle'))?.trim()
+    const title = newProjectTitle.trim()
     if (!title) return
     setSaving(true)
     try {
@@ -512,6 +527,7 @@ function App() {
       }))
       const created = coerceDetail(payload)
       await load(created?.item.id ?? null, true)
+      setCreateProjectDialogOpen(false)
       notify('success', t('createSuccess'))
     } catch (error) { notify('error', errorText(error)) } finally { setSaving(false) }
   }
@@ -541,6 +557,32 @@ function App() {
     } catch (error) { notify('error', errorText(error)) } finally { setSaving(false) }
   }, [data.detail, documentDraft, t])
 
+  const deleteProject = async () => {
+    const project = data.detail?.item
+    if (!project?.id) return
+    setSaving(true)
+    try {
+      const payload = responsePayload(await executeAction('cut_delete_project', project.id, {
+        projectId: project.id,
+        baseRevision: project.revision
+      }))
+      const result = isRemoteObject(payload) ? payload : null
+      for (const key of mediaAccessGrantsRef.current.keys()) {
+        if (key.startsWith(`${project.id}:`)) mediaAccessGrantsRef.current.delete(key)
+      }
+      setDeleteProjectDialogOpen(false)
+      setSelectedProjectId(null)
+      selectedProjectRef.current = null
+      await load(null, true)
+      notify('success', result?.workspaceFilesDeleted === false ? t('projectDeletedWorkspaceWarning') : t('projectDeleted'))
+    } catch (error) {
+      const message = errorText(error)
+      notify('error', /cancel active cut tasks/i.test(message) ? t('projectDeleteActiveTasks') : message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const upload = async (file: File) => {
     if (!data.detail?.item.id) return
     if (dirtyRef.current) {
@@ -553,7 +595,7 @@ function App() {
       setStatus(mediaKind ? t('readingMediaMetadata') : t('loading'))
       const metadata = mediaKind ? await probeMediaMetadata(file, mediaKind) : {}
       await executeFileAction('cut_upload_media_file', data.detail.item.id, {
-        projectId: data.detail.item.id, baseRevision: data.detail.item.revision, ...metadata,
+        projectId: data.detail.item.id, baseRevision: data.detail.item.revision, originalName: file.name, ...metadata,
         changeSummary: `${t('upload')} ${file.name}.`
       }, file)
       await load(data.detail.item.id, true)
@@ -685,6 +727,7 @@ function App() {
       const payload = responsePayload(await executeFileAction('cut_import_subtitle_file', projectId, {
         projectId,
         baseRevision: data.detail!.item.revision,
+        originalName: file.name,
         language: navigator.language.split('-')[0] || 'und',
         changeSummary: `Imported ${file.name} as a reviewable caption draft.`
       }, file))
@@ -730,14 +773,20 @@ function App() {
     }
     setSaving(true)
     try {
-      await executeAction('cut_start_headless_export', project.id, {
+      const payload = responsePayload(await executeAction('cut_start_headless_export', project.id, {
         projectId: project.id,
         baseRevision: project.revision,
         variants: [{ name: `${documentDraft.settings.width}x${documentDraft.settings.height}` }],
         exportSettings: { format: settings.format, quality: settings.quality, includeAudio: settings.includeAudio },
         changeSummary: `Queued a revision-bound Cut ${settings.format.toUpperCase()} background export from Workbench.`
-      })
+      }))
+      const queuedJobs = coerceQueuedRenderJobs(payload, project.id, project.revision, settings)
       await load(project.id, true)
+      if (queuedJobs.length) {
+        setData((current) => ({ ...current, analysisJobs: mergeQueuedAnalysisJobs(current.analysisJobs, queuedJobs) }))
+      } else {
+        cutDebug.warn('render.queue-response-missing-jobs', { projectId: project.id })
+      }
       setExportDialogOpen(false)
       setLibraryTab('tasks')
       notify('success', t('headlessQueued'))
@@ -986,13 +1035,17 @@ function App() {
     try {
       const payload = responsePayload(await requestFileAccess(exportId, projectId, 'download'))
       const grant = parseMediaAccessGrant(payload)
+      const response = await fetch(grant.url, { credentials: 'include' })
+      if (!response.ok) throw new Error(`${t('downloadFailed')} (HTTP ${response.status})`)
+      const objectUrl = URL.createObjectURL(await response.blob())
       const anchor = document.createElement('a')
-      anchor.href = grant.url
+      anchor.href = objectUrl
       anchor.download = grant.fileName
       anchor.rel = 'noopener'
       document.body.append(anchor)
       anchor.click()
       anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
     } catch (error) {
       notify('error', errorText(error))
     } finally {
@@ -1251,13 +1304,14 @@ function App() {
       trimIn: 0, trimOut: clipDuration, volume: 1, playbackRate: 1,
       ...(type !== 'audio' ? { transform: { x: 0, y: 0, width: documentDraft.settings.width, height: documentDraft.settings.height, rotation: 0, opacity: 1 } } : {})
     }
-    commitDraft((document) => appendClip(
+    commitDraft((document) => placeCutMediaClip(
       expandedDuration > document.settings.durationSeconds
         ? { ...document, settings: { ...document.settings, durationSeconds: roundTime(expandedDuration) } }
         : document,
       clip,
       type === 'audio' ? 'audio' : 'visual',
-      targetTrackId
+      targetTrackId,
+      makeId
     ))
     selectOnly(id)
   }
@@ -1278,12 +1332,19 @@ function App() {
 
   return <div className="cut-app">
     <header className="cut-header">
-      <div className="cut-brand"><span className="cut-mark"><Film /></span><strong>OpenCut</strong><Badge variant="secondary">Xpert</Badge></div>
+      <div className="cut-brand"><span className="cut-mark"><Film /></span><strong>Cut</strong><Badge variant="secondary">Xpert</Badge></div>
       <div className="cut-project-picker">
-        <select value={selectedProjectId ?? ''} onChange={(event) => void load(event.target.value || null, true)} aria-label="Cut project">
-          <option value="">{t('selectProject')}</option>
-          {data.projects.items.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
-        </select><ChevronDown />
+        <Select value={selectedProjectId ?? undefined} onValueChange={(value) => {
+          if (value === CREATE_PROJECT_SELECT_VALUE) openCreateProjectDialog()
+          else void load(value, true)
+        }}>
+          <SelectTrigger aria-label={t('selectProject')}><SelectValue placeholder={t('selectProject')} /></SelectTrigger>
+          <SelectContent>
+            {data.projects.items.map((project) => <SelectItem key={project.id} value={project.id}>{project.title}</SelectItem>)}
+            {!!data.projects.items.length && <SelectSeparator />}
+            <SelectItem value={CREATE_PROJECT_SELECT_VALUE}><span className="cut-create-project-option"><Plus />{t('newProject')}</span></SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="cut-history-actions">
         <Button variant="ghost" size="icon-sm" title={t('undo')} disabled={!undoStack.length} onClick={undo}><Undo2 /></Button>
@@ -1295,7 +1356,7 @@ function App() {
         {dirty && <Badge data-status="warning">{t('unsaved')}</Badge>}
       </div>
       <div className="cut-actions">
-        <Button variant="ghost" size="sm" onClick={() => void createProject()} disabled={saving}><Plus />{t('newProject')}</Button>
+        <Button variant="ghost" size="icon-sm" title={t('deleteProject')} aria-label={t('deleteProject')} onClick={() => setDeleteProjectDialogOpen(true)} disabled={!data.detail || saving}><Trash2 /></Button>
         <Button variant="outline" size="sm" onClick={() => void load(selectedProjectId, true)} disabled={loading}><RotateCcw />{t('reload')}</Button>
         <Button variant="outline" size="sm" onClick={() => void save()} disabled={!dirty || saving}><Save />{t('save')}</Button>
         <Button variant="outline" size="sm" onClick={() => void finalize()} disabled={!data.detail || dirty || saving}><Check />{t('version')}</Button>
@@ -1332,15 +1393,26 @@ function App() {
             <TabsTrigger value="settings" title={t('settings')}><Settings2 /></TabsTrigger>
           </TabsList>
           <div className="cut-library-content">
-            <div className="panel-heading"><strong>{t('library')}</strong><Button variant="ghost" size="icon-xs" onClick={() => uploadRef.current?.click()} disabled={!data.detail}><Upload /></Button></div>
+            <div className="panel-heading">
+              <strong>{t(LIBRARY_TAB_TITLES[libraryTab] ?? 'library')}</strong>
+              <div className="panel-heading-actions">
+                {(libraryTab === 'media' || libraryTab === 'sounds') && <Input className="cut-header-search" value={mediaSearch} aria-label={t('searchMedia')} placeholder={t('searchMedia')} onChange={(event) => setMediaSearch(event.target.value)} />}
+                {(libraryTab === 'media' || libraryTab === 'sounds') && <Button variant="ghost" size="icon-xs" title={t('upload')} onClick={() => uploadRef.current?.click()} disabled={!data.detail}><Upload /></Button>}
+                {libraryTab === 'captions' && <Button variant="ghost" size="icon-xs" title={t('importSubtitles')} onClick={() => subtitleUploadRef.current?.click()} disabled={!data.detail || saving}><Upload /></Button>}
+                {libraryTab === 'tasks' && <Button variant="ghost" size="icon-xs" title={t('reload')} disabled={loading} onClick={() => void load(selectedProjectId, true)}><RotateCcw /></Button>}
+              </div>
+            </div>
             <input ref={uploadRef} className="hidden-input" type="file" accept="video/*,audio/*,image/*" onChange={(event) => {
               const file = event.target.files?.[0]
               if (file) void upload(file)
               event.currentTarget.value = ''
             }} />
+            <input ref={subtitleUploadRef} className="hidden-input" type="file" accept=".srt,.vtt,.ass,text/vtt,application/x-subrip,text/x-ssa" onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) void importSubtitles(file)
+              event.currentTarget.value = ''
+            }} />
             <TabsContent value="media" className="cut-library-pane">
-              <Input className="cut-search" value={mediaSearch} placeholder={t('searchMedia')} onChange={(event) => setMediaSearch(event.target.value)} />
-              <Button variant="outline" size="sm" className="cut-upload-button" onClick={() => uploadRef.current?.click()} disabled={!data.detail}><Upload />{t('upload')}</Button>
               <div className="media-analysis-card" data-media-analysis-state={mediaAnalysisProgress ? 'running' : 'idle'}>
                 <div className="caption-section-title"><Sparkles />{t('mediaIntelligence')}</div>
                 <select className="compact-select" aria-label={t('mediaAnalysisSource')} value={mediaAnalysisAssetId} onChange={(event) => setMediaAnalysisAssetId(event.target.value)} disabled={Boolean(mediaAnalysisProgress)}>
@@ -1354,19 +1426,17 @@ function App() {
                   <Badge variant="outline">{segment.evidenceType}</Badge><span>{formatTime(segment.start)}–{formatTime(segment.end)}</span><small>{segment.text ?? segment.label}</small>
                 </div>)}</div>}
               </div>
-              <ScrollArea className="cut-library-scroll">
-                {!filteredMedia.length && <div className="empty-card">{t('emptyMedia')}</div>}
-                <div className="media-grid">{filteredMedia.map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} onAdd={() => addMediaAsset(asset)} />)}</div>
-              </ScrollArea>
+              {!filteredMedia.length && <div className="empty-card">{t('emptyMedia')}</div>}
+              <div className="media-grid">{filteredMedia.map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} onAdd={() => addMediaAsset(asset)} />)}</div>
             </TabsContent>
             <TabsContent value="text" className="cut-library-pane"><div className="preset-list">
               <Button variant="outline" className="text-preset heading" onClick={() => addTextClip('heading')}>{t('addHeading')}</Button>
               <Button variant="outline" className="text-preset subtitle" onClick={() => addTextClip('subtitle')}>{t('addSubtitle')}</Button>
               <Button variant="outline" className="text-preset body" onClick={() => addTextClip('bodyText')}>{t('addBody')}</Button>
             </div></TabsContent>
-            <TabsContent value="sounds" className="cut-library-pane"><ScrollArea className="cut-library-scroll"><div className="media-grid">
+            <TabsContent value="sounds" className="cut-library-pane"><div className="media-grid">
               {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} onAdd={() => addMediaAsset(asset)} />)}
-            </div></ScrollArea></TabsContent>
+            </div></TabsContent>
             <TabsContent value="stickers" className="cut-library-pane"><div className="sticker-grid">
               {STICKER_PRESETS.map((sticker) => <button key={sticker} onClick={() => addSticker(sticker)}>{sticker}</button>)}
             </div></TabsContent>
@@ -1381,11 +1451,6 @@ function App() {
               <Button variant="ghost" size="sm" disabled={!selectedClip} onClick={clearTransitions}>{t('clearTransitions')}</Button>
             </div></TabsContent>
             <TabsContent value="captions" className="cut-library-pane"><div className="caption-workflow">
-              <input ref={subtitleUploadRef} className="hidden-input" type="file" accept=".srt,.vtt,.ass,text/vtt,application/x-subrip,text/x-ssa" onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) void importSubtitles(file)
-                event.currentTarget.value = ''
-              }} />
               <div className="caption-section-title"><Sparkles />{t('editProposals')}</div>
               {!data.editProposals.length && <div className="empty-card">{t('noEditProposals')}</div>}
               <div className="proposal-list">{data.editProposals.map((proposal) => <button key={proposal.id} data-proposal-status={proposal.status} className={proposalReview?.item.id === proposal.id ? 'active' : ''} onClick={() => proposal.id && void loadEditProposal(proposal.id)}>
@@ -1422,7 +1487,6 @@ function App() {
                   <Button variant="outline" size="sm" onClick={cancelLocalTranscription}>{t('localCancel')}</Button>
                 </div> : <Button size="sm" disabled={!localTranscriptionAssetId || dirty || saving} onClick={() => void runLocalTranscription()}><WandSparkles />{t('localStart')}</Button>}
               </div>
-              <Button variant="outline" size="sm" onClick={() => subtitleUploadRef.current?.click()} disabled={!data.detail || saving}><Upload />{t('importSubtitles')}</Button>
               <div className="caption-section-title">{t('captionDrafts')}</div>
               {!data.captionDrafts.length && <div className="empty-card">{t('noCaptionDrafts')}</div>}
               <div className="caption-draft-list">{data.captionDrafts.map((draft) => <button key={draft.id} className={captionReview?.item.id === draft.id ? 'active' : ''} onClick={() => draft.id && void loadCaptionDraft(draft.id)}>
@@ -1457,28 +1521,33 @@ function App() {
               </div>
             </div></TabsContent>
             <TabsContent value="tasks" className="cut-library-pane task-center-pane">
-              <div className="task-center-heading"><div><strong>{t('tasks')}</strong><small>{t('taskCenterDescription')}</small></div><Button variant="ghost" size="icon-sm" title={t('reload')} disabled={loading} onClick={() => void load(selectedProjectId, true)}><RotateCcw /></Button></div>
-              <ScrollArea className="task-center-scroll"><div className="export-center-list">
+              <div className="export-center-list">
+                <small className="task-center-description">{t('taskCenterDescription')}</small>
                 <div className="export-center-section-title">{t('exportCenter')}</div>
                 <div className={`render-capability ${headlessReady ? 'available' : 'unavailable'}`}>
                   <div><strong>{t('headlessRuntime')}</strong><Badge variant="outline">{headlessReady ? t('headlessReady') : t('headlessUnavailable')}</Badge></div>
                   <small>{headlessMediaMessage ?? (data.renderCapability.available ? `${data.renderCapability.runtimeProfile ?? 'browser runtime'} · ${data.renderCapability.workerCount ?? 0} worker` : data.renderCapability.message ?? data.renderCapability.reason)}</small>
                 </div>
                 {!renderJobs.length && <div className="empty-card">{t('noExports')}</div>}
-                {renderJobs.map((job) => <div className={`export-task-card ${job.status}`} key={job.id}>
-                  <div className="export-task-row"><strong>{(job.exportSettings?.format ?? 'mp4').toUpperCase()} · {job.variantName ?? 'default'}</strong><Badge variant={job.status === 'failed' ? 'destructive' : 'outline'} data-status={job.status === 'succeeded' ? 'success' : job.status === 'running' || job.status === 'queued' ? 'warning' : undefined}>{job.status}</Badge></div>
-                  <small>{formatExportQuality(job.exportSettings?.quality ?? 'high', t)} · {job.exportSettings?.includeAudio === false ? t('audioExcluded') : t('audioIncluded')} · r{job.inputRevision}</small>
-                  {(job.status === 'queued' || job.status === 'running') && <Progress value={job.progress} />}
-                  <div className="export-task-row"><small>{job.stage ?? job.status} · {job.progress}%</small><span>
-                    {job.resultExportId && <Button variant="outline" size="xs" disabled={downloadingExportId === job.resultExportId} onClick={() => void downloadExport(job.resultExportId!)}><Download />{t('download')}</Button>}
-                    {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
-                  </span></div>
-                  {job.errorMessage && <p className="export-task-error" title={job.errorMessage}>{formatBackgroundJobError(job.errorMessage, t)}</p>}
-                  {isWorkspaceMediaMissing(job.errorMessage) && <Button variant="outline" size="xs" onClick={() => { setLibraryTab('media'); uploadRef.current?.click() }}><Upload />{t('repairMedia')}</Button>}
-                </div>)}
+                {renderJobs.map((job) => {
+                  const renderingWithoutMeasuredProgress = job.status === 'running' && job.stage === 'rendering'
+                  return <div className={`export-task-card ${job.status}`} key={job.id}>
+                    <div className="export-task-row"><strong>{(job.exportSettings?.format ?? 'mp4').toUpperCase()} · {job.variantName ?? 'default'}</strong><Badge variant={job.status === 'failed' ? 'destructive' : 'outline'} data-status={job.status === 'succeeded' ? 'success' : job.status === 'running' || job.status === 'queued' ? 'warning' : undefined}>{formatTaskStatus(job.status, t)}</Badge></div>
+                    <small>{formatExportQuality(job.exportSettings?.quality ?? 'high', t)} · {job.exportSettings?.includeAudio === false ? t('audioExcluded') : t('audioIncluded')} · r{job.inputRevision}</small>
+                    {(job.status === 'queued' || job.status === 'running') && (renderingWithoutMeasuredProgress
+                      ? <div className="cut-indeterminate-progress" role="progressbar" aria-label={t('rendering')} aria-valuetext={t('rendering')}><span /></div>
+                      : <Progress value={job.progress} />)}
+                    <div className="export-task-row"><small>{formatTaskStage(job.stage, job.status, t)}{renderingWithoutMeasuredProgress ? '' : ` · ${job.progress}%`}</small><span>
+                      {job.resultExportId && <Button variant="outline" size="xs" disabled={downloadingExportId === job.resultExportId} onClick={() => void downloadExport(job.resultExportId!)}><Download />{t('download')}</Button>}
+                      {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
+                    </span></div>
+                    {job.errorMessage && <p className="export-task-error" title={job.errorMessage}>{formatBackgroundJobError(job.errorMessage, t)}</p>}
+                    {isWorkspaceMediaMissing(job.errorMessage) && <Button variant="outline" size="xs" onClick={() => { setLibraryTab('media'); uploadRef.current?.click() }}><Upload />{t('repairMedia')}</Button>}
+                  </div>
+                })}
                 {!!analysisJobs.length && <div className="export-center-section-title">{t('analysisJobs')}</div>}
                 {analysisJobs.map((job) => <div key={job.id} className={`analysis-job ${job.status}`}>
-                  <div><strong>{job.type === 'transcription' ? `STT · ${(job.language ?? 'und').toUpperCase()}` : `${job.type.replaceAll('_', ' ')} · ${job.executionMode.toUpperCase()}`}</strong><small>{job.stage ?? job.status} · {job.progress}%</small></div>
+                  <div><strong>{job.type === 'transcription' ? `STT · ${(job.language ?? 'und').toUpperCase()}` : `${job.type.replaceAll('_', ' ')} · ${job.executionMode.toUpperCase()}`}</strong><small>{formatTaskStage(job.stage, job.status, t)} · {job.progress}%</small></div>
                   {job.errorMessage && <span title={job.errorMessage}>{formatBackgroundJobError(job.errorMessage, t)}</span>}
                   {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
                 </div>)}
@@ -1487,16 +1556,16 @@ function App() {
                   <div><strong>{item.fileName || `${item.kind.toUpperCase()} export`}</strong><small>{item.kind.toUpperCase()} · {formatBytes(item.size)}{item.sourceRevision ? ` · r${item.sourceRevision}` : ''}</small></div>
                   {item.id && <Button variant="ghost" size="icon-sm" title={t('download')} disabled={downloadingExportId === item.id} onClick={() => void downloadExport(item.id!)}><Download /></Button>}
                 </div>)}
-              </div></ScrollArea>
+              </div>
             </TabsContent>
             <TabsContent value="adjustment" className="cut-library-pane">{selectedClip && selectedClip.type !== 'audio' ? <div className="adjustment-grid">
               <label>{t('effectPunch')}<Slider min={0} max={2} step={0.05} value={[selectedClip.effects?.contrast ?? 1]} onValueChange={(value) => updateSelectedClip((clip) => ({ ...clip, effects: { ...(clip.effects ?? DEFAULT_EFFECTS), contrast: value[0] ?? 1 } }))} /></label>
               <label>{t('effectWarm')}<Slider min={0} max={2} step={0.05} value={[selectedClip.effects?.saturation ?? 1]} onValueChange={(value) => updateSelectedClip((clip) => ({ ...clip, effects: { ...(clip.effects ?? DEFAULT_EFFECTS), saturation: value[0] ?? 1 } }))} /></label>
             </div> : <div className="empty-card">{t('noSelection')}</div>}</TabsContent>
-            <TabsContent value="settings" className="cut-library-pane"><ScrollArea className="cut-library-scroll"><div className="settings-stack">
+            <TabsContent value="settings" className="cut-library-pane"><div className="settings-stack">
               <strong>{t('background')}</strong><div className="color-grid">{COLOR_PRESETS.map((color) => <button key={color} className="color-swatch" style={{ background: color }} onClick={() => documentDraft && commitDraft((document) => ({ ...document, settings: { ...document.settings, background: color } }))} title={`${t('background')} ${color}`} />)}</div>
               <Button variant="outline" size="sm" onClick={() => addColorClip(documentDraft?.settings.background ?? '#111827')} disabled={!documentDraft}><Layers3 />{t('addColor')}</Button>
-            </div></ScrollArea></TabsContent>
+            </div></TabsContent>
           </div>
         </Tabs>
       </aside>
@@ -1616,6 +1685,35 @@ function App() {
     </section>
     </ResizablePanel>
     </ResizablePanelGroup></div>
+
+    <Dialog open={createProjectDialogOpen} onOpenChange={(open) => { if (!saving) setCreateProjectDialogOpen(open) }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('newProject')}</DialogTitle>
+          <DialogDescription>{t('createProjectDescription')}</DialogDescription>
+        </DialogHeader>
+        <form className="cut-create-project-form" onSubmit={(event) => { event.preventDefault(); void createProject() }}>
+          <label htmlFor="cut-new-project-title"><span>{t('projectTitle')}</span><Input id="cut-new-project-title" autoFocus value={newProjectTitle} onChange={(event) => setNewProjectTitle(event.target.value)} /></label>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={saving} onClick={() => setCreateProjectDialogOpen(false)}>{t('createProjectCancel')}</Button>
+            <Button type="submit" disabled={saving || !newProjectTitle.trim()}><Plus />{saving ? t('creatingProject') : t('createProjectConfirm')}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={deleteProjectDialogOpen} onOpenChange={(open) => { if (!saving) setDeleteProjectDialogOpen(open) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('deleteProjectTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('deleteProjectDescription')} {data.detail?.item.title ? `“${data.detail.item.title}”` : ''}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={saving} onClick={() => setDeleteProjectDialogOpen(false)}>{t('deleteProjectCancel')}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" disabled={saving} onClick={(event) => { event.preventDefault(); void deleteProject() }}><Trash2 />{saving ? t('deletingProject') : t('deleteProjectConfirm')}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={exportDialogOpen} onOpenChange={(open) => { if (!saving) setExportDialogOpen(open) }}>
       <DialogContent className="cut-export-dialog">
@@ -2405,6 +2503,57 @@ function coerceAnalysisJobs(value: RemoteValue | undefined): AnalysisJobSummary[
   })
 }
 
+function coerceQueuedRenderJobs(
+  value: RemoteValue | null,
+  projectId: string,
+  inputRevision: number,
+  exportSettings: CutExportSettings
+): AnalysisJobSummary[] {
+  const payload = unwrapActionData(value)
+  if (!isRemoteObject(payload) || !Array.isArray(payload.jobs)) return []
+  const sourceRevision = typeof payload.sourceRevision === 'number' ? payload.sourceRevision : inputRevision
+  return payload.jobs.flatMap((item) => {
+    if (!isRemoteObject(item)) return []
+    const id = typeof item.id === 'string' ? item.id : typeof item.jobId === 'string' ? item.jobId : null
+    if (!id) return []
+    const status = analysisJobStatus(item.status)
+    return [{
+      id,
+      projectId: typeof item.projectId === 'string' ? item.projectId : projectId,
+      type: 'render',
+      executionMode: 'server',
+      status,
+      progress: typeof item.progress === 'number' ? item.progress : 0,
+      inputRevision: typeof item.inputRevision === 'number' ? item.inputRevision : sourceRevision,
+      resultExportId: remoteNullableString(item.resultExportId),
+      stage: typeof item.stage === 'string' ? item.stage : status === 'queued' ? 'queued' : status,
+      variantName: remoteNullableString(item.variantName),
+      exportSettings: { ...exportSettings },
+      errorMessage: remoteNullableString(item.errorMessage),
+      cancellationRequested: false
+    }]
+  })
+}
+
+function unwrapActionData(value: RemoteValue | null): RemoteValue | null {
+  let current = value
+  for (let depth = 0; depth < 3 && isRemoteObject(current) && current.data !== undefined; depth += 1) current = current.data ?? null
+  return current
+}
+
+function analysisJobStatus(value: RemoteValue | undefined): AnalysisJobSummary['status'] {
+  return value === 'running' || value === 'succeeded' || value === 'failed' || value === 'cancelled' ? value : 'queued'
+}
+
+function mergeQueuedAnalysisJobs(current: AnalysisJobSummary[], queued: AnalysisJobSummary[]) {
+  const currentById = new Map(current.flatMap((job) => job.id ? [[job.id, job] as const] : []))
+  const queuedIds = new Set(queued.flatMap((job) => job.id ? [job.id] : []))
+  return [
+    ...queued.map((job) => job.id && currentById.has(job.id) ? currentById.get(job.id)! : job),
+    ...current.filter((job) => !job.id || !queuedIds.has(job.id))
+  ]
+}
+
 function remoteNullableString(value: RemoteValue | undefined) {
   return typeof value === 'string' ? value : null
 }
@@ -2485,6 +2634,17 @@ function roundTime(value: number) { return Math.round(value * 1000) / 1000 }
 function makeId() { return globalThis.crypto?.randomUUID?.() ?? `cut-${Date.now()}-${Math.random().toString(36).slice(2)}` }
 function formatExportQuality(quality: CutExportSettings['quality'], t: Translator) {
   return t(quality === 'low' ? 'qualityLow' : quality === 'medium' ? 'qualityMedium' : quality === 'very_high' ? 'qualityVeryHigh' : 'qualityHigh')
+}
+const taskStatusMessageKeys: Record<AnalysisJobSummary['status'], CutMessageKey> = {
+  queued: 'taskStatusQueued', running: 'taskStatusRunning', succeeded: 'taskStatusSucceeded', failed: 'taskStatusFailed', cancelled: 'taskStatusCancelled'
+}
+const taskStageMessageKeys: Record<string, CutMessageKey> = {
+  queued: 'taskStageQueued', 'queue-failed': 'taskStageQueueFailed', 'sandbox-starting': 'taskStageSandboxStarting', rendering: 'taskStageRendering',
+  complete: 'taskStageComplete', retrying: 'taskStageRetrying', failed: 'taskStageFailed', cancelled: 'taskStageCancelled', 'batch-aborted': 'taskStageBatchAborted'
+}
+function formatTaskStatus(status: AnalysisJobSummary['status'], t: Translator) { return t(taskStatusMessageKeys[status]) }
+function formatTaskStage(stage: string | null | undefined, status: AnalysisJobSummary['status'], t: Translator) {
+  return stage && taskStageMessageKeys[stage] ? t(taskStageMessageKeys[stage]) : formatTaskStatus(status, t)
 }
 function isWorkspaceMediaMissing(message?: string | null) {
   return Boolean(message && /workspace file not found|conversation file not found|unable to (?:read|resolve seekable input) media\//i.test(message))

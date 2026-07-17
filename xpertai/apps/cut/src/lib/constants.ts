@@ -106,7 +106,7 @@ export const CUT_ANALYSIS_QUEUE_NAME = 'cut.analysis'
 export const CUT_TRANSCRIPTION_JOB_NAME = 'transcribe-media'
 export const CUT_RENDER_JOB_NAME = 'render-mp4'
 export const CUT_RENDER_SANDBOX_ACTION = 'cut.render-mp4'
-export const CUT_RENDER_SANDBOX_ACTION_VERSION = '1.1.0'
+export const CUT_RENDER_SANDBOX_ACTION_VERSION = '1.1.2'
 
 export const CUT_AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const CUT_AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'

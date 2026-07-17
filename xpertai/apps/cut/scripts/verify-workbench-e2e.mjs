@@ -35,6 +35,12 @@ const server = createServer(async (request, response) => {
     response.end(testWav())
     return
   }
+  if (url.pathname === '/download.mp4') {
+    response.setHeader('content-type', 'video/mp4')
+    response.setHeader('content-disposition', 'attachment; filename="headless-e2e.mp4"')
+    response.end(Buffer.from('cut-headless-e2e-download'))
+    return
+  }
   if (url.pathname === '/favicon.ico') { response.statusCode = 204; response.end(); return }
   const path = files[url.pathname]
   if (!path) { response.statusCode = 404; response.end('not found'); return }
@@ -60,6 +66,15 @@ try {
     throw new Error(`${error instanceof Error ? error.message : String(error)}\n${errors.join('\n')}`)
   }
   console.log('cut-e2e: workbench ready')
+  const brandTitle = (await frame.locator('.cut-brand strong').textContent())?.trim()
+  if (brandTitle !== 'Cut') throw new Error(`Cut Workbench brand title is incorrect: ${brandTitle ?? '<empty>'}`)
+  const libraryHeading = frame.locator('.cut-library-content > .panel-heading')
+  const mediaPanelTitle = (await libraryHeading.locator('strong').textContent())?.trim()
+  const headerSearchVisible = await libraryHeading.getByRole('textbox', { name: 'Search media' }).isVisible()
+  const paneOwnsScroll = await frame.locator('.cut-library-pane[data-state="active"]').evaluate((element) => getComputedStyle(element).overflowY === 'auto')
+  if (mediaPanelTitle !== 'Library' || !headerSearchVisible || !paneOwnsScroll) {
+    throw new Error(`Cut library header/scroll layout is invalid: ${JSON.stringify({ mediaPanelTitle, headerSearchVisible, paneOwnsScroll })}`)
+  }
 
   await page.waitForFunction(() => window.__cutHost.assistantContext?.context?.currentProject?.id === window.__cutHost.item.id)
   const assistantContextSynchronization = await page.evaluate(() => {
@@ -81,12 +96,14 @@ try {
   console.log('cut-e2e: iframe media loaded')
 
   await frame.locator('input[type="file"][accept="video/*,audio/*,image/*"]').setInputFiles({
-    name: 'duration-probe.wav',
+    name: '记录—Xpert访谈.wav',
     mimeType: 'audio/wav',
     buffer: testWav()
   })
   await page.waitForFunction(() => Number.isFinite(window.__cutHost.lastUploadDuration), null, { timeout: 20_000 })
   const uploadMetadataDuration = await page.evaluate(() => window.__cutHost.lastUploadDuration)
+  const uploadOriginalName = await page.evaluate(() => window.__cutHost.lastUploadOriginalName)
+  if (uploadOriginalName !== '记录—Xpert访谈.wav') throw new Error(`Cut upload lost the Unicode file name: ${uploadOriginalName}`)
   console.log('cut-e2e: upload media duration metadata verified')
 
   await page.evaluate(() => {
@@ -118,12 +135,17 @@ try {
   console.log('cut-e2e: local audio evidence analysis and persistence verified')
 
   const classicToolTabCount = await frame.locator('.cut-library-tablist [role="tab"]').count()
-  await frame.locator('.media-card').first().dragTo(frame.locator('.track-lane').first(), { targetPosition: { x: 520, y: 24 } })
+  if (classicToolTabCount !== 10) throw new Error(`Cut tool rail contains ${classicToolTabCount} tabs instead of 10.`)
+  const trackCountBeforeMediaDrop = await frame.locator('.track-lane').count()
+  await frame.locator('.media-card').first().dragTo(frame.locator('.track-lane').first(), { targetPosition: { x: 48, y: 24 } })
   await frame.locator('.timeline-clip.image').nth(1).waitFor()
   const mediaDragDrop = await frame.locator('.timeline-clip.image').count() === 2
+  const mediaDropCreatedTrack = await frame.locator('.track-lane').count() === trackCountBeforeMediaDrop + 1
+  if (!mediaDropCreatedTrack) throw new Error('Overlapping imported media did not create a new video track.')
   await frame.getByTitle('Undo').click()
   await frame.locator('.timeline-clip.image').nth(1).waitFor({ state: 'detached' })
   await frame.getByTitle('Text').click()
+  await frame.locator('.cut-library-content > .panel-heading strong').getByText('Text', { exact: true }).waitFor()
   await frame.getByRole('button', { name: 'Add heading', exact: true }).click()
   await frame.locator('.timeline-clip.text').waitFor()
   const textToolCreatedClip = await frame.locator('.timeline-clip.text').count() === 1
@@ -151,7 +173,7 @@ try {
     await frame.getByTitle('Transitions').click()
     await page.screenshot({ path: process.env.CUT_E2E_SCREENSHOT, fullPage: true })
   }
-  console.log('cut-e2e: OpenCut tool rail, clipboard, markers, and undo workflow verified')
+  console.log('cut-e2e: Cut tool rail, clipboard, markers, and undo workflow verified')
 
   await frame.locator('.timeline-clip.image').first().click()
   const resizeHandle = frame.locator('.canvas-transform-handle.south-east').first()
@@ -245,9 +267,28 @@ try {
   await frame.getByRole('button', { name: /Background export/ }).click()
   await frame.getByRole('button', { name: 'Queue export', exact: true }).click()
   await frame.getByTitle('Tasks').click()
-  await frame.getByText(/complete · 100%/).waitFor({ timeout: 15_000 })
+  await frame.locator('.export-task-card').first().waitFor({ timeout: 5_000 })
+  const firstSubmissionTaskVisible = await frame.locator('.export-task-card').count() === 1
+  await frame.locator('.cut-indeterminate-progress').waitFor({ timeout: 15_000 })
+  if (await frame.getByText(/Rendering · 20%/).count()) throw new Error('Measured rendering progress must not display a synthetic 20%.')
+  await frame.getByText(/Complete · 100%/).waitFor({ timeout: 15_000 })
+  const completedTask = frame.locator('.export-task-card').first()
+  const localizedStatus = (await completedTask.locator('[data-slot="badge"]').textContent())?.trim()
+  if (localizedStatus !== 'Succeeded') throw new Error(`Background task status was not localized: ${localizedStatus ?? '<empty>'}`)
+  const compactTypography = await completedTask.evaluate((card) => ({
+    badge: getComputedStyle(card.querySelector('[data-slot="badge"]')).fontSize,
+    button: getComputedStyle(card.querySelector('[data-slot="button"][data-size="xs"]')).fontSize
+  }))
+  if (compactTypography.badge !== '10px' || compactTypography.button !== '10px') {
+    throw new Error(`Task compact typography is incorrect: ${JSON.stringify(compactTypography)}`)
+  }
+  const downloadEvent = page.waitForEvent('download')
+  await completedTask.getByRole('button', { name: 'Download', exact: true }).click()
+  const downloadedExport = await downloadEvent
+  const directTaskDownload = downloadedExport.suggestedFilename() === 'headless-e2e.mp4'
+  if (!directTaskDownload) throw new Error(`Task download did not start on the first click: ${downloadedExport.suggestedFilename()}`)
   const headlessRenderWorkflow = await page.evaluate(() => window.__cutHost.analysisJobs[0]?.status === 'succeeded' && window.__cutHost.exports[0]?.analysisJobId === window.__cutHost.analysisJobs[0]?.id)
-  console.log('cut-e2e: headless render capability, queue progress, and saved export verified')
+  console.log('cut-e2e: headless render capability, queue progress, saved export, and first-click download verified')
 
   await frame.getByRole('button', { name: 'Export', exact: true }).click()
   await frame.getByRole('button', { name: /This browser/ }).click()
@@ -257,17 +298,52 @@ try {
   const exportError = await page.evaluate(() => window.__cutHost.lastError)
   if (exportError) throw new Error(`Cut browser export failed: ${exportError}`)
   const exportResult = await page.evaluate(() => ({ size: window.__cutHost.exportSize, hasAudio: window.__cutHost.exportHasAudio, frames: window.__cutHost.document.settings.durationSeconds * window.__cutHost.document.settings.fps }))
+
+  const projectSelect = frame.getByRole('combobox', { name: 'Select project' })
+  await projectSelect.click()
+  await frame.getByRole('option', { name: 'New', exact: true }).click()
+  let createDialog = frame.getByRole('dialog')
+  await createDialog.getByLabel('Project title').fill('Cancelled Cut project')
+  await createDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await createDialog.waitFor({ state: 'detached' })
+  if (await page.evaluate(() => window.__cutHost.createRequests !== 0)) throw new Error('Cancelling the shadcn project dialog still created a project.')
+  await projectSelect.click()
+  await frame.getByRole('option', { name: 'New', exact: true }).click()
+  createDialog = frame.getByRole('dialog')
+  await createDialog.getByLabel('Project title').fill('Created from shadcn Dialog')
+  await createDialog.getByRole('button', { name: 'Create project', exact: true }).click()
+  await page.waitForFunction(() => window.__cutHost.createRequests === 1)
+  await createDialog.waitFor({ state: 'detached' })
+  const shadcnProjectCreation = await page.evaluate(() => window.__cutHost.item.title === 'Created from shadcn Dialog')
+  console.log('cut-e2e: shadcn project Select and Dialog cancel/confirm paths verified')
+
+  await frame.getByTitle('Delete project').click()
+  await frame.getByRole('alertdialog').waitFor()
+  await frame.getByRole('button', { name: 'Keep project', exact: true }).click()
+  await frame.getByRole('alertdialog').waitFor({ state: 'detached' })
+  if (await page.evaluate(() => window.__cutHost.deleted)) throw new Error('Cancelling project deletion still deleted the project.')
+  await frame.getByTitle('Delete project').click()
+  await frame.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await page.waitForFunction(() => window.__cutHost.deleted === true)
+  await frame.locator('.preview-empty').waitFor({ timeout: 10_000 })
+  const projectPhysicalDelete = await page.evaluate(() => window.__cutHost.deleted && window.__cutHost.deleteRequests === 1)
+  console.log('cut-e2e: project deletion cancel and permanent-confirm paths verified')
+
   if (errors.length) throw new Error(errors.join('\n'))
   console.log(JSON.stringify({
+    cutBrandTitle: brandTitle === 'Cut',
     iframeMediaLoad: Boolean(mediaGate?.includes('/test.svg')),
     assistantCurrentProjectContext: assistantContextSynchronization,
     decodedAudioWaveform: decodedWaveform,
     uploadMetadataDuration: Math.abs(uploadMetadataDuration - 3) < .05,
+    unicodeUploadFileName: uploadOriginalName === '记录—Xpert访谈.wav',
     embeddedVideoAudioPreview,
     embeddedVideoAudioPlaying,
     localMediaIntelligence,
-    classicToolRail: classicToolTabCount === 9,
+    libraryHeaderAndContentScroll: mediaPanelTitle === 'Library' && headerSearchVisible && paneOwnsScroll,
+    classicToolRail: classicToolTabCount === 10,
     mediaDragDrop,
+    mediaDropCreatedTrack,
     textToolAndUndo: textToolCreatedClip,
     clipboardWorkflow,
     bookmarkWorkflow,
@@ -281,10 +357,14 @@ try {
     ...(realWhisper ? { localWhisperText: localWhisperText.slice(0, 160) } : {}),
     captionReviewCommit,
     headlessRenderWorkflow,
+    firstSubmissionTaskVisible,
+    directTaskDownload,
     export30SecondProject: exportResult.frames === 900 && exportResult.size > 1000,
     exportAudioTrack: exportResult.hasAudio,
     exportBytes: exportResult.size,
-    encodedFrames: exportResult.frames
+    encodedFrames: exportResult.frames,
+    shadcnProjectCreation,
+    projectPhysicalDelete
   }, null, 2))
 } finally {
   await browser.close()
@@ -303,7 +383,7 @@ function hostHtml(useRealWhisper) {
   const baseClip={id:'clip-1',type:'image',name:'E2E Still',start:0,duration:5,trimIn:0,trimOut:5,mediaAssetId:'media-1',previewUrl:'/test.svg',transform:{x:0,y:0,width:1920,height:1080,rotation:0,opacity:1}};
   const baseAudio={id:'audio-clip-1',type:'audio',name:'E2E Tone',start:0,duration:3,trimIn:0,trimOut:3,previewUrl:'/test.wav',volume:.25,playbackRate:1};
   const state={
-    exportSize:0,exportHasAudio:false,lastError:'',proposalApplied:false,lastUploadDuration:null,assistantContext:null,
+    exportSize:0,exportHasAudio:false,lastError:'',proposalApplied:false,lastUploadDuration:null,lastUploadOriginalName:null,assistantContext:null,deleted:false,deleteRequests:0,createRequests:0,staleRenderReads:0,
     document:{schemaVersion:1,settings:{width:1920,height:1080,fps:30,durationSeconds:30,background:'#080b12'},tracks:[{id:'video-1',name:'Video 1',kind:'visual',muted:false,hidden:false,clips:[baseClip]},{id:'audio-1',name:'Audio 1',kind:'audio',muted:false,hidden:false,clips:[baseAudio]}]},
     item:{id:'11111111-1111-4111-8111-111111111111',title:'Cut 30-second E2E',brief:'Gate verification',status:'draft',revision:1,currentVersionNumber:0},
     captionDrafts:[],captionPage:null,mediaSegments:[],editProposals:[],proposalPage:null,proposalSourceDocument:null,analysisJobs:[],exports:[],renderPolls:0,
@@ -326,15 +406,22 @@ function hostHtml(useRealWhisper) {
   const frame=document.getElementById('cut-frame');
   frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/react.js"><\\/script><script src="/react-dom.js"><\\/script>${whisperWorkerFactory}<script src="/app.js"><\\/script></body></html>';
   function detail(){return {item:{...state.item},document:structuredClone(state.document),media:[{id:'media-1',originalName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512,previewUrl:'/test.svg'},{id:'media-audio',originalName:'cut-e2e.wav',mimeType:'audio/wav',size:264644,duration:3,previewUrl:'${whisperMediaUrl}'}],versions:[],exports:structuredClone(state.exports),logs:[]}}
+  function workbenchData(analysisJobs=state.analysisJobs){return {projects:{items:[{...state.item}],total:1,page:1,pageSize:20},detail:detail(),captionDrafts:structuredClone(state.captionDrafts),analysisJobs:structuredClone(analysisJobs),mediaSegments:structuredClone(state.mediaSegments),editProposals:structuredClone(state.editProposals),renderCapability:{available:true,backend:'sandbox-job',action:'cut.render-mp4',actionVersion:'1.1.2',runtimeProfile:'browser/playwright-1.61/v1',workerCount:1,limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}}}
   function viewData(){
-    const render=state.analysisJobs[0];if(render&&render.status==='queued'){render.status='running';render.stage='rendering';render.progress=20}else if(render&&render.status==='running'&&state.renderPolls++>=0){render.status='succeeded';render.stage='complete';render.progress=100;render.resultExportId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';state.exports=[{id:render.resultExportId,kind:'mp4',mimeType:'video/mp4',size:11961,fileUrl:'https://files.example.test/headless.mp4',changeSummary:'Headless E2E export.',analysisJobId:render.id,sourceRevision:render.inputRevision,renderer:'sandbox-job:cut.render-mp4@1.0.0'}]}
-    return {projects:{items:[{...state.item}],total:1,page:1,pageSize:20},detail:detail(),captionDrafts:structuredClone(state.captionDrafts),analysisJobs:structuredClone(state.analysisJobs),mediaSegments:structuredClone(state.mediaSegments),editProposals:structuredClone(state.editProposals),renderCapability:{available:true,backend:'sandbox-job',action:'cut.render-mp4',actionVersion:'1.0.0',runtimeProfile:'browser/playwright-1.61/v1',workerCount:1,limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}}
+    if(state.deleted)return {projects:{items:[],total:0,page:1,pageSize:20},detail:null,captionDrafts:[],analysisJobs:[],mediaSegments:[],editProposals:[],renderCapability:{available:true,backend:'sandbox-job',limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}};
+    if(state.staleRenderReads>0){state.staleRenderReads--;return workbenchData([])}
+    const render=state.analysisJobs[0];if(render&&render.status==='queued'){render.status='running';render.stage='rendering';render.progress=20}else if(render&&render.status==='running'&&state.renderPolls++>=0){render.status='succeeded';render.stage='complete';render.progress=100;render.resultExportId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';state.exports=[{id:render.resultExportId,kind:'mp4',mimeType:'video/mp4',size:11961,fileUrl:'https://files.example.test/headless.mp4',changeSummary:'Headless E2E export.',analysisJobId:render.id,sourceRevision:render.inputRevision,renderer:'sandbox-job:cut.render-mp4@1.1.2'}]}
+    return workbenchData()
   }
   function reply(message,payload){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'response',requestId:message.requestId,payload},'*')}
   function sendHostEvent(toolName){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'hostEvent',event:{event:'assistant.tool.completed',data:{toolName}}},'*')}
   window.addEventListener('message',(event)=>{const message=event.data;if(!message||message.channel!==channel)return;
     if(message.type==='ready'){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'init',locale:'en_US',initialQuery:{selectionId:state.item.id}},'*');return}
     if(message.type==='requestData'){reply(message,viewData());return}
+    if(message.type==='requestFileAccess'){
+      const file=message.purpose==='download'?{url:'/download.mp4',fileName:'headless-e2e.mp4',mimeType:'video/mp4',size:25}:message.fileKey==='media-audio'?{url:'${whisperMediaUrl}',fileName:'cut-e2e.wav',mimeType:'audio/wav',size:264644}:{url:'/test.svg',fileName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512};
+      reply(message,{...file,expiresAt:new Date(Date.now()+60*60*1000).toISOString()});return
+    }
     if(message.type==='notify'){if(message.level==='error')state.lastError=message.message||'unknown Cut error';return}
     if(message.type==='invokeClientCommand'){
       if(message.commandKey!=='assistant.context.set'){reply(message,{success:false,code:'unsupported',message:'Unsupported command.'});return}
@@ -343,10 +430,12 @@ function hostHtml(useRealWhisper) {
       reply(message,{success:true,status:message.payload.clear?'cleared':'updated',key:message.payload.key});return
     }
     if(message.type==='executeAction'){
+      if(message.actionKey==='cut_create_project'){state.createRequests++;state.item={...state.item,title:message.input.title,revision:1};reply(message,detail());return}
+      if(message.actionKey==='cut_delete_project'){state.deleted=true;state.deleteRequests++;reply(message,{success:true,deleted:true,projectId:state.item.id,workspaceFilesDeleted:true});return}
       if(message.actionKey==='cut_save_project'){state.document=structuredClone(message.input.document);state.item.revision++;reply(message,{success:true,project:{...state.item},document:structuredClone(state.document)});return}
       if(message.actionKey==='cut_finalize_version'){state.item.currentVersionNumber++;reply(message,{success:true,project:{...state.item}});return}
       if(message.actionKey==='cut_start_headless_export'){
-        const job={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',projectId:state.item.id,type:'render',executionMode:'server',status:'queued',progress:0,inputRevision:state.item.revision,variantName:message.input.variants[0].name,stage:'queued',resultExportId:null,cancellationRequested:false};state.analysisJobs=[job];state.renderPolls=0;reply(message,{success:true,projectId:state.item.id,sourceRevision:state.item.revision,jobs:[{jobId:job.id,status:job.status,variantName:job.variantName}]});return
+        const job={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',projectId:state.item.id,type:'render',executionMode:'server',status:'queued',progress:0,inputRevision:state.item.revision,variantName:message.input.variants[0].name,stage:'queued',resultExportId:null,cancellationRequested:false};state.analysisJobs=[job];state.renderPolls=0;state.staleRenderReads=1;reply(message,{success:true,projectId:state.item.id,sourceRevision:state.item.revision,jobs:[{jobId:job.id,status:job.status,variantName:job.variantName}]});return
       }
       if(message.actionKey==='cut_get_caption_draft'){reply(message,structuredClone(state.captionPage));return}
       if(message.actionKey==='cut_get_edit_proposal'){reply(message,structuredClone(state.proposalPage));return}
@@ -380,7 +469,7 @@ function hostHtml(useRealWhisper) {
       reply(message,detail());return
     }
     if(message.type==='executeFileAction'){
-      if(message.actionKey==='cut_upload_media_file'){state.lastUploadDuration=message.input.duration;reply(message,{success:true,size:message.file.buffer.byteLength});return}
+      if(message.actionKey==='cut_upload_media_file'){state.lastUploadDuration=message.input.duration;state.lastUploadOriginalName=message.input.originalName;reply(message,{success:true,size:message.file.buffer.byteLength});return}
       if(message.actionKey==='cut_save_export_file'){state.exportSize=message.file.buffer.byteLength;state.exportHasAudio=new TextDecoder().decode(new Uint8Array(message.file.buffer)).includes('soun')}
       if(message.actionKey==='cut_import_subtitle_file'){
         const item={id:'22222222-2222-4222-8222-222222222222',projectId:state.item.id,transcriptId:'33333333-3333-4333-8333-333333333333',sourceRevision:state.item.revision,status:'draft',revision:1,language:'en',targetTrackId:null,captionCount:2,committedRevision:null};

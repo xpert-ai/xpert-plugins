@@ -1,7 +1,11 @@
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny'
+import { compactCutMediaTrackDurations, selectCutMediaDuration } from '../../../cut-media-duration'
 
 export type BrowserMediaMetadata = {
   duration?: number
+  containerDuration?: number
+  videoDuration?: number
+  audioDuration?: number
   codedWidth?: number
   codedHeight?: number
   displayWidth?: number
@@ -13,10 +17,20 @@ export async function probeMediaMetadata(source: Blob | string, kind: 'video' | 
   if (typeof source !== 'string' && kind !== 'image') {
     const input = new Input({ source: new BlobSource(source), formats: ALL_FORMATS })
     try {
-      const duration = await input.computeDuration()
-      const video = await input.getPrimaryVideoTrack()
+      const [containerDuration, video, audio] = await Promise.all([
+        input.computeDuration(),
+        input.getPrimaryVideoTrack(),
+        input.getPrimaryAudioTrack()
+      ])
+      const [videoDuration, audioDuration] = await Promise.all([
+        video?.computeDuration(),
+        audio?.computeDuration()
+      ])
+      const durations = compactCutMediaTrackDurations({ containerDuration, videoDuration, audioDuration })
+      const duration = selectCutMediaDuration(kind, durations)
       return {
-        ...(Number.isFinite(duration) && duration > 0 ? { duration: roundTime(duration) } : {}),
+        ...(typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? { duration: roundTime(duration) } : {}),
+        ...durations,
         ...(video ? {
           codedWidth: video.codedWidth,
           codedHeight: video.codedHeight,
@@ -66,6 +80,8 @@ async function probeMediaElementMetadata(source: Blob | string, kind: 'video' | 
       if (error) reject(error)
       else if (Number.isFinite(duration) && duration > 0) resolve({
         duration: roundTime(duration),
+        containerDuration: roundTime(duration),
+        ...(kind === 'video' ? { videoDuration: roundTime(duration) } : { audioDuration: roundTime(duration) }),
         ...(media instanceof HTMLVideoElement && media.videoWidth > 0 && media.videoHeight > 0 ? {
           codedWidth: media.videoWidth,
           codedHeight: media.videoHeight,

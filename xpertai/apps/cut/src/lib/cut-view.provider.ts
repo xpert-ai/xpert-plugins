@@ -35,6 +35,7 @@ import {
   CUT_WORKBENCH_VIEW_KEY
 } from './constants.js'
 import { CutCaptionService } from './cut-caption.service.js'
+import { normalizeCutFileName } from './cut-file-name.js'
 import { isCutExportFormat, isCutExportQuality, normalizeCutExportSettings } from './cut-export-settings.js'
 import { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
 import { CutProposalService } from './cut-proposal.service.js'
@@ -121,6 +122,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
       actions: [
         { key: 'cut_refresh', label: i18n('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
         { key: 'cut_create_project', label: i18n('New Cut Project', '新建 Cut 项目'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
+        { key: 'cut_delete_project', label: i18n('Delete Cut Project', '删除 Cut 项目'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
         { key: 'cut_save_project', label: i18n('Save Timeline', '保存时间线'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'cut_apply_edit', label: i18n('Apply Timeline Edit', '应用时间线编辑'), icon: 'ri-scissors-cut-line', actionType: 'invoke' },
         { key: 'cut_finalize_version', label: i18n('Finalize Version', '保存版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
@@ -232,6 +234,14 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           changeSummary: inputString(request.input, 'changeSummary') ?? 'Created a Cut project from Workbench.'
         })
         return { ...success('Cut project created.'), data: sanitizeDetail(result) }
+      }
+      if (actionKey === 'cut_delete_project') {
+        const result = await this.service.deleteProject(
+          scope,
+          requestProjectId(request),
+          requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.')
+        )
+        return { ...success('Cut project permanently deleted.'), refresh: true, data: result }
       }
       if (actionKey === 'cut_save_project') {
         const result = await this.service.saveProject(scope, {
@@ -407,8 +417,12 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
     try {
       const scope = scopeFromContext(context)
       if (actionKey === 'cut_upload_media_file') {
+        const originalName = normalizeCutFileName(inputString(request.input, 'originalName') ?? file.originalname, 'cut-media')
         const mediaMetadata = {
           duration: inputNumber(request.input, 'duration'),
+          containerDuration: inputNumber(request.input, 'containerDuration'),
+          videoDuration: inputNumber(request.input, 'videoDuration'),
+          audioDuration: inputNumber(request.input, 'audioDuration'),
           codedWidth: inputNumber(request.input, 'codedWidth'),
           codedHeight: inputNumber(request.input, 'codedHeight'),
           displayWidth: inputNumber(request.input, 'displayWidth'),
@@ -416,23 +430,25 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           rotationDegrees: inputNumber(request.input, 'rotationDegrees')
         }
         const result = await this.service.uploadMedia(scope, requestProjectId(request), {
-          buffer: file.buffer, originalName: file.originalname, mimeType: file.mimetype, size: file.size
-        }, mediaMetadata.duration, requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.'), inputString(request.input, 'changeSummary') ?? `Uploaded ${file.originalname ?? 'Cut media'}.`, mediaMetadata)
+          buffer: file.buffer, originalName, mimeType: file.mimetype, size: file.size
+        }, mediaMetadata.duration, requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.'), inputString(request.input, 'changeSummary') ?? `Uploaded ${originalName}.`, mediaMetadata)
         return { ...success('Cut media uploaded.'), data: sanitizeMutation(result) }
       }
       if (actionKey === 'cut_import_subtitle_file') {
+        const originalName = normalizeCutFileName(inputString(request.input, 'originalName') ?? file.originalname, 'captions.srt')
         const result = await this.captions.importSubtitle(scope, {
           projectId: requestProjectId(request),
           baseRevision: requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.'),
           language: inputString(request.input, 'language') ?? 'und',
           format: inputSubtitleFormat(request.input),
-          changeSummary: inputString(request.input, 'changeSummary') ?? `Imported ${file.originalname ?? 'Cut subtitles'}.`
-        }, { buffer: file.buffer, name: file.originalname ?? 'captions.srt' })
+          changeSummary: inputString(request.input, 'changeSummary') ?? `Imported ${originalName}.`
+        }, { buffer: file.buffer, name: originalName })
         return { ...success('Cut subtitles imported as a reviewable draft.'), data: result }
       }
       if (actionKey === 'cut_save_export_file') {
+        const originalName = normalizeCutFileName(inputString(request.input, 'originalName') ?? file.originalname, 'cut-export.mp4')
         const result = await this.service.saveExport(scope, requestProjectId(request), {
-          buffer: file.buffer, originalName: file.originalname, mimeType: file.mimetype, size: file.size
+          buffer: file.buffer, originalName, mimeType: file.mimetype, size: file.size
         }, inputString(request.input, 'changeSummary') ?? 'Saved browser-rendered Cut video export.')
         return { ...success('Cut video export saved.'), data: { success: true, export: sanitizeExport(result.export) } }
       }

@@ -51,6 +51,9 @@ export type MediaSummary = {
   size: number
   previewUrl?: string | null
   duration?: number | null
+  containerDuration?: number | null
+  videoDuration?: number | null
+  audioDuration?: number | null
   codedWidth?: number | null
   codedHeight?: number | null
   displayWidth?: number | null

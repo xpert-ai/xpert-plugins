@@ -35,7 +35,7 @@ const files = await collectFiles(bundleRoot)
 const bundleSha256 = treeSha256(files)
 const manifest = {
   name: 'cut.render-mp4',
-  version: '1.1.0',
+  version: '1.1.2',
   runtimeProfile: 'browser/playwright-1.61/v1',
   runtimeContractVersion: '1',
   playwrightVersion: '1.61.0',

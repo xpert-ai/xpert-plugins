@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actionRoot = path.join(packageRoot, 'dist', 'sandbox-actions', 'cut-render')
 const manifest = JSON.parse(await readFile(path.join(actionRoot, 'action.json'), 'utf8'))
-if (manifest.name !== 'cut.render-mp4' || manifest.version !== '1.1.0' || manifest.runtimeProfile !== 'browser/playwright-1.61/v1') {
+if (manifest.name !== 'cut.render-mp4' || manifest.version !== '1.1.2' || manifest.runtimeProfile !== 'browser/playwright-1.61/v1') {
   throw new Error('Sandbox Action manifest identity or runtime profile is invalid.')
 }
 const bundleRoot = await realpath(path.join(actionRoot, manifest.bundle))

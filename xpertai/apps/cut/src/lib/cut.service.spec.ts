@@ -1,4 +1,4 @@
-import type { Repository } from 'typeorm'
+import type { EntityManager, Repository } from 'typeorm'
 import type { AgentMiddlewareRuntimeCapabilityRegistry, WorkspaceFilesApi } from '@xpert-ai/plugin-sdk'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
@@ -8,7 +8,19 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { CutService } from './cut.service.js'
-import { CutActionLog, CutExport, CutMediaAsset, CutProject, CutProjectVersion } from './entities/index.js'
+import {
+  CutActionLog,
+  CutAnalysisJob,
+  CutCaptionDraft,
+  CutEditProposal,
+  CutExport,
+  CutMediaAsset,
+  CutMediaSegment,
+  CutProject,
+  CutProjectVersion,
+  CutTranscript,
+  CutTranscriptSegment
+} from './entities/index.js'
 import type { CutScope } from './types.js'
 
 describe('CutService scoped persistence and Workspace Files', () => {
@@ -18,6 +30,25 @@ describe('CutService scoped persistence and Workspace Files', () => {
     const media = memoryRepository<CutMediaAsset>()
     const exports = memoryRepository<CutExport>()
     const logs = memoryRepository<CutActionLog>()
+    const analysisJobs = memoryRepository<CutAnalysisJob>()
+    const mediaSegments = memoryRepository<CutMediaSegment>()
+    const transcripts = memoryRepository<CutTranscript>()
+    const transcriptSegments = memoryRepository<CutTranscriptSegment>()
+    const captionDrafts = memoryRepository<CutCaptionDraft>()
+    const editProposals = memoryRepository<CutEditProposal>()
+    attachMemoryManager(projects.repository, new Map<Function, object>([
+      [CutProject, projects.repository],
+      [CutProjectVersion, versions.repository],
+      [CutMediaAsset, media.repository],
+      [CutExport, exports.repository],
+      [CutActionLog, logs.repository],
+      [CutAnalysisJob, analysisJobs.repository],
+      [CutMediaSegment, mediaSegments.repository],
+      [CutTranscript, transcripts.repository],
+      [CutTranscriptSegment, transcriptSegments.repository],
+      [CutCaptionDraft, captionDrafts.repository],
+      [CutEditProposal, editProposals.repository]
+    ]))
     const uploadBuffer = jest.fn(async (input) => ({
       name: input.originalName,
       filePath: `${input.folder}/${input.originalName}`,
@@ -34,7 +65,8 @@ describe('CutService scoped persistence and Workspace Files', () => {
       workspacePath: input.workspacePath ?? input.filePath,
       tenantId: input.tenantId ?? scope.tenantId
     }))
-    const workspaceFiles = { uploadBuffer, resolveRuntimeReference } as Pick<WorkspaceFilesApi, 'uploadBuffer' | 'resolveRuntimeReference'>
+    const deleteFile = jest.fn(async () => undefined)
+    const workspaceFiles = { uploadBuffer, resolveRuntimeReference, deleteFile } as Pick<WorkspaceFilesApi, 'uploadBuffer' | 'resolveRuntimeReference' | 'deleteFile'>
     const runtimeCapabilities = { get: jest.fn(() => workspaceFiles) } as Pick<AgentMiddlewareRuntimeCapabilityRegistry, 'get'>
     const service = new CutService(
       projects.repository, versions.repository, media.repository, exports.repository, logs.repository,
@@ -186,6 +218,41 @@ describe('CutService scoped persistence and Workspace Files', () => {
       .rejects.toThrow('current host project')
 
     await expect(service.getProject({ ...scope, organizationId: 'org-b' }, projectId)).rejects.toThrow('current tenant and organization')
+
+    const activeJob: CutAnalysisJob = Object.assign(new CutAnalysisJob(), {
+      id: '00000000-0000-4000-8000-000000000101',
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      cutProjectId: projectId,
+      status: 'running' as const
+    })
+    analysisJobs.rows.push(activeJob)
+    await expect(service.deleteProject(scope, projectId, batch.project.revision)).rejects.toThrow('Cancel active Cut tasks')
+    expect(projects.rows).toHaveLength(1)
+    expect(deleteFile).not.toHaveBeenCalled()
+
+    activeJob.status = 'cancelled'
+    mediaSegments.rows.push(Object.assign(new CutMediaSegment(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    transcripts.rows.push(Object.assign(new CutTranscript(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    transcriptSegments.rows.push(Object.assign(new CutTranscriptSegment(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    captionDrafts.rows.push(Object.assign(new CutCaptionDraft(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    editProposals.rows.push(Object.assign(new CutEditProposal(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    const deleted = await service.deleteProject(scope, projectId, batch.project.revision)
+    expect(deleted).toMatchObject({ success: true, deleted: true, projectId, workspaceFilesDeleted: true })
+    expect(projects.rows).toHaveLength(0)
+    expect(versions.rows).toHaveLength(0)
+    expect(media.rows).toHaveLength(0)
+    expect(exports.rows).toHaveLength(0)
+    expect(logs.rows).toHaveLength(0)
+    expect(analysisJobs.rows).toHaveLength(0)
+    expect(mediaSegments.rows).toHaveLength(0)
+    expect(transcripts.rows).toHaveLength(0)
+    expect(transcriptSegments.rows).toHaveLength(0)
+    expect(captionDrafts.rows).toHaveLength(0)
+    expect(editProposals.rows).toHaveLength(0)
+    expect(deleteFile).toHaveBeenCalledTimes(1)
+    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({ filePath: `files/cut/${projectId}` }))
+    await expect(service.getProject(scope, projectId)).rejects.toThrow('current tenant and organization')
   })
 })
 
@@ -216,9 +283,32 @@ function memoryRepository<T extends { id?: string; createdAt?: Date; updatedAt?:
       if (!row) return { affected: 0 }
       Object.assign(row, patch, { updatedAt: new Date() })
       return { affected: 1 }
+    },
+    async delete(criteria: Partial<T>) {
+      let affected = 0
+      for (let index = rows.length - 1; index >= 0; index -= 1) {
+        if (!matches(rows[index]!, criteria)) continue
+        rows.splice(index, 1)
+        affected += 1
+      }
+      return { affected }
     }
   }
   return { repository: repository as Repository<T>, rows }
+}
+
+function attachMemoryManager(projectRepository: Repository<CutProject>, repositories: Map<Function, object>) {
+  const manager = {
+    getRepository(entity: Function) {
+      const repository = repositories.get(entity)
+      if (!repository) throw new Error(`Missing in-memory repository for ${entity.name}.`)
+      return repository
+    },
+    async transaction<T>(run: (manager: EntityManager) => Promise<T>) {
+      return run(manager as unknown as EntityManager)
+    }
+  }
+  Object.defineProperty(projectRepository, 'manager', { value: manager })
 }
 
 function matches<T extends object>(row: T, where: Partial<T>) {

@@ -18,7 +18,7 @@ try {
     runtimeProfile: 'browser/playwright-1.61/v1',
     sandboxRuntimeVersion: '1.0.0',
     action: 'cut.render-mp4',
-    actionVersion: '1.1.0',
+    actionVersion: '1.1.2',
     payload: {
       sourceRevision: 7,
       timeoutMs: 120_000,
@@ -45,7 +45,7 @@ try {
   const requestPath = path.join(inputRoot, 'job.json')
   await writeFile(requestPath, JSON.stringify(request))
   const executable = await browserExecutable()
-  await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
+  const mp4Output = await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
     CUT_SANDBOX_CHROMIUM_EXECUTABLE: executable
   }, 150_000)
   const mp4 = await readFile(path.join(outputRoot, 'cut.mp4'))
@@ -53,15 +53,17 @@ try {
   if (!mp4.includes(Buffer.from('ftyp')) || !mp4.includes(Buffer.from('moov'))) throw new Error('Smoke MP4 is structurally invalid.')
   if (!mp4.includes(Buffer.from('vide')) || !mp4.includes(Buffer.from('soun'))) throw new Error('Smoke MP4 must contain video and audio tracks.')
   if (report.sourceRevision !== 7 || report.frameCount !== 18 || report.progress !== 1) throw new Error('Smoke report does not match the deterministic input snapshot.')
+  assertProgressLogs(mp4Output, 18)
   request.payload.exportSettings = { format: 'webm', quality: 'medium', includeAudio: false }
   await writeFile(requestPath, JSON.stringify(request))
-  await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
+  const webmOutput = await execute(process.execPath, [path.join(actionRoot, 'runner.mjs'), '--request', requestPath, '--output', outputRoot], {
     CUT_SANDBOX_CHROMIUM_EXECUTABLE: executable
   }, 150_000)
   const webm = await readFile(path.join(outputRoot, 'cut.webm'))
   const webmReport = JSON.parse(await readFile(path.join(outputRoot, 'report.json'), 'utf8'))
   if (!webm.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) || !webm.includes(Buffer.from('webm'))) throw new Error('Smoke WebM is structurally invalid.')
   if (webmReport.format !== 'webm' || webmReport.quality !== 'medium' || webmReport.includeAudio !== false) throw new Error('Smoke WebM report does not preserve export settings.')
+  assertProgressLogs(webmOutput, 18)
   process.stdout.write(`${JSON.stringify({ action: 'cut.render-mp4', mp4Bytes: mp4.length, webmBytes: webm.length, frameCount: report.frameCount, video: true, audio: true, browser: executable })}\n`)
 } finally {
   await rm(workspace, { recursive: true, force: true })
@@ -97,9 +99,18 @@ function execute(command, args, environment, timeoutMs) {
     child.once('error', (error) => { clearTimeout(timer); reject(error) })
     child.once('exit', (code) => {
       clearTimeout(timer)
-      code === 0 ? resolve() : reject(new Error(output.trim() || `Sandbox Action smoke exited with code ${code}.`))
+      code === 0 ? resolve(output) : reject(new Error(output.trim() || `Sandbox Action smoke exited with code ${code}.`))
     })
   })
+}
+
+function assertProgressLogs(output, expectedFrameCount) {
+  const entries = output.split('\n')
+    .filter((line) => line.startsWith('CUT_RENDER_PROGRESS '))
+    .map((line) => JSON.parse(line.slice('CUT_RENDER_PROGRESS '.length)))
+  if (!entries.length) throw new Error('Sandbox Action did not emit CUT_RENDER_PROGRESS logs.')
+  const completed = entries.find((entry) => entry.percent === 100 && entry.frame === expectedFrameCount && entry.frameCount === expectedFrameCount)
+  if (!completed) throw new Error('Sandbox Action did not emit a completed frame progress log.')
 }
 
 function toneWav(durationSeconds) {

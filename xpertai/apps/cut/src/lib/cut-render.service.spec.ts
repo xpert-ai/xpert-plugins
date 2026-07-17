@@ -116,7 +116,7 @@ describe('CutRenderService', () => {
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       jobId,
       action: 'cut.render-mp4',
-      actionVersion: '1.1.0',
+      actionVersion: '1.1.2',
       files: [expect.objectContaining({
         targetPath: `media/${ASSET_ID}/voice.wav`,
         size: 4_096,
@@ -133,10 +133,16 @@ describe('CutRenderService', () => {
       sourceRevision: 7,
       checksum: 'b'.repeat(64),
       kind: 'mp4',
-      renderer: 'sandbox-job:cut.render-mp4@1.1.0'
+      renderer: 'sandbox-job:cut.render-mp4@1.1.2'
     })
     expect(harness.jobs.rows[0]).toMatchObject({ status: 'succeeded', progress: 100, resultExportId: harness.exports.rows[0]!.id, sandboxJobId: jobId })
     expect(harness.logs.rows.map((row) => row.action)).toEqual(['cut_render_started', 'cut_render_completed'])
+    expect(harness.progressLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('"event":"sandbox-starting"'),
+      expect.stringContaining('"event":"rendering"'),
+      expect.stringContaining('"event":"sandbox-finished"'),
+      expect.stringContaining('"event":"complete"')
+    ]))
   })
 
   it('propagates WebM quality and silent-audio settings into the Action and persisted export', async () => {
@@ -162,6 +168,41 @@ describe('CutRenderService', () => {
       outputs: expect.arrayContaining([expect.objectContaining({ path: 'cut.webm', mimeType: 'video/webm' })])
     }))
     expect(harness.exports.rows[0]).toMatchObject({ kind: 'webm', mimeType: 'video/webm' })
+  })
+
+  it('prints a backend heartbeat while a long Sandbox render is still running', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID, baseRevision: 7, changeSummary: 'Observed a long render.'
+    })
+    const jobId = started.jobs[0]!.jobId!
+    const defaultRun = harness.sandbox.run.getMockImplementation()
+    if (!defaultRun) throw new Error('Sandbox test implementation is unavailable.')
+    let release!: () => void
+    let markStarted!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const runStarted = new Promise<void>((resolve) => { markStarted = resolve })
+    harness.sandbox.run.mockImplementationOnce(async (input) => {
+      markStarted()
+      await gate
+      return defaultRun(input)
+    })
+
+    jest.useFakeTimers()
+    let processing: Promise<void> | undefined
+    try {
+      processing = harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+      await runStarted
+      jest.advanceTimersByTime(15_000)
+      expect(harness.progressLogs).toEqual(expect.arrayContaining([
+        expect.stringContaining('"event":"rendering-heartbeat"'),
+        expect.stringContaining('"elapsedSeconds":15')
+      ]))
+    } finally {
+      release()
+      await processing
+      jest.useRealTimers()
+    }
   })
 
   it('records retryable Sandbox failure and cooperatively cancels queued or active work', async () => {
@@ -269,11 +310,11 @@ function createHarness(options: { assetSize?: number } = {}) {
     cancel: jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
   } as unknown as jest.Mocked<ManagedQueueService>
   const sandbox = {
-    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.0', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
+    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.2', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
     run: jest.fn(async (input: { jobId?: string; outputs?: Array<{ path: string; originalName: string; mimeType: string }> }) => {
       const video = input.outputs?.find((item) => item.path !== 'report.json') ?? { path: 'cut.mp4', originalName: 'master.mp4', mimeType: 'video/mp4' }
       return {
-        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.0', status: 'succeeded' as const, attempt: 1,
+        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.2', status: 'succeeded' as const, attempt: 1,
         outputs: [
           output(video.path, video.mimeType, video.originalName, 12_345, 'b'.repeat(64)),
           output('report.json', 'application/json', 'master.report.json', 512, 'c'.repeat(64))
@@ -296,7 +337,9 @@ function createHarness(options: { assetSize?: number } = {}) {
       capability?.id === 'platform.workspace.files' ? workspaceFiles : sandbox)
   }
   const service = new CutRenderService(cut, jobs.repository, media.repository, exports.repository, logs.repository, queue, capabilities as never)
-  return { service, jobs, media, exports, logs, queue, sandbox, workspaceFiles }
+  const progressLogs: string[] = []
+  ;(service as unknown as { logger: { log(message: string): void } }).logger.log = (message) => progressLogs.push(message)
+  return { service, jobs, media, exports, logs, queue, sandbox, workspaceFiles, progressLogs }
 }
 
 function renderDocument() {

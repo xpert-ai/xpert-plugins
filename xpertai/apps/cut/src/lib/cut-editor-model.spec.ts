@@ -3,6 +3,7 @@ import {
   duplicateCutClips,
   extractCutAudio,
   pasteCutClips,
+  placeCutMediaClip,
   removeCutClips,
   splitCutClips,
   toggleCutBookmark
@@ -48,5 +49,29 @@ describe('Cut editor model', () => {
     const added = toggleCutBookmark(project(), 3.5, makeId)
     expect(added.bookmarks).toEqual([{ id: 'new-1', time: 3.5, label: 'Bookmark 1' }])
     expect(toggleCutBookmark(added, 3.52, makeId).bookmarks).toEqual([])
+  })
+
+  it('creates a new video track when dropped media overlaps the target track', () => {
+    const source = project()
+    const placed = placeCutMediaClip(source, {
+      id: 'new-video', name: '新素材.mov', type: 'video', mediaAssetId: 'asset-2',
+      start: 2, duration: 5, trimIn: 0, trimOut: 5
+    }, 'visual', source.tracks[0]!.id, makeId)
+
+    expect(placed.tracks).toHaveLength(3)
+    expect(placed.tracks[0]!.clips).toHaveLength(1)
+    expect(placed.tracks[1]).toMatchObject({ id: 'new-1', name: 'Video 2', kind: 'visual' })
+    expect(placed.tracks[1]!.clips[0]).toMatchObject({ id: 'new-video', start: 2 })
+  })
+
+  it('keeps dropped media on the requested track when its time range is free', () => {
+    const source = project()
+    const placed = placeCutMediaClip(source, {
+      id: 'new-video', name: 'Later.mov', type: 'video', mediaAssetId: 'asset-2',
+      start: 10, duration: 5, trimIn: 0, trimOut: 5
+    }, 'visual', source.tracks[0]!.id, makeId)
+
+    expect(placed.tracks).toHaveLength(2)
+    expect(placed.tracks[0]!.clips.map((clip) => clip.id)).toEqual(['video-clip', 'new-video'])
   })
 })
