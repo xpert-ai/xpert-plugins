@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Collaborative Excalidraw plugin with Agent-created diagrams, Yjs multiplayer editing, interactive HTML Artifact sharing, reviewable versions, DiagramIR, and an editable workbench.",
   "author": {
     "name": "XpertAI",
