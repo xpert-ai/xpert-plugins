@@ -44,7 +44,10 @@ const MAX_TEMPLATE_VALUE_LENGTH = 5_000
 const MAX_MEDIA_MAPPINGS = 100
 const MAX_RENDER_DURATION_SECONDS = 600
 const MAX_RENDER_FRAMES = 18_000
-const MAX_RENDER_MEDIA_BYTES = 4 * 1024 * 1024 * 1024
+// Sandbox Jobs v1 materializes at most 350 MiB of portable input files. Keep
+// the plugin's advertised and enforced limit aligned so oversized source media
+// falls back to the browser exporter before a queue record is created.
+const MAX_RENDER_MEDIA_BYTES = 350 * 1024 * 1024
 
 type RenderScopedEntity = {
   tenantId: string
@@ -138,7 +141,9 @@ export class CutRenderService {
       const assetIds = [...new Set(renderDocument.tracks.flatMap((track) => track.clips.map((clip) => clip.mediaAssetId).filter(isString)))]
       const referencedAssets = assetIds.map((id) => requireAsset(assets, id))
       const mediaBytes = referencedAssets.reduce((sum, asset) => sum + asset.size, 0)
-      if (mediaBytes > MAX_RENDER_MEDIA_BYTES) throw new Error(`Cut headless render media exceeds ${MAX_RENDER_MEDIA_BYTES} bytes.`)
+      if (mediaBytes > MAX_RENDER_MEDIA_BYTES) {
+        throw new Error(`Cut headless render media exceeds ${MAX_RENDER_MEDIA_BYTES} bytes; use browser MP4 export or a smaller workspace proxy.`)
+      }
       const documentChecksum = hashJson({
         sourceRevision: input.baseRevision,
         document: renderDocument,

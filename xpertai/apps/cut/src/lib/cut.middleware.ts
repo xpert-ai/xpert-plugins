@@ -15,13 +15,17 @@ import {
 import { z } from 'zod/v3'
 import {
   CUT_AGENT_CAPABILITY,
+  CUT_ADD_COVER_TOOL_NAME,
   CUT_ADD_CLIP_TOOL_NAME,
   CUT_APPLY_BATCH_TOOL_NAME,
   CUT_APPLY_EDIT_TOOL_NAME,
   CUT_CREATE_PROJECT_TOOL_NAME,
   CUT_CREATE_CAPTION_DRAFT_TOOL_NAME,
+  CUT_CREATE_SPEECH_CLEANUP_PROPOSAL_TOOL_NAME,
+  CUT_CREATE_TRANSLATED_CAPTION_DRAFT_TOOL_NAME,
   CUT_CREATE_EDIT_PROPOSAL_TOOL_NAME,
   CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
+  CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
   CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME,
   CUT_DELETE_CLIPS_TOOL_NAME,
   CUT_DUPLICATE_CLIPS_TOOL_NAME,
@@ -38,6 +42,7 @@ import {
   CUT_IMPORT_SUBTITLE_TOOL_NAME,
   CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME,
   CUT_MANAGE_TRACK_TOOL_NAME,
+  CUT_RIPPLE_DELETE_RANGES_TOOL_NAME,
   CUT_MIDDLEWARE_NAME,
   CUT_MIDDLEWARE_TOOL_NAMES,
   CUT_REPORT_FAILURE_TOOL_NAME,
@@ -62,11 +67,13 @@ import {
 } from './constants.js'
 import { CutCaptionService } from './cut-caption.service.js'
 import {
+  cutAddCoverOperationSchema,
   cutAddClipOperationSchema,
   cutDeleteClipsOperationSchema,
   cutDuplicateClipsOperationSchema,
   cutEditOperationSchema,
   cutManageTrackOperationSchema,
+  cutRippleDeleteRangesOperationSchema,
   cutProjectDocumentSchema,
   cutUpdateAudioOperationSchema,
   cutUpdateClipTimingOperationSchema,
@@ -243,10 +250,42 @@ const captionRulesSchema = z.object({
   maxDuration: z.number().min(0.2).max(30).optional(),
   targetTrackName: z.string().trim().min(1).max(120).optional()
 })
+const captionTimelineCutSchema = z.object({
+  start: z.number().min(0),
+  end: z.number().positive()
+}).strict().refine((range) => range.end > range.start, { message: 'end must be greater than start', path: ['end'] })
 const createCaptionDraftSchema = z.object({
   projectId: currentProjectId, transcriptId: z.string().uuid(), baseRevision: z.number().int().positive(),
-  targetTrackId: z.string().min(1).optional(), rules: captionRulesSchema.optional(), changeSummary
-})
+  targetTrackId: z.string().min(1).optional(), rules: captionRulesSchema.optional(),
+  timelineCuts: z.array(captionTimelineCutSchema).max(200).optional(),
+  timelineOffsetSeconds: z.number().min(0).max(60).optional(),
+  changeSummary
+}).strict()
+const createTranslatedCaptionDraftSchema = z.object({
+  projectId: currentProjectId,
+  sourceDraftId: z.string().uuid(),
+  targetLanguage: z.string().trim().min(2).max(35),
+  baseRevision: z.number().int().positive(),
+  translations: z.array(z.object({
+    captionId: z.string().min(1).max(160),
+    text: z.string().trim().min(1).max(10_000)
+  }).strict()).min(1).max(500),
+  targetTrackName: z.string().trim().min(1).max(120).optional(),
+  changeSummary
+}).strict()
+const createSpeechCleanupProposalSchema = z.object({
+  projectId: currentProjectId,
+  transcriptId: z.string().uuid(),
+  sourceRevision: z.number().int().positive(),
+  minimumSilenceSeconds: z.number().min(0.3).max(5).default(0.65),
+  keepPaddingSeconds: z.number().min(0.02).max(0.5).default(0.1),
+  removeFillers: z.boolean().default(true),
+  removeSilence: z.boolean().default(true),
+  fillerWords: z.array(z.string().trim().min(1).max(40)).max(80).optional(),
+  maxRemovalRatio: z.number().min(0.05).max(0.6).default(0.35),
+  idempotencyKey: z.string().trim().min(1).max(160).optional(),
+  changeSummary
+}).strict()
 const getCaptionDraftSchema = z.object({
   projectId: currentProjectId, draftId: z.string().uuid(),
   page: z.number().int().positive().optional(), pageSize: z.number().int().min(1).max(200).optional()
@@ -277,6 +316,16 @@ const commitCaptionDraftSchema = z.object({
   projectId: currentProjectId, draftId: z.string().uuid(), baseRevision: z.number().int().positive(),
   baseDraftRevision: z.number().int().positive(), targetTrackId: z.string().min(1).optional(), changeSummary
 })
+const commitCaptionDraftsSchema = z.object({
+  projectId: currentProjectId,
+  baseRevision: z.number().int().positive(),
+  drafts: z.array(z.object({
+    draftId: z.string().uuid(),
+    baseDraftRevision: z.number().int().positive(),
+    targetTrackId: z.string().min(1).optional()
+  }).strict()).min(1).max(4),
+  changeSummary
+}).strict()
 const exportSubtitleSchema = z.object({
   projectId: currentProjectId, draftId: z.string().uuid(), format: subtitleFormatSchema,
   fileName: z.string().trim().min(1).max(240).optional(), changeSummary
@@ -294,7 +343,9 @@ const ATOMIC_EDIT_TOOL_SPECS = [
   { name: CUT_UPDATE_EFFECTS_TOOL_NAME, operationSchema: cutUpdateEffectsOperationSchema, description: 'Patch or clear visual effects and set blend mode for one visual Cut clip.' },
   { name: CUT_UPDATE_MASK_TOOL_NAME, operationSchema: cutUpdateMaskOperationSchema, description: 'Set or clear a validated visual mask for one Cut clip.' },
   { name: CUT_UPDATE_TRANSITION_TOOL_NAME, operationSchema: cutUpdateTransitionOperationSchema, description: 'Set or clear an incoming or outgoing transition for one visual Cut clip.' },
-  { name: CUT_MANAGE_TRACK_TOOL_NAME, operationSchema: cutManageTrackOperationSchema, description: 'Add, update, move, or explicitly delete one Cut track.' }
+  { name: CUT_MANAGE_TRACK_TOOL_NAME, operationSchema: cutManageTrackOperationSchema, description: 'Add, update, move, or explicitly delete one Cut track.' },
+  { name: CUT_RIPPLE_DELETE_RANGES_TOOL_NAME, operationSchema: cutRippleDeleteRangesOperationSchema, description: 'Ripple-delete validated time ranges across every track while preserving media source trims and A/V sync.' },
+  { name: CUT_ADD_COVER_TOOL_NAME, operationSchema: cutAddCoverOperationSchema, description: 'Insert a timed full-canvas title cover and shift the existing program later without overwriting it.' }
 ] as const
 
 const MUTATIONS = new Set<string>(CUT_MIDDLEWARE_TOOL_NAMES)
@@ -354,7 +405,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(await this.service.getProject(scope, input.projectId))
+          return compact(sanitizeCutToolProject(await this.service.getProject(scope, input.projectId)))
         }, {
           name: CUT_GET_PROJECT_TOOL_NAME,
           description: 'Read the current Cut project document, revision, media references, versions, exports, and recent operation log before editing. Omit projectId to use the active Cut Workbench project context.',
@@ -478,7 +529,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(await this.intelligence.search(scope, input as SearchCutMediaSegmentsInput))
+          return compact(sanitizeCutToolEvidence(await this.intelligence.search(scope, input as SearchCutMediaSegmentsInput)))
         }, {
           name: CUT_SEARCH_MEDIA_SEGMENTS_TOOL_NAME,
           description: 'Search scoped transcript, silence, audio-activity, shot, keyframe, OCR, or visual-description evidence. Every result includes a media asset, exact time range, evidence type, relevance, and thumbnail locator.',
@@ -487,7 +538,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(await this.intelligence.getSegment(scope, input.projectId, input.segmentId))
+          return compact(sanitizeCutToolEvidence(await this.intelligence.getSegment(scope, input.projectId, input.segmentId)))
         }, {
           name: CUT_GET_MEDIA_SEGMENT_TOOL_NAME,
           description: 'Read one exact scoped media evidence segment returned by cut_search_media_segments using its transcript:<uuid> or analysis:<uuid> id.',
@@ -496,7 +547,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(await this.proposals.create(scope, input))
+          return compact(sanitizeCutToolEvidence(await this.proposals.create(scope, input)))
         }, {
           name: CUT_CREATE_EDIT_PROPOSAL_TOOL_NAME,
           description: 'Create an idempotent, source-revision-bound rough-cut proposal. Every item must cite exact Cut media evidence and is validated without changing the timeline.',
@@ -505,7 +556,16 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(await this.proposals.get(scope, input.projectId, input.proposalId, false))
+          return compact(sanitizeCutToolEvidence(await this.proposals.createSpeechCleanup(scope, input)))
+        }, {
+          name: CUT_CREATE_SPEECH_CLEANUP_PROPOSAL_TOOL_NAME,
+          description: 'Create a reviewable speech-cleanup proposal that detects long pauses and filler words from exact transcript/media evidence, maps source timestamps onto timeline clips, and proposes one A/V-safe ripple delete.',
+          schema: createSpeechCleanupProposalSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(sanitizeCutToolEvidence(await this.proposals.get(scope, input.projectId, input.proposalId, false)))
         }, {
           name: CUT_GET_EDIT_PROPOSAL_TOOL_NAME,
           description: 'Read one scoped Cut edit proposal, its deterministic operations, evidence, risk, review state, and compact diff coordinates.',
@@ -515,12 +575,12 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const result = await this.proposals.update(scope, input)
-          return compact({ success: true, proposal: result.item, preview: {
+          return compact(sanitizeCutToolEvidence({ success: true, proposal: result.item, preview: {
             changedClipIds: result.preview.changedClipIds,
             changedTrackIds: result.preview.changedTrackIds,
             estimatedDurationSeconds: result.preview.estimatedDurationSeconds,
             enabledItemCount: result.preview.enabledItemCount
-          } })
+          } }))
         }, {
           name: CUT_UPDATE_EDIT_PROPOSAL_TOOL_NAME,
           description: 'Revision-safely enable or disable 1-50 proposal items during review without changing the project timeline.',
@@ -570,8 +630,17 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.createCaptionDraft(scope, input))
         }, {
           name: CUT_CREATE_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Create a revision-bound reviewable caption draft from an existing Cut transcript without changing the timeline.',
+          description: 'Create a revision-bound reviewable caption draft from an existing Cut transcript without changing the timeline. Pass the exact applied ripple-delete ranges and cover offset to keep cues synchronized after speech cleanup and intro insertion.',
           schema: createCaptionDraftSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.captions.createTranslatedCaptionDraft(scope, input))
+        }, {
+          name: CUT_CREATE_TRANSLATED_CAPTION_DRAFT_TOOL_NAME,
+          description: 'Create a target-language caption draft from an existing reviewed draft. The Agent supplies one translated text per source caption id; timings remain exact and the source draft is preserved.',
+          schema: createTranslatedCaptionDraftSchema,
           verboseParsingErrors: true
         }),
         tool(async (rawInput) => {
@@ -601,6 +670,15 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           name: CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
           description: 'Commit an approved caption draft to a visual text track at its exact required baseRevision; repeated committed calls are idempotent.',
           schema: commitCaptionDraftSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.captions.commitCaptionDrafts(scope, input))
+        }, {
+          name: CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
+          description: 'Atomically commit 1-4 same-revision caption drafts as separate language tracks in one project revision, keeping multilingual cues synchronized.',
+          schema: commitCaptionDraftsSchema,
           verboseParsingErrors: true
         }),
         tool(async (rawInput) => {
@@ -884,6 +962,39 @@ function scopeFromContext(context: IAgentMiddlewareContext): CutScope {
 
 function compact(value: object) {
   return JSON.stringify(value)
+}
+
+function sanitizeCutToolProject(detail: Awaited<ReturnType<CutService['getProject']>>) {
+  return {
+    ...detail,
+    media: detail.media.map(({ previewUrl: _previewUrl, ...asset }) => asset),
+    document: {
+      ...detail.document,
+      tracks: detail.document.tracks.map((track) => ({
+        ...track,
+        clips: track.clips.map((clip) => {
+          if (!clip.mediaAssetId && clip.source?.source !== 'platform.workspace.files') return clip
+          const { previewUrl: _previewUrl, ...sanitized } = clip
+          return sanitized
+        })
+      }))
+    },
+    exports: detail.exports.map((record) => {
+      if (record.fileReference?.source !== 'platform.workspace.files') return record
+      const { fileUrl: _fileUrl, ...sanitized } = record
+      return sanitized
+    })
+  }
+}
+
+function sanitizeCutToolEvidence<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(sanitizeCutToolEvidence) as T
+  if (!value || typeof value !== 'object') return value
+  const record = value as Record<string, unknown>
+  return Object.fromEntries(Object.entries(record).map(([key, item]) => [
+    key,
+    key === 'thumbnail' ? null : sanitizeCutToolEvidence(item)
+  ])) as T
 }
 
 function readChangeSummary(args: CutJsonValue | object | null | undefined) {

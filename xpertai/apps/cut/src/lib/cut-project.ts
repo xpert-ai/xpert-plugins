@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
-import type { CutClip, CutEditOperation, CutProjectDocument, CutTrack, CutTrackMutation } from './types.js'
+import type { CutClip, CutEditOperation, CutProjectDocument, CutTimeRange, CutTrack, CutTrackMutation } from './types.js'
 
 const finite = z.number().finite()
 const transformSchema = z.object({
@@ -124,6 +124,22 @@ export const cutManageTrackOperationSchema = z.object({
     z.object({ action: z.literal('move'), trackId: z.string().min(1), index: z.number().int().min(0).max(127) })
   ])
 })
+const cutTimeRangeSchema = z.object({
+  start: finite.min(0),
+  end: finite.positive()
+}).strict().refine((range) => range.end > range.start, { message: 'end must be greater than start', path: ['end'] })
+export const cutRippleDeleteRangesOperationSchema = z.object({
+  kind: z.literal('ripple_delete_ranges'),
+  ranges: z.array(cutTimeRangeSchema).min(1).max(200)
+})
+export const cutAddCoverOperationSchema = z.object({
+  kind: z.literal('add_cover'),
+  title: z.string().trim().min(1).max(240),
+  subtitle: z.string().trim().min(1).max(500).optional(),
+  duration: finite.min(0.5).max(10),
+  background: z.string().trim().min(1).max(120),
+  color: z.string().trim().min(1).max(120)
+})
 export const cutEditOperationSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('split'), clipId: z.string().min(1), at: finite.min(0) }),
   z.object({ kind: z.literal('trim'), clipId: z.string().min(1), edge: z.enum(['start', 'end']), time: finite.min(0) }),
@@ -139,7 +155,9 @@ export const cutEditOperationSchema = z.discriminatedUnion('kind', [
   cutUpdateEffectsOperationSchema,
   cutUpdateMaskOperationSchema,
   cutUpdateTransitionOperationSchema,
-  cutManageTrackOperationSchema
+  cutManageTrackOperationSchema,
+  cutRippleDeleteRangesOperationSchema,
+  cutAddCoverOperationSchema
 ]) as unknown as z.ZodType<CutEditOperation>
 const portableFileSchema = z.object({
   source: z.literal('platform.workspace.files'),
@@ -245,7 +263,11 @@ export function validateCutProjectDocument(value: CutProjectDocument): CutProjec
 
 export function applyCutEdit(documentInput: CutProjectDocument, operation: CutEditOperation): CutProjectDocument {
   const document = validateCutProjectDocument(documentInput)
-  if (operation.kind === 'update_project_settings') {
+  if (operation.kind === 'ripple_delete_ranges') {
+    applyRippleDeleteRanges(document, operation.ranges)
+  } else if (operation.kind === 'add_cover') {
+    applyCover(document, operation)
+  } else if (operation.kind === 'update_project_settings') {
     applyProjectSettings(document, operation.settings, operation.reframe)
   } else if (operation.kind === 'add_clip') {
     const track = requireTrack(document.tracks, operation.trackId)
@@ -380,6 +402,123 @@ export function applyCutEdit(documentInput: CutProjectDocument, operation: CutEd
     }
   }
   return validateCutProjectDocument(document)
+}
+
+export function normalizeCutTimeRanges(input: readonly CutTimeRange[], duration: number): CutTimeRange[] {
+  const ranges = input.map((range, index) => {
+    const start = roundMilliseconds(Math.max(0, range.start))
+    const end = roundMilliseconds(Math.min(duration, range.end))
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      throw new Error(`Cut time range ${index + 1} is outside the project duration.`)
+    }
+    return { start, end }
+  }).sort((left, right) => left.start - right.start || left.end - right.end)
+  const merged: CutTimeRange[] = []
+  for (const range of ranges) {
+    const previous = merged.at(-1)
+    if (previous && range.start <= previous.end + 0.001) previous.end = Math.max(previous.end, range.end)
+    else merged.push({ ...range })
+  }
+  return merged
+}
+
+export function cutTimeAfterRippleDelete(time: number, rangesInput: readonly CutTimeRange[]) {
+  let removed = 0
+  for (const range of rangesInput) {
+    if (time >= range.end) removed += range.end - range.start
+    else if (time > range.start) return roundMilliseconds(range.start - removed)
+    else break
+  }
+  return roundMilliseconds(Math.max(0, time - removed))
+}
+
+function applyRippleDeleteRanges(document: CutProjectDocument, rangesInput: CutTimeRange[]) {
+  const ranges = normalizeCutTimeRanges(rangesInput, document.settings.durationSeconds)
+  const removedDuration = ranges.reduce((total, range) => total + range.end - range.start, 0)
+  if (document.settings.durationSeconds - removedDuration < 0.1) throw new Error('Ripple delete must leave at least 0.1 seconds in the project.')
+  for (const track of document.tracks) {
+    const next: CutClip[] = []
+    for (const clip of track.clips) {
+      const portions = subtractRanges({ start: clip.start, end: clip.start + clip.duration }, ranges)
+      portions.forEach((portion, index) => {
+        const rate = clip.playbackRate ?? 1
+        const sourceStart = clip.trimIn + (portion.start - clip.start) * rate
+        const duration = portion.end - portion.start
+        const part: CutClip = {
+          ...structuredClone(clip),
+          id: index === 0 ? clip.id : randomUUID(),
+          name: index === 0 ? clip.name : `${clip.name} ${index + 1}`,
+          start: cutTimeAfterRippleDelete(portion.start, ranges),
+          duration: roundMilliseconds(duration),
+          trimIn: roundMilliseconds(sourceStart),
+          trimOut: roundMilliseconds(sourceStart + duration * rate)
+        }
+        if (index > 0) delete part.transitionIn
+        if (index < portions.length - 1) delete part.transitionOut
+        next.push(part)
+      })
+    }
+    track.clips = next.sort((left, right) => left.start - right.start || left.id.localeCompare(right.id))
+  }
+  document.bookmarks = document.bookmarks?.map((bookmark) => ({
+    ...bookmark,
+    time: cutTimeAfterRippleDelete(bookmark.time, ranges)
+  }))
+  document.settings.durationSeconds = roundMilliseconds(document.settings.durationSeconds - removedDuration)
+}
+
+function applyCover(document: CutProjectDocument, operation: Extract<CutEditOperation, { kind: 'add_cover' }>) {
+  if (document.settings.durationSeconds + operation.duration > 3_600) throw new Error('Cover would exceed the 3600-second project limit.')
+  const duration = roundMilliseconds(operation.duration)
+  for (const track of document.tracks) {
+    for (const clip of track.clips) clip.start = roundMilliseconds(clip.start + duration)
+  }
+  document.bookmarks = document.bookmarks?.map((bookmark) => ({ ...bookmark, time: roundMilliseconds(bookmark.time + duration) }))
+  document.settings.durationSeconds = roundMilliseconds(document.settings.durationSeconds + duration)
+  const fullFrame = { x: 0, y: 0, width: document.settings.width, height: document.settings.height, rotation: 0, opacity: 1 }
+  document.tracks.push({
+    id: randomUUID(), name: 'Cover background', kind: 'visual', muted: false, hidden: false,
+    clips: [{
+      id: randomUUID(), type: 'color', name: 'Cover background', start: 0, duration, trimIn: 0, trimOut: duration,
+      color: operation.background, transform: fullFrame
+    }]
+  })
+  document.tracks.push({
+    id: randomUUID(), name: 'Cover title', kind: 'visual', muted: false, hidden: false,
+    clips: [{
+      id: randomUUID(), type: 'text', name: 'Cover title', start: 0, duration, trimIn: 0, trimOut: duration,
+      text: operation.title, color: operation.color, fontSize: Math.round(document.settings.height * 0.075), fontWeight: 800,
+      textAlign: 'center', transform: { ...fullFrame, x: document.settings.width * 0.08, y: document.settings.height * 0.28, width: document.settings.width * 0.84, height: document.settings.height * 0.28 }
+    }]
+  })
+  if (operation.subtitle) {
+    document.tracks.push({
+      id: randomUUID(), name: 'Cover subtitle', kind: 'visual', muted: false, hidden: false,
+      clips: [{
+        id: randomUUID(), type: 'text', name: 'Cover subtitle', start: 0, duration, trimIn: 0, trimOut: duration,
+        text: operation.subtitle, color: operation.color, fontSize: Math.round(document.settings.height * 0.034), fontWeight: 500,
+        textAlign: 'center', transform: { ...fullFrame, x: document.settings.width * 0.12, y: document.settings.height * 0.56, width: document.settings.width * 0.76, height: document.settings.height * 0.16 }
+      }]
+    })
+  }
+}
+
+function subtractRanges(source: CutTimeRange, ranges: readonly CutTimeRange[]) {
+  const portions: CutTimeRange[] = []
+  let cursor = source.start
+  for (const range of ranges) {
+    if (range.end <= cursor) continue
+    if (range.start >= source.end) break
+    if (range.start > cursor) portions.push({ start: cursor, end: Math.min(range.start, source.end) })
+    cursor = Math.max(cursor, range.end)
+    if (cursor >= source.end) break
+  }
+  if (cursor < source.end) portions.push({ start: cursor, end: source.end })
+  return portions.filter((portion) => portion.end - portion.start >= 0.001)
+}
+
+function roundMilliseconds(value: number) {
+  return Math.round(value * 1_000) / 1_000
 }
 
 export function appendCutMediaClip(

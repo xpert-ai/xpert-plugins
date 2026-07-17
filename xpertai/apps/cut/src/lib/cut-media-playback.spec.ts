@@ -1,4 +1,4 @@
-import { audibleTimelineClips, restoreClipSourceDuration } from './cut-media-playback.js'
+import { audibleTimelineClips, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from './cut-media-playback.js'
 import type { CutProjectDocument } from './types.js'
 
 describe('Cut media playback', () => {
@@ -37,5 +37,30 @@ describe('Cut media playback', () => {
     const restored = restoreClipSourceDuration(document(), 'video', 87.654)
     expect(restored.settings.durationSeconds).toBe(87.654)
     expect(restored.tracks[0]!.clips[0]).toMatchObject({ duration: 87.654, trimOut: 87.654 })
+  })
+
+  it('does not repeatedly seek a media element during continuous playback', () => {
+    expect(shouldSeekPreviewMedia({
+      playing: true,
+      wasPlaying: true,
+      previousPlayhead: 12,
+      playhead: 12.033,
+      currentTime: 131.1,
+      targetTime: 131.433
+    })).toBe(false)
+  })
+
+  it('seeks when playback starts, pauses, or the user jumps the playhead', () => {
+    const base = { previousPlayhead: 12, playhead: 12.033, currentTime: 0, targetTime: 131.433 }
+    expect(shouldSeekPreviewMedia({ ...base, playing: true, wasPlaying: false })).toBe(true)
+    expect(shouldSeekPreviewMedia({ ...base, playing: false, wasPlaying: true })).toBe(true)
+    expect(shouldSeekPreviewMedia({ ...base, playing: true, wasPlaying: true, playhead: 20 })).toBe(true)
+  })
+
+  it('mounts the next media clip shortly before it becomes active', () => {
+    const clip = { type: 'video', previewUrl: '/interview.mov', start: 3, duration: 10 }
+    expect(shouldMountPreviewMedia(clip, 0)).toBe(true)
+    expect(shouldMountPreviewMedia({ ...clip, start: 10 }, 0)).toBe(false)
+    expect(shouldMountPreviewMedia({ ...clip, type: 'image' }, 0)).toBe(false)
   })
 })

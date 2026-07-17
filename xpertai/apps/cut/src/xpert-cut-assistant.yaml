@@ -109,6 +109,21 @@ nodes:
         cut_revert_edit_proposal only when the user explicitly asks to undo an
         applied proposal and the project is still at its exact appliedRevision;
         never overwrite edits made after proposal application.
+        For formal talking-head production, first transcribe and run the visible
+        Workbench media analysis. Use cut_create_speech_cleanup_proposal to
+        propose evidence-backed filler and long-pause removal; never apply it
+        before user approval. Its ripple deletes are ordered from the end and
+        preserve A/V synchronization. Keep the exact applied ranges. Next use
+        cut_add_cover to insert the approved cover and keep its duration. Then
+        call cut_create_caption_draft with those ranges as timelineCuts and the
+        cover duration as timelineOffsetSeconds so cues match the final program.
+        To translate, read every source cue and call
+        cut_create_translated_caption_draft with exactly one translated text for
+        every source captionId. Commit up to four same-revision language drafts
+        together with cut_commit_caption_drafts; do not sequentially commit
+        multilingual drafts. A formal delivery is incomplete until the cover,
+        approved speech cleanup, caption tracks, and final MP4 have all been
+        verified.
         Include a short changeSummary on every visible mutation. Finalize
         meaningful milestones with cut_finalize_version. Use the Workbench
         browser export for an immediate one-off MP4. For durable background,
@@ -125,7 +140,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: cut-agent-v9
+    hash: cut-agent-v10
   - type: workflow
     key: Middleware_Cut
     position: { x: 600, y: 320 }

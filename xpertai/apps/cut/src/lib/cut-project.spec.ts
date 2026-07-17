@@ -193,6 +193,46 @@ describe('Cut project IR', () => {
     expect(() => applyCutEdit(withVideo, { kind: 'update_transform', clipId: 'video-clip', transform: {} })).toThrow('non-empty patch')
   })
 
+  it('ripple-deletes multiple ranges across tracks while preserving source trims and sync', () => {
+    let document = appendCutMediaClip(createStarterCutProject({ durationSeconds: 12 }), {
+      id: 'video-clip', name: 'Interview', type: 'video', mediaAssetId: 'asset-1', duration: 12
+    })
+    document.tracks[1]!.clips.push({
+      id: 'audio-clip', name: 'Interview audio', type: 'audio', mediaAssetId: 'asset-1',
+      start: 0, duration: 12, trimIn: 0, trimOut: 12
+    })
+    document.bookmarks = [{ id: 'marker', time: 9, label: 'Topic' }]
+    document = applyCutEdit(document, {
+      kind: 'ripple_delete_ranges', ranges: [{ start: 2, end: 3 }, { start: 7, end: 9 }]
+    })
+    expect(document.settings.durationSeconds).toBe(9)
+    expect(document.tracks[0]!.clips.map(({ start, duration, trimIn, trimOut }) => ({ start, duration, trimIn, trimOut }))).toEqual([
+      { start: 0, duration: 2, trimIn: 0, trimOut: 2 },
+      { start: 2, duration: 4, trimIn: 3, trimOut: 7 },
+      { start: 6, duration: 3, trimIn: 9, trimOut: 12 }
+    ])
+    expect(document.tracks[1]!.clips.map(({ start, duration, trimIn }) => ({ start, duration, trimIn }))).toEqual([
+      { start: 0, duration: 2, trimIn: 0 },
+      { start: 2, duration: 4, trimIn: 3 },
+      { start: 6, duration: 3, trimIn: 9 }
+    ])
+    expect(document.bookmarks).toEqual([{ id: 'marker', time: 6, label: 'Topic' }])
+  })
+
+  it('inserts a rendered cover and shifts the existing program without overlap', () => {
+    let document = appendCutMediaClip(createStarterCutProject({ width: 1080, height: 1920, durationSeconds: 10 }), {
+      id: 'video-clip', name: 'Interview', type: 'video', mediaAssetId: 'asset-1', duration: 10
+    })
+    document = applyCutEdit(document, {
+      kind: 'add_cover', title: 'Product Story', subtitle: 'Built with Xpert', duration: 2.5,
+      background: '#07111f', color: '#ffffff'
+    })
+    expect(document.settings.durationSeconds).toBe(12.5)
+    expect(document.tracks[0]!.clips[0]).toMatchObject({ id: 'video-clip', start: 2.5 })
+    expect(document.tracks.slice(-3).map((track) => track.clips[0]!.type)).toEqual(['color', 'text', 'text'])
+    expect(document.tracks.at(-2)!.clips[0]).toMatchObject({ text: 'Product Story', start: 0, duration: 2.5 })
+  })
+
   it('bounds multi-clip operation inputs in the shared schema', () => {
     expect(() => cutEditOperationSchema.parse({
       kind: 'delete_clips', clipIds: Array.from({ length: 101 }, (_, index) => `clip-${index}`)

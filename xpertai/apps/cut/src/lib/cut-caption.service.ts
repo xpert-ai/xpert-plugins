@@ -10,7 +10,7 @@ import {
 import type { FindOptionsWhere, Repository } from 'typeorm'
 import { detectCutSubtitleFormat, parseCutSubtitle, serializeCutSubtitle, type CutSubtitleFormat } from './cut-caption.js'
 import { reconcileCutAnalysisJobWithQueue } from './cut-analysis-job-reconciliation.js'
-import { validateCutProjectDocument } from './cut-project.js'
+import { cutTimeAfterRippleDelete, normalizeCutTimeRanges, validateCutProjectDocument } from './cut-project.js'
 import { estimateCutTranscriptSegments } from './cut-transcription.js'
 import { CutService } from './cut.service.js'
 import { CUT_ANALYSIS_QUEUE_NAME, CUT_PLUGIN_NAME, CUT_TRANSCRIPTION_JOB_NAME } from './constants.js'
@@ -30,6 +30,7 @@ import type {
   CutJsonValue,
   CutProjectDocument,
   CutScope,
+  CutTimeRange,
   CutTranscriptSegmentData,
   CutTranscriptionQueueJobData
 } from './types.js'
@@ -60,6 +61,18 @@ export interface CreateCutCaptionDraftInput {
   baseRevision: number
   targetTrackId?: string
   rules?: CutCaptionRules
+  timelineCuts?: CutTimeRange[]
+  timelineOffsetSeconds?: number
+  changeSummary: string
+}
+
+export interface CreateTranslatedCutCaptionDraftInput {
+  projectId: string
+  sourceDraftId: string
+  targetLanguage: string
+  baseRevision: number
+  translations: Array<{ captionId: string; text: string }>
+  targetTrackName?: string
   changeSummary: string
 }
 
@@ -397,7 +410,7 @@ export class CutCaptionService {
     }
     const model = boundedString(input.model, 160, 'Cut local transcription model')
     const language = boundedString(input.language, 32, 'Cut local transcription language')
-    const duration = normalizeLocalDuration(input.duration, detail.document.settings.durationSeconds)
+    const duration = normalizeLocalDuration(input.duration, asset.duration ?? detail.document.settings.durationSeconds)
     const normalized = normalizeLocalTranscriptSegments(input.segments, duration)
     const contentHash = createHash('sha256').update(JSON.stringify({
       assetChecksum: asset.checksum,
@@ -692,13 +705,16 @@ export class CutCaptionService {
       order: { sequence: 'ASC' }
     })
     if (!rows.length) throw new Error('Transcript has no segments for a caption draft.')
-    const captions = rows.map((segment, index) => ({
+    let captions: CutCaptionItem[] = normalizeTranscriptCaptionItems(rows.map((segment, index) => ({
       id: `caption-${index + 1}`,
       start: segment.start,
       end: segment.end,
       text: segment.text,
       speaker: segment.speaker ?? null
-    }))
+    })))
+    captions = retimeCaptionItems(captions, input.timelineCuts ?? [], input.timelineOffsetSeconds ?? 0, detail.document.settings.durationSeconds)
+    captions = resolveCaptionTimelineOverlaps(captions)
+    if (!captions.length) throw new Error('Timeline cleanup removed every transcript cue from the caption draft.')
     assertCaptionBounds(captions, detail.document.settings.durationSeconds)
     const draft = await this.drafts.save(this.drafts.create({
       ...captionScopedCreate(scope),
@@ -718,9 +734,63 @@ export class CutCaptionService {
       transcriptId: input.transcriptId,
       draftId: draft.id ?? null,
       captionCount: captions.length,
-      sourceRevision: input.baseRevision
+      sourceRevision: input.baseRevision,
+      timelineCutCount: input.timelineCuts?.length ?? 0,
+      timelineOffsetSeconds: input.timelineOffsetSeconds ?? 0
     })
     return compactDraftSummary(draft)
+  }
+
+  async createTranslatedCaptionDraft(scope: CutScope, input: CreateTranslatedCutCaptionDraftInput) {
+    const detail = await this.cut.getProject(scope, input.projectId)
+    assertRevision(detail.item.revision, input.baseRevision)
+    const source = await this.requireDraft(scope, input.projectId, input.sourceDraftId)
+    const targetLanguage = boundedString(input.targetLanguage, 35, 'Cut caption target language')
+    if (targetLanguage.toLocaleLowerCase() === source.language.toLocaleLowerCase()) {
+      throw new Error('Translated caption target language must differ from the source draft language.')
+    }
+    if (input.translations.length !== source.captions.length) {
+      throw new Error(`Translated caption draft requires exactly ${source.captions.length} translated cues.`)
+    }
+    const translations = new Map<string, string>()
+    for (const [index, translation] of input.translations.entries()) {
+      if (translations.has(translation.captionId)) throw new Error(`Translated caption cue ${translation.captionId} is duplicated.`)
+      translations.set(translation.captionId, boundedString(translation.text, 10_000, `Translated caption cue ${index + 1}`))
+    }
+    const sourceIds = new Set(source.captions.map((caption) => caption.id))
+    for (const captionId of translations.keys()) {
+      if (!sourceIds.has(captionId)) throw new Error(`Translated caption cue ${captionId} does not exist in the source draft.`)
+    }
+    const captions = source.captions.map((caption) => ({ ...caption, text: translations.get(caption.id)! }))
+    assertCaptionBounds(captions, detail.document.settings.durationSeconds)
+    const draft = await this.drafts.save(this.drafts.create({
+      ...captionScopedCreate(scope),
+      cutProjectId: input.projectId,
+      transcriptId: source.transcriptId,
+      sourceRevision: input.baseRevision,
+      status: 'draft',
+      revision: 1,
+      language: targetLanguage,
+      targetTrackId: null,
+      captions,
+      rules: {
+        ...defaultCaptionRules(),
+        ...source.rules,
+        targetTrackName: input.targetTrackName?.trim() || `${targetLanguage} Captions`
+      },
+      createdById: scope.userId ?? null,
+      assistantId: scope.assistantId ?? null
+    }))
+    await this.writeLog(scope, input.projectId, 'cut_caption_draft_created', input.changeSummary, {
+      sourceDraftId: input.sourceDraftId,
+      draftId: draft.id ?? null,
+      sourceLanguage: source.language,
+      targetLanguage,
+      captionCount: captions.length,
+      sourceRevision: input.baseRevision,
+      translated: true
+    })
+    return { ...compactDraftSummary(draft), sourceDraftId: input.sourceDraftId, translated: true }
   }
 
   async getCaptionDraft(scope: CutScope, projectId: string, draftId: string, page = 1, pageSize = 100) {
@@ -870,6 +940,78 @@ export class CutCaptionService {
     }
   }
 
+  async commitCaptionDrafts(scope: CutScope, input: {
+    projectId: string
+    baseRevision: number
+    drafts: Array<{ draftId: string; baseDraftRevision: number; targetTrackId?: string }>
+    changeSummary: string
+  }) {
+    const draftIds = input.drafts.map((item) => item.draftId)
+    if (!draftIds.length || draftIds.length > 4) throw new Error('Commit 1-4 caption drafts in one multilingual operation.')
+    if (new Set(draftIds).size !== draftIds.length) throw new Error('Multilingual caption commit contains duplicate draft ids.')
+    const detail = await this.cut.getProject(scope, input.projectId)
+    assertRevision(detail.item.revision, input.baseRevision)
+    const drafts = await Promise.all(input.drafts.map(async (item) => {
+      const draft = await this.requireDraft(scope, input.projectId, item.draftId)
+      if (draft.status !== 'draft') throw new ConflictException(`Caption draft ${item.draftId} is ${draft.status}.`)
+      if (draft.sourceRevision !== input.baseRevision) {
+        throw new ConflictException(`Caption draft ${item.draftId} is based on revision ${draft.sourceRevision}, not ${input.baseRevision}.`)
+      }
+      if (draft.revision !== item.baseDraftRevision) {
+        throw new ConflictException(`Caption draft ${item.draftId} revision changed from ${item.baseDraftRevision} to ${draft.revision}.`)
+      }
+      return { draft, targetTrackId: item.targetTrackId }
+    }))
+    const document = structuredClone(detail.document)
+    const changedClipIds: string[] = []
+    const committed: Array<{ draftId: string; language: string; trackId: string; captionCount: number }> = []
+    for (const { draft, targetTrackId } of drafts) {
+      const trackId = targetTrackId ?? draft.targetTrackId ?? randomUUID()
+      let track = document.tracks.find((item) => item.id === trackId)
+      if (track && track.kind !== 'visual') throw new Error(`Caption track ${trackId} is not visual.`)
+      if (!track) {
+        track = { id: trackId, name: draft.rules?.targetTrackName ?? `${draft.language} Captions`, kind: 'visual', muted: false, hidden: false, clips: [] }
+        document.tracks.push(track)
+      }
+      const laneIndex = committed.length
+      for (const [index, caption] of draft.captions.entries()) {
+        const id = randomUUID()
+        changedClipIds.push(id)
+        track.clips.push(captionClip(document, caption, id, index, {
+          laneIndex,
+          laneCount: drafts.length
+        }))
+      }
+      track.clips.sort((left, right) => left.start - right.start || left.id.localeCompare(right.id))
+      committed.push({ draftId: requireId(draft.id, 'caption draft'), language: draft.language, trackId, captionCount: draft.captions.length })
+    }
+    const saved = await this.cut.saveProject(scope, {
+      projectId: input.projectId,
+      document: validateCutProjectDocument(document),
+      baseRevision: input.baseRevision,
+      changeSummary: input.changeSummary
+    })
+    for (const [index, { draft }] of drafts.entries()) {
+      draft.status = 'committed'
+      draft.revision += 1
+      draft.targetTrackId = committed[index]!.trackId
+      draft.committedRevision = saved.project.revision
+    }
+    await this.drafts.save(drafts.map(({ draft }) => draft))
+    await this.writeLog(scope, input.projectId, 'cut_caption_draft_committed', input.changeSummary, {
+      multilingual: true,
+      revision: saved.project.revision,
+      drafts: committed
+    })
+    return {
+      success: true,
+      projectId: input.projectId,
+      revision: saved.project.revision,
+      committed,
+      changedClipIds
+    }
+  }
+
   async exportCaptionDraft(scope: CutScope, projectId: string, draftId: string, format: CutSubtitleFormat) {
     const draft = await this.requireDraft(scope, projectId, draftId)
     const content = serializeCutSubtitle(draft.captions, format)
@@ -962,10 +1104,10 @@ function assertCaptionBounds(captions: CutCaptionItem[], duration: number) {
   if (new Set(captions.map((caption) => caption.id)).size !== captions.length) throw new Error('Caption draft contains duplicate cue ids.')
 }
 
-function normalizeLocalDuration(value: number, projectDuration: number) {
+function normalizeLocalDuration(value: number, sourceDuration: number) {
   if (!Number.isFinite(value) || value <= 0) throw new Error('Cut local transcription duration must be positive.')
-  if (value > projectDuration + 0.0001) {
-    throw new Error(`Cut local transcription duration exceeds the ${projectDuration}-second project timeline.`)
+  if (value > sourceDuration + 0.0001) {
+    throw new Error(`Cut local transcription duration exceeds the ${sourceDuration}-second source media.`)
   }
   return Math.round(value * 1_000) / 1_000
 }
@@ -1018,8 +1160,19 @@ function requireVisualTrack(document: CutProjectDocument, trackId: string) {
   return track
 }
 
-function captionClip(document: CutProjectDocument, caption: CutCaptionItem, id: string, index: number) {
+function captionClip(
+  document: CutProjectDocument,
+  caption: CutCaptionItem,
+  id: string,
+  index: number,
+  layout?: { laneIndex: number; laneCount: number }
+) {
   const duration = caption.end - caption.start
+  const laneCount = Math.max(1, layout?.laneCount ?? 1)
+  const laneIndex = Math.min(laneCount - 1, Math.max(0, layout?.laneIndex ?? 0))
+  const captionAreaY = laneCount === 1 ? 0.72 : 0.66
+  const captionAreaHeight = laneCount === 1 ? 0.18 : 0.26
+  const laneHeight = captionAreaHeight / laneCount
   return {
     id,
     type: 'text' as const,
@@ -1030,14 +1183,14 @@ function captionClip(document: CutProjectDocument, caption: CutCaptionItem, id: 
     trimOut: duration,
     text: caption.text,
     color: '#ffffff',
-    fontSize: Math.max(28, Math.round(document.settings.height * 0.052)),
+    fontSize: Math.max(24, Math.round(document.settings.height * (laneCount === 1 ? 0.052 : 0.038))),
     fontWeight: 600,
     textAlign: 'center' as const,
     transform: {
       x: document.settings.width * 0.1,
-      y: document.settings.height * 0.72,
+      y: document.settings.height * (captionAreaY + laneIndex * laneHeight),
       width: document.settings.width * 0.8,
-      height: document.settings.height * 0.18,
+      height: document.settings.height * laneHeight,
       rotation: 0,
       opacity: 1
     }
@@ -1097,6 +1250,118 @@ function applyCaptionDraftEdit(captionsInput: CutCaptionItem[], operation: CutCa
     }
   }
   return captions.sort((a, b) => a.start - b.start || a.end - b.end)
+}
+
+function retimeCaptionItems(
+  captions: readonly CutCaptionItem[],
+  timelineCutsInput: readonly CutTimeRange[],
+  timelineOffsetSeconds: number,
+  projectDuration: number
+) {
+  if (!Number.isFinite(timelineOffsetSeconds) || timelineOffsetSeconds < 0 || timelineOffsetSeconds > 60) {
+    throw new Error('Caption timeline offset must be between 0 and 60 seconds.')
+  }
+  const sourceDuration = Math.max(projectDuration, ...captions.map((caption) => caption.end))
+  const cuts = timelineCutsInput.length ? normalizeCutTimeRanges(timelineCutsInput, sourceDuration) : []
+  return captions.flatMap((caption) => {
+    const portions = subtractCaptionCuts(caption.start, caption.end, cuts)
+    if (!portions.length) return []
+    const start = cutTimeAfterRippleDelete(portions[0]!.start, cuts) + timelineOffsetSeconds
+    const end = cutTimeAfterRippleDelete(portions.at(-1)!.end, cuts) + timelineOffsetSeconds
+    if (end <= start + 0.001 || start >= projectDuration) return []
+    return [{
+      ...caption,
+      start: Math.round(start * 1_000) / 1_000,
+      end: Math.round(Math.min(projectDuration, end) * 1_000) / 1_000
+    }]
+  })
+}
+
+/**
+ * Browser Whisper runs overlapping audio windows so speech on a window edge can
+ * legitimately arrive twice. Keep the stronger cue when two candidates cover
+ * essentially the same speech, while leaving short adjacent exchanges intact.
+ */
+export function normalizeTranscriptCaptionItems(captionsInput: readonly CutCaptionItem[]) {
+  const captions = captionsInput
+    .filter((caption) => caption.text.trim() && caption.end > caption.start)
+    .map((caption) => ({ ...caption, text: caption.text.trim() }))
+    .sort((left, right) => left.start - right.start || left.end - right.end)
+  const normalized: CutCaptionItem[] = []
+  for (const candidate of captions) {
+    let keepCandidate = true
+    for (let index = normalized.length - 1; index >= 0; index -= 1) {
+      const existing = normalized[index]!
+      if (existing.end <= candidate.start) break
+      const overlap = Math.min(existing.end, candidate.end) - Math.max(existing.start, candidate.start)
+      if (overlap <= 0) continue
+      const existingDuration = existing.end - existing.start
+      const candidateDuration = candidate.end - candidate.start
+      const overlapOfShorter = overlap / Math.min(existingDuration, candidateDuration)
+      const existingText = comparableCaptionText(existing.text)
+      const candidateText = comparableCaptionText(candidate.text)
+      const textRelated = Boolean(existingText && candidateText) &&
+        (existingText === candidateText || existingText.includes(candidateText) || candidateText.includes(existingText))
+      const candidateDominates = candidateDuration >= existingDuration * 1.35 && candidateText.length >= existingText.length * 1.35
+      const existingDominates = existingDuration >= candidateDuration * 1.35 && existingText.length >= candidateText.length * 1.35
+      const duplicateWindow =
+        (textRelated && overlapOfShorter >= 0.3) ||
+        (overlapOfShorter >= 0.82 && (candidateDominates || existingDominates || Math.min(existingText.length, candidateText.length) <= 1)) ||
+        (overlapOfShorter >= 0.65 && (candidateDominates || existingDominates))
+      if (!duplicateWindow) continue
+      if (captionCandidateScore(candidate, candidateText) > captionCandidateScore(existing, existingText)) {
+        normalized.splice(index, 1)
+        continue
+      }
+      keepCandidate = false
+      break
+    }
+    if (keepCandidate) normalized.push(candidate)
+  }
+  return normalized.sort((left, right) => left.start - right.start || left.end - right.end)
+}
+
+export function resolveCaptionTimelineOverlaps(captionsInput: readonly CutCaptionItem[]) {
+  const captions = captionsInput
+    .map((caption) => ({ ...caption }))
+    .sort((left, right) => left.start - right.start || left.end - right.end)
+  const resolved: CutCaptionItem[] = []
+  for (const caption of captions) {
+    const previous = resolved.at(-1)
+    if (!previous || caption.start >= previous.end) {
+      resolved.push(caption)
+      continue
+    }
+    const boundary = Math.round(((caption.start + previous.end) / 2) * 1_000) / 1_000
+    previous.end = boundary
+    caption.start = boundary
+    if (previous.end <= previous.start + 0.05) resolved.pop()
+    if (caption.end > caption.start + 0.05) resolved.push(caption)
+  }
+  return resolved
+}
+
+function comparableCaptionText(text: string) {
+  return text.toLocaleLowerCase().replace(/[\p{P}\p{S}\s]+/gu, '')
+}
+
+function captionCandidateScore(caption: CutCaptionItem, comparableText: string) {
+  const duration = caption.end - caption.start
+  return comparableText.length * 3 + Math.min(duration, 8)
+}
+
+function subtractCaptionCuts(start: number, end: number, cuts: readonly CutTimeRange[]) {
+  const portions: CutTimeRange[] = []
+  let cursor = start
+  for (const cut of cuts) {
+    if (cut.end <= cursor) continue
+    if (cut.start >= end) break
+    if (cut.start > cursor) portions.push({ start: cursor, end: Math.min(cut.start, end) })
+    cursor = Math.max(cursor, cut.end)
+    if (cursor >= end) break
+  }
+  if (cursor < end) portions.push({ start: cursor, end })
+  return portions.filter((portion) => portion.end - portion.start > 0.001)
 }
 
 function requireCaption(captions: CutCaptionItem[], captionId: string) {

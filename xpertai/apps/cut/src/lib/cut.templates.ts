@@ -58,6 +58,7 @@ export const cutTemplates: XpertTemplateContribution[] = [
       'Create a 30-second 1080p Cut project for this brief.',
       'Import the attached media and build a rough cut.',
       'Transcribe the imported interview, let me review the captions, then commit them.',
+      'Remove filler words and long pauses, add bilingual Chinese-English captions and a cover, then prepare a formal MP4 export.',
       'Find every pricing mention and long pause in the analyzed interview with exact time ranges.',
       'Create an evidence-backed 60-second rough-cut proposal, show me the diff, and wait for approval before applying it.',
       'Split the selected clip at five seconds and trim the second half.',

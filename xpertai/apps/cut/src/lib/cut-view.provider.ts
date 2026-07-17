@@ -42,6 +42,16 @@ import { CutService } from './cut.service.js'
 import type { CutCaptionDraftEditOperation, CutJsonObject, CutProjectDocument, CutScope } from './types.js'
 import type { CutSubtitleFormat } from './cut-caption.js'
 
+type CutViewFileAccessRequest = {
+  fileKey: string
+  targetId?: string
+  purpose: 'preview' | 'download'
+}
+
+type CutViewManifest = XpertExtensionViewManifest & {
+  fileAccess: { purposes: Array<'preview'> }
+}
+
 const moduleFile = fileURLToPath(import.meta.url)
 const moduleDir = dirname(moduleFile)
 const requireFromHere = createRequire(moduleFile)
@@ -76,7 +86,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (context.hostType !== 'agent' || (slot !== CUT_AGENT_WORKBENCH_MAIN_SLOT && slot !== CUT_AGENT_WORKBENCH_FIXED_SLOT)) return []
     const fixed = slot === CUT_AGENT_WORKBENCH_FIXED_SLOT
-    return [{
+    const manifest: CutViewManifest = {
       key: CUT_WORKBENCH_VIEW_KEY,
       title: i18n('Cut Workbench', 'Cut 视频工作台'),
       description: i18n('Import media, edit a non-linear timeline, save versions, and export MP4.', '导入媒体、编辑非线性时间线、保存版本并导出 MP4。'),
@@ -88,6 +98,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
       activation: { requiredFeatures: [CUT_FEATURE] },
       ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: i18n('Cut', 'Cut 剪辑'), order: 44, icon: { type: 'svg', value: CUT_ICON, alt: 'Cut' } } } } : {}),
       source: { provider: CUT_PROVIDER_KEY, plugin: CUT_PLUGIN_NAME },
+      fileAccess: { purposes: ['preview'] },
       view: {
         type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: CUT_REMOTE_ENTRY_KEY },
@@ -128,7 +139,19 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
         { key: 'cut_import_subtitle_file', label: i18n('Import Subtitles', '导入字幕'), icon: 'ri-subtitle-line', actionType: 'invoke', transport: 'file' },
         { key: 'cut_save_export_file', label: i18n('Save MP4 Export', '保存 MP4 导出'), icon: 'ri-save-2-line', actionType: 'invoke', transport: 'file' }
       ]
-    }]
+    }
+    return [manifest]
+  }
+
+  async resolveViewFile(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    request: CutViewFileAccessRequest
+  ) {
+    if (viewKey !== CUT_WORKBENCH_VIEW_KEY || request.purpose !== 'preview' || !request.targetId) {
+      throw new Error('Cut media preview request is invalid.')
+    }
+    return this.service.resolveMediaFile(scopeFromContext(context), request.targetId, request.fileKey)
   }
 
   async getRemoteComponentEntry(
@@ -173,7 +196,15 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
       message: actionError(error, 'Cut render capability check failed.'),
       limits: { maxVariants: 5, maxDurationSeconds: 600, maxFrames: 18_000, maxWidth: 3840, maxHeight: 2160, maxFps: 60, maxMediaBytes: 4 * 1024 * 1024 * 1024 }
     }))
-    const result: CutWorkbenchData = { projects, detail: detail ? sanitizeDetail(detail) : null, captionDrafts, analysisJobs, mediaSegments, editProposals, renderCapability }
+    const result: CutWorkbenchData = {
+      projects,
+      detail: detail ? sanitizeDetail(detail) : null,
+      captionDrafts,
+      analysisJobs,
+      mediaSegments: mediaSegments.map((segment) => ({ ...segment, thumbnail: null })),
+      editProposals,
+      renderCapability
+    }
     return result
   }
 
@@ -428,14 +459,16 @@ function sanitizeDetail(detail: Awaited<ReturnType<CutService['getProject']>>) {
   return {
     ...detail,
     document: sanitizeDocument(detail.document),
-    media: detail.media.map(({ fileReference: _fileReference, ...asset }) => asset),
+    media: detail.media.map(({ fileReference: _fileReference, previewUrl: _previewUrl, ...asset }) => asset),
     exports: detail.exports.map(sanitizeExport)
   }
 }
 
 function sanitizeMutation<T extends { document?: CutProjectDocument; media?: object }>(result: T) {
   const media = result.media && 'fileReference' in result.media
-    ? (({ fileReference: _fileReference, ...rest }) => rest)(result.media as { fileReference: object })
+    ? (({ fileReference: _fileReference, previewUrl: _previewUrl, ...rest }) => rest)(
+        result.media as { fileReference: object; previewUrl?: string | null }
+      )
     : result.media
   return { ...result, ...(result.document ? { document: sanitizeDocument(result.document) } : {}), ...(media ? { media } : {}) }
 }
@@ -443,21 +476,36 @@ function sanitizeMutation<T extends { document?: CutProjectDocument; media?: obj
 function sanitizeDocument(document: CutProjectDocument): CutProjectDocument {
   return {
     ...document,
-    tracks: document.tracks.map((track) => ({ ...track, clips: track.clips.map(({ source: _source, ...clip }) => clip) }))
+    tracks: document.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => {
+        const workspaceBacked = Boolean(clip.mediaAssetId) || clip.source?.source === 'platform.workspace.files'
+        const { source: _source, previewUrl: _previewUrl, ...sanitized } = clip
+        return workspaceBacked ? sanitized : { ...sanitized, ...(clip.previewUrl ? { previewUrl: clip.previewUrl } : {}) }
+      })
+    }))
   }
 }
 
 function sanitizeExport(record: { fileReference?: object; [key: string]: object | string | number | null | undefined }) {
-  const { fileReference: _fileReference, ...rest } = record
+  const { fileReference: _fileReference, fileUrl: _fileUrl, ...rest } = record
   return rest
 }
 
 function sanitizeProposal<T extends { preview?: { document?: CutProjectDocument } }>(result: T): T {
-  if (!result.preview?.document) return result
-  return {
-    ...result,
-    preview: { ...result.preview, document: sanitizeDocument(result.preview.document) }
-  }
+  const sanitized = sanitizeEvidenceThumbnails(result)
+  if (!sanitized.preview?.document) return sanitized
+  return { ...sanitized, preview: { ...sanitized.preview, document: sanitizeDocument(sanitized.preview.document) } }
+}
+
+function sanitizeEvidenceThumbnails<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(sanitizeEvidenceThumbnails) as T
+  if (!value || typeof value !== 'object') return value
+  const record = value as Record<string, unknown>
+  return Object.fromEntries(Object.entries(record).map(([key, item]) => [
+    key,
+    key === 'thumbnail' ? null : sanitizeEvidenceThumbnails(item)
+  ])) as T
 }
 
 function requestProjectId(request: XpertViewActionRequest) {

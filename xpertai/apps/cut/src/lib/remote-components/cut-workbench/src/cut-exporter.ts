@@ -62,7 +62,7 @@ async function renderAudioMix(document: CutDocument) {
   const sampleRate = 44_100
   const context = new AudioContext({ sampleRate })
   const decoded = await Promise.all(clips.map(async (clip) => {
-    const response = await fetch(clip.previewUrl!)
+    const response = await fetch(clip.previewUrl!, { credentials: 'include' })
     if (!response.ok) throw new Error(`Audio source ${clip.name} could not be loaded.`)
     return { clip, buffer: await context.decodeAudioData(await response.arrayBuffer()) }
   }))
@@ -198,7 +198,7 @@ function loadMedia(clip: CutClip, cache: Map<string, Promise<MediaElement>>) {
 function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
-    image.crossOrigin = 'anonymous'
+    image.crossOrigin = 'use-credentials'
     image.onload = () => resolve(image)
     image.onerror = () => reject(new Error('Cut image could not be loaded for export.'))
     image.src = url
@@ -208,7 +208,7 @@ function loadImage(url: string) {
 function loadVideo(url: string) {
   return new Promise<HTMLVideoElement>((resolve, reject) => {
     const video = document.createElement('video')
-    video.crossOrigin = 'anonymous'
+    video.crossOrigin = 'use-credentials'
     video.preload = 'auto'
     video.muted = true
     video.playsInline = true
@@ -223,11 +223,52 @@ async function seekVideo(video: HTMLVideoElement, time: number) {
   const bounded = Math.max(0, Math.min(time, Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.001) : time))
   if (Math.abs(video.currentTime - bounded) < 0.0005 && video.readyState >= 2) return
   await new Promise<void>((resolve, reject) => {
-    const cleanup = () => { video.removeEventListener('seeked', done); video.removeEventListener('error', failed) }
-    const done = () => { cleanup(); resolve() }
-    const failed = () => { cleanup(); reject(new Error('Cut video seek failed during export.')) }
-    video.addEventListener('seeked', done, { once: true })
-    video.addEventListener('error', failed, { once: true })
+    let seeked = false
+    let framePresented = false
+    let frameCallbackId: number | null = null
+    let animationFrameId: number | null = null
+    let timeoutId: number | null = null
+    const cleanup = () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+      video.removeEventListener('seeked', onSeeked)
+      video.removeEventListener('error', onError)
+      if (frameCallbackId !== null && typeof video.cancelVideoFrameCallback === 'function') video.cancelVideoFrameCallback(frameCallbackId)
+      if (animationFrameId !== null) window.cancelAnimationFrame(animationFrameId)
+    }
+    const complete = () => {
+      if (!seeked || !framePresented) return
+      cleanup()
+      resolve()
+    }
+    const failed = (error: Error) => {
+      cleanup()
+      reject(error)
+    }
+    const onError = () => failed(new Error('Cut video seek failed during export.'))
+    const onPresentedFrame: VideoFrameRequestCallback = (_now, metadata) => {
+      if (Math.abs(metadata.mediaTime - bounded) <= 0.075) {
+        framePresented = true
+        complete()
+        return
+      }
+      frameCallbackId = video.requestVideoFrameCallback(onPresentedFrame)
+    }
+    const onSeeked = () => {
+      seeked = true
+      if (typeof video.requestVideoFrameCallback !== 'function') {
+        animationFrameId = window.requestAnimationFrame(() => {
+          animationFrameId = window.requestAnimationFrame(() => {
+            framePresented = true
+            complete()
+          })
+        })
+      }
+      complete()
+    }
+    video.addEventListener('seeked', onSeeked, { once: true })
+    video.addEventListener('error', onError, { once: true })
+    if (typeof video.requestVideoFrameCallback === 'function') frameCallbackId = video.requestVideoFrameCallback(onPresentedFrame)
+    timeoutId = window.setTimeout(() => failed(new Error('Cut video frame decode timed out during export.')), 10_000)
     video.currentTime = bounded
   })
 }

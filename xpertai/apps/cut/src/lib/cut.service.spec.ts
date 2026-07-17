@@ -73,12 +73,15 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(imported.document.tracks[0]!.clips[0]!.source).toMatchObject({
       source: 'platform.workspace.files', tenantId: 'tenant-a', catalog: 'projects', scopeId: 'platform-project-a'
     })
+    expect(imported.document.tracks[0]!.clips[0]!.previewUrl).toBeUndefined()
+    expect(imported.media.previewUrl).toBeNull()
     expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-a', catalog: 'projects', scopeId: 'platform-project-a', folder: `files/cut/${projectId}/media`
     }))
 
     const iframeDocument = structuredClone(imported.document)
     delete iframeDocument.tracks[0]!.clips[0]!.source
+    iframeDocument.tracks[0]!.clips[0]!.previewUrl = 'https://api.example.test/api/workspace-files/content/session/grant/gate.svg'
     iframeDocument.tracks[0]!.clips[0]!.start = 2
     const saved = await service.saveProject(scope, {
       projectId, document: iframeDocument, baseRevision: imported.project.revision, changeSummary: 'Saved iframe timeline.'
@@ -86,6 +89,17 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(saved.changedClipIds).toEqual([imported.document.tracks[0]!.clips[0]!.id])
     expect(saved.document.tracks[0]!.clips[0]!.source?.source).toBe('platform.workspace.files')
     expect(saved.document.tracks[0]!.clips[0]!.start).toBe(2)
+    expect(saved.document.tracks[0]!.clips[0]!.previewUrl).toBeUndefined()
+
+    await expect(service.resolveMediaFile(scope, projectId, imported.media.id!)).resolves.toMatchObject({
+      fileName: 'gate.svg',
+      mimeType: 'image/svg+xml',
+      reference: { source: 'platform.workspace.files', tenantId: 'tenant-a' }
+    })
+    await expect(service.resolveMediaFile({ ...scope, organizationId: 'org-b' }, projectId, imported.media.id!))
+      .rejects.toThrow('current tenant and organization')
+    await expect(service.resolveMediaFile({ ...scope, assistantId: 'assistant-b' }, projectId, imported.media.id!))
+      .rejects.toThrow('current host project')
 
     const validated = await service.applyEditBatch(scope, {
       projectId,

@@ -98,7 +98,7 @@ export class CutService {
     ])
     return {
       item: compactProject(project),
-      document: validateCutProjectDocument(project.document),
+      document: stripWorkspacePreviewUrls(validateCutProjectDocument(project.document)),
       media: media.map(compactMedia),
       versions: versions.map(compactVersion),
       exports: exports.map(compactExport),
@@ -200,7 +200,6 @@ export class CutService {
       mimeType: file.mimeType ?? 'application/octet-stream',
       size: file.size ?? file.buffer.byteLength,
       reference: file.reference,
-      previewUrl: file.fileUrl ?? file.url,
       duration,
       baseRevision,
       changeSummary
@@ -235,7 +234,6 @@ export class CutService {
       mimeType: uploaded.mimeType ?? file.mimeType ?? 'application/octet-stream',
       size: uploaded.size ?? file.size ?? file.buffer.byteLength,
       reference: portableReference(uploaded, target),
-      previewUrl: uploaded.fileUrl ?? uploaded.url,
       duration,
       mediaMetadata: browserMetadata,
       baseRevision,
@@ -329,6 +327,26 @@ export class CutService {
     return { success: true, projectId: input.projectId ?? null, recorded: true }
   }
 
+  async resolveMediaFile(scope: CutScope, projectId: string, mediaAssetId: string) {
+    const project = await this.requireProject(scope, projectId)
+    if ((scope.assistantId && project.assistantId !== scope.assistantId)
+      || (scope.projectId && project.platformProjectId !== scope.projectId)) {
+      throw new NotFoundException('Cut media was not found in the current host project.')
+    }
+    const asset = await this.media.findOne({
+      where: scopedWhere<CutMediaAsset>(scope, { id: mediaAssetId, cutProjectId: projectId })
+    })
+    if (!asset || !['video/', 'audio/', 'image/'].some((prefix) => asset.mimeType.startsWith(prefix))) {
+      throw new NotFoundException('Cut media was not found in the current project.')
+    }
+    return {
+      reference: asset.fileReference,
+      fileName: asset.originalName,
+      mimeType: asset.mimeType,
+      size: asset.size
+    }
+  }
+
   private async registerMedia(
     scope: CutScope,
     projectId: string,
@@ -338,7 +356,6 @@ export class CutService {
       mimeType: string
       size: number
       reference: WorkspacePortableFileReference
-      previewUrl?: string
       duration?: number
       mediaMetadata?: CutMediaMetadata
       baseRevision: number
@@ -374,7 +391,7 @@ export class CutService {
           size: input.size,
           checksum,
           fileReference: reference,
-          previewUrl: input.previewUrl ?? null,
+          previewUrl: null,
           duration: mediaMetadata.duration ?? null,
           codedWidth: mediaMetadata.codedWidth ?? null,
           codedHeight: mediaMetadata.codedHeight ?? null,
@@ -390,7 +407,6 @@ export class CutService {
         type: clipType,
         mediaAssetId: requireId(asset.id),
         source: reference,
-        previewUrl: input.previewUrl,
         duration: mediaMetadata.duration ?? undefined
       })
       await this.persistDocumentAtRevision(scope, project, input.baseRevision, nextDocument)
@@ -432,7 +448,7 @@ export class CutService {
     const result = await this.projects.update(
       scopedWhere<CutProject>(scope, { id: projectId, revision: baseRevision }),
       {
-        document,
+        document: stripWorkspacePreviewUrls(document),
         revision: nextRevision,
         ...(clearFailureReason ? { failureReason: null } : {})
       }
@@ -440,7 +456,7 @@ export class CutService {
     if (result.affected !== 1) {
       throw new ConflictException(`Cut project revision changed from ${baseRevision}; reload before saving.`)
     }
-    project.document = document
+    project.document = stripWorkspacePreviewUrls(document)
     project.revision = nextRevision
     if (clearFailureReason) project.failureReason = null
     return project
@@ -646,6 +662,20 @@ function restorePortableSources(incoming: CutProject['document'], persisted: Cut
     tracks: incoming.tracks.map((track) => ({
       ...track,
       clips: track.clips.map((clip) => ({ ...clip, source: clip.source ?? sourceByClip.get(clip.id) }))
+    }))
+  }
+}
+
+function stripWorkspacePreviewUrls(document: CutProjectDocument): CutProjectDocument {
+  return {
+    ...document,
+    tracks: document.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => {
+        if (!clip.mediaAssetId && clip.source?.source !== WORKSPACE_FILES_SOURCE) return clip
+        const { previewUrl: _previewUrl, ...persisted } = clip
+        return persisted
+      })
     }))
   }
 }

@@ -11,7 +11,8 @@ declare const __CUT_TRANSCRIPTION_WORKER_SOURCE__: string
 export const CUT_LOCAL_TRANSCRIPTION_MODELS = [
   { id: 'Xenova/whisper-tiny', label: 'Whisper Tiny · multilingual' },
   { id: 'Xenova/whisper-tiny.en', label: 'Whisper Tiny · English' },
-  { id: 'Xenova/whisper-base', label: 'Whisper Base · multilingual' }
+  { id: 'Xenova/whisper-base', label: 'Whisper Base · multilingual' },
+  { id: 'Xenova/whisper-small', label: 'Whisper Small · multilingual' }
 ] as const
 
 export const CUT_LOCAL_TRANSCRIPTION_LANGUAGES = [
@@ -60,7 +61,7 @@ export async function decodeCutLocalTranscriptionAudio(input: {
   onProgress?: (progress: CutLocalTranscriptionProgress) => void
 }) {
   input.onProgress?.({ phase: 'audio', progress: 2, message: 'Fetching media audio…' })
-  const response = await fetch(input.url, { signal: input.signal })
+  const response = await fetch(input.url, { signal: input.signal, credentials: 'include' })
   if (!response.ok) throw new Error(`Could not load media audio (HTTP ${response.status}).`)
   const encoded = await response.arrayBuffer()
   if (input.signal?.aborted) throw new DOMException('Local transcription cancelled.', 'AbortError')

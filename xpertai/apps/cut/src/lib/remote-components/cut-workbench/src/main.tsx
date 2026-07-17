@@ -22,7 +22,7 @@ import {
   moveCutTransform, resizeCutTransform, rotateCutTransform, type CutResizeHandle
 } from '../../../cut-canvas-transform'
 import { computeCutWaveform } from '../../../cut-waveform'
-import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration } from '../../../cut-media-playback'
+import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
   toggleCutBookmark, type CutClipboard
@@ -46,17 +46,17 @@ import {
   type CutLocalTranscriptionProgress
 } from './cut-local-transcription'
 import { cutDebug } from './debug'
-import type { CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaSummary, ProjectDetail } from './cut-types'
+import type { CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaEvidenceSummary, MediaSummary, ProjectDetail } from './cut-types'
 import {
   errorText, executeAction, executeFileAction, invokeClientCommand, isRemoteObject, notify, reportResize,
-  requestData, responsePayload, startRemoteBridge, type RemoteContext, type RemoteValue
+  requestData, requestFileAccess, responsePayload, startRemoteBridge, type RemoteContext, type RemoteValue
 } from './runtime'
 import './app.css'
 
 const h = React.createElement
 const EMPTY: CutViewData = {
   projects: { items: [], total: 0, page: 1, pageSize: 20 }, detail: null, captionDrafts: [], analysisJobs: [], mediaSegments: [], editProposals: [],
-  renderCapability: { available: false, backend: 'sandbox-job', reason: 'LOADING', message: 'Checking Sandbox Runtime…', limits: { maxVariants: 5, maxDurationSeconds: 600, maxFrames: 18_000, maxWidth: 3840, maxHeight: 2160, maxFps: 60, maxMediaBytes: 4 * 1024 * 1024 * 1024 } }
+  renderCapability: { available: false, backend: 'sandbox-job', reason: 'LOADING', message: 'Checking Sandbox Runtime…', limits: { maxVariants: 5, maxDurationSeconds: 600, maxFrames: 18_000, maxWidth: 3840, maxHeight: 2160, maxFps: 60, maxMediaBytes: 350 * 1024 * 1024 } }
 }
 const TRACK_GUTTER = 132
 const MIN_CLIP_DURATION = 0.1
@@ -68,6 +68,9 @@ const DEFAULT_EFFECTS = { brightness: 1, contrast: 1, saturation: 1, blur: 0, gr
 const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten'] as const
 const MASK_SHAPES = ['none', 'rectangle', 'circle', 'rounded'] as const
 const TRANSITION_TYPES = ['fade', 'slide', 'zoom'] as const
+const FILE_ACCESS_REFRESH_WINDOW_MS = 5 * 60 * 1_000
+const FILE_ACCESS_REFRESH_RETRY_MS = 30_000
+const FILE_ACCESS_CONCURRENCY = 4
 
 type Translator = (key: CutMessageKey) => string
 type DragMode = 'move' | 'trim-start' | 'trim-end'
@@ -100,6 +103,13 @@ type CanvasTransformSession = {
   scaleY: number
   startTransform: NonNullable<CutClip['transform']>
   changed: boolean
+}
+type MediaAccessGrant = {
+  url: string
+  expiresAt: string
+  fileName: string
+  mimeType: string
+  size?: number
 }
 
 function App() {
@@ -150,14 +160,46 @@ function App() {
   const dragRef = React.useRef<DragSession | null>(null)
   const localTranscriptionCancelRef = React.useRef<(() => void) | null>(null)
   const mediaAnalysisCancelRef = React.useRef<(() => void) | null>(null)
+  const dataRef = React.useRef<CutViewData>(EMPTY)
+  const mediaAccessGrantsRef = React.useRef(new Map<string, MediaAccessGrant>())
+  const mediaAccessFailuresRef = React.useRef(new Set<string>())
   const t = React.useMemo(() => createCutTranslator(context?.locale), [context?.locale])
 
   React.useEffect(() => { dirtyRef.current = dirty }, [dirty])
+  React.useEffect(() => { dataRef.current = data }, [data])
   React.useEffect(() => { selectedProjectRef.current = selectedProjectId }, [selectedProjectId])
   React.useEffect(() => { playheadRef.current = playhead }, [playhead])
   React.useEffect(() => () => {
     localTranscriptionCancelRef.current?.()
     mediaAnalysisCancelRef.current?.()
+  }, [])
+
+  const hydrateMediaAccess = React.useCallback(async (detail: ProjectDetail | null, forceIds = new Set<string>()) => {
+    const projectId = detail?.item.id
+    if (!detail || !projectId) return detail
+    const assets = detail.media.filter((asset): asset is MediaSummary & { id: string } => Boolean(asset.id))
+    await mapWithConcurrency(assets, FILE_ACCESS_CONCURRENCY, async (asset) => {
+      const cacheKey = `${projectId}:${asset.id}`
+      const cached = mediaAccessGrantsRef.current.get(cacheKey)
+      if (!forceIds.has(asset.id) && cached && Date.parse(cached.expiresAt) > Date.now() + FILE_ACCESS_REFRESH_WINDOW_MS) return
+      try {
+        const payload = responsePayload(await requestFileAccess(asset.id, projectId, 'preview'))
+        const grant = parseMediaAccessGrant(payload)
+        mediaAccessGrantsRef.current.set(cacheKey, grant)
+      } catch (error) {
+        cutDebug.warn(`media.file-access-failed: ${asset.originalName}: ${errorText(error)}`)
+      }
+    })
+    const urls = new Map<string, string>()
+    for (const asset of assets) {
+      const grant = mediaAccessGrantsRef.current.get(`${projectId}:${asset.id}`)
+      if (grant) urls.set(asset.id, grant.url)
+    }
+    return {
+      ...detail,
+      media: detail.media.map((asset) => asset.id && urls.has(asset.id) ? { ...asset, previewUrl: urls.get(asset.id)! } : asset),
+      document: applyMediaPreviewUrls(detail.document, urls)
+    }
   }, [])
 
   const syncDetail = React.useCallback((detail: ProjectDetail | null) => {
@@ -190,7 +232,10 @@ function App() {
     try {
       const id = projectId ?? selectedProjectRef.current
       const payload = responsePayload(await requestData({ page: 1, pageSize: 20, parameters: id ? { projectId: id } : {} }))
-      const next = coerceViewData(payload)
+      const nextData = coerceViewData(payload)
+      const detail = await hydrateMediaAccess(nextData.detail)
+      const mediaUrls = mediaPreviewUrls(detail)
+      const next = { ...nextData, detail, mediaSegments: applyEvidencePreviewUrls(nextData.mediaSegments, mediaUrls) }
       setData(next)
       if (force || !dirtyRef.current) syncDetail(next.detail)
       else if (next.detail?.item.revision !== data.detail?.item.revision) setRemotePending(true)
@@ -203,9 +248,42 @@ function App() {
       setLoading(false)
       window.setTimeout(reportResize, 0)
     }
-  }, [data.detail?.item.revision, syncDetail, t])
+  }, [data.detail?.item.revision, hydrateMediaAccess, syncDetail, t])
+
+  const refreshMediaAccess = React.useCallback(async (mediaAssetIds: string[]) => {
+    const current = dataRef.current
+    if (!current.detail || !mediaAssetIds.length) return
+    const nextDetail = await hydrateMediaAccess(current.detail, new Set(mediaAssetIds))
+    if (!nextDetail || dataRef.current.detail?.item.id !== nextDetail.item.id) return
+    const urls = new Map(nextDetail.media.flatMap((asset) => asset.id && asset.previewUrl ? [[asset.id, asset.previewUrl] as const] : []))
+    setData((value) => value.detail?.item.id === nextDetail.item.id ? { ...value, detail: nextDetail } : value)
+    setDocumentDraft((document) => document ? applyMediaPreviewUrls(document, urls) : document)
+  }, [hydrateMediaAccess])
+
+  const handleMediaState = React.useCallback((state: string, mediaAssetId?: string, sourceUrl?: string) => {
+    setMediaState(state)
+    if (state !== 'error' || !mediaAssetId) return
+    const failureKey = `${mediaAssetId}:${sourceUrl ?? ''}`
+    if (mediaAccessFailuresRef.current.has(failureKey)) return
+    mediaAccessFailuresRef.current.add(failureKey)
+    void refreshMediaAccess([mediaAssetId])
+  }, [refreshMediaAccess])
 
   React.useEffect(() => { loadRef.current = load }, [load])
+  React.useEffect(() => {
+    const detail = data.detail
+    const projectId = detail?.item.id
+    if (!detail || !projectId) return undefined
+    const assetIds = detail.media.flatMap((asset) => asset.id ? [asset.id] : [])
+    const expiries = assetIds.flatMap((id) => {
+      const expiry = Date.parse(mediaAccessGrantsRef.current.get(`${projectId}:${id}`)?.expiresAt ?? '')
+      return Number.isFinite(expiry) ? [expiry] : []
+    })
+    if (!expiries.length) return undefined
+    const delay = Math.max(FILE_ACCESS_REFRESH_RETRY_MS, Math.min(...expiries) - Date.now() - FILE_ACCESS_REFRESH_WINDOW_MS)
+    const timer = window.setTimeout(() => void refreshMediaAccess(assetIds), delay)
+    return () => window.clearTimeout(timer)
+  }, [data.detail, refreshMediaAccess])
   React.useEffect(() => {
     if (!data.analysisJobs.some((job) => job.type === 'render' && (job.status === 'queued' || job.status === 'running'))) return undefined
     const timer = window.setTimeout(async () => {
@@ -253,6 +331,14 @@ function App() {
   const duration = documentDraft?.settings.durationSeconds ?? 30
   const localTranscriptionMedia = data.detail?.media.filter((asset) => asset.id && asset.previewUrl && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))) ?? []
   const selectedClip = documentDraft && selectedClipId ? findClip(documentDraft, selectedClipId) : null
+  const referencedMediaIds = new Set(documentDraft?.tracks.flatMap((track) => track.clips.map((clip) => clip.mediaAssetId).filter((id): id is string => Boolean(id))) ?? [])
+  const headlessInputBytes = (data.detail?.media ?? []).reduce((total, asset) => total + (asset.id && referencedMediaIds.has(asset.id) ? asset.size : 0), 0)
+  const headlessInputLimit = data.renderCapability.limits.maxMediaBytes
+  const headlessMediaOversize = headlessInputBytes > headlessInputLimit
+  const headlessMediaMessage = headlessMediaOversize
+    ? `${t('headlessMediaTooLarge')} (${formatBytes(headlessInputBytes)} > ${formatBytes(headlessInputLimit)}) ${t('headlessUseLocal')}`
+    : null
+  const headlessReady = data.renderCapability.available && !headlessMediaOversize
   const bookmarkAtPlayhead = documentDraft?.bookmarks?.some((bookmark) => Math.abs(bookmark.time - playhead) <= 0.05) ?? false
   const selectClip = React.useCallback((clipId: string, additive = false) => {
     if (!additive) {
@@ -394,6 +480,7 @@ function App() {
     playbackAnchorRef.current = { wallTime: performance.now(), playhead: playheadRef.current }
     const nextPlaying = !isPlaying
     const mediaElements = stageShellRef.current?.querySelectorAll<HTMLMediaElement>('video,audio') ?? []
+    if (nextPlaying) resumePreviewCapturedAudio()
     for (const media of mediaElements) {
       if (nextPlaying) void media.play().catch((error) => cutDebug.warn(`preview.play-failed: ${errorText(error)}`))
       else media.pause()
@@ -482,9 +569,9 @@ function App() {
     if (!projectId) return
     try {
       const payload = responsePayload(await executeAction('cut_get_edit_proposal', projectId, { projectId, proposalId }))
-      const proposal = coerceEditProposalReview(payload)
-      if (!proposal) throw new Error('Cut edit proposal response is invalid.')
-      setProposalReview(proposal)
+      const parsed = coerceEditProposalReview(payload)
+      if (!parsed) throw new Error('Cut edit proposal response is invalid.')
+      setProposalReview(applyProposalPreviewUrls(parsed, mediaPreviewUrls(data.detail)))
     } catch (error) { notify('error', errorText(error)) }
   }
 
@@ -501,8 +588,9 @@ function App() {
         itemUpdates: [{ itemId, enabled }] as unknown as RemoteValue,
         changeSummary: enabled ? 'Enabled one Cut proposal item in Workbench.' : 'Disabled one Cut proposal item in Workbench.'
       }))
-      const proposal = coerceEditProposalReview(payload)
-      if (!proposal) throw new Error('Cut edit proposal review response is invalid.')
+      const parsed = coerceEditProposalReview(payload)
+      if (!parsed) throw new Error('Cut edit proposal review response is invalid.')
+      const proposal = applyProposalPreviewUrls(parsed, mediaPreviewUrls(data.detail))
       setProposalReview(proposal)
       setData((current) => ({ ...current, editProposals: current.editProposals.map((item) => item.id === proposal.item.id ? proposal.item : item) }))
     } catch (error) { notify('error', errorText(error)) } finally { setSaving(false) }
@@ -614,6 +702,10 @@ function App() {
       notify('error', t('saveFirst'))
       return
     }
+    if (headlessMediaMessage) {
+      notify('error', headlessMediaMessage)
+      return
+    }
     if (!data.renderCapability.available) {
       notify('error', data.renderCapability.message ?? t('headlessUnavailable'))
       return
@@ -649,7 +741,7 @@ function App() {
     try {
       const decoded = await decodeCutLocalTranscriptionAudio({
         url: asset.previewUrl,
-        maxDuration: documentDraft.settings.durationSeconds,
+        maxDuration: asset.duration ?? documentDraft.settings.durationSeconds,
         signal: controller.signal,
         onProgress: setLocalTranscriptionProgress
       })
@@ -710,11 +802,11 @@ function App() {
     setMediaAnalysisProgress({ progress: 1, message: t('mediaAnalysisPreparing') })
     try {
       const segments: CutBrowserMediaEvidenceSegment[] = []
-      let analyzedDuration = Math.min(asset.duration ?? documentDraft.settings.durationSeconds, documentDraft.settings.durationSeconds)
+      let analyzedDuration = asset.duration ?? documentDraft.settings.durationSeconds
       try {
         const decoded = await decodeCutLocalTranscriptionAudio({
           url: asset.previewUrl,
-          maxDuration: documentDraft.settings.durationSeconds,
+          maxDuration: asset.duration ?? documentDraft.settings.durationSeconds,
           signal: controller.signal,
           onProgress: (progress) => setMediaAnalysisProgress({
             progress: Math.min(35, Math.max(2, Math.round(progress.progress * 3.5))),
@@ -737,7 +829,7 @@ function App() {
         const shots = await analyzeCutVideoShots({
           mediaAssetId: asset.id,
           url: asset.previewUrl,
-          maxDuration: documentDraft.settings.durationSeconds,
+          maxDuration: asset.duration ?? documentDraft.settings.durationSeconds,
           signal: controller.signal,
           onProgress: (progress, message) => setMediaAnalysisProgress({ progress: 35 + Math.round(progress * 0.55), message })
         })
@@ -1145,7 +1237,7 @@ function App() {
         <Button variant="outline" size="sm" onClick={() => void load(selectedProjectId, true)} disabled={loading}><RotateCcw />{t('reload')}</Button>
         <Button variant="outline" size="sm" onClick={() => void save()} disabled={!dirty || saving}><Save />{t('save')}</Button>
         <Button variant="outline" size="sm" onClick={() => void finalize()} disabled={!data.detail || dirty || saving}><Check />{t('version')}</Button>
-        <Button variant="outline" size="sm" title={data.renderCapability.available ? t('headlessReady') : data.renderCapability.message ?? t('headlessUnavailable')} onClick={() => void queueHeadlessExport()} disabled={!data.detail || dirty || saving || !data.renderCapability.available}><Film />{t('headlessExport')}</Button>
+        <Button variant="outline" size="sm" title={headlessMediaMessage ?? (data.renderCapability.available ? t('headlessReady') : data.renderCapability.message ?? t('headlessUnavailable'))} onClick={() => void queueHeadlessExport()} disabled={!data.detail || dirty || saving || !headlessReady}><Film />{t('headlessExport')}</Button>
         <Button size="sm" onClick={() => void exportMp4()} disabled={!data.detail || dirty || saving}><Download />{t('exportMp4')}</Button>
       </div>
     </header>
@@ -1262,9 +1354,9 @@ function App() {
               </div>
               <Button variant="outline" size="sm" onClick={() => subtitleUploadRef.current?.click()} disabled={!data.detail || saving}><Upload />{t('importSubtitles')}</Button>
               <div className="caption-section-title">{t('analysisJobs')}</div>
-              <div className={`render-capability ${data.renderCapability.available ? 'available' : 'unavailable'}`}>
-                <div><strong>{t('headlessRuntime')}</strong><Badge variant="outline">{data.renderCapability.available ? t('headlessReady') : t('headlessUnavailable')}</Badge></div>
-                <small>{data.renderCapability.available ? `${data.renderCapability.runtimeProfile ?? 'browser runtime'} · ${data.renderCapability.workerCount ?? 0} worker` : data.renderCapability.message ?? data.renderCapability.reason}</small>
+              <div className={`render-capability ${headlessReady ? 'available' : 'unavailable'}`}>
+                <div><strong>{t('headlessRuntime')}</strong><Badge variant="outline">{headlessReady ? t('headlessReady') : t('headlessUnavailable')}</Badge></div>
+                <small>{headlessMediaMessage ?? (data.renderCapability.available ? `${data.renderCapability.runtimeProfile ?? 'browser runtime'} · ${data.renderCapability.workerCount ?? 0} worker` : data.renderCapability.message ?? data.renderCapability.reason)}</small>
               </div>
               {!data.analysisJobs.length && <div className="empty-card">{t('noAnalysisJobs')}</div>}
               <div className="analysis-job-list">{data.analysisJobs.map((job) => <div key={job.id} className={`analysis-job ${job.status}`}>
@@ -1323,7 +1415,7 @@ function App() {
       <section className="cut-canvas-panel">
         <div className="canvas-toolbar"><Badge variant="outline">{documentDraft ? `${documentDraft.settings.width} × ${documentDraft.settings.height}` : t('canvas')}</Badge><span>{t('keyboardHint')}</span></div>
         <div ref={stageShellRef} className="stage-shell">
-          <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateClip(document, clipId, (clip) => ({ ...clip, transform })))} onState={setMediaState} emptyText={t('selectOrUpload')} />
+          <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateClip(document, clipId, (clip) => ({ ...clip, transform })))} onState={handleMediaState} emptyText={t('selectOrUpload')} />
           <span className={`media-state ${mediaState}`}>{mediaState === 'loaded' ? t('mediaLoaded') : mediaState}</span>
         </div>
         <div className="playback-controls">
@@ -1444,7 +1536,7 @@ function MediaCard({ asset, onAdd }: { asset: MediaSummary; onAdd: () => void })
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData(CUT_MEDIA_DRAG_TYPE, mediaDragKey(asset))
   }} onClick={onAdd} title={asset.originalName}>
-    <span className="media-thumb">{visual ? <img src={asset.previewUrl ?? ''} alt="" /> : asset.mimeType.startsWith('video/') ? <Film /> : asset.mimeType.startsWith('audio/') ? <Music2 /> : <Image />}</span>
+    <span className="media-thumb">{visual ? <img src={asset.previewUrl ?? ''} crossOrigin="use-credentials" alt="" /> : asset.mimeType.startsWith('video/') ? <Film /> : asset.mimeType.startsWith('audio/') ? <Music2 /> : <Image />}</span>
     <span><strong>{asset.originalName}</strong><small>{formatBytes(asset.size)}</small></span><Plus />
   </button>
 }
@@ -1457,7 +1549,7 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
   selectedClipIds: string[]
   onSelect: (id: string) => void
   onTransform: (id: string, transform: NonNullable<CutClip['transform']>) => void
-  onState: (state: string) => void
+  onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void
   emptyText: string
 }) {
   const canvasRef = React.useRef<HTMLDivElement | null>(null)
@@ -1485,8 +1577,12 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
   const visualClips = document.tracks.filter((track) => track.kind === 'visual' && !track.hidden)
     .flatMap((track) => track.clips.map((clip) => ({ clip, muted: track.muted })))
     .filter(({ clip }) => playhead >= clip.start && playhead < clip.start + clip.duration)
-  const audioClips = document.tracks.filter((track) => track.kind === 'audio' && !track.muted)
-    .flatMap((track) => track.clips).filter((clip) => playhead >= clip.start && playhead < clip.start + clip.duration)
+  const stagedVisualClips = document.tracks.filter((track) => track.kind === 'visual' && !track.hidden)
+    .flatMap((track) => track.clips.map((clip) => ({ clip, muted: track.muted })))
+    .filter(({ clip }) => (playhead >= clip.start && playhead < clip.start + clip.duration) || shouldMountPreviewMedia(clip, playhead))
+  const stagedAudioClips = document.tracks.filter((track) => track.kind === 'audio' && !track.muted)
+    .flatMap((track) => track.clips)
+    .filter((clip) => shouldMountPreviewMedia(clip, playhead))
   return <div ref={canvasRef} className="stage-canvas" style={{
     width: stageSize ? `${stageSize.width}px` : '100%',
     height: stageSize ? `${stageSize.height}px` : '100%',
@@ -1495,14 +1591,20 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
     transform: `scale(${zoom})`
   }}>
     {!visualClips.length && <div className="preview-empty"><Film /><p>{emptyText}</p></div>}
-    {visualClips.map(({ clip, muted }) => <StageLayer key={clip.id} clip={clip} document={document} playhead={playhead} playing={playing} muted={muted} selected={selectedClipIds.includes(clip.id)} onSelect={() => onSelect(clip.id)} onTransform={(transform) => onTransform(clip.id, transform)} onState={onState} />)}
-    {audioClips.map((clip) => clip.previewUrl ? <StageAudio key={clip.id} clip={clip} playhead={playhead} playing={playing} /> : null)}
+    {stagedVisualClips.map(({ clip, muted }) => {
+      const active = playhead >= clip.start && playhead < clip.start + clip.duration
+      return <StageLayer key={clip.id} clip={clip} document={document} playhead={playhead} playing={playing} active={active} muted={muted} selected={active && selectedClipIds.includes(clip.id)} onSelect={() => onSelect(clip.id)} onTransform={(transform) => onTransform(clip.id, transform)} onState={onState} />
+    })}
+    {stagedAudioClips.map((clip) => {
+      const active = playhead >= clip.start && playhead < clip.start + clip.duration
+      return clip.previewUrl ? <StageAudio key={clip.id} clip={clip} playhead={playhead} playing={playing} active={active} onState={onState} /> : null
+    })}
   </div>
 }
 
-function StageLayer({ clip, document, playhead, playing, muted, selected, onSelect, onTransform, onState }: {
-  clip: CutClip; document: CutDocument; playhead: number; playing: boolean; muted: boolean; selected: boolean; onSelect: () => void
-  onTransform: (transform: NonNullable<CutClip['transform']>) => void; onState: (state: string) => void
+function StageLayer({ clip, document, playhead, playing, active, muted, selected, onSelect, onTransform, onState }: {
+  clip: CutClip; document: CutDocument; playhead: number; playing: boolean; active: boolean; muted: boolean; selected: boolean; onSelect: () => void
+  onTransform: (transform: NonNullable<CutClip['transform']>) => void; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void
 }) {
   const transform = clip.transform ?? { x: 0, y: 0, width: document.settings.width, height: document.settings.height, rotation: 0, opacity: 1 }
   const rootRef = React.useRef<HTMLDivElement | null>(null)
@@ -1583,7 +1685,9 @@ function StageLayer({ clip, document, playhead, playing, muted, selected, onSele
   const style: React.CSSProperties = {
     left: `${liveTransform.x / document.settings.width * 100}%`, top: `${liveTransform.y / document.settings.height * 100}%`,
     width: `${liveTransform.width / document.settings.width * 100}%`, height: `${liveTransform.height / document.settings.height * 100}%`,
-    opacity: liveTransform.opacity * fadeInOpacity * fadeOutOpacity * transition.opacity,
+    opacity: active ? liveTransform.opacity * fadeInOpacity * fadeOutOpacity * transition.opacity : 0,
+    pointerEvents: active ? 'auto' : 'none',
+    visibility: active ? 'visible' : 'hidden',
     transform: `translateX(${transition.offsetX * 100}%) scale(${transition.scale}) rotate(${liveTransform.rotation}deg)`
   }
   const contentStyle: React.CSSProperties = {
@@ -1592,8 +1696,8 @@ function StageLayer({ clip, document, playhead, playing, muted, selected, onSele
   const mediaStyle: React.CSSProperties = { objectFit: mediaObjectFit(clip.mediaFit) }
   return <div ref={rootRef} className={`stage-layer ${selected ? 'selected' : ''}`} style={style} onPointerDown={(event) => beginCanvasInteraction(event, 'move')} onPointerMove={moveCanvasInteraction} onPointerUp={endCanvasInteraction} onPointerCancel={cancelCanvasInteraction}>
     <div className="stage-layer-content" style={contentStyle}>
-      {clip.type === 'video' && clip.previewUrl ? <StageVideo clip={clip} playhead={playhead} playing={playing} muted={muted || Boolean(clip.audioDetached)} onState={onState} /> : null}
-      {clip.type === 'image' && clip.previewUrl ? <img src={clip.previewUrl} style={mediaStyle} crossOrigin="anonymous" draggable={false} alt={clip.name} onLoad={() => onState('loaded')} onError={() => onState('error')} /> : null}
+      {clip.type === 'video' && clip.previewUrl ? <StageVideo clip={clip} playhead={playhead} playing={playing} active={active} muted={muted || Boolean(clip.audioDetached)} onState={onState} /> : null}
+      {clip.type === 'image' && clip.previewUrl ? <img src={clip.previewUrl} style={mediaStyle} crossOrigin="use-credentials" draggable={false} alt={clip.name} onLoad={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} /> : null}
       {clip.type === 'color' ? <div className="stage-color" style={{ background: clip.color ?? '#111827' }} /> : null}
       {clip.type === 'text' ? <div className="stage-text" style={{ color: clip.color ?? '#f8fafc', fontSize: clip.fontSize ? `${Math.max(12, clip.fontSize / document.settings.width * 72)}px` : clip.name.toLowerCase().includes('heading') ? 'clamp(22px,5vw,72px)' : 'clamp(16px,3vw,42px)', fontWeight: clip.fontWeight ?? 750, textAlign: clip.textAlign ?? 'center' }}>{clip.text ?? clip.name}</div> : null}
     </div>
@@ -1605,35 +1709,168 @@ function StageLayer({ clip, document, playhead, playing, muted, selected, onSele
   </div>
 }
 
-function StageVideo({ clip, playhead, playing, muted, onState }: { clip: CutClip; playhead: number; playing: boolean; muted: boolean; onState: (state: string) => void }) {
+function StageVideo({ clip, playhead, playing, active, muted, onState }: { clip: CutClip; playhead: number; playing: boolean; active: boolean; muted: boolean; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void }) {
   const ref = React.useRef<HTMLVideoElement | null>(null)
+  const previousPlayheadRef = React.useRef(playhead)
+  const wasPlayingRef = React.useRef(false)
+  const playRequestRef = React.useRef<Promise<void> | null>(null)
+  React.useEffect(() => {
+    const video = ref.current
+    return () => {
+      if (video) releasePreviewCapturedAudio(video)
+    }
+  }, [])
   React.useEffect(() => {
     const video = ref.current
     if (!video) return
-    const target = clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1)
-    if (!playing || Math.abs(video.currentTime - target) > 0.2) video.currentTime = Math.max(0, target)
+    const target = Math.max(0, clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1))
+    const shouldSeek = shouldSeekPreviewMedia({
+      playing,
+      wasPlaying: wasPlayingRef.current,
+      playhead,
+      previousPlayhead: previousPlayheadRef.current,
+      currentTime: video.currentTime,
+      targetTime: target
+    })
+    if (shouldSeek) {
+      cutDebug.debug('preview.video-seek', { clipId: clip.id, playing, target: Math.round(target * 1_000) / 1_000 })
+      video.currentTime = Math.max(0, target)
+    }
     video.playbackRate = clip.playbackRate ?? 1
-    video.volume = clamp(clip.volume ?? 1, 0, 1)
-    video.muted = muted || video.volume === 0
-    if (playing) void video.play().catch(() => undefined)
-    else video.pause()
-  }, [clip, muted, playhead, playing])
-  return <video ref={ref} src={clip.previewUrl} style={{ objectFit: mediaObjectFit(clip.mediaFit) }} crossOrigin="anonymous" muted={muted || (clip.volume ?? 1) <= 0} playsInline onLoadStart={() => onState('loading')} onLoadedData={() => onState('loaded')} onError={() => onState('error')} />
+    const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
+    const capturedAudio = setPreviewCapturedAudioGain(video, active && !muted ? requestedVolume : 0)
+    video.volume = capturedAudio ? 1 : active ? requestedVolume : 0
+    video.muted = capturedAudio || muted || requestedVolume === 0
+    if (playing && (shouldSeek || video.paused) && !playRequestRef.current) {
+      const request = video.play()
+      playRequestRef.current = request
+      void request.catch((error) => cutDebug.warn(`preview.video-play-failed: ${errorText(error)}`)).finally(() => {
+        if (playRequestRef.current === request) playRequestRef.current = null
+      })
+    } else if (!playing) {
+      video.pause()
+      playRequestRef.current = null
+    }
+    previousPlayheadRef.current = playhead
+    wasPlayingRef.current = playing
+  }, [active, clip, muted, playhead, playing])
+  return <video ref={ref} src={clip.previewUrl} style={{ objectFit: mediaObjectFit(clip.mediaFit) }} crossOrigin="use-credentials" playsInline onLoadStart={() => onState('loading', clip.mediaAssetId, clip.previewUrl)} onLoadedData={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} />
 }
 
-function StageAudio({ clip, playhead, playing }: { clip: CutClip; playhead: number; playing: boolean }) {
+function StageAudio({ clip, playhead, playing, active, onState }: { clip: CutClip; playhead: number; playing: boolean; active: boolean; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void }) {
   const ref = React.useRef<HTMLAudioElement | null>(null)
+  const previousPlayheadRef = React.useRef(playhead)
+  const wasPlayingRef = React.useRef(false)
+  const playRequestRef = React.useRef<Promise<void> | null>(null)
+  React.useEffect(() => {
+    const audio = ref.current
+    return () => {
+      if (audio) releasePreviewCapturedAudio(audio)
+    }
+  }, [])
   React.useEffect(() => {
     const audio = ref.current
     if (!audio) return
-    const target = clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1)
-    if (!playing || Math.abs(audio.currentTime - target) > 0.2) audio.currentTime = Math.max(0, target)
+    const target = Math.max(0, clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1))
+    const shouldSeek = shouldSeekPreviewMedia({
+      playing,
+      wasPlaying: wasPlayingRef.current,
+      playhead,
+      previousPlayhead: previousPlayheadRef.current,
+      currentTime: audio.currentTime,
+      targetTime: target
+    })
+    if (shouldSeek) {
+      cutDebug.debug('preview.audio-seek', { clipId: clip.id, playing, target: Math.round(target * 1_000) / 1_000 })
+      audio.currentTime = Math.max(0, target)
+    }
     audio.playbackRate = clip.playbackRate ?? 1
-    audio.volume = clamp(clip.volume ?? 1, 0, 1)
-    if (playing) void audio.play().catch(() => undefined)
-    else audio.pause()
-  }, [clip, playhead, playing])
-  return <audio ref={ref} src={clip.previewUrl} crossOrigin="anonymous" className="stage-audio" />
+    const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
+    const capturedAudio = setPreviewCapturedAudioGain(audio, active ? requestedVolume : 0)
+    audio.volume = capturedAudio ? 1 : active ? requestedVolume : 0
+    audio.muted = capturedAudio
+    if (playing && (shouldSeek || audio.paused) && !playRequestRef.current) {
+      const request = audio.play()
+      playRequestRef.current = request
+      void request.catch((error) => cutDebug.warn(`preview.audio-play-failed: ${errorText(error)}`)).finally(() => {
+        if (playRequestRef.current === request) playRequestRef.current = null
+      })
+    } else if (!playing) {
+      audio.pause()
+      playRequestRef.current = null
+    }
+    previousPlayheadRef.current = playhead
+    wasPlayingRef.current = playing
+  }, [active, clip, playhead, playing])
+  return <audio ref={ref} src={clip.previewUrl} crossOrigin="use-credentials" className="stage-audio" onLoadedData={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} />
+}
+
+/**
+ * Chromium may pause a pre-rolled media element when it becomes audible.
+ * Keep the element muted and route its captured raw audio through a gain node,
+ * so gaps stay silent without interrupting the media clock at clip boundaries.
+ */
+type CaptureStreamMediaElement = HTMLMediaElement & {
+  captureStream?: () => MediaStream
+}
+
+type PreviewCapturedAudioRoute = {
+  source: MediaStreamAudioSourceNode
+  gain: GainNode
+}
+
+let previewCapturedAudioContext: AudioContext | null = null
+const previewCapturedAudioRoutes = new WeakMap<HTMLMediaElement, PreviewCapturedAudioRoute>()
+const previewCapturedAudioWarnings = new WeakSet<HTMLMediaElement>()
+
+function ensurePreviewCapturedAudioContext() {
+  previewCapturedAudioContext ??= new AudioContext()
+  return previewCapturedAudioContext
+}
+
+function setPreviewCapturedAudioGain(media: HTMLMediaElement, volume: number) {
+  let route = previewCapturedAudioRoutes.get(media)
+  if (!route) {
+    const captureStream = (media as CaptureStreamMediaElement).captureStream
+    if (!captureStream) return false
+    try {
+      const stream = captureStream.call(media)
+      // Chromium can expose captureStream() before the decoded audio track is
+      // attached. Keep native element audio until a later playback update can
+      // establish the captured route; an empty stream is not a routing error.
+      if (!stream.getAudioTracks().length) return false
+      const context = ensurePreviewCapturedAudioContext()
+      const source = context.createMediaStreamSource(stream)
+      const gain = context.createGain()
+      source.connect(gain).connect(context.destination)
+      route = { source, gain }
+      previewCapturedAudioRoutes.set(media, route)
+    } catch (error) {
+      if (!previewCapturedAudioWarnings.has(media)) {
+        previewCapturedAudioWarnings.add(media)
+        cutDebug.warn(`preview.captured-audio-routing-failed: ${errorText(error)}`)
+      }
+      return false
+    }
+  }
+  const context = ensurePreviewCapturedAudioContext()
+  route.gain.gain.setValueAtTime(clamp(volume, 0, 1), context.currentTime)
+  return true
+}
+
+function resumePreviewCapturedAudio() {
+  const context = ensurePreviewCapturedAudioContext()
+  if (context.state === 'suspended') {
+    void context.resume().catch((error) => cutDebug.warn(`preview.captured-audio-resume-failed: ${errorText(error)}`))
+  }
+}
+
+function releasePreviewCapturedAudio(media: HTMLMediaElement) {
+  const route = previewCapturedAudioRoutes.get(media)
+  if (!route) return
+  route.source.disconnect()
+  route.gain.disconnect()
+  previewCapturedAudioRoutes.delete(media)
 }
 
 function ClipInspector({ clip, document, t, onChange, onDuplicate, onDelete, onRestoreSourceDuration, restoringDuration }: {
@@ -1741,7 +1978,7 @@ function AudioWaveform({ clip }: { clip: CutClip }) {
     const loadWaveform = async () => {
       const context = new AudioContext()
       try {
-        const response = await fetch(clip.previewUrl!)
+        const response = await fetch(clip.previewUrl!, { credentials: 'include' })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const buffer = await context.decodeAudioData(await response.arrayBuffer())
         const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index))
@@ -1908,6 +2145,79 @@ function snapEdge(value: number, points: number[], threshold: number) {
     }
   }
   return candidate
+}
+
+async function mapWithConcurrency<T>(items: T[], concurrency: number, operation: (item: T) => Promise<void>) {
+  let index = 0
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, async () => {
+    while (index < items.length) {
+      const item = items[index]
+      index += 1
+      if (item) await operation(item)
+    }
+  })
+  await Promise.all(workers)
+}
+
+function parseMediaAccessGrant(value: RemoteValue | null): MediaAccessGrant {
+  if (!isRemoteObject(value)
+    || typeof value.url !== 'string'
+    || typeof value.expiresAt !== 'string'
+    || typeof value.fileName !== 'string'
+    || typeof value.mimeType !== 'string'
+    || !Number.isFinite(Date.parse(value.expiresAt))) {
+    throw new Error('The host returned an invalid media access grant.')
+  }
+  return {
+    url: value.url,
+    expiresAt: value.expiresAt,
+    fileName: value.fileName,
+    mimeType: value.mimeType,
+    ...(typeof value.size === 'number' ? { size: value.size } : {})
+  }
+}
+
+function applyMediaPreviewUrls(document: CutDocument, urls: Map<string, string>) {
+  return {
+    ...document,
+    tracks: document.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => clip.mediaAssetId && urls.has(clip.mediaAssetId)
+        ? { ...clip, previewUrl: urls.get(clip.mediaAssetId)! }
+        : clip)
+    }))
+  }
+}
+
+function mediaPreviewUrls(detail: ProjectDetail | null) {
+  return new Map(detail?.media.flatMap((asset) => asset.id && asset.previewUrl ? [[asset.id, asset.previewUrl] as const] : []) ?? [])
+}
+
+function applyEvidencePreviewUrls(items: MediaEvidenceSummary[], urls: Map<string, string>) {
+  return items.map((item) => {
+    const url = urls.get(item.mediaAssetId)
+    return url ? { ...item, thumbnail: { url, time: item.thumbnail?.time ?? item.start } } : item
+  })
+}
+
+function applyProposalPreviewUrls(proposal: EditProposalReview, urls: Map<string, string>): EditProposalReview {
+  return {
+    ...proposal,
+    item: {
+      ...proposal.item,
+      items: proposal.item.items.map((item) => ({
+        ...item,
+        evidence: item.evidence.map((evidence) => {
+          const url = urls.get(evidence.mediaAssetId)
+          return url ? { ...evidence, thumbnail: { url, time: evidence.thumbnail?.time ?? evidence.start } } : evidence
+        })
+      }))
+    },
+    preview: {
+      ...proposal.preview,
+      ...(proposal.preview.document ? { document: applyMediaPreviewUrls(proposal.preview.document, urls) } : {})
+    }
+  }
 }
 
 function coerceViewData(value: RemoteValue | null): CutViewData {

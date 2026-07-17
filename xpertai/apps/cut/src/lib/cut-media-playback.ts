@@ -1,6 +1,40 @@
 import type { CutProjectDocument } from './types.js'
 
 export const MAX_CUT_PROJECT_DURATION = 3_600
+export const PREVIEW_PLAYHEAD_JUMP_SECONDS = 0.25
+export const PREVIEW_MEDIA_SEEK_EPSILON_SECONDS = 1 / 120
+export const PREVIEW_MEDIA_PREROLL_SECONDS = 5
+
+export type PreviewMediaSyncState = {
+  playing: boolean
+  wasPlaying: boolean
+  playhead: number
+  previousPlayhead: number
+  currentTime: number
+  targetTime: number
+}
+
+/**
+ * Media elements advance on their own while playing. Re-seeking them on every
+ * React playhead update causes large or non-range-addressable files to stall
+ * and repeatedly replay tiny audio fragments. Only synchronize when playback
+ * starts, while paused, or after a real playhead jump.
+ */
+export function shouldSeekPreviewMedia(state: PreviewMediaSyncState) {
+  const outOfPosition = Math.abs(state.currentTime - state.targetTime) > PREVIEW_MEDIA_SEEK_EPSILON_SECONDS
+  if (!outOfPosition) return false
+  if (!state.playing || !state.wasPlaying) return true
+  return Math.abs(state.playhead - state.previousPlayhead) > PREVIEW_PLAYHEAD_JUMP_SECONDS
+}
+
+export function shouldMountPreviewMedia(
+  clip: { type: string; previewUrl?: string; start: number; duration: number },
+  playhead: number
+) {
+  if (!clip.previewUrl || (clip.type !== 'video' && clip.type !== 'audio')) return false
+  if (playhead >= clip.start && playhead < clip.start + clip.duration) return true
+  return clip.start > playhead && clip.start - playhead <= PREVIEW_MEDIA_PREROLL_SECONDS
+}
 
 export function audibleTimelineClips(document: CutProjectDocument) {
   return document.tracks.flatMap((track) => {

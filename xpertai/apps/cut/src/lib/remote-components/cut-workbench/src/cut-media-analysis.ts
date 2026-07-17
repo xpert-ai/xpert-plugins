@@ -1,4 +1,4 @@
-export const CUT_BROWSER_MEDIA_ANALYZER_VERSION = 'cut-browser-media-analysis/1'
+export const CUT_BROWSER_MEDIA_ANALYZER_VERSION = 'cut-browser-media-analysis/2'
 
 export type CutBrowserMediaEvidenceSegment = {
   mediaAssetId: string
@@ -22,23 +22,23 @@ export function analyzeCutAudioActivity(input: {
   minimumSilenceSeconds?: number
 }): CutBrowserMediaEvidenceSegment[] {
   const windowSeconds = input.windowSeconds ?? 0.1
-  const threshold = input.silenceThresholdDb ?? -42
   const minimumSilence = input.minimumSilenceSeconds ?? 0.5
   const windowFrames = Math.max(1, Math.round(input.sampleRate * windowSeconds))
-  const bins: Array<{ start: number; end: number; db: number; silent: boolean }> = []
+  const measuredBins: Array<{ start: number; end: number; db: number }> = []
   for (let startFrame = 0; startFrame < input.audio.length; startFrame += windowFrames) {
     const endFrame = Math.min(input.audio.length, startFrame + windowFrames)
     let squareSum = 0
     for (let index = startFrame; index < endFrame; index += 1) squareSum += input.audio[index]! * input.audio[index]!
     const rms = Math.sqrt(squareSum / Math.max(1, endFrame - startFrame))
     const db = rms > 0 ? 20 * Math.log10(rms) : -100
-    bins.push({
+    measuredBins.push({
       start: startFrame / input.sampleRate,
       end: Math.min(input.duration, endFrame / input.sampleRate),
-      db,
-      silent: db < threshold
+      db
     })
   }
+  const threshold = input.silenceThresholdDb ?? adaptiveSilenceThreshold(measuredBins.map((bin) => bin.db))
+  const bins = measuredBins.map((bin) => ({ ...bin, silent: bin.db < threshold }))
   const groups = groupAudioBins(bins)
   for (const group of groups) {
     if (group.silent && group.end - group.start < minimumSilence) group.silent = false
@@ -66,6 +66,18 @@ export function analyzeCutAudioActivity(input: {
   }).filter((segment) => segment.end > segment.start)
 }
 
+/**
+ * Estimate the recording's noise floor instead of assuming studio silence.
+ * The lower quintile is normally room tone; a small margin above it separates
+ * pauses while the clamps keep quiet speech and clipped recordings safe.
+ */
+export function adaptiveSilenceThreshold(values: readonly number[]) {
+  const finite = values.filter(Number.isFinite).sort((left, right) => left - right)
+  if (!finite.length) return -42
+  const noiseFloor = finite[Math.min(finite.length - 1, Math.floor(finite.length * 0.2))]!
+  return Math.round(clamp(noiseFloor + 6, -55, -30) * 100) / 100
+}
+
 export async function analyzeCutVideoShots(input: {
   mediaAssetId: string
   url: string
@@ -74,7 +86,7 @@ export async function analyzeCutVideoShots(input: {
   onProgress?: (progress: number, message: string) => void
 }): Promise<{ duration: number; segments: CutBrowserMediaEvidenceSegment[] }> {
   const video = document.createElement('video')
-  video.crossOrigin = 'anonymous'
+  video.crossOrigin = 'use-credentials'
   video.muted = true
   video.preload = 'auto'
   video.playsInline = true

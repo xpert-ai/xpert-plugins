@@ -75,6 +75,19 @@ describe('CutRenderService', () => {
     expect(harness.queue.enqueue).not.toHaveBeenCalled()
   })
 
+  it('rejects media above the Sandbox Jobs input limit before enqueue and advertises the same limit', async () => {
+    const harness = createHarness({ assetSize: 351 * 1024 * 1024 })
+    await expect(harness.service.start(scope, {
+      projectId: PROJECT_ID,
+      baseRevision: 7,
+      variants: [{ name: 'oversized' }],
+      changeSummary: 'Attempted an oversized headless export.'
+    })).rejects.toThrow('use browser MP4 export or a smaller workspace proxy')
+    expect(harness.jobs.rows).toHaveLength(0)
+    expect(harness.queue.enqueue).not.toHaveBeenCalled()
+    await expect(harness.service.getCapability()).resolves.toMatchObject({ limits: { maxMediaBytes: 350 * 1024 * 1024 } })
+  })
+
   it('compensates already queued variants when a later batch enqueue fails', async () => {
     const harness = createHarness()
     harness.queue.enqueue.mockResolvedValueOnce({ jobId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }).mockRejectedValueOnce(new Error('queue stopped'))
@@ -144,8 +157,9 @@ describe('CutRenderService', () => {
   })
 })
 
-function createHarness() {
+function createHarness(options: { assetSize?: number } = {}) {
   const document = renderDocument()
+  const assetSize = options.assetSize ?? 4_096
   const mediaReference = {
     source: 'platform.workspace.files' as const,
     catalog: 'projects' as const,
@@ -156,7 +170,7 @@ function createHarness() {
     originalName: 'voice.wav',
     name: 'voice.wav',
     mimeType: 'audio/wav',
-    size: 4_096
+    size: assetSize
   }
   const media = memoryRepository<CutMediaAsset>()
   media.rows.push({
@@ -168,7 +182,7 @@ function createHarness() {
     cutProjectId: PROJECT_ID,
     originalName: 'voice.wav',
     mimeType: 'audio/wav',
-    size: 4_096,
+    size: assetSize,
     checksum: 'a'.repeat(64),
     fileReference: mediaReference,
     previewUrl: 'https://files.example.test/voice.wav',
@@ -183,7 +197,7 @@ function createHarness() {
     cutProjectId: PROJECT_ID,
     originalName: 'voice-fr.wav',
     mimeType: 'audio/wav',
-    size: 4_096,
+    size: assetSize,
     checksum: 'd'.repeat(64),
     fileReference: { ...mediaReference, filePath: 'files/voice-fr.wav', workspacePath: '/workspace/files/voice-fr.wav', originalName: 'voice-fr.wav', name: 'voice-fr.wav' },
     previewUrl: 'https://files.example.test/voice-fr.wav',
@@ -193,10 +207,10 @@ function createHarness() {
     item: { id: PROJECT_ID, title: 'Campaign Cut', revision: 7 },
     document,
     media: [{
-      id: ASSET_ID, originalName: 'voice.wav', mimeType: 'audio/wav', size: 4_096, checksum: 'a'.repeat(64),
+      id: ASSET_ID, originalName: 'voice.wav', mimeType: 'audio/wav', size: assetSize, checksum: 'a'.repeat(64),
       fileReference: mediaReference, previewUrl: 'https://files.example.test/voice.wav', duration: 2
     }, {
-      id: REPLACEMENT_ASSET_ID, originalName: 'voice-fr.wav', mimeType: 'audio/wav', size: 4_096, checksum: 'd'.repeat(64),
+      id: REPLACEMENT_ASSET_ID, originalName: 'voice-fr.wav', mimeType: 'audio/wav', size: assetSize, checksum: 'd'.repeat(64),
       fileReference: { ...mediaReference, filePath: 'files/voice-fr.wav', workspacePath: '/workspace/files/voice-fr.wav', originalName: 'voice-fr.wav', name: 'voice-fr.wav' },
       previewUrl: 'https://files.example.test/voice-fr.wav', duration: 2
     }],

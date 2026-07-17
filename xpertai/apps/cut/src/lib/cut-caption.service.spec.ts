@@ -8,13 +8,29 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   SYSTEM_GLOBAL_SCOPE: 'system:global'
 }))
 
-import { CutCaptionService } from './cut-caption.service.js'
+import { CutCaptionService, normalizeTranscriptCaptionItems, resolveCaptionTimelineOverlaps } from './cut-caption.service.js'
 import { createStarterCutProject, validateCutProjectDocument } from './cut-project.js'
 import type { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutCaptionDraft, CutMediaAsset, CutTranscript, CutTranscriptSegment } from './entities/index.js'
 import type { CutProjectDocument, CutScope } from './types.js'
 
 describe('CutCaptionService reviewable subtitle workflow', () => {
+  it('deduplicates overlapping Whisper windows and resolves remaining cue collisions', () => {
+    const normalized = normalizeTranscriptCaptionItems([
+      { id: 'a', start: 10, end: 13, text: '我们自己大概要投入多少人', speaker: null },
+      { id: 'b', start: 10.6, end: 13.5, text: '自己大概要投入多少人', speaker: null },
+      { id: 'c', start: 20, end: 22, text: '呃我没因为', speaker: null },
+      { id: 'd', start: 20.1, end: 23.7, text: '因为我们有成熟的平台', speaker: null },
+      { id: 'e', start: 30, end: 31.5, text: '第二个问题是', speaker: null },
+      { id: 'f', start: 31.1, end: 33.2, text: '一个一个来', speaker: null }
+    ])
+    expect(normalized.map((caption) => caption.id)).toEqual(['a', 'd', 'e', 'f'])
+
+    const resolved = resolveCaptionTimelineOverlaps(normalized)
+    expect(resolved[2]!.end).toBe(resolved[3]!.start)
+    expect(resolved.every((caption, index) => index === 0 || caption.start >= resolved[index - 1]!.end)).toBe(true)
+  })
+
   it('imports, pages, exports, and idempotently commits a scoped caption draft', async () => {
     const jobs = memoryRepository<CutAnalysisJob>()
     const media = memoryRepository<CutMediaAsset>()
@@ -99,17 +115,56 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     expect(exported.content).toContain('Welcome to reviewable Cut')
     expect(exported.captionCount).toBe(2)
 
-    const committed = await service.commitCaptionDraft(scope, {
+    const sourcePage = await service.getCaptionDraft(scope, projectId, imported.draftId, 1, 10)
+    const translated = await service.createTranslatedCaptionDraft(scope, {
       projectId,
-      draftId: imported.draftId,
+      sourceDraftId: imported.draftId,
+      targetLanguage: 'zh-Hans',
       baseRevision: revision,
-      baseDraftRevision: 2,
-      changeSummary: 'Committed reviewed captions.'
+      translations: sourcePage.captions.map((caption, index) => ({
+        captionId: caption.id,
+        text: index === 0 ? '欢迎使用可审阅的 Cut' : '提交前请先审阅'
+      })),
+      targetTrackName: '中文字幕',
+      changeSummary: 'Created a Chinese caption translation.'
     })
-    expect(committed).toMatchObject({ success: true, alreadyCommitted: false, revision: 2 })
-    expect(committed.changedClipIds).toHaveLength(2)
-    expect(document.tracks.find((track) => track.id === committed.trackId)).toMatchObject({ kind: 'visual', name: 'Captions' })
-    expect(document.tracks.flatMap((track) => track.clips).filter((clip) => clip.type === 'text')).toHaveLength(2)
+    expect(translated).toMatchObject({ language: 'zh-Hans', captionCount: 2, sourceDraftId: imported.draftId, translated: true })
+    expect((await service.getCaptionDraft(scope, projectId, translated.id!, 1, 10)).captions.map((caption) => caption.text)).toEqual([
+      '欢迎使用可审阅的 Cut', '提交前请先审阅'
+    ])
+
+    const retimed = await service.createCaptionDraft(scope, {
+      projectId,
+      transcriptId: imported.transcriptId,
+      baseRevision: revision,
+      timelineCuts: [{ start: 2, end: 3 }],
+      timelineOffsetSeconds: 2,
+      changeSummary: 'Retimed captions after speech cleanup and a cover.'
+    })
+    const retimedPage = await service.getCaptionDraft(scope, projectId, retimed.id!, 1, 10)
+    expect(retimedPage.captions.map(({ start, end }) => ({ start, end }))).toEqual([
+      { start: 3, end: 4 },
+      { start: 5, end: 7.5 }
+    ])
+
+    const committed = await service.commitCaptionDrafts(scope, {
+      projectId,
+      baseRevision: revision,
+      drafts: [
+        { draftId: imported.draftId, baseDraftRevision: 2 },
+        { draftId: translated.id!, baseDraftRevision: 1 }
+      ],
+      changeSummary: 'Committed reviewed bilingual captions.'
+    })
+    expect(committed).toMatchObject({ success: true, revision: 2 })
+    expect(committed.committed).toHaveLength(2)
+    expect(committed.changedClipIds).toHaveLength(4)
+    expect(document.tracks.find((track) => track.id === committed.committed[0]!.trackId)).toMatchObject({ kind: 'visual', name: 'Captions' })
+    expect(document.tracks.find((track) => track.id === committed.committed[1]!.trackId)).toMatchObject({ kind: 'visual', name: '中文字幕' })
+    expect(document.tracks.flatMap((track) => track.clips).filter((clip) => clip.type === 'text')).toHaveLength(4)
+    const firstLanguageY = document.tracks.find((track) => track.id === committed.committed[0]!.trackId)!.clips[0]!.transform!.y
+    const secondLanguageY = document.tracks.find((track) => track.id === committed.committed[1]!.trackId)!.clips[0]!.transform!.y
+    expect(secondLanguageY).toBeGreaterThan(firstLanguageY)
 
     const committedReplay = await service.commitCaptionDraft(scope, {
       projectId,
@@ -230,7 +285,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const logs = memoryRepository<CutActionLog>()
     const projectId = '11111111-1111-4111-8111-111111111111'
     const scope: CutScope = { tenantId: 'tenant-a', organizationId: 'org-a', userId: 'user-a', assistantId: 'assistant-a' }
-    const document = createStarterCutProject({ durationSeconds: 30 })
+    const document = createStarterCutProject({ durationSeconds: 10 })
     const cut = {
       async getProject() {
         return { item: { id: projectId, revision: 4 }, document, media: [], versions: [], exports: [], logs: [] }

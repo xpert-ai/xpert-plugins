@@ -46,7 +46,7 @@ async function probeMediaElementMetadata(source: Blob | string, kind: 'video' | 
   const objectUrl = typeof source === 'string' ? null : URL.createObjectURL(source)
   const url = typeof source === 'string' ? source : objectUrl!
   media.preload = 'metadata'
-  media.crossOrigin = 'anonymous'
+  media.crossOrigin = 'use-credentials'
   if (media instanceof HTMLVideoElement) media.playsInline = true
 
   return await new Promise<BrowserMediaMetadata>((resolve, reject) => {
@@ -95,7 +95,7 @@ async function probeMediaElementMetadata(source: Blob | string, kind: 'video' | 
 async function probeImageMetadata(source: Blob | string): Promise<BrowserMediaMetadata> {
   const image = new Image()
   const objectUrl = typeof source === 'string' ? null : URL.createObjectURL(source)
-  image.crossOrigin = 'anonymous'
+  image.crossOrigin = 'use-credentials'
   try {
     image.src = typeof source === 'string' ? source : objectUrl!
     await image.decode()

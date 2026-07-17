@@ -1,6 +1,12 @@
-import { analyzeCutAudioActivity, buildCutShotSegments } from './remote-components/cut-workbench/src/cut-media-analysis.js'
+import { adaptiveSilenceThreshold, analyzeCutAudioActivity, buildCutShotSegments } from './remote-components/cut-workbench/src/cut-media-analysis.js'
 
 describe('Cut browser media analysis', () => {
+  it('adapts the silence threshold to room tone while keeping safety clamps', () => {
+    expect(adaptiveSilenceThreshold([-38, -37, -36, -18, -16, -14])).toBe(-31)
+    expect(adaptiveSilenceThreshold([-80, -78, -70, -20])).toBe(-55)
+    expect(adaptiveSilenceThreshold([-20, -19, -18, -17])).toBe(-30)
+  })
+
   it('extracts bounded silence and audio-activity evidence from PCM windows', () => {
     const sampleRate = 100
     const audio = new Float32Array(sampleRate * 3)

@@ -143,6 +143,11 @@ export interface CutBookmark {
   label: string
 }
 
+export interface CutTimeRange {
+  start: number
+  end: number
+}
+
 export type CutTransitionKind = 'fade' | 'slide' | 'zoom'
 
 export interface CutTransition {
@@ -243,6 +248,15 @@ export type CutEditOperation =
   | { kind: 'update_mask'; clipId: string; mask: CutMask | null }
   | { kind: 'update_transition'; clipId: string; edge: 'in' | 'out'; transition: CutTransition | null }
   | { kind: 'manage_track'; mutation: CutTrackMutation }
+  | { kind: 'ripple_delete_ranges'; ranges: CutTimeRange[] }
+  | {
+      kind: 'add_cover'
+      title: string
+      subtitle?: string
+      duration: number
+      background: string
+      color: string
+    }
 
 export interface CutProposalEvidence {
   segmentId: string

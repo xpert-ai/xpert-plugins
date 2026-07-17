@@ -50,6 +50,11 @@ export function minimumCutProposalRisk(document: CutProjectDocument, operation: 
     const removed = clips.reduce((total, clip) => total + clip.duration, 0)
     return clips.length >= 3 || removed >= document.settings.durationSeconds * 0.2 ? 'high' : 'medium'
   }
+  if (operation.kind === 'ripple_delete_ranges') {
+    const removed = operation.ranges.reduce((total, range) => total + Math.max(0, range.end - range.start), 0)
+    return removed >= document.settings.durationSeconds * 0.2 ? 'high' : 'medium'
+  }
+  if (operation.kind === 'add_cover') return 'medium'
   if (['trim', 'move', 'duplicate_clips', 'update_clip_timing', 'add_clip'].includes(operation.kind)) return 'medium'
   return 'low'
 }

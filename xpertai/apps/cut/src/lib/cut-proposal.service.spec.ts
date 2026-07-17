@@ -3,11 +3,13 @@ import type { Repository } from 'typeorm'
 
 jest.mock('./cut.service.js', () => ({ CutService: class CutService {} }))
 jest.mock('./cut-media-intelligence.service.js', () => ({ CutMediaIntelligenceService: class CutMediaIntelligenceService {} }))
+jest.mock('./cut-caption.service.js', () => ({ CutCaptionService: class CutCaptionService {} }))
 
-import { applyCutEdit, createStarterCutProject } from './cut-project.js'
+import { appendCutMediaClip, applyCutEdit, createStarterCutProject } from './cut-project.js'
 import { buildCutProposalPreview } from './cut-proposal.js'
-import { CutProposalService } from './cut-proposal.service.js'
+import { CutProposalService, detectFillerCandidates, detectTranscriptGapCandidates } from './cut-proposal.service.js'
 import type { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
+import type { CutCaptionService } from './cut-caption.service.js'
 import type { CutService } from './cut.service.js'
 import { CutActionLog, CutEditProposal } from './entities/index.js'
 import type { CutProjectDocument, CutScope } from './types.js'
@@ -17,6 +19,20 @@ const PROPOSAL_EVIDENCE_ID = 'analysis:22222222-2222-4222-8222-222222222222'
 const scope: CutScope = { tenantId: 'tenant-a', organizationId: 'org-a', userId: 'user-a', assistantId: 'assistant-a' }
 
 describe('CutProposalService', () => {
+  it('detects transcript gaps and conservatively estimates boundary filler timing', () => {
+    expect(detectTranscriptGapCandidates([
+      { id: 'a', start: 0, end: 1, text: '第一句' },
+      { id: 'b', start: 2, end: 3, text: '第二句' }
+    ], 0.65, 0.1)).toEqual([expect.objectContaining({ start: 1.1, end: 1.9, kind: 'silence' })])
+    expect(detectFillerCandidates([
+      { id: 'c', start: 3, end: 4, text: '嗯 好 我可以' },
+      { id: 'd', start: 4, end: 7, text: '然后我们开始' }
+    ])).toEqual([
+      expect.objectContaining({ start: 3, end: 3.23, kind: 'filler', label: '嗯' }),
+      expect.objectContaining({ start: 4, end: 4.48, kind: 'filler', label: '然后' })
+    ])
+  })
+
   it('creates an evidence-bound idempotent proposal and elevates destructive risk', async () => {
     const harness = createHarness()
     const input = proposalInput(harness.document)
@@ -28,6 +44,26 @@ describe('CutProposalService', () => {
     expect(harness.intelligence.getSegment).toHaveBeenCalledWith(scope, PROJECT_ID, PROPOSAL_EVIDENCE_ID)
     expect(harness.proposals.rows[0]?.items[0]).toMatchObject({ risk: 'high', enabled: true })
     expect(harness.logs.rows[0]?.action).toBe('cut_edit_proposal_created')
+  })
+
+  it('creates an end-to-start speech cleanup proposal from filler and silence evidence', async () => {
+    const harness = createHarness()
+    harness.project.document = appendCutMediaClip(createStarterCutProject({ durationSeconds: 30 }), {
+      id: 'interview', name: 'Interview', type: 'video',
+      mediaAssetId: '33333333-3333-4333-8333-333333333333', duration: 30
+    })
+    const created = await harness.service.createSpeechCleanup(scope, {
+      projectId: PROJECT_ID,
+      transcriptId: '44444444-4444-4444-8444-444444444444',
+      sourceRevision: 7,
+      changeSummary: 'Proposed filler and pause cleanup.'
+    })
+    expect(created.proposal).toMatchObject({ itemCount: 2, sourceRevision: 7, status: 'draft' })
+    const operations = harness.proposals.rows[0]!.items.map((item) => item.operation)
+    expect(operations).toEqual([
+      { kind: 'ripple_delete_ranges', ranges: [{ start: 4.1, end: 5.2 }] },
+      { kind: 'ripple_delete_ranges', ranges: [{ start: 1, end: 1.5 }] }
+    ])
   })
 
   it('reviews enabled items with proposal CAS and rejects stale revisions', async () => {
@@ -180,17 +216,56 @@ function createHarness() {
       thumbnail: { url: '/media/interview.wav', time: 1 },
       inputRevision: 7,
       metadata: null
+    })),
+    search: jest.fn(async () => ({
+      items: [{
+        id: PROPOSAL_EVIDENCE_ID,
+        projectId: PROJECT_ID,
+        mediaAssetId: '33333333-3333-4333-8333-333333333333',
+        mediaName: 'interview.wav',
+        evidenceType: 'silence' as const,
+        start: 4,
+        end: 5.3,
+        label: 'Silence',
+        text: null,
+        confidence: 0.99,
+        relevance: 1,
+        inputRevision: 7,
+        thumbnail: null,
+        metadata: null
+      }],
+      total: 1,
+      query: '',
+      limit: 50
+    }))
+  }
+  const captions = {
+    listTranscriptSegments: jest.fn(async () => ({
+      items: [{
+        id: '55555555-5555-4555-8555-555555555555',
+        sequence: 0,
+        start: 1,
+        end: 1.5,
+        text: '嗯',
+        confidence: 0.9,
+        speaker: null,
+        words: null
+      }],
+      total: 1,
+      page: 1,
+      pageSize: 200
     }))
   }
   const proposals = memoryRepository<CutEditProposal>()
   const logs = memoryRepository<CutActionLog>()
   const service = new CutProposalService(
     cut as unknown as CutService,
+    captions as unknown as CutCaptionService,
     intelligence as unknown as CutMediaIntelligenceService,
     proposals.repository,
     logs.repository
   )
-  return { service, document, project, cut, intelligence, proposals, logs }
+  return { service, document, project, cut, captions, intelligence, proposals, logs }
 }
 
 function proposalDocument() {

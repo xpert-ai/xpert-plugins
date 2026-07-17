@@ -43,7 +43,12 @@ describe('CutMiddleware', () => {
   it('resolves an omitted or invalid projectId from the active Cut Workbench context before schema validation', async () => {
     const currentProjectId = '11111111-1111-4111-8111-111111111111'
     const getProject = jest.fn(async (_scope, projectId) => ({
-      item: { id: projectId, title: 'Current project', revision: 7 }
+      item: { id: projectId, title: 'Current project', revision: 7 },
+      document: createStarterCutProject(),
+      media: [{ id: 'asset-a', previewUrl: 'https://legacy.example.test/media.mov', fileReference: { source: 'platform.workspace.files', scope: { tenantId: 'tenant-a' }, locator: { type: 'volume-path', volume: { type: 'workspace', workspaceId: 'workspace-a' }, path: 'media.mov' } } }],
+      versions: [],
+      exports: [{ fileUrl: 'https://legacy.example.test/export.mp4', fileReference: { source: 'platform.workspace.files' } }],
+      logs: []
     }))
     const middleware = new CutMiddleware(
       { getProject } as unknown as CutService,
@@ -77,7 +82,10 @@ describe('CutMiddleware', () => {
       toolCall: expect.objectContaining({ args: { projectId: currentProjectId } })
     }))
     expect(getProject).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }), currentProjectId)
-    expect(JSON.parse(String(result))).toMatchObject({ item: { id: currentProjectId, revision: 7 } })
+    const parsedResult = JSON.parse(String(result))
+    expect(parsedResult).toMatchObject({ item: { id: currentProjectId, revision: 7 } })
+    expect(parsedResult.media[0]).not.toHaveProperty('previewUrl')
+    expect(parsedResult.exports[0]).not.toHaveProperty('fileUrl')
   })
 
   it('keeps a valid explicit projectId and returns a tool error when neither input nor context identifies a project', async () => {
@@ -357,7 +365,10 @@ describe('CutMiddleware', () => {
 
   it('searches bounded media evidence with a strict read-only schema', async () => {
     const search = jest.fn(async () => ({
-      items: [{ id: 'analysis:22222222-2222-4222-8222-222222222222', mediaAssetId: 'media-a', evidenceType: 'silence', start: 4, end: 6 }],
+      items: [{
+        id: 'analysis:22222222-2222-4222-8222-222222222222', mediaAssetId: 'media-a', evidenceType: 'silence', start: 4, end: 6,
+        thumbnail: { url: 'https://legacy.example.test/media-a.mp4', time: 4 }
+      }],
       total: 1,
       query: '静音',
       limit: 10
@@ -385,7 +396,8 @@ describe('CutMiddleware', () => {
       evidenceTypes: ['silence'],
       limit: 10
     })
-    expect(JSON.parse(await searchTool.invoke(input))).toMatchObject({ total: 1, query: '静音' })
+    const output = JSON.parse(await searchTool.invoke(input))
+    expect(output).toMatchObject({ total: 1, query: '静音', items: [{ thumbnail: null }] })
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-a' }),
       expect.objectContaining({ query: '静音', limit: 10 })
