@@ -23,6 +23,8 @@ export const PENCIL_GET_NODE_TOOL_NAME = 'pencil_get_node'
 export const PENCIL_SAVE_VERSION_TOOL_NAME = 'pencil_save_version'
 export const PENCIL_IMPORT_FILE_TOOL_NAME = 'pencil_import_file'
 export const PENCIL_EXPORT_FILE_TOOL_NAME = 'pencil_export_file'
+export const PENCIL_PUBLISH_ARTIFACT_LINK_TOOL_NAME = 'pencil_publish_artifact_link'
+export const PENCIL_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'pencil_revoke_artifact_link'
 export const PENCIL_UPDATE_STATUS_TOOL_NAME = 'pencil_update_status'
 export const PENCIL_REPORT_FAILURE_TOOL_NAME = 'pencil_report_failure'
 export const PENCIL_RENDER_PATCH_TOOL_NAME = 'pencil_render_patch'
@@ -36,6 +38,8 @@ export const PENCIL_BASE_MIDDLEWARE_TOOL_NAMES = [
   PENCIL_SAVE_VERSION_TOOL_NAME,
   PENCIL_IMPORT_FILE_TOOL_NAME,
   PENCIL_EXPORT_FILE_TOOL_NAME,
+  PENCIL_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  PENCIL_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   PENCIL_UPDATE_STATUS_TOOL_NAME,
   PENCIL_REPORT_FAILURE_TOOL_NAME,
   PENCIL_RENDER_PATCH_TOOL_NAME

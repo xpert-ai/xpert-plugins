@@ -14,6 +14,7 @@ import {
 import { z } from 'zod/v3'
 import {
   EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
+  EXCALIDRAW_ARTIFACT_SHARING_CAPABILITY,
   EXCALIDRAW_CREATE_DRAWING_TOOL_NAME,
   EXCALIDRAW_FEATURE,
   EXCALIDRAW_GET_DRAWING_TOOL_NAME,
@@ -21,7 +22,9 @@ import {
   EXCALIDRAW_ICON,
   EXCALIDRAW_MIDDLEWARE_NAME,
   EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
+  EXCALIDRAW_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   EXCALIDRAW_REPORT_FAILURE_TOOL_NAME,
+  EXCALIDRAW_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
   EXCALIDRAW_SAVE_SCENE_VERSION_TOOL_NAME,
   EXCALIDRAW_SEARCH_DRAWINGS_TOOL_NAME,
@@ -133,6 +136,15 @@ const getSceneItemSchema = z.object({
   fileId: z.string().optional().describe('Required when itemType is file.')
 })
 
+const artifactAccessModeSchema = z.enum(['public_link', 'organization_all', 'workspace_all'])
+const publishArtifactLinkSchema = z.object({
+  drawingId: z.string().min(1).optional().describe('Existing drawing id. Optional when the current Workbench context identifies the drawing.'),
+  accessMode: artifactAccessModeSchema.optional().describe('Defaults to public_link.')
+})
+const revokeArtifactLinkSchema = z.object({
+  drawingId: z.string().min(1).optional().describe('Existing drawing id. Optional when the current Workbench context identifies the drawing.')
+})
+
 const updateDrawingStatusSchema = z.object({
   drawingId: z.string().min(1).optional().describe('Existing Excalidraw drawing id. Optional when the current Workbench context shows a non-empty excalidrawDrawingId.'),
   status: drawingStatusSchema,
@@ -163,6 +175,8 @@ const DRAWING_ID_CONTEXT_TOOL_NAMES = new Set([
   EXCALIDRAW_SAVE_MERMAID_DRAFT_TOOL_NAME,
   EXCALIDRAW_GET_DRAWING_TOOL_NAME,
   EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+  EXCALIDRAW_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  EXCALIDRAW_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME
 ])
 
@@ -172,6 +186,8 @@ const REQUIRED_DRAWING_ID_TOOL_NAMES = new Set([
   EXCALIDRAW_PATCH_SCENE_TOOL_NAME,
   EXCALIDRAW_GET_DRAWING_TOOL_NAME,
   EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME,
+  EXCALIDRAW_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  EXCALIDRAW_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME
 ])
 
@@ -209,7 +225,7 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
       value: EXCALIDRAW_ICON,
       color: '#2563eb'
     },
-    features: [EXCALIDRAW_FEATURE],
+    features: [EXCALIDRAW_FEATURE, EXCALIDRAW_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {},
@@ -330,6 +346,37 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
+          async (input) => {
+            if (!input.drawingId) throw new Error(MISSING_DRAWING_CONTEXT_MESSAGE)
+            const result = await this.service.publishDrawingViewerArtifact(scope, {
+              drawingId: input.drawingId,
+              versionMode: 'version',
+              accessMode: input.accessMode ?? 'public_link',
+              userConfirmedPublicLink: true
+            })
+            return stringifyAgentToolResult({ shareUrl: result.publicUrl ?? result.shareUrl })
+          },
+          {
+            name: EXCALIDRAW_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description:
+              'Create or reuse a fixed-version, read-only HTML Artifact link for a synchronized Excalidraw drawing. drawingId may be omitted for the current Workbench drawing. accessMode defaults to public_link and also supports organization_all or workspace_all. The link never enables download. Returns only shareUrl.',
+            schema: publishArtifactLinkSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        tool(
+          async (input) => {
+            if (!input.drawingId) throw new Error(MISSING_DRAWING_CONTEXT_MESSAGE)
+            return stringifyAgentToolResult(await this.service.revokeArtifactShare(scope, input.drawingId))
+          },
+          {
+            name: EXCALIDRAW_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active Artifact link for an Excalidraw drawing. drawingId may be omitted for the current Workbench drawing.',
+            schema: revokeArtifactLinkSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        tool(
           async (input) => stringifyAgentToolResult(summarizeStatusResult(await this.service.updateDrawingStatus(scope, input))),
           {
             name: EXCALIDRAW_UPDATE_DRAWING_STATUS_TOOL_NAME,
@@ -439,11 +486,24 @@ function prepareExcalidrawToolRequest(request: ExcalidrawToolCallRequest): Excal
 
   const args = isPlainObject(request.toolCall.args) ? request.toolCall.args : {}
   const explicitDrawingId = getString(args.drawingId)
+  const currentDrawing = resolveCurrentWorkbenchDrawing(request.runtime)
+  const targetDrawingId = explicitDrawingId ?? currentDrawing?.drawingId
+  if (
+    request.toolCall.name === EXCALIDRAW_PUBLISH_ARTIFACT_LINK_TOOL_NAME &&
+    currentDrawing?.isDirty === true &&
+    targetDrawingId === currentDrawing.drawingId
+  ) {
+    return new ToolMessage({
+      content: 'The current Excalidraw Workbench drawing has unsynchronized changes. Save or synchronize it before creating an Artifact link.',
+      tool_call_id: request.toolCall.id ?? 'unknown',
+      name: request.toolCall.name,
+      status: 'error'
+    })
+  }
   if (explicitDrawingId) {
     return request
   }
 
-  const currentDrawing = resolveCurrentWorkbenchDrawing(request.runtime)
   if (currentDrawing?.drawingId) {
     return {
       ...request,
