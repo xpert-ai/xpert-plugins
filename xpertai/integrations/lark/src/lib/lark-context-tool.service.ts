@@ -18,7 +18,6 @@ import { toLarkApiErrorMessage, toNonEmptyString } from './utils.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const RESOURCE_INLINE_CONTENT_MODE = 'base64'
-const LARK_MISSING_PERMISSION_CODES = new Set([99991679, 230027])
 
 export class LarkApplicationPermissionError extends Error {
   constructor(
@@ -29,6 +28,21 @@ export class LarkApplicationPermissionError extends Error {
     super(message)
     this.name = 'LarkApplicationPermissionError'
   }
+}
+
+export function toLarkApplicationPermissionError(
+  error: unknown,
+  toolName: string,
+  operation: string
+): LarkApplicationPermissionError | null {
+  const parsed = parseLarkClientError(error)
+  const scopes = extractStructuredApplicationPermissionScopes(parsed)
+  if (!scopes.length) {
+    return null
+  }
+
+  const message = toLarkApiErrorMessage(error) || getErrorMessage(error) || 'Unknown error'
+  return new LarkApplicationPermissionError(parsed.code, scopes, `[${toolName}] ${operation}: ${message}`)
 }
 
 type LarkMessageItem = {
@@ -566,16 +580,10 @@ export class LarkContextToolService {
   }
 
   private toContextToolError(error: unknown, toolName: string, operation: string): Error {
-    const parsed = parseLarkClientError(error)
-    const scopes = extractApplicationPermissionScopes(parsed)
-    if (LARK_MISSING_PERMISSION_CODES.has(parsed.code) && scopes.length) {
-      return new LarkApplicationPermissionError(
-        parsed.code,
-        scopes,
-        `[${toolName}] ${operation}: ${this.formatError(error)}`
-      )
-    }
-    return new Error(`[${toolName}] ${operation}: ${this.formatError(error)}`)
+    return (
+      toLarkApplicationPermissionError(error, toolName, operation) ??
+      new Error(`[${toolName}] ${operation}: ${this.formatError(error)}`)
+    )
   }
 
   private assertLarkApiSuccess(response: unknown, toolName: string, operation: string): void {
@@ -586,23 +594,17 @@ export class LarkContextToolService {
   }
 }
 
-function extractApplicationPermissionScopes(parsed: ReturnType<typeof parseLarkClientError>): string[] {
-  const structuredScopes = (parsed.error.permission_violations ?? [])
-    .filter((violation) => violation.type === 'action_privilege_required')
-    .map((violation) => violation.subject.trim())
-    .filter(Boolean)
-
-  if (structuredScopes.length) {
-    return Array.from(new Set(structuredScopes))
-  }
-
-  if (!LARK_MISSING_PERMISSION_CODES.has(parsed.code)) {
-    return []
-  }
-
-  const message = `${parsed.msg}\n${parsed.error.message}`
-  const textScopes = message.match(/\b[a-z][a-z0-9_]*(?::[a-z0-9_.-]+)+\b/gi) ?? []
-  return Array.from(new Set(textScopes.map((scope) => scope.trim()).filter((scope) => scope.length <= 128)))
+function extractStructuredApplicationPermissionScopes(
+  parsed: ReturnType<typeof parseLarkClientError>
+): string[] {
+  return Array.from(
+    new Set(
+      (parsed.error.permission_violations ?? [])
+        .filter((violation) => violation.type === 'action_privilege_required')
+        .map((violation) => violation.subject.trim())
+        .filter(Boolean)
+    )
+  )
 }
 
 function describeApplicationScope(scope: string): string {

@@ -141,11 +141,18 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>, conte
     get: jest.fn().mockResolvedValue(null),
     resolveByName: jest.fn().mockResolvedValue({ status: 'not_found' })
   }
+  const contextToolService = {
+    sendApplicationPermissionGuideCard: jest.fn().mockResolvedValue({
+      messageId: 'permission-card-1',
+      consoleUrl: 'https://open.feishu.cn/app/cli_test/auth'
+    })
+  }
 
   const strategy = new LarkNotifyMiddleware(
     larkChannel as any,
     conversationService as any,
-    recipientDirectoryService as any
+    recipientDirectoryService as any,
+    contextToolService as any
   )
   const middleware = await Promise.resolve(strategy.createMiddleware(mergeConfig(config), context as any))
 
@@ -159,7 +166,8 @@ async function createFixture(config?: Partial<LarkNotifyMiddlewareConfig>, conte
     listUsers,
     listChats,
     conversationService,
-    recipientDirectoryService
+    recipientDirectoryService,
+    contextToolService
   }
 }
 
@@ -169,6 +177,17 @@ function getTool(middleware: any, name: string) {
     throw new Error(`Tool ${name} not found`)
   }
   return tool
+}
+
+function createApplicationPermissionError(scopes: string[]) {
+  return {
+    code: 99991672,
+    msg: 'Access denied',
+    error: {
+      message: 'missing permission',
+      permission_violations: scopes.map((subject) => ({ type: 'action_privilege_required', subject }))
+    }
+  }
 }
 
 function createWorkspaceFiles(
@@ -366,6 +385,147 @@ describe('LarkNotifyMiddleware', () => {
     expect(serializedResult).not.toContain(workspace.buffer.toString('base64'))
     expect(serializedResult).not.toContain('integration-runtime')
     expect(serializedResult).not.toContain('chat-runtime')
+  })
+
+  it('sends an administrator permission card when Lark rejects a file upload scope', async () => {
+    const workspace = createWorkspaceFiles({ name: 'report.pdf', mimeType: 'application/pdf' })
+    const { middleware, fileCreate, messageCreate, contextToolService } = await createFixture(
+      undefined,
+      createWorkspaceContext(workspace.api)
+    )
+    fileCreate.mockRejectedValue(createApplicationPermissionError(['im:resource:upload', 'im:resource']))
+
+    const result = await getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+      { path: '/workspace/files/report.pdf' },
+      {
+        configurable: {
+          context: {
+            from: 'lark',
+            channelType: 'lark',
+            sourceIntegrationId: 'integration-runtime',
+            chatId: 'chat-runtime',
+            chatType: 'group'
+          }
+        },
+        metadata: {
+          tool_call_id: 'tool-file-permission'
+        }
+      }
+    )
+
+    expect(contextToolService.sendApplicationPermissionGuideCard).toHaveBeenCalledWith({
+      integrationId: 'integration-runtime',
+      chatId: 'chat-runtime',
+      scopes: ['im:resource:upload', 'im:resource'],
+      toolCallId: 'tool-file-permission'
+    })
+    expect(messageCreate).not.toHaveBeenCalled()
+    expect(result.update.lark_notify_last_result).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: 'lark_application_permission_required',
+        requiredScopes: ['im:resource:upload', 'im:resource'],
+        permissionGuideSent: true
+      })
+    )
+    expect((result as any).goto).toEqual(['end'])
+  })
+
+  it('sends an administrator permission card when Lark rejects the file message send scope', async () => {
+    const workspace = createWorkspaceFiles({ name: 'report.pdf', mimeType: 'application/pdf' })
+    const { middleware, fileCreate, messageCreate, contextToolService } = await createFixture(
+      undefined,
+      createWorkspaceContext(workspace.api)
+    )
+    messageCreate.mockRejectedValue(createApplicationPermissionError(['im:message']))
+
+    const result = await getTool(middleware, LARK_SEND_FILE_TOOL_NAME).invoke(
+      { path: '/workspace/files/report.pdf' },
+      {
+        configurable: {
+          context: {
+            from: 'lark',
+            channelType: 'lark',
+            sourceIntegrationId: 'integration-runtime',
+            chatId: 'chat-runtime',
+            chatType: 'group'
+          }
+        },
+        metadata: {
+          tool_call_id: 'tool-file-send-permission'
+        }
+      }
+    )
+
+    expect(fileCreate).toHaveBeenCalledTimes(1)
+    expect(messageCreate).toHaveBeenCalledTimes(1)
+    expect(contextToolService.sendApplicationPermissionGuideCard).toHaveBeenCalledWith({
+      integrationId: 'integration-runtime',
+      chatId: 'chat-runtime',
+      scopes: ['im:message'],
+      toolCallId: 'tool-file-send-permission'
+    })
+    expect(result.update.lark_notify_last_result).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: 'lark_application_permission_required',
+        requiredScopes: ['im:message'],
+        permissionGuideSent: true
+      })
+    )
+    expect((result as any).goto).toEqual(['end'])
+  })
+
+  it.each([
+    {
+      toolName: 'lark_send_text_notification',
+      input: { content: 'hello' },
+      toolCallId: 'tool-text-send-permission'
+    },
+    {
+      toolName: 'lark_send_rich_notification',
+      input: { mode: 'post', locale: 'zh_cn', markdown: '## hello' },
+      toolCallId: 'tool-rich-send-permission'
+    }
+  ])('sends an administrator permission card when $toolName lacks a send scope', async ({
+    toolName,
+    input,
+    toolCallId
+  }) => {
+    const { middleware, messageCreate, contextToolService } = await createFixture()
+    messageCreate.mockRejectedValue(createApplicationPermissionError(['im:message']))
+
+    const result = await getTool(middleware, toolName).invoke(input, {
+      configurable: {
+        context: {
+          from: 'lark',
+          channelType: 'lark',
+          sourceIntegrationId: 'integration-runtime',
+          chatId: 'chat-runtime',
+          chatType: 'group'
+        }
+      },
+      metadata: {
+        tool_call_id: toolCallId
+      }
+    })
+
+    expect(messageCreate).toHaveBeenCalledTimes(1)
+    expect(contextToolService.sendApplicationPermissionGuideCard).toHaveBeenCalledWith({
+      integrationId: 'integration-runtime',
+      chatId: 'chat-runtime',
+      scopes: ['im:message'],
+      toolCallId
+    })
+    expect(result.update.lark_notify_last_result).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: 'lark_application_permission_required',
+        requiredScopes: ['im:message'],
+        permissionGuideSent: true
+      })
+    )
+    expect((result as any).goto).toEqual(['end'])
   })
 
   it('falls back to the current sender open_id only for a private Lark chat without chatId', async () => {

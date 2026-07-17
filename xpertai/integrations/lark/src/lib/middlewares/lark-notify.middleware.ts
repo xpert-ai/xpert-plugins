@@ -20,6 +20,7 @@ import { LarkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { LARK_NOTIFY_MIDDLEWARE_NAME, LARK_SEND_FILE_TOOL_NAME } from '../constants.js'
 import { LarkChannelStrategy } from '../lark-channel.strategy.js'
+import { LarkContextToolService, toLarkApplicationPermissionError } from '../lark-context-tool.service.js'
 import { LarkRecipientDirectoryService } from '../lark-recipient-directory.service.js'
 import {
   buildLarkFileSendUuid,
@@ -703,7 +704,8 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
   constructor(
     private readonly larkChannel: LarkChannelStrategy,
     private readonly conversationService: LarkConversationService,
-    private readonly recipientDirectoryService: LarkRecipientDirectoryService
+    private readonly recipientDirectoryService: LarkRecipientDirectoryService,
+    private readonly contextToolService: LarkContextToolService
   ) {}
 
   private resolveTargetXpertId(context: IAgentMiddlewareContext): string | null {
@@ -1234,15 +1236,78 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
       })
     }
 
+    const buildApplicationPermissionCommand = async (params: {
+      error: unknown
+      toolName: string
+      toolCallId: string
+      integrationId: string
+      chatId: string | null
+      operation: string
+    }): Promise<Command | null> => {
+      const permissionError = toLarkApplicationPermissionError(params.error, params.toolName, params.operation)
+      if (!permissionError) {
+        return null
+      }
+
+      let permissionGuideSent = false
+      let permissionGuideError: string | undefined
+      if (params.chatId) {
+        try {
+          await this.contextToolService.sendApplicationPermissionGuideCard({
+            integrationId: params.integrationId,
+            chatId: params.chatId,
+            scopes: permissionError.scopes,
+            toolCallId: params.toolCallId
+          })
+          permissionGuideSent = true
+        } catch (error) {
+          permissionGuideError = formatError(error)
+        }
+      } else {
+        permissionGuideError = 'No trusted current Lark chat was available for the permission guide.'
+      }
+
+      const result = {
+        tool: params.toolName,
+        success: false,
+        error: 'lark_application_permission_required',
+        requiredScopes: permissionError.scopes,
+        permissionGuideSent,
+        ...(permissionGuideError ? { permissionGuideError } : {}),
+        message: permissionGuideSent
+          ? 'An administrator permission guide card was sent to the current Lark chat. Do not retry this tool until an administrator enables the permissions and publishes the app.'
+          : 'The Lark application is missing required permissions. Ask an administrator to enable the listed scopes and publish the app before retrying.'
+      }
+
+      return new Command({
+        update: {
+          lark_notify_last_result: result,
+          messages: [
+            new ToolMessage({
+              content: JSON.stringify(result),
+              name: params.toolName,
+              tool_call_id: params.toolCallId,
+              status: 'success'
+            })
+          ]
+        },
+        ...(permissionGuideSent ? { goto: 'end' } : {})
+      })
+    }
+
     const runSendTaskBatch = async (params: {
       integrationId: string
       toolName: string
+      toolCallId: string
+      permissionGuideChatId: string | null
+      operation: string
       recipients: LarkRecipient[]
       timeoutMs: number
       task: (recipient: LarkRecipient) => Promise<{ messageId?: string | null }>
       onSuccess?: (recipient: LarkRecipient, result: { messageId?: string | null }) => Promise<void>
-    }): Promise<LarkNotifyResult> => {
+    }) => {
       const results: LarkNotifyResultItem[] = []
+      let applicationPermissionCause: unknown
 
       for (let i = 0; i < params.recipients.length; i += MAX_BATCH_CONCURRENCY) {
         const group = params.recipients.slice(i, i + MAX_BATCH_CONCURRENCY)
@@ -1277,6 +1342,12 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
           if (item.status === 'fulfilled') {
             results.push(item.value)
           } else {
+            if (
+              applicationPermissionCause === undefined &&
+              toLarkApplicationPermissionError(item.reason, params.toolName, params.operation)
+            ) {
+              applicationPermissionCause = item.reason
+            }
             results.push({
               target: `${recipient.type}:${recipient.id}`,
               success: false,
@@ -1284,6 +1355,10 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             })
           }
         })
+
+        if (applicationPermissionCause !== undefined) {
+          break
+        }
       }
 
       const successCount = results.filter((item) => item.success).length
@@ -1293,13 +1368,26 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         `[${params.toolName}] integrationId=${params.integrationId}, recipientCount=${params.recipients.length}, successCount=${successCount}, failureCount=${failureCount}`
       )
 
-      return {
+      const result: LarkNotifyResult = {
         tool: params.toolName,
         integrationId: params.integrationId,
         successCount,
         failureCount,
         results
       }
+      const permissionCommand =
+        applicationPermissionCause === undefined
+          ? null
+          : await buildApplicationPermissionCommand({
+              error: applicationPermissionCause,
+              toolName: params.toolName,
+              toolCallId: params.toolCallId,
+              integrationId: params.integrationId,
+              chatId: params.permissionGuideChatId,
+              operation: params.operation
+            })
+
+      return { result, permissionCommand }
     }
 
     const tools = []
@@ -1308,8 +1396,15 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'lark_send_text_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, integrationId, recipientDirectoryKey, timeoutMs } =
-            resolveInput(parameters, config)
+          const {
+            state,
+            renderedInput,
+            renderedRecipients,
+            integrationId,
+            recipientDirectoryKey,
+            trustedRuntimeContext,
+            timeoutMs
+          } = resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
           // 接收人优先级：当前会话姓名 > middleware 默认配置 > tool call recipient_id
           const recipients = requireRecipients(
@@ -1333,9 +1428,14 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
           const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
 
-          const result = await runSendTaskBatch({
+          const batch = await runSendTaskBatch({
             integrationId: resolvedIntegrationId,
             toolName,
+            toolCallId,
+            permissionGuideChatId: parsed.trustedTriggerOnly
+              ? trustedRuntimeContext.chatId
+              : resolveLarkFileRuntimeContext(config, state).chatId,
+            operation: 'Failed to send text notification',
             recipients,
             timeoutMs,
             onSuccess: async (recipient) => {
@@ -1362,8 +1462,11 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               }
             }
           })
+          if (batch.permissionCommand) {
+            return batch.permissionCommand
+          }
 
-          return buildCommand(toolName, toolCallId, result)
+          return buildCommand(toolName, toolCallId, batch.result)
         },
         {
           name: 'lark_send_text_notification',
@@ -1418,6 +1521,17 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               `[${toolName}] upload '${file.fileName}'`
             )
           } catch (error) {
+            const permissionCommand = await buildApplicationPermissionCommand({
+              error,
+              toolName,
+              toolCallId,
+              integrationId: resolvedIntegrationId,
+              chatId: runtimeContext.chatId,
+              operation: `Failed to upload '${file.fileName}'`
+            })
+            if (permissionCommand) {
+              return permissionCommand
+            }
             throw new Error(`[${toolName}] Failed to upload '${file.fileName}': ${formatError(error)}`)
           }
 
@@ -1426,9 +1540,12 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             throw new Error(`[${toolName}] Lark file upload did not return file_key.`)
           }
 
-          const batchResult = await runSendTaskBatch({
+          const batch = await runSendTaskBatch({
             integrationId: resolvedIntegrationId,
             toolName,
+            toolCallId,
+            permissionGuideChatId: runtimeContext.chatId,
+            operation: `Failed to send '${file.fileName}'`,
             recipients,
             timeoutMs,
             onSuccess: async (recipient) => {
@@ -1463,6 +1580,10 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               }
             }
           })
+          if (batch.permissionCommand) {
+            return batch.permissionCommand
+          }
+          const batchResult = batch.result
           const result = {
             file: toLarkSendFileMetadata(file),
             successCount: batchResult.successCount,
@@ -1499,6 +1620,7 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
             renderedDefaults,
             integrationId,
             recipientDirectoryKey,
+            trustedRuntimeContext,
             timeoutMs
           } = resolveInput(parameters, config)
           const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
@@ -1546,9 +1668,14 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
 
           const client = await getClient(resolvedIntegrationId, timeoutMs, toolName)
 
-          const result = await runSendTaskBatch({
+          const batch = await runSendTaskBatch({
             integrationId: resolvedIntegrationId,
             toolName,
+            toolCallId,
+            permissionGuideChatId: parsed.trustedTriggerOnly
+              ? trustedRuntimeContext.chatId
+              : resolveLarkFileRuntimeContext(config, state).chatId,
+            operation: 'Failed to send rich notification',
             recipients,
             timeoutMs,
             onSuccess: async (recipient) => {
@@ -1593,8 +1720,11 @@ export class LarkNotifyMiddleware implements IAgentMiddlewareStrategy {
               }
             }
           })
+          if (batch.permissionCommand) {
+            return batch.permissionCommand
+          }
 
-          return buildCommand(toolName, toolCallId, result)
+          return buildCommand(toolName, toolCallId, batch.result)
         },
         {
           name: 'lark_send_rich_notification',
