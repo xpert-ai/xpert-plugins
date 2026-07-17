@@ -104,6 +104,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         { key: 'request_export', label: text('Export', '导出'), icon: 'ri-download-line', actionType: 'invoke' },
         { key: 'share_deck_html', label: text('Share current deck HTML', '分享当前演示稿 HTML'), icon: 'ri-share-forward-line', actionType: 'invoke' },
         { key: 'share_export', label: text('Share HTML', '分享 HTML'), icon: 'ri-share-line', actionType: 'invoke' },
+        { key: 'revoke_deck_html_share', label: text('Revoke HTML share', '撤销 HTML 分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
         { key: 'cancel_export', label: text('Cancel export', '取消导出'), actionType: 'invoke' },
         { key: 'delete_export', label: text('Delete export', '删除导出'), actionType: 'invoke' },
         { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' }
@@ -223,9 +224,10 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         const result = await this.service.shareHtmlExport(scope, {
           deckId: deckId(request),
           exportId: requiredInput(request, 'exportId'),
-          versionMode: stringInput(request, 'versionMode') as 'latest' | 'version' | undefined,
+          versionMode: 'version',
           accessMode: stringInput(request, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | 'owner_only' | undefined,
-          allowDownload: booleanInput(request, 'allowDownload')
+          allowDownload: false,
+          actor: 'workbench'
         })
         return { ...success('Presentation HTML share link created', false), data: result }
       }
@@ -233,11 +235,16 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         const result = await this.service.shareDeckHtmlExport(scope, {
           deckId: deckId(request),
           expectedRevision: numberInput(request, 'expectedRevision'),
-          versionMode: stringInput(request, 'versionMode') as 'latest' | 'version' | undefined,
+          versionMode: 'version',
           accessMode: stringInput(request, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | 'owner_only' | undefined,
-          allowDownload: booleanInput(request, 'allowDownload')
+          allowDownload: false,
+          actor: 'workbench'
         })
         return { ...success('Presentation HTML share started', false), data: result }
+      }
+      if (actionKey === 'revoke_deck_html_share') {
+        const result = await this.service.revokeDeckHtmlShare(scope, deckId(request), 'workbench')
+        return { ...success('Presentation HTML share revoked'), data: result }
       }
       if (actionKey === 'cancel_export') {
         const result = await this.service.cancelExport(scope, requiredInput(request, 'exportId'))

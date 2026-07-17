@@ -25,13 +25,13 @@ export class PresentationExport {
   @Column({ type: 'varchar', nullable: true }) mimeType?: string
   @Column({ type: 'int', nullable: true }) size?: number
   @Column({ type: 'json', nullable: true }) fileReference?: PresentationAssetReference
-  @Column({ type: 'varchar', nullable: true }) artifactId?: string
-  @Column({ type: 'varchar', nullable: true }) artifactVersionId?: string
-  @Column({ type: 'varchar', nullable: true }) artifactLinkId?: string
-  @Column({ type: 'varchar', nullable: true }) artifactLinkVersionMode?: 'latest' | 'version'
-  @Column({ type: 'varchar', nullable: true }) artifactLinkAccessMode?: string
-  @Column({ type: 'text', nullable: true }) artifactPublicUrl?: string
-  @Column({ type: 'timestamptz', nullable: true }) artifactSharedAt?: Date
+  @Column({ type: 'varchar', nullable: true }) artifactId?: string | null
+  @Column({ type: 'varchar', nullable: true }) artifactVersionId?: string | null
+  @Column({ type: 'varchar', nullable: true }) artifactLinkId?: string | null
+  @Column({ type: 'varchar', nullable: true }) artifactLinkVersionMode?: 'latest' | 'version' | null
+  @Column({ type: 'varchar', nullable: true }) artifactLinkAccessMode?: string | null
+  @Column({ type: 'text', nullable: true }) artifactPublicUrl?: string | null
+  @Column({ type: 'timestamptz', nullable: true }) artifactSharedAt?: Date | null
   @Column({ type: 'json', nullable: true }) report?: PresentationJsonObject
   @Column({ type: 'text', nullable: true }) errorMessage?: string
   @Column({ type: 'varchar', nullable: true }) createdById?: string

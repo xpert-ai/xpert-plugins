@@ -25,6 +25,15 @@ export interface DeckDetail {
   exports: ExportSummary[]
   assets: AssetSummary[]
   exportCapabilities?: ExportCapabilities
+  sharePolicy?: SharePolicy
+}
+
+export type ShareAccessMode = 'owner_only' | 'workspace_all' | 'organization_all' | 'public_link'
+export interface SharePolicy {
+  defaultAccessMode: ShareAccessMode
+  allowedAccessModes: ShareAccessMode[]
+  allowAgentPublicSharing: boolean
+  allowWorkbenchPublicSharing: boolean
 }
 
 export interface ExportCapability { available: boolean; reason?: string; message?: string }
