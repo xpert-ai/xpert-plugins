@@ -17,7 +17,8 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       shareDeckHtmlExport: jest.fn().mockResolvedValue({
         exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
         publicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
-      })
+      }),
+      revokeDeckHtmlShare: jest.fn().mockResolvedValue({ revoked: true })
     }
     const middleware = new PresentationStudioMiddleware(
       service as never,
@@ -186,11 +187,10 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       userId: 'user-1'
     }), {
       deckId,
-      versionMode: 'latest',
-      accessMode: 'workspace_all',
-      allowDownload: true,
-      actor: 'agent',
-      preserveExistingLink: true
+      versionMode: 'version',
+      accessMode: undefined,
+      allowDownload: false,
+      actor: 'agent'
     })
   })
 
@@ -206,6 +206,18 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       status: 'pending',
       exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d'
     })
+  })
+
+  it('revokes an active HTML share only through the dedicated presentation tool', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    const revokeTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_revoke_html_share')
+    const deckId = '97aab7a0-f241-49a8-b52a-88cb6eb84c8e'
+
+    await expect(revokeTool?.invoke({ deckId })).resolves.toEqual({ revoked: true })
+    expect(service.revokeDeckHtmlShare).toHaveBeenCalledWith(expect.objectContaining({
+      organizationId: 'org-1',
+      userId: 'user-1'
+    }), deckId, 'agent')
   })
 
   it('dispatches changeSummary as running and successful tool timeline messages', async () => {

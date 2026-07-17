@@ -18,6 +18,15 @@ export type PresentationSlideStatus = (typeof PRESENTATION_SLIDE_STATUSES)[numbe
 export type PresentationExportKind = (typeof PRESENTATION_EXPORT_KINDS)[number]
 export type PresentationExportStatus = (typeof PRESENTATION_EXPORT_STATUSES)[number]
 export type PresentationVersionSource = (typeof PRESENTATION_VERSION_SOURCES)[number]
+export const PRESENTATION_SHARE_ACCESS_MODES = ['owner_only', 'workspace_all', 'organization_all', 'public_link'] as const
+export type PresentationShareAccessMode = (typeof PRESENTATION_SHARE_ACCESS_MODES)[number]
+
+export interface PresentationSharePolicy {
+  defaultAccessMode: PresentationShareAccessMode
+  allowedAccessModes: PresentationShareAccessMode[]
+  allowAgentPublicSharing: boolean
+  allowWorkbenchPublicSharing: boolean
+}
 
 export interface PresentationStudioConfig {
   exportBackend: 'sandbox-job' | 'local'
@@ -28,6 +37,10 @@ export interface PresentationStudioConfig {
   maxDeckMediaBytes: number
   maxPreviewBytes: number
   debug: boolean
+  defaultShareAccessMode: PresentationShareAccessMode
+  allowedShareAccessModes: PresentationShareAccessMode[]
+  allowAgentPublicSharing: boolean
+  allowWorkbenchPublicSharing: boolean
 }
 
 export interface PresentationScope {

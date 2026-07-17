@@ -30,7 +30,14 @@ import {
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 import { PresentationDebugService } from './presentation-debug.service.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
-import type { PresentationAwarenessV2, PresentationJsonObject, PresentationJsonValue, PresentationScope, PresentationWorkbenchAgentContext } from './types.js'
+import {
+  PRESENTATION_SHARE_ACCESS_MODES,
+  type PresentationAwarenessV2,
+  type PresentationJsonObject,
+  type PresentationJsonValue,
+  type PresentationScope,
+  type PresentationWorkbenchAgentContext
+} from './types.js'
 
 const themeSchema = z.enum(PRESENTATION_THEME_PACKS)
 const statusSchema = z.enum(PRESENTATION_STATUSES)
@@ -89,7 +96,11 @@ const requestExportSchema = z.object({
   deckId: z.string().uuid(), versionId: z.string().uuid().optional(), kind: exportKindSchema, fileName: z.string().optional(), expectedRevision: z.number().int().min(0).optional()
 })
 const getExportSchema = z.object({ exportId: z.string().uuid() })
-const shareHtmlSchema = z.object({ deckId: z.string().uuid() })
+const shareHtmlSchema = z.object({
+  deckId: z.string().uuid(),
+  accessMode: z.enum(PRESENTATION_SHARE_ACCESS_MODES).optional()
+})
+const revokeHtmlShareSchema = z.object({ deckId: z.string().uuid() })
 const updateStatusSchema = z.object({ deckId: z.string().uuid(), status: statusSchema, reason: z.string().optional() })
 const failureSchema = z.object({
   deckId: z.string().uuid().optional(), operation: z.string().min(1), errorMessage: z.string().min(1), recoverable: z.boolean().optional(), evidence: jsonValueSchema.optional()
@@ -122,6 +133,7 @@ const TOOL_OPERATION_LABELS: Record<string, string> = {
   presentation_request_export: 'Requesting export',
   presentation_get_export: 'Checking export',
   presentation_share_html: 'Sharing presentation',
+  presentation_revoke_html_share: 'Revoking presentation share',
   presentation_update_status: 'Updating status'
 }
 
@@ -221,11 +233,10 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         tool(async (input) => {
           const result = await this.service.shareDeckHtmlExport(scope, {
             deckId: input.deckId,
-            versionMode: 'latest',
-            accessMode: 'workspace_all',
-            allowDownload: true,
-            actor: 'agent',
-            preserveExistingLink: true
+            versionMode: 'version',
+            accessMode: input.accessMode,
+            allowDownload: false,
+            actor: 'agent'
           })
           const shareUrl = 'publicUrl' in result && typeof result.publicUrl === 'string'
             ? result.publicUrl
@@ -235,8 +246,14 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
           return shareUrl ? { shareUrl } : { status: 'pending' as const, exportId: result.exportId }
         }, {
           name: 'presentation_share_html',
-          description: toolDescription(currentDeckHint, 'Reuse an existing valid HTML share link or create a workspace-authorized link only when the user explicitly asks to share the presentation. This tool never creates anonymous public access. If the result is pending, poll presentation_get_export with exportId and call this tool again after the export succeeds. Returns only shareUrl when ready.'),
+          description: toolDescription(currentDeckHint, 'Create or reuse a fixed-version interactive HTML share link only when the user explicitly asks to share the presentation. Omit accessMode to use the organization policy default; requested modes are validated against that policy. The link never enables download. If pending, poll presentation_get_export with exportId and call this tool again after the HTML export succeeds. Returns only shareUrl when ready.'),
           schema: shareHtmlSchema,
+          verboseParsingErrors: true
+        }),
+        tool((input) => this.service.revokeDeckHtmlShare(scope, input.deckId, 'agent'), {
+          name: 'presentation_revoke_html_share',
+          description: toolDescription(currentDeckHint, 'Revoke the active interactive HTML share link for this presentation when the user explicitly asks to stop sharing it.'),
+          schema: revokeHtmlShareSchema,
           verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.updateStatus(scope, input.deckId, input.status, input.reason)), {

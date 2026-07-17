@@ -8,6 +8,16 @@ const availableExportCapabilities = () => ({
   })
 })
 
+const sharingPolicyConfig = () => ({
+  getSharePolicy: jest.fn().mockReturnValue({
+    defaultAccessMode: 'public_link',
+    allowedAccessModes: ['owner_only', 'workspace_all', 'organization_all', 'public_link'],
+    allowAgentPublicSharing: true,
+    allowWorkbenchPublicSharing: true
+  }),
+  resolveShareAccessMode: jest.fn((_scope, accessMode) => accessMode ?? 'public_link')
+})
+
 describe('PresentationStudioService export versioning', () => {
   it('filters deck lists by the current Xpert id', async () => {
     const deckRepository = {
@@ -366,7 +376,7 @@ describe('PresentationStudioService export versioning', () => {
       {} as never,
       {} as never,
       availableExportCapabilities() as never,
-      {} as never,
+      sharingPolicyConfig() as never,
       { getJob: jest.fn().mockResolvedValue(null) } as never
     )
 
@@ -523,7 +533,7 @@ describe('PresentationStudioService export versioning', () => {
       createArtifactLink: jest.fn().mockResolvedValue({
         id: 'artifact-link-1',
         publicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn',
-        versionMode: 'latest',
+        versionMode: 'version',
         accessMode: 'public_link'
       }),
       revokeArtifactLink: jest.fn()
@@ -545,7 +555,7 @@ describe('PresentationStudioService export versioning', () => {
       logRepository as never,
       {} as never,
       {} as never,
-      {} as never,
+      sharingPolicyConfig() as never,
       undefined,
       runtimeCapabilities as never
     )
@@ -573,9 +583,9 @@ describe('PresentationStudioService export versioning', () => {
     }))
     expect(artifacts.createArtifactLink).toHaveBeenCalledWith(expect.objectContaining({
       artifactId: 'artifact-1',
-      versionMode: 'latest',
+      versionMode: 'version',
       access: expect.objectContaining({ mode: 'public_link', userConfirmedPublicLink: true }),
-      presentation: expect.objectContaining({ disposition: 'inline', safeHtmlProfile: 'interactive' })
+      presentation: expect.objectContaining({ disposition: 'inline', allowDownload: false, safeHtmlProfile: 'interactive' })
     }))
     expect(exportRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       artifactId: 'artifact-1',
@@ -637,7 +647,7 @@ describe('PresentationStudioService export versioning', () => {
       createArtifactLink: jest.fn().mockResolvedValue({
         id: 'artifact-link-1',
         publicUrl: 'https://xpert.test/artifacts/share/QwErTy234567',
-        versionMode: 'latest',
+        versionMode: 'version',
         accessMode: 'public_link'
       }),
       revokeArtifactLink: jest.fn()
@@ -659,7 +669,7 @@ describe('PresentationStudioService export versioning', () => {
       logRepository as never,
       {} as never,
       {} as never,
-      {} as never,
+      sharingPolicyConfig() as never,
       undefined,
       runtimeCapabilities as never
     )
@@ -684,7 +694,7 @@ describe('PresentationStudioService export versioning', () => {
     })
   })
 
-  it('preserves an existing valid public link when an Agent requests a workspace share', async () => {
+  it('replaces an existing latest link when an Agent requests a fixed-version workspace share', async () => {
     const deck = {
       id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',
       tenantId: 'tenant-1',
@@ -729,12 +739,21 @@ describe('PresentationStudioService export versioning', () => {
     const artifacts = {
       createArtifact: jest.fn().mockResolvedValue({ id: 'artifact-1' }),
       createArtifactVersion: jest.fn(),
-      createArtifactLink: jest.fn(),
+      createArtifactLink: jest.fn().mockResolvedValue({
+        id: 'workspace-link-1',
+        publicUrl: 'https://xpert.test/artifacts/share/WsPaCe123456',
+        versionMode: 'version',
+        accessMode: 'workspace_all'
+      }),
       revokeArtifactLink: jest.fn()
     }
     const runtimeCapabilities = {
       has: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts'),
       get: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts' ? artifacts : undefined)
+    }
+    const logRepository = {
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value)
     }
     const service = new PresentationStudioService(
       { findOne: jest.fn().mockResolvedValue(deck) } as never,
@@ -742,10 +761,10 @@ describe('PresentationStudioService export versioning', () => {
       {} as never,
       {} as never,
       exportRepository as never,
+      logRepository as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
+      sharingPolicyConfig() as never,
       undefined,
       runtimeCapabilities as never
     )
@@ -759,13 +778,66 @@ describe('PresentationStudioService export versioning', () => {
       preserveExistingLink: true
     })
 
-    expect(artifacts.revokeArtifactLink).not.toHaveBeenCalled()
-    expect(artifacts.createArtifactLink).not.toHaveBeenCalled()
+    expect(artifacts.revokeArtifactLink).toHaveBeenCalledWith('public-link-1')
+    expect(artifacts.createArtifactLink).toHaveBeenCalledWith(expect.objectContaining({
+      versionMode: 'version',
+      access: expect.objectContaining({ mode: 'workspace_all' }),
+      presentation: expect.objectContaining({ allowDownload: false })
+    }))
     expect(result).toMatchObject({
-      publicUrl,
-      shareUrl: publicUrl,
-      accessMode: 'public_link'
+      publicUrl: 'https://xpert.test/artifacts/share/WsPaCe123456',
+      accessMode: 'workspace_all'
     })
+  })
+
+  it('revokes the active HTML Artifact link without deleting the export', async () => {
+    const deck = { id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e' }
+    const item = {
+      id: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      deckId: deck.id,
+      versionId: 'version-1',
+      kind: 'html',
+      artifactLinkId: 'artifact-link-1',
+      artifactLinkVersionMode: 'version',
+      artifactLinkAccessMode: 'public_link',
+      artifactPublicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn',
+      artifactSharedAt: new Date()
+    }
+    const exportRepository = {
+      find: jest.fn().mockResolvedValue([item]),
+      save: jest.fn(async (value) => value)
+    }
+    const artifacts = { revokeArtifactLink: jest.fn().mockResolvedValue({ id: item.artifactLinkId }) }
+    const runtimeCapabilities = {
+      has: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts'),
+      get: jest.fn((key: string | { id: string }) => (typeof key === 'string' ? key : key.id) === 'platform.artifacts' ? artifacts : undefined)
+    }
+    const logRepository = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) }
+    const service = new PresentationStudioService(
+      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      exportRepository as never,
+      logRepository as never,
+      {} as never,
+      {} as never,
+      sharingPolicyConfig() as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+
+    await expect(service.revokeDeckHtmlShare({ organizationId: 'org-1' }, deck.id, 'workbench')).resolves.toMatchObject({
+      deckId: deck.id,
+      exportId: item.id,
+      revoked: true
+    })
+    expect(artifacts.revokeArtifactLink).toHaveBeenCalledWith('artifact-link-1')
+    expect(exportRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      artifactLinkId: null,
+      artifactPublicUrl: null,
+      artifactSharedAt: null
+    }))
   })
 
   it('queues an HTML export when sharing a deck without a completed HTML export', async () => {
@@ -799,7 +871,7 @@ describe('PresentationStudioService export versioning', () => {
     }
     const queue = { enqueue: jest.fn().mockResolvedValue({ jobId: 'presentation-studio-export-html-1' }) }
     const catalog = { requireLayout: jest.fn().mockResolvedValue({}) }
-    const config = { get: jest.fn().mockReturnValue({ maxPageCount: 30 }) }
+    const config = { get: jest.fn().mockReturnValue({ maxPageCount: 30 }), ...sharingPolicyConfig() }
     const service = new PresentationStudioService(
       deckRepository as never,
       versionRepository as never,
