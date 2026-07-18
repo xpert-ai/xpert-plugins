@@ -1,21 +1,20 @@
-import { HumanMessage } from '@langchain/core/messages'
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { Inject, Injectable, Optional } from '@nestjs/common'
-import { CommandBus } from '@nestjs/cqrs'
-import type { ICopilotModel } from '@xpert-ai/contracts'
 import {
-  CreateModelClientCommand,
   PluginJobProcessor,
+  SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN,
   WorkspaceFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type ManagedQueueJob,
   type ManagedQueueJobProcessor,
-  type RuntimeCapabilityRegistry
+  type PluginContext,
+  type RuntimeCapabilityRegistry,
+  type SpeechToTextPermissionService
 } from '@xpert-ai/plugin-sdk'
 import { CUT_ANALYSIS_QUEUE_NAME, CUT_PLUGIN_NAME, CUT_TRANSCRIPTION_JOB_NAME } from './constants.js'
 import { CutCaptionService } from './cut-caption.service.js'
 import { normalizeCutTranscriptionContent } from './cut-transcription.js'
 import type { CutScope, CutTranscriptionQueueJobData } from './types.js'
+import { CUT_PLUGIN_CONTEXT } from './tokens.js'
 
 @Injectable()
 @PluginJobProcessor({
@@ -25,9 +24,11 @@ import type { CutScope, CutTranscriptionQueueJobData } from './types.js'
   concurrency: 2
 })
 export class CutTranscriptionProcessor implements ManagedQueueJobProcessor<CutTranscriptionQueueJobData> {
+  private speechToTextService?: SpeechToTextPermissionService
+
   constructor(
     private readonly captions: CutCaptionService,
-    @Optional() @Inject(CommandBus) private readonly commandBus?: Pick<CommandBus, 'execute'>,
+    @Inject(CUT_PLUGIN_CONTEXT) private readonly pluginContext: PluginContext,
     @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities?: RuntimeCapabilityRegistry
   ) {}
 
@@ -37,34 +38,28 @@ export class CutTranscriptionProcessor implements ManagedQueueJobProcessor<CutTr
     const claimed = await this.captions.beginTranscriptionJob(scope, input.projectId, input.jobId)
     if (!claimed) return
     try {
-      if (!this.commandBus) throw new Error('Platform model command runtime is unavailable for Cut transcription.')
       const files = this.capabilities?.get(WorkspaceFilesRuntimeCapability)
       if (!files) throw new Error('Workspace Files capability is unavailable for Cut transcription.')
       const file = await files.readBuffer(input.fileReference)
-      const fileUrl = file.fileUrl ?? file.url
-      if (!fileUrl) throw new Error('Workspace media has no provider-readable URL for speech-to-text.')
-      const copilotModel: ICopilotModel = {
-        ...input.copilotModel,
+      const result = await this.speechToText.transcribe({
+        xpertId: input.xpertId,
         tenantId: input.tenantId,
-        ...(input.organizationId ? { organizationId: input.organizationId } : {})
-      }
-      const model = await this.commandBus.execute<CreateModelClientCommand<BaseChatModel>, BaseChatModel>(
-        new CreateModelClientCommand<BaseChatModel>(copilotModel, {
-          abortController: new AbortController(),
-          usageCallback: () => undefined
-        })
-      )
-      const message = await model.invoke([
-        new HumanMessage({ content: [{ url: fileUrl }] })
-      ])
-      const text = normalizeCutTranscriptionContent(message.content)
+        organizationId: input.organizationId ?? null,
+        file: {
+          data: file.buffer,
+          originalName: input.originalName,
+          mimeType: input.mimeType,
+          size: file.buffer.length
+        }
+      })
+      const text = normalizeCutTranscriptionContent(result.text)
       if (!text) throw new Error('Speech-to-text returned an empty transcription.')
       await this.captions.completeTranscriptionJob(scope, {
         projectId: input.projectId,
         jobId: input.jobId,
         text,
         duration: input.duration,
-        model: `${input.copilotModel.copilotId}:${input.copilotModel.model}`,
+        model: input.modelKey,
         changeSummary: input.changeSummary
       })
     } catch (error) {
@@ -74,10 +69,26 @@ export class CutTranscriptionProcessor implements ManagedQueueJobProcessor<CutTr
       throw error
     }
   }
+
+  private get speechToText(): SpeechToTextPermissionService {
+    this.speechToTextService ??= this.pluginContext.resolve<SpeechToTextPermissionService>(
+      SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN
+    )
+    return this.speechToTextService
+  }
 }
 
 function requirePayload(value: CutTranscriptionQueueJobData) {
-  if (!value?.jobId || !value.projectId || !value.tenantId || !value.xpertId || !value.fileReference?.filePath) {
+  if (
+    !value?.jobId ||
+    !value.projectId ||
+    !value.tenantId ||
+    !value.xpertId ||
+    !value.modelKey ||
+    !value.originalName ||
+    !value.mimeType ||
+    !value.fileReference?.filePath
+  ) {
     throw new Error('Cut transcription queue payload is incomplete.')
   }
   return value

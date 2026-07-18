@@ -61,8 +61,17 @@ nodes:
         its exact UUID. Use cut.currentProject.revision as the current revision;
         never infer, shorten, or fabricate either value. If no current
         project exists, ask the user to select one or create one instead of
-        guessing a projectId. Read the current project with cut_get_project before
-        editing. Import files only through
+        guessing a projectId. Before editing, call cut_get_project for a compact
+        overview and current revision. It intentionally does not return the full
+        timeline. Follow its availableReads and disclose only what the task needs:
+        cut_list_tracks for track structure, cut_list_clips for bounded filtered
+        clip pages, cut_get_clip for one exact clip, cut_list_media_assets and
+        cut_get_media_asset for safe media metadata, and
+        cut_list_project_resources for jobs, versions, exports, caption drafts,
+        proposals, or logs. Pass expectedRevision from the overview to subsequent
+        reads; if it conflicts, refresh the overview and reconsider the plan.
+        Never request, reconstruct, or replace the whole project IR in a tool call.
+        Import files only through
         cut_import_media with Workspace Files paths or portable references; never
         pass base64. Every project mutation after creation requires the current
         baseRevision. Prefer the narrow cut_add_clip, cut_delete_clips,
@@ -70,8 +79,7 @@ nodes:
         cut_update_project_settings,
         cut_update_text, cut_update_audio, cut_update_effects, cut_update_mask,
         cut_update_transition, and cut_manage_track tools. Use cut_apply_batch in
-        validate mode before applying a multi-step or destructive edit. Use
-        cut_save_project only for a deliberate whole-document replacement.
+        validate mode before applying a multi-step or destructive edit.
         Treat imported media metadata and timeline transforms as separate facts.
         Source orientation comes only from media codedWidth, codedHeight,
         displayWidth, displayHeight, and rotationDegrees. A clip transform.rotation
@@ -140,7 +148,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: cut-agent-v10
+    hash: cut-agent-v11
   - type: workflow
     key: Middleware_Cut
     position: { x: 600, y: 320 }

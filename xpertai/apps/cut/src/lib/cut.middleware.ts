@@ -34,12 +34,18 @@ import {
   CUT_EXPORT_SUBTITLE_TOOL_NAME,
   CUT_GET_ANALYSIS_JOB_TOOL_NAME,
   CUT_GET_CAPTION_DRAFT_TOOL_NAME,
+  CUT_GET_CLIP_TOOL_NAME,
+  CUT_GET_MEDIA_ASSET_TOOL_NAME,
   CUT_GET_MEDIA_SEGMENT_TOOL_NAME,
   CUT_GET_EDIT_PROPOSAL_TOOL_NAME,
   CUT_GET_PROJECT_TOOL_NAME,
   CUT_ICON,
   CUT_IMPORT_MEDIA_TOOL_NAME,
   CUT_IMPORT_SUBTITLE_TOOL_NAME,
+  CUT_LIST_CLIPS_TOOL_NAME,
+  CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+  CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
+  CUT_LIST_TRACKS_TOOL_NAME,
   CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME,
   CUT_MANAGE_TRACK_TOOL_NAME,
   CUT_RIPPLE_DELETE_RANGES_TOOL_NAME,
@@ -49,7 +55,6 @@ import {
   CUT_REJECT_EDIT_PROPOSAL_TOOL_NAME,
   CUT_REVERT_EDIT_PROPOSAL_TOOL_NAME,
   CUT_SEARCH_MEDIA_SEGMENTS_TOOL_NAME,
-  CUT_SAVE_PROJECT_TOOL_NAME,
   CUT_START_TRANSCRIPTION_TOOL_NAME,
   CUT_START_HEADLESS_EXPORT_TOOL_NAME,
   CUT_APPLY_EDIT_PROPOSAL_TOOL_NAME,
@@ -74,7 +79,6 @@ import {
   cutEditOperationSchema,
   cutManageTrackOperationSchema,
   cutRippleDeleteRangesOperationSchema,
-  cutProjectDocumentSchema,
   cutUpdateAudioOperationSchema,
   cutUpdateClipTimingOperationSchema,
   cutUpdateEffectsOperationSchema,
@@ -93,7 +97,7 @@ import {
 import { CutProposalService } from './cut-proposal.service.js'
 import { CutRenderService } from './cut-render.service.js'
 import type { SearchCutMediaSegmentsInput } from './cut-media-intelligence.service.js'
-import type { ApplyCutEditBatchInput, ApplyCutEditInput, CutEditOperation, CutJsonValue, CutProjectDocument, CutScope, SaveCutProjectInput } from './types.js'
+import type { ApplyCutEditBatchInput, ApplyCutEditInput, CutEditOperation, CutJsonValue, CutScope } from './types.js'
 
 const changeSummary = z.string().trim().min(1).max(240)
 const cutProjectUuid = z.string().uuid()
@@ -110,7 +114,56 @@ const createProjectSchema = z.object({
   durationSeconds: z.number().min(0.1).max(3600).optional(),
   changeSummary
 })
-const getProjectSchema = z.object({ projectId: currentProjectId })
+const getProjectSchema = z.object({ projectId: currentProjectId }).strict()
+const expectedRevision = z.number().int().positive().optional().describe(
+  'Revision returned by cut_get_project. If the project changed, the read is rejected so the Agent can refresh its plan.'
+)
+const listTracksSchema = z.object({
+  projectId: currentProjectId,
+  expectedRevision,
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().min(1).max(100).optional()
+}).strict()
+const listClipsSchema = z.object({
+  projectId: currentProjectId,
+  expectedRevision,
+  trackIds: z.array(z.string().min(1).max(160)).min(1).max(50).optional(),
+  mediaAssetIds: z.array(z.string().uuid()).min(1).max(50).optional(),
+  types: z.array(z.enum(['video', 'image', 'audio', 'text', 'color'])).min(1).max(5).optional(),
+  start: z.number().min(0).max(86_400).optional(),
+  end: z.number().positive().max(86_400).optional(),
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().min(1).max(100).optional()
+}).strict().refine((value) => value.start == null || value.end == null || value.end > value.start, {
+  message: 'end must be greater than start', path: ['end']
+})
+const getClipSchema = z.object({
+  projectId: currentProjectId,
+  clipId: z.string().min(1).max(160),
+  expectedRevision
+}).strict()
+const listMediaAssetsSchema = z.object({
+  projectId: currentProjectId,
+  expectedRevision,
+  kinds: z.array(z.enum(['video', 'audio', 'image'])).min(1).max(3).optional(),
+  search: z.string().trim().min(1).max(200).optional(),
+  unusedOnly: z.boolean().optional(),
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().min(1).max(100).optional()
+}).strict()
+const getMediaAssetSchema = z.object({
+  projectId: currentProjectId,
+  mediaAssetId: z.string().uuid(),
+  expectedRevision
+}).strict()
+const listProjectResourcesSchema = z.object({
+  projectId: currentProjectId,
+  resource: z.enum(['analysis_jobs', 'versions', 'exports', 'caption_drafts', 'edit_proposals', 'logs']),
+  expectedRevision,
+  status: z.string().trim().min(1).max(80).optional(),
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().min(1).max(100).optional()
+}).strict()
 const importMediaSchema = z.object({
   projectId: currentProjectId,
   file: workspaceFileLocatorSchema,
@@ -129,12 +182,6 @@ const editBatchSchema = z.object({
   operations: z.array(cutEditOperationSchema).min(1).max(100),
   baseRevision: z.number().int().positive(),
   mode: z.enum(['validate', 'apply']).default('apply'),
-  changeSummary
-})
-const saveProjectSchema = z.object({
-  projectId: currentProjectId,
-  document: cutProjectDocumentSchema,
-  baseRevision: z.number().int().positive(),
   changeSummary
 })
 const finalizeSchema = z.object({ projectId: currentProjectId, baseRevision: z.number().int().positive(), changeSummary })
@@ -355,6 +402,12 @@ const ATOMIC_EDIT_TOOL_SPECS = [
 
 const MUTATIONS = new Set<string>(CUT_MIDDLEWARE_TOOL_NAMES)
 MUTATIONS.delete(CUT_GET_PROJECT_TOOL_NAME)
+MUTATIONS.delete(CUT_LIST_TRACKS_TOOL_NAME)
+MUTATIONS.delete(CUT_LIST_CLIPS_TOOL_NAME)
+MUTATIONS.delete(CUT_GET_CLIP_TOOL_NAME)
+MUTATIONS.delete(CUT_LIST_MEDIA_ASSETS_TOOL_NAME)
+MUTATIONS.delete(CUT_GET_MEDIA_ASSET_TOOL_NAME)
+MUTATIONS.delete(CUT_LIST_PROJECT_RESOURCES_TOOL_NAME)
 MUTATIONS.delete(CUT_GET_EDIT_PROPOSAL_TOOL_NAME)
 MUTATIONS.delete(CUT_REPORT_FAILURE_TOOL_NAME)
 
@@ -410,11 +463,65 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          return compact(sanitizeCutToolProject(await this.service.getProject(scope, input.projectId)))
+          return compact(await this.service.getProjectSummary(scope, input.projectId))
         }, {
           name: CUT_GET_PROJECT_TOOL_NAME,
-          description: 'Read the current Cut project document, revision, media references, versions, exports, and recent operation log before editing. Omit projectId to use the active Cut Workbench project context.',
+          description: 'Read a compact Cut project overview, current revision, timeline/resource counts, and available follow-up reads. It intentionally omits the full document and file references. Omit projectId to use the active Workbench project.',
           schema: getProjectSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.listTracks(scope, input))
+        }, {
+          name: CUT_LIST_TRACKS_TOOL_NAME,
+          description: 'List compact track summaries for a Cut project. Pass expectedRevision from cut_get_project to reject stale reads.',
+          schema: listTracksSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.listClips(scope, input))
+        }, {
+          name: CUT_LIST_CLIPS_TOOL_NAME,
+          description: 'Page through compact Cut clips, optionally filtered by tracks, media assets, clip types, or an overlapping time range. Source references and preview URLs are never returned.',
+          schema: listClipsSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.getClip(scope, input))
+        }, {
+          name: CUT_GET_CLIP_TOOL_NAME,
+          description: 'Read one Cut clip and its immediate same-track neighbors after discovering the clip id with cut_list_clips. Workspace file references and preview URLs are omitted.',
+          schema: getClipSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.listMediaAssets(scope, input))
+        }, {
+          name: CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+          description: 'Page through safe media asset metadata and timeline usage counts. Filter by kind, filename, or unused assets; file references are never returned.',
+          schema: listMediaAssetsSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.getMediaAsset(scope, input))
+        }, {
+          name: CUT_GET_MEDIA_ASSET_TOOL_NAME,
+          description: 'Read one media asset metadata record, timeline usage count, evidence types, and related analysis job ids without exposing its Workspace file reference.',
+          schema: getMediaAssetSchema,
+          verboseParsingErrors: true
+        }),
+        tool(async (rawInput) => {
+          const input = requireCutProjectInput(rawInput)
+          return compact(await this.service.listProjectResources(scope, input))
+        }, {
+          name: CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
+          description: 'Page through one project resource collection: analysis jobs, versions, exports, caption drafts, edit proposals, or operation logs. Large documents, snapshots, reports, URLs, and file references are omitted.',
+          schema: listProjectResourcesSchema,
           verboseParsingErrors: true
         }),
         tool(async (rawInput) => {
@@ -718,23 +825,6 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          const result = await this.service.saveProject(scope, { ...input, document: input.document as CutProjectDocument } as SaveCutProjectInput)
-          return compact({
-            success: result.success,
-            projectId: result.project.id ?? input.projectId,
-            revision: result.project.revision,
-            changedClipIds: result.changedClipIds,
-            changedTrackIds: result.changedTrackIds,
-            changeSummary: input.changeSummary
-          })
-        }, {
-          name: CUT_SAVE_PROJECT_TOOL_NAME,
-          description: 'Replace the complete validated Cut project document at a required baseRevision. Prefer atomic edit tools for narrow timeline mutations.',
-          schema: saveProjectSchema,
-          verboseParsingErrors: true
-        }),
-        tool(async (rawInput) => {
-          const input = requireCutProjectInput(rawInput)
           const result = await this.service.finalizeVersion(scope, input.projectId, input.baseRevision, input.changeSummary)
           return compact({
             success: result.success,
@@ -967,29 +1057,6 @@ function scopeFromContext(context: IAgentMiddlewareContext): CutScope {
 
 function compact(value: object) {
   return JSON.stringify(value)
-}
-
-function sanitizeCutToolProject(detail: Awaited<ReturnType<CutService['getProject']>>) {
-  return {
-    ...detail,
-    media: detail.media.map(({ previewUrl: _previewUrl, ...asset }) => asset),
-    document: {
-      ...detail.document,
-      tracks: detail.document.tracks.map((track) => ({
-        ...track,
-        clips: track.clips.map((clip) => {
-          if (!clip.mediaAssetId && clip.source?.source !== 'platform.workspace.files') return clip
-          const { previewUrl: _previewUrl, ...sanitized } = clip
-          return sanitized
-        })
-      }))
-    },
-    exports: detail.exports.map((record) => {
-      if (record.fileReference?.source !== 'platform.workspace.files') return record
-      const { fileUrl: _fileUrl, ...sanitized } = record
-      return sanitized
-    })
-  }
 }
 
 function sanitizeCutToolEvidence<T>(value: T): T {

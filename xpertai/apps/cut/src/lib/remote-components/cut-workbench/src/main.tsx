@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter,
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger,
   DialogHeader, DialogTitle, Input, Progress, ResizableHandle, ResizablePanel, ResizablePanelGroup, ScrollArea,
   Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue, Slider, Switch, Tabs, TabsContent,
   TabsList, TabsTrigger
@@ -28,7 +29,7 @@ import { computeCutWaveform } from '../../../cut-waveform'
 import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
-  placeCutMediaClip, toggleCutBookmark, type CutClipboard
+  placeCutMediaClip, removeUnusedStarterAudioTrack, toggleCutBookmark, type CutClipboard
 } from '../../../cut-editor-model'
 import { clipStartFromDrag } from '../../../cut-timeline'
 import { canExportCutVideo, exportCutVideo } from './cut-exporter'
@@ -156,6 +157,7 @@ function App() {
   const [downloadingExportId, setDownloadingExportId] = React.useState<string | null>(null)
   const [mediaState, setMediaState] = React.useState('idle')
   const [mediaSearch, setMediaSearch] = React.useState('')
+  const [selectedMediaKey, setSelectedMediaKey] = React.useState<string | null>(null)
   const [mediaAnalysisAssetId, setMediaAnalysisAssetId] = React.useState('')
   const [mediaAnalysisProgress, setMediaAnalysisProgress] = React.useState<{ progress: number; message: string } | null>(null)
   const [captionText, setCaptionText] = React.useState('')
@@ -238,7 +240,7 @@ function App() {
     setCaptionReview((current) => current?.item.projectId === detail.item.id ? current : null)
     setProposalReview((current) => current?.item.projectId === detail.item.id ? current : null)
     setSelectedProjectId(detail.item.id ?? null)
-    setDocumentDraft(structuredClone(detail.document))
+    setDocumentDraft(removeUnusedStarterAudioTrack(structuredClone(detail.document)))
     setSelectedClipId((current) => {
       const next = current && findClip(detail.document, current) ? current : firstClip(detail.document)?.id ?? null
       setSelectedClipIds(next ? [next] : [])
@@ -355,6 +357,7 @@ function App() {
   const duration = documentDraft?.settings.durationSeconds ?? 30
   const localTranscriptionMedia = data.detail?.media.filter((asset) => asset.id && asset.previewUrl && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))) ?? []
   const selectedClip = documentDraft && selectedClipId ? findClip(documentDraft, selectedClipId) : null
+  const selectedMediaAsset = data.detail?.media.find((asset) => mediaDragKey(asset) === selectedMediaKey) ?? null
   const referencedMediaIds = new Set(documentDraft?.tracks.flatMap((track) => track.clips.map((clip) => clip.mediaAssetId).filter((id): id is string => Boolean(id))) ?? [])
   const headlessInputBytes = (data.detail?.media ?? []).reduce((total, asset) => total + (asset.id && referencedMediaIds.has(asset.id) ? asset.size : 0), 0)
   const headlessInputLimit = data.renderCapability.limits.maxMediaBytes
@@ -365,6 +368,7 @@ function App() {
   const headlessReady = data.renderCapability.available && !headlessMediaOversize
   const bookmarkAtPlayhead = documentDraft?.bookmarks?.some((bookmark) => Math.abs(bookmark.time - playhead) <= 0.05) ?? false
   const selectClip = React.useCallback((clipId: string, additive = false) => {
+    setSelectedMediaKey(null)
     if (!additive) {
       setSelectedClipIds([clipId])
       setSelectedClipId(clipId)
@@ -378,6 +382,21 @@ function App() {
   }, [selectedClipIds])
 
   const selectOnly = React.useCallback((clipId: string) => selectClip(clipId, false), [selectClip])
+
+  const previewMediaAsset = React.useCallback((asset: MediaSummary) => {
+    setIsPlaying(false)
+    setSelectedMediaKey(mediaDragKey(asset))
+    setMediaAnalysisAssetId(asset.id ?? '')
+    setSelectedClipId(null)
+    setSelectedClipIds([])
+    setMediaState('loading')
+  }, [])
+
+  React.useEffect(() => {
+    if (!selectedMediaKey) return
+    if (data.detail?.media.some((asset) => mediaDragKey(asset) === selectedMediaKey)) return
+    setSelectedMediaKey(null)
+  }, [data.detail?.media, selectedMediaKey])
 
   React.useEffect(() => {
     if (localTranscriptionMedia.some((asset) => asset.id === localTranscriptionAssetId)) return
@@ -1168,6 +1187,7 @@ function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c' && !editing) { event.preventDefault(); copySelection(); return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v' && !editing) { event.preventDefault(); pasteSelection(); return }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd' && !editing) { event.preventDefault(); duplicateSelected(); return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a' && !editing && documentDraft) {
         event.preventDefault()
         const ids = documentDraft.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
@@ -1184,7 +1204,7 @@ function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [copySelection, deleteSelected, documentDraft, pasteSelection, redo, save, splitSelected, toggleBookmark, togglePlayback, undo])
+  }, [copySelection, deleteSelected, documentDraft, duplicateSelected, pasteSelection, redo, save, splitSelected, toggleBookmark, togglePlayback, undo])
 
   const updateSelectedClip = (update: (clip: CutClip) => CutClip) => {
     if (!selectedClipId) return
@@ -1413,21 +1433,24 @@ function App() {
               event.currentTarget.value = ''
             }} />
             <TabsContent value="media" className="cut-library-pane">
-              <div className="media-analysis-card" data-media-analysis-state={mediaAnalysisProgress ? 'running' : 'idle'}>
-                <div className="caption-section-title"><Sparkles />{t('mediaIntelligence')}</div>
-                <select className="compact-select" aria-label={t('mediaAnalysisSource')} value={mediaAnalysisAssetId} onChange={(event) => setMediaAnalysisAssetId(event.target.value)} disabled={Boolean(mediaAnalysisProgress)}>
-                  {!localTranscriptionMedia.length && <option value="">{t('localNoMedia')}</option>}
-                  {localTranscriptionMedia.map((asset) => <option key={asset.id} value={asset.id}>{asset.originalName}</option>)}
-                </select>
-                {mediaAnalysisProgress ? <div className="local-transcription-progress"><Progress value={mediaAnalysisProgress.progress} /><span>{mediaAnalysisProgress.message}</span><Button variant="outline" size="sm" onClick={() => mediaAnalysisCancelRef.current?.()}>{t('cancelJob')}</Button></div>
-                  : <Button size="sm" variant="outline" disabled={!mediaAnalysisAssetId || dirty || saving} onClick={() => void runLocalMediaAnalysis()}><Sparkles />{t('mediaAnalyze')}</Button>}
-                <small>{t('mediaAnalysisNote')}</small>
-                {!!data.mediaSegments.length && <div className="media-evidence-list">{data.mediaSegments.filter((segment) => !mediaAnalysisAssetId || segment.mediaAssetId === mediaAnalysisAssetId).slice(0, 8).map((segment) => <div key={segment.id} title={segment.text ?? segment.label}>
-                  <Badge variant="outline">{segment.evidenceType}</Badge><span>{formatTime(segment.start)}–{formatTime(segment.end)}</span><small>{segment.text ?? segment.label}</small>
-                </div>)}</div>}
-              </div>
               {!filteredMedia.length && <div className="empty-card">{t('emptyMedia')}</div>}
-              <div className="media-grid">{filteredMedia.map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} onAdd={() => addMediaAsset(asset)} />)}</div>
+              <div className="media-grid">{filteredMedia.map((asset, index) => {
+                const key = mediaDragKey(asset)
+                const selected = key === selectedMediaKey
+                const canAnalyze = selected && Boolean(asset.id) && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))
+                return <React.Fragment key={asset.id ?? `${asset.originalName}-${index}`}>
+                  <MediaCard asset={asset} selected={selected} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />
+                  {canAnalyze && <div className="media-analysis-card" data-media-analysis-state={mediaAnalysisProgress ? 'running' : 'idle'}>
+                    <div className="media-analysis-heading"><span className="caption-section-title"><Sparkles />{t('mediaIntelligence')}</span><strong title={asset.originalName}>{asset.originalName}</strong></div>
+                    {mediaAnalysisProgress ? <div className="local-transcription-progress"><Progress value={mediaAnalysisProgress.progress} /><span>{mediaAnalysisProgress.message}</span><Button variant="outline" size="sm" onClick={() => mediaAnalysisCancelRef.current?.()}>{t('cancelJob')}</Button></div>
+                      : <Button size="sm" variant="outline" disabled={!mediaAnalysisAssetId || dirty || saving} onClick={() => void runLocalMediaAnalysis()}><Sparkles />{t('mediaAnalyze')}</Button>}
+                    <small>{t('mediaAnalysisNote')}</small>
+                    {!!data.mediaSegments.length && <div className="media-evidence-list">{data.mediaSegments.filter((segment) => segment.mediaAssetId === asset.id).slice(0, 8).map((segment) => <div key={segment.id} title={segment.text ?? segment.label}>
+                      <Badge variant="outline">{segment.evidenceType}</Badge><span>{formatTime(segment.start)}–{formatTime(segment.end)}</span><small>{segment.text ?? segment.label}</small>
+                    </div>)}</div>}
+                  </div>}
+                </React.Fragment>
+              })}</div>
             </TabsContent>
             <TabsContent value="text" className="cut-library-pane"><div className="preset-list">
               <Button variant="outline" className="text-preset heading" onClick={() => addTextClip('heading')}>{t('addHeading')}</Button>
@@ -1435,7 +1458,7 @@ function App() {
               <Button variant="outline" className="text-preset body" onClick={() => addTextClip('bodyText')}>{t('addBody')}</Button>
             </div></TabsContent>
             <TabsContent value="sounds" className="cut-library-pane"><div className="media-grid">
-              {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} onAdd={() => addMediaAsset(asset)} />)}
+              {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} selected={mediaDragKey(asset) === selectedMediaKey} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />)}
             </div></TabsContent>
             <TabsContent value="stickers" className="cut-library-pane"><div className="sticker-grid">
               {STICKER_PRESETS.map((sticker) => <button key={sticker} onClick={() => addSticker(sticker)}>{sticker}</button>)}
@@ -1574,19 +1597,21 @@ function App() {
 
       <ResizablePanel defaultSize="58%" minSize="30%" className="cut-resizable-pane">
       <section className="cut-canvas-panel">
-        <div className="canvas-toolbar"><Badge variant="outline">{documentDraft ? `${documentDraft.settings.width} × ${documentDraft.settings.height}` : t('canvas')}</Badge><span>{t('keyboardHint')}</span></div>
+        <div className="canvas-toolbar"><Badge variant="outline">{selectedMediaAsset ? t('previewMedia') : documentDraft ? `${documentDraft.settings.width} × ${documentDraft.settings.height}` : t('canvas')}</Badge><span title={selectedMediaAsset?.originalName}>{selectedMediaAsset?.originalName ?? t('keyboardHint')}</span></div>
         <div ref={stageShellRef} className="stage-shell">
-          <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateClip(document, clipId, (clip) => ({ ...clip, transform })))} onState={handleMediaState} emptyText={t('selectOrUpload')} />
+          {selectedMediaAsset
+            ? <MediaAssetPreview asset={selectedMediaAsset} onState={handleMediaState} emptyText={t('selectOrUpload')} />
+            : <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateClip(document, clipId, (clip) => ({ ...clip, transform })))} onState={handleMediaState} emptyText={t('selectOrUpload')} />}
           <span className={`media-state ${mediaState}`}>{mediaState === 'loaded' ? t('mediaLoaded') : mediaState}</span>
         </div>
-        <div className="playback-controls">
+        {selectedMediaAsset ? <div className="media-preview-controls"><div><strong>{selectedMediaAsset.originalName}</strong><small>{t('mediaPreviewHint')}</small></div><Button variant="outline" size="sm" onClick={() => { setSelectedMediaKey(null); setMediaState('idle') }}><RotateCcw />{t('backToTimeline')}</Button></div> : <div className="playback-controls">
           <code>{formatTime(playhead)} <span>/</span> {formatTime(duration)}</code>
           <div className="playback-center"><Button variant="ghost" size="icon-sm" title={t('previousFrame')} onClick={() => seek(playhead - 1 / (documentDraft?.settings.fps ?? 30))}><SkipBack /></Button>
             <Button variant="ghost" size="icon" className="play-button" title={isPlaying ? t('pause') : t('play')} onClick={togglePlayback}>{isPlaying ? <Pause /> : <Play />}</Button>
             <Button variant="ghost" size="icon-sm" title={t('nextFrame')} onClick={() => seek(playhead + 1 / (documentDraft?.settings.fps ?? 30))}><SkipForward /></Button></div>
           <div className="preview-actions"><select aria-label={t('previewZoom')} value={previewZoom} onChange={(event) => setPreviewZoom(event.target.value)}><option value="fit">{t('fit')}</option>{[25, 50, 75, 100, 150, 200].map((value) => <option key={value} value={value}>{value}%</option>)}</select>
             <Button variant="ghost" size="icon-sm" title={t('fullscreen')} onClick={() => void stageShellRef.current?.requestFullscreen()}><Maximize2 /></Button></div>
-        </div>
+        </div>}
       </section>
       </ResizablePanel>
       <ResizableHandle withHandle />
@@ -1660,7 +1685,10 @@ function App() {
               const rect = event.currentTarget.getBoundingClientRect()
               addMediaAsset(asset, (event.clientX - rect.left) / pixelsPerSecond, track.id)
             }}>
-              {track.clips.map((clip) => <div role="button" tabIndex={0} key={clip.id} className={`timeline-clip ${clip.type} ${selectedClipIds.includes(clip.id) ? 'selected' : ''}`} style={{ left: clip.start * pixelsPerSecond, width: Math.max(24, clip.duration * pixelsPerSecond) }} onPointerDown={(event) => {
+              {track.clips.map((clip) => <ContextMenu key={clip.id}><ContextMenuTrigger asChild><div role="button" tabIndex={0} className={`timeline-clip ${clip.type} ${selectedClipIds.includes(clip.id) ? 'selected' : ''}`} style={{ left: clip.start * pixelsPerSecond, width: Math.max(24, clip.duration * pixelsPerSecond) }} onContextMenu={() => {
+                if (!selectedClipIds.includes(clip.id)) selectOnly(clip.id)
+              }} onPointerDown={(event) => {
+                if (event.button !== 0) return
                 selectClip(clip.id, event.shiftKey)
                 if (event.shiftKey) return
                 if (!documentDraft) return
@@ -1676,7 +1704,14 @@ function App() {
                 {clip.type === 'audio' && <AudioWaveform clip={clip} />}
                 <ClipGlyph type={clip.type} /><div className="clip-copy"><strong>{clip.name}</strong><small>{clip.start.toFixed(2)}–{(clip.start + clip.duration).toFixed(2)}s</small></div>
                 <span className="trim-handle right" onPointerDown={(event) => beginTrim(event, 'trim-end', clip, documentDraft, duration, pixelsPerSecond, snappingEnabled, rippleEditingEnabled, playheadRef.current, dragRef, selectOnly)} />
-              </div>)}
+              </div></ContextMenuTrigger><ContextMenuContent>
+                <ContextMenuItem onSelect={splitSelected}><Scissors />{t('split')}<ContextMenuShortcut>S</ContextMenuShortcut></ContextMenuItem>
+                <ContextMenuItem onSelect={copySelection}><ClipboardCopy />{t('copy')}<ContextMenuShortcut>⌘C</ContextMenuShortcut></ContextMenuItem>
+                <ContextMenuItem onSelect={duplicateSelected}><CopyPlus />{t('duplicate')}<ContextMenuShortcut>⌘D</ContextMenuShortcut></ContextMenuItem>
+                {clip.type === 'video' && <ContextMenuItem disabled={Boolean(clip.audioDetached)} onSelect={extractSelectedAudio}><Unlink />{t('extractAudio')}</ContextMenuItem>}
+                <ContextMenuSeparator />
+                <ContextMenuItem variant="destructive" onSelect={deleteSelected}><Trash2 />{t('delete')}<ContextMenuShortcut>⌫</ContextMenuShortcut></ContextMenuItem>
+              </ContextMenuContent></ContextMenu>)}
               <span className="playhead" style={{ left: playhead * pixelsPerSecond }} />
             </div>
           </div>)}
@@ -1762,15 +1797,28 @@ function App() {
   </div>
 }
 
-function MediaCard({ asset, onAdd }: { asset: MediaSummary; onAdd: () => void }) {
+function MediaCard({ asset, selected, onSelect, onAdd, t }: { asset: MediaSummary; selected: boolean; onSelect: () => void; onAdd: () => void; t: Translator }) {
   const visual = asset.mimeType.startsWith('image/') && asset.previewUrl
-  return <button className="media-card" draggable onDragStart={(event) => {
+  return <div role="button" tabIndex={0} aria-pressed={selected} className={`media-card ${selected ? 'selected' : ''}`} draggable onDragStart={(event) => {
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData(CUT_MEDIA_DRAG_TYPE, mediaDragKey(asset))
-  }} onClick={onAdd} title={asset.originalName}>
+  }} onClick={onSelect} onKeyDown={(event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    onSelect()
+  }} title={`${t('previewMedia')}: ${asset.originalName}`}>
     <span className="media-thumb">{visual ? <img src={asset.previewUrl ?? ''} crossOrigin="use-credentials" alt="" /> : asset.mimeType.startsWith('video/') ? <Film /> : asset.mimeType.startsWith('audio/') ? <Music2 /> : <Image />}</span>
-    <span><strong>{asset.originalName}</strong><small>{formatBytes(asset.size)}</small></span><Plus />
-  </button>
+    <span><strong>{asset.originalName}</strong><small>{formatBytes(asset.size)}</small></span>
+    <Button variant="ghost" size="icon-xs" className="media-card-add" title={t('addToTimeline')} aria-label={`${t('addToTimeline')}: ${asset.originalName}`} onClick={(event) => { event.stopPropagation(); onAdd() }}><Plus /></Button>
+  </div>
+}
+
+function MediaAssetPreview({ asset, onState, emptyText }: { asset: MediaSummary; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void; emptyText: string }) {
+  const source = asset.previewUrl ?? undefined
+  if (!source) return <div className="media-asset-preview empty"><Film /><p>{emptyText}</p></div>
+  if (asset.mimeType.startsWith('image/')) return <div className="media-asset-preview image"><img src={source} alt={asset.originalName} crossOrigin="use-credentials" draggable={false} onLoad={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
+  if (asset.mimeType.startsWith('audio/')) return <div className="media-asset-preview audio"><Music2 /><strong>{asset.originalName}</strong><audio src={source} controls crossOrigin="use-credentials" onLoadStart={() => onState('loading', asset.id, source)} onLoadedData={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
+  return <div className="media-asset-preview video"><video src={source} controls crossOrigin="use-credentials" playsInline onLoadStart={() => onState('loading', asset.id, source)} onLoadedData={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
 }
 
 function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSelect, onTransform, onState, emptyText }: {

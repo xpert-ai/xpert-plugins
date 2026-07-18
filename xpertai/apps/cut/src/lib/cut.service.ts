@@ -17,6 +17,14 @@ import { normalizeCutFileName } from './cut-file-name.js'
 import { probeCutMediaMetadata } from './cut-media-metadata.js'
 import { cutExportProfile, normalizeCutExportSettings, type CutExportFormat } from './cut-export-settings.js'
 import {
+  CUT_GET_CLIP_TOOL_NAME,
+  CUT_GET_MEDIA_ASSET_TOOL_NAME,
+  CUT_LIST_CLIPS_TOOL_NAME,
+  CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+  CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
+  CUT_LIST_TRACKS_TOOL_NAME
+} from './constants.js'
+import {
   CutActionLog,
   CutAnalysisJob,
   CutCaptionDraft,
@@ -35,11 +43,19 @@ import type {
   CreateCutProjectInput,
   CutActionType,
   CutActorType,
+  CutClip,
   CutClipType,
   CutJsonValue,
+  CutMediaAssetKind,
   CutMediaMetadata,
   CutProjectDocument,
   CutScope,
+  GetCutClipInput,
+  GetCutMediaAssetInput,
+  ListCutClipsInput,
+  ListCutMediaAssetsInput,
+  ListCutProjectResourcesInput,
+  ListCutTracksInput,
   SaveCutProjectInput,
   SearchCutProjectsInput
 } from './types.js'
@@ -119,6 +135,224 @@ export class CutService {
       exports: exports.map(compactExport),
       logs: logs.map(compactLog)
     }
+  }
+
+  /** Agent-facing project overview. The full timeline document remains private to the Workbench path. */
+  async getProjectSummary(scope: CutScope, projectId: string) {
+    const project = await this.requireProject(scope, projectId)
+    const document = validateCutProjectDocument(project.document)
+    const clips = document.tracks.flatMap((track) => track.clips)
+    const starts = clips.map((clip) => clip.start)
+    const ends = clips.map((clip) => clip.start + clip.duration)
+    const manager = this.projects.manager
+    const [mediaAssets, versions, exports, analysisJobs, captionDrafts, editProposals, logs] = await Promise.all([
+      this.media.count({ where: scopedWhere<CutMediaAsset>(scope, { cutProjectId: projectId }) }),
+      this.versions.count({ where: scopedWhere<CutProjectVersion>(scope, { cutProjectId: projectId }) }),
+      this.exports.count({ where: scopedWhere<CutExport>(scope, { cutProjectId: projectId }) }),
+      manager.getRepository(CutAnalysisJob).count({ where: scopedWhere<CutAnalysisJob>(scope, { cutProjectId: projectId }) }),
+      manager.getRepository(CutCaptionDraft).count({ where: scopedWhere<CutCaptionDraft>(scope, { cutProjectId: projectId }) }),
+      manager.getRepository(CutEditProposal).count({ where: scopedWhere<CutEditProposal>(scope, { cutProjectId: projectId }) }),
+      this.logs.count({ where: scopedWhere<CutActionLog>(scope, { cutProjectId: projectId }) })
+    ])
+    const expectedRevision = project.revision
+    return {
+      project: compactProject(project),
+      settings: document.settings,
+      timeline: {
+        trackCount: document.tracks.length,
+        clipCount: clips.length,
+        visualTrackCount: document.tracks.filter((track) => track.kind === 'visual').length,
+        audioTrackCount: document.tracks.filter((track) => track.kind === 'audio').length,
+        bookmarkCount: document.bookmarks?.length ?? 0,
+        textClipCount: clips.filter((clip) => clip.type === 'text').length,
+        contentStart: starts.length ? Math.min(...starts) : null,
+        contentEnd: ends.length ? Math.max(...ends) : null
+      },
+      resources: { mediaAssets, versions, exports, analysisJobs, captionDrafts, editProposals, logs },
+      availableReads: [
+        { tool: CUT_LIST_TRACKS_TOOL_NAME, expectedRevision },
+        { tool: CUT_LIST_CLIPS_TOOL_NAME, expectedRevision },
+        { tool: CUT_GET_CLIP_TOOL_NAME, expectedRevision },
+        { tool: CUT_LIST_MEDIA_ASSETS_TOOL_NAME, expectedRevision },
+        { tool: CUT_GET_MEDIA_ASSET_TOOL_NAME, expectedRevision },
+        { tool: CUT_LIST_PROJECT_RESOURCES_TOOL_NAME, expectedRevision }
+      ]
+    }
+  }
+
+  async listTracks(scope: CutScope, input: ListCutTracksInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const document = validateCutProjectDocument(project.document)
+    const { page, pageSize, start } = pagination(input.page, input.pageSize)
+    const rows = document.tracks.map((track, index) => ({
+      id: track.id,
+      index,
+      name: track.name,
+      kind: track.kind,
+      muted: track.muted,
+      hidden: track.hidden,
+      clipCount: track.clips.length,
+      start: track.clips.length ? Math.min(...track.clips.map((clip) => clip.start)) : null,
+      end: track.clips.length ? Math.max(...track.clips.map((clip) => clip.start + clip.duration)) : null
+    }))
+    return {
+      projectId: input.projectId,
+      revision: project.revision,
+      items: rows.slice(start, start + pageSize),
+      total: rows.length,
+      page,
+      pageSize
+    }
+  }
+
+  async listClips(scope: CutScope, input: ListCutClipsInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const document = validateCutProjectDocument(project.document)
+    const trackIds = input.trackIds?.length ? new Set(input.trackIds) : null
+    const mediaAssetIds = input.mediaAssetIds?.length ? new Set(input.mediaAssetIds) : null
+    const types = input.types?.length ? new Set(input.types) : null
+    const rows = document.tracks.flatMap((track, trackIndex) =>
+      track.clips.map((clip, clipIndex) => ({ track, trackIndex, clip, clipIndex })))
+      .filter(({ track, clip }) => !trackIds || trackIds.has(track.id))
+      .filter(({ clip }) => !mediaAssetIds || (!!clip.mediaAssetId && mediaAssetIds.has(clip.mediaAssetId)))
+      .filter(({ clip }) => !types || types.has(clip.type))
+      .filter(({ clip }) => input.start === undefined || clip.start + clip.duration > input.start)
+      .filter(({ clip }) => input.end === undefined || clip.start < input.end)
+      .sort((left, right) => left.trackIndex - right.trackIndex || left.clip.start - right.clip.start || left.clipIndex - right.clipIndex)
+    const { page, pageSize, start } = pagination(input.page, input.pageSize)
+    return {
+      projectId: input.projectId,
+      revision: project.revision,
+      items: rows.slice(start, start + pageSize).map(({ track, clip }) => compactAgentClip(clip, track.id, track.name)),
+      total: rows.length,
+      page,
+      pageSize
+    }
+  }
+
+  async getClip(scope: CutScope, input: GetCutClipInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const document = validateCutProjectDocument(project.document)
+    for (const track of document.tracks) {
+      const index = track.clips.findIndex((clip) => clip.id === input.clipId)
+      if (index < 0) continue
+      return {
+        projectId: input.projectId,
+        revision: project.revision,
+        track: { id: track.id, name: track.name, kind: track.kind, muted: track.muted, hidden: track.hidden },
+        clip: fullAgentClip(track.clips[index]),
+        previous: index > 0 ? compactAgentClip(track.clips[index - 1], track.id, track.name) : null,
+        next: index + 1 < track.clips.length ? compactAgentClip(track.clips[index + 1], track.id, track.name) : null
+      }
+    }
+    throw new NotFoundException('Cut clip was not found in this project.')
+  }
+
+  async listMediaAssets(scope: CutScope, input: ListCutMediaAssetsInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const document = validateCutProjectDocument(project.document)
+    const usage = mediaUsage(document)
+    const kinds = input.kinds?.length ? new Set(input.kinds) : null
+    const search = normalizeOptional(input.search)?.toLowerCase()
+    const rows = (await this.media.find({
+      where: scopedWhere<CutMediaAsset>(scope, { cutProjectId: input.projectId }),
+      order: { createdAt: 'ASC' }
+    }))
+      .filter((asset) => !kinds || kinds.has(mediaKind(asset.mimeType)))
+      .filter((asset) => !search || normalizeCutFileName(asset.originalName, 'cut-media').toLowerCase().includes(search))
+      .filter((asset) => !input.unusedOnly || (usage.get(requireId(asset.id)) ?? 0) === 0)
+    const { page, pageSize, start } = pagination(input.page, input.pageSize)
+    return {
+      projectId: input.projectId,
+      revision: project.revision,
+      items: rows.slice(start, start + pageSize).map((asset) => compactAgentMedia(asset, usage.get(requireId(asset.id)) ?? 0)),
+      total: rows.length,
+      page,
+      pageSize
+    }
+  }
+
+  async getMediaAsset(scope: CutScope, input: GetCutMediaAssetInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const asset = await this.media.findOne({
+      where: scopedWhere<CutMediaAsset>(scope, { id: input.mediaAssetId, cutProjectId: input.projectId })
+    })
+    if (!asset) throw new NotFoundException('Cut media asset was not found in this project.')
+    const document = validateCutProjectDocument(project.document)
+    const manager = this.projects.manager
+    const [segments, transcripts, jobs] = await Promise.all([
+      manager.getRepository(CutMediaSegment).find({
+        where: scopedWhere<CutMediaSegment>(scope, { cutProjectId: input.projectId, mediaAssetId: input.mediaAssetId })
+      }),
+      manager.getRepository(CutTranscript).find({
+        where: scopedWhere<CutTranscript>(scope, { cutProjectId: input.projectId, mediaAssetId: input.mediaAssetId })
+      }),
+      manager.getRepository(CutAnalysisJob).find({
+        where: scopedWhere<CutAnalysisJob>(scope, { cutProjectId: input.projectId, mediaAssetId: input.mediaAssetId })
+      })
+    ])
+    const evidenceTypes = new Set<string>(segments.map((segment) => segment.evidenceType))
+    if (transcripts.length) evidenceTypes.add('transcript')
+    return {
+      projectId: input.projectId,
+      revision: project.revision,
+      item: compactAgentMedia(asset, mediaUsage(document).get(input.mediaAssetId) ?? 0),
+      evidenceTypes: [...evidenceTypes].sort(),
+      analysisJobIds: jobs.map((job) => requireId(job.id))
+    }
+  }
+
+  async listProjectResources(scope: CutScope, input: ListCutProjectResourcesInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    assertExpectedRevision(project, input.expectedRevision)
+    const rows = await this.loadProjectResources(scope, input)
+    const filtered = input.status
+      ? rows.filter((row) => typeof row.status === 'string' && row.status === input.status)
+      : rows
+    const { page, pageSize, start } = pagination(input.page, input.pageSize)
+    return {
+      projectId: input.projectId,
+      revision: project.revision,
+      resource: input.resource,
+      items: filtered.slice(start, start + pageSize).map((row) => compactProjectResource(input.resource, row)),
+      total: filtered.length,
+      page,
+      pageSize
+    }
+  }
+
+  private async loadProjectResources(scope: CutScope, input: ListCutProjectResourcesInput): Promise<Array<Record<string, unknown>>> {
+    const where = { cutProjectId: input.projectId }
+    let rows: Array<Record<string, unknown>>
+    switch (input.resource) {
+      case 'analysis_jobs':
+        rows = await this.projects.manager.getRepository(CutAnalysisJob).find({ where: scopedWhere<CutAnalysisJob>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+      case 'versions':
+        rows = await this.versions.find({ where: scopedWhere<CutProjectVersion>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+      case 'exports':
+        rows = await this.exports.find({ where: scopedWhere<CutExport>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+      case 'caption_drafts':
+        rows = await this.projects.manager.getRepository(CutCaptionDraft).find({ where: scopedWhere<CutCaptionDraft>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+      case 'edit_proposals':
+        rows = await this.projects.manager.getRepository(CutEditProposal).find({ where: scopedWhere<CutEditProposal>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+      case 'logs':
+        rows = await this.logs.find({ where: scopedWhere<CutActionLog>(scope, where) }) as unknown as Array<Record<string, unknown>>
+        break
+    }
+    if (input.status && (input.resource === 'versions' || input.resource === 'exports' || input.resource === 'logs')) {
+      throw new BadRequestException(`Status filtering is not supported for ${input.resource}.`)
+    }
+    return rows.sort((left, right) => resourceTimestamp(right) - resourceTimestamp(left))
   }
 
   async deleteProject(scope: CutScope, projectId: string, baseRevision: number | undefined) {
@@ -313,7 +547,8 @@ export class CutService {
       duration,
       mediaMetadata: browserMetadata,
       baseRevision,
-      changeSummary
+      changeSummary,
+      placeOnTimeline: false
     })
   }
 
@@ -457,6 +692,7 @@ export class CutService {
       mediaMetadata?: CutMediaMetadata
       baseRevision: number
       changeSummary: string
+      placeOnTimeline?: boolean
     }
   ) {
     const project = await this.requireProject(scope, projectId)
@@ -500,16 +736,18 @@ export class CutService {
           rotationDegrees: mediaMetadata.rotationDegrees ?? null
         })
       )
-      const clipType = clipTypeFromMime(input.mimeType)
-      const nextDocument = appendCutMediaClip(project.document, {
-        id: randomUUID(),
-        name: input.name,
-        type: clipType,
-        mediaAssetId: requireId(asset.id),
-        source: reference,
-        duration: mediaMetadata.duration ?? undefined
-      })
-      await this.persistDocumentAtRevision(scope, project, input.baseRevision, nextDocument)
+      if (input.placeOnTimeline !== false) {
+        const clipType = clipTypeFromMime(input.mimeType)
+        const nextDocument = appendCutMediaClip(project.document, {
+          id: randomUUID(),
+          name: input.name,
+          type: clipType,
+          mediaAssetId: requireId(asset.id),
+          source: reference,
+          duration: mediaMetadata.duration ?? undefined
+        })
+        await this.persistDocumentAtRevision(scope, project, input.baseRevision, nextDocument)
+      }
     } else {
       const referenceChanged = JSON.stringify(asset.fileReference) !== JSON.stringify(reference)
       if (referenceChanged || hasNewMediaMetadata(asset, mediaMetadata)) {
@@ -674,6 +912,193 @@ function projectWorkspaceFolders(
     seen.add(key)
     return true
   })
+}
+
+function assertExpectedRevision(project: CutProject, expectedRevision: number | undefined) {
+  if (expectedRevision !== undefined && expectedRevision !== project.revision) {
+    throw new ConflictException(
+      `Cut project revision changed from ${expectedRevision} to ${project.revision}; call cut_get_project again before reading or editing.`
+    )
+  }
+}
+
+function pagination(pageInput: number | undefined, pageSizeInput: number | undefined) {
+  const page = Math.max(1, Math.floor(pageInput ?? 1))
+  const pageSize = Math.min(100, Math.max(1, Math.floor(pageSizeInput ?? 20)))
+  return { page, pageSize, start: (page - 1) * pageSize }
+}
+
+function compactAgentClip(clip: CutClip, trackId: string, trackName: string) {
+  return {
+    id: clip.id,
+    trackId,
+    trackName,
+    type: clip.type,
+    name: clip.name,
+    start: clip.start,
+    duration: clip.duration,
+    end: clip.start + clip.duration,
+    trimIn: clip.trimIn,
+    trimOut: clip.trimOut,
+    mediaAssetId: clip.mediaAssetId ?? null,
+    textPreview: clip.text ? clip.text.slice(0, 240) : null,
+    volume: clip.volume ?? null,
+    playbackRate: clip.playbackRate ?? null,
+    mediaFit: clip.mediaFit ?? null,
+    hasTransform: !!clip.transform,
+    hasEffects: !!clip.effects
+  }
+}
+
+function fullAgentClip(clip: CutClip) {
+  const safe: CutClip = { ...clip }
+  delete safe.source
+  delete safe.previewUrl
+  return safe
+}
+
+function mediaUsage(document: CutProjectDocument) {
+  const counts = new Map<string, number>()
+  for (const clip of document.tracks.flatMap((track) => track.clips)) {
+    if (clip.mediaAssetId) counts.set(clip.mediaAssetId, (counts.get(clip.mediaAssetId) ?? 0) + 1)
+  }
+  return counts
+}
+
+function mediaKind(mimeType: string): CutMediaAssetKind {
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  if (mimeType.startsWith('image/')) return 'image'
+  throw new BadRequestException(`Unsupported Cut media type: ${mimeType}`)
+}
+
+function compactAgentMedia(asset: CutMediaAsset, usedByClipCount: number) {
+  return {
+    id: asset.id,
+    originalName: normalizeCutFileName(asset.originalName, 'cut-media'),
+    kind: mediaKind(asset.mimeType),
+    mimeType: asset.mimeType,
+    size: asset.size,
+    duration: asset.duration ?? null,
+    containerDuration: asset.containerDuration ?? null,
+    videoDuration: asset.videoDuration ?? null,
+    audioDuration: asset.audioDuration ?? null,
+    codedWidth: asset.codedWidth ?? null,
+    codedHeight: asset.codedHeight ?? null,
+    displayWidth: asset.displayWidth ?? null,
+    displayHeight: asset.displayHeight ?? null,
+    rotationDegrees: asset.rotationDegrees ?? null,
+    usedByClipCount,
+    createdAt: asset.createdAt?.toISOString?.() ?? null
+  }
+}
+
+function compactProjectResource(resource: ListCutProjectResourcesInput['resource'], row: Record<string, unknown>) {
+  switch (resource) {
+    case 'analysis_jobs': {
+      const job = row as unknown as CutAnalysisJob
+      const metadata = jsonObject(job.metadata)
+      return {
+        id: job.id,
+        type: job.type,
+        executionMode: job.executionMode,
+        status: job.status,
+        progress: job.progress,
+        inputRevision: job.inputRevision,
+        mediaAssetId: job.mediaAssetId ?? null,
+        language: job.language ?? null,
+        model: job.model ?? null,
+        resultTranscriptId: job.resultTranscriptId ?? null,
+        resultExportId: job.resultExportId ?? null,
+        sandboxJobId: job.sandboxJobId ?? null,
+        stage: typeof metadata?.stage === 'string' ? metadata.stage : null,
+        failureCode: typeof metadata?.failureCode === 'string' ? metadata.failureCode : null,
+        errorMessage: job.errorMessage ?? null,
+        startedAt: toIso(job.startedAt),
+        completedAt: toIso(job.completedAt),
+        createdAt: toIso(job.createdAt),
+        updatedAt: toIso(job.updatedAt)
+      }
+    }
+    case 'versions':
+      return compactVersion(row as unknown as CutProjectVersion)
+    case 'exports': {
+      const record = row as unknown as CutExport
+      return {
+        id: record.id,
+        kind: record.kind,
+        fileName: record.fileReference.originalName ?? record.fileReference.name ?? `cut-export.${record.kind}`,
+        mimeType: record.mimeType,
+        size: record.size,
+        changeSummary: record.changeSummary,
+        analysisJobId: record.analysisJobId ?? null,
+        sourceRevision: record.sourceRevision ?? null,
+        renderer: record.renderer ?? null,
+        createdAt: toIso(record.createdAt)
+      }
+    }
+    case 'caption_drafts': {
+      const draft = row as unknown as CutCaptionDraft
+      return {
+        id: draft.id,
+        transcriptId: draft.transcriptId,
+        sourceRevision: draft.sourceRevision,
+        status: draft.status,
+        revision: draft.revision,
+        language: draft.language,
+        targetTrackId: draft.targetTrackId ?? null,
+        captionCount: draft.captions.length,
+        committedRevision: draft.committedRevision ?? null,
+        createdAt: toIso(draft.createdAt),
+        updatedAt: toIso(draft.updatedAt)
+      }
+    }
+    case 'edit_proposals': {
+      const proposal = row as unknown as CutEditProposal
+      return {
+        id: proposal.id,
+        sourceRevision: proposal.sourceRevision,
+        status: proposal.status,
+        revision: proposal.revision,
+        goal: proposal.goal,
+        itemCount: proposal.items.length,
+        enabledItemCount: proposal.items.filter((item) => item.enabled).length,
+        highRiskItemCount: proposal.items.filter((item) => item.risk === 'high').length,
+        estimatedDurationSeconds: proposal.estimatedDurationSeconds,
+        appliedRevision: proposal.appliedRevision ?? null,
+        revertedRevision: proposal.revertedRevision ?? null,
+        reviewNote: proposal.reviewNote ?? null,
+        createdAt: toIso(proposal.createdAt),
+        updatedAt: toIso(proposal.updatedAt)
+      }
+    }
+    case 'logs': {
+      const log = row as unknown as CutActionLog
+      return {
+        id: log.id,
+        action: log.action,
+        actorType: log.actorType,
+        message: log.message,
+        errorMessage: log.errorMessage ?? null,
+        createdAt: toIso(log.createdAt)
+      }
+    }
+  }
+}
+
+function jsonObject(value: CutJsonValue | null | undefined): Record<string, CutJsonValue | undefined> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, CutJsonValue | undefined>
+    : null
+}
+
+function toIso(value: Date | null | undefined) {
+  return value?.toISOString?.() ?? null
+}
+
+function resourceTimestamp(row: Record<string, unknown>) {
+  const value = row.updatedAt ?? row.createdAt
+  return value instanceof Date ? value.getTime() : 0
 }
 
 function assertRevision(project: CutProject, baseRevision: number | undefined) {

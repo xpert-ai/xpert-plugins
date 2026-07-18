@@ -1,4 +1,3 @@
-import type { TCopilotModel } from '@xpert-ai/contracts'
 import type { WorkspacePortableFileReference, WorkspaceRuntimeFileDescriptor } from '@xpert-ai/plugin-sdk'
 import type { CutExportSettings } from './cut-export-settings.js'
 
@@ -74,7 +73,7 @@ export interface CutTranscriptionQueueJobData {
   userId?: string | null
   assistantId?: string | null
   xpertId: string
-  copilotModel: TCopilotModel
+  modelKey: string
   fileReference: WorkspacePortableFileReference
   originalName: string
   mimeType: string
@@ -307,6 +306,66 @@ export interface CreateCutProjectInput {
 export interface SearchCutProjectsInput {
   status?: CutProjectStatus
   search?: string
+  page?: number
+  pageSize?: number
+}
+
+export type CutProjectResourceType =
+  | 'analysis_jobs'
+  | 'versions'
+  | 'exports'
+  | 'caption_drafts'
+  | 'edit_proposals'
+  | 'logs'
+
+export type CutMediaAssetKind = 'video' | 'audio' | 'image'
+
+export interface ListCutTracksInput {
+  projectId: string
+  expectedRevision?: number
+  page?: number
+  pageSize?: number
+}
+
+export interface ListCutClipsInput {
+  projectId: string
+  expectedRevision?: number
+  trackIds?: string[]
+  mediaAssetIds?: string[]
+  types?: CutClipType[]
+  start?: number
+  end?: number
+  page?: number
+  pageSize?: number
+}
+
+export interface GetCutClipInput {
+  projectId: string
+  clipId: string
+  expectedRevision?: number
+}
+
+export interface ListCutMediaAssetsInput {
+  projectId: string
+  expectedRevision?: number
+  kinds?: CutMediaAssetKind[]
+  search?: string
+  unusedOnly?: boolean
+  page?: number
+  pageSize?: number
+}
+
+export interface GetCutMediaAssetInput {
+  projectId: string
+  mediaAssetId: string
+  expectedRevision?: number
+}
+
+export interface ListCutProjectResourcesInput {
+  projectId: string
+  resource: CutProjectResourceType
+  expectedRevision?: number
+  status?: string
   page?: number
   pageSize?: number
 }

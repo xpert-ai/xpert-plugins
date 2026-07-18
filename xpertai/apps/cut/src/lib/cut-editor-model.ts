@@ -11,6 +11,16 @@ export type CutClipboard = {
   span: number
 }
 
+/** Removes the legacy empty starter audio lane; real or explicitly named audio tracks are preserved. */
+export function removeUnusedStarterAudioTrack(document: CutProjectDocument): CutProjectDocument {
+  const tracks = document.tracks.filter((track) => !(
+    track.kind === 'audio'
+    && track.name === 'Audio 1'
+    && track.clips.length === 0
+  ))
+  return tracks.length === document.tracks.length ? document : { ...document, tracks }
+}
+
 /** Places imported media without hiding an existing clip under an overlapping clip. */
 export function placeCutMediaClip(
   document: CutProjectDocument,

@@ -1,37 +1,44 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  CreateModelClientCommand: class CreateModelClientCommand {
-    constructor(readonly copilotModel: object, readonly options: object) {}
-  },
   PluginJobProcessor: () => (target: object) => target,
+  SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_SPEECH_TO_TEXT_PERMISSION_SERVICE',
   WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES'
 }))
 jest.mock('./cut-caption.service.js', () => ({ CutCaptionService: class CutCaptionService {} }))
 
 import { CutTranscriptionProcessor } from './cut-transcription.processor.js'
-import { AiModelTypeEnum } from '@xpert-ai/contracts'
 import type { CutCaptionService } from './cut-caption.service.js'
 import type { CutTranscriptionQueueJobData } from './types.js'
 
 describe('CutTranscriptionProcessor', () => {
-  it('uses the platform model command and completes a queued transcription', async () => {
+  it('uses the guarded speech-to-text plugin service and completes a queued transcription', async () => {
     const captions = {
       beginTranscriptionJob: jest.fn(async () => ({ status: 'running' })),
       completeTranscriptionJob: jest.fn(async () => ({ success: true })),
       failTranscriptionJob: jest.fn()
     }
-    const model = { invoke: jest.fn(async () => ({ content: [{ type: 'text', text: 'Hello from STT.' }] })) }
-    const commandBus = { execute: jest.fn(async () => model) }
-    const files = { readBuffer: jest.fn(async () => ({ fileUrl: 'https://files.example.test/voice.mp4' })) }
+    const speechToText = { transcribe: jest.fn(async () => ({ text: 'Hello from STT.' })) }
+    const pluginContext = { resolve: jest.fn(() => speechToText) }
+    const files = { readBuffer: jest.fn(async () => ({ buffer: Buffer.from('media-bytes') })) }
     const capabilities = { get: jest.fn(() => files) }
     const processor = new CutTranscriptionProcessor(
       captions as unknown as CutCaptionService,
-      commandBus,
+      pluginContext as never,
       capabilities as never
     )
     await processor.handle({ name: 'transcribe-media', data: payload(), attemptsMade: 0, opts: { attempts: 3 } })
-    expect(commandBus.execute).toHaveBeenCalledTimes(1)
-    expect(model.invoke).toHaveBeenCalledTimes(1)
+    expect(pluginContext.resolve).toHaveBeenCalledWith('XPERT_PLUGIN_SPEECH_TO_TEXT_PERMISSION_SERVICE')
+    expect(speechToText.transcribe).toHaveBeenCalledWith({
+      xpertId: 'xpert-cut',
+      tenantId: 'tenant-a',
+      organizationId: 'org-a',
+      file: {
+        data: Buffer.from('media-bytes'),
+        originalName: 'voice.mp4',
+        mimeType: 'video/mp4',
+        size: Buffer.byteLength('media-bytes')
+      }
+    })
     expect(captions.completeTranscriptionJob).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       text: 'Hello from STT.',
       model: 'copilot-stt:whisper-large-v3'
@@ -45,11 +52,11 @@ describe('CutTranscriptionProcessor', () => {
       completeTranscriptionJob: jest.fn(),
       failTranscriptionJob: jest.fn(async () => ({ status: 'queued' }))
     }
-    const commandBus = { execute: jest.fn(async () => { throw new Error('provider unavailable') }) }
-    const files = { readBuffer: jest.fn(async () => ({ fileUrl: 'https://files.example.test/voice.mp4' })) }
+    const speechToText = { transcribe: jest.fn(async () => { throw new Error('provider unavailable') }) }
+    const files = { readBuffer: jest.fn(async () => ({ buffer: Buffer.from('media-bytes') })) }
     const processor = new CutTranscriptionProcessor(
       captions as unknown as CutCaptionService,
-      commandBus,
+      { resolve: () => speechToText } as never,
       { get: () => files } as never
     )
     await expect(processor.handle({ name: 'transcribe-media', data: payload(), attemptsMade: 0, opts: { attempts: 3 } }))
@@ -68,7 +75,7 @@ function payload(): CutTranscriptionQueueJobData {
     userId: 'user-a',
     assistantId: 'assistant-a',
     xpertId: 'xpert-cut',
-    copilotModel: { copilotId: 'copilot-stt', model: 'whisper-large-v3', modelType: AiModelTypeEnum.SPEECH2TEXT },
+    modelKey: 'copilot-stt:whisper-large-v3',
     fileReference: {
       source: 'platform.workspace.files', tenantId: 'tenant-a', catalog: 'projects', projectId: 'platform-project',
       filePath: 'files/voice.mp4', workspacePath: '/workspace/files/voice.mp4'

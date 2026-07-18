@@ -150,7 +150,9 @@ export class CutCaptionService {
       }
     }
 
+    const jobId = randomUUID()
     const job = await this.jobs.save(this.jobs.create({
+      id: jobId,
       ...captionScopedCreate(scope),
       cutProjectId: input.projectId,
       type: 'transcription',
@@ -162,6 +164,7 @@ export class CutCaptionService {
       language: input.language,
       model: `${model.copilotId}:${model.model}`,
       idempotencyKey,
+      queueJobId: jobId,
       cancellationRequested: false,
       metadata: {
         fileName: asset.originalName.slice(0, 240),
@@ -173,7 +176,7 @@ export class CutCaptionService {
       createdById: scope.userId ?? null,
       assistantId: scope.assistantId ?? null
     }))
-    const jobId = requireId(job.id, 'analysis job')
+    requireId(job.id, 'analysis job')
     const payload: CutTranscriptionQueueJobData = {
       jobId,
       projectId: input.projectId,
@@ -185,7 +188,7 @@ export class CutCaptionService {
       userId: scope.userId ?? null,
       assistantId: scope.assistantId ?? null,
       xpertId,
-      copilotModel: model,
+      modelKey: `${model.copilotId}:${model.model}`,
       fileReference: asset.fileReference,
       originalName: asset.originalName,
       mimeType: asset.mimeType,
@@ -212,8 +215,9 @@ export class CutCaptionService {
         removeOnComplete: { age: 7 * 24 * 60 * 60, count: 10_000 },
         removeOnFail: { age: 30 * 24 * 60 * 60, count: 10_000 }
       })
-      job.queueJobId = queued.jobId
-      await this.jobs.save(job)
+      if (queued.jobId !== jobId) {
+        throw new Error(`Managed Queue returned unexpected job id ${queued.jobId} for Cut analysis job ${jobId}.`)
+      }
     } catch (error) {
       job.status = 'failed'
       job.errorMessage = errorMessage(error)

@@ -196,7 +196,11 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
         return { item: { id: projectId, revision: 3 }, document, media: [], versions: [], exports: [], logs: [] }
       }
     } as unknown as CutService
-    const enqueue = jest.fn(async (input: { jobId?: string }) => ({ jobId: input.jobId ?? 'queue-job' }))
+    const queueJobIdsObservedAtEnqueue: Array<string | null> = []
+    const enqueue = jest.fn(async (input: { jobId?: string }) => {
+      queueJobIdsObservedAtEnqueue.push(jobs.rows.find((row) => row.id === input.jobId)?.queueJobId ?? null)
+      return { jobId: input.jobId ?? 'queue-job' }
+    })
     const cancel = jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
     const queue = { enqueue, cancel } as unknown as ManagedQueueService
     const service = new CutCaptionService(
@@ -238,8 +242,12 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       attempts: 3,
       scopeKey: 'system:global',
       tenantId: scope.tenantId,
-      organizationId: scope.organizationId
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      payload: expect.objectContaining({ userId: scope.userId, assistantId: scope.assistantId, xpertId: 'xpert-cut' })
     }))
+    expect(queueJobIdsObservedAtEnqueue).toEqual([started.jobId])
+    expect(jobs.rows.find((row) => row.id === started.jobId)).toMatchObject({ queueJobId: started.jobId })
 
     const replay = await service.startTranscription(scope, {
       projectId,

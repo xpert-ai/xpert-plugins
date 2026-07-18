@@ -8,6 +8,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { CutService } from './cut.service.js'
+import { appendCutMediaClip } from './cut-project.js'
 import {
   CutActionLog,
   CutAnalysisJob,
@@ -102,10 +103,8 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(imported.media).toMatchObject({
       duration: 5, codedWidth: 1920, codedHeight: 1080, displayWidth: 1080, displayHeight: 1920, rotationDegrees: 90
     })
-    expect(imported.document.tracks[0]!.clips[0]!.source).toMatchObject({
-      source: 'platform.workspace.files', tenantId: 'tenant-a', catalog: 'projects', scopeId: 'platform-project-a'
-    })
-    expect(imported.document.tracks[0]!.clips[0]!.previewUrl).toBeUndefined()
+    expect(imported.project.revision).toBe(created.item.revision)
+    expect(imported.document.tracks.flatMap((track) => track.clips)).toEqual([])
     expect(imported.media.previewUrl).toBeNull()
     expect(uploadBuffer).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-a', catalog: 'projects', scopeId: 'platform-project-a', folder: `files/cut/${projectId}/media`
@@ -125,21 +124,23 @@ describe('CutService scoped persistence and Workspace Files', () => {
       buffer: Buffer.from('<svg/>'), originalName: 'gate.svg', mimeType: 'image/svg+xml', size: 6
     }, 5, imported.project.revision, 'Repaired the missing Workspace media reference.')
     expect(repaired.project.revision).toBe(imported.project.revision)
-    expect(repaired.document.tracks[0]!.clips).toHaveLength(1)
+    expect(repaired.document.tracks.flatMap((track) => track.clips)).toEqual([])
     expect(repaired.media.fileReference).toMatchObject({
       filePath: `files/cut/${projectId}/media/recovered-gate.svg`,
       workspacePath: `/workspace/files/cut/${projectId}/media/recovered-gate.svg`
     })
     expect(media.rows).toHaveLength(1)
 
-    const iframeDocument = structuredClone(imported.document)
-    delete iframeDocument.tracks[0]!.clips[0]!.source
+    const iframeDocument = appendCutMediaClip(imported.document, {
+      id: 'gate-clip', name: 'gate.svg', type: 'image', mediaAssetId: imported.media.id!,
+      source: imported.media.fileReference, duration: 5
+    })
     iframeDocument.tracks[0]!.clips[0]!.previewUrl = 'https://api.example.test/api/workspace-files/content/session/grant/gate.svg'
     iframeDocument.tracks[0]!.clips[0]!.start = 2
     const saved = await service.saveProject(scope, {
       projectId, document: iframeDocument, baseRevision: imported.project.revision, changeSummary: 'Saved iframe timeline.'
     })
-    expect(saved.changedClipIds).toEqual([imported.document.tracks[0]!.clips[0]!.id])
+    expect(saved.changedClipIds).toEqual(['gate-clip'])
     expect(saved.document.tracks[0]!.clips[0]!.source?.source).toBe('platform.workspace.files')
     expect(saved.document.tracks[0]!.clips[0]!.start).toBe(2)
     expect(saved.document.tracks[0]!.clips[0]!.previewUrl).toBeUndefined()
@@ -217,6 +218,48 @@ describe('CutService scoped persistence and Workspace Files', () => {
     await expect(service.resolveExportFile({ ...scope, assistantId: 'assistant-b' }, projectId, webm.export.id!))
       .rejects.toThrow('current host project')
 
+    const summary = await service.getProjectSummary(scope, projectId)
+    expect(summary).toMatchObject({
+      project: { id: projectId, revision: batch.project.revision },
+      timeline: { trackCount: 2, clipCount: 2 },
+      resources: { mediaAssets: 1, exports: 2 }
+    })
+    expect(summary).not.toHaveProperty('document')
+    expect(summary.availableReads.map((read) => read.tool)).toEqual(expect.arrayContaining([
+      'cut_list_tracks', 'cut_list_clips', 'cut_get_clip', 'cut_list_media_assets', 'cut_get_media_asset', 'cut_list_project_resources'
+    ]))
+
+    const trackList = await service.listTracks(scope, { projectId, expectedRevision: batch.project.revision })
+    expect(trackList.items[0]).toMatchObject({ name: 'Video 1', kind: 'visual', clipCount: 2 })
+    const clipList = await service.listClips(scope, {
+      projectId, expectedRevision: batch.project.revision, types: ['image'], pageSize: 1
+    })
+    expect(clipList).toMatchObject({ total: 2, page: 1, pageSize: 1 })
+    expect(clipList.items[0]).not.toHaveProperty('source')
+    expect(clipList.items[0]).not.toHaveProperty('previewUrl')
+    const clipDetail = await service.getClip(scope, {
+      projectId, expectedRevision: batch.project.revision, clipId: batch.document.tracks[0]!.clips[0]!.id
+    })
+    expect(clipDetail.clip).not.toHaveProperty('source')
+    expect(clipDetail.clip).not.toHaveProperty('previewUrl')
+    await expect(service.listClips(scope, { projectId, expectedRevision: batch.project.revision - 1 }))
+      .rejects.toThrow('call cut_get_project again')
+
+    const mediaList = await service.listMediaAssets(scope, { projectId, expectedRevision: batch.project.revision })
+    expect(mediaList.items[0]).toMatchObject({ id: imported.media.id, kind: 'image', usedByClipCount: 2 })
+    expect(mediaList.items[0]).not.toHaveProperty('fileReference')
+    const mediaDetail = await service.getMediaAsset(scope, {
+      projectId, expectedRevision: batch.project.revision, mediaAssetId: imported.media.id!
+    })
+    expect(mediaDetail.item).not.toHaveProperty('fileReference')
+    const exportList = await service.listProjectResources(scope, {
+      projectId, expectedRevision: batch.project.revision, resource: 'exports'
+    })
+    expect(exportList).toMatchObject({ total: 2, resource: 'exports' })
+    expect(exportList.items[0]).not.toHaveProperty('fileReference')
+    expect(exportList.items[0]).not.toHaveProperty('fileUrl')
+    expect(exportList.items[0]).not.toHaveProperty('report')
+
     await expect(service.getProject({ ...scope, organizationId: 'org-b' }, projectId)).rejects.toThrow('current tenant and organization')
 
     const activeJob: CutAnalysisJob = Object.assign(new CutAnalysisJob(), {
@@ -277,6 +320,9 @@ function memoryRepository<T extends { id?: string; createdAt?: Date; updatedAt?:
     async find(options: { where: Partial<T>; take?: number }) {
       const found = rows.filter((row) => matches(row, options.where))
       return options.take ? found.slice(0, options.take) : found
+    },
+    async count(options: { where: Partial<T> }) {
+      return rows.filter((row) => matches(row, options.where)).length
     },
     async update(criteria: Partial<T>, patch: Partial<T>) {
       const row = rows.find((item) => matches(item, criteria))

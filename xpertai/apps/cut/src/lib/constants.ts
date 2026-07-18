@@ -12,6 +12,12 @@ export const CUT_REMOTE_ENTRY_KEY = 'cut-workbench'
 
 export const CUT_CREATE_PROJECT_TOOL_NAME = 'cut_create_project'
 export const CUT_GET_PROJECT_TOOL_NAME = 'cut_get_project'
+export const CUT_LIST_TRACKS_TOOL_NAME = 'cut_list_tracks'
+export const CUT_LIST_CLIPS_TOOL_NAME = 'cut_list_clips'
+export const CUT_GET_CLIP_TOOL_NAME = 'cut_get_clip'
+export const CUT_LIST_MEDIA_ASSETS_TOOL_NAME = 'cut_list_media_assets'
+export const CUT_GET_MEDIA_ASSET_TOOL_NAME = 'cut_get_media_asset'
+export const CUT_LIST_PROJECT_RESOURCES_TOOL_NAME = 'cut_list_project_resources'
 export const CUT_IMPORT_MEDIA_TOOL_NAME = 'cut_import_media'
 export const CUT_APPLY_EDIT_TOOL_NAME = 'cut_apply_edit'
 export const CUT_APPLY_BATCH_TOOL_NAME = 'cut_apply_batch'
@@ -58,6 +64,12 @@ export const CUT_START_HEADLESS_EXPORT_TOOL_NAME = 'cut_start_headless_export'
 export const CUT_MIDDLEWARE_TOOL_NAMES = [
   CUT_CREATE_PROJECT_TOOL_NAME,
   CUT_GET_PROJECT_TOOL_NAME,
+  CUT_LIST_TRACKS_TOOL_NAME,
+  CUT_LIST_CLIPS_TOOL_NAME,
+  CUT_GET_CLIP_TOOL_NAME,
+  CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+  CUT_GET_MEDIA_ASSET_TOOL_NAME,
+  CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
   CUT_IMPORT_MEDIA_TOOL_NAME,
   CUT_APPLY_EDIT_TOOL_NAME,
   CUT_APPLY_BATCH_TOOL_NAME,
@@ -97,7 +109,6 @@ export const CUT_MIDDLEWARE_TOOL_NAMES = [
   CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
   CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
   CUT_EXPORT_SUBTITLE_TOOL_NAME,
-  CUT_SAVE_PROJECT_TOOL_NAME,
   CUT_FINALIZE_VERSION_TOOL_NAME,
   CUT_REPORT_FAILURE_TOOL_NAME
 ] as const

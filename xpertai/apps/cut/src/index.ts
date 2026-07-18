@@ -17,6 +17,7 @@ import {
 } from './lib/constants.js'
 import { CutPlugin } from './lib/cut.plugin.js'
 import { cutTemplates } from './lib/cut.templates.js'
+import { CUT_PLUGIN_CONTEXT } from './lib/tokens.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as { name: string; version: string }
@@ -75,7 +76,11 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   templates: cutTemplates,
   register(ctx) {
     ctx.logger.log('register cut plugin')
-    return { module: CutPlugin, global: true }
+    return {
+      module: CutPlugin,
+      global: true,
+      providers: [{ provide: CUT_PLUGIN_CONTEXT, useValue: ctx }]
+    }
   },
   async onStart(ctx) { ctx.logger.log('cut plugin started') },
   async onStop(ctx) { ctx.logger.log('cut plugin stopped') }
@@ -102,3 +107,4 @@ export * from './lib/cut.service.js'
 export * from './lib/cut.middleware.js'
 export * from './lib/cut-view.provider.js'
 export * from './lib/cut.templates.js'
+export * from './lib/tokens.js'

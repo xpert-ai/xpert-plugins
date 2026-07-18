@@ -22,16 +22,21 @@ import {
   CUT_APPLY_BATCH_TOOL_NAME,
   CUT_APPLY_EDIT_TOOL_NAME,
   CUT_CREATE_EDIT_PROPOSAL_TOOL_NAME,
+  CUT_GET_CLIP_TOOL_NAME,
+  CUT_GET_MEDIA_ASSET_TOOL_NAME,
   CUT_GET_PROJECT_TOOL_NAME,
+  CUT_LIST_CLIPS_TOOL_NAME,
+  CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+  CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
+  CUT_LIST_TRACKS_TOOL_NAME,
   CUT_MIDDLEWARE_TOOL_NAMES,
-  CUT_SAVE_PROJECT_TOOL_NAME,
   CUT_SEARCH_MEDIA_SEGMENTS_TOOL_NAME,
   CUT_START_HEADLESS_EXPORT_TOOL_NAME,
   CUT_START_TRANSCRIPTION_TOOL_NAME,
   CUT_UPDATE_PROJECT_SETTINGS_TOOL_NAME,
   CUT_UPDATE_TRANSFORM_TOOL_NAME
 } from './constants.js'
-import { appendCutMediaClip, createStarterCutProject } from './cut-project.js'
+import { createStarterCutProject } from './cut-project.js'
 import { CutMiddleware } from './cut.middleware.js'
 import type { CutCaptionService } from './cut-caption.service.js'
 import type { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
@@ -42,16 +47,15 @@ import type { CutService } from './cut.service.js'
 describe('CutMiddleware', () => {
   it('resolves an omitted or invalid projectId from the active Cut Workbench context before schema validation', async () => {
     const currentProjectId = '11111111-1111-4111-8111-111111111111'
-    const getProject = jest.fn(async (_scope, projectId) => ({
-      item: { id: projectId, title: 'Current project', revision: 7 },
-      document: createStarterCutProject(),
-      media: [{ id: 'asset-a', previewUrl: 'https://legacy.example.test/media.mov', fileReference: { source: 'platform.workspace.files', scope: { tenantId: 'tenant-a' }, locator: { type: 'volume-path', volume: { type: 'workspace', workspaceId: 'workspace-a' }, path: 'media.mov' } } }],
-      versions: [],
-      exports: [{ fileUrl: 'https://legacy.example.test/export.mp4', fileReference: { source: 'platform.workspace.files' } }],
-      logs: []
+    const getProjectSummary = jest.fn(async (_scope, projectId) => ({
+      project: { id: projectId, title: 'Current project', revision: 7 },
+      settings: { width: 1920, height: 1080, fps: 30, durationSeconds: 30, background: '#000000' },
+      timeline: { trackCount: 2, clipCount: 1 },
+      resources: { mediaAssets: 1 },
+      availableReads: [{ tool: CUT_LIST_CLIPS_TOOL_NAME, expectedRevision: 7 }]
     }))
     const middleware = new CutMiddleware(
-      { getProject } as unknown as CutService,
+      { getProjectSummary } as unknown as CutService,
       {} as CutCaptionService,
       {} as CutMediaIntelligenceService,
       {} as CutProposalService,
@@ -81,11 +85,11 @@ describe('CutMiddleware', () => {
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({
       toolCall: expect.objectContaining({ args: { projectId: currentProjectId } })
     }))
-    expect(getProject).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }), currentProjectId)
+    expect(getProjectSummary).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }), currentProjectId)
     const parsedResult = JSON.parse(String(result))
-    expect(parsedResult).toMatchObject({ item: { id: currentProjectId, revision: 7 } })
-    expect(parsedResult.media[0]).not.toHaveProperty('previewUrl')
-    expect(parsedResult.exports[0]).not.toHaveProperty('fileUrl')
+    expect(parsedResult).toMatchObject({ project: { id: currentProjectId, revision: 7 }, timeline: { clipCount: 1 } })
+    expect(parsedResult).not.toHaveProperty('document')
+    expect(parsedResult).not.toHaveProperty('media')
   })
 
   it('keeps a valid explicit projectId and returns a tool error when neither input nor context identifies a project', async () => {
@@ -160,6 +164,7 @@ describe('CutMiddleware', () => {
     } as IAgentMiddlewareContext
     const middleware = strategy.createMiddleware({}, context) as AgentMiddleware
     expect(middleware.tools?.map((item) => item.name)).toEqual([...CUT_MIDDLEWARE_TOOL_NAMES])
+    expect(middleware.tools?.map((item) => item.name)).not.toContain('cut_save_project')
 
     const dispatch = dispatchCustomEvent as jest.MockedFunction<typeof dispatchCustomEvent>
     dispatch.mockRejectedValue(new Error('event bus unavailable'))
@@ -167,8 +172,8 @@ describe('CutMiddleware', () => {
     const request = {
       toolCall: {
         id: 'tool-call-1',
-        name: CUT_SAVE_PROJECT_TOOL_NAME,
-        args: { projectId: '11111111-1111-4111-8111-111111111111', changeSummary: 'Saved Cut timeline.' }
+        name: CUT_UPDATE_TRANSFORM_TOOL_NAME,
+        args: { projectId: '11111111-1111-4111-8111-111111111111', changeSummary: 'Moved the title.' }
       }
     }
     const result = await middleware.wrapToolCall!(request as never, handler as never)
@@ -177,52 +182,38 @@ describe('CutMiddleware', () => {
     expect(dispatch).toHaveBeenCalledTimes(2)
   })
 
-  it('uses the shared project schema and returns compact mutation coordinates', async () => {
-    const document = appendCutMediaClip(createStarterCutProject(), {
-      id: 'styled-clip', name: 'Styled clip', type: 'video', mediaAssetId: 'asset-1', duration: 8
-    })
-    const clip = document.tracks[0]!.clips[0]!
-    clip.volume = 0.6
-    clip.playbackRate = 1.25
-    clip.fadeIn = 0.25
-    clip.fadeOut = 0.5
-    clip.effects = { brightness: 1.1, contrast: 1.2, saturation: 0.9, blur: 0.4, grayscale: 0, sepia: 0.1 }
-    clip.blendMode = 'screen'
-    clip.mask = { shape: 'rounded', inset: 0.05, radius: 0.2 }
-    clip.transitionIn = { type: 'fade', duration: 0.4 }
-    clip.transitionOut = { type: 'zoom', duration: 0.6 }
-    clip.fontSize = 72
-    clip.fontWeight = 700
-    clip.textAlign = 'center'
-    document.bookmarks = [{ id: 'bookmark-1', time: 2, label: 'Hook' }]
-
-    const saveProject = jest.fn(async (_scope, input) => ({
-      success: true,
-      project: { id: input.projectId, revision: 4 },
-      document: input.document,
-      changedClipIds: ['styled-clip']
-    }))
-    const strategy = new CutMiddleware({ saveProject } as unknown as CutService, {} as CutCaptionService, {} as CutMediaIntelligenceService, {} as CutProposalService, {} as CutRenderService)
-    const middleware = strategy.createMiddleware({}, middlewareContext()) as AgentMiddleware
-    const saveTool = middleware.tools?.find((item) => item.name === CUT_SAVE_PROJECT_TOOL_NAME) as unknown as {
-      schema: { parse(value: unknown): { projectId: string; document: typeof document; baseRevision?: number; changeSummary: string } }
-      invoke(input: object): Promise<string>
+  it('progressively discloses bounded project details without file references or whole-document saves', async () => {
+    const projectId = '11111111-1111-4111-8111-111111111111'
+    const mediaAssetId = '22222222-2222-4222-8222-222222222222'
+    const service = {
+      listTracks: jest.fn(async () => ({ projectId, revision: 7, items: [{ id: 'video-1', clipCount: 1 }] })),
+      listClips: jest.fn(async () => ({ projectId, revision: 7, items: [{ id: 'clip-1', mediaAssetId }], total: 1, page: 1, pageSize: 20 })),
+      getClip: jest.fn(async () => ({ projectId, revision: 7, clip: { id: 'clip-1', mediaAssetId }, previous: null, next: null })),
+      listMediaAssets: jest.fn(async () => ({ projectId, revision: 7, items: [{ id: mediaAssetId, kind: 'video' }], total: 1, page: 1, pageSize: 20 })),
+      getMediaAsset: jest.fn(async () => ({ projectId, revision: 7, item: { id: mediaAssetId, kind: 'video' }, evidenceTypes: [], analysisJobIds: [] })),
+      listProjectResources: jest.fn(async () => ({ projectId, revision: 7, resource: 'exports', items: [], total: 0, page: 1, pageSize: 20 }))
     }
-    const input = saveTool.schema.parse({
-      projectId: '11111111-1111-4111-8111-111111111111', document, baseRevision: 3, changeSummary: 'Saved styled timeline.'
-    })
-    expect(input.document).toEqual(document)
+    const strategy = new CutMiddleware(service as unknown as CutService, {} as CutCaptionService, {} as CutMediaIntelligenceService, {} as CutProposalService, {} as CutRenderService)
+    const middleware = strategy.createMiddleware({}, middlewareContext()) as AgentMiddleware
+    const invoke = async (name: string, input: object) => {
+      const selected = middleware.tools?.find((item) => item.name === name) as unknown as {
+        schema: { parse(value: unknown): object }
+        invoke(value: object): Promise<string>
+      }
+      return JSON.parse(await selected.invoke(selected.schema.parse(input))) as Record<string, unknown>
+    }
 
-    const output = JSON.parse(await saveTool.invoke(input)) as Record<string, unknown>
-    expect(saveProject).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ document }))
-    expect(output).toEqual({
-      success: true,
-      projectId: '11111111-1111-4111-8111-111111111111',
-      revision: 4,
-      changedClipIds: ['styled-clip'],
-      changeSummary: 'Saved styled timeline.'
-    })
-    expect(output).not.toHaveProperty('document')
+    expect(await invoke(CUT_LIST_TRACKS_TOOL_NAME, { projectId, expectedRevision: 7 })).toMatchObject({ revision: 7 })
+    expect(await invoke(CUT_LIST_CLIPS_TOOL_NAME, { projectId, expectedRevision: 7, pageSize: 20 })).toMatchObject({ total: 1 })
+    expect(await invoke(CUT_GET_CLIP_TOOL_NAME, { projectId, expectedRevision: 7, clipId: 'clip-1' })).toMatchObject({ clip: { id: 'clip-1' } })
+    expect(await invoke(CUT_LIST_MEDIA_ASSETS_TOOL_NAME, { projectId, expectedRevision: 7 })).toMatchObject({ total: 1 })
+    expect(await invoke(CUT_GET_MEDIA_ASSET_TOOL_NAME, { projectId, expectedRevision: 7, mediaAssetId })).toMatchObject({ item: { id: mediaAssetId } })
+    expect(await invoke(CUT_LIST_PROJECT_RESOURCES_TOOL_NAME, { projectId, expectedRevision: 7, resource: 'exports' })).toMatchObject({ resource: 'exports' })
+    const listClipsTool = middleware.tools?.find((item) => item.name === CUT_LIST_CLIPS_TOOL_NAME) as unknown as {
+      schema: { parse(value: unknown): object }
+    }
+    expect(() => listClipsTool.schema.parse({ projectId, pageSize: 101 })).toThrow()
+    expect(() => listClipsTool.schema.parse({ projectId, unexpected: true })).toThrow()
   })
 
   it('reports every changed clip from an atomic edit without returning the timeline', async () => {

@@ -5,6 +5,7 @@ import {
   pasteCutClips,
   placeCutMediaClip,
   removeCutClips,
+  removeUnusedStarterAudioTrack,
   splitCutClips,
   toggleCutBookmark
 } from './cut-editor-model.js'
@@ -49,6 +50,15 @@ describe('Cut editor model', () => {
     const added = toggleCutBookmark(project(), 3.5, makeId)
     expect(added.bookmarks).toEqual([{ id: 'new-1', time: 3.5, label: 'Bookmark 1' }])
     expect(toggleCutBookmark(added, 3.52, makeId).bookmarks).toEqual([])
+  })
+
+  it('hides only the legacy empty starter audio track', () => {
+    const starter = createStarterCutProject()
+    expect(removeUnusedStarterAudioTrack(starter).tracks.map((track) => track.kind)).toEqual(['visual'])
+    starter.tracks[1]!.clips.push({
+      id: 'audio-clip', name: 'Voice', type: 'audio', start: 0, duration: 2, trimIn: 0, trimOut: 2
+    })
+    expect(removeUnusedStarterAudioTrack(starter).tracks).toHaveLength(2)
   })
 
   it('creates a new video track when dropped media overlaps the target track', () => {
