@@ -13,8 +13,15 @@ import { reconcileCutAnalysisJobWithQueue } from './cut-analysis-job-reconciliat
 import { isCutExportFormat, isCutExportQuality, normalizeCutExportSettings } from './cut-export-settings.js'
 import { cutTimeAfterRippleDelete, normalizeCutTimeRanges, validateCutProjectDocument } from './cut-project.js'
 import { estimateCutTranscriptSegments } from './cut-transcription.js'
+import { CutTranscriptionMediaService, requiresTranscriptionAudioProxy } from './cut-transcription-media.service.js'
+import { CutSandboxWhisperService } from './cut-sandbox-whisper.service.js'
 import { CutService } from './cut.service.js'
-import { CUT_ANALYSIS_QUEUE_NAME, CUT_PLUGIN_NAME, CUT_TRANSCRIPTION_JOB_NAME } from './constants.js'
+import {
+  CUT_ANALYSIS_QUEUE_NAME,
+  CUT_PLUGIN_NAME,
+  CUT_TRANSCRIPTION_JOB_NAME,
+  CUT_TRANSCRIPTION_WHISPER_MODEL
+} from './constants.js'
 import {
   CutActionLog,
   CutAnalysisJob,
@@ -25,6 +32,7 @@ import {
 } from './entities/index.js'
 import type {
   CutActionType,
+  CutBackgroundTranscriptionMode,
   CutCaptionDraftEditOperation,
   CutCaptionItem,
   CutCaptionRules,
@@ -36,7 +44,6 @@ import type {
   CutTranscriptionQueueJobData
 } from './types.js'
 
-const MAX_SERVER_TRANSCRIPTION_BYTES = 250 * 1024 * 1024
 const MAX_LOCAL_TRANSCRIPTION_SEGMENTS = 5_000
 const MAX_LOCAL_TRANSCRIPTION_CHARACTERS = 200_000
 
@@ -82,6 +89,7 @@ export interface StartCutTranscriptionInput {
   mediaAssetId: string
   baseRevision: number
   language: string
+  mode?: CutBackgroundTranscriptionMode
   idempotencyKey?: string
   changeSummary: string
 }
@@ -109,14 +117,16 @@ export class CutCaptionService {
     @InjectRepository(CutTranscriptSegment) private readonly segments: Repository<CutTranscriptSegment>,
     @InjectRepository(CutCaptionDraft) private readonly drafts: Repository<CutCaptionDraft>,
     @InjectRepository(CutActionLog) private readonly logs: Repository<CutActionLog>,
-    @Optional() @Inject(MANAGED_QUEUE_SERVICE_TOKEN) private readonly queue?: ManagedQueueService
+    @Optional() @Inject(MANAGED_QUEUE_SERVICE_TOKEN) private readonly queue?: ManagedQueueService,
+    @Optional() private readonly transcriptionMedia?: CutTranscriptionMediaService,
+    @Optional() private readonly sandboxWhisper?: CutSandboxWhisperService
   ) {}
 
   async startTranscription(
     scope: CutScope,
     input: StartCutTranscriptionInput,
-    xpertId: string,
-    copilotModel: TCopilotModel
+    xpertId?: string,
+    copilotModel?: TCopilotModel
   ) {
     if (!this.queue) throw new ServiceUnavailableException('Managed Queue is required for Cut server transcription.')
     const detail = await this.cut.getProject(scope, input.projectId)
@@ -128,12 +138,22 @@ export class CutCaptionService {
     if (!asset.mimeType.startsWith('audio/') && !asset.mimeType.startsWith('video/')) {
       throw new Error('Cut server transcription requires an audio or video media asset.')
     }
-    if (asset.size > MAX_SERVER_TRANSCRIPTION_BYTES) {
-      throw new Error(`Cut server transcription input exceeds ${MAX_SERVER_TRANSCRIPTION_BYTES} bytes.`)
+    const transcriptionMode = input.mode ?? 'platform'
+    const language = transcriptionMode === 'sandbox_whisper'
+      ? normalizeSandboxWhisperLanguage(input.language)
+      : input.language
+    const platformModel = transcriptionMode === 'platform'
+      ? normalizeSpeechModel(requireSpeechModel(copilotModel))
+      : null
+    if (transcriptionMode === 'platform' && !xpertId?.trim()) {
+      throw new Error('Cut platform transcription requires the current Xpert id.')
     }
-    const model = normalizeSpeechModel(copilotModel)
+    const modelKey = platformModel
+      ? `${platformModel.copilotId}:${platformModel.model}`
+      : CUT_TRANSCRIPTION_WHISPER_MODEL
+    const requiresAudioProxy = transcriptionMode === 'platform' && requiresTranscriptionAudioProxy(asset)
     const idempotencyKey = input.idempotencyKey?.trim() || [
-      'stt', asset.checksum, input.baseRevision, input.language, model.copilotId, model.model
+      'stt', transcriptionMode, asset.checksum, input.baseRevision, language, modelKey
     ].join(':')
     const existing = await this.jobs.findOne({
       where: captionScopedWhere<CutAnalysisJob>(scope, {
@@ -149,6 +169,16 @@ export class CutCaptionService {
         return startTranscriptionResult(existing, detail.item.revision, true)
       }
     }
+    if (requiresAudioProxy) {
+      if (!this.transcriptionMedia) {
+        throw new ServiceUnavailableException('Cut transcription audio preparation service is unavailable.')
+      }
+      await this.transcriptionMedia.assertExecutionPoolAvailable()
+    }
+    if (transcriptionMode === 'sandbox_whisper') {
+      if (!this.sandboxWhisper) throw new ServiceUnavailableException('Cut Sandbox Whisper service is unavailable.')
+      await this.sandboxWhisper.assertAvailable()
+    }
 
     const jobId = randomUUID()
     const job = await this.jobs.save(this.jobs.create({
@@ -161,17 +191,20 @@ export class CutCaptionService {
       progress: 0,
       inputRevision: input.baseRevision,
       mediaAssetId: input.mediaAssetId,
-      language: input.language,
-      model: `${model.copilotId}:${model.model}`,
+      language,
+      model: modelKey,
       idempotencyKey,
       queueJobId: jobId,
       cancellationRequested: false,
       metadata: {
+        stage: 'queued',
         fileName: asset.originalName.slice(0, 240),
         mimeType: asset.mimeType,
         size: asset.size,
         checksum: asset.checksum,
-        timingSource: 'estimated'
+        transcriptionMode,
+        requiresAudioProxy,
+        timingSource: transcriptionMode === 'sandbox_whisper' ? 'model' : 'estimated'
       },
       createdById: scope.userId ?? null,
       assistantId: scope.assistantId ?? null
@@ -187,13 +220,16 @@ export class CutCaptionService {
       platformProjectId: scope.projectId ?? null,
       userId: scope.userId ?? null,
       assistantId: scope.assistantId ?? null,
-      xpertId,
-      modelKey: `${model.copilotId}:${model.model}`,
+      transcriptionMode,
+      xpertId: transcriptionMode === 'platform' ? xpertId!.trim() : null,
+      modelKey,
       fileReference: asset.fileReference,
       originalName: asset.originalName,
       mimeType: asset.mimeType,
+      size: asset.size,
+      checksum: asset.checksum,
       duration: asset.duration ?? null,
-      language: input.language,
+      language,
       inputRevision: input.baseRevision,
       changeSummary: input.changeSummary
     }
@@ -213,7 +249,10 @@ export class CutCaptionService {
         attempts: 3,
         backoffMs: { type: 'exponential', delay: 2_000 },
         removeOnComplete: { age: 7 * 24 * 60 * 60, count: 10_000 },
-        removeOnFail: { age: 30 * 24 * 60 * 60, count: 10_000 }
+        removeOnFail: { age: 30 * 24 * 60 * 60, count: 10_000 },
+        ...(requiresAudioProxy || transcriptionMode === 'sandbox_whisper'
+          ? { executionPool: 'sandbox-browser' as const }
+          : {})
       })
       if (queued.jobId !== jobId) {
         throw new Error(`Managed Queue returned unexpected job id ${queued.jobId} for Cut analysis job ${jobId}.`)
@@ -228,7 +267,8 @@ export class CutCaptionService {
     await this.writeLog(scope, input.projectId, 'cut_transcription_started', input.changeSummary, {
       jobId,
       mediaAssetId: input.mediaAssetId,
-      language: input.language,
+      language,
+      transcriptionMode,
       inputRevision: input.baseRevision
     })
     return startTranscriptionResult(job, detail.item.revision, false)
@@ -241,6 +281,9 @@ export class CutCaptionService {
       return { success: false, projectId, jobId, status: job.status, reason: 'terminal' }
     }
     if (!this.queue || !job.queueJobId) throw new ServiceUnavailableException('Managed Queue job is unavailable for cancellation.')
+    const sandboxCancellation = job.sandboxJobId && this.transcriptionMedia
+      ? await this.transcriptionMedia.cancel(job.sandboxJobId).then(() => null).catch(errorMessage)
+      : null
     const result = await this.queue.cancel({ jobId: job.queueJobId })
     job.cancellationRequested = true
     if (result.success || result.reason === 'not_found') {
@@ -254,6 +297,7 @@ export class CutCaptionService {
       queueJobId: job.queueJobId,
       status: job.status,
       queueState: result.state ?? null,
+      sandboxCancellation,
       cooperative: !result.success && result.reason !== 'not_found'
     })
     return {
@@ -267,6 +311,31 @@ export class CutCaptionService {
     }
   }
 
+  async deleteAnalysisJob(scope: CutScope, projectId: string, jobId: string, changeSummary: string) {
+    const job = await this.requireJob(scope, projectId, jobId)
+    await this.reconcileQueueJob(job)
+    if (job.status === 'queued' || job.status === 'running') {
+      throw new ConflictException('Cancel the active Cut analysis job before deleting it.')
+    }
+    const result = compactJob(job)
+    await this.writeLog(scope, projectId, 'cut_analysis_job_deleted', changeSummary, {
+      jobId,
+      type: job.type,
+      status: job.status,
+      resultTranscriptId: job.resultTranscriptId ?? null,
+      resultExportId: job.resultExportId ?? null
+    })
+    await this.jobs.remove(job)
+    return {
+      success: true,
+      projectId,
+      jobId,
+      type: result.type,
+      status: result.status,
+      preservedResults: Boolean(result.resultTranscriptId || result.resultExportId)
+    }
+  }
+
   async beginTranscriptionJob(scope: CutScope, projectId: string, jobId: string) {
     const job = await this.requireJob(scope, projectId, jobId)
     if (job.status === 'succeeded' || job.status === 'cancelled' || job.cancellationRequested) return null
@@ -274,8 +343,35 @@ export class CutCaptionService {
     job.progress = 10
     job.startedAt ??= new Date()
     job.completedAt = null
+    const metadata = jsonObject(job.metadata)
+    job.metadata = {
+      ...metadata,
+      stage: metadata.requiresAudioProxy === true ? 'preparing-audio' : 'loading-audio'
+    }
     await this.jobs.save(job)
     return compactJob(job)
+  }
+
+  async updateTranscriptionJobProgress(
+    scope: CutScope,
+    projectId: string,
+    jobId: string,
+    stage: string,
+    progress: number,
+    sandboxJobId?: string
+  ) {
+    const job = await this.requireJob(scope, projectId, jobId)
+    if (job.status === 'succeeded' || job.status === 'failed' || job.status === 'cancelled' || job.cancellationRequested) {
+      return false
+    }
+    job.status = 'running'
+    job.progress = Math.min(99, Math.max(job.progress, Math.round(progress)))
+    job.startedAt ??= new Date()
+    job.completedAt = null
+    if (sandboxJobId) job.sandboxJobId = sandboxJobId
+    job.metadata = { ...jsonObject(job.metadata), stage }
+    await this.jobs.save(job)
+    return true
   }
 
   async completeTranscriptionJob(scope: CutScope, input: {
@@ -284,6 +380,7 @@ export class CutCaptionService {
     text: string
     duration?: number | null
     model: string
+    segments?: ImportCutLocalTranscriptionInput['segments']
     changeSummary: string
   }) {
     const job = await this.requireJob(scope, input.projectId, input.jobId)
@@ -303,7 +400,14 @@ export class CutCaptionService {
       detail.document.settings.durationSeconds,
       typeof input.duration === 'number' && input.duration > 0 ? input.duration : detail.document.settings.durationSeconds
     )
-    const estimated = estimateCutTranscriptSegments(input.text, duration)
+    const timingSource = input.segments?.length ? 'model' : 'estimated'
+    const completedSegments = input.segments?.length
+      ? normalizeLocalTranscriptSegments(input.segments, duration).map((segment, sequence) => ({
+        ...segment,
+        sequence,
+        words: null
+      }))
+      : estimateCutTranscriptSegments(input.text, duration)
     let transcript = await this.transcripts.findOne({
       where: captionScopedWhere<CutTranscript>(scope, { cutProjectId: input.projectId, jobId: input.jobId })
     })
@@ -318,7 +422,7 @@ export class CutCaptionService {
         model: input.model,
         sourceFormat: null,
         duration,
-        segmentCount: estimated.length,
+        segmentCount: completedSegments.length,
         inputRevision: job.inputRevision,
         createdById: job.createdById ?? null,
         assistantId: job.assistantId ?? null
@@ -330,7 +434,7 @@ export class CutCaptionService {
       order: { sequence: 'ASC' }
     })
     if (!existingSegments.length) {
-      await this.segments.save(estimated.map((segment) => this.segments.create({
+      await this.segments.save(completedSegments.map((segment) => this.segments.create({
         ...captionScopedCreate(scope),
         cutProjectId: input.projectId,
         transcriptId,
@@ -356,7 +460,7 @@ export class CutCaptionService {
         revision: 1,
         language: job.language ?? 'und',
         targetTrackId: null,
-        captions: estimated.map((segment, index) => ({
+        captions: completedSegments.map((segment, index) => ({
           id: `caption-${index + 1}`,
           start: segment.start,
           end: segment.end,
@@ -375,10 +479,11 @@ export class CutCaptionService {
     job.completedAt = new Date()
     job.metadata = {
       ...jsonObject(job.metadata),
-      timingSource: 'estimated',
+      stage: 'complete',
+      timingSource,
       outputRevision: detail.item.revision,
       characterCount: input.text.length,
-      segmentCount: estimated.length,
+      segmentCount: completedSegments.length,
       draftId: requireId(draft.id, 'caption draft')
     }
     await this.jobs.save(job)
@@ -386,8 +491,8 @@ export class CutCaptionService {
       jobId: input.jobId,
       transcriptId,
       draftId: draft.id ?? null,
-      segmentCount: estimated.length,
-      timingSource: 'estimated'
+      segmentCount: completedSegments.length,
+      timingSource
     })
     return {
       success: true,
@@ -398,8 +503,8 @@ export class CutCaptionService {
       transcriptId,
       draftId: requireId(draft.id, 'caption draft'),
       draftRevision: draft.revision,
-      segmentCount: estimated.length,
-      timingSource: 'estimated' as const
+      segmentCount: completedSegments.length,
+      timingSource
     }
   }
 
@@ -554,7 +659,13 @@ export class CutCaptionService {
       job.errorMessage = errorMessage(error)
       job.completedAt = willRetry ? null : new Date()
     }
-    job.metadata = { ...jsonObject(job.metadata), attempt, willRetry }
+    job.metadata = {
+      ...jsonObject(job.metadata),
+      stage: job.status === 'cancelled' ? 'cancelled' : willRetry ? 'retrying' : 'failed',
+      errorCode: transcriptionFailureCode(error),
+      attempt,
+      willRetry
+    }
     await this.jobs.save(job)
     if (!willRetry && job.status === 'failed') {
       await this.writeLog(scope, projectId, 'cut_transcription_failed', 'Cut server transcription failed.', {
@@ -834,9 +945,6 @@ export class CutCaptionService {
   ) {
     const draft = await this.requireDraft(scope, input.projectId, input.draftId)
     if (draft.status !== 'draft') throw new ConflictException(`Caption draft ${input.draftId} is ${draft.status}.`)
-    if (draft.sourceRevision !== input.baseRevision) {
-      throw new ConflictException(`Caption draft is based on project revision ${draft.sourceRevision}, not ${input.baseRevision}.`)
-    }
     if (draft.revision !== input.baseDraftRevision) {
       throw new ConflictException(`Caption draft revision changed from ${input.baseDraftRevision} to ${draft.revision}; reload before editing.`)
     }
@@ -853,11 +961,12 @@ export class CutCaptionService {
         revision: input.baseDraftRevision,
         status: 'draft'
       }),
-      { captions, revision: nextDraftRevision }
+      { captions, revision: nextDraftRevision, sourceRevision: input.baseRevision }
     )
     if (updated.affected !== 1) throw new ConflictException('Caption draft changed concurrently; reload before editing.')
     draft.captions = captions
     draft.revision = nextDraftRevision
+    draft.sourceRevision = input.baseRevision
     await this.writeLog(scope, input.projectId, 'cut_caption_draft_updated', input.changeSummary, {
       draftId: input.draftId,
       draftRevision: nextDraftRevision,
@@ -895,9 +1004,6 @@ export class CutCaptionService {
     if (draft.revision !== input.baseDraftRevision) {
       throw new ConflictException(`Caption draft revision changed from ${input.baseDraftRevision} to ${draft.revision}; reload before committing.`)
     }
-    if (draft.sourceRevision !== input.baseRevision) {
-      throw new ConflictException(`Caption draft is based on revision ${draft.sourceRevision}, not ${input.baseRevision}; create a rebased draft.`)
-    }
     const detail = await this.cut.getProject(scope, input.projectId)
     assertRevision(detail.item.revision, input.baseRevision)
     const document = structuredClone(detail.document)
@@ -923,6 +1029,7 @@ export class CutCaptionService {
     })
     draft.status = 'committed'
     draft.revision += 1
+    draft.sourceRevision = input.baseRevision
     draft.targetTrackId = trackId
     draft.committedRevision = saved.project.revision
     await this.drafts.save(draft)
@@ -959,9 +1066,6 @@ export class CutCaptionService {
     const drafts = await Promise.all(input.drafts.map(async (item) => {
       const draft = await this.requireDraft(scope, input.projectId, item.draftId)
       if (draft.status !== 'draft') throw new ConflictException(`Caption draft ${item.draftId} is ${draft.status}.`)
-      if (draft.sourceRevision !== input.baseRevision) {
-        throw new ConflictException(`Caption draft ${item.draftId} is based on revision ${draft.sourceRevision}, not ${input.baseRevision}.`)
-      }
       if (draft.revision !== item.baseDraftRevision) {
         throw new ConflictException(`Caption draft ${item.draftId} revision changed from ${item.baseDraftRevision} to ${draft.revision}.`)
       }
@@ -999,6 +1103,7 @@ export class CutCaptionService {
     for (const [index, { draft }] of drafts.entries()) {
       draft.status = 'committed'
       draft.revision += 1
+      draft.sourceRevision = input.baseRevision
       draft.targetTrackId = committed[index]!.trackId
       draft.committedRevision = saved.project.revision
     }
@@ -1385,6 +1490,16 @@ function defaultCaptionRules(): CutCaptionRules {
   return { maxCharsPerLine: 42, maxLines: 2, minDuration: 0.8, maxDuration: 7, targetTrackName: 'Captions' }
 }
 
+export function normalizeSandboxWhisperLanguage(value: string) {
+  const normalized = boundedString(value, 35, 'Cut Sandbox Whisper language')
+    .toLocaleLowerCase()
+    .replaceAll('_', '-')
+  if (normalized === 'auto' || normalized === 'und') return 'und'
+  if (['zh', 'chinese', 'mandarin', 'cmn', 'yue'].includes(normalized)) return 'zh'
+  const primaryLanguage = normalized.split('-', 1)[0]!
+  return /^[a-z]{2}$/.test(primaryLanguage) ? primaryLanguage : normalized
+}
+
 function formatFromName(name: string): CutSubtitleFormat | undefined {
   const extension = name.toLowerCase().split('.').pop()
   return extension === 'srt' || extension === 'vtt' || extension === 'ass' ? extension : undefined
@@ -1414,6 +1529,7 @@ function compactJob(job: CutAnalysisJob) {
     mediaAssetId: job.mediaAssetId ?? null,
     language: job.language ?? null,
     model: job.model ?? null,
+    transcriptionMode: metadata.transcriptionMode === 'sandbox_whisper' ? 'sandbox_whisper' : job.type === 'transcription' ? 'platform' : null,
     queueJobId: job.queueJobId ?? null,
     cancellationRequested: job.cancellationRequested ?? false,
     resultTranscriptId: job.resultTranscriptId ?? null,
@@ -1484,6 +1600,7 @@ function importResult(
 }
 
 function startTranscriptionResult(job: CutAnalysisJob, revision: number, idempotentReplay: boolean) {
+  const metadata = jsonObject(job.metadata)
   return {
     success: true,
     projectId: job.cutProjectId,
@@ -1492,8 +1609,15 @@ function startTranscriptionResult(job: CutAnalysisJob, revision: number, idempot
     status: job.status,
     progress: job.progress,
     mediaAssetId: job.mediaAssetId ?? null,
+    mode: metadata.transcriptionMode === 'sandbox_whisper' ? 'sandbox_whisper' : 'platform',
+    model: job.model ?? null,
     idempotentReplay
   }
+}
+
+function requireSpeechModel(value: TCopilotModel | undefined): TCopilotModel {
+  if (!value) throw new Error('Enable and configure Speech-to-Text on the current Xpert before starting platform transcription.')
+  return value
 }
 
 function normalizeSpeechModel(value: TCopilotModel): TCopilotModel & { copilotId: string; model: string } {
@@ -1518,4 +1642,15 @@ function jsonObject(value: CutJsonValue | null | undefined): Record<string, CutJ
 function errorMessage(error: unknown) {
   const value = error instanceof Error ? error.message : String(error)
   return value.slice(0, 4_000) || 'Cut transcription failed.'
+}
+
+function transcriptionFailureCode(error: unknown): string {
+  const message = errorMessage(error).toUpperCase()
+  if (message.includes('WORKER_UNAVAILABLE')) return 'WORKER_UNAVAILABLE'
+  if (message.includes('SANDBOX_ACTION')) return 'SANDBOX_ACTION_UNAVAILABLE'
+  if (message.includes('WHISPER')) return 'SANDBOX_WHISPER_FAILED'
+  if (message.includes('SANDBOX') || message.includes('BROWSER')) return 'AUDIO_PREPARATION_FAILED'
+  if (message.includes('AUDIO PROXY')) return 'AUDIO_PROXY_INVALID'
+  if (message.includes('WORKSPACE')) return 'WORKSPACE_FILE_UNAVAILABLE'
+  return 'TRANSCRIPTION_FAILED'
 }

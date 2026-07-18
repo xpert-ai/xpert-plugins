@@ -98,7 +98,21 @@ describe('Cut project IR', () => {
     clip.fadeOut = 0.7
     clip.fontSize = 84
     clip.fontWeight = 700
+    clip.fontFamily = 'sans'
+    clip.fontStyle = 'italic'
+    clip.textDecoration = 'underline'
     clip.textAlign = 'center'
+    clip.verticalAlign = 'bottom'
+    clip.letterSpacing = 3
+    clip.lineHeight = 1.3
+    clip.strokeColor = '#111827'
+    clip.strokeWidth = 3
+    clip.textShadowColor = '#000000'
+    clip.textShadowBlur = 12
+    clip.textShadowOffsetX = 2
+    clip.textShadowOffsetY = 4
+    clip.textBackgroundColor = '#111827'
+    clip.textBackgroundOpacity = 0.75
     clip.effects = { brightness: 1.05, contrast: 1.2, saturation: 0.9, blur: 0.5, grayscale: 0, sepia: 0.1 }
     clip.blendMode = 'overlay'
     clip.mask = { shape: 'rounded', inset: 0.08, radius: 0.25 }
@@ -113,7 +127,21 @@ describe('Cut project IR', () => {
       fadeOut: 0.7,
       fontSize: 84,
       fontWeight: 700,
+      fontFamily: 'sans',
+      fontStyle: 'italic',
+      textDecoration: 'underline',
       textAlign: 'center',
+      verticalAlign: 'bottom',
+      letterSpacing: 3,
+      lineHeight: 1.3,
+      strokeColor: '#111827',
+      strokeWidth: 3,
+      textShadowColor: '#000000',
+      textShadowBlur: 12,
+      textShadowOffsetX: 2,
+      textShadowOffsetY: 4,
+      textBackgroundColor: '#111827',
+      textBackgroundOpacity: 0.75,
       effects: { brightness: 1.05, contrast: 1.2, saturation: 0.9, blur: 0.5, grayscale: 0, sepia: 0.1 },
       blendMode: 'overlay',
       mask: { shape: 'rounded', inset: 0.08, radius: 0.25 },
@@ -146,7 +174,12 @@ describe('Cut project IR', () => {
       clip: { type: 'text', name: 'Opening title', text: 'Hello', start: 1, duration: 4 }
     })
     const clipId = document.tracks[0]!.clips[0]!.id
-    document = applyCutEdit(document, { kind: 'update_text', clipId, text: 'Hello Xpert', fontSize: 96, fontWeight: 700, textAlign: 'center', color: '#ffffff' })
+    document = applyCutEdit(document, {
+      kind: 'update_text', clipId, text: 'Hello Xpert', fontSize: 96, fontWeight: 700, fontFamily: 'sans', fontStyle: 'italic',
+      textDecoration: 'underline', textAlign: 'center', verticalAlign: 'bottom', letterSpacing: 2, lineHeight: 1.25,
+      color: '#ffffff', strokeColor: '#111827', strokeWidth: 3, textShadowColor: '#000000', textShadowBlur: 10,
+      textShadowOffsetX: 2, textShadowOffsetY: 4, textBackgroundColor: '#111827', textBackgroundOpacity: 0.7
+    })
     document = applyCutEdit(document, { kind: 'update_transform', clipId, transform: { x: 120, y: 80, opacity: 0.9 } })
     document = applyCutEdit(document, { kind: 'update_effects', clipId, effects: { brightness: 1.2, blur: 0.5 }, blendMode: 'screen' })
     document = applyCutEdit(document, { kind: 'update_mask', clipId, mask: { shape: 'rounded', inset: 0.05, radius: 0.2 } })
@@ -163,6 +196,15 @@ describe('Cut project IR', () => {
       trimOut: 3,
       playbackRate: 1.25,
       fontSize: 96,
+      fontFamily: 'sans',
+      fontStyle: 'italic',
+      textDecoration: 'underline',
+      verticalAlign: 'bottom',
+      letterSpacing: 2,
+      lineHeight: 1.25,
+      strokeWidth: 3,
+      textShadowBlur: 10,
+      textBackgroundOpacity: 0.7,
       transform: { x: 120, y: 80, opacity: 0.9 },
       effects: { brightness: 1.2, blur: 0.5 },
       blendMode: 'screen',

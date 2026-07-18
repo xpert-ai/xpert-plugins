@@ -18,7 +18,7 @@ try {
     runtimeProfile: 'browser/playwright-1.61/v1',
     sandboxRuntimeVersion: '1.0.0',
     action: 'cut.render-mp4',
-    actionVersion: '1.1.2',
+    actionVersion: '1.1.5',
     payload: {
       sourceRevision: 7,
       timeoutMs: 120_000,
@@ -105,11 +105,13 @@ function execute(command, args, environment, timeoutMs) {
 }
 
 function assertProgressLogs(output, expectedFrameCount) {
-  const entries = output.split('\n')
-    .filter((line) => line.startsWith('CUT_RENDER_PROGRESS '))
-    .map((line) => JSON.parse(line.slice('CUT_RENDER_PROGRESS '.length)))
-  if (!entries.length) throw new Error('Sandbox Action did not emit CUT_RENDER_PROGRESS logs.')
-  const completed = entries.find((entry) => entry.percent === 100 && entry.frame === expectedFrameCount && entry.frameCount === expectedFrameCount)
+  const platformEntries = output.split('\n')
+    .filter((line) => line.startsWith('XPERT_SANDBOX_PROGRESS '))
+    .map((line) => JSON.parse(line.slice('XPERT_SANDBOX_PROGRESS '.length)))
+  if (!platformEntries.length || platformEntries.some((entry) => typeof entry.progress !== 'number')) {
+    throw new Error('Sandbox Action did not emit structured XPERT_SANDBOX_PROGRESS logs.')
+  }
+  const completed = platformEntries.find((entry) => entry.progress === 1 && entry.current === expectedFrameCount && entry.total === expectedFrameCount)
   if (!completed) throw new Error('Sandbox Action did not emit a completed frame progress log.')
 }
 

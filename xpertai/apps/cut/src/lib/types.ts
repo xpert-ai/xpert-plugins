@@ -10,6 +10,8 @@ export type CutOperationKind = 'split' | 'trim' | 'move'
 export type CutActorType = 'agent' | 'user' | 'system'
 export type CutAnalysisJobType = 'transcription' | 'media_analysis' | 'render'
 export type CutAnalysisExecutionMode = 'local' | 'server' | 'import'
+export type CutTranscriptionMode = 'platform' | 'browser' | 'sandbox_whisper'
+export type CutBackgroundTranscriptionMode = Exclude<CutTranscriptionMode, 'browser'>
 export type CutAnalysisJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
 export type CutTranscriptSource = 'stt' | 'subtitle_import'
 export type CutMediaEvidenceType = 'transcript' | 'silence' | 'audio_activity' | 'shot' | 'keyframe' | 'visual_description' | 'ocr'
@@ -40,6 +42,7 @@ export type CutActionType =
   | 'cut_render_completed'
   | 'cut_render_failed'
   | 'cut_analysis_job_cancelled'
+  | 'cut_analysis_job_deleted'
   | 'cut_caption_draft_created'
   | 'cut_caption_draft_updated'
   | 'cut_caption_draft_committed'
@@ -72,15 +75,33 @@ export interface CutTranscriptionQueueJobData {
   platformProjectId?: string | null
   userId?: string | null
   assistantId?: string | null
-  xpertId: string
+  transcriptionMode?: CutBackgroundTranscriptionMode
+  xpertId?: string | null
   modelKey: string
   fileReference: WorkspacePortableFileReference
   originalName: string
   mimeType: string
+  size: number
+  checksum: string
   duration?: number | null
   language: string
   inputRevision: number
   changeSummary: string
+}
+
+export interface CutTranscriptionAudioProxy {
+  sourceChecksum: string
+  sourceSize: number
+  reference: WorkspacePortableFileReference
+  originalName: string
+  mimeType: 'audio/wav'
+  size: number
+  checksum: string
+  sampleRate: 16_000
+  channels: 1
+  action: string
+  actionVersion: string
+  createdAt: string
 }
 
 export interface CutRenderVariantInput {
@@ -176,7 +197,21 @@ export interface CutClip {
   fadeOut?: number
   fontSize?: number
   fontWeight?: number
+  fontFamily?: 'system' | 'sans' | 'serif' | 'mono'
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline'
   textAlign?: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'middle' | 'bottom'
+  letterSpacing?: number
+  lineHeight?: number
+  strokeColor?: string
+  strokeWidth?: number
+  textShadowColor?: string
+  textShadowBlur?: number
+  textShadowOffsetX?: number
+  textShadowOffsetY?: number
+  textBackgroundColor?: string
+  textBackgroundOpacity?: number
   effects?: CutVisualEffects
   blendMode?: CutBlendMode
   mask?: CutMask
@@ -246,7 +281,29 @@ export type CutEditOperation =
       settings: { width?: number; height?: number; fps?: number; background?: string }
       reframe: CutProjectReframeMode
     }
-  | { kind: 'update_text'; clipId: string; text?: string; fontSize?: number; fontWeight?: number; textAlign?: CutClip['textAlign']; color?: string }
+  | {
+      kind: 'update_text'
+      clipId: string
+      text?: string
+      fontSize?: number
+      fontWeight?: number
+      fontFamily?: CutClip['fontFamily']
+      fontStyle?: CutClip['fontStyle']
+      textDecoration?: CutClip['textDecoration']
+      textAlign?: CutClip['textAlign']
+      verticalAlign?: CutClip['verticalAlign']
+      letterSpacing?: number
+      lineHeight?: number
+      color?: string
+      strokeColor?: string
+      strokeWidth?: number
+      textShadowColor?: string
+      textShadowBlur?: number
+      textShadowOffsetX?: number
+      textShadowOffsetY?: number
+      textBackgroundColor?: string
+      textBackgroundOpacity?: number
+    }
   | { kind: 'update_audio'; clipId: string; volume?: number; fadeIn?: number; fadeOut?: number }
   | { kind: 'update_effects'; clipId: string; effects?: Partial<CutVisualEffects> | null; blendMode?: CutBlendMode }
   | { kind: 'update_mask'; clipId: string; mask: CutMask | null }

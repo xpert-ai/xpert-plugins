@@ -16,6 +16,8 @@ import {
 import { CutMiddleware } from './cut.middleware.js'
 import { CutCaptionService } from './cut-caption.service.js'
 import { CutTranscriptionProcessor } from './cut-transcription.processor.js'
+import { CutTranscriptionMediaService } from './cut-transcription-media.service.js'
+import { CutSandboxWhisperService } from './cut-sandbox-whisper.service.js'
 import { CutService } from './cut.service.js'
 import { CutViewProvider } from './cut-view.provider.js'
 import { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
@@ -40,8 +42,8 @@ export const CUT_ENTITIES = [
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(CUT_ENTITIES)],
   entities: CUT_ENTITIES,
-  providers: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutRenderService, CutTranscriptionProcessor, CutRenderProcessor, CutMiddleware, CutViewProvider],
-  exports: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutRenderService]
+  providers: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutRenderService, CutTranscriptionMediaService, CutSandboxWhisperService, CutTranscriptionProcessor, CutRenderProcessor, CutMiddleware, CutViewProvider],
+  exports: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutRenderService, CutTranscriptionMediaService, CutSandboxWhisperService]
 })
 export class CutPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
   onPluginBootstrap(): void {

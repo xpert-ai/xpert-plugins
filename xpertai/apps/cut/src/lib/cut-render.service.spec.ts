@@ -5,7 +5,7 @@ import type { Repository } from 'typeorm'
 jest.mock('./cut.service.js', () => ({ CutService: class CutService {} }))
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
-  SANDBOX_JOB_ERROR_CODES: ['SANDBOX_CAPACITY_UNAVAILABLE', 'EXPORT_INPUT_INVALID', 'SANDBOX_CANCELLED'],
+  SANDBOX_JOB_ERROR_CODES: ['SANDBOX_CAPACITY_UNAVAILABLE', 'EXPORT_MEDIA_FAILED', 'EXPORT_INPUT_INVALID', 'SANDBOX_CANCELLED'],
   SYSTEM_GLOBAL_SCOPE: 'system:global',
   SandboxJobsRuntimeCapability: { id: 'platform.sandbox.jobs' },
   WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
@@ -116,7 +116,7 @@ describe('CutRenderService', () => {
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       jobId,
       action: 'cut.render-mp4',
-      actionVersion: '1.1.2',
+      actionVersion: '1.1.5',
       files: [expect.objectContaining({
         targetPath: `media/${ASSET_ID}/voice.wav`,
         size: 4_096,
@@ -133,7 +133,7 @@ describe('CutRenderService', () => {
       sourceRevision: 7,
       checksum: 'b'.repeat(64),
       kind: 'mp4',
-      renderer: 'sandbox-job:cut.render-mp4@1.1.2'
+      renderer: 'sandbox-job:cut.render-mp4@1.1.5'
     })
     expect(harness.jobs.rows[0]).toMatchObject({ status: 'succeeded', progress: 100, resultExportId: harness.exports.rows[0]!.id, sandboxJobId: jobId })
     expect(harness.logs.rows.map((row) => row.action)).toEqual(['cut_render_started', 'cut_render_completed'])
@@ -205,6 +205,57 @@ describe('CutRenderService', () => {
     }
   })
 
+  it('persists structured Sandbox frame progress while the render is running', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID, baseRevision: 7, changeSummary: 'Observed structured render progress.'
+    })
+    const jobId = started.jobs[0]!.jobId!
+    const defaultRun = harness.sandbox.run.getMockImplementation()
+    if (!defaultRun) throw new Error('Sandbox test implementation is unavailable.')
+    let release!: () => void
+    let markStarted!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const runStarted = new Promise<void>((resolve) => { markStarted = resolve })
+    harness.sandbox.getJob.mockResolvedValue({
+      id: jobId,
+      runtimeProfile: 'browser/playwright-1.61/v1',
+      sandboxRuntimeVersion: '1.0.0',
+      action: 'cut.render-mp4',
+      actionVersion: '1.1.5',
+      status: 'running',
+      attempt: 1,
+      outputs: [],
+      progress: { progress: 0.4, stage: 'rendering', current: 40, total: 100, updatedAt: '2026-07-18T00:00:00.000Z' }
+    } as never)
+    harness.sandbox.run.mockImplementationOnce(async (input) => {
+      markStarted()
+      await gate
+      return defaultRun(input)
+    })
+
+    jest.useFakeTimers()
+    let processing: Promise<void> | undefined
+    try {
+      processing = harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+      await runStarted
+      await jest.advanceTimersByTimeAsync(1_000)
+      expect(harness.jobs.rows[0]).toMatchObject({ status: 'running', progress: 48 })
+      expect(harness.jobs.rows[0]!.metadata).toMatchObject({
+        stage: 'rendering',
+        sandboxProgress: { progress: 0.4, current: 40, total: 100 }
+      })
+      expect(harness.progressLogs).toEqual(expect.arrayContaining([
+        expect.stringContaining('"event":"sandbox-progress"'),
+        expect.stringContaining('"frame":40')
+      ]))
+    } finally {
+      release()
+      await processing
+      jest.useRealTimers()
+    }
+  })
+
   it('records retryable Sandbox failure and cooperatively cancels queued or active work', async () => {
     const retryHarness = createHarness()
     const started = await retryHarness.service.start(scope, {
@@ -236,8 +287,63 @@ describe('CutRenderService', () => {
 
     await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
       .resolves.toBeUndefined()
-    expect(harness.jobs.rows[0]).toMatchObject({ status: 'failed', progress: 0, errorMessage: 'Workspace file not found' })
+    expect(harness.jobs.rows[0]).toMatchObject({ status: 'failed', progress: 20, errorMessage: 'Workspace file not found' })
     expect(harness.jobs.rows[0]!.metadata).toMatchObject({ stage: 'failed', errorCode: 'EXPORT_INPUT_INVALID', attempt: 1, willRetry: false })
+  })
+
+  it('persists a concise structured media failure instead of the full runner log', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID, baseRevision: 7, changeSummary: 'Rendered damaged media.'
+    })
+    const jobId = started.jobs[0]!.jobId!
+    const mediaFailure = {
+      phase: 'seek', attempt: 2, clipId: 'clip-1', clipName: 'Source.mov', mediaAssetId: ASSET_ID,
+      targetTime: 60.15, mediaErrorCode: 3, mediaErrorMessage: 'Failed to decode video packet.'
+    }
+    const runnerLog = `XPERT_SANDBOX_PROGRESS {"progress":0.14}\nEXPORT_MEDIA_FAILED: RENDER_FAILED: CUT_MEDIA_SEEK_FAILED ${JSON.stringify(mediaFailure)}`
+    harness.sandbox.run.mockRejectedValueOnce(Object.assign(new Error(runnerLog), {
+      name: 'SandboxJobRuntimeError', code: 'EXPORT_MEDIA_FAILED', retryable: false, jobId
+    }))
+
+    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+      .resolves.toBeUndefined()
+    expect(harness.jobs.rows[0]).toMatchObject({
+      status: 'failed',
+      progress: 20,
+      errorMessage: `CUT_MEDIA_DECODE_FAILED ${JSON.stringify(mediaFailure)}`
+    })
+    expect(harness.jobs.rows[0]!.metadata).toMatchObject({
+      stage: 'failed', errorCode: 'EXPORT_MEDIA_FAILED', attempt: 1, willRetry: false, mediaFailure
+    })
+  })
+
+  it('classifies a decoded but non-matching frame as a timestamp mismatch instead of a decode failure', async () => {
+    const harness = createHarness()
+    const started = await harness.service.start(scope, {
+      projectId: PROJECT_ID, baseRevision: 7, changeSummary: 'Rendered camera media.'
+    })
+    const jobId = started.jobs[0]!.jobId!
+    const mediaFailure = {
+      phase: 'seek-timeout', attempt: 2, clipId: 'clip-camera', clipName: 'Camera.mov', mediaAssetId: ASSET_ID,
+      targetTime: 0, currentTime: 0, duration: 69.12, lastMediaTime: 0.8, readyState: 4, networkState: 1,
+      mediaErrorCode: null, mediaErrorMessage: null
+    }
+    const runnerLog = `EXPORT_MEDIA_FAILED: RENDER_FAILED: CUT_MEDIA_SEEK_FAILED ${JSON.stringify(mediaFailure)}`
+    harness.sandbox.run.mockRejectedValueOnce(Object.assign(new Error(runnerLog), {
+      name: 'SandboxJobRuntimeError', code: 'EXPORT_MEDIA_FAILED', retryable: false, jobId
+    }))
+
+    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+      .resolves.toBeUndefined()
+    expect(harness.jobs.rows[0]).toMatchObject({
+      status: 'failed',
+      progress: 20,
+      errorMessage: `CUT_MEDIA_FRAME_TIMESTAMP_MISMATCH ${JSON.stringify(mediaFailure)}`
+    })
+    expect(harness.jobs.rows[0]!.metadata).toMatchObject({
+      stage: 'failed', errorCode: 'EXPORT_MEDIA_FAILED', attempt: 1, willRetry: false, mediaFailure
+    })
   })
 })
 
@@ -310,11 +416,11 @@ function createHarness(options: { assetSize?: number } = {}) {
     cancel: jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
   } as unknown as jest.Mocked<ManagedQueueService>
   const sandbox = {
-    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.2', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
+    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.5', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
     run: jest.fn(async (input: { jobId?: string; outputs?: Array<{ path: string; originalName: string; mimeType: string }> }) => {
       const video = input.outputs?.find((item) => item.path !== 'report.json') ?? { path: 'cut.mp4', originalName: 'master.mp4', mimeType: 'video/mp4' }
       return {
-        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.2', status: 'succeeded' as const, attempt: 1,
+        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.5', status: 'succeeded' as const, attempt: 1,
         outputs: [
           output(video.path, video.mimeType, video.originalName, 12_345, 'b'.repeat(64)),
           output('report.json', 'application/json', 'master.report.json', 512, 'c'.repeat(64))

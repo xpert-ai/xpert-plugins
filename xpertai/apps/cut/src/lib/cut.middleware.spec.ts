@@ -354,6 +354,33 @@ describe('CutMiddleware', () => {
     expect(() => transcriptionTool.schema.parse({ ...input, unexpected: true })).toThrow()
   })
 
+  it('queues Sandbox Whisper without requiring an Xpert speech-to-text model', async () => {
+    const startTranscription = jest.fn(async () => ({
+      success: true,
+      projectId: '11111111-1111-4111-8111-111111111111',
+      revision: 5,
+      jobId: '33333333-3333-4333-8333-333333333333',
+      status: 'queued',
+      mode: 'sandbox_whisper'
+    }))
+    const middleware = new CutMiddleware({} as CutService, { startTranscription } as unknown as CutCaptionService, {} as CutMediaIntelligenceService, {} as CutProposalService, {} as CutRenderService)
+      .createMiddleware({}, middlewareContext()) as AgentMiddleware
+    const transcriptionTool = middleware.tools?.find((item) => item.name === CUT_START_TRANSCRIPTION_TOOL_NAME) as unknown as {
+      schema: { parse(value: unknown): object }
+      invoke(input: object): Promise<string>
+    }
+    const input = transcriptionTool.schema.parse({
+      projectId: '11111111-1111-4111-8111-111111111111',
+      mediaAssetId: '22222222-2222-4222-8222-222222222222',
+      mode: 'sandbox_whisper',
+      language: 'zh',
+      baseRevision: 5,
+      changeSummary: 'Transcribe locally in the managed Sandbox Browser.'
+    })
+    expect(JSON.parse(await transcriptionTool.invoke(input))).toMatchObject({ mode: 'sandbox_whisper', status: 'queued' })
+    expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input)
+  })
+
   it('searches bounded media evidence with a strict read-only schema', async () => {
     const search = jest.fn(async () => ({
       items: [{

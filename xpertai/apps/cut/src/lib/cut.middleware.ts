@@ -204,7 +204,12 @@ const importSubtitleSchema = z.object({
 const startTranscriptionSchema = z.object({
   projectId: currentProjectId,
   mediaAssetId: z.string().uuid(),
-  language: z.string().trim().min(1).max(35).default('und'),
+  mode: z.enum(['platform', 'sandbox_whisper']).default('platform').describe(
+    'platform uses the current Xpert Speech-to-Text provider; sandbox_whisper runs the bundled Q4 Whisper model in the managed sandbox-browser queue without an online media URL.'
+  ),
+  language: z.string().trim().min(1).max(35).default('und').describe(
+    'Source language. For sandbox_whisper use und/auto for detection, zh (or zh-CN/zh-Hans/zh-Hant) for Chinese, or en for English.'
+  ),
   baseRevision: z.number().int().positive(),
   idempotencyKey: z.string().trim().min(1).max(160).optional(),
   changeSummary
@@ -597,15 +602,18 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
         }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
-          const feature = context.xpertFeatures?.speechToText
-          if (!feature?.enabled || !feature.copilotModel) {
-            throw new Error('Enable and configure Speech-to-Text on the current Xpert before starting Cut transcription.')
+          if (input.mode === 'platform') {
+            const feature = context.xpertFeatures?.speechToText
+            if (!feature?.enabled || !feature.copilotModel) {
+              throw new Error('Enable and configure Speech-to-Text on the current Xpert before starting platform transcription, or use mode sandbox_whisper.')
+            }
+            if (!context.xpertId) throw new Error('Cut platform transcription requires the current Xpert id.')
+            return compact(await this.captions.startTranscription(scope, input, context.xpertId, feature.copilotModel))
           }
-          if (!context.xpertId) throw new Error('Cut server transcription requires the current Xpert id.')
-          return compact(await this.captions.startTranscription(scope, input, context.xpertId, feature.copilotModel))
+          return compact(await this.captions.startTranscription(scope, input))
         }, {
           name: CUT_START_TRANSCRIPTION_TOOL_NAME,
-          description: 'Queue durable server-side transcription for one imported audio/video media asset using the current Xpert Speech-to-Text model. Returns immediately with a jobId and does not change the timeline.',
+          description: 'Queue durable background transcription for one imported audio/video asset. mode=platform uses the current Xpert Speech-to-Text provider; mode=sandbox_whisper uses the bundled offline Q4 Whisper model in Sandbox Browser. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
           schema: startTranscriptionSchema,
           verboseParsingErrors: true
         }),
@@ -771,7 +779,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.updateCaptionDraft(scope, input))
         }, {
           name: CUT_UPDATE_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Revision-safely update, split, merge, delete, or offset bounded cues in a reviewable caption draft without changing the timeline.',
+          description: 'Update, split, merge, delete, or offset bounded cues in a reviewable caption draft without changing the timeline. baseDraftRevision protects concurrent draft edits; sourceRevision is provenance and does not block editing after unrelated project changes.',
           schema: updateCaptionDraftSchema,
           verboseParsingErrors: true
         }),
@@ -780,7 +788,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.commitCaptionDraft(scope, input))
         }, {
           name: CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Commit an approved caption draft to a visual text track at its exact required baseRevision; repeated committed calls are idempotent.',
+          description: 'Commit an approved caption draft to a visual text track at the current required baseRevision. A draft may originate from an older project revision; repeated committed calls are idempotent.',
           schema: commitCaptionDraftSchema,
           verboseParsingErrors: true
         }),
@@ -789,7 +797,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.commitCaptionDrafts(scope, input))
         }, {
           name: CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
-          description: 'Atomically commit 1-4 same-revision caption drafts as separate language tracks in one project revision, keeping multilingual cues synchronized.',
+          description: 'Atomically commit 1-4 approved caption drafts as separate language tracks in one project edit, keeping multilingual cues synchronized even when their provenance revisions differ.',
           schema: commitCaptionDraftsSchema,
           verboseParsingErrors: true
         }),

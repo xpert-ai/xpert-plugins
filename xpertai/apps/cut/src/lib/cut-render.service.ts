@@ -28,6 +28,7 @@ import {
 import { reconcileCutAnalysisJobWithQueue } from './cut-analysis-job-reconciliation.js'
 import { cutExportProfile, normalizeCutExportSettings, type CutExportSettings } from './cut-export-settings.js'
 import { validateCutProjectDocument } from './cut-project.js'
+import { cutTaskProgress, cutTaskStage, readCutSandboxProgress } from './cut-sandbox-progress.js'
 import { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutExport, CutMediaAsset } from './entities/index.js'
 import type {
@@ -52,6 +53,7 @@ const MAX_RENDER_FRAMES = 18_000
 // sync with the Cut Runner's staged-media validation.
 const MAX_RENDER_MEDIA_BYTES = 4 * 1024 * 1024 * 1024
 const RENDER_HEARTBEAT_INTERVAL_MS = 15_000
+const SANDBOX_PROGRESS_POLL_INTERVAL_MS = 1_000
 
 type RenderScopedEntity = {
   tenantId: string
@@ -71,9 +73,33 @@ type RenderMetadata = {
   exportSettings: CutExportSettings
   sandboxReport?: Record<string, unknown>
   reportFile?: Record<string, unknown>
+  sandboxProgress?: {
+    progress: number
+    stage?: string
+    current?: number
+    total?: number
+    updatedAt?: string
+  }
   errorCode?: string | null
   attempt?: number
   willRetry?: boolean
+  mediaFailure?: CutMediaFailure
+}
+
+type CutMediaFailure = {
+  phase?: string
+  attempt?: number
+  clipId?: string
+  clipName?: string
+  mediaAssetId?: string
+  targetTime?: number
+  currentTime?: number
+  duration?: number
+  lastMediaTime?: number | null
+  readyState?: number
+  networkState?: number
+  mediaErrorCode?: number | null
+  mediaErrorMessage?: string | null
 }
 
 @Injectable()
@@ -286,7 +312,7 @@ export class CutRenderService {
       row.progress = 20
       row.metadata = { ...metadata, stage: 'rendering' } as unknown as CutJsonValue
       await this.jobs.save(row)
-      const stopHeartbeat = this.startRenderHeartbeat(input, metadata)
+      const stopProgressMonitor = this.startRenderProgressMonitor(sandbox, scope, input, metadata)
       const files = assets.map((asset) => ({
         reference: asset.fileReference,
         targetPath: `media/${asset.id}/${safeMediaName(asset.originalName, asset.mimeType)}`,
@@ -319,7 +345,7 @@ export class CutRenderService {
           { path: 'report.json', originalName: `${metadata.outputName}.report.json`, mimeType: 'application/json', destination: { ...destination, folder: `files/cut/${input.projectId}/exports/reports` } }
         ],
         timeoutMs: 16 * 60_000
-      }).finally(stopHeartbeat)
+      }).finally(stopProgressMonitor)
       const current = await this.requireJob(scope, input.projectId, input.jobId)
       if (current.status === 'cancelled' || current.cancellationRequested) return
       const video = requireOutput(result.outputs, outputPath)
@@ -393,6 +419,7 @@ export class CutRenderService {
     } catch (error) {
       const current = await this.requireJob(scope, input.projectId, input.jobId)
       const sandboxFailure = readSandboxJobFailure(error)
+      const failure = cutRenderFailure(error)
       if (current.cancellationRequested || sandboxFailure?.code === 'SANDBOX_CANCELLED') {
         current.status = 'cancelled'
         current.progress = 0
@@ -408,19 +435,30 @@ export class CutRenderService {
       const retryable = sandboxFailure?.retryable ?? true
       const willRetry = retryable && attempt < attempts
       current.status = willRetry ? 'queued' : 'failed'
-      current.progress = 0
-      current.errorMessage = errorMessage(error)
+      current.progress = willRetry ? 0 : current.progress
+      current.errorMessage = failure.message
       current.completedAt = willRetry ? null : new Date()
+      const currentMetadata = optionalRenderMetadata(current.metadata)
       current.metadata = {
         ...metadata,
+        ...(currentMetadata.sandboxProgress ? { sandboxProgress: currentMetadata.sandboxProgress } : {}),
         stage: willRetry ? 'retrying' : 'failed',
         errorCode: sandboxFailure?.code ?? 'RENDER_FAILED',
         attempt,
-        willRetry
+        willRetry,
+        ...(failure.mediaFailure ? { mediaFailure: failure.mediaFailure } : {})
       } as unknown as CutJsonValue
       await this.jobs.save(current)
+      this.logger.error(`cut.render.failure ${JSON.stringify({
+        jobId: input.jobId,
+        projectId: input.projectId,
+        attempt,
+        errorCode: sandboxFailure?.code ?? 'RENDER_FAILED',
+        ...(failure.mediaFailure ? { mediaFailure: failure.mediaFailure } : {}),
+        diagnostics: failure.diagnostics
+      })}`)
       this.logRenderProgress(willRetry ? 'retrying' : 'failed', input, metadata, {
-        progress: 0,
+        progress: current.progress,
         elapsedSeconds: elapsedSeconds(row.startedAt),
         attempt,
         errorCode: sandboxFailure?.code ?? 'RENDER_FAILED'
@@ -545,6 +583,66 @@ export class CutRenderService {
         progressMode: 'indeterminate',
         elapsedSeconds: Math.round((Date.now() - startedAt) / 1_000)
       })
+    }
+  }
+
+  private startRenderProgressMonitor(
+    sandbox: SandboxJobsApi,
+    scope: CutScope,
+    input: CutRenderQueueJobData,
+    metadata: RenderMetadata
+  ) {
+    const stopHeartbeat = this.startRenderHeartbeat(input, metadata)
+    let lastSignature = ''
+    let pending = Promise.resolve()
+    const sync = async () => {
+      const snapshot = await sandbox.getJob({ jobId: input.jobId })
+      const progress = readCutSandboxProgress(snapshot)
+      if (!progress) return
+      const signature = `${snapshot?.status ?? 'missing'}:${progress.progress}:${progress.stage ?? ''}:${progress.current ?? ''}:${progress.total ?? ''}:${String(progress.updatedAt ?? '')}`
+      if (signature === lastSignature) return
+      const current = await this.requireJob(scope, input.projectId, input.jobId)
+      if (current.status !== 'running') return
+      const mapped = cutTaskProgress(progress.progress)
+      const stage = cutTaskStage(progress.stage)
+      current.progress = mapped
+      current.metadata = {
+        ...metadata,
+        stage,
+        sandboxProgress: {
+          progress: progress.progress,
+          ...(progress.stage ? { stage: progress.stage } : {}),
+          ...(progress.current !== undefined && progress.total !== undefined
+            ? { current: progress.current, total: progress.total }
+            : {}),
+          ...(progress.updatedAt ? { updatedAt: new Date(progress.updatedAt).toISOString() } : {})
+        }
+      } as unknown as CutJsonValue
+      await this.jobs.save(current)
+      lastSignature = signature
+      this.logRenderProgress('sandbox-progress', input, metadata, {
+        progress: mapped,
+        sandboxProgress: Math.round(progress.progress * 100),
+        ...(progress.current !== undefined && progress.total !== undefined
+          ? { frame: progress.current, frameCount: progress.total }
+          : {})
+      })
+    }
+    const schedule = () => {
+      pending = pending.then(sync).catch((error) => {
+        this.logger.warn(`Failed to synchronize Cut Sandbox progress ${input.jobId}: ${errorMessage(error)}`)
+      })
+    }
+    schedule()
+    const timer = setInterval(schedule, SANDBOX_PROGRESS_POLL_INTERVAL_MS)
+    timer.unref()
+    return async () => {
+      clearInterval(timer)
+      await pending
+      await sync().catch((error) => {
+        this.logger.warn(`Failed to finalize Cut Sandbox progress ${input.jobId}: ${errorMessage(error)}`)
+      })
+      stopHeartbeat()
     }
   }
 
@@ -771,5 +869,79 @@ function readSandboxJobFailure(error: unknown): { code: SandboxJobErrorCode; ret
   return code && typeof candidate.retryable === 'boolean' ? { code, retryable: candidate.retryable } : null
 }
 function errorMessage(error: unknown) { return error instanceof Error ? error.message : String(error) }
+
+function cutRenderFailure(error: unknown): { message: string; diagnostics: string; mediaFailure?: CutMediaFailure } {
+  const diagnostics = errorMessage(error)
+  const mediaFailure = jsonObjectAfter(diagnostics, 'CUT_MEDIA_SEEK_FAILED')
+  if (!mediaFailure) return { message: diagnostics, diagnostics: diagnostics.slice(-2_000) }
+  const concise = compactMediaFailure(mediaFailure)
+  return {
+    message: `${isCutFrameTimestampMismatch(mediaFailure) ? 'CUT_MEDIA_FRAME_TIMESTAMP_MISMATCH' : 'CUT_MEDIA_DECODE_FAILED'} ${JSON.stringify(concise)}`,
+    diagnostics: diagnostics.slice(-2_000),
+    mediaFailure: concise
+  }
+}
+
+function isCutFrameTimestampMismatch(value: Record<string, unknown>) {
+  return value.phase === 'seek-timeout'
+    && value.mediaErrorCode === null
+    && typeof value.lastMediaTime === 'number'
+    && Number.isFinite(value.lastMediaTime)
+    && typeof value.readyState === 'number'
+    && value.readyState >= 2
+}
+
+function compactMediaFailure(value: Record<string, unknown>): CutMediaFailure {
+  return {
+    ...(typeof value.phase === 'string' ? { phase: value.phase.slice(0, 32) } : {}),
+    ...(typeof value.attempt === 'number' && Number.isSafeInteger(value.attempt) ? { attempt: value.attempt } : {}),
+    ...(typeof value.clipId === 'string' ? { clipId: value.clipId.slice(0, 128) } : {}),
+    ...(typeof value.clipName === 'string' ? { clipName: value.clipName.slice(0, 160) } : {}),
+    ...(typeof value.mediaAssetId === 'string' ? { mediaAssetId: value.mediaAssetId.slice(0, 128) } : {}),
+    ...(typeof value.targetTime === 'number' && Number.isFinite(value.targetTime) ? { targetTime: value.targetTime } : {}),
+    ...(typeof value.currentTime === 'number' && Number.isFinite(value.currentTime) ? { currentTime: value.currentTime } : {}),
+    ...(typeof value.duration === 'number' && Number.isFinite(value.duration) ? { duration: value.duration } : {}),
+    ...(typeof value.lastMediaTime === 'number' && Number.isFinite(value.lastMediaTime)
+      ? { lastMediaTime: value.lastMediaTime }
+      : value.lastMediaTime === null ? { lastMediaTime: null } : {}),
+    ...(typeof value.readyState === 'number' && Number.isSafeInteger(value.readyState) ? { readyState: value.readyState } : {}),
+    ...(typeof value.networkState === 'number' && Number.isSafeInteger(value.networkState) ? { networkState: value.networkState } : {}),
+    ...(typeof value.mediaErrorCode === 'number'
+      ? { mediaErrorCode: value.mediaErrorCode }
+      : value.mediaErrorCode === null ? { mediaErrorCode: null } : {}),
+    ...(typeof value.mediaErrorMessage === 'string' || value.mediaErrorMessage === null
+      ? { mediaErrorMessage: typeof value.mediaErrorMessage === 'string' ? value.mediaErrorMessage.slice(0, 240) : null }
+      : {})
+  }
+}
+
+function jsonObjectAfter(value: string, marker: string): Record<string, unknown> | null {
+  const markerIndex = value.indexOf(marker)
+  const start = markerIndex < 0 ? -1 : value.indexOf('{', markerIndex + marker.length)
+  if (start < 0) return null
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let index = start; index < value.length; index += 1) {
+    const character = value[index]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (character === '\\') escaped = true
+      else if (character === '"') inString = false
+      continue
+    }
+    if (character === '"') inString = true
+    else if (character === '{') depth += 1
+    else if (character === '}' && --depth === 0) {
+      try {
+        const parsed: unknown = JSON.parse(value.slice(start, index + 1))
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null
+      } catch {
+        return null
+      }
+    }
+  }
+  return null
+}
 function isString(value: string | undefined): value is string { return typeof value === 'string' && Boolean(value) }
 function isUuid(value: string) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) }

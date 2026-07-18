@@ -29,13 +29,24 @@ import { computeCutWaveform } from '../../../cut-waveform'
 import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
-  placeCutMediaClip, removeUnusedStarterAudioTrack, toggleCutBookmark, type CutClipboard
+  placeCutMediaClip, removeUnusedStarterAudioTrack, toggleCutBookmark, updateCutClipAndFollowing, type CutClipboard
 } from '../../../cut-editor-model'
-import { clipStartFromDrag } from '../../../cut-timeline'
+import {
+  CUT_TIMELINE_MAX_PIXELS_PER_SECOND,
+  CUT_TIMELINE_MIN_PIXELS_PER_SECOND,
+  clipStartFromDrag,
+  fitTimelinePixelsPerSecond,
+  scaleTimelinePixelsPerSecond,
+  timelinePixelsPerSecondFromSlider,
+  timelineRulerMarks,
+  timelineVideoThumbnailSamples,
+  timelineZoomSliderValue,
+  type CutTimelineThumbnailSample
+} from '../../../cut-timeline'
 import { canExportCutVideo, exportCutVideo } from './cut-exporter'
 import { createCutTranslator, type CutMessageKey } from './cut-i18n'
 import { probeMediaDuration, probeMediaMetadata } from './cut-media-metadata'
-import { fitCutStage } from '../../../cut-media-layout'
+import { cutStageScale, fitCutStage } from '../../../cut-media-layout'
 import {
   DEFAULT_CUT_EXPORT_SETTINGS,
   cutExportProfile,
@@ -56,6 +67,8 @@ import {
 } from './cut-local-transcription'
 import { cutDebug } from './debug'
 import type { AnalysisJobSummary, CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaEvidenceSummary, MediaSummary, ProjectDetail } from './cut-types'
+import { cutTextBackgroundCss, cutTextFontFamilyCss, cutTextProjectFontSize, cutTextShadowCss } from './cut-text-rendering'
+import { TextClipInspector } from './text-clip-inspector'
 import {
   errorText, executeAction, executeFileAction, invokeClientCommand, isRemoteObject, notify, reportResize,
   requestData, requestFileAccess, responsePayload, startRemoteBridge, type RemoteContext, type RemoteValue
@@ -81,6 +94,9 @@ const FILE_ACCESS_REFRESH_WINDOW_MS = 5 * 60 * 1_000
 const FILE_ACCESS_REFRESH_RETRY_MS = 30_000
 const FILE_ACCESS_CONCURRENCY = 4
 const CREATE_PROJECT_SELECT_VALUE = '__cut_create_project__'
+const TIMELINE_THUMBNAIL_WIDTH = 96
+const TIMELINE_THUMBNAIL_CACHE_LIMIT = 240
+const TIMELINE_THUMBNAIL_CONCURRENCY = 2
 const LIBRARY_TAB_TITLES: Record<string, CutMessageKey> = {
   media: 'library', sounds: 'sounds', text: 'text', stickers: 'stickers', effects: 'effects', transitions: 'transitions',
   captions: 'captions', tasks: 'tasks', adjustment: 'adjustment', settings: 'settings'
@@ -127,6 +143,16 @@ type MediaAccessGrant = {
 }
 type ExportMode = 'browser' | 'background'
 
+type TimelineThumbnailTask = {
+  run: () => Promise<string | null>
+  resolve: (value: string | null) => void
+  reject: (reason?: unknown) => void
+}
+
+const timelineThumbnailCache = new Map<string, Promise<string | null>>()
+const timelineThumbnailQueue: TimelineThumbnailTask[] = []
+let activeTimelineThumbnailTasks = 0
+
 function App() {
   const [context, setContext] = React.useState<RemoteContext | null>(null)
   const [data, setData] = React.useState<CutViewData>(EMPTY)
@@ -151,6 +177,7 @@ function App() {
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = React.useState(false)
   const [newProjectTitle, setNewProjectTitle] = React.useState('')
   const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = React.useState(false)
+  const [jobPendingDeletion, setJobPendingDeletion] = React.useState<AnalysisJobSummary | null>(null)
   const [exportMode, setExportMode] = React.useState<ExportMode>('browser')
   const [exportSettings, setExportSettings] = React.useState<CutExportSettings>(() => ({ ...DEFAULT_CUT_EXPORT_SETTINGS }))
   const [libraryTab, setLibraryTab] = React.useState('media')
@@ -174,6 +201,7 @@ function App() {
   const uploadRef = React.useRef<HTMLInputElement | null>(null)
   const subtitleUploadRef = React.useRef<HTMLInputElement | null>(null)
   const stageShellRef = React.useRef<HTMLDivElement | null>(null)
+  const timelineScrollRef = React.useRef<HTMLDivElement | null>(null)
   const exportCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const dirtyRef = React.useRef(false)
   const selectedProjectRef = React.useRef<string | null>(null)
@@ -355,6 +383,17 @@ function App() {
   ), [t])
 
   const duration = documentDraft?.settings.durationSeconds ?? 30
+  const fitTimelineZoom = () => {
+    const viewport = timelineScrollRef.current
+    if (!viewport) return
+    setPixelsPerSecond(fitTimelinePixelsPerSecond({
+      viewportWidth: viewport.clientWidth,
+      duration,
+      gutterWidth: TRACK_GUTTER,
+      horizontalPadding: 16
+    }))
+    requestAnimationFrame(() => viewport.scrollTo({ left: 0, behavior: 'smooth' }))
+  }
   const localTranscriptionMedia = data.detail?.media.filter((asset) => asset.id && asset.previewUrl && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))) ?? []
   const selectedClip = documentDraft && selectedClipId ? findClip(documentDraft, selectedClipId) : null
   const selectedMediaAsset = data.detail?.media.find((asset) => mediaDragKey(asset) === selectedMediaKey) ?? null
@@ -769,6 +808,32 @@ function App() {
       })
       await load(projectId, true)
     } catch (error) { notify('error', errorText(error)) } finally { setSaving(false) }
+  }
+
+  const deleteAnalysisJob = async () => {
+    const projectId = data.detail?.item.id
+    const jobId = jobPendingDeletion?.id
+    if (!projectId || !jobId) return
+    setSaving(true)
+    try {
+      await executeAction('cut_delete_analysis_job', projectId, {
+        projectId,
+        jobId,
+        changeSummary: 'Deleted Cut task history from Workbench.'
+      })
+      setData((current) => ({
+        ...current,
+        analysisJobs: current.analysisJobs.filter((job) => job.id !== jobId)
+      }))
+      setJobPendingDeletion(null)
+      await load(projectId, true)
+      notify('success', t('jobDeleted'))
+    } catch (error) {
+      const message = errorText(error)
+      notify('error', /cancel the active cut analysis job/i.test(message) ? t('jobDeleteActive') : message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const openExportConfiguration = () => {
@@ -1208,7 +1273,7 @@ function App() {
 
   const updateSelectedClip = (update: (clip: CutClip) => CutClip) => {
     if (!selectedClipId) return
-    commitDraft((document) => updateClip(document, selectedClipId, update))
+    commitDraft((document) => updateCutClipAndFollowing(document, selectedClipId, update))
   }
 
   const addTextClip = (preset: 'heading' | 'subtitle' | 'bodyText') => {
@@ -1372,7 +1437,6 @@ function App() {
       </div>
       <div className="cut-status-inline">
         <span>{loading ? t('loading') : status}</span>
-        {data.detail && <Badge variant="outline">r{data.detail.item.revision}</Badge>}
         {dirty && <Badge data-status="warning">{t('unsaved')}</Badge>}
       </div>
       <div className="cut-actions">
@@ -1477,10 +1541,10 @@ function App() {
               <div className="caption-section-title"><Sparkles />{t('editProposals')}</div>
               {!data.editProposals.length && <div className="empty-card">{t('noEditProposals')}</div>}
               <div className="proposal-list">{data.editProposals.map((proposal) => <button key={proposal.id} data-proposal-status={proposal.status} className={proposalReview?.item.id === proposal.id ? 'active' : ''} onClick={() => proposal.id && void loadEditProposal(proposal.id)}>
-                <span>{proposal.goal}</span><small>r{proposal.revision} · {proposal.enabledItemCount}/{proposal.itemCount} · {proposal.status}</small>
+                <span>{proposal.goal}</span><small>{proposal.enabledItemCount}/{proposal.itemCount} · {proposal.status}</small>
               </button>)}</div>
               {proposalReview && <div className="proposal-review" data-testid="cut-proposal-review">
-                <div className="proposal-review-head"><strong>{proposalReview.item.goal}</strong><div><Badge variant="outline">r{proposalReview.item.sourceRevision}</Badge>{proposalReview.item.highRiskCount > 0 && <Badge data-status="warning">{proposalReview.item.highRiskCount} {t('highRisk')}</Badge>}</div></div>
+                <div className="proposal-review-head"><strong>{proposalReview.item.goal}</strong><div>{proposalReview.item.highRiskCount > 0 && <Badge data-status="warning">{proposalReview.item.highRiskCount} {t('highRisk')}</Badge>}</div></div>
                 <div className="proposal-diff"><span>{proposalReview.preview.changedClipIds.length} {t('clipsChanged')}</span><span>{proposalReview.preview.changedTrackIds.length} {t('tracksChanged')}</span><span>{formatTime(proposalReview.preview.estimatedDurationSeconds)}</span></div>
                 {proposalReview.preview.document && <div className="proposal-preview" aria-label={t('proposalPreview')}><StageCanvas document={proposalReview.preview.document} playhead={Math.min(playhead, proposalReview.preview.document.settings.durationSeconds)} playing={false} zoom={1} selectedClipIds={[]} onSelect={() => undefined} onTransform={() => undefined} onState={() => undefined} emptyText={t('selectOrUpload')} /></div>}
                 <div className="proposal-item-list">{proposalReview.item.items.map((item) => <label key={item.id} data-risk={item.risk}>
@@ -1513,10 +1577,10 @@ function App() {
               <div className="caption-section-title">{t('captionDrafts')}</div>
               {!data.captionDrafts.length && <div className="empty-card">{t('noCaptionDrafts')}</div>}
               <div className="caption-draft-list">{data.captionDrafts.map((draft) => <button key={draft.id} className={captionReview?.item.id === draft.id ? 'active' : ''} onClick={() => draft.id && void loadCaptionDraft(draft.id)}>
-                <span>{draft.language.toUpperCase()} · {draft.captionCount}</span><small>r{draft.revision} · {draft.status}</small>
+                <span>{draft.language.toUpperCase()} · {draft.captionCount}</span><small>{draft.status}</small>
               </button>)}</div>
               {captionReview && <div className="caption-review">
-                <div className="caption-review-toolbar"><Badge variant="outline">{captionReview.total} · r{captionReview.item.revision}</Badge><div>
+                <div className="caption-review-toolbar"><Badge variant="outline">{captionReview.total}</Badge><div>
                   <Button variant="ghost" size="xs" disabled={captionReview.item.status !== 'draft'} onClick={() => void runCaptionEdit({ action: 'offset', seconds: -0.1 })}>{t('offsetEarlier')}</Button>
                   <Button variant="ghost" size="xs" disabled={captionReview.item.status !== 'draft'} onClick={() => void runCaptionEdit({ action: 'offset', seconds: 0.1 })}>{t('offsetLater')}</Button>
                 </div></div>
@@ -1553,16 +1617,17 @@ function App() {
                 </div>
                 {!renderJobs.length && <div className="empty-card">{t('noExports')}</div>}
                 {renderJobs.map((job) => {
-                  const renderingWithoutMeasuredProgress = job.status === 'running' && job.stage === 'rendering'
+                  const renderingWithoutMeasuredProgress = job.status === 'running' && job.stage === 'rendering' && job.progress <= 20
                   return <div className={`export-task-card ${job.status}`} key={job.id}>
                     <div className="export-task-row"><strong>{(job.exportSettings?.format ?? 'mp4').toUpperCase()} · {job.variantName ?? 'default'}</strong><Badge variant={job.status === 'failed' ? 'destructive' : 'outline'} data-status={job.status === 'succeeded' ? 'success' : job.status === 'running' || job.status === 'queued' ? 'warning' : undefined}>{formatTaskStatus(job.status, t)}</Badge></div>
-                    <small>{formatExportQuality(job.exportSettings?.quality ?? 'high', t)} · {job.exportSettings?.includeAudio === false ? t('audioExcluded') : t('audioIncluded')} · r{job.inputRevision}</small>
+                    <small>{formatExportQuality(job.exportSettings?.quality ?? 'high', t)} · {job.exportSettings?.includeAudio === false ? t('audioExcluded') : t('audioIncluded')}</small>
                     {(job.status === 'queued' || job.status === 'running') && (renderingWithoutMeasuredProgress
                       ? <div className="cut-indeterminate-progress" role="progressbar" aria-label={t('rendering')} aria-valuetext={t('rendering')}><span /></div>
                       : <Progress value={job.progress} />)}
                     <div className="export-task-row"><small>{formatTaskStage(job.stage, job.status, t)}{renderingWithoutMeasuredProgress ? '' : ` · ${job.progress}%`}</small><span>
                       {job.resultExportId && <Button variant="outline" size="xs" disabled={downloadingExportId === job.resultExportId} onClick={() => void downloadExport(job.resultExportId!)}><Download />{t('download')}</Button>}
                       {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
+                      {job.id && isTerminalTaskStatus(job.status) && <Button variant="ghost" size="icon-xs" title={t('deleteJob')} aria-label={t('deleteJob')} disabled={saving} onClick={() => setJobPendingDeletion(job)}><Trash2 /></Button>}
                     </span></div>
                     {job.errorMessage && <p className="export-task-error" title={job.errorMessage}>{formatBackgroundJobError(job.errorMessage, t)}</p>}
                     {isWorkspaceMediaMissing(job.errorMessage) && <Button variant="outline" size="xs" onClick={() => { setLibraryTab('media'); uploadRef.current?.click() }}><Upload />{t('repairMedia')}</Button>}
@@ -1570,13 +1635,16 @@ function App() {
                 })}
                 {!!analysisJobs.length && <div className="export-center-section-title">{t('analysisJobs')}</div>}
                 {analysisJobs.map((job) => <div key={job.id} className={`analysis-job ${job.status}`}>
-                  <div><strong>{job.type === 'transcription' ? `STT · ${(job.language ?? 'und').toUpperCase()}` : `${job.type.replaceAll('_', ' ')} · ${job.executionMode.toUpperCase()}`}</strong><small>{formatTaskStage(job.stage, job.status, t)} · {job.progress}%</small></div>
+                  <div><strong>{job.type === 'transcription' ? `STT · ${(job.language ?? 'und').toUpperCase()} · ${formatTranscriptionMode(job.transcriptionMode, t)}` : `${job.type.replaceAll('_', ' ')} · ${job.executionMode.toUpperCase()}`}</strong><small>{formatTaskStage(job.stage, job.status, t)} · {job.progress}%</small></div>
                   {job.errorMessage && <span title={job.errorMessage}>{formatBackgroundJobError(job.errorMessage, t)}</span>}
-                  {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
+                  <aside className="analysis-job-actions">
+                    {job.id && (job.status === 'queued' || job.status === 'running') && <Button variant="ghost" size="xs" disabled={saving || job.cancellationRequested} onClick={() => void cancelAnalysisJob(job.id!)}>{t('cancelJob')}</Button>}
+                    {job.id && isTerminalTaskStatus(job.status) && <Button variant="ghost" size="icon-xs" title={t('deleteJob')} aria-label={t('deleteJob')} disabled={saving} onClick={() => setJobPendingDeletion(job)}><Trash2 /></Button>}
+                  </aside>
                 </div>)}
                 {!!recentExports.length && <div className="export-center-section-title">{t('recentOutputs')}</div>}
                 {recentExports.map((item) => <div className="export-output-row" key={item.id}>
-                  <div><strong>{item.fileName || `${item.kind.toUpperCase()} export`}</strong><small>{item.kind.toUpperCase()} · {formatBytes(item.size)}{item.sourceRevision ? ` · r${item.sourceRevision}` : ''}</small></div>
+                  <div><strong>{item.fileName || `${item.kind.toUpperCase()} export`}</strong><small>{item.kind.toUpperCase()} · {formatBytes(item.size)}</small></div>
                   {item.id && <Button variant="ghost" size="icon-sm" title={t('download')} disabled={downloadingExportId === item.id} onClick={() => void downloadExport(item.id!)}><Download /></Button>}
                 </div>)}
               </div>
@@ -1601,7 +1669,7 @@ function App() {
         <div ref={stageShellRef} className="stage-shell">
           {selectedMediaAsset
             ? <MediaAssetPreview asset={selectedMediaAsset} onState={handleMediaState} emptyText={t('selectOrUpload')} />
-            : <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateClip(document, clipId, (clip) => ({ ...clip, transform })))} onState={handleMediaState} emptyText={t('selectOrUpload')} />}
+            : <StageCanvas document={documentDraft} playhead={playhead} playing={isPlaying} zoom={previewZoom === 'fit' ? 1 : Number(previewZoom) / 100} selectedClipIds={selectedClipIds} onSelect={selectOnly} onTransform={(clipId, transform) => commitDraft((document) => updateCutClipAndFollowing(document, clipId, (clip) => ({ ...clip, transform })))} onState={handleMediaState} emptyText={t('selectOrUpload')} />}
           <span className={`media-state ${mediaState}`}>{mediaState === 'loaded' ? t('mediaLoaded') : mediaState}</span>
         </div>
         {selectedMediaAsset ? <div className="media-preview-controls"><div><strong>{selectedMediaAsset.originalName}</strong><small>{t('mediaPreviewHint')}</small></div><Button variant="outline" size="sm" onClick={() => { setSelectedMediaKey(null); setMediaState('idle') }}><RotateCcw />{t('backToTimeline')}</Button></div> : <div className="playback-controls">
@@ -1620,7 +1688,7 @@ function App() {
       <aside className="cut-inspector-panel">
         <div className="panel-heading"><strong>{t('properties')}</strong>{selectedClipIds.length > 1 ? <Badge variant="secondary">{selectedClipIds.length} {t('selected')}</Badge> : <Settings2 />}</div>
         <Tabs defaultValue="basic" className="cut-inspector-tabs">
-          <TabsList className="cut-inspector-tablist"><TabsTrigger value="basic">{t('basic')}</TabsTrigger><TabsTrigger value="project">{t('project')}</TabsTrigger></TabsList>
+          <TabsList className="cut-inspector-tablist"><TabsTrigger value="basic">{selectedClip?.type === 'text' ? t('text') : t('basic')}</TabsTrigger><TabsTrigger value="project">{t('project')}</TabsTrigger></TabsList>
           <TabsContent value="basic" className="cut-inspector-pane"><ScrollArea className="cut-inspector-scroll">
             {!selectedClip && <div className="empty-card">{t('noSelection')}</div>}
             {selectedClip && <ClipInspector clip={selectedClip} document={documentDraft!} t={t} onChange={updateSelectedClip} onDuplicate={duplicateSelected} onDelete={deleteSelected} onRestoreSourceDuration={() => void matchSelectedSourceDuration()} restoringDuration={restoringDuration} />}
@@ -1655,16 +1723,22 @@ function App() {
           <Button variant="ghost" size="xs" onClick={() => addTrack('audio')}><Plus />{t('addAudioTrack')}</Button>
         </div>
         <div className="timeline-mode-actions"><Button variant={snappingEnabled ? 'secondary' : 'ghost'} size="icon-xs" title={t('snapping')} aria-pressed={snappingEnabled} onClick={() => setSnappingEnabled((value) => !value)}><Magnet /></Button><Button variant={rippleEditingEnabled ? 'secondary' : 'ghost'} size="icon-xs" title={t('ripple')} aria-pressed={rippleEditingEnabled} onClick={() => setRippleEditingEnabled((value) => !value)}><Waves /></Button></div>
-        <div className="timeline-zoom"><ZoomOut /><Slider min={24} max={120} step={4} value={[pixelsPerSecond]} onValueChange={(value) => setPixelsPerSecond(value[0] ?? 48)} /><ZoomIn /></div>
+        <div className="timeline-zoom">
+          <Button variant="ghost" size="icon-xs" title={t('timelineZoomOut')} aria-label={t('timelineZoomOut')} disabled={pixelsPerSecond <= CUT_TIMELINE_MIN_PIXELS_PER_SECOND} onClick={() => setPixelsPerSecond((current) => scaleTimelinePixelsPerSecond(current, 0.8))}><ZoomOut /></Button>
+          <Slider min={0} max={100} step={1} value={[timelineZoomSliderValue(pixelsPerSecond)]} onValueChange={(value) => setPixelsPerSecond(timelinePixelsPerSecondFromSlider(value[0] ?? timelineZoomSliderValue(48)))} />
+          <output className="timeline-zoom-value" aria-live="polite">{formatTimelineZoom(pixelsPerSecond)}</output>
+          <Button variant="ghost" size="icon-xs" title={t('timelineZoomIn')} aria-label={t('timelineZoomIn')} disabled={pixelsPerSecond >= CUT_TIMELINE_MAX_PIXELS_PER_SECOND} onClick={() => setPixelsPerSecond((current) => scaleTimelinePixelsPerSecond(current, 1.25))}><ZoomIn /></Button>
+          <Button variant="ghost" size="icon-xs" title={t('fitTimeline')} aria-label={t('fitTimeline')} onClick={fitTimelineZoom}><Maximize2 /></Button>
+        </div>
       </div>
-      <div className="timeline-scroll">
+      <div ref={timelineScrollRef} className="timeline-scroll">
         <div className="timeline-content" style={{ width: duration * pixelsPerSecond + TRACK_GUTTER }}>
           <div className="timeline-ruler-row"><div className="ruler-gutter" /><div className="timeline-ruler" onPointerDown={(event) => seek((event.clientX - event.currentTarget.getBoundingClientRect().left) / pixelsPerSecond)}>
-            {rulerMarks(duration).map((second) => <span key={second} style={{ left: second * pixelsPerSecond }}>{second}s</span>)}
+            {timelineRulerMarks(duration, pixelsPerSecond).map((second) => <span key={second} style={{ left: second * pixelsPerSecond }}>{formatTimelineRulerTime(second)}</span>)}
             {(documentDraft?.bookmarks ?? []).map((bookmark) => <button key={bookmark.id} className="timeline-bookmark" style={{ left: bookmark.time * pixelsPerSecond }} title={bookmark.label} onPointerDown={(event) => { event.stopPropagation(); seek(bookmark.time) }}><Bookmark /></button>)}
             <i className="global-playhead" style={{ left: playhead * pixelsPerSecond }} />
           </div></div>
-          {documentDraft?.tracks.map((track) => <div className="timeline-row" key={track.id}>
+          {documentDraft?.tracks.map((track) => <div className={`timeline-row ${track.clips.length > 0 && track.clips.every((clip) => clip.type === 'text') ? 'text-track' : ''}`} key={track.id}>
             <div className="track-label"><div><strong>{track.name}</strong><small>{track.kind}</small></div><div className="track-controls">
               <Button variant="ghost" size="icon-xs" title={t('trackVisible')} onClick={() => commitDraft((document) => updateTrack(document, track.id, (item) => ({ ...item, hidden: !item.hidden })))}>{track.hidden ? <EyeOff /> : <Eye />}</Button>
               <Button variant="ghost" size="icon-xs" title={t('trackMuted')} onClick={() => commitDraft((document) => updateTrack(document, track.id, (item) => ({ ...item, muted: !item.muted })))}>{track.muted ? <VolumeX /> : <Volume2 />}</Button>
@@ -1702,7 +1776,8 @@ function App() {
               }}>
                 <span className="trim-handle left" onPointerDown={(event) => beginTrim(event, 'trim-start', clip, documentDraft, duration, pixelsPerSecond, snappingEnabled, rippleEditingEnabled, playheadRef.current, dragRef, selectOnly)} />
                 {clip.type === 'audio' && <AudioWaveform clip={clip} />}
-                <ClipGlyph type={clip.type} /><div className="clip-copy"><strong>{clip.name}</strong><small>{clip.start.toFixed(2)}–{(clip.start + clip.duration).toFixed(2)}s</small></div>
+                {clip.type === 'video' && clip.previewUrl && <TimelineVideoStrip clip={clip} pixelsPerSecond={pixelsPerSecond} />}
+                <ClipGlyph type={clip.type} /><div className="clip-copy" title={clip.type === 'text' ? clip.text ?? clip.name : clip.name}><strong>{clip.type === 'text' ? clip.text?.trim() || clip.name : clip.name}</strong>{clip.type !== 'text' && <small>{clip.start.toFixed(2)}–{(clip.start + clip.duration).toFixed(2)}s</small>}</div>
                 <span className="trim-handle right" onPointerDown={(event) => beginTrim(event, 'trim-end', clip, documentDraft, duration, pixelsPerSecond, snappingEnabled, rippleEditingEnabled, playheadRef.current, dragRef, selectOnly)} />
               </div></ContextMenuTrigger><ContextMenuContent>
                 <ContextMenuItem onSelect={splitSelected}><Scissors />{t('split')}<ContextMenuShortcut>S</ContextMenuShortcut></ContextMenuItem>
@@ -1746,6 +1821,19 @@ function App() {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={saving} onClick={() => setDeleteProjectDialogOpen(false)}>{t('deleteProjectCancel')}</AlertDialogCancel>
           <AlertDialogAction variant="destructive" disabled={saving} onClick={(event) => { event.preventDefault(); void deleteProject() }}><Trash2 />{saving ? t('deletingProject') : t('deleteProjectConfirm')}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={Boolean(jobPendingDeletion)} onOpenChange={(open) => { if (!open && !saving) setJobPendingDeletion(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('deleteJobTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('deleteJobDescription')} {jobPendingDeletion ? formatTaskLabel(jobPendingDeletion) : ''}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={saving} onClick={() => setJobPendingDeletion(null)}>{t('deleteJobCancel')}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" disabled={saving} onClick={(event) => { event.preventDefault(); void deleteAnalysisJob() }}><Trash2 />{saving ? t('deletingJob') : t('deleteJobConfirm')}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -1863,6 +1951,7 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
   const stagedAudioClips = document.tracks.filter((track) => track.kind === 'audio' && !track.muted)
     .flatMap((track) => track.clips)
     .filter((clip) => shouldMountPreviewMedia(clip, playhead))
+  const previewScale = stageSize ? cutStageScale(stageSize, document.settings) : 1
   return <div ref={canvasRef} className="stage-canvas" style={{
     width: stageSize ? `${stageSize.width}px` : '100%',
     height: stageSize ? `${stageSize.height}px` : '100%',
@@ -1873,7 +1962,7 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
     {!visualClips.length && <div className="preview-empty"><Film /><p>{emptyText}</p></div>}
     {stagedVisualClips.map(({ clip, muted }) => {
       const active = playhead >= clip.start && playhead < clip.start + clip.duration
-      return <StageLayer key={clip.id} clip={clip} document={document} playhead={playhead} playing={playing} active={active} muted={muted} selected={active && selectedClipIds.includes(clip.id)} onSelect={() => onSelect(clip.id)} onTransform={(transform) => onTransform(clip.id, transform)} onState={onState} />
+      return <StageLayer key={clip.id} clip={clip} document={document} previewScale={previewScale} playhead={playhead} playing={playing} active={active} muted={muted} selected={active && selectedClipIds.includes(clip.id)} onSelect={() => onSelect(clip.id)} onTransform={(transform) => onTransform(clip.id, transform)} onState={onState} />
     })}
     {stagedAudioClips.map((clip) => {
       const active = playhead >= clip.start && playhead < clip.start + clip.duration
@@ -1882,8 +1971,8 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
   </div>
 }
 
-function StageLayer({ clip, document, playhead, playing, active, muted, selected, onSelect, onTransform, onState }: {
-  clip: CutClip; document: CutDocument; playhead: number; playing: boolean; active: boolean; muted: boolean; selected: boolean; onSelect: () => void
+function StageLayer({ clip, document, previewScale, playhead, playing, active, muted, selected, onSelect, onTransform, onState }: {
+  clip: CutClip; document: CutDocument; previewScale: number; playhead: number; playing: boolean; active: boolean; muted: boolean; selected: boolean; onSelect: () => void
   onTransform: (transform: NonNullable<CutClip['transform']>) => void; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void
 }) {
   const transform = clip.transform ?? { x: 0, y: 0, width: document.settings.width, height: document.settings.height, rotation: 0, opacity: 1 }
@@ -1974,12 +2063,26 @@ function StageLayer({ clip, document, playhead, playing, active, muted, selected
     filter: effectsToCss(clip.effects), mixBlendMode: clip.blendMode ?? 'normal', clipPath: maskToCss(clip.mask)
   }
   const mediaStyle: React.CSSProperties = { objectFit: mediaObjectFit(clip.mediaFit) }
+  const previewTextMetric = (value: number) => value * previewScale
   return <div ref={rootRef} className={`stage-layer ${selected ? 'selected' : ''}`} style={style} onPointerDown={(event) => beginCanvasInteraction(event, 'move')} onPointerMove={moveCanvasInteraction} onPointerUp={endCanvasInteraction} onPointerCancel={cancelCanvasInteraction}>
     <div className="stage-layer-content" style={contentStyle}>
       {clip.type === 'video' && clip.previewUrl ? <StageVideo clip={clip} playhead={playhead} playing={playing} active={active} muted={muted || Boolean(clip.audioDetached)} onState={onState} /> : null}
       {clip.type === 'image' && clip.previewUrl ? <img src={clip.previewUrl} style={mediaStyle} crossOrigin="use-credentials" draggable={false} alt={clip.name} onLoad={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} /> : null}
       {clip.type === 'color' ? <div className="stage-color" style={{ background: clip.color ?? '#111827' }} /> : null}
-      {clip.type === 'text' ? <div className="stage-text" style={{ color: clip.color ?? '#f8fafc', fontSize: clip.fontSize ? `${Math.max(12, clip.fontSize / document.settings.width * 72)}px` : clip.name.toLowerCase().includes('heading') ? 'clamp(22px,5vw,72px)' : 'clamp(16px,3vw,42px)', fontWeight: clip.fontWeight ?? 750, textAlign: clip.textAlign ?? 'center' }}>{clip.text ?? clip.name}</div> : null}
+      {clip.type === 'text' ? <div className="stage-text" style={{
+        alignItems: clip.verticalAlign === 'top' ? 'flex-start' : clip.verticalAlign === 'bottom' ? 'flex-end' : 'center',
+        justifyContent: clip.textAlign === 'left' ? 'flex-start' : clip.textAlign === 'right' ? 'flex-end' : 'center'
+      }}><span style={{
+        color: clip.color ?? '#f8fafc',
+        background: cutTextBackgroundCss(clip.textBackgroundColor, clip.textBackgroundOpacity),
+        fontFamily: cutTextFontFamilyCss(clip.fontFamily),
+        fontSize: `${Math.max(1, previewTextMetric(cutTextProjectFontSize(clip, document)))}px`,
+        fontStyle: clip.fontStyle ?? 'normal', fontWeight: clip.fontWeight ?? 750,
+        letterSpacing: `${previewTextMetric(clip.letterSpacing ?? 0)}px`, lineHeight: clip.lineHeight ?? 1.15,
+        textAlign: clip.textAlign ?? 'center', textDecoration: clip.textDecoration ?? 'none',
+        WebkitTextStroke: `${Math.max(0, previewTextMetric(clip.strokeWidth ?? 0))}px ${clip.strokeColor ?? 'transparent'}`,
+        textShadow: cutTextShadowCss({ ...clip, textShadowBlur: Math.max(0, previewTextMetric(clip.textShadowBlur ?? 0)), textShadowOffsetX: previewTextMetric(clip.textShadowOffsetX ?? 0), textShadowOffsetY: previewTextMetric(clip.textShadowOffsetY ?? 0) })
+      }}>{clip.text ?? clip.name}</span></div> : null}
     </div>
     {selected && <React.Fragment>
       <span className="canvas-rotation-stem" aria-hidden="true" />
@@ -2159,6 +2262,8 @@ function ClipInspector({ clip, document, t, onChange, onDuplicate, onDelete, onR
 }) {
   const transform = clip.transform
   return <div className="inspector-form">
+    <p className="inspector-style-sync-hint">{t('styleSyncHint')}</p>
+    {clip.type === 'text' && <TextClipInspector clip={clip} document={document} t={t} onChange={onChange} />}
     <section><div className="inspector-section-title"><span>{t('clip')}</span><Badge variant="secondary">{clip.type}</Badge></div>
       <label><span>{t('start')}</span><NumberInput value={clip.start} step={0.033} min={0} max={document.settings.durationSeconds - clip.duration} onValue={(value) => onChange((item) => ({ ...item, start: roundTime(clamp(value, 0, document.settings.durationSeconds - item.duration)) }))} /></label>
       <label><span>{t('duration')}</span><NumberInput value={clip.duration} step={0.033} min={MIN_CLIP_DURATION} max={document.settings.durationSeconds - clip.start} onValue={(value) => onChange((item) => {
@@ -2172,11 +2277,6 @@ function ClipInspector({ clip, document, t, onChange, onDuplicate, onDelete, onR
       <label><span>{t('volume')}</span><NumberInput value={clip.volume ?? 1} step={0.1} min={0} max={2} onValue={(value) => onChange((item) => ({ ...item, volume: clamp(value, 0, 2) }))} /></label>
       <label><span>{t('speed')}</span><NumberInput value={clip.playbackRate ?? 1} step={0.25} min={0.1} max={8} onValue={(value) => onChange((item) => ({ ...item, playbackRate: clamp(value, 0.1, 8) }))} /></label>
       {clip.previewUrl && <Button variant="outline" size="sm" disabled={restoringDuration} onClick={onRestoreSourceDuration}><RotateCcw />{restoringDuration ? t('matchingSourceDuration') : t('matchSourceDuration')}</Button>}
-    </section>}
-    {clip.type === 'text' && <section><div className="inspector-section-title">{t('text')}</div>
-      <label className="stacked"><span>{t('content')}</span><Input value={clip.text ?? ''} onChange={(event) => onChange((item) => ({ ...item, text: event.target.value, name: event.target.value || item.name }))} /></label>
-      <label><span>{t('fontSize')}</span><NumberInput value={clip.fontSize ?? document.settings.height * 0.08} step={1} min={1} max={1000} onValue={(value) => onChange((item) => ({ ...item, fontSize: value }))} /></label>
-      <ColorField label={t('color')} value={clip.color ?? '#f8fafc'} onValue={(value) => onChange((item) => ({ ...item, color: value }))} />
     </section>}
     {clip.type === 'color' && <section><ColorField label={t('color')} value={clip.color ?? '#111827'} onValue={(value) => onChange((item) => ({ ...item, color: value }))} /></section>}
     {transform && <section><div className="inspector-section-title">{t('transform')}</div><div className="field-grid">
@@ -2244,6 +2344,173 @@ function ColorField({ label, value, onValue }: { label: string; value: string; o
   return <label className="color-field"><span>{label}</span><span><input type="color" value={normalizeHex(value)} onChange={(event) => onValue(event.target.value)} /><Input value={value} onChange={(event) => onValue(event.target.value)} /></span></label>
 }
 
+function TimelineVideoStrip({ clip, pixelsPerSecond }: { clip: CutClip; pixelsPerSecond: number }) {
+  const rootRef = React.useRef<HTMLSpanElement | null>(null)
+  const [samples, setSamples] = React.useState<CutTimelineThumbnailSample[]>([])
+  const [frames, setFrames] = React.useState<Map<string, string>>(() => new Map())
+
+  React.useLayoutEffect(() => {
+    const root = rootRef.current
+    const scroller = root?.closest('.timeline-scroll')
+    if (!root || !(scroller instanceof HTMLElement)) return undefined
+    let animationFrame = 0
+    const measure = () => {
+      cancelAnimationFrame(animationFrame)
+      animationFrame = requestAnimationFrame(() => {
+        const clipRect = root.getBoundingClientRect()
+        const viewportRect = scroller.getBoundingClientRect()
+        const next = timelineVideoThumbnailSamples({
+          clipDuration: clip.duration,
+          trimIn: clip.trimIn,
+          playbackRate: clip.playbackRate,
+          pixelsPerSecond,
+          visibleStart: viewportRect.left - clipRect.left,
+          visibleEnd: viewportRect.right - clipRect.left,
+          cellWidth: TIMELINE_THUMBNAIL_WIDTH,
+          maxSamples: 24
+        })
+        setSamples((current) => thumbnailSamplesEqual(current, next) ? current : next)
+      })
+    }
+    measure()
+    scroller.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
+    const observer = new ResizeObserver(measure)
+    observer.observe(root)
+    observer.observe(scroller)
+    return () => {
+      cancelAnimationFrame(animationFrame)
+      scroller.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+      observer.disconnect()
+    }
+  }, [clip.duration, clip.playbackRate, clip.trimIn, pixelsPerSecond])
+
+  React.useEffect(() => {
+    const source = clip.previewUrl
+    if (!source || !samples.length) return undefined
+    let cancelled = false
+    void Promise.all(samples.map(async (sample) => {
+      const key = timelineThumbnailKey(source, sample.sourceTime)
+      const frame = await requestTimelineVideoThumbnail(source, sample.sourceTime)
+      return { key, frame }
+    })).then((resolved) => {
+      if (cancelled) return
+      setFrames((current) => {
+        const next = new Map(current)
+        for (const item of resolved) if (item.frame) next.set(item.key, item.frame)
+        return next
+      })
+    })
+    return () => { cancelled = true }
+  }, [clip.previewUrl, samples])
+
+  return <span ref={rootRef} className="timeline-video-strip" aria-hidden="true">
+    {samples.map((sample) => {
+      const key = timelineThumbnailKey(clip.previewUrl ?? '', sample.sourceTime)
+      const frame = frames.get(key)
+      return frame
+        ? <img key={key} src={frame} draggable={false} style={{ left: sample.left, width: sample.width }} alt="" />
+        : <i key={key} className="timeline-video-frame-placeholder" style={{ left: sample.left, width: sample.width }} />
+    })}
+  </span>
+}
+
+function thumbnailSamplesEqual(left: readonly CutTimelineThumbnailSample[], right: readonly CutTimelineThumbnailSample[]) {
+  return left.length === right.length && left.every((sample, index) => {
+    const candidate = right[index]
+    return candidate?.left === sample.left && candidate.width === sample.width && candidate.sourceTime === sample.sourceTime
+  })
+}
+
+function timelineThumbnailKey(source: string, sourceTime: number) {
+  return `${source}#t=${sourceTime.toFixed(3)}`
+}
+
+function requestTimelineVideoThumbnail(source: string, sourceTime: number) {
+  const key = timelineThumbnailKey(source, sourceTime)
+  const cached = timelineThumbnailCache.get(key)
+  if (cached) return cached
+  while (timelineThumbnailCache.size >= TIMELINE_THUMBNAIL_CACHE_LIMIT) {
+    const oldest = timelineThumbnailCache.keys().next().value as string | undefined
+    if (!oldest) break
+    timelineThumbnailCache.delete(oldest)
+  }
+  const pending = enqueueTimelineThumbnail(() => captureTimelineVideoThumbnail(source, sourceTime))
+    .catch((error) => {
+      cutDebug.debug('timeline.thumbnail-skipped', { sourceTime, reason: errorText(error) })
+      return null
+    })
+  timelineThumbnailCache.set(key, pending)
+  return pending
+}
+
+function enqueueTimelineThumbnail(run: () => Promise<string | null>) {
+  return new Promise<string | null>((resolve, reject) => {
+    timelineThumbnailQueue.push({ run, resolve, reject })
+    drainTimelineThumbnailQueue()
+  })
+}
+
+function drainTimelineThumbnailQueue() {
+  while (activeTimelineThumbnailTasks < TIMELINE_THUMBNAIL_CONCURRENCY && timelineThumbnailQueue.length) {
+    const task = timelineThumbnailQueue.shift()!
+    activeTimelineThumbnailTasks += 1
+    void task.run().then(task.resolve, task.reject).finally(() => {
+      activeTimelineThumbnailTasks -= 1
+      drainTimelineThumbnailQueue()
+    })
+  }
+}
+
+async function captureTimelineVideoThumbnail(source: string, sourceTime: number) {
+  const video = document.createElement('video')
+  video.crossOrigin = 'use-credentials'
+  video.preload = 'auto'
+  video.muted = true
+  video.playsInline = true
+  video.src = source
+  try {
+    await waitForTimelineMedia(video, 'loadedmetadata')
+    const maximum = Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.04) : sourceTime
+    const target = Math.min(Math.max(0, sourceTime), maximum)
+    if (target <= 0.01) {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) await waitForTimelineMedia(video, 'loadeddata')
+    } else {
+      const seeked = waitForTimelineMedia(video, 'seeked')
+      video.currentTime = target
+      await seeked
+    }
+    if (!video.videoWidth || !video.videoHeight) return null
+    const canvas = document.createElement('canvas')
+    canvas.width = 160
+    canvas.height = 90
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.68)
+  } finally {
+    video.removeAttribute('src')
+    video.load()
+  }
+}
+
+function waitForTimelineMedia(media: HTMLMediaElement, eventName: 'loadedmetadata' | 'loadeddata' | 'seeked') {
+  return new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => finish(new Error(`Timed out waiting for ${eventName}.`)), 12_000)
+    const onReady = () => finish()
+    const onError = () => finish(new Error(`Unable to decode a timeline thumbnail (${media.error?.code ?? 'media error'}).`))
+    const finish = (error?: Error) => {
+      window.clearTimeout(timeout)
+      media.removeEventListener(eventName, onReady)
+      media.removeEventListener('error', onError)
+      error ? reject(error) : resolve()
+    }
+    media.addEventListener(eventName, onReady, { once: true })
+    media.addEventListener('error', onError, { once: true })
+  })
+}
+
 function AudioWaveform({ clip }: { clip: CutClip }) {
   const fallback = React.useMemo(() => fallbackWaveform(clip.id), [clip.id])
   const [bars, setBars] = React.useState(fallback)
@@ -2293,7 +2560,7 @@ function fallbackWaveform(seed: string) {
 
 function ClipGlyph({ type }: { type: CutClip['type'] }) {
   if (type === 'audio') return <Music2 />
-  if (type === 'text') return <Type />
+  if (type === 'text') return <Captions />
   if (type === 'video') return <Film />
   if (type === 'image') return <Image />
   return <Layers3 />
@@ -2533,6 +2800,7 @@ function coerceAnalysisJobs(value: RemoteValue | undefined): AnalysisJobSummary[
       mediaAssetId: remoteNullableString(item.mediaAssetId),
       language: remoteNullableString(item.language),
       model: remoteNullableString(item.model),
+      transcriptionMode: item.transcriptionMode === 'sandbox_whisper' ? 'sandbox_whisper' : item.transcriptionMode === 'platform' ? 'platform' : null,
       resultTranscriptId: remoteNullableString(item.resultTranscriptId),
       resultExportId: remoteNullableString(item.resultExportId),
       sandboxJobId: remoteNullableString(item.sandboxJobId),
@@ -2671,15 +2939,17 @@ function mediaDragKey(asset: MediaSummary) {
   return asset.id ?? `${asset.mimeType}:${asset.originalName}`
 }
 
-function rulerMarks(duration: number) {
-  const interval = duration > 180 ? 30 : duration > 60 ? 10 : 5
-  return Array.from({ length: Math.floor(duration / interval) + 1 }, (_, index) => index * interval)
-}
-
 function boundedStart(start: number, duration: number, projectDuration: number) { return roundTime(clamp(start, 0, Math.max(0, projectDuration - duration))) }
 function clamp(value: number, min: number, max: number) { return Math.min(max, Math.max(min, value)) }
 function roundTime(value: number) { return Math.round(value * 1000) / 1000 }
 function makeId() { return globalThis.crypto?.randomUUID?.() ?? `cut-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+function formatTimelineZoom(value: number) { return `${value < 10 ? value.toFixed(1) : Math.round(value)} px/s` }
+function formatTimelineRulerTime(time: number) {
+  if (time < 60) return `${Number.isInteger(time) ? time : time.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}s`
+  const minutes = Math.floor(time / 60)
+  const seconds = Math.round((time - minutes * 60) * 100) / 100
+  return `${minutes}:${seconds.toFixed(seconds % 1 ? 2 : 0).padStart(seconds % 1 ? 5 : 2, '0')}`
+}
 function formatExportQuality(quality: CutExportSettings['quality'], t: Translator) {
   return t(quality === 'low' ? 'qualityLow' : quality === 'medium' ? 'qualityMedium' : quality === 'very_high' ? 'qualityVeryHigh' : 'qualityHigh')
 }
@@ -2688,9 +2958,22 @@ const taskStatusMessageKeys: Record<AnalysisJobSummary['status'], CutMessageKey>
 }
 const taskStageMessageKeys: Record<string, CutMessageKey> = {
   queued: 'taskStageQueued', 'queue-failed': 'taskStageQueueFailed', 'sandbox-starting': 'taskStageSandboxStarting', rendering: 'taskStageRendering',
+  'preparing-audio': 'taskStagePreparingAudio', 'using-audio-proxy': 'taskStageUsingAudioProxy', 'loading-audio': 'taskStageLoadingAudio',
+  'decoding-audio': 'taskStageDecodingAudio', 'loading-model': 'taskStageLoadingModel',
+  transcribing: 'taskStageTranscribing', 'finalizing-transcript': 'taskStageFinalizingTranscript',
   complete: 'taskStageComplete', retrying: 'taskStageRetrying', failed: 'taskStageFailed', cancelled: 'taskStageCancelled', 'batch-aborted': 'taskStageBatchAborted'
 }
 function formatTaskStatus(status: AnalysisJobSummary['status'], t: Translator) { return t(taskStatusMessageKeys[status]) }
+function formatTranscriptionMode(mode: AnalysisJobSummary['transcriptionMode'], t: Translator) {
+  return t(mode === 'sandbox_whisper' ? 'transcriptionModeSandboxWhisper' : 'transcriptionModePlatform')
+}
+function isTerminalTaskStatus(status: AnalysisJobSummary['status']) { return status === 'succeeded' || status === 'failed' || status === 'cancelled' }
+function formatTaskLabel(job: AnalysisJobSummary) {
+  if (job.type === 'render') return `${(job.exportSettings?.format ?? 'mp4').toUpperCase()} · ${job.variantName ?? 'default'}`
+  return job.type === 'transcription'
+    ? `STT · ${(job.language ?? 'und').toUpperCase()}`
+    : `${job.type.replaceAll('_', ' ')} · ${job.executionMode.toUpperCase()}`
+}
 function formatTaskStage(stage: string | null | undefined, status: AnalysisJobSummary['status'], t: Translator) {
   return stage && taskStageMessageKeys[stage] ? t(taskStageMessageKeys[stage]) : formatTaskStatus(status, t)
 }
@@ -2698,7 +2981,14 @@ function isWorkspaceMediaMissing(message?: string | null) {
   return Boolean(message && /workspace file not found|conversation file not found|unable to (?:read|resolve seekable input) media\//i.test(message))
 }
 function formatBackgroundJobError(message: string, t: Translator) {
-  return isWorkspaceMediaMissing(message) ? t('workspaceMediaMissing') : message
+  if (isWorkspaceMediaMissing(message)) return t('workspaceMediaMissing')
+  const timestampMismatch = /CUT_MEDIA_FRAME_TIMESTAMP_MISMATCH[\s\S]{0,800}?"targetTime"\s*:\s*([0-9.]+)[\s\S]{0,800}?"lastMediaTime"\s*:\s*([0-9.]+)/i.exec(message)
+  if (timestampMismatch) return t('mediaFrameTimestampMismatch')
+    .replace('{time}', formatTime(Number(timestampMismatch[1])))
+    .replace('{lastTime}', formatTime(Number(timestampMismatch[2])))
+  const mediaTime = /CUT_MEDIA_(?:SEEK|DECODE)_FAILED[\s\S]{0,800}?"targetTime"\s*:\s*([0-9.]+)/i.exec(message)?.[1]
+  if (mediaTime) return t('mediaDecodeFailed').replace('{time}', formatTime(Number(mediaTime)))
+  return message
 }
 function formatTime(time: number) { const minutes = Math.floor(time / 60); const seconds = time - minutes * 60; return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(2).padStart(5, '0')}` }
 function safeFileName(value: string) { return value.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'cut-export' }

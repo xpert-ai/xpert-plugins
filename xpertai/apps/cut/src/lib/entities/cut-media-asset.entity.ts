@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
+import type { CutTranscriptionAudioProxy } from '../types.js'
 
 @Entity('plugin_cut_media_asset')
 @Index(['tenantId', 'organizationId', 'cutProjectId', 'createdAt'])
@@ -51,6 +52,9 @@ export class CutMediaAsset {
 
   @Column({ type: 'float', nullable: true })
   audioDuration?: number | null
+
+  @Column({ type: 'jsonb', nullable: true })
+  transcriptionAudioProxy?: CutTranscriptionAudioProxy | null
 
   @Column({ type: 'int', nullable: true })
   codedWidth?: number | null

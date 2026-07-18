@@ -21,7 +21,7 @@ import {
 } from 'mediabunny'
 import { audibleTimelineClips } from '../../../cut-media-playback'
 import { cutMediaDrawRect } from '../../../cut-media-layout'
-import { cutVideoFrameTimeoutMessage, isCutVideoFrameAcceptable } from '../../../cut-video-frame'
+import { cutVideoDamagedPacketRecovery, cutVideoFrameTimeoutMessage, isCutVideoFrameAcceptable } from '../../../cut-video-frame'
 import {
   DEFAULT_CUT_EXPORT_SETTINGS,
   cutExportProfile,
@@ -30,8 +30,13 @@ import {
   type CutExportSettings
 } from '../../../cut-export-settings'
 import type { CutClip, CutDocument } from './cut-types'
+import { drawCutCanvasText } from './cut-text-rendering'
 
 type MediaElement = HTMLImageElement | HTMLVideoElement
+type CutVideoContext = { clipId: string; clipName: string; mediaAssetId?: string }
+type CutVideoRecoveryWindow = { resumeAt: number; frozenAt: number; failedAt: number }
+
+const videoRecoveryWindows = new WeakMap<HTMLVideoElement, CutVideoRecoveryWindow>()
 
 export async function canExportCutMp4(width = 1920, height = 1080) {
   return canExportCutVideo(DEFAULT_CUT_EXPORT_SETTINGS, width, height)
@@ -98,6 +103,8 @@ export async function exportCutVideo(
   } catch (error) {
     await output.cancel()
     throw error
+  } finally {
+    await releaseMediaCache(cache)
   }
   onProgress(1)
   if (!target.buffer) throw new Error(`MediaBunny did not produce a ${settings.format.toUpperCase()} buffer.`)
@@ -193,15 +200,20 @@ async function drawClip(
     context.fillStyle = clip.color ?? '#111827'
     context.fillRect(-transform.width / 2, -transform.height / 2, transform.width, transform.height)
   } else if (clip.type === 'text') {
-    context.fillStyle = clip.color ?? '#f8fafc'
-    context.font = `${clip.fontWeight ?? 700} ${clip.fontSize ?? Math.max(32, Math.round(document.settings.height * 0.08))}px system-ui, sans-serif`
-    context.textAlign = clip.textAlign ?? 'center'
-    context.textBaseline = 'middle'
-    context.fillText(clip.text ?? clip.name, 0, 0, transform.width * 0.9)
+    drawCutCanvasText(context, clip, document, transform.width, transform.height)
   } else if ((clip.type === 'video' || clip.type === 'image') && clip.previewUrl) {
-    const media = await loadMedia(clip, cache)
+    let media = await loadMedia(clip, cache)
     if (media instanceof HTMLVideoElement) {
-      await seekVideo(media, clip.trimIn + (time - clip.start) * (clip.playbackRate ?? 1), 1 / document.settings.fps)
+      const recovered = await seekVideo(
+        media,
+        clip.trimIn + (time - clip.start) * (clip.playbackRate ?? 1),
+        1 / document.settings.fps,
+        { clipId: clip.id, clipName: clip.name, ...(clip.mediaAssetId ? { mediaAssetId: clip.mediaAssetId } : {}) }
+      )
+      if (recovered !== media) {
+        media = recovered
+        cache.set(mediaCacheKey(clip), Promise.resolve(recovered))
+      }
     }
     const source = media instanceof HTMLVideoElement
       ? { width: media.videoWidth, height: media.videoHeight }
@@ -245,12 +257,21 @@ function transitionState(clip: CutClip, localTime: number) {
 }
 
 function loadMedia(clip: CutClip, cache: Map<string, Promise<MediaElement>>) {
-  const key = `${clip.type}:${clip.previewUrl}`
+  const key = mediaCacheKey(clip)
   const existing = cache.get(key)
   if (existing) return existing
-  const promise = clip.type === 'video' ? loadVideo(clip.previewUrl!) : loadImage(clip.previewUrl!)
+  const promise = clip.type === 'video'
+    ? loadVideo(clip.previewUrl!, { clipId: clip.id, clipName: clip.name, ...(clip.mediaAssetId ? { mediaAssetId: clip.mediaAssetId } : {}) })
+    : loadImage(clip.previewUrl!)
   cache.set(key, promise)
+  void promise.catch(() => {
+    if (cache.get(key) === promise) cache.delete(key)
+  })
   return promise
+}
+
+function mediaCacheKey(clip: CutClip) {
+  return `${clip.type}:${clip.previewUrl}`
 }
 
 function loadImage(url: string) {
@@ -263,23 +284,57 @@ function loadImage(url: string) {
   })
 }
 
-function loadVideo(url: string) {
+function loadVideo(url: string, context: CutVideoContext) {
   return new Promise<HTMLVideoElement>((resolve, reject) => {
     const video = document.createElement('video')
     video.crossOrigin = 'use-credentials'
     video.preload = 'auto'
     video.muted = true
     video.playsInline = true
-    video.onloadedmetadata = () => resolve(video)
-    video.onerror = () => reject(new Error('Cut video could not be loaded for export.'))
+    video.onloadedmetadata = () => {
+      video.onloadedmetadata = null
+      video.onerror = null
+      resolve(video)
+    }
+    video.onerror = () => {
+      video.onloadedmetadata = null
+      video.onerror = null
+      reject(cutMediaError(video, context, 'load', 1, 0, null))
+    }
     video.src = url
     video.load()
   })
 }
 
-async function seekVideo(video: HTMLVideoElement, time: number, frameDuration: number) {
+async function seekVideo(video: HTMLVideoElement, time: number, frameDuration: number, context: CutVideoContext) {
   const bounded = Math.max(0, Math.min(time, Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.001) : time))
-  if (Math.abs(video.currentTime - bounded) < 0.0005 && video.readyState >= 2) return
+  const recoveryWindow = videoRecoveryWindows.get(video)
+  if (recoveryWindow && bounded < recoveryWindow.resumeAt && video.readyState >= 2) return video
+  if (recoveryWindow) videoRecoveryWindows.delete(video)
+  if (Math.abs(video.currentTime - bounded) < 0.0005 && video.readyState >= 2) return video
+  try {
+    await seekVideoOnce(video, bounded, frameDuration, context, 1)
+    return video
+  } catch (firstError) {
+    const recovered = await replaceVideoForSeek(video, context, bounded, firstError)
+    const retryTime = Math.max(0, bounded - Math.min(frameDuration / 2, 0.02))
+    try {
+      await seekVideoOnce(recovered, retryTime, frameDuration, context, 2)
+      return recovered
+    } catch (secondError) {
+      return recoverDamagedVideoPacket(recovered, bounded, frameDuration, context, secondError)
+    }
+  }
+}
+
+async function seekVideoOnce(
+  video: HTMLVideoElement,
+  bounded: number,
+  frameDuration: number,
+  context: CutVideoContext,
+  attempt: number,
+  timeoutMs = 10_000
+) {
   await new Promise<void>((resolve, reject) => {
     let seeked = false
     let framePresented = false
@@ -303,7 +358,7 @@ async function seekVideo(video: HTMLVideoElement, time: number, frameDuration: n
       cleanup()
       reject(error)
     }
-    const onError = () => failed(new Error('Cut video seek failed during export.'))
+    const onError = () => failed(cutMediaError(video, context, 'seek', attempt, bounded, lastMediaTime))
     const onPresentedFrame: VideoFrameRequestCallback = (_now, metadata) => {
       lastMediaTime = metadata.mediaTime
       if (isCutVideoFrameAcceptable({
@@ -339,11 +394,148 @@ async function seekVideo(video: HTMLVideoElement, time: number, frameDuration: n
     video.addEventListener('seeked', onSeeked, { once: true })
     video.addEventListener('error', onError, { once: true })
     if (typeof video.requestVideoFrameCallback === 'function') frameCallbackId = video.requestVideoFrameCallback(onPresentedFrame)
-    timeoutId = window.setTimeout(() => failed(new Error(cutVideoFrameTimeoutMessage({
-      targetTime: bounded,
-      mediaDuration: video.duration,
-      lastMediaTime
-    }))), 10_000)
+    timeoutId = window.setTimeout(() => failed(cutMediaError(
+      video,
+      context,
+      'seek-timeout',
+      attempt,
+      bounded,
+      lastMediaTime,
+      cutVideoFrameTimeoutMessage({ targetTime: bounded, mediaDuration: video.duration, lastMediaTime })
+    )), timeoutMs)
     video.currentTime = bounded
   })
+}
+
+async function recoverDamagedVideoPacket(
+  video: HTMLVideoElement,
+  targetTime: number,
+  frameDuration: number,
+  context: CutVideoContext,
+  secondError: unknown
+) {
+  const plan = cutVideoDamagedPacketRecovery({
+    targetTime,
+    mediaDuration: video.duration,
+    frameDuration
+  })
+  if (!plan) throw secondError
+
+  const source = video.currentSrc || video.src
+  releaseVideo(video)
+  let recoveryError: unknown = secondError
+  for (const [index, candidate] of plan.candidates.entries()) {
+    let replacement: HTMLVideoElement | null = null
+    try {
+      replacement = await loadVideo(source, context)
+      await seekVideoOnce(replacement, candidate, frameDuration, context, index + 3, 4_000)
+      videoRecoveryWindows.set(replacement, {
+        resumeAt: plan.resumeAt,
+        frozenAt: candidate,
+        failedAt: plan.targetTime
+      })
+      console.warn(`CUT_MEDIA_FRAME_FROZEN ${JSON.stringify({
+        clipId: context.clipId,
+        ...(context.mediaAssetId ? { mediaAssetId: context.mediaAssetId } : {}),
+        failedAt: roundedTime(plan.targetTime),
+        frozenAt: roundedTime(candidate),
+        resumeAt: roundedTime(plan.resumeAt)
+      })}`)
+      return replacement
+    } catch (error) {
+      recoveryError = error
+      if (replacement) releaseVideo(replacement)
+    }
+  }
+  throw new Error(`${errorSummary(secondError)}; damaged-packet recovery failed: ${errorSummary(recoveryError)}`)
+}
+
+function replaceVideoForSeek(
+  video: HTMLVideoElement,
+  context: CutVideoContext,
+  targetTime: number,
+  firstError: unknown
+) {
+  const source = video.currentSrc || video.src
+  releaseVideo(video)
+  return new Promise<HTMLVideoElement>((resolve, reject) => {
+    const replacement = document.createElement('video')
+    let timeoutId: number | null = null
+    const cleanup = () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+      replacement.removeEventListener('loadedmetadata', onLoaded)
+      replacement.removeEventListener('error', onError)
+    }
+    const onLoaded = () => {
+      cleanup()
+      resolve(replacement)
+    }
+    const onError = () => {
+      cleanup()
+      reject(cutMediaError(replacement, context, 'reload', 2, targetTime, null, errorSummary(firstError)))
+    }
+    replacement.crossOrigin = 'use-credentials'
+    replacement.preload = 'auto'
+    replacement.muted = true
+    replacement.playsInline = true
+    replacement.addEventListener('loadedmetadata', onLoaded, { once: true })
+    replacement.addEventListener('error', onError, { once: true })
+    timeoutId = window.setTimeout(() => {
+      cleanup()
+      reject(cutMediaError(replacement, context, 'reload-timeout', 2, targetTime, null, errorSummary(firstError)))
+    }, 10_000)
+    replacement.src = source
+    replacement.load()
+  })
+}
+
+function releaseVideo(video: HTMLVideoElement) {
+  videoRecoveryWindows.delete(video)
+  video.pause()
+  video.removeAttribute('src')
+  video.load()
+}
+
+async function releaseMediaCache(cache: Map<string, Promise<MediaElement>>) {
+  const media = await Promise.allSettled(cache.values())
+  for (const item of media) {
+    if (item.status === 'fulfilled' && item.value instanceof HTMLVideoElement) releaseVideo(item.value)
+  }
+  cache.clear()
+}
+
+function cutMediaError(
+  video: HTMLVideoElement,
+  context: CutVideoContext,
+  phase: string,
+  attempt: number,
+  targetTime: number,
+  lastMediaTime: number | null,
+  cause?: string
+) {
+  const mediaError = video.error
+  return new Error(`CUT_MEDIA_SEEK_FAILED ${JSON.stringify({
+    phase,
+    attempt,
+    clipId: context.clipId,
+    clipName: context.clipName.slice(0, 160),
+    ...(context.mediaAssetId ? { mediaAssetId: context.mediaAssetId } : {}),
+    targetTime: roundedTime(targetTime),
+    currentTime: roundedTime(video.currentTime),
+    duration: Number.isFinite(video.duration) ? roundedTime(video.duration) : null,
+    lastMediaTime: lastMediaTime === null ? null : roundedTime(lastMediaTime),
+    readyState: video.readyState,
+    networkState: video.networkState,
+    mediaErrorCode: mediaError?.code ?? null,
+    mediaErrorMessage: mediaError?.message?.slice(0, 240) || null,
+    ...(cause ? { cause: cause.slice(0, 320) } : {})
+  })}`)
+}
+
+function roundedTime(value: number) {
+  return Number.isFinite(value) ? Math.round(value * 1_000) / 1_000 : null
+}
+
+function errorSummary(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }

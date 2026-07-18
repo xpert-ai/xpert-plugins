@@ -20,7 +20,21 @@ export type CutClip = {
   fadeOut?: number
   fontSize?: number
   fontWeight?: number
+  fontFamily?: 'system' | 'sans' | 'serif' | 'mono'
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline'
   textAlign?: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'middle' | 'bottom'
+  letterSpacing?: number
+  lineHeight?: number
+  strokeColor?: string
+  strokeWidth?: number
+  textShadowColor?: string
+  textShadowBlur?: number
+  textShadowOffsetX?: number
+  textShadowOffsetY?: number
+  textBackgroundColor?: string
+  textBackgroundOpacity?: number
   effects?: { brightness: number; contrast: number; saturation: number; blur: number; grayscale: number; sepia: number }
   blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten'
   mask?: { shape: 'none' | 'rectangle' | 'circle' | 'rounded'; inset: number; radius: number }
@@ -99,6 +113,7 @@ export type AnalysisJobSummary = {
   mediaAssetId?: string | null
   language?: string | null
   model?: string | null
+  transcriptionMode?: 'platform' | 'sandbox_whisper' | null
   resultTranscriptId?: string | null
   resultExportId?: string | null
   sandboxJobId?: string | null

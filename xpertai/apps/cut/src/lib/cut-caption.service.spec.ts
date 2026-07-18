@@ -8,13 +8,28 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   SYSTEM_GLOBAL_SCOPE: 'system:global'
 }))
 
-import { CutCaptionService, normalizeTranscriptCaptionItems, resolveCaptionTimelineOverlaps } from './cut-caption.service.js'
+import {
+  CutCaptionService,
+  normalizeSandboxWhisperLanguage,
+  normalizeTranscriptCaptionItems,
+  resolveCaptionTimelineOverlaps
+} from './cut-caption.service.js'
+import type { CutTranscriptionMediaService } from './cut-transcription-media.service.js'
 import { createStarterCutProject, validateCutProjectDocument } from './cut-project.js'
 import type { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutCaptionDraft, CutMediaAsset, CutTranscript, CutTranscriptSegment } from './entities/index.js'
 import type { CutProjectDocument, CutScope } from './types.js'
 
 describe('CutCaptionService reviewable subtitle workflow', () => {
+  it('normalizes multilingual Whisper language hints without requiring another Chinese model', () => {
+    expect(normalizeSandboxWhisperLanguage('zh')).toBe('zh')
+    expect(normalizeSandboxWhisperLanguage('zh-CN')).toBe('zh')
+    expect(normalizeSandboxWhisperLanguage('zh-Hans')).toBe('zh')
+    expect(normalizeSandboxWhisperLanguage('Chinese')).toBe('zh')
+    expect(normalizeSandboxWhisperLanguage('en-US')).toBe('en')
+    expect(normalizeSandboxWhisperLanguage('auto')).toBe('und')
+  })
+
   it('deduplicates overlapping Whisper windows and resolves remaining cue collisions', () => {
     const normalized = normalizeTranscriptCaptionItems([
       { id: 'a', start: 10, end: 13, text: '我们自己大概要投入多少人', speaker: null },
@@ -93,6 +108,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const draft = await service.getCaptionDraft(scope, projectId, imported.draftId, 1, 1)
     expect(draft).toMatchObject({ item: { status: 'draft', sourceRevision: 1, revision: 1, captionCount: 2 }, total: 2 })
     expect(draft.captions).toHaveLength(1)
+    revision = 2 // Simulate an unrelated timeline edit after the draft was created.
     const updatedDraft = await service.updateCaptionDraft(scope, {
       projectId,
       draftId: imported.draftId,
@@ -101,7 +117,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       operation: { action: 'update', captionId: draft.captions[0]!.id, text: 'Welcome to reviewable Cut' },
       changeSummary: 'Corrected the first caption.'
     })
-    expect(updatedDraft).toMatchObject({ revision: 2, captionCount: 2 })
+    expect(updatedDraft).toMatchObject({ sourceRevision: 2, revision: 2, captionCount: 2 })
     await expect(service.updateCaptionDraft(scope, {
       projectId,
       draftId: imported.draftId,
@@ -156,7 +172,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       ],
       changeSummary: 'Committed reviewed bilingual captions.'
     })
-    expect(committed).toMatchObject({ success: true, revision: 2 })
+    expect(committed).toMatchObject({ success: true, revision: 3 })
     expect(committed.committed).toHaveLength(2)
     expect(committed.changedClipIds).toHaveLength(4)
     expect(document.tracks.find((track) => track.id === committed.committed[0]!.trackId)).toMatchObject({ kind: 'visual', name: 'Captions' })
@@ -173,8 +189,8 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       baseDraftRevision: 2,
       changeSummary: 'Retried committed captions.'
     })
-    expect(committedReplay).toMatchObject({ alreadyCommitted: true, revision: 2 })
-    expect(revision).toBe(2)
+    expect(committedReplay).toMatchObject({ alreadyCommitted: true, revision: 3 })
+    expect(revision).toBe(3)
 
     await expect(service.getCaptionDraft({ ...scope, organizationId: 'org-b' }, projectId, imported.draftId)).rejects.toThrow(
       'current tenant and organization'
@@ -203,6 +219,10 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     })
     const cancel = jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
     const queue = { enqueue, cancel } as unknown as ManagedQueueService
+    const transcriptionMedia = {
+      assertExecutionPoolAvailable: jest.fn(async () => undefined),
+      cancel: jest.fn(async () => undefined)
+    } as unknown as CutTranscriptionMediaService
     const service = new CutCaptionService(
       cut,
       media.repository,
@@ -211,7 +231,8 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       segments.repository,
       drafts.repository,
       logs.repository,
-      queue
+      queue,
+      transcriptionMedia
     )
     const asset = await media.repository.save(media.repository.create({
       id: '22222222-2222-4222-8222-222222222222',
@@ -220,7 +241,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       cutProjectId: projectId,
       originalName: 'voice.mp4',
       mimeType: 'video/mp4',
-      size: 1024,
+      size: 300 * 1024 * 1024,
       checksum: 'a'.repeat(64),
       duration: 10,
       fileReference: {
@@ -244,8 +265,16 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
       tenantId: scope.tenantId,
       organizationId: scope.organizationId,
       userId: scope.userId,
-      payload: expect.objectContaining({ userId: scope.userId, assistantId: scope.assistantId, xpertId: 'xpert-cut' })
+      executionPool: 'sandbox-browser',
+      payload: expect.objectContaining({
+        userId: scope.userId,
+        assistantId: scope.assistantId,
+        xpertId: 'xpert-cut',
+        size: 300 * 1024 * 1024,
+        checksum: 'a'.repeat(64)
+      })
     }))
+    expect(transcriptionMedia.assertExecutionPoolAvailable).toHaveBeenCalledTimes(1)
     expect(queueJobIdsObservedAtEnqueue).toEqual([started.jobId])
     expect(jobs.rows.find((row) => row.id === started.jobId)).toMatchObject({ queueJobId: started.jobId })
 
@@ -282,6 +311,29 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const cancelled = await service.cancelAnalysisJob(scope, projectId, second.jobId, 'Cancel the queued transcription.')
     expect(cancelled).toMatchObject({ success: true, status: 'cancelled', cancellationRequested: true })
     expect(cancel).toHaveBeenCalledWith({ jobId: second.jobId })
+    const third = await service.startTranscription(scope, {
+      projectId,
+      mediaAssetId: asset.id!,
+      baseRevision: 3,
+      language: 'fr',
+      changeSummary: 'Start a job that cannot be deleted while active.'
+    }, 'xpert-cut', model)
+    await expect(
+      service.deleteAnalysisJob(scope, projectId, third.jobId, 'Tried to delete an active task.')
+    ).rejects.toThrow('Cancel the active Cut analysis job')
+
+    await expect(
+      service.deleteAnalysisJob({ ...scope, organizationId: 'org-b' }, projectId, second.jobId, 'Delete another organization task.')
+    ).rejects.toThrow('current tenant and organization')
+    await expect(
+      service.deleteAnalysisJob(scope, projectId, second.jobId, 'Deleted cancelled transcription task history.')
+    ).resolves.toMatchObject({ success: true, jobId: second.jobId, status: 'cancelled' })
+    expect(jobs.rows.some((job) => job.id === second.jobId)).toBe(false)
+    await expect(service.getAnalysisJob(scope, projectId, second.jobId)).rejects.toThrow('current tenant and organization')
+    expect(logs.rows).toContainEqual(expect.objectContaining({
+      action: 'cut_analysis_job_deleted',
+      snapshot: expect.objectContaining({ jobId: second.jobId, status: 'cancelled' })
+    }))
   })
 
   it('persists timestamped browser Whisper output as an idempotent review draft', async () => {
@@ -405,6 +457,11 @@ function memoryRepository<T extends { id?: string; createdAt?: Date; updatedAt?:
       if (!row) return { affected: 0 }
       Object.assign(row, patch, { updatedAt: new Date() })
       return { affected: 1 }
+    },
+    async remove(input: T) {
+      const index = rows.findIndex((row) => row.id === input.id)
+      if (index >= 0) rows.splice(index, 1)
+      return input
     }
   }
   return { repository: repository as Repository<T>, rows }

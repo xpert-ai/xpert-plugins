@@ -2,10 +2,8 @@
  * @jest-config-loader-options {"project":"tsconfig.jest.json"}
  */
 import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const rootDir = dirname(fileURLToPath(import.meta.url))
+const rootDir = __dirname
 const swcJestConfig = JSON.parse(readFileSync(`${rootDir}/.spec.swcrc`, 'utf8'))
 swcJestConfig.swcrc = false
 

@@ -93,6 +93,15 @@ describe('CutService scoped persistence and Workspace Files', () => {
     })).rejects.toThrow('revision changed')
     updateSpy.mockRestore()
     expect((await service.getProject(scope, projectId)).item.revision).toBe(created.item.revision)
+    const unchanged = await service.saveProject(scope, {
+      projectId,
+      document: created.document,
+      baseRevision: created.item.revision,
+      changeSummary: 'Repeated an unchanged Workbench save.'
+    })
+    expect(unchanged.project.revision).toBe(created.item.revision)
+    expect(unchanged.changedClipIds).toEqual([])
+    expect(unchanged.changedTrackIds).toEqual([])
     const imported = await service.uploadMedia(scope, projectId, {
       buffer: Buffer.from('<svg/>'), originalName: 'gate.svg', mimeType: 'image/svg+xml', size: 6
     }, 5, created.item.revision, 'Imported gate media.', {

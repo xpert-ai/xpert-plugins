@@ -11,6 +11,12 @@ export function fitCutStage(available: CutSize, project: CutSize): CutSize {
   return { width: project.width * scale, height: project.height * scale }
 }
 
+/** Returns the uniform scale from project-space pixels to the fitted preview stage. */
+export function cutStageScale(stage: CutSize, project: CutSize): number {
+  if (stage.width <= 0 || stage.height <= 0 || project.width <= 0 || project.height <= 0) return 0
+  return Math.min(stage.width / project.width, stage.height / project.height)
+}
+
 export function cutMediaDrawRect(source: CutSize, target: CutSize, fit: CutMediaFit = 'cover'): CutRect {
   if (fit === 'stretch' || source.width <= 0 || source.height <= 0) {
     return { x: -target.width / 2, y: -target.height / 2, width: target.width, height: target.height }

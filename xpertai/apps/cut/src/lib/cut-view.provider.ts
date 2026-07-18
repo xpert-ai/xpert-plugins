@@ -138,6 +138,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
         { key: 'cut_revert_edit_proposal', label: i18n('Revert Edit Proposal', '回滚剪辑提案'), icon: 'ri-arrow-go-back-line', actionType: 'invoke' },
         { key: 'cut_start_headless_export', label: i18n('Background Export', '后台导出'), icon: 'ri-movie-2-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'cut_cancel_analysis_job', label: i18n('Cancel Analysis Job', '取消分析任务'), icon: 'ri-stop-circle-line', actionType: 'invoke' },
+        { key: 'cut_delete_analysis_job', label: i18n('Delete Analysis Job', '删除分析任务'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
         { key: 'cut_upload_media_file', label: i18n('Upload Media', '上传媒体'), icon: 'ri-upload-cloud-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
         { key: 'cut_import_subtitle_file', label: i18n('Import Subtitles', '导入字幕'), icon: 'ri-subtitle-line', actionType: 'invoke', transport: 'file' },
         { key: 'cut_save_export_file', label: i18n('Save Video Export', '保存视频导出'), icon: 'ri-save-2-line', actionType: 'invoke', transport: 'file' }
@@ -399,6 +400,17 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           ? await this.renders.cancel(scope, projectId, jobId, changeSummary)
           : await this.captions.cancelAnalysisJob(scope, projectId, jobId, changeSummary)
         return { ...success('Cut analysis job cancellation requested.'), refresh: true, data: result }
+      }
+      if (actionKey === 'cut_delete_analysis_job') {
+        const projectId = requestProjectId(request)
+        const jobId = requiredString(request.input, 'jobId', 'Cut analysis job id is required.')
+        const result = await this.captions.deleteAnalysisJob(
+          scope,
+          projectId,
+          jobId,
+          inputString(request.input, 'changeSummary') ?? 'Deleted Cut analysis job history from Workbench.'
+        )
+        return { ...success('Cut analysis job deleted.'), refresh: true, data: result }
       }
       return failure('Unsupported Cut action.')
     } catch (error) {

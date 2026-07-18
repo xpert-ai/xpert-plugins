@@ -48,7 +48,21 @@ const addClipDraftSchema = z.object({
   fadeOut: finite.min(0).optional(),
   fontSize: finite.min(1).max(1000).optional(),
   fontWeight: finite.min(100).max(900).optional(),
+  fontFamily: z.enum(['system', 'sans', 'serif', 'mono']).optional(),
+  fontStyle: z.enum(['normal', 'italic']).optional(),
+  textDecoration: z.enum(['none', 'underline']).optional(),
   textAlign: z.enum(['left', 'center', 'right']).optional(),
+  verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
+  letterSpacing: finite.min(-100).max(500).optional(),
+  lineHeight: finite.min(0.5).max(5).optional(),
+  strokeColor: z.string().min(1).max(120).optional(),
+  strokeWidth: finite.min(0).max(100).optional(),
+  textShadowColor: z.string().min(1).max(120).optional(),
+  textShadowBlur: finite.min(0).max(200).optional(),
+  textShadowOffsetX: finite.min(-500).max(500).optional(),
+  textShadowOffsetY: finite.min(-500).max(500).optional(),
+  textBackgroundColor: z.string().min(1).max(120).optional(),
+  textBackgroundOpacity: finite.min(0).max(1).optional(),
   effects: visualEffectsSchema.optional(),
   blendMode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten']).optional(),
   mask: maskSchema.optional(),
@@ -93,7 +107,14 @@ export const cutUpdateProjectSettingsOperationSchema = z.object({
 export const cutUpdateTextOperationSchema = z.object({
   kind: z.literal('update_text'), clipId: z.string().min(1), text: z.string().max(20_000).optional(),
   fontSize: finite.min(1).max(1000).optional(), fontWeight: finite.min(100).max(900).optional(),
-  textAlign: z.enum(['left', 'center', 'right']).optional(), color: z.string().min(1).max(120).optional()
+  fontFamily: z.enum(['system', 'sans', 'serif', 'mono']).optional(), fontStyle: z.enum(['normal', 'italic']).optional(),
+  textDecoration: z.enum(['none', 'underline']).optional(), textAlign: z.enum(['left', 'center', 'right']).optional(),
+  verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(), letterSpacing: finite.min(-100).max(500).optional(),
+  lineHeight: finite.min(0.5).max(5).optional(), color: z.string().min(1).max(120).optional(),
+  strokeColor: z.string().min(1).max(120).optional(), strokeWidth: finite.min(0).max(100).optional(),
+  textShadowColor: z.string().min(1).max(120).optional(), textShadowBlur: finite.min(0).max(200).optional(),
+  textShadowOffsetX: finite.min(-500).max(500).optional(), textShadowOffsetY: finite.min(-500).max(500).optional(),
+  textBackgroundColor: z.string().min(1).max(120).optional(), textBackgroundOpacity: finite.min(0).max(1).optional()
 })
 export const cutUpdateAudioOperationSchema = z.object({
   kind: z.literal('update_audio'), clipId: z.string().min(1), volume: finite.min(0).max(2).optional(),
@@ -190,7 +211,21 @@ const clipSchema = z.object({
   fadeOut: finite.min(0).optional(),
   fontSize: finite.min(1).max(1000).optional(),
   fontWeight: finite.min(100).max(900).optional(),
+  fontFamily: z.enum(['system', 'sans', 'serif', 'mono']).optional(),
+  fontStyle: z.enum(['normal', 'italic']).optional(),
+  textDecoration: z.enum(['none', 'underline']).optional(),
   textAlign: z.enum(['left', 'center', 'right']).optional(),
+  verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
+  letterSpacing: finite.min(-100).max(500).optional(),
+  lineHeight: finite.min(0.5).max(5).optional(),
+  strokeColor: z.string().min(1).max(120).optional(),
+  strokeWidth: finite.min(0).max(100).optional(),
+  textShadowColor: z.string().min(1).max(120).optional(),
+  textShadowBlur: finite.min(0).max(200).optional(),
+  textShadowOffsetX: finite.min(-500).max(500).optional(),
+  textShadowOffsetY: finite.min(-500).max(500).optional(),
+  textBackgroundColor: z.string().min(1).max(120).optional(),
+  textBackgroundOpacity: finite.min(0).max(1).optional(),
   effects: visualEffectsSchema.optional(),
   blendMode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten']).optional(),
   mask: maskSchema.optional(),
@@ -372,8 +407,13 @@ export function applyCutEdit(documentInput: CutProjectDocument, operation: CutEd
       if (operation.mediaFit !== undefined) clip.mediaFit = operation.mediaFit
     } else if (operation.kind === 'update_text') {
       if (clip.type !== 'text') throw new Error(`Clip ${clip.id} is not a text clip.`)
-      assertDefinedPatch(operation, ['text', 'fontSize', 'fontWeight', 'textAlign', 'color'], operation.kind)
-      assignDefined(clip, operation, ['text', 'fontSize', 'fontWeight', 'textAlign', 'color'])
+      const textProperties = [
+        'text', 'fontSize', 'fontWeight', 'fontFamily', 'fontStyle', 'textDecoration', 'textAlign', 'verticalAlign',
+        'letterSpacing', 'lineHeight', 'color', 'strokeColor', 'strokeWidth', 'textShadowColor', 'textShadowBlur',
+        'textShadowOffsetX', 'textShadowOffsetY', 'textBackgroundColor', 'textBackgroundOpacity'
+      ] as const
+      assertDefinedPatch(operation, textProperties, operation.kind)
+      assignDefined(clip, operation, textProperties)
     } else if (operation.kind === 'update_audio') {
       if (clip.type !== 'audio' && clip.type !== 'video') throw new Error(`Clip ${clip.id} has no editable audio.`)
       assertDefinedPatch(operation, ['volume', 'fadeIn', 'fadeOut'], operation.kind)
@@ -634,13 +674,13 @@ function sortClips(track: CutTrack) {
   track.clips.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id))
 }
 
-function assertDefinedPatch(value: object, keys: string[], operation: string) {
+function assertDefinedPatch(value: object, keys: readonly string[], operation: string) {
   if (!keys.some((key) => (value as Record<string, unknown>)[key] !== undefined)) {
     throw new Error(`${operation} requires a non-empty patch.`)
   }
 }
 
-function assignDefined<T extends object, U extends object>(target: T, source: U, keys: string[]) {
+function assignDefined<T extends object, U extends object>(target: T, source: U, keys: readonly string[]) {
   for (const key of keys) {
     const value = (source as Record<string, unknown>)[key]
     if (value !== undefined) (target as Record<string, unknown>)[key] = value

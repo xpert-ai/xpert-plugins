@@ -129,6 +129,7 @@ try {
   await frame.locator('.stage-shell video').waitFor({ state: 'detached', timeout: 10_000 })
   console.log('cut-e2e: embedded video audio preview verified')
 
+  await frame.getByText('cut-e2e.wav', { exact: true }).click()
   await frame.getByRole('button', { name: 'Analyze locally', exact: true }).click()
   await frame.locator('.media-evidence-list > div').first().waitFor({ timeout: 20_000 })
   const localMediaIntelligence = await frame.locator('.media-evidence-list > div').count() > 0
@@ -271,6 +272,7 @@ try {
   const firstSubmissionTaskVisible = await frame.locator('.export-task-card').count() === 1
   await frame.locator('.cut-indeterminate-progress').waitFor({ timeout: 15_000 })
   if (await frame.getByText(/Rendering · 20%/).count()) throw new Error('Measured rendering progress must not display a synthetic 20%.')
+  await frame.getByText(/Rendering · 30%/).waitFor({ timeout: 15_000 })
   await frame.getByText(/Complete · 100%/).waitFor({ timeout: 15_000 })
   const completedTask = frame.locator('.export-task-card').first()
   const localizedStatus = (await completedTask.locator('[data-slot="badge"]').textContent())?.trim()
@@ -406,11 +408,11 @@ function hostHtml(useRealWhisper) {
   const frame=document.getElementById('cut-frame');
   frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/react.js"><\\/script><script src="/react-dom.js"><\\/script>${whisperWorkerFactory}<script src="/app.js"><\\/script></body></html>';
   function detail(){return {item:{...state.item},document:structuredClone(state.document),media:[{id:'media-1',originalName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512,previewUrl:'/test.svg'},{id:'media-audio',originalName:'cut-e2e.wav',mimeType:'audio/wav',size:264644,duration:3,previewUrl:'${whisperMediaUrl}'}],versions:[],exports:structuredClone(state.exports),logs:[]}}
-  function workbenchData(analysisJobs=state.analysisJobs){return {projects:{items:[{...state.item}],total:1,page:1,pageSize:20},detail:detail(),captionDrafts:structuredClone(state.captionDrafts),analysisJobs:structuredClone(analysisJobs),mediaSegments:structuredClone(state.mediaSegments),editProposals:structuredClone(state.editProposals),renderCapability:{available:true,backend:'sandbox-job',action:'cut.render-mp4',actionVersion:'1.1.2',runtimeProfile:'browser/playwright-1.61/v1',workerCount:1,limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}}}
+  function workbenchData(analysisJobs=state.analysisJobs){return {projects:{items:[{...state.item}],total:1,page:1,pageSize:20},detail:detail(),captionDrafts:structuredClone(state.captionDrafts),analysisJobs:structuredClone(analysisJobs),mediaSegments:structuredClone(state.mediaSegments),editProposals:structuredClone(state.editProposals),renderCapability:{available:true,backend:'sandbox-job',action:'cut.render-mp4',actionVersion:'1.1.5',runtimeProfile:'browser/playwright-1.61/v1',workerCount:1,limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}}}
   function viewData(){
     if(state.deleted)return {projects:{items:[],total:0,page:1,pageSize:20},detail:null,captionDrafts:[],analysisJobs:[],mediaSegments:[],editProposals:[],renderCapability:{available:true,backend:'sandbox-job',limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}};
     if(state.staleRenderReads>0){state.staleRenderReads--;return workbenchData([])}
-    const render=state.analysisJobs[0];if(render&&render.status==='queued'){render.status='running';render.stage='rendering';render.progress=20}else if(render&&render.status==='running'&&state.renderPolls++>=0){render.status='succeeded';render.stage='complete';render.progress=100;render.resultExportId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';state.exports=[{id:render.resultExportId,kind:'mp4',mimeType:'video/mp4',size:11961,fileUrl:'https://files.example.test/headless.mp4',changeSummary:'Headless E2E export.',analysisJobId:render.id,sourceRevision:render.inputRevision,renderer:'sandbox-job:cut.render-mp4@1.1.2'}]}
+    const render=state.analysisJobs[0];if(render&&render.status==='queued'){render.status='running';render.stage='rendering';render.progress=20}else if(render&&render.status==='running'){if(state.renderPolls++===0){render.progress=30}else{render.status='succeeded';render.stage='complete';render.progress=100;render.resultExportId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';state.exports=[{id:render.resultExportId,kind:'mp4',mimeType:'video/mp4',size:11961,fileUrl:'https://files.example.test/headless.mp4',changeSummary:'Headless E2E export.',analysisJobId:render.id,sourceRevision:render.inputRevision,renderer:'sandbox-job:cut.render-mp4@1.1.5'}]}}
     return workbenchData()
   }
   function reply(message,payload){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'response',requestId:message.requestId,payload},'*')}

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
-const actionVersion = '1.1.2'
+const actionVersion = '1.1.5'
 const progressLogIntervalMs = 5_000
 const limits = Object.freeze({
   maxWidth: 3840,
@@ -38,6 +38,7 @@ async function main() {
   const server = await startServer(request, mediaRoot)
   let browser
   let progressMonitor
+  const browserErrors = []
   try {
     const executablePath = process.env.CUT_SANDBOX_CHROMIUM_EXECUTABLE?.trim() || undefined
     browser = await chromium.launch({
@@ -46,7 +47,6 @@ async function main() {
       args: ['--disable-dev-shm-usage', '--autoplay-policy=no-user-gesture-required']
     })
     const page = await browser.newPage({ acceptDownloads: true })
-    const browserErrors = []
     page.on('console', (message) => {
       if (message.type() === 'error') browserErrors.push(message.text())
     })
@@ -87,6 +87,11 @@ async function main() {
     }
     await writeFile(path.join(outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`)
     if (browserErrors.length) process.stderr.write(`${browserErrors.slice(-10).join('\n')}\n`)
+  } catch (error) {
+    if (browserErrors.length) {
+      process.stderr.write(`CUT_BROWSER_DIAGNOSTICS ${JSON.stringify(browserErrors.slice(-10))}\n`)
+    }
+    throw error
   } finally {
     await progressMonitor?.stop()
     await browser?.close().catch(() => undefined)
@@ -107,13 +112,19 @@ function startProgressMonitor(page, request) {
     const percent = Math.round(progress * 100)
     if (!force && percent === lastPercent) return
     lastPercent = percent
-    process.stdout.write(`CUT_RENDER_PROGRESS ${JSON.stringify({
+    const renderProgress = {
       state: typeof state?.state === 'string' ? state.state : 'starting',
       progress,
       percent,
       frame: Math.min(frameCount, Math.round(progress * frameCount)),
       frameCount,
       elapsedMs: Date.now() - startedAt
+    }
+    process.stdout.write(`XPERT_SANDBOX_PROGRESS ${JSON.stringify({
+      progress,
+      stage: renderProgress.state,
+      current: renderProgress.frame,
+      total: frameCount
     })}\n`)
   }
   const schedule = (force = false) => {
@@ -206,13 +217,17 @@ async function startServer(request, mediaRoot) {
 async function sendMedia(request, response, mediaRoot, relativePath) {
   const file = await safeMediaFile(mediaRoot, relativePath)
   const range = parseRange(request.headers.range, file.size)
-  const stream = createReadStream(file.path, range ? { start: range.start, end: range.end } : undefined)
   response.statusCode = range ? 206 : 200
   response.setHeader('Accept-Ranges', 'bytes')
   response.setHeader('Content-Type', mimeType(file.path))
   response.setHeader('Content-Length', String(range ? range.end - range.start + 1 : file.size))
   response.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
   if (range) response.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${file.size}`)
+  if (request.method === 'HEAD') {
+    response.end()
+    return
+  }
+  const stream = createReadStream(file.path, range ? { start: range.start, end: range.end } : undefined)
   const stop = () => stream.destroy()
   request.once('aborted', stop)
   response.once('close', stop)
@@ -303,7 +318,14 @@ function parseRange(value, size) {
   if (!value) return null
   const match = /^bytes=(\d*)-(\d*)$/.exec(value)
   if (!match) throw new Error('RENDER_INPUT_INVALID: media byte range is invalid.')
-  const start = match[1] ? Number(match[1]) : 0
+  if (!match[1]) {
+    const suffixLength = Number(match[2])
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
+      throw new Error('RENDER_INPUT_INVALID: media suffix byte range is invalid.')
+    }
+    return { start: Math.max(0, size - suffixLength), end: size - 1 }
+  }
+  const start = Number(match[1])
   const end = match[2] ? Number(match[2]) : size - 1
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= size) {
     throw new Error('RENDER_INPUT_INVALID: media byte range is outside the file.')
@@ -335,6 +357,7 @@ function finiteWithin(value, min, max, name) {
 }
 function classify(message) {
   const normalized = message.toUpperCase()
+  if (normalized.includes('CUT_MEDIA_') || normalized.includes('MEDIA_ERR_')) return 'EXPORT_MEDIA_FAILED'
   if (normalized.includes('RENDER_OUTPUT_INVALID') || normalized.includes('RENDER_FAILED')) return 'EXPORT_OUTPUT_INVALID'
   if (normalized.includes('RENDER_INPUT_INVALID') || normalized.includes('RENDER_RESOURCE_LIMIT')) return 'EXPORT_INPUT_INVALID'
   if (normalized.includes('BROWSER') || normalized.includes('CHROMIUM') || normalized.includes('PLAYWRIGHT')) return 'BROWSER_LAUNCH_FAILED'

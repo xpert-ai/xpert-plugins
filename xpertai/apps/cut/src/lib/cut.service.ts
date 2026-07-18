@@ -792,11 +792,13 @@ export class CutService {
     clearFailureReason = false
   ) {
     const projectId = requireId(project.id)
-    const nextRevision = baseRevision + 1
+    const nextDocument = stripWorkspacePreviewUrls(document)
+    const documentChanged = JSON.stringify(project.document) !== JSON.stringify(nextDocument)
+    const nextRevision = documentChanged ? baseRevision + 1 : baseRevision
     const result = await this.projects.update(
       scopedWhere<CutProject>(scope, { id: projectId, revision: baseRevision }),
       {
-        document: stripWorkspacePreviewUrls(document),
+        document: nextDocument,
         revision: nextRevision,
         ...(clearFailureReason ? { failureReason: null } : {})
       }
@@ -804,7 +806,7 @@ export class CutService {
     if (result.affected !== 1) {
       throw new ConflictException(`Cut project revision changed from ${baseRevision}; reload before saving.`)
     }
-    project.document = stripWorkspacePreviewUrls(document)
+    project.document = nextDocument
     project.revision = nextRevision
     if (clearFailureReason) project.failureReason = null
     return project

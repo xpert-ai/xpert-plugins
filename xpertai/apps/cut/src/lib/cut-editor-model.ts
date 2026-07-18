@@ -11,6 +11,70 @@ export type CutClipboard = {
   span: number
 }
 
+type CutFollowingProperty =
+  | 'color'
+  | 'volume'
+  | 'fontSize'
+  | 'fontWeight'
+  | 'fontFamily'
+  | 'fontStyle'
+  | 'textDecoration'
+  | 'textAlign'
+  | 'verticalAlign'
+  | 'letterSpacing'
+  | 'lineHeight'
+  | 'strokeColor'
+  | 'strokeWidth'
+  | 'textShadowColor'
+  | 'textShadowBlur'
+  | 'textShadowOffsetX'
+  | 'textShadowOffsetY'
+  | 'textBackgroundColor'
+  | 'textBackgroundOpacity'
+  | 'effects'
+  | 'blendMode'
+  | 'mask'
+  | 'mediaFit'
+  | 'transform'
+
+const VISUAL_FOLLOWING_PROPERTIES: readonly CutFollowingProperty[] = ['effects', 'blendMode', 'mask', 'transform']
+
+/**
+ * Updates the selected clip, then copies only safe presentation properties to
+ * later clips of the same type on the same track. Content, timing, trims,
+ * speed, fades, transitions, media identity, and source references remain
+ * independent per clip.
+ */
+export function updateCutClipAndFollowing(
+  document: CutProjectDocument,
+  clipId: string,
+  update: (clip: CutClip) => CutClip
+): CutProjectDocument {
+  const track = document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId))
+  const original = track?.clips.find((clip) => clip.id === clipId)
+  if (!track || !original) return document
+  const updated = update(original)
+  const changedProperties = followingPropertiesFor(original)
+    .filter((property) => !clipPropertyEqual(original[property], updated[property]))
+  if (!changedProperties.length) {
+    return replaceClip(document, clipId, updated)
+  }
+
+  return {
+    ...document,
+    tracks: document.tracks.map((candidate) => candidate.id !== track.id ? candidate : {
+      ...candidate,
+      clips: candidate.clips.map((clip) => {
+        if (clip.id === clipId) return updated
+        if (clip.type !== original.type || clip.start <= original.start + 0.0001) return clip
+        const next = { ...clip }
+        for (const property of changedProperties) assignClipProperty(next, property, updated[property])
+        return next
+      })
+    })
+  }
+}
+
 /** Removes the legacy empty starter audio lane; real or explicitly named audio tracks are preserved. */
 export function removeUnusedStarterAudioTrack(document: CutProjectDocument): CutProjectDocument {
   const tracks = document.tracks.filter((track) => !(
@@ -190,4 +254,34 @@ function roundTime(value: number) {
 function clipsOverlap(left: CutClip, right: CutClip) {
   return left.start < right.start + right.duration - 0.001
     && right.start < left.start + left.duration - 0.001
+}
+
+function followingPropertiesFor(clip: CutClip): readonly CutFollowingProperty[] {
+  if (clip.type === 'text') return [
+    ...VISUAL_FOLLOWING_PROPERTIES, 'color', 'fontSize', 'fontWeight', 'fontFamily', 'fontStyle', 'textDecoration',
+    'textAlign', 'verticalAlign', 'letterSpacing', 'lineHeight', 'strokeColor', 'strokeWidth', 'textShadowColor',
+    'textShadowBlur', 'textShadowOffsetX', 'textShadowOffsetY', 'textBackgroundColor', 'textBackgroundOpacity'
+  ]
+  if (clip.type === 'video') return [...VISUAL_FOLLOWING_PROPERTIES, 'mediaFit', 'volume']
+  if (clip.type === 'image') return [...VISUAL_FOLLOWING_PROPERTIES, 'mediaFit']
+  if (clip.type === 'color') return [...VISUAL_FOLLOWING_PROPERTIES, 'color']
+  return ['volume']
+}
+
+function replaceClip(document: CutProjectDocument, clipId: string, updated: CutClip) {
+  return {
+    ...document,
+    tracks: document.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => clip.id === clipId ? updated : clip)
+    }))
+  }
+}
+
+function clipPropertyEqual(left: CutClip[CutFollowingProperty], right: CutClip[CutFollowingProperty]) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function assignClipProperty(clip: CutClip, property: CutFollowingProperty, value: CutClip[CutFollowingProperty]) {
+  Object.assign(clip, { [property]: value && typeof value === 'object' ? structuredClone(value) : value })
 }

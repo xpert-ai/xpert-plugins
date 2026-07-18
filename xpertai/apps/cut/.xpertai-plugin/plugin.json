@@ -8,7 +8,11 @@
   "license": "AGPL-3.0",
   "keywords": ["cut", "video", "timeline", "opencut", "agentic-app"],
   "skills": "./skills/",
-  "sandboxActions": "./dist/sandbox-actions/cut-render/action.json",
+  "sandboxActions": [
+    "./dist/sandbox-actions/cut-render/action.json",
+    "./dist/sandbox-actions/cut-transcription-audio/action.json",
+    "./dist/sandbox-actions/cut-transcription-whisper/action.json"
+  ],
   "interface": {
     "displayName": "Cut",
     "shortDescription": "Agentic non-linear video editor",
