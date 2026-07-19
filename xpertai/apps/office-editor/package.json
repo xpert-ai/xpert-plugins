@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-office-editor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Univer-based Office editor app plugin for agent and human collaborative spreadsheets, documents, and presentations.",
   "author": {
     "name": "XpertAI",
