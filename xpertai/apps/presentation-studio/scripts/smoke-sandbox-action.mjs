@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url'
 import JSZip from 'jszip'
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const HARD_DEADLINE_MS = 360_000
+// Keep one minute beyond the production Job budget for container startup and
+// cleanup while still exercising the maximum-size export under a hard bound.
+const HARD_DEADLINE_MS = 660_000
 const image = argument('--image')
 const pageCount = numericArgument('--pages', 30)
 if (!/@sha256:[a-f0-9]{64}$/i.test(image) && !process.argv.includes('--allow-local-image')) {
@@ -32,21 +34,28 @@ try {
       runtimeProfile: 'browser/playwright-1.61/v1',
       sandboxRuntimeVersion: '1.0.0',
       action: 'presentation.export',
-      actionVersion: '1.0.1',
+      actionVersion: '1.0.2',
       payload: { kind, title: `${pageCount}-page Sandbox ${kind.toUpperCase()}`, goal: smokeGoal(pageCount) }
     }))
-    await execute('docker', [
-      'run', '--rm', '--name', activeContainer, '--network=none', '--read-only', '--cap-drop=ALL',
-      '--security-opt=no-new-privileges', '--memory=4g', '--cpus=2', '--shm-size=1g',
-      '--tmpfs', '/tmp:rw,nosuid,nodev,size=4g',
-      '--user', `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
-      '-v', `${workspace}:/workspace:rw`,
-      image,
-      '--request', '/workspace/input/job.json',
-      '--output', '/workspace/output',
-      '--action-root', '/workspace/runtime/action',
-      '--action-manifest', '/workspace/runtime/action-manifest.json'
-    ], HARD_DEADLINE_MS, () => removeContainer(activeContainer))
+    const startedAt = Date.now()
+    process.stdout.write(`[presentation-action-smoke] ${kind} started (${pageCount} pages)\n`)
+    try {
+      await execute('docker', [
+        'run', '--rm', '--name', activeContainer, '--network=none', '--read-only', '--cap-drop=ALL',
+        '--security-opt=no-new-privileges', '--memory=4g', '--cpus=2', '--shm-size=1g',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=4g',
+        '--user', `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
+        '-v', `${workspace}:/workspace:rw`,
+        image,
+        '--request', '/workspace/input/job.json',
+        '--output', '/workspace/output',
+        '--action-root', '/workspace/runtime/action',
+        '--action-manifest', '/workspace/runtime/action-manifest.json'
+      ], HARD_DEADLINE_MS, () => removeContainer(activeContainer))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`${kind} smoke failed after ${Date.now() - startedAt}ms: ${message}`, { cause: error })
+    }
     activeContainer = undefined
     const output = await readFile(path.join(workspace, 'output', `presentation.${kind}`))
     if (kind === 'pdf' && !output.subarray(0, 5).equals(Buffer.from('%PDF-'))) throw new Error('PDF smoke output is invalid.')
@@ -54,7 +63,9 @@ try {
       const zip = await JSZip.loadAsync(output)
       if (!zip.file('[Content_Types].xml') || !zip.file('ppt/presentation.xml')) throw new Error('PPTX smoke output is invalid.')
     }
-    results.push({ kind, bytes: output.length })
+    const result = { kind, bytes: output.length, durationMs: Date.now() - startedAt }
+    results.push(result)
+    process.stdout.write(`${JSON.stringify({ event: 'presentation-action-smoke.complete', ...result })}\n`)
     await rm(path.join(workspace, 'output'), { recursive: true, force: true })
     await mkdir(path.join(workspace, 'output'), { recursive: true })
     await chmod(path.join(workspace, 'output'), 0o777)

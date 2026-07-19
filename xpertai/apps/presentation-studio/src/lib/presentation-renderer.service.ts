@@ -24,6 +24,7 @@ import {
   DASHIAI_UPSTREAM_COMMIT,
   PRESENTATION_SANDBOX_ACTION,
   PRESENTATION_SANDBOX_ACTION_VERSION,
+  PRESENTATION_SANDBOX_JOB_TIMEOUT_MS,
   PRESENTATION_STUDIO_PLUGIN_NAME
 } from './constants.js'
 import { PresentationConfigService } from './presentation-config.service.js'
@@ -186,7 +187,7 @@ export class PresentationRendererService {
         mimeType,
         destination: input.destination
       }],
-      timeoutMs: 300_000
+      timeoutMs: PRESENTATION_SANDBOX_JOB_TIMEOUT_MS
     })
     const output = result.outputs.find((candidate) => candidate.path === `presentation.${input.kind}`)
     if (!output) throw new Error(`Sandbox export did not return presentation.${input.kind}.`)
