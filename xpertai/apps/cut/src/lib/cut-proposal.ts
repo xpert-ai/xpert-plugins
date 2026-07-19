@@ -13,9 +13,23 @@ export const cutProposalSegmentIdSchema = z.string().regex(
 )
 
 export const cutProposalConstraintsSchema = z.object({
+  proposalType: z.enum(['rough_cut', 'speech_cleanup']).optional(),
   targetDurationSeconds: z.number().positive().max(3_600).optional(),
   preserveTopics: z.array(z.string().trim().min(1).max(160)).max(30).optional(),
   removeSilence: z.boolean().optional(),
+  speechCleanup: z.object({
+    mode: z.enum(['conservative', 'balanced', 'aggressive']),
+    transcriptId: z.string().uuid(),
+    categoryCounts: z.object({
+      silence: z.number().int().min(0),
+      filler: z.number().int().min(0),
+      repetition: z.number().int().min(0),
+      stutter: z.number().int().min(0),
+      manual: z.number().int().min(0)
+    }).strict(),
+    removedDurationSeconds: z.number().min(0),
+    sourceDurationSeconds: z.number().positive()
+  }).strict().optional(),
   notes: z.string().trim().min(1).max(2_000).optional()
 }).strict()
 

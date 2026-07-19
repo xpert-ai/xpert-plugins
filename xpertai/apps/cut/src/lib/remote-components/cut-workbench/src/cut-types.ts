@@ -44,11 +44,20 @@ export type CutClip = {
   transform?: { x: number; y: number; width: number; height: number; rotation: number; opacity: number }
 }
 export type CutTrack = { id: string; name: string; kind: 'visual' | 'audio'; muted: boolean; hidden: boolean; clips: CutClip[] }
+export type CutSpeechCleanupDeletion = {
+  id: string
+  transcriptId: string
+  mediaAssetId: string
+  sourceStart: number
+  sourceEnd: number
+  text: string
+}
 export type CutDocument = {
   schemaVersion: 1
   settings: { width: number; height: number; fps: number; durationSeconds: number; background: string }
   tracks: CutTrack[]
   bookmarks?: Array<{ id: string; time: number; label: string }>
+  speechCleanup?: { deletions: CutSpeechCleanupDeletion[] }
 }
 export type ProjectSummary = {
   id?: string
@@ -145,6 +154,7 @@ export type EditProposalSummary = {
   sourceRevision: number
   status: 'draft' | 'applying' | 'applied' | 'reverting' | 'reverted' | 'rejected'
   revision: number
+  proposalType?: 'rough_cut' | 'speech_cleanup'
   goal: string
   itemCount: number
   enabledItemCount: number
@@ -176,7 +186,20 @@ export type EditProposalItem = {
 }
 export type EditProposalReview = {
   item: EditProposalSummary & {
-    constraints?: { targetDurationSeconds?: number; preserveTopics?: string[]; removeSilence?: boolean; notes?: string } | null
+    constraints?: {
+      proposalType?: 'rough_cut' | 'speech_cleanup'
+      targetDurationSeconds?: number
+      preserveTopics?: string[]
+      removeSilence?: boolean
+      speechCleanup?: {
+        mode: 'conservative' | 'balanced' | 'aggressive'
+        transcriptId: string
+        categoryCounts: { silence: number; filler: number; repetition: number; stutter: number; manual: number }
+        removedDurationSeconds: number
+        sourceDurationSeconds: number
+      }
+      notes?: string
+    } | null
     items: EditProposalItem[]
     reviewNote?: string | null
   }

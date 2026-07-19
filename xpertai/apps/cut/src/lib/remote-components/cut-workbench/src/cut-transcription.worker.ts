@@ -8,9 +8,6 @@ import {
   type CutWhisperChunk
 } from './cut-local-transcription-model'
 
-declare const __CUT_ORT_WASM_BINARY_DATA_URL__: string
-declare const __CUT_ORT_WASM_FACTORY_DATA_URL__: string
-
 type WorkerRequest = {
   type: 'transcribe'
   requestId: string
@@ -31,18 +28,17 @@ const scope = globalThis as unknown as WorkerScope
 const wasm = env.backends.onnx.wasm as typeof env.backends.onnx.wasm & {
   wasmPaths?: { wasm: string; mjs: string }
   numThreads?: number
-  wasmBinary?: ArrayBuffer
 }
-wasm.wasmBinary = decodeBase64DataUrl(__CUT_ORT_WASM_BINARY_DATA_URL__).buffer as ArrayBuffer
 wasm.wasmPaths = {
-  wasm: __CUT_ORT_WASM_BINARY_DATA_URL__,
-  mjs: URL.createObjectURL(new Blob([decodeBase64DataUrl(__CUT_ORT_WASM_FACTORY_DATA_URL__)], { type: 'text/javascript' }))
+  wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/ort-wasm-simd-threaded.wasm',
+  mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/ort-wasm-simd-threaded.mjs'
 }
 wasm.numThreads = 1
 env.allowRemoteModels = true
 env.allowLocalModels = false
 env.useBrowserCache = true
-// The runtime is bundled with the plugin and supplied directly to ORT; only model files use browser Cache API.
+// Interactive browser transcription is already online for model downloads, so it also loads this fixed ORT version.
+// Managed Sandbox transcription remains offline and reads the same version from the browser-ai Runtime Artifact.
 env.useWasmCache = false
 
 scope.onmessage = (event) => {
@@ -142,13 +138,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function numberOrNull(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
-function decodeBase64DataUrl(value: string) {
-  const separator = value.indexOf(',')
-  if (separator < 0) throw new Error('Embedded ONNX Runtime asset is invalid.')
-  const binary = atob(value.slice(separator + 1))
-  const output = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) output[index] = binary.charCodeAt(index)
-  return output
 }

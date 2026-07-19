@@ -205,7 +205,7 @@ const startTranscriptionSchema = z.object({
   projectId: currentProjectId,
   mediaAssetId: z.string().uuid(),
   mode: z.enum(['platform', 'sandbox_whisper']).default('platform').describe(
-    'platform uses the current Xpert Speech-to-Text provider; sandbox_whisper runs the bundled Q4 Whisper model in the managed sandbox-browser queue without an online media URL.'
+    'platform uses the current Xpert Speech-to-Text provider; sandbox_whisper runs the pinned Q4 Whisper resource in the managed browser-ai queue without an online media URL.'
   ),
   language: z.string().trim().min(1).max(35).default('und').describe(
     'Source language. For sandbox_whisper use und/auto for detection, zh (or zh-CN/zh-Hans/zh-Hant) for Chinese, or en for English.'
@@ -334,12 +334,16 @@ const createSpeechCleanupProposalSchema = z.object({
   projectId: currentProjectId,
   transcriptId: z.string().uuid(),
   sourceRevision: z.number().int().positive(),
-  minimumSilenceSeconds: z.number().min(0.3).max(5).default(0.65),
-  keepPaddingSeconds: z.number().min(0.02).max(0.5).default(0.1),
-  removeFillers: z.boolean().default(true),
-  removeSilence: z.boolean().default(true),
+  mode: z.enum(['conservative', 'balanced', 'aggressive']).optional(),
+  minimumSilenceSeconds: z.number().min(0.3).max(5).optional(),
+  keepPaddingSeconds: z.number().min(0.02).max(0.5).optional(),
+  removeFillers: z.boolean().optional(),
+  removeSilence: z.boolean().optional(),
+  removeRepeatedPhrases: z.boolean().optional(),
+  removeStutters: z.boolean().optional(),
   fillerWords: z.array(z.string().trim().min(1).max(40)).max(80).optional(),
-  maxRemovalRatio: z.number().min(0.05).max(0.6).default(0.35),
+  manualSegmentIds: z.array(z.string().uuid()).max(50).optional(),
+  maxRemovalRatio: z.number().min(0.05).max(0.6).optional(),
   idempotencyKey: z.string().trim().min(1).max(160).optional(),
   changeSummary
 }).strict()
@@ -613,7 +617,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.startTranscription(scope, input))
         }, {
           name: CUT_START_TRANSCRIPTION_TOOL_NAME,
-          description: 'Queue durable background transcription for one imported audio/video asset. mode=platform uses the current Xpert Speech-to-Text provider; mode=sandbox_whisper uses the bundled offline Q4 Whisper model in Sandbox Browser. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
+          description: 'Queue durable background transcription for one imported audio/video asset. mode=platform uses the current Xpert Speech-to-Text provider; mode=sandbox_whisper uses the pinned offline Q4 Whisper resource in the browser-ai Sandbox Runtime. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
           schema: startTranscriptionSchema,
           verboseParsingErrors: true
         }),
@@ -679,7 +683,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(sanitizeCutToolEvidence(await this.proposals.createSpeechCleanup(scope, input)))
         }, {
           name: CUT_CREATE_SPEECH_CLEANUP_PROPOSAL_TOOL_NAME,
-          description: 'Create a reviewable speech-cleanup proposal that detects long pauses and filler words from exact transcript/media evidence, maps source timestamps onto timeline clips, and proposes one A/V-safe ripple delete.',
+          description: 'Create a reviewable smart speech-cleanup proposal from exact transcript/media evidence. It can detect pauses, filler words, repeated phrases, and word-level stutters, include explicitly selected transcript segments, map source timestamps onto timeline clips, and propose A/V-safe ripple deletes. Nothing is applied until the user reviews and approves the proposal.',
           schema: createSpeechCleanupProposalSchema,
           verboseParsingErrors: true
         }),

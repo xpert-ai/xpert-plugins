@@ -11,6 +11,15 @@ export type CutClipboard = {
   span: number
 }
 
+export type CutTimelineRange = { start: number; end: number }
+
+export type CutSpeechSourceRange = {
+  mediaAssetId: string
+  sourceStart: number
+  sourceEnd: number
+  scopeClipIds?: readonly string[]
+}
+
 type CutFollowingProperty =
   | 'color'
   | 'volume'
@@ -176,6 +185,78 @@ export function removeCutClips(document: CutProjectDocument, clipIds: readonly s
   }
 }
 
+/** Maps one immutable transcript/source interval onto every matching current video clip. */
+export function mapCutSpeechSourceRange(
+  document: CutProjectDocument,
+  input: CutSpeechSourceRange
+): CutTimelineRange[] {
+  const scopedClipIds = new Set(input.scopeClipIds ?? [])
+  const ranges = document.tracks.flatMap((track) => track.clips.flatMap((clip) => {
+    if (clip.type !== 'video' || clip.mediaAssetId !== input.mediaAssetId) return []
+    if (scopedClipIds.size && !scopedClipIds.has(clip.id)) return []
+    const rate = clip.playbackRate ?? 1
+    const clipSourceStart = clip.trimIn
+    const clipSourceEnd = clip.trimIn + clip.duration * rate
+    const sourceStart = Math.max(input.sourceStart, clipSourceStart)
+    const sourceEnd = Math.min(input.sourceEnd, clipSourceEnd)
+    if (sourceEnd <= sourceStart + 0.0001) return []
+    return [{
+      start: roundTime(clip.start + (sourceStart - clipSourceStart) / rate),
+      end: roundTime(clip.start + (sourceEnd - clipSourceStart) / rate)
+    }]
+  }))
+  return mergeTimelineRanges(ranges)
+}
+
+/**
+ * Applies an in-memory ripple delete for Workbench direct editing. Caption
+ * lanes are sliced proportionally so transcript text and picture stay aligned.
+ */
+export function rippleDeleteCutRanges(
+  documentInput: CutProjectDocument,
+  rangesInput: readonly CutTimelineRange[],
+  makeId: () => string
+): CutProjectDocument {
+  const ranges = normalizeTimelineRanges(rangesInput, documentInput.settings.durationSeconds)
+  if (!ranges.length) return documentInput
+  const removedDuration = ranges.reduce((total, range) => total + range.end - range.start, 0)
+  if (documentInput.settings.durationSeconds - removedDuration < 0.1) return documentInput
+  const document = structuredClone(documentInput)
+  for (const track of document.tracks) {
+    const captionLane = /caption|subtitle|字幕/i.test(track.name)
+    const next = track.clips.flatMap((clip) => {
+      const portions = subtractTimelineRanges({ start: clip.start, end: clip.start + clip.duration }, ranges)
+      return portions.flatMap((portion, index) => {
+        const rate = clip.playbackRate ?? 1
+        const duration = roundTime(portion.end - portion.start)
+        const part = {
+          ...structuredClone(clip),
+          id: index === 0 ? clip.id : makeId(),
+          name: index === 0 ? clip.name : `${clip.name} ${index + 1}`,
+          start: cutTimeAfterRippleDelete(portion.start, ranges),
+          duration,
+          trimIn: roundTime(clip.trimIn + (portion.start - clip.start) * rate),
+          trimOut: roundTime(clip.trimIn + (portion.end - clip.start) * rate)
+        }
+        if (captionLane && part.type === 'text' && clip.text) {
+          part.text = sliceTimedText(clip.text, clip.start, clip.duration, portion)
+          if (!part.text) return []
+        }
+        if (index > 0) delete part.transitionIn
+        if (index < portions.length - 1) delete part.transitionOut
+        return [part]
+      })
+    })
+    track.clips = next.sort((left, right) => left.start - right.start || left.id.localeCompare(right.id))
+  }
+  document.bookmarks = document.bookmarks?.map((bookmark) => ({
+    ...bookmark,
+    time: cutTimeAfterRippleDelete(bookmark.time, ranges)
+  }))
+  document.settings.durationSeconds = roundTime(document.settings.durationSeconds - removedDuration)
+  return document
+}
+
 export function splitCutClips(
   documentInput: CutProjectDocument,
   clipIds: readonly string[],
@@ -249,6 +330,58 @@ export function toggleCutBookmark(documentInput: CutProjectDocument, time: numbe
 
 function roundTime(value: number) {
   return Math.round(value * 1000) / 1000
+}
+
+function normalizeTimelineRanges(ranges: readonly CutTimelineRange[], duration: number) {
+  return mergeTimelineRanges(ranges.flatMap((range) => {
+    const start = roundTime(Math.max(0, range.start))
+    const end = roundTime(Math.min(duration, range.end))
+    return Number.isFinite(start) && Number.isFinite(end) && end > start ? [{ start, end }] : []
+  }))
+}
+
+function mergeTimelineRanges(ranges: readonly CutTimelineRange[]) {
+  const merged: CutTimelineRange[] = []
+  for (const range of [...ranges].sort((left, right) => left.start - right.start || left.end - right.end)) {
+    const previous = merged.at(-1)
+    if (previous && range.start <= previous.end + 0.001) previous.end = Math.max(previous.end, range.end)
+    else merged.push({ ...range })
+  }
+  return merged
+}
+
+function subtractTimelineRanges(clip: CutTimelineRange, ranges: readonly CutTimelineRange[]) {
+  let portions = [clip]
+  for (const range of ranges) {
+    portions = portions.flatMap((portion) => {
+      if (range.end <= portion.start || range.start >= portion.end) return [portion]
+      const next: CutTimelineRange[] = []
+      if (range.start > portion.start) next.push({ start: portion.start, end: Math.min(range.start, portion.end) })
+      if (range.end < portion.end) next.push({ start: Math.max(range.end, portion.start), end: portion.end })
+      return next
+    })
+  }
+  return portions.filter((portion) => portion.end - portion.start > 0.001)
+}
+
+function cutTimeAfterRippleDelete(time: number, ranges: readonly CutTimelineRange[]) {
+  let removed = 0
+  for (const range of ranges) {
+    if (time >= range.end) removed += range.end - range.start
+    else if (time > range.start) return roundTime(range.start - removed)
+    else break
+  }
+  return roundTime(Math.max(0, time - removed))
+}
+
+function sliceTimedText(text: string, clipStart: number, clipDuration: number, portion: CutTimelineRange) {
+  const characters = Array.from(text)
+  if (!characters.length || clipDuration <= 0) return text
+  const startRatio = Math.max(0, Math.min(1, (portion.start - clipStart) / clipDuration))
+  const endRatio = Math.max(startRatio, Math.min(1, (portion.end - clipStart) / clipDuration))
+  const start = Math.floor(startRatio * characters.length)
+  const end = Math.ceil(endRatio * characters.length)
+  return characters.slice(start, end).join('').trim()
 }
 
 function clipsOverlap(left: CutClip, right: CutClip) {

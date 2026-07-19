@@ -5,6 +5,8 @@ team:
   description:
     en_US: Agentic non-linear video editor with scoped media intelligence, evidence-backed edit proposals, deterministic timeline edits, reviewable captions, versioning, and browser or headless export
     zh_Hans: 支持作用域媒体内容理解、证据化剪辑提案、确定性时间线编辑、可审阅字幕、版本以及浏览器或后台导出的智能非线性视频剪辑助手
+  avatar:
+    url: "__CUT_ICON_DATA_URL__"
   options:
     templateKey: cut-assistant
     dataXpert:

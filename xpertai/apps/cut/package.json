@@ -54,11 +54,14 @@
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "test:e2e": "node scripts/verify-workbench-e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "npm run build && node scripts/verify-package-output.mjs && npm run smoke:mcp-server"
+    "prepack": "node scripts/verify-package-output.mjs",
+    "release:prepare": "npm run build && node scripts/verify-package-output.mjs && npm run smoke:mcp-server && node scripts/prepare-release.mjs",
+    "release:publish": "node scripts/publish-prepared-release.mjs"
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "cut"
     }
   },
   "dependencies": {
@@ -101,7 +104,6 @@
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.24",
-    "undici": "7.22.0",
     "typescript": "^5.9.2",
     "zod": "3.25.67"
   },

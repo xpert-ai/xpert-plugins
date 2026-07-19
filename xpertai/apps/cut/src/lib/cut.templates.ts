@@ -6,6 +6,7 @@ import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import {
   CUT_AGENT_CAPABILITY,
   CUT_FEATURE,
+  CUT_ICON,
   CUT_PLUGIN_NAME,
   CUT_PROVIDER_KEY,
   CUT_TEMPLATE_PROVIDER_KEY,
@@ -14,6 +15,11 @@ import {
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const templateFile = 'xpert-cut-assistant.yaml'
+const cutIconAvatarPlaceholder = '__CUT_ICON_DATA_URL__'
+
+function cutIconDataUrl() {
+  return `data:image/svg+xml;base64,${Buffer.from(CUT_ICON, 'utf8').toString('base64')}`
+}
 
 function readCutDsl() {
   const candidates = [
@@ -25,7 +31,11 @@ function readCutDsl() {
   ]
   const path = candidates.find((candidate) => existsSync(candidate))
   if (!path) throw new Error(`Cut assistant template was not found: ${candidates.join(', ')}`)
-  return readFileSync(path, 'utf8')
+  const content = readFileSync(path, 'utf8')
+  if (!content.includes(cutIconAvatarPlaceholder)) {
+    throw new Error(`Cut assistant template is missing the ${cutIconAvatarPlaceholder} avatar placeholder`)
+  }
+  return content.replace(cutIconAvatarPlaceholder, cutIconDataUrl())
 }
 
 export const cutTemplates: XpertTemplateContribution[] = [

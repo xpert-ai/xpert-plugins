@@ -131,6 +131,8 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
         { key: 'cut_commit_caption_draft', label: i18n('Commit Caption Draft', '提交字幕草稿'), icon: 'ri-check-line', actionType: 'invoke' },
         { key: 'cut_import_local_transcription', label: i18n('Import Local Transcription', '保存本地转录'), icon: 'ri-mic-ai-line', actionType: 'invoke' },
         { key: 'cut_import_local_media_analysis', label: i18n('Import Local Media Analysis', '保存本地媒体分析'), icon: 'ri-radar-line', actionType: 'invoke' },
+        { key: 'cut_list_transcript_segments', label: i18n('Read Transcript', '读取转写文本'), icon: 'ri-file-text-line', actionType: 'invoke' },
+        { key: 'cut_create_speech_cleanup_proposal', label: i18n('Smart Speech Cleanup', '智能剪口播'), icon: 'ri-scissors-2-line', actionType: 'invoke' },
         { key: 'cut_get_edit_proposal', label: i18n('Get Edit Proposal', '读取剪辑提案'), icon: 'ri-draft-line', actionType: 'invoke' },
         { key: 'cut_update_edit_proposal', label: i18n('Review Edit Proposal', '审阅剪辑提案'), icon: 'ri-list-check-3', actionType: 'invoke' },
         { key: 'cut_apply_edit_proposal', label: i18n('Apply Edit Proposal', '应用剪辑提案'), icon: 'ri-check-double-line', actionType: 'invoke' },
@@ -330,6 +332,35 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           changeSummary: inputString(request.input, 'changeSummary') ?? 'Saved browser media evidence for Agent search.'
         })
         return { ...success('Cut media analysis saved for Agent search.'), refresh: true, data: result }
+      }
+      if (actionKey === 'cut_list_transcript_segments') {
+        const result = await this.captions.listTranscriptSegments(
+          scope,
+          requestProjectId(request),
+          requiredString(request.input, 'transcriptId', 'Cut transcript id is required.'),
+          inputNumber(request.input, 'page') ?? 1,
+          inputNumber(request.input, 'pageSize') ?? 200
+        )
+        return { ...success('Cut transcript loaded.'), refresh: false, data: result }
+      }
+      if (actionKey === 'cut_create_speech_cleanup_proposal') {
+        const result = await this.proposals.createSpeechCleanup(scope, {
+          projectId: requestProjectId(request),
+          transcriptId: requiredString(request.input, 'transcriptId', 'Cut transcript id is required.'),
+          sourceRevision: requiredNumber(request.input, 'sourceRevision', 'Cut source revision is required.'),
+          mode: inputSpeechCleanupMode(request.input),
+          minimumSilenceSeconds: inputNumber(request.input, 'minimumSilenceSeconds'),
+          keepPaddingSeconds: inputNumber(request.input, 'keepPaddingSeconds'),
+          removeFillers: inputBoolean(request.input, 'removeFillers'),
+          removeSilence: inputBoolean(request.input, 'removeSilence'),
+          removeRepeatedPhrases: inputBoolean(request.input, 'removeRepeatedPhrases'),
+          removeStutters: inputBoolean(request.input, 'removeStutters'),
+          maxRemovalRatio: inputNumber(request.input, 'maxRemovalRatio'),
+          manualSegmentIds: optionalArray(request.input, 'manualSegmentIds')?.filter((value): value is string => typeof value === 'string'),
+          idempotencyKey: inputString(request.input, 'idempotencyKey'),
+          changeSummary: inputString(request.input, 'changeSummary') ?? 'Created a reviewable smart speech-cleanup proposal from Workbench.'
+        })
+        return { ...success('Smart speech-cleanup proposal created.'), refresh: true, data: result }
       }
       if (actionKey === 'cut_get_edit_proposal') {
         const result = await this.proposals.get(
@@ -564,6 +595,16 @@ function requiredString(input: XpertViewActionRequest['input'], key: string, mes
 function inputNumber(input: XpertViewActionRequest['input'], key: string) {
   const value = inputRecord(input)[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function inputBoolean(input: XpertViewActionRequest['input'], key: string) {
+  const value = inputRecord(input)[key]
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function inputSpeechCleanupMode(input: XpertViewActionRequest['input']): 'conservative' | 'balanced' | 'aggressive' | undefined {
+  const value = inputString(input, 'mode')
+  return value === 'conservative' || value === 'balanced' || value === 'aggressive' ? value : undefined
 }
 
 function inputSubtitleFormat(input: XpertViewActionRequest['input']): CutSubtitleFormat | undefined {

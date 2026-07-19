@@ -8,6 +8,7 @@
   "license": "AGPL-3.0",
   "keywords": ["cut", "video", "timeline", "opencut", "agentic-app"],
   "skills": "./skills/",
+  "artifactNamespace": "cut",
   "sandboxActions": [
     "./dist/sandbox-actions/cut-render/action.json",
     "./dist/sandbox-actions/cut-transcription-audio/action.json",

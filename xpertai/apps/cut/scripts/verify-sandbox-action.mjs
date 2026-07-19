@@ -5,20 +5,15 @@ import { fileURLToPath } from 'node:url'
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actions = [
-  { directory: 'cut-render', name: 'cut.render-mp4', version: '1.1.5' },
-  { directory: 'cut-transcription-audio', name: 'cut.prepare-transcription-audio', version: '1.0.0' },
+  { directory: 'cut-render', name: 'cut.render-mp4', version: '1.1.5', runtimeProfile: 'browser/playwright-1.61/v1' },
+  { directory: 'cut-transcription-audio', name: 'cut.prepare-transcription-audio', version: '1.0.0', runtimeProfile: 'browser/playwright-1.61/v1' },
   {
     directory: 'cut-transcription-whisper',
     name: 'cut.transcribe-whisper',
     version: '1.0.0',
-    maxBytes: 256 * 1024 * 1024,
-    required: [
-      'models/Xenova/whisper-tiny/config.json',
-      'models/Xenova/whisper-tiny/tokenizer.json',
-      'models/Xenova/whisper-tiny/preprocessor_config.json',
-      'models/Xenova/whisper-tiny/onnx/encoder_model_q4.onnx',
-      'models/Xenova/whisper-tiny/onnx/decoder_model_merged_q4.onnx'
-    ]
+    runtimeProfile: 'browser/ai-playwright-1.61/v1',
+    maxBytes: 8 * 1024 * 1024,
+    browserAi: true
   }
 ]
 
@@ -27,7 +22,7 @@ for (const action of actions) await verifyAction(action)
 async function verifyAction(expected) {
   const actionRoot = path.join(packageRoot, 'dist', 'sandbox-actions', expected.directory)
   const manifest = JSON.parse(await readFile(path.join(actionRoot, 'action.json'), 'utf8'))
-  if (manifest.name !== expected.name || manifest.version !== expected.version || manifest.runtimeProfile !== 'browser/playwright-1.61/v1') {
+  if (manifest.name !== expected.name || manifest.version !== expected.version || manifest.runtimeProfile !== expected.runtimeProfile) {
     throw new Error(`Sandbox Action manifest identity or runtime profile is invalid: ${expected.directory}`)
   }
   const bundleRoot = await realpath(path.join(actionRoot, manifest.bundle))
@@ -62,6 +57,16 @@ async function verifyAction(expected) {
   }
   if (files.some((file) => file.relativePath.startsWith('node_modules/') || file.relativePath.includes('/node_modules/'))) throw new Error('Sandbox Action must not bundle a node_modules tree.')
   if (files.some((file) => file.relativePath.startsWith('playwright-core/'))) throw new Error('playwright-core must be supplied by Browser Runtime.')
+  if (expected.browserAi) {
+    const forbidden = files.find((file) => file.relativePath.endsWith('.onnx') || file.relativePath.endsWith('.wasm') || file.relativePath.startsWith('models/'))
+    if (forbidden) throw new Error(`browser-ai assets must be supplied by the Runtime Artifact, not the Action Bundle: ${forbidden.relativePath}`)
+    for (const file of files) {
+      const content = await readFile(path.join(bundleRoot, file.relativePath), 'utf8')
+      if (/data:(?:application\/wasm|text\/javascript);base64,/i.test(content)) {
+        throw new Error(`Sandbox Action contains an embedded WASM data URL: ${expected.directory}/${file.relativePath}`)
+      }
+    }
+  }
   const runner = await readFile(path.join(bundleRoot, 'runner.mjs'), 'utf8')
   if (!runner.includes('from "playwright-core"') && !runner.includes("from 'playwright-core'")) throw new Error(`Runner must keep playwright-core external: ${expected.directory}`)
   process.stdout.write(`${JSON.stringify({ action: manifest.name, version: manifest.version, files: files.length, bytes, bundleSha256: manifest.bundleSha256 })}\n`)

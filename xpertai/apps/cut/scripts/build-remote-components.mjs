@@ -1,6 +1,5 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, transform } from 'esbuild'
@@ -10,14 +9,6 @@ const componentDir = join(packageRoot, 'src', 'lib', 'remote-components', 'cut-w
 const sourceDir = join(componentDir, 'src')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
 const shadcnUiDistEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'dist', 'index.js')
-const requireFromHere = createRequire(import.meta.url)
-const transformersEntry = requireFromHere.resolve('@huggingface/transformers')
-const requireFromTransformers = createRequire(transformersEntry)
-const ortWasmBinaryPath = requireFromTransformers.resolve('onnxruntime-web/ort-wasm-simd-threaded.wasm')
-const ortWasmFactoryPath = requireFromTransformers.resolve('onnxruntime-web/ort-wasm-simd-threaded.mjs')
-const [ortWasmBinary, ortWasmFactory] = await Promise.all([readFile(ortWasmBinaryPath), readFile(ortWasmFactoryPath)])
-const ortWasmBinaryDataUrl = `data:application/wasm;base64,${ortWasmBinary.toString('base64')}`
-const ortWasmFactoryDataUrl = `data:text/javascript;base64,${ortWasmFactory.toString('base64')}`
 
 async function sourceFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -61,9 +52,7 @@ const workerResult = await build({
   write: false, logLevel: 'silent', legalComments: 'none', minify: true,
   conditions: ['onnxruntime-web-use-extern-wasm'],
   define: {
-    'process.env.NODE_ENV': '"production"',
-    __CUT_ORT_WASM_BINARY_DATA_URL__: JSON.stringify(ortWasmBinaryDataUrl),
-    __CUT_ORT_WASM_FACTORY_DATA_URL__: JSON.stringify(ortWasmFactoryDataUrl)
+    'process.env.NODE_ENV': '"production"'
   }
 })
 const transcriptionWorkerSource = workerResult.outputFiles?.find((file) => file.path.endsWith('.js'))?.text

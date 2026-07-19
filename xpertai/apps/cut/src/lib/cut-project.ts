@@ -252,7 +252,19 @@ export const cutProjectDocumentSchema = z.object({
     background: z.string().min(1)
   }),
   tracks: z.array(trackSchema).max(128),
-  bookmarks: z.array(z.object({ id: z.string().min(1), time: finite.min(0), label: z.string().min(1).max(120) })).max(256).optional()
+  bookmarks: z.array(z.object({ id: z.string().min(1), time: finite.min(0), label: z.string().min(1).max(120) })).max(256).optional(),
+  speechCleanup: z.object({
+    deletions: z.array(z.object({
+      id: z.string().min(1),
+      transcriptId: z.string().min(1),
+      mediaAssetId: z.string().min(1),
+      sourceStart: finite.min(0),
+      sourceEnd: finite.positive(),
+      text: z.string().max(20_000)
+    }).strict().refine((item) => item.sourceEnd > item.sourceStart, {
+      message: 'sourceEnd must be greater than sourceStart', path: ['sourceEnd']
+    })).max(2_000)
+  }).strict().optional()
 }) as unknown as z.ZodType<CutProjectDocument>
 
 export function createStarterCutProject(input: {

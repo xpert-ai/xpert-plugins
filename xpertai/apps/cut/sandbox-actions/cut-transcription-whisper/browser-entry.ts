@@ -16,9 +16,6 @@ import {
   type CutWhisperChunk
 } from '../../src/lib/remote-components/cut-workbench/src/cut-local-transcription-model'
 
-declare const __CUT_ORT_WASM_BINARY_DATA_URL__: string
-declare const __CUT_ORT_WASM_FACTORY_DATA_URL__: string
-
 type SandboxWhisperState = {
   state: 'starting' | 'decoding-audio' | 'loading-model' | 'transcribing' | 'complete' | 'failed'
   progress: number
@@ -76,12 +73,12 @@ async function main() {
     return response.json() as Promise<SandboxWhisperRequest>
   })
   if (request.payload.model !== 'Xenova/whisper-tiny') {
-    throw new Error('SANDBOX_WHISPER_INPUT_INVALID: only the bundled Xenova/whisper-tiny model is available.')
+    throw new Error('SANDBOX_WHISPER_INPUT_INVALID: only the pinned Xenova/whisper-tiny:q4 Runtime resource is available.')
   }
 
   const audio = await decodeAudio(request.payload.sourcePath)
   const duration = audio.length / 16_000
-  setState('loading-model', 0.2, 'Loading bundled Whisper model…')
+  setState('loading-model', 0.2, 'Loading pinned Whisper Runtime resource…')
   const transcriber = await pipeline('automatic-speech-recognition', request.payload.model, {
     device: 'wasm',
     dtype: 'q4',
@@ -92,7 +89,7 @@ async function main() {
       const ratio = Math.min(1, Math.max(0, raw > 1 ? raw / 100 : raw))
       setState('loading-model', 0.2 + ratio * 0.35, typeof record.status === 'string'
         ? `Whisper model ${record.status}…`
-        : 'Loading bundled Whisper model…')
+        : 'Loading pinned Whisper Runtime resource…')
     }
   }) as unknown as Transcriber
 
@@ -229,12 +226,10 @@ function configureOnnxRuntime() {
   const wasm = env.backends.onnx.wasm as typeof env.backends.onnx.wasm & {
     wasmPaths?: { wasm: string; mjs: string }
     numThreads?: number
-    wasmBinary?: ArrayBuffer
   }
-  wasm.wasmBinary = decodeBase64DataUrl(__CUT_ORT_WASM_BINARY_DATA_URL__).buffer as ArrayBuffer
   wasm.wasmPaths = {
-    wasm: __CUT_ORT_WASM_BINARY_DATA_URL__,
-    mjs: URL.createObjectURL(new Blob([decodeBase64DataUrl(__CUT_ORT_WASM_FACTORY_DATA_URL__)], { type: 'text/javascript' }))
+    wasm: '/runtime/onnx/ort-wasm-simd-threaded.wasm',
+    mjs: '/runtime/onnx/ort-wasm-simd-threaded.mjs'
   }
   wasm.numThreads = 1
   env.allowRemoteModels = false
@@ -258,15 +253,6 @@ function setState(
     ...(typeof current === 'number' ? { current } : {}),
     ...(typeof total === 'number' ? { total } : {})
   }
-}
-
-function decodeBase64DataUrl(value: string) {
-  const separator = value.indexOf(',')
-  if (separator < 0) throw new Error('SANDBOX_WHISPER_START_FAILED: embedded ONNX Runtime asset is invalid.')
-  const binary = atob(value.slice(separator + 1))
-  const output = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) output[index] = binary.charCodeAt(index)
-  return output
 }
 
 function ascii(view: DataView, offset: number, length: number): string {

@@ -13,6 +13,21 @@ import {
   minimumCutProposalRisk
 } from './cut-proposal.js'
 import { CutService } from './cut.service.js'
+import {
+  cutSpeechCleanupPreset,
+  detectFillerCandidates,
+  detectRepeatedPhraseCandidates,
+  detectStutterCandidates,
+  detectTranscriptGapCandidates,
+  mapSpeechCandidatesToTimeline,
+  mergeSpeechCleanupCandidates,
+  selectedTranscriptCandidates,
+  speechCleanupCategoryCounts,
+  type CutSpeechCleanupCandidate,
+  type CutSpeechCleanupKind,
+  type CutSpeechCleanupMode,
+  type CutSpeechTranscriptSegment
+} from './cut-speech-cleanup.js'
 import { CutActionLog, CutEditProposal } from './entities/index.js'
 import type {
   CutEditOperation,
@@ -60,11 +75,15 @@ export interface CreateCutSpeechCleanupProposalInput {
   projectId: string
   transcriptId: string
   sourceRevision: number
+  mode?: CutSpeechCleanupMode
   minimumSilenceSeconds?: number
   keepPaddingSeconds?: number
   removeFillers?: boolean
   removeSilence?: boolean
+  removeRepeatedPhrases?: boolean
+  removeStutters?: boolean
   fillerWords?: string[]
+  manualSegmentIds?: string[]
   maxRemovalRatio?: number
   idempotencyKey?: string
   changeSummary: string
@@ -88,10 +107,20 @@ export class CutProposalService {
     const transcriptSegments = await readAllTranscriptSegments(this.captions, scope, input.projectId, input.transcriptId)
     if (!transcriptSegments.length || !transcriptSegments[0]!.id) throw new BadRequestException('Cut speech cleanup requires a timestamped transcript.')
     const transcriptEvidence = await this.intelligence.getSegment(scope, input.projectId, `transcript:${transcriptSegments[0]!.id}`)
-    const minimumSilenceSeconds = input.minimumSilenceSeconds ?? 0.65
-    const keepPaddingSeconds = input.keepPaddingSeconds ?? 0.1
-    const candidates: SpeechCleanupCandidate[] = []
-    if (input.removeSilence !== false) {
+    const mode = input.mode ?? 'balanced'
+    const preset = cutSpeechCleanupPreset(mode)
+    const minimumSilenceSeconds = input.minimumSilenceSeconds ?? preset.minimumSilenceSeconds
+    const keepPaddingSeconds = input.keepPaddingSeconds ?? preset.keepPaddingSeconds
+    const removeSilence = input.removeSilence ?? preset.removeSilence
+    const removeFillers = input.removeFillers ?? preset.removeFillers
+    const removeRepeatedPhrases = input.removeRepeatedPhrases ?? preset.removeRepeatedPhrases
+    const removeStutters = input.removeStutters ?? preset.removeStutters
+    const manualSegmentIds = [...new Set(input.manualSegmentIds ?? [])]
+    const transcriptIds = new Set(transcriptSegments.flatMap((segment) => segment.id ? [segment.id] : []))
+    const unknownManualSegment = manualSegmentIds.find((id) => !transcriptIds.has(id))
+    if (unknownManualSegment) throw new BadRequestException(`Transcript segment ${unknownManualSegment} is not part of the selected transcript.`)
+    const candidates: CutSpeechCleanupCandidate[] = []
+    if (removeSilence) {
       const silence = await this.intelligence.search(scope, {
         projectId: input.projectId,
         mediaAssetId: transcriptEvidence.mediaAssetId,
@@ -103,44 +132,61 @@ export class CutProposalService {
         const start = segment.start + keepPaddingSeconds
         const end = segment.end - keepPaddingSeconds
         if (end - start < 0.05) continue
-        candidates.push({ start, end, evidenceId: segment.id, kind: 'silence', label: segment.label })
+        candidates.push({ start, end, evidenceIds: [segment.id], kind: 'silence' as const, label: segment.label })
       }
       candidates.push(...detectTranscriptGapCandidates(transcriptSegments, minimumSilenceSeconds, keepPaddingSeconds))
     }
-    if (input.removeFillers !== false) {
-      candidates.push(...detectFillerCandidates(transcriptSegments, input.fillerWords))
-    }
+    if (removeFillers) candidates.push(...detectFillerCandidates(transcriptSegments, input.fillerWords))
+    if (removeRepeatedPhrases) candidates.push(...detectRepeatedPhraseCandidates(transcriptSegments))
+    if (removeStutters) candidates.push(...detectStutterCandidates(transcriptSegments))
+    candidates.push(...selectedTranscriptCandidates(transcriptSegments, manualSegmentIds))
     const timelineCandidates = mapSpeechCandidatesToTimeline(detail.document, transcriptEvidence.mediaAssetId, candidates)
     const merged = mergeSpeechCleanupCandidates(timelineCandidates)
     if (!merged.length) {
       throw new BadRequestException('No removable long pauses or filler words were found. Run media analysis first or adjust the cleanup thresholds.')
     }
     const totalRemoved = merged.reduce((total, range) => total + range.end - range.start, 0)
-    const maxRemovalRatio = input.maxRemovalRatio ?? 0.35
+    const maxRemovalRatio = input.maxRemovalRatio ?? preset.maxRemovalRatio
     if (totalRemoved > detail.document.settings.durationSeconds * maxRemovalRatio) {
       throw new BadRequestException(`Speech cleanup would remove ${roundMilliseconds(totalRemoved)} seconds, above the ${Math.round(maxRemovalRatio * 100)}% safety limit.`)
     }
     const ordered = merged.sort((left, right) => right.start - left.start).slice(0, 50)
-    return this.create(scope, {
+    const categoryCounts = speechCleanupCategoryCounts(ordered)
+    const created = await this.create(scope, {
       projectId: input.projectId,
       sourceRevision: input.sourceRevision,
-      goal: 'Remove filler words and long speech pauses while preserving synchronized picture and sound.',
+      goal: 'Smart speech cleanup: remove review-approved pauses, filler words, repetitions, stutters, and selected transcript passages.',
       constraints: {
-        removeSilence: input.removeSilence !== false,
-        notes: `Detected ${ordered.filter((item) => item.kinds.has('filler')).length} filler ranges and ${ordered.filter((item) => item.kinds.has('silence')).length} pause ranges. Cuts are ordered from the end of the timeline so earlier timestamps remain stable.`
+        proposalType: 'speech_cleanup',
+        removeSilence,
+        speechCleanup: {
+          mode,
+          transcriptId: input.transcriptId,
+          categoryCounts,
+          removedDurationSeconds: roundMilliseconds(totalRemoved),
+          sourceDurationSeconds: detail.document.settings.durationSeconds
+        },
+        notes: `Detected ${ordered.length} reviewable speech-cleanup ranges. Cuts are ordered from the end of the timeline so earlier timestamps remain stable.`
       },
       items: ordered.map((range) => ({
         operation: { kind: 'ripple_delete_ranges', ranges: [{ start: range.start, end: range.end }] },
-        summary: range.kinds.has('filler')
-          ? `Remove filler speech at ${formatSeconds(range.start)}–${formatSeconds(range.end)}`
-          : `Shorten pause at ${formatSeconds(range.start)}–${formatSeconds(range.end)}`,
-        evidenceSegmentIds: [range.evidenceId],
-        confidence: range.kinds.has('filler') ? 0.86 : 0.96,
+        summary: speechCleanupSummary(range.kinds, range.start, range.end, range.label),
+        evidenceSegmentIds: range.evidenceIds,
+        confidence: speechCleanupConfidence(range.kinds),
         risk: 'medium'
       })),
       idempotencyKey: input.idempotencyKey,
       changeSummary: input.changeSummary
     })
+    return {
+      ...created,
+      cleanup: {
+        mode,
+        categoryCounts,
+        removedDurationSeconds: roundMilliseconds(totalRemoved),
+        remainingDurationSeconds: roundMilliseconds(Math.max(0, detail.document.settings.durationSeconds - totalRemoved))
+      }
+    }
   }
 
   async create(scope: CutScope, input: CreateCutEditProposalInput) {
@@ -538,6 +584,7 @@ function proposalSummary(proposal: CutEditProposal) {
     sourceRevision: proposal.sourceRevision,
     status: proposal.status,
     revision: proposal.revision,
+    proposalType: proposal.constraints?.proposalType ?? 'rough_cut',
     goal: proposal.goal,
     itemCount: proposal.items.length,
     enabledItemCount: proposal.items.filter((item) => item.enabled).length,
@@ -617,31 +664,13 @@ function proposalWhere<T extends ProposalScopedEntity>(scope: CutScope, where: P
   } as FindOptionsWhere<T>
 }
 
-type SpeechTranscriptSegment = {
-  id?: string
-  start: number
-  end: number
-  text: string
-  words?: Array<{ start: number; end: number; text: string }> | null
-}
-
-type SpeechCleanupCandidate = {
-  start: number
-  end: number
-  evidenceId: string
-  kind: 'silence' | 'filler'
-  label: string
-}
-
-type MergedSpeechCleanupCandidate = SpeechCleanupCandidate & { kinds: Set<SpeechCleanupCandidate['kind']> }
-
 async function readAllTranscriptSegments(
   captions: CutCaptionService,
   scope: CutScope,
   projectId: string,
   transcriptId: string
-): Promise<SpeechTranscriptSegment[]> {
-  const items: SpeechTranscriptSegment[] = []
+): Promise<CutSpeechTranscriptSegment[]> {
+  const items: CutSpeechTranscriptSegment[] = []
   let page = 1
   for (;;) {
     const result = await captions.listTranscriptSegments(scope, projectId, transcriptId, page, 200)
@@ -651,144 +680,21 @@ async function readAllTranscriptSegments(
   }
 }
 
-export function detectFillerCandidates(
-  segments: readonly SpeechTranscriptSegment[],
-  configuredFillers?: readonly string[]
-): SpeechCleanupCandidate[] {
-  const fillers = new Set((configuredFillers?.length ? configuredFillers : [
-    '嗯', '嗯嗯', '呃', '额', '啊', '呐', '这个', '那个', '就是', '就是说', '然后',
-    'um', 'uh', 'erm', 'hmm', 'you know'
-  ]).map(normalizeFiller).filter(Boolean))
-  const candidates: SpeechCleanupCandidate[] = []
-  for (const segment of segments) {
-    if (!segment.id) continue
-    const evidenceId = `transcript:${segment.id}`
-    if (segment.words?.length) {
-      for (const word of segment.words) {
-        if (!fillers.has(normalizeFiller(word.text))) continue
-        candidates.push({
-          start: Math.max(segment.start, word.start - 0.03),
-          end: Math.min(segment.end, word.end + 0.03),
-          evidenceId,
-          kind: 'filler',
-          label: word.text.trim()
-        })
-      }
-      continue
-    }
-    if (segment.end - segment.start <= 2.5 && fillers.has(normalizeFiller(segment.text))) {
-      candidates.push({
-        start: segment.start,
-        end: segment.end,
-        evidenceId,
-        kind: 'filler',
-        label: segment.text.trim()
-      })
-      continue
-    }
-    const normalizedText = normalizeFiller(segment.text)
-    if (!normalizedText || segment.end - segment.start > 4) continue
-    const boundaryFiller = [...fillers]
-      .filter((filler) => filler.length && filler.length < normalizedText.length)
-      .sort((left, right) => right.length - left.length)
-      .find((filler) => normalizedText.startsWith(filler) || normalizedText.endsWith(filler))
-    if (!boundaryFiller) continue
-    const estimatedDuration = Math.min(0.48, Math.max(0.12,
-      (segment.end - segment.start) * boundaryFiller.length / normalizedText.length + 0.03))
-    const atStart = normalizedText.startsWith(boundaryFiller)
-    candidates.push({
-      start: atStart ? segment.start : Math.max(segment.start, segment.end - estimatedDuration),
-      end: atStart ? Math.min(segment.end, segment.start + estimatedDuration) : segment.end,
-      evidenceId,
-      kind: 'filler',
-      label: boundaryFiller
-    })
-  }
-  return candidates
+function speechCleanupSummary(kinds: Set<CutSpeechCleanupKind>, start: number, end: number, label: string) {
+  const range = `${formatSeconds(start)}–${formatSeconds(end)}`
+  if (kinds.has('manual')) return `Remove selected transcript passage “${label.slice(0, 80)}” at ${range}`
+  if (kinds.has('repetition')) return `Remove repeated speech “${label.slice(0, 80)}” at ${range}`
+  if (kinds.has('stutter')) return `Remove stutter “${label.slice(0, 80)}” at ${range}`
+  if (kinds.has('filler')) return `Remove filler speech “${label.slice(0, 80)}” at ${range}`
+  return `Shorten pause at ${range}`
 }
 
-export function detectTranscriptGapCandidates(
-  segments: readonly SpeechTranscriptSegment[],
-  minimumSilenceSeconds = 0.65,
-  keepPaddingSeconds = 0.1
-): SpeechCleanupCandidate[] {
-  const ordered = segments.filter((segment) => segment.id && segment.end > segment.start)
-    .sort((left, right) => left.start - right.start || left.end - right.end)
-  if (ordered.length < 2) return []
-  const candidates: SpeechCleanupCandidate[] = []
-  let previous = ordered[0]!
-  let coveredUntil = previous.end
-  for (const segment of ordered.slice(1)) {
-    const gap = segment.start - coveredUntil
-    if (gap >= minimumSilenceSeconds) {
-      const start = coveredUntil + keepPaddingSeconds
-      const end = segment.start - keepPaddingSeconds
-      if (end - start >= 0.05) {
-        candidates.push({
-          start: roundMilliseconds(start),
-          end: roundMilliseconds(end),
-          evidenceId: `transcript:${previous.id}`,
-          kind: 'silence',
-          label: `Transcript pause before ${segment.text.trim().slice(0, 48) || 'speech'}`
-        })
-      }
-    }
-    if (segment.end > coveredUntil) {
-      coveredUntil = segment.end
-      previous = segment
-    }
-  }
-  return candidates
-}
-
-function mapSpeechCandidatesToTimeline(
-  document: CutProjectDocument,
-  mediaAssetId: string,
-  candidates: readonly SpeechCleanupCandidate[]
-) {
-  const mapped: SpeechCleanupCandidate[] = []
-  const clips = document.tracks.flatMap((track) => track.clips).filter((clip) =>
-    clip.mediaAssetId === mediaAssetId && (clip.type === 'video' || clip.type === 'audio')
-  )
-  for (const clip of clips) {
-    const rate = clip.playbackRate ?? 1
-    const sourceStart = clip.trimIn
-    const sourceEnd = clip.trimIn + clip.duration * rate
-    for (const candidate of candidates) {
-      const start = Math.max(sourceStart, candidate.start)
-      const end = Math.min(sourceEnd, candidate.end)
-      if (end - start < 0.04) continue
-      mapped.push({
-        ...candidate,
-        start: roundMilliseconds(clip.start + (start - sourceStart) / rate),
-        end: roundMilliseconds(clip.start + (end - sourceStart) / rate)
-      })
-    }
-  }
-  return mapped
-}
-
-function mergeSpeechCleanupCandidates(input: readonly SpeechCleanupCandidate[]): MergedSpeechCleanupCandidate[] {
-  const sorted = [...input].sort((left, right) => left.start - right.start || left.end - right.end)
-  const merged: MergedSpeechCleanupCandidate[] = []
-  for (const candidate of sorted) {
-    const previous = merged.at(-1)
-    if (previous && candidate.start <= previous.end + 0.02) {
-      previous.end = Math.max(previous.end, candidate.end)
-      previous.kinds.add(candidate.kind)
-      if (candidate.kind === 'filler') {
-        previous.evidenceId = candidate.evidenceId
-        previous.label = candidate.label
-      }
-      continue
-    }
-    merged.push({ ...candidate, kinds: new Set([candidate.kind]) })
-  }
-  return merged
-}
-
-function normalizeFiller(value: string) {
-  return value.toLocaleLowerCase().normalize('NFKC').replace(/[\s\p{P}\p{S}]+/gu, '')
+function speechCleanupConfidence(kinds: Set<CutSpeechCleanupKind>) {
+  if (kinds.has('manual')) return 1
+  if (kinds.has('silence')) return 0.96
+  if (kinds.has('stutter')) return 0.9
+  if (kinds.has('filler')) return 0.86
+  return 0.8
 }
 
 function formatSeconds(value: number) {

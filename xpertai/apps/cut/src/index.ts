@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   CUT_AGENT_CAPABILITY,
+  CUT_ARTIFACT_NAMESPACE,
   CUT_FEATURE,
   CUT_ICON,
   CUT_MCP_CAPABILITY,
@@ -33,6 +34,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    artifactNamespace: CUT_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

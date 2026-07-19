@@ -11,6 +11,17 @@ const actionVersion = '1.0.0'
 const progressLogIntervalMs = 2_000
 const maxSourceBytes = 4 * 1024 * 1024 * 1024
 const maxResultBytes = 10 * 1024 * 1024
+const whisperModel = Object.freeze({
+  key: 'xenova-whisper-tiny-q4',
+  id: 'Xenova/whisper-tiny',
+  revision: '5332fcc35e32a33b86612b9a57a89be7906102b1',
+  dtype: 'q4'
+})
+const onnxRuntime = Object.freeze({
+  key: 'onnxruntime-web-1.26.0-dev.20260416-b7804b056c',
+  version: '1.26.0-dev.20260416-b7804b056c',
+  files: new Set(['ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.mjs'])
+})
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error)
@@ -25,8 +36,9 @@ async function main() {
   const mediaRoot = path.join(path.dirname(requestPath), 'media')
   const source = await safeFile(mediaRoot, mediaRelativePath(request.payload.sourcePath), 'SANDBOX_WHISPER_INPUT_INVALID')
   if (source.size > maxSourceBytes) throw new Error('SANDBOX_WHISPER_RESOURCE_LIMIT: source media exceeds 4 GiB.')
+  const runtimeResources = await resolveRuntimeResources()
   await mkdir(outputDir, { recursive: true })
-  const server = await startServer(request, mediaRoot)
+  const server = await startServer(request, mediaRoot, runtimeResources)
   let browser
   let progressMonitor
   const browserErrors = []
@@ -115,9 +127,9 @@ function parseRequest(value) {
     typeof payload.sourceName !== 'string' ||
     typeof payload.sourceMimeType !== 'string' ||
     typeof payload.language !== 'string' ||
-    payload.model !== 'Xenova/whisper-tiny'
+    payload.model !== whisperModel.id
   ) {
-    throw new Error('SANDBOX_WHISPER_INPUT_INVALID: sourcePath, sourceName, sourceMimeType, language, and the bundled model are required.')
+    throw new Error('SANDBOX_WHISPER_INPUT_INVALID: sourcePath, sourceName, sourceMimeType, language, and the pinned model are required.')
   }
   if (!payload.sourceName.trim() || payload.sourceName.length > 240 || !payload.sourceMimeType.trim() || payload.sourceMimeType.length > 120) {
     throw new Error('SANDBOX_WHISPER_INPUT_INVALID: source media metadata is invalid.')
@@ -172,10 +184,9 @@ function validateResult(value, request) {
   return value
 }
 
-async function startServer(request, mediaRoot) {
+async function startServer(request, mediaRoot, runtimeResources) {
   const browserBundle = await readFile(path.join(actionRoot, 'browser-entry.js'))
   const requestBody = Buffer.from(JSON.stringify(request))
-  const modelRoot = path.join(actionRoot, 'models')
   const server = createServer(async (incoming, response) => {
     try {
       const url = new URL(incoming.url ?? '/', 'http://127.0.0.1')
@@ -186,7 +197,8 @@ async function startServer(request, mediaRoot) {
       if (url.pathname === '/browser-entry.js') return send(response, 200, 'text/javascript; charset=utf-8', browserBundle)
       if (url.pathname === '/request.json') return send(response, 200, 'application/json', requestBody)
       if (url.pathname.startsWith('/media/')) return await sendFile(incoming, response, mediaRoot, mediaRelativePath(url.pathname), request.payload.sourceMimeType, 'SANDBOX_WHISPER_INPUT_INVALID')
-      if (url.pathname.startsWith('/models/')) return await sendFile(incoming, response, modelRoot, modelRelativePath(url.pathname), modelMimeType(url.pathname), 'SANDBOX_WHISPER_START_FAILED')
+      if (url.pathname.startsWith('/models/')) return await sendFile(incoming, response, runtimeResources.modelRoot, modelRelativePath(url.pathname), modelMimeType(url.pathname), 'SANDBOX_WHISPER_START_FAILED')
+      if (url.pathname.startsWith('/runtime/onnx/')) return await sendFile(incoming, response, runtimeResources.onnxRoot, onnxRelativePath(url.pathname), runtimeMimeType(url.pathname), 'SANDBOX_WHISPER_START_FAILED')
       return send(response, 404, 'text/plain; charset=utf-8', Buffer.from('Not found'))
     } catch (error) {
       return send(response, 400, 'text/plain; charset=utf-8', Buffer.from(error instanceof Error ? error.message : String(error)))
@@ -202,6 +214,38 @@ async function startServer(request, mediaRoot) {
     url: `http://127.0.0.1:${address.port}/`,
     close: () => new Promise((resolve) => server.close(() => resolve()))
   }
+}
+
+async function resolveRuntimeResources() {
+  const configuredRoot = process.env.XPERT_SANDBOX_RUNTIME_ARTIFACT_ROOT?.trim()
+  if (!configuredRoot || !path.isAbsolute(configuredRoot) || configuredRoot.includes('\0')) {
+    throw new Error('SANDBOX_WHISPER_START_FAILED: trusted browser-ai Runtime Artifact root is unavailable.')
+  }
+  const root = await realpath(configuredRoot).catch(() => null)
+  if (!root) throw new Error('SANDBOX_WHISPER_START_FAILED: browser-ai Runtime Artifact root does not exist.')
+  const catalogFile = await safeFile(root, 'catalog.json', 'SANDBOX_WHISPER_START_FAILED')
+  const catalog = JSON.parse(await readFile(catalogFile.path, 'utf8'))
+  if (!isObject(catalog) || catalog.version !== 1 || !Array.isArray(catalog.resources)) {
+    throw new Error('SANDBOX_WHISPER_START_FAILED: browser-ai Runtime resource catalog is invalid.')
+  }
+  const model = catalog.resources.find((resource) => isObject(resource) && resource.key === whisperModel.key)
+  if (
+    !isObject(model) ||
+    model.type !== 'model' ||
+    model.modelId !== whisperModel.id ||
+    model.revision !== whisperModel.revision ||
+    model.dtype !== whisperModel.dtype ||
+    typeof model.path !== 'string'
+  ) {
+    throw new Error(`SANDBOX_WHISPER_START_FAILED: required Runtime model ${whisperModel.key} is unavailable or does not match its fixed revision.`)
+  }
+  const ort = catalog.resources.find((resource) => isObject(resource) && resource.key === onnxRuntime.key)
+  if (!isObject(ort) || ort.type !== 'onnxruntime' || ort.version !== onnxRuntime.version || typeof ort.path !== 'string') {
+    throw new Error(`SANDBOX_WHISPER_START_FAILED: required Runtime resource ${onnxRuntime.key} is unavailable.`)
+  }
+  const modelRoot = await safeDirectory(root, safeRelativePath(model.path, 'SANDBOX_WHISPER_START_FAILED'), 'SANDBOX_WHISPER_START_FAILED')
+  const onnxRoot = await safeDirectory(root, safeRelativePath(ort.path, 'SANDBOX_WHISPER_START_FAILED'), 'SANDBOX_WHISPER_START_FAILED')
+  return { modelRoot, onnxRoot }
 }
 
 async function sendFile(request, response, root, relativePath, contentType, errorCode) {
@@ -234,14 +278,35 @@ async function safeFile(root, relativePath, errorCode) {
   return { path: candidate, size: file.size }
 }
 
+async function safeDirectory(root, relativePath, errorCode) {
+  const resolvedRoot = await realpath(root).catch(() => null)
+  if (!resolvedRoot) throw new Error(`${errorCode}: resource root is missing.`)
+  const candidate = await realpath(path.join(resolvedRoot, relativePath)).catch(() => null)
+  if (!candidate || !(candidate === resolvedRoot || candidate.startsWith(`${resolvedRoot}${path.sep}`))) {
+    throw new Error(`${errorCode}: resource directory escapes its root or does not exist.`)
+  }
+  const details = await stat(candidate)
+  if (!details.isDirectory()) throw new Error(`${errorCode}: resource reference is not a directory.`)
+  return candidate
+}
+
 function mediaRelativePath(value) {
   if (typeof value !== 'string' || !value.startsWith('/media/')) throw new Error('SANDBOX_WHISPER_INPUT_INVALID: sourcePath must use /media/<file>.')
   return safeRelativePath(value.slice('/media/'.length), 'SANDBOX_WHISPER_INPUT_INVALID')
 }
 
 function modelRelativePath(value) {
-  if (typeof value !== 'string' || !value.startsWith('/models/')) throw new Error('SANDBOX_WHISPER_START_FAILED: model path is invalid.')
-  return safeRelativePath(value.slice('/models/'.length), 'SANDBOX_WHISPER_START_FAILED')
+  const prefix = `/models/${whisperModel.id}/`
+  if (typeof value !== 'string' || !value.startsWith(prefix)) throw new Error('SANDBOX_WHISPER_START_FAILED: model path is invalid.')
+  return safeRelativePath(value.slice(prefix.length), 'SANDBOX_WHISPER_START_FAILED')
+}
+
+function onnxRelativePath(value) {
+  const prefix = '/runtime/onnx/'
+  if (typeof value !== 'string' || !value.startsWith(prefix)) throw new Error('SANDBOX_WHISPER_START_FAILED: ONNX Runtime path is invalid.')
+  const relativePath = safeRelativePath(value.slice(prefix.length), 'SANDBOX_WHISPER_START_FAILED')
+  if (!onnxRuntime.files.has(relativePath)) throw new Error('SANDBOX_WHISPER_START_FAILED: ONNX Runtime file is not allowed.')
+  return relativePath
 }
 
 function safeRelativePath(value, errorCode) {
@@ -284,6 +349,12 @@ function send(response, status, contentType, body) {
 function modelMimeType(filePath) {
   if (filePath.endsWith('.json')) return 'application/json'
   if (filePath.endsWith('.onnx')) return 'application/octet-stream'
+  return 'application/octet-stream'
+}
+
+function runtimeMimeType(filePath) {
+  if (filePath.endsWith('.mjs')) return 'text/javascript; charset=utf-8'
+  if (filePath.endsWith('.wasm')) return 'application/wasm'
   return 'application/octet-stream'
 }
 

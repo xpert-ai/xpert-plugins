@@ -242,6 +242,15 @@ export interface CutTrack {
   clips: CutClip[]
 }
 
+export interface CutSpeechCleanupDeletion {
+  id: string
+  transcriptId: string
+  mediaAssetId: string
+  sourceStart: number
+  sourceEnd: number
+  text: string
+}
+
 export interface CutProjectDocument {
   schemaVersion: 1
   settings: {
@@ -253,6 +262,9 @@ export interface CutProjectDocument {
   }
   tracks: CutTrack[]
   bookmarks?: CutBookmark[]
+  speechCleanup?: {
+    deletions: CutSpeechCleanupDeletion[]
+  }
 }
 
 export type CutClipDraft = Omit<CutClip, 'id' | 'trimIn' | 'trimOut'> & {
@@ -344,9 +356,17 @@ export interface CutEditProposalItem {
 }
 
 export interface CutProposalConstraints {
+  proposalType?: 'rough_cut' | 'speech_cleanup'
   targetDurationSeconds?: number
   preserveTopics?: string[]
   removeSilence?: boolean
+  speechCleanup?: {
+    mode: 'conservative' | 'balanced' | 'aggressive'
+    transcriptId: string
+    categoryCounts: { silence: number; filler: number; repetition: number; stutter: number; manual: number }
+    removedDurationSeconds: number
+    sourceDurationSeconds: number
+  }
   notes?: string
 }
 

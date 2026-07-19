@@ -250,6 +250,56 @@ try {
   const localWhisperReviewDraft = Boolean(localWhisperText)
   console.log('cut-e2e: local Whisper worker bridge, audio decode, and review draft verified')
 
+  await page.evaluate(() => {
+    window.__cutHost.document.tracks[0].clips.push({
+      id: 'speech-video-clip', type: 'video', name: 'Speech video', mediaAssetId: 'media-audio',
+      start: 0, duration: 3, trimIn: 0, trimOut: 3, playbackRate: 1,
+      transform: { x: 0, y: 0, width: 1920, height: 1080, rotation: 0, opacity: 1 }
+    })
+    window.__cutHost.item.revision++
+  })
+  await frame.getByRole('button', { name: 'Reload', exact: true }).click()
+  await frame.getByRole('button', { name: 'Speech cleanup', exact: true }).click()
+  const smartCleanup = frame.getByTestId('cut-smart-speech-cleanup')
+  await smartCleanup.locator('.speech-cleanup-transcript-text [data-speech-token]').first().waitFor({ timeout: 10_000 })
+  const tokenCountBeforeDelete = await smartCleanup.locator('[data-speech-token]').count()
+  await smartCleanup.locator('.speech-cleanup-transcript-text').evaluate((root) => {
+    const tokens = root.querySelectorAll('[data-speech-token]')
+    const first = tokens[0]?.firstChild
+    const last = tokens[Math.min(2, tokens.length - 1)]?.firstChild
+    if (!first || !last) throw new Error('Transcript tokens are unavailable for selection.')
+    const range = document.createRange()
+    range.setStart(first, 0)
+    range.setEnd(last, last.textContent?.length ?? 0)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    root.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Shift' }))
+  })
+  await frame.getByTestId('cut-speech-cleanup-range').first().waitFor({ timeout: 10_000 })
+  if (process.env.CUT_E2E_SPEECH_CLEANUP_SCREENSHOT) {
+    await page.screenshot({ path: process.env.CUT_E2E_SPEECH_CLEANUP_SCREENSHOT, fullPage: true })
+  }
+  const aiCorrectionReserved = await smartCleanup.getByRole('button', { name: /AI correction/ }).isDisabled()
+  await smartCleanup.getByRole('button', { name: 'Delete', exact: true }).click()
+  await frame.getByText('Unsaved', { exact: true }).waitFor({ timeout: 10_000 })
+  const tokenCountAfterDelete = await smartCleanup.locator('[data-speech-token]').count()
+  if (tokenCountAfterDelete >= tokenCountBeforeDelete || !aiCorrectionReserved) throw new Error('Speech text selection was not deleted or AI correction is not reserved.')
+  await frame.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.waitForFunction(() => window.__cutHost.document.settings.durationSeconds < 30)
+  await smartCleanup.getByRole('button', { name: 'Auto remove fillers', exact: true }).click()
+  await frame.getByTestId('cut-proposal-review').waitFor({ timeout: 10_000 })
+  const smartSpeechCleanup = await frame.locator('.speech-cleanup-impact').isVisible()
+  if (!smartSpeechCleanup) throw new Error('Smart speech cleanup did not expose its typed impact summary for review.')
+  await page.evaluate(() => {
+    for (const track of window.__cutHost.document.tracks) {
+      track.clips = track.clips.filter((clip) => !(clip.type === 'video' && clip.mediaAssetId === 'media-audio'))
+    }
+    window.__cutHost.item.revision++
+  })
+  await frame.getByRole('button', { name: 'Reload', exact: true }).click()
+  console.log('cut-e2e: timeline action, transcript range selection, synchronized ripple delete, AI correction placeholder, and review proposal verified')
+
   await frame.locator('input[type="file"][accept*=".srt"]').setInputFiles({
     name: 'cut-e2e.srt',
     mimeType: 'application/x-subrip',
@@ -356,6 +406,7 @@ try {
     dirtyEditProtection: dirtyProtection,
     agenticProposalReview,
     localWhisperReviewDraft,
+    smartSpeechCleanup,
     ...(realWhisper ? { localWhisperText: localWhisperText.slice(0, 160) } : {}),
     captionReviewCommit,
     headlessRenderWorkflow,
@@ -388,7 +439,7 @@ function hostHtml(useRealWhisper) {
     exportSize:0,exportHasAudio:false,lastError:'',proposalApplied:false,lastUploadDuration:null,lastUploadOriginalName:null,assistantContext:null,deleted:false,deleteRequests:0,createRequests:0,staleRenderReads:0,
     document:{schemaVersion:1,settings:{width:1920,height:1080,fps:30,durationSeconds:30,background:'#080b12'},tracks:[{id:'video-1',name:'Video 1',kind:'visual',muted:false,hidden:false,clips:[baseClip]},{id:'audio-1',name:'Audio 1',kind:'audio',muted:false,hidden:false,clips:[baseAudio]}]},
     item:{id:'11111111-1111-4111-8111-111111111111',title:'Cut 30-second E2E',brief:'Gate verification',status:'draft',revision:1,currentVersionNumber:0},
-    captionDrafts:[],captionPage:null,mediaSegments:[],editProposals:[],proposalPage:null,proposalSourceDocument:null,analysisJobs:[],exports:[],renderPolls:0,
+    captionDrafts:[],captionPage:null,transcriptSegments:[],mediaSegments:[],editProposals:[],proposalPage:null,proposalSourceDocument:null,analysisJobs:[],exports:[],renderPolls:0,
     agentSplit(){const clip=this.document.tracks[0].clips[0],at=clip.start+2;const left={...clip,duration:2,trimOut:clip.trimIn+2};const right={...clip,id:'clip-2',name:clip.name+' B',start:at,duration:clip.duration-2,trimIn:clip.trimIn+2};this.document.tracks[0].clips=[left,right];this.item.revision++;sendHostEvent('cut_apply_edit')},
     agentTrim(){const clip=this.document.tracks[0].clips[1];if(clip){clip.duration=Math.max(.5,clip.duration-.5);clip.trimOut=clip.trimIn+clip.duration;this.item.revision++}sendHostEvent('cut_apply_edit')},
     agentProposal(){
@@ -399,7 +450,7 @@ function hostHtml(useRealWhisper) {
       this.editProposals=[proposal];this.refreshProposalPage();sendHostEvent('cut_create_edit_proposal')
     },
     refreshProposalPage(){
-      const proposal=this.editProposals[0],preview=structuredClone(this.proposalSourceDocument);if(proposal.items[0].enabled)preview.tracks.find((track)=>track.id==='audio-1').clips[0].volume=.4;
+      const proposal=this.editProposals[0],preview=structuredClone(this.proposalSourceDocument);if(proposal.items[0].enabled&&proposal.items[0].operation.kind==='update_audio')preview.tracks.find((track)=>track.id==='audio-1').clips[0].volume=.4;
       proposal.enabledItemCount=proposal.items.filter((item)=>item.enabled).length;
       this.proposalPage={item:structuredClone(proposal),preview:{changedClipIds:proposal.items[0].enabled?['audio-clip-1']:[],changedTrackIds:proposal.items[0].enabled?['audio-1']:[],estimatedDurationSeconds:proposal.estimatedDurationSeconds,enabledItemCount:proposal.enabledItemCount,document:preview}}
     }
@@ -440,6 +491,15 @@ function hostHtml(useRealWhisper) {
         const job={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',projectId:state.item.id,type:'render',executionMode:'server',status:'queued',progress:0,inputRevision:state.item.revision,variantName:message.input.variants[0].name,stage:'queued',resultExportId:null,cancellationRequested:false};state.analysisJobs=[job];state.renderPolls=0;state.staleRenderReads=1;reply(message,{success:true,projectId:state.item.id,sourceRevision:state.item.revision,jobs:[{jobId:job.id,status:job.status,variantName:job.variantName}]});return
       }
       if(message.actionKey==='cut_get_caption_draft'){reply(message,structuredClone(state.captionPage));return}
+      if(message.actionKey==='cut_list_transcript_segments'){reply(message,{items:structuredClone(state.transcriptSegments),total:state.transcriptSegments.length,page:1,pageSize:200});return}
+      if(message.actionKey==='cut_create_speech_cleanup_proposal'){
+        state.proposalSourceDocument=structuredClone(state.document);
+        const segment=state.transcriptSegments.find((item)=>(message.input.manualSegmentIds||[]).includes(item.id))||state.transcriptSegments[0];
+        const evidence={segmentId:'transcript:'+segment.id,mediaAssetId:'media-audio',mediaName:'cut-e2e.wav',evidenceType:'transcript',start:segment.start,end:segment.end,label:segment.text,text:segment.text,confidence:.96,thumbnail:{url:'/test.wav',time:segment.start}};
+        const item={id:'abababab-abab-4bab-8bab-abababababab',enabled:true,operation:{kind:'ripple_delete_ranges',ranges:[{start:segment.start,end:segment.end}]},summary:'Remove selected transcript passage',evidence:[evidence],confidence:1,risk:'medium'};
+        const proposal={id:'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',projectId:state.item.id,sourceRevision:state.item.revision,status:'draft',revision:1,proposalType:'speech_cleanup',goal:'Smart speech cleanup',itemCount:1,enabledItemCount:1,highRiskCount:0,estimatedDurationSeconds:state.document.settings.durationSeconds-(segment.end-segment.start),appliedRevision:null,items:[item],constraints:{proposalType:'speech_cleanup',removeSilence:message.input.removeSilence,speechCleanup:{mode:message.input.mode,transcriptId:message.input.transcriptId,categoryCounts:{silence:0,filler:0,repetition:0,stutter:0,manual:1},removedDurationSeconds:segment.end-segment.start,sourceDurationSeconds:state.document.settings.durationSeconds}},reviewNote:null};
+        state.editProposals=[proposal];state.refreshProposalPage();reply(message,{success:true,proposal:{id:proposal.id},cleanup:proposal.constraints.speechCleanup});return
+      }
       if(message.actionKey==='cut_get_edit_proposal'){reply(message,structuredClone(state.proposalPage));return}
       if(message.actionKey==='cut_update_edit_proposal'){
         const proposal=state.editProposals[0];message.input.itemUpdates.forEach((update)=>{const item=proposal.items.find((candidate)=>candidate.id===update.itemId);if(item)item.enabled=update.enabled});proposal.revision++;state.refreshProposalPage();reply(message,structuredClone(state.proposalPage));return
@@ -456,6 +516,7 @@ function hostHtml(useRealWhisper) {
       }
       if(message.actionKey==='cut_import_local_transcription'){
         const item={id:'44444444-4444-4444-8444-444444444444',projectId:state.item.id,transcriptId:'55555555-5555-4555-8555-555555555555',sourceRevision:state.item.revision,status:'draft',revision:1,language:message.input.language,targetTrackId:null,captionCount:message.input.segments.length,committedRevision:null};
+        state.transcriptSegments=message.input.segments.map((segment,index)=>({id:'56565656-5656-4565-8565-'+String(index+1).padStart(12,'0'),sequence:index,start:segment.start,end:segment.end,text:segment.text,confidence:.96,speaker:null,words:null}));
         state.captionDrafts=[item];state.captionPage={item:structuredClone(item),captions:message.input.segments.map((segment,index)=>({id:'local-cue-'+index,start:segment.start,end:segment.end,text:segment.text})),total:message.input.segments.length,page:1,pageSize:200};reply(message,{success:true,projectId:state.item.id,draftId:item.id,transcriptId:item.transcriptId,segmentCount:message.input.segments.length,timingSource:'model-segment'});return
       }
       if(message.actionKey==='cut_update_caption_draft'){

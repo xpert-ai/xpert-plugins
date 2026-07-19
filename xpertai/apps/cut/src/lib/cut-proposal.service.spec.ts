@@ -7,7 +7,13 @@ jest.mock('./cut-caption.service.js', () => ({ CutCaptionService: class CutCapti
 
 import { appendCutMediaClip, applyCutEdit, createStarterCutProject } from './cut-project.js'
 import { buildCutProposalPreview } from './cut-proposal.js'
-import { CutProposalService, detectFillerCandidates, detectTranscriptGapCandidates } from './cut-proposal.service.js'
+import { CutProposalService } from './cut-proposal.service.js'
+import {
+  detectFillerCandidates,
+  detectRepeatedPhraseCandidates,
+  detectStutterCandidates,
+  detectTranscriptGapCandidates
+} from './cut-speech-cleanup.js'
 import type { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
 import type { CutCaptionService } from './cut-caption.service.js'
 import type { CutService } from './cut.service.js'
@@ -30,6 +36,30 @@ describe('CutProposalService', () => {
     ])).toEqual([
       expect.objectContaining({ start: 3, end: 3.23, kind: 'filler', label: '嗯' }),
       expect.objectContaining({ start: 4, end: 4.48, kind: 'filler', label: '然后' })
+    ])
+  })
+
+  it('detects word-level stutters and repeated phrases without guessing from untimed text', () => {
+    const segments = [{
+      id: '66666666-6666-4666-8666-666666666666',
+      start: 0,
+      end: 4,
+      text: '我 我 今天 分享 今天 分享',
+      words: [
+        { start: 0, end: 0.2, text: '我' },
+        { start: 0.25, end: 0.45, text: '我' },
+        { start: 0.6, end: 0.9, text: '今天' },
+        { start: 0.95, end: 1.25, text: '分享' },
+        { start: 1.4, end: 1.7, text: '今天' },
+        { start: 1.75, end: 2.05, text: '分享' }
+      ]
+    }]
+
+    expect(detectStutterCandidates(segments)).toEqual([
+      expect.objectContaining({ start: 0, end: 0.2, kind: 'stutter', label: '我' })
+    ])
+    expect(detectRepeatedPhraseCandidates(segments)).toEqual([
+      expect.objectContaining({ start: 0.6, end: 1.25, kind: 'repetition', label: '今天 分享' })
     ])
   })
 
@@ -59,6 +89,12 @@ describe('CutProposalService', () => {
       changeSummary: 'Proposed filler and pause cleanup.'
     })
     expect(created.proposal).toMatchObject({ itemCount: 2, sourceRevision: 7, status: 'draft' })
+    expect(created.cleanup).toMatchObject({
+      mode: 'balanced',
+      categoryCounts: { silence: 1, filler: 1, repetition: 0, stutter: 0, manual: 0 },
+      removedDurationSeconds: 1.6,
+      remainingDurationSeconds: 28.4
+    })
     const operations = harness.proposals.rows[0]!.items.map((item) => item.operation)
     expect(operations).toEqual([
       { kind: 'ripple_delete_ranges', ranges: [{ start: 4.1, end: 5.2 }] },

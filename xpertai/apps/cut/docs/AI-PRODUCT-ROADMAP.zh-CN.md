@@ -103,7 +103,7 @@ OpenCut 主线重写公开规划包括 Editor API、插件、MCP Server、Headle
 ### 3.3 M9 正式口播成片闭环（2026-07-16 实现）
 
 - 新增 `ripple_delete_ranges` 编辑原语与 `cut_ripple_delete_ranges` middleware tool：一次操作跨所有轨道删除多个时间区间，自动拆分媒体片段、更新 `trimIn/trimOut`、压缩时间线与标记，保持画面和声音同步。
-- 新增 `cut_create_speech_cleanup_proposal`：从同一素材的 transcript 词/片段与 silence evidence 识别语气词和长停顿，映射到当前时间线，并从后向前生成最多 50 个可逐项审阅的中风险剪口；默认限制最多删除成片 35%，没有媒体分析证据时不会伪造停顿。
+- `智能剪口播` 已形成可审阅闭环：Workbench 可选择转写文本与保守/均衡/激进强度，独立控制长停顿、语气词、重复表达和词级口吃检测，并可直接勾选完整转写片段作为人工删除意图。`cut_create_speech_cleanup_proposal` 将所有来源时间映射到当前时间线，从后向前生成最多 50 个音画同步 `ripple_delete_ranges`；提案带 `speech_cleanup` 显式类型、类别计数、预计删除/保留时长和精确 transcript/analysis evidence。默认均衡模式最多删除成片 35%，没有媒体分析证据时只使用真实转写间隙，不伪造音频静音。
 - `cut_create_caption_draft` 新增 `timelineCuts` 与 `timelineOffsetSeconds`，可把原始转写时间重映射到完成剪口并插入片头后的最终时间线，避免字幕漂移。
 - 新增 `cut_create_translated_caption_draft`：由 Agent 对每个源 cue 提供目标语言文本，服务端强制 cue id 一一对应并保留原时间；源草稿不会被覆盖。
 - 新增 `cut_commit_caption_drafts`：一次原子提交 1–4 个语言草稿为独立字幕轨；各草稿可以来自不同来源 revision，写入时只校验当前项目 edit revision 和各自 draft revision，支持双语/多语言字幕同时烧录。

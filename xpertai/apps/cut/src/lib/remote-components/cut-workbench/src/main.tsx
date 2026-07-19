@@ -13,7 +13,7 @@ import {
   Bookmark, Captions, Check, ClipboardCopy, ClipboardPaste, CopyPlus, Download, Eye, EyeOff,
   Film, Image, Layers3, ListChecks, Magnet, Maximize2, Music2, PanelLeftClose, PanelRightClose, Pause, Play, Plus, Redo2,
   RotateCcw, Save, Scissors, Settings2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Sticker, Trash2,
-  Type, Undo2, Unlink, Upload, Volume2, VolumeX, WandSparkles, Waves, ZoomIn, ZoomOut
+  Type, Undo2, Unlink, Upload, Volume2, VolumeX, WandSparkles, Waves, X, ZoomIn, ZoomOut
 } from 'lucide-react'
 import { parseCutHostEvent } from '../../../cut-host-event'
 import {
@@ -29,7 +29,8 @@ import { computeCutWaveform } from '../../../cut-waveform'
 import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
-  placeCutMediaClip, removeUnusedStarterAudioTrack, toggleCutBookmark, updateCutClipAndFollowing, type CutClipboard
+  mapCutSpeechSourceRange, placeCutMediaClip, removeUnusedStarterAudioTrack, rippleDeleteCutRanges,
+  toggleCutBookmark, updateCutClipAndFollowing, type CutClipboard, type CutTimelineRange
 } from '../../../cut-editor-model'
 import {
   CUT_TIMELINE_MAX_PIXELS_PER_SECOND,
@@ -70,6 +71,9 @@ import type { AnalysisJobSummary, CaptionCue, CaptionDraftPage, CutClip, CutDocu
 import { cutTextBackgroundCss, cutTextFontFamilyCss, cutTextProjectFontSize, cutTextShadowCss } from './cut-text-rendering'
 import { TextClipInspector } from './text-clip-inspector'
 import {
+  SmartSpeechCleanup, type SpeechCleanupTextSelection, type SpeechCleanupTranscriptOption
+} from './smart-speech-cleanup'
+import {
   errorText, executeAction, executeFileAction, invokeClientCommand, isRemoteObject, notify, reportResize,
   requestData, requestFileAccess, responsePayload, startRemoteBridge, type RemoteContext, type RemoteValue
 } from './runtime'
@@ -99,7 +103,7 @@ const TIMELINE_THUMBNAIL_CACHE_LIMIT = 240
 const TIMELINE_THUMBNAIL_CONCURRENCY = 2
 const LIBRARY_TAB_TITLES: Record<string, CutMessageKey> = {
   media: 'library', sounds: 'sounds', text: 'text', stickers: 'stickers', effects: 'effects', transitions: 'transitions',
-  captions: 'captions', tasks: 'tasks', adjustment: 'adjustment', settings: 'settings'
+  captions: 'captions', tasks: 'tasks', adjustment: 'adjustment', settings: 'settings', speechCleanup: 'cleanupPanelTitle'
 }
 
 type Translator = (key: CutMessageKey) => string
@@ -181,6 +185,8 @@ function App() {
   const [exportMode, setExportMode] = React.useState<ExportMode>('browser')
   const [exportSettings, setExportSettings] = React.useState<CutExportSettings>(() => ({ ...DEFAULT_CUT_EXPORT_SETTINGS }))
   const [libraryTab, setLibraryTab] = React.useState('media')
+  const [speechCleanupScopeClipIds, setSpeechCleanupScopeClipIds] = React.useState<string[]>([])
+  const [speechCleanupTimelineRanges, setSpeechCleanupTimelineRanges] = React.useState<CutTimelineRange[]>([])
   const [downloadingExportId, setDownloadingExportId] = React.useState<string | null>(null)
   const [mediaState, setMediaState] = React.useState('idle')
   const [mediaSearch, setMediaSearch] = React.useState('')
@@ -212,6 +218,7 @@ function App() {
   const dragRef = React.useRef<DragSession | null>(null)
   const localTranscriptionCancelRef = React.useRef<(() => void) | null>(null)
   const mediaAnalysisCancelRef = React.useRef<(() => void) | null>(null)
+  const previousLibraryTabRef = React.useRef('media')
   const exportCancelRef = React.useRef<(() => void) | null>(null)
   const dataRef = React.useRef<CutViewData>(EMPTY)
   const mediaAccessGrantsRef = React.useRef(new Map<string, MediaAccessGrant>())
@@ -263,6 +270,7 @@ function App() {
       setSelectedClipIds([])
       setCaptionReview(null)
       setProposalReview(null)
+      setSpeechCleanupTimelineRanges([])
       return
     }
     setCaptionReview((current) => current?.item.projectId === detail.item.id ? current : null)
@@ -275,6 +283,7 @@ function App() {
       return next
     })
     setPlayhead(0)
+    setSpeechCleanupTimelineRanges([])
     setUndoStack([])
     setRedoStack([])
     setDirty(false)
@@ -1414,6 +1423,101 @@ function App() {
   const analysisJobs = data.analysisJobs.filter((job) => job.type !== 'render')
   const activeBackgroundCount = data.analysisJobs.filter((job) => job.status === 'queued' || job.status === 'running').length
   const recentExports = data.detail?.exports.slice(0, 8) ?? []
+  const speechCleanupTranscripts = speechCleanupTranscriptOptions(data)
+  const allVideoClips = documentDraft?.tracks.flatMap((track) => track.clips).filter((clip) => clip.type === 'video') ?? []
+  const speechCleanupScopeClips = speechCleanupScopeClipIds.length
+    ? allVideoClips.filter((clip) => speechCleanupScopeClipIds.includes(clip.id))
+    : allVideoClips
+  const speechCleanupScopeMediaIds = [...new Set(speechCleanupScopeClips.map((clip) => clip.mediaAssetId).filter((id): id is string => Boolean(id)))]
+  const speechCleanupScopeMediaAssetId = speechCleanupScopeMediaIds.length === 1 ? speechCleanupScopeMediaIds[0] : undefined
+  const scopedSpeechCleanupTranscripts = speechCleanupScopeMediaAssetId
+    ? speechCleanupTranscripts.filter((transcript) => !transcript.mediaAssetId || transcript.mediaAssetId === speechCleanupScopeMediaAssetId)
+    : speechCleanupTranscripts
+  const speechCleanupScopeLabel = speechCleanupScopeClipIds.length
+    ? `${speechCleanupScopeClips.length} ${t('cleanupVideos')}`
+    : t('cleanupAllVideos')
+
+  const openSpeechCleanup = () => {
+    if (libraryTab !== 'speechCleanup') previousLibraryTabRef.current = libraryTab
+    const selectedVideos = allVideoClips.filter((clip) => selectedClipIds.includes(clip.id))
+    setSpeechCleanupScopeClipIds(selectedVideos.map((clip) => clip.id))
+    setSpeechCleanupTimelineRanges([])
+    setIsPlaying(false)
+    setLibraryTab('speechCleanup')
+  }
+
+  const closeSpeechCleanup = () => {
+    setSpeechCleanupTimelineRanges([])
+    setLibraryTab(previousLibraryTabRef.current === 'speechCleanup' ? 'media' : previousLibraryTabRef.current)
+  }
+
+  const mapSpeechCleanupSelection = (selection: SpeechCleanupTextSelection) => {
+    if (!documentDraft) return []
+    const mediaAssetId = selection.mediaAssetId ?? speechCleanupScopeMediaAssetId
+    if (!mediaAssetId) return []
+    return mapCutSpeechSourceRange(documentDraft, {
+      mediaAssetId,
+      sourceStart: selection.sourceStart,
+      sourceEnd: selection.sourceEnd,
+      ...(speechCleanupScopeClipIds.length ? { scopeClipIds: speechCleanupScopeClipIds } : {})
+    })
+  }
+
+  const selectSpeechCleanupText = (selection: SpeechCleanupTextSelection | null) => {
+    const ranges = selection ? mapSpeechCleanupSelection(selection) : []
+    setSpeechCleanupTimelineRanges(ranges)
+    const first = ranges[0]
+    if (!first) return
+    setPlayhead(first.start)
+    playheadRef.current = first.start
+    requestAnimationFrame(() => timelineScrollRef.current?.scrollTo({
+      left: Math.max(0, TRACK_GUTTER + first.start * pixelsPerSecond - 120),
+      behavior: 'smooth'
+    }))
+  }
+
+  const deleteSpeechCleanupText = (selection: SpeechCleanupTextSelection) => {
+    if (!documentDraft || saving) return false
+    const mediaAssetId = selection.mediaAssetId ?? speechCleanupScopeMediaAssetId
+    if (!mediaAssetId) {
+      notify('warning', t('cleanupChooseVideo'))
+      return false
+    }
+    const ranges = mapSpeechCleanupSelection({ ...selection, mediaAssetId })
+    if (!ranges.length) {
+      notify('warning', t('cleanupSelectionUnavailable'))
+      return false
+    }
+    const previousClipIds = new Set(documentDraft.tracks.flatMap((track) => track.clips).map((clip) => clip.id))
+    const next = rippleDeleteCutRanges(documentDraft, ranges, makeId)
+    const nextDocument: CutDocument = {
+      ...next,
+      speechCleanup: {
+        deletions: [
+          ...(next.speechCleanup?.deletions ?? []),
+          {
+            id: makeId(), transcriptId: selection.transcriptId, mediaAssetId,
+            sourceStart: selection.sourceStart, sourceEnd: selection.sourceEnd, text: selection.text
+          }
+        ]
+      }
+    }
+    commitDraft(() => nextDocument)
+    if (speechCleanupScopeClipIds.length) {
+      setSpeechCleanupScopeClipIds(nextDocument.tracks.flatMap((track) => track.clips)
+        .filter((clip) => clip.type === 'video' && clip.mediaAssetId === mediaAssetId
+          && (speechCleanupScopeClipIds.includes(clip.id) || !previousClipIds.has(clip.id)))
+        .map((clip) => clip.id))
+    }
+    setSpeechCleanupTimelineRanges([])
+    setSelectedClipId(null)
+    setSelectedClipIds([])
+    const nextPlayhead = Math.min(ranges[0]!.start, nextDocument.settings.durationSeconds)
+    setPlayhead(nextPlayhead)
+    playheadRef.current = nextPlayhead
+    notify('success', t('cleanupSelectionDeleted'))
+    return true
+  }
 
   return <div className="cut-app">
     <header className="cut-header">
@@ -1484,6 +1588,7 @@ function App() {
                 {(libraryTab === 'media' || libraryTab === 'sounds') && <Button variant="ghost" size="icon-xs" title={t('upload')} onClick={() => uploadRef.current?.click()} disabled={!data.detail}><Upload /></Button>}
                 {libraryTab === 'captions' && <Button variant="ghost" size="icon-xs" title={t('importSubtitles')} onClick={() => subtitleUploadRef.current?.click()} disabled={!data.detail || saving}><Upload /></Button>}
                 {libraryTab === 'tasks' && <Button variant="ghost" size="icon-xs" title={t('reload')} disabled={loading} onClick={() => void load(selectedProjectId, true)}><RotateCcw /></Button>}
+                {libraryTab === 'speechCleanup' && <Button variant="ghost" size="icon-xs" title={t('close')} aria-label={t('close')} onClick={closeSpeechCleanup}><X /></Button>}
               </div>
             </div>
             <input ref={uploadRef} className="hidden-input" type="file" accept="video/*,audio/*,image/*" onChange={(event) => {
@@ -1537,6 +1642,28 @@ function App() {
               <div>{TRANSITION_TYPES.map((type) => <Button key={`out-${type}`} variant={selectedClip?.transitionOut?.type === type ? 'secondary' : 'outline'} disabled={!selectedClip || selectedClip.type === 'audio'} onClick={() => applyTransitionPreset('out', type)}><Waves />{t(type)}</Button>)}</div>
               <Button variant="ghost" size="sm" disabled={!selectedClip} onClick={clearTransitions}>{t('clearTransitions')}</Button>
             </div></TabsContent>
+            <TabsContent value="speechCleanup" className="cut-library-pane speech-cleanup-pane">
+              <SmartSpeechCleanup
+                projectId={data.detail?.item.id}
+                projectRevision={data.detail?.item.revision}
+                transcripts={scopedSpeechCleanupTranscripts}
+                scopeLabel={speechCleanupScopeLabel}
+                scopeMediaAssetId={speechCleanupScopeMediaAssetId}
+                deletions={documentDraft?.speechCleanup?.deletions ?? []}
+                disabled={saving}
+                proposalDisabled={dirty || saving}
+                t={t}
+                onSelectionChange={selectSpeechCleanupText}
+                onDeleteSelection={deleteSpeechCleanupText}
+                onProposalCreated={async (proposalId) => {
+                  const projectId = data.detail?.item.id
+                  if (!projectId) return
+                  await load(projectId, true)
+                  setLibraryTab('captions')
+                  await loadEditProposal(proposalId)
+                }}
+              />
+            </TabsContent>
             <TabsContent value="captions" className="cut-library-pane"><div className="caption-workflow">
               <div className="caption-section-title"><Sparkles />{t('editProposals')}</div>
               {!data.editProposals.length && <div className="empty-card">{t('noEditProposals')}</div>}
@@ -1545,6 +1672,12 @@ function App() {
               </button>)}</div>
               {proposalReview && <div className="proposal-review" data-testid="cut-proposal-review">
                 <div className="proposal-review-head"><strong>{proposalReview.item.goal}</strong><div>{proposalReview.item.highRiskCount > 0 && <Badge data-status="warning">{proposalReview.item.highRiskCount} {t('highRisk')}</Badge>}</div></div>
+                {proposalReview.item.constraints?.speechCleanup && <div className="speech-cleanup-impact">
+                  <strong>{t('cleanupImpact')}</strong>
+                  <span>{formatTime(proposalReview.item.constraints.speechCleanup.removedDurationSeconds)} {t('cleanupRemovedDuration')}</span>
+                  <span>{formatTime(Math.max(0, proposalReview.item.constraints.speechCleanup.sourceDurationSeconds - proposalReview.item.constraints.speechCleanup.removedDurationSeconds))} {t('cleanupRemainingDuration')}</span>
+                  <div>{Object.entries(proposalReview.item.constraints.speechCleanup.categoryCounts).filter(([, count]) => count > 0).map(([kind, count]) => <Badge key={kind} variant="outline">{t(speechCleanupCategoryMessageKey(kind))} · {count}</Badge>)}</div>
+                </div>}
                 <div className="proposal-diff"><span>{proposalReview.preview.changedClipIds.length} {t('clipsChanged')}</span><span>{proposalReview.preview.changedTrackIds.length} {t('tracksChanged')}</span><span>{formatTime(proposalReview.preview.estimatedDurationSeconds)}</span></div>
                 {proposalReview.preview.document && <div className="proposal-preview" aria-label={t('proposalPreview')}><StageCanvas document={proposalReview.preview.document} playhead={Math.min(playhead, proposalReview.preview.document.settings.durationSeconds)} playing={false} zoom={1} selectedClipIds={[]} onSelect={() => undefined} onTransform={() => undefined} onState={() => undefined} emptyText={t('selectOrUpload')} /></div>}
                 <div className="proposal-item-list">{proposalReview.item.items.map((item) => <label key={item.id} data-risk={item.risk}>
@@ -1717,6 +1850,15 @@ function App() {
           <Button variant="ghost" size="icon-xs" title={t('extractAudio')} disabled={selectedClip?.type !== 'video' || selectedClip.audioDetached} onClick={extractSelectedAudio}><Unlink /></Button>
           <Button variant={bookmarkAtPlayhead ? 'secondary' : 'ghost'} size="icon-xs" title={bookmarkAtPlayhead ? t('removeBookmark') : t('addBookmark')} disabled={!documentDraft} onClick={toggleBookmark}><Bookmark /></Button>
           <Button variant="ghost" size="icon-xs" title={t('delete')} disabled={!selectedClip} onClick={deleteSelected}><Trash2 /></Button>
+          <Button
+            variant={libraryTab === 'speechCleanup' ? 'secondary' : 'ghost'}
+            size="icon-xs"
+            title={t('cleanupPanelTitle')}
+            aria-label={t('cleanupPanelTitle')}
+            aria-pressed={libraryTab === 'speechCleanup'}
+            disabled={!allVideoClips.length || saving}
+            onClick={openSpeechCleanup}
+          ><Captions /></Button>
         </div>
         <div className="timeline-track-actions">
           <Button variant="ghost" size="xs" onClick={() => addTrack('visual')}><Plus />{t('addVideoTrack')}</Button>
@@ -1736,6 +1878,7 @@ function App() {
           <div className="timeline-ruler-row"><div className="ruler-gutter" /><div className="timeline-ruler" onPointerDown={(event) => seek((event.clientX - event.currentTarget.getBoundingClientRect().left) / pixelsPerSecond)}>
             {timelineRulerMarks(duration, pixelsPerSecond).map((second) => <span key={second} style={{ left: second * pixelsPerSecond }}>{formatTimelineRulerTime(second)}</span>)}
             {(documentDraft?.bookmarks ?? []).map((bookmark) => <button key={bookmark.id} className="timeline-bookmark" style={{ left: bookmark.time * pixelsPerSecond }} title={bookmark.label} onPointerDown={(event) => { event.stopPropagation(); seek(bookmark.time) }}><Bookmark /></button>)}
+            {speechCleanupTimelineRanges.map((range) => <i key={`${range.start}-${range.end}`} className="speech-cleanup-range ruler-range" data-testid="cut-speech-cleanup-range" style={{ left: range.start * pixelsPerSecond, width: Math.max(2, (range.end - range.start) * pixelsPerSecond) }} />)}
             <i className="global-playhead" style={{ left: playhead * pixelsPerSecond }} />
           </div></div>
           {documentDraft?.tracks.map((track) => <div className={`timeline-row ${track.clips.length > 0 && track.clips.every((clip) => clip.type === 'text') ? 'text-track' : ''}`} key={track.id}>
@@ -1759,6 +1902,7 @@ function App() {
               const rect = event.currentTarget.getBoundingClientRect()
               addMediaAsset(asset, (event.clientX - rect.left) / pixelsPerSecond, track.id)
             }}>
+              {speechCleanupTimelineRanges.map((range) => <i key={`${range.start}-${range.end}`} className="speech-cleanup-range" style={{ left: range.start * pixelsPerSecond, width: Math.max(2, (range.end - range.start) * pixelsPerSecond) }} />)}
               {track.clips.map((clip) => <ContextMenu key={clip.id}><ContextMenuTrigger asChild><div role="button" tabIndex={0} className={`timeline-clip ${clip.type} ${selectedClipIds.includes(clip.id) ? 'selected' : ''}`} style={{ left: clip.start * pixelsPerSecond, width: Math.max(24, clip.duration * pixelsPerSecond) }} onContextMenu={() => {
                 if (!selectedClipIds.includes(clip.id)) selectOnly(clip.id)
               }} onPointerDown={(event) => {
@@ -2776,6 +2920,37 @@ function coerceViewData(value: RemoteValue | null): CutViewData {
     mediaSegments: Array.isArray(value.mediaSegments) ? value.mediaSegments as CutViewData['mediaSegments'] : [],
     editProposals: Array.isArray(value.editProposals) ? value.editProposals as CutViewData['editProposals'] : [],
     renderCapability: isRemoteObject(value.renderCapability) ? value.renderCapability as unknown as CutViewData['renderCapability'] : EMPTY.renderCapability
+  }
+}
+
+function speechCleanupTranscriptOptions(data: CutViewData): SpeechCleanupTranscriptOption[] {
+  const options = new Map<string, SpeechCleanupTranscriptOption>()
+  for (const job of data.analysisJobs) {
+    if (job.type !== 'transcription' || job.status !== 'succeeded' || !job.resultTranscriptId) continue
+    options.set(job.resultTranscriptId, {
+      id: job.resultTranscriptId,
+      label: `STT · ${(job.language ?? 'und').toUpperCase()} · ${job.model ?? job.resultTranscriptId.slice(0, 8)}`,
+      mediaAssetId: job.mediaAssetId
+    })
+  }
+  for (const draft of data.captionDrafts) {
+    if (options.has(draft.transcriptId)) continue
+    options.set(draft.transcriptId, {
+      id: draft.transcriptId,
+      label: `${draft.language.toUpperCase()} · ${draft.captionCount}`,
+      mediaAssetId: data.analysisJobs.find((job) => job.resultTranscriptId === draft.transcriptId)?.mediaAssetId
+    })
+  }
+  return [...options.values()]
+}
+
+function speechCleanupCategoryMessageKey(kind: string): CutMessageKey {
+  switch (kind) {
+    case 'silence': return 'cleanupCategorySilence'
+    case 'filler': return 'cleanupCategoryFiller'
+    case 'repetition': return 'cleanupCategoryRepetition'
+    case 'stutter': return 'cleanupCategoryStutter'
+    default: return 'cleanupCategoryManual'
   }
 }
 

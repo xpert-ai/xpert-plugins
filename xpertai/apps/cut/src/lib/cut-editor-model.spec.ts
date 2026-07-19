@@ -2,10 +2,12 @@ import {
   copyCutClips,
   duplicateCutClips,
   extractCutAudio,
+  mapCutSpeechSourceRange,
   pasteCutClips,
   placeCutMediaClip,
   removeCutClips,
   removeUnusedStarterAudioTrack,
+  rippleDeleteCutRanges,
   splitCutClips,
   toggleCutBookmark,
   updateCutClipAndFollowing
@@ -144,5 +146,41 @@ describe('Cut editor model', () => {
     expect(updated.tracks[0]!.clips[1]).toMatchObject({ volume: 0.4, mediaFit: 'contain', transform: { x: 20, y: 30 } })
     expect(updated.tracks[0]!.clips[1]!.playbackRate).toBeUndefined()
     expect(updated.tracks[0]!.clips[1]!.fadeIn).toBeUndefined()
+  })
+
+  it('maps a source transcript interval through trims and playback rate', () => {
+    const source = project()
+    source.tracks[0]!.clips[0] = {
+      ...source.tracks[0]!.clips[0]!, start: 3, duration: 4, trimIn: 10, trimOut: 18, playbackRate: 2
+    }
+
+    expect(mapCutSpeechSourceRange(source, {
+      mediaAssetId: 'asset-1', sourceStart: 12, sourceEnd: 16
+    })).toEqual([{ start: 4, end: 6 }])
+    expect(mapCutSpeechSourceRange(source, {
+      mediaAssetId: 'asset-1', sourceStart: 12, sourceEnd: 16, scopeClipIds: ['another-clip']
+    })).toEqual([])
+  })
+
+  it('ripple deletes picture, sound, and proportional caption text together', () => {
+    const source = project()
+    source.settings.durationSeconds = 10
+    source.tracks[1]!.clips = [{
+      id: 'audio', name: 'Voice', type: 'audio', mediaAssetId: 'asset-1', start: 0, duration: 10, trimIn: 0, trimOut: 10
+    }]
+    source.tracks.push({
+      id: 'captions', name: 'Captions', kind: 'visual', muted: false, hidden: false,
+      clips: [{ id: 'caption', name: 'Caption', type: 'text', text: 'abcdefghij', start: 0, duration: 10, trimIn: 0, trimOut: 10 }]
+    })
+
+    const result = rippleDeleteCutRanges(source, [{ start: 2, end: 4 }], makeId)
+
+    expect(result.settings.durationSeconds).toBe(8)
+    expect(result.tracks[0]!.clips).toMatchObject([
+      { start: 0, duration: 2, trimIn: 0, trimOut: 2 },
+      { start: 2, duration: 6, trimIn: 4, trimOut: 10 }
+    ])
+    expect(result.tracks[1]!.clips).toHaveLength(2)
+    expect(result.tracks[2]!.clips.map((clip) => clip.text)).toEqual(['ab', 'efghij'])
   })
 })

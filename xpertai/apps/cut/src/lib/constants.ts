@@ -1,4 +1,5 @@
 export const CUT_PLUGIN_NAME = '@xpert-ai/plugin-cut'
+export const CUT_ARTIFACT_NAMESPACE = 'cut'
 export const CUT_PROVIDER_KEY = 'cut'
 export const CUT_MIDDLEWARE_NAME = 'CutMiddleware'
 export const CUT_TEMPLATE_PROVIDER_KEY = 'cutTemplates'
