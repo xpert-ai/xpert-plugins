@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-motion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Motion Agentic App with Motion Anything-derived workflows, native HyperFrames video composition, Player preview, and Producer rendering.",
   "author": {
     "name": "XpertAI",

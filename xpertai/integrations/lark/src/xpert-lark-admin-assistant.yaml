@@ -86,26 +86,4 @@ nodes:
       toolsetIds: []
       knowledgebaseIds: []
     hash: lark-admin-agent-v1
-  - type: workflow
-    key: Middleware_LarkConversationContext
-    position:
-      x: 1140
-      y: 260
-    entity:
-      type: middleware
-      key: Middleware_LarkConversationContext
-      title: Lark Conversation Context
-      provider: LarkConversationContextMiddleware
-      required: false
-      options:
-        integrationId: ""
-        defaults:
-          timeoutMs: 10000
-          pageSize: 20
-          resourceContentMode: metadata
-    hash: lark-admin-context-middleware-v1
-connections:
-  - type: workflow
-    key: Agent_LarkAdmin/Middleware_LarkConversationContext
-    from: Agent_LarkAdmin
-    to: Middleware_LarkConversationContext
+connections: []

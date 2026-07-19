@@ -1,20 +1,49 @@
 import type * as lark from '@larksuiteoapi/node-sdk'
 import { Injectable, Logger } from '@nestjs/common'
 import { getErrorMessage } from '@xpert-ai/plugin-sdk'
+import { createHash } from 'node:crypto'
 import { Readable } from 'node:stream'
 import { normalizeLarkTextWithMentions, parseLarkMentionIdentity } from './lark-message-semantics.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
-import type {
-  LarkMessageResourceType,
-  NormalizedMessage,
-  NormalizedMessageMention,
-  NormalizedMessageResource,
-  NormalizedMessageResourceRef
+import {
+  LARK_DISMISS_PERMISSION_GUIDE,
+  parseLarkClientError,
+  type LarkMessageResourceType,
+  type NormalizedMessage,
+  type NormalizedMessageMention,
+  type NormalizedMessageResource,
+  type NormalizedMessageResourceRef
 } from './types.js'
 import { toLarkApiErrorMessage, toNonEmptyString } from './utils.js'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const RESOURCE_INLINE_CONTENT_MODE = 'base64'
+
+export class LarkApplicationPermissionError extends Error {
+  constructor(
+    readonly code: number,
+    readonly scopes: string[],
+    message: string
+  ) {
+    super(message)
+    this.name = 'LarkApplicationPermissionError'
+  }
+}
+
+export function toLarkApplicationPermissionError(
+  error: unknown,
+  toolName: string,
+  operation: string
+): LarkApplicationPermissionError | null {
+  const parsed = parseLarkClientError(error)
+  const scopes = extractStructuredApplicationPermissionScopes(parsed)
+  if (!scopes.length) {
+    return null
+  }
+
+  const message = toLarkApiErrorMessage(error) || getErrorMessage(error) || 'Unknown error'
+  return new LarkApplicationPermissionError(parsed.code, scopes, `[${toolName}] ${operation}: ${message}`)
+}
 
 type LarkMessageItem = {
   message_id?: string
@@ -55,6 +84,7 @@ type ListMessagesInput = {
   integrationId: string
   containerIdType: string
   containerId: string
+  expectedChatId?: string | null
   startTime?: string | null
   endTime?: string | null
   sortType?: 'ByCreateTimeAsc' | 'ByCreateTimeDesc' | null
@@ -66,6 +96,7 @@ type ListMessagesInput = {
 type GetMessageInput = {
   integrationId: string
   messageId: string
+  expectedChatId?: string | null
   userIdType?: 'open_id' | 'user_id' | 'union_id' | null
   timeoutMs?: number
 }
@@ -73,6 +104,7 @@ type GetMessageInput = {
 type GetMessageResourceInput = {
   integrationId: string
   messageId: string
+  expectedChatId?: string | null
   fileKey: string
   type: LarkMessageResourceType | string
   contentMode?: 'metadata' | 'base64' | null
@@ -119,10 +151,12 @@ export class LarkContextToolService {
         `[lark_list_messages] load messages from ${containerIdType}:${containerId}`
       )
     } catch (error) {
-      throw new Error(`[lark_list_messages] Failed to list messages: ${this.formatError(error)}`)
+      throw this.toContextToolError(error, 'lark_list_messages', 'Failed to list messages')
     }
+    this.assertLarkApiSuccess(response, 'lark_list_messages', 'Failed to list messages')
 
     const items = this.normalizeMessages(response?.data?.items ?? [])
+    this.assertMessagesBelongToExpectedChat(items, input.expectedChatId, 'lark_list_messages')
     return {
       items,
       pageToken: toOptionalString(response?.data?.page_token) ?? null,
@@ -153,16 +187,20 @@ export class LarkContextToolService {
         `[lark_get_message] load message '${messageId}'`
       )
     } catch (error) {
-      throw new Error(`[lark_get_message] Failed to get message '${messageId}': ${this.formatError(error)}`)
+      throw this.toContextToolError(error, 'lark_get_message', `Failed to get message '${messageId}'`)
     }
+    this.assertLarkApiSuccess(response, 'lark_get_message', `Failed to get message '${messageId}'`)
 
     const item = (response?.data?.items ?? [])[0] as LarkMessageItem | undefined
     if (!item?.message_id) {
       throw new Error(`[lark_get_message] Message '${messageId}' was not found`)
     }
 
+    const normalizedItem = this.normalizeMessage(item)
+    this.assertMessagesBelongToExpectedChat([normalizedItem], input.expectedChatId, 'lark_get_message')
+
     return {
-      item: this.normalizeMessage(item)
+      item: normalizedItem
     }
   }
 
@@ -180,6 +218,7 @@ export class LarkContextToolService {
     const message = await this.getMessage({
       integrationId,
       messageId,
+      expectedChatId: input.expectedChatId,
       timeoutMs
     })
 
@@ -199,8 +238,10 @@ export class LarkContextToolService {
         `[lark_get_message_resource] load resource '${fileKey}' from message '${messageId}'`
       )) as LarkMessageResourceDownload
     } catch (error) {
-      throw new Error(
-        `[lark_get_message_resource] Failed to get resource '${fileKey}' from message '${messageId}': ${this.formatError(error)}`
+      throw this.toContextToolError(
+        error,
+        'lark_get_message_resource',
+        `Failed to get resource '${fileKey}' from message '${messageId}'`
       )
     }
 
@@ -251,6 +292,110 @@ export class LarkContextToolService {
       )
     } catch (error) {
       throw new Error(`[lark-context] Integration '${integrationId}' is unavailable: ${this.formatError(error)}`)
+    }
+  }
+
+  async sendApplicationPermissionGuideCard(input: {
+    integrationId: string
+    chatId: string
+    scopes: string[]
+    toolCallId?: string
+  }): Promise<{ messageId?: string; consoleUrl: string }> {
+    const integrationId = this.requireString(input.integrationId, 'integrationId')
+    const chatId = this.requireString(input.chatId, 'chatId')
+    const scopes = Array.from(new Set(input.scopes.map((scope) => scope.trim()).filter(Boolean))).sort()
+    if (!scopes.length) {
+      throw new Error('At least one Lark application permission scope is required')
+    }
+    const integration = await this.larkChannel.readIntegrationById(integrationId)
+    if (!integration) {
+      throw new Error(`Integration ${integrationId} not found`)
+    }
+    const appId = toOptionalString(integration.options?.appId)
+    const consoleBaseUrl = integration.options?.isLark
+      ? 'https://open.larksuite.com/app'
+      : 'https://open.feishu.cn/app'
+    const consoleUrl = appId
+      ? `${consoleBaseUrl}/${encodeURIComponent(appId)}/auth?q=${encodeURIComponent(scopes.join(' '))}&op_from=openapi&token_type=tenant`
+      : consoleBaseUrl
+    const permissionLines = scopes
+      .map((scope) => `- ${describeApplicationScope(scope)}\n  \`${escapeMarkdownCode(scope)}\``)
+      .join('\n')
+    const note = [
+      appId ? `App ID: ${appId}` : null,
+      '请在开发者后台的“权限管理”中开通权限并发布应用，然后重新发起请求。'
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    const uuid = createHash('sha256')
+      .update([integrationId, chatId, input.toolCallId ?? '', ...scopes].join('\u001f'))
+      .digest('hex')
+      .slice(0, 32)
+    const card = {
+      header: {
+        template: 'orange',
+        title: { tag: 'plain_text', content: '🔐 请管理员开启以下权限' }
+      },
+      elements: [
+        { tag: 'markdown', content: permissionLines },
+        {
+          tag: 'note',
+          elements: [{ tag: 'plain_text', content: note }]
+        },
+        {
+          tag: 'action',
+          layout: 'default',
+          actions: [
+            {
+              tag: 'button',
+              text: { tag: 'plain_text', content: '开启权限' },
+              type: 'primary',
+              multi_url: { url: consoleUrl }
+            },
+            {
+              tag: 'button',
+              text: { tag: 'plain_text', content: '取消' },
+              type: 'default',
+              complex_interaction: true,
+              value: { action: LARK_DISMISS_PERMISSION_GUIDE },
+              behaviors: [
+                {
+                  type: 'callback',
+                  value: { action: LARK_DISMISS_PERMISSION_GUIDE }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    const result = await this.larkChannel.createMessage(integrationId, {
+      params: { receive_id_type: 'chat_id' },
+      data: {
+        receive_id: chatId,
+        msg_type: 'interactive',
+        content: JSON.stringify(card),
+        uuid: `lark_permission_${uuid}`
+      }
+    })
+    return {
+      messageId: toOptionalString(result?.data?.message_id) ?? undefined,
+      consoleUrl
+    }
+  }
+
+  private assertMessagesBelongToExpectedChat(
+    items: NormalizedMessage[],
+    expectedChatId: string | null | undefined,
+    toolName: string
+  ) {
+    const normalizedExpectedChatId = toOptionalString(expectedChatId)
+    if (!normalizedExpectedChatId) {
+      return
+    }
+
+    if (items.some((item) => item.chatId !== normalizedExpectedChatId)) {
+      throw new Error(`[${toolName}] Lark returned a message outside the current chat.`)
     }
   }
 
@@ -433,6 +578,46 @@ export class LarkContextToolService {
   private formatError(error: unknown): string {
     return toLarkApiErrorMessage(error) || getErrorMessage(error) || 'Unknown error'
   }
+
+  private toContextToolError(error: unknown, toolName: string, operation: string): Error {
+    return (
+      toLarkApplicationPermissionError(error, toolName, operation) ??
+      new Error(`[${toolName}] ${operation}: ${this.formatError(error)}`)
+    )
+  }
+
+  private assertLarkApiSuccess(response: unknown, toolName: string, operation: string): void {
+    const parsed = parseLarkClientError(response)
+    if (parsed.code !== -1 && parsed.code !== 0) {
+      throw this.toContextToolError(response, toolName, operation)
+    }
+  }
+}
+
+function extractStructuredApplicationPermissionScopes(
+  parsed: ReturnType<typeof parseLarkClientError>
+): string[] {
+  return Array.from(
+    new Set(
+      (parsed.error.permission_violations ?? [])
+        .filter((violation) => violation.type === 'action_privilege_required')
+        .map((violation) => violation.subject.trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function describeApplicationScope(scope: string): string {
+  const labels: Record<string, string> = {
+    'im:message.group_msg': '获取群组消息（应用身份）',
+    'im:message.p2p_msg': '获取单聊消息（应用身份）',
+    'im:message': '获取与发送单聊、群组消息（应用身份）'
+  }
+  return labels[scope] ?? '飞书应用权限'
+}
+
+function escapeMarkdownCode(value: string): string {
+  return value.replace(/`/g, '')
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {

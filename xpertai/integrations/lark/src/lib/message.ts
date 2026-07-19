@@ -5,8 +5,7 @@ import { XpertAgentExecutionStatusEnum } from './contracts-compat.js'
 import type {
   LarkEventRenderItem,
   LarkProgressRenderItem,
-  LarkRenderItem,
-  LarkToolTraceRenderItem
+  LarkRenderItem
 } from './handoff/lark-chat.types.js'
 import { translate } from './i18n.js'
 import type { LarkChannelStrategy } from './lark-channel.strategy.js'
@@ -42,6 +41,13 @@ type LarkMessageChannel = Pick<
   'interactiveMessage' | 'patchInteractiveMessage' | 'textMessage' | 'deleteMessageReaction'
 >
 
+const LEGACY_TOOL_EVENT_TYPES = new Set<string>([
+  'on_tool_start',
+  'on_tool_end',
+  'on_tool_error',
+  'on_tool_message'
+])
+
 export class ChatLarkMessage extends Serializable implements ChatLarkMessageFields {
   lc_namespace: string[] = ['lark']
   override lc_serializable = true
@@ -66,7 +72,7 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
     img_key: ChatLarkMessage.logoImgKey,
     corner_radius: '30%'
   }
-  static readonly helpUrl = 'https://docs.xpertai.cn/en/ai/toolset/chatbi-toolset/bot'
+  static readonly helpUrl = 'https://docs.xpertai.cn/zh-Hans/ai/plugin/trigger/lark-trigger'
   static readonly cardConfig = {
     wide_screen_mode: true
   }
@@ -460,11 +466,15 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
           content: this.serializeProgressContent(item)
         }
       case 'tool_trace':
-        return {
-          tag: 'markdown',
-          content: this.serializeToolTraceContent(item)
-        }
+        // Legacy run state may still contain internal tool traces. Never expose
+        // those details in the user-facing Lark card.
+        return null
       case 'event':
+        if (LEGACY_TOOL_EVENT_TYPES.has(item.eventType)) {
+          // Older run state stored tool lifecycle callbacks as generic events.
+          // Keep those internal execution details out of restored Lark cards.
+          return null
+        }
         return {
           tag: 'markdown',
           content: this.serializeEventContent(item)
@@ -505,28 +515,6 @@ export class ChatLarkMessage extends Serializable implements ChatLarkMessageFiel
       lines.push(item.detail)
     }
     return lines.join('\n')
-  }
-
-  private serializeToolTraceContent(item: LarkToolTraceRenderItem): string {
-    const prefix = this.resolveToolTracePrefix(item.status, item.error)
-    const lines = [`**${prefix}${item.title}**`]
-    if (item.detail) {
-      lines.push(item.detail)
-    }
-    if (item.error && item.error !== item.detail) {
-      lines.push(`错误：${item.error}`)
-    }
-    return lines.join('\n')
-  }
-
-  private resolveToolTracePrefix(status?: string | null, error?: string | null): string {
-    if (error || status === 'fail' || status === 'error') {
-      return '工具失败：'
-    }
-    if (status === 'success' || status === 'done') {
-      return '工具结果：'
-    }
-    return '调用工具：'
   }
 
   private async handleCardSendFailure(

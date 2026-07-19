@@ -1,8 +1,11 @@
 {
   "name": "@xpert-ai/plugin-presentation-studio",
-  "version": "0.1.0",
+  "version": "0.5.2",
   "description": "Agentic presentation studio with the DashiAI layout catalog, Yjs collaboration, and HTML/PDF/PPTX export.",
-  "author": { "name": "XpertAI", "url": "https://xpertai.cn" },
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -115,5 +118,7 @@
     "typescript": "^5.9.2",
     "zod": "3.25.67"
   },
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }

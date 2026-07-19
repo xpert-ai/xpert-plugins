@@ -4,20 +4,18 @@
 })
 
 import { LarkConversationService } from './conversation.service.js'
-import {
-	CancelConversationCommand,
-	INTEGRATION_PERMISSION_SERVICE_TOKEN,
-	RequestContext
-} from '@xpert-ai/plugin-sdk'
+import { CancelConversationCommand, INTEGRATION_PERMISSION_SERVICE_TOKEN, RequestContext } from '@xpert-ai/plugin-sdk'
 import { DispatchLarkChatCommand } from './handoff/commands/dispatch-lark-chat.command.js'
 import {
 	ChatLarkContext,
 	LARK_CONFIRM,
+	LARK_DISMISS_PERMISSION_GUIDE,
 	LARK_END_CONVERSATION,
 	LARK_REJECT,
 	LARK_TYPING_REACTION_EMOJI_TYPE
 } from './types.js'
 import { LarkTriggerStrategy } from './workflow/lark-trigger.strategy.js'
+import { buildLarkInboundJobId } from './lark-job-id.js'
 
 const DEFAULT_TRIGGER_CONFIG = {
 	enabled: true,
@@ -89,6 +87,36 @@ describe('LarkConversationService', () => {
 		}
 	}
 
+  function createInboundGroupMessage(): Parameters<LarkConversationService['handleMessage']>[0] {
+    return {
+      chatId: 'chat-1',
+      chatType: 'group',
+      messageId: 'message-duplicate-1',
+      senderId: 'ou_sender_1',
+      senderName: 'Alice',
+      content: 'hello',
+      raw: {},
+      semanticMessage: {
+        rawText: 'hello',
+        displayText: 'hello',
+        agentText: 'hello',
+        mentions: []
+      },
+      isBotMentioned: false
+    }
+  }
+
+  function createInboundEventContext(): Parameters<LarkConversationService['handleMessage']>[1] {
+    return {
+      organizationId: 'org-1',
+      integration: {
+        id: 'integration-1',
+        tenant: null,
+        options: { preferLanguage: 'en_US' }
+      }
+    }
+  }
+
 	function createFixture(params?: {
 		boundXpertId?: string | null
 		triggerHandled?: boolean
@@ -97,6 +125,10 @@ describe('LarkConversationService', () => {
 		conversationBindings?: PersistedConversationBinding[]
 		triggerConfig?: Record<string, unknown>
 		triggerOwnerOpenId?: string | null
+    captureScopeMatches?: boolean
+    captureCreated?: boolean
+    claimInbound?: boolean
+    queuedInbound?: boolean
 	}) {
 		const persistedConversationBindings = [...(params?.conversationBindings ?? [])]
 		let bindingSequence = persistedConversationBindings.length
@@ -122,6 +154,7 @@ describe('LarkConversationService', () => {
 				integrationId: 'integration-1',
 				...(config ?? {})
 			})),
+      matchesInboundScope: jest.fn().mockReturnValue(params?.captureScopeMatches ?? true),
 			matchesInboundMessage: jest.fn().mockImplementation((options: any) => {
 				if (params?.triggerMatches !== undefined) {
 					return params.triggerMatches
@@ -167,9 +200,7 @@ describe('LarkConversationService', () => {
 			})
 		}
 		const conversationBindingRepository = {
-			findOne: jest
-				.fn()
-				.mockImplementation(
+      findOne: jest.fn().mockImplementation(
 					async ({
 						where,
 						order
@@ -187,44 +218,53 @@ describe('LarkConversationService', () => {
 							)
 						}
 						if (where.scopeKey) {
-							return sortBindings(
+            return (
+              sortBindings(
 								persistedConversationBindings.filter((item) => item.scopeKey === where.scopeKey),
 								order
 							)[0] ?? null
+            )
 						}
 						if (where.principalKey) {
-							return sortBindings(
+            return (
+              sortBindings(
 								persistedConversationBindings.filter((item) => item.principalKey === where.principalKey),
 								order
 							)[0] ?? null
+            )
 						}
 						if (where.integrationId && where.chatId) {
-							return sortBindings(
+            return (
+              sortBindings(
 								persistedConversationBindings.filter(
 									(item) => item.integrationId === where.integrationId && item.chatId === where.chatId
 								),
 								order
 							)[0] ?? null
+            )
 						}
 						if (where.userId !== undefined && where.integrationId !== undefined) {
-							return sortBindings(
+            return (
+              sortBindings(
 								persistedConversationBindings.filter(
 									(item) => item.userId === where.userId && item.integrationId === where.integrationId
 								),
 								order
 							)[0] ?? null
+            )
 						}
 						if (where.userId !== undefined) {
-							return sortBindings(
+            return (
+              sortBindings(
 								persistedConversationBindings.filter((item) => item.userId === where.userId),
 								order
 							)[0] ?? null
+            )
 						}
 						if (where.conversationUserKey && where.xpertId) {
 							return (
 								persistedConversationBindings.find(
-									(item) =>
-										item.conversationUserKey === where.conversationUserKey && item.xpertId === where.xpertId
+                (item) => item.conversationUserKey === where.conversationUserKey && item.xpertId === where.xpertId
 								) ?? null
 							)
 						}
@@ -241,9 +281,7 @@ describe('LarkConversationService', () => {
 						return null
 					}
 				),
-				find: jest
-					.fn()
-					.mockImplementation(
+      find: jest.fn().mockImplementation(
 						async ({
 							where,
 							order
@@ -286,9 +324,7 @@ describe('LarkConversationService', () => {
 								})
 							}
 						} else if (conflictPaths.includes('userId') && payload.userId) {
-							const index = persistedConversationBindings.findIndex(
-								(item) => item.userId === payload.userId
-							)
+              const index = persistedConversationBindings.findIndex((item) => item.userId === payload.userId)
 							if (index >= 0) {
 								persistedConversationBindings[index] = {
 									...persistedConversationBindings[index],
@@ -303,8 +339,7 @@ describe('LarkConversationService', () => {
 							}
 						} else {
 							const index = persistedConversationBindings.findIndex(
-								(item) =>
-									item.conversationUserKey === payload.conversationUserKey && item.xpertId === payload.xpertId
+                (item) => item.conversationUserKey === payload.conversationUserKey && item.xpertId === payload.xpertId
 							)
 							if (index >= 0) {
 								persistedConversationBindings[index] = {
@@ -322,17 +357,14 @@ describe('LarkConversationService', () => {
 						return { generatedMaps: [], raw: [], identifiers: [] }
 					}
 				),
-			delete: jest
-				.fn()
-				.mockImplementation(async (criteria: Partial<PersistedConversationBinding>) => {
+      delete: jest.fn().mockImplementation(async (criteria: Partial<PersistedConversationBinding>) => {
 					let removed = 0
 					for (let index = persistedConversationBindings.length - 1; index >= 0; index--) {
 						const item = persistedConversationBindings[index]
 						const matchUserId = criteria.userId === undefined || item.userId === criteria.userId
 						const matchScopeKey = criteria.scopeKey === undefined || item.scopeKey === criteria.scopeKey
 						const matchUserKey =
-							criteria.conversationUserKey === undefined ||
-							item.conversationUserKey === criteria.conversationUserKey
+            criteria.conversationUserKey === undefined || item.conversationUserKey === criteria.conversationUserKey
 						const matchXpertId = criteria.xpertId === undefined || item.xpertId === criteria.xpertId
 						if (matchUserId && matchScopeKey && matchUserKey && matchXpertId) {
 							persistedConversationBindings.splice(index, 1)
@@ -343,16 +375,11 @@ describe('LarkConversationService', () => {
 				})
 		}
 		const triggerBindingRepository = {
-			findOne: jest
-				.fn()
-				.mockImplementation(async ({ where }: { where: { integrationId?: string } }) => {
+      findOne: jest.fn().mockImplementation(async ({ where }: { where: { integrationId?: string } }) => {
 					if (!where.integrationId) {
 						return null
 					}
-					if (
-						persistedTriggerBinding &&
-						persistedTriggerBinding.integrationId === where.integrationId
-					) {
+        if (persistedTriggerBinding && persistedTriggerBinding.integrationId === where.integrationId) {
 						return persistedTriggerBinding
 					}
 					return null
@@ -371,7 +398,9 @@ describe('LarkConversationService', () => {
 		}
 		const cache = new MemoryCache()
 		const larkChannel = {
-			createMessageReaction: jest.fn().mockImplementation(async (_integrationId: string, messageId: string, emojiType: string) => ({
+      createMessageReaction: jest
+        .fn()
+        .mockImplementation(async (_integrationId: string, messageId: string, emojiType: string) => ({
 				messageId,
 				reactionId: `reaction-for-${messageId}`,
 				emojiType
@@ -413,6 +442,25 @@ describe('LarkConversationService', () => {
 		const groupMentionWindowService = {
 			ingest: jest.fn().mockResolvedValue(false)
 		}
+    const messageHistoryService = {
+      captureInbound: jest.fn().mockResolvedValue({
+        log: {
+          id: 'inbound-log-1',
+          createdAt: new Date('2026-07-15T08:00:00.000Z')
+        },
+        created: params?.captureCreated ?? true
+      }),
+      claimInboundStatus: jest.fn().mockResolvedValue(params?.claimInbound ?? true),
+      areInboundLogsInStatus: jest.fn().mockResolvedValue(params?.queuedInbound ?? false),
+      updateInboundStatus: jest.fn().mockResolvedValue([]),
+      materializeFiles: jest.fn().mockResolvedValue({ files: [], failed: [] }),
+      buildHistoryBundle: jest.fn().mockResolvedValue({ messageLogIds: [] }),
+      markContextReset: jest.fn().mockResolvedValue(undefined)
+    }
+    const messageHistoryQueue = {
+      enqueueMaterialize: jest.fn().mockResolvedValue(undefined),
+      scheduleCleanup: jest.fn().mockResolvedValue(undefined)
+    }
 		const service = new LarkConversationService(
 			commandBus as any,
 			cache as any,
@@ -420,6 +468,8 @@ describe('LarkConversationService', () => {
 			contextToolService as any,
 			recipientDirectoryService as any,
 			groupMentionWindowService as any,
+      messageHistoryService as any,
+      messageHistoryQueue as any,
 			conversationBindingRepository as any,
 			triggerBindingRepository as any,
 			pluginContext as any
@@ -434,6 +484,8 @@ describe('LarkConversationService', () => {
 			larkTriggerStrategy,
 			recipientDirectoryService,
 			groupMentionWindowService,
+      messageHistoryService,
+      messageHistoryQueue,
 			conversationBindingRepository,
 			triggerBindingRepository,
 			persistedConversationBindings
@@ -511,7 +563,8 @@ describe('LarkConversationService', () => {
 					reactionId: 'reaction-for-message-1',
 					emojiType: LARK_TYPING_REACTION_EMOJI_TYPE
 				}
-			})
+      }),
+      expect.objectContaining({ removeOnComplete: true })
 		)
 		expect(larkChannel.createMessageReaction).toHaveBeenCalledWith(
 			'integration-1',
@@ -522,7 +575,7 @@ describe('LarkConversationService', () => {
 	})
 
 	it('handleMessage keeps group fallback mention-only when all_messages is not enabled', async () => {
-		const { service, groupMentionWindowService } = createFixture({
+    const { service, groupMentionWindowService, messageHistoryService } = createFixture({
 			boundXpertId: 'trigger-xpert',
 			triggerConfig: {
 				integrationId: 'integration-1',
@@ -569,6 +622,335 @@ describe('LarkConversationService', () => {
 
 		expect(add).not.toHaveBeenCalled()
 		expect(groupMentionWindowService.ingest).not.toHaveBeenCalled()
+    expect(messageHistoryService.captureInbound).not.toHaveBeenCalled()
+  })
+
+  it('persists an allowed unmentioned group message as history_only without triggering the agent', async () => {
+    const { service, messageHistoryService, messageHistoryQueue, groupMentionWindowService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        captureUnmentionedGroupMessages: true,
+        historyContextLimit: 20,
+        historyContextWindowSeconds: 3600,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10,
+        groupReplyStrategy: 'mention_only'
+      }
+    })
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+    messageHistoryQueue.scheduleCleanup.mockRejectedValueOnce(new Error('cleanup queue unavailable'))
+
+    await expect(service.handleMessage(
+      {
+        chatId: 'chat-1',
+        chatType: 'group',
+        messageId: 'message-history-1',
+        senderId: 'ou_sender_1',
+        senderName: 'Alice',
+        content: 'background message',
+        raw: {},
+        semanticMessage: {
+          rawText: 'background message',
+          displayText: 'background message',
+          agentText: 'background message',
+          mentions: []
+        },
+        isBotMentioned: false
+      } as any,
+      {
+        organizationId: 'org-1',
+        integration: { id: 'integration-1', tenant: null, options: { preferLanguage: 'en_US' } }
+      } as any
+    )).resolves.toBeUndefined()
+
+    expect(messageHistoryService.captureInbound).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        xpertId: 'trigger-xpert',
+        messageId: 'message-history-1',
+        chatType: 'group',
+        botMentioned: false
+      })
+    )
+    expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+      ['inbound-log-1'],
+      ['received', 'failed'],
+      'history_only'
+    )
+    expect(messageHistoryQueue.scheduleCleanup).toHaveBeenCalledWith(
+      expect.objectContaining({ integrationId: 'integration-1', retentionDays: 30 })
+    )
+    expect(messageHistoryService.claimInboundStatus.mock.invocationCallOrder[0]).toBeLessThan(
+      messageHistoryQueue.scheduleCleanup.mock.invocationCallOrder[0]
+    )
+    expect(groupMentionWindowService.ingest).not.toHaveBeenCalled()
+  })
+
+  it('keeps a triggering message queued when cleanup scheduling fails', async () => {
+    const { service, messageHistoryService, messageHistoryQueue } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        groupReplyStrategy: 'all_messages',
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+    messageHistoryQueue.scheduleCleanup.mockRejectedValueOnce(new Error('cleanup queue unavailable'))
+
+    await expect(
+      service.handleMessage(
+        { ...createInboundGroupMessage(), isBotMentioned: true },
+        createInboundEventContext()
+      )
+    ).resolves.toBeUndefined()
+
+    expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+      ['inbound-log-1'],
+      ['received', 'failed'],
+      'queued'
+    )
+    expect(add).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        jobId: buildLarkInboundJobId('inbound-log-1'),
+        removeOnComplete: true
+      })
+    )
+    expect(add.mock.calls[0][1].jobId).not.toContain(':')
+    expect(add.mock.invocationCallOrder[0]).toBeLessThan(
+      messageHistoryQueue.scheduleCleanup.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('keeps a direct message queued when cleanup scheduling fails', async () => {
+    const { service, messageHistoryService, messageHistoryQueue } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+    messageHistoryQueue.scheduleCleanup.mockRejectedValueOnce(new Error('cleanup queue unavailable'))
+
+    await expect(
+      service.handleMessage(
+        {
+          chatId: 'chat-p2p-1',
+          chatType: 'p2p',
+          messageId: 'message-p2p-1',
+          senderId: 'ou_sender_1',
+          senderName: 'Alice',
+          content: 'hello',
+          raw: {},
+          semanticMessage: {
+            rawText: 'hello',
+            displayText: 'hello',
+            agentText: 'hello',
+            mentions: []
+          },
+          isBotMentioned: false
+        } as any,
+        createInboundEventContext()
+      )
+    ).resolves.toBeUndefined()
+
+    expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+      ['inbound-log-1'],
+      ['received', 'failed'],
+      'queued'
+    )
+    expect(add).toHaveBeenCalledWith(
+      expect.objectContaining({ chatType: 'p2p' }),
+      expect.objectContaining({ jobId: buildLarkInboundJobId('inbound-log-1') })
+    )
+    expect(add.mock.invocationCallOrder[0]).toBeLessThan(
+      messageHistoryQueue.scheduleCleanup.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('keeps a mentioned group message in the mention window when cleanup scheduling fails', async () => {
+    const { service, messageHistoryService, messageHistoryQueue, groupMentionWindowService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        groupReplyStrategy: 'mention_only',
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+    messageHistoryQueue.scheduleCleanup.mockRejectedValueOnce(new Error('cleanup queue unavailable'))
+
+    await expect(
+      service.handleMessage(
+        { ...createInboundGroupMessage(), isBotMentioned: true },
+        createInboundEventContext()
+      )
+    ).resolves.toBeUndefined()
+
+    expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+      ['inbound-log-1'],
+      ['received', 'failed'],
+      'queued'
+    )
+    expect(groupMentionWindowService.ingest).toHaveBeenCalledWith(
+      expect.objectContaining({ currentInboundLogIds: ['inbound-log-1'], botMentioned: true })
+    )
+    expect(groupMentionWindowService.ingest.mock.invocationCallOrder[0]).toBeLessThan(
+      messageHistoryQueue.scheduleCleanup.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('resumes a duplicate captured message when its database status is still claimable', async () => {
+    const { service, messageHistoryService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      captureCreated: false,
+      claimInbound: true,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        groupReplyStrategy: 'all_messages',
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+
+    await service.handleMessage(createInboundGroupMessage(), createInboundEventContext())
+
+    expect(messageHistoryService.claimInboundStatus).toHaveBeenCalledWith(
+      ['inbound-log-1'],
+      ['received', 'failed'],
+      'queued'
+    )
+    expect(add).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a duplicate captured message after another callback already claimed it', async () => {
+    const { service } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      captureCreated: false,
+      claimInbound: false,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        groupReplyStrategy: 'all_messages',
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+
+    await service.handleMessage(createInboundGroupMessage(), createInboundEventContext())
+
+    expect(add).not.toHaveBeenCalled()
+  })
+
+  it('recovers a duplicate whose process stopped after the queued database claim', async () => {
+    const { service, messageHistoryService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      captureCreated: false,
+      claimInbound: false,
+      queuedInbound: true,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        groupReplyStrategy: 'all_messages',
+        historyContextLimit: 20,
+        historyRetentionDays: 30,
+        historyAttachmentMaxSizeMb: 10
+      }
+    })
+    const add = jest.fn().mockResolvedValue(undefined)
+    jest.spyOn(service, 'getScopeQueue').mockResolvedValue({ add } as any)
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+
+    await service.handleMessage(createInboundGroupMessage(), createInboundEventContext())
+
+    expect(messageHistoryService.areInboundLogsInStatus).toHaveBeenCalledWith(['inbound-log-1'], 'queued')
+    expect(add).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ jobId: buildLarkInboundJobId('inbound-log-1'), removeOnComplete: true })
+    )
+  })
+
+  it('does not persist messages outside the configured capture scope', async () => {
+    const { service, messageHistoryService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      captureScopeMatches: false,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        captureUnmentionedGroupMessages: true,
+        historyContextLimit: 20
+      }
+    })
+    jest.spyOn(RequestContext, 'currentUser').mockReturnValue({
+      id: 'creator-user-1',
+      tenantId: 'tenant-1'
+    } as any)
+
+    await service.handleMessage(
+      {
+        chatId: 'chat-outside',
+        chatType: 'group',
+        messageId: 'message-outside',
+        senderId: 'ou_sender_1',
+        content: 'outside',
+        raw: {},
+        semanticMessage: { rawText: 'outside', displayText: 'outside', agentText: 'outside', mentions: [] },
+        isBotMentioned: false
+      } as any,
+      {
+        organizationId: 'org-1',
+        integration: { id: 'integration-1', tenant: null, options: {} }
+      } as any
+    )
+
+    expect(messageHistoryService.captureInbound).not.toHaveBeenCalled()
 	})
 
 	it('processMessage uses mapped sender as fromEndUserId instead of creator fallback', async () => {
@@ -636,6 +1018,130 @@ describe('LarkConversationService', () => {
 			}
 		])
 	})
+
+  it('processMessage sends a materialized current image as inline vision content', async () => {
+    const { service, commandBus, contextToolService, messageHistoryService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerMatches: true,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        historyAttachmentMaxSizeMb: 10,
+        historyContextLimit: 20,
+        historyContextWindowSeconds: 3600
+      },
+      conversationBindings: [
+        {
+          userId: 'ou_sender_1',
+          integrationId: 'integration-1',
+          scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+          principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+          chatType: 'p2p',
+          senderOpenId: 'ou_sender_1',
+          conversationUserKey: 'open_id:ou_sender_1',
+          xpertId: 'trigger-xpert',
+          conversationId: 'conversation-from-db'
+        }
+      ]
+    })
+    messageHistoryService.materializeFiles.mockResolvedValue({
+      files: [
+        {
+          fileAssetId: 'asset-1',
+          fileUrl: 'data:image/png;base64,YWJj',
+          url: 'data:image/png;base64,YWJj',
+          mimeType: 'image/png',
+          originalName: 'photo.png',
+          fileKey: 'img_1'
+        }
+      ],
+      failed: []
+    })
+
+    await service.processMessage({
+      userId: 'creator-user-1',
+      senderOpenId: 'ou_sender_1',
+      integrationId: 'integration-1',
+      chatType: 'p2p',
+      currentInboundLogIds: ['inbound-log-1'],
+      historyBefore: '2026-07-16T09:29:12.000Z',
+      message: {
+        message: {
+          message_id: 'om_image_1',
+          message_type: 'image',
+          content: JSON.stringify({ image_key: 'img_1' })
+        }
+      }
+    } as any)
+
+    expect(messageHistoryService.materializeFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageLogIds: ['inbound-log-1'],
+        inlineImageContent: true
+      })
+    )
+    expect(contextToolService.getMessageResource).not.toHaveBeenCalled()
+    expect(getExecutedDispatchCommands(commandBus as any)[0].input.files).toEqual([
+      expect.objectContaining({
+        fileAssetId: 'asset-1',
+        fileUrl: 'data:image/png;base64,YWJj',
+        mimeType: 'image/png'
+      })
+    ])
+  })
+
+  it('processMessage falls back to the original inline image path when workspace preparation fails', async () => {
+    const { service, commandBus, contextToolService, messageHistoryService } = createFixture({
+      boundXpertId: 'trigger-xpert',
+      triggerMatches: true,
+      triggerConfig: {
+        integrationId: 'integration-1',
+        ...DEFAULT_TRIGGER_CONFIG,
+        historyAttachmentMaxSizeMb: 10,
+        historyContextLimit: 20
+      },
+      conversationBindings: [
+        {
+          userId: 'ou_sender_1',
+          integrationId: 'integration-1',
+          scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+          principalKey: 'lark:v2:principal:integration-1:open_id:ou_sender_1',
+          chatType: 'p2p',
+          senderOpenId: 'ou_sender_1',
+          conversationUserKey: 'open_id:ou_sender_1',
+          xpertId: 'trigger-xpert',
+          conversationId: 'conversation-from-db'
+        }
+      ]
+    })
+    messageHistoryService.materializeFiles.mockRejectedValue(new Error('workspace temporarily unavailable'))
+
+    await service.processMessage({
+      userId: 'creator-user-1',
+      senderOpenId: 'ou_sender_1',
+      integrationId: 'integration-1',
+      chatType: 'p2p',
+      currentInboundLogIds: ['inbound-log-1'],
+      message: {
+        message: {
+          message_id: 'om_image_1',
+          message_type: 'image',
+          content: JSON.stringify({ image_key: 'img_1' })
+        }
+      }
+    } as any)
+
+    expect(contextToolService.getMessageResource).toHaveBeenCalledWith({
+      integrationId: 'integration-1',
+      messageId: 'om_image_1',
+      fileKey: 'img_1',
+      type: 'image',
+      contentMode: 'base64'
+    })
+    expect(getExecutedDispatchCommands(commandBus as any)[0].input.files).toEqual([
+      expect.objectContaining({ fileUrl: 'data:image/png;base64,YWJj', fileKey: 'img_1' })
+    ])
+  })
 
 	it('processMessage forwards inbound post text and images as vision files', async () => {
 		const { service, commandBus, contextToolService } = createFixture({
@@ -798,9 +1304,7 @@ describe('LarkConversationService', () => {
 			]
 		})
 
-		await expect(
-			service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')
-		).resolves.toEqual({
+    await expect(service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')).resolves.toEqual({
 			userId: 'ou_sender_1',
 			integrationId: 'integration-1',
 			xpertId: 'xpert-current-integration',
@@ -830,9 +1334,7 @@ describe('LarkConversationService', () => {
 			]
 		})
 
-		await expect(
-			service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')
-		).resolves.toEqual({
+    await expect(service.getLatestConversationBindingByUserId('ou_sender_1', 'integration-1')).resolves.toEqual({
 			userId: 'ou_sender_1',
 			xpertId: 'xpert-legacy',
 			conversationId: 'conversation-legacy',
@@ -892,9 +1394,7 @@ describe('LarkConversationService', () => {
 			]
 		})
 
-		await expect(
-			service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_1')
-		).resolves.toEqual({
+    await expect(service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_1')).resolves.toEqual({
 			tenantId: 'tenant-exact',
 			organizationId: 'org-exact',
 			createdById: 'creator-exact',
@@ -929,9 +1429,7 @@ describe('LarkConversationService', () => {
 			]
 		})
 
-		await expect(
-			service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_1')
-		).resolves.toEqual({
+    await expect(service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_1')).resolves.toEqual({
 			tenantId: 'tenant-exact',
 			organizationId: 'org-latest',
 			createdById: 'creator-latest',
@@ -965,9 +1463,7 @@ describe('LarkConversationService', () => {
 			]
 		})
 
-		await expect(
-			service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_3')
-		).resolves.toEqual({
+    await expect(service.resolveDispatchExecutionContext('xpert-1', 'open_id:ou_sender_3')).resolves.toEqual({
 			tenantId: 'tenant-newest',
 			organizationId: 'org-newest',
 			createdById: 'creator-newest',
@@ -1053,6 +1549,32 @@ describe('LarkConversationService', () => {
 			expect(await service.getActiveMessage(userId, xpertId)).toBeNull()
 		}
 	)
+
+	it('dismisses an application permission guide without dispatching the agent', async () => {
+		const { service, larkChannel, commandBus } = createFixture()
+
+		await service.handleCardAction(
+			{
+				type: 'button',
+				value: { action: LARK_DISMISS_PERMISSION_GUIDE },
+				messageId: 'permission-card-1',
+				chatId: 'chat-1'
+			} as any,
+			{
+				organizationId: 'org-1',
+				integration: {
+					id: 'integration-1',
+					tenant: null,
+					options: { preferLanguage: 'zh_Hans' }
+				}
+			} as any
+		)
+
+		expect(larkChannel.patchInteractiveMessage).toHaveBeenCalledWith('integration-1', 'permission-card-1', {
+			elements: [{ tag: 'markdown', content: '已取消权限开启引导。' }]
+		})
+		expect(commandBus.execute).not.toHaveBeenCalled()
+	})
 
 	it('uses action.messageId fallback when cached thirdPartyMessage.id is missing', async () => {
 		const { service, larkChannel, commandBus } = createFixture()
@@ -1578,11 +2100,7 @@ describe('LarkConversationService', () => {
 			}
 		} as any)
 
-		expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith(
-			'integration-1',
-			'message-1',
-			'reaction-1'
-		)
+    expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith('integration-1', 'message-1', 'reaction-1')
 		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
 	})
 
@@ -1618,9 +2136,7 @@ describe('LarkConversationService', () => {
 		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
 		expect(dispatchCommands).toHaveLength(1)
 		expect(dispatchCommands[0].input.xpertId).toBe('legacy-xpert')
-		expect(
-			await service.getConversation('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db')
-		).toBeUndefined()
+    expect(await service.getConversation('lark:v2:scope:integration-1:group:chat-new', 'xpert-from-db')).toBeUndefined()
 		expect(larkTriggerStrategy.handleInboundMessage).toHaveBeenCalledTimes(1)
 	})
 
@@ -1908,11 +2424,7 @@ describe('LarkConversationService', () => {
 			}
 		} as any)
 
-		expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith(
-			'integration-1',
-			'message-2',
-			'reaction-2'
-		)
+    expect(larkChannel.deleteMessageReaction).toHaveBeenCalledWith('integration-1', 'message-2', 'reaction-2')
 		expect(larkChannel.errorMessage).toHaveBeenCalledTimes(1)
 	})
 
@@ -1997,7 +2509,9 @@ describe('LarkConversationService', () => {
 		)
 		const dispatchCommands = getExecutedDispatchCommands(commandBus as any)
 		expect(dispatchCommands).toHaveLength(1)
-		expect(dispatchCommands[0].input.input).toBe('Alice Zhang: \u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba')
+    expect(dispatchCommands[0].input.input).toBe(
+      'Alice Zhang: \u8bf7\u5e2e\u6211\u603b\u7ed3\u4e00\u4e0b\u4eca\u5929\u7684\u8ba8\u8bba'
+    )
 		expect(larkChannel.resolveUserNameByOpenId).not.toHaveBeenCalled()
 	})
 

@@ -1,4 +1,7 @@
-import { presentationStudioTemplates } from './presentation-studio.templates.js'
+import {
+  presentationStudioPromptWorkflows,
+  presentationStudioTemplates
+} from './presentation-studio.templates.js'
 
 describe('Presentation Studio assistant template', () => {
   it('instructs the agent to batch inspections and honor exact array item contracts', () => {
@@ -39,5 +42,33 @@ describe('Presentation Studio assistant template', () => {
       expect(dsl).toContain('from: Agent_PresentationStudio')
       expect(dsl).toContain(`to: ${middlewareKey}`)
     }
+  })
+
+  it('declares the workspace prompt workflows used to start presentation tasks', () => {
+    const expectedArgsHints = {
+      'presentation-create': '{"topic_or_material":"...","audience":"...","page_count":10,"goal":"..."}',
+      'presentation-refine': '{"deck_id":"...","requirements":"..."}',
+      'presentation-export': '{"deck_id":"...","formats":["html","pdf","pptx"]}',
+      'presentation-share': '{"deck_id":"..."}'
+    }
+    expect(presentationStudioPromptWorkflows.map(({ name }) => name)).toEqual([
+      'presentation-create',
+      'presentation-refine',
+      'presentation-export',
+      'presentation-share'
+    ])
+    expect(presentationStudioTemplates[0]?.promptWorkflows).toBe(presentationStudioPromptWorkflows)
+
+    for (const workflow of presentationStudioPromptWorkflows) {
+      expect(workflow.name).toMatch(/^[a-z0-9][a-z0-9_-]{0,63}$/)
+      expect(workflow.category).toBe('presentation')
+      expect(workflow.visibility).toBe('team')
+      expect(workflow.argsHint).toBe(expectedArgsHints[workflow.name])
+      expect(workflow.label).toMatch(/[\u4e00-\u9fff]/)
+      expect(workflow.description).toMatch(/[\u4e00-\u9fff]/)
+      expect(workflow.template).toContain('请使用用户输入的语言输出。')
+      expect(workflow.template.match(/\{\{\s*([^}]+?)\s*\}\}/g)).toEqual(['{{args}}'])
+    }
+    expect(presentationStudioPromptWorkflows[3]?.template).toContain('最终回复只返回工具产生的 shareUrl')
   })
 })

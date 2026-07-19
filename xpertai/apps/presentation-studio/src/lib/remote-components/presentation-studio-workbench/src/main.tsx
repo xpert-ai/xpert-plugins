@@ -121,12 +121,13 @@ import type {
   OpenDeckPayload,
   PresenceState,
   RemoteContext,
+  ShareAccessMode,
+  SharePolicy,
   VersionSummary
 } from './types'
 
 type YValue = JsonValue | Y.Map<YValue> | Y.Array<YValue>
 type InspectorTab = 'design' | 'versions' | 'exports' | 'assets'
-type ShareAccessMode = 'public_link' | 'organization_all'
 type ShareActionResult = Partial<ExportSummary> & {
   exportId?: string
   kind?: ExportSummary['kind']
@@ -134,6 +135,12 @@ type ShareActionResult = Partial<ExportSummary> & {
   publicUrl?: string | null
   shareUrl?: string | null
   sharePending?: boolean
+}
+const FALLBACK_SHARE_POLICY: SharePolicy = {
+  defaultAccessMode: 'public_link',
+  allowedAccessModes: ['public_link', 'organization_all'],
+  allowAgentPublicSharing: true,
+  allowWorkbenchPublicSharing: true
 }
 type SlideSnapshot = { id: string; layout: string; status: string; sourceSlideId?: string; props: JsonObject }
 type DocumentSnapshot = { slides: SlideSnapshot[]; order: string[]; props: Record<string, JsonObject>; text: Record<string, string>; preview: JsonObject }
@@ -348,7 +355,7 @@ function App() {
     setError('')
     try {
       const opened = actionData<OpenDeckPayload>(await executeAction('open_deck', deckId, { deckId }))
-      const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [], exportCapabilities: opened.exportCapabilities }
+      const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [], exportCapabilities: opened.exportCapabilities, sharePolicy: opened.sharePolicy }
       setSelectedId(deckId)
       setDetail(nextDetail)
       knownServerSlideIdsRef.current = new Set(deckDetailSlideIds(nextDetail))
@@ -379,7 +386,8 @@ function App() {
       versions: next.versions,
       exports: next.exports,
       assets: next.assets,
-      exportCapabilities: next.exportCapabilities
+      exportCapabilities: next.exportCapabilities,
+      sharePolicy: next.sharePolicy
     } : next)
     setDecks((current) => current.map((item) => item.deckId === deckId ? { ...item, ...next.item } : item))
     return next
@@ -656,9 +664,9 @@ function App() {
     const result = actionData<ExportSummary & { publicUrl?: string }>(await executeAction('share_export', detail.item.deckId, {
       deckId: detail.item.deckId,
       exportId: item.exportId,
-      versionMode: options.versionMode,
+      versionMode: 'version',
       accessMode: options.accessMode,
-      allowDownload: true
+      allowDownload: false
     }))
     await refreshDetail(detail.item.deckId)
     return result.publicUrl ?? result.shareUrl
@@ -673,9 +681,9 @@ function App() {
     const result = actionData<ShareActionResult>(await executeAction('share_deck_html', deckId, {
       deckId,
       expectedRevision: revision,
-      versionMode: options.versionMode,
+      versionMode: 'version',
       accessMode: options.accessMode,
-      allowDownload: true
+      allowDownload: false
     }))
     const immediateUrl = result.publicUrl ?? result.shareUrl
     if (immediateUrl) {
@@ -699,6 +707,13 @@ function App() {
       }
     }
     throw new Error(t('shareStillPreparing'))
+  }
+
+  async function revokeCurrentDeckShare() {
+    if (!detail) return
+    await executeAction('revoke_deck_html_share', detail.item.deckId, { deckId: detail.item.deckId })
+    await refreshDetail(detail.item.deckId)
+    notify('success', t('revokeShare'))
   }
 
   async function restoreVersion(versionId: string) {
@@ -883,6 +898,8 @@ function App() {
           item={latestHtmlExport}
           onShare={shareExport}
           onShareDeck={shareCurrentDeck}
+          onRevoke={() => revokeCurrentDeckShare()}
+          sharePolicy={detail?.sharePolicy}
           t={t}
           disabled={!detail || busy}
         />
@@ -984,7 +1001,7 @@ function App() {
               <TabsList className="ps-inspector-tabs"><TabsTrigger value="design">{t('design')}</TabsTrigger><TabsTrigger value="versions">{t('versions')} <span>{detail?.versions.length ?? 0}</span></TabsTrigger><TabsTrigger value="exports">{t('exports')} <span>{detail?.exports.length ?? 0}</span></TabsTrigger><TabsTrigger value="assets">{t('assets')} <span>{detail?.assets.length ?? 0}</span></TabsTrigger></TabsList>
               <TabsContent value="design" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><DesignInspector layout={activeLayout} props={activeProps} onCommit={commitProp} onSchedule={scheduleProp} onFocusControl={setControlAwareness} onOpenAssets={openAssetPicker} t={t} /></ScrollArea></TabsContent>
               <TabsContent value="versions" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.versions.map((version) => <Card key={version.id}><CardContent><div className="ps-card-row"><strong>v{version.versionNumber}</strong><Badge variant="secondary">{version.source}</Badge></div><div className="ps-card-actions"><Button variant="outline" size="sm" onClick={() => void restoreVersion(version.id)}>{t('restore')}</Button><Button variant="destructive" size="sm" onClick={() => void deleteVersion(version.id)}><Trash2 />{t('delete')}</Button></div></CardContent></Card>)}</div></ScrollArea></TabsContent>
-              <TabsContent value="exports" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.exports.map((item) => <ExportCard item={item} onCancel={() => void cancelExport(item.exportId)} onDelete={() => void deleteExport(item.exportId)} onDownload={() => void triggerExportDownload(item).then((started) => notify(started ? 'success' : 'warning', started ? t('downloadStarted') : t('downloadUnavailable')))} onShare={shareExport} t={t} key={item.exportId} />)}</div></ScrollArea></TabsContent>
+              <TabsContent value="exports" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-card-list">{detail?.exports.map((item) => <ExportCard item={item} onCancel={() => void cancelExport(item.exportId)} onDelete={() => void deleteExport(item.exportId)} onDownload={() => void triggerExportDownload(item).then((started) => notify(started ? 'success' : 'warning', started ? t('downloadStarted') : t('downloadUnavailable')))} onShare={shareExport} onRevoke={() => revokeCurrentDeckShare()} sharePolicy={detail?.sharePolicy} t={t} key={item.exportId} />)}</div></ScrollArea></TabsContent>
               <TabsContent value="assets" className="ps-panel-tab-content"><ScrollArea className="ps-panel-scroll"><div className="ps-asset-toolbar"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload />{t('upload')}</Button></div><div className="ps-asset-grid">{detail?.assets.map((asset) => <button onClick={() => void selectAsset(asset)} key={asset.id}><Image /><span>{asset.fileName}</span></button>)}</div></ScrollArea></TabsContent>
             </Tabs>
           </ResizablePanel>
@@ -1082,28 +1099,34 @@ function ControlEditor({ control, value, onCommit, onSchedule, onFocusControl, o
   return null
 }
 
-function ExportSharePopover({ item, disabled = false, compact = false, onShare, onShareDeck, t }: {
+function ExportSharePopover({ item, disabled = false, compact = false, onShare, onShareDeck, onRevoke, sharePolicy, t }: {
   item?: ExportSummary | null
   disabled?: boolean
   compact?: boolean
   onShare(item: ExportSummary, options: { versionMode: 'latest' | 'version'; accessMode: ShareAccessMode }): Promise<string | undefined>
   onShareDeck?(options: { versionMode: 'latest' | 'version'; accessMode: ShareAccessMode }): Promise<string | undefined>
+  onRevoke?(): Promise<void>
+  sharePolicy?: SharePolicy
   t: ReturnType<typeof translator>
 }) {
-  const [shareLatest, setShareLatest] = React.useState(item?.artifactLinkVersionMode !== 'version')
-  const [accessMode, setAccessMode] = React.useState<ShareAccessMode>(item?.artifactLinkAccessMode === 'organization_all' ? 'organization_all' : 'public_link')
+  const effectiveSharePolicy = sharePolicy ?? FALLBACK_SHARE_POLICY
+  const allowedAccessModes = effectiveSharePolicy.allowedAccessModes.filter((mode) => mode !== 'public_link' || effectiveSharePolicy.allowWorkbenchPublicSharing)
+  const defaultAccessMode = allowedAccessModes.includes(effectiveSharePolicy.defaultAccessMode)
+    ? effectiveSharePolicy.defaultAccessMode
+    : allowedAccessModes[0] ?? 'organization_all'
+  const [accessMode, setAccessMode] = React.useState<ShareAccessMode>(defaultAccessMode)
   const [sharing, setSharing] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
-  const versionMode = shareLatest ? 'latest' : 'version'
+  const versionMode = 'version' as const
   const existingUrl = item?.shareUrl && item.artifactLinkVersionMode === versionMode && item.artifactLinkAccessMode === accessMode
     ? item.shareUrl
     : undefined
 
   React.useEffect(() => {
-    setShareLatest(item?.artifactLinkVersionMode !== 'version')
-    setAccessMode(item?.artifactLinkAccessMode === 'organization_all' ? 'organization_all' : 'public_link')
+    const existingAccessMode = item?.artifactLinkAccessMode
+    setAccessMode(isShareAccessMode(existingAccessMode) && allowedAccessModes.includes(existingAccessMode) ? existingAccessMode : defaultAccessMode)
     setCopied(false)
-  }, [item?.exportId, item?.artifactLinkVersionMode, item?.artifactLinkAccessMode])
+  }, [item?.exportId, item?.artifactLinkVersionMode, item?.artifactLinkAccessMode, defaultAccessMode, allowedAccessModes.join('|')])
 
   async function copyShareLink() {
     if (item && (item.kind !== 'html' || item.status !== 'succeeded')) {
@@ -1126,36 +1149,35 @@ function ExportSharePopover({ item, disabled = false, compact = false, onShare, 
     }
   }
 
-  return <Popover><PopoverTrigger asChild><Button variant="outline" size={compact ? 'sm' : 'default'} disabled={disabled}><Copy />{t('share')}</Button></PopoverTrigger><PopoverContent align="end" className="ps-share-popover">
+  return <Popover><PopoverTrigger asChild><Button variant="outline" size={compact ? 'sm' : 'default'} disabled={disabled || !allowedAccessModes.length}><Copy />{t('share')}</Button></PopoverTrigger><PopoverContent align="end" className="ps-share-popover">
     <div className="ps-share-title"><strong>{t('share')}</strong><Badge variant={existingUrl ? 'outline' : 'secondary'} data-status={existingUrl ? 'success' : undefined}>{existingUrl ? t('shareLinkReady') : t('shareHtml')}</Badge></div>
-    <label className="ps-share-row">
-      <div><span>{t('alwaysShareLatest')}</span><small>{shareLatest ? t('sharingLatestVersion') : t('sharingThisVersion')}</small></div>
-      <Switch checked={shareLatest} onCheckedChange={setShareLatest} />
-    </label>
+    <div className="ps-share-row"><div><span>{t('sharingThisVersion')}</span><small>{t('sharingThisVersion')}</small></div></div>
     <div className="ps-share-controls">
-      <Select value={accessMode} onValueChange={(value) => setAccessMode(value === 'organization_all' ? 'organization_all' : 'public_link')}>
+      <Select value={accessMode} onValueChange={(value) => { if (isShareAccessMode(value) && allowedAccessModes.includes(value)) setAccessMode(value) }}>
         <SelectTrigger className="ps-share-access"><SelectValue /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="public_link">{t('anyoneWithLink')}</SelectItem>
-          <SelectItem value="organization_all">{t('everyoneInOrganization')}</SelectItem>
+          {allowedAccessModes.map((mode) => <SelectItem value={mode} key={mode}>{shareAccessModeLabel(mode, t)}</SelectItem>)}
         </SelectContent>
       </Select>
       <Button onClick={() => void copyShareLink()} disabled={sharing}>{copied ? <Check /> : <Copy />}{copied ? t('copied') : t('copyLink')}</Button>
     </div>
-    <p>{item ? t('publicLinkNotice') : t('shareWillExportHtml')}</p>
+    {item?.shareUrl && onRevoke ? <Button variant="outline" onClick={() => void onRevoke()} disabled={sharing}>{t('revokeShare')}</Button> : null}
+    <p>{item ? t('sharingThisVersion') : t('shareWillExportHtml')}</p>
   </PopoverContent></Popover>
 }
 
-function ExportCard({ item, onCancel, onDelete, onDownload, onShare, t }: {
+function ExportCard({ item, onCancel, onDelete, onDownload, onShare, onRevoke, sharePolicy, t }: {
   item: ExportSummary
   onCancel(): void
   onDelete(): void
   onDownload(): void
   onShare(item: ExportSummary, options: { versionMode: 'latest' | 'version'; accessMode: ShareAccessMode }): Promise<string | undefined>
+  onRevoke(): Promise<void>
+  sharePolicy?: SharePolicy
   t: ReturnType<typeof translator>
 }) {
   const statusKey = exportStatusKey(item.status)
-  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'failed' ? 'destructive' : item.status === 'succeeded' || item.status === 'running' ? 'outline' : 'secondary'} data-status={item.status === 'succeeded' ? 'success' : item.status === 'running' ? 'warning' : undefined}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} t={t} compact /> : null}<Button variant="destructive" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
+  return <Card><CardContent><div className="ps-card-row"><strong>{item.kind.toUpperCase()}</strong><Badge variant={item.status === 'failed' ? 'destructive' : item.status === 'succeeded' || item.status === 'running' ? 'outline' : 'secondary'} data-status={item.status === 'succeeded' ? 'success' : item.status === 'running' ? 'warning' : undefined}>{t(statusKey)}</Badge></div><Progress value={item.progress} />{item.errorMessage ? <p className="ps-export-error">{item.errorMessage}</p> : null}<div className="ps-card-actions">{item.status === 'succeeded' ? <Button variant="outline" size="sm" onClick={onDownload}><Download />{t('download')}</Button> : item.status === 'queued' || item.status === 'running' ? <Button variant="outline" size="sm" onClick={onCancel}>{t('cancel')}</Button> : null}{item.status === 'succeeded' && item.kind === 'html' ? <ExportSharePopover item={item} onShare={onShare} onRevoke={onRevoke} sharePolicy={sharePolicy} t={t} compact /> : null}<Button variant="destructive" size="sm" onClick={onDelete}><Trash2 />{t('delete')}</Button></div></CardContent></Card>
 }
 
 function CollaboratorAvatar({ actor, t }: { actor: CollaboratorAvatarActor; t: ReturnType<typeof translator> }) {
@@ -1305,7 +1327,22 @@ function deckDetailFromResponse(response: JsonObject): DeckDetail {
     versions: Array.isArray(value.versions) ? value.versions.map(toVersionSummary).filter((entry): entry is VersionSummary => entry !== null) : [],
     exports: Array.isArray(value.exports) ? value.exports.map(toExportSummary).filter((entry): entry is ExportSummary => entry !== null) : [],
     assets: Array.isArray(value.assets) ? value.assets.map(toAssetSummary).filter((entry): entry is AssetSummary => entry !== null) : [],
-    exportCapabilities: toExportCapabilities(value.exportCapabilities)
+    exportCapabilities: toExportCapabilities(value.exportCapabilities),
+    sharePolicy: toSharePolicy(value.sharePolicy)
+  }
+}
+
+function toSharePolicy(value: JsonValue | undefined): SharePolicy | undefined {
+  if (!isObject(value) || !isShareAccessMode(value.defaultAccessMode)) return undefined
+  const allowedAccessModes = Array.isArray(value.allowedAccessModes)
+    ? value.allowedAccessModes.filter((mode): mode is ShareAccessMode => isShareAccessMode(mode))
+    : []
+  if (!allowedAccessModes.length) return undefined
+  return {
+    defaultAccessMode: allowedAccessModes.includes(value.defaultAccessMode) ? value.defaultAccessMode : allowedAccessModes[0],
+    allowedAccessModes,
+    allowAgentPublicSharing: value.allowAgentPublicSharing === true,
+    allowWorkbenchPublicSharing: value.allowWorkbenchPublicSharing === true
   }
 }
 
@@ -1363,6 +1400,18 @@ function toExportSummary(value: JsonValue): ExportSummary | null {
     shareUrl: typeof value.shareUrl === 'string' ? value.shareUrl : undefined
   }
 }
+
+function isShareAccessMode(value: unknown): value is ShareAccessMode {
+  return value === 'owner_only' || value === 'workspace_all' || value === 'organization_all' || value === 'public_link'
+}
+
+function shareAccessModeLabel(mode: ShareAccessMode, t: ReturnType<typeof translator>) {
+  if (mode === 'owner_only') return t('ownerOnly')
+  if (mode === 'workspace_all') return t('workspaceMembers')
+  if (mode === 'organization_all') return t('everyoneInOrganization')
+  return t('anyoneWithLink')
+}
+
 function toAssetSummary(value: JsonValue): AssetSummary | null { return isObject(value) && typeof value.id === 'string' && typeof value.fileName === 'string' ? { id: value.id, role: typeof value.role === 'string' ? value.role : 'media', fileName: value.fileName, size: typeof value.size === 'number' ? value.size : 0, reference: typeof value.reference === 'string' ? value.reference : `asset://${value.id}` } : null }
 
 function toPresenceState(value: unknown): PresenceState | null {

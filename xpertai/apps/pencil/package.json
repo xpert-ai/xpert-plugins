@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pencil",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "Pencil Agentic App plugin for agent-managed design documents, reviewable versions, imports, exports, and an editable Workbench.",
   "author": {
     "name": "XpertAI",
@@ -52,8 +52,8 @@
     }
   },
   "dependencies": {
-    "@open\u002dpencil/core": "0.13.2",
-    "@open\u002dpencil/vue": "0.13.2",
+    "@open-pencil/core": "0.13.2",
+    "@open-pencil/vue": "0.13.2",
     "@fontsource-variable/noto-sans-sc": "5.2.10",
     "canvaskit-wasm": "^0.40.0",
     "jspdf": "^4.2.1",

@@ -31,12 +31,16 @@ import { translate } from './i18n.js'
 import { LarkChannelStrategy } from './lark-channel.strategy.js'
 import { DispatchLarkChatCommand, DispatchLarkChatPayload } from './handoff/commands/dispatch-lark-chat.command.js'
 import {
+  extractLarkMessageResourceRefs,
 	extractLarkSemanticMessage,
 	getLarkMessageContent,
 	getLarkMessageType,
 	unwrapLarkEventPayload
 } from './lark-message-semantics.js'
 import { LarkRecipientDirectoryService } from './lark-recipient-directory.service.js'
+import { buildLarkCardActionJobId, buildLarkInboundJobId } from './lark-job-id.js'
+import { LarkMessageHistoryQueueService } from './lark-message-history-queue.service.js'
+import { LarkMessageHistoryService } from './lark-message-history.service.js'
 import { LARK_PLUGIN_CONTEXT } from './tokens.js'
 import {
 	ChatLarkContext,
@@ -44,6 +48,7 @@ import {
 	isEndAction,
 	isLarkCardActionValue,
 	isRejectAction,
+	LARK_DISMISS_PERMISSION_GUIDE,
 	LarkGroupWindow,
 	LarkInboundFile,
 	LARK_TYPING_REACTION_EMOJI_TYPE,
@@ -56,6 +61,7 @@ import {
 import { LarkConversationBindingEntity } from './entities/lark-conversation-binding.entity.js'
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
 import { LarkGroupMentionWindowService } from './lark-group-mention-window.service.js'
+import type { TLarkTriggerConfig } from './workflow/lark-trigger.types.js'
 
 type LarkConversationQueueJob = ChatLarkContext<TLarkEvent> & {
 	tenantId?: string
@@ -67,10 +73,17 @@ type LarkInboundImageRef = {
 }
 
 type LarkTriggerService = {
-	normalizeConfig: (
-		config?: Record<string, unknown> | null,
+  normalizeConfig: (config?: Record<string, unknown> | null, integrationId?: string | null) => TLarkTriggerConfig
+  matchesInboundScope: (params: {
+    binding?: LarkTriggerBindingEntity | null
+    config?: Partial<TLarkTriggerConfig> | null
+    ownerOpenId?: string | null
 		integrationId?: string | null
-	) => Record<string, unknown>
+    chatType?: string | null
+    chatId?: string | null
+    senderOpenId?: string | null
+    botMentioned?: boolean
+  }) => boolean
 	matchesInboundMessage: (params: {
 		binding?: LarkTriggerBindingEntity | null
 		config?: Record<string, unknown> | null
@@ -85,6 +98,10 @@ type LarkTriggerService = {
 		integrationId: string
 		input?: string
 		files?: LarkInboundFile[]
+    historyContext?: string
+    historyFiles?: LarkInboundFile[]
+    currentInboundLogIds?: string[]
+    historyBefore?: string
 		larkMessage: ChatLarkMessage
 		options?: {
 			confirm?: boolean
@@ -203,6 +220,8 @@ export class LarkConversationService implements OnModuleDestroy {
 		private readonly contextToolService: LarkContextToolService,
 		private readonly recipientDirectoryService: LarkRecipientDirectoryService,
 		private readonly groupMentionWindowService: LarkGroupMentionWindowService,
+    private readonly messageHistoryService: LarkMessageHistoryService,
+    private readonly messageHistoryQueue: LarkMessageHistoryQueueService,
 		@InjectRepository(LarkConversationBindingEntity)
 		private readonly conversationBindingRepository: Repository<LarkConversationBindingEntity>,
 		@InjectRepository(LarkTriggerBindingEntity)
@@ -318,9 +337,38 @@ export class LarkConversationService implements OnModuleDestroy {
 		return senderName
 	}
 
-	private withSpeakerContext(input: string | undefined, senderName: string | null, chatType?: string | null): string | undefined {
+  private withSpeakerContext(
+    input: string | undefined,
+    senderName: string | null,
+    chatType?: string | null
+  ): string | undefined {
 		return buildLarkSpeakerContextInput(input, senderName, chatType)
 	}
+
+  private mergeInboundFiles(current?: LarkInboundFile[], incoming?: LarkInboundFile[]): LarkInboundFile[] | undefined {
+    const files = [...(current ?? []), ...(incoming ?? [])]
+    if (!files.length) {
+      return undefined
+    }
+    const seen = new Set<string>()
+    return files.filter((file, index) => {
+      const key =
+        file.fileAssetId ??
+        file.fileId ??
+        file.storageFileId ??
+        file.workspacePath ??
+        file.filePath ??
+        file.fileUrl ??
+        file.url ??
+        file.fileKey ??
+        `index:${index}`
+      if (seen.has(key)) {
+        return false
+      }
+      seen.add(key)
+      return true
+    })
+  }
 
 	private async resolveInboundImageFiles(params: {
 		integrationId: string
@@ -345,7 +393,9 @@ export class LarkConversationService implements OnModuleDestroy {
 				throw new Error(`Lark image resource "${ref.fileKey}" did not return inline content`)
 			}
 			if (!item.mimeType?.startsWith('image/')) {
-				throw new Error(`Lark image resource "${ref.fileKey}" returned non-image mime type "${item.mimeType ?? 'unknown'}"`)
+        throw new Error(
+          `Lark image resource "${ref.fileKey}" returned non-image mime type "${item.mimeType ?? 'unknown'}"`
+        )
 			}
 			if (typeof item.size === 'number' && item.size > LarkConversationService.maxInlineImageBytes) {
 				throw new Error(
@@ -507,7 +557,13 @@ export class LarkConversationService implements OnModuleDestroy {
 		const matchedSelectedUser = senderOpenId ? singleChatUserOpenIds.includes(senderOpenId) : false
 
 		this.logger.log(
-			`[lark-dispatch] single-chat-scope integration=${params.integrationId} sender=${senderOpenId ?? 'n/a'} allowed=${params.allowed} scope=${singleChatScope} matchedSelectedUser=${matchedSelectedUser} selectedUserOpenIds=${JSON.stringify(singleChatUserOpenIds)} boundXpert=${params.binding.xpertId} targetBinding=${params.targetBinding ? 'hit' : 'miss'} targetXpert=${params.targetXpertId ?? 'n/a'}`
+      `[lark-dispatch] single-chat-scope integration=${params.integrationId} sender=${senderOpenId ?? 'n/a'} allowed=${
+        params.allowed
+      } scope=${singleChatScope} matchedSelectedUser=${matchedSelectedUser} selectedUserOpenIds=${JSON.stringify(
+        singleChatUserOpenIds
+      )} boundXpert=${params.binding.xpertId} targetBinding=${params.targetBinding ? 'hit' : 'miss'} targetXpert=${
+        params.targetXpertId ?? 'n/a'
+      }`
 		)
 	}
 
@@ -539,8 +595,7 @@ export class LarkConversationService implements OnModuleDestroy {
 	buildBindingMeta(meta: LarkConversationBindingMeta): LarkConversationBindingMeta {
 		const normalizedScopeKey = normalizeConversationUserKey(meta.scopeKey)
 		const allowLegacyFallback = this.shouldAllowLegacyFallbackForScope(normalizedScopeKey)
-		const normalizedLegacyConversationUserKey =
-			allowLegacyFallback
+    const normalizedLegacyConversationUserKey = allowLegacyFallback
 				? normalizeConversationUserKey(meta.legacyConversationUserKey) ??
 				  (this.shouldMirrorLegacyConversationUserKey(normalizedScopeKey)
 						? normalizedScopeKey
@@ -641,12 +696,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		return conversationId
 	}
 
-	async setConversation(
-		scopeKey: string,
-		xpertId: string,
-		conversationId: string,
-		meta?: LarkConversationBindingMeta
-	) {
+  async setConversation(scopeKey: string, xpertId: string, conversationId: string, meta?: LarkConversationBindingMeta) {
 		const normalizedScopeKey = normalizeConversationUserKey(scopeKey)
 		const normalizedXpertId = normalizeConversationUserKey(xpertId)
 		const normalizedConversationId = normalizeConversationUserKey(conversationId)
@@ -712,7 +762,9 @@ export class LarkConversationService implements OnModuleDestroy {
 		return this.normalizeBinding(binding)
 	}
 
-	async getLatestConversationBindingByPrincipalKey(principalKey: string): Promise<LarkConversationBindingLookup | null> {
+  async getLatestConversationBindingByPrincipalKey(
+    principalKey: string
+  ): Promise<LarkConversationBindingLookup | null> {
 		const normalizedPrincipalKey = normalizeConversationUserKey(principalKey)
 		if (!normalizedPrincipalKey) {
 			return null
@@ -813,12 +865,9 @@ export class LarkConversationService implements OnModuleDestroy {
 					return true
 				}
 
-				return [
-					binding.chatId,
-					binding.senderOpenId,
-					binding.xpertId,
-					binding.conversationId
-				].some((value) => normalizeListSearch(value)?.includes(normalizedSearch))
+        return [binding.chatId, binding.senderOpenId, binding.xpertId, binding.conversationId].some((value) =>
+          normalizeListSearch(value)?.includes(normalizedSearch)
+        )
 			})
 
 		const sorted = this.sortBindingListItems(filtered, query.sortBy, query.sortDirection)
@@ -1100,9 +1149,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		groupWindow?: LarkGroupWindow
 		mappedUserId?: string | null
 	}): DispatchLarkChatPayload['options'] | undefined {
-		const fromEndUserId = normalizeConversationUserKey(
-			params?.groupWindow?.items[0]?.userId ?? params?.mappedUserId
-		)
+    const fromEndUserId = normalizeConversationUserKey(params?.groupWindow?.items[0]?.userId ?? params?.mappedUserId)
 		if (!params?.groupWindow && !fromEndUserId) {
 			return undefined
 		}
@@ -1194,9 +1241,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		return Date.now() - lastActiveAt.getTime() > timeoutMs
 	}
 
-	private async getConversationBindingUpdatedAt(
-		binding: LarkConversationBindingLookup
-	): Promise<Date | null> {
+  private async getConversationBindingUpdatedAt(binding: LarkConversationBindingLookup): Promise<Date | null> {
 		const row = binding.scopeKey
 			? await this.conversationBindingRepository.findOne({
 					where: {
@@ -1303,8 +1348,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		fallbackXpertId?: string | null
 		}): Promise<LarkTargetXpertResolution> {
 		let scopeBinding = params.scopeKey ? await this.getLatestConversationBindingByScopeKey(params.scopeKey) : null
-		let fallbackBinding =
-			scopeBinding
+    let fallbackBinding = scopeBinding
 				? null
 				: (params.principalKey ? await this.getLatestConversationBindingByPrincipalKey(params.principalKey) : null) ??
 				  (params.senderOpenId
@@ -1393,13 +1437,15 @@ export class LarkConversationService implements OnModuleDestroy {
 			}))
 		const dispatchInput =
 			options.groupWindow && text ? text : this.withSpeakerContext(text, senderName, options.chatType)
-		let resolvedFiles: LarkInboundFile[] | undefined
+    let resolvedFiles: LarkInboundFile[] | undefined = options.files
+    let historyContext = options.historyContext
+    let historyFiles = options.historyFiles
 		const getDispatchFiles = async () => {
 			if (resolvedFiles) {
 				return resolvedFiles
 			}
-			resolvedFiles = options.files?.length
-				? options.files
+      resolvedFiles = options.currentInboundLogIds?.length
+        ? []
 				: await this.resolveInboundImageFiles({
 						integrationId,
 						message
@@ -1408,13 +1454,8 @@ export class LarkConversationService implements OnModuleDestroy {
 		}
 		const fallbackXpertId = integration.options?.xpertId
 		const boundTriggerBinding = await this.getBoundTriggerBinding(integrationId)
-		const {
-			scopeBinding,
-			fallbackBinding,
-			targetBinding,
-			targetXpertId,
-			useDispatchInputForTrigger
-		} = await this.resolveTargetXpertId({
+    const { scopeBinding, fallbackBinding, targetBinding, targetXpertId, useDispatchInputForTrigger } =
+      await this.resolveTargetXpertId({
 			integrationId,
 			scopeKey: keys.scopeKey,
 			legacyConversationUserKey: keys.legacyConversationUserKey,
@@ -1424,6 +1465,11 @@ export class LarkConversationService implements OnModuleDestroy {
 		})
 
 		if (!targetXpertId) {
+      await this.messageHistoryService.updateInboundStatus(
+        options.currentInboundLogIds ?? [],
+        'failed',
+        'xpert_not_configured'
+      )
 			await this.clearTypingReaction(options)
 			await this.larkChannel.errorMessage(
 				{
@@ -1447,12 +1493,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		let activeTargetBinding = targetBinding
 		if (boundTriggerBinding && activeTargetBinding?.xpertId === boundTriggerBinding.xpertId) {
 			const triggerConfig = larkTriggerStrategy.normalizeConfig(boundTriggerBinding.config, integrationId)
-			if (
-				await this.isTriggerConversationExpired(
-					activeTargetBinding,
-					triggerConfig.sessionTimeoutSeconds
-				)
-			) {
+      if (await this.isTriggerConversationExpired(activeTargetBinding, triggerConfig.sessionTimeoutSeconds)) {
 				await this.purgeBindingSession(
 					activeTargetBinding,
 					activeTargetBinding.scopeKey ?? effectiveScopeKey,
@@ -1464,6 +1505,62 @@ export class LarkConversationService implements OnModuleDestroy {
 			}
 		}
 		const activeTargetXpertId = activeTargetBinding?.xpertId ?? targetXpertId
+    const normalizedTriggerConfig = boundTriggerBinding
+      ? larkTriggerStrategy.normalizeConfig(boundTriggerBinding.config, integrationId)
+      : null
+    if (options.currentInboundLogIds?.length && normalizedTriggerConfig) {
+      try {
+        const materialized = await this.messageHistoryService.materializeFiles({
+          integrationId,
+          xpertId: activeTargetXpertId,
+          tenantId: options.tenantId ?? integration.tenantId,
+          organizationId: options.organizationId ?? integration.organizationId,
+          messageLogIds: options.currentInboundLogIds,
+          maxSizeMb: normalizedTriggerConfig.historyAttachmentMaxSizeMb,
+          maxFiles: 20,
+          inlineImageContent: true
+        })
+        resolvedFiles = this.mergeInboundFiles(options.files, materialized.files)
+        const history = await this.messageHistoryService.buildHistoryBundle({
+          integrationId,
+          scopeKey: effectiveScopeKey,
+          xpertId: activeTargetXpertId,
+          tenantId: options.tenantId ?? integration.tenantId,
+          organizationId: options.organizationId ?? integration.organizationId,
+          limit: normalizedTriggerConfig.historyContextLimit,
+          windowSeconds: normalizedTriggerConfig.historyContextWindowSeconds,
+          before: options.historyBefore,
+          excludedLogIds: options.currentInboundLogIds,
+          maxFiles: 20,
+          maxFileSizeMb: normalizedTriggerConfig.historyAttachmentMaxSizeMb
+        })
+        historyContext ??= history.context
+        historyFiles ??= history.files
+      } catch (error) {
+        this.logger.warn(
+          `[lark-history] attachment/context preparation failed; continue with text: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+        const hasInlineImage = resolvedFiles?.some((file) =>
+          (file.fileUrl ?? file.url)?.startsWith('data:image/')
+        )
+        if (!hasInlineImage) {
+          try {
+            resolvedFiles = this.mergeInboundFiles(
+              resolvedFiles,
+              await this.resolveInboundImageFiles({ integrationId, message })
+            )
+          } catch (fallbackError) {
+            this.logger.warn(
+              `[lark-history] inline image fallback failed: ${
+                fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+              }`
+            )
+          }
+        }
+      }
+    }
 		if (activeTargetBinding?.conversationId) {
 			await this.cacheConversation(
 				effectiveScopeKey,
@@ -1528,30 +1625,44 @@ export class LarkConversationService implements OnModuleDestroy {
 					legacyConversationUserKey
 				})
 				this.logger.debug(
-					`[lark-dispatch] inbound blocked by trigger scope integration=${integrationId} chat=${options.chatId ?? 'n/a'} sender=${senderOpenId ?? 'n/a'}`
+          `[lark-dispatch] inbound blocked by trigger scope integration=${integrationId} chat=${
+            options.chatId ?? 'n/a'
+          } sender=${senderOpenId ?? 'n/a'}`
 				)
 				await this.clearTypingReaction(options)
 				return null
 			}
 		}
+    const triggerSummaryWindowEnabled = Boolean(
+      boundTriggerBinding && this.resolveTriggerSummaryWindowSeconds(boundTriggerBinding, larkTriggerStrategy) > 0
+    )
 		const shouldBufferTriggerMessage =
-			boundTriggerBinding &&
+      triggerSummaryWindowEnabled &&
 			activeTargetBinding?.xpertId === boundTriggerBinding.xpertId &&
-			this.resolveTriggerSummaryWindowSeconds(boundTriggerBinding, larkTriggerStrategy) > 0
+      Boolean(activeTargetBinding)
 		if (activeTargetBinding && !shouldBufferTriggerMessage) {
-			return await this.dispatchToLarkChat({
+      const dispatched = await this.dispatchToLarkChat({
 				xpertId: activeTargetXpertId,
 				input: dispatchInput,
 				files: await getDispatchFiles(),
+        historyContext,
+        historyFiles,
+        currentInboundLogIds: options.currentInboundLogIds,
 				larkMessage,
 				options: dispatchOptions
 			})
+      await this.messageHistoryService.updateInboundStatus(options.currentInboundLogIds ?? [], 'dispatched')
+      return dispatched
 		}
 
 		const handledByTrigger = await larkTriggerStrategy.handleInboundMessage({
 			integrationId,
 			input: activeTargetBinding || useDispatchInputForTrigger ? dispatchInput : text,
 			files: await getDispatchFiles(),
+      historyContext,
+      historyFiles,
+      currentInboundLogIds: options.currentInboundLogIds,
+      historyBefore: options.historyBefore,
 			larkMessage,
 			options: {
 				...dispatchOptions,
@@ -1559,20 +1670,33 @@ export class LarkConversationService implements OnModuleDestroy {
 			}
 		})
 		if (handledByTrigger) {
+      if (!triggerSummaryWindowEnabled) {
+        await this.messageHistoryService.updateInboundStatus(options.currentInboundLogIds ?? [], 'dispatched')
+      }
 			return larkMessage
 		}
 
 		if (!boundTriggerBinding && fallbackXpertId) {
-			return await this.dispatchToLarkChat({
+      const dispatched = await this.dispatchToLarkChat({
 				xpertId: fallbackXpertId,
 				input: dispatchInput,
 				files: await getDispatchFiles(),
+        historyContext,
+        historyFiles,
+        currentInboundLogIds: options.currentInboundLogIds,
 				larkMessage,
 				options: dispatchOptions
 			})
+      await this.messageHistoryService.updateInboundStatus(options.currentInboundLogIds ?? [], 'dispatched')
+      return dispatched
 		}
 
 		await this.clearTypingReaction(options)
+    await this.messageHistoryService.updateInboundStatus(
+      options.currentInboundLogIds ?? [],
+      'failed',
+      'handoff_dispatch_not_handled'
+    )
 		await this.larkChannel.errorMessage(
 			{
 				integrationId,
@@ -1600,11 +1724,17 @@ export class LarkConversationService implements OnModuleDestroy {
 
 		if (!isEndAction(action) && !isConfirmAction(action) && !isRejectAction(action)) {
 			const scopeQueue = await this.getScopeQueue(chatContext.scopeKey ?? scopeKey)
-			await scopeQueue.add({
-				...chatContext,
-				tenantId: RequestContext.currentUser()?.tenantId,
-				input: action
-			})
+			await scopeQueue.add(
+				{
+					...chatContext,
+					tenantId: RequestContext.currentUser()?.tenantId,
+					input: action
+				},
+				{
+					jobId: buildLarkCardActionJobId(scopeKey, xpertId, action, actionMessageId),
+					removeOnComplete: true
+				}
+			)
 			return
 		}
 
@@ -1655,6 +1785,24 @@ export class LarkConversationService implements OnModuleDestroy {
 		if (isEndAction(action)) {
 			await prevMessage.end()
 			await this.cancelConversation(conversationId)
+      const triggerBinding = await this.getBoundTriggerBinding(chatContext.integrationId)
+      if (triggerBinding) {
+        const triggerConfig = (await this.getLarkTriggerStrategy()).normalizeConfig(
+          triggerBinding.config,
+          chatContext.integrationId
+        )
+        if (triggerConfig.captureUnmentionedGroupMessages || triggerConfig.historyContextLimit > 0) {
+          await this.messageHistoryService.markContextReset({
+            integrationId: chatContext.integrationId,
+            scopeKey,
+            xpertId,
+            conversationId,
+            tenantId: chatContext.tenantId ?? chatContext.tenant?.id,
+            organizationId: chatContext.organizationId,
+            createdById: RequestContext.currentUserId() ?? undefined
+          })
+        }
+      }
 			await this.clearConversationSession(scopeKey, xpertId, {
 				legacyConversationUserKey
 			})
@@ -1762,10 +1910,7 @@ export class LarkConversationService implements OnModuleDestroy {
 		})
 
 		const normalizedLegacyConversationUserKey = normalizeConversationUserKey(legacyConversationUserKey)
-		if (
-			this.shouldAllowLegacyFallbackForScope(scopeKey) &&
-			normalizedLegacyConversationUserKey
-		) {
+    if (this.shouldAllowLegacyFallbackForScope(scopeKey) && normalizedLegacyConversationUserKey) {
 			await this.conversationBindingRepository.delete({
 				conversationUserKey: normalizedLegacyConversationUserKey,
 				xpertId
@@ -1798,9 +1943,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			await this.commandBus.execute(new CancelConversationCommand({ conversationId }))
 		} catch (error) {
 			this.logger.warn(
-				`Failed to cancel conversation "${conversationId}" from Lark end action: ${
-					(error as Error)?.message ?? error
-				}`
+        `Failed to cancel conversation "${conversationId}" from Lark end action: ${(error as Error)?.message ?? error}`
 			)
 		}
 	}
@@ -1848,6 +1991,11 @@ export class LarkConversationService implements OnModuleDestroy {
 							await this.processMessage(job.data as ChatLarkContext<TLarkEvent>)
 							return `Processed message: ${job.id}`
 						} catch (err) {
+              await this.messageHistoryService.updateInboundStatus(
+                job.data.currentInboundLogIds ?? [],
+                'failed',
+                err instanceof Error ? err.message : String(err)
+              )
 							this.logger.error(err)
 							return `Failed to process message: ${job.id} with error ${(err as Error)?.message ?? err}`
 						}
@@ -1910,22 +2058,98 @@ export class LarkConversationService implements OnModuleDestroy {
 		if (semanticMessage?.agentText) {
 			return semanticMessage.agentText
 		}
-		return typeof message.content === 'string' && message.content.trim().length > 0
-			? message.content.trim()
-			: undefined
+    return typeof message.content === 'string' && message.content.trim().length > 0 ? message.content.trim() : undefined
+  }
+
+  private normalizeInboundMessageDate(value: unknown): Date | undefined {
+    const timestamp = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
+      return undefined
+    }
+    const date = new Date(timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp)
+    return Number.isNaN(date.getTime()) ? undefined : date
+  }
+
+  private async enqueueConversationJob(scopeKey: string, queueJob: LarkConversationQueueJob): Promise<boolean> {
+    const currentInboundLogIds = queueJob.currentInboundLogIds ?? []
+    const claimed = await this.messageHistoryService.claimInboundStatus(
+      currentInboundLogIds,
+      ['received', 'failed'],
+      'queued'
+    )
+    const canRecoverQueuedJob =
+      !claimed &&
+      currentInboundLogIds.length > 0 &&
+      (await this.messageHistoryService.areInboundLogsInStatus(currentInboundLogIds, 'queued'))
+    if (!claimed && !canRecoverQueuedJob) {
+      return false
+    }
+    try {
+      await this.bestEffortAttachTypingReaction(queueJob)
+      const scopeQueue = await this.getScopeQueue(scopeKey)
+      await scopeQueue.add(queueJob, {
+        ...(currentInboundLogIds[0] ? { jobId: buildLarkInboundJobId(currentInboundLogIds[0]) } : {}),
+        removeOnComplete: true
+      })
+      return true
+    } catch (error) {
+      await this.messageHistoryService.updateInboundStatus(
+        queueJob.currentInboundLogIds ?? [],
+        'failed',
+        error instanceof Error ? error.message : String(error)
+      )
+      throw error
+    }
+  }
+
+  private scheduleHistoryCleanupBestEffort(payload: {
+    integrationId: string
+    tenantId?: string
+    organizationId?: string
+    retentionDays: number
+  }): void {
+    void (async () => {
+      try {
+        await this.messageHistoryQueue.scheduleCleanup(payload)
+      } catch (error) {
+        this.logger.warn(
+          `[lark-history] Failed to schedule cleanup for integration ${payload.integrationId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
+    })()
 	}
+
+  private scheduleHistoryMaterializationBestEffort(payload: {
+    integrationId: string
+    xpertId: string
+    tenantId?: string
+    organizationId?: string
+    messageLogIds: string[]
+    maxSizeMb: number
+  }): void {
+    void (async () => {
+      try {
+        await this.messageHistoryQueue.enqueueMaterialize(payload)
+      } catch (error) {
+        this.logger.warn(
+          `[lark-history] Failed to enqueue attachment materialization for integration ${payload.integrationId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
+    })()
+  }
 
 	private getMappedUserIdFromCurrentRequest(): string | undefined {
 		return (
-			normalizeConversationUserKey(
-				getLarkInboundIdentityMetadata(RequestContext.currentUser())?.mappedUserId
-			) ?? undefined
+      normalizeConversationUserKey(getLarkInboundIdentityMetadata(RequestContext.currentUser())?.mappedUserId) ??
+      undefined
 		)
 	}
 
-	private async shouldBypassGroupMentionWindow(
-		queueJob: LarkConversationQueueJob
-	): Promise<boolean> {
+  private async shouldBypassGroupMentionWindow(queueJob: LarkConversationQueueJob): Promise<boolean> {
 		if (queueJob.chatType !== 'group') {
 			return false
 		}
@@ -1981,6 +2205,107 @@ export class LarkConversationService implements OnModuleDestroy {
 			senderOpenId: message.senderId,
 			fallbackUserId: user.id
 		})
+    const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
+    const larkTriggerStrategy = boundTriggerBinding ? await this.getLarkTriggerStrategy() : null
+    const triggerConfig = boundTriggerBinding
+      ? larkTriggerStrategy!.normalizeConfig(boundTriggerBinding.config, ctx.integration.id)
+      : null
+    const chatType = message.chatType === 'private' ? 'p2p' : message.chatType
+    const botMentioned = Boolean((message as TChatInboundMessage & { isBotMentioned?: boolean }).isBotMentioned)
+    const matchesCaptureScope = Boolean(
+      boundTriggerBinding &&
+        larkTriggerStrategy?.matchesInboundScope({
+          binding: boundTriggerBinding,
+          integrationId: ctx.integration.id,
+          chatType,
+          chatId: message.chatId,
+          senderOpenId: message.senderId,
+          botMentioned
+        })
+    )
+    const historyEnabled = Boolean(
+      triggerConfig && (triggerConfig.captureUnmentionedGroupMessages || triggerConfig.historyContextLimit > 0)
+    )
+    const shouldCaptureInbound = Boolean(
+      historyEnabled &&
+        matchesCaptureScope &&
+        (chatType !== 'group' ||
+          botMentioned ||
+          triggerConfig?.groupReplyStrategy === 'all_messages' ||
+          triggerConfig?.captureUnmentionedGroupMessages)
+    )
+    let currentInboundLogIds: string[] | undefined
+    let historyBefore: string | undefined
+    let cleanupRequest:
+      | {
+          integrationId: string
+          tenantId?: string
+          organizationId?: string
+          retentionDays: number
+        }
+      | undefined
+    if (shouldCaptureInbound && keys.scopeKey && boundTriggerBinding?.xpertId) {
+      const capture = await this.messageHistoryService.captureInbound({
+        integrationId: ctx.integration.id,
+        scopeKey: keys.scopeKey,
+        xpertId: boundTriggerBinding.xpertId,
+        tenantId: user.tenantId || ctx.tenantId,
+        organizationId: ctx.organizationId,
+        messageId: message.messageId,
+        chatType: chatType === 'p2p' ? 'p2p' : chatType === 'group' ? 'group' : null,
+        chatId: message.chatId,
+        senderOpenId: message.senderId,
+        senderName: message.senderName,
+        messageType: getLarkMessageType(unwrapLarkEventPayload(message.raw)?.message) ?? message.contentType,
+        content: semanticMessage?.displayText || (typeof message.content === 'string' ? message.content : ''),
+        botMentioned,
+        messageCreatedAt: this.normalizeInboundMessageDate(message.timestamp),
+        resourceRefs: extractLarkMessageResourceRefs(message.raw),
+        createdById: user.id
+      })
+      if (!capture.created) {
+        this.logger.debug(
+          `[lark-history] duplicate inbound will resume only when claimable integration=${ctx.integration.id} message=${
+            message.messageId ?? 'n/a'
+          }`
+        )
+      }
+      currentInboundLogIds = [capture.log.id]
+      historyBefore = capture.log.createdAt.toISOString()
+      cleanupRequest = {
+        integrationId: ctx.integration.id,
+        tenantId: user.tenantId || ctx.tenantId,
+        organizationId: ctx.organizationId,
+        retentionDays: triggerConfig!.historyRetentionDays
+      }
+
+      const captureOnlyGroupMessage =
+        chatType === 'group' && !botMentioned && triggerConfig?.groupReplyStrategy === 'mention_only'
+      if (captureOnlyGroupMessage) {
+        const claimed = await this.messageHistoryService.claimInboundStatus(
+          currentInboundLogIds,
+          ['received', 'failed'],
+          'history_only'
+        )
+        if (!claimed) {
+          return
+        }
+        if (cleanupRequest) {
+          this.scheduleHistoryCleanupBestEffort(cleanupRequest)
+        }
+        if (extractLarkMessageResourceRefs(message.raw).length) {
+          this.scheduleHistoryMaterializationBestEffort({
+            integrationId: ctx.integration.id,
+            xpertId: boundTriggerBinding.xpertId,
+            tenantId: user.tenantId || ctx.tenantId,
+            organizationId: ctx.organizationId,
+            messageLogIds: currentInboundLogIds,
+            maxSizeMb: triggerConfig!.historyAttachmentMaxSizeMb
+          })
+        }
+        return
+      }
+    }
 		const queueJob: LarkConversationQueueJob = {
 			tenant: ctx.integration.tenant,
 			tenantId: user.tenantId || ctx.tenantId,
@@ -1992,7 +2317,7 @@ export class LarkConversationService implements OnModuleDestroy {
 			message: message.raw,
 			input: this.resolveInboundText(message, semanticMessage),
 			chatId: message.chatId,
-			chatType: message.chatType === 'private' ? 'p2p' : message.chatType,
+      chatType,
 			replyToMessageId:
 				typeof message.messageId === 'string' && message.messageId.trim().length > 0
 					? message.messageId.trim()
@@ -2004,32 +2329,79 @@ export class LarkConversationService implements OnModuleDestroy {
 			scopeKey: keys.scopeKey ?? undefined,
 			legacyConversationUserKey: keys.legacyConversationUserKey ?? undefined,
 			recipientDirectoryKey,
-			botMentioned: Boolean((message as any).isBotMentioned)
+      botMentioned,
+      currentInboundLogIds,
+      historyBefore
 		}
 
 		this.logger.debug(
-			`[lark-dispatch] inbound integration=${ctx.integration.id} chat=${message.chatId} sender=${message.senderId} content=${JSON.stringify(message.content)}`
+      `[lark-dispatch] inbound integration=${ctx.integration.id} chat=${message.chatId} sender=${
+        message.senderId
+      } content=${JSON.stringify(message.content)}`
 		)
 
 		if (queueJob.chatType === 'group' && queueJob.scopeKey) {
 			if (await this.shouldBypassGroupMentionWindow(queueJob)) {
-				await this.bestEffortAttachTypingReaction(queueJob)
-				const scopeQueue = await this.getScopeQueue(queueJob.scopeKey)
-				await scopeQueue.add(queueJob)
+        const enqueued = await this.enqueueConversationJob(queueJob.scopeKey, queueJob)
+        if (enqueued && cleanupRequest) {
+          this.scheduleHistoryCleanupBestEffort(cleanupRequest)
+        }
 				return
 			}
 			if (queueJob.botMentioned) {
+        const claimed = await this.messageHistoryService.claimInboundStatus(
+          queueJob.currentInboundLogIds ?? [],
+          ['received', 'failed'],
+          'queued'
+        )
+        const canRecoverQueuedWindow =
+          !claimed &&
+          (queueJob.currentInboundLogIds?.length ?? 0) > 0 &&
+          (await this.messageHistoryService.areInboundLogsInStatus(queueJob.currentInboundLogIds ?? [], 'queued'))
+        if (!claimed && !canRecoverQueuedWindow) {
+          return
+        }
+        try {
 				await this.groupMentionWindowService.ingest(queueJob)
+          if (cleanupRequest) {
+            this.scheduleHistoryCleanupBestEffort(cleanupRequest)
+          }
+        } catch (error) {
+          await this.messageHistoryService.updateInboundStatus(
+            queueJob.currentInboundLogIds ?? [],
+            'failed',
+            error instanceof Error ? error.message : String(error)
+          )
+          throw error
+        }
 			}
 			return
 		}
 
-		await this.bestEffortAttachTypingReaction(queueJob)
-		const scopeQueue = await this.getScopeQueue(queueJob.scopeKey ?? queueJob.legacyConversationUserKey ?? user.id)
-		await scopeQueue.add(queueJob)
+    const enqueued = await this.enqueueConversationJob(
+      queueJob.scopeKey ?? queueJob.legacyConversationUserKey ?? user.id,
+      queueJob
+    )
+    if (enqueued && cleanupRequest) {
+      this.scheduleHistoryCleanupBestEffort(cleanupRequest)
+    }
 	}
 
 	async handleCardAction(action: TChatCardAction, ctx: TChatEventContext<TIntegrationLarkOptions>): Promise<void> {
+		if (
+			isLarkCardActionValue(action.value) &&
+			resolveLarkCardActionValue(action.value) === LARK_DISMISS_PERMISSION_GUIDE
+		) {
+			if (action.messageId) {
+				const cancelledText = ctx.integration.options?.preferLanguage?.startsWith('en')
+					? 'Permission setup was cancelled.'
+					: '已取消权限开启引导。'
+				await this.larkChannel.patchInteractiveMessage(ctx.integration.id, action.messageId, {
+					elements: [{ tag: 'markdown', content: cancelledText }]
+				})
+			}
+			return
+		}
 		const user = RequestContext.currentUser()
 		if (!user) {
 			this.logger.warn('No user in request context, cannot handle card action')
@@ -2058,14 +2430,14 @@ export class LarkConversationService implements OnModuleDestroy {
 		const boundXpertId = await this.getBoundXpertId(ctx.integration.id)
 		const configuredXpertId = boundXpertId ?? normalizeConversationUserKey(ctx.integration.options?.xpertId)
 		if (this.shouldPurgeBindingForConfiguredXpert(historicalBinding, ctx.integration.id, configuredXpertId)) {
-			await this.purgeBindingSession(historicalBinding, historicalBinding?.scopeKey ?? legacyConversationUserKey, legacyConversationUserKey)
-			historicalBinding = null
-		}
-		const latestBinding = this.shouldPreferHistoricalBinding(
+      await this.purgeBindingSession(
 			historicalBinding,
-			ctx.integration.id,
-			configuredXpertId
+        historicalBinding?.scopeKey ?? legacyConversationUserKey,
+        legacyConversationUserKey
 		)
+      historicalBinding = null
+    }
+    const latestBinding = this.shouldPreferHistoricalBinding(historicalBinding, ctx.integration.id, configuredXpertId)
 			? historicalBinding
 			: null
 		const xpertId = latestBinding?.xpertId ?? configuredXpertId
@@ -2103,7 +2475,9 @@ export class LarkConversationService implements OnModuleDestroy {
 					legacyConversationUserKey
 				})
 				this.logger.debug(
-					`[lark-dispatch] card action blocked by trigger scope integration=${ctx.integration.id} chat=${action.chatId ?? 'n/a'} sender=${action.userId ?? 'n/a'}`
+          `[lark-dispatch] card action blocked by trigger scope integration=${ctx.integration.id} chat=${
+            action.chatId ?? 'n/a'
+          } sender=${action.userId ?? 'n/a'}`
 				)
 				return
 			}
@@ -2119,7 +2493,12 @@ export class LarkConversationService implements OnModuleDestroy {
 			}) ??
 			legacyConversationUserKey
 		if (latestBinding?.conversationId) {
-			await this.cacheConversation(scopeKey, latestBinding.xpertId, latestBinding.conversationId, legacyConversationUserKey)
+      await this.cacheConversation(
+        scopeKey,
+        latestBinding.xpertId,
+        latestBinding.conversationId,
+        legacyConversationUserKey
+      )
 		}
 
 		await this.onAction(

@@ -69,6 +69,7 @@ import type {
   PresentationExportKind,
   PresentationJsonObject,
   PresentationJsonValue,
+  PresentationShareAccessMode,
   PresentationScope,
   PresentationSlideSpec,
   PresentationSlideStatus,
@@ -208,7 +209,8 @@ export class PresentationStudioService {
       versions: versions.map(compactVersion),
       exports: exports.map(compactExport),
       assets: assets.map(compactAsset),
-      exportCapabilities
+      exportCapabilities,
+      sharePolicy: this.config.getSharePolicy(scope)
     }
   }
 
@@ -559,16 +561,15 @@ export class PresentationStudioService {
     if (item.status !== 'succeeded') throw new BadRequestException('Only completed HTML exports can be shared.')
     const deck = await this.requireDeck(scope, item.deckId)
     const { artifactId, artifactVersionId } = await this.ensureHtmlExportArtifactVersion(scope, item, deck)
-    const versionMode = normalizeArtifactLinkVersionMode(input.versionMode)
-    const accessMode = normalizeArtifactAccessMode(input.accessMode)
+    const actor = input.actor ?? 'workbench'
+    const versionMode: ArtifactLinkVersionMode = 'version'
+    const accessMode = this.resolveShareAccessMode(scope, input.accessMode, actor)
     if (
       item.artifactLinkId &&
       item.artifactPublicUrl &&
       isCurrentArtifactPublicUrl(item.artifactPublicUrl) &&
-      (input.preserveExistingLink === true || (
-        item.artifactLinkVersionMode === versionMode &&
-        item.artifactLinkAccessMode === accessMode
-      ))
+      item.artifactLinkVersionMode === versionMode &&
+      item.artifactLinkAccessMode === accessMode
     ) {
       return {
         message: 'Presentation HTML share link is ready.',
@@ -592,7 +593,7 @@ export class PresentationStudioService {
       },
       presentation: {
         disposition: 'inline',
-        allowDownload: input.allowDownload !== false,
+        allowDownload: false,
         safeHtmlProfile: 'interactive'
       },
       metadata: artifactMetadata(item, deck, { action: 'share_html_export' })
@@ -608,7 +609,7 @@ export class PresentationStudioService {
       versionId: item.versionId,
       exportId: requireId(item.id, 'Export id is required for share logging.'),
       action: 'export_shared',
-      actor: input.actor ?? 'workbench',
+      actor,
       message: 'Shared HTML export as an Artifact link.',
       summary: { artifactId, artifactVersionId, artifactLinkId: link.id, versionMode: link.versionMode, accessMode: link.accessMode }
     })
@@ -636,6 +637,8 @@ export class PresentationStudioService {
       preserveExistingLink?: boolean | null
     }
   ) {
+    const actor = input.actor ?? 'workbench'
+    const accessMode = this.resolveShareAccessMode(scope, input.accessMode, actor)
     const deck = await this.requireDeck(scope, input.deckId)
     const deckId = requireId(deck.id, 'Deck id is required for sharing.')
     const currentChecksum = deck.checksum ?? checksumJson(deck.deckSpec)
@@ -647,11 +650,10 @@ export class PresentationStudioService {
       return this.shareHtmlExport(scope, {
         deckId,
         exportId: requireId(completed.id, 'Export id is required.'),
-        versionMode: input.versionMode,
-        accessMode: input.accessMode,
-        allowDownload: input.allowDownload,
-        actor: input.actor,
-        preserveExistingLink: input.preserveExistingLink
+        versionMode: 'version',
+        accessMode,
+        allowDownload: false,
+        actor
       })
     }
 
@@ -684,6 +686,36 @@ export class PresentationStudioService {
       shareUrl: null,
       publicUrl: null
     }
+  }
+
+  async revokeDeckHtmlShare(scope: PresentationScope, deckId: string, actor: 'agent' | 'workbench' = 'workbench') {
+    await this.requireDeck(scope, deckId)
+    const exports = await this.exportRepository.find({
+      where: scopedExportWhere(scope, { deckId }),
+      order: { artifactSharedAt: 'DESC', createdAt: 'DESC' },
+      take: 20
+    })
+    const item = exports.find((candidate) => candidate.kind === 'html' && Boolean(candidate.artifactLinkId))
+    if (!item?.artifactLinkId) return { message: 'No active Presentation HTML share link was found.', deckId, revoked: false }
+    if (!this.runtimeCapabilities?.has?.(ArtifactsRuntimeCapability)) {
+      throw new BadRequestException('Platform artifacts capability is unavailable.')
+    }
+    await this.artifacts().revokeArtifactLink(item.artifactLinkId)
+    item.artifactLinkId = null
+    item.artifactLinkVersionMode = null
+    item.artifactLinkAccessMode = null
+    item.artifactPublicUrl = null
+    item.artifactSharedAt = null
+    await this.exportRepository.save(item)
+    await this.log(scope, {
+      deckId,
+      versionId: item.versionId,
+      exportId: requireId(item.id, 'Export id is required for share revocation logging.'),
+      action: 'export_share_revoked',
+      actor,
+      message: 'Revoked Presentation HTML Artifact share link.'
+    })
+    return { message: 'Presentation HTML share link revoked.', deckId, exportId: item.id, revoked: true }
   }
 
   async cancelExport(scope: PresentationScope, exportId: string) {
@@ -1198,6 +1230,17 @@ export class PresentationStudioService {
     }
   }
 
+  private resolveShareAccessMode(
+    scope: PresentationScope,
+    requestedAccessMode: ArtifactAccessMode | null | undefined,
+    actor: 'agent' | 'workbench'
+  ): PresentationShareAccessMode {
+    const normalized = requestedAccessMode === null || requestedAccessMode === undefined
+      ? undefined
+      : normalizeArtifactAccessMode(requestedAccessMode)
+    return this.config.resolveShareAccessMode(scope, normalized, actor)
+  }
+
   private async deleteWorkspaceFile(reference?: WorkspacePortableFileReference | null) {
     if (!reference?.filePath) return false
     const files = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
@@ -1455,15 +1498,14 @@ function artifactMetadata(item: PresentationExport, deck: PresentationDeck, extr
   }
 }
 
-function normalizeArtifactLinkVersionMode(value: ArtifactLinkVersionMode | null | undefined): ArtifactLinkVersionMode {
-  return value === 'version' ? 'version' : 'latest'
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined): PresentationShareAccessMode {
+  if (!value) return 'public_link'
+  if (isPresentationShareAccessMode(value)) return value
+  throw new BadRequestException(`Unsupported artifact access mode: ${value}`)
 }
 
-function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined): ArtifactAccessMode {
-  if (!value) return 'public_link'
-  const allowed = new Set<ArtifactAccessMode>(['owner_only', 'workspace_all', 'organization_all', 'public_link'])
-  if (allowed.has(value)) return value
-  throw new BadRequestException(`Unsupported artifact access mode: ${value}`)
+function isPresentationShareAccessMode(value: ArtifactAccessMode): value is PresentationShareAccessMode {
+  return value === 'owner_only' || value === 'workspace_all' || value === 'organization_all' || value === 'public_link'
 }
 
 function compactDeck(deck: PresentationDeck, message?: string) {

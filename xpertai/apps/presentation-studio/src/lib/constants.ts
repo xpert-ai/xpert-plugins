@@ -49,6 +49,7 @@ export const PRESENTATION_TOOL_NAMES = [
   'presentation_request_export',
   'presentation_get_export',
   'presentation_share_html',
+  'presentation_revoke_html_share',
   'presentation_update_status',
   'presentation_report_failure'
 ] as const
@@ -62,6 +63,7 @@ export const PRESENTATION_MUTATION_TOOL_NAMES = [
   'presentation_finalize_deck',
   'presentation_request_export',
   'presentation_share_html',
+  'presentation_revoke_html_share',
   'presentation_update_status'
 ] as const
 

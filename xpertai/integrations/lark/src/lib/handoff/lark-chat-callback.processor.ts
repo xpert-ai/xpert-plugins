@@ -3,10 +3,13 @@ import {
 	HandoffMessage,
 	HandoffProcessorStrategy,
 	IHandoffProcessor,
+	MANAGED_QUEUE_SERVICE_TOKEN,
+	type ManagedQueueService,
 	type PluginContext,
 	ProcessContext,
 	ProcessResult,
 } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'node:crypto'
 import { ChatEventEnvelope, ChatMessageEventTypeEnum, ChatMessageTypeEnum } from '@xpert-ai/chatkit-types'
 import { ChatLarkMessage, cloneStructuredElement } from '../message.js'
 import { LarkConversationService } from '../conversation.service.js'
@@ -26,11 +29,12 @@ import {
 	LarkChatStreamCallbackPayload,
 	LarkProgressRenderItem,
 	LarkRenderItem,
-	LarkToolTraceRenderItem,
 } from './lark-chat.types.js'
 import { LarkChatRunState, LarkChatRunStateService } from './lark-chat-run-state.service.js'
 import { LarkCardElement, LarkStructuredElement } from '../types.js'
 import { messageContentText, XpertAgentExecutionStatusEnum } from '../contracts-compat.js'
+import { LarkMessageHistoryService } from '../lark-message-history.service.js'
+import { LarkChatDispatchService } from './lark-chat-dispatch.service.js'
 
 const HIDDEN_LARK_CHAT_EVENT_TYPES = [
 	'thread_context_usage',
@@ -39,6 +43,11 @@ const HIDDEN_LARK_CHAT_EVENT_TYPES = [
 
 type HiddenLarkChatEventType = (typeof HIDDEN_LARK_CHAT_EVENT_TYPES)[number]
 const HIDDEN_LARK_CHAT_EVENT_TYPE_SET = new Set<HiddenLarkChatEventType>(HIDDEN_LARK_CHAT_EVENT_TYPES)
+const STALE_STEER_ERROR_CODE = 'steer_target_not_running'
+const STALE_STEER_RETRY_DELAY_MS = 1000
+const STALE_STEER_PROCESSING_TTL_MS = 10 * 60 * 1000
+const STALE_STEER_DONE_TTL_MS = 10 * 60 * 1000
+const STALE_STEER_ENQUEUED_MARKER = 'stale_steer_fallback_enqueued'
 
 /**
  * Callback processor for Lark stream events.
@@ -69,6 +78,8 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 	constructor(
 		private readonly larkChannel: LarkChannelStrategy,
 		private readonly runStateService: LarkChatRunStateService,
+		private readonly messageHistoryService: LarkMessageHistoryService,
+		private readonly dispatchService: LarkChatDispatchService,
 		@Inject(LARK_PLUGIN_CONTEXT)
 		private readonly pluginContext: PluginContext<IntegrationLarkPluginConfig>
 	) {}
@@ -89,6 +100,25 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				status: 'dead',
 				reason: 'Missing sequence in Lark callback payload'
 			}
+		}
+		if (payload.context?.followUpMode === 'steer') {
+			// A steer follow-up is consumed by the already running Xpert execution.
+			// It must not create or update a second Lark card/run state.
+			if (payload.kind === 'error') {
+				if (payload.errorCode === STALE_STEER_ERROR_CODE && payload.context.steerFallback) {
+					return this.recoverStaleSteer(payload)
+				}
+				const error = payload.error || 'Lark steer follow-up failed'
+				await this.messageHistoryService.updateInboundStatus(
+					payload.context.currentInboundLogIds ?? [],
+					'failed',
+					error
+				)
+				this.logger.warn(
+					`Lark steer follow-up "${payload.sourceMessageId}" failed without creating a second response card: ${error}`
+				)
+			}
+			return { status: 'ok' }
 		}
 
 		return this.runWithSourceLock(payload.sourceMessageId, async () => {
@@ -121,6 +151,202 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 
 			return { status: 'ok' }
 		})
+	}
+
+	private async recoverStaleSteer(payload: LarkChatStreamCallbackPayload): Promise<ProcessResult> {
+		const context = payload.context!
+		const fallback = context.steerFallback!
+		if (!context.scopeKey || !context.xpertId) {
+			return { status: 'dead', reason: 'Missing trusted Lark scope for stale steer fallback' }
+		}
+
+		const active = await this.conversationService.getActiveMessage(context.scopeKey, context.xpertId, {
+			legacyConversationUserKey: context.legacyConversationUserKey
+		})
+		if (active?.thirdPartyMessage?.id !== fallback.message.id) {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'failed',
+				'stale_steer_active_card_changed'
+			)
+			return { status: 'dead', reason: 'Active Lark response card changed before stale steer fallback' }
+		}
+		if (this.isInProgressStatus(active.thirdPartyMessage?.status)) {
+			return {
+				status: 'retry',
+				delayMs: STALE_STEER_RETRY_DELAY_MS,
+				reason: 'Waiting for the previous Lark response card to finish before stale steer fallback'
+			}
+		}
+		if (
+			await this.messageHistoryService.areInboundLogsInStatusWithError(
+				context.currentInboundLogIds ?? [],
+				'queued',
+				STALE_STEER_ENQUEUED_MARKER
+			)
+		) {
+			return { status: 'ok' }
+		}
+
+		const claim = await this.claimStaleSteerFallback(payload.sourceMessageId, context.integrationId)
+		if (claim.state === 'done') {
+			return { status: 'ok' }
+		}
+		if (claim.state !== 'claimed') {
+			return {
+				status: 'retry',
+				delayMs: STALE_STEER_RETRY_DELAY_MS,
+				reason: 'Another worker is recovering the stale Lark steer fallback'
+			}
+		}
+		const claimOwnerToken = claim.ownerToken
+		const claimedLogs = await this.messageHistoryService.claimInboundStatus(
+			context.currentInboundLogIds ?? [],
+			['dispatched', 'failed'],
+			'queued'
+		)
+		const alreadyQueued =
+			!claimedLogs &&
+			(context.currentInboundLogIds?.length ?? 0) > 0 &&
+			(await this.messageHistoryService.areInboundLogsInStatus(
+				context.currentInboundLogIds ?? [],
+				'queued'
+			))
+		if (!claimedLogs && !alreadyQueued) {
+			await this.completeStaleSteerFallbackClaim(
+				payload.sourceMessageId,
+				context.integrationId,
+				claimOwnerToken
+			)
+			return { status: 'ok' }
+		}
+
+		const fallbackContext: LarkChatCallbackContext = {
+			...context,
+			message: fallback.message,
+			followUpMode: undefined,
+			steerFallback: undefined
+		}
+		const larkMessage = this.createLarkMessage(fallbackContext)
+		try {
+			await this.dispatchService.enqueueDispatch({
+				xpertId: context.xpertId,
+				input: fallback.input,
+				files: fallback.files,
+				currentInboundLogIds: context.currentInboundLogIds,
+				larkMessage,
+				options: {
+					forceNewRun: true,
+					fromEndUserId: fallback.fromEndUserId,
+					executorUserId: fallback.executorUserId,
+					streamingEnabled: fallback.streamingEnabled
+				}
+			})
+		} catch (error) {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'failed',
+				String(error)
+			)
+			await this.releaseStaleSteerFallbackClaim(
+				payload.sourceMessageId,
+				context.integrationId,
+				claimOwnerToken
+			)
+			throw error
+		}
+		try {
+			await this.messageHistoryService.updateInboundStatus(
+				context.currentInboundLogIds ?? [],
+				'queued',
+				STALE_STEER_ENQUEUED_MARKER
+			)
+		} catch (error) {
+			this.logger.warn(`Unable to persist stale Lark steer enqueue marker: ${String(error)}`)
+		}
+		await this.completeStaleSteerFallbackClaim(
+			payload.sourceMessageId,
+			context.integrationId,
+			claimOwnerToken
+		)
+		return { status: 'ok' }
+	}
+
+	private isInProgressStatus(status: unknown): boolean {
+		return status === 'thinking' || status === 'continuing'
+	}
+
+	private async claimStaleSteerFallback(
+		sourceMessageId: string,
+		integrationId?: string
+	): Promise<{ state: 'claimed'; ownerToken: string } | { state: 'processing' | 'done' }> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			const key = this.staleSteerFallbackKey(sourceMessageId, integrationId)
+			const ownerToken = randomUUID()
+			const processingValue = `processing:${ownerToken}`
+			const result = await redis.set(
+				key,
+				processingValue,
+				'PX',
+				STALE_STEER_PROCESSING_TTL_MS,
+				'NX'
+			)
+			if (result === 'OK') {
+				return { state: 'claimed', ownerToken }
+			}
+			const state = await redis.get(key)
+			return { state: state === 'done' ? 'done' : 'processing' }
+		} catch (error) {
+			this.logger.error(`Unable to claim stale Lark steer fallback: ${String(error)}`)
+			throw error
+		}
+	}
+
+	private async completeStaleSteerFallbackClaim(
+		sourceMessageId: string,
+		integrationId: string | undefined,
+		ownerToken: string
+	): Promise<void> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			await redis.eval(
+				`if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('SET', KEYS[1], 'done', 'PX', ARGV[2]) else return 0 end`,
+				1,
+				this.staleSteerFallbackKey(sourceMessageId, integrationId),
+				`processing:${ownerToken}`,
+				String(STALE_STEER_DONE_TTL_MS)
+			)
+		} catch (error) {
+			// The durable inbound marker prevents re-dispatch even if this best-effort
+			// completion marker cannot be written after enqueue succeeds.
+			this.logger.warn(`Unable to complete stale Lark steer fallback claim: ${String(error)}`)
+		}
+	}
+
+	private async releaseStaleSteerFallbackClaim(
+		sourceMessageId: string,
+		integrationId: string | undefined,
+		ownerToken: string
+	): Promise<void> {
+		try {
+			const queue = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN) as ManagedQueueService
+			const redis = await queue.getRedis()
+			await redis.eval(
+				`if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end`,
+				1,
+				this.staleSteerFallbackKey(sourceMessageId, integrationId),
+				`processing:${ownerToken}`
+			)
+		} catch (error) {
+			this.logger.warn(`Unable to release stale Lark steer fallback claim: ${String(error)}`)
+		}
+	}
+
+	private staleSteerFallbackKey(sourceMessageId: string, integrationId?: string): string {
+		return `lark:steer-fallback:${integrationId ?? 'unknown'}:${sourceMessageId}`
 	}
 
 	private async runWithSourceLock(
@@ -261,16 +487,8 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 					await this.syncActiveMessageCache(context)
 					return
 				} else if (structuredMessageData?.type === 'component') {
-					if (this.upsertComponentRenderItem(state, structuredMessageData)) {
-						if (!streamingEnabled) {
-							return
-						}
-						const message = ensureLarkMessage()
-						message.renderItems = state.renderItems
-						await message.update()
-						context.message = this.toMessageSnapshot(message, context.message?.text)
-						await this.syncActiveMessageCache(context)
-					}
+					// ChatKit components are Web UI and execution payloads. Lark renders
+					// assistant text, structured update elements, and explicit chat progress events.
 					return
 				} else if (structuredMessageData?.type !== 'text') {
 					if (structuredMessageData?.type === 'reasoning') {
@@ -309,6 +527,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				const conversationUserKey = this.resolveConversationUserKey(context)
 				const conversationId = this.toNonEmptyString(eventData?.id)
 				if (conversationUserKey && conversationId) {
+					context.conversationId = conversationId
 					await this.conversationService.setConversation(
 						conversationUserKey,
 						context.xpertId,
@@ -322,6 +541,12 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 							senderOpenId: context.senderOpenId,
 							legacyConversationUserKey: context.legacyConversationUserKey
 						}
+					)
+					await this.messageHistoryService.updateInboundStatus(
+						context.currentInboundLogIds ?? [],
+						'dispatched',
+						undefined,
+						conversationId
 					)
 				}
 				break
@@ -358,7 +583,10 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 			case ChatMessageEventTypeEnum.ON_TOOL_START:
 			case ChatMessageEventTypeEnum.ON_TOOL_END:
 			case ChatMessageEventTypeEnum.ON_TOOL_ERROR:
-			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE:
+			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE: {
+				// Keep legacy tool lifecycle callbacks out of the user-facing card.
+				break
+			}
 			case ChatMessageEventTypeEnum.ON_CHAT_EVENT: {
 				const data = (eventPayload.data ?? {}) as Record<string, unknown>
 				if (!this.upsertManagedEventElement(state, String(eventPayload.event), data)) {
@@ -407,6 +635,12 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 
 		context.message = this.toMessageSnapshot(larkMessage, context.message?.text)
 		await this.syncActiveMessageCache(context)
+		await this.recordRunHistory(
+			state,
+			keepTerminalState ? 'failed' : 'sent',
+			larkMessage,
+			keepTerminalState ? String(currentStatus ?? 'agent_execution_failed') : undefined
+		)
 	}
 
 	private async failRun(state: LarkChatRunState, error?: string) {
@@ -414,6 +648,39 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		await larkMessage.error(error || 'Internal Error')
 		state.context.message = this.toMessageSnapshot(larkMessage, state.context.message?.text)
 		await this.syncActiveMessageCache(state.context)
+		await this.recordRunHistory(state, 'failed', larkMessage, error || 'Internal Error')
+	}
+
+	private async recordRunHistory(
+		state: LarkChatRunState,
+		status: 'sent' | 'failed',
+		larkMessage: ChatLarkMessage,
+		error?: string
+	): Promise<void> {
+		const context = state.context
+		if (
+			!context.currentInboundLogIds?.length ||
+			!context.integrationId ||
+			!context.scopeKey ||
+			!context.xpertId
+		) {
+			return
+		}
+		await this.messageHistoryService.recordOutbound({
+			integrationId: context.integrationId,
+			scopeKey: context.scopeKey,
+			xpertId: context.xpertId,
+			tenantId: context.tenantId,
+			organizationId: context.organizationId,
+			runId: state.sourceMessageId,
+			status,
+			content: state.responseMessageContent,
+			messageId: larkMessage.messageId ?? larkMessage.id,
+			conversationId: context.conversationId,
+			error,
+			sentAt: status === 'sent' ? new Date() : undefined,
+			createdById: context.userId
+		})
 	}
 
 	private createLarkMessage(context: LarkChatCallbackContext): ChatLarkMessage {
@@ -581,7 +848,7 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		state: LarkChatRunState,
 		eventType: string,
 		data: Record<string, unknown>
-	): LarkProgressRenderItem | LarkToolTraceRenderItem | null {
+	): LarkProgressRenderItem | null {
 		if (eventType === ChatMessageEventTypeEnum.ON_CHAT_EVENT) {
 			const chatEventType = this.toNonEmptyString(data?.type)
 			if (this.isHiddenLarkChatEventType(chatEventType)) {
@@ -596,14 +863,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 
 		const existing = this.findManagedRenderItemById(state.renderItems, id)
-		if (
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_START ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_END ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_ERROR ||
-			eventType === ChatMessageEventTypeEnum.ON_TOOL_MESSAGE
-		) {
-			return this.buildToolTraceItem(id, data, existing?.kind === 'tool_trace' ? existing : null)
-		}
 
 		return {
 			kind: 'progress',
@@ -617,63 +876,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 				(existing?.kind === 'progress' ? existing.detail : null) ??
 				null,
 			status: this.toNonEmptyString(data?.status) ?? (existing?.kind === 'progress' ? existing.status : null) ?? null
-		}
-	}
-
-	private upsertComponentRenderItem(
-		state: LarkChatRunState,
-		componentEnvelope: Record<string, unknown>
-	): boolean {
-		const component = this.toRecord(componentEnvelope.data)
-		if (!component) {
-			return false
-		}
-
-		const id =
-			this.toNonEmptyString(componentEnvelope.id) ??
-			this.resolveManagedEventId(component) ??
-			this.buildSyntheticManagedEventId(state, 'component', component)
-		if (!id) {
-			return false
-		}
-
-		const existing = this.findManagedRenderItemById(state.renderItems, id)
-		const item = this.buildToolTraceItem(id, component, existing?.kind === 'tool_trace' ? existing : null)
-		const existingIndex = this.findManagedRenderItemIndex(state.renderItems, id)
-		if (existingIndex >= 0) {
-			state.renderItems[existingIndex] = item
-		} else {
-			state.renderItems.push(item)
-		}
-		return true
-	}
-
-	private buildToolTraceItem(
-		id: string,
-		data: Record<string, unknown>,
-		existing?: LarkToolTraceRenderItem | null
-	): LarkToolTraceRenderItem {
-		const errorData = this.toRecord(data?.error)
-		const tool = this.resolveManagedEventTool(data) ?? existing?.tool ?? null
-		return {
-			kind: 'tool_trace',
-			id,
-			tool,
-			title:
-				this.toNonEmptyString(data?.title) ??
-				existing?.title ??
-				tool ??
-				'工具',
-			detail:
-				this.resolveToolTraceDetail(data, tool) ??
-				existing?.detail ??
-				null,
-			status: this.toNonEmptyString(data?.status) ?? existing?.status ?? null,
-			error:
-				this.toNonEmptyString(data?.error) ??
-				this.toNonEmptyString(errorData?.message) ??
-				existing?.error ??
-				null
 		}
 	}
 
@@ -738,120 +940,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		}
 
 		return null
-	}
-
-	private resolveToolTraceDetail(data: Record<string, unknown>, tool: string | null): string | null {
-		const directMessage = this.toNonEmptyString(data?.message)
-		if (directMessage && !this.shouldSuppressToolPayloadText(directMessage, tool)) {
-			return directMessage
-		}
-
-		const error =
-			this.toNonEmptyString(data?.error) ??
-			this.toNonEmptyString(this.toRecord(data?.error)?.message)
-		if (error) {
-			return error
-		}
-
-		if (this.toNonEmptyString(data?.status) === 'running') {
-			return this.summarizeToolInput(data?.input, tool)
-		}
-
-		return this.summarizeToolOutput(data?.output ?? directMessage, tool)
-	}
-
-	private summarizeToolInput(value: unknown, tool: string | null): string | null {
-		switch (tool) {
-			case 'lark_list_messages':
-				return '正在查看当前群聊上下文'
-			case 'lark_get_message':
-				return '正在读取消息详情'
-			case 'lark_get_message_resource':
-				return '正在读取消息资源'
-			default:
-				return this.summarizeUnknownValue(value, '正在准备执行工具')
-		}
-	}
-
-	private summarizeToolOutput(value: unknown, tool: string | null): string | null {
-		const parsed = this.parseJsonLikeValue(value)
-		const record = this.toRecord(parsed)
-		const data = this.toRecord(record?.data)
-		const effective = data ?? record
-
-		switch (tool) {
-			case 'lark_list_messages': {
-				const items = Array.isArray(effective?.items) ? effective.items : []
-				const hasMore = effective?.hasMore === true
-				return `已获取 ${items.length} 条消息${hasMore ? '，还有更多内容可继续加载' : ''}`
-			}
-			case 'lark_get_message':
-				return '已获取消息详情'
-			case 'lark_get_message_resource':
-				return '已获取消息资源'
-			case 'lark_send_text_notification':
-				return this.summarizeCountedToolResult(effective, '已发送通知')
-			case 'lark_send_rich_notification':
-				return this.summarizeCountedToolResult(effective, '已发送富文本通知')
-			case 'lark_update_message':
-				return this.summarizeCountedToolResult(effective, '已更新消息')
-			case 'lark_recall_message':
-				return this.summarizeCountedToolResult(effective, '已撤回消息')
-			default: {
-				if (Array.isArray(effective?.items)) {
-					return `已返回 ${effective.items.length} 条结果`
-				}
-				if (effective?.item && typeof effective.item === 'object') {
-					return '已返回工具结果'
-				}
-				return this.summarizeUnknownValue(parsed, '已返回工具结果')
-			}
-		}
-	}
-
-	private summarizeCountedToolResult(
-		value: Record<string, unknown> | null,
-		actionLabel: string
-	): string {
-		const successCount = this.toInteger(value?.successCount)
-		const failureCount = this.toInteger(value?.failureCount)
-		const resultsCount = Array.isArray(value?.results) ? value.results.length : null
-
-		const success = successCount ?? (resultsCount && resultsCount > 0 ? resultsCount : null)
-		const failure = failureCount ?? 0
-
-		if (success && success > 0 && failure > 0) {
-			return `${actionLabel} ${success} 条，失败 ${failure} 条`
-		}
-		if (success && success > 0) {
-			return `${actionLabel} ${success} 条`
-		}
-		if (failure > 0) {
-			return `${actionLabel}失败 ${failure} 条`
-		}
-		return actionLabel
-	}
-
-	private summarizeUnknownValue(value: unknown, fallback: string): string {
-		if (typeof value === 'string') {
-			const normalized = value.trim()
-			if (!normalized) {
-				return fallback
-			}
-			if (this.shouldSuppressToolPayloadText(normalized)) {
-				return fallback
-			}
-			return normalized.length > 240 ? `${normalized.slice(0, 240)}...` : normalized
-		}
-
-		if (value && typeof value === 'object') {
-			if (Array.isArray(value)) {
-				return value.length ? `已返回 ${value.length} 条结果` : fallback
-			}
-			return fallback
-		}
-
-		return fallback
 	}
 
 	private parseJsonLikeValue(value: unknown): unknown {
@@ -972,15 +1060,6 @@ export class LarkChatStreamCallbackProcessor implements IHandoffProcessor<LarkCh
 		const text = value.trim()
 		return text.length ? text : null
 	}
-
-	private toInteger(value: unknown): number | null {
-		const candidate = typeof value === 'number' ? value : Number(value)
-		if (!Number.isFinite(candidate)) {
-			return null
-		}
-		return Math.trunc(candidate)
-	}
-
 	private toRecord(value: unknown): Record<string, unknown> | null {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
 			return null

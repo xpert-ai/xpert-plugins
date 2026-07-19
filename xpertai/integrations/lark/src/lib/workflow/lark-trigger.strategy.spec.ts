@@ -29,7 +29,12 @@ const DEFAULT_TRIGGER_CONFIG = {
 	groupUserOpenIds: [],
 	groupReplyStrategy: 'mention_only',
 	sessionTimeoutSeconds: 3600,
-	summaryWindowSeconds: 0
+	summaryWindowSeconds: 0,
+	captureUnmentionedGroupMessages: false,
+	historyContextLimit: 20,
+	historyContextWindowSeconds: 3600,
+	historyRetentionDays: 30,
+	historyAttachmentMaxSizeMb: 10
 } as const
 
 type PersistedBinding = {
@@ -37,6 +42,9 @@ type PersistedBinding = {
 	xpertId: string
 	config?: Record<string, unknown>
 	ownerOpenId?: string | null
+	tenantId?: string | null
+	organizationId?: string | null
+	createdById?: string | null
 }
 
 describe('LarkTriggerStrategy', () => {
@@ -150,12 +158,20 @@ describe('LarkTriggerStrategy', () => {
 				throw new Error(`Unexpected token: ${String(token)}`)
 			})
 		}
+		const messageHistoryService = {
+			updateInboundStatus: jest.fn().mockResolvedValue(undefined)
+		}
+		const messageHistoryQueue = {
+			scheduleCleanup: jest.fn().mockResolvedValue(undefined)
+		}
 
 		const strategy = new (LarkTriggerStrategy as any)(
 			dispatchService as any,
 			aggregationService as any,
 			larkChannel as any,
 			bindingRepository as any,
+			messageHistoryService as any,
+			messageHistoryQueue as any,
 			pluginContext as any
 		)
 		return {
@@ -164,6 +180,8 @@ describe('LarkTriggerStrategy', () => {
 			aggregationService,
 			handoffPermissionService,
 			bindingRepository,
+			messageHistoryService,
+			messageHistoryQueue,
 			persistedBindings
 		}
 	}
@@ -177,11 +195,14 @@ describe('LarkTriggerStrategy', () => {
 				...DEFAULT_TRIGGER_CONFIG
 			},
 			ownerOpenId: 'ou_owner_1',
+			tenantId: 'tenant-1',
+			organizationId: 'org-1',
+			createdById: 'user-1',
 			...overrides
 		}
 	}
 
-	it('exposes session timeout and summary window defaults in trigger schema', () => {
+	it('exposes session, summary, and stored-history defaults in trigger schema', () => {
 		const { strategy } = createStrategy()
 		const properties = strategy.meta.configSchema.properties as Record<string, any>
 
@@ -195,6 +216,63 @@ describe('LarkTriggerStrategy', () => {
 			en_US: 'Summary Window (seconds)',
 			zh_Hans: '汇总时间（秒）'
 		})
+		expect(properties.captureUnmentionedGroupMessages.default).toBe(false)
+		expect(properties.historyContextLimit).toEqual(
+			expect.objectContaining({ default: 20, minimum: 0, maximum: 100 })
+		)
+		expect(properties.historyContextWindowSeconds).toEqual(
+			expect.objectContaining({ default: 3600, minimum: 0 })
+		)
+		expect(properties.historyRetentionDays).toEqual(
+			expect.objectContaining({ default: 30, minimum: 0 })
+		)
+		expect(properties.historyRetentionDays.description.zh_Hans).toContain('0 表示永久保留')
+		expect(properties.historyAttachmentMaxSizeMb).toEqual(
+			expect.objectContaining({ default: 10, minimum: 1, maximum: 25 })
+		)
+	})
+
+	it('keeps legacy persisted bindings opted out when history fields are missing', () => {
+		const { strategy } = createStrategy()
+
+		expect(
+			strategy.normalizeConfig({
+				enabled: true,
+				integrationId: 'integration-1'
+			})
+		).toEqual(
+			expect.objectContaining({
+				captureUnmentionedGroupMessages: false,
+				historyContextLimit: 0,
+				historyContextWindowSeconds: 3600,
+				historyRetentionDays: 30,
+				historyAttachmentMaxSizeMb: 10
+			})
+		)
+	})
+
+	it('normalizes explicitly configured message-history fields', () => {
+		const { strategy } = createStrategy()
+
+		expect(
+			strategy.normalizeConfig({
+				enabled: true,
+				integrationId: 'integration-1',
+				captureUnmentionedGroupMessages: true,
+				historyContextLimit: 999,
+				historyContextWindowSeconds: 0,
+				historyRetentionDays: 0,
+				historyAttachmentMaxSizeMb: 999
+			})
+		).toEqual(
+			expect.objectContaining({
+				captureUnmentionedGroupMessages: true,
+				historyContextLimit: 100,
+				historyContextWindowSeconds: 0,
+				historyRetentionDays: 0,
+				historyAttachmentMaxSizeMb: 25
+			})
+		)
 	})
 
 	it('reports validation error when integration is missing', async () => {
@@ -458,6 +536,69 @@ describe('LarkTriggerStrategy', () => {
 		).toBe(true)
 	})
 
+	it('matches inbound scope without applying the group mention requirement', () => {
+		const { strategy } = createStrategy()
+		const binding = createBinding({
+			config: {
+				integrationId: 'integration-1',
+				...DEFAULT_TRIGGER_CONFIG,
+				allowedGroupScope: 'selected_chats',
+				allowedGroupChatIds: ['chat-1'],
+				groupReplyStrategy: 'mention_only'
+			}
+		})
+
+		expect(
+			strategy.matchesInboundScope({
+				binding: binding as any,
+				integrationId: 'integration-1',
+				chatType: 'group',
+				chatId: 'chat-1',
+				senderOpenId: 'ou_sender_1',
+				botMentioned: false
+			})
+		).toBe(true)
+		expect(
+			strategy.matchesInboundScope({
+				binding: binding as any,
+				integrationId: 'integration-1',
+				chatType: 'group',
+				chatId: 'chat-2',
+				senderOpenId: 'ou_sender_1',
+				botMentioned: true
+			})
+		).toBe(false)
+		expect(
+			strategy.matchesInboundScope({
+				binding: binding as any,
+				integrationId: 'integration-2',
+				chatType: 'group',
+				chatId: 'chat-1',
+				senderOpenId: 'ou_sender_1',
+				botMentioned: true
+			})
+		).toBe(false)
+	})
+
+	it('checks inbound scope before applying group reply strategy', () => {
+		const { strategy } = createStrategy()
+		const scopeSpy = jest.spyOn(strategy, 'matchesInboundScope').mockReturnValue(false)
+
+		expect(
+			strategy.matchesInboundMessage({
+				config: {
+					integrationId: 'integration-1',
+					...DEFAULT_TRIGGER_CONFIG,
+					groupReplyStrategy: 'all_messages'
+				},
+				integrationId: 'integration-1',
+				chatType: 'group',
+				botMentioned: true
+			})
+		).toBe(false)
+		expect(scopeSpy).toHaveBeenCalledTimes(1)
+	})
+
 	it('publishes normalized config without owner open id for supported scopes', async () => {
 		const { strategy, bindingRepository, persistedBindings } = createStrategy()
 
@@ -490,6 +631,31 @@ describe('LarkTriggerStrategy', () => {
 				})
 			})
 		)
+	})
+
+	it('does not block trigger publication when cleanup scheduling fails', async () => {
+		const { strategy, bindingRepository, messageHistoryQueue } = createStrategy()
+		const callback = jest.fn()
+		messageHistoryQueue.scheduleCleanup.mockRejectedValueOnce(new Error('cleanup queue unavailable'))
+
+		await expect(
+			strategy.publish(
+				{
+					xpertId: 'xpert-1',
+					config: {
+						integrationId: 'integration-1',
+						enabled: true,
+						captureUnmentionedGroupMessages: true,
+						historyRetentionDays: 30
+					}
+				} as any,
+				callback
+			)
+		).resolves.toBeUndefined()
+
+		expect(bindingRepository.upsert).toHaveBeenCalledTimes(1)
+		expect(messageHistoryQueue.scheduleCleanup).toHaveBeenCalledTimes(1)
+		expect((strategy as any).callbacks.get('integration-1')).toBe(callback)
 	})
 
 	it('persists zero summary window without changing session timeout fallback behavior', async () => {
@@ -650,6 +816,10 @@ describe('LarkTriggerStrategy', () => {
 				integrationId: 'integration-1',
 				input: '第一条消息',
 				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				historyContext: '[历史上下文]\n用户: 更早消息',
+				historyFiles: [{ fileAssetId: 'history-asset-1' }],
+				currentInboundLogIds: ['log-1'],
+				historyBefore: '2026-07-15T08:00:00.000Z',
 				larkMessage: {
 					integrationId: 'integration-1',
 					chatId: 'chat-1',
@@ -678,6 +848,13 @@ describe('LarkTriggerStrategy', () => {
 				version: 1,
 				inputParts: ['第一条消息'],
 				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				historyContext: '[历史上下文]\n用户: 更早消息',
+				historyFiles: [{ fileAssetId: 'history-asset-1' }],
+				currentInboundLogIds: ['log-1'],
+				historyBefore: '2026-07-15T08:00:00.000Z',
+				tenantId: 'tenant-1',
+				organizationId: 'org-1',
+				executorUserId: 'user-1',
 				endUserId: 'mapped-user-1',
 				latestMessage: expect.objectContaining({
 					chatId: 'chat-1',
@@ -689,6 +866,11 @@ describe('LarkTriggerStrategy', () => {
 		)
 		expect(handoffPermissionService.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({
+				tenantId: 'tenant-1',
+				headers: expect.objectContaining({
+					organizationId: 'org-1',
+					userId: 'user-1'
+				}),
 				payload: {
 					aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
 					version: 1
@@ -702,7 +884,7 @@ describe('LarkTriggerStrategy', () => {
 	})
 
 	it('flushes the current aggregate into a single dispatch payload', async () => {
-		const { strategy, aggregationService, dispatchService } = createStrategy()
+		const { strategy, aggregationService, dispatchService, messageHistoryService } = createStrategy()
 		aggregationService.get.mockResolvedValue({
 			aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
 			integrationId: 'integration-1',
@@ -710,6 +892,9 @@ describe('LarkTriggerStrategy', () => {
 			version: 2,
 			inputParts: ['第一条消息', '第二条消息'],
 			files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+			historyContext: '[历史上下文]\n用户: 更早消息',
+			historyFiles: [{ fileAssetId: 'history-asset-1' }],
+			currentInboundLogIds: ['log-1', 'log-2'],
 			lastMessageAt: Date.now(),
 			tenantId: 'tenant-1',
 			organizationId: 'org-1',
@@ -740,14 +925,26 @@ describe('LarkTriggerStrategy', () => {
 		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
 				xpertId: 'xpert-1',
+				executionContext: {
+					tenantId: 'tenant-1',
+					organizationId: 'org-1',
+					createdById: 'user-1'
+				},
 				input: '第一条消息\n第二条消息',
 				files: [{ fileUrl: 'data:image/png;base64,YWJj', mimeType: 'image/png' }],
+				historyContext: '[历史上下文]\n用户: 更早消息',
+				historyFiles: [{ fileAssetId: 'history-asset-1' }],
+				currentInboundLogIds: ['log-1', 'log-2'],
 				options: expect.objectContaining({
 					fromEndUserId: 'mapped-user-1'
 				})
 			})
 		)
 		expect(dispatchService.enqueueDispatch.mock.calls[0][0].larkMessage.chatId).toBe('chat-1')
+		expect(messageHistoryService.updateInboundStatus).toHaveBeenCalledWith(
+			['log-1', 'log-2'],
+			'dispatched'
+		)
 		expect(aggregationService.clear).toHaveBeenCalledWith('lark:v2:scope:integration-1:group:chat-1')
 	})
 })

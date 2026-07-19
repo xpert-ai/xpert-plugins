@@ -89,6 +89,8 @@ describe('LarkConversationService listBindingsByIntegration', () => {
       { getMessageResource: jest.fn() } as any,
       {} as unknown as LarkRecipientDirectoryService,
       {} as unknown as LarkGroupMentionWindowService,
+      {} as any,
+      {} as any,
       conversationBindingRepository as unknown as Repository<LarkConversationBindingEntity>,
       triggerBindingRepository as unknown as Repository<LarkTriggerBindingEntity>,
       { resolve: jest.fn() } as unknown as PluginContext

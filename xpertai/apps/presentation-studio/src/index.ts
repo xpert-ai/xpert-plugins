@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+import type { JsonSchemaObjectType } from '@xpert-ai/contracts'
 import {
   CollaborationRuntimeCapability,
   MANAGED_QUEUE_SERVICE_TOKEN,
@@ -37,6 +38,7 @@ import {
 import { PRESENTATION_CONFIG_DEFAULTS } from './lib/presentation-config.service.js'
 import { PresentationStudioPlugin } from './lib/presentation-studio.plugin.js'
 import { presentationStudioTemplates } from './lib/presentation-studio.templates.js'
+import { PRESENTATION_SHARE_ACCESS_MODES } from './lib/types.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const requireFromPlugin = createRequire(import.meta.url)
@@ -54,8 +56,48 @@ const ConfigSchema = z.object({
   maxAssetBytes: z.number().int().positive(),
   maxDeckMediaBytes: z.number().int().positive(),
   maxPreviewBytes: z.number().int().positive(),
-  debug: z.boolean()
+  debug: z.boolean(),
+  defaultShareAccessMode: z.enum(PRESENTATION_SHARE_ACCESS_MODES).optional(),
+  allowedShareAccessModes: z.array(z.enum(PRESENTATION_SHARE_ACCESS_MODES)).min(1).optional(),
+  allowAgentPublicSharing: z.boolean().optional(),
+  allowWorkbenchPublicSharing: z.boolean().optional()
 })
+
+const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
+const PresentationConfigFormSchema = {
+  type: 'object',
+  properties: {
+    defaultShareAccessMode: {
+      type: 'string',
+      title: text('Default share access', '默认分享访问范围'),
+      description: text('Applied when an Agent or Workbench user does not choose an access scope.', '当智能体或工作台用户未选择访问范围时使用。'),
+      enum: [...PRESENTATION_SHARE_ACCESS_MODES],
+      'x-ui': {
+        enumLabels: {
+          owner_only: text('Owner only', '仅创建者'),
+          workspace_all: text('Workspace members', '工作区成员'),
+          organization_all: text('Organization members', '组织成员'),
+          public_link: text('Anyone with the link', '任何拥有链接的人')
+        }
+      }
+    },
+    allowedShareAccessModes: {
+      type: 'array',
+      title: text('Allowed share access', '允许的分享访问范围'),
+      description: text('Limits the access scopes available to Agent and Workbench sharing actions.', '限制智能体和工作台分享动作可选择的访问范围。'),
+      items: { type: 'string', enum: [...PRESENTATION_SHARE_ACCESS_MODES] },
+      'x-ui': { component: 'select', multiple: true }
+    },
+    allowAgentPublicSharing: {
+      type: 'boolean',
+      title: text('Allow Agents to create public links', '允许智能体创建公开链接')
+    },
+    allowWorkbenchPublicSharing: {
+      type: 'boolean',
+      title: text('Allow Workbench to create public links', '允许工作台创建公开链接')
+    }
+  }
+} satisfies JsonSchemaObjectType
 
 const capabilities = [
   PRESENTATION_FEATURE,
@@ -108,7 +150,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     keywords: ['presentation', 'pptx', 'pdf', 'html', 'dashi', 'yjs', 'collaboration', 'agentic-app'],
     author: 'XpertAI Team'
   },
-  config: { schema: ConfigSchema, defaults: PRESENTATION_CONFIG_DEFAULTS },
+  config: { schema: ConfigSchema, formSchema: PresentationConfigFormSchema, defaults: PRESENTATION_CONFIG_DEFAULTS },
   permissions: [
     { type: 'user', operations: ['read'] }
   ],
