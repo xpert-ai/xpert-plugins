@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./dist/tsconfig.remote.tsbuildinfo",
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["react", "react-dom"]
+  },
+  "include": [
+    "src/lib/constants.ts",
+    "src/lib/types.ts",
+    "src/lib/cut-export-settings.ts",
+    "src/lib/cut-assistant-context.ts",
+    "src/lib/cut-canvas-transform.ts",
+    "src/lib/cut-waveform.ts",
+    "src/lib/cut-editor-model.ts",
+    "src/lib/cut-media-playback.ts",
+    "src/lib/cut-media-layout.ts",
+    "src/lib/cut-media-duration.ts",
+    "src/lib/cut-video-frame.ts",
+    "src/lib/cut-host-event.ts",
+    "src/lib/cut-timeline.ts",
+    "src/lib/remote-components/cut-workbench/src/**/*.ts",
+    "src/lib/remote-components/cut-workbench/src/**/*.tsx"
+  ]
+}

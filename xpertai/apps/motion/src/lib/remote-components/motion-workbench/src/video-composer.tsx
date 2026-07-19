@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Badge } from '@xpert-ai/plugin-shadcn-ui'
 import { Card } from '@xpert-ai/plugin-shadcn-ui'
 import { Input } from '@xpert-ai/plugin-shadcn-ui'
 import { Textarea } from '@xpert-ai/plugin-shadcn-ui'
@@ -267,7 +268,14 @@ export function VideoComposer(props: {
         onExport={() => props.onExportMp4()}
         saving={props.saving}
         exportKinds={['mp4']}
+        exportLabel={props.t('legacyLocalExport')}
       />
+      <div className="hyperframes-engine-row legacy-engine-row">
+        <div>
+          <Badge variant="outline" data-status="warning">{props.t('legacyVideoEngine')}</Badge>
+          <span>{props.t('legacyVideoEngineHelp')}</span>
+        </div>
+      </div>
       {viewMode === 'code' ? (
         <Card className="motion-panel motion-code-panel">
           <Textarea className="motion-code motion-video-code" value={props.videoDraft} onChange={(event) => props.onDraftChange(event.target.value)} spellCheck={false} />

@@ -11,7 +11,7 @@ const sourceRoot = path.join(packageRoot, 'sandbox-actions', 'presentation-expor
 const actionRoot = path.join(packageRoot, 'dist', 'sandbox-actions', 'presentation-export')
 const bundleRoot = path.join(actionRoot, 'bundle')
 const projectRoot = path.join(bundleRoot, 'project')
-const actionVersion = '1.0.0'
+const actionVersion = '1.0.1'
 const ignoredBundleNames = new Set(['node_modules', '.DS_Store', '.npmignore', '.gitignore', '.npmrc'])
 const esmRequireBanner = `import { createRequire as __xpertCreateRequire } from 'node:module'; const require = __xpertCreateRequire(import.meta.url);`
 

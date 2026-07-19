@@ -1,13 +1,18 @@
 export type MotionProjectStatus = 'draft' | 'reviewed' | 'archived' | 'failed'
 export type MotionSurface = 'web' | 'video'
+export type MotionVideoEngine = 'hyperframes' | 'legacy_canvas'
 export type MotionVersionSource = 'agent_web' | 'agent_video' | 'workbench' | 'import' | 'restore'
 export type MotionExportKind = 'html' | 'css' | 'react' | 'lottie' | 'json' | 'mp4' | 'gif'
 export type MotionActorType = 'agent' | 'user' | 'system'
+export type MotionRenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+export type MotionRenderQuality = 'draft' | 'standard' | 'high'
+export type MotionRenderKind = Extract<MotionExportKind, 'mp4' | 'gif'>
 export type MotionWorkspaceCatalog = 'xperts' | 'projects'
 export type MotionActionType =
   | 'project_created'
   | 'web_artifact_saved'
   | 'video_composition_saved'
+  | 'hyperframes_composition_saved'
   | 'media_uploaded'
   | 'version_finalized'
   | 'version_restored'
@@ -17,6 +22,9 @@ export type MotionActionType =
   | 'style_saved'
   | 'style_deleted'
   | 'artifact_exported'
+  | 'production_render_queued'
+  | 'production_render_completed'
+  | 'production_render_failed'
   | 'failure_reported'
 
 export const MOTION_WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
@@ -195,6 +203,7 @@ export interface CreateMotionProjectInput {
   selectedRecipeIds?: string[] | null
   html?: string | null
   videoComposition?: MotionVideoComposition | null
+  hyperframesHtml?: string | null
   changeSummary?: string | null
 }
 
@@ -227,6 +236,29 @@ export interface SaveMotionVideoCompositionInput {
   selectedRecipeIds?: string[] | null
   layerSelection?: MotionJsonObject | null
   changeSummary?: string | null
+}
+
+export interface SaveMotionHyperframesCompositionInput {
+  projectId: string
+  html: string
+  selectedRecipeIds?: string[] | null
+  changeSummary?: string | null
+}
+
+export interface StartMotionProductionRenderInput {
+  projectId: string
+  kind?: MotionRenderKind
+  quality?: MotionRenderQuality
+  fps?: 24 | 30 | 60
+  fileName?: string | null
+  expectedChecksum?: string | null
+  changeSummary?: string | null
+}
+
+export interface MotionRenderQueueJobData {
+  exportId: string
+  tenantId: string
+  organizationId?: string | null
 }
 
 export interface FinalizeMotionVersionInput {

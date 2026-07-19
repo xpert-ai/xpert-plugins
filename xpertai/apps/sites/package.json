@@ -41,7 +41,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "sites"
     }
   },
   "dependencies": {

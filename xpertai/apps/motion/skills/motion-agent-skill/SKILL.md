@@ -1,6 +1,6 @@
 ---
 name: motion-agent-skill
-description: Use the Motion Workbench to create motion artifacts, including animated HTML and video compositions, with human review.
+description: Use the Motion Workbench to create animated HTML and native HyperFrames video compositions, with legacy-video compatibility and human review.
 ---
 
 Use this skill when creating, editing, reviewing, versioning, or exporting Motion artifacts through the Xpert Motion plugin.
@@ -22,12 +22,13 @@ Use the tools in this order unless the user asks for a direct lookup:
 
 - `motion_search_recipes`: find recipes by query, surface, target, runtime, export kind, and status.
 - `motion_get_recipe`: inspect a selected recipe manifest, skill text, and implementation files.
-- `motion_create_project`: create a project from title, brief, selected recipes, HTML, or video composition.
+- `motion_create_project`: create a project from title, brief, selected recipes, HTML, or native HyperFrames source. A new `video` project defaults to HyperFrames.
 - `motion_get_project`: retrieve working copy, versions, exports, and logs.
 - `motion_save_web_artifact`: persist a complete HTML document with Motion runtime attributes.
-- `motion_save_video_composition`: persist a JSON video composition.
+- `motion_save_hyperframes_composition`: persist a complete self-contained native HyperFrames HTML composition. Use this for new video projects.
+- `motion_save_video_composition`: persist a JSON composition only when `motion_get_project` identifies the existing project as `legacy_canvas`.
 - `motion_finalize_version`: create a reviewable version from the current working copy.
-- `motion_export_artifact`: export text artifacts. For MP4/GIF, use the Workbench browser exporter and save through the file action.
+- `motion_export_artifact`: export text artifacts. MP4/GIF on HyperFrames projects queues Producer; legacy projects continue to use the Workbench browser exporter.
 - `motion_update_project_status`: mark draft, reviewed, archived, or failed.
 - `motion_report_failure`: record failed operations and evidence.
 
@@ -41,9 +42,20 @@ HTML artifacts must be complete HTML documents. Use Motion attributes on editabl
 
 Keep motion useful and restrained. Always preserve reduced-motion behavior by relying on the injected runtime.
 
-## Video Composition Rules
+## HyperFrames Video Rules
 
-Video compositions are JSON objects with:
+New video projects use a complete native HyperFrames HTML document as the source of truth:
+
+- Include one root with `data-composition-id`, positive `data-width`, `data-height`, and `data-duration`.
+- Give editable elements stable `data-hf-id` values and explicit `data-start` / `data-duration` timing when relevant.
+- Keep the document self-contained. Inline CSS, scripts, fonts, and data-URI media; production Sandbox Jobs have no network access.
+- Use the public HyperFrames SDK document model. Preview is handled by Player; production MP4/GIF is handled by Producer.
+- Never require or generate a HyperFrames Studio embedding.
+- After saving, use `motion_export_artifact` with `mp4` or `gif` to queue a production render. Report the queued state truthfully; do not claim completion until the export record is `succeeded`.
+
+## Legacy Video Compatibility
+
+Only existing `legacy_canvas` projects use JSON compositions with:
 
 - `w`, `h`, `fps`, `bg`, and `duration`.
 - `layers` for simple one-scene videos.
@@ -51,7 +63,7 @@ Video compositions are JSON objects with:
 - `shared` for backgrounds or persistent layers.
 - Layer tracks for `opacity`, `x`, `y`, `scale`, `rotate`, and `blur`.
 
-Prefer kinetic typography, clear scene pacing, simple transitions, and a small number of meaningful visual moments.
+Canvas/WebCodecs is retained for quick local preview and historical-project export. Do not convert a legacy project implicitly, and do not add new engine-level features to this path.
 
 ## Failure Handling
 

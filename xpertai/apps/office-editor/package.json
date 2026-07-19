@@ -46,7 +46,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "office_editor"
     }
   },
   "dependencies": {

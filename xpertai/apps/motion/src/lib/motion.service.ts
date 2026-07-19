@@ -1,13 +1,28 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
 import { Repository } from 'typeorm'
 import type { FindOptionsWhere } from 'typeorm'
-import { XPERT_RUNTIME_CAPABILITIES_TOKEN } from '@xpert-ai/plugin-sdk'
-import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import {
+  MANAGED_QUEUE_SERVICE_TOKEN,
+  SandboxJobsRuntimeCapability,
+  SYSTEM_GLOBAL_SCOPE,
+  WorkspaceFilesRuntimeCapability,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type ManagedQueueJob,
+  type ManagedQueueService,
+  type RuntimeCapabilityRegistry,
+  type SandboxJobsApi
+} from '@xpert-ai/plugin-sdk'
+import {
+  MOTION_PLUGIN_NAME,
+  MOTION_RENDER_JOB,
+  MOTION_RENDER_QUEUE,
+  MOTION_RENDER_SANDBOX_ACTION,
+  MOTION_RENDER_SANDBOX_ACTION_VERSION
+} from './constants.js'
 import { MotionActionLog, MotionExport, MotionProject, MotionProjectVersion, MotionStyle } from './entities/index.js'
 import {
-  MOTION_WORKSPACE_FILES_RUNTIME_CAPABILITY,
   type CreateMotionProjectInput,
   type ExportMotionArtifactInput,
   type FinalizeMotionVersionInput,
@@ -18,9 +33,12 @@ import {
   type MotionJsonObject,
   type MotionJsonValue,
   type MotionProjectStatus,
+  type MotionRenderQueueJobData,
+  type MotionRenderQuality,
   type MotionScope,
   type MotionSearchRecipesInput,
   type MotionSurface,
+  type MotionVideoEngine,
   type MotionVersionSource,
   type MotionVideoComposition,
   type MotionWorkspaceFileRecord,
@@ -28,15 +46,22 @@ import {
   type MotionWorkspaceFileScope,
   type ReportMotionFailureInput,
   type SaveMotionMediaFileInput,
+  type SaveMotionHyperframesCompositionInput,
   type SaveMotionStyleInput,
   type SaveMotionVideoCompositionInput,
   type SaveMotionWebArtifactInput,
   type SearchMotionProjectsInput,
+  type StartMotionProductionRenderInput,
   type UpdateMotionProjectStatusInput
 } from './types.js'
 import { compactJson, normalizeJsonObject, normalizeStringArray, stableJson } from './json-utils.js'
 import { exportTextArtifact, injectMotionRuntime, validateHtmlArtifact } from './html-motion.js'
-import { createStarterVideoComposition, validateVideoComposition } from './video-composition.js'
+import { validateVideoComposition } from './video-composition.js'
+import {
+  createStarterHyperframesComposition,
+  readHyperframesCompositionMetadata,
+  validateHyperframesComposition
+} from './hyperframes-composition.js'
 import {
   getMotionRecipeDetail,
   loadDesignSystemsCount,
@@ -78,7 +103,10 @@ export class MotionService {
     private readonly logRepository: Repository<MotionActionLog>,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry,
+    @Optional()
+    @Inject(MANAGED_QUEUE_SERVICE_TOKEN)
+    private readonly managedQueue?: ManagedQueueService
   ) {}
 
   getLibraryStats() {
@@ -133,13 +161,22 @@ export class MotionService {
   async createProject(scope: MotionScope, input: CreateMotionProjectInput) {
     const title = normalizeRequired(input.title, 'Motion project title is required.')
     const surface = normalizeSurface(input.surface)
-    const html = input.html ? injectMotionRuntime(input.html) : surface === 'web' ? starterHtml(title, input.brief) : null
+    const html = surface === 'web'
+      ? input.html ? injectMotionRuntime(input.html) : starterHtml(title, input.brief)
+      : null
+    if (surface === 'video' && input.videoComposition && input.hyperframesHtml) {
+      throw new BadRequestException('Choose either a HyperFrames composition or a legacy Canvas composition.')
+    }
+    const videoEngine: MotionVideoEngine | null = surface === 'video'
+      ? input.videoComposition ? 'legacy_canvas' : 'hyperframes'
+      : null
     const videoComposition =
       input.videoComposition !== undefined && input.videoComposition !== null
         ? validateVideoComposition(input.videoComposition)
-        : surface === 'video'
-          ? createStarterVideoComposition(title)
-          : null
+        : null
+    const hyperframesHtml = surface === 'video' && videoEngine === 'hyperframes'
+      ? validateHyperframesComposition(input.hyperframesHtml ?? createStarterHyperframesComposition(title, input.brief))
+      : null
     const project = await this.projectRepository.save(
       this.projectRepository.create({
         ...scopedCreate(scope),
@@ -154,10 +191,12 @@ export class MotionService {
         motionProfile: normalizeOptional(input.motionProfile),
         selectedRecipeIds: normalizeStringArray(input.selectedRecipeIds ?? []),
         workingHtml: html,
+        videoEngine,
         videoComposition,
+        hyperframesHtml,
         currentVersionNumber: 0,
         workingCopyRevision: 1,
-        artifactChecksum: checksumArtifact(surface, html, videoComposition),
+        artifactChecksum: checksumArtifact(surface, html, videoEngine, hyperframesHtml, videoComposition),
         lastEditedById: scope.userId ?? null,
         lastEditedAt: new Date()
       })
@@ -197,6 +236,8 @@ export class MotionService {
       item: compactProject(project),
       workingCopy: {
         html: project.workingHtml ?? null,
+        videoEngine: resolveProjectVideoEngine(project),
+        hyperframesHtml: project.hyperframesHtml ?? null,
         videoComposition: project.videoComposition ?? null,
         componentSelection: project.componentSelection ?? null,
         layerSelection: project.layerSelection ?? null,
@@ -215,11 +256,13 @@ export class MotionService {
     const html = injectMotionRuntime(input.html)
     project.surface = 'web'
     project.workingHtml = html
+    project.videoEngine = null
+    project.hyperframesHtml = null
     project.videoComposition = null
     project.selectedRecipeIds = normalizeStringArray(input.selectedRecipeIds ?? project.selectedRecipeIds ?? [])
     project.componentSelection = normalizeJsonObject(input.componentSelection)
     project.workingCopyRevision = (project.workingCopyRevision ?? 0) + 1
-    project.artifactChecksum = checksumArtifact('web', html, null)
+    project.artifactChecksum = checksumArtifact('web', html, null, null, null)
     project.lastEditedById = scope.userId ?? null
     project.lastEditedAt = new Date()
     const saved = await this.projectRepository.save(project)
@@ -242,11 +285,13 @@ export class MotionService {
     const composition = validateVideoComposition(input.composition)
     project.surface = 'video'
     project.workingHtml = null
+    project.videoEngine = 'legacy_canvas'
+    project.hyperframesHtml = null
     project.videoComposition = composition
     project.selectedRecipeIds = normalizeStringArray(input.selectedRecipeIds ?? project.selectedRecipeIds ?? [])
     project.layerSelection = normalizeJsonObject(input.layerSelection)
     project.workingCopyRevision = (project.workingCopyRevision ?? 0) + 1
-    project.artifactChecksum = checksumArtifact('video', null, composition)
+    project.artifactChecksum = checksumArtifact('video', null, 'legacy_canvas', null, composition)
     project.lastEditedById = scope.userId ?? null
     project.lastEditedAt = new Date()
     const saved = await this.projectRepository.save(project)
@@ -264,10 +309,37 @@ export class MotionService {
     }
   }
 
+  async saveHyperframesComposition(scope: MotionScope, input: SaveMotionHyperframesCompositionInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    const html = validateHyperframesComposition(input.html)
+    project.surface = 'video'
+    project.workingHtml = null
+    project.videoEngine = 'hyperframes'
+    project.hyperframesHtml = html
+    project.videoComposition = null
+    project.layerSelection = null
+    project.selectedRecipeIds = normalizeStringArray(input.selectedRecipeIds ?? project.selectedRecipeIds ?? [])
+    project.workingCopyRevision = (project.workingCopyRevision ?? 0) + 1
+    project.artifactChecksum = checksumArtifact('video', null, 'hyperframes', html, null)
+    project.lastEditedById = scope.userId ?? null
+    project.lastEditedAt = new Date()
+    const saved = await this.projectRepository.save(project)
+    await this.writeLog(scope, {
+      motionProjectId: saved.id,
+      action: 'hyperframes_composition_saved',
+      actorType: scope.assistantId ? 'agent' : 'user',
+      message: input.changeSummary ?? 'HyperFrames composition was saved.',
+      snapshot: { selectedRecipeIds: saved.selectedRecipeIds, bytes: Buffer.byteLength(html), engine: 'hyperframes' }
+    })
+    return { success: true, message: 'HyperFrames composition was saved.', project: compactProject(saved) }
+  }
+
   async finalizeVersion(scope: MotionScope, input: FinalizeMotionVersionInput) {
     const project = await this.requireProject(scope, input.projectId)
     if (project.surface === 'web') {
       validateHtmlArtifact(project.workingHtml ?? '')
+    } else if (resolveProjectVideoEngine(project) === 'hyperframes') {
+      validateHyperframesComposition(project.hyperframesHtml ?? '')
     } else {
       validateVideoComposition(project.videoComposition)
     }
@@ -281,10 +353,18 @@ export class MotionService {
         sourceType: input.sourceType ?? inferVersionSource(scope, project.surface),
         surface: project.surface ?? 'web',
         html: project.workingHtml ?? null,
+        videoEngine: resolveProjectVideoEngine(project),
+        hyperframesHtml: project.hyperframesHtml ?? null,
         videoComposition: project.videoComposition ?? null,
         selectedRecipeIds: normalizeStringArray(project.selectedRecipeIds ?? []),
         selectionSummary: project.surface === 'web' ? project.componentSelection ?? null : project.layerSelection ?? null,
-        artifactChecksum: project.artifactChecksum ?? checksumArtifact(project.surface ?? 'web', project.workingHtml, project.videoComposition),
+        artifactChecksum: project.artifactChecksum ?? checksumArtifact(
+          project.surface ?? 'web',
+          project.workingHtml,
+          resolveProjectVideoEngine(project),
+          project.hyperframesHtml,
+          project.videoComposition
+        ),
         changeSummary: normalizeOptional(input.changeSummary) ?? `Motion version ${versionNumber}`,
         workspaceCatalog: project.workspaceCatalog,
         workspaceScopeId: project.workspaceScopeId,
@@ -324,6 +404,8 @@ export class MotionService {
     }
     project.surface = version.surface ?? project.surface
     project.workingHtml = version.html ?? null
+    project.videoEngine = resolveVersionVideoEngine(version)
+    project.hyperframesHtml = version.hyperframesHtml ?? null
     project.videoComposition = version.videoComposition ?? null
     project.selectedRecipeIds = normalizeStringArray(version.selectedRecipeIds ?? [])
     project.currentVersionId = version.id
@@ -349,10 +431,236 @@ export class MotionService {
     }
   }
 
+  async getProductionRenderCapability() {
+    const sandbox = this.sandboxJobs(false)
+    if (!sandbox) return unavailableRenderCapability('PROVIDER_UNAVAILABLE', 'Platform Sandbox Jobs capability is unavailable.')
+    const action = await sandbox.getActionHealth({
+      pluginName: MOTION_PLUGIN_NAME,
+      action: MOTION_RENDER_SANDBOX_ACTION,
+      actionVersion: MOTION_RENDER_SANDBOX_ACTION_VERSION
+    }).catch((error) => ({
+      available: false as const,
+      reason: 'PROFILE_UNHEALTHY' as const,
+      message: errorMessage(error)
+    }))
+    if (!action.available) {
+      return unavailableRenderCapability(action.reason ?? 'PROFILE_UNHEALTHY', action.message ?? 'Motion render Action is unavailable.')
+    }
+    if (!this.managedQueue) return unavailableRenderCapability('WORKER_UNAVAILABLE', 'Managed Queue is unavailable.')
+    const pool = await this.managedQueue.getExecutionPoolHealth({ executionPool: 'sandbox-browser' }).catch((error) => ({
+      executionPool: 'sandbox-browser' as const,
+      available: false,
+      workerCount: 0,
+      warning: errorMessage(error)
+    }))
+    return pool.available
+      ? {
+          available: true as const,
+          backend: 'sandbox-job' as const,
+          action: MOTION_RENDER_SANDBOX_ACTION,
+          actionVersion: MOTION_RENDER_SANDBOX_ACTION_VERSION,
+          runtimeProfile: action.runtimeProfile ?? null,
+          sandboxRuntimeVersion: action.sandboxRuntimeVersion ?? null,
+          workerCount: pool.workerCount
+        }
+      : unavailableRenderCapability('WORKER_UNAVAILABLE', pool.warning ?? 'No worker is consuming sandbox-browser.')
+  }
+
+  async requestProductionRender(scope: MotionScope, input: StartMotionProductionRenderInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    if (project.surface !== 'video' || resolveProjectVideoEngine(project) !== 'hyperframes') {
+      throw new BadRequestException('Production rendering requires a native HyperFrames video project.')
+    }
+    const hyperframesHtml = validateHyperframesComposition(project.hyperframesHtml ?? '')
+    const inputChecksum = project.artifactChecksum ?? checksumArtifact('video', null, 'hyperframes', hyperframesHtml, null)
+    if (input.expectedChecksum && input.expectedChecksum !== inputChecksum) {
+      throw new ConflictException('Motion composition changed; reload before starting production render.')
+    }
+    const capability = await this.getProductionRenderCapability()
+    if ('reason' in capability) throw new ServiceUnavailableException(`${capability.reason}: ${capability.message}`)
+    if (!this.managedQueue) throw new ServiceUnavailableException('Managed Queue is required for production render.')
+    const kind = normalizeRenderKind(input.kind)
+    const quality = normalizeRenderQuality(input.quality)
+    const fps = normalizeRenderFps(input.fps)
+    const metadata = readHyperframesCompositionMetadata(hyperframesHtml)
+    const record = await this.exportRepository.save(this.exportRepository.create({
+      ...scopedCreate(scope),
+      projectId: scope.projectId ?? project.projectId ?? null,
+      motionProjectId: requireId(project.id),
+      versionId: project.currentVersionId ?? null,
+      kind,
+      status: 'queued',
+      backend: 'hyperframes',
+      progress: 0,
+      stage: 'queued',
+      inputChecksum,
+      mimeType: mimeTypeForKind(kind),
+      changeSummary: normalizeOptional(input.changeSummary),
+      report: { quality, fps, fileName: sanitizeFileName(input.fileName ?? `${project.title}.${kind}`), ...metadata },
+      createdById: scope.userId ?? null,
+      assistantId: scope.assistantId ?? null,
+      conversationId: scope.conversationId ?? null
+    }))
+    const exportId = requireId(record.id)
+    const queued = await this.managedQueue.enqueue({
+      pluginName: MOTION_PLUGIN_NAME,
+      queueName: MOTION_RENDER_QUEUE,
+      jobName: MOTION_RENDER_JOB,
+      payload: { exportId, tenantId: scope.tenantId, organizationId: scope.organizationId ?? null } satisfies MotionRenderQueueJobData,
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      scopeKey: SYSTEM_GLOBAL_SCOPE,
+      userId: scope.userId,
+      jobId: `motion-render-${exportId}`,
+      attempts: 1,
+      executionPool: 'sandbox-browser',
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 100 }
+    }).catch(async (error) => {
+      record.status = 'failed'
+      record.stage = 'queueing'
+      record.errorMessage = errorMessage(error)
+      record.completedAt = new Date()
+      await this.exportRepository.save(record)
+      throw error
+    })
+    record.jobId = queued.jobId
+    await this.exportRepository.save(record)
+    await this.writeLog(scope, {
+      motionProjectId: project.id,
+      versionId: project.currentVersionId,
+      action: 'production_render_queued',
+      actorType: scope.assistantId ? 'agent' : 'user',
+      message: input.changeSummary ?? `Queued ${kind.toUpperCase()} production render.`,
+      snapshot: { exportId, jobId: queued.jobId, kind, quality, fps, engine: 'hyperframes', inputChecksum }
+    })
+    return { success: true, message: 'HyperFrames production render was queued.', export: compactExport(record), capability }
+  }
+
+  async processProductionRender(job: ManagedQueueJob<MotionRenderQueueJobData>) {
+    const data = job.data
+    const scope: MotionScope = { tenantId: data.tenantId, organizationId: data.organizationId ?? null }
+    const record = await this.exportRepository.findOne({ where: scopedWhere<MotionExport>(scope, { id: data.exportId }) })
+    if (!record || record.status === 'cancelled' || record.status === 'succeeded') return
+    const project = await this.requireProject(scope, record.motionProjectId)
+    if (resolveProjectVideoEngine(project) !== 'hyperframes') throw new BadRequestException('Motion render source is not HyperFrames.')
+    const html = validateHyperframesComposition(project.hyperframesHtml ?? '')
+    const checksum = checksumArtifact('video', null, 'hyperframes', html, null)
+    if (checksum !== record.inputChecksum) throw new ConflictException('Motion render source checksum changed after queueing.')
+    const settings = renderSettings(record.report)
+    const outputPath = `motion.${record.kind}`
+    record.status = 'running'
+    record.stage = 'sandbox-starting'
+    record.progress = 10
+    record.sandboxJobId = requireId(record.id)
+    record.errorMessage = null
+    await this.exportRepository.save(record)
+    try {
+      const result = await this.sandboxJobs().run({
+        jobId: requireId(record.id),
+        action: MOTION_RENDER_SANDBOX_ACTION,
+        actionVersion: MOTION_RENDER_SANDBOX_ACTION_VERSION,
+        idempotencyKey: `motion-hyperframes:${record.id}:${checksum}`,
+        scope: {
+          tenantId: scope.tenantId,
+          organizationId: scope.organizationId,
+          userId: record.createdById ?? null,
+          pluginName: MOTION_PLUGIN_NAME,
+          businessResourceType: 'motion-render',
+          businessResourceId: requireId(record.id)
+        },
+        payload: {
+          compositionHtml: html,
+          kind: record.kind,
+          quality: settings.quality,
+          fps: settings.fps
+        },
+        files: [],
+        outputs: [{
+          path: outputPath,
+          originalName: settings.fileName,
+          mimeType: mimeTypeForKind(record.kind),
+          destination: {
+            ...resolveProjectWorkspaceScope({ ...scope, userId: record.createdById }, project),
+            folder: buildMotionExportFolder(requireId(project.id))
+          }
+        }, {
+          path: 'report.json',
+          originalName: `${settings.fileName}.report.json`,
+          mimeType: 'application/json',
+          destination: {
+            ...resolveProjectWorkspaceScope({ ...scope, userId: record.createdById }, project),
+            folder: `${buildMotionExportFolder(requireId(project.id))}/reports`
+          }
+        }],
+        timeoutMs: 20 * 60_000
+      })
+      const output = result.outputs.find((candidate) => candidate.path === outputPath)
+      if (!output) throw new Error(`HyperFrames render did not return ${outputPath}.`)
+      record.status = 'succeeded'
+      record.stage = 'complete'
+      record.progress = 100
+      record.sandboxJobId = result.id
+      record.filePath = output.workspacePath ?? null
+      record.fileReference = output.reference as unknown as MotionJsonObject
+      record.fileUrl = output.fileUrl ?? null
+      record.mimeType = output.mimeType
+      record.size = output.size
+      record.checksum = output.sha256
+      record.errorMessage = null
+      record.completedAt = new Date()
+      record.report = {
+        ...settings,
+        renderer: '@hyperframes/producer',
+        action: result.action,
+        actionVersion: result.actionVersion,
+        runtimeProfile: result.runtimeProfile,
+        sandboxRuntimeVersion: result.sandboxRuntimeVersion,
+        sandboxJobId: result.id,
+        attempt: result.attempt
+      }
+      await this.exportRepository.save(record)
+      project.lastExportKind = record.kind
+      project.lastExportPath = output.workspacePath ?? output.fileUrl ?? project.lastExportPath
+      await this.projectRepository.save(project)
+      await this.writeLog(scope, {
+        motionProjectId: project.id,
+        versionId: record.versionId,
+        action: 'production_render_completed',
+        message: `Completed ${record.kind.toUpperCase()} production render.`,
+        snapshot: { exportId: record.id, sandboxJobId: result.id, size: output.size, checksum: output.sha256 }
+      })
+    } catch (error) {
+      record.status = 'failed'
+      record.stage = 'failed'
+      record.errorMessage = errorMessage(error)
+      record.completedAt = new Date()
+      await this.exportRepository.save(record)
+      await this.writeLog(scope, {
+        motionProjectId: project.id,
+        versionId: record.versionId,
+        action: 'production_render_failed',
+        message: 'HyperFrames production render failed.',
+        errorMessage: record.errorMessage,
+        snapshot: { exportId: record.id, inputChecksum: record.inputChecksum }
+      })
+      throw error
+    }
+  }
+
   async exportArtifact(scope: MotionScope, input: ExportMotionArtifactInput) {
     const project = await this.requireProject(scope, input.projectId)
     const kind = normalizeExportKind(input.kind)
     if (kind === 'mp4' || kind === 'gif') {
+      if (project.surface === 'video' && resolveProjectVideoEngine(project) === 'hyperframes') {
+        return this.requestProductionRender(scope, {
+          projectId: input.projectId,
+          kind,
+          fileName: input.fileName,
+          expectedChecksum: project.artifactChecksum,
+          changeSummary: input.changeSummary
+        })
+      }
       return {
         success: true,
         message: 'Use the Motion Workbench browser exporter for MP4/GIF, then save the generated file through save_export_file.',
@@ -420,7 +728,7 @@ export class MotionService {
 
   async saveMediaFile(scope: MotionScope, input: SaveMotionMediaFileInput) {
     const project = await this.requireProject(scope, input.projectId)
-    const workspaceFiles = this.runtimeCapabilities?.get<MotionWorkspaceFilesApi>(MOTION_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    const workspaceFiles = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability) as MotionWorkspaceFilesApi | undefined
     if (!workspaceFiles) {
       throw new BadRequestException('Motion media upload requires platform workspace file storage.')
     }
@@ -607,9 +915,17 @@ export class MotionService {
     return project
   }
 
+  private sandboxJobs(required?: true): SandboxJobsApi
+  private sandboxJobs(required: false): SandboxJobsApi | undefined
+  private sandboxJobs(required = true): SandboxJobsApi | undefined {
+    const jobs = this.runtimeCapabilities?.get(SandboxJobsRuntimeCapability)
+    if (!jobs && required) throw new ServiceUnavailableException('Platform Sandbox Jobs capability is unavailable.')
+    return jobs
+  }
+
   private async saveExportBuffer(scope: MotionScope, input: UploadArtifactInput): Promise<{ export: MotionExport; workspaceStored: boolean }> {
     const checksum = sha256(input.buffer)
-    const workspaceFiles = this.runtimeCapabilities?.get<MotionWorkspaceFilesApi>(MOTION_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    const workspaceFiles = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability) as MotionWorkspaceFilesApi | undefined
     let workspaceFile: MotionWorkspaceFileRecord | null = null
     if (workspaceFiles) {
       workspaceFile = await workspaceFiles.uploadBuffer({
@@ -638,6 +954,10 @@ export class MotionService {
         motionProjectId: requireId(input.project.id),
         versionId: input.versionId ?? null,
         kind: input.kind,
+        status: 'succeeded',
+        backend: 'browser',
+        progress: 100,
+        stage: 'complete',
         filePath: workspaceFile?.filePath ?? null,
         fileUrl: workspaceFile?.fileUrl ?? workspaceFile?.url ?? null,
         mimeType: input.mimeType,
@@ -648,7 +968,8 @@ export class MotionService {
         changeSummary: normalizeOptional(input.changeSummary),
         createdById: scope.userId ?? null,
         assistantId: scope.assistantId ?? null,
-        conversationId: scope.conversationId ?? null
+        conversationId: scope.conversationId ?? null,
+        completedAt: new Date()
       })
     )
     input.project.lastExportKind = input.kind
@@ -720,6 +1041,7 @@ function compactProject(project: MotionProject) {
     title: project.title,
     brief: project.brief ?? null,
     surface: project.surface ?? 'web',
+    videoEngine: resolveProjectVideoEngine(project),
     status: project.status ?? 'draft',
     designSystemId: project.designSystemId ?? null,
     motionProfile: project.motionProfile ?? null,
@@ -742,6 +1064,7 @@ function compactVersion(version: MotionProjectVersion) {
     versionNumber: version.versionNumber,
     sourceType: version.sourceType ?? 'workbench',
     surface: version.surface ?? 'web',
+    videoEngine: resolveVersionVideoEngine(version),
     selectedRecipeIds: version.selectedRecipeIds ?? [],
     artifactChecksum: version.artifactChecksum ?? null,
     changeSummary: version.changeSummary ?? null,
@@ -754,11 +1077,21 @@ function compactExport(record: MotionExport) {
     id: record.id,
     versionId: record.versionId ?? null,
     kind: record.kind,
+    status: record.status ?? 'succeeded',
+    backend: record.backend ?? 'browser',
+    progress: record.progress ?? 100,
+    stage: record.stage ?? null,
+    jobId: record.jobId ?? null,
+    sandboxJobId: record.sandboxJobId ?? null,
+    inputChecksum: record.inputChecksum ?? null,
     filePath: record.filePath ?? null,
+    fileReference: record.fileReference ?? null,
     fileUrl: record.fileUrl ?? null,
     mimeType: record.mimeType ?? null,
     size: record.size ?? null,
     checksum: record.checksum ?? null,
+    errorMessage: record.errorMessage ?? null,
+    report: record.report ?? null,
     changeSummary: record.changeSummary ?? null,
     createdAt: record.createdAt?.toISOString?.() ?? null
   }
@@ -820,8 +1153,68 @@ function normalizeExportKind(kind: MotionExportKind | string): MotionExportKind 
   throw new BadRequestException('Unsupported Motion export kind.')
 }
 
-function checksumArtifact(surface: MotionSurface, html: string | null | undefined, composition: MotionVideoComposition | null | undefined) {
-  return sha256(Buffer.from(surface === 'web' ? html ?? '' : stableJson(composition), 'utf8'))
+function checksumArtifact(
+  surface: MotionSurface,
+  html: string | null | undefined,
+  videoEngine: MotionVideoEngine | null,
+  hyperframesHtml: string | null | undefined,
+  composition: MotionVideoComposition | null | undefined
+) {
+  const source = surface === 'web'
+    ? `web\n${html ?? ''}`
+    : videoEngine === 'hyperframes'
+      ? `video\nhyperframes\n${hyperframesHtml ?? ''}`
+      : `video\nlegacy_canvas\n${stableJson(composition)}`
+  return sha256(Buffer.from(source, 'utf8'))
+}
+
+function resolveProjectVideoEngine(project: MotionProject): MotionVideoEngine | null {
+  if (project.surface !== 'video') return null
+  // All video rows written before the discriminator existed used Canvas/WebCodecs.
+  return project.videoEngine === 'hyperframes' ? 'hyperframes' : 'legacy_canvas'
+}
+
+function resolveVersionVideoEngine(version: MotionProjectVersion): MotionVideoEngine | null {
+  if (version.surface !== 'video') return null
+  return version.videoEngine === 'hyperframes' ? 'hyperframes' : 'legacy_canvas'
+}
+
+function normalizeRenderKind(kind: StartMotionProductionRenderInput['kind']): 'mp4' | 'gif' {
+  if (!kind || kind === 'mp4') return 'mp4'
+  if (kind === 'gif') return 'gif'
+  throw new BadRequestException('Production render kind must be MP4 or GIF.')
+}
+
+function normalizeRenderQuality(quality: MotionRenderQuality | undefined): MotionRenderQuality {
+  if (!quality || quality === 'standard') return 'standard'
+  if (quality === 'draft' || quality === 'high') return quality
+  throw new BadRequestException('Unsupported HyperFrames render quality.')
+}
+
+function normalizeRenderFps(fps: number | undefined): 24 | 30 | 60 {
+  if (fps === undefined || fps === 30) return 30
+  if (fps === 24 || fps === 60) return fps
+  throw new BadRequestException('HyperFrames render fps must be 24, 30, or 60.')
+}
+
+function unavailableRenderCapability(reason: string, message: string) {
+  return { available: false as const, backend: 'sandbox-job' as const, reason, message }
+}
+
+function renderSettings(report: MotionJsonObject | null | undefined): {
+  quality: MotionRenderQuality
+  fps: 24 | 30 | 60
+  fileName: string
+} {
+  return {
+    quality: normalizeRenderQuality(typeof report?.quality === 'string' ? report.quality as MotionRenderQuality : undefined),
+    fps: normalizeRenderFps(typeof report?.fps === 'number' ? report.fps : undefined),
+    fileName: sanitizeFileName(typeof report?.fileName === 'string' ? report.fileName : 'motion.mp4')
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : String(error)
 }
 
 function sha256(buffer: Buffer) {

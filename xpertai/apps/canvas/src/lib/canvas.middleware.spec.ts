@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  pluginArtifactTableName: (namespace: string, key: string) => `plugin_${namespace}_${key}`,
   AgentMiddlewareStrategy: () => (target: Function) => target,
   RequestContext: {
     getOrganizationId: () => null
@@ -28,14 +29,15 @@ import { CanvasMiddleware } from './canvas.middleware.js'
 import type { AgentMiddleware, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/contracts'
 import { ToolMessage } from '@langchain/core/messages'
+import type { z } from 'zod/v3'
 import {
   CANVAS_CREATE_DOCUMENT_TOOL_NAME,
   CANVAS_GET_DOCUMENT_TOOL_NAME,
   CANVAS_GET_RECORD_TOOL_NAME,
+  CANVAS_LIST_RECORDS_TOOL_NAME,
   CANVAS_INSERT_IMAGE_TOOL_NAME,
   CANVAS_PATCH_RECORDS_TOOL_NAME,
   CANVAS_REPORT_FAILURE_TOOL_NAME,
-  CANVAS_SAVE_SNAPSHOT_TOOL_NAME,
   CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
   CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME
 } from './constants.js'
@@ -45,9 +47,7 @@ type TestTool = {
   name: string
   description?: string
   verboseParsingErrors?: boolean
-  schema: {
-    parse(value: object): object
-  }
+  schema: z.ZodTypeAny
 }
 
 const context: IAgentMiddlewareContext = {
@@ -59,6 +59,8 @@ const context: IAgentMiddlewareContext = {
   conversationId: 'conversation',
   xpertId: 'assistant'
 } as IAgentMiddlewareContext
+
+const DOCUMENT_ID = '643dacec-8f1a-4bcc-b759-e371efefb4c2'
 
 function createMiddleware(service: Partial<CanvasService> = {}) {
   return new CanvasMiddleware(service as CanvasService).createMiddleware({}, context) as AgentMiddleware
@@ -77,33 +79,168 @@ describe('CanvasMiddleware', () => {
     expect(middleware.meta.features).toEqual(expect.arrayContaining(['canvas', 'agent-canvas', 'canvas-workbench']))
     expect(names).toEqual([
       CANVAS_CREATE_DOCUMENT_TOOL_NAME,
-      CANVAS_SAVE_SNAPSHOT_TOOL_NAME,
       CANVAS_PATCH_RECORDS_TOOL_NAME,
       CANVAS_INSERT_IMAGE_TOOL_NAME,
       CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
       CANVAS_GET_DOCUMENT_TOOL_NAME,
+      CANVAS_LIST_RECORDS_TOOL_NAME,
       CANVAS_GET_RECORD_TOOL_NAME,
       CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
       CANVAS_REPORT_FAILURE_TOOL_NAME
     ])
+    expect(names).not.toContain('canvas_create_version')
     expect((agentMiddleware.tools as TestTool[]).every((item) => item.verboseParsingErrors === true)).toBe(true)
   })
 
-  it('accepts optional snapshot images on save snapshot tool schema', () => {
+  it('keeps complete snapshots out of model-visible creation and mutation schemas', () => {
     const agentMiddleware = createMiddleware()
-    const saveTool = (agentMiddleware.tools as TestTool[]).find((item) => item.name === CANVAS_SAVE_SNAPSHOT_TOOL_NAME)
+    const tools = agentMiddleware.tools as TestTool[]
+    const createTool = tools.find((item) => item.name === CANVAS_CREATE_DOCUMENT_TOOL_NAME)
+    const patchTool = tools.find((item) => item.name === CANVAS_PATCH_RECORDS_TOOL_NAME)
 
     expect(() =>
-      saveTool.schema.parse({
-        documentId: 'doc-1',
-        snapshot: { schema: {}, store: {} },
-        snapshotImage: {
-          dataUrl: 'data:image/png;base64,abc',
-          mimeType: 'image/png',
-          pageId: 'page:page'
-        }
+      createTool.schema.parse({
+        title: 'Progressive Canvas',
+        snapshot: { schema: {}, store: {} }
+      })
+    ).toThrow()
+    const oversizedCreateResult = patchTool.schema.safeParse({
+      documentId: DOCUMENT_ID,
+      operationId: 'canvas-stage-operation-1',
+      batchId: 'canvas-batch-1',
+      stageIndex: 1,
+      stageLabel: 'Create the first section',
+      isFinalStage: false,
+      baseRevision: 0,
+      createShapes: Array.from({ length: 13 }, (_, index) => ({
+        id: `shape:stage-${index}`,
+        type: 'text',
+        x: index * 20,
+        y: 0,
+        text: `Stage ${index}`
+      })),
+      changeSummary: 'Create the first section'
+    })
+    expect(oversizedCreateResult.success).toBe(false)
+    if (!oversizedCreateResult.success) {
+      expect(oversizedCreateResult.error.issues).toHaveLength(1)
+      expect(oversizedCreateResult.error.issues[0]).toEqual(expect.objectContaining({
+        path: ['createShapes'],
+        message: expect.stringContaining('split larger plans into semantic stages')
+      }))
+    }
+
+    const oversizedCombinedResult = patchTool.schema.safeParse({
+      documentId: DOCUMENT_ID,
+      operationId: 'canvas-stage-operation-combined',
+      batchId: 'canvas-batch-1',
+      stageIndex: 1,
+      stageLabel: 'Reject a combined oversized stage',
+      isFinalStage: false,
+      baseRevision: 0,
+      createShapes: Array.from({ length: 8 }, (_, index) => ({
+        type: 'text',
+        x: index * 20,
+        y: 0,
+        text: `Stage ${index}`
+      })),
+      removeRecords: Array.from({ length: 5 }, (_, index) => ({
+        id: `shape:remove-${index}`,
+        expectedChecksum: 'a'.repeat(64)
+      })),
+      changeSummary: 'Reject a combined oversized stage'
+    })
+    expect(oversizedCombinedResult.success).toBe(false)
+    if (!oversizedCombinedResult.success) {
+      expect(oversizedCombinedResult.error.issues).toHaveLength(1)
+      expect(oversizedCombinedResult.error.issues[0]).toEqual(expect.objectContaining({
+        path: [],
+        message: expect.stringContaining('contains 13 record operations')
+      }))
+    }
+    expect(() =>
+      patchTool.schema.parse({
+        documentId: DOCUMENT_ID,
+        operationId: 'canvas-stage-operation-2',
+        batchId: 'canvas-batch-1',
+        stageIndex: 1,
+        stageLabel: 'Reject raw records',
+        isFinalStage: false,
+        baseRevision: 0,
+        createRecords: [{ id: 'shape:raw', typeName: 'shape', type: 'text' }],
+        changeSummary: 'Reject raw records'
+      })
+    ).toThrow('Unrecognized key')
+    expect(() =>
+      patchTool.schema.parse({
+        documentId: DOCUMENT_ID,
+        operationId: 'canvas-stage-operation-3',
+        batchId: 'canvas-batch-1',
+        stageIndex: 1,
+        stageLabel: 'Create simplified text',
+        isFinalStage: true,
+        baseRevision: 0,
+        createShapes: [{ type: 'text', x: 100, y: 100, text: '测试' }],
+        changeSummary: 'Create simplified text'
       })
     ).not.toThrow()
+    expect(() =>
+      patchTool.schema.parse({
+        documentId: DOCUMENT_ID,
+        operationId: 'canvas-stage-operation-4',
+        batchId: 'canvas-batch-1',
+        stageIndex: 1,
+        stageLabel: 'Reject raw text props',
+        isFinalStage: true,
+        baseRevision: 0,
+        createShapes: [{
+          type: 'text',
+          x: 100,
+          y: 100,
+          text: '测试',
+          textAlign: 'left',
+          props: { text: 'raw' }
+        }],
+        changeSummary: 'Reject raw text props'
+      })
+    ).toThrow()
+    expect(() =>
+      patchTool.schema.parse({
+        documentId: DOCUMENT_ID,
+        operationId: 'canvas-stage-operation-5',
+        batchId: 'canvas-batch-1',
+        stageIndex: 1,
+        stageLabel: 'Reject zero length arrow',
+        isFinalStage: true,
+        baseRevision: 0,
+        createShapes: [{ type: 'arrow', start: { x: 50, y: 50 }, end: { x: 50, y: 50 } }],
+        changeSummary: 'Reject zero length arrow'
+      })
+    ).toThrow('start and end points must differ')
+  })
+
+  it('uses strict, revision-bound progressive read schemas', () => {
+    const tools = createMiddleware().tools as TestTool[]
+    const summaryTool = tools.find((item) => item.name === CANVAS_GET_DOCUMENT_TOOL_NAME)
+    const listTool = tools.find((item) => item.name === CANVAS_LIST_RECORDS_TOOL_NAME)
+    const recordTool = tools.find((item) => item.name === CANVAS_GET_RECORD_TOOL_NAME)
+
+    expect(() => summaryTool.schema.parse({ documentId: DOCUMENT_ID, includeSnapshot: true })).toThrow('Unrecognized key')
+    expect(() => listTool.schema.parse({
+      documentId: DOCUMENT_ID,
+      expectedRevision: 3,
+      typeNames: ['shape'],
+      limit: 20
+    })).not.toThrow()
+    expect(() => listTool.schema.parse({
+      documentId: DOCUMENT_ID,
+      expectedRevision: 3,
+      limit: 41
+    })).toThrow()
+    expect(() => recordTool.schema.parse({
+      documentId: DOCUMENT_ID,
+      recordId: 'shape:task-1'
+    })).toThrow()
   })
 
   it('accepts Seedream workspace image inputs on insert image schema', () => {
@@ -112,10 +249,10 @@ describe('CanvasMiddleware', () => {
 
     expect(() =>
       insertTool.schema.parse({
-        documentId: 'doc-1',
+        documentId: DOCUMENT_ID,
         workspaceFilePath: 'files/seedream-aigc/images/generated.png',
         target: {
-          documentId: 'doc-1',
+          documentId: DOCUMENT_ID,
           pageId: 'page:page',
           shapeId: 'shape:holder',
           width: 512,
@@ -126,16 +263,23 @@ describe('CanvasMiddleware', () => {
     ).not.toThrow()
   })
 
-  it('guides agents to use the current Workbench canvas for image insertion', () => {
+  it('guides agents to use progressive reads and staged writes', () => {
     const agentMiddleware = createMiddleware()
     const tools = agentMiddleware.tools as TestTool[]
     const createTool = tools.find((item) => item.name === CANVAS_CREATE_DOCUMENT_TOOL_NAME)
-    const saveTool = tools.find((item) => item.name === CANVAS_SAVE_SNAPSHOT_TOOL_NAME)
+    const patchTool = tools.find((item) => item.name === CANVAS_PATCH_RECORDS_TOOL_NAME)
+    const listTool = tools.find((item) => item.name === CANVAS_LIST_RECORDS_TOOL_NAME)
     const insertTool = tools.find((item) => item.name === CANVAS_INSERT_IMAGE_TOOL_NAME)
 
     expect(createTool?.description).toContain('env.canvasDocumentId')
-    expect(createTool?.description).toContain('do not call this tool for image insertion')
-    expect(saveTool?.description).toContain('do not call it after canvas_insert_image')
+    expect(createTool?.description).toContain('never accepts or writes a complete snapshot')
+    expect(patchTool?.description).toContain('at most 12 shape or record operations')
+    expect(patchTool?.description).toContain('count createShapes + updateRecords + removeRecords')
+    expect(patchTool?.description).toContain('preferably 6–8 operations each')
+    expect(patchTool?.description).toContain('split 16 shapes into 8 + 8')
+    expect(patchTool?.description).toContain('createShapes')
+    expect(patchTool?.description).toContain('workingCopyRevision')
+    expect(listTool?.description).toContain('nextCursor')
     expect(insertTool?.description).toContain('Use documentId from env.canvasDocumentId')
     expect(insertTool?.description).toContain('env.canvasInsertionTargetJson')
   })
@@ -249,6 +393,47 @@ describe('CanvasMiddleware', () => {
         status: 'fail',
         error: 'insert failed'
       })
+    )
+  })
+
+  it('publishes Agent editing and done presence around a Canvas mutation', async () => {
+    const actor = {
+      presenceId: 'agent_canvas', displayName: 'Canvas Agent', color: '#0f766e', actorType: 'agent' as const, avatarUrl: null
+    }
+    const publishAgentAwareness = jest.fn(async () => null)
+    const agentMiddleware = createMiddleware({
+      createAgentCollaborationActor: jest.fn(() => actor),
+      publishAgentAwareness
+    } as Partial<CanvasService>)
+    const request = {
+      toolCall: {
+        type: 'tool_call',
+        id: 'canvas-presence-1',
+        name: CANVAS_PATCH_RECORDS_TOOL_NAME,
+        args: { documentId: 'doc-1', putRecords: [{ id: 'shape:note' }] }
+      },
+      tool: (agentMiddleware.tools as TestTool[]).find((item) => item.name === CANVAS_PATCH_RECORDS_TOOL_NAME),
+      state: { messages: [] },
+      runtime: { metadata: {} }
+    } as unknown as Parameters<NonNullable<AgentMiddleware['wrapToolCall']>>[0]
+
+    await agentMiddleware.wrapToolCall(request, jest.fn(async () => new ToolMessage({
+      content: 'ok', name: CANVAS_PATCH_RECORDS_TOOL_NAME, tool_call_id: 'canvas-presence-1'
+    })))
+
+    expect(publishAgentAwareness).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ tenantId: 'tenant', assistantId: 'assistant' }),
+      'doc-1',
+      actor,
+      expect.objectContaining({ status: 'editing', toolName: CANVAS_PATCH_RECORDS_TOOL_NAME })
+    )
+    expect(publishAgentAwareness).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      'doc-1',
+      actor,
+      expect.objectContaining({ status: 'done', toolName: CANVAS_PATCH_RECORDS_TOOL_NAME })
     )
   })
 })

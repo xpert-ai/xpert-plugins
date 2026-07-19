@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DRAWIO_AGENT_DRAWING_CAPABILITY,
+  DRAWIO_ARTIFACT_NAMESPACE,
   DRAWIO_FEATURE,
   DRAWIO_ICON,
   DRAWIO_MIDDLEWARE_NAME,
@@ -37,6 +38,7 @@ const plugin: DrawioXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    artifactNamespace: DRAWIO_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

@@ -1,4 +1,5 @@
 export const PENCIL_PLUGIN_NAME = '@xpert-ai/plugin-pencil'
+export const PENCIL_ARTIFACT_NAMESPACE = 'pencil'
 export const PENCIL_PROVIDER_KEY = 'pencil'
 export const PENCIL_MIDDLEWARE_NAME = 'PencilMiddleware'
 export const PENCIL_TEMPLATE_PROVIDER_KEY = 'pencilTemplates'

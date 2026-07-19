@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
+  DOCX_EDITOR_ARTIFACT_NAMESPACE,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
   DOCX_EDITOR_MIDDLEWARE_NAME,
@@ -36,6 +37,7 @@ const plugin: DocxEditorXpertPlugin = {
   meta: {
     name: packageJson.name || DOCX_EDITOR_PLUGIN_NAME,
     version: packageJson.version,
+    artifactNamespace: DOCX_EDITOR_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

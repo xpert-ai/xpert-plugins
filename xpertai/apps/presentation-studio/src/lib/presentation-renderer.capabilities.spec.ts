@@ -1,6 +1,7 @@
 import { SandboxJobsRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { PRESENTATION_CONFIG_DEFAULTS } from './presentation-config.service.js'
 import { PresentationRendererService } from './presentation-renderer.service.js'
+import { PRESENTATION_SANDBOX_ACTION_VERSION } from './constants.js'
 
 describe('PresentationRendererService export capabilities', () => {
   function createRenderer(options?: {
@@ -13,7 +14,7 @@ describe('PresentationRendererService export capabilities', () => {
       getActionHealth: jest.fn(async () => ({
         pluginName: 'presentation-studio',
         action: 'presentation.export',
-        actionVersion: '1.0.0',
+        actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
         runtimeProfile: 'browser/playwright-1.61/v1',
         sandboxRuntimeVersion: '1.0.0',
         available: true,

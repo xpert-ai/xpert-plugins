@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-github-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/github-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/github-connector/dist",
+        "main": "middlewares/github-connector/src/index.ts",
+        "rootDir": "middlewares/github-connector/src",
+        "tsConfig": "middlewares/github-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

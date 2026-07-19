@@ -29,6 +29,7 @@ import {
   PRESENTATION_PROVIDER_KEY,
   PRESENTATION_SANDBOX_ACTION,
   PRESENTATION_SANDBOX_ACTION_VERSION,
+  PRESENTATION_STUDIO_ARTIFACT_NAMESPACE,
   PRESENTATION_TEMPLATE_CAPABILITY,
   PRESENTATION_TEMPLATE_PROVIDER_KEY,
   PRESENTATION_VIEW_KEY,
@@ -111,7 +112,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || PRESENTATION_PLUGIN_NAME,
     version: packageJson.version,
-    artifactNamespace: 'presentation_studio',
+    artifactNamespace: PRESENTATION_STUDIO_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

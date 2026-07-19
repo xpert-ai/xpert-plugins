@@ -1,0 +1,1 @@
+export const CUT_PLUGIN_CONTEXT = Symbol('CUT_PLUGIN_CONTEXT')

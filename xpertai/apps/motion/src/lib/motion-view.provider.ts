@@ -39,6 +39,7 @@ import type {
   MotionExportKind,
   MotionJsonObject,
   MotionProjectStatus,
+  MotionRenderQuality,
   MotionScope,
   MotionSurface,
   MotionVideoComposition
@@ -63,6 +64,7 @@ type MotionWorkbenchViewData = XpertViewDataResult & {
   styles: Awaited<ReturnType<MotionService['listStyles']>>
   detail: Awaited<ReturnType<MotionService['getProject']>> | null
   libraryStats: ReturnType<MotionService['getLibraryStats']>
+  renderCapability: Awaited<ReturnType<MotionService['getProductionRenderCapability']>>
 }
 
 type ProjectScopedViewHostContext = XpertResolvedViewHostContext & {
@@ -88,8 +90,8 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
         key: MOTION_WORKBENCH_VIEW_KEY,
         title: text('Motion Workbench', 'Motion 动效工作台'),
         description: text(
-          'Create, review, edit, version, and export animated HTML pages and launch-video compositions.',
-          '创建、审核、编辑、版本化并导出动效网页和发布视频合成。'
+          'Create animated HTML and native HyperFrames videos with SDK + Player editing and queued Producer rendering.',
+          '创建动效网页和原生 HyperFrames 视频，使用 SDK + Player 编辑并通过 Producer 队列生产渲染。'
         ),
         icon: {
           type: 'svg',
@@ -180,6 +182,8 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
           { key: 'create_project', label: text('New Motion Project', '新建动效项目'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_web_artifact', label: text('Save HTML', '保存 HTML'), icon: 'ri-html5-line', actionType: 'invoke' },
           { key: 'save_video_composition', label: text('Save Video', '保存视频合成'), icon: 'ri-movie-line', actionType: 'invoke' },
+          { key: 'save_hyperframes_composition', label: text('Save HyperFrames', '保存 HyperFrames 合成'), icon: 'ri-code-box-line', actionType: 'invoke' },
+          { key: 'render_production', label: text('Production Render', '生产渲染'), icon: 'ri-film-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'finalize_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
           { key: 'export_artifact', label: text('Export', '导出'), icon: 'ri-download-line', placement: 'toolbar', actionType: 'invoke' },
@@ -302,7 +306,8 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
       recipes,
       styles,
       detail,
-      libraryStats: this.service.getLibraryStats()
+      libraryStats: this.service.getLibraryStats(),
+      renderCapability: await this.service.getProductionRenderCapability()
     }
     return result
   }
@@ -331,6 +336,7 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
           selectedRecipeIds: getStringArrayInput(request.input, 'selectedRecipeIds'),
           html: getStringInput(request.input, 'html'),
           videoComposition: getObjectInput(request.input, 'videoComposition') as MotionVideoComposition | undefined,
+          hyperframesHtml: getStringInput(request.input, 'hyperframesHtml'),
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
         return { ...success('Motion project created', '动效项目已创建'), data: result }
@@ -354,6 +360,27 @@ export class MotionViewProvider implements IXpertViewExtensionProvider {
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
         return { ...success('Motion video saved', '动效视频已保存'), refresh: false, data: result }
+      }
+      if (actionKey === 'save_hyperframes_composition') {
+        const result = await this.service.saveHyperframesComposition(scope, {
+          projectId: requireDocumentId(request),
+          html: requireStringInput(request.input, 'html', 'HyperFrames HTML is required.'),
+          selectedRecipeIds: getStringArrayInput(request.input, 'selectedRecipeIds'),
+          changeSummary: getStringInput(request.input, 'changeSummary')
+        })
+        return { ...success('HyperFrames composition saved', 'HyperFrames 合成已保存'), refresh: false, data: result }
+      }
+      if (actionKey === 'render_production') {
+        const result = await this.service.requestProductionRender(scope, {
+          projectId: requireDocumentId(request),
+          kind: (getStringInput(request.input, 'kind') as 'mp4' | 'gif' | undefined) ?? 'mp4',
+          quality: getStringInput(request.input, 'quality') as MotionRenderQuality | undefined,
+          fps: getNumberInput(request.input, 'fps') as 24 | 30 | 60 | undefined,
+          fileName: getStringInput(request.input, 'fileName'),
+          expectedChecksum: getStringInput(request.input, 'expectedChecksum'),
+          changeSummary: getStringInput(request.input, 'changeSummary')
+        })
+        return { ...success('Production render queued', '生产渲染已排队'), data: result }
       }
       if (actionKey === 'finalize_version') {
         const result = await this.service.finalizeVersion(scope, {
@@ -533,6 +560,11 @@ function getStringInput(input: XpertViewActionRequest['input'], key: string) {
   const object = inputObject(input)
   const value = object[key]
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
+  const value = inputObject(input)[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function getStringArrayInput(input: XpertViewActionRequest['input'], key: string) {

@@ -9,6 +9,7 @@ const requiredFiles = [
   'dist/xpert-motion-assistant.yaml',
   'dist/lib/remote-components/motion-workbench/app.js',
   'dist/lib/remote-components/motion-workbench/app.css',
+  'dist/sandbox-actions/hyperframes-render/action.json',
   'dist/assets/upstream/MOTION-SPEC.md',
   '.xpertai-plugin/plugin.json',
   'assets/logo.svg',

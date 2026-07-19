@@ -15,6 +15,7 @@
     "workbench"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "lucidchart",
   "interface": {
     "displayName": "Lucidchart",
     "shortDescription": "Agent-managed Lucidchart drafts",

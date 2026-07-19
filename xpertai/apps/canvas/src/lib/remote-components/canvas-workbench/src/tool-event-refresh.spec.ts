@@ -4,6 +4,7 @@ describe('canvas tool event refresh', () => {
   it('refreshes only for Canvas mutation tools', () => {
     expect(shouldRefreshForCanvasToolEvent({ toolName: 'canvas_insert_image' })).toBe(true)
     expect(shouldRefreshForCanvasToolEvent({ payload: { toolName: 'canvas_patch_records' } })).toBe(true)
+    expect(shouldRefreshForCanvasToolEvent({ toolName: 'canvas_create_version' })).toBe(false)
     expect(shouldRefreshForCanvasToolEvent({ toolName: 'other_tool' })).toBe(false)
   })
 
@@ -115,6 +116,7 @@ describe('canvas tool event refresh', () => {
 
   it('ignores read-only Canvas tools for live scene refresh', () => {
     expect(getCanvasToolRefreshEvent({ toolName: 'canvas_get_document', documentId: 'canvas-doc-4' })).toBeNull()
+    expect(getCanvasToolRefreshEvent({ toolName: 'canvas_list_records', documentId: 'canvas-doc-4' })).toBeNull()
     expect(normalizeCanvasToolEvent({ toolName: 'canvas_get_document', documentId: 'canvas-doc-4' })).toEqual({
       matched: false,
       toolName: 'canvas_get_document',

@@ -23,8 +23,9 @@ export function summarizeDocumentMutationResult(result: object, message: string)
     documentId: document?.id,
     currentVersionId: document?.currentVersionId ?? version?.id,
     currentVersionNumber: document?.currentVersionNumber ?? version?.versionNumber,
+    workingCopyRevision: document?.workingCopyRevision ?? autosave?.workingCopyRevision ?? resultObject.workingCopyRevision,
     sceneSource: autosave ? 'autosave' : resultDocument.sceneSource,
-    snapshotImagePath: resultDocument.snapshotImagePath ?? document?.snapshotImagePath ?? version?.snapshotImagePath ?? autosave?.snapshotImagePath,
+    hasSnapshotImage: Boolean(resultDocument.snapshotImagePath ?? document?.snapshotImagePath ?? version?.snapshotImagePath ?? autosave?.snapshotImagePath),
     snapshotImageUpdatedAt: resultDocument.snapshotImageUpdatedAt ?? autosave?.autosaveUpdatedAt,
     insertion: insertion
       ? {
@@ -38,27 +39,70 @@ export function summarizeDocumentMutationResult(result: object, message: string)
   }
 }
 
-export function summarizeGetDocumentResult(result: object, includeSnapshot?: boolean) {
-  const resultObject = asObject(result) ?? {}
-  const item = asObject(resultObject.item)
-  const currentVersion = asObject(resultObject.currentVersion)
-  const requestedVersion = asObject(resultObject.requestedVersion)
+export function summarizeRecordBatchResult(result: object) {
+  const value = asObject(result) ?? {}
+  const counts = asObject(value.counts)
   return {
-    documentId: item?.id,
-    title: item?.title,
-    kind: item?.kind,
-    status: item?.status,
-    currentVersionId: item?.currentVersionId ?? currentVersion?.id,
-    currentVersionNumber: item?.currentVersionNumber ?? currentVersion?.versionNumber,
-    requestedVersionId: requestedVersion?.id,
-    sceneSource: resultObject.sceneSource,
-    snapshotImagePath: resultObject.snapshotImagePath ?? item?.snapshotImagePath,
-    snapshotImageUpdatedAt: resultObject.snapshotImageUpdatedAt,
-    snapshotSummary: resultObject.snapshotSummary,
-    workingCopy: summarizeWorkingCopy(asObject(resultObject.workingCopy)),
-    versions: summarizeVersionList(resultObject.versions),
-    logs: summarizeLogList(resultObject.logs),
-    scene: includeSnapshot ? resultObject.scene : undefined
+    success: Boolean(value.success),
+    duplicate: Boolean(value.duplicate),
+    documentId: value.documentId,
+    operationId: value.operationId,
+    batchId: value.batchId,
+    stageIndex: value.stageIndex,
+    stageLabel: value.stageLabel,
+    isFinalStage: value.isFinalStage,
+    baseRevision: value.baseRevision,
+    revisionBefore: value.revisionBefore,
+    workingCopyRevision: value.workingCopyRevision,
+    createdRecordIds: value.createdRecordIds,
+    updatedRecordIds: value.updatedRecordIds,
+    removedRecordIds: value.removedRecordIds,
+    cascadedRecordIds: value.cascadedRecordIds,
+    counts: counts
+      ? {
+          created: counts.created,
+          updated: counts.updated,
+          removed: counts.removed,
+          cascaded: counts.cascaded
+        }
+      : undefined,
+    nextAction: value.nextAction
+  }
+}
+
+export function summarizeDocumentSummaryResult(result: object) {
+  const value = asObject(result) ?? {}
+  return {
+    documentId: value.documentId,
+    title: value.title,
+    description: value.description,
+    kind: value.kind,
+    status: value.status,
+    tags: value.tags,
+    currentVersionId: value.currentVersionId,
+    currentVersionNumber: value.currentVersionNumber,
+    workingCopyRevision: value.workingCopyRevision,
+    snapshotChecksum: value.snapshotChecksum,
+    snapshotSummary: value.snapshotSummary,
+    hasSnapshotImage: value.hasSnapshotImage,
+    snapshotImageUpdatedAt: value.snapshotImageUpdatedAt,
+    updatedAt: value.updatedAt,
+    availableReads: value.availableReads,
+    nextAction: value.nextAction
+  }
+}
+
+export function summarizeRecordListResult(result: object) {
+  const value = asObject(result) ?? {}
+  return {
+    documentId: value.documentId,
+    workingCopyRevision: value.workingCopyRevision,
+    items: value.items,
+    total: value.total,
+    limit: value.limit,
+    hasMore: value.hasMore,
+    nextCursor: value.nextCursor,
+    availableReads: value.availableReads
   }
 }
 
@@ -67,11 +111,13 @@ export function summarizeGetRecordResult(result: object) {
   const document = asObject(resultObject.document)
   const version = asObject(resultObject.version)
   return {
-    documentId: document?.id,
+    documentId: resultObject.documentId ?? document?.id,
     versionId: version?.id,
     versionNumber: version?.versionNumber,
+    workingCopyRevision: resultObject.workingCopyRevision,
     sceneSource: resultObject.sceneSource,
-    record: resultObject.record
+    record: resultObject.record,
+    nextAction: resultObject.nextAction
   }
 }
 
@@ -86,7 +132,7 @@ export function summarizeSearchResult(result: object) {
       status: item.status,
       currentVersionId: item.currentVersionId,
       currentVersionNumber: item.currentVersionNumber,
-      snapshotImagePath: item.snapshotImagePath,
+      hasSnapshotImage: Boolean(item.snapshotImagePath),
       updatedAt: item.updatedAt
     })),
     total: typeof resultObject.total === 'number' ? resultObject.total : 0,
@@ -102,44 +148,6 @@ export function summarizeFailureResult(result: object) {
     success: Boolean(resultObject.success),
     message: typeof resultObject.message === 'string' ? resultObject.message : 'Canvas failure was recorded.'
   }
-}
-
-function summarizeWorkingCopy(value: AgentResultObject | null) {
-  if (!value) {
-    return undefined
-  }
-  return {
-    autosaveUpdatedAt: value.autosaveUpdatedAt,
-    autosaveBaseVersionId: value.autosaveBaseVersionId,
-    snapshotImagePath: value.snapshotImagePath,
-    snapshotSummary: value.snapshotSummary
-  }
-}
-
-function summarizeVersionList(value: AgentResultValue | undefined) {
-  if (!Array.isArray(value)) {
-    return undefined
-  }
-  return value.map(asObject).filter((item): item is AgentResultObject => Boolean(item)).map((item) => ({
-    id: item.id,
-    versionNumber: item.versionNumber,
-    sourceType: item.sourceType,
-    changeSummary: item.changeSummary,
-    snapshotImagePath: item.snapshotImagePath,
-    createdAt: item.createdAt
-  }))
-}
-
-function summarizeLogList(value: AgentResultValue | undefined) {
-  if (!Array.isArray(value)) {
-    return undefined
-  }
-  return value.map(asObject).filter((item): item is AgentResultObject => Boolean(item)).map((item) => ({
-    action: item.action,
-    message: item.message,
-    errorMessage: item.errorMessage,
-    createdAt: item.createdAt
-  }))
 }
 
 function pruneEmpty(value: AgentToolResultValue): AgentToolResultValue {

@@ -44,21 +44,18 @@
     "verify:vendor": "pnpm run sync:theme-runtime && node scripts/verify-vendor.mjs",
     "build:sandbox-action": "node scripts/build-sandbox-action.mjs",
     "verify:sandbox-action": "node scripts/verify-sandbox-action.mjs",
+    "test:sandbox-action": "node --test sandbox-actions/presentation-export/*.spec.mjs",
     "verify:vendor:deep": "pnpm run sync:theme-runtime && node scripts/verify-vendor.mjs --deep",
     "build": "pnpm run build:ui && node scripts/clean-dist.mjs && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run verify:vendor && pnpm run build:sandbox-action && pnpm run verify:sandbox-action && node scripts/verify-package-output.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && TS_NODE_PROJECT=tsconfig.jest.json jest --config jest.config.ts --runInBand && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run verify:vendor && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
+    "test": "pnpm run build:ui && TS_NODE_PROJECT=tsconfig.jest.json jest --config jest.config.ts --runInBand && pnpm run test:sandbox-action && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run verify:vendor && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "test:catalog": "pnpm run verify:vendor:deep && tsx scripts/validate-catalog-render.jsx",
     "test:catalog:browser": "pnpm run verify:vendor:deep && tsx scripts/validate-catalog-render.jsx --browser",
     "test:export-matrix": "pnpm run verify:vendor:deep && tsx scripts/validate-export-matrix.jsx && node scripts/verify-vendor.mjs --deep",
     "prepack": "pnpm run build:ui && npm run build"
   },
-  "xpert": {
-    "plugin": {
-      "level": "system"
-    }
-  },
+  "xpert": { "plugin": { "level": "system", "artifactNamespace": "presentation_studio" } },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

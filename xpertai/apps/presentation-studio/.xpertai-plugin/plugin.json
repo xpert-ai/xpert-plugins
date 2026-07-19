@@ -8,6 +8,7 @@
   "license": "AGPL-3.0",
   "keywords": ["presentation", "pptx", "pdf", "dashi", "yjs", "collaboration", "agentic-app"],
   "skills": "./skills/",
+  "artifactNamespace": "presentation_studio",
   "sandboxActions": "./dist/sandbox-actions/presentation-export/action.json",
   "interface": {
     "displayName": "Presentation Studio",

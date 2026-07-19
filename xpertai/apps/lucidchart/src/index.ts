@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   LUCIDCHART_AGENT_DRAWING_CAPABILITY,
+  LUCIDCHART_ARTIFACT_NAMESPACE,
   LUCIDCHART_FEATURE,
   LUCIDCHART_ICON,
   LUCIDCHART_MIDDLEWARE_NAME,
@@ -37,6 +38,7 @@ const plugin: LucidchartXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    artifactNamespace: LUCIDCHART_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

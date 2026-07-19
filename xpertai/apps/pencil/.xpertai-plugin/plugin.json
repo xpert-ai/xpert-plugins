@@ -8,6 +8,7 @@
   "license": "AGPL-3.0",
   "keywords": ["pencil", "design", "fig", "pen", "workbench", "agentic-app"],
   "skills": "./skills/",
+  "artifactNamespace": "pencil",
   "interface": {
     "displayName": "Pencil",
     "shortDescription": "Agent-managed Pencil design documents",

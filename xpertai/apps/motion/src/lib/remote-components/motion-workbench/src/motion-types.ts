@@ -59,12 +59,16 @@ export const TRANSITION_OPTIONS = [
 
 export type TabKey = (typeof TABS)[number]
 export type MotionSurface = 'web' | 'video'
+export type MotionVideoEngine = 'hyperframes' | 'legacy_canvas'
+export type MotionRenderQuality = 'draft' | 'standard' | 'high'
+export type MotionRenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 export type ProjectSummary = {
   id: string
   title: string
   brief?: string | null
   surface?: MotionSurface
+  videoEngine?: MotionVideoEngine | null
   status?: string
   selectedRecipeIds?: string[]
   currentVersionNumber?: number
@@ -97,6 +101,7 @@ export type VersionSummary = {
   versionNumber?: number
   sourceType?: string
   surface?: MotionSurface
+  videoEngine?: MotionVideoEngine | null
   selectedRecipeIds?: string[]
   artifactChecksum?: string | null
   changeSummary?: string | null
@@ -107,11 +112,21 @@ export type ExportSummary = {
   id: string
   versionId?: string | null
   kind?: string
+  status?: MotionRenderStatus | string
+  backend?: 'hyperframes' | 'browser' | string
+  progress?: number | null
+  stage?: string | null
+  jobId?: string | null
+  sandboxJobId?: string | null
+  inputChecksum?: string | null
   filePath?: string | null
+  fileReference?: RemotePayloadObject | null
   fileUrl?: string | null
   mimeType?: string | null
   size?: number | null
   checksum?: string | null
+  errorMessage?: string | null
+  report?: RemotePayloadObject | null
   changeSummary?: string | null
   createdAt?: string | null
 }
@@ -129,6 +144,8 @@ export type ProjectDetail = {
   item: ProjectSummary
   workingCopy?: {
     html?: string | null
+    videoEngine?: MotionVideoEngine | null
+    hyperframesHtml?: string | null
     videoComposition?: MotionVideoComposition | null
     componentSelection?: RemotePayloadObject | null
     layerSelection?: RemotePayloadObject | null
@@ -160,7 +177,24 @@ export type MotionViewData = {
     videoTemplates?: number
     icons?: number
   }
+  renderCapability?: MotionRenderCapability
 }
+
+export type MotionRenderCapability =
+  | {
+      available: true
+      backend: 'sandbox-job'
+      action: string
+      actionVersion: string
+      runtimeProfile?: string | null
+      sandboxRuntimeVersion?: string | null
+      workerCount?: number
+    }
+  | {
+      available: false
+      reason?: string
+      message?: string
+    }
 
 export type HtmlControls = {
   selector: string

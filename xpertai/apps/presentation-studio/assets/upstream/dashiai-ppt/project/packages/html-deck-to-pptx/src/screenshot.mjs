@@ -194,11 +194,7 @@ async function captureStableSlide(page, index, options = {}) {
   let lastCapture = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const prep = await prepareSlideForScreenshot(page, index);
-    const buffer = await page.locator('#deck > .slide.active').screenshot({
-      type: 'png',
-      animations: 'disabled',
-      timeout: options.screenshotTimeout || 90000,
-    });
+    const buffer = await screenshotPreparedSlide(page, options.screenshotTimeout || 90000);
     const pixel = analyzePng(buffer);
     lastCapture = {
       buffer,
@@ -211,6 +207,33 @@ async function captureStableSlide(page, index, options = {}) {
     await page.waitForTimeout(120);
   }
   return lastCapture;
+}
+
+export async function screenshotPreparedSlide(page, timeout = 90000) {
+  const slide = page.locator('#deck > .slide.active');
+  const box = await slide.boundingBox();
+  const viewport = page.viewportSize();
+  if (!box || !viewport) throw new Error('Active slide has no visible screenshot bounds');
+  return page.screenshot({
+    type: 'png',
+    animations: 'disabled',
+    captureBeyondViewport: false,
+    clip: screenshotClip(box, viewport),
+    timeout,
+  });
+}
+
+export function screenshotClip(box, viewport) {
+  const x = Math.max(0, box.x);
+  const y = Math.max(0, box.y);
+  const right = Math.min(viewport.width, box.x + box.width);
+  const bottom = Math.min(viewport.height, box.y + box.height);
+  const width = right - x;
+  const height = bottom - y;
+  if (![x, y, width, height].every(Number.isFinite) || width <= 1 || height <= 1) {
+    throw new Error('Active slide screenshot bounds are outside the viewport');
+  }
+  return { x, y, width, height };
 }
 
 async function prepareSlideForScreenshot(page, index) {

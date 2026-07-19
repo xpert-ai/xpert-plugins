@@ -3,22 +3,29 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
 import { extname } from 'node:path'
 import { generateKeyBetween } from 'fractional-indexing'
-import { Repository } from 'typeorm'
+import { ILike, Repository } from 'typeorm'
 import type { FindOptionsWhere } from 'typeorm'
-import { XPERT_RUNTIME_CAPABILITIES_TOKEN } from '@xpert-ai/plugin-sdk'
-import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import * as Y from 'yjs'
+import { CollaborationRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN } from '@xpert-ai/plugin-sdk'
+import type {
+  AgentMiddlewareRuntimeCapabilityRegistry,
+  CollaborationMaterializationEvent,
+  CollaborationPresencePatch,
+  CollaborationProviderContext
+} from '@xpert-ai/plugin-sdk'
 import { CanvasActionLog, CanvasDocument, CanvasDocumentVersion } from './entities/index.js'
 import {
   CanvasSnapshotValidationError,
-  compactRecordForAgent,
   compactSnapshotForAgent,
   createEmptyCanvasSnapshot,
   isCanvasSnapshot,
   normalizeCanvasSnapshot,
+  sanitizeCanvasSnapshot,
   summarizeSnapshot
 } from './canvas-snapshot.validation.js'
 import type {
   AutosaveCanvasSnapshotInput,
+  ApplyCanvasRecordBatchInput,
   CanvasActionType,
   CanvasActorType,
   CanvasJsonObject,
@@ -31,8 +38,11 @@ import type {
   CanvasWorkspaceFilesApi,
   CreateCanvasDocumentInput,
   GetCanvasDocumentInput,
+  GetCanvasDocumentSummaryInput,
   GetCanvasRecordInput,
+  GetCanvasRecordForAgentInput,
   InsertCanvasImageInput,
+  ListCanvasRecordsInput,
   PatchCanvasRecordsInput,
   PrepareCanvasAssistantPromptInput,
   ReportCanvasFailureInput,
@@ -41,6 +51,29 @@ import type {
   UpdateCanvasDocumentStatusInput
 } from './types.js'
 import { CANVAS_WORKSPACE_FILES_RUNTIME_CAPABILITY } from './types.js'
+import {
+  createCanvasYDoc,
+  decodeCanvasYDoc,
+  encodeCanvasYDoc,
+  getCanvasYjsOperation,
+  materializeCanvasYDoc,
+  patchCanvasYDoc,
+  writeCanvasSnapshotToYDoc
+} from './canvas-yjs.js'
+import { CANVAS_COLLABORATION_PROVIDER_KEY, CANVAS_COLLABORATION_SCHEMA_VERSION } from './constants.js'
+import type { CanvasAwarenessV1 } from './types.js'
+import { CanvasArtifactService } from './canvas-artifact.service.js'
+import { CanvasArtifactExportService } from './canvas-artifact-export.service.js'
+import {
+  asCanvasAgentOperationMarker,
+  assertMatchingOperation,
+  assertRequestedRecordsSurvivedNormalization,
+  createCanvasAgentOperationMarker,
+  detailCanvasRecord,
+  diffCanvasAgentRecords,
+  listCanvasRecordSummaries,
+  prepareCanvasAgentRecordBatch
+} from './canvas-agent-records.js'
 
 type ScopedEntity = {
   tenantId?: string
@@ -74,7 +107,11 @@ export class CanvasService {
     private readonly logRepository: Repository<CanvasActionLog>,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactService?: CanvasArtifactService,
+    @Optional()
+    private readonly artifactExportService?: CanvasArtifactExportService
   ) {}
 
   async createDocument(scope: CanvasScope, input: CreateCanvasDocumentInput) {
@@ -121,14 +158,19 @@ export class CanvasService {
       })
     }
 
+    await this.ensureCollaborationDocument(document.id as string)
+
     return this.getDocument(scope, { documentId: document.id as string, includeSnapshot: true })
   }
 
   async saveSnapshot(scope: CanvasScope, input: SaveCanvasSnapshotInput) {
-    const document = await this.requireDocument(scope, input.documentId)
     const snapshot = normalizeRequiredSnapshotInput(input.snapshot)
+    if (input.sourceType && input.sourceType !== 'workbench') {
+      throw new BadRequestException('Canvas versions can only be created from the human Workbench New Version action.')
+    }
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
     const version = await this.createVersion(scope, document, {
-      sourceType: input.sourceType ?? 'agent_snapshot',
+      sourceType: 'workbench',
       snapshot,
       viewState: normalizeObject(input.viewState),
       selectionSummary: normalizeObject(input.selectionSummary),
@@ -140,7 +182,7 @@ export class CanvasService {
       documentId: document.id,
       versionId: version.id,
       action: 'snapshot_saved',
-      actorType: input.sourceType === 'workbench' ? 'user' : 'agent',
+      actorType: 'user',
       message: input.changeSummary,
       snapshot: summarizeSnapshot(version.snapshot)
     })
@@ -153,10 +195,30 @@ export class CanvasService {
     }
   }
 
+  /** Replace the current working copy from a human file import without creating a version. */
+  async importSnapshotToWorkingCopy(scope: CanvasScope, input: SaveCanvasSnapshotInput) {
+    const snapshot = normalizeRequiredSnapshotInput(input.snapshot)
+    const current = await this.requireCanonicalDocument(scope, input.documentId)
+    const document = await this.replaceCanvasSnapshot(scope, current, snapshot, 'canvas:user:import_snapshot')
+    await this.writeLog(scope, {
+      documentId: document.id,
+      action: 'snapshot_imported',
+      actorType: 'user',
+      message: input.changeSummary ?? 'Canvas snapshot imported into the working copy.',
+      snapshot: summarizeSnapshot(snapshot)
+    })
+    return {
+      success: true,
+      message: 'Canvas snapshot was imported into the working copy.',
+      document: compactDocument(document),
+      workingCopyRevision: currentWorkingCopyRevision(document),
+      snapshotChecksum: document.snapshotChecksum ?? checksumSnapshot(snapshot)
+    }
+  }
+
   async autosaveSnapshot(scope: CanvasScope, input: AutosaveCanvasSnapshotInput) {
-    const document = await this.requireDocument(scope, input.documentId)
-    this.assertWorkingCopyBase(document, input)
-    const snapshot = normalizeSnapshotInput(input.snapshot)
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
+    const snapshot = normalizeSnapshotInput(document.autosaveSnapshot ?? input.snapshot)
     const viewState = normalizeObject(input.viewState)
     const selectionSummary = normalizeObject(input.selectionSummary)
     const imageFields = await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
@@ -164,11 +226,15 @@ export class CanvasService {
       sourceType: 'workbench',
       versionNumber: document.currentVersionNumber ?? 0
     })
-    const savedDocument = await this.saveWorkingCopy(scope, document, {
-      snapshot,
-      viewState,
-      selectionSummary,
-      imageFields
+    const autosaveUpdatedAt = new Date()
+    const savedDocument = await this.documentRepository.save({
+      ...document,
+      autosaveViewState: viewState,
+      autosaveSelectionSummary: selectionSummary,
+      autosaveUpdatedAt,
+      ...(imageFields ?? {}),
+      lastEditedById: scope.userId ?? null,
+      lastEditedAt: autosaveUpdatedAt
     })
 
     return {
@@ -180,7 +246,7 @@ export class CanvasService {
   }
 
   async patchRecords(scope: CanvasScope, input: PatchCanvasRecordsInput) {
-    const document = await this.requireDocument(scope, input.documentId)
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
     const currentState = await this.getCurrentCanvasState(scope, document)
     const snapshot = structuredClone(currentState.snapshot)
     if (!isCanvasSnapshot(snapshot)) {
@@ -209,11 +275,13 @@ export class CanvasService {
     }
     const selectionSummary =
       input.selectionSummary === undefined ? normalizeObject(currentState.selectionSummary) : normalizeObject(input.selectionSummary)
-    const savedDocument = await this.saveWorkingCopy(scope, document, {
-      snapshot: normalized,
-      viewState,
-      selectionSummary
+    const savedDocument = await this.mutateCanvas(scope, document, 'canvas:agent:patch_records', {
+      putRecords: (input.putRecords ?? []).map((record) => normalized.store[record.id]),
+      removeRecordIds: removeIds
     })
+    savedDocument.autosaveViewState = viewState
+    savedDocument.autosaveSelectionSummary = selectionSummary
+    await this.documentRepository.save(savedDocument)
 
     await this.writeLog(scope, {
       documentId: document.id,
@@ -236,6 +304,110 @@ export class CanvasService {
     }
   }
 
+  /** Apply one bounded Agent stage. Existing records use checksum preconditions; new records remain CRDT-mergeable. */
+  async applyAgentRecordBatch(scope: CanvasScope, input: ApplyCanvasRecordBatchInput) {
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
+    const collaborationDocument = await this.ensureCollaborationDocument(input.documentId)
+    const state = await this.collaboration().getDocumentState({ documentId: collaborationDocument.id })
+    const ydoc = decodeCanvasYDoc(state.updateBase64)
+    const operationValue = getCanvasYjsOperation(ydoc, input.operationId)
+    const existingOperation = asCanvasAgentOperationMarker(operationValue)
+    if (operationValue && !existingOperation) {
+      throw new ConflictException(`[CANVAS_OPERATION_MARKER_INVALID] operationId ${input.operationId} has an invalid stored marker.`)
+    }
+    if (existingOperation) {
+      assertMatchingOperation(existingOperation, input)
+      return recordBatchReceipt({
+        input,
+        marker: existingOperation,
+        duplicate: true,
+        revisionBefore: existingOperation.baseRevision,
+        workingCopyRevision: state.sequenceNumber
+      })
+    }
+    if (input.baseRevision > state.sequenceNumber) {
+      throw new ConflictException(
+        `[CANVAS_REVISION_CONFLICT] baseRevision ${input.baseRevision} is newer than current revision ${state.sequenceNumber}. Read the Canvas summary again.`
+      )
+    }
+
+    const snapshot = normalizeSnapshotInput(materializeCanvasYDoc(ydoc))
+    const prepared = prepareCanvasAgentRecordBatch(snapshot, input)
+    const validation = sanitizeCanvasSnapshot(prepared.candidate)
+    if (!validation.snapshot) {
+      const details = validation.skippedRecords.length
+        ? validation.skippedRecords.map((issue) => `${issue.id}: ${issue.reason}`).join('; ')
+        : '(snapshot): tldraw rejected the candidate snapshot without a validation detail'
+      throw new BadRequestException(`[CANVAS_INVALID_RECORD_BATCH] ${details}`)
+    }
+    const normalized = validation.snapshot
+    assertRequestedRecordsSurvivedNormalization(normalized, [
+      ...prepared.createdRecordIds,
+      ...prepared.updatedRecordIds
+    ], validation.skippedRecords)
+    const delta = diffCanvasAgentRecords(snapshot, normalized)
+    const marker = createCanvasAgentOperationMarker(input, prepared)
+    const expectedSequence = prepared.updatedRecordIds.length || prepared.removedRecordIds.length
+      ? state.sequenceNumber
+      : undefined
+    const update = patchCanvasYDoc(ydoc, {
+      ...delta,
+      operation: marker
+    }, `canvas:agent:stage:${input.operationId}`)
+    let applied: Awaited<ReturnType<ReturnType<CanvasService['collaboration']>['applyUpdate']>>
+    try {
+      applied = await this.collaboration().applyUpdate({
+        documentId: collaborationDocument.id,
+        updateBase64: Buffer.from(update).toString('base64'),
+        origin: `canvas:agent:stage:${input.operationId}`,
+        expectedSequence,
+        actor: {
+          actorType: 'agent',
+          actorKey: scope.assistantId ?? scope.userId ?? null,
+          displayName: scope.assistantDisplayName ?? null
+        }
+      })
+    } catch (error) {
+      if (expectedSequence !== undefined) {
+        const latest = await this.collaboration().getDocumentState({ documentId: collaborationDocument.id })
+        if (latest.sequenceNumber !== state.sequenceNumber) {
+          throw new ConflictException(
+            `[CANVAS_REVISION_CONFLICT] Canvas advanced from revision ${state.sequenceNumber} to ${latest.sequenceNumber}. Read the affected records and retry this stage with a new operationId.`
+          )
+        }
+      }
+      throw error
+    }
+
+    await this.requireCanonicalDocument(scope, input.documentId)
+    const cascadedRecordIds = delta.removeRecordIds.filter((recordId) => !prepared.removedRecordIds.includes(recordId))
+    await this.writeLog(scope, {
+      documentId: document.id,
+      action: 'records_patched',
+      actorType: 'agent',
+      message: input.changeSummary,
+      snapshot: {
+        operationId: input.operationId,
+        batchId: input.batchId,
+        stageIndex: input.stageIndex,
+        isFinalStage: input.isFinalStage,
+        createdRecordIds: prepared.createdRecordIds,
+        updatedRecordIds: prepared.updatedRecordIds,
+        removedRecordIds: prepared.removedRecordIds,
+        cascadedRecordIds
+      }
+    })
+
+    return recordBatchReceipt({
+      input,
+      marker,
+      duplicate: Boolean(applied.duplicate),
+      revisionBefore: state.sequenceNumber,
+      workingCopyRevision: applied.sequenceNumber,
+      cascadedRecordIds
+    })
+  }
+
   async insertImage(scope: CanvasScope, input: InsertCanvasImageInput) {
     requireInsertImageSource(input)
     const target = normalizeInsertionTargetInput(input)
@@ -243,7 +415,7 @@ export class CanvasService {
     if (!documentId) {
       throw new BadRequestException('canvas_insert_image requires documentId or target.documentId. Use env.canvasDocumentId for the current Workbench canvas.')
     }
-    const document = await this.requireDocument(scope, documentId)
+    const document = await this.requireCanonicalDocument(scope, documentId)
     const dataUrl = await this.resolveInsertImageData(scope, document, input)
     const imageSize = readImageSizeFromDataUrl(dataUrl, input)
     const currentState = await this.getCurrentCanvasState(scope, document)
@@ -252,6 +424,7 @@ export class CanvasService {
       throw new BadRequestException('Current canvas snapshot is invalid.')
     }
 
+    const originalStore = snapshot.store
     const store: Record<string, CanvasRecord> = { ...snapshot.store }
     const anchorShape = target.anchorShapeId ? store[target.anchorShapeId] : null
     let pageId = target.pageId ?? findPageIdForShape(store, anchorShape?.id) ?? findFirstPageId(store)
@@ -392,11 +565,11 @@ export class CanvasService {
       insertedShapeId: shapeId,
       source: 'canvas_insert_image'
     }
-    const savedDocument = await this.saveWorkingCopy(scope, document, {
-      snapshot: normalized,
-      viewState: normalizeObject(currentState.viewState),
-      selectionSummary
-    })
+    const delta = diffCanvasRecords(originalStore, normalized.store)
+    const savedDocument = await this.mutateCanvas(scope, document, 'canvas:agent:insert_image', delta)
+    savedDocument.autosaveViewState = normalizeObject(currentState.viewState)
+    savedDocument.autosaveSelectionSummary = selectionSummary
+    await this.documentRepository.save(savedDocument)
 
     await this.writeLog(scope, {
       documentId: document.id,
@@ -439,41 +612,39 @@ export class CanvasService {
 
   async searchDocuments(scope: CanvasScope, query: SearchCanvasDocumentsInput = {}) {
     const page = Math.max(1, query.page ?? 1)
-    const pageSize = Math.max(1, Math.min(query.pageSize ?? 20, 100))
-    const search = query.search?.trim().toLowerCase() ?? ''
-    const documents = await this.documentRepository.find({
-      where: scopedWhere(scope),
+    const pageSize = Math.max(1, Math.min(query.pageSize ?? 20, 50))
+    const search = query.search?.trim() ?? ''
+    const baseWhere = scopedWhere(scope, {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.kind ? { kind: query.kind } : {})
+    }) as FindOptionsWhere<CanvasDocument>
+    const where = search
+      ? [
+          { ...baseWhere, title: ILike(`%${search}%`) },
+          { ...baseWhere, description: ILike(`%${search}%`) }
+        ]
+      : baseWhere
+    const [items, total] = await this.documentRepository.findAndCount({
+      where,
       order: {
-        updatedAt: 'DESC'
-      }
+        updatedAt: 'DESC',
+        id: 'ASC'
+      },
+      skip: (page - 1) * pageSize,
+      take: pageSize
     })
-    const filtered = documents.filter((document) => {
-      if (query.status && document.status !== query.status) {
-        return false
-      }
-      if (query.kind && document.kind !== query.kind) {
-        return false
-      }
-      if (!search) {
-        return true
-      }
-      return [document.title, document.description, document.kind, ...(document.tags ?? [])]
-        .filter(isString)
-        .some((value) => value.toLowerCase().includes(search))
-    })
-    const start = (page - 1) * pageSize
 
     return {
-      items: filtered.slice(start, start + pageSize),
-      total: filtered.length,
+      items,
+      total,
       page,
       pageSize,
-      search
+      search: search.toLowerCase()
     }
   }
 
   async getDocument(scope: CanvasScope, input: GetCanvasDocumentInput) {
-    const document = await this.requireDocument(scope, input.documentId)
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
     const versionLimit = Math.max(1, Math.min(input.versionLimit ?? 20, 100))
     const logLimit = Math.max(1, Math.min(input.logLimit ?? 10, 50))
     const logWhere = scopedWhere(scope, { documentId: document.id }) as object as FindOptionsWhere<CanvasActionLog>
@@ -519,9 +690,52 @@ export class CanvasService {
       snapshotImageUpdatedAt: explicitVersion ? requestedVersion?.createdAt ?? null : document.autosaveUpdatedAt ?? currentVersion?.createdAt ?? null,
       nextActions: [
         'Open the Canvas Workbench to review or edit the canvas.',
-        'Use canvas_get_record for exact record JSON before targeted edits.',
-        'Use canvas_patch_records for small changes or canvas_save_snapshot for a full replacement.'
+        'Use canvas_list_records for bounded discovery and canvas_get_record for one exact record.',
+        'Use staged canvas_patch_records calls for Agent edits. A human can create a version from the Workbench version panel.'
       ]
+    }
+  }
+
+  async getDocumentSummaryForAgent(scope: CanvasScope, input: GetCanvasDocumentSummaryInput) {
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
+    const workingCopyRevision = currentWorkingCopyRevision(document)
+    assertCanvasRevision(input.expectedRevision, workingCopyRevision)
+    const snapshot = isCanvasSnapshot(document.autosaveSnapshot) ? document.autosaveSnapshot : createEmptyCanvasSnapshot()
+    return {
+      documentId: document.id,
+      title: document.title,
+      description: document.description,
+      kind: document.kind,
+      status: document.status,
+      tags: document.tags,
+      currentVersionId: document.currentVersionId,
+      currentVersionNumber: document.currentVersionNumber,
+      workingCopyRevision,
+      snapshotChecksum: document.snapshotChecksum ?? checksumSnapshot(snapshot),
+      snapshotSummary: summarizeSnapshot(snapshot),
+      hasSnapshotImage: Boolean(document.snapshotImagePath),
+      snapshotImageUpdatedAt: document.autosaveUpdatedAt,
+      updatedAt: document.updatedAt,
+      availableReads: [
+        'canvas_list_records: page through bounded record summaries and discover ids/checksums.',
+        'canvas_get_record: inspect one exact record before updating or removing it.'
+      ],
+      nextAction: 'List only the page, shape, asset, or binding records needed for the next stage.'
+    }
+  }
+
+  async listRecordsForAgent(scope: CanvasScope, input: ListCanvasRecordsInput) {
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
+    const workingCopyRevision = currentWorkingCopyRevision(document)
+    assertCanvasRevision(input.expectedRevision, workingCopyRevision)
+    if (!isCanvasSnapshot(document.autosaveSnapshot)) {
+      throw new NotFoundException('Canvas working-copy records were not found.')
+    }
+    return {
+      documentId: document.id,
+      workingCopyRevision,
+      ...listCanvasRecordSummaries(document.autosaveSnapshot, input),
+      availableReads: ['canvas_get_record: fetch one exact record by id before updating or removing it.']
     }
   }
 
@@ -550,16 +764,29 @@ export class CanvasService {
     }
   }
 
-  async getRecordForAgent(scope: CanvasScope, input: GetCanvasRecordInput) {
-    const result = await this.getRecord(scope, input)
+  async getRecordForAgent(scope: CanvasScope, input: GetCanvasRecordForAgentInput) {
+    const document = await this.requireCanonicalDocument(scope, input.documentId)
+    const workingCopyRevision = currentWorkingCopyRevision(document)
+    assertCanvasRevision(input.expectedRevision, workingCopyRevision)
+    if (!isCanvasSnapshot(document.autosaveSnapshot)) {
+      throw new NotFoundException('Canvas working-copy records were not found.')
+    }
+    const record = document.autosaveSnapshot.store[input.recordId]
+    if (!record) {
+      throw new NotFoundException('Canvas record was not found.')
+    }
     return {
-      ...result,
-      record: compactRecordForAgent(result.record)
+      documentId: document.id,
+      workingCopyRevision,
+      sceneSource: 'working_copy',
+      record: detailCanvasRecord(record),
+      nextAction: 'Use the returned checksum in canvas_patch_records.updateRecords or removeRecords.'
     }
   }
 
   async updateDocumentStatus(scope: CanvasScope, input: UpdateCanvasDocumentStatusInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    if (input.status === 'archived') await this.artifactService?.archiveForDocument(scope, document)
     document.status = input.status
     document.lastEditedById = scope.userId ?? null
     document.lastEditedAt = new Date()
@@ -600,7 +827,7 @@ export class CanvasService {
   }
 
   async restoreVersion(scope: CanvasScope, documentId: string, versionId: string, changeSummary?: string) {
-    const document = await this.requireDocument(scope, documentId)
+    const document = await this.requireCanonicalDocument(scope, documentId)
     const version = await this.versionRepository.findOne({
       where: scopedWhere(scope, { documentId: document.id, id: versionId })
     })
@@ -608,11 +835,10 @@ export class CanvasService {
       throw new NotFoundException('Canvas version was not found.')
     }
     const snapshot = normalizeSnapshotInput(version.snapshot)
-    const restoredDocument = await this.saveWorkingCopy(scope, document, {
-      snapshot,
-      viewState: normalizeObject(version.viewState),
-      selectionSummary: normalizeObject(version.selectionSummary)
-    })
+    const restoredDocument = await this.replaceCanvasSnapshot(scope, document, snapshot, 'canvas:user:restore_version')
+    restoredDocument.autosaveViewState = normalizeObject(version.viewState)
+    restoredDocument.autosaveSelectionSummary = normalizeObject(version.selectionSummary)
+    await this.documentRepository.save(restoredDocument)
     await this.writeLog(scope, {
       documentId: document.id,
       versionId: version.id,
@@ -691,6 +917,8 @@ export class CanvasService {
     const versions = await this.versionRepository.find({
       where: scopedWhere(scope, { documentId: document.id })
     })
+    await this.artifactExportService?.deleteForDocument(scope, document.id as string)
+    await this.artifactService?.deleteForDocument(scope, document)
     const workspaceFiles = this.runtimeCapabilities?.get<CanvasWorkspaceFilesApi>(CANVAS_WORKSPACE_FILES_RUNTIME_CAPABILITY)
     if (workspaceFiles) {
       const cleanupTargets = [
@@ -722,6 +950,10 @@ export class CanvasService {
         })
       )
     }
+    await this.collaboration().deleteDocument({
+      providerKey: CANVAS_COLLABORATION_PROVIDER_KEY,
+      resourceId: documentId
+    })
     await Promise.all([
       this.versionRepository.delete(scopedWhere(scope, { documentId: document.id })),
       this.logRepository.delete(scopedWhere(scope, { documentId: document.id }))
@@ -765,6 +997,207 @@ export class CanvasService {
       snapshotImagePath: imagePath ?? null,
       snapshotImageUpdatedAt: document.autosaveUpdatedAt ?? null
     }
+  }
+
+  /** Issue one short-lived browser session for the platform-owned Canvas Yjs document. */
+  async openDocument(scope: CanvasScope, documentId: string) {
+    const detail = await this.getDocument(scope, {
+      documentId,
+      includeSnapshot: true,
+      includeLogs: true,
+      versionLimit: 30,
+      logLimit: 20
+    })
+    return { ...detail, collab: await this.createCollaborationSession(scope, documentId) }
+  }
+
+  async createCollaborationSession(scope: CanvasScope, documentId: string) {
+    await this.requireDocument(scope, documentId)
+    const document = await this.ensureCollaborationDocument(documentId)
+    const session = await this.collaboration().createSession({ documentId: document.id, access: 'write' })
+    return { ...session, canvasDocumentId: documentId }
+  }
+
+  /** Authorize the exact Canvas business resource within the Provider's platform scope. */
+  async authorizeCollaborationDocument(context: CollaborationProviderContext) {
+    if (!context.tenantId) return false
+    const where = scopedWhere(collaborationScope(context), { id: context.resourceId }) as FindOptionsWhere<CanvasDocument>
+    if (context.xpertId) where.assistantId = context.xpertId
+    return Boolean(
+      await this.documentRepository.findOne({
+        where
+      })
+    )
+  }
+
+  /** Import the legacy materialized tldraw snapshot when the platform first sees this Canvas. */
+  async initializeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = collaborationScope(context)
+    const document = await this.requireDocument(scope, context.resourceId)
+    const current = await this.getCurrentCanvasState(scope, document)
+    const ydoc = createCanvasYDoc(normalizeSnapshotInput(current.snapshot))
+    return {
+      stateBase64: encodeCanvasYDoc(ydoc).stateBase64,
+      schemaVersion: CANVAS_COLLABORATION_SCHEMA_VERSION,
+      initialSequence: currentWorkingCopyRevision(document)
+    }
+  }
+
+  /** Idempotently project the authoritative record map into the CanvasDocument query model. */
+  async materializeCollaborationDocument(event: CollaborationMaterializationEvent) {
+    const scope = collaborationScope(event)
+    const snapshot = normalizeSnapshotInput(materializeCanvasYDoc(decodeCanvasYDoc(event.stateBase64)))
+    await this.documentRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(CanvasDocument)
+      const document = await repository.findOne({
+        where: scopedWhere(scope, { id: event.resourceId }),
+        lock: { mode: 'pessimistic_write' }
+      })
+      if (!document) throw new NotFoundException('Canvas document was not found during collaboration materialization.')
+      document.autosaveSnapshot = snapshot
+      document.autosaveUpdatedAt = new Date()
+      document.autosaveBaseVersionId = document.currentVersionId ?? null
+      document.workingCopyRevision = event.sequenceNumber
+      document.snapshotChecksum = checksumSnapshot(snapshot)
+      if (event.updateBase64 && document.status !== 'archived') document.status = 'draft'
+      document.lastEditedById = scope.userId ?? scope.assistantId ?? event.actor?.presenceId ?? null
+      document.lastEditedAt = new Date()
+      await repository.save(document)
+    })
+  }
+
+  createAgentCollaborationActor(scope: CanvasScope, documentId: string) {
+    const identity = [
+      scope.tenantId,
+      scope.organizationId ?? '-',
+      scope.assistantId ?? 'agent',
+      scope.conversationId ?? '-',
+      documentId
+    ].join(':')
+    const digest = createHash('sha256').update(identity).digest()
+    const digestBase64 = createHash('sha256').update(identity).digest('base64url')
+    const hue = Math.round((digest[0] / 255) * 330)
+    return {
+      presenceId: `agent_${digestBase64.slice(0, 22)}`,
+      displayName: (normalizeOptional(scope.assistantDisplayName) ?? 'Canvas Agent').slice(0, 64),
+      color: hslToHex(hue, 76, 46),
+      actorType: 'agent' as const,
+      avatarUrl: null
+    }
+  }
+
+  /** Publish semantic Agent activity without opening a browser socket. */
+  async publishAgentAwareness(
+    scope: CanvasScope,
+    documentId: string,
+    actor: ReturnType<CanvasService['createAgentCollaborationActor']>,
+    awareness: CanvasAwarenessV1
+  ) {
+    const document = await this.ensureCollaborationDocument(documentId)
+    return this.collaboration().upsertVirtualPresence({
+      documentId: document.id,
+      actor: {
+        actorType: 'agent',
+        actorKey: actor.presenceId,
+        displayName: actor.displayName,
+        avatarUrl: actor.avatarUrl
+      },
+      presence: canvasPresencePatch(awareness)
+    })
+  }
+
+  async removeAgentAwareness(documentId: string, actorKey: string) {
+    const document = await this.ensureCollaborationDocument(documentId)
+    await this.collaboration().removeVirtualPresence({ documentId: document.id, actorKey })
+  }
+
+  /** Apply one record-level mutation to the authoritative Yjs document and repair the projection. */
+  private async mutateCanvas(
+    scope: CanvasScope,
+    document: CanvasDocument,
+    origin: string,
+    mutation: Parameters<typeof patchCanvasYDoc>[1],
+    expectedSequence?: number
+  ) {
+    const documentId = requireEntityId(document.id, 'Canvas document id is required for Yjs mutation.')
+    const collaborationDocument = await this.ensureCollaborationDocument(documentId)
+    const state = await this.collaboration().getDocumentState({ documentId: collaborationDocument.id })
+    if (expectedSequence !== undefined && state.sequenceNumber !== expectedSequence) {
+      throw new ConflictException(`Canvas collaboration revision conflict. Current revision is ${state.sequenceNumber}.`)
+    }
+    const ydoc = decodeCanvasYDoc(state.updateBase64)
+    const update = patchCanvasYDoc(ydoc, mutation, origin)
+    await this.collaboration().applyUpdate({
+      documentId: collaborationDocument.id,
+      updateBase64: Buffer.from(update).toString('base64'),
+      origin,
+      expectedSequence,
+      actor: {
+        actorType: origin.includes(':agent:') ? 'agent' : 'user',
+        actorKey: scope.assistantId ?? scope.userId ?? null,
+        displayName: scope.assistantDisplayName ?? null
+      }
+    })
+    return this.requireCanonicalDocument(scope, documentId)
+  }
+
+  /** Replace all records through Yjs for destructive full-snapshot operations. */
+  private async replaceCanvasSnapshot(scope: CanvasScope, document: CanvasDocument, snapshot: CanvasSnapshotData, origin: string) {
+    const documentId = requireEntityId(document.id, 'Canvas document id is required for Yjs replacement.')
+    const collaborationDocument = await this.ensureCollaborationDocument(documentId)
+    const state = await this.collaboration().getDocumentState({ documentId: collaborationDocument.id })
+    const ydoc = decodeCanvasYDoc(state.updateBase64)
+    const before = Y.encodeStateVector(ydoc)
+    writeCanvasSnapshotToYDoc(ydoc, snapshot, origin)
+    const update = Y.encodeStateAsUpdate(ydoc, before)
+    await this.collaboration().applyUpdate({
+      documentId: collaborationDocument.id,
+      updateBase64: Buffer.from(update).toString('base64'),
+      origin,
+      expectedSequence: state.sequenceNumber,
+      actor: {
+        actorType: origin.includes(':agent:') ? 'agent' : 'user',
+        actorKey: scope.assistantId ?? scope.userId ?? null,
+        displayName: scope.assistantDisplayName ?? null
+      }
+    })
+    return this.requireCanonicalDocument(scope, documentId)
+  }
+
+  private ensureCollaborationDocument(documentId: string) {
+    return this.collaboration().ensureDocument({
+      providerKey: CANVAS_COLLABORATION_PROVIDER_KEY,
+      resourceId: documentId,
+      schemaVersion: CANVAS_COLLABORATION_SCHEMA_VERSION
+    })
+  }
+
+  /** Repair a stale SQL projection before reads, versions, exports, or Agent mutations. */
+  private async requireCanonicalDocument(scope: CanvasScope, documentId: string) {
+    const current = await this.requireDocument(scope, documentId)
+    const collaborationDocument = await this.ensureCollaborationDocument(documentId)
+    const state = await this.collaboration().getDocumentState({ documentId: collaborationDocument.id })
+    if (currentWorkingCopyRevision(current) !== state.sequenceNumber || !isCanvasSnapshot(current.autosaveSnapshot)) {
+      await this.materializeCollaborationDocument({
+        ...scope,
+        providerKey: CANVAS_COLLABORATION_PROVIDER_KEY,
+        resourceId: documentId,
+        operation: 'materialize',
+        documentId: collaborationDocument.id,
+        stateBase64: state.updateBase64,
+        stateVectorBase64: state.stateVectorBase64,
+        sequenceNumber: state.sequenceNumber,
+        origin: 'canvas:canonical-read'
+      })
+    }
+    return this.requireDocument(scope, documentId)
+  }
+
+  /** Editing has one authority; missing platform Collaboration is a deployment error. */
+  private collaboration() {
+    const capability = this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+    if (!capability) throw new Error('Platform collaboration capability is not available.')
+    return capability
   }
 
   private async resolveInsertImageData(scope: CanvasScope, document: CanvasDocument, input: InsertCanvasImageInput) {
@@ -966,7 +1399,7 @@ export class CanvasService {
     document.autosaveSelectionSummary = input.selectionSummary ?? null
     document.autosaveUpdatedAt = new Date()
     document.autosaveBaseVersionId = version.id
-    document.workingCopyRevision = nextWorkingCopyRevision(document)
+    document.workingCopyRevision = currentWorkingCopyRevision(document)
     document.snapshotChecksum = checksumSnapshot(input.snapshot)
     if (latestImageFields) {
       document.snapshotImagePath = latestImageFields.snapshotImagePath
@@ -1001,39 +1434,6 @@ export class CanvasService {
       throw new NotFoundException('Canvas document was not found.')
     }
     return document
-  }
-
-  private assertWorkingCopyBase(
-    document: CanvasDocument,
-    input: {
-      baseRevision?: number | null
-      baseSnapshotChecksum?: string | null
-    }
-  ) {
-    const currentRevision = currentWorkingCopyRevision(document)
-    const baseRevision = input.baseRevision
-    const baseChecksum = normalizeOptional(input.baseSnapshotChecksum)
-    if (baseRevision != null) {
-      if (!Number.isInteger(baseRevision) || baseRevision < 0) {
-        throw new BadRequestException('Canvas autosave baseRevision must be a non-negative integer.')
-      }
-      if (baseRevision !== currentRevision) {
-        throw new ConflictException(
-          `Canvas working copy has changed on the server; autosave baseRevision ${baseRevision} is stale. Reload the latest canvas before autosaving.`
-        )
-      }
-      return
-    }
-    if (baseChecksum) {
-      const currentChecksum = document.snapshotChecksum ?? checksumSnapshot(document.autosaveSnapshot)
-      if (baseChecksum !== currentChecksum) {
-        throw new ConflictException('Canvas working copy has changed on the server; autosave baseSnapshotChecksum is stale.')
-      }
-      return
-    }
-    if (currentRevision > 0) {
-      throw new ConflictException('Canvas autosave requires baseRevision or baseSnapshotChecksum for the current working copy.')
-    }
   }
 
   private async writeLog(
@@ -1336,6 +1736,45 @@ function compactAutosave(document: CanvasDocument, snapshot?: CanvasSnapshotData
   }
 }
 
+function recordBatchReceipt(input: {
+  input: ApplyCanvasRecordBatchInput
+  marker: ReturnType<typeof createCanvasAgentOperationMarker>
+  duplicate: boolean
+  revisionBefore: number
+  workingCopyRevision: number
+  cascadedRecordIds?: string[]
+}) {
+  const marker = input.marker
+  const changedRecordIds = [...marker.createdRecordIds, ...marker.updatedRecordIds]
+  return {
+    success: true,
+    duplicate: input.duplicate,
+    documentId: input.input.documentId,
+    operationId: marker.operationId,
+    batchId: marker.batchId,
+    stageIndex: marker.stageIndex,
+    stageLabel: marker.stageLabel,
+    isFinalStage: marker.isFinalStage,
+    baseRevision: marker.baseRevision,
+    revisionBefore: input.revisionBefore,
+    workingCopyRevision: input.workingCopyRevision,
+    createdRecordIds: marker.createdRecordIds,
+    updatedRecordIds: marker.updatedRecordIds,
+    changedRecordIds,
+    removedRecordIds: marker.removedRecordIds,
+    cascadedRecordIds: input.cascadedRecordIds ?? [],
+    counts: {
+      created: marker.createdRecordIds.length,
+      updated: marker.updatedRecordIds.length,
+      removed: marker.removedRecordIds.length,
+      cascaded: input.cascadedRecordIds?.length ?? 0
+    },
+    nextAction: marker.isFinalStage
+      ? 'The requested staged edit is complete. Read the summary only if verification is needed.'
+      : 'Submit the next bounded stage with the returned workingCopyRevision as baseRevision and a new operationId.'
+  }
+}
+
 function compactVersion(version: CanvasDocumentVersion | null) {
   if (!version) {
     return null
@@ -1367,6 +1806,14 @@ function normalizeRequiredSnapshotInput(snapshot: CanvasSnapshotData | null | un
     throw new BadRequestException(SAVE_SNAPSHOT_REQUIRED_MESSAGE)
   }
   return normalizeSnapshotInput(snapshot)
+}
+
+function assertCanvasRevision(expectedRevision: number | undefined, currentRevision: number) {
+  if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+    throw new ConflictException(
+      `[CANVAS_REVISION_CONFLICT] Expected revision ${expectedRevision}, but current revision is ${currentRevision}. Read the Canvas summary again.`
+    )
+  }
 }
 
 function hasSnapshotContent(input: { snapshot?: CanvasSnapshotData | null; viewState?: CanvasJsonObject | null; selectionSummary?: CanvasJsonObject | null }) {
@@ -1751,6 +2198,67 @@ function isGeneratedImageForAnchor(record: CanvasRecord, anchorShapeId: string) 
     record.parentId === anchorShapeId &&
     (record.meta?.canvasGeneratedForAiImageHolder === anchorShapeId || record.meta?.cowartGeneratedForAiImageHolder === anchorShapeId)
   )
+}
+
+function diffCanvasRecords(previous: Record<string, CanvasRecord>, next: Record<string, CanvasRecord>) {
+  const removeRecordIds = Object.keys(previous).filter((recordId) => !(recordId in next))
+  const putRecords = Object.entries(next)
+    .filter(([recordId, record]) => !(recordId in previous) || JSON.stringify(previous[recordId]) !== JSON.stringify(record))
+    .map(([, record]) => record)
+  return { putRecords, removeRecordIds }
+}
+
+function collaborationScope(value: CollaborationProviderContext): CanvasScope {
+  return {
+    tenantId: value.tenantId ?? '',
+    organizationId: value.organizationId ?? null,
+    workspaceId: value.workspaceId ?? null,
+    projectId: value.projectId ?? null,
+    userId: value.userId ?? null,
+    assistantId: value.xpertId ?? null
+  }
+}
+
+function canvasPresencePatch(awareness: CanvasAwarenessV1): CollaborationPresencePatch {
+  const selectedRecordIds = (awareness.selectedRecordIds ?? []).filter((recordId) => Boolean(recordId))
+  return {
+    pageId: awareness.pageId ?? null,
+    pointer: awareness.pointer
+      ? { ...awareness.pointer, pageId: awareness.pageId ?? null }
+      : null,
+    focus: awareness.focusedRecordId
+      ? {
+          kind: 'element',
+          key: awareness.focusedRecordId,
+          elementId: awareness.focusedRecordId,
+          pageId: awareness.pageId ?? null
+        }
+      : null,
+    selection: selectedRecordIds.length
+      ? { kind: 'elements', elementIds: selectedRecordIds }
+      : null,
+    viewport: awareness.viewport ?? null,
+    mode: awareness.mode ?? 'edit',
+    status: awareness.status ?? null,
+    toolName: awareness.toolName ?? null,
+    operationLabel: awareness.operationLabel ?? null
+  }
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const s = saturation / 100
+  const l = lightness / 100
+  const chroma = (1 - Math.abs(2 * l - 1)) * s
+  const segment = hue / 60
+  const intermediate = chroma * (1 - Math.abs((segment % 2) - 1))
+  const [red, green, blue] = segment < 1 ? [chroma, intermediate, 0]
+    : segment < 2 ? [intermediate, chroma, 0]
+      : segment < 3 ? [0, chroma, intermediate]
+        : segment < 4 ? [0, intermediate, chroma]
+          : segment < 5 ? [intermediate, 0, chroma]
+            : [chroma, 0, intermediate]
+  const offset = l - chroma / 2
+  return `#${[red, green, blue].map((channel) => Math.round((channel + offset) * 255).toString(16).padStart(2, '0')).join('')}`
 }
 
 function localBoundsForShape(shape: CanvasRecord | null | undefined): ShapeBounds | null {

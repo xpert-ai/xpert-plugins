@@ -67,7 +67,7 @@ export function ProjectDialog(props: {
                   }}
                 >
                   <strong>{project.title}</strong>
-                  <span>{props.t('projectSummary', { surface: projectSurfaceLabel(project.surface, props.t), version: project.currentVersionNumber || 0, status: labelForStatus(project.status, props.t) })}</span>
+                  <span>{props.t('projectSummary', { surface: projectSurfaceLabel(project, props.t), version: project.currentVersionNumber || 0, status: labelForStatus(project.status, props.t) })}</span>
                 </Button>
               ))}
               {props.projects.length === 0 ? <div className="motion-empty">{props.t('noProjects')}</div> : null}
@@ -79,7 +79,7 @@ export function ProjectDialog(props: {
   )
 }
 
-function projectSurfaceLabel(surface: ProjectSummary['surface'], t: Translator) {
-  if (surface === 'video') return t('createVideo')
+function projectSurfaceLabel(project: ProjectSummary, t: Translator) {
+  if (project.surface === 'video') return project.videoEngine === 'hyperframes' ? `${t('createVideo')} · HyperFrames` : `${t('createVideo')} · Legacy`
   return t('createWeb')
 }

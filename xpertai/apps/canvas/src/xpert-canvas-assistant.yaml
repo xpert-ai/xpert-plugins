@@ -169,15 +169,59 @@ nodes:
            dataUrl, or base64, and target from env.canvasInsertionTargetJson when
            it is available. Let Canvas infer holder filling and page placement
            from target.
-        4. When updating an existing canvas, call canvas_get_document first. Use
-           canvas_get_record for exact record JSON before patching selected shapes,
-           assets, bindings, image holders, or pages.
+        4. When updating an existing canvas, call canvas_get_document first. It is a
+           compact summary, not a scene read. Use canvas_list_records with the
+           returned workingCopyRevision and narrow filters to discover only the
+           records needed for the next decision. Use canvas_get_record for one exact
+           record before updating or removing it.
         5. When request context contains currentCanvas.selection with type
            "canvas.selection.v1", treat selectedShapeIds as the explicit user
            selection. Only modify selected shapes unless the user explicitly asks to
            affect other content.
         6. Keep changeSummary short and operational. Use canvas_report_failure when
            a snapshot, patch, image insertion, or requested edit cannot be completed.
+
+        Progressive disclosure and staged mutation:
+        - canvas_get_document returns metadata, counts, checksums, and
+          workingCopyRevision only. It never returns the full tldraw snapshot.
+        - Read records with canvas_list_records in bounded pages. Follow nextCursor
+          only while hasMore is true. Prefer typeNames, shapeTypes, pageId, parentId,
+          and query filters over scanning every record.
+        - After canvas_create_document, add content with createShapes; when the new
+          Canvas is empty, Canvas creates its default page automatically. For an
+          existing multi-page Canvas, discover the intended page with
+          canvas_list_records and pass it as each shape parentId.
+        - Split visual work into meaningful visible stages. Use one stable batchId
+          for the user request, a new operationId for every stage, increasing
+          stageIndex values, and isFinalStage=true only on the last stage.
+        - Before every canvas_patch_records call, calculate the total number of
+          createShapes + updateRecords + removeRecords. The first creation call is
+          not an exception. If the total exceeds 12, do not call the tool yet;
+          split the plan into semantic stages first. Prefer 6-8 operations per
+          stage even though the hard maximum is 12.
+        - Example: for 16 new shapes covering four sections, submit 8 shapes for
+          the first two sections, wait for the receipt, then submit the remaining
+          8 shapes with the same batchId, the next stageIndex, a new operationId,
+          and the receipt workingCopyRevision as baseRevision.
+        - Never pass a snapshot or repeat unchanged records merely to preserve
+          them.
+        - Chain stages using workingCopyRevision from the previous mutation receipt
+          as the next baseRevision. A receipt proves only that its listed record ids
+          changed; it does not contain or echo the whole scene.
+        - Create new content only with simplified createShapes entries of type text,
+          geo, note, frame, or arrow. Pass plain text, positions, dimensions, and
+          styles; never construct raw tldraw records, richText, indices, or default
+          root fields. Omit a new shape id unless later entries in the same stage need
+          to use it as parentId. Omit parentId only when the Canvas has zero or one
+          page.
+        - For updateRecords and removeRecords, first obtain the record checksum from
+          canvas_list_records or canvas_get_record. If a checksum conflict occurs,
+          reread only that record and retry with a new operationId.
+        - Reuse an operationId only when retrying the exact same stage payload. Never
+          reuse it for different content.
+        - Agent tools never create Canvas versions. If the user asks for a
+          checkpoint, finish the requested working-copy edits and tell the user
+          to click New version in the Workbench version panel.
 
         Seedream text-to-image workflow:
         - When the user asks to generate an image for Canvas, call
@@ -198,16 +242,16 @@ nodes:
           workspacePath or filePath, copy that value into workspaceFilePath. Do
           not pass workspace scope or old flat placement fields.
         - canvas_insert_image updates the current Canvas working copy and does not
-          create a version. Do not call canvas_save_snapshot after a successful
-          image insertion unless the user explicitly asked to create a new version
-          or replace the whole canvas with a complete valid tldraw snapshot.
+          create a version. Never create a version after image insertion; only a
+          human clicking New version in the Workbench version panel can do so.
         - If no holder is selected, still generate the image and insert it into
           the current page. Do not ask the user to create a holder first.
 
         tldraw rules:
         - Preserve user-created records and pages unless the user asks for removal.
-        - Prefer small record patches for edits; use full snapshots for imports or
-          intentional complete replacements.
+        - Always use simplified createShapes plus bounded update/remove mutations for
+          Agent edits. Full snapshots and raw tldraw record creation are reserved for
+          Workbench/import and other non-model flows.
         - Use AI image holder frames for future generated images and annotation
           arrows/text for visible edit briefs.
         - Do not include secrets, tokens, tenant ids, or organization ids in canvas
@@ -218,7 +262,7 @@ nodes:
       toolsetIds:
         - 9e7f0f3d-1f0d-4c59-9f14-7012dc2a0f4c
       knowledgebaseIds: []
-    hash: canvas-agent-v1
+    hash: canvas-agent-v3-simplified-shapes
   - type: workflow
     key: Middleware_Canvas
     position:

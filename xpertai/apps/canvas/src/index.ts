@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   CANVAS_AGENT_CAPABILITY,
+  CANVAS_ARTIFACT_NAMESPACE,
   CANVAS_FEATURE,
   CANVAS_ICON,
   CANVAS_MIDDLEWARE_NAME,
@@ -45,8 +46,8 @@ const canvasMarketplaceOperations = [
     name: 'save-canvas-versions',
     displayName: 'Save Canvas versions',
     description: text(
-      'Persist tldraw snapshots, record patches, image insertions, and Workbench edits.',
-      '保存 tldraw 快照，记录补丁、图片插入和工作台编辑。'
+      'Checkpoint authoritative Canvas state, staged record patches, image insertions, and Workbench edits.',
+      '保存权威 Canvas 状态检查点、阶段记录补丁、图片插入和工作台编辑。'
     ),
     access: 'write' as const
   },
@@ -58,6 +59,15 @@ const canvasMarketplaceOperations = [
       '打开 Canvas 工作台，检查、标注、导入导出并手动编辑画布。'
     ),
     access: 'read' as const
+  },
+  {
+    name: 'share-canvas-artifacts',
+    displayName: 'Share Canvas Artifacts',
+    description: text(
+      'Publish, copy, update, and revoke read-only Canvas Artifact links from the human Workbench.',
+      '在人工工作台中发布、复制、更新和撤销只读 Canvas Artifact 链接。'
+    ),
+    access: 'write' as const
   }
 ]
 
@@ -70,6 +80,7 @@ const plugin: CanvasXpertPlugin = {
     name: packageJson.name,
     version: packageJson.version,
     level: 'system',
+    artifactNamespace: CANVAS_ARTIFACT_NAMESPACE,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
@@ -82,8 +93,8 @@ const plugin: CanvasXpertPlugin = {
               name: 'canvas',
               displayName: 'Canvas',
               description: text(
-                'Use Canvas Assistant to create, review, annotate, import, export, and version Agent-managed tldraw canvases.',
-                '使用 Canvas Assistant 创建、审核、标注、导入导出并版本化 Agent 管理的 tldraw 画布。'
+                'Use Canvas Assistant to create, review, annotate, share, import, export, and version Agent-managed tldraw canvases.',
+                '使用 Canvas Assistant 创建、审核、标注、分享、导入导出并版本化 Agent 管理的 tldraw 画布。'
               ),
               icon: {
                 type: 'svg',
@@ -97,8 +108,8 @@ const plugin: CanvasXpertPlugin = {
               name: CANVAS_WORKBENCH_VIEW_KEY,
               displayName: 'Canvas Workbench',
               description: text(
-                'Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.',
-                '用于编辑 tldraw 画布、AI 图片占位、标注、版本和日志的工作台视图。'
+                'Workbench view for tldraw canvas editing, AI image holders, annotations, Artifact sharing, versions, and logs.',
+                '用于编辑 tldraw 画布、AI 图片占位、标注、Artifact 分享、版本和日志的工作台视图。'
               ),
               metadata: {
                 app: 'canvas'
@@ -109,8 +120,8 @@ const plugin: CanvasXpertPlugin = {
               name: CANVAS_MIDDLEWARE_NAME,
               displayName: 'Canvas Agent Tools',
               description: text(
-                'Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.',
-                '用于创建画布、保存快照、修补记录、插入图片、检索文档和上报失败的助手中间件工具。'
+                'Assistant middleware tools for metadata-only creation, simplified staged shape creation, targeted record patches, progressive reads, image insertion, and failure reporting. Versions remain human-controlled.',
+                '用于仅创建元数据、简化 Shape 分阶段创建、定向记录补丁、渐进查询、图片插入和失败上报的助手中间件工具；版本仅由人工创建。'
               ),
               metadata: {
                 app: 'canvas'
@@ -178,8 +189,8 @@ const plugin: CanvasXpertPlugin = {
               name: CANVAS_WORKBENCH_VIEW_KEY,
               displayName: 'Canvas Workbench',
               description: text(
-                'Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.',
-                '用于编辑 tldraw 画布、AI 图片占位、标注、版本和日志的工作台视图。'
+                'Workbench view for tldraw canvas editing, AI image holders, annotations, Artifact sharing, versions, and logs.',
+                '用于编辑 tldraw 画布、AI 图片占位、标注、Artifact 分享、版本和日志的工作台视图。'
               ),
               metadata: {
                 app: 'canvas'
@@ -190,8 +201,8 @@ const plugin: CanvasXpertPlugin = {
               name: CANVAS_MIDDLEWARE_NAME,
               displayName: 'Canvas Agent Tools',
               description: text(
-                'Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.',
-                '用于创建画布、保存快照、修补记录、插入图片、检索文档和上报失败的助手中间件工具。'
+                'Assistant middleware tools for metadata-only creation, simplified staged shape creation, targeted record patches, progressive reads, image insertion, and failure reporting. Versions remain human-controlled.',
+                '用于仅创建元数据、简化 Shape 分阶段创建、定向记录补丁、渐进查询、图片插入和失败上报的助手中间件工具；版本仅由人工创建。'
               ),
               metadata: {
                 app: 'canvas'
@@ -238,3 +249,8 @@ export * from './lib/canvas.middleware.js'
 export * from './lib/canvas-view.provider.js'
 export * from './lib/canvas.templates.js'
 export * from './lib/canvas-snapshot.validation.js'
+export * from './lib/canvas-yjs.js'
+export * from './lib/canvas-collaboration.provider.js'
+export * from './lib/canvas-artifact.service.js'
+export * from './lib/canvas-artifact-export.service.js'
+export * from './lib/canvas-artifact-export.processor.js'

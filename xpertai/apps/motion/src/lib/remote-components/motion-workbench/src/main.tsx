@@ -34,7 +34,9 @@ import {
   RECIPE_TARGET_OPTIONS,
   type HeaderContext,
   type HtmlControls,
+  type MotionRenderQuality,
   type MotionSurface,
+  type MotionVideoEngine,
   type MotionViewData,
   type PagedResult,
   type ProjectDetail,
@@ -49,6 +51,8 @@ import { ProjectDialog } from './project-dialog'
 import { ExportsDialog, VersionsDialog } from './versions-exports'
 import { HtmlWorkbench } from './html-workbench'
 import { VideoComposer } from './video-composer'
+import { HyperframesComposer } from './hyperframes-composer'
+import { normalizeHyperframesHtml } from './hyperframes-sdk'
 import { LibraryTab } from './library-tab'
 import { applyHtmlSelectionMotion } from './html-workbench-utils'
 import {
@@ -81,6 +85,7 @@ function App() {
   const [newTitle, setNewTitle] = React.useState('Motion Launch')
   const [newBrief, setNewBrief] = React.useState('Polished motion direction for a product moment.')
   const [htmlDraft, setHtmlDraft] = React.useState(defaultHtml('Motion Launch'))
+  const [hyperframesDraft, setHyperframesDraft] = React.useState('')
   const [videoDraft, setVideoDraft] = React.useState(() => JSON.stringify(defaultComposition('Motion Launch'), null, 2))
   const [videoTime, setVideoTime] = React.useState(0.85)
   const [exportProgress, setExportProgress] = React.useState<number | null>(null)
@@ -111,16 +116,21 @@ function App() {
 
   const detail = viewData.detail
   const selectedProject = detail?.item ?? viewData.projects.items.find((item) => item.id === selectedProjectId) ?? null
+  const videoEngine: MotionVideoEngine = selectedProject?.surface === 'video'
+    ? selectedProject.videoEngine ?? detail?.workingCopy?.videoEngine ?? 'legacy_canvas'
+    : 'hyperframes'
 
   const syncDrafts = React.useCallback((nextDetail: ProjectDetail | null) => {
     if (!nextDetail) {
       return
     }
     const html = nextDetail.workingCopy?.html
+    const hyperframesHtml = nextDetail.workingCopy?.hyperframesHtml
     const composition = nextDetail.workingCopy?.videoComposition
     if (typeof html === 'string' && html.trim()) {
       setHtmlDraft(html)
     }
+    setHyperframesDraft(typeof hyperframesHtml === 'string' ? hyperframesHtml : '')
     if (composition && typeof composition === 'object') {
       setVideoDraft(JSON.stringify(composition, null, 2))
     }
@@ -223,6 +233,9 @@ function App() {
   }, [activeTab, selectedRecipeId, viewData.recipes.items])
 
   React.useEffect(() => {
+    if (activeTab !== 'video' || videoEngine !== 'legacy_canvas') {
+      return
+    }
     const canvas = canvasRef.current
     if (!canvas) {
       return
@@ -263,7 +276,7 @@ function App() {
       ctx.font = '600 22px Inter, ui-sans-serif, system-ui, sans-serif'
       ctx.fillText(t('invalidCompositionJson'), 32, 56)
     }
-  }, [activeTab, layerSelection, t, videoDraft, videoTime])
+  }, [activeTab, layerSelection, t, videoDraft, videoEngine, videoTime])
 
   async function createProject(surface: MotionSurface) {
     setSaving(true)
@@ -273,7 +286,6 @@ function App() {
         brief: newBrief,
         surface,
         html: surface === 'web' ? htmlDraft : undefined,
-        videoComposition: surface === 'video' ? parseVideoComposition(videoDraft) : undefined,
         changeSummary: 'Created in Motion Workbench'
       })
       const data = getActionData(response)
@@ -344,6 +356,77 @@ function App() {
       setDirty(false)
       await loadData({ projectId: selectedProject.id, forceDraftSync: true })
       notify('success', t('videoSaved'))
+    } catch (error) {
+      handleError(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function persistHyperframesComposition() {
+    if (!selectedProject?.id) {
+      return null
+    }
+    const normalized = await normalizeHyperframesHtml(hyperframesDraft)
+    const response = await executeAction(
+      'save_hyperframes_composition',
+      selectedProject.id,
+      {
+        projectId: selectedProject.id,
+        html: normalized,
+        selectedRecipeIds: uniqueStrings([...(selectedProject.selectedRecipeIds || []), ...pendingRecipeIds]),
+        changeSummary: 'Saved with HyperFrames SDK from Motion Workbench'
+      },
+      { projectId: selectedProject.id }
+    )
+    setHyperframesDraft(normalized)
+    setDirty(false)
+    return extractProjectChecksum(getActionData(response)) ?? selectedProject.artifactChecksum ?? null
+  }
+
+  async function saveHyperframes() {
+    if (!selectedProject?.id) {
+      await createProject('video')
+      return
+    }
+    setSaving(true)
+    try {
+      await persistHyperframesComposition()
+      await loadData({ projectId: selectedProject.id, forceDraftSync: true })
+      notify('success', t('hyperframesSaved'))
+    } catch (error) {
+      handleError(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function renderProduction(quality: MotionRenderQuality, fps: 24 | 30 | 60) {
+    if (!selectedProject?.id || videoEngine !== 'hyperframes') {
+      return
+    }
+    setSaving(true)
+    try {
+      const expectedChecksum = dirty
+        ? await persistHyperframesComposition()
+        : selectedProject.artifactChecksum ?? detail?.workingCopy?.artifactChecksum ?? null
+      await executeAction(
+        'render_production',
+        selectedProject.id,
+        {
+          projectId: selectedProject.id,
+          kind: 'mp4',
+          quality,
+          fps,
+          fileName: `${slugify(selectedProject.title)}.mp4`,
+          expectedChecksum: expectedChecksum ?? undefined,
+          changeSummary: `Queued ${quality} ${fps}fps HyperFrames production render`
+        },
+        { projectId: selectedProject.id }
+      )
+      await loadData({ projectId: selectedProject.id, forceDraftSync: true })
+      notify('success', t('productionRenderQueued'))
+      setExportsDialogOpen(true)
     } catch (error) {
       handleError(error)
     } finally {
@@ -522,6 +605,12 @@ function App() {
   }
 
   function applyRecipeToVideo(recipe: RecipeSummary) {
+    if (videoEngine === 'hyperframes') {
+      setSelectedRecipeId(recipe.id)
+      setStatus(t('hyperframesRecipeHelp'))
+      notify('warning', t('hyperframesRecipeHelp'))
+      return
+    }
     try {
       const composition = parseVideoComposition(videoDraft)
       const selectedLayerId = typeof layerSelection?.layerId === 'string' ? layerSelection.layerId : ''
@@ -564,6 +653,11 @@ function App() {
 
   function updateVideoDraft(value: string) {
     setVideoDraft(value)
+    setDirty(true)
+  }
+
+  function updateHyperframesDraft(value: string) {
+    setHyperframesDraft(value)
     setDirty(true)
   }
 
@@ -716,7 +810,7 @@ function App() {
         />
       ) : null}
 
-      {activeTab === 'video' ? (
+      {activeTab === 'video' && videoEngine === 'legacy_canvas' ? (
         <VideoComposer
           canvasRef={canvasRef}
           videoDraft={videoDraft}
@@ -736,6 +830,21 @@ function App() {
           onLayerSelectionChange={setLayerSelection}
           onSave={() => void saveVideo()}
           onExportMp4={() => void exportVideoMp4()}
+        />
+      ) : null}
+
+      {activeTab === 'video' && videoEngine === 'hyperframes' ? (
+        <HyperframesComposer
+          htmlDraft={hyperframesDraft}
+          selectedProject={selectedProject}
+          header={headerContext}
+          t={t}
+          saving={saving}
+          renderCapability={viewData.renderCapability}
+          latestExport={detail?.exports?.find((item) => item.backend === 'hyperframes') ?? null}
+          onDraftChange={updateHyperframesDraft}
+          onSave={() => void saveHyperframes()}
+          onRender={(quality, fps) => void renderProduction(quality, fps)}
         />
       ) : null}
     </main>
@@ -771,7 +880,8 @@ function emptyViewData(): MotionViewData {
     recipes: EMPTY_PAGED,
     styles: [],
     detail: null,
-    libraryStats: {}
+    libraryStats: {},
+    renderCapability: { available: false, reason: 'NOT_LOADED', message: 'Production render capability has not loaded.' }
   }
 }
 
@@ -784,7 +894,10 @@ function coerceViewData(value: RemotePayloadValue | null): MotionViewData {
     recipes: coercePaged<RecipeSummary>(value.recipes),
     styles: Array.isArray(value.styles) ? value.styles : [],
     detail: coerceDetail(value.detail),
-    libraryStats: isObject(value.libraryStats) ? value.libraryStats : {}
+    libraryStats: isObject(value.libraryStats) ? value.libraryStats : {},
+    renderCapability: isObject(value.renderCapability) && typeof value.renderCapability.available === 'boolean'
+      ? value.renderCapability as MotionViewData['renderCapability']
+      : { available: false, reason: 'UNAVAILABLE', message: 'Production render capability is unavailable.' }
   }
 }
 
@@ -821,6 +934,16 @@ function extractProjectId(value: RemotePayloadValue | null) {
   }
   if (isObject(value) && isObject(value.project) && typeof value.project.id === 'string') {
     return value.project.id
+  }
+  return null
+}
+
+function extractProjectChecksum(value: RemotePayloadValue | null) {
+  if (isObject(value) && isObject(value.project) && typeof value.project.artifactChecksum === 'string') {
+    return value.project.artifactChecksum
+  }
+  if (isObject(value) && isObject(value.item) && typeof value.item.artifactChecksum === 'string') {
+    return value.item.artifactChecksum
   }
   return null
 }

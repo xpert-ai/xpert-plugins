@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { CanvasActionType, CanvasActorType, CanvasJsonValue } from '../types.js'
+import { canvasTable } from '../canvas-artifact-namespace.js'
 
-@Entity('plugin_canvas_action_log')
+@Entity(canvasTable('action_log'))
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 @Index(['tenantId', 'organizationId', 'projectId', 'createdAt'])
 export class CanvasActionLog {

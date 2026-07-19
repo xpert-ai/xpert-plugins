@@ -3,6 +3,7 @@ import type {
   MotionJsonObject,
   MotionSurface,
   MotionVersionSource,
+  MotionVideoEngine,
   MotionVideoComposition,
   MotionWorkspaceCatalog
 } from '../types.js'
@@ -46,6 +47,12 @@ export class MotionProjectVersion {
 
   @Column({ type: 'jsonb', nullable: true })
   videoComposition?: MotionVideoComposition | null
+
+  @Column({ type: 'varchar', nullable: true })
+  videoEngine?: MotionVideoEngine | null
+
+  @Column({ type: 'text', nullable: true })
+  hyperframesHtml?: string | null
 
   @Column({ type: 'jsonb', nullable: true })
   selectedRecipeIds?: string[]

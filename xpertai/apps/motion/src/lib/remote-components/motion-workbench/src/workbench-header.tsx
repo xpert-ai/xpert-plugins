@@ -14,6 +14,7 @@ type EditorToolbarProps = {
   canUndo: boolean
   saving: boolean
   exportKinds: string[]
+  exportLabel?: string
   onViewModeChange: (mode: 'preview' | 'code') => void
   onDeviceChange: (device: 'desktop' | 'tablet' | 'mobile') => void
   onZoomChange: (zoom: number) => void
@@ -88,7 +89,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
       </Button>
       <div className="download-menu">
         <Button disabled={props.saving} onClick={() => props.onExport(props.exportKinds[0] || 'html')}>
-          {props.t('download')}
+          {props.exportLabel ?? props.t('download')}
         </Button>
         {props.exportKinds.length > 1 ? (
           <div className="download-popover">

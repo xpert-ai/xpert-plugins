@@ -3,6 +3,7 @@ import type {
   MotionJsonObject,
   MotionProjectStatus,
   MotionSurface,
+  MotionVideoEngine,
   MotionVideoComposition,
   MotionWorkspaceCatalog
 } from '../types.js'
@@ -64,6 +65,13 @@ export class MotionProject {
 
   @Column({ type: 'jsonb', nullable: true })
   videoComposition?: MotionVideoComposition | null
+
+  /** Null means a pre-HyperFrames row and is migrated as legacy_canvas at the service boundary. */
+  @Column({ type: 'varchar', nullable: true })
+  videoEngine?: MotionVideoEngine | null
+
+  @Column({ type: 'text', nullable: true })
+  hyperframesHtml?: string | null
 
   @Column({ type: 'jsonb', nullable: true })
   componentSelection?: MotionJsonObject | null

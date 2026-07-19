@@ -5,8 +5,23 @@ import { LANGUAGES, Tldraw, createShapeId } from 'tldraw'
 import type { Editor, TLFrameShape, TLShape } from 'tldraw'
 import { toRichText } from '@tldraw/tlschema'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Archive,
   Badge,
   Button,
+  Copy,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   FileJson,
   Image,
   Input,
@@ -17,7 +32,14 @@ import {
   Plus,
   Save,
   ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Send,
   Separator,
+  Switch,
   Tabs,
   TabsContent,
   TabsList,
@@ -30,6 +52,16 @@ import {
   Upload,
 } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
+import { io, type Socket } from 'socket.io-client'
+import * as Y from 'yjs'
+import {
+  createCollaborationClient,
+  createCollaborationPresenceStore,
+  createSocketIoTransportAdapter,
+  createYjsDocumentAdapter,
+  type CollaborationClient,
+  type CollaborationPresenceStore
+} from '@xpert-ai/plugin-sdk/collaboration-client'
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTitle, SidebarTrigger } from './workbench-sidebar'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
@@ -63,6 +95,7 @@ import {
   type RemoteSnapshotApplyResult,
   shouldRetryRemoteToolRefresh
 } from './remote-refresh'
+import { unwrapCanvasArtifactExport, waitForCanvasArtifactExport } from './artifact-export'
 import {
   createCanvasAssistantContextCommand,
   createCanvasSelectionContext,
@@ -70,6 +103,14 @@ import {
 } from './selection-context'
 import type { CanvasSelectionContext } from './selection-context'
 import { normalizeCanvasToolEvent } from './tool-event-refresh'
+import {
+  LOCAL_TLDRAW_ORIGIN,
+  applyTldrawChangesToYDoc,
+  hasCanvasYjsContent,
+  readCanvasSnapshotFromYDoc,
+  type CanvasCollaborationDescriptor,
+  type CanvasPresenceState
+} from './collaboration'
 
 type DocumentItem = RemotePayloadObject & {
   id: string
@@ -123,10 +164,27 @@ type DetailPayload = {
   snapshotImageUpdatedAt?: string | null
   workingCopyRevision?: number | null
   snapshotChecksum?: string | null
+  artifactShare?: ArtifactShare | null
 }
 
 type CanvasWorkbenchSettings = {
   tldrawLicenseKey?: string
+  artifactSharingAvailable: boolean
+  artifactSharingWarning?: string
+}
+
+type ArtifactAccessSelection = 'public_link' | 'organization_all' | 'workspace_all'
+type ArtifactVersionSelection = 'version' | 'latest'
+type ArtifactShare = RemotePayloadObject & {
+  artifactId: string
+  artifactVersionId?: string | null
+  artifactLinkId: string
+  shareUrl: string
+  publicUrl: string
+  accessMode: ArtifactAccessSelection
+  versionMode: ArtifactVersionSelection
+  revision?: number | null
+  snapshotChecksum?: string | null
 }
 
 type CanvasSnapshotFromEditor = ReturnType<Editor['store']['getStoreSnapshot']>
@@ -200,16 +258,24 @@ function App() {
   const [busy, setBusy] = React.useState(false)
   const [autosaving, setAutosaving] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
-  const [leftCollapsed, setLeftCollapsed] = React.useState(true)
-  const [rightCollapsed, setRightCollapsed] = React.useState(true)
+  const [collabState, setCollabState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
+  const [collaborators, setCollaborators] = React.useState<CanvasPresenceState[]>([])
+  const [leftCollapsed, setLeftCollapsed] = React.useState(() => window.innerWidth < 1180)
+  const [rightCollapsed, setRightCollapsed] = React.useState(() => window.innerWidth < 1180)
   const [editor, setEditor] = React.useState<Editor | null>(null)
   const [sceneKey, setSceneKey] = React.useState('empty')
   const [mountedSnapshot, setMountedSnapshot] = React.useState<CanvasSnapshotFromEditor | null>(null)
-  const [settings, setSettings] = React.useState<CanvasWorkbenchSettings>({})
+  const [settings, setSettings] = React.useState<CanvasWorkbenchSettings>({ artifactSharingAvailable: false })
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false)
+  const [shareAccessMode, setShareAccessMode] = React.useState<ArtifactAccessSelection>('public_link')
+  const [shareVersionMode, setShareVersionMode] = React.useState<ArtifactVersionSelection>('version')
+  const [publicShareConfirmationOpen, setPublicShareConfirmationOpen] = React.useState(false)
+  const [revokeShareConfirmationOpen, setRevokeShareConfirmationOpen] = React.useState(false)
   const hostColorScheme = resolveHostColorScheme(context?.theme)
   const tldrawLocale = resolveTldrawLocale(context?.locale)
   const tldrawLicenseKey = normalizeOptionalString(settings.tldrawLicenseKey)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const shareLinkInputRef = React.useRef<HTMLInputElement | null>(null)
   const detailRef = React.useRef<DetailPayload | null>(null)
   const dirtyRef = React.useRef(false)
   const autosaveTimerRef = React.useRef<number | null>(null)
@@ -224,7 +290,121 @@ function App() {
   const selectedIdRef = React.useRef('')
   const loadDataRef = React.useRef<LoadDataFunction | null>(null)
   const selectionSignatureRef = React.useRef('')
+  const socketRef = React.useRef<Socket | null>(null)
+  const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
+  const presenceStoreRef = React.useRef<CollaborationPresenceStore | null>(null)
+  const collaborationDocRef = React.useRef<Y.Doc | null>(null)
+  const collaborationDocumentIdRef = React.useRef('')
+  const collaborationHydratedRef = React.useRef(false)
+  const pendingTldrawChangesRef = React.useRef(new Map<string, CanvasStoreEvent['changes'][]>())
   const t = createTranslator(context?.locale)
+
+  const stopCollaboration = React.useCallback(() => {
+    collaborationClientRef.current?.disconnect()
+    collaborationClientRef.current = null
+    presenceStoreRef.current?.clear()
+    presenceStoreRef.current = null
+    socketRef.current = null
+    collaborationDocRef.current?.destroy()
+    collaborationDocRef.current = null
+    collaborationDocumentIdRef.current = ''
+    collaborationHydratedRef.current = false
+    setCollaborators([])
+    setCollabState('disconnected')
+  }, [])
+
+  const applyCollaborationSnapshot = React.useCallback((doc: Y.Doc) => {
+    if (!hasCanvasYjsContent(doc)) return
+    const snapshot = readCanvasSnapshotFromYDoc(doc)
+    const editorSnapshot = snapshot as unknown as CanvasSnapshotFromEditor
+    const applied = applyRemoteSnapshotToEditor(editorRef.current, editorSnapshot)
+    if (!editorRef.current) setMountedSnapshot(editorSnapshot)
+    if (applied.applied) {
+      autosaveSuppressedUntilRef.current = Date.now() + 1000
+    }
+  }, [])
+
+  const startCollaboration = React.useCallback((collab: CanvasCollaborationDescriptor) => {
+    stopCollaboration()
+    const doc = new Y.Doc()
+    collaborationDocRef.current = doc
+    collaborationDocumentIdRef.current = collab.canvasDocumentId
+    const socket = io(collab.connectionUrl, {
+      autoConnect: false,
+      transports: ['websocket'],
+      auth: { sessionId: collab.sessionId, clientKey: collab.clientKey, documentId: collab.documentId }
+    })
+    socketRef.current = socket
+    setCollabState('connecting')
+
+    const presenceStore = createCollaborationPresenceStore({
+      selfActor: collab.actor,
+      includeSelf: true,
+      onChange: (view) => setCollaborators(view.collaborators)
+    })
+    presenceStoreRef.current = presenceStore
+
+    let client: CollaborationClient | null = null
+    const onUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin === LOCAL_TLDRAW_ORIGIN) return
+      if (client && origin !== client.remoteOrigin) return
+      applyCollaborationSnapshot(doc)
+      if (!collaborationHydratedRef.current) {
+        collaborationHydratedRef.current = true
+        const pending = pendingTldrawChangesRef.current.get(collab.canvasDocumentId) ?? []
+        pendingTldrawChangesRef.current.delete(collab.canvasDocumentId)
+        if (pending.length) {
+          globalThis.queueMicrotask(() => {
+            if (collaborationDocRef.current !== doc) return
+            for (const changes of pending) applyTldrawChangesToYDoc(doc, changes)
+            applyCollaborationSnapshot(doc)
+          })
+        }
+      }
+      setCollabState('connected')
+    }
+    doc.on('update', onUpdate)
+    socket.on('connect_error', (caught: Error) => {
+      setCollabState('disconnected')
+      notify('error', `Canvas collaboration connection failed: ${caught.message}`)
+    })
+
+    client = createCollaborationClient({
+      session: collab,
+      transport: createSocketIoTransportAdapter(socket),
+      document: createYjsDocumentAdapter(doc, {
+        applyUpdate: (document, update, origin) => Y.applyUpdate(document, update, origin),
+        encodeStateVector: (document) => Y.encodeStateVector(document),
+        mergeUpdates: (updates) => Y.mergeUpdates(updates)
+      }),
+      initialPresence: { mode: 'edit' },
+      batchMs: 40,
+      syncIntervalMs: 2_000,
+      presenceHeartbeatMs: 5_000,
+      onAck: (ack) => {
+        baseWorkingCopyRevisionRef.current = ack.sequenceNumber
+        setDetail((currentDetail) => currentDetail?.item
+          ? { ...currentDetail, item: { ...currentDetail.item, workingCopyRevision: ack.sequenceNumber }, workingCopyRevision: ack.sequenceNumber }
+          : currentDetail)
+      },
+      onPresence: (presence) => presenceStore.upsert(presence),
+      onPresenceSnapshot: (items, metadata) => presenceStore.replace(items, metadata.selfClientId),
+      onPresenceRemove: (clientId) => presenceStore.remove(clientId),
+      onConnectionChange: (state) => {
+        setCollabState(state === 'connected' && !collaborationHydratedRef.current ? 'connecting' : state)
+      },
+      onError: (caught) => notify('error', caught.message)
+    })
+    collaborationClientRef.current = client
+    client.connect()
+  }, [applyCollaborationSnapshot, stopCollaboration])
+
+  const openCollaboration = React.useCallback(async (documentId: string) => {
+    const response = await executeAction('open_document', documentId, { documentId })
+    const actionPayload = asPayloadObject(getResponsePayload(response))
+    const opened = asPayloadObject(actionPayload.data ?? actionPayload)
+    startCollaboration(toCollaborationDescriptor(opened.collab, documentId))
+  }, [startCollaboration])
 
   loadDataRef.current = loadData
 
@@ -311,6 +491,8 @@ function App() {
     }
   }, [])
 
+  React.useEffect(() => () => stopCollaboration(), [stopCollaboration])
+
   React.useEffect(() => {
     if (!context) {
       return
@@ -330,7 +512,20 @@ function App() {
     const timer = window.setInterval(syncSelection, 600)
     const unsubscribeDocument = safeCall(() =>
       editor.store.listen(
-        () => {
+        (entry: CanvasStoreEvent) => {
+          const collaborationDoc = collaborationDocRef.current
+          const documentId = detailRef.current?.item?.id ?? ''
+          if (
+            collaborationDoc &&
+            collaborationHydratedRef.current &&
+            collaborationDocumentIdRef.current === documentId
+          ) {
+            applyTldrawChangesToYDoc(collaborationDoc, entry.changes)
+          } else if (documentId) {
+            const pending = pendingTldrawChangesRef.current.get(documentId) ?? []
+            pending.push(entry.changes)
+            pendingTldrawChangesRef.current.set(documentId, pending)
+          }
           if (Date.now() < autosaveSuppressedUntilRef.current) {
             canvasWorkbenchDebug.info('autosave.suppressed_after_remote_replace', {
               scope: 'document',
@@ -391,6 +586,13 @@ function App() {
     baselineChecksum: string
   ) {
     const hadLocalDirty = dirtyRef.current
+    if (collaborationClientRef.current && collaborationDocumentIdRef.current === targetDocumentId) {
+      return loadDataRef.current?.(targetDocumentId, {
+        silent: true,
+        preserveCanvas: true,
+        applyRemoteSnapshot: false
+      }) ?? null
+    }
     autosaveGenerationRef.current += 1
     cancelScheduledAutosave('tool_event')
     if (hadLocalDirty) {
@@ -488,6 +690,7 @@ function App() {
       snapshotImagePath,
       snapshotImageUpdatedAt
     })
+    publishCollaborationPresence(currentEditor, canvasContext)
     const signature = createCanvasSelectionSignature(canvasContext)
     if (!options.force && signature === selectionSignatureRef.current) {
       return canvasContext
@@ -545,6 +748,7 @@ function App() {
       const docs = toDocumentItems(asPayloadObject(payload.documents).items ?? asPayloadObject(payload.table).items)
       setDocuments(docs)
       const nextDetail = toDetailPayload(payload.detail)
+      const previousDocumentId = collaborationDocumentIdRef.current
       detailRef.current = nextDetail
       setDetail(nextDetail)
       const nextSelectedId = nextDetail?.item?.id ?? requestedDocumentId ?? docs[0]?.id ?? ''
@@ -573,8 +777,13 @@ function App() {
         setMountedSnapshot(loadedSnapshot)
         setSceneKey(createSceneKey(nextSelectedId, loadedSignature, nextDetail))
       }
-      dirtyRef.current = false
-      setDirty(false)
+      if (nextSelectedId && (previousDocumentId !== nextSelectedId || !collaborationClientRef.current)) {
+        await openCollaboration(nextSelectedId)
+      }
+      if (!options.preserveCanvas) {
+        dirtyRef.current = false
+        setDirty(false)
+      }
       canvasWorkbenchDebug.info('loadData.success', {
         requestedDocumentId,
         nextSelectedId,
@@ -592,7 +801,7 @@ function App() {
         remoteApplyResult: summarizeRemoteSnapshotApplyResult(remoteApplyResult),
         durationMs: Date.now() - startedAt
       })
-      void syncAssistantContext({ detailOverride: nextDetail, dirtyOverride: false, force: true })
+      void syncAssistantContext({ detailOverride: nextDetail, dirtyOverride: dirtyRef.current, force: true })
       setTimeout(reportResize, 0)
       return {
         requestedDocumentId,
@@ -620,6 +829,25 @@ function App() {
         setBusy(false)
       }
     }
+  }
+
+  function publishCollaborationPresence(currentEditor: Editor, canvasContext: CanvasSelectionContext) {
+    const client = collaborationClientRef.current
+    if (!client) return
+    const viewport = safeCall(() => currentEditor.getViewportScreenBounds())
+    const zoom = safeCall(() => currentEditor.getZoomLevel()) ?? 1
+    const selectedRecordIds = canvasContext.currentCanvas.selection.selectedShapeIds
+    client.setPresence({
+      pageId: canvasContext.currentCanvas.selection.pageId ?? null,
+      focus: selectedRecordIds[0]
+        ? { kind: 'element', key: selectedRecordIds[0], elementId: selectedRecordIds[0], pageId: canvasContext.currentCanvas.selection.pageId ?? null }
+        : null,
+      selection: selectedRecordIds.length ? { kind: 'elements', elementIds: selectedRecordIds } : null,
+      viewport: viewport
+        ? { zoom, width: viewport.w, height: viewport.h }
+        : null,
+      mode: 'edit'
+    })
   }
 
   async function createCanvas() {
@@ -765,7 +993,6 @@ function App() {
       try {
         response = await executeAction('autosave_snapshot', savePayload.document.id, asRemotePayloadObject({
           documentId: savePayload.document.id,
-          snapshot: asRemotePayloadObject(savePayload.snapshot),
           viewState: asRemotePayloadObject(savePayload.viewState),
           selectionSummary: asRemotePayloadObject(savePayload.selectionSummary),
           snapshotImage: asRemotePayloadObject(savePayload.snapshotImage),
@@ -822,7 +1049,7 @@ function App() {
       setDirty(false)
       void syncAssistantContext({ detailOverride: mergedDetail, dirtyOverride: false, force: true })
       if (options.notifyUser) {
-        notify('success', t('saved'))
+        notify('success', t('versionCreated'))
       }
       canvasWorkbenchDebug.info('autosave.success', {
         documentId: savePayload.document.id,
@@ -898,6 +1125,122 @@ function App() {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
     } finally {
       setBusy(false)
+    }
+  }
+
+  function openShareDialog() {
+    const activeShare = normalizeArtifactShare(detailRef.current?.artifactShare)
+    if (activeShare) {
+      setShareAccessMode(activeShare.accessMode)
+      setShareVersionMode(activeShare.versionMode)
+    }
+    setShareDialogOpen(true)
+  }
+
+  async function publishArtifact(userConfirmedPublicLink = false) {
+    const currentDocument = detailRef.current?.item
+    const currentEditor = editorRef.current
+    if (!currentDocument || !currentEditor) return null
+    if (shareAccessMode === 'public_link' && !userConfirmedPublicLink) {
+      setPublicShareConfirmationOpen(true)
+      return null
+    }
+    setBusy(true)
+    try {
+      const collaborationClient = collaborationClientRef.current
+      const collaborationSocket = socketRef.current
+      if (!collaborationClient || !collaborationSocket?.connected) throw new Error(t('shareSyncRequired'))
+      const synchronized = await synchronizeCanvasCollaboration(collaborationClient, collaborationSocket)
+      if (!synchronized) throw new Error(t('shareSyncTimeout'))
+      const autosaved = await performAutosave({ force: true })
+      if (!autosaved) throw new Error(t('shareSyncRequired'))
+      const revision = baseWorkingCopyRevisionRef.current ?? getDetailWorkingCopyRevision(detailRef.current)
+      if (revision === null) throw new Error(t('shareSyncRequired'))
+      const page = currentEditor.getCurrentPage()
+      const publishInput = asRemotePayloadObject({
+        documentId: currentDocument.id,
+        accessMode: shareAccessMode,
+        targetMode: shareVersionMode,
+        userConfirmedPublicLink: shareAccessMode === 'public_link',
+        baseRevision: revision,
+        baseSnapshotChecksum: baseSnapshotChecksumRef.current,
+        pageId: page.id
+      })
+      const response = await executeAction(
+        'publish_artifact',
+        currentDocument.id,
+        publishInput,
+        { documentId: currentDocument.id }
+      )
+      let exportResult = unwrapCanvasArtifactExport(getResponsePayload(response))
+      if (exportResult.status !== 'succeeded') {
+        const exportId = normalizeOptionalString(exportResult.exportId)
+        if (!exportId) throw new Error(t('shareExportMissing'))
+        notify('info', t('sharePreparing'))
+        exportResult = await waitForCanvasArtifactExport(currentDocument.id, exportId)
+      }
+      const share = normalizeArtifactShare(exportResult.share ?? exportResult)
+      if (!share) throw new Error(t('shareLinkMissing'))
+      if (detailRef.current) {
+        const nextDetail = { ...detailRef.current, artifactShare: share }
+        detailRef.current = nextDetail
+        setDetail(nextDetail)
+      }
+      notify('success', t('artifactShared'))
+      return share
+    } catch (error) {
+      notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
+      return null
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function copyArtifactShareLink() {
+    const share = normalizeArtifactShare(detailRef.current?.artifactShare)
+    if (!share) return
+    try {
+      await copyText(share.shareUrl)
+      notify('success', t('shareLinkCopied'))
+    } catch {
+      shareLinkInputRef.current?.focus()
+      shareLinkInputRef.current?.select()
+      notify('warning', t('shareManualCopy'))
+    }
+  }
+
+  async function createOrCopyArtifactShare() {
+    const activeShare = normalizeArtifactShare(detailRef.current?.artifactShare)
+    const revision = getDetailWorkingCopyRevision(detailRef.current)
+    if (
+      activeShare &&
+      activeShare.accessMode === shareAccessMode &&
+      activeShare.versionMode === shareVersionMode &&
+      activeShare.revision === revision
+    ) {
+      await copyArtifactShareLink()
+      return
+    }
+    await publishArtifact()
+  }
+
+  async function revokeArtifactShare() {
+    const currentDocument = detailRef.current?.item
+    if (!currentDocument) return
+    setBusy(true)
+    try {
+      await executeAction('revoke_artifact_share', currentDocument.id, { documentId: currentDocument.id })
+      if (detailRef.current) {
+        const nextDetail = { ...detailRef.current, artifactShare: null }
+        detailRef.current = nextDetail
+        setDetail(nextDetail)
+      }
+      notify('success', t('shareRevoked'))
+    } catch (error) {
+      notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
+    } finally {
+      setBusy(false)
+      setRevokeShareConfirmationOpen(false)
     }
   }
 
@@ -1062,11 +1405,29 @@ function App() {
   const current = detail?.item
   const snapshot = mountedSnapshot
   const canvasKey = `${current?.id ?? 'empty'}:${sceneKey}`
-  const statusTone: 'warning' | 'success' = autosaving || dirty ? 'warning' : 'success'
-  const statusText = autosaving ? t('saving') : dirty ? t('dirty') : t('synced')
+  const statusTone: 'warning' | 'success' = collabState !== 'connected' || autosaving || dirty ? 'warning' : 'success'
+  const statusText = collabState === 'connecting'
+    ? t('connecting')
+    : collabState === 'disconnected'
+      ? t('disconnected')
+      : autosaving
+        ? t('saving')
+        : dirty
+          ? t('dirty')
+          : t('synced')
+  const visibleCollaborators = collaborators.slice(0, 4)
+  const hiddenCollaborators = collaborators.slice(4)
+  const versions = detail?.versions ?? []
+  const activeArtifactShare = normalizeArtifactShare(detail?.artifactShare)
+  const shareSelectionMatches = Boolean(
+    activeArtifactShare &&
+    activeArtifactShare.accessMode === shareAccessMode &&
+    activeArtifactShare.versionMode === shareVersionMode &&
+    activeArtifactShare.revision === getDetailWorkingCopyRevision(detail)
+  )
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={250}>
       <div
         className={`cw-root cw-theme-${hostColorScheme} ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}
         data-theme={hostColorScheme}
@@ -1098,7 +1459,10 @@ function App() {
                 <SidebarTrigger aria-label={t('documents')} onClick={() => setLeftCollapsed(true)}>
                   <PanelLeftClose className="cw-icon" />
                 </SidebarTrigger>
-                <SidebarTitle>{t('documents')}</SidebarTitle>
+                <div className="cw-panel-heading">
+                  <SidebarTitle>{t('studio')}</SidebarTitle>
+                  <span className="cw-panel-subtitle">{documents.length} {t('canvasItems')}</span>
+                </div>
                 <Button size="sm" disabled={busy} onClick={createCanvas}>
                   <Plus className="cw-button-icon" />
                   {t('newCanvas')}
@@ -1117,22 +1481,32 @@ function App() {
                     }}
                   />
                 </div>
+                <div className="cw-panel-section-label">
+                  <span>{t('documents')}</span>
+                  <Badge variant="secondary">{documents.length}</Badge>
+                </div>
                 <ScrollArea className="cw-list-scroll">
                   <SidebarMenu className="cw-document-list">
-                    {documents.map((document) => (
+                    {documents.length ? documents.map((document) => (
                       <SidebarMenuItem key={document.id}>
                         <SidebarMenuButton
                           className="cw-document-button"
                           isActive={document.id === current?.id}
+                          aria-current={document.id === current?.id ? 'page' : undefined}
                           onClick={() => loadData(document.id)}
                         >
-                          <span className="cw-item-title">{document.title}</span>
+                          <span className="cw-document-heading">
+                            <span className="cw-item-title">{document.title}</span>
+                            {document.id === current?.id ? (
+                              <Badge className="cw-document-current" variant="secondary">{t('current')}</Badge>
+                            ) : null}
+                          </span>
                           <span className="cw-item-meta">
                             {document.kind} / {document.status} / v{document.currentVersionNumber ?? 0}
                           </span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    ))}
+                    )) : <div className="cw-panel-empty">{t('noCanvases')}</div>}
                   </SidebarMenu>
                 </ScrollArea>
               </SidebarContent>
@@ -1149,9 +1523,45 @@ function App() {
               </div>
             </div>
             <div className="cw-toolbar-actions">
-              <Badge className="cw-status" variant="outline" data-status={statusTone}>
-                {statusText}
-              </Badge>
+              <div className="cw-toolbar-presence">
+                <div className="cw-collaborators" aria-label={t('collaborators')}>
+                  {visibleCollaborators.map((collaborator) => (
+                    <Tooltip key={collaborator.presenceId}>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="cw-collaborator"
+                          tabIndex={0}
+                          aria-label={collaborator.displayName}
+                          style={{ '--cw-collaborator-color': collaborator.color } as React.CSSProperties}
+                          data-actor={collaborator.actorType}
+                          data-status={collaborator.status ?? ''}
+                        >
+                          {collaborator.avatarUrl ? (
+                            <img src={collaborator.avatarUrl} alt="" />
+                          ) : collaborator.displayName.slice(0, 1).toUpperCase()}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="cw-collaborator-tooltip">
+                          <strong>{collaborator.displayName}</strong>
+                          {collaborator.operationLabel ? <span>{collaborator.operationLabel}</span> : null}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                  {hiddenCollaborators.length ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cw-collaborator cw-collaborator-overflow" tabIndex={0}>+{hiddenCollaborators.length}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{hiddenCollaborators.map((collaborator) => collaborator.displayName).join(' · ')}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </div>
+                <Badge className="cw-status" variant="outline" data-status={statusTone}>
+                  {statusText}
+                </Badge>
+              </div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button size="sm" disabled={!current || busy || autosaving} onClick={() => saveCanvas(false)}>
@@ -1159,12 +1569,24 @@ function App() {
                     {t('save')}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t('save')}</TooltipContent>
+                  <TooltipContent>{t('save')}</TooltipContent>
               </Tooltip>
-              <Button size="sm" variant="outline" disabled={!current || busy || autosaving} onClick={() => saveCanvas(true)}>
-                <FileJson className="cw-button-icon" />
-                {t('newVersion')}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!current || busy || !settings.artifactSharingAvailable}
+                    onClick={openShareDialog}
+                  >
+                    <Send className="cw-button-icon" />
+                    {t('share')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {settings.artifactSharingAvailable ? t('shareCanvasTip') : settings.artifactSharingWarning || t('shareUnavailable')}
+                </TooltipContent>
+              </Tooltip>
               <Separator orientation="vertical" className="cw-separator" />
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1261,7 +1683,10 @@ function App() {
                 <SidebarTrigger aria-label={t('details')} onClick={() => setRightCollapsed(true)}>
                   <PanelRightClose className="cw-icon" />
                 </SidebarTrigger>
-                <SidebarTitle>{current?.title ?? t('details')}</SidebarTitle>
+                <div className="cw-panel-heading">
+                  <SidebarTitle>{t('inspector')}</SidebarTitle>
+                  <span className="cw-panel-subtitle">{current?.title ?? t('selectCanvas')}</span>
+                </div>
               </SidebarHeader>
               <SidebarContent className="cw-inspector-content">
                 {current ? (
@@ -1271,10 +1696,20 @@ function App() {
                       <TabsTrigger value="logs">{t('logs')}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="versions" className="cw-tab-content">
+                      <div className="cw-version-panel-header">
+                        <div className="cw-version-panel-copy">
+                          <strong>{t('versions')}</strong>
+                          <span>{versions.length} {t('versionItems')} · {t('manualVersionHint')}</span>
+                        </div>
+                        <Button size="sm" disabled={busy || autosaving} onClick={() => void saveCanvas(true)}>
+                          <FileJson className="cw-button-icon" />
+                          {t('newVersion')}
+                        </Button>
+                      </div>
                       <ScrollArea className="cw-inspector-scroll">
                         <div className="cw-inspector-list">
-                          {(detail?.versions ?? []).map((version) => (
-                            <div key={version.id} className="cw-version">
+                          {versions.length ? versions.map((version) => (
+                            <div key={version.id} className="cw-version" data-current={version.id === current.currentVersionId}>
                               <div>
                                 <strong>v{version.versionNumber}</strong>
                                 <div className="cw-item-meta">{version.changeSummary || version.sourceType}</div>
@@ -1308,19 +1743,19 @@ function App() {
                                 </Button>
                               </div>
                             </div>
-                          ))}
+                          )) : <div className="cw-panel-empty">{t('noVersions')}</div>}
                         </div>
                       </ScrollArea>
                     </TabsContent>
                     <TabsContent value="logs" className="cw-tab-content">
                       <ScrollArea className="cw-inspector-scroll">
                         <div className="cw-inspector-list">
-                          {(detail?.logs ?? []).map((log) => (
+                          {(detail?.logs ?? []).length ? (detail?.logs ?? []).map((log) => (
                             <div key={log.id ?? `${log.action}-${log.createdAt}`} className="cw-log">
                               <strong>{log.action}</strong>
                               <div>{log.message || log.errorMessage || ''}</div>
                             </div>
-                          ))}
+                          )) : <div className="cw-panel-empty">{t('noLogs')}</div>}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -1330,6 +1765,135 @@ function App() {
             </>
           )}
         </Sidebar>
+
+        <Dialog open={shareDialogOpen} onOpenChange={(open: boolean) => {
+          if (!busy) setShareDialogOpen(open)
+        }}>
+          <DialogContent className="cw-share-dialog">
+            <DialogHeader>
+              <DialogTitle>{t('shareCanvas')}</DialogTitle>
+              <DialogDescription>{t('shareDescription')}</DialogDescription>
+            </DialogHeader>
+
+            <div className="cw-share-setting-row">
+              <div className="cw-share-setting-copy">
+                <strong>{t('alwaysShareLatest')}</strong>
+                <span>{t('alwaysShareLatestDescription')}</span>
+              </div>
+              <Switch
+                checked={shareVersionMode === 'latest'}
+                aria-label={t('alwaysShareLatest')}
+                onCheckedChange={(checked: boolean) => setShareVersionMode(checked ? 'latest' : 'version')}
+              />
+            </div>
+
+            <div className="cw-share-version-row">
+              <span>{shareVersionMode === 'latest' ? t('sharingLatestPublish') : t('sharingFixedPublish')}</span>
+              <Badge variant="secondary">r{getDetailWorkingCopyRevision(detail) ?? 0}</Badge>
+            </div>
+
+            <div className="cw-share-access-row">
+              <Select
+                value={shareAccessMode}
+                onValueChange={(value: string) => {
+                  if (isArtifactAccessSelection(value)) setShareAccessMode(value)
+                }}
+              >
+                <SelectTrigger className="cw-share-access-select" aria-label={t('shareAccess')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public_link">{t('sharePublicLink')}</SelectItem>
+                  <SelectItem value="organization_all">{t('shareOrganization')}</SelectItem>
+                  <SelectItem value="workspace_all">{t('shareWorkspace')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                disabled={!current || busy}
+                onClick={() => void createOrCopyArtifactShare()}
+              >
+                {shareSelectionMatches ? <Copy className="cw-button-icon" /> : <Send className="cw-button-icon" />}
+                {shareSelectionMatches ? t('copyShareLink') : activeArtifactShare ? t('updateShareLink') : t('createShareLink')}
+              </Button>
+            </div>
+
+            <div className="cw-share-link-status">
+              <span>{activeArtifactShare ? t('shareLinkReady') : t('shareLinkNotCreated')}</span>
+              {activeArtifactShare ? (
+                <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => setRevokeShareConfirmationOpen(true)}>
+                  <Archive className="cw-button-icon" />
+                  {t('revokeShare')}
+                </Button>
+              ) : null}
+            </div>
+
+            {activeArtifactShare ? (
+              <div className="cw-share-link-field">
+                <Input
+                  ref={shareLinkInputRef}
+                  readOnly
+                  value={activeArtifactShare.shareUrl}
+                  aria-label={t('shareLinkReady')}
+                  onFocus={(event: React.FocusEvent<HTMLInputElement>) => event.currentTarget.select()}
+                />
+                <Button type="button" variant="outline" size="icon" aria-label={t('copyShareLink')} onClick={() => void copyArtifactShareLink()}>
+                  <Copy className="cw-icon" />
+                </Button>
+              </div>
+            ) : null}
+
+            <p className="cw-share-note">{t('shareVersionNote')}</p>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={publicShareConfirmationOpen} onOpenChange={(open: boolean) => {
+          if (!busy) setPublicShareConfirmationOpen(open)
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('confirmPublicShareTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('confirmPublicShare')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={busy}>{t('cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={busy}
+                onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                  event.preventDefault()
+                  setPublicShareConfirmationOpen(false)
+                  void publishArtifact(true)
+                }}
+              >
+                {t('confirmAction')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={revokeShareConfirmationOpen} onOpenChange={(open: boolean) => {
+          if (!busy) setRevokeShareConfirmationOpen(open)
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('confirmRevokeShareTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('confirmRevokeShare')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={busy}>{t('cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={busy}
+                onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                  event.preventDefault()
+                  void revokeArtifactShare()
+                }}
+              >
+                {t('revokeShare')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   )
@@ -1338,6 +1902,68 @@ function App() {
 function getDetailSnapshot(detail: DetailPayload | null | undefined): CanvasSnapshotFromEditor | null {
   const snapshot = detail?.workingCopy?.snapshot ?? detail?.currentVersion?.snapshot ?? null
   return isRemoteObject(snapshot) ? (snapshot as object as CanvasSnapshotFromEditor) : null
+}
+
+function synchronizeCanvasCollaboration(client: CollaborationClient, socket: Socket) {
+  if (!socket.connected) return Promise.resolve(false)
+  client.flush()
+  return new Promise<boolean>((resolve) => {
+    const complete = () => {
+      window.clearTimeout(timer)
+      resolve(true)
+    }
+    const timer = window.setTimeout(() => {
+      socket.off('sync', complete)
+      resolve(false)
+    }, 3_000)
+    socket.once('sync', complete)
+    client.requestSync()
+  })
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value)
+    return
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    if (!document.execCommand('copy')) throw new Error('Copy command was rejected.')
+  } finally {
+    textarea.remove()
+  }
+}
+
+function normalizeArtifactShare(value: RemotePayloadValue | ArtifactShare | null | undefined): ArtifactShare | null {
+  const object = asPayloadObject(value as RemotePayloadValue | undefined)
+  const artifactId = normalizeOptionalString(object.artifactId)
+  const artifactLinkId = normalizeOptionalString(object.artifactLinkId)
+  const shareUrl = normalizeOptionalString(object.shareUrl) ?? normalizeOptionalString(object.publicUrl)
+  if (!artifactId || !artifactLinkId || !shareUrl || !isArtifactAccessSelection(object.accessMode)) return null
+  const versionMode = object.versionMode === 'latest' ? 'latest' : object.versionMode === 'version' ? 'version' : null
+  if (!versionMode) return null
+  return {
+    ...object,
+    artifactId,
+    artifactVersionId: normalizeOptionalString(object.artifactVersionId) ?? null,
+    artifactLinkId,
+    shareUrl,
+    publicUrl: normalizeOptionalString(object.publicUrl) ?? shareUrl,
+    accessMode: object.accessMode,
+    versionMode,
+    revision: readRemoteNumber(object, 'revision'),
+    snapshotChecksum: readRemoteString(object, 'snapshotChecksum')
+  }
+}
+
+function isArtifactAccessSelection(value: RemotePayloadValue | string | undefined): value is ArtifactAccessSelection {
+  return value === 'public_link' || value === 'organization_all' || value === 'workspace_all'
 }
 
 function getDetailViewState(detail: DetailPayload | null | undefined): RemotePayloadObject | null {
@@ -1416,8 +2042,41 @@ function toWorkingCopy(value: RemotePayloadValue | undefined): WorkingCopy | nul
 function toWorkbenchSettings(value: RemotePayloadValue | undefined): CanvasWorkbenchSettings {
   const object = asPayloadObject(value)
   return {
-    tldrawLicenseKey: normalizeOptionalString(object.tldrawLicenseKey)
+    tldrawLicenseKey: normalizeOptionalString(object.tldrawLicenseKey),
+    artifactSharingAvailable: object.artifactSharingAvailable === true,
+    artifactSharingWarning: normalizeOptionalString(object.artifactSharingWarning)
   }
+}
+
+function toCollaborationDescriptor(value: RemotePayloadValue | undefined, documentId: string): CanvasCollaborationDescriptor {
+  const object = asPayloadObject(value)
+  const actorValue = asPayloadObject(object.actor)
+  const actorType = actorValue.actorType === 'agent' || actorValue.actorType === 'system' ? actorValue.actorType : 'user'
+  const access = object.access === 'read' ? 'read' : 'write'
+  const descriptor: CanvasCollaborationDescriptor = {
+    sessionId: requireRemoteString(object, 'sessionId'),
+    clientKey: requireRemoteString(object, 'clientKey'),
+    documentId: requireRemoteString(object, 'documentId'),
+    namespace: requireRemoteString(object, 'namespace'),
+    connectionUrl: requireRemoteString(object, 'connectionUrl'),
+    access,
+    actor: {
+      presenceId: requireRemoteString(actorValue, 'presenceId'),
+      actorType,
+      displayName: requireRemoteString(actorValue, 'displayName'),
+      color: requireRemoteString(actorValue, 'color'),
+      avatarUrl: typeof actorValue.avatarUrl === 'string' ? actorValue.avatarUrl : null
+    },
+    expiresAt: typeof object.expiresAt === 'number' ? object.expiresAt : Date.now() + 60_000,
+    canvasDocumentId: typeof object.canvasDocumentId === 'string' ? object.canvasDocumentId : documentId
+  }
+  return descriptor
+}
+
+function requireRemoteString(value: RemotePayloadObject, key: string) {
+  const item = value[key]
+  if (typeof item !== 'string' || !item.trim()) throw new Error(`Canvas collaboration session is missing ${key}.`)
+  return item
 }
 
 function toDetailPayload(value: RemotePayloadValue | undefined): DetailPayload | null {
@@ -1436,7 +2095,8 @@ function toDetailPayload(value: RemotePayloadValue | undefined): DetailPayload |
     snapshotImagePath: typeof object.snapshotImagePath === 'string' ? object.snapshotImagePath : null,
     snapshotImageUpdatedAt: typeof object.snapshotImageUpdatedAt === 'string' ? object.snapshotImageUpdatedAt : null,
     workingCopyRevision: readRemoteNumber(object, 'workingCopyRevision'),
-    snapshotChecksum: readRemoteString(object, 'snapshotChecksum')
+    snapshotChecksum: readRemoteString(object, 'snapshotChecksum'),
+    artifactShare: normalizeArtifactShare(object.artifactShare)
   }
 }
 
