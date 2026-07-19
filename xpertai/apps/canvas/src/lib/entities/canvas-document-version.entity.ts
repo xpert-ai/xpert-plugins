@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { CanvasJsonObject, CanvasSnapshotData, CanvasVersionSource, CanvasWorkspaceCatalog } from '../types.js'
+import { canvasTable } from '../canvas-artifact-namespace.js'
 
-@Entity('plugin_canvas_document_version')
+@Entity(canvasTable('document_version'))
 @Index(['tenantId', 'organizationId', 'documentId', 'versionNumber'])
 @Index(['tenantId', 'organizationId', 'projectId', 'createdAt'])
 export class CanvasDocumentVersion {

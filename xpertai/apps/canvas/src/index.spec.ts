@@ -7,6 +7,11 @@ jest.mock('./lib/canvas.service.js', () => ({}))
 jest.mock('./lib/canvas.middleware.js', () => ({}))
 jest.mock('./lib/canvas-view.provider.js', () => ({}))
 jest.mock('./lib/canvas-snapshot.validation.js', () => ({}))
+jest.mock('./lib/canvas-yjs.js', () => ({}))
+jest.mock('./lib/canvas-collaboration.provider.js', () => ({}))
+jest.mock('./lib/canvas-artifact.service.js', () => ({}))
+jest.mock('./lib/canvas-artifact-export.service.js', () => ({}))
+jest.mock('./lib/canvas-artifact-export.processor.js', () => ({}))
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,6 +19,12 @@ import plugin from './index.js'
 import { CANVAS_MIDDLEWARE_NAME, CANVAS_WORKBENCH_VIEW_KEY } from './lib/constants.js'
 
 describe('canvas plugin marketplace metadata', () => {
+  it('declares the system Artifact namespace and Sandbox Action consistently', () => {
+    const manifest = JSON.parse(readFileSync(join(process.cwd(), '.xpertai-plugin/plugin.json'), 'utf8')) as Record<string, unknown>
+    expect(plugin.meta.artifactNamespace).toBe('canvas')
+    expect(manifest.artifactNamespace).toBe('canvas')
+    expect(manifest.sandboxActions).toBe('./dist/sandbox-actions/canvas-export/action.json')
+  })
   it('folds Workbench view and Agent middleware under the Canvas app', () => {
     const contents = Object.values(plugin.meta.targetAppMeta ?? {}).flatMap(
       (metadata) => metadata.marketplace?.contents ?? []
@@ -30,7 +41,8 @@ describe('canvas plugin marketplace metadata', () => {
     expect(canvasApp?.operations?.map((operation) => operation.name)).toEqual([
       'create-canvas-documents',
       'save-canvas-versions',
-      'review-canvas-workbench'
+      'review-canvas-workbench',
+      'share-canvas-artifacts'
     ])
     expectI18nText(canvasApp?.description, 'Canvas Assistant', '创建')
     expectI18nText(assistantTemplate?.description, 'Prebuilt assistant template', '预置助手模板')

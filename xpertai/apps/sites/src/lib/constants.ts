@@ -1,4 +1,5 @@
 export const SITES_PLUGIN_NAME = '@xpert-ai/plugin-sites'
+export const SITES_ARTIFACT_NAMESPACE = 'sites'
 export const SITES_PROVIDER_KEY = 'sites'
 export const SITES_MIDDLEWARE_NAME = 'SitesMiddleware'
 export const SITES_FEATURE = 'sites-core'

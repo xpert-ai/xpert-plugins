@@ -8,6 +8,7 @@ type ProjectPointer = {
   id?: string
   title?: string
   surface?: string
+  videoEngine?: string | null
   status?: string
   currentVersionId?: string | null
   currentVersionNumber?: number | null
@@ -22,6 +23,7 @@ type VersionPointer = {
   versionNumber?: number | null
   sourceType?: string | null
   surface?: string | null
+  videoEngine?: string | null
   changeSummary?: string | null
   createdAt?: string | Date | null
 }
@@ -30,6 +32,10 @@ type ExportPointer = {
   id?: string
   versionId?: string | null
   kind?: string | null
+  status?: string | null
+  backend?: string | null
+  progress?: number | null
+  stage?: string | null
   filePath?: string | null
   fileUrl?: string | null
   mimeType?: string | null
@@ -46,6 +52,8 @@ type LogPointer = {
 
 type WorkingCopyPointer = {
   html?: string | null
+  videoEngine?: string | null
+  hyperframesHtml?: string | null
   videoComposition?: MotionVideoComposition | null
   componentSelection?: MotionJsonObject | null
   layerSelection?: MotionJsonObject | null
@@ -124,6 +132,7 @@ export function summarizeMutationResult(result: MutationResult) {
     projectId: project?.id ?? result.deletedProjectId ?? null,
     status: project?.status ?? null,
     surface: project?.surface ?? null,
+    videoEngine: project?.videoEngine ?? null,
     workingCopyRevision: project?.workingCopyRevision ?? null,
     artifactChecksum: project?.artifactChecksum ?? null,
     currentVersionId: project?.currentVersionId ?? null,
@@ -132,6 +141,8 @@ export function summarizeMutationResult(result: MutationResult) {
     versionNumber: version?.versionNumber ?? null,
     exportId: exported?.id ?? null,
     exportKind: exported?.kind ?? result.exportKind ?? project?.lastExportKind ?? null,
+    exportStatus: exported?.status ?? null,
+    exportBackend: exported?.backend ?? null,
     exportPath: exported?.filePath ?? project?.lastExportPath ?? null,
     exportUrl: exported?.fileUrl ?? null,
     requiresBrowserExport: result.requiresBrowserExport,
@@ -164,6 +175,7 @@ function compactProjectPointer(project: ProjectPointer | null | undefined) {
     id: project.id,
     title: project.title,
     surface: project.surface,
+    videoEngine: project.videoEngine,
     status: project.status,
     currentVersionId: project.currentVersionId,
     currentVersionNumber: project.currentVersionNumber,
@@ -183,6 +195,7 @@ function compactVersionPointer(version: VersionPointer | null | undefined) {
     versionNumber: version.versionNumber,
     sourceType: version.sourceType,
     surface: version.surface,
+    videoEngine: version.videoEngine,
     changeSummary: version.changeSummary,
     createdAt: dateString(version.createdAt)
   })
@@ -196,6 +209,10 @@ function compactExportPointer(record: ExportPointer | null | undefined) {
     id: record.id,
     versionId: record.versionId,
     kind: record.kind,
+    status: record.status,
+    backend: record.backend,
+    progress: record.progress,
+    stage: record.stage,
     filePath: record.filePath,
     fileUrl: record.fileUrl,
     mimeType: record.mimeType,
@@ -208,10 +225,14 @@ function compactWorkingCopyPointer(workingCopy: WorkingCopyPointer | null | unde
     return null
   }
   const html = typeof workingCopy.html === 'string' ? workingCopy.html : ''
+  const hyperframesHtml = typeof workingCopy.hyperframesHtml === 'string' ? workingCopy.hyperframesHtml : ''
   const videoSummary = compactVideoCompositionSummary(workingCopy.videoComposition)
   return compactObject({
     hasHtml: Boolean(html),
     htmlBytes: html ? html.length : 0,
+    videoEngine: workingCopy.videoEngine,
+    hasHyperframesComposition: Boolean(hyperframesHtml),
+    hyperframesBytes: hyperframesHtml ? hyperframesHtml.length : 0,
     hasVideoComposition: Boolean(videoSummary),
     video: videoSummary,
     componentSelection: workingCopy.componentSelection,

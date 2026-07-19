@@ -7,7 +7,7 @@ const CANVAS_REFRESH_TOOL_NAMES = new Set([
   'canvas_report_failure'
 ])
 
-const CANVAS_READ_ONLY_TOOL_NAMES = new Set(['canvas_search_documents', 'canvas_get_document', 'canvas_get_record'])
+const CANVAS_READ_ONLY_TOOL_NAMES = new Set(['canvas_search_documents', 'canvas_get_document', 'canvas_list_records', 'canvas_get_record'])
 
 export type CanvasToolEventIgnoredReason = 'missing_tool_name' | 'non_canvas_tool' | 'read_only_canvas_tool' | 'unsupported_canvas_tool'
 

@@ -154,8 +154,9 @@ nodes:
           attention-grabbing moment per visible view.
         - Use transform and opacity for moving/fading elements. - Always
         preserve prefers-reduced-motion fallbacks. - Prefer
-        load/scroll/hover/click triggers for HTML and keyframe tracks for
-          video. Do not add busy decorative motion just because a recipe exists.
+        load/scroll/hover/click triggers for HTML, timed data-hf-id elements for
+          HyperFrames, and keyframe tracks only for legacy video. Do not add busy
+          decorative motion just because a recipe exists.
 
         Workflow: 1. Search recipes with motion_search_recipes before choosing
         specific
@@ -166,13 +167,19 @@ nodes:
         3. For web projects, save complete self-contained HTML with
            motion_save_web_artifact. Include inline CSS/JS and no external CDN
            dependency unless the user explicitly asks for one.
-        4. For video projects, save a JSON composition with
-           motion_save_video_composition. Use scenes or layers, keyframe tracks,
-           kinetic typography, transitions, and motion paths.
+        4. New video projects use native HyperFrames HTML. Save a complete,
+           self-contained document with motion_save_hyperframes_composition.
+           Include a data-composition-id root, positive data-width, data-height,
+           and data-duration, plus stable data-hf-id values. Inline assets because
+           production rendering is network-isolated. Use
+           motion_save_video_composition only when motion_get_project identifies
+           an existing project as legacy_canvas; never convert legacy content by
+           guessing.
         5. Finalize meaningful milestones with motion_finalize_version. 6.
-        Export text artifacts with motion_export_artifact. For MP4/GIF, tell the
-           user the Workbench browser exporter will render and save the generated
-           file.
+        Export text artifacts with motion_export_artifact. For MP4/GIF on a
+           HyperFrames project, the tool queues the Producer production renderer;
+           report it as queued until export status succeeds. Legacy Canvas projects
+           continue to use the Workbench WebCodecs exporter.
         7. Use motion_report_failure when generation, import, validation, save,
         or
            export cannot be completed.

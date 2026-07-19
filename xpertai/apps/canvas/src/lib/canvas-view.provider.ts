@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -35,6 +35,8 @@ import {
   CANVAS_WORKBENCH_VIEW_KEY
 } from './constants.js'
 import { CanvasService } from './canvas.service.js'
+import { CanvasArtifactService } from './canvas-artifact.service.js'
+import { CanvasArtifactExportService } from './canvas-artifact-export.service.js'
 import type {
   CanvasDocumentKind,
   CanvasDocumentStatus,
@@ -62,9 +64,13 @@ type CanvasWorkbenchViewData = XpertViewDataResult & {
     pageSize: number
   }
   documents: Awaited<ReturnType<CanvasService['searchDocuments']>>
-  detail: Awaited<ReturnType<CanvasService['getDocument']>> | null
+  detail: (Awaited<ReturnType<CanvasService['getDocument']>> & {
+    artifactShare: Awaited<ReturnType<CanvasArtifactService['getShare']>>
+  }) | null
   settings: {
     tldrawLicenseKey?: string
+    artifactSharingAvailable: boolean
+    artifactSharingWarning?: string
   }
 }
 
@@ -75,7 +81,13 @@ type ProjectScopedViewHostContext = XpertResolvedViewHostContext & {
 @Injectable()
 @ViewExtensionProvider(CANVAS_PROVIDER_KEY)
 export class CanvasViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: CanvasService) {}
+  constructor(
+    private readonly service: CanvasService,
+    @Optional()
+    private readonly artifactService?: CanvasArtifactService,
+    @Optional()
+    private readonly artifactExportService?: CanvasArtifactExportService
+  ) {}
 
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'agent'
@@ -182,9 +194,17 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         actions: [
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_document', label: text('New Canvas', '新建画布'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'open_document', label: text('Open Canvas', '打开画布'), icon: 'ri-live-line', actionType: 'invoke' },
           { key: 'autosave_snapshot', label: text('Autosave', '自动保存'), icon: 'ri-save-2-line', actionType: 'invoke' },
-          { key: 'save_snapshot', label: text('Save', '保存'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
-          { key: 'save_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'save_version', label: text('New Version', '新建版本'), icon: 'ri-file-add-line', actionType: 'invoke' },
+          {
+            key: 'publish_artifact',
+            label: text('Share Canvas', '分享画布'),
+            icon: 'ri-share-forward-line',
+            actionType: 'invoke'
+          },
+          { key: 'get_artifact_export', label: text('Get Share Export', '查询分享导出'), actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink-m', actionType: 'invoke' },
           { key: 'prepare_assistant_prompt', label: text('Ask Assistant', '询问 Assistant'), icon: 'ri-chat-3-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'patch_records', label: text('Patch Records', '更新记录'), icon: 'ri-node-tree', actionType: 'invoke' },
           { key: 'insert_image', label: text('Insert Image', '插入图片'), icon: 'ri-image-add-line', actionType: 'invoke' },
@@ -257,7 +277,7 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
       pageSize: query.pageSize
     })
     const detailDocumentId = requestedDocumentId ?? documents.items[0]?.id
-    const detail = detailDocumentId
+    const detailData = detailDocumentId
       ? await this.service
           .getDocument(scope, {
             documentId: detailDocumentId,
@@ -268,6 +288,17 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           })
           .catch(() => null)
       : null
+    const detail = detailData
+      ? {
+          ...detailData,
+          artifactShare: this.artifactService
+            ? await this.artifactService.getShare(scope, detailDocumentId as string).catch(() => null)
+            : null
+        }
+      : null
+    const artifactExportCapability = this.artifactExportService
+      ? await this.artifactExportService.getCapabilities().catch((error) => ({ available: false, message: error instanceof Error ? error.message : String(error) }))
+      : { available: false, message: 'Canvas Artifact export service is unavailable.' }
     const result: CanvasWorkbenchViewData = {
       tableKey: 'documents',
       table: {
@@ -280,7 +311,9 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
       documents,
       detail,
       settings: {
-        tldrawLicenseKey: getTldrawLicenseKey()
+        tldrawLicenseKey: getTldrawLicenseKey(),
+        artifactSharingAvailable: artifactExportCapability.available,
+        artifactSharingWarning: artifactExportCapability.available ? undefined : artifactExportCapability.message
       }
     }
     return result
@@ -321,10 +354,17 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         }
       }
 
+      if (actionKey === 'open_document') {
+        return {
+          ...success('Canvas opened', '画布已打开'),
+          refresh: false,
+          data: await this.service.openDocument(scope, requireDocumentId(request))
+        }
+      }
+
       if (actionKey === 'autosave_snapshot') {
         const result = await this.service.autosaveSnapshot(scope, {
           documentId: requireDocumentId(request),
-          snapshot: getSnapshotInput(request.input, 'snapshot'),
           viewState: getRecordInput(request.input, 'viewState'),
           selectionSummary: getRecordInput(request.input, 'selectionSummary'),
           snapshotImage: getSnapshotImageInput(request.input, 'snapshotImage'),
@@ -339,7 +379,7 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
         }
       }
 
-      if (actionKey === 'save_snapshot' || actionKey === 'save_version') {
+      if (actionKey === 'save_version') {
         const result = await this.service.saveSnapshot(scope, {
           documentId: requireDocumentId(request),
           snapshot: getSnapshotInput(request.input, 'snapshot'),
@@ -347,10 +387,51 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
           selectionSummary: getRecordInput(request.input, 'selectionSummary'),
           snapshotImage: getSnapshotImageInput(request.input, 'snapshotImage'),
           sourceType: 'workbench',
-          changeSummary: getStringInput(request.input, 'changeSummary') ?? (actionKey === 'save_version' ? 'Workbench version' : 'Workbench save')
+          changeSummary: getStringInput(request.input, 'changeSummary') ?? 'Workbench version'
         })
         return {
           ...success('Canvas saved', '画布已保存'),
+          data: result
+        }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        if (!this.artifactExportService) throw new Error('Canvas Artifact export service is not available.')
+        const result = await this.artifactExportService.requestPublish(scope, {
+          documentId: requireDocumentId(request),
+          accessMode: getStringInput(request.input, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | undefined,
+          targetMode: getStringInput(request.input, 'targetMode') as 'latest' | 'version' | undefined,
+          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink'),
+          baseRevision: requireNumberInput(request.input, 'baseRevision', 'Canvas base revision is required.'),
+          baseSnapshotChecksum: getStringInput(request.input, 'baseSnapshotChecksum'),
+          pageId: getStringInput(request.input, 'pageId')
+        })
+        return {
+          ...success('Canvas Artifact export was accepted', 'Canvas Artifact 导出已受理'),
+          refresh: false,
+          data: result
+        }
+      }
+
+      if (actionKey === 'get_artifact_export') {
+        if (!this.artifactExportService) throw new Error('Canvas Artifact export service is not available.')
+        const result = await this.artifactExportService.getExport(
+          scope,
+          requireStringInput(request.input, 'exportId', 'Canvas Artifact export id is required.')
+        )
+        return {
+          ...success('Canvas Artifact export status loaded', 'Canvas Artifact 导出状态已加载'),
+          refresh: false,
+          data: result
+        }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        if (!this.artifactService) throw new Error('Canvas Artifact sharing service is not available.')
+        const result = await this.artifactService.revoke(scope, requireDocumentId(request))
+        return {
+          ...success('Canvas Artifact share was revoked', 'Canvas Artifact 分享已撤销'),
+          refresh: false,
           data: result
         }
       }
@@ -490,10 +571,9 @@ export class CanvasViewProvider implements IXpertViewExtensionProvider {
       const scope = scopeFromContext(context)
       const documentId = getStringInput(request.input, 'documentId') ?? getStringParameter(request.parameters, 'documentId')
       const result = documentId
-        ? await this.service.saveSnapshot(scope, {
+        ? await this.service.importSnapshotToWorkingCopy(scope, {
             documentId,
             snapshot,
-            sourceType: 'import',
             changeSummary: `Imported ${file.originalname ?? 'tldraw snapshot'}`
           })
         : await this.service.createDocument(scope, {
@@ -583,6 +663,12 @@ function getBooleanInput(input: XpertViewActionRequest['input'], key: string) {
 function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
   const value = input?.[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function requireNumberInput(input: XpertViewActionRequest['input'], key: string, message: string) {
+  const value = getNumberInput(input, key)
+  if (value === undefined) throw new Error(message)
+  return value
 }
 
 function getStringArrayInput(input: XpertViewActionRequest['input'], key: string) {

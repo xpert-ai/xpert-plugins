@@ -1,4 +1,5 @@
 export const DRAWIO_PLUGIN_NAME = '@xpert-ai/plugin-drawio'
+export const DRAWIO_ARTIFACT_NAMESPACE = 'drawio'
 export const DRAWIO_PROVIDER_KEY = 'drawio'
 export const DRAWIO_MIDDLEWARE_NAME = 'DrawioMiddleware'
 export const DRAWIO_TEMPLATE_PROVIDER_KEY = 'drawioTemplates'

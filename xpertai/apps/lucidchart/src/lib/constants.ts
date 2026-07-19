@@ -1,4 +1,5 @@
 export const LUCIDCHART_PLUGIN_NAME = '@xpert-ai/plugin-lucidchart'
+export const LUCIDCHART_ARTIFACT_NAMESPACE = 'lucidchart'
 export const LUCIDCHART_PROVIDER_KEY = 'lucidchart'
 export const LUCIDCHART_MIDDLEWARE_NAME = 'LucidchartMiddleware'
 export const LUCIDCHART_TEMPLATE_PROVIDER_KEY = 'lucidchartTemplates'

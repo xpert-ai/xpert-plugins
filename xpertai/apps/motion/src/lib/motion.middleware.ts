@@ -23,6 +23,7 @@ import {
   MOTION_LIBRARY_CAPABILITY,
   MOTION_MIDDLEWARE_NAME,
   MOTION_REPORT_FAILURE_TOOL_NAME,
+  MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
   MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
   MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
   MOTION_SEARCH_RECIPES_TOOL_NAME,
@@ -74,6 +75,7 @@ const createProjectSchema = z.object({
   selectedRecipeIds: z.array(z.string()).optional(),
   html: z.string().optional(),
   videoComposition: videoCompositionSchema.optional(),
+  hyperframesHtml: z.string().optional(),
   changeSummary: z.string().optional()
 })
 
@@ -97,6 +99,13 @@ const saveVideoCompositionSchema = z.object({
   composition: videoCompositionSchema,
   selectedRecipeIds: z.array(z.string()).optional(),
   layerSelection: jsonObjectSchema.optional(),
+  changeSummary: z.string().optional()
+})
+
+const saveHyperframesCompositionSchema = z.object({
+  projectId: z.string().min(1),
+  html: z.string().min(1),
+  selectedRecipeIds: z.array(z.string()).optional(),
   changeSummary: z.string().optional()
 })
 
@@ -135,6 +144,7 @@ const MUTATION_TOOL_NAMES = new Set([
   MOTION_CREATE_PROJECT_TOOL_NAME,
   MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
   MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
+  MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
   MOTION_FINALIZE_VERSION_TOOL_NAME,
   MOTION_EXPORT_ARTIFACT_TOOL_NAME,
   MOTION_UPDATE_PROJECT_STATUS_TOOL_NAME
@@ -150,8 +160,8 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
       zh_Hans: 'Motion 动效'
     },
     description: {
-      en_US: 'Create, refine, version, and export animated HTML and launch video compositions from an Agent.',
-      zh_Hans: '让 Agent 创建、精修、版本化并导出动效网页和发布视频合成。'
+      en_US: 'Create animated HTML and native HyperFrames launch videos, then version and render them from an Agent.',
+      zh_Hans: '让 Agent 创建动效网页和原生 HyperFrames 发布视频，并完成版本化与生产渲染。'
     },
     icon: {
       type: 'svg',
@@ -205,7 +215,7 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: MOTION_CREATE_PROJECT_TOOL_NAME,
             description:
-              'Create a reviewable Motion project. Call this before saving HTML or video composition artifacts unless env.motionProjectId already exists.',
+              'Create a reviewable Motion project. New video projects default to native HyperFrames; only pass videoComposition when explicitly creating a legacy compatibility project.',
             schema: createProjectSchema,
             verboseParsingErrors: true
           }
@@ -240,11 +250,21 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
           }
         ),
         tool(
+          async (input) => stringifyAgentToolResult(summarizeMutationResult(await this.service.saveHyperframesComposition(scope, input))),
+          {
+            name: MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
+            description:
+              'Save native, self-contained HyperFrames HTML as the standard composition for a video project. New video projects use this engine; use save_video_composition only for legacy Canvas/WebCodecs projects.',
+            schema: saveHyperframesCompositionSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        tool(
           async (input) => stringifyAgentToolResult(summarizeMutationResult(await this.service.finalizeVersion(scope, input))),
           {
             name: MOTION_FINALIZE_VERSION_TOOL_NAME,
             description:
-              'Finalize the current Motion working copy as a reviewable version. Call this after save_web_artifact or save_video_composition succeeds.',
+              'Finalize the current Motion working copy as a reviewable version. Call this after the appropriate web, HyperFrames, or legacy video save succeeds.',
             schema: finalizeVersionSchema,
             verboseParsingErrors: true
           }
@@ -254,7 +274,7 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: MOTION_EXPORT_ARTIFACT_TOOL_NAME,
             description:
-              'Export a Motion project as html, css, react, lottie, or json and return compact export metadata. For mp4/gif, return instructions to use the Workbench browser exporter.',
+              'Export text artifacts immediately. For native HyperFrames video projects, MP4/GIF starts the queued production renderer; legacy Canvas projects keep the Workbench browser exporter.',
             schema: exportArtifactSchema,
             verboseParsingErrors: true
           }

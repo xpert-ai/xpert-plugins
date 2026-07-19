@@ -28,6 +28,7 @@ import {
   MOTION_MIDDLEWARE_NAME,
   MOTION_MIDDLEWARE_TOOL_NAMES,
   MOTION_REPORT_FAILURE_TOOL_NAME,
+  MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
   MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
   MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
   MOTION_SEARCH_RECIPES_TOOL_NAME,
@@ -81,6 +82,7 @@ describe('Motion middleware', () => {
       MOTION_GET_PROJECT_TOOL_NAME,
       MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
       MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
+      MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
       MOTION_FINALIZE_VERSION_TOOL_NAME,
       MOTION_EXPORT_ARTIFACT_TOOL_NAME,
       MOTION_UPDATE_PROJECT_STATUS_TOOL_NAME,
@@ -298,6 +300,44 @@ describe('Motion middleware', () => {
     expect(result.logs).toBeUndefined()
     expect(result.logCount).toBe(1)
     expect(result.lastLog?.snapshot).toBeUndefined()
+  })
+
+  it('summarizes native HyperFrames source without returning the full document', async () => {
+    const hyperframesHtml = '<!doctype html><main data-composition-id="main" data-width="1280" data-height="720" data-duration="6" data-hf-id="root"></main>'
+    const agentMiddleware = createMiddleware({
+      getProject: jest.fn(async () => ({
+        item: {
+          id: 'motion-project-hf',
+          title: 'Native Launch',
+          surface: 'video',
+          videoEngine: 'hyperframes',
+          status: 'draft',
+          artifactChecksum: 'hf123'
+        },
+        workingCopy: {
+          videoEngine: 'hyperframes',
+          hyperframesHtml,
+          artifactChecksum: 'hf123'
+        },
+        versions: [],
+        exports: [
+          { id: 'export-hf', kind: 'mp4', status: 'queued', backend: 'hyperframes', progress: 0, stage: 'queued' }
+        ]
+      }))
+    })
+
+    const projectTool = getMiddlewareTool(agentMiddleware, MOTION_GET_PROJECT_TOOL_NAME)
+    const result = JSON.parse(await projectTool.invoke({ projectId: 'motion-project-hf' })) as {
+      project: { videoEngine: string }
+      workingCopy: { hasHyperframesComposition: boolean; hyperframesBytes: number; hyperframesHtml?: string }
+      exports: Array<{ status: string; backend: string }>
+    }
+
+    expect(result.project.videoEngine).toBe('hyperframes')
+    expect(result.workingCopy.hasHyperframesComposition).toBe(true)
+    expect(result.workingCopy.hyperframesBytes).toBe(hyperframesHtml.length)
+    expect(result.workingCopy.hyperframesHtml).toBeUndefined()
+    expect(result.exports[0]).toEqual(expect.objectContaining({ status: 'queued', backend: 'hyperframes' }))
   })
 
   it('omits export content from export_artifact results', async () => {

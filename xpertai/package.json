@@ -4,6 +4,7 @@
   "license": "MIT",
   "packageManager": "pnpm@11.7.0",
   "scripts": {
+    "verify:system-app-metadata": "node ./scripts/verify-system-app-artifact-namespaces.mjs",
     "release:publish": "node ./scripts/release-publish.mjs"
   },
   "private": true,

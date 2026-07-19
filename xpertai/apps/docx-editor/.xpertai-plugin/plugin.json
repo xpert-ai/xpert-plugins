@@ -16,6 +16,7 @@
     "agent-review"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "docx_editor",
   "interface": {
     "displayName": "DOCX Editor",
     "shortDescription": "Agent-ready DOCX editor",

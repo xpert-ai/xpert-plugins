@@ -38,30 +38,36 @@
   ],
   "scripts": {
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:sandbox-action": "node scripts/build-sandbox-action.mjs && node scripts/verify-sandbox-action.mjs && node scripts/test-sandbox-action.mjs",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "dev:share-harness": "node scripts/workbench-share-harness.mjs",
     "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "canvas"
     }
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "5.2.8",
     "@tldraw/tlschema": "5.1.1",
     "fractional-indexing": "^3.2.0",
+    "socket.io-client": "^4.8.1",
     "tldraw": "5.1.1",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "yjs": "13.6.31"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.15.12",
+    "@xpert-ai/plugin-sdk": "^3.15.12",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -75,8 +81,8 @@
     "@types/node": "^20.19.9",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
-    "@xpert-ai/contracts": "3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "3.15.12",
+    "@xpert-ai/plugin-sdk": "3.15.12",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "esbuild": "^0.27.0",
     "jest": "^30.0.2",

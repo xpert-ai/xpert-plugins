@@ -17,6 +17,7 @@
     "agent-review"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "office_editor",
   "interface": {
     "displayName": "Office Editor",
     "shortDescription": "Agent-ready Univer Office editor",

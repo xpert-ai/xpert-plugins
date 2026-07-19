@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-motion",
   "version": "0.1.0",
-  "description": "Motion app plugin for agent-generated animated HTML, launch video compositions, motion recipe routing, reviewable versions, and exportable artifacts.",
+  "description": "Motion Agentic App with native HyperFrames composition, Player preview, Producer rendering, and Motion Anything-derived workflows.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/motion",
   "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/motion",
@@ -12,13 +12,17 @@
     "agent-motion",
     "workbench",
     "video-composer",
+    "hyperframes",
+    "producer",
     "animated-html"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "motion",
+  "sandboxActions": "./dist/sandbox-actions/hyperframes-render/action.json",
   "interface": {
     "displayName": "Motion",
     "shortDescription": "Agentic animated HTML and launch video composer",
-    "longDescription": "Create, route, review, edit, version, and export Motion artifacts from natural-language intent. Includes Motion Assistant, middleware tools, recipe library, HTML Workbench, and browser MP4 export for launch-video compositions.",
+    "longDescription": "Create, route, review, edit, version, and export Motion artifacts from natural-language intent. Product workflows derive from Motion Anything. New video projects use native HyperFrames SDK + Player compositions and queued Producer rendering; Canvas/WebCodecs remains available for historical-project compatibility.",
     "developerName": "XpertAI",
     "category": "Productivity",
     "capabilities": [
@@ -80,7 +84,7 @@
             "type": "skill",
             "name": "motion-agent-skill",
             "displayName": "Motion Agent Skill",
-            "description": "Skill for using Motion middleware tools, recipe selection, HTML/runtime editing, launch-video composition, versioning, export, and recovery.",
+            "description": "Skill for Motion recipe selection, HTML editing, native HyperFrames video composition, legacy compatibility, production rendering, versioning, and recovery.",
             "tags": [
               "skill",
               "motion",
@@ -102,7 +106,7 @@
             "type": "app",
             "name": "motion",
             "displayName": "Motion",
-            "description": "Use Motion Assistant with Workbench and Agent middleware tools for animated HTML and launch video compositions.",
+            "description": "Use Motion Assistant with Workbench and Agent tools for animated HTML and HyperFrames launch-video compositions.",
             "operations": [
               {
                 "name": "create-motion-projects",
@@ -117,6 +121,12 @@
                 "access": "write"
               },
               {
+                "name": "render-motion-video",
+                "displayName": "Render Motion video",
+                "description": "Queue native HyperFrames production renders on the isolated platform video runtime.",
+                "access": "write"
+              },
+              {
                 "name": "review-motion-workbench",
                 "displayName": "Review Motion Workbench",
                 "description": "Open Motion Workbench to inspect, edit, export, and restore artifacts.",
@@ -128,7 +138,7 @@
             "type": "view",
             "name": "motion_workbench",
             "displayName": "Motion Workbench",
-            "description": "Workbench view for Motion projects, recipe library, HTML editing, video composition, versions, and exports.",
+            "description": "Workbench for Motion recipes, HTML editing, HyperFrames SDK + Player video composition, legacy compatibility, versions, and production exports.",
             "metadata": {
               "app": "motion"
             }
@@ -137,7 +147,7 @@
             "type": "middleware",
             "name": "MotionMiddleware",
             "displayName": "Motion Agent Tools",
-            "description": "Assistant middleware tools for recipe search, project creation, artifact saving, versioning, exports, status updates, and failure reporting.",
+            "description": "Assistant tools for recipe search, project creation, HTML and HyperFrames persistence, queued production exports, versioning, and recovery.",
             "metadata": {
               "app": "motion"
             }

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   PENCIL_AGENT_CAPABILITY,
+  PENCIL_ARTIFACT_NAMESPACE,
   PENCIL_ARTIFACT_SHARING_CAPABILITY,
   PENCIL_FEATURE,
   PENCIL_ICON,
@@ -61,6 +62,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    artifactNamespace: PENCIL_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

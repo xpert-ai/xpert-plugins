@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-canvas",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Canvas app plugin for agent-managed tldraw infinite canvases, image holders, annotation workflows, reviewable versions, and an editable workbench.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/canvas",
@@ -16,6 +16,8 @@
     "workbench"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "canvas",
+  "sandboxActions": "./dist/sandbox-actions/canvas-export/action.json",
   "interface": {
     "displayName": "Canvas",
     "shortDescription": "Agent-managed tldraw canvases",
@@ -126,8 +128,8 @@
                 "name": "save-canvas-versions",
                 "displayName": "Save Canvas versions",
                 "description": {
-                  "en_US": "Persist tldraw snapshots, record patches, image insertions, and Workbench edits.",
-                  "zh_Hans": "保存 tldraw 快照，记录补丁、图片插入和工作台编辑。"
+                  "en_US": "Checkpoint authoritative Canvas state, staged record patches, image insertions, and Workbench edits.",
+                  "zh_Hans": "保存权威 Canvas 状态检查点、阶段记录补丁、图片插入和工作台编辑。"
                 },
                 "access": "write"
               },
@@ -139,6 +141,15 @@
                   "zh_Hans": "打开 Canvas 工作台，检查、标注、导入导出并手动编辑画布。"
                 },
                 "access": "read"
+              },
+              {
+                "name": "share-canvas-artifacts",
+                "displayName": "Share Canvas Artifacts",
+                "description": {
+                  "en_US": "Publish, copy, update, and revoke read-only Canvas Artifact links from the human Workbench.",
+                  "zh_Hans": "在人工工作台中发布、复制、更新和撤销只读 Canvas Artifact 链接。"
+                },
+                "access": "write"
               }
             ]
           },
@@ -147,8 +158,8 @@
             "name": "canvas_workbench",
             "displayName": "Canvas Workbench",
             "description": {
-              "en_US": "Workbench view for tldraw canvas editing, AI image holders, annotations, versions, and logs.",
-              "zh_Hans": "用于编辑 tldraw 画布、AI 图片占位、标注、版本和日志的工作台视图。"
+              "en_US": "Workbench view for tldraw canvas editing, AI image holders, annotations, Artifact sharing, versions, and logs.",
+              "zh_Hans": "用于编辑 tldraw 画布、AI 图片占位、标注、Artifact 分享、版本和日志的工作台视图。"
             },
             "metadata": {
               "app": "canvas"
@@ -159,8 +170,8 @@
             "name": "CanvasMiddleware",
             "displayName": "Canvas Agent Tools",
             "description": {
-              "en_US": "Assistant middleware tools for creating canvases, saving snapshots, patching records, inserting images, searching documents, and reporting failures.",
-              "zh_Hans": "用于创建画布、保存快照、修补记录、插入图片、检索文档和上报失败的助手中间件工具。"
+              "en_US": "Assistant middleware tools for metadata-only creation, simplified staged shape creation, targeted record patches, progressive reads, image insertion, and failure reporting. Versions remain human-controlled.",
+              "zh_Hans": "用于仅创建元数据、简化 Shape 分阶段创建、定向记录补丁、渐进查询、图片插入和失败上报的助手中间件工具；版本仅由人工创建。"
             },
             "metadata": {
               "app": "canvas"

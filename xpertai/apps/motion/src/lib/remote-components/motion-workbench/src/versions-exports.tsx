@@ -86,6 +86,7 @@ export function VersionsTab(props: { versions: VersionSummary[]; currentId?: str
           <div>
             <strong>{props.t('versionLabel', { number: version.versionNumber || 0 })}</strong>
             <span>{version.changeSummary || version.sourceType || props.t('motionVersion')}</span>
+            {version.surface === 'video' ? <span>{version.videoEngine === 'hyperframes' ? 'HyperFrames' : 'Legacy Canvas/WebCodecs'}</span> : null}
           </div>
           <Button variant="secondary" onClick={() => void props.onRestore(version.id)}>
             {props.t('restore')}
@@ -122,7 +123,9 @@ export function ExportsTab(props: {
         <article key={item.id} className="motion-record">
           <div>
             <strong>{String(item.kind || props.t('artifact')).toUpperCase()}</strong>
+            <span>{`${item.status || 'succeeded'} · ${item.backend || 'browser'} · ${Math.round(item.progress ?? 100)}%${item.stage ? ` · ${item.stage}` : ''}`}</span>
             <span>{item.filePath || item.fileUrl || item.checksum || item.id}</span>
+            {item.errorMessage ? <span className="hyperframes-error">{item.errorMessage}</span> : null}
           </div>
           {item.fileUrl ? (
             <Button asChild variant="secondary">

@@ -18,6 +18,14 @@ overrides:
 minimumReleaseAgeExclude:
   - '@xpert-ai/*'
   - '@lucide/vue@1.24.0'
+  - '@hyperframes/core@0.7.63'
+  - '@hyperframes/engine@0.7.63'
+  - '@hyperframes/lint@0.7.63'
+  - '@hyperframes/parsers@0.7.63'
+  - '@hyperframes/player@0.7.63'
+  - '@hyperframes/producer@0.7.63'
+  - '@hyperframes/sdk@0.7.63'
+  - '@hyperframes/studio-server@0.7.63'
 
 allowBuilds:
   '@nestjs/core': true
@@ -31,6 +39,8 @@ allowBuilds:
   # Cut bundles only the browser runtime; never execute the unused native Node installer.
   onnxruntime-node: false
   protobufjs: true
+  # HyperFrames Producer uses the platform Runtime Chromium; never download a plugin-local browser.
+  puppeteer: false
   sharp: true
   ssh2: true
   unrs-resolver: true

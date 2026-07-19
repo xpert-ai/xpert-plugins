@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   EXCALIDRAW_AGENT_DRAWING_CAPABILITY,
+  EXCALIDRAW_ARTIFACT_NAMESPACE,
   EXCALIDRAW_ARTIFACT_SHARING_CAPABILITY,
   EXCALIDRAW_ARTIFACT_TEMPLATE_CAPABILITY,
   EXCALIDRAW_DIAGRAM_IR_CAPABILITY,
@@ -55,7 +56,7 @@ const plugin: ExcalidrawXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: 'excalidraw',
+    artifactNamespace: EXCALIDRAW_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {

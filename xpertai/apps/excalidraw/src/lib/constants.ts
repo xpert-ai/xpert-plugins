@@ -1,4 +1,5 @@
 export const EXCALIDRAW_PLUGIN_NAME = '@xpert-ai/plugin-excalidraw'
+export const EXCALIDRAW_ARTIFACT_NAMESPACE = 'excalidraw'
 export const EXCALIDRAW_PROVIDER_KEY = 'excalidraw'
 export const EXCALIDRAW_MIDDLEWARE_NAME = 'ExcalidrawMiddleware'
 export const EXCALIDRAW_TEMPLATE_PROVIDER_KEY = 'excalidrawTemplates'

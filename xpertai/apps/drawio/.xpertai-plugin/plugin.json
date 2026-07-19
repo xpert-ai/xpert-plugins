@@ -15,6 +15,7 @@
     "workbench"
   ],
   "skills": "./skills/",
+  "artifactNamespace": "drawio",
   "interface": {
     "displayName": "draw.io",
     "shortDescription": "Agent-managed draw.io diagrams",

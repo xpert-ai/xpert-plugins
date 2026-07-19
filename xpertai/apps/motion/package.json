@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-motion",
   "version": "0.1.0",
-  "description": "Motion app plugin for agent-generated animated HTML, launch video compositions, motion recipe routing, reviewable versions, and exportable artifacts.",
+  "description": "Motion Agentic App with Motion Anything-derived workflows, native HyperFrames video composition, Player preview, and Producer rendering.",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -38,15 +38,18 @@
   ],
   "scripts": {
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:sandbox-action": "node scripts/build-sandbox-action.mjs",
+    "verify:sandbox-action": "node scripts/verify-sandbox-action.mjs",
+    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "motion"
     }
   },
   "dependencies": {
@@ -57,8 +60,8 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/contracts": "^3.15.12",
+    "@xpert-ai/plugin-sdk": "^3.15.12",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -74,9 +77,14 @@
     "@types/node": "^20.19.9",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
-    "@xpert-ai/contracts": "3.10.1",
+    "@hyperframes/player": "0.7.63",
+    "@hyperframes/producer": "0.7.63",
+    "@hyperframes/sdk": "0.7.63",
+    "@esbuild/darwin-arm64": "0.27.7",
+    "@esbuild/linux-x64": "0.27.7",
+    "@xpert-ai/contracts": "3.15.12",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "3.15.12",
     "esbuild": "^0.27.0",
     "jest": "^30.0.2",
     "react": "^18.3.1",

@@ -1,4 +1,5 @@
 export const DOCX_EDITOR_PLUGIN_NAME = '@xpert-ai/plugin-docx-editor'
+export const DOCX_EDITOR_ARTIFACT_NAMESPACE = 'docx_editor'
 export const DOCX_EDITOR_FEATURE = 'docx-editor'
 export const DOCX_EDITOR_WORKBENCH_CAPABILITY = 'docx-editor-workbench'
 export const DOCX_EDITOR_AGENT_REVIEW_CAPABILITY = 'docx-editor-agent-review'

@@ -3,7 +3,9 @@ jest.mock('fractional-indexing', () => ({
   generateKeyBetween: jest.fn(() => 'a1')
 }))
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol.for('XPERT_RUNTIME_CAPABILITIES_TOKEN')
+  pluginArtifactTableName: (namespace: string, key: string) => `plugin_${namespace}_${key}`,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol.for('XPERT_RUNTIME_CAPABILITIES_TOKEN'),
+  CollaborationRuntimeCapability: { id: 'platform.collaboration' }
 }))
 jest.mock('tldraw', () => ({
   createTLStore: () => createMockTlStore()
@@ -16,6 +18,9 @@ import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-
 import type { Repository } from 'typeorm'
 import type { CanvasJsonValue, CanvasRecord, CanvasScope, CanvasSnapshotData, CanvasWorkspaceFileRecord, CanvasWorkspaceFilesApi } from './types.js'
 import { CANVAS_WORKSPACE_FILES_RUNTIME_CAPABILITY } from './types.js'
+import { CollaborationRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { createCanvasYDoc, encodeCanvasYDoc } from './canvas-yjs.js'
+import * as Y from 'yjs'
 
 type FakeEntity = {
   id?: string
@@ -25,18 +30,23 @@ type FakeEntity = {
 }
 
 type FakeFindOptions<T extends FakeEntity> = {
-  where?: Partial<T>
+  where?: Partial<T> | Partial<T>[]
   order?: {
     updatedAt?: 'ASC' | 'DESC'
     versionNumber?: 'ASC' | 'DESC'
     createdAt?: 'ASC' | 'DESC'
+    id?: 'ASC' | 'DESC'
   }
+  skip?: number
   take?: number
 }
 
 class FakeRepository<T extends FakeEntity> {
   records: T[] = []
   private sequence = 0
+  manager?: {
+    transaction<R>(callback: (manager: { getRepository(): FakeRepository<T> }) => Promise<R>): Promise<R>
+  }
 
   create(input: Partial<T>) {
     return { ...input } as T
@@ -58,7 +68,9 @@ class FakeRepository<T extends FakeEntity> {
   }
 
   async find(options: FakeFindOptions<T> = {}) {
-    const filtered = this.records.filter((record) => matchesWhere(record, options.where ?? {}))
+    const where = options.where ?? {}
+    const candidates = Array.isArray(where) ? where : [where]
+    const filtered = this.records.filter((record) => candidates.some((candidate) => matchesWhere(record, candidate)))
     if (options.order?.updatedAt === 'DESC') {
       filtered.sort((left, right) => Number(right.updatedAt ?? 0) - Number(left.updatedAt ?? 0))
     }
@@ -68,7 +80,18 @@ class FakeRepository<T extends FakeEntity> {
     if (options.order?.createdAt === 'DESC') {
       filtered.sort((left, right) => Number(right.createdAt ?? 0) - Number(left.createdAt ?? 0))
     }
-    return typeof options.take === 'number' ? filtered.slice(0, options.take) : filtered
+    if (options.order?.id === 'ASC') {
+      filtered.sort((left, right) => String(left.id ?? '').localeCompare(String(right.id ?? '')))
+    }
+    const start = options.skip ?? 0
+    return typeof options.take === 'number' ? filtered.slice(start, start + options.take) : filtered.slice(start)
+  }
+
+  async findAndCount(options: FakeFindOptions<T> = {}) {
+    const where = options.where ?? {}
+    const candidates = Array.isArray(where) ? where : [where]
+    const total = this.records.filter((record) => candidates.some((candidate) => matchesWhere(record, candidate))).length
+    return [await this.find(options), total] as const
   }
 
   async findOne(options: FakeFindOptions<T> = {}) {
@@ -82,6 +105,120 @@ class FakeRepository<T extends FakeEntity> {
   }
 }
 
+class FakeCanvasCollaboration {
+  private readonly states = new Map<string, {
+    id: string
+    resourceId: string
+    updateBase64: string
+    stateVectorBase64: string
+    sequenceNumber: number
+    status: 'active' | 'archived' | 'deleted'
+  }>()
+
+  constructor(private readonly documents: FakeRepository<CanvasDocument>) {}
+
+  async ensureDocument(input: { resourceId: string }) {
+    let state = this.states.get(input.resourceId)
+    if (!state) {
+      const document = this.documents.records.find((item) => item.id === input.resourceId)
+      if (!document) throw new Error('Canvas document was not found for fake collaboration initialization.')
+      const encoded = encodeCanvasYDoc(createCanvasYDoc(document.autosaveSnapshot ?? createEmptyCanvasSnapshot()))
+      state = {
+        id: `collaboration:${input.resourceId}`,
+        resourceId: input.resourceId,
+        updateBase64: encoded.stateBase64,
+        stateVectorBase64: encoded.stateVectorBase64,
+        sequenceNumber: document.workingCopyRevision ?? 0,
+        status: 'active'
+      }
+      this.states.set(input.resourceId, state)
+    }
+    return this.record(state)
+  }
+
+  async getDocument(input: { documentId?: string; resourceId?: string }) {
+    const state = this.requireState(input)
+    return this.record(state)
+  }
+
+  async getDocumentState(input: { documentId: string }) {
+    const state = this.requireState(input)
+    return {
+      document: this.record(state),
+      updateBase64: state.updateBase64,
+      stateVectorBase64: state.stateVectorBase64,
+      sequenceNumber: state.sequenceNumber
+    }
+  }
+
+  async applyUpdate(input: { documentId: string; updateBase64: string; expectedSequence?: number | null }) {
+    const state = this.requireState(input)
+    if (input.expectedSequence != null && input.expectedSequence !== state.sequenceNumber) {
+      throw new Error('Fake collaboration sequence conflict.')
+    }
+    const doc = new Y.Doc()
+    Y.applyUpdate(doc, Buffer.from(state.updateBase64, 'base64'))
+    Y.applyUpdate(doc, Buffer.from(input.updateBase64, 'base64'))
+    const encoded = encodeCanvasYDoc(doc)
+    state.updateBase64 = encoded.stateBase64
+    state.stateVectorBase64 = encoded.stateVectorBase64
+    state.sequenceNumber += 1
+    return {
+      documentId: state.id,
+      duplicate: false,
+      sequenceNumber: state.sequenceNumber,
+      stateVectorBase64: state.stateVectorBase64,
+      materializationStatus: 'ready' as const
+    }
+  }
+
+  async createSession(input: { documentId: string; access?: 'read' | 'write' }) {
+    const state = this.requireState(input)
+    return {
+      sessionId: 'session-1', clientKey: 'client-1', documentId: state.id, namespace: '/collaboration',
+      connectionUrl: 'http://localhost:3000', access: input.access ?? 'write', expiresAt: Date.now() + 60_000,
+      actor: { presenceId: 'user-1', actorType: 'user' as const, displayName: 'Test User', color: '#0f766e', avatarUrl: null }
+    }
+  }
+
+  async listPresence() { return [] }
+  async upsertVirtualPresence() { return null }
+  async removeVirtualPresence() {}
+  async archiveDocument(input: { documentId?: string; resourceId?: string }) {
+    const state = this.requireState(input)
+    state.status = 'archived'
+    return this.record(state)
+  }
+  async deleteDocument(input: { documentId?: string; resourceId?: string }) {
+    const state = this.requireState(input)
+    state.status = 'deleted'
+    return this.record(state)
+  }
+
+  private requireState(input: { documentId?: string; resourceId?: string }) {
+    const state = input.resourceId
+      ? this.states.get(input.resourceId)
+      : [...this.states.values()].find((item) => item.id === input.documentId)
+    if (!state) throw new Error('Fake collaboration document was not found.')
+    return state
+  }
+
+  private record(state: ReturnType<FakeCanvasCollaboration['requireState']>) {
+    return {
+      id: state.id,
+      providerKey: 'canvas.document',
+      resourceId: state.resourceId,
+      engine: 'yjs' as const,
+      schemaVersion: 1,
+      status: state.status,
+      sequenceNumber: state.sequenceNumber,
+      updateCount: state.sequenceNumber,
+      materializedSequence: state.sequenceNumber,
+      materializationStatus: 'ready' as const
+    }
+  }
+}
+
 describe('CanvasService', () => {
   let documentRepository: FakeRepository<CanvasDocument>
   let versionRepository: FakeRepository<CanvasDocumentVersion>
@@ -89,11 +226,22 @@ describe('CanvasService', () => {
   let service: CanvasService
 
   function createService(runtimeRegistry?: AgentMiddlewareRuntimeCapabilityRegistry) {
+    const collaboration = new FakeCanvasCollaboration(documentRepository)
+    const externalGet = runtimeRegistry
+      ? Reflect.get(runtimeRegistry, 'get') as ((capability: unknown) => unknown) | undefined
+      : undefined
+    const registry = asRuntimeRegistry({
+      get: (capability: unknown) => capability === CollaborationRuntimeCapability
+        ? collaboration
+        : typeof externalGet === 'function'
+          ? externalGet.call(runtimeRegistry, capability)
+          : undefined
+    })
     return new CanvasService(
       asRepository(documentRepository),
       asRepository(versionRepository),
       asRepository(logRepository),
-      runtimeRegistry
+      registry
     )
   }
 
@@ -101,6 +249,9 @@ describe('CanvasService', () => {
     documentRepository = new FakeRepository<CanvasDocument>()
     versionRepository = new FakeRepository<CanvasDocumentVersion>()
     logRepository = new FakeRepository<CanvasActionLog>()
+    documentRepository.manager = {
+      transaction: async (callback) => callback({ getRepository: () => documentRepository })
+    }
     service = createService()
   })
 
@@ -138,6 +289,25 @@ describe('CanvasService', () => {
     )
   })
 
+  it('imports a snapshot into the working copy without creating a version', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Import target' })
+    const importedSnapshot = snapshotWithText('Imported working copy', 'shape:imported')
+
+    const imported = await service.importSnapshotToWorkingCopy(scope, {
+      documentId: created.item.id,
+      snapshot: importedSnapshot,
+      sourceType: 'import',
+      changeSummary: 'Import into existing canvas'
+    })
+
+    expect(imported.document.currentVersionNumber).toBe(0)
+    expect(imported.workingCopyRevision).toBe(1)
+    expect(versionRepository.records).toHaveLength(0)
+    expect(documentRepository.records[0].autosaveSnapshot?.store['shape:imported']).toBeDefined()
+    expect(logRepository.records.some((record) => record.action === 'snapshot_imported')).toBe(true)
+  })
+
   it('scopes reads by tenant and organization', async () => {
     const created = await service.createDocument(testScope({ tenantId: 'tenant-a', organizationId: 'org-a' }), {
       title: 'Private canvas'
@@ -148,6 +318,23 @@ describe('CanvasService', () => {
         documentId: created.item.id
       })
     ).rejects.toThrow('Canvas document was not found')
+  })
+
+  it('authorizes collaboration only for the exact Xpert-owned Canvas resource', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Scoped collaboration canvas' })
+    const baseContext = {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+      projectId: scope.projectId,
+      providerKey: 'canvas.document',
+      resourceId: created.item.id,
+      operation: 'write' as const
+    }
+
+    await expect(service.authorizeCollaborationDocument({ ...baseContext, xpertId: scope.assistantId })).resolves.toBe(true)
+    await expect(service.authorizeCollaborationDocument({ ...baseContext, xpertId: 'another-assistant' })).resolves.toBe(false)
   })
 
   it('patches records and rejects invalid snapshot records', async () => {
@@ -199,6 +386,168 @@ describe('CanvasService', () => {
     ).rejects.toThrow('non-empty id')
   })
 
+  it('applies idempotent Agent stages and uses checksums for targeted updates', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Staged Canvas' })
+    const documentId = created.item.id as string
+    const firstStage = {
+      documentId,
+      operationId: 'canvas-stage-operation-1',
+      batchId: 'canvas-stage-batch-1',
+      stageIndex: 1,
+      stageLabel: 'Add the first task',
+      isFinalStage: false,
+      baseRevision: 0,
+      createShapes: [{
+        id: 'shape:stage-one',
+        type: 'text' as const,
+        x: 0,
+        y: 0,
+        text: 'Stage one'
+      }],
+      changeSummary: 'Add the first task'
+    }
+
+    const applied = await service.applyAgentRecordBatch(scope, firstStage)
+    const duplicate = await service.applyAgentRecordBatch(scope, firstStage)
+
+    expect(applied).toEqual(expect.objectContaining({
+      duplicate: false,
+      workingCopyRevision: 1,
+      createdRecordIds: ['shape:stage-one']
+    }))
+    expect(duplicate).toEqual(expect.objectContaining({
+      duplicate: true,
+      workingCopyRevision: 1,
+      createdRecordIds: ['shape:stage-one']
+    }))
+    await expect(service.applyAgentRecordBatch(scope, {
+      ...firstStage,
+      stageLabel: 'Reuse the operation for different content'
+    })).rejects.toThrow('[CANVAS_OPERATION_ID_REUSED]')
+    expect(logRepository.records.filter((record) => record.action === 'records_patched')).toHaveLength(1)
+
+    const detail = await service.getRecordForAgent(scope, {
+      documentId,
+      recordId: 'shape:stage-one',
+      expectedRevision: 1
+    })
+    const checksum = detail.record.checksum as string
+    const updated = await service.applyAgentRecordBatch(scope, {
+      documentId,
+      operationId: 'canvas-stage-operation-2',
+      batchId: 'canvas-stage-batch-1',
+      stageIndex: 2,
+      stageLabel: 'Rename the first task',
+      isFinalStage: true,
+      baseRevision: 1,
+      updateRecords: [{
+        id: 'shape:stage-one',
+        expectedChecksum: checksum,
+        patch: { props: { richText: testRichText('Stage two') }, x: 40 }
+      }],
+      changeSummary: 'Rename the first task'
+    })
+
+    expect(updated).toEqual(expect.objectContaining({ workingCopyRevision: 2, updatedRecordIds: ['shape:stage-one'] }))
+    expect(documentRepository.records[0].autosaveSnapshot?.store['shape:stage-one']).toEqual(expect.objectContaining({
+      x: 40,
+      props: expect.objectContaining({ richText: testRichText('Stage two'), color: 'black' })
+    }))
+    expect(versionRepository.records).toHaveLength(0)
+    await expect(service.saveSnapshot(scope, {
+      documentId,
+      snapshot: documentRepository.records[0].autosaveSnapshot,
+      sourceType: 'agent_patch',
+      changeSummary: 'Agent must not checkpoint staged work'
+    })).rejects.toThrow('human Workbench New Version action')
+    const checkpoint = await service.saveSnapshot(scope, {
+      documentId,
+      snapshot: documentRepository.records[0].autosaveSnapshot,
+      sourceType: 'workbench',
+      changeSummary: 'Human checkpoint of staged work'
+    })
+    expect(checkpoint.version).toEqual(expect.objectContaining({ versionNumber: 1 }))
+    expect(versionRepository.records[0].snapshot?.store['shape:stage-one']?.props?.richText).toEqual(testRichText('Stage two'))
+    await expect(service.applyAgentRecordBatch(scope, {
+      documentId,
+      operationId: 'canvas-stage-operation-3',
+      batchId: 'canvas-stage-batch-1',
+      stageIndex: 3,
+      stageLabel: 'Apply a stale edit',
+      isFinalStage: true,
+      baseRevision: 2,
+      updateRecords: [{ id: 'shape:stage-one', expectedChecksum: checksum, patch: { x: 80 } }],
+      changeSummary: 'Apply a stale edit'
+    })).rejects.toThrow('[CANVAS_RECORD_CONFLICT]')
+  })
+
+  it('discloses Canvas records through revision-bound cursor pages', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Paged Canvas' })
+    const documentId = created.item.id as string
+    const shapes = ['alpha', 'beta', 'gamma'].map((name, index) => ({
+      id: `shape:${name}`,
+      type: 'text' as const,
+      x: index * 100,
+      y: 0,
+      text: name
+    }))
+    await service.applyAgentRecordBatch(scope, {
+      documentId,
+      operationId: 'canvas-page-operation-1',
+      batchId: 'canvas-page-batch-1',
+      stageIndex: 1,
+      stageLabel: 'Add paged records',
+      isFinalStage: true,
+      baseRevision: 0,
+      createShapes: shapes,
+      changeSummary: 'Add paged records'
+    })
+
+    const summary = await service.getDocumentSummaryForAgent(scope, { documentId })
+    const firstPage = await service.listRecordsForAgent(scope, {
+      documentId,
+      expectedRevision: summary.workingCopyRevision,
+      typeNames: ['shape'],
+      limit: 2
+    })
+    const secondPage = await service.listRecordsForAgent(scope, {
+      documentId,
+      expectedRevision: summary.workingCopyRevision,
+      typeNames: ['shape'],
+      cursor: firstPage.nextCursor as string,
+      limit: 2
+    })
+
+    expect(summary).not.toHaveProperty('scene')
+    expect(summary).not.toHaveProperty('snapshot')
+    expect(firstPage.items).toHaveLength(2)
+    expect(firstPage.hasMore).toBe(true)
+    expect(firstPage.items[0]).not.toHaveProperty('props')
+    expect(secondPage.items).toHaveLength(1)
+    expect(new Set([...firstPage.items, ...secondPage.items].map((item) => item.id)).size).toBe(3)
+    await expect(service.listRecordsForAgent(scope, {
+      documentId,
+      expectedRevision: 0,
+      typeNames: ['shape']
+    })).rejects.toThrow('[CANVAS_REVISION_CONFLICT]')
+  })
+
+  it('paginates Canvas document search in the repository', async () => {
+    const scope = testScope()
+    await service.createDocument(scope, { title: 'Canvas A' })
+    await service.createDocument(scope, { title: 'Canvas B' })
+    await service.createDocument(scope, { title: 'Canvas C' })
+
+    const result = await service.searchDocuments(scope, { page: 2, pageSize: 2 })
+
+    expect(result.total).toBe(3)
+    expect(result.items).toHaveLength(1)
+    expect(result.page).toBe(2)
+    expect(result.pageSize).toBe(2)
+  })
+
   it('inserts image data URLs, base64 payloads, and records failures', async () => {
     const scope = testScope()
     const created = await service.createDocument(scope, {
@@ -223,6 +572,13 @@ describe('CanvasService', () => {
     expect(base64Inserted.insertion.shapeId).toMatch(/^shape:/)
     expect(base64Inserted.document.currentVersionNumber).toBe(0)
     expect(versionRepository.records).toHaveLength(0)
+    const imageSummary = await service.getDocumentSummaryForAgent(scope, { documentId: created.item.id })
+    const assetDetail = await service.getRecordForAgent(scope, {
+      documentId: created.item.id,
+      recordId: inserted.insertion.assetId,
+      expectedRevision: imageSummary.workingCopyRevision
+    })
+    expect(assetDetail.record.props?.src).toBe('[redacted:src]')
 
     await service.reportFailure(scope, {
       documentId: created.item.id,
@@ -413,10 +769,15 @@ describe('CanvasService', () => {
     const created = await service.createDocument(scope, {
       title: 'Autosave target'
     })
+    const draft = snapshotWithText('draft note')
+    await service.patchRecords(scope, {
+      documentId: created.item.id,
+      putRecords: [draft.store['shape:autosave-note']]
+    })
 
     const result = await service.autosaveSnapshot(scope, {
       documentId: created.item.id,
-      snapshot: snapshotWithText('draft note'),
+      snapshot: draft,
       viewState: { currentPageId: 'page:page' },
       selectionSummary: { selectedShapeIds: ['shape:autosave-note'] },
       snapshotImage: { dataUrl: onePixelPng(), width: 1, height: 1, pageId: 'page:page' }
@@ -432,7 +793,7 @@ describe('CanvasService', () => {
     expect(runtime.uploads[0]).toEqual(expect.objectContaining({ catalog: 'projects', scopeId: scope.projectId, fileName: 'current.png' }))
   })
 
-  it('rejects autosave when the frontend base revision is stale', async () => {
+  it('does not let a stale full autosave overwrite authoritative collaboration state', async () => {
     const runtime = createWorkspaceRuntime()
     service = createService(runtime.registry)
     const scope = testScope()
@@ -450,15 +811,15 @@ describe('CanvasService', () => {
       changeSummary: 'Agent image update'
     })
 
-    await expect(
-      service.autosaveSnapshot(scope, {
-        documentId: created.item.id,
-        snapshot: snapshotWithText('stale frontend draft', 'shape:stale-note'),
-        snapshotImage: { dataUrl: onePixelPng() },
-        baseRevision: first.autosave.workingCopyRevision
-      })
-    ).rejects.toThrow('baseRevision')
+    const autosaved = await service.autosaveSnapshot(scope, {
+      documentId: created.item.id,
+      snapshot: snapshotWithText('stale frontend draft', 'shape:stale-note'),
+      snapshotImage: { dataUrl: onePixelPng() },
+      baseRevision: first.autosave.workingCopyRevision
+    })
+    expect(autosaved.autosave.workingCopyRevision).toBeGreaterThan(first.autosave.workingCopyRevision)
     expect(documentRepository.records[0].autosaveSnapshot?.store['shape:stale-note']).toBeUndefined()
+    expect(Object.values(documentRepository.records[0].autosaveSnapshot?.store ?? {}).some((record) => record.type === 'image')).toBe(true)
   })
 
   it('saves version snapshot images while keeping the fixed current image path on the document', async () => {
@@ -584,9 +945,15 @@ describe('CanvasService', () => {
       documentId: created.item.id,
       snapshot: snapshotWithText('version text', 'shape:version-note')
     })
+    const working = snapshotWithText('working text', 'shape:working-note')
+    await service.patchRecords(scope, {
+      documentId: created.item.id,
+      putRecords: [working.store['shape:working-note']],
+      removeRecordIds: ['shape:version-note']
+    })
     await service.autosaveSnapshot(scope, {
       documentId: created.item.id,
-      snapshot: snapshotWithText('working text', 'shape:working-note'),
+      snapshot: working,
       snapshotImage: { dataUrl: onePixelPng() },
       baseRevision: saved.document.workingCopyRevision
     })
@@ -618,9 +985,15 @@ describe('CanvasService', () => {
       documentId: created.item.id,
       snapshot: snapshotWithText('A version', 'shape:a-note')
     })
+    const working = snapshotWithText('AB working copy', 'shape:ab-note')
+    await service.patchRecords(scope, {
+      documentId: created.item.id,
+      putRecords: [working.store['shape:ab-note']],
+      removeRecordIds: ['shape:a-note']
+    })
     await service.autosaveSnapshot(scope, {
       documentId: created.item.id,
-      snapshot: snapshotWithText('AB working copy', 'shape:ab-note'),
+      snapshot: working,
       snapshotImage: { dataUrl: onePixelPng() },
       baseRevision: saved.document.workingCopyRevision
     })
@@ -710,6 +1083,13 @@ function snapshotWithText(text: string, shapeId = 'shape:autosave-note') {
     meta: {}
   } satisfies CanvasRecord
   return snapshot
+}
+
+function testRichText(text: string): CanvasJsonValue {
+  return {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }]
+  }
 }
 
 function snapshotWithAiHolderAndImages() {
