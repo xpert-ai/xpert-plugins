@@ -8,11 +8,12 @@
     "presentation fonts are supplied by exact-version Fontsource dependencies and staged per selected theme instead of being committed as vendor binaries",
     "project/assets/template-swiss.html loads the generated theme-aware font pack and its license inventory",
     "project/scripts/export-pptx.mjs can emit a machine-readable export warning report",
+    "project/packages/html-deck-to-pptx/src/screenshot.mjs captures prepared slides with a page clip so Playwright does not repeat element-stability waits",
     "project/scripts/serve-preview-https.mjs accepts DASHI_PPT_CERT_DIR so export jobs keep certificates inside their temporary directory",
     "volatile project/output/https-preview development certificates are excluded from the vendored tree"
   ],
   "fileCount": 166,
-  "treeSha256": "09d67f9248daed37c8b71e88184b864d5a7203108dfd01b130e8238b0941e9e8",
+  "treeSha256": "e85ff9d6de2aece3181094537278014539e68714a2b4707da615de4a3ec0f7d6",
   "sha256": {
     "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
     "dashiai-ppt/project/layout-manifest.json": "1cec2c24f72890da88afee59f12f6daf7c8254c6852abd5ac17efa6731bbf8e2",

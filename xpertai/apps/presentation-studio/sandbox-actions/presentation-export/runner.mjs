@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { classifyExportError } from './errors.mjs'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(actionRoot, 'project')
@@ -10,7 +11,7 @@ const runtimeModulesRoot = path.join(actionRoot, 'runtime-modules')
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error)
-  process.stderr.write(`${classify(message)}: ${message}\n`)
+  process.stderr.write(`${classifyExportError(message)}: ${message}\n`)
   process.exit(1)
 })
 
@@ -59,7 +60,7 @@ async function main() {
 }
 
 function parseRequest(value) {
-  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'presentation.export' || value.actionVersion !== '1.0.0') {
+  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'presentation.export' || value.actionVersion !== '1.0.1') {
     throw new Error('EXPORT_INPUT_INVALID: Sandbox Action contract or version does not match.')
   }
   if (!isObject(value.payload) || (value.payload.kind !== 'pdf' && value.payload.kind !== 'pptx')) {
@@ -126,14 +127,6 @@ function argument(name) {
 function appendOutput(current, chunk) {
   const next = `${current}${String(chunk)}`
   return next.length > 4 * 1024 * 1024 ? next.slice(-4 * 1024 * 1024) : next
-}
-function classify(message) {
-  const normalized = message.toUpperCase()
-  if (normalized.includes('EXPORT_OUTPUT_INVALID')) return 'EXPORT_OUTPUT_INVALID'
-  if (normalized.includes('EXPORT_INPUT_INVALID') || normalized.includes('GOAL SPEC VALIDATION FAILED')) return 'EXPORT_INPUT_INVALID'
-  if (normalized.includes('BROWSER') || normalized.includes('CHROMIUM') || normalized.includes('PLAYWRIGHT')) return 'BROWSER_LAUNCH_FAILED'
-  if (normalized.includes('ENOMEM') || normalized.includes('OUT OF MEMORY') || normalized.includes('OOM')) return 'EXPORT_OOM'
-  return 'SANDBOX_START_FAILED'
 }
 function isObject(value) { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 function isMissing(error) { return error instanceof Error && 'code' in error && error.code === 'ENOENT' }
