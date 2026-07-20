@@ -68,7 +68,11 @@ For a brand-new package (for example `@xpert-ai/plugin-xxx` never published befo
    ```sh
    cd xpertai
    pnpm exec nx run <nx-project-name>:build
-   pnpm exec nx run <nx-project-name>:nx-release-publish --access public --otp=<your_2FA_otp_if_enabled>
+   pnpm exec nx release publish \
+      --projects=<nx-project-name> \
+      --access=public \
+      --otp=<your_2FA_otp_if_enabled> \
+      --verbose
    ```
 2. In npm package settings, configure Trusted Publisher for this repository/workflow [New Package Checklist](../README.md#new-package-checklist-required)
 
