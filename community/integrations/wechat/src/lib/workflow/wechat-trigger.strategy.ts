@@ -1600,19 +1600,77 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
     if (!result.success || !result.file) {
       throw new Error(`inbound_image_download_failed${result.error ? `: ${result.error}` : ''}`)
     }
+    const userId = RequestContext.currentUserId() ?? (integration as { createdById?: string | null }).createdById ?? undefined
+    const metadata = {
+      source: 'wechat_image_message',
+      integrationId: integration.id,
+      uuid: pending.uuid,
+      messageId: pending.messageId,
+      messageLogId: pending.messageLogId,
+      conversationUserKey: context.conversationUserKey,
+      contactId: pending.contactId,
+      senderId: pending.senderId,
+      fileKey: result.file.fileKey
+    }
+    const uploaded = await this.workspaceFiles.uploadBuffer({
+      tenantId: context.tenantId ?? integration.tenantId ?? undefined,
+      userId,
+      catalog: 'xperts',
+      xpertId: context.xpertId,
+      isolateByUser: false,
+      folder: this.buildInboundWorkspaceFolder(integration.id, pending),
+      fileName: this.normalizeWorkspaceFileName(result.file.originalName),
+      originalName: result.file.originalName,
+      mimeType: result.file.mimeType,
+      size: result.file.size,
+      buffer: result.file.data,
+      metadata
+    })
+    const understood = await this.workspaceFiles.understandFile({
+      tenantId: context.tenantId ?? integration.tenantId ?? undefined,
+      userId,
+      catalog: 'xperts',
+      xpertId: context.xpertId,
+      isolateByUser: false,
+      filePath: uploaded.filePath,
+      originalName: result.file.originalName,
+      mimeType: result.file.mimeType,
+      size: result.file.size,
+      fileUrl: uploaded.fileUrl ?? uploaded.url,
+      purpose: 'chat_attachment',
+      parseMode: 'auto',
+      metadata
+    })
+    const handle: WechatInboundFile = {
+      id: understood.id,
+      fileId: understood.fileId,
+      fileAssetId: understood.fileAssetId,
+      storageFileId: understood.storageFileId,
+      filePath: understood.filePath,
+      workspacePath: understood.workspacePath,
+      fileUrl: result.file.fileUrl,
+      url: result.file.url,
+      mimeType: understood.mimeType || result.file.mimeType,
+      mimetype: understood.mimeType || result.file.mimetype,
+      originalName: understood.originalName || result.file.originalName,
+      name: understood.name || understood.originalName || result.file.name,
+      fileKey: result.file.fileKey,
+      size: understood.size ?? result.file.size,
+      extension: result.file.extension
+    }
     await this.updatePendingFileRow(row?.id, context, {
       status: 'ready',
-      fileId: result.file.fileId,
-      fileAssetId: result.file.fileAssetId,
-      workspacePath: result.file.workspacePath,
-      filePath: result.file.filePath,
-      fileUrl: result.file.fileUrl || result.file.url,
-      originalName: result.file.originalName || result.file.name,
-      mimeType: result.file.mimeType || result.file.mimetype,
-      size: result.file.size,
+      fileId: handle.fileId,
+      fileAssetId: handle.fileAssetId,
+      workspacePath: handle.workspacePath,
+      filePath: handle.filePath,
+      fileUrl: uploaded.fileUrl || uploaded.url,
+      originalName: handle.originalName || handle.name,
+      mimeType: handle.mimeType || handle.mimetype,
+      size: handle.size,
       error: null
     })
-    return result.file
+    return handle
   }
 
   private async savePendingFileRow(

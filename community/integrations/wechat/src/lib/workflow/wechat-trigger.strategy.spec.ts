@@ -83,6 +83,7 @@ describe('WechatTriggerStrategy', () => {
       downloadImage: jest.fn().mockResolvedValue({
         success: true,
         file: {
+          data: Buffer.from('iVBORw0KGgo=', 'base64'),
           fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
           url: 'data:image/png;base64,iVBORw0KGgo=',
           mimeType: 'image/png',
@@ -1035,6 +1036,111 @@ describe('WechatTriggerStrategy', () => {
       })
     )
     expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('docx-bytes')
+  })
+
+  it('uploads decoded inbound images to workspace storage while preserving the data URL for vision dispatch', async () => {
+    const { strategy, dispatchService, workspaceFiles, messageFileRepository, wechatMessage } = createStrategy()
+    workspaceFiles.uploadBuffer.mockResolvedValueOnce({
+      name: 'wechat-image.png',
+      filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      fileUrl: 'https://files.example/files/wechat/wechat-image.png',
+      mimeType: 'image/png',
+      size: 8
+    })
+    workspaceFiles.understandFile.mockResolvedValueOnce({
+      id: 'image-asset-1',
+      fileId: 'image-asset-1',
+      fileAssetId: 'image-asset-1',
+      storageFileId: 'storage-image-1',
+      filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      fileUrl: 'https://files.example/files/wechat/wechat-image.png',
+      mimeType: 'image/png',
+      originalName: 'wechat-image.png',
+      name: 'wechat-image.png',
+      size: 8
+    })
+    const imageRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'image-msg-1',
+      msgContent: '<msg><img /></msg>',
+      msgType: 3 as const,
+      fileKey: 'image-key-1',
+      originalName: 'wechat-image.png'
+    }
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        input: '',
+        pendingFiles: [
+          {
+            kind: 'image',
+            messageLogId: 'inbound-image-log-1',
+            messageId: 'image-msg-1',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: 'wechat-image.png',
+            imageRef
+          }
+        ],
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        currentInboundLogIds: ['inbound-image-log-1'],
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      queued: false,
+      dispatched: true
+    })
+
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        isolateByUser: false,
+        folder: 'files/wechat/integration-1/uuid-1/image-msg-1',
+        fileName: 'wechat-image.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgo=', 'base64')
+      })
+    )
+    expect(workspaceFiles.understandFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+        purpose: 'chat_attachment',
+        parseMode: 'auto'
+      })
+    )
+    expect(messageFileRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'message-file-1' }),
+      expect.objectContaining({
+        status: 'ready',
+        fileAssetId: 'image-asset-1',
+        workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+        fileUrl: 'https://files.example/files/wechat/wechat-image.png'
+      })
+    )
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '[理解附件]',
+        files: [
+          expect.objectContaining({
+            fileAssetId: 'image-asset-1',
+            storageFileId: 'storage-image-1',
+            workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            url: 'data:image/png;base64,iVBORw0KGgo='
+          })
+        ]
+      })
+    )
+    expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('"data":')
   })
 
   it('skips known oversized file messages before wx2.0 download or workspace upload', async () => {
