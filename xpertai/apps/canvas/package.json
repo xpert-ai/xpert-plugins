@@ -44,7 +44,7 @@
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "dev:share-harness": "node scripts/workbench-share-harness.mjs",
-    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
+    "prepack": "node scripts/sync-plugin-manifest-version.mjs && pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },
   "xpert": {
     "plugin": {
