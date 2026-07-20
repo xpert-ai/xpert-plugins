@@ -1,18 +1,15 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import { wechatTable } from '../constants.js'
 
 export type WechatMessageFileStatus = 'pending' | 'processing' | 'ready' | 'failed'
 
-const WECHAT_MESSAGE_FILE_TABLE = wechatTable('message_file')
-
-@Entity(wechatTable('message_file'))
-@Index(`${WECHAT_MESSAGE_FILE_TABLE}_log_idx`, ['messageLogId'])
-@Index(`${WECHAT_MESSAGE_FILE_TABLE}_conversation_idx`, ['conversationId'])
-@Index(`${WECHAT_MESSAGE_FILE_TABLE}_asset_idx`, ['fileAssetId'])
-@Index(`${WECHAT_MESSAGE_FILE_TABLE}_history_idx`, ['conversationUserKey', 'xpertId', 'createdAt'])
-@Index(`${WECHAT_MESSAGE_FILE_TABLE}_tenant_org_idx`, ['tenantId', 'organizationId'])
+@Entity(WechatMessageFileEntity.tableName)
+@Index('plugin_wechat_message_file_log_idx', ['messageLogId'])
+@Index('plugin_wechat_message_file_conversation_idx', ['conversationId'])
+@Index('plugin_wechat_message_file_asset_idx', ['fileAssetId'])
+@Index('plugin_wechat_message_file_history_idx', ['conversationUserKey', 'xpertId', 'createdAt'])
+@Index('plugin_wechat_message_file_tenant_org_idx', ['tenantId', 'organizationId'])
 export class WechatMessageFileEntity {
-  static readonly tableName = WECHAT_MESSAGE_FILE_TABLE
+  static readonly tableName = 'plugin_wechat_message_file'
 
   @PrimaryGeneratedColumn('uuid')
   id: string

@@ -1,13 +1,10 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import { wechatTable } from '../constants.js'
 
-const WECHAT_ACCOUNT_TABLE = wechatTable('account')
-
-@Entity(wechatTable('account'))
-@Index(`${WECHAT_ACCOUNT_TABLE}_integration_uuid_uq`, ['integrationId', 'uuid'], { unique: true })
-@Index(`${WECHAT_ACCOUNT_TABLE}_tenant_org_idx`, ['tenantId', 'organizationId'])
+@Entity(WechatAccountEntity.tableName)
+@Index('plugin_wechat_account_integration_uuid_uq', ['integrationId', 'uuid'], { unique: true })
+@Index('plugin_wechat_account_tenant_org_idx', ['tenantId', 'organizationId'])
 export class WechatAccountEntity {
-  static readonly tableName = WECHAT_ACCOUNT_TABLE
+  static readonly tableName = 'plugin_wechat_account'
 
   @PrimaryGeneratedColumn('uuid')
   id: string

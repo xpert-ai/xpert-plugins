@@ -10,7 +10,6 @@ import {
   WECHAT_INBOUND_AGGREGATE_JOB,
   WECHAT_INBOUND_FLUSH_JOB,
   WECHAT_INBOUND_QUEUE_NAME,
-  WECHAT_INBOUND_QUEUE_PREFIX,
   WECHAT_PLUGIN_NAME
 } from '../constants.js'
 import { WECHAT_PLUGIN_CONTEXT } from '../tokens.js'
@@ -55,7 +54,7 @@ export class WechatTriggerAggregationService {
       tenantId: payload.tenantId,
       organizationId: payload.organizationId,
       scopeKey: this.scopeKey,
-      jobId: `${WECHAT_INBOUND_AGGREGATE_JOB}-${randomUUID()}`,
+      jobId: `plugin_wechat_inbound_aggregate-${randomUUID()}`,
       attempts: 5,
       backoffMs: {
         type: 'fixed',
@@ -92,7 +91,7 @@ export class WechatTriggerAggregationService {
       tenantId: state.tenantId,
       organizationId: state.organizationId,
       scopeKey: this.scopeKey,
-      jobId: `${WECHAT_INBOUND_FLUSH_JOB}-${randomUUID()}`,
+      jobId: `plugin_wechat_inbound_flush-${randomUUID()}`,
       delayMs: Math.max(0, delayMs),
       attempts: 3,
       backoffMs: {
@@ -180,7 +179,7 @@ export class WechatTriggerAggregationService {
   private buildKey(aggregateKey: string, scope?: AggregationScope): string {
     const prefix = this.buildScopedPrefix(scope)
     if (!prefix) {
-      return `${WECHAT_INBOUND_QUEUE_PREFIX}:trigger:aggregate:${aggregateKey}`
+      return `plugin_wechat:trigger:aggregate:${aggregateKey}`
     }
     return `${prefix}:aggregate:${aggregateKey}`
   }
@@ -188,7 +187,7 @@ export class WechatTriggerAggregationService {
   private buildLockKey(aggregateKey: string, scope?: AggregationScope): string {
     const prefix = this.buildScopedPrefix(scope)
     if (!prefix) {
-      return `${WECHAT_INBOUND_QUEUE_PREFIX}:lock:inbound:${aggregateKey}`
+      return `plugin_wechat:lock:inbound:${aggregateKey}`
     }
     return `${prefix}:lock:inbound:${aggregateKey}`
   }
@@ -200,12 +199,6 @@ export class WechatTriggerAggregationService {
       return null
     }
     const organizationId = typeof scope?.organizationId === 'string' && scope.organizationId ? scope.organizationId : 'org_global'
-    return [
-      WECHAT_INBOUND_QUEUE_PREFIX,
-      'trigger',
-      tenantId || 'tenant_global',
-      organizationId,
-      integrationId || 'integration_unknown'
-    ].join(':')
+    return ['plugin_wechat', 'trigger', tenantId || 'tenant_global', organizationId, integrationId || 'integration_unknown'].join(':')
   }
 }

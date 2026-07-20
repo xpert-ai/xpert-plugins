@@ -1,5 +1,4 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import { wechatTable } from '../constants.js'
 
 export type WechatMessageDirection = 'inbound' | 'outbound' | 'system'
 export type WechatMessageLogStatus =
@@ -16,14 +15,12 @@ export type WechatMessageLogStatus =
   | 'cancelled'
   | 'context_reset'
 
-const WECHAT_MESSAGE_LOG_TABLE = wechatTable('message_log')
-
-@Entity(wechatTable('message_log'))
-@Index(`${WECHAT_MESSAGE_LOG_TABLE}_message_idx`, ['integrationId', 'messageId', 'direction'])
-@Index(`${WECHAT_MESSAGE_LOG_TABLE}_tenant_org_idx`, ['tenantId', 'organizationId'])
-@Index(`${WECHAT_MESSAGE_LOG_TABLE}_integration_created_idx`, ['integrationId', 'createdAt'])
+@Entity(WechatMessageLogEntity.tableName)
+@Index('plugin_wechat_message_log_message_idx', ['integrationId', 'messageId', 'direction'])
+@Index('plugin_wechat_message_log_tenant_org_idx', ['tenantId', 'organizationId'])
+@Index('plugin_wechat_message_log_integration_created_idx', ['integrationId', 'createdAt'])
 export class WechatMessageLogEntity {
-  static readonly tableName = WECHAT_MESSAGE_LOG_TABLE
+  static readonly tableName = 'plugin_wechat_message_log'
 
   @PrimaryGeneratedColumn('uuid')
   id: string

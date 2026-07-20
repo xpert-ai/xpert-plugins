@@ -18,7 +18,6 @@ import {
 import { In, Repository } from 'typeorm'
 import {
   WECHAT_PLUGIN_NAME,
-  WECHAT_OUTBOUND_QUEUE_PREFIX,
   WECHAT_OUTBOUND_QUEUE_NAME,
   WECHAT_OUTBOUND_SEND_TEXT_JOB,
   WECHAT_PROVIDER_KEY
@@ -885,7 +884,7 @@ export class WechatOutboundQueueService {
     options: NormalizedOutboundQueueOptions
   ): Promise<{ id: string }> {
     const delay = Math.max(0, scheduledAt.getTime() - Date.now())
-    const jobId = `${WECHAT_OUTBOUND_QUEUE_NAME}-${log.id}-${scheduledAt.getTime()}`
+    const jobId = `plugin_wechat_outbound-${log.id}-${scheduledAt.getTime()}`
     const result = await this.managedQueueService.enqueue<WechatOutboundQueueJobData>({
       pluginName: WECHAT_PLUGIN_NAME,
       queueName: WECHAT_OUTBOUND_QUEUE_NAME,
@@ -1504,7 +1503,7 @@ export class WechatOutboundQueueService {
   }
 
   private scopePrefix(integrationId: string, tenantId?: string | null): string {
-    return [WECHAT_OUTBOUND_QUEUE_PREFIX, tenantId || 'tenant_global', integrationId].join(':')
+    return ['plugin_wechat', tenantId || 'tenant_global', integrationId].join(':')
   }
 }
 
