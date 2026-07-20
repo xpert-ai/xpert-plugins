@@ -1,6 +1,20 @@
+import { readFileSync } from 'fs'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { WECHAT_ARTIFACT_NAMESPACE } from './lib/constants.js'
 import { WechatPluginConfigFormSchema } from './plugin-config.js'
 
 describe('wechat plugin metadata', () => {
+  it('declares the artifact namespace used by plugin_wechat tables', () => {
+    const moduleDir = dirname(fileURLToPath(import.meta.url))
+    const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+      xpert: { plugin: { artifactNamespace?: string } }
+    }
+
+    expect(WECHAT_ARTIFACT_NAMESPACE).toBe('wechat')
+    expect(packageJson.xpert.plugin.artifactNamespace).toBe(WECHAT_ARTIFACT_NAMESPACE)
+  })
+
   it('exposes translated config form labels', () => {
     const formSchema = WechatPluginConfigFormSchema as any
 

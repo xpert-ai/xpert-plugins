@@ -1,4 +1,5 @@
 export const WECHAT_PLUGIN_NAME = '@xpert-ai/plugin-community-wechat'
+export const WECHAT_ARTIFACT_NAMESPACE = 'wechat'
 export const WECHAT_PROVIDER_KEY = 'wechat'
 export const WECHAT_CHANNEL_TYPE = 'wechat'
 export const WECHAT_TRIGGER_KEY = 'wechat'

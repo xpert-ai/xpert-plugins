@@ -3,6 +3,7 @@ import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
+  WECHAT_ARTIFACT_NAMESPACE,
   WECHAT_FEATURE,
   WECHAT_FILE_SEND_FEATURE,
   WECHAT_ICON,
@@ -29,10 +30,18 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
   version: string
 }
 
+type WechatPluginMeta = XpertPlugin<WechatPluginConfig>['meta'] & {
+  artifactNamespace: string
+}
+
+// plugin-sdk 3.15.4 predates artifactNamespace in PluginMeta; keep the compatibility boundary local.
+const defineWechatPluginMeta = (meta: WechatPluginMeta): WechatPluginMeta => meta
+
 const plugin: XpertPlugin<WechatPluginConfig> = {
-  meta: {
+  meta: defineWechatPluginMeta({
     name: packageJson.name || WECHAT_PLUGIN_NAME,
     version: packageJson.version,
+    artifactNamespace: WECHAT_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert'],
     targetAppMeta: {
@@ -125,7 +134,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
     description: 'wx2.0 WeChat integration for webhook receiving, Agent dispatch, and text/file replies.',
     keywords: ['wechat', 'wx2.0', 'integration', 'webhook', 'agent', 'remote-component'],
     author: 'XpertAI Team'
-  },
+  }),
   config: {
     schema: WechatPluginConfigSchema,
     formSchema: WechatPluginConfigFormSchema
