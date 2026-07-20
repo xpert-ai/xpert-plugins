@@ -1,7 +1,10 @@
 import { SandboxJobsRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { PRESENTATION_CONFIG_DEFAULTS } from './presentation-config.service.js'
 import { PresentationRendererService } from './presentation-renderer.service.js'
-import { PRESENTATION_SANDBOX_ACTION_VERSION } from './constants.js'
+import {
+  PRESENTATION_SANDBOX_ACTION_VERSION,
+  PRESENTATION_SANDBOX_JOB_TIMEOUT_MS
+} from './constants.js'
 
 describe('PresentationRendererService export capabilities', () => {
   function createRenderer(options?: {
@@ -19,6 +22,13 @@ describe('PresentationRendererService export capabilities', () => {
         sandboxRuntimeVersion: '1.0.0',
         available: true,
         ...options?.health
+      })),
+      run: jest.fn(async () => ({
+        id: 'sandbox-job-1',
+        attempt: 1,
+        runtimeProfile: 'browser/playwright-1.61/v1',
+        sandboxRuntimeVersion: '1.0.0',
+        outputs: [{ path: 'presentation.pptx' }]
       }))
     }
     const runtimeCapabilities = {
@@ -96,5 +106,58 @@ describe('PresentationRendererService export capabilities', () => {
     expect(capabilities.pdf).toMatchObject({ available: false, reason: 'PROVIDER_UNAVAILABLE' })
     expect(capabilities.pdf.message).toContain('OSS base deployment intentionally does not include')
     expect(capabilities.pdf.message).toContain('HTML remains available')
+  })
+
+  it('budgets enough Sandbox Job time for a maximum-size PPTX export', async () => {
+    const { renderer, jobs } = createRenderer()
+
+    await renderer.exportVersionInSandbox({
+      exportId: 'export-1',
+      checksum: 'checksum-1',
+      version: {
+        deckId: 'deck-1',
+        versionNumber: 1,
+        source: 'system',
+        deckSpec: {
+          title: 'Maximum deck',
+          goal: 'Verify the sandbox timeout budget',
+          themePack: 'theme02',
+          pageCount: 1,
+          slides: [{ id: 'slide-1', layout: 'theme02_page001', status: 'active', props: {} }]
+        },
+        editorState: {
+          slideOrder: ['slide-1'],
+          skippedSlides: [],
+          deletedSlides: [],
+          duplicatedSlides: [],
+          text: {},
+          props: { 'slide-1': {} },
+          preview: {}
+        },
+        checksum: 'checksum-1',
+        rendererVersion: 'test',
+        upstreamCommit: 'test',
+        yjsUpdateCount: 0
+      },
+      assets: [],
+      kind: 'pptx',
+      title: 'Maximum deck',
+      fileName: 'maximum-deck.pptx',
+      tenantId: 'tenant-1',
+      organizationId: 'organization-1',
+      userId: 'user-1',
+      destination: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        catalog: 'projects',
+        projectId: 'project-1',
+        folder: 'files/presentation-studio'
+      }
+    })
+
+    expect(jobs.run).toHaveBeenCalledWith(expect.objectContaining({
+      actionVersion: PRESENTATION_SANDBOX_ACTION_VERSION,
+      timeoutMs: PRESENTATION_SANDBOX_JOB_TIMEOUT_MS
+    }))
   })
 })
