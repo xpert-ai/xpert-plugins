@@ -8,6 +8,7 @@ import {
   WECHAT_ICON,
   WECHAT_MIDDLEWARE_NAME,
   WECHAT_PLUGIN_NAME,
+  WECHAT_PLUGIN_RUNTIME_METADATA,
   WECHAT_PROVIDER_KEY,
   WECHAT_RUNTIME_FEATURE,
   WECHAT_TEMPLATE_PROVIDER_KEY,
@@ -33,7 +34,7 @@ const plugin: XpertPlugin<WechatPluginConfig> = {
   meta: {
     name: packageJson.name || WECHAT_PLUGIN_NAME,
     version: packageJson.version,
-    level: 'system',
+    ...WECHAT_PLUGIN_RUNTIME_METADATA,
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {
