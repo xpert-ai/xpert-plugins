@@ -10,14 +10,12 @@ import {
   WebSocketGateway
 } from '@nestjs/websockets'
 import { Socket } from 'socket.io'
+import { WECHAT_TUNNEL_NAMESPACE, WECHAT_TUNNEL_NAMESPACE_PREFIX } from './constants.js'
 import { normalizeString } from './types.js'
 import {
   WechatTunnelBrokerService,
   WechatTunnelTransport
 } from './wechat-tunnel-broker.service.js'
-
-const WECHAT_TUNNEL_NAMESPACE = /^\/api\/wechat\/tunnel\/ws\/[^/]+$/
-const WECHAT_TUNNEL_NAMESPACE_PREFIX = '/api/wechat/tunnel/ws/'
 
 @WebSocketGateway({
   namespace: WECHAT_TUNNEL_NAMESPACE,

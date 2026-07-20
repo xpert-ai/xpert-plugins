@@ -10,7 +10,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import { Public } from './decorators.js'
-import { WECHAT_ICON, WECHAT_PROVIDER_KEY } from './constants.js'
+import { WECHAT_CONTROLLER_ROUTE, WECHAT_ICON, WECHAT_PROVIDER_KEY } from './constants.js'
 import { WECHAT_PLUGIN_CONTEXT } from './tokens.js'
 import { WechatConversationService } from './conversation.service.js'
 import { TIntegrationWechatOptions } from './types.js'
@@ -26,7 +26,7 @@ type WechatWebhookPrincipalContext = {
   headers: Record<string, string>
 }
 
-@Controller('wechat')
+@Controller(WECHAT_CONTROLLER_ROUTE)
 export class WechatController {
   private _integrationPermissionService: IntegrationPermissionService
 

@@ -1,42 +1,58 @@
 export const WECHAT_PLUGIN_NAME = '@xpert-ai/plugin-community-wechat'
-export const WECHAT_ARTIFACT_NAMESPACE = 'wechat'
-export const WECHAT_PROVIDER_KEY = 'wechat'
-export const WECHAT_CHANNEL_TYPE = 'wechat'
-export const WECHAT_TRIGGER_KEY = 'wechat'
+export const WECHAT_ARTIFACT_NAMESPACE = 'wechat' as const
+
+export const wechatArtifactKey = (localKey: string, separator: '_' | '-' | '' = '_') =>
+  localKey ? `${WECHAT_ARTIFACT_NAMESPACE}${separator}${localKey}` : WECHAT_ARTIFACT_NAMESPACE
+
+export const wechatPluginArtifactKey = (localKey: string) => `plugin_${wechatArtifactKey(localKey)}`
+export const wechatTable = (tableKey: string) => wechatPluginArtifactKey(tableKey)
+export const wechatArtifactClassName = (localName: string) => `Wechat${localName}`
+
+export const WECHAT_PLUGIN_RUNTIME_METADATA = {
+  level: 'system',
+  artifactNamespace: WECHAT_ARTIFACT_NAMESPACE
+} as const
+
+export const WECHAT_PROVIDER_KEY = WECHAT_ARTIFACT_NAMESPACE
+export const WECHAT_CHANNEL_TYPE = WECHAT_ARTIFACT_NAMESPACE
+export const WECHAT_TRIGGER_KEY = WECHAT_ARTIFACT_NAMESPACE
 export const WECHAT_DEFAULT_TRIGGER_ACCOUNT_UUID = '*'
-export const WECHAT_VIEW_PROVIDER_KEY = 'wechat_workbench_provider'
-export const WECHAT_VIEW_KEY = 'wechat_workbench'
-export const WECHAT_REMOTE_ENTRY_KEY = 'wechat-workbench'
-export const WECHAT_TEMPLATE_PROVIDER_KEY = 'wechatTemplates'
-export const WECHAT_FEATURE = 'wechat_bridge'
-export const WECHAT_RUNTIME_FEATURE = 'wechat-runtime'
-export const WECHAT_FILE_SEND_FEATURE = 'wechat-file-send'
-export const WECHAT_WORKBENCH_FEATURE = 'wechat-workbench'
-export const WECHAT_MIDDLEWARE_NAME = 'WechatRuntimeMiddleware'
-export const WECHAT_GET_RUNTIME_STATUS_TOOL_NAME = 'wechat_get_runtime_status'
-export const WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME = 'wechat_get_callback_config'
-export const WECHAT_LIST_ACCOUNTS_TOOL_NAME = 'wechat_list_accounts'
-export const WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME = 'wechat_search_message_logs'
-export const WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME = 'wechat_search_chat_history'
-export const WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME = 'wechat_rotate_webhook_credential'
-export const WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME = 'wechat_revoke_webhook_credential'
-export const WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME = 'wechat_set_account_enabled'
-export const WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_list_outbound_queue'
-export const WECHAT_SEND_MESSAGE_TOOL_NAME = 'wechat_send_message'
-export const WECHAT_SEND_FILE_TOOL_NAME = 'wechat_send_file'
-export const WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_cancel_outbound_queue_item'
-export const WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME = 'wechat_retry_outbound_queue_item'
-export const WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME = 'wechat_pause_outbound_account'
-export const WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME = 'wechat_resume_outbound_account'
-export const WECHAT_OUTBOUND_QUEUE_PREFIX = 'plugin_wechat'
-export const WECHAT_OUTBOUND_QUEUE_NAME = 'plugin_wechat_outbound'
+export const WECHAT_VIEW_PROVIDER_KEY = wechatArtifactKey('workbench_provider')
+export const WECHAT_VIEW_KEY = wechatArtifactKey('workbench')
+export const WECHAT_REMOTE_ENTRY_KEY = wechatArtifactKey('workbench', '-')
+export const WECHAT_TEMPLATE_PROVIDER_KEY = wechatArtifactKey('Templates', '')
+export const WECHAT_FEATURE = wechatArtifactKey('bridge')
+export const WECHAT_RUNTIME_FEATURE = wechatArtifactKey('runtime', '-')
+export const WECHAT_FILE_SEND_FEATURE = wechatArtifactKey('file-send', '-')
+export const WECHAT_WORKBENCH_FEATURE = wechatArtifactKey('workbench', '-')
+export const WECHAT_MIDDLEWARE_NAME = wechatArtifactClassName('RuntimeMiddleware')
+export const WECHAT_GET_RUNTIME_STATUS_TOOL_NAME = wechatArtifactKey('get_runtime_status')
+export const WECHAT_GET_CALLBACK_CONFIG_TOOL_NAME = wechatArtifactKey('get_callback_config')
+export const WECHAT_LIST_ACCOUNTS_TOOL_NAME = wechatArtifactKey('list_accounts')
+export const WECHAT_SEARCH_MESSAGE_LOGS_TOOL_NAME = wechatArtifactKey('search_message_logs')
+export const WECHAT_SEARCH_CHAT_HISTORY_TOOL_NAME = wechatArtifactKey('search_chat_history')
+export const WECHAT_ROTATE_WEBHOOK_CREDENTIAL_TOOL_NAME = wechatArtifactKey('rotate_webhook_credential')
+export const WECHAT_REVOKE_WEBHOOK_CREDENTIAL_TOOL_NAME = wechatArtifactKey('revoke_webhook_credential')
+export const WECHAT_SET_ACCOUNT_ENABLED_TOOL_NAME = wechatArtifactKey('set_account_enabled')
+export const WECHAT_LIST_OUTBOUND_QUEUE_TOOL_NAME = wechatArtifactKey('list_outbound_queue')
+export const WECHAT_SEND_MESSAGE_TOOL_NAME = wechatArtifactKey('send_message')
+export const WECHAT_SEND_FILE_TOOL_NAME = wechatArtifactKey('send_file')
+export const WECHAT_CANCEL_OUTBOUND_QUEUE_TOOL_NAME = wechatArtifactKey('cancel_outbound_queue_item')
+export const WECHAT_RETRY_OUTBOUND_QUEUE_TOOL_NAME = wechatArtifactKey('retry_outbound_queue_item')
+export const WECHAT_PAUSE_OUTBOUND_ACCOUNT_TOOL_NAME = wechatArtifactKey('pause_outbound_account')
+export const WECHAT_RESUME_OUTBOUND_ACCOUNT_TOOL_NAME = wechatArtifactKey('resume_outbound_account')
+export const WECHAT_OUTBOUND_QUEUE_PREFIX = wechatPluginArtifactKey('')
+export const WECHAT_OUTBOUND_QUEUE_NAME = wechatPluginArtifactKey('outbound')
 export const WECHAT_OUTBOUND_QUEUE_REDIS_NAMESPACE = `${WECHAT_OUTBOUND_QUEUE_PREFIX}:${WECHAT_OUTBOUND_QUEUE_NAME}`
-export const WECHAT_OUTBOUND_SEND_TEXT_JOB = 'plugin_wechat_send_text'
-export const WECHAT_INBOUND_QUEUE_PREFIX = 'plugin_wechat'
-export const WECHAT_INBOUND_QUEUE_NAME = 'plugin_wechat_inbound'
+export const WECHAT_OUTBOUND_SEND_TEXT_JOB = wechatPluginArtifactKey('send_text')
+export const WECHAT_INBOUND_QUEUE_PREFIX = wechatPluginArtifactKey('')
+export const WECHAT_INBOUND_QUEUE_NAME = wechatPluginArtifactKey('inbound')
 export const WECHAT_INBOUND_QUEUE_REDIS_NAMESPACE = `${WECHAT_INBOUND_QUEUE_PREFIX}:${WECHAT_INBOUND_QUEUE_NAME}`
-export const WECHAT_INBOUND_AGGREGATE_JOB = 'plugin_wechat_inbound_aggregate'
-export const WECHAT_INBOUND_FLUSH_JOB = 'plugin_wechat_inbound_flush'
+export const WECHAT_INBOUND_AGGREGATE_JOB = wechatPluginArtifactKey('inbound_aggregate')
+export const WECHAT_INBOUND_FLUSH_JOB = wechatPluginArtifactKey('inbound_flush')
+export const WECHAT_CONTROLLER_ROUTE = WECHAT_ARTIFACT_NAMESPACE
+export const WECHAT_TUNNEL_NAMESPACE_PREFIX = `/api/${WECHAT_ARTIFACT_NAMESPACE}/tunnel/ws/`
+export const WECHAT_TUNNEL_NAMESPACE = new RegExp(`^${WECHAT_TUNNEL_NAMESPACE_PREFIX}[^/]+$`)
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 

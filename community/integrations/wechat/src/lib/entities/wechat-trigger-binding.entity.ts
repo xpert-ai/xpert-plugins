@@ -5,12 +5,15 @@ import type {
   WechatGroupTriggerMode,
   WechatSelfMessagePolicy
 } from '../types.js'
+import { wechatTable } from '../constants.js'
 
-@Entity(WechatTriggerBindingEntity.tableName)
-@Index('plugin_wechat_trigger_binding_integration_account_uq', ['integrationId', 'accountUuid'], { unique: true })
-@Index('plugin_wechat_trigger_binding_tenant_org_idx', ['tenantId', 'organizationId'])
+const WECHAT_TRIGGER_BINDING_TABLE = wechatTable('trigger_binding')
+
+@Entity(wechatTable('trigger_binding'))
+@Index(`${WECHAT_TRIGGER_BINDING_TABLE}_integration_account_uq`, ['integrationId', 'accountUuid'], { unique: true })
+@Index(`${WECHAT_TRIGGER_BINDING_TABLE}_tenant_org_idx`, ['tenantId', 'organizationId'])
 export class WechatTriggerBindingEntity {
-  static readonly tableName = 'plugin_wechat_trigger_binding'
+  static readonly tableName = WECHAT_TRIGGER_BINDING_TABLE
 
   @PrimaryGeneratedColumn('uuid')
   id: string
