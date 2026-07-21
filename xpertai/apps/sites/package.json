@@ -35,7 +35,8 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
+    "build": "pnpm run build:fonts && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "test": "rm -rf .artifacts/sites-spec && tsc -p tsconfig.spec.json && node .artifacts/sites-spec/lib/sites-artifacts.spec.js && rm -rf .artifacts/sites-spec"
   },
@@ -46,7 +47,6 @@
     }
   },
   "dependencies": {
-    "@xpert-ai/design-fonts": "workspace:*",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
@@ -69,6 +69,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/node": "^20.19.9",
     "@xpert-ai/contracts": "3.15.10",
+    "@xpert-ai/design-fonts": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.15.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
