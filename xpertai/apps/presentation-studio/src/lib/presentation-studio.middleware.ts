@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, type TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import {
   AgentMiddlewareStrategy,
   RequestContext,
@@ -169,6 +170,14 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
     return {
       name: PRESENTATION_MIDDLEWARE_NAME,
       tools: [
+        tool(() => compact({
+          message: 'Choose typography through a presentation theme; these presets describe the managed online font sources available to themes.',
+          presets: serializeTypographyPresets('presentation')
+        }), {
+          name: 'presentation_list_typography_presets',
+          description: toolDescription(currentDeckHint, 'List version-pinned HTTPS font presets available to Presentation themes. Typography remains theme-scoped; do not set arbitrary per-slide font URLs.'),
+          schema: z.object({}), verboseParsingErrors: true
+        }),
         tool((input) => compact(this.service.createDeck(scope, input)), {
           name: 'presentation_create_deck',
           description: toolDescription(currentDeckHint, 'Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck.'),

@@ -49,6 +49,7 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 }
 const ConfigSchema = z.object({
   exportBackend: z.enum(['sandbox-job', 'local']),
+  fontSourceMode: z.enum(['bundled', 'online']),
   /** @deprecated Local development only. Production exports use Sandbox Job profiles. */
   chromiumExecutablePath: z.string().min(1).optional(),
   exportConcurrency: z.number().int().min(1).max(4),
@@ -67,6 +68,18 @@ const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const PresentationConfigFormSchema = {
   type: 'object',
   properties: {
+    fontSourceMode: {
+      type: 'string',
+      title: text('Font source', '字体来源'),
+      description: text('Bundled keeps exports self-contained. Online loads the managed, version-pinned Fontsource files from jsDelivr.', '内置模式保持导出文件自包含；在线模式从 jsDelivr 加载受控且固定版本的 Fontsource 字体。'),
+      enum: ['bundled', 'online'],
+      'x-ui': {
+        enumLabels: {
+          bundled: text('Bundled (recommended)', '内置（推荐）'),
+          online: text('Managed online fonts', '受控在线字体')
+        }
+      }
+    },
     defaultShareAccessMode: {
       type: 'string',
       title: text('Default share access', '默认分享访问范围'),

@@ -52,6 +52,7 @@
     }
   },
   "dependencies": {
+    "@xpert-ai/design-fonts": "workspace:*",
     "@excalidraw/excalidraw": "0.18.1",
     "@excalidraw/mermaid-to-excalidraw": "2.2.2",
     "@fontsource-variable/noto-sans-sc": "5.2.10",

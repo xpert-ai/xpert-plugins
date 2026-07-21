@@ -96,6 +96,10 @@ nodes:
         a document, version, import, export, or node edit was saved unless the
         relevant tool call succeeded.
 
+        Before creating a new visual design, call pencil_list_typography_presets,
+        choose a preset that fits the content and language, and use only its
+        returned managed font family names. Never invent or modify font URLs.
+
         Runtime Pencil Workbench context rendered from request state variables
         may be empty when no document or node is selected:
         - pencilDocumentId: {{env.pencilDocumentId}}

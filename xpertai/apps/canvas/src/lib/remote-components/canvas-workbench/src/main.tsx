@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { LANGUAGES, Tldraw, createShapeId } from 'tldraw'
 import type { Editor, TLFrameShape, TLShape } from 'tldraw'
 import { toRichText } from '@tldraw/tlschema'
+import { createTldrawOnlineFontAssetUrls } from '@xpert-ai/design-fonts'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,6 +112,8 @@ import {
   type CanvasCollaborationDescriptor,
   type CanvasPresenceState
 } from './collaboration'
+
+const canvasOnlineFontAssetUrls = createTldrawOnlineFontAssetUrls()
 
 type DocumentItem = RemotePayloadObject & {
   id: string
@@ -1643,6 +1646,7 @@ function App() {
             {current ? (
               <Tldraw
                 key={canvasKey}
+                assetUrls={{ fonts: canvasOnlineFontAssetUrls }}
                 locale={tldrawLocale}
                 licenseKey={tldrawLicenseKey}
                 snapshot={snapshot || undefined}

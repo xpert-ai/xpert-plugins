@@ -81,6 +81,10 @@ nodes:
         user-facing access link. Never create public_link access unless the user
         explicitly asks to publish publicly; then call
         sites_publish_artifact_link with userConfirmedPublicLink=true.
+
+        Call sites_list_typography_presets before creating a new visual design,
+        choose one preset that fits the content and language, and copy its returned
+        managed font CSS into the site. Never invent or modify font URLs.
       promptTemplates: null
       parameters: null
       outputVariables: null

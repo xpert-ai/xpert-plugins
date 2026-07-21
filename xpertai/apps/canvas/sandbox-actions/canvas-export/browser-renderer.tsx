@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { TldrawImage } from 'tldraw'
 import type { TLPageId, TLStoreSnapshot } from 'tldraw'
 import 'tldraw/tldraw.css'
-import fontRegular from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2'
-import fontBold from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff2'
+import { createTldrawOnlineFontAssetUrls } from '@xpert-ai/design-fonts'
 
 type RenderInput = { snapshot: TLStoreSnapshot; pageId: string }
 type RenderResult = { svg: string; width: number; height: number }
@@ -15,24 +14,7 @@ declare global {
   }
 }
 
-const fonts = {
-  tldraw_mono: fontRegular,
-  tldraw_mono_italic: fontRegular,
-  tldraw_mono_bold: fontBold,
-  tldraw_mono_italic_bold: fontBold,
-  tldraw_serif: fontRegular,
-  tldraw_serif_italic: fontRegular,
-  tldraw_serif_bold: fontBold,
-  tldraw_serif_italic_bold: fontBold,
-  tldraw_sans: fontRegular,
-  tldraw_sans_italic: fontRegular,
-  tldraw_sans_bold: fontBold,
-  tldraw_sans_italic_bold: fontBold,
-  tldraw_draw: fontRegular,
-  tldraw_draw_italic: fontRegular,
-  tldraw_draw_bold: fontBold,
-  tldraw_draw_italic_bold: fontBold
-}
+const fonts = createTldrawOnlineFontAssetUrls()
 
 window.__xpertCanvasRender = async ({ snapshot, pageId }) => {
   const host = document.getElementById('canvas-render-root')

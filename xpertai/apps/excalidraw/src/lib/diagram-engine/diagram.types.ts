@@ -92,6 +92,7 @@ export interface DiagramAppearance {
   colorScheme: DiagramColorScheme
   rendering: DiagramRenderingStyle
   palette: DiagramPalette
+  fontFamilyId?: number
 }
 
 export interface DiagramCanvas {

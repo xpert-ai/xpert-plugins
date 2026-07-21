@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { createTldrawOnlineFontAssetUrls } from '@xpert-ai/design-fonts'
 import { fileURLToPath } from 'node:url'
 
 const bundleRoot = path.dirname(fileURLToPath(import.meta.url))
+const managedFontUrls = new Set(Object.values(createTldrawOnlineFontAssetUrls()))
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error)
@@ -38,7 +40,9 @@ async function renderWithBrowser(snapshot, pageId) {
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
     const page = await context.newPage()
-    await page.route('**/*', (route) => route.abort('blockedbyclient'))
+    await page.route('**/*', (route) => managedFontUrls.has(route.request().url())
+      ? route.continue()
+      : route.abort('blockedbyclient'))
     await page.setContent('<!doctype html><html><head><meta charset="utf-8"></head><body><div id="canvas-render-root"></div></body></html>')
     await page.addStyleTag({ path: path.join(bundleRoot, 'renderer.css') })
     await page.addScriptTag({ path: path.join(bundleRoot, 'renderer.js') })

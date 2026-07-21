@@ -9,6 +9,8 @@ Use this skill for structured presentation generation with the Presentation Stud
 
 ## Required order
 
+Before creating a deck, call `presentation_list_typography_presets`, choose one managed preset for the audience, theme, and language, and do not invent font URLs.
+
 1. Create a deck with `presentation_create_deck`.
 2. Search layouts for each page role with `presentation_search_layouts`.
 3. Inspect every selected layout with `presentation_inspect_layouts`. Each call has a hard limit of 8 layouts; split larger selections into sequential batches of at most 8.
