@@ -29,6 +29,11 @@ type AggregationScope = {
   organizationId?: string | null
 }
 
+export type WechatAggregateLockLease = {
+  ensureOwned(): Promise<void>
+  clearStateIfOwned(): Promise<void>
+}
+
 @Injectable()
 export class WechatTriggerAggregationService {
   private _managedQueueService?: ManagedQueueService
@@ -136,20 +141,73 @@ export class WechatTriggerAggregationService {
 
   async withAggregateLock<T>(
     aggregateKey: string,
-    callback: () => Promise<T>,
+    callback: (lease: WechatAggregateLockLease) => Promise<T>,
     ttlMs: number = DEFAULT_LOCK_TTL_MS,
     scope?: AggregationScope
   ): Promise<T> {
     const token = randomUUID()
     const key = this.buildLockKey(aggregateKey, scope)
+    const stateKey = this.buildKey(aggregateKey, scope)
     const acquired = await this.acquireLock(key, token, ttlMs)
     if (!acquired) {
       throw new Error('inbound_aggregate_lock_unavailable')
     }
 
+    let stopped = false
+    let lostError: Error | undefined
+    let renewalInFlight: Promise<void> | undefined
+    const renew = async (): Promise<void> => {
+      if (stopped || lostError) {
+        return
+      }
+      try {
+        if (!(await this.renewLock(key, token, ttlMs))) {
+          lostError = new Error('inbound_aggregate_lock_lost')
+        }
+      } catch {
+        lostError = new Error('inbound_aggregate_lock_renew_failed')
+      }
+    }
+    const ensureOwned = async (): Promise<void> => {
+      if (renewalInFlight) {
+        await renewalInFlight
+      }
+      if (lostError) {
+        throw lostError
+      }
+      await renew()
+      if (lostError) {
+        throw lostError
+      }
+    }
+    const clearStateIfOwned = async (): Promise<void> => {
+      if (renewalInFlight) {
+        await renewalInFlight
+      }
+      if (lostError) {
+        throw lostError
+      }
+      if (!(await this.deleteAggregateStateIfLockOwned(key, stateKey, token))) {
+        lostError = new Error('inbound_aggregate_lock_lost')
+        throw lostError
+      }
+    }
+    const renewTimer = setInterval(() => {
+      if (!renewalInFlight && !lostError) {
+        renewalInFlight = renew().finally(() => {
+          renewalInFlight = undefined
+        })
+      }
+    }, Math.max(1, Math.floor(ttlMs / 3)))
+
     try {
-      return await callback()
+      const result = await callback({ ensureOwned, clearStateIfOwned })
+      await ensureOwned()
+      return result
     } finally {
+      stopped = true
+      clearInterval(renewTimer)
+      await renewalInFlight?.catch(() => undefined)
       await this.releaseLock(key, token)
     }
   }
@@ -167,6 +225,17 @@ export class WechatTriggerAggregationService {
     return result === 'OK'
   }
 
+  private async renewLock(key: string, token: string, ttlMs: number): Promise<boolean> {
+    const result = await (await this.getRedis()).eval(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+      1,
+      key,
+      token,
+      String(ttlMs)
+    )
+    return result === 1
+  }
+
   private async releaseLock(key: string, token: string): Promise<void> {
     await (await this.getRedis()).eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
@@ -174,6 +243,17 @@ export class WechatTriggerAggregationService {
       key,
       token
     )
+  }
+
+  private async deleteAggregateStateIfLockOwned(lockKey: string, stateKey: string, token: string): Promise<boolean> {
+    const result = await (await this.getRedis()).eval(
+      "if redis.call('get', KEYS[1]) ~= ARGV[1] then return -1 end redis.call('del', KEYS[2]) return 1",
+      2,
+      lockKey,
+      stateKey,
+      token
+    )
+    return result === 1
   }
 
   private buildKey(aggregateKey: string, scope?: AggregationScope): string {

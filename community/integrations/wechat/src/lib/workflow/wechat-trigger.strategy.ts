@@ -50,7 +50,10 @@ import {
   WechatTriggerAggregationState,
   WechatTriggerFlushPayload
 } from './wechat-trigger-aggregation.types.js'
-import { WechatTriggerAggregationService } from './wechat-trigger-aggregation.service.js'
+import {
+  type WechatAggregateLockLease,
+  WechatTriggerAggregationService
+} from './wechat-trigger-aggregation.service.js'
 import { TWechatTriggerConfig, WechatTrigger } from './wechat-trigger.types.js'
 
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
@@ -924,7 +927,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return
     }
 
-    await this.aggregationService.withAggregateLock(aggregateKey, async () => {
+    await this.aggregationService.withAggregateLock(aggregateKey, async (lease) => {
       const currentState = await this.aggregationService.get(aggregateKey, payload)
       const sameRoutingTarget =
         currentState?.integrationId === payload.integrationId &&
@@ -1001,6 +1004,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
         this.normalizePositiveSeconds(payload.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
         summaryWindowSeconds * 3
       )
+      await lease.ensureOwned()
       await this.aggregationService.save(aggregateState, ttlSeconds)
       await this.aggregationService.enqueueFlush(aggregateState, summaryWindowSeconds * 1000)
     }, undefined, payload)
@@ -1012,6 +1016,19 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       return false
     }
 
+    return this.aggregationService.withAggregateLock(
+      aggregateKey,
+      (lease) => this.flushBufferedConversationUnderLock(aggregateKey, payload, lease),
+      undefined,
+      payload
+    )
+  }
+
+  private async flushBufferedConversationUnderLock(
+    aggregateKey: string,
+    payload: WechatTriggerFlushPayload,
+    lease: WechatAggregateLockLease
+  ): Promise<boolean> {
     const state = await this.aggregationService.get(aggregateKey, payload)
     if (!state || state.version !== payload.version) {
       return false
@@ -1040,6 +1057,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       pendingFiles,
       markFailures: false
     })
+    await lease.ensureOwned()
     if (materialized.success === false) {
       if (materialized.recoverable && this.canRetryPendingFileMaterialize(state)) {
         await this.schedulePendingFileMaterializeRetry(aggregateKey, state, materialized.error)
@@ -1047,7 +1065,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       }
       await this.markPendingFilesFailed(pendingFiles, state, materialized.error)
       await this.markInboundLogs(state.currentInboundLogIds, state, 'failed', materialized.error)
-      await this.aggregationService.clear(aggregateKey, state)
+      await lease.clearStateIfOwned()
       return false
     }
 
@@ -1069,7 +1087,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       await this.markInboundLogs(dispatchLogIds, state, 'skipped', 'filtered_by_trigger_policy')
       await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
       await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
-      await this.aggregationService.clear(aggregateKey, state)
+      await lease.clearStateIfOwned()
       return false
     }
 
@@ -1078,11 +1096,12 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       await this.markInboundLogs(dispatchLogIds, state, 'skipped', 'empty_inbound_message_after_file_rules')
       await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
       await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
-      await this.aggregationService.clear(aggregateKey, state)
+      await lease.clearStateIfOwned()
       return false
     }
     const dispatchInput = this.composeDispatchInput(aggregatedInput, state.historyContext)
 
+    await lease.ensureOwned()
     await this.dispatchInboundMessage({
       integrationId: state.integrationId,
       accountUuid: this.normalizeTriggerAccountUuid(state.accountUuid),
@@ -1120,10 +1139,11 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       }
     })
 
+    await lease.ensureOwned()
     await this.markInboundLogs(dispatchLogIds, state, 'dispatched')
     await this.markInboundLogs(skippedLogIds, state, 'skipped', skippedError)
     await this.markInboundLogs(duplicateLogIds, state, 'skipped', 'duplicate_file_event')
-    await this.aggregationService.clear(aggregateKey, state)
+    await lease.clearStateIfOwned()
     return true
   }
 
