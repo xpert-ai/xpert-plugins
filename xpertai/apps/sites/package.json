@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-sites",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Sites app plugin for creating, saving, deploying, and inspecting hosted sites from data-xpert Assistants.",
   "author": {
     "name": "XpertAI",
