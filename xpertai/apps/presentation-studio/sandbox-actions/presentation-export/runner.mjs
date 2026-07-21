@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import JSZip from 'jszip'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(actionRoot, 'project')
@@ -32,8 +33,11 @@ async function main() {
     })
     const goalPath = path.join(deckDir, 'goal.json')
     const indexPath = path.join(pptDir, 'index.html')
+    const themeEnvironment = request.payload.customTheme
+      ? await stageCustomTheme(path.join(path.dirname(requestPath), request.payload.customTheme.packagePath), request.payload.customTheme, path.join(workRoot, 'theme'))
+      : {}
     await writeFile(goalPath, `${JSON.stringify(request.payload.goal, null, 2)}\n`)
-    await execute(process.execPath, [path.join(projectRoot, 'scripts/render-goal-deck.action.mjs'), goalPath, indexPath], workRoot)
+    await execute(process.execPath, [path.join(projectRoot, 'scripts/render-goal-deck.action.mjs'), goalPath, indexPath], workRoot, themeEnvironment)
     const outputPath = path.join(outputDir, `presentation.${request.payload.kind}`)
     const reportPath = path.join(outputDir, 'report.json')
     const args = [
@@ -50,7 +54,8 @@ async function main() {
       INIT_CWD: workRoot,
       DASHI_PPT_THEME_RUNTIME: 'prebuilt',
       DASHI_PPT_CERT_DIR: path.join(workRoot, '.https-preview'),
-      HOME: path.join(workRoot, '.home')
+      HOME: path.join(workRoot, '.home'),
+      ...themeEnvironment
     })
     await validateOutput(outputPath, request.payload.kind)
   } finally {
@@ -68,7 +73,65 @@ function parseRequest(value) {
   if (typeof value.payload.title !== 'string' || !value.payload.title.trim() || !isObject(value.payload.goal)) {
     throw new Error('EXPORT_INPUT_INVALID: payload requires title and goal.')
   }
+  if (value.payload.customTheme !== undefined) {
+    const theme = value.payload.customTheme
+    if (!isObject(theme) || typeof theme.themeKey !== 'string' || !/^theme\d{2,}$/.test(theme.themeKey) ||
+      !['react', 'html', 'pptx', 'pdf', 'images', 'mixed'].includes(theme.sourceType) || theme.packagePath !== 'theme/custom-theme.zip') {
+      throw new Error('EXPORT_INPUT_INVALID: customTheme contract is invalid.')
+    }
+  }
   return value
+}
+
+async function stageCustomTheme(packagePath, expected, root) {
+  const archive = await JSZip.loadAsync(await readFile(packagePath), { checkCRC32: true }).catch(() => null)
+  if (!archive) throw new Error('EXPORT_INPUT_INVALID: custom theme package is not a valid ZIP archive.')
+  const packageInfo = await readJsonEntry(archive, 'package.json')
+  const metadata = await readJsonEntry(archive, 'metadata.json')
+  if (packageInfo.schema !== 'xpert.presentation-theme-package/v1' || packageInfo.themeKey !== expected.themeKey || packageInfo.sourceType !== expected.sourceType ||
+    metadata.schema !== 'xpert.presentation-theme-runtime/v1' || !isObject(metadata.theme) || metadata.theme.key !== expected.themeKey || !Array.isArray(metadata.pages)) {
+    throw new Error('EXPORT_INPUT_INVALID: custom theme package identity does not match the Deck.')
+  }
+  const runtimeRoot = path.join(root, 'runtime')
+  const assetRoot = path.join(root, 'assets')
+  const metadataPath = path.join(root, 'external-theme-metadata.json')
+  await mkdir(runtimeRoot, { recursive: true })
+  await writeFile(path.join(runtimeRoot, `imported-theme-runtime.${expected.themeKey}.js`), await readZipEntry(archive, 'runtime/imported-theme-runtime.js'))
+  await writeFile(path.join(runtimeRoot, `${expected.themeKey}.module.mjs`), await readZipEntry(archive, 'runtime/theme.module.mjs'))
+  await writeFile(metadataPath, `${JSON.stringify(metadata)}\n`)
+  let hasAssets = false
+  for (const [name, entry] of Object.entries(archive.files)) {
+    assertSafeZipPath(name)
+    if (entry.dir || !name.startsWith('assets/')) continue
+    const relative = name.slice('assets/'.length)
+    if (!relative) continue
+    const target = path.join(assetRoot, ...relative.split('/'))
+    await mkdir(path.dirname(target), { recursive: true })
+    await writeFile(target, await entry.async('nodebuffer'))
+    hasAssets = true
+  }
+  return {
+    DASHI_PPT_EXTERNAL_THEME_METADATA: metadataPath,
+    DASHI_PPT_THEME_RUNTIME_DIR: runtimeRoot,
+    ...(hasAssets ? { DASHI_PPT_EXTERNAL_THEME_ASSETS_DIR: assetRoot } : {})
+  }
+}
+
+async function readJsonEntry(archive, name) {
+  const value = JSON.parse(String(await readZipEntry(archive, name)))
+  if (!isObject(value)) throw new Error(`EXPORT_INPUT_INVALID: ${name} must contain a JSON object.`)
+  return value
+}
+async function readZipEntry(archive, name) {
+  const entry = archive.file(name)
+  if (!entry) throw new Error(`EXPORT_INPUT_INVALID: custom theme package is missing ${name}.`)
+  return entry.async('nodebuffer')
+}
+function assertSafeZipPath(name) {
+  const normalized = path.posix.normalize(name)
+  if (!name || name.startsWith('/') || name.includes('\\') || normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
+    throw new Error(`EXPORT_INPUT_INVALID: custom theme package contains an unsafe path: ${name}`)
+  }
 }
 
 async function validateOutput(outputPath, kind) {

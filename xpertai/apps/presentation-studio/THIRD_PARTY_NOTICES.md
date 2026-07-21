@@ -8,7 +8,7 @@
 - Vendored source: `assets/upstream/dashiai-ppt`
 - License text: `assets/upstream/LICENSE`
 
-Presentation Studio modifies the vendored renderer to resolve its runtime JavaScript dependencies from the containing Xpert plugin package, and adds an optional machine-readable report flag to the vendored exporter so fallback warnings can be persisted. The 12 theme runtimes, 1020-layout manifest, editor template, exporter, assets, and their corresponding source are distributed with this plugin. Exact local changes and the full-tree checksum are recorded in `assets/upstream/UPSTREAM.json`.
+Presentation Studio modifies the vendored renderer to resolve its runtime JavaScript dependencies from the containing Xpert plugin package, adds an optional machine-readable report flag to the vendored exporter, and adds a portable external-theme metadata/runtime adapter. The base remains pinned to the commit above; theme13/theme14 and the dashi-theme-generator authoring method are synchronized from the locally installed Dashi PPT 0.4.0 skill. The resulting 14 theme runtimes, 1,190-layout manifest, editor template, exporter, assets, generator references/scripts, and corresponding source are distributed with this plugin. Exact local changes and the full-tree checksum are recorded in `assets/upstream/UPSTREAM.json`.
 
 ## html-deck-to-pptx
 

@@ -19,6 +19,11 @@ import {
 // 相对 ROOT(= 仓库根 / 安装版 project 根)。dist/ 在 .gitignore,但随 skill:sync 发到 project/。
 export const THEME_RUNTIME_DIR = 'dist/theme-runtime';
 
+export function themeRuntimeDir(root) {
+  const external = process.env.DASHI_PPT_THEME_RUNTIME_DIR;
+  return external ? path.resolve(external) : path.join(root, THEME_RUNTIME_DIR);
+}
+
 // 主题模块对 react 全部 external —— 由外层 client-runtime 打包统一解析,确保单一 React 实例。
 const REACT_EXTERNALS = ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'];
 
@@ -53,11 +58,11 @@ export function themeBundleFileName(themeKey) {
 }
 
 export function prebuiltBundlePath(root, themeKey) {
-  return path.join(root, THEME_RUNTIME_DIR, themeBundleFileName(themeKey));
+  return path.join(themeRuntimeDir(root), themeBundleFileName(themeKey));
 }
 
 export function prebuiltModulePath(root, themeKey) {
-  return path.join(root, THEME_RUNTIME_DIR, themeModuleFileName(themeKey));
+  return path.join(themeRuntimeDir(root), themeModuleFileName(themeKey));
 }
 
 // 共享的 client-runtime 打包配置。源路径与模块路径只在 registryPath(别名目标)上不同 ——
@@ -97,7 +102,7 @@ export function buildClientRuntime({ root, outFile, registryPath }) {
 
 // 把一组预构建主题模块链接成交付件运行时(安装版/模块路径)。registryPath 临时生成,引
 // <moduleDir>/<themeKey>.module.mjs;外层 esbuild 把这些模块 + react 一起打包(单一 React)。
-export function buildClientRuntimeFromModules({ root, outFile, themeKeys, moduleDir = path.join(root, THEME_RUNTIME_DIR), cacheDir }) {
+export function buildClientRuntimeFromModules({ root, outFile, themeKeys, moduleDir = themeRuntimeDir(root), cacheDir }) {
   const importPrefix = `${moduleDir}${path.sep}`;
   const source = buildThemeRegistrySource(themeKeys, { importPrefix, fromModules: true, generated: false });
   const { registryPath, cleanup } = writeTempRegistry(root, source, cacheDir);

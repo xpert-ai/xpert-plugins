@@ -23,6 +23,7 @@ import {
   PRESENTATION_EXPORT_CAPABILITY,
   PRESENTATION_FEATURE,
   PRESENTATION_GENERATION_CAPABILITY,
+  PRESENTATION_THEME_GENERATION_CAPABILITY,
   PRESENTATION_ICON,
   PRESENTATION_MIDDLEWARE_NAME,
   PRESENTATION_PLUGIN_NAME,
@@ -101,6 +102,7 @@ const PresentationConfigFormSchema = {
 const capabilities = [
   PRESENTATION_FEATURE,
   PRESENTATION_GENERATION_CAPABILITY,
+  PRESENTATION_THEME_GENERATION_CAPABILITY,
   PRESENTATION_WORKBENCH_CAPABILITY,
   PRESENTATION_COLLABORATION_CAPABILITY,
   PRESENTATION_EXPORT_CAPABILITY,
@@ -122,11 +124,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           contents: [
             { type: 'app', name: 'presentation-studio', displayName: 'Presentation Studio', description: 'Generate, edit, collaborate on, and export DashiAI presentations.', icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' }, operations: [
               { name: 'generate-presentation', displayName: 'Generate presentation', description: 'Create decks from structured content with Agent middleware tools.', access: 'write' },
+              { name: 'generate-presentation-theme', displayName: 'Generate presentation theme', description: 'Create a validated editable theme from an external template with the built-in Dashi theme generator.', access: 'write' },
               { name: 'collaborate-presentation', displayName: 'Collaborate', description: 'Synchronize presentation edits through Yjs rooms.', access: 'write' },
               { name: 'export-presentation', displayName: 'Export presentation', description: 'Export self-contained HTML, PDF, and PPTX files.', access: 'write' }
             ] },
             { type: 'view', name: PRESENTATION_VIEW_KEY, displayName: 'Presentation Studio Workbench', description: 'Review, edit, version, collaborate, and export presentations.' },
-            { type: 'tool', name: PRESENTATION_MIDDLEWARE_NAME, displayName: 'Presentation Studio Tools', description: 'Agent middleware tools for the 1020-layout presentation workflow.' },
+            { type: 'tool', name: PRESENTATION_MIDDLEWARE_NAME, displayName: 'Presentation Studio Tools', description: 'Agent middleware tools for the 1190-layout presentation workflow.' },
             { type: 'assistant-template', name: PRESENTATION_ASSISTANT_TEMPLATE_KEY, displayName: 'Presentation Studio Assistant', description: 'Prebuilt presentation generation assistant.' }
           ]
         },
@@ -137,6 +140,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         capabilities,
         marketplace: { contents: [
           { type: 'skill', name: 'presentation-studio', displayName: 'Presentation Studio Skill', description: 'Agent workflow for DashiAI presentation generation and export.', tags: ['presentation', 'pptx', 'dashi', 'yjs'] },
+          { type: 'skill', name: 'dashi-theme-generator', displayName: 'Dashi Theme Generator', description: 'Built-in workflow and authoring runtime for generating validated editable Dashi themes from external templates.', tags: ['presentation', 'theme', 'pptx', 'dashi'] },
           { type: 'assistant-template', name: PRESENTATION_ASSISTANT_TEMPLATE_KEY, displayName: 'Presentation Studio Assistant', description: 'Assistant template for presentation workflows.' },
           { type: 'app', name: 'presentation-studio', displayName: 'Presentation Studio', description: 'Presentation Workbench and Agent middleware tools.' }
         ] }
@@ -145,7 +149,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     category: 'middleware',
     icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' },
     displayName: 'Presentation Studio',
-    description: 'Agentic presentation generation with 12 DashiAI themes, 1020 layouts, Yjs collaboration, and HTML/PDF/PPTX export.',
+    description: 'Agentic presentation generation with 14 DashiAI themes, 1190 layouts, Yjs collaboration, and HTML/PDF/PPTX export.',
     keywords: ['presentation', 'pptx', 'pdf', 'html', 'dashi', 'yjs', 'collaboration', 'agentic-app'],
     author: 'XpertAI Team'
   },
@@ -207,7 +211,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       status: vendor.ok ? 'up' : 'down',
       details: {
         vendor: vendor.ok
-          ? { status: 'up', commit: vendor.commit, themes: 12, layouts: vendor.layouts, files: vendor.files, fontPackages: vendor.fonts }
+          ? { status: 'up', commit: vendor.commit, themes: 14, layouts: vendor.layouts, files: vendor.files, fontPackages: vendor.fonts }
           : { status: 'down', reason: vendor.reason },
         queue: queueAvailable && (exportBackend !== 'sandbox-job' || browserPoolHealth.available)
           ? { status: 'up', ...(exportBackend === 'sandbox-job' ? { executionPool: browserPoolHealth } : {}) }
@@ -292,7 +296,7 @@ function computeVendorHealth() {
     const manifest = JSON.parse(readFileSync(join(projectRoot, 'layout-manifest.json'), 'utf8')) as { layouts?: object }
     const layouts = Object.keys(manifest.layouts ?? {}).length
     if (layouts !== DASHIAI_LAYOUT_COUNT) throw new Error(`layout catalog count is ${layouts}`)
-    for (let index = 1; index <= 12; index += 1) {
+    for (let index = 1; index <= 14; index += 1) {
       const theme = `theme${String(index).padStart(2, '0')}`
       if (!existsSync(join(projectRoot, 'dist', 'theme-runtime', `imported-theme-runtime.${theme}.js`))) {
         throw new Error(`missing runtime ${theme}`)
@@ -342,3 +346,4 @@ export * from './lib/presentation-studio.middleware.js'
 export * from './lib/presentation-studio-view.provider.js'
 export * from './lib/presentation-collaboration.provider.js'
 export * from './lib/presentation-studio.templates.js'
+export * from './lib/presentation-theme.service.js'

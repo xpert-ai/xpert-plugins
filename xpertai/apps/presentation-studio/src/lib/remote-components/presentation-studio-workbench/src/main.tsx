@@ -123,6 +123,9 @@ import type {
   RemoteContext,
   ShareAccessMode,
   SharePolicy,
+  ThemeCatalog,
+  ThemeSourceType,
+  ThemeSummary,
   VersionSummary
 } from './types'
 
@@ -177,6 +180,10 @@ const NOOP_SELECTION = (_selection: PresenceState['selection'] | null, _focus: P
 const NOOP_POINTER = (_pointer: { x: number; y: number; visible: boolean }) => undefined
 const NOOP_ELEMENT_MOVE = (_key: string, _position: { x: number; y: number }) => undefined
 const NOOP = () => undefined
+const BUILTIN_THEME_FALLBACK: ThemeSummary[] = Array.from({ length: 14 }, (_, index) => {
+  const key = `theme${String(index + 1).padStart(2, '0')}`
+  return { type: 'builtin', key, name: key, status: 'ready' }
+})
 
 function App() {
   const [context, setContext] = React.useState<RemoteContext>({})
@@ -200,6 +207,10 @@ function App() {
   const [rightCollapsed, setRightCollapsed] = React.useState(() => globalThis.innerWidth < 960 ? true : readPanelCollapsed('right', globalThis.innerWidth < 1180))
   const [inspectorTab, setInspectorTab] = React.useState<InspectorTab>('design')
   const [showCreate, setShowCreate] = React.useState(false)
+  const [showThemeUpload, setShowThemeUpload] = React.useState(false)
+  const [themeCatalog, setThemeCatalog] = React.useState<ThemeCatalog>({ builtIn: BUILTIN_THEME_FALLBACK, custom: [] })
+  const [themeName, setThemeName] = React.useState('')
+  const [themeSourceType, setThemeSourceType] = React.useState<ThemeSourceType | ''>('')
   const [newTitle, setNewTitle] = React.useState('')
   const [newGoal, setNewGoal] = React.useState('')
   const [newTheme, setNewTheme] = React.useState('theme01')
@@ -229,6 +240,7 @@ function App() {
   const knownServerSlideIdsRef = React.useRef(new Set<string>())
   const processedHostEventKeysRef = React.useRef<string[]>([])
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const themeInputRef = React.useRef<HTMLInputElement | null>(null)
   const t = React.useMemo(() => translator(context.locale), [context.locale])
 
   React.useEffect(() => { selectedRef.current = selectedId }, [selectedId])
@@ -236,7 +248,7 @@ function App() {
   React.useEffect(() => { detailRef.current = detail }, [detail])
   React.useEffect(() => persistPanelCollapsed('left', leftCollapsed), [leftCollapsed])
   React.useEffect(() => persistPanelCollapsed('right', rightCollapsed), [rightCollapsed])
-  React.useEffect(reportResize, [ready, decks.length, detail, leftCollapsed, rightCollapsed, showCreate, assetPickerOpen])
+  React.useEffect(reportResize, [ready, decks.length, detail, leftCollapsed, rightCollapsed, showCreate, showThemeUpload, assetPickerOpen])
 
   const loadDecks = React.useCallback(async () => {
     const response = await requestData({ page: 1, pageSize: 50, parameters: { table: 'decks' } })
@@ -248,6 +260,14 @@ function App() {
     decksRef.current = next
     setDecks(next)
     return next
+  }, [])
+
+  const loadThemes = React.useCallback(async () => {
+    const catalog = actionData<ThemeCatalog>(await executeAction('load_themes', null, {}))
+    setThemeCatalog(catalog)
+    const available = [...catalog.builtIn, ...catalog.custom].filter((item) => item.status === 'ready')
+    setNewTheme((current) => available.length && !available.some((item) => item.key === current) ? available[0].key : current)
+    return catalog
   }, [])
 
   /** Dispose the current document session before switching Decks or unmounting the Workbench. */
@@ -404,6 +424,7 @@ function App() {
 
   React.useEffect(() => {
     if (!ready) return
+    void loadThemes().catch((caught) => setError(messageOf(caught)))
     if (autoOpenAttemptedRef.current) {
       void loadDecks().catch((caught) => setError(messageOf(caught)))
       return
@@ -415,7 +436,7 @@ function App() {
         void openDeck(items[0].deckId)
       })
       .catch((caught) => setError(messageOf(caught)))
-  }, [ready, loadDecks, openDeck])
+  }, [ready, loadDecks, loadThemes, openDeck])
 
   React.useEffect(() => () => stopCollaboration(), [stopCollaboration])
 
@@ -424,6 +445,10 @@ function App() {
       const normalized = normalizePresentationToolEvent(event)
       if (!normalized || !rememberHostEvent(processedHostEventKeysRef.current, normalized.eventKey)) return
       void (async () => {
+        if (normalized.toolName === 'presentation_prepare_theme' || normalized.toolName === 'presentation_update_theme_progress' || normalized.toolName === 'presentation_register_theme' || normalized.toolName === 'presentation_report_theme_failure') {
+          await loadThemes()
+          return
+        }
         const previousDeckIds = new Set(decksRef.current.map((item) => item.deckId))
         const previousSlideIds = new Set(knownServerSlideIdsRef.current)
         const items = await loadDecks()
@@ -447,7 +472,7 @@ function App() {
         }
       })().catch((caught) => debug.warn('host-event-refresh-failed', { message: messageOf(caught), toolName: normalized.toolName }))
     }
-  }, [loadDecks, openDeck, refreshDetail])
+  }, [loadDecks, loadThemes, openDeck, refreshDetail])
 
   React.useEffect(() => {
     if (!doc) return
@@ -761,6 +786,22 @@ function App() {
     } catch (caught) { notify('error', messageOf(caught)) } finally { setBusy(false) }
   }
 
+  async function uploadThemeTemplate(file: File) {
+    if (!themeName.trim() || !themeSourceType) return
+    setBusy(true)
+    try {
+      await executeFileAction('upload_theme_template', null, { name: themeName.trim(), sourceType: themeSourceType }, file)
+      await loadThemes()
+      setShowThemeUpload(false)
+      setThemeName('')
+      setThemeSourceType('')
+      notify('success', t('themeUploaded'))
+    } catch (caught) {
+      notify('error', messageOf(caught))
+      setError(messageOf(caught))
+    } finally { setBusy(false) }
+  }
+
   function commitProp(key: string, value: JsonValue) {
     if (!doc || !activeSlide) return
     const slideId = activeSlide.id
@@ -889,6 +930,7 @@ function App() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setShowCreate(true)}><Plus />{t('newDeck')}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowThemeUpload(true)}><Upload />{t('generateTheme')}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!detail || busy} onClick={() => void saveVersion()}><Save />{t('saveVersion')}</DropdownMenuItem>
           </DropdownMenuContent>
@@ -1010,8 +1052,11 @@ function App() {
     </main>
 
     <input ref={fileInputRef} className="ps-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAsset(file); event.currentTarget.value = '' }} />
+    <input ref={themeInputRef} className="ps-file-input" type="file" accept=".zip,.pptx,.pdf,.html,.htm,.tsx,.jsx,.png,.jpg,.jpeg,.webp,application/zip,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/html,image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadThemeTemplate(file); event.currentTarget.value = '' }} />
 
-    <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent><DialogHeader><DialogTitle>{t('newDeck')}</DialogTitle><DialogDescription>{t('goal')}</DialogDescription></DialogHeader><div className="ps-dialog-form"><Input value={newTitle} placeholder={t('title')} onChange={(event) => setNewTitle(event.target.value)} /><Input value={newGoal} placeholder={t('goal')} onChange={(event) => setNewGoal(event.target.value)} /><Select value={newTheme} onValueChange={setNewTheme}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`).map((theme) => <SelectItem value={theme} key={theme}>{theme}</SelectItem>)}</SelectContent></Select><Input type="number" min={3} max={30} value={newPages} onChange={(event) => setNewPages(Number(event.target.value))} /></div><DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)}>{t('cancel')}</Button><Button onClick={() => void createDeck()} disabled={busy}>{t('create')}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent><DialogHeader><DialogTitle>{t('newDeck')}</DialogTitle><DialogDescription>{t('goal')}</DialogDescription></DialogHeader><div className="ps-dialog-form"><Input value={newTitle} placeholder={t('title')} onChange={(event) => setNewTitle(event.target.value)} /><Input value={newGoal} placeholder={t('goal')} onChange={(event) => setNewGoal(event.target.value)} /><Select value={newTheme} onValueChange={setNewTheme}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...themeCatalog.builtIn, ...themeCatalog.custom.filter((theme) => theme.status === 'ready')].map((theme) => <SelectItem value={theme.key} key={theme.key}>{theme.name} · {theme.key}</SelectItem>)}</SelectContent></Select><Input type="number" min={3} max={30} value={newPages} onChange={(event) => setNewPages(Number(event.target.value))} /></div><DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)}>{t('cancel')}</Button><Button onClick={() => void createDeck()} disabled={busy}>{t('create')}</Button></DialogFooter></DialogContent></Dialog>
+
+    <Dialog open={showThemeUpload} onOpenChange={setShowThemeUpload}><DialogContent className="ps-theme-dialog"><DialogHeader><DialogTitle>{t('generateTheme')}</DialogTitle><DialogDescription>{t('themeUploadDescription')}</DialogDescription></DialogHeader><div className="ps-dialog-form"><Input value={themeName} placeholder={t('themeName')} onChange={(event) => setThemeName(event.target.value)} /><Select value={themeSourceType || undefined} onValueChange={(value) => setThemeSourceType(value as ThemeSourceType)}><SelectTrigger><SelectValue placeholder={t('sourceType')} /></SelectTrigger><SelectContent><SelectItem value="react">{t('sourceReact')}</SelectItem><SelectItem value="html">{t('sourceHtml')}</SelectItem><SelectItem value="pptx">{t('sourcePptx')}</SelectItem><SelectItem value="pdf">{t('sourcePdf')}</SelectItem><SelectItem value="images">{t('sourceImages')}</SelectItem><SelectItem value="mixed">{t('sourceMixed')}</SelectItem></SelectContent></Select><div className="ps-theme-list"><strong>{t('customThemes')}</strong>{themeCatalog.custom.length ? themeCatalog.custom.map((theme) => <div className="ps-theme-row" key={theme.key}><span><strong>{theme.name}</strong><small>{theme.sourceFileName ?? theme.key}</small></span><Badge variant={theme.status === 'failed' ? 'destructive' : theme.status === 'ready' ? 'outline' : 'secondary'} data-status={theme.status === 'ready' ? 'success' : theme.status === 'analyzing' || theme.status === 'generating' || theme.status === 'validating' ? 'warning' : undefined}>{theme.status === 'ready' ? t('themeReady') : theme.status === 'prepared' ? t('themePrepared') : theme.status === 'analyzing' ? t('themeAnalyzing') : theme.status === 'generating' ? t('themeGenerating') : theme.status === 'validating' ? t('themeValidating') : t('themeFailed')}</Badge></div>) : <small>{t('noCustomThemes')}</small>}</div></div><DialogFooter><Button variant="outline" onClick={() => setShowThemeUpload(false)}>{t('cancel')}</Button><Button onClick={() => themeInputRef.current?.click()} disabled={busy || !themeName.trim() || !themeSourceType}><Upload />{t('chooseTemplate')}</Button></DialogFooter></DialogContent></Dialog>
 
     <Dialog open={assetPickerOpen} onOpenChange={setAssetPickerOpen}><DialogContent className="ps-asset-dialog"><DialogHeader><DialogTitle>{t('chooseAsset')}</DialogTitle><DialogDescription>{t('assetDialogDescription')}</DialogDescription></DialogHeader><ScrollArea className="ps-asset-dialog-scroll"><div className="ps-asset-grid ps-asset-grid-large">{detail?.assets.map((asset) => <button onClick={() => void selectAsset(asset)} key={asset.id}>{assetPreviews[asset.id]?.dataUrl ? <img src={assetPreviews[asset.id].dataUrl} alt="" /> : <Image />}<span>{asset.fileName}</span></button>)}</div></ScrollArea><DialogFooter><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload />{t('upload')}</Button></DialogFooter></DialogContent></Dialog>
 

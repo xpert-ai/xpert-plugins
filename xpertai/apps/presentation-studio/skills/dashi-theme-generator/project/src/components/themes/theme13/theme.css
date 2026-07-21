@@ -1,0 +1,8 @@
+/* Theme-owned visual layer generated from the registered evidence profile. */
+.theme13-root{--theme-bg:#F2F1EF;--theme-fg:#111111;--theme-accent:#B7F23A;--theme-secondary:#856BEA;--theme-radius:30px;font-family:Inter, PingFang SC, sans-serif;}
+.theme13-root .theme-frame{isolation:isolate;}
+.theme13-root .theme-heading{font-family:Arial Black, PingFang SC, sans-serif;text-transform:none;letter-spacing:-.055em;max-width:1080px;}
+.theme13-root .theme-eyebrow{font-family:Inter, PingFang SC, sans-serif;}
+.theme13-root .theme-surface{border-radius:30px;border:1px solid rgba(17,17,17,.12);box-shadow:none;}
+.theme13-root .theme-frame:before{content:"";position:absolute;pointer-events:none;z-index:0;inset:28px;border-radius:30px;border:1px solid rgba(17,17,17,.07);}
+.theme13-root .theme-frame:after{content:"↗";position:absolute;pointer-events:none;z-index:0;right:54px;bottom:36px;font-size:44px;font-weight:900;color:var(--theme-fg);}

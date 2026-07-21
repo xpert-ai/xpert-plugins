@@ -33,9 +33,9 @@ Presentation Studio is more than a one-time slide generator. Its full-screen Wor
 
 The interface inherits Xpert theme variables, keeps each panel independently scrollable, and loads only the theme runtime required by the active deck.
 
-## 12 themes and 1,020 layouts
+## 14 themes and 1,190 layouts
 
-The plugin includes all 12 DashiAI theme packs and 1,020 presentation layouts. Layouts cover common presentation roles such as:
+The plugin includes 14 DashiAI theme packs and 1,190 presentation layouts. The two additional packs are **Bright Circular Business** (`theme13`) and **Olive Architecture Proposal** (`theme14`). Layouts cover common presentation roles such as:
 
 - title and section covers;
 - agendas and chapter navigation;
@@ -46,6 +46,12 @@ The plugin includes all 12 DashiAI theme packs and 1,020 presentation layouts. L
 - conclusions, calls to action, and closing pages.
 
 Each deck uses one coherent theme. The Agent searches the catalog by page role and inspects the selected layout contract before filling content, reducing broken compositions and unsupported properties.
+
+## Generate a theme from your own template
+
+Choose **Deck → Generate theme from template** in the Workbench, enter a theme name, explicitly select the source contract, and upload a React project/archive, HTML page/archive, PPTX, PDF, an image ZIP containing 8–30 pages, or a mixed archive. Uploading only stores the source in Workspace Files as a scoped **Prepared** theme; it does not start a background job. Presentation Studio opens its built-in `dashi-theme-generator` workflow and authoring archive directly; no `skillsMiddleware` or separately installed Skill is required. In chat, the Assistant can also prepare 8–30 explicitly attached image files without joining their paths.
+
+The generator advances through **Analyzing → Generating → Validating**, inventories the source, selects an explicit adapter, extracts Style DNA, and builds real editable modules instead of using screenshots as slide backgrounds. Registration requires 76–96 layouts, at least eight evidence-backed observed modules, eight Style-DNA-derived modules, nine structure families, and successful capability, palette, owned-render, canvas/control, render-contract, and full-layout quality gates. A failed gate leaves the theme unavailable with its concrete error; only a package registered from the Validating stage becomes selectable like a built-in theme and works in the Workbench and HTML/PDF/PPTX export.
 
 ## Collaborate with people and Agents
 
@@ -85,13 +91,14 @@ The OSS base deployment intentionally does not start a Sandbox Runtime worker an
 
 ## Typical workflow
 
-1. Describe the goal, audience, presenter, source material, and desired length.
-2. Let the Assistant create the deck structure and select layouts.
-3. Review the result in the Workbench and edit text, design controls, media, and slide order.
-4. Collaborate with teammates or ask the Agent to refine the current slide.
-5. Save a version at a meaningful review milestone.
-6. Export to HTML, PDF, or PPTX.
-7. Publish an HTML Artifact link when the presentation needs to be shared externally.
+1. Optionally upload an external template and let the Assistant generate and register a reusable theme.
+2. Describe the goal, audience, presenter, source material, and desired length.
+3. Let the Assistant create the deck structure and select layouts.
+4. Review the result in the Workbench and edit text, design controls, media, and slide order.
+5. Collaborate with teammates or ask the Agent to refine the current slide.
+6. Save a version at a meaningful review milestone.
+7. Export to HTML, PDF, or PPTX.
+8. Publish an HTML Artifact link when the presentation needs to be shared externally.
 
 ## Best for
 
@@ -113,7 +120,7 @@ The OSS base deployment intentionally does not start a Sandbox Runtime worker an
 
 ## Included technology and licensing
 
-Presentation Studio vendors the DashiAI PPT Skill at commit `69ac66443e36e11cfca4a7f30721dc71a4278d28`, including its 12 themes, 1,020 layouts, rendering runtime, and export support. Upstream attribution, source, integrity metadata, and third-party notices are included with the plugin.
+Presentation Studio keeps the DashiAI PPT Skill base pinned at commit `69ac66443e36e11cfca4a7f30721dc71a4278d28` and synchronizes the installed Dashi PPT 0.4.0 `theme13`/`theme14` sources, evidence, metadata, and runtimes. The resulting catalog contains 14 themes and 1,190 layouts. The bundled `dashi-theme-generator` method and authoring project produce portable, validated custom-theme packages. Upstream attribution, source, integrity metadata, and third-party notices are included with the plugin.
 
 Presentation fonts are not committed as binary files inside the vendored upstream source. The plugin pins the required OFL-1.1 Fontsource packages as runtime dependencies, detects the families used by the selected theme, and stages only that theme's font pack into the render job. HTML export then embeds the WOFF2 data and generated license inventory into the self-contained file. This keeps Git history and the plugin source package smaller without adding a CDN request or changing offline export behavior.
 

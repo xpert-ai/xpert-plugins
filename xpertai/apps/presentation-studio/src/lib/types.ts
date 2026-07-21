@@ -13,6 +13,18 @@ export type PresentationJsonValue = PresentationJsonPrimitive | PresentationJson
 export interface PresentationJsonObject { [key: string]: PresentationJsonValue }
 
 export type PresentationThemePack = (typeof PRESENTATION_THEME_PACKS)[number]
+export const PRESENTATION_THEME_SOURCE_TYPES = ['react', 'html', 'pptx', 'pdf', 'images', 'mixed'] as const
+export type PresentationThemeSourceType = (typeof PRESENTATION_THEME_SOURCE_TYPES)[number]
+export const PRESENTATION_THEME_SOURCE_MODES = ['single_file', 'image_files'] as const
+export type PresentationThemeSourceMode = (typeof PRESENTATION_THEME_SOURCE_MODES)[number]
+/** `draft` is retained only for themes created before the staged generator workflow. */
+export const PRESENTATION_THEME_STATUSES = ['draft', 'prepared', 'analyzing', 'generating', 'validating', 'ready', 'failed'] as const
+export type PresentationThemeStatus = (typeof PRESENTATION_THEME_STATUSES)[number]
+export const PRESENTATION_THEME_PROGRESS_STATUSES = ['analyzing', 'generating', 'validating'] as const
+export type PresentationThemeProgressStatus = (typeof PRESENTATION_THEME_PROGRESS_STATUSES)[number]
+export type PresentationThemeReference =
+  | { type: 'builtin'; key: PresentationThemePack }
+  | { type: 'custom'; key: string; themeId: string }
 export type PresentationStatus = (typeof PRESENTATION_STATUSES)[number]
 export type PresentationSlideStatus = (typeof PRESENTATION_SLIDE_STATUSES)[number]
 export type PresentationExportKind = (typeof PRESENTATION_EXPORT_KINDS)[number]
@@ -81,11 +93,18 @@ export interface PresentationDeckSpec {
   goal: string
   audience?: string | null
   owner?: string | null
-  themePack: PresentationThemePack
+  themePack: string
+  theme?: PresentationThemeReference
   pageCount: number
   allowMediaReuse?: boolean
   preview?: PresentationJsonObject
   slides: PresentationSlideSpec[]
+}
+
+export interface PresentationThemeRuntimeMetadata extends PresentationJsonObject {
+  schema: 'xpert.presentation-theme-runtime/v1'
+  theme: PresentationJsonObject
+  pages: PresentationJsonObject[]
 }
 
 export interface PresentationCollabSession {

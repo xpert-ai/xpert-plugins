@@ -6,6 +6,7 @@ export const PRESENTATION_STUDIO_ARTIFACT_NAMESPACE = 'presentation_studio'
 export const PRESENTATION_STUDIO_FEATURE = 'presentation-studio'
 export const PRESENTATION_FEATURE = PRESENTATION_STUDIO_FEATURE
 export const PRESENTATION_GENERATION_CAPABILITY = 'presentation-generation'
+export const PRESENTATION_THEME_GENERATION_CAPABILITY = 'presentation-theme-generation'
 export const PRESENTATION_WORKBENCH_CAPABILITY = 'presentation-workbench'
 export const PRESENTATION_COLLABORATION_CAPABILITY = 'presentation-collaboration'
 export const PRESENTATION_EXPORT_CAPABILITY = 'presentation-export'
@@ -24,12 +25,29 @@ export const PRESENTATION_EXPORT_JOB = 'render'
 export const PRESENTATION_SANDBOX_ACTION = 'presentation.export'
 export const PRESENTATION_SANDBOX_ACTION_VERSION = '1.0.0'
 export const DASHIAI_UPSTREAM_COMMIT = '69ac66443e36e11cfca4a7f30721dc71a4278d28'
-export const DASHIAI_LAYOUT_COUNT = 1020
-export const DASHIAI_CONTROL_COUNT = 8576
+export const DASHIAI_LAYOUT_COUNT = 1190
+export const DASHIAI_CONTROL_COUNT = 9822
 export const PRESENTATION_THEME_PACKS = [
   'theme01', 'theme02', 'theme03', 'theme04', 'theme05', 'theme06',
-  'theme07', 'theme08', 'theme09', 'theme10', 'theme11', 'theme12'
+  'theme07', 'theme08', 'theme09', 'theme10', 'theme11', 'theme12',
+  'theme13', 'theme14'
 ] as const
+export const PRESENTATION_THEME_LABELS: Record<(typeof PRESENTATION_THEME_PACKS)[number], string> = {
+  theme01: '轻拟态风',
+  theme02: '炫光紫绿风',
+  theme03: '深浅代码风',
+  theme04: '玻璃糖果风',
+  theme05: '色谱图表风',
+  theme06: '深色图谱风',
+  theme07: '冷白调研风',
+  theme08: '黑金实验风',
+  theme09: '深蓝杂志风',
+  theme10: '金色指数风',
+  theme11: '高能增长风',
+  theme12: '声波霓虹风',
+  theme13: '亮色循环商业',
+  theme14: '橄榄建筑提案'
+}
 export const PRESENTATION_STATUSES = ['draft', 'reviewed', 'archived', 'failed'] as const
 export const PRESENTATION_SLIDE_STATUSES = ['active', 'skipped', 'deleted'] as const
 export const PRESENTATION_EXPORT_KINDS = ['html', 'pdf', 'pptx'] as const
@@ -37,6 +55,12 @@ export const PRESENTATION_EXPORT_STATUSES = ['queued', 'running', 'succeeded', '
 export const PRESENTATION_VERSION_SOURCES = ['agent', 'workbench', 'collaboration', 'restore', 'system'] as const
 export const PRESENTATION_TOOL_NAMES = [
   'presentation_create_deck',
+  'presentation_list_themes',
+  'presentation_open_dashi_theme_generator',
+  'presentation_prepare_theme',
+  'presentation_update_theme_progress',
+  'presentation_register_theme',
+  'presentation_report_theme_failure',
   'presentation_search_decks',
   'presentation_get_deck',
   'presentation_search_layouts',
@@ -56,6 +80,11 @@ export const PRESENTATION_TOOL_NAMES = [
 
 export const PRESENTATION_MUTATION_TOOL_NAMES = [
   'presentation_create_deck',
+  'presentation_open_dashi_theme_generator',
+  'presentation_prepare_theme',
+  'presentation_update_theme_progress',
+  'presentation_register_theme',
+  'presentation_report_theme_failure',
   'presentation_add_slide',
   'presentation_patch_slide',
   'presentation_reorder_slides',

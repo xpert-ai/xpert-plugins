@@ -48,6 +48,7 @@ import {
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 import { PresentationConfigService } from './presentation-config.service.js'
 import { PresentationRendererService } from './presentation-renderer.service.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
 import {
   createPresentationYDoc,
   decodeYDoc,
@@ -85,7 +86,7 @@ interface CreateDeckInput {
   goal: string
   audience?: string
   owner?: string
-  themePack: PresentationThemePack
+  themePack: string
   pageCount: number
 }
 
@@ -126,13 +127,18 @@ export class PresentationStudioService {
     private readonly renderer: PresentationRendererService,
     private readonly config: PresentationConfigService,
     @Optional() @Inject(MANAGED_QUEUE_SERVICE_TOKEN) private readonly queue?: ManagedQueueService,
-    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional() private readonly themes?: PresentationThemeService
   ) {}
 
   async createDeck(scope: PresentationScope, input: CreateDeckInput) {
     const title = requireText(input.title, 'Presentation title is required.')
     const goal = requireText(input.goal, 'Presentation goal is required.')
-    const themePack = requireTheme(input.themePack)
+    const themeKey = requireText(input.themePack, 'Presentation theme is required.')
+    const theme = (PRESENTATION_THEME_PACKS as readonly string[]).includes(themeKey)
+      ? { type: 'builtin' as const, key: themeKey as PresentationThemePack }
+      : await this.themeService().resolveReference(scope, themeKey)
+    const themePack = theme.key
     const pageCount = clampPageCount(input.pageCount, this.config.get().maxPageCount)
     const spec: PresentationDeckSpec = {
       title,
@@ -140,6 +146,7 @@ export class PresentationStudioService {
       audience: optionalText(input.audience),
       owner: optionalText(input.owner),
       themePack,
+      theme,
       pageCount,
       preview: { autosave: false, themeSwitcher: false },
       slides: []
@@ -222,7 +229,7 @@ export class PresentationStudioService {
 
   async loadThemeRuntime(scope: PresentationScope, deckId: string) {
     const deck = await this.requireDeck(scope, deckId)
-    const payload = await this.catalog.loadNativeThemeRuntime(deck.themePack)
+    const payload = await this.catalog.loadNativeThemeRuntime(deck.themePack, scope)
     if (Buffer.byteLength(payload.script, 'utf8') > this.config.get().maxPreviewBytes) {
       throw new BadRequestException('Native presentation theme runtime exceeds the configured preview limit.')
     }
@@ -256,8 +263,8 @@ export class PresentationStudioService {
 
   async addSlide(scope: PresentationScope, input: AddSlideInput) {
     const deck = await this.requireDeck(scope, input.deckId)
-    await this.catalog.requireLayout(input.layout, deck.themePack)
-    const validation = await this.catalog.validateLayoutProps(input.layout, input.props)
+    await this.catalog.requireLayout(input.layout, deck.themePack, scope)
+    const validation = await this.catalog.validateLayoutProps(input.layout, input.props, scope)
     if (deck.deckSpec.slides.some((slide) => slide.layout === input.layout && slide.status !== 'deleted')) {
       throw new BadRequestException(`Layout ${input.layout} is already used in this deck.`)
     }
@@ -285,7 +292,7 @@ export class PresentationStudioService {
       throw new BadRequestException(`Presentation revision conflict. Current revision is ${deck.revision}.`)
     }
     if (input.layout) {
-      await this.catalog.requireLayout(input.layout, deck.themePack)
+      await this.catalog.requireLayout(input.layout, deck.themePack, scope)
       if (deck.deckSpec.slides.some((slide) => slide.id !== input.slideId && slide.layout === input.layout && slide.status !== 'deleted')) {
         throw new BadRequestException(`Layout ${input.layout} is already used in this deck.`)
       }
@@ -294,7 +301,7 @@ export class PresentationStudioService {
       throw new BadRequestException(`Deck already contains its requested ${deck.deckSpec.pageCount} active slides.`)
     }
     const validation = input.propsPatch || input.layout
-      ? await this.catalog.validateLayoutProps(input.layout ?? current.layout, mergePresentationObjects(current.props, input.propsPatch ?? {}))
+      ? await this.catalog.validateLayoutProps(input.layout ?? current.layout, mergePresentationObjects(current.props, input.propsPatch ?? {}), scope)
       : { warnings: [] }
     validateTextPatch(input.textPatch)
     const result = await this.mutateDeck(scope, deck, `presentation:agent:presentation_patch_slide:${input.slideId}`, ({ slides, texts }) => {
@@ -1143,7 +1150,8 @@ export class PresentationStudioService {
       throw new BadRequestException(`Expected ${deck.deckSpec.pageCount} active slides but found ${slides.length}.`)
     }
     if (new Set(slides.map((slide) => slide.layout)).size !== slides.length) throw new BadRequestException('Every active slide must use a unique layout.')
-    for (const slide of slides) await this.catalog.requireLayout(slide.layout, deck.themePack)
+    const scope = scopeFromDeck(deck)
+    for (const slide of slides) await this.catalog.requireLayout(slide.layout, deck.themePack, scope)
   }
 
   private async validateAssetSize(scope: PresentationScope, deckId: string, size: number) {
@@ -1157,6 +1165,11 @@ export class PresentationStudioService {
     const files = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
     if (!files) throw new Error('Platform workspace files capability is not available.')
     return files
+  }
+
+  private themeService() {
+    if (!this.themes) throw new BadRequestException('Custom presentation themes are unavailable.')
+    return this.themes
   }
 
   private artifacts(): ArtifactsApi {
@@ -1432,6 +1445,18 @@ function scopeFields(scope: PresentationScope) {
   }
 }
 
+function scopeFromDeck(deck: PresentationDeck): PresentationScope {
+  return {
+    tenantId: deck.tenantId,
+    organizationId: deck.organizationId,
+    workspaceId: deck.workspaceId,
+    projectId: deck.projectId,
+    xpertId: deck.assistantId,
+    assistantId: deck.assistantId,
+    userId: deck.createdById
+  }
+}
+
 function scopedDeckWhere(scope: PresentationScope, id?: string): FindOptionsWhere<PresentationDeck> {
   const xpertId = scopeXpertId(scope)
   return { ...(id ? { id } : {}), ...scopeFilter(scope), ...(xpertId ? { assistantId: xpertId } : {}) }
@@ -1605,7 +1630,6 @@ function activeSlides(spec: PresentationDeckSpec) { return spec.slides.filter((s
 function requireText(value: string | null | undefined, message: string) { const text = optionalText(value); if (!text) throw new BadRequestException(message); return text }
 function optionalText(value: string | null | undefined) { return typeof value === 'string' && value.trim() ? value.trim() : undefined }
 function requireId(value: string | undefined, message: string) { if (!value) throw new Error(message); return value }
-function requireTheme(value: string): PresentationThemePack { if ((PRESENTATION_THEME_PACKS as readonly string[]).includes(value)) return value as PresentationThemePack; throw new BadRequestException(`Unsupported presentation theme: ${value}`) }
 function requireStatus(value: string): PresentationStatus { if ((PRESENTATION_STATUSES as readonly string[]).includes(value)) return value as PresentationStatus; throw new BadRequestException(`Unsupported presentation status: ${value}`) }
 function requireExportKind(value: string): PresentationExportKind { if ((PRESENTATION_EXPORT_KINDS as readonly string[]).includes(value)) return value as PresentationExportKind; throw new BadRequestException(`Unsupported presentation export kind: ${value}`) }
 function clampPageCount(value: number, max: number) { if (!Number.isFinite(value)) throw new BadRequestException('Presentation pageCount must be a number.'); return Math.min(max, Math.max(3, Math.trunc(value))) }

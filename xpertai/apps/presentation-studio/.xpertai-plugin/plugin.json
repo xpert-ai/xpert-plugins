@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-presentation-studio",
-  "version": "0.1.0",
-  "description": "Agentic DashiAI presentation studio with Yjs collaboration and HTML/PDF/PPTX export.",
+  "version": "0.6.6",
+  "description": "Agentic DashiAI presentation studio with custom theme generation, Yjs collaboration, and HTML/PDF/PPTX export.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/presentation-studio",
   "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/presentation-studio",
@@ -12,14 +12,14 @@
   "interface": {
     "displayName": "Presentation Studio",
     "shortDescription": "Agent-ready presentation studio",
-    "longDescription": "Generate, edit, collaborate on, version, and export presentations with 12 DashiAI themes and 1020 layouts.",
+    "longDescription": "Generate, edit, collaborate on, version, and export presentations with 14 built-in DashiAI themes, 1190 layouts, and verified themes generated from uploaded templates.",
     "developerName": "XpertAI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://xpertai.cn",
     "privacyPolicyURL": "https://xpertai.cn",
     "termsOfServiceURL": "https://xpertai.cn",
-    "defaultPrompt": ["Create a project presentation", "Generate an editable PPTX", "Review and export the current deck"],
+    "defaultPrompt": ["Create a project presentation", "Generate a theme from my template", "Generate an editable PPTX", "Review and export the current deck"],
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
     "brandColor": "#7C3AED",
@@ -37,11 +37,11 @@
   "targetAppMeta": {
     "xpert": {
       "types": ["assistant-template", "skill", "app", "xpertai-bundle"],
-      "capabilities": ["presentation-studio", "presentation-generation", "presentation-workbench", "presentation-collaboration", "presentation-export", "presentation-assistant-template"]
+      "capabilities": ["presentation-studio", "presentation-generation", "presentation-theme-generation", "presentation-workbench", "presentation-collaboration", "presentation-export", "presentation-assistant-template"]
     },
     "data-xpert": {
       "types": ["workbench-view", "assistant-tool", "business-app"],
-      "capabilities": ["presentation-studio", "presentation-generation", "presentation-workbench", "presentation-collaboration", "presentation-export", "presentation-assistant-template"]
+      "capabilities": ["presentation-studio", "presentation-generation", "presentation-theme-generation", "presentation-workbench", "presentation-collaboration", "presentation-export", "presentation-assistant-template"]
     }
   }
 }

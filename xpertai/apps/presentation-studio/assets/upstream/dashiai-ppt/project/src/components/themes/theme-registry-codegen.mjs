@@ -5,12 +5,17 @@
 //   - 裁剪版(renderDeck 按一份 deck 实际用到的主题集合,临时生成后用 esbuild 别名注入)。
 //
 // 这样一份单主题 deck 的 imported-theme-runtime.js 只内嵌它那一个主题的页面组件,
-// 而非全部 12 个主题(体积 ~1/12,且只暴露一个主题)。
+// 而非全部内置与外部主题，且只暴露 deck 实际使用的主题。
+
+import { GENERATED_THEME_KEYS } from './generated-theme-definitions.mjs';
+import { EXTERNAL_THEME_KEYS } from '../../external-theme-metadata.mjs';
 
 // 已接入主题(与 src/components/themes/theme* 目录、generated-metadata 的 themeKey 一致)。
 export const ALL_THEME_KEYS = [
   'theme01', 'theme02', 'theme03', 'theme04', 'theme05', 'theme06',
   'theme07', 'theme08', 'theme09', 'theme10', 'theme11', 'theme12',
+  ...GENERATED_THEME_KEYS,
+  ...EXTERNAL_THEME_KEYS,
 ];
 
 // 各主题(可选)的图片槽 React context。没有 context 的主题(02/04/05/07/12)不出现在此表里,

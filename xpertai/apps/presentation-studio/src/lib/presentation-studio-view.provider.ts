@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -36,7 +36,8 @@ import {
   PROJECT_DETAIL_SECTIONS_SLOT
 } from './constants.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
-import type { PresentationExportKind, PresentationJsonObject, PresentationScope, PresentationStatus, PresentationThemePack } from './types.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
+import { PRESENTATION_THEME_SOURCE_TYPES, type PresentationExportKind, type PresentationJsonObject, type PresentationScope, type PresentationStatus, type PresentationThemePack, type PresentationThemeSourceType } from './types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(moduleFilename)
@@ -48,7 +49,7 @@ const UNCACHED_PLATFORM_DATA_SOURCE = { mode: 'platform' as const, cache: { enab
 @Injectable()
 @ViewExtensionProvider(PRESENTATION_PROVIDER_KEY)
 export class PresentationStudioViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: PresentationStudioService) {}
+  constructor(private readonly service: PresentationStudioService, @Optional() private readonly themes?: PresentationThemeService) {}
 
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'project' || context.hostType === 'agent'
@@ -94,6 +95,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         { key: 'create_deck', label: text('New deck', '新建演示稿'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'open_deck', label: text('Open deck', '打开演示稿'), actionType: 'invoke' },
         { key: 'load_theme_runtime', label: text('Load theme runtime', '加载主题运行时'), actionType: 'invoke' },
+        { key: 'load_themes', label: text('Load themes', '加载主题'), actionType: 'invoke' },
         { key: 'load_asset_previews', label: text('Load asset previews', '加载素材预览'), actionType: 'invoke' },
         { key: 'set_current_context', label: text('Set current presentation context', '设置当前演示文稿上下文'), actionType: 'invoke' },
         { key: 'rename_deck', label: text('Rename deck', '重命名演示稿'), actionType: 'invoke' },
@@ -107,7 +109,8 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         { key: 'revoke_deck_html_share', label: text('Revoke HTML share', '撤销 HTML 分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
         { key: 'cancel_export', label: text('Cancel export', '取消导出'), actionType: 'invoke' },
         { key: 'delete_export', label: text('Delete export', '删除导出'), actionType: 'invoke' },
-        { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' }
+        { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
+        { key: 'upload_theme_template', label: text('Generate theme from template', '从模板生成主题'), icon: 'ri-palette-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' }
       ]
     }]
   }
@@ -168,6 +171,9 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
       }
       if (actionKey === 'load_theme_runtime') {
         return { ...success('Presentation theme runtime loaded', false), data: await this.service.loadThemeRuntime(scope, deckId(request)) }
+      }
+      if (actionKey === 'load_themes') {
+        return { ...success('Presentation themes loaded', false), data: await this.themeService().list(scope) }
       }
       if (actionKey === 'load_asset_previews') {
         return {
@@ -267,8 +273,18 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
     request: XpertViewActionRequest,
     file: XpertViewFileActionFile
   ): Promise<XpertViewActionResult> {
-    if (viewKey !== PRESENTATION_VIEW_KEY || actionKey !== 'upload_asset') return failure('Unsupported file action')
+    if (viewKey !== PRESENTATION_VIEW_KEY || (actionKey !== 'upload_asset' && actionKey !== 'upload_theme_template')) return failure('Unsupported file action')
     try {
+      if (actionKey === 'upload_theme_template') {
+        const sourceType = requiredThemeSourceType(request)
+        const result = await this.themeService().prepareUploadedSource(scopeFromContext(context), {
+          name: requiredInput(request, 'name'),
+          sourceType,
+          fileName: file.originalname || 'template',
+          mimeType: file.mimetype
+        }, file.buffer)
+        return { ...success('Theme template uploaded'), data: result }
+      }
       const result = await this.service.uploadAsset(scopeFromContext(context), {
         deckId: deckId(request), role: stringInput(request, 'role') ?? 'media', slideId: stringInput(request, 'slideId'),
         fileName: file.originalname || 'asset', mimeType: file.mimetype
@@ -277,6 +293,11 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
     } catch (error) {
       return failure(error instanceof Error ? error.message : 'Presentation media upload failed')
     }
+  }
+
+  private themeService() {
+    if (!this.themes) throw new Error('Custom presentation themes are unavailable.')
+    return this.themes
   }
 }
 
@@ -308,6 +329,11 @@ function stringArrayInput(request: XpertViewActionRequest, key: string) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).map((item) => item.trim()) : []
 }
 function requiredNumberInput(request: XpertViewActionRequest, key: string) { const value = numberInput(request, key); if (value === undefined) throw new Error(`${key} is required.`); return value }
+function requiredThemeSourceType(request: XpertViewActionRequest): PresentationThemeSourceType {
+  const value = requiredInput(request, 'sourceType')
+  if (!(PRESENTATION_THEME_SOURCE_TYPES as readonly string[]).includes(value)) throw new Error('sourceType is invalid.')
+  return value as PresentationThemeSourceType
+}
 function deckId(request: XpertViewActionRequest) { return stringInput(request, 'deckId') ?? stringParameter(request.parameters, 'deckId') ?? requiredTarget(request.targetId) }
 function requiredTarget(value: string | null | undefined) { if (!value) throw new Error('deckId is required.'); return value }
 function stringParameter(parameters: XpertViewQuery['parameters'] | XpertViewActionRequest['parameters'], key: string) {

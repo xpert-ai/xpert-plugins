@@ -20,6 +20,7 @@ team:
       requiredCapabilities:
         - presentation-studio
         - presentation-generation
+        - presentation-theme-generation
         - presentation-workbench
         - presentation-collaboration
         - presentation-export
@@ -35,7 +36,7 @@ team:
         default: 0
         description: Current deck revision for conflict-safe mutations
         operation: null
-    recursionLimit: 10000
+    recursionLimit: 300
   features:
     sandbox:
       enabled: true
@@ -46,12 +47,12 @@ team:
   copilotModel:
     referencedId: null
     modelType: llm
-    model: qwen3.6-plus
+    model: qwen3-vl-plus
     options:
-      context_size: 1000000
+      context_size: 262144
       temperature: 0.2
-      maxRetries: 6
-      max_tokens: 8192
+      maxRetries: 2
+      max_tokens: 32768
 nodes:
   - type: agent
     key: Agent_PresentationStudio
@@ -69,37 +70,92 @@ nodes:
         tools as the system of record and never claim that a deck, version, asset,
         or export exists unless its tool call succeeded.
 
-        Use only structured text and media references already present in Xpert
-        context. Do not attempt to parse binary documents inside this plugin.
+        Use structured text and Workspace file references from Xpert context.
+        Parse binary files only when the user explicitly asks to generate a custom
+        theme from a prepared external template through dashi-theme-generator.
 
         Workflow:
-        1. Create a deck with one themePack and the requested page count.
-        2. Search layouts by page role. Inspect every chosen layout before writing it.
+        1. Call presentation_list_themes and use only a ready theme.
+        2. For a custom theme, require an explicit sourceType. presentation_prepare_theme
+           only records or packages source evidence; it does not start a background job.
+           Workbench uploads are already prepared. Call presentation_prepare_theme with
+           source always set to an array and sourceMode explicit. Use single_file with
+           exactly one Workspace locator for React, HTML, PPTX, PDF, mixed input, or an
+           image ZIP. Use image_files only with sourceType images and 8-30 separate
+           Workspace locators. Prefer paths returned as /workspace/... . For compatibility,
+           a host path is valid only when it belongs to this current conversation under
+           sessions/<conversationId>/files; prepare_theme normalizes it to the matching
+           /workspace/sessions/<conversationId>/files/... locator. Never use arbitrary or
+           cross-conversation host paths, and never concatenate multiple paths.
+           Continue only after preparation succeeds. Call presentation_open_dashi_theme_generator
+           exactly once with the returned themeId to receive the complete built-in
+           skill and its authoring archive. Extract it into the current sandbox workspace,
+           and use the returned sourcePath directly; never construct or search a
+           themes/<id>/source directory. If preparation or opening fails, do not continue
+           to later workflow stages and do not repeat an identical tool call. A
+           deterministic tool call may be issued at most once with the exact same
+           arguments; reuse its prior result or stop with the concrete blocker.
+           For image evidence, pass the complete prepared archive or image directory
+           to extraction, never only the first page image.
+           Run source extraction once with every shell path quoted. Treat prepared,
+           reused, and already-prepared extraction results as terminal success for that
+           stage; never feed its output back as input or create v2/v3 retry directories.
+           Inspect the fixed evidence-index analysis batches once, with no more than 3
+           images per vision call and exactly one primary inspection per image. Persist
+           the result in the external spec. Once that spec passes its contract check,
+           do not restart screenshot analysis. A page can be revisited once only when
+           final validation identifies a concrete mismatch on that page. Do not guess
+           package-manager commands such as apt-get; prefer parsed page images when a
+           bare PDF renderer is unavailable. If the fixed analysis budget is exhausted,
+           report failure instead of continuing toward the recursion limit. Execute
+           every generation and verification step with sandbox tools. Use the explicit
+           generationMode discriminator returned by the workflow. For image or PDF
+           evidence, prefer reuse-first: pin complete editable page components from
+           theme01-theme12, implement only the external signature modules, and keep the
+           full-library render gates. Use fidelity when the user explicitly prioritizes
+           structural reconstruction. Never relax family identity, declared editable
+           fields, canvas, control-effect, or rendering correctness. The output of
+           themes:scaffold-owned is an internal non-terminal authoring state. After it
+           succeeds, continue in this same run and implement every remaining owned JSX
+           module yourself. Never tell the user that manual JSX implementation
+           is required, and never return a scaffold/module count as the completed result.
+           Save the finalized ZIP to Workspace Files and register it with
+           presentation_register_theme. Theme generation ends only when registration
+           returns ready, or when presentation_report_theme_failure records one concrete
+           failure.
+           Advance the real stages with presentation_update_theme_progress in this order:
+           analyzing, generating, validating. Never poll a prepared theme or claim that
+           generation continues in the background. Never guess sourceType from a filename.
+           On a concrete failure call presentation_report_theme_failure. If the same
+           deterministic tool call fails once, do not repeat it unchanged; report the
+           error or change the input based on the error.
+        3. Create a deck with one themePack and the requested page count.
+        4. Search layouts by page role. Inspect every chosen layout before writing it.
            presentation_inspect_layouts accepts at most 8 layouts per call; split
            larger selections into sequential batches of 8 or fewer.
-        3. Register workspace media with presentation_add_asset and use returned
+        5. Register workspace media with presentation_add_asset and use returned
            asset:// identifiers in writable media props.
-        4. Add one slide at a time. Use a unique layout for each active slide and
+        6. Add one slide at a time. Use a unique layout for each active slide and
            obey fill plans, copy budgets, count bindings, controls, and media slots.
            For array props, use authoringContract.arrayItemContracts exactly. Array
            items may contain only allowedKeys. Keep top-level fields such as desc
            and en at the top level unless the inspected item contract explicitly
            allows them; never infer nested fields from another layout.
-        5. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
-        6. Finalize only when active slide count equals pageCount and all content is real.
-        7. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
-        8. When the user explicitly asks to share the presentation, call
+        7. Re-read the deck if a revision conflict occurs, then retry the narrow patch.
+        8. Finalize only when active slide count equals pageCount and all content is real.
+        9. Request HTML, PDF, or PPTX exports and poll presentation_get_export.
+        10. When the user explicitly asks to share the presentation, call
            presentation_share_html. If it returns pending, poll the returned exportId
            with presentation_get_export and call presentation_share_html again after
            the export succeeds. Return the shareUrl to the user. This tool never creates
            anonymous public access.
-        9. Report failures with presentation_report_failure instead of inventing layouts.
+        11. Report deck failures with presentation_report_failure instead of inventing layouts.
 
         Match the user's language.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: presentation-studio-agent-v2
+    hash: presentation-studio-agent-v7
   - type: workflow
     key: Middleware_PresentationStudio
     position: { x: 1160, y: 332 }
@@ -110,16 +166,6 @@ nodes:
       provider: PresentationStudioMiddleware
       required: true
     hash: presentation-studio-middleware-v1
-  - type: workflow
-    key: Middleware_Skills
-    position: { x: 580, y: 332 }
-    entity:
-      type: middleware
-      key: Middleware_Skills
-      title: Skills Middleware
-      provider: skillsMiddleware
-      required: true
-    hash: presentation-studio-skills-middleware-v1
   - type: workflow
     key: Middleware_WebTools
     position: { x: 820, y: 480 }
@@ -159,7 +205,14 @@ nodes:
       title: Loop Guard
       provider: LoopGuardMiddleware
       required: true
-    hash: presentation-studio-loop-guard-middleware-v1
+      options:
+        warnThreshold: 2
+        hardLimit: 2
+        windowSize: 12
+        onLoop: end
+        warningMessage: Stop repeating extraction or image inspection. Reuse the existing evidence-index and external spec, advance to the next stage, or report the concrete blocker.
+        hardStopMessage: Theme generation stopped because extraction or evidence inspection repeated without producing a new stage artifact.
+    hash: presentation-studio-loop-guard-middleware-v3
   - type: workflow
     key: Middleware_ModelRetry
     position: { x: 1160, y: 520 }
@@ -173,13 +226,13 @@ nodes:
         maxRetries: 2
         initialDelayMs: 1000
         backoffFactor: 2
-        maxDelayMs: 60000
+        maxDelayMs: 30000
         jitter: true
-        retryAllErrors: true
+        retryAllErrors: false
         retryableErrorNames: []
-        retryableStatusCodes: []
+        retryableStatusCodes: [429, 500, 502, 503, 504]
         retryableMessageIncludes: []
-        onFailure: continue
+        onFailure: error
     hash: presentation-studio-model-retry-middleware-v1
   - type: workflow
     key: Middleware_ViewImage
@@ -196,10 +249,6 @@ connections:
     key: Agent_PresentationStudio/Middleware_PresentationStudio
     from: Agent_PresentationStudio
     to: Middleware_PresentationStudio
-  - type: workflow
-    key: Agent_PresentationStudio/Middleware_Skills
-    from: Agent_PresentationStudio
-    to: Middleware_Skills
   - type: workflow
     key: Agent_PresentationStudio/Middleware_WebTools
     from: Agent_PresentationStudio

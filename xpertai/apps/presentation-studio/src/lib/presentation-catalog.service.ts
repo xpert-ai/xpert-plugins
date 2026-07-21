@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, Optional } from '@nestjs/common'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -8,7 +8,8 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { DASHIAI_LAYOUT_COUNT, PRESENTATION_THEME_PACKS } from './constants.js'
-import type { PresentationJsonObject, PresentationJsonValue, PresentationThemePack } from './types.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
+import type { PresentationJsonObject, PresentationJsonValue, PresentationScope, PresentationThemePack } from './types.js'
 
 const execFileAsync = promisify(execFile)
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -44,7 +45,8 @@ type LayoutManifest = {
 }
 
 export interface SearchLayoutsInput {
-  theme: PresentationThemePack
+  theme: string
+  scope?: PresentationScope
   role?: string
   keyword?: string
   needsMedia?: boolean
@@ -67,6 +69,8 @@ export class PresentationCatalogService {
     layouts: Record<string, LayoutManifestRecord>
   }>>()
 
+  constructor(@Optional() private readonly themes?: PresentationThemeService) {}
+
   vendorProjectRoot() {
     const actionBundle = join(moduleDir, '..', 'sandbox-actions', 'presentation-export', 'bundle', 'project')
     return existsSync(actionBundle)
@@ -82,7 +86,15 @@ export class PresentationCatalogService {
     }
   }
 
-  async requireLayout(layout: string, theme: PresentationThemePack) {
+  async requireLayout(layout: string, theme: string, scope?: PresentationScope) {
+    if (!isBuiltinThemePack(theme)) {
+      if (!scope) throw new BadRequestException('Custom presentation theme lookup requires a workspace scope.')
+      const { parsed } = await this.themeService().loadReadyPackage(scope, theme)
+      const record = parsed.manifest.layouts[layout] as LayoutManifestRecord | undefined
+      if (!record) throw new BadRequestException(`Unknown presentation layout: ${layout}`)
+      if (record.themePack !== theme) throw new BadRequestException(`Layout ${layout} belongs to ${record.themePack}, not ${theme}.`)
+      return record
+    }
     const manifest = await this.manifest()
     const record = manifest.layouts[layout]
     if (!record) throw new BadRequestException(`Unknown presentation layout: ${layout}`)
@@ -101,19 +113,40 @@ export class PresentationCatalogService {
     appendArg(args, '--seed', input.seed)
     if (input.needsMedia) args.push('--needs-media')
     if (input.requireInitialMedia) args.push('--require-initial-media')
-    return this.runJson('scripts/layout-query.mjs', args)
+    if (isBuiltinThemePack(input.theme)) return this.runJson('scripts/layout-query.mjs', args)
+    if (!input.scope) throw new BadRequestException('Custom presentation theme search requires a workspace scope.')
+    return this.themeService().withStagedTheme(input.scope, input.theme, (environment) => this.runJson('scripts/layout-query.mjs', args, environment))
   }
 
-  async inspectLayouts(layouts: string[]): Promise<PresentationJsonObject> {
+  async inspectLayouts(layouts: string[], scope?: PresentationScope): Promise<PresentationJsonObject> {
     if (!layouts.length || layouts.length > 8) {
       throw new BadRequestException('Inspect between 1 and 8 presentation layouts at a time.')
     }
-    const inspection = await this.runJson('scripts/inspect-layout.mjs', ['--compact', ...layouts])
+    const customThemes = [...new Set(layouts.map(layoutThemeKey).filter((theme) => theme && !isBuiltinThemePack(theme)))] as string[]
+    if (customThemes.length > 1) throw new BadRequestException('Inspect custom layouts from one theme at a time.')
+    const inspection = customThemes.length
+      ? scope
+        ? await this.themeService().withStagedTheme(scope, customThemes[0], (environment) => this.runJson('scripts/inspect-layout.mjs', ['--compact', ...layouts], environment))
+        : (() => { throw new BadRequestException('Custom presentation theme inspection requires a workspace scope.') })()
+      : await this.runJson('scripts/inspect-layout.mjs', ['--compact', ...layouts])
     return annotateLayoutInspection(inspection)
   }
 
-  async loadNativeThemeRuntime(themePack: PresentationThemePack) {
-    const theme = requireThemePack(themePack)
+  async loadNativeThemeRuntime(themePack: string, scope?: PresentationScope) {
+    if (!isBuiltinThemePack(themePack)) {
+      if (!scope) throw new BadRequestException('Custom presentation theme runtime requires a workspace scope.')
+      const { theme, parsed } = await this.themeService().loadReadyPackage(scope, themePack)
+      const script = inlineCustomRuntimeAssets(parsed.browserRuntime.toString('utf8'), parsed.assets)
+      return {
+        protocolVersion: 1 as const,
+        themePack: theme.themeKey,
+        runtimeVersion: `custom-${theme.packageSha256}`,
+        runtimeChecksum: createHash('sha256').update(script).digest('hex'),
+        script,
+        layouts: parsed.manifest.layouts as Record<string, LayoutManifestRecord>
+      }
+    }
+    const theme = themePack
     let cached = this.nativeRuntimeCache.get(theme)
     if (!cached) {
       cached = this.buildNativeThemeRuntime(theme)
@@ -122,22 +155,22 @@ export class PresentationCatalogService {
     return cached
   }
 
-  async validateLayoutProps(layout: string, props: PresentationJsonObject) {
+  async validateLayoutProps(layout: string, props: PresentationJsonObject, scope?: PresentationScope) {
     const tempDirectory = await mkdtemp(join(tmpdir(), 'presentation-props-'))
     const propsFile = join(tempDirectory, 'props.json')
     try {
       await writeFile(propsFile, JSON.stringify(rewritePortableMediaForVendor(props)), 'utf8')
       let stdout = ''
       try {
-        const result = await execFileAsync(process.execPath, [
-          join(this.vendorProjectRoot(), 'scripts/write-safe-props.mjs'),
-          layout,
-          propsFile
-        ], {
-          cwd: this.vendorProjectRoot(),
-          env: { ...process.env, DASHI_PPT_THEME_RUNTIME: 'prebuilt' },
-          maxBuffer: 20 * 1024 * 1024
-        })
+        const execute = async (environment: NodeJS.ProcessEnv = {}) => execFileAsync(process.execPath, [
+          join(this.vendorProjectRoot(), 'scripts/write-safe-props.mjs'), layout, propsFile
+        ], { cwd: this.vendorProjectRoot(), env: { ...process.env, DASHI_PPT_THEME_RUNTIME: 'prebuilt', ...environment }, maxBuffer: 20 * 1024 * 1024 })
+        const theme = layoutThemeKey(layout)
+        const result = theme && !isBuiltinThemePack(theme)
+          ? scope
+            ? await this.themeService().withStagedTheme(scope, theme, execute)
+            : (() => { throw new BadRequestException('Custom presentation theme validation requires a workspace scope.') })()
+          : await execute()
         stdout = result.stdout
       } catch (error) {
         stdout = commandStdout(error)
@@ -188,11 +221,11 @@ export class PresentationCatalogService {
     }
   }
 
-  private async runJson(script: string, args: string[]): Promise<PresentationJsonObject> {
+  private async runJson(script: string, args: string[], environment: NodeJS.ProcessEnv = {}): Promise<PresentationJsonObject> {
     try {
       const { stdout } = await execFileAsync(process.execPath, [join(this.vendorProjectRoot(), script), ...args], {
         cwd: this.vendorProjectRoot(),
-        env: { ...process.env, DASHI_PPT_THEME_RUNTIME: 'prebuilt' },
+        env: { ...process.env, DASHI_PPT_THEME_RUNTIME: 'prebuilt', ...environment },
         maxBuffer: 20 * 1024 * 1024
       })
       const value: unknown = JSON.parse(stdout)
@@ -201,6 +234,11 @@ export class PresentationCatalogService {
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'DashiAI catalog command failed.')
     }
+  }
+
+  private themeService() {
+    if (!this.themes) throw new BadRequestException('Custom presentation themes are unavailable.')
+    return this.themes
   }
 }
 
@@ -227,15 +265,40 @@ async function inlineNativeRuntimeAssets(projectRoot: string, source: string) {
 }
 
 function mimeTypeForRuntimeAsset(path: string) {
+  if (/\.jpe?g$/i.test(path)) return 'image/jpeg'
   if (path.endsWith('.png')) return 'image/png'
+  if (/\.webp$/i.test(path)) return 'image/webp'
+  if (/\.gif$/i.test(path)) return 'image/gif'
+  if (/\.avif$/i.test(path)) return 'image/avif'
+  if (/\.svg$/i.test(path)) return 'image/svg+xml'
+  if (/\.woff2$/i.test(path)) return 'font/woff2'
+  if (/\.woff$/i.test(path)) return 'font/woff'
+  if (/\.ttf$/i.test(path)) return 'font/ttf'
+  if (/\.otf$/i.test(path)) return 'font/otf'
+  if (/\.mp4$/i.test(path)) return 'video/mp4'
+  if (/\.webm$/i.test(path)) return 'video/webm'
   if (path.endsWith('.json')) return 'application/json'
   if (path.endsWith('.js')) return 'text/javascript'
   return 'application/octet-stream'
 }
 
-function requireThemePack(value: string): PresentationThemePack {
-  if ((PRESENTATION_THEME_PACKS as readonly string[]).includes(value)) return value as PresentationThemePack
-  throw new BadRequestException(`Unsupported presentation theme: ${value}`)
+function isBuiltinThemePack(value: string): value is PresentationThemePack {
+  return (PRESENTATION_THEME_PACKS as readonly string[]).includes(value)
+}
+
+function layoutThemeKey(layout: string) {
+  const match = layout.match(/^(theme\d+)_page\d+$/)
+  return match?.[1]
+}
+
+function inlineCustomRuntimeAssets(source: string, assets: Array<{ path: string; buffer: Buffer }>) {
+  if (!assets.length) return source
+  let result = source
+  for (const asset of [...assets].sort((left, right) => right.path.length - left.path.length)) {
+    const data = `data:${mimeTypeForRuntimeAsset(asset.path)};base64,${asset.buffer.toString('base64')}`
+    result = result.replaceAll(`./${asset.path}`, data).replaceAll(`/${asset.path}`, data).replaceAll(asset.path, data)
+  }
+  return result
 }
 
 function appendArg(args: string[], name: string, value: string | number | undefined) {

@@ -78,7 +78,7 @@ export function collectNativeRuntimeStyleText(runtime: LoadedNativeRuntime) {
 }
 
 async function activateRuntime(payload: NativeThemeRuntimePayload): Promise<LoadedNativeRuntime> {
-  if (payload.protocolVersion !== 1 || !/^theme(?:0[1-9]|1[0-2])$/.test(payload.themePack)) {
+  if (payload.protocolVersion !== 1 || !/^theme\d{2,}$/.test(payload.themePack)) {
     throw new Error('Presentation theme runtime payload is invalid.')
   }
   const actualChecksum = await sha256(payload.script)

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, type TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -8,9 +9,7 @@ import {
   WorkspaceFilesRuntimeCapability,
   type AgentMiddleware,
   type IAgentMiddlewareContext,
-  type IAgentMiddlewareStrategy,
-  type WorkspaceFileLocator,
-  type WorkspacePortableFileReference
+  type IAgentMiddlewareStrategy
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
@@ -18,20 +17,25 @@ import {
   PRESENTATION_EXPORT_KINDS,
   PRESENTATION_FEATURE,
   PRESENTATION_GENERATION_CAPABILITY,
+  PRESENTATION_THEME_GENERATION_CAPABILITY,
   PRESENTATION_ICON,
   PRESENTATION_MIDDLEWARE_NAME,
   PRESENTATION_MUTATION_TOOL_NAMES,
   PRESENTATION_SLIDE_STATUSES,
   PRESENTATION_STATUSES,
-  PRESENTATION_THEME_PACKS,
   PRESENTATION_TOOL_NAMES,
   PRESENTATION_WORKBENCH_CAPABILITY
 } from './constants.js'
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 import { PresentationDebugService } from './presentation-debug.service.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
+import { readPresentationWorkspaceFile } from './presentation-workspace-files.js'
 import {
   PRESENTATION_SHARE_ACCESS_MODES,
+  PRESENTATION_THEME_PROGRESS_STATUSES,
+  PRESENTATION_THEME_SOURCE_MODES,
+  PRESENTATION_THEME_SOURCE_TYPES,
   type PresentationAwarenessV2,
   type PresentationJsonObject,
   type PresentationJsonValue,
@@ -39,7 +43,7 @@ import {
   type PresentationWorkbenchAgentContext
 } from './types.js'
 
-const themeSchema = z.enum(PRESENTATION_THEME_PACKS)
+const themeSchema = z.string().regex(/^theme\d{2,}$/)
 const statusSchema = z.enum(PRESENTATION_STATUSES)
 const slideStatusSchema = z.enum(PRESENTATION_SLIDE_STATUSES)
 const exportKindSchema = z.enum(PRESENTATION_EXPORT_KINDS)
@@ -78,17 +82,73 @@ const patchSlideSchema = z.object({
 const reorderSchema = z.object({
   deckId: z.string().uuid(), slideIds: z.array(z.string().uuid()).min(1), expectedRevision: z.number().int().min(0)
 })
+const runtimeFilePathSchema = z.string().min(1)
+const workspacePathSchema = runtimeFilePathSchema.refine(value => !value.startsWith('/') || value.startsWith('/workspace/'), {
+  message: 'Use a Workspace locator such as /workspace/...; host filesystem paths are not accepted.'
+})
+const volumeFilePathSchema = z.string().min(1).refine(value => !value.startsWith('/'), {
+  message: 'filePath must be relative to the Workspace volume.'
+})
 const fileRefSchema = z.object({
-  source: z.literal('platform.workspace.files'), filePath: z.string().min(1), workspacePath: z.string().min(1),
+  source: z.literal('platform.workspace.files'), filePath: volumeFilePathSchema, workspacePath: workspacePathSchema,
   catalog: z.enum(['projects', 'users', 'knowledges', 'skills', 'xperts']).optional(), scopeId: z.string().optional(),
   tenantId: z.string().optional(), userId: z.string().optional(), projectId: z.string().optional(), xpertId: z.string().optional(),
   isolateByUser: z.boolean().optional(), originalName: z.string().optional(), name: z.string().optional(), mimeType: z.string().optional(), size: z.number().optional()
 })
+const workspaceLocatorSchema = z.union([
+  runtimeFilePathSchema,
+  z.object({
+    path: runtimeFilePathSchema.optional(), filePath: runtimeFilePathSchema.optional(), workspacePath: runtimeFilePathSchema.optional(), fileRef: fileRefSchema.optional(),
+    originalName: z.string().optional(), name: z.string().optional(), mimeType: z.string().optional(), size: z.number().int().positive().optional()
+  }).refine(input => Boolean(input.path ?? input.filePath ?? input.workspacePath ?? input.fileRef), {
+    message: 'path, filePath, workspacePath, or fileRef is required.'
+  })
+])
 const addAssetSchema = z.object({
   deckId: z.string().uuid(), role: z.string().min(1), slideId: z.string().uuid().optional(), evidence: jsonValueSchema.optional(),
   path: z.string().optional(), filePath: z.string().optional(), workspacePath: z.string().optional(), fileRef: fileRefSchema.optional(),
   originalName: z.string().optional(), name: z.string().optional(), mimeType: z.string().optional(), size: z.number().int().positive().optional()
 })
+const prepareThemeSchema = z.object({
+  name: z.string().min(1),
+  sourceType: z.enum(PRESENTATION_THEME_SOURCE_TYPES).describe('Explicit external source contract; never infer it from a filename.'),
+  sourceMode: z.enum(PRESENTATION_THEME_SOURCE_MODES).describe('single_file for exactly one source; image_files only for 8-30 separate images.'),
+  source: z.array(workspaceLocatorSchema).min(1).max(30).describe('Always an array. Prefer Workspace locators; current-conversation host session paths are normalized for compatibility.')
+}).superRefine((input, context) => {
+  if (input.sourceMode === 'single_file' && input.source.length !== 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['source'],
+      message: 'sourceMode single_file requires exactly one Workspace locator in source.'
+    })
+  }
+  if (input.sourceMode === 'image_files') {
+    if (input.sourceType !== 'images') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sourceType'],
+        message: 'sourceMode image_files requires sourceType images.'
+      })
+    }
+    if (input.source.length < 8) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['source'],
+        message: 'sourceMode image_files requires 8-30 separate Workspace image locators.'
+      })
+    }
+  }
+})
+const openThemeGeneratorSchema = z.object({
+  themeId: z.string().uuid().describe('Prepared or in-progress custom theme id returned by prepare_theme or list_themes.')
+})
+const registerThemeSchema = z.object({
+  themeId: z.string().uuid(),
+  path: z.string().optional(), filePath: z.string().optional(), workspacePath: z.string().optional(), fileRef: fileRefSchema.optional(),
+  originalName: z.string().optional(), mimeType: z.string().optional(), size: z.number().int().positive().optional()
+})
+const reportThemeFailureSchema = z.object({ themeId: z.string().uuid(), reason: z.string().min(1) })
+const updateThemeProgressSchema = z.object({ themeId: z.string().uuid(), status: z.enum(PRESENTATION_THEME_PROGRESS_STATUSES) })
 const finalizeSchema = z.object({
   deckId: z.string().uuid(), expectedRevision: z.number().int().min(0), changeSummary: z.string().optional()
 })
@@ -121,6 +181,12 @@ const AGENT_EDITING_TOOL_NAMES = new Set<string>([
 const STUDIO_ELEMENT_POSITIONS_KEY = '__studioElementPositions'
 const TOOL_OPERATION_LABELS: Record<string, string> = {
   presentation_create_deck: 'Creating presentation',
+  presentation_list_themes: 'Listing presentation themes',
+  presentation_open_dashi_theme_generator: 'Opening Dashi theme generator',
+  presentation_prepare_theme: 'Preparing custom theme',
+  presentation_update_theme_progress: 'Updating theme generation progress',
+  presentation_register_theme: 'Registering custom theme',
+  presentation_report_theme_failure: 'Reporting custom theme failure',
   presentation_search_decks: 'Searching presentations',
   presentation_get_deck: 'Reading presentation',
   presentation_search_layouts: 'Searching layouts',
@@ -148,14 +214,15 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
       zh_Hans: '创建、校验、协作、版本化并导出 DashiAI 演示文稿。'
     },
     icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' },
-    features: [PRESENTATION_FEATURE, PRESENTATION_GENERATION_CAPABILITY, PRESENTATION_WORKBENCH_CAPABILITY, PRESENTATION_EXPORT_CAPABILITY],
+    features: [PRESENTATION_FEATURE, PRESENTATION_GENERATION_CAPABILITY, PRESENTATION_THEME_GENERATION_CAPABILITY, PRESENTATION_WORKBENCH_CAPABILITY, PRESENTATION_EXPORT_CAPABILITY],
     configSchema: { type: 'object', properties: {} }
   }
 
   constructor(
     private readonly service: PresentationStudioService,
     private readonly catalog: PresentationCatalogService,
-    private readonly debugLogger: PresentationDebugService
+    private readonly debugLogger: PresentationDebugService,
+    @Optional() private readonly themes?: PresentationThemeService
   ) {}
 
   async createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): Promise<AgentMiddleware> {
@@ -169,9 +236,43 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
     return {
       name: PRESENTATION_MIDDLEWARE_NAME,
       tools: [
+        tool(() => compact(this.themeService().list(scope)), {
+          name: 'presentation_list_themes',
+          description: toolDescription(currentDeckHint, 'List all built-in and workspace-scoped custom themes, including prepared, analyzing, generating, validating, ready, and failed states.'),
+          schema: z.object({}), verboseParsingErrors: true
+        }),
+        tool(async (input) => {
+          const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
+          if (!files) throw new Error('Platform workspace files capability is not available.')
+          const result = await this.themeService().materializeGenerator(scope, input.themeId, files)
+          return [JSON.stringify({
+            message: result.message,
+            theme: result.theme,
+            authoring: result.authoring,
+            skill: result.skill,
+            delivery: result.delivery,
+            archivePath: result.archivePath,
+            archiveSha256: result.archiveSha256,
+            extractDirectory: result.extractDirectory,
+            skillPath: result.skillPath,
+            instruction: result.instruction,
+            completionContract: result.completionContract,
+            skillMarkdown: result.skillMarkdown
+          }), { files: [{
+            fileName: 'dashi-theme-generator.zip',
+            filePath: result.file.workspacePath,
+            fileUrl: result.file.fileUrl ?? result.file.url ?? '',
+            mimeType: result.file.mimeType ?? 'application/zip',
+            extension: 'zip'
+          }] }]
+        }, {
+          name: 'presentation_open_dashi_theme_generator',
+          description: toolDescription(currentDeckHint, 'Open the dashi-theme-generator built directly into Presentation Studio for one existing prepared or in-progress custom theme, without skillsMiddleware. themeId is required and must come from a successful presentation_prepare_theme result or presentation_list_themes; never call with {}. The result includes the exact sourcePath, generator archivePath, and recommended generation mode, so never guess or search a themes/<id>/source directory. For screenshot/PDF evidence, reuse-first may pin complete editable components from theme01-theme12 and author only the template signature pages. A later scaffold result is explicitly non-terminal and requires the current agent, not the user, to implement the remaining owned JSX modules before finalization. Continue until registration returns ready or report one concrete failure. If this deterministic call fails, do not repeat it unchanged.'),
+          schema: openThemeGeneratorSchema, responseFormat: 'content_and_artifact', verboseParsingErrors: true
+        }),
         tool((input) => compact(this.service.createDeck(scope, input)), {
           name: 'presentation_create_deck',
-          description: toolDescription(currentDeckHint, 'Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck.'),
+          description: toolDescription(currentDeckHint, 'Create a new presentation deck before searching layouts or adding slides. Call presentation_list_themes first and use one ready themePack for the whole deck.'),
           schema: createDeckSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.searchDecks(scope, input)), {
@@ -181,12 +282,12 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
           name: 'presentation_get_deck', description: toolDescription(currentDeckHint, 'Read deck revision, immutable versions, exports, assets, and optionally slide content. Prefer the current deckId from context when the user says current deck or this presentation.'), schema: getDeckSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.catalog.searchLayouts({
-          theme: input.themePack, role: input.role, keyword: input.keyword, needsMedia: input.needsMedia,
+          theme: input.themePack, scope, role: input.role, keyword: input.keyword, needsMedia: input.needsMedia,
           mediaCount: input.mediaCount, mediaKind: input.mediaKind, requireInitialMedia: input.requireInitialMedia, limit: input.limit, seed: input.seed
         })), {
           name: 'presentation_search_layouts', description: toolDescription(currentDeckHint, 'Search up to 12 layouts by role, keyword, theme, and media requirements. Call before inspecting layouts. Use the current themePack from context when modifying the current deck unless the user explicitly asks for a different new deck.'), schema: searchLayoutsSchema, verboseParsingErrors: true
         }),
-        tool((input) => compact(this.catalog.inspectLayouts(input.layouts)), {
+        tool((input) => compact(this.catalog.inspectLayouts(input.layouts, scope)), {
           name: 'presentation_inspect_layouts', description: toolDescription(currentDeckHint, 'HARD LIMIT: inspect 1-8 candidate layouts per call. If more than 8 layouts are selected, split them into sequential batches of at most 8. Returns fill plans, copy budgets, controls, prop shapes, media slots, and strict array-item authoring contracts. This is a read-only planning tool: it does not change the deck, theme, active slide, or Workbench UI.'), schema: inspectLayoutsSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.addSlide(scope, input)), {
@@ -201,13 +302,48 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         tool(async (input) => {
           const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
           if (!files) throw new Error('Platform workspace files capability is not available.')
-          const locator = assetLocator(input)
-          const file = await files.readRuntimeBuffer(locator)
+          const file = await readPresentationWorkspaceFile(files, scope, input)
           return compact(this.service.registerRuntimeAsset(scope, {
             deckId: input.deckId, role: input.role, slideId: input.slideId, evidence: input.evidence
           }, file))
         }, {
           name: 'presentation_add_asset', description: toolDescription(currentDeckHint, 'Register a workspace image or video and return an asset:// reference for slide props. Never pass raw base64. Prefer the current deckId/slideId from context when the user adds media to the current presentation.'), schema: addAssetSchema, verboseParsingErrors: true
+        }),
+        tool(async (input) => {
+          const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
+          if (!files) throw new Error('Platform workspace files capability is not available.')
+          if (input.sourceMode === 'image_files') {
+            const imageFiles = await Promise.all(input.source.map(locator => readPresentationWorkspaceFile(files, scope, locator)))
+            return compact(this.themeService().prepareRuntimeImageSources(scope, { name: input.name }, imageFiles))
+          }
+          const file = await readPresentationWorkspaceFile(files, scope, input.source[0])
+          return compact(this.themeService().prepareRuntimeSource(scope, {
+            name: input.name, sourceType: input.sourceType
+          }, file))
+        }, {
+          name: 'presentation_prepare_theme',
+          description: toolDescription(currentDeckHint, 'Prepare an external template source; this records or packages evidence and does not start a background job. Always pass source as an array. Use sourceMode=single_file with exactly one Workspace locator for React, HTML, PPTX, PDF, mixed input, or an image ZIP. Use sourceMode=image_files with sourceType=images and 8-30 separate image locators. sourceType and sourceMode are explicit contracts and must not be inferred from names. Prefer Workspace locators returned by attachments/tools. A legacy host path is accepted only when it identifies a file inside the current conversation session and is normalized to /workspace/sessions/<conversationId>/files/... . Continue only after success, using the returned nextAction; on failure correct the input once and never call open or search a guessed source directory.'),
+          schema: prepareThemeSchema, verboseParsingErrors: true
+        }),
+        tool((input) => compact(this.themeService().updateGenerationStatus(scope, input.themeId, input.status)), {
+          name: 'presentation_update_theme_progress',
+          description: toolDescription(currentDeckHint, 'Advance one custom theme through analyzing, generating, and validating. Call exactly once when each real stage starts; this tool never runs generation itself.'),
+          schema: updateThemeProgressSchema, verboseParsingErrors: true
+        }),
+        tool(async (input) => {
+          const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
+          if (!files) throw new Error('Platform workspace files capability is not available.')
+          const file = await readPresentationWorkspaceFile(files, scope, input)
+          return compact(this.themeService().registerRuntimePackage(scope, input.themeId, file))
+        }, {
+          name: 'presentation_register_theme',
+          description: toolDescription(currentDeckHint, 'Register the finalized ZIP produced by dashi-theme-generator. Registration enforces the explicit fidelity or reuse-first owned-module policy and rejects scaffold modules, missing provenance, fewer than nine composed structure families, failed palette/render/layout gates, mismatched manifests, or unsafe archive paths.'),
+          schema: registerThemeSchema, verboseParsingErrors: true
+        }),
+        tool((input) => compact(this.themeService().markFailed(scope, input.themeId, input.reason)), {
+          name: 'presentation_report_theme_failure',
+          description: toolDescription(currentDeckHint, 'Mark a custom-theme generation request failed with the concrete generator or validation error.'),
+          schema: reportThemeFailureSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.finalizeDeck(scope, input.deckId, input.expectedRevision, 'agent', input.changeSummary)), {
           name: 'presentation_finalize_deck', description: toolDescription(currentDeckHint, 'Validate copy, layout, media, page count, theme, and defaults, then create an immutable version. Call only when the user explicitly asks to save/finalize a version or after all slides are complete.'), schema: finalizeSchema, verboseParsingErrors: true
@@ -263,6 +399,10 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
           name: 'presentation_report_failure', description: toolDescription(currentDeckHint, 'Record an unrecoverable or recoverable presentation workflow failure with compact evidence.'), schema: failureSchema, verboseParsingErrors: true
         })
       ],
+      wrapModelCall: (request, handler) => handler({
+        ...request,
+        systemMessage: appendSystemMessage(request.systemMessage, BUILT_IN_THEME_GENERATOR_GUIDANCE)
+      }),
       wrapToolCall: async (request, handler) => {
         const startedAt = Date.now()
         const createdAt = new Date(startedAt)
@@ -314,6 +454,30 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
       }
     }
   }
+
+  private themeService() {
+    if (!this.themes) throw new Error('Custom presentation themes are unavailable.')
+    return this.themes
+  }
+}
+
+const BUILT_IN_THEME_GENERATOR_GUIDANCE = `<presentation_studio_builtin_skill name="dashi-theme-generator">
+Presentation Studio directly provides the dashi-theme-generator skill; do not require or invoke skillsMiddleware. When the user asks to create a theme from an external React, HTML, PPTX, PDF, image, or mixed template, call presentation_list_themes and prepare the source only when no matching prepared theme exists. presentation_prepare_theme always receives source as an array plus an explicit sourceMode: single_file means exactly one locator, while image_files means 8-30 locators with sourceType images. Continue only after prepare succeeds. Then call presentation_open_dashi_theme_generator exactly once with the returned themeId; never call it with an empty object. Its result is the source of truth for sourcePath, archivePath, and recommended generation mode, so never construct or search a themes/<id>/source directory. Extract the archive, read SKILL.md completely plus every reference it requires for the input type, and execute that workflow with sandbox file and shell tools. Quote every shell path. Run image extraction once in one deterministic directory, passing the complete prepared archive or image directory rather than only the first page image; prepared, reused, and already-prepared are terminal success states, and an extraction output must never become the next extraction input. Follow the evidence-index batches exactly once, inspect each image once, and persist the result in the external spec. Once that spec passes its contract check, do not restart screenshot analysis; only a concrete final-validation mismatch may cause one targeted page revisit. Never guess package-manager commands such as apt-get. Use the explicit generationMode discriminator: for image/PDF evidence prefer reuse-first, which pins complete editable components from theme01-theme12 and requires only 2 observed signature modules with no inferred-module minimum; use fidelity only when the user explicitly prioritizes structural reconstruction. Do not weaken runtime correctness gates such as family identity, declared editable fields, canvas coverage, control effects, or full-library rendering. After themes:scaffold-owned succeeds, treat its scaffolded result as an internal non-terminal state. Continue in the same theme-authoring run and implement all remaining owned JSX modules yourself; never tell the user that manual JSX implementation is required and never present a scaffold count as the result. Use the exact prepared theme id, key, sourceType, and paths; report real analyzing, generating, and validating stages; register only the finalized package. The only valid user-facing terminal states are ready after presentation_register_theme succeeds, or failed after presentation_report_theme_failure records one concrete error. If a stage cannot finish within its fixed call budget, stop and report the failure instead of approaching the recursion limit. After any deterministic failure, change the input according to the error or stop and report it; never repeat an identical tool call. Never replace the bundled skill with an improvised prompt-only workflow.
+</presentation_studio_builtin_skill>`
+
+function appendSystemMessage(systemMessage: unknown, addition: string) {
+  const messageObject = objectFromUnknown(systemMessage)
+  const content = typeof systemMessage === 'string'
+    ? systemMessage
+    : systemMessage instanceof SystemMessage && typeof systemMessage.content === 'string'
+      ? systemMessage.content
+      : typeof messageObject.content === 'string'
+        ? messageObject.content
+        : ''
+  if (content.includes('<presentation_studio_builtin_skill name="dashi-theme-generator">')) {
+    return new SystemMessage(content)
+  }
+  return new SystemMessage([content, addition].filter(Boolean).join('\n\n'))
 }
 
 function readChangeSummaryMessage(args: unknown) {
@@ -526,13 +690,6 @@ function currentDeckToolHint(context: PresentationWorkbenchAgentContext | null) 
 
 function toolDescription(contextHint: string, description: string) {
   return contextHint ? `${contextHint}\n\n${description}` : description
-}
-
-function assetLocator(input: z.infer<typeof addAssetSchema>): WorkspaceFileLocator {
-  if (input.fileRef) return input.fileRef as WorkspacePortableFileReference
-  const path = input.path ?? input.filePath ?? input.workspacePath
-  if (!path) throw new Error('Asset path, filePath, workspacePath, or fileRef is required.')
-  return { path, filePath: input.filePath, workspacePath: input.workspacePath, originalName: input.originalName, name: input.name, mimeType: input.mimeType, size: input.size }
 }
 
 async function compact(value: Promise<unknown> | unknown) {

@@ -1,0 +1,37 @@
+{
+  "qualityVersion": 3,
+  "key": "theme13",
+  "displayName": "亮色循环商业",
+  "scenario": ["商业计划", "品牌战略", "增长汇报"],
+  "audience": ["投资决策者", "企业管理层"],
+  "baselineTheme": "theme11",
+  "pageCount": 86,
+  "ownModuleMinimum": 16,
+  "sourceThemes": ["theme11", "theme01", "theme05", "theme09"],
+  "familyWeights": {"cover":12,"table":11,"metrics":12,"comparison":10,"timeline":9,"general":8,"media":11,"statement":8},
+  "tokens": {"background":"#F2F1EF","foreground":"#111111","accent":"#B7F23A","secondary":"#856BEA","motif":"bright-circular-editorial"},
+  "profile": {
+    "heading": "Arial Black, PingFang SC, sans-serif",
+    "body": "Inter, PingFang SC, sans-serif",
+    "density": "balanced",
+    "frame": "rounded-editorial",
+    "chart": "bright-flat",
+    "media": "soft-rounded-crop",
+    "ornament": "orbit-arrow-pill",
+    "context": "business-growth",
+    "radius": 30,
+    "paletteMode": "strict",
+    "backgroundCss": "radial-gradient(circle at 84% 8%,rgba(133,107,234,.11),transparent 30%),linear-gradient(138deg,rgba(183,242,58,.07),transparent 46%)",
+    "vocabulary": ["循环增长", "协同价值", "市场验证", "行动路径"],
+    "visual": {
+      "cardFlow": "asymmetric-editorial",
+      "titleTransform": "none",
+      "titleSpacing": "-.055em",
+      "titleWidth": 1080,
+      "surfaceCss": "border:1px solid rgba(17,17,17,.12);box-shadow:none;",
+      "frameCss": "inset:28px;border-radius:30px;border:1px solid rgba(17,17,17,.07);",
+      "mark": "↗",
+      "markCss": "right:54px;bottom:36px;font-size:44px;font-weight:900;color:var(--theme-fg);"
+    }
+  }
+}

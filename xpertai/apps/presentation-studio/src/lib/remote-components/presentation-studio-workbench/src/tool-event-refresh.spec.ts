@@ -59,4 +59,11 @@ describe('Presentation Studio tool event refresh', () => {
       data: { output: { layouts: ['theme01_page001'] } }
     })).toBeNull()
   })
+
+  it('normalizes custom-theme lifecycle mutations for theme-list refresh', () => {
+    expect(normalizePresentationToolEvent({
+      toolName: 'presentation_register_theme',
+      data: { output: { theme: { id: 'theme-record-1', key: 'theme15', status: 'ready' } } }
+    })).toMatchObject({ toolName: 'presentation_register_theme' })
+  })
 })

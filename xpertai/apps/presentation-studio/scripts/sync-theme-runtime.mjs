@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rename, rm } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -10,12 +10,13 @@ const upstreamRoot = join(root, 'assets', 'upstream')
 const metadata = JSON.parse(await readFile(join(upstreamRoot, 'UPSTREAM.json'), 'utf8'))
 const repository = githubRepository(metadata.repository)
 const commit = metadata.commit
+const localOnly = new Set(metadata.localOnly ?? [])
 
 if (!/^[0-9a-f]{40}$/.test(commit)) {
   throw new Error(`UPSTREAM.json must pin a full 40-character Git commit, received: ${commit}`)
 }
 
-const themeKeys = Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
+const themeKeys = Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
 const files = themeKeys.flatMap((themeKey) => [
   `${themeKey}.module.mjs`,
   `imported-theme-runtime.${themeKey}.js`
@@ -23,6 +24,7 @@ const files = themeKeys.flatMap((themeKey) => [
 const vendorRelativeRoot = 'dashiai-ppt/project/dist/theme-runtime'
 const upstreamRelativeRoot = 'skills/dashiai-ppt/project/dist/theme-runtime'
 const outputRoot = join(upstreamRoot, vendorRelativeRoot)
+const generatorOutputRoot = join(root, 'skills', 'dashi-theme-generator', 'project', 'dist', 'theme-runtime')
 
 await mkdir(outputRoot, { recursive: true })
 
@@ -39,6 +41,18 @@ if (synced.length) {
   console.log(`Verified ${files.length} cached DashiAI theme runtime files for ${repository}@${commit}.`)
 }
 
+await mkdir(generatorOutputRoot, { recursive: true })
+await Promise.all(files.map(async (fileName) => {
+  const source = join(outputRoot, fileName)
+  const target = join(generatorOutputRoot, fileName)
+  await copyFile(source, target)
+  const [sourceHash, targetHash] = await Promise.all([sha256File(source), sha256File(target)])
+  if (sourceHash !== targetHash) {
+    throw new Error(`Bundled theme generator runtime checksum mismatch: ${fileName}`)
+  }
+}))
+console.log(`Bundled ${files.length} verified DashiAI theme runtime files for dashi-theme-generator.`)
+
 async function syncFile(fileName) {
   const relativePath = `${vendorRelativeRoot}/${fileName}`
   const expected = metadata.sha256?.[relativePath]
@@ -48,6 +62,9 @@ async function syncFile(fileName) {
 
   const target = join(outputRoot, fileName)
   if (existsSync(target) && await sha256File(target) === expected) return null
+  if (localOnly.has(relativePath)) {
+    throw new Error(`Local DashiAI theme runtime is missing or modified: ${relativePath}`)
+  }
 
   const url = `https://raw.githubusercontent.com/${repository}/${commit}/${upstreamRelativeRoot}/${fileName}`
   const temporary = `${target}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`

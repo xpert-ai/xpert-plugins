@@ -11,6 +11,10 @@ import {
   GENERATED_THEME_PACKS,
   GENERATED_THEME_PAGES,
 } from '../../src/components/themes/generated-metadata.js';
+import {
+  EXTERNAL_THEME_PACKS,
+  EXTERNAL_THEME_PAGES,
+} from '../../src/external-theme-metadata.mjs';
 import { normalizePublicControls } from '../../src/control-naming.mjs';
 import {
   createLazyLayoutContracts,
@@ -20,9 +24,15 @@ import {
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-export const THEME_PACKS = filterAcceptedThemePacks(GENERATED_THEME_PACKS);
+export const THEME_PACKS = [
+  ...filterAcceptedThemePacks(GENERATED_THEME_PACKS),
+  ...EXTERNAL_THEME_PACKS,
+];
 
-export const THEME_PAGES = filterAcceptedThemePages(GENERATED_THEME_PAGES);
+export const THEME_PAGES = [
+  ...filterAcceptedThemePages(GENERATED_THEME_PAGES),
+  ...EXTERNAL_THEME_PAGES,
+];
 
 const contracts = createLazyLayoutContracts(THEME_PAGES);
 

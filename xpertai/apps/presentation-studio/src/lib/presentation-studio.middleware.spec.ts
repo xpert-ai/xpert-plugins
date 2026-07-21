@@ -20,10 +20,33 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       }),
       revokeDeckHtmlShare: jest.fn().mockResolvedValue({ revoked: true })
     }
+    const themes = {
+      list: jest.fn().mockResolvedValue({ builtIn: [], custom: [] }),
+      materializeGenerator: jest.fn().mockResolvedValue({
+        message: 'ready', skill: 'dashi-theme-generator', delivery: 'presentation-studio-plugin',
+        archivePath: '/workspace/files/dashi-theme-generator.zip', archiveSha256: 'abc',
+        extractDirectory: '$PWD/.theme-work', skillPath: '$PWD/.theme-work/dashi-theme-generator/SKILL.md',
+        instruction: 'extract and follow', skillMarkdown: '# Dashi Theme Generator',
+        file: { workspacePath: '/workspace/files/dashi-theme-generator.zip', mimeType: 'application/zip' }
+      }),
+      prepareRuntimeSource: jest.fn().mockResolvedValue({ theme: { status: 'prepared' } }),
+      prepareRuntimeImageSources: jest.fn().mockResolvedValue({ theme: { status: 'prepared' } }),
+      updateGenerationStatus: jest.fn().mockResolvedValue({ status: 'analyzing' }),
+      registerRuntimePackage: jest.fn(),
+      markFailed: jest.fn()
+    }
+    const runtimeFiles = {
+      readRuntimeBuffer: jest.fn().mockImplementation(async (locator) => ({
+        name: locator.path ?? 'page.png',
+        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        reference: { source: 'workspace-files', workspacePath: locator.path }
+      }))
+    }
     const middleware = new PresentationStudioMiddleware(
       service as never,
       {} as never,
-      { info: jest.fn(), error: jest.fn() } as never
+      { info: jest.fn(), error: jest.fn() } as never,
+      themes as never
     )
     const agentMiddleware = await middleware.createMiddleware({}, {
       tenantId: 'tenant-1',
@@ -35,9 +58,9 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       conversationId: 'conversation-1',
       node: {} as never,
       tools: new Map(),
-      runtime: {} as never
+      runtime: { capabilities: { require: jest.fn().mockReturnValue(runtimeFiles) } } as never
     })
-    return { service, agentMiddleware }
+    return { service, themes, runtimeFiles, agentMiddleware }
   }
 
   it('publishes editing and done statuses around a deck mutation tool', async () => {
@@ -171,6 +194,172 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     expect(inspectTool?.description).toContain('HARD LIMIT')
     expect(inspectTool?.description).toContain('sequential batches of at most 8')
     expect(addSlideTool?.description).toContain('array items may contain only allowedKeys')
+  })
+
+  it('exposes the explicit custom-theme preparation and registration workflow', async () => {
+    const { agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+    const register = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_register_theme')
+    const progress = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_update_theme_progress')
+    const list = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_list_themes')
+    const openGenerator = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_open_dashi_theme_generator')
+
+    expect(list).toBeDefined()
+    expect(openGenerator?.description).toContain('built directly into Presentation Studio')
+    expect(openGenerator?.description).toContain('without skillsMiddleware')
+    expect(prepare?.description).toContain('sourceType and sourceMode are explicit contracts')
+    expect(prepare?.description).toContain('sourceMode=single_file')
+    expect(prepare?.description).toContain('sourceMode=image_files')
+    expect(prepare?.description).toContain('does not start a background job')
+    expect(openGenerator?.description).toContain('themeId is required')
+    expect(openGenerator?.description).toContain('never call with {}')
+    expect(openGenerator?.description).toContain('never guess or search')
+    expect(openGenerator?.description).toContain('scaffold result is explicitly non-terminal')
+    expect(openGenerator?.description).toContain('current agent, not the user')
+    expect(openGenerator?.description).toContain('reuse-first')
+    expect(progress?.description).toContain('analyzing, generating, and validating')
+    expect(register?.description).toContain('explicit fidelity or reuse-first')
+  })
+
+  it('injects and materializes the built-in theme-generator skill without skillsMiddleware', async () => {
+    const { themes, runtimeFiles, agentMiddleware } = await createHarness()
+    const handler = jest.fn(async (request) => request)
+
+    await agentMiddleware.wrapModelCall?.({ systemMessage: 'base instructions' } as never, handler as never)
+
+    const forwarded = handler.mock.calls[0]?.[0] as { systemMessage?: { content?: unknown } }
+    expect(forwarded.systemMessage?.content).toContain('presentation_studio_builtin_skill')
+    expect(forwarded.systemMessage?.content).toContain('presentation_open_dashi_theme_generator')
+    expect(forwarded.systemMessage?.content).toContain('do not require or invoke skillsMiddleware')
+    expect(forwarded.systemMessage?.content).toContain('sourceMode')
+    expect(forwarded.systemMessage?.content).toContain('inspect each image once')
+    expect(forwarded.systemMessage?.content).toContain('must never become the next extraction input')
+    expect(forwarded.systemMessage?.content).toContain('Never guess package-manager commands')
+    expect(forwarded.systemMessage?.content).toContain('explicit generationMode discriminator')
+    expect(forwarded.systemMessage?.content).toContain('pins complete editable components from theme01-theme12')
+    expect(forwarded.systemMessage?.content).toContain('internal non-terminal state')
+    expect(forwarded.systemMessage?.content).toContain('never tell the user that manual JSX implementation is required')
+    expect(forwarded.systemMessage?.content).toContain('ready after presentation_register_theme succeeds')
+    expect(forwarded.systemMessage?.content).toContain('never repeat an identical tool call')
+
+    const openGenerator = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_open_dashi_theme_generator')
+    const themeId = '0ee71ad5-1f22-4433-8b4e-26b44fd5f264'
+    await openGenerator?.invoke({ themeId })
+    expect(themes.materializeGenerator).toHaveBeenCalledWith(expect.any(Object), themeId, runtimeFiles)
+  })
+
+  it('passes 8 explicit image locators without concatenating their paths', async () => {
+    const { themes, runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+    const files = Array.from({ length: 8 }, (_, index) => ({ path: `files/page-${index + 1}.png` }))
+
+    await prepare?.invoke({ name: 'Image evidence', sourceType: 'images', sourceMode: 'image_files', source: files })
+
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenCalledTimes(8)
+    expect(themes.prepareRuntimeImageSources).toHaveBeenCalledWith(expect.any(Object), { name: 'Image evidence' }, expect.arrayContaining([
+      expect.objectContaining({ name: 'files/page-1.png' })
+    ]))
+  })
+
+  it('rejects undersized image evidence before reading any files', async () => {
+    const { themes, runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+    const files = [{ path: '/workspace/page-1.png' }]
+
+    await expect(prepare?.invoke({
+      name: 'Image evidence',
+      sourceType: 'images',
+      sourceMode: 'image_files',
+      source: files
+    })).rejects.toThrow('sourceMode image_files requires 8-30 separate Workspace image locators')
+
+    expect(runtimeFiles.readRuntimeBuffer).not.toHaveBeenCalled()
+    expect(themes.prepareRuntimeImageSources).not.toHaveBeenCalled()
+  })
+
+  it('accepts the shared Workspace string locator contract for a single source', async () => {
+    const { themes, runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+
+    await prepare?.invoke({
+      name: 'PPTX source', sourceType: 'pptx', sourceMode: 'single_file', source: ['/workspace/template.pptx']
+    })
+
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenCalledWith('/workspace/template.pptx')
+    expect(themes.prepareRuntimeSource).toHaveBeenCalledWith(expect.any(Object), {
+      name: 'PPTX source', sourceType: 'pptx'
+    }, expect.objectContaining({ buffer: expect.any(Buffer) }))
+  })
+
+  it('normalizes a current-conversation host session path to its full Workspace locator', async () => {
+    const { themes, runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+
+    await prepare?.invoke({
+      name: 'PDF source', sourceType: 'pdf', sourceMode: 'single_file',
+      source: ['/Users/example/data/sessions/conversation-1/files/file-asset-1/template.pdf']
+    })
+
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenCalledWith(
+      '/workspace/sessions/conversation-1/files/file-asset-1/template.pdf'
+    )
+    expect(themes.prepareRuntimeSource).toHaveBeenCalledWith(expect.any(Object), {
+      name: 'PDF source', sourceType: 'pdf'
+    }, expect.objectContaining({ buffer: expect.any(Buffer) }))
+  })
+
+  it('normalizes current-conversation host page images before preparing image evidence', async () => {
+    const { runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+    const source = Array.from({ length: 8 }, (_, index) =>
+      `/Users/example/data/sessions/conversation-1/files/file-asset-1/pages/page-${String(index + 1).padStart(4, '0')}.png`
+    )
+
+    await prepare?.invoke({ name: 'PDF pages', sourceType: 'images', sourceMode: 'image_files', source })
+
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenNthCalledWith(
+      1, '/workspace/sessions/conversation-1/files/file-asset-1/pages/page-0001.png'
+    )
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenNthCalledWith(
+      8, '/workspace/sessions/conversation-1/files/file-asset-1/pages/page-0008.png'
+    )
+  })
+
+  it('rejects a host session path from another conversation before reading files', async () => {
+    const { runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+
+    await expect(prepare?.invoke({
+      name: 'Foreign PDF', sourceType: 'pdf', sourceMode: 'single_file',
+      source: ['/Users/example/data/sessions/conversation-2/files/file-asset-1/template.pdf']
+    })).rejects.toThrow('does not belong to the current conversation')
+    expect(runtimeFiles.readRuntimeBuffer).not.toHaveBeenCalled()
+  })
+
+  it('rejects arbitrary absolute paths and traversal before reading files', async () => {
+    const { runtimeFiles, agentMiddleware } = await createHarness()
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+
+    await expect(prepare?.invoke({
+      name: 'Host file', sourceType: 'pdf', sourceMode: 'single_file', source: ['/tmp/template.pdf']
+    })).rejects.toThrow('must be Workspace locators or files from the current conversation')
+    await expect(prepare?.invoke({
+      name: 'Traversal', sourceType: 'pdf', sourceMode: 'single_file',
+      source: ['/Users/example/data/sessions/conversation-1/files/../template.pdf']
+    })).rejects.toThrow('Workspace file path is invalid')
+    expect(runtimeFiles.readRuntimeBuffer).not.toHaveBeenCalled()
+  })
+
+  it('turns a missing Workspace file into one actionable non-retry error', async () => {
+    const { runtimeFiles, agentMiddleware } = await createHarness()
+    runtimeFiles.readRuntimeBuffer.mockRejectedValueOnce(new Error('Conversation file not found'))
+    const prepare = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_prepare_theme')
+
+    await expect(prepare?.invoke({
+      name: 'Missing PDF', sourceType: 'pdf', sourceMode: 'single_file',
+      source: ['/Users/example/data/sessions/conversation-1/files/file-asset-1/missing.pdf']
+    })).rejects.toThrow('Use the workspacePath returned by the current attachment or parsed-file tool')
+    expect(runtimeFiles.readRuntimeBuffer).toHaveBeenCalledTimes(1)
   })
 
   it('returns only the share URL when an HTML share is ready', async () => {

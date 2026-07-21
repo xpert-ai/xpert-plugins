@@ -33,6 +33,7 @@ import {
   prebuiltBundlePath,
   prebuiltModulePath,
 } from './components/themes/runtime-build.mjs';
+import { GENERATED_THEME_BASELINES, GENERATED_THEME_RECIPES } from './components/themes/generated-theme-definitions.mjs';
 import { stagePresentationFontPack } from './font-pack.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -145,6 +146,7 @@ function copyRuntimeAssets(outDir, { usedThemeKeys = [] } = {}) {
     }
     stagePresentationFontPack(ROOT, outDir, usedThemeKeys);
     copyImportedThemeAssets(outDir, usedThemeKeys);
+    copyExternalThemeAssets(outDir);
     buildImportedThemeRuntime(path.join(assetsDir, 'imported-theme-runtime.js'), usedThemeKeys);
     restoreUserMediaDirs(preservedUserMedia, outDir);
     const imageSlotStateFile = path.join(outDir, '.image-slots.state.json');
@@ -290,6 +292,11 @@ function copyImportedThemeAssets(outDir, usedThemeKeys = []) {
   // the showcase) copies everything; a single-/few-theme deck skips the rest,
   // shrinking the deck and not leaking other themes' image/video source assets.
   const usedFilter = new Set(usedThemeKeys || []);
+  for (const themeKey of usedThemeKeys || []) {
+    const baselineTheme = GENERATED_THEME_BASELINES[themeKey];
+    if (baselineTheme) usedFilter.add(baselineTheme);
+    for (const sourceTheme of GENERATED_THEME_RECIPES[themeKey]?.sources || []) usedFilter.add(sourceTheme);
+  }
   const copiedByRelativePath = new Map(
     REQUIRED_OUTPUT_ASSETS.map(assetPath => [
       assetPath,
@@ -314,6 +321,32 @@ function copyImportedThemeAssets(outDir, usedThemeKeys = []) {
       fs.mkdirSync(path.dirname(to), { recursive: true });
       fs.copyFileSync(from, to);
     });
+  }
+}
+
+function copyExternalThemeAssets(outDir) {
+  const sourceRoot = process.env.DASHI_PPT_EXTERNAL_THEME_ASSETS_DIR;
+  if (!sourceRoot || !fs.existsSync(sourceRoot)) return;
+  const files = [];
+  collectExternalThemeAssetFiles(sourceRoot, files);
+  for (const source of files) {
+    const relative = path.relative(sourceRoot, source);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error(`External theme asset escaped its package root: ${source}`);
+    }
+    const target = path.join(outDir, relative);
+    if (fs.existsSync(target)) throw new Error(`External theme asset collides with a deck runtime file: ${relative}`);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  }
+}
+
+function collectExternalThemeAssetFiles(dir, out) {
+  for (const name of fs.readdirSync(dir).sort()) {
+    const file = path.join(dir, name);
+    const stat = fs.statSync(file);
+    if (stat.isDirectory()) collectExternalThemeAssetFiles(file, out);
+    else if (stat.isFile()) out.push(file);
   }
 }
 

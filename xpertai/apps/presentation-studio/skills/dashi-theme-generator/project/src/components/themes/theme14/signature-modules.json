@@ -1,0 +1,1146 @@
+{
+  "schemaVersion": 3,
+  "qualityVersion": 3,
+  "generationMode": "fidelity",
+  "policyVersion": 2,
+  "themeKey": "theme14",
+  "externalPlan": "../../../../theme-evidence/theme14-plan.json",
+  "styleGrammar": {
+    "schemaVersion": 1,
+    "rules": [
+      {
+        "id": "color-01",
+        "category": "color",
+        "description": "深页以墨绿橄榄 #2D3423 作为全画布底色",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-02",
+        "category": "color",
+        "description": "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-03",
+        "category": "color",
+        "description": "中层表面使用苔藓绿 #667553 区分指标与材料模块",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-04",
+        "category": "color",
+        "description": "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "typography-01",
+        "category": "typography",
+        "description": "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "typography-02",
+        "category": "typography",
+        "description": "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-01",
+        "category": "composition",
+        "description": "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-02",
+        "category": "composition",
+        "description": "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-03",
+        "category": "composition",
+        "description": "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "surface-01",
+        "category": "surface",
+        "description": "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "surface-02",
+        "category": "surface",
+        "description": "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "media-01",
+        "category": "media",
+        "description": "所有建筑与人物图片统一为高反差黑白摄影，并以矩形或轻圆角裁切",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "media-02",
+        "category": "media",
+        "description": "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-01",
+        "category": "motif",
+        "description": "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-02",
+        "category": "motif",
+        "description": "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-03",
+        "category": "motif",
+        "description": "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-01",
+        "category": "signature",
+        "description": "每页保留一个明确标题体块、一个结构标记和一套矩形对齐关系",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-02",
+        "category": "signature",
+        "description": "所有媒体默认黑白且不与正文重叠，标题、正文和指标分别拥有固定安全区",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-03",
+        "category": "signature",
+        "description": "深浅变体只翻转底色与文字层级，橄榄色、圆节点和短横线保持跨页一致",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "forbidden-01",
+        "category": "forbidden",
+        "description": "禁止霓虹色、彩虹渐变、发光阴影、玻璃拟态和圆润卡通插画",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "forbidden-02",
+        "category": "forbidden",
+        "description": "禁止把参考截图直接平铺为背景，也禁止用根节点缩放掩盖字体与位置错误",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      }
+    ],
+    "forbiddenRuleIds": [
+      "forbidden-01",
+      "forbidden-02"
+    ],
+    "primitives": [
+      {
+        "id": "olive-node",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "short-rule",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "right-angle-arrow",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "stepped-mass",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "monochrome-media",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      }
+    ]
+  },
+  "moduleSources": {
+    "observed": 8,
+    "inferred": 8
+  },
+  "modules": [
+    {
+      "id": "theme14_signature_split_architecture_cover",
+      "archetypeId": "split-architecture-cover",
+      "componentName": "Signature01SplitArchitectureCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.29.png"
+      ],
+      "visualRequirements": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "styleSignals": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_program_metric_overview",
+      "archetypeId": "program-metric-overview",
+      "componentName": "Signature02ProgramMetricOverview",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.57.png",
+        "截屏2026-07-15 16.00.20.png"
+      ],
+      "visualRequirements": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "styleSignals": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_six_node_program",
+      "archetypeId": "six-node-program",
+      "componentName": "Signature03SixNodeProgram",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.15.png"
+      ],
+      "visualRequirements": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "styleSignals": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_stepped_year_blocks",
+      "archetypeId": "stepped-year-blocks",
+      "componentName": "Signature04SteppedYearBlocks",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.26.png"
+      ],
+      "visualRequirements": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "styleSignals": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_detail_signal_ranking",
+      "archetypeId": "detail-signal-ranking",
+      "componentName": "Signature05DetailSignalRanking",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.30.png"
+      ],
+      "visualRequirements": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "styleSignals": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_architectural_case_grid",
+      "archetypeId": "architectural-case-grid",
+      "componentName": "Signature06ArchitecturalCaseGrid",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.34.png",
+        "截屏2026-07-15 16.00.39.png"
+      ],
+      "visualRequirements": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "styleSignals": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_material_comparison_grid",
+      "archetypeId": "material-comparison-grid",
+      "componentName": "Signature07MaterialComparisonGrid",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.42.png"
+      ],
+      "visualRequirements": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "styleSignals": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_environment_system_statement",
+      "archetypeId": "environment-system-statement",
+      "componentName": "Signature08EnvironmentSystemStatement",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.46.png"
+      ],
+      "visualRequirements": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "styleSignals": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_action_table",
+      "archetypeId": "derived-action-table",
+      "componentName": "Derived01ActionTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_six_node_program",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "把模板的分隔线和层级扩展为行动清单；以 theme14_signature_six_node_program、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的分隔线和层级扩展为行动清单",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "columns",
+          "rows"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived02ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "surface-02",
+        "motif-02",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_environment_system_statement"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme14_signature_split_architecture_cover、theme14_signature_environment_system_statement 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived03CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-01",
+        "surface-01",
+        "motif-03",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived04EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-02",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_stepped_year_blocks",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "stepped-mass",
+        "monochrome-media"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme14_signature_stepped_year_blocks、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived05ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-03",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "monochrome-media",
+        "olive-node"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-03",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived07AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_media_case_study",
+      "archetypeId": "derived-media-case-study",
+      "componentName": "Derived08MediaCaseStudy",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "media-02",
+        "motif-02",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_architectural_case_grid",
+        "theme14_signature_split_architecture_cover"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的图片裁切与图注语法扩展为案例页；以 theme14_signature_architectural_case_grid、theme14_signature_split_architecture_cover 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的图片裁切与图注语法扩展为案例页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "media",
+          "caption",
+          "facts"
+        ]
+      },
+      "implementationStatus": "implemented"
+    }
+  ]
+}

@@ -14,6 +14,18 @@ const spec: PresentationDeckSpec = {
 }
 
 describe('Presentation Yjs document', () => {
+  it('round-trips the explicit custom theme discriminator and identity', () => {
+    const custom: PresentationDeckSpec = {
+      ...spec,
+      themePack: 'theme12345678901234567890',
+      theme: { type: 'custom', key: 'theme12345678901234567890', themeId: 'theme-record-1' }
+    }
+    const materialized = materializePresentationYDoc(createPresentationYDoc(custom))
+
+    expect(materialized.spec.themePack).toBe(custom.themePack)
+    expect(materialized.spec.theme).toEqual(custom.theme)
+  })
+
   it('converges concurrent edits to distinct nested props', () => {
     const left = createPresentationYDoc(spec)
     const right = new Y.Doc()

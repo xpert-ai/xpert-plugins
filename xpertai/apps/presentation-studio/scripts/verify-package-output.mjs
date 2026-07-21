@@ -8,7 +8,12 @@ import { promisify } from 'node:util'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const execFileAsync = promisify(execFile)
-for (const file of [
+const themeKeys = Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
+const bundledThemeRuntimeFiles = themeKeys.flatMap((themeKey) => [
+  `skills/dashi-theme-generator/project/dist/theme-runtime/${themeKey}.module.mjs`,
+  `skills/dashi-theme-generator/project/dist/theme-runtime/imported-theme-runtime.${themeKey}.js`
+])
+const requiredPackageFiles = [
   'dist/index.js', 'dist/index.d.ts',
   'dist/lib/remote-components/presentation-studio-workbench/app.js',
   'dist/lib/remote-components/presentation-studio-workbench/app.css',
@@ -17,10 +22,25 @@ for (const file of [
   'dist/sandbox-actions/presentation-export/bundle/runner.mjs',
   'dist/sandbox-actions/presentation-export/bundle/project/layout-manifest.json',
   'assets/upstream/UPSTREAM.json',
-  '.xpertai-plugin/plugin.json'
-]) await access(join(root, file))
+  '.xpertai-plugin/plugin.json',
+  'skills/dashi-theme-generator/SKILL.md',
+  'skills/dashi-theme-generator/agents/openai.yaml',
+  'skills/dashi-theme-generator/scripts/finalize-plugin-theme.mjs',
+  'skills/dashi-theme-generator/project/package.json',
+  'skills/dashi-theme-generator/project/scripts/package-presentation-theme.mjs',
+  'skills/dashi-theme-generator/project/src/components/themes/theme14/runtime.jsx',
+  ...bundledThemeRuntimeFiles
+]
+for (const file of requiredPackageFiles) await access(join(root, file))
 
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+const assistantDsl = await readFile(join(root, 'dist/xpert-presentation-studio-assistant.yaml'), 'utf8')
+if (assistantDsl.includes('skillsMiddleware') || assistantDsl.includes('Middleware_Skills')) {
+  throw new Error('Presentation Studio assistant must expose the built-in theme generator without skillsMiddleware.')
+}
+if (!assistantDsl.includes('presentation_open_dashi_theme_generator')) {
+  throw new Error('Presentation Studio assistant does not open the built-in dashi-theme-generator.')
+}
 const remoteApp = await readFile(join(root, 'dist/lib/remote-components/presentation-studio-workbench/app.js'), 'utf8')
 const expectedReactVersion = packageJson.devDependencies?.react
 if (!/^19\.\d+\.\d+$/.test(expectedReactVersion ?? '') || !remoteApp.includes(expectedReactVersion)) {
@@ -69,6 +89,20 @@ try {
     : null
   if (!filename) throw new Error('npm pack did not return a package filename.')
   await execFileAsync('tar', ['-xzf', join(packRoot, filename), '-C', packRoot])
+  for (const file of [
+    'skills/dashi-theme-generator/SKILL.md',
+    'skills/dashi-theme-generator/agents/openai.yaml',
+    'skills/dashi-theme-generator/scripts/finalize-plugin-theme.mjs',
+    'skills/dashi-theme-generator/project/package.json',
+    'skills/dashi-theme-generator/project/scripts/package-presentation-theme.mjs',
+    ...bundledThemeRuntimeFiles
+  ]) await access(join(packRoot, 'package', file))
+  try {
+    await access(join(packRoot, 'package', 'skills', 'dashi-theme-generator', 'project', 'node_modules'), constants.F_OK)
+    throw new Error('Bundled theme authoring project must not contain node_modules.')
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+  }
   await execFileAsync(process.execPath, ['scripts/verify-sandbox-action.mjs'], {
     cwd: join(packRoot, 'package'),
     maxBuffer: 16 * 1024 * 1024

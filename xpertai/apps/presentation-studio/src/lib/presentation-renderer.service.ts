@@ -39,6 +39,7 @@ import type {
   PresentationRenderResult
 } from './types.js'
 import { PresentationCatalogService } from './presentation-catalog.service.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
 
 const execFileAsync = promisify(execFile)
 const requireFromHere = createRequire(import.meta.url)
@@ -79,7 +80,8 @@ export class PresentationRendererService {
     private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
     @Optional()
     @Inject(MANAGED_QUEUE_SERVICE_TOKEN)
-    private readonly managedQueue?: ManagedQueueService
+    private readonly managedQueue?: ManagedQueueService,
+    @Optional() private readonly themes?: PresentationThemeService
   ) {}
 
   async renderVersion(version: PresentationDeckVersion, assets: PresentationAsset[]): Promise<PresentationRenderResult> {
@@ -92,10 +94,19 @@ export class PresentationRendererService {
       const goal = transformDeckForDashi(version.deckSpec, assetPaths, version.editorState)
       const goalPath = join(deckDir, 'goal.json')
       const indexHtmlPath = join(pptDir, 'index.html')
+      const themeEnvironment = version.deckSpec.theme?.type === 'custom'
+        ? await this.themeService().stageThemeReference(version.deckSpec.theme, join(root, 'theme'), {
+        tenantId: version.tenantId,
+        organizationId: version.organizationId,
+        workspaceId: version.workspaceId,
+        projectId: version.projectId,
+        userId: version.createdById
+        })
+        : {}
       await writeFile(goalPath, JSON.stringify(goal, null, 2))
-      await this.runNode('scripts/validate-goal-spec.mjs', [goalPath], root)
+      await this.runNode('scripts/validate-goal-spec.mjs', [goalPath], root, themeEnvironment)
       const tsxCli = requireFromHere.resolve('tsx/cli')
-      await this.runExecutable(process.execPath, [tsxCli, join(this.catalog.vendorProjectRoot(), 'scripts/render-goal-deck.jsx'), goalPath, indexHtmlPath], root)
+      await this.runExecutable(process.execPath, [tsxCli, join(this.catalog.vendorProjectRoot(), 'scripts/render-goal-deck.jsx'), goalPath, indexHtmlPath], root, themeEnvironment)
       return { directory: root, indexHtmlPath, goalPath, warnings: [] }
     } catch (error) {
       await this.cleanup(root)
@@ -157,6 +168,23 @@ export class PresentationRendererService {
         sha256: asset.sha256
       }]
     })
+    const themePackage = input.version.deckSpec.theme?.type === 'custom'
+      ? await this.themeService().getSandboxPackage(input.version.deckSpec.theme, {
+        tenantId: input.version.tenantId,
+        organizationId: input.version.organizationId,
+        workspaceId: input.version.workspaceId,
+        projectId: input.version.projectId,
+        userId: input.userId
+      })
+      : undefined
+    if (themePackage) {
+      files.push({
+        reference: themePackage.reference,
+        targetPath: 'theme/custom-theme.zip',
+        size: themePackage.size,
+        sha256: themePackage.sha256
+      })
+    }
     const goal = transformDeckForDashi(input.version.deckSpec, assetPaths, input.version.editorState)
     const mimeType = input.kind === 'pdf'
       ? 'application/pdf'
@@ -177,7 +205,8 @@ export class PresentationRendererService {
       payload: {
         kind: input.kind,
         title: input.title,
-        goal
+        goal,
+        ...(themePackage ? { customTheme: { themeKey: themePackage.themeKey, sourceType: themePackage.sourceType, packagePath: 'theme/custom-theme.zip' } } : {})
       },
       files,
       outputs: [{
@@ -293,6 +322,11 @@ export class PresentationRendererService {
     return files
   }
 
+  private themeService() {
+    if (!this.themes) throw new Error('Custom presentation themes are unavailable.')
+    return this.themes
+  }
+
   private sandboxJobs(): SandboxJobsApi {
     const jobs = this.runtimeCapabilities?.get(SandboxJobsRuntimeCapability)
     if (!jobs) throw new Error('Platform Sandbox Jobs capability is not available.')
@@ -320,11 +354,11 @@ export class PresentationRendererService {
     return result
   }
 
-  private runNode(script: string, args: string[], cwd: string) {
-    return this.runExecutable(process.execPath, [join(this.catalog.vendorProjectRoot(), script), ...args], cwd)
+  private runNode(script: string, args: string[], cwd: string, environment: NodeJS.ProcessEnv = {}) {
+    return this.runExecutable(process.execPath, [join(this.catalog.vendorProjectRoot(), script), ...args], cwd, environment)
   }
 
-  private async runExecutable(command: string, args: string[], cwd: string) {
+  private async runExecutable(command: string, args: string[], cwd: string, environment: NodeJS.ProcessEnv = {}) {
     const config = this.config.get()
     try {
       await execFileAsync(command, args, {
@@ -334,6 +368,7 @@ export class PresentationRendererService {
           INIT_CWD: cwd,
           DASHI_PPT_THEME_RUNTIME: 'prebuilt',
           DASHI_PPT_CERT_DIR: join(cwd, '.https-preview'),
+          ...environment,
           ...(config.chromiumExecutablePath ? { CHROME_PATH: config.chromiumExecutablePath } : {})
         },
         maxBuffer: 50 * 1024 * 1024

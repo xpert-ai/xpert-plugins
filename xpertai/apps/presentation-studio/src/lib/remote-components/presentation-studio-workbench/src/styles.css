@@ -152,6 +152,12 @@ button, input { font: inherit; }
 .ps-asset-dialog-scroll { height: min(60vh, 34rem); }
 .ps-file-input { display: none; }
 .ps-dialog-form { display: grid; gap: .75rem; }
+.ps-theme-dialog { width: min(40rem, calc(100vw - 2rem)); max-width: none; }
+.ps-theme-list { display: grid; max-height: 15rem; gap: .5rem; overflow: auto; border-top: 1px solid var(--border); padding-top: .75rem; }
+.ps-theme-list > small { color: var(--muted-foreground); }
+.ps-theme-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem .75rem; }
+.ps-theme-row > span { display: grid; min-width: 0; gap: .15rem; }
+.ps-theme-row small { overflow: hidden; color: var(--muted-foreground); text-overflow: ellipsis; white-space: nowrap; }
 
 .ps-present-overlay { position: fixed; z-index: 2147483000; inset: 0; display: grid; place-items: center; background: #000; }
 .ps-present-overlay > .ps-native-surface { width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16)); border-radius: 0; }

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "input": "/Users/lilinhao/ppt模版/商业计划书",
+  "type": "source-directory",
+  "totals": {
+    "files": 10,
+    "sourceFiles": 0,
+    "jsx": 0,
+    "html": 0,
+    "css": 0,
+    "assets": 10
+  },
+  "entryCandidates": [],
+  "registrations": [],
+  "signals": {
+    "registry": false,
+    "previewArray": false,
+    "pageFiles": false,
+    "slideSpec": false,
+    "componentMeta": false,
+    "htmlOrder": false,
+    "controls": false,
+    "defaults": false,
+    "mediaSlots": false,
+    "globalCss": false,
+    "absolutePaths": false,
+    "remoteAssets": false,
+    "lifecycle": false
+  },
+  "assets": [
+    "截屏2026-07-17 13.36.05.png",
+    "截屏2026-07-17 13.36.14.png",
+    "截屏2026-07-17 13.36.18.png",
+    "截屏2026-07-17 13.36.22.png",
+    "截屏2026-07-17 13.36.27.png",
+    "截屏2026-07-17 13.36.31.png",
+    "截屏2026-07-17 13.36.34.png",
+    "截屏2026-07-17 13.36.39.png",
+    "截屏2026-07-17 13.36.42.png",
+    "截屏2026-07-17 13.36.48.png"
+  ],
+  "risks": []
+}

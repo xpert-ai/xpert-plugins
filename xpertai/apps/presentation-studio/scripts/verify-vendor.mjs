@@ -31,15 +31,15 @@ const manifest = JSON.parse(await readFile(join(upstreamRoot, 'dashiai-ppt', 'pr
 const layouts = Object.values(manifest.layouts ?? {})
 const controls = layouts.reduce((sum, layout) => sum + (Array.isArray(layout.controls) ? layout.controls.length : 0), 0)
 const themes = new Set(layouts.map((layout) => layout.themePack))
-if (layouts.length !== 1020 || controls !== 8576 || themes.size !== 12) {
+if (layouts.length !== 1190 || controls !== 9822 || themes.size !== 14) {
   throw new Error(`Incomplete DashiAI catalog: themes=${themes.size} layouts=${layouts.length} controls=${controls}`)
 }
-for (let index = 1; index <= 12; index += 1) {
+for (let index = 1; index <= 14; index += 1) {
   const key = `theme${String(index).padStart(2, '0')}`
   await readFile(join(upstreamRoot, 'dashiai-ppt', 'project', 'dist', 'theme-runtime', `imported-theme-runtime.${key}.js`))
 }
 await verifyFontPack(vendorRoot)
-console.log(`Verified DashiAI ${metadata.commit}: 12 themes, 1020 layouts, 8576 controls, ${Object.keys(PRESENTATION_FONT_PACKAGES).length} managed font packages.`)
+console.log(`Verified DashiAI ${metadata.commit}: 14 themes, 1190 layouts, 9822 controls, ${Object.keys(PRESENTATION_FONT_PACKAGES).length} managed font packages.`)
 
 async function verifyFontPack(vendorRoot) {
   const projectRoot = join(vendorRoot, 'project')

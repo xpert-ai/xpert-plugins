@@ -1,6 +1,11 @@
 const dictionary = {
   en: {
     title: 'Presentation Studio', deckActions: 'Deck', newDeck: 'New deck', refresh: 'Refresh', goal: 'Goal', theme: 'Theme', pages: 'Pages', create: 'Create',
+    generateTheme: 'Generate theme from template', themeName: 'Theme name', sourceType: 'Template source type', chooseTemplate: 'Choose template file',
+    themeUploadDescription: 'Upload one external template or an image ZIP containing 8-30 pages. Uploading prepares the source; ask the assistant to run the generator.',
+    themeUploaded: 'Template source prepared. Ask the assistant to run, validate, and register the theme.', customThemes: 'Custom themes',
+    noCustomThemes: 'No custom themes yet.', themeReady: 'Ready', themePrepared: 'Prepared', themeAnalyzing: 'Analyzing', themeGenerating: 'Generating', themeValidating: 'Validating', themeFailed: 'Failed', builtInThemes: 'Built-in themes',
+    sourceReact: 'React project/archive', sourceHtml: 'HTML page/archive', sourcePptx: 'PowerPoint (.pptx)', sourcePdf: 'PDF document', sourceImages: 'Template images/archive', sourceMixed: 'Mixed source archive',
     saveVersion: 'Save version', upload: 'Upload media', exportHtml: 'Export HTML', exportPdf: 'Export PDF', exportPptx: 'Export PPTX',
     browserExportUnavailable: 'PDF/PPTX export is temporarily unavailable:',
     versions: 'Versions', exports: 'Exports', assets: 'Assets', noDeck: 'Create or select a deck to begin.', collaboration: 'Collaboration',
@@ -34,6 +39,11 @@ const dictionary = {
   },
   zh: {
     title: '演示文稿工作室', deckActions: '文稿', newDeck: '新建演示稿', refresh: '刷新', goal: '目标', theme: '主题', pages: '页数', create: '创建',
+    generateTheme: '根据外部模板生成主题', themeName: '主题名称', sourceType: '模板来源类型', chooseTemplate: '选择模板文件',
+    themeUploadDescription: '上传一个外部模板，或包含 8-30 页图片的 ZIP。上传只准备素材，之后需让智能体运行生成器。',
+    themeUploaded: '主题素材已准备。请让智能体继续生成、验证并注册主题。', customThemes: '自定义主题',
+    noCustomThemes: '暂无自定义主题。', themeReady: '可用', themePrepared: '已准备', themeAnalyzing: '分析中', themeGenerating: '生成中', themeValidating: '验证中', themeFailed: '失败', builtInThemes: '内置主题',
+    sourceReact: 'React 项目/压缩包', sourceHtml: 'HTML 页面/压缩包', sourcePptx: 'PowerPoint（.pptx）', sourcePdf: 'PDF 文档', sourceImages: '模板图片/压缩包', sourceMixed: '混合来源压缩包',
     saveVersion: '保存版本', upload: '上传媒体', exportHtml: '导出 HTML', exportPdf: '导出 PDF', exportPptx: '导出 PPTX',
     browserExportUnavailable: 'PDF/PPTX 导出暂不可用：',
     versions: '版本', exports: '导出', assets: '素材', noDeck: '新建或选择一个演示稿开始编辑。', collaboration: '协作',

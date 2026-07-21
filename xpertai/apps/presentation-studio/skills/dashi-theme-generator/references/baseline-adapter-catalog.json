@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "patterns": {
+    "registry": {"signals":["export const slides","export const pages","runtimePages"],"extractor":"import registry -> normalizeRuntimePages"},
+    "preview-array": {"signals":["const SLIDES","const PAGES","preview/app","ignDemo"],"extractor":"parse imports and array literal -> merge entry and component contracts"},
+    "module-list": {"signals":["per-file defaults","per-file controls","component modules"],"extractor":"import each module -> build rawPages -> inject scoped shared CSS"},
+    "meta-array": {"signals":["Component.META","META.defaults","META.controls"],"extractor":"array defines order; component META defines contract"},
+    "html-order": {"signals":["data-page","data-slide","HTML section order"],"extractor":"match HTML order to JSX modules; convert unmatched static pages"},
+    "page-files": {"signals":["PAGE_FILES","page file string array"],"extractor":"parse ordered filenames and import modules"},
+    "spec-slot": {"signals":["slideSpec","slot registry","HTML slots"],"extractor":"join spec registry to ordered slots by stable id"},
+    "mixed-static-react": {"signals":["static cover sections","React body pages"],"extractor":"convert static sections to editable React and merge runtimes"},
+    "pptx-tree": {"signals":["ppt/slides","slideMasters","slideLayouts"],"extractor":"parse OOXML tree, cluster layouts, rebuild editable components"}
+  },
+  "themes": [
+    {"key":"theme01","pattern":"registry","order":"slides/index.jsx","contract":"registry entries","special":["media event isolation"]},
+    {"key":"theme02","pattern":"preview-array","order":"preview/app.jsx SLIDES","contract":"entries plus deck controls","special":["scheme","emphasis","aurora","pointer lifecycle"]},
+    {"key":"theme03","pattern":"registry","order":"registry.js","contract":"registry entries","special":["base CSS","icon options","global light-dark lifecycle"]},
+    {"key":"theme04","pattern":"meta-array","order":"app.jsx SLIDES","contract":"Component.META","special":["image slot context","base CSS"]},
+    {"key":"theme05","pattern":"module-list","order":"pulse app module list","contract":"module defaults and controls","special":["shared stylesheet","ESM pruning"]},
+    {"key":"theme06","pattern":"mixed-static-react","order":"preview array plus HTML","contract":"entries plus static DOM","special":["static cover extraction"]},
+    {"key":"theme07","pattern":"html-order","order":"HTML data-page","contract":"page modules","special":["static cover extraction"]},
+    {"key":"theme08","pattern":"page-files","order":"HTML PAGE_FILES","contract":"page modules","special":["theme primitive wrapper"]},
+    {"key":"theme09","pattern":"spec-slot","order":"HTML slot order","contract":"slideSpec","special":["slot registry","spec defaults"]},
+    {"key":"theme10","pattern":"meta-array","order":"SLIDES plus HTML labels","contract":"META plus content","special":["tone defaults","scoped embedded CSS"]},
+    {"key":"theme11","pattern":"preview-array","order":"ignDemo PAGES","contract":"entry and component metadata","special":["preview shell removal"]},
+    {"key":"theme12","pattern":"registry","order":"src/index.js swSlides","contract":"registry entries","special":["active-slide animation","media lifecycle"]}
+  ]
+}

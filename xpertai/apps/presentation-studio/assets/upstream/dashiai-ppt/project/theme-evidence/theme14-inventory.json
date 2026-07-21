@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "input": "/Users/lilinhao/ppt模版/建筑设计ppt模版",
+  "type": "source-directory",
+  "totals": {
+    "files": 10,
+    "sourceFiles": 0,
+    "jsx": 0,
+    "html": 0,
+    "css": 0,
+    "assets": 10
+  },
+  "entryCandidates": [],
+  "registrations": [],
+  "signals": {
+    "registry": false,
+    "previewArray": false,
+    "pageFiles": false,
+    "slideSpec": false,
+    "componentMeta": false,
+    "htmlOrder": false,
+    "controls": false,
+    "defaults": false,
+    "mediaSlots": false,
+    "globalCss": false,
+    "absolutePaths": false,
+    "remoteAssets": false,
+    "lifecycle": false
+  },
+  "assets": [
+    "截屏2026-07-15 15.59.29.png",
+    "截屏2026-07-15 15.59.57.png",
+    "截屏2026-07-15 16.00.15.png",
+    "截屏2026-07-15 16.00.20.png",
+    "截屏2026-07-15 16.00.26.png",
+    "截屏2026-07-15 16.00.30.png",
+    "截屏2026-07-15 16.00.34.png",
+    "截屏2026-07-15 16.00.39.png",
+    "截屏2026-07-15 16.00.42.png",
+    "截屏2026-07-15 16.00.46.png"
+  ],
+  "risks": []
+}

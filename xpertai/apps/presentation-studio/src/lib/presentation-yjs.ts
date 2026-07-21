@@ -7,8 +7,9 @@ import type {
   PresentationSlideSpec,
   PresentationSlideStatus,
   PresentationStatus,
-  PresentationThemePack
+  PresentationThemeReference
 } from './types.js'
+import { PRESENTATION_THEME_PACKS } from './constants.js'
 
 export const PRESENTATION_YJS_SCHEMA_VERSION = 2
 export type PresentationTextMap = Y.Map<string | Y.Text>
@@ -27,6 +28,10 @@ export function writeDeckToYDoc(doc: Y.Doc, spec: PresentationDeckSpec, editorSt
     setOptional(deck, 'audience', spec.audience)
     setOptional(deck, 'owner', spec.owner)
     deck.set('themePack', spec.themePack)
+    const theme = spec.theme ?? builtinThemeReference(spec.themePack)
+    deck.set('themeType', theme.type)
+    if (theme.type === 'custom') deck.set('themeId', theme.themeId)
+    else deck.delete('themeId')
     deck.set('status', status)
     deck.set('pageCount', spec.pageCount)
     deck.set('schemaVersion', PRESENTATION_YJS_SCHEMA_VERSION)
@@ -65,7 +70,8 @@ export function materializePresentationYDoc(doc: Y.Doc): { spec: PresentationDec
     .filter((slide) => slide.sourceSlideId)
     .map((slide) => ({ sourceId: slide.sourceSlideId as string, copyId: slide.id }))
   const props = Object.fromEntries(slides.map((slide) => [slide.id, slide.props]))
-  const themePack = readThemePack(deck.get('themePack'))
+  const theme = readThemeReference(deck.get('themeType'), deck.get('themeId'), readThemePack(deck.get('themePack')))
+  const themePack = theme.key
   const status = presentationStatusFromY(deck.get('status'))
   const title = readString(deck.get('title')) || 'Untitled presentation'
   const goal = readString(deck.get('goal')) || title
@@ -81,6 +87,7 @@ export function materializePresentationYDoc(doc: Y.Doc): { spec: PresentationDec
       audience,
       owner,
       themePack,
+      theme,
       pageCount: typeof pageCountValue === 'number' ? pageCountValue : activeSlideCount,
       preview,
       slides
@@ -263,8 +270,20 @@ function readNullableString(value: PresentationJsonValue | undefined) {
   return text || null
 }
 
-function readThemePack(value: PresentationJsonValue | undefined): PresentationThemePack {
-  return typeof value === 'string' && /^theme(?:0[1-9]|1[0-2])$/.test(value) ? value as PresentationThemePack : 'theme01'
+function readThemePack(value: PresentationJsonValue | undefined) {
+  return typeof value === 'string' && /^theme\d{2,}$/.test(value) ? value : 'theme01'
+}
+
+function readThemeReference(type: PresentationJsonValue | undefined, id: PresentationJsonValue | undefined, key: string): PresentationThemeReference {
+  if (type === 'custom' && typeof id === 'string' && id.trim() && !(PRESENTATION_THEME_PACKS as readonly string[]).includes(key)) {
+    return { type: 'custom', key, themeId: id }
+  }
+  return builtinThemeReference(key)
+}
+
+function builtinThemeReference(key: string): PresentationThemeReference {
+  const builtin = (PRESENTATION_THEME_PACKS as readonly string[]).includes(key) ? key : 'theme01'
+  return { type: 'builtin', key: builtin as (typeof PRESENTATION_THEME_PACKS)[number] }
 }
 
 function readSlideStatus(value: PresentationJsonValue | undefined): PresentationSlideStatus {

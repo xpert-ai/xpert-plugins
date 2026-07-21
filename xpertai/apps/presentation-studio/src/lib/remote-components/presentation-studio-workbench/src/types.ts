@@ -74,6 +74,20 @@ export interface ExportSummary {
 }
 export interface AssetSummary { id: string; role: string; fileName: string; size: number; reference: string }
 
+export type ThemeSourceType = 'react' | 'html' | 'pptx' | 'pdf' | 'images' | 'mixed'
+export interface ThemeSummary {
+  id?: string
+  type: 'builtin' | 'custom'
+  key: string
+  name: string
+  status: 'prepared' | 'analyzing' | 'generating' | 'validating' | 'ready' | 'failed'
+  sourceType?: ThemeSourceType
+  sourceFileName?: string
+  pageCount?: number
+  failureReason?: string
+}
+export interface ThemeCatalog { builtIn: ThemeSummary[]; custom: ThemeSummary[] }
+
 export interface LayoutControl {
   key?: string
   publicKey?: string

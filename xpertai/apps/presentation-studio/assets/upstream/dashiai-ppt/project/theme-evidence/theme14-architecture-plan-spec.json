@@ -1,0 +1,85 @@
+{
+  "key": "theme14",
+  "displayName": "橄榄建筑提案",
+  "references": [
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+    "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+  ],
+  "target": {
+    "pageCount": 84,
+    "derivedModuleCount": 8,
+    "scenario": ["建筑设计", "空间方案", "项目提案"],
+    "audience": ["设计评审方", "项目业主"]
+  },
+  "sourceThemes": ["theme09", "theme07", "theme05", "theme01"],
+  "visualEvidence": {
+    "palette": [
+      "深页以墨绿橄榄 #2D3423 作为全画布底色",
+      "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字",
+      "中层表面使用苔藓绿 #667553 区分指标与材料模块",
+      "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+    ],
+    "typography": [
+      "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+      "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏"
+    ],
+    "composition": [
+      "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+      "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+      "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部"
+    ],
+    "surfaces": [
+      "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+      "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系"
+    ],
+    "imageTreatment": [
+      "所有建筑与人物图片统一为高反差黑白摄影，并以矩形或轻圆角裁切",
+      "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜"
+    ],
+    "motifs": [
+      "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+      "重复使用短水平规则线和直角方向箭头强调章节与动作",
+      "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级"
+    ],
+    "signatureRules": [
+      "每页保留一个明确标题体块、一个结构标记和一套矩形对齐关系",
+      "所有媒体默认黑白且不与正文重叠，标题、正文和指标分别拥有固定安全区",
+      "深浅变体只翻转底色与文字层级，橄榄色、圆节点和短横线保持跨页一致"
+    ],
+    "forbidden": [
+      "禁止霓虹色、彩虹渐变、发光阴影、玻璃拟态和圆润卡通插画",
+      "禁止把参考截图直接平铺为背景，也禁止用根节点缩放掩盖字体与位置错误"
+    ]
+  },
+  "visualImplementation": {
+    "profileStrategy": "new",
+    "profileId": "olive-architectural-grid",
+    "paletteMode": "strict",
+    "tokens": {
+      "background": "#2D3423",
+      "foreground": "#F3F3ED",
+      "accent": "#667553",
+      "secondary": "#BFC5B4"
+    },
+    "requiredPrimitives": ["olive-node", "short-rule", "right-angle-arrow", "stepped-mass", "monochrome-media"],
+    "notes": "浅色变体使用 #ECECEC 与 #10110E；所有图片在组件内应用 grayscale(1) 和 contrast(1.08)。"
+  },
+  "archetypes": [
+    {"id":"split-architecture-cover","referencePages":["截屏2026-07-15 15.59.29.png"],"family":"cover","strategy":"new","needsMedia":true,"weight":12,"notes":["左侧标题、次级媒体和指标组成多层信息区","右侧半页黑白建筑竖图建立主视觉体量","顶端细线与小字形成项目页眉"]},
+    {"id":"program-metric-overview","referencePages":["截屏2026-07-15 15.59.57.png","截屏2026-07-15 16.00.20.png"],"family":"metrics","strategy":"new","needsMedia":true,"weight":11,"notes":["上方四列说明与下方超大双行标题形成尺度对比","苔藓绿指标卡和黑白方图组合在右下区域","圆节点、直角箭头和百分比保持同一视觉语言"]},
+    {"id":"six-node-program","referencePages":["截屏2026-07-15 16.00.15.png"],"family":"general","strategy":"new","needsMedia":true,"weight":9,"notes":["六个圆节点按三列两行均匀排列","每个节点包含粗体标题与两行短说明","底部横向黑白图片跨越主要网格宽度"]},
+    {"id":"stepped-year-blocks","referencePages":["截屏2026-07-15 16.00.26.png"],"family":"timeline","strategy":"new","needsMedia":false,"weight":10,"notes":["三个年度块从左到右逐级升高模拟体量","灰白与苔藓绿块交替并在底部对齐","左侧保留标题、短横线、正文和圆节点说明"]},
+    {"id":"detail-signal-ranking","referencePages":["截屏2026-07-15 16.00.30.png"],"family":"ranking","strategy":"new","needsMedia":true,"weight":9,"notes":["右侧四条百分比信号按纵向列表整齐排列","左侧超大双行标题、直角箭头和方形黑白图形成对重","浅色画布使用灰色数字与近黑标题区分层级"]},
+    {"id":"architectural-case-grid","referencePages":["截屏2026-07-15 16.00.34.png","截屏2026-07-15 16.00.39.png"],"family":"media","strategy":"new","needsMedia":true,"weight":11,"notes":["四张图文卡按二乘二或横幅加说明网格组织","黑白媒体与白色、苔藓绿表面交替","圆节点和超大标题负责连接案例与指标"]},
+    {"id":"material-comparison-grid","referencePages":["截屏2026-07-15 16.00.42.png"],"family":"comparison","strategy":"new","needsMedia":true,"weight":10,"notes":["五个严格矩形单元组成不等宽建筑网格","深浅橄榄、灰白和一张黑白建筑图形成材料样板感","标题位于右上独立单元并以短横线收束"]},
+    {"id":"environment-system-statement","referencePages":["截屏2026-07-15 16.00.46.png"],"family":"statement","strategy":"new","needsMedia":true,"weight":8,"notes":["左上大标题与短横线形成明确观点区","左下两张状态卡、中间说明和右侧竖图构成三列关系","每张状态卡右上保留带白孔圆节点"]}
+  ]
+}

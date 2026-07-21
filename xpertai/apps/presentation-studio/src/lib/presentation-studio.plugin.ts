@@ -5,7 +5,8 @@ import {
   PresentationAsset,
   PresentationDeck,
   PresentationDeckVersion,
-  PresentationExport
+  PresentationExport,
+  PresentationTheme
 } from './entities/index.js'
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 import { PresentationCollaborationProvider } from './presentation-collaboration.provider.js'
@@ -16,13 +17,15 @@ import { PresentationRendererService } from './presentation-renderer.service.js'
 import { PresentationStudioMiddleware } from './presentation-studio.middleware.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
 import { PresentationStudioViewProvider } from './presentation-studio-view.provider.js'
+import { PresentationThemeService } from './presentation-theme.service.js'
 
 export const PRESENTATION_STUDIO_ENTITIES = [
   PresentationDeck,
   PresentationDeckVersion,
   PresentationAsset,
   PresentationExport,
-  PresentationActionLog
+  PresentationActionLog,
+  PresentationTheme
 ]
 
 @XpertServerPlugin({
@@ -31,6 +34,7 @@ export const PRESENTATION_STUDIO_ENTITIES = [
   providers: [
     PresentationConfigService,
     PresentationDebugService,
+    PresentationThemeService,
     PresentationCatalogService,
     PresentationRendererService,
     PresentationStudioService,
@@ -39,6 +43,6 @@ export const PRESENTATION_STUDIO_ENTITIES = [
     PresentationCollaborationProvider,
     PresentationExportProcessor
   ],
-  exports: [PresentationStudioService]
+  exports: [PresentationStudioService, PresentationThemeService]
 })
 export class PresentationStudioPlugin {}

@@ -59,7 +59,7 @@ try {
     assert.ok(Array.isArray(pptx.warnings), `${themePack} PPTX warning report`)
     console.log(`${themePack}: 5 layouts, HTML/PDF/PPTX verified, ${pptx.textObjects} editable text objects.`)
   }
-  assert.equal(layoutCount, 60, 'export matrix layout count')
+  assert.equal(layoutCount, themes.size * 5, 'export matrix layout count')
   console.log(`Export matrix verified: ${themes.size} themes, ${layoutCount} layouts, 3 formats.`)
 } finally {
   fs.rmSync(outputRoot, { recursive: true, force: true })

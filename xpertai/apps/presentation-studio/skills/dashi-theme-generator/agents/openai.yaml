@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dashi Theme Generator"
+  short_description: "生成并验证无留黑、控件效果明确的 Dashi PPT 主题"
+  default_prompt: "Use $dashi-theme-generator to build a full-canvas Dashi PPT theme with measurable control effects."

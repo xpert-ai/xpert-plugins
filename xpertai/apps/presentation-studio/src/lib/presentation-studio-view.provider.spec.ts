@@ -38,6 +38,8 @@ describe('PresentationStudioViewProvider incremental host events', () => {
 
     expect(manifest.dataSource.cache?.enabled).toBe(false)
     expect(manifest.actions?.some((action) => action.key === 'load_theme_runtime' && !action.placement)).toBe(true)
+    expect(manifest.actions?.some((action) => action.key === 'load_themes' && !action.placement)).toBe(true)
+    expect(manifest.actions?.some((action) => action.key === 'upload_theme_template' && action.transport === 'file')).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'load_asset_previews' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'render_preview')).toBe(false)
     expect(manifest.view.type === 'remote_component'

@@ -2,6 +2,10 @@ import type { JsonObject, JsonValue } from './types'
 
 const MUTATION_TOOL_NAMES = new Set([
   'presentation_create_deck',
+  'presentation_prepare_theme',
+  'presentation_update_theme_progress',
+  'presentation_register_theme',
+  'presentation_report_theme_failure',
   'presentation_add_slide',
   'presentation_patch_slide',
   'presentation_reorder_slides',

@@ -1,0 +1,107 @@
+{
+  "key": "theme15",
+  "displayName": "医疗销售分析",
+  "generationMode": "reuse-first",
+  "references": [
+    "page-01.png",
+    "page-02.png",
+    "page-03.png",
+    "page-04.png"
+  ],
+  "target": {
+    "pageCount": 84,
+    "observedModuleCount": 2,
+    "derivedModuleCount": 0,
+    "scenario": ["医疗销售复盘", "区域经营分析"],
+    "audience": ["销售管理层", "业务分析团队"]
+  },
+  "sourceThemes": ["theme05", "theme07", "theme01"],
+  "visualEvidence": {
+    "palette": [
+      "深蓝 #003366 用于主画布和标题区",
+      "亮橙 #FF6600 用于关键指标和强调",
+      "浅蓝 #DCEEFF 用于次级表面",
+      "白色 #FFFFFF 用于卡片和反色文字"
+    ],
+    "typography": [
+      "标题使用紧凑粗体无衬线并保持两行以内",
+      "正文使用中性无衬线并以清晰数字层级区分指标"
+    ],
+    "composition": [
+      "页面沿左侧数字索引和右侧内容网格组织",
+      "图表、说明和指标卡遵循稳定的两列或四列网格"
+    ],
+    "surfaces": [
+      "卡片使用浅色实体表面和细边框",
+      "深色章节页通过大面积留白和橙色短线建立层级"
+    ],
+    "imageTreatment": [
+      "人物和场景图片使用矩形裁切并保留清晰边界",
+      "媒体与数据卡对齐，不使用全页背景截图"
+    ],
+    "motifs": [
+      "左侧大数字索引在章节和正文页重复出现",
+      "橙色短线和小圆节点作为方向提示"
+    ],
+    "signatureRules": [
+      "封面保留深蓝标题面与橙色索引组合",
+      "正文页至少保留一处左侧数字导航"
+    ],
+    "forbidden": [
+      "不使用霓虹发光和玻璃拟态",
+      "不把原截图铺成不可编辑背景"
+    ]
+  },
+  "visualImplementation": {
+    "profileStrategy": "new",
+    "profileId": "medical-sales-analysis",
+    "paletteMode": "adaptive",
+    "tokens": {
+      "background": "#F4F8FC",
+      "foreground": "#102A43",
+      "accent": "#FF6600",
+      "secondary": "#2F80C9"
+    },
+    "requiredPrimitives": ["left-index-rail", "orange-rule"]
+  },
+  "archetypes": [
+    {
+      "id": "indexed-medical-cover",
+      "referencePages": ["page-01.png"],
+      "family": "cover",
+      "strategy": "new",
+      "needsMedia": false,
+      "weight": 10,
+      "notes": ["左侧大数字索引与右侧深蓝标题面构成封面签名"]
+    },
+    {
+      "id": "indexed-analysis-overview",
+      "referencePages": ["page-02.png"],
+      "family": "general",
+      "strategy": "new",
+      "needsMedia": false,
+      "weight": 9,
+      "notes": ["左侧索引栏和右侧三列说明形成正文签名结构"]
+    },
+    {
+      "id": "sales-metric-dashboard",
+      "referencePages": ["page-03.png"],
+      "family": "metrics",
+      "strategy": "reuse",
+      "needsMedia": false,
+      "weight": 10,
+      "notes": ["四个指标卡与主图表的结构可由成熟指标页承载"],
+      "reuseJustification": ["候选原页面具有相同指标网格、可编辑数组和图表控件"]
+    },
+    {
+      "id": "regional-case-media",
+      "referencePages": ["page-04.png"],
+      "family": "media",
+      "strategy": "reuse",
+      "needsMedia": true,
+      "weight": 8,
+      "notes": ["区域案例使用一张主图和两组可编辑说明"],
+      "reuseJustification": ["候选原页面保留可写媒体槽和匹配的图文比例"]
+    }
+  ]
+}

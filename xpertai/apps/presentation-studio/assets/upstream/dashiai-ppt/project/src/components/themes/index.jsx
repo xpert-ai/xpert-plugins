@@ -11,6 +11,7 @@ import {
   serializeValue,
 } from '../../prop-contract-core.mjs';
 import { GENERATED_THEME_PAGES, GENERATED_THEME_PACKS } from './generated-metadata.js';
+import { EXTERNAL_THEME_PACKS, EXTERNAL_THEME_PAGES } from '../../external-theme-metadata.mjs';
 import { overrides as theme02Overrides } from './theme02/overrides.js';
 import { overrides as theme03Overrides } from './theme03/overrides.js';
 import { overrides as theme04Overrides } from './theme04/overrides.js';
@@ -24,9 +25,10 @@ const THEME_OVERRIDES = {
 
 const REMOVED_CONTROL_TYPES = new Set(['text', 'string', 'input', 'url', 'email', 'textarea', 'multiline']);
 
-export const THEME_PAGES = GENERATED_THEME_PAGES.map(applyThemePageDefaults);
+const ALL_THEME_PACKS = [...GENERATED_THEME_PACKS, ...EXTERNAL_THEME_PACKS];
+export const THEME_PAGES = [...GENERATED_THEME_PAGES, ...EXTERNAL_THEME_PAGES].map(applyThemePageDefaults);
 export const THEME_PACK_OPTIONS = Object.fromEntries(
-  GENERATED_THEME_PACKS.map(theme => [
+  ALL_THEME_PACKS.map(theme => [
     theme.key,
     {
       label: theme.label,

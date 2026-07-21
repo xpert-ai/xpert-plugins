@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { presentationStudioTable } from '../constants.js'
-import type { PresentationDeckSpec, PresentationStatus, PresentationThemePack } from '../types.js'
+import type { PresentationDeckSpec, PresentationStatus } from '../types.js'
 
 @Entity(presentationStudioTable('deck'))
 @Index(['tenantId', 'organizationId', 'projectId', 'status'])
@@ -19,7 +19,7 @@ export class PresentationDeck {
   @Column({ type: 'text' }) goal!: string
   @Column({ type: 'text', nullable: true }) audience?: string
   @Column({ type: 'varchar', nullable: true }) owner?: string
-  @Column({ type: 'varchar' }) themePack!: PresentationThemePack
+  @Column({ type: 'varchar' }) themePack!: string
   @Column({ type: 'varchar', default: 'draft' }) status!: PresentationStatus
   @Column({ type: 'int', default: 0 }) revision!: number
   @Column({ type: 'varchar', nullable: true }) currentVersionId?: string

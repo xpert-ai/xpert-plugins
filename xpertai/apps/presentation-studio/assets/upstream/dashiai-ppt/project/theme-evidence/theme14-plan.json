@@ -1,0 +1,4376 @@
+{
+  "schemaVersion": 3,
+  "qualityVersion": 3,
+  "theme": {
+    "key": "theme14",
+    "displayName": "橄榄建筑提案",
+    "scenario": [
+      "建筑设计",
+      "空间方案",
+      "项目提案"
+    ],
+    "audience": [
+      "设计评审方",
+      "项目业主"
+    ]
+  },
+  "evidence": {
+    "references": [
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+      "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+    ],
+    "visualEvidence": {
+      "palette": [
+        "深页以墨绿橄榄 #2D3423 作为全画布底色",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "typography": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏"
+      ],
+      "composition": [
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部"
+      ],
+      "surfaces": [
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系"
+      ],
+      "imageTreatment": [
+        "所有建筑与人物图片统一为高反差黑白摄影，并以矩形或轻圆角裁切",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜"
+      ],
+      "motifs": [
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级"
+      ],
+      "signatureRules": [
+        "每页保留一个明确标题体块、一个结构标记和一套矩形对齐关系",
+        "所有媒体默认黑白且不与正文重叠，标题、正文和指标分别拥有固定安全区",
+        "深浅变体只翻转底色与文字层级，橄榄色、圆节点和短横线保持跨页一致"
+      ],
+      "forbidden": [
+        "禁止霓虹色、彩虹渐变、发光阴影、玻璃拟态和圆润卡通插画",
+        "禁止把参考截图直接平铺为背景，也禁止用根节点缩放掩盖字体与位置错误"
+      ]
+    }
+  },
+  "styleGrammar": {
+    "schemaVersion": 1,
+    "rules": [
+      {
+        "id": "color-01",
+        "category": "color",
+        "description": "深页以墨绿橄榄 #2D3423 作为全画布底色",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-02",
+        "category": "color",
+        "description": "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-03",
+        "category": "color",
+        "description": "中层表面使用苔藓绿 #667553 区分指标与材料模块",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "color-04",
+        "category": "color",
+        "description": "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "typography-01",
+        "category": "typography",
+        "description": "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "typography-02",
+        "category": "typography",
+        "description": "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-01",
+        "category": "composition",
+        "description": "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-02",
+        "category": "composition",
+        "description": "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "composition-03",
+        "category": "composition",
+        "description": "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "surface-01",
+        "category": "surface",
+        "description": "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "surface-02",
+        "category": "surface",
+        "description": "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "media-01",
+        "category": "media",
+        "description": "所有建筑与人物图片统一为高反差黑白摄影，并以矩形或轻圆角裁切",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "media-02",
+        "category": "media",
+        "description": "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-01",
+        "category": "motif",
+        "description": "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-02",
+        "category": "motif",
+        "description": "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "motif-03",
+        "category": "motif",
+        "description": "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-01",
+        "category": "signature",
+        "description": "每页保留一个明确标题体块、一个结构标记和一套矩形对齐关系",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-02",
+        "category": "signature",
+        "description": "所有媒体默认黑白且不与正文重叠，标题、正文和指标分别拥有固定安全区",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "signature-03",
+        "category": "signature",
+        "description": "深浅变体只翻转底色与文字层级，橄榄色、圆节点和短横线保持跨页一致",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "forbidden-01",
+        "category": "forbidden",
+        "description": "禁止霓虹色、彩虹渐变、发光阴影、玻璃拟态和圆润卡通插画",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "forbidden-02",
+        "category": "forbidden",
+        "description": "禁止把参考截图直接平铺为背景，也禁止用根节点缩放掩盖字体与位置错误",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      }
+    ],
+    "forbiddenRuleIds": [
+      "forbidden-01",
+      "forbidden-02"
+    ],
+    "primitives": [
+      {
+        "id": "olive-node",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "short-rule",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "right-angle-arrow",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "stepped-mass",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      },
+      {
+        "id": "monochrome-media",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.29.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 15.59.57.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.15.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.20.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.26.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.30.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.34.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.39.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.42.png",
+          "/Users/lilinhao/ppt模版/建筑设计ppt模版/截屏2026-07-15 16.00.46.png"
+        ]
+      }
+    ]
+  },
+  "visualImplementation": {
+    "profileStrategy": "new",
+    "profileId": "olive-architectural-grid",
+    "paletteMode": "strict",
+    "tokens": {
+      "background": "#2D3423",
+      "foreground": "#F3F3ED",
+      "accent": "#667553",
+      "secondary": "#BFC5B4"
+    },
+    "requiredPrimitives": [
+      "olive-node",
+      "short-rule",
+      "right-angle-arrow",
+      "stepped-mass",
+      "monochrome-media"
+    ],
+    "notes": "浅色变体使用 #ECECEC 与 #10110E；所有图片在组件内应用 grayscale(1) 和 contrast(1.08)。"
+  },
+  "recipe": {
+    "pageCount": 84,
+    "sources": [
+      "theme09",
+      "theme07",
+      "theme05",
+      "theme01"
+    ],
+    "familyWeights": {
+      "cover": 12,
+      "metrics": 11,
+      "general": 9,
+      "timeline": 10,
+      "ranking": 9,
+      "media": 11,
+      "comparison": 10,
+      "statement": 8
+    },
+    "ownModuleMinimum": 16
+  },
+  "moduleMappings": [
+    {
+      "id": "split-architecture-cover",
+      "referencePages": [
+        "截屏2026-07-15 15.59.29.png"
+      ],
+      "family": "cover",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 12,
+      "notes": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page033",
+          "sourceTheme": "theme09",
+          "slot": "coverstory",
+          "label": "封面影像",
+          "leafFields": 19,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "backgroundMode",
+            "unicornScene",
+            "textPos",
+            "showMasthead",
+            "tagCount",
+            "focus",
+            "labelType",
+            "masthead",
+            "issue",
+            "kicker",
+            "title",
+            "sub",
+            "tags",
+            "credit"
+          ],
+          "controlKeys": [
+            "backgroundMode",
+            "unicornScene",
+            "imgCount",
+            "textPos",
+            "tagCount",
+            "showMasthead",
+            "labelType",
+            "focus"
+          ],
+          "controlTypes": [
+            "select",
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "tagCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme07_page002",
+          "sourceTheme": "theme07",
+          "slot": "cover-supply-chain-page",
+          "label": "封面 链通全国",
+          "leafFields": 18,
+          "fieldKeys": [
+            "phaseLeft",
+            "phaseRight",
+            "kicker",
+            "titleL1",
+            "titleL2",
+            "subPre",
+            "years",
+            "subPost",
+            "summary",
+            "logo",
+            "photoLabel",
+            "timeline",
+            "imageCount",
+            "images",
+            "showTimeline",
+            "showLenses",
+            "accentColor",
+            "renderSlot"
+          ],
+          "controlKeys": [
+            "imageCount",
+            "images",
+            "showTimeline",
+            "showLenses",
+            "accentColor"
+          ],
+          "controlTypes": [
+            "range",
+            "images",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imageCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 1
+        },
+        {
+          "layout": "theme01_page063",
+          "sourceTheme": "theme01",
+          "slot": "mag-cover",
+          "label": "杂志封面 · 算力军备竞赛",
+          "leafFields": 33,
+          "fieldKeys": [
+            "kicker",
+            "titleLines",
+            "en",
+            "bigStat",
+            "notes",
+            "images",
+            "caption",
+            "imageSlotCount",
+            "imageFit",
+            "backgroundMode",
+            "unicornScene",
+            "titleLineCount",
+            "noteCount",
+            "showBigStat",
+            "showEn",
+            "accentColor",
+            "showCaption"
+          ],
+          "controlKeys": [
+            "backgroundMode",
+            "unicornScene",
+            "imageSlotCount",
+            "imageFit",
+            "images",
+            "titleLineCount",
+            "noteCount",
+            "showBigStat",
+            "showEn",
+            "accentColor",
+            "showCaption"
+          ],
+          "controlTypes": [
+            "select",
+            "range",
+            "images",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageSlotCount",
+            "titleLineCount",
+            "noteCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme09_page006",
+          "sourceTheme": "theme09",
+          "slot": "coverterminal",
+          "label": "封面G 终端",
+          "leafFields": 32,
+          "fieldKeys": [
+            "prompt",
+            "year",
+            "titleLines",
+            "tickers",
+            "tickerCount",
+            "showGrid",
+            "showCaret",
+            "showChip",
+            "status",
+            "focus",
+            "focusIndex",
+            "liveLabel",
+            "editionLabel",
+            "footerLabel"
+          ],
+          "controlKeys": [
+            "tickerCount",
+            "showGrid",
+            "showCaret",
+            "showChip",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "tickerCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page002",
+          "sourceTheme": "theme09",
+          "slot": "coverdiag",
+          "label": "封面C 斜切",
+          "leafFields": 27,
+          "fieldKeys": [
+            "brand",
+            "kicker",
+            "year",
+            "titleLines",
+            "index",
+            "indexCount",
+            "splitDir",
+            "showSpine",
+            "showSeam",
+            "showChip",
+            "focus",
+            "focusIndex",
+            "fyLabel",
+            "indexLabel"
+          ],
+          "controlKeys": [
+            "indexCount",
+            "splitDir",
+            "showSpine",
+            "showSeam",
+            "showChip",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "indexCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page003",
+          "sourceTheme": "theme09",
+          "slot": "coverdossier",
+          "label": "封面D 卷宗",
+          "leafFields": 26,
+          "fieldKeys": [
+            "classification",
+            "docNo",
+            "year",
+            "titleLines",
+            "fields",
+            "fieldCount",
+            "showFrame",
+            "showBarcode",
+            "showStamp",
+            "showChip",
+            "code",
+            "stamp",
+            "focus",
+            "focusIndex"
+          ],
+          "controlKeys": [
+            "fieldCount",
+            "showFrame",
+            "showBarcode",
+            "showStamp",
+            "showChip",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "fieldCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page001",
+          "sourceTheme": "theme09",
+          "slot": "covermast",
+          "label": "封面A 刊头",
+          "leafFields": 23,
+          "fieldKeys": [
+            "kicker",
+            "year",
+            "titleLines",
+            "edition",
+            "meta",
+            "metaCount",
+            "showRule",
+            "showGhostYear",
+            "showChip",
+            "focus",
+            "focusIndex",
+            "reportLabel"
+          ],
+          "controlKeys": [
+            "metaCount",
+            "showRule",
+            "showGhostYear",
+            "showChip",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "metaCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page004",
+          "sourceTheme": "theme09",
+          "slot": "coverstrata",
+          "label": "封面E 光带",
+          "leafFields": 22,
+          "fieldKeys": [
+            "kicker",
+            "year",
+            "titleLines",
+            "bands",
+            "bandCount",
+            "showLabels",
+            "showChip",
+            "footnote",
+            "focus",
+            "focusIndex"
+          ],
+          "controlKeys": [
+            "bandCount",
+            "showLabels",
+            "showChip",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "bandCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        }
+      ]
+    },
+    {
+      "id": "program-metric-overview",
+      "referencePages": [
+        "截屏2026-07-15 15.59.57.png",
+        "截屏2026-07-15 16.00.20.png"
+      ],
+      "family": "metrics",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 11,
+      "notes": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme05_page006",
+          "sourceTheme": "theme05",
+          "slot": "spec",
+          "label": "摘要 Overview",
+          "leafFields": 43,
+          "fieldKeys": [
+            "imageCount",
+            "specRowCount",
+            "showHighlight",
+            "accentColor",
+            "chartType",
+            "showProportionBar",
+            "showSheetLabel",
+            "images",
+            "copy"
+          ],
+          "controlKeys": [
+            "imageCount",
+            "specRowCount",
+            "showHighlight",
+            "accentColor",
+            "chartType",
+            "showProportionBar",
+            "showSheetLabel"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imageCount",
+            "specRowCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme05_page050",
+          "sourceTheme": "theme05",
+          "slot": "hero",
+          "label": "大数字 Hero",
+          "leafFields": 29,
+          "fieldKeys": [
+            "imageCount",
+            "imageSide",
+            "auxCount",
+            "showUnit",
+            "showCaption",
+            "showMessage",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel",
+            "images",
+            "copy"
+          ],
+          "controlKeys": [
+            "imageCount",
+            "imageSide",
+            "auxCount",
+            "showUnit",
+            "showCaption",
+            "showMessage",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageCount",
+            "auxCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme09_page050",
+          "sourceTheme": "theme09",
+          "slot": "stat",
+          "label": "09 关键指标",
+          "leafFields": 75,
+          "fieldKeys": [
+            "itemCount",
+            "columns",
+            "miniChart",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "badge",
+            "stats",
+            "headEn",
+            "headCn",
+            "asideTag",
+            "methodologyPre",
+            "methodologyBold",
+            "methodologyPost"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "columns",
+            "miniChart",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page099",
+          "sourceTheme": "theme09",
+          "slot": "score",
+          "label": "10 赛道评分",
+          "leafFields": 61,
+          "fieldKeys": [
+            "itemCount",
+            "criteriaCount",
+            "sort",
+            "showComposite",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "badge",
+            "criteria",
+            "objects",
+            "headEn",
+            "headCn",
+            "asideTag",
+            "methodologyPre",
+            "methodologyMid",
+            "methodologyPost"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "criteriaCount",
+            "sort",
+            "showComposite",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount",
+            "criteriaCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page008",
+          "sourceTheme": "theme09",
+          "slot": "overview",
+          "label": "报告摘要",
+          "leafFields": 39,
+          "fieldKeys": [
+            "heading",
+            "subEN",
+            "pill",
+            "summary",
+            "bars",
+            "stats",
+            "tags",
+            "labelType",
+            "focus",
+            "focusIndex",
+            "barsSectionLabel",
+            "barsTotalLabel",
+            "statCount"
+          ],
+          "controlKeys": [
+            "statCount",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "statCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page086",
+          "sourceTheme": "theme09",
+          "slot": "scoreboard",
+          "label": "年度计分榜",
+          "leafFields": 36,
+          "fieldKeys": [
+            "itemCount",
+            "showDelta",
+            "showScan",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "banner",
+            "head",
+            "stats"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "showDelta",
+            "showScan",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page038",
+          "sourceTheme": "theme09",
+          "slot": "hero",
+          "label": "核心数字",
+          "leafFields": 21,
+          "fieldKeys": [
+            "value",
+            "unit",
+            "label",
+            "statement",
+            "supportCount",
+            "accentNumber",
+            "showGhost",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "badge",
+            "kicker",
+            "supports"
+          ],
+          "controlKeys": [
+            "supportCount",
+            "accentNumber",
+            "showGhost",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "supportCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page041",
+          "sourceTheme": "theme09",
+          "slot": "versus",
+          "label": "数字对决",
+          "leafFields": 19,
+          "fieldKeys": [
+            "pivot",
+            "showBar",
+            "showNote",
+            "note",
+            "focus",
+            "focusIndex",
+            "badge",
+            "kicker",
+            "left",
+            "right",
+            "noteLabel"
+          ],
+          "controlKeys": [
+            "pivot",
+            "showBar",
+            "showNote",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "select",
+            "toggle",
+            "range"
+          ],
+          "countBindingKeys": [],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        }
+      ]
+    },
+    {
+      "id": "six-node-program",
+      "referencePages": [
+        "截屏2026-07-15 16.00.15.png"
+      ],
+      "family": "general",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 9,
+      "notes": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page107",
+          "sourceTheme": "theme09",
+          "slot": "team",
+          "label": "16 研究团队",
+          "leafFields": 30,
+          "fieldKeys": [
+            "images",
+            "memberCount",
+            "columns",
+            "focus",
+            "focusIndex",
+            "imgCount",
+            "showAside",
+            "head",
+            "note",
+            "members",
+            "portraitsLabel",
+            "asideTag"
+          ],
+          "controlKeys": [
+            "memberCount",
+            "columns",
+            "imgCount",
+            "showAside",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "memberCount",
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page060",
+          "sourceTheme": "theme09",
+          "slot": "diptych",
+          "label": "双联对照",
+          "leafFields": 25,
+          "fieldKeys": [
+            "images",
+            "panelCount",
+            "pivot",
+            "showSeam",
+            "showCaption",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "head",
+            "panels"
+          ],
+          "controlKeys": [
+            "panelCount",
+            "pivot",
+            "showSeam",
+            "showCaption",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "panelCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 3
+        },
+        {
+          "layout": "theme09_page025",
+          "sourceTheme": "theme09",
+          "slot": "feature",
+          "label": "图说特写",
+          "leafFields": 24,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "imgSide",
+            "pointCount",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showCaption",
+            "badge",
+            "kicker",
+            "title",
+            "titleEN",
+            "paragraph",
+            "points"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "imgSide",
+            "pointCount",
+            "showCaption",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "pointCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme09_page014",
+          "sourceTheme": "theme09",
+          "slot": "panorama",
+          "label": "全景横幅",
+          "leafFields": 21,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "tickCount",
+            "showLetterbox",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "kicker",
+            "title",
+            "titleEN",
+            "ticks"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "tickCount",
+            "showLetterbox",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "tickCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 3
+        },
+        {
+          "layout": "theme09_page024",
+          "sourceTheme": "theme09",
+          "slot": "storyboard",
+          "label": "分镜脚本",
+          "leafFields": 21,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "showFlow",
+            "showDesc",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "head",
+            "shots"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "showFlow",
+            "showDesc",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page039",
+          "sourceTheme": "theme09",
+          "slot": "bento",
+          "label": "影像便当",
+          "leafFields": 20,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "showCaption",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "head",
+            "items"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "showCaption",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page070",
+          "sourceTheme": "theme09",
+          "slot": "mosaic",
+          "label": "影像拼贴",
+          "leafFields": 18,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "layout",
+            "maxH",
+            "showFrame",
+            "showMeta",
+            "tagCount",
+            "focus",
+            "focusIndex",
+            "kicker",
+            "title",
+            "titleEN",
+            "serial",
+            "tags"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "maxH",
+            "layout",
+            "tagCount",
+            "showFrame",
+            "showMeta",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "tagCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page088",
+          "sourceTheme": "theme09",
+          "slot": "halfhero",
+          "label": "跨栏图景",
+          "leafFields": 18,
+          "fieldKeys": [
+            "images",
+            "colCount",
+            "titlePos",
+            "showScrim",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "badge",
+            "kicker",
+            "title",
+            "titleEN",
+            "cols"
+          ],
+          "controlKeys": [
+            "colCount",
+            "titlePos",
+            "showScrim",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "colCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 1
+        }
+      ]
+    },
+    {
+      "id": "stepped-year-blocks",
+      "referencePages": [
+        "截屏2026-07-15 16.00.26.png"
+      ],
+      "family": "timeline",
+      "strategy": "new",
+      "needsMedia": false,
+      "weight": 10,
+      "notes": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page043",
+          "sourceTheme": "theme09",
+          "slot": "timeline",
+          "label": "08 年度大事记",
+          "leafFields": 56,
+          "fieldKeys": [
+            "images",
+            "itemCount",
+            "orientation",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "imgCount",
+            "showAside",
+            "badge",
+            "events",
+            "headEn",
+            "headCn",
+            "asideTag",
+            "insightPre",
+            "insightBold1",
+            "insightMid1",
+            "insightBold2",
+            "insightPost"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "orientation",
+            "imgCount",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount",
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme09_page081",
+          "sourceTheme": "theme09",
+          "slot": "phases",
+          "label": "阶段时序",
+          "leafFields": 56,
+          "fieldKeys": [
+            "itemCount",
+            "axis",
+            "showAxis",
+            "showMilestone",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "head",
+            "phases",
+            "milestones"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "axis",
+            "showAxis",
+            "showMilestone",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page098",
+          "sourceTheme": "theme09",
+          "slot": "roadmap",
+          "label": "10 布局路线",
+          "leafFields": 55,
+          "fieldKeys": [
+            "laneCount",
+            "phaseCount",
+            "showMilestone",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "badge",
+            "phases",
+            "milestones",
+            "lanes",
+            "headEn",
+            "headCn",
+            "axisCornerLabel",
+            "asideTag",
+            "insightMid1",
+            "insightMid2",
+            "insightPost"
+          ],
+          "controlKeys": [
+            "laneCount",
+            "phaseCount",
+            "showMilestone",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "laneCount",
+            "phaseCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page104",
+          "sourceTheme": "theme09",
+          "slot": "process",
+          "label": "13 实施路径",
+          "leafFields": 22,
+          "fieldKeys": [
+            "stepCount",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "head",
+            "outcome",
+            "steps"
+          ],
+          "controlKeys": [
+            "stepCount",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "stepCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page082",
+          "sourceTheme": "theme09",
+          "slot": "journey",
+          "label": "影像纪程",
+          "leafFields": 20,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "showAxis",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "head",
+            "nodes"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "showAxis",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page015",
+          "sourceTheme": "theme09",
+          "slot": "stage",
+          "label": "焦点舞台",
+          "leafFields": 18,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "chipCount",
+            "showSpotlight",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "badge",
+            "kicker",
+            "title",
+            "titleEN",
+            "chips"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "chipCount",
+            "showSpotlight",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "chipCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 3
+        },
+        {
+          "layout": "theme07_page047",
+          "sourceTheme": "theme07",
+          "slot": "early-stage-page",
+          "label": "信号 早期轮",
+          "leafFields": 56,
+          "fieldKeys": [
+            "eyebrow",
+            "marker",
+            "season",
+            "title",
+            "titleTail",
+            "lead",
+            "statLine",
+            "anchorValue",
+            "anchorLabel",
+            "closing",
+            "colHeads",
+            "rows",
+            "rowCount",
+            "showBubble",
+            "showThemes",
+            "showSignal",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor"
+          ],
+          "controlKeys": [
+            "rowCount",
+            "showBubble",
+            "showThemes",
+            "showSignal",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "rowCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme05_page047",
+          "sourceTheme": "theme05",
+          "slot": "path",
+          "label": "学习路径 Path",
+          "leafFields": 57,
+          "fieldKeys": [
+            "nodeCount",
+            "imageCount",
+            "imageSide",
+            "focusEnabled",
+            "focusIndex",
+            "sceneCount",
+            "showScenes",
+            "showLead",
+            "showMetrics",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel",
+            "images",
+            "copy"
+          ],
+          "controlKeys": [
+            "nodeCount",
+            "imageCount",
+            "imageSide",
+            "focusEnabled",
+            "focusIndex",
+            "sceneCount",
+            "showScenes",
+            "showLead",
+            "showMetrics",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageCount",
+            "sceneCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 3
+        }
+      ]
+    },
+    {
+      "id": "detail-signal-ranking",
+      "referencePages": [
+        "截屏2026-07-15 16.00.30.png"
+      ],
+      "family": "ranking",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 9,
+      "notes": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page089",
+          "sourceTheme": "theme09",
+          "slot": "trend",
+          "label": "10 季度走势",
+          "leafFields": 62,
+          "fieldKeys": [
+            "seriesCount",
+            "chartType",
+            "showLegend",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "badge",
+            "unit",
+            "xLabels",
+            "series",
+            "headEn",
+            "headCn",
+            "chartTitle",
+            "asideTag",
+            "insightMid1",
+            "insightMid2",
+            "insightPost",
+            "finalLabelSuffix",
+            "rangeLabel"
+          ],
+          "controlKeys": [
+            "seriesCount",
+            "chartType",
+            "showLegend",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "seriesCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page035",
+          "sourceTheme": "theme09",
+          "slot": "ranking",
+          "label": "08 资本排行",
+          "leafFields": 54,
+          "fieldKeys": [
+            "itemCount",
+            "sort",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showValue",
+            "showAside",
+            "unit",
+            "badge",
+            "items",
+            "headEn",
+            "headCn",
+            "concentrationLabel",
+            "concentrationCaption",
+            "insightText"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "sort",
+            "showValue",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page083",
+          "sourceTheme": "theme09",
+          "slot": "slope",
+          "label": "10 排名变迁",
+          "leafFields": 46,
+          "fieldKeys": [
+            "itemCount",
+            "showValue",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "periodLeft",
+            "periodRight",
+            "unit",
+            "badge",
+            "items",
+            "headEn",
+            "headCn",
+            "legendUp",
+            "legendDown",
+            "unitLabel",
+            "asideTag",
+            "insightMid1",
+            "insightMid2",
+            "insightMid3",
+            "insightPost",
+            "changeSuffix",
+            "upShareLabel"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "showValue",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page071",
+          "sourceTheme": "theme09",
+          "slot": "radialbar",
+          "label": "径向透视",
+          "leafFields": 42,
+          "fieldKeys": [
+            "itemCount",
+            "chartType",
+            "showScale",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showAside",
+            "head",
+            "note",
+            "items",
+            "defaultCenterLabel"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "chartType",
+            "showScale",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        }
+      ]
+    },
+    {
+      "id": "architectural-case-grid",
+      "referencePages": [
+        "截屏2026-07-15 16.00.34.png",
+        "截屏2026-07-15 16.00.39.png"
+      ],
+      "family": "media",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 11,
+      "notes": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page109",
+          "sourceTheme": "theme09",
+          "slot": "pf-profile",
+          "label": "关于我们",
+          "leafFields": 68,
+          "fieldKeys": [
+            "images",
+            "title",
+            "name",
+            "nameEN",
+            "code",
+            "experiences",
+            "expCount",
+            "stats",
+            "statCount",
+            "skills",
+            "skillCount",
+            "infoList",
+            "infoCount",
+            "pills",
+            "pillCount",
+            "imgCount",
+            "showBarcode",
+            "focus",
+            "focusIndex"
+          ],
+          "controlKeys": [
+            "expCount",
+            "statCount",
+            "skillCount",
+            "infoCount",
+            "pillCount",
+            "imgCount",
+            "showBarcode",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "expCount",
+            "statCount",
+            "skillCount",
+            "infoCount",
+            "pillCount",
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme09_page022",
+          "sourceTheme": "theme09",
+          "slot": "cases",
+          "label": "05 典型案例",
+          "leafFields": 44,
+          "fieldKeys": [
+            "images",
+            "caseCount",
+            "imgCount",
+            "quote",
+            "labelType",
+            "focus",
+            "focusIndex",
+            "cases",
+            "headEn",
+            "headCn",
+            "valuationUnitLabel",
+            "fundingLabel",
+            "galleryLabel"
+          ],
+          "controlKeys": [
+            "caseCount",
+            "imgCount",
+            "quote",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "caseCount",
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme09_page106",
+          "sourceTheme": "theme09",
+          "slot": "spotlight",
+          "label": "15 专题洞察",
+          "leafFields": 23,
+          "fieldKeys": [
+            "images",
+            "kicker",
+            "title",
+            "titleEN",
+            "paragraphs",
+            "stats",
+            "statCount",
+            "focus",
+            "focusIndex",
+            "showAside",
+            "imgCount",
+            "imgSide",
+            "head"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "imgSide",
+            "statCount",
+            "showAside",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "statCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme09_page075",
+          "sourceTheme": "theme09",
+          "slot": "filmstrip",
+          "label": "影像长卷",
+          "leafFields": 16,
+          "fieldKeys": [
+            "images",
+            "imgCount",
+            "maxH",
+            "showSprockets",
+            "showCaption",
+            "tagCount",
+            "focus",
+            "focusIndex",
+            "kicker",
+            "title",
+            "titleEN",
+            "reel",
+            "tags"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "tagCount",
+            "showSprockets",
+            "showCaption",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "tagCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page110",
+          "sourceTheme": "theme09",
+          "slot": "pf-gallery",
+          "label": "企业掘影",
+          "leafFields": 16,
+          "fieldKeys": [
+            "images",
+            "kicker",
+            "title",
+            "titleEN",
+            "caption",
+            "imgCount",
+            "maxH",
+            "tags",
+            "tagCount",
+            "showMeta",
+            "focus",
+            "focusIndex"
+          ],
+          "controlKeys": [
+            "imgCount",
+            "tagCount",
+            "showMeta",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imgCount",
+            "tagCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 6
+        },
+        {
+          "layout": "theme09_page100",
+          "sourceTheme": "theme09",
+          "slot": "testimonial",
+          "label": "人物证言",
+          "leafFields": 14,
+          "fieldKeys": [
+            "images",
+            "imgSide",
+            "quote",
+            "name",
+            "role",
+            "org",
+            "credCount",
+            "mediaFit",
+            "showMark",
+            "focus",
+            "badge",
+            "kicker",
+            "creds"
+          ],
+          "controlKeys": [
+            "imgSide",
+            "credCount",
+            "mediaFit",
+            "showMark",
+            "focus"
+          ],
+          "controlTypes": [
+            "select",
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "credCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 1
+        },
+        {
+          "layout": "theme07_page009",
+          "sourceTheme": "theme07",
+          "slot": "case-page",
+          "label": "案例 Cases",
+          "leafFields": 37,
+          "fieldKeys": [
+            "eyebrow",
+            "title",
+            "titleTail",
+            "sub",
+            "lead",
+            "closing",
+            "cases",
+            "cardCount",
+            "imageCount",
+            "images",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor",
+            "renderSlot"
+          ],
+          "controlKeys": [
+            "cardCount",
+            "imageCount",
+            "images",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "images",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "cardCount",
+            "imageCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 3
+        },
+        {
+          "layout": "theme07_page056",
+          "sourceTheme": "theme07",
+          "slot": "open-aicase-page",
+          "label": "案例 OpenAI",
+          "leafFields": 36,
+          "fieldKeys": [
+            "eyebrow",
+            "title",
+            "titleTail",
+            "logic",
+            "company",
+            "enName",
+            "badge",
+            "lead",
+            "closing",
+            "metrics",
+            "tags",
+            "imageCount",
+            "imageRatio",
+            "images",
+            "metricCount",
+            "focusEnabled",
+            "focusIndex",
+            "showTags",
+            "tagCount",
+            "showDecorations",
+            "accentColor",
+            "renderSlot"
+          ],
+          "controlKeys": [
+            "imageCount",
+            "imageRatio",
+            "metricCount",
+            "focusEnabled",
+            "focusIndex",
+            "showTags",
+            "tagCount",
+            "showDecorations",
+            "accentColor"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageCount",
+            "metricCount",
+            "tagCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        }
+      ]
+    },
+    {
+      "id": "material-comparison-grid",
+      "referencePages": [
+        "截屏2026-07-15 16.00.42.png"
+      ],
+      "family": "comparison",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 10,
+      "notes": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme07_page054",
+          "sourceTheme": "theme07",
+          "slot": "region-cluster-page",
+          "label": "集群 区域对比",
+          "leafFields": 133,
+          "fieldKeys": [
+            "share",
+            "regions",
+            "rankTotal",
+            "shareTitle",
+            "rankLabel",
+            "shareCaption",
+            "region",
+            "imageCount",
+            "imageRatio",
+            "images",
+            "showShare",
+            "chartType",
+            "tagCount",
+            "metricCount",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor",
+            "renderSlot"
+          ],
+          "controlKeys": [
+            "region",
+            "imageCount",
+            "imageRatio",
+            "showShare",
+            "chartType",
+            "tagCount",
+            "metricCount",
+            "focusEnabled",
+            "focusIndex",
+            "showDecorations",
+            "accentColor"
+          ],
+          "controlTypes": [
+            "select",
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageCount",
+            "tagCount",
+            "metricCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme05_page066",
+          "sourceTheme": "theme05",
+          "slot": "benchmark",
+          "label": "标杆案例 Benchmark",
+          "leafFields": 33,
+          "fieldKeys": [
+            "imageCount",
+            "imageSide",
+            "metricCount",
+            "cardTheme",
+            "showBadge",
+            "showLead",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel",
+            "images",
+            "copy"
+          ],
+          "controlKeys": [
+            "imageCount",
+            "imageSide",
+            "metricCount",
+            "cardTheme",
+            "showBadge",
+            "showLead",
+            "showGalleryCaption",
+            "accentColor",
+            "showConclusion",
+            "showSheetLabel"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme01_page025",
+          "sourceTheme": "theme01",
+          "slot": "versus",
+          "label": "三强横向对比",
+          "leafFields": 41,
+          "fieldKeys": [
+            "kicker",
+            "title",
+            "en",
+            "cn",
+            "companies",
+            "attributes",
+            "images",
+            "caption",
+            "itemCount",
+            "rowCount",
+            "highlight",
+            "highlightIndex",
+            "accentColor",
+            "imageSlotCount",
+            "imageFit",
+            "showCaption"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "rowCount",
+            "highlight",
+            "highlightIndex",
+            "accentColor",
+            "imageSlotCount",
+            "imageFit",
+            "images",
+            "showCaption"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select",
+            "images"
+          ],
+          "countBindingKeys": [
+            "itemCount",
+            "rowCount",
+            "imageSlotCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 1
+        },
+        {
+          "layout": "theme01_page043",
+          "sourceTheme": "theme01",
+          "slot": "split-diptych",
+          "label": "满版对比 · 双联画面",
+          "leafFields": 29,
+          "fieldKeys": [
+            "kicker",
+            "title",
+            "en",
+            "left",
+            "right",
+            "verdict",
+            "caption",
+            "images",
+            "imageSlotCount",
+            "imageFit",
+            "showTags",
+            "showPlate",
+            "showStats",
+            "highlightSide",
+            "accentColor",
+            "showCaption"
+          ],
+          "controlKeys": [
+            "imageSlotCount",
+            "imageFit",
+            "images",
+            "showTags",
+            "showPlate",
+            "showStats",
+            "highlightSide",
+            "accentColor",
+            "showCaption"
+          ],
+          "controlTypes": [
+            "range",
+            "select",
+            "images",
+            "toggle"
+          ],
+          "countBindingKeys": [
+            "imageSlotCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 2
+        },
+        {
+          "layout": "theme09_page040",
+          "sourceTheme": "theme09",
+          "slot": "matrix",
+          "label": "08 估值矩阵",
+          "leafFields": 86,
+          "fieldKeys": [
+            "rowCount",
+            "colCount",
+            "focus",
+            "focusIndex",
+            "highlightCol",
+            "heat",
+            "labelType",
+            "showAside",
+            "badge",
+            "columns",
+            "rows",
+            "headEn",
+            "headCn",
+            "nameColumnLabel",
+            "asideTag",
+            "heatLegendText",
+            "insightPre",
+            "insightBold",
+            "insightMid"
+          ],
+          "controlKeys": [
+            "rowCount",
+            "colCount",
+            "heat",
+            "highlightCol",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "rowCount",
+            "colCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page067",
+          "sourceTheme": "theme09",
+          "slot": "grade",
+          "label": "评级矩阵",
+          "leafFields": 83,
+          "fieldKeys": [
+            "rowCount",
+            "colCount",
+            "showComposite",
+            "focus",
+            "focusIndex",
+            "highlightCol",
+            "labelType",
+            "showAside",
+            "rowHeader",
+            "note",
+            "head",
+            "criteria",
+            "rows"
+          ],
+          "controlKeys": [
+            "rowCount",
+            "colCount",
+            "highlightCol",
+            "showComposite",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "rowCount",
+            "colCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page103",
+          "sourceTheme": "theme09",
+          "slot": "compare",
+          "label": "12 多维对比",
+          "leafFields": 69,
+          "fieldKeys": [
+            "rowCount",
+            "columnCount",
+            "focus",
+            "focusIndex",
+            "highlightCol",
+            "ratingMax",
+            "labelType",
+            "showAside",
+            "rowHeader",
+            "note",
+            "head",
+            "columns",
+            "rows",
+            "ratingLegendLabel",
+            "checkLegendSatisfy",
+            "checkLegendPartial",
+            "checkLegendUnsatisfy"
+          ],
+          "controlKeys": [
+            "rowCount",
+            "columnCount",
+            "highlightCol",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "rowCount",
+            "columnCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        },
+        {
+          "layout": "theme09_page045",
+          "sourceTheme": "theme09",
+          "slot": "quadrant",
+          "label": "09 定位矩阵",
+          "leafFields": 66,
+          "fieldKeys": [
+            "itemCount",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showZones",
+            "axis",
+            "zones",
+            "showAside",
+            "badge",
+            "points",
+            "headEn",
+            "headCn",
+            "legendLabel",
+            "legendCaptionPre",
+            "legendCaptionBold",
+            "legendCaptionPost",
+            "focusLabel",
+            "asideTag",
+            "insightPre",
+            "insightBold",
+            "insightPost"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "showZones",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "itemCount"
+          ],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        }
+      ]
+    },
+    {
+      "id": "environment-system-statement",
+      "referencePages": [
+        "截屏2026-07-15 16.00.46.png"
+      ],
+      "family": "statement",
+      "strategy": "new",
+      "needsMedia": true,
+      "weight": 8,
+      "notes": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "reuseJustification": [],
+      "candidates": [
+        {
+          "layout": "theme09_page052",
+          "sourceTheme": "theme09",
+          "slot": "quote",
+          "label": "09 观点引述",
+          "leafFields": 27,
+          "fieldKeys": [
+            "images",
+            "itemCount",
+            "focus",
+            "focusIndex",
+            "labelType",
+            "showSource",
+            "imgCount",
+            "showAside",
+            "badge",
+            "quotes",
+            "headEn",
+            "headCn",
+            "distributionLabel"
+          ],
+          "controlKeys": [
+            "itemCount",
+            "imgCount",
+            "showSource",
+            "showAside",
+            "labelType",
+            "focus",
+            "focusIndex"
+          ],
+          "controlTypes": [
+            "range",
+            "toggle",
+            "select"
+          ],
+          "countBindingKeys": [
+            "itemCount",
+            "imgCount"
+          ],
+          "writableMediaSlots": 1,
+          "maxMediaCapacity": 4
+        },
+        {
+          "layout": "theme09_page053",
+          "sourceTheme": "theme09",
+          "slot": "manifesto",
+          "label": "金句主张",
+          "leafFields": 16,
+          "fieldKeys": [
+            "name",
+            "role",
+            "tag",
+            "align",
+            "showMark",
+            "showRule",
+            "focus",
+            "scale",
+            "badge",
+            "segments"
+          ],
+          "controlKeys": [
+            "align",
+            "scale",
+            "showMark",
+            "showRule",
+            "focus"
+          ],
+          "controlTypes": [
+            "select",
+            "range",
+            "toggle"
+          ],
+          "countBindingKeys": [],
+          "writableMediaSlots": 0,
+          "maxMediaCapacity": 0
+        }
+      ]
+    }
+  ],
+  "moduleSources": {
+    "observed": 8,
+    "inferred": 8
+  },
+  "observedModuleProposals": [
+    {
+      "id": "theme14_signature_split_architecture_cover",
+      "archetypeId": "split-architecture-cover",
+      "componentName": "Signature01SplitArchitectureCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.29.png"
+      ],
+      "visualRequirements": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "styleSignals": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_program_metric_overview",
+      "archetypeId": "program-metric-overview",
+      "componentName": "Signature02ProgramMetricOverview",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.57.png",
+        "截屏2026-07-15 16.00.20.png"
+      ],
+      "visualRequirements": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "styleSignals": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_six_node_program",
+      "archetypeId": "six-node-program",
+      "componentName": "Signature03SixNodeProgram",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.15.png"
+      ],
+      "visualRequirements": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "styleSignals": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_stepped_year_blocks",
+      "archetypeId": "stepped-year-blocks",
+      "componentName": "Signature04SteppedYearBlocks",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.26.png"
+      ],
+      "visualRequirements": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "styleSignals": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_detail_signal_ranking",
+      "archetypeId": "detail-signal-ranking",
+      "componentName": "Signature05DetailSignalRanking",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.30.png"
+      ],
+      "visualRequirements": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "styleSignals": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_architectural_case_grid",
+      "archetypeId": "architectural-case-grid",
+      "componentName": "Signature06ArchitecturalCaseGrid",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.34.png",
+        "截屏2026-07-15 16.00.39.png"
+      ],
+      "visualRequirements": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "styleSignals": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_material_comparison_grid",
+      "archetypeId": "material-comparison-grid",
+      "componentName": "Signature07MaterialComparisonGrid",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.42.png"
+      ],
+      "visualRequirements": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "styleSignals": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_environment_system_statement",
+      "archetypeId": "environment-system-statement",
+      "componentName": "Signature08EnvironmentSystemStatement",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.46.png"
+      ],
+      "visualRequirements": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "styleSignals": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    }
+  ],
+  "derivedModuleProposals": [
+    {
+      "id": "theme14_derived_action_table",
+      "archetypeId": "derived-action-table",
+      "componentName": "Derived01ActionTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_six_node_program",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "把模板的分隔线和层级扩展为行动清单；以 theme14_signature_six_node_program、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的分隔线和层级扩展为行动清单",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "columns",
+          "rows"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived02ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "surface-02",
+        "motif-02",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_environment_system_statement"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme14_signature_split_architecture_cover、theme14_signature_environment_system_statement 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived03CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-01",
+        "surface-01",
+        "motif-03",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived04EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-02",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_stepped_year_blocks",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "stepped-mass",
+        "monochrome-media"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme14_signature_stepped_year_blocks、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived05ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-03",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "monochrome-media",
+        "olive-node"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-03",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived07AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_media_case_study",
+      "archetypeId": "derived-media-case-study",
+      "componentName": "Derived08MediaCaseStudy",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "media-02",
+        "motif-02",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_architectural_case_grid",
+        "theme14_signature_split_architecture_cover"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的图片裁切与图注语法扩展为案例页；以 theme14_signature_architectural_case_grid、theme14_signature_split_architecture_cover 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的图片裁切与图注语法扩展为案例页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "media",
+          "caption",
+          "facts"
+        ]
+      },
+      "implementationStatus": "proposed"
+    }
+  ],
+  "ownedModuleProposals": [
+    {
+      "id": "theme14_signature_split_architecture_cover",
+      "archetypeId": "split-architecture-cover",
+      "componentName": "Signature01SplitArchitectureCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.29.png"
+      ],
+      "visualRequirements": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "styleSignals": [
+        "左侧标题、次级媒体和指标组成多层信息区",
+        "右侧半页黑白建筑竖图建立主视觉体量",
+        "顶端细线与小字形成项目页眉"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_program_metric_overview",
+      "archetypeId": "program-metric-overview",
+      "componentName": "Signature02ProgramMetricOverview",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 15.59.57.png",
+        "截屏2026-07-15 16.00.20.png"
+      ],
+      "visualRequirements": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "styleSignals": [
+        "上方四列说明与下方超大双行标题形成尺度对比",
+        "苔藓绿指标卡和黑白方图组合在右下区域",
+        "圆节点、直角箭头和百分比保持同一视觉语言"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_six_node_program",
+      "archetypeId": "six-node-program",
+      "componentName": "Signature03SixNodeProgram",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.15.png"
+      ],
+      "visualRequirements": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "styleSignals": [
+        "六个圆节点按三列两行均匀排列",
+        "每个节点包含粗体标题与两行短说明",
+        "底部横向黑白图片跨越主要网格宽度"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_stepped_year_blocks",
+      "archetypeId": "stepped-year-blocks",
+      "componentName": "Signature04SteppedYearBlocks",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.26.png"
+      ],
+      "visualRequirements": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "styleSignals": [
+        "三个年度块从左到右逐级升高模拟体量",
+        "灰白与苔藓绿块交替并在底部对齐",
+        "左侧保留标题、短横线、正文和圆节点说明"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_detail_signal_ranking",
+      "archetypeId": "detail-signal-ranking",
+      "componentName": "Signature05DetailSignalRanking",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.30.png"
+      ],
+      "visualRequirements": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "styleSignals": [
+        "右侧四条百分比信号按纵向列表整齐排列",
+        "左侧超大双行标题、直角箭头和方形黑白图形成对重",
+        "浅色画布使用灰色数字与近黑标题区分层级"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_architectural_case_grid",
+      "archetypeId": "architectural-case-grid",
+      "componentName": "Signature06ArchitecturalCaseGrid",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.34.png",
+        "截屏2026-07-15 16.00.39.png"
+      ],
+      "visualRequirements": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "styleSignals": [
+        "四张图文卡按二乘二或横幅加说明网格组织",
+        "黑白媒体与白色、苔藓绿表面交替",
+        "圆节点和超大标题负责连接案例与指标"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_material_comparison_grid",
+      "archetypeId": "material-comparison-grid",
+      "componentName": "Signature07MaterialComparisonGrid",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.42.png"
+      ],
+      "visualRequirements": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "styleSignals": [
+        "五个严格矩形单元组成不等宽建筑网格",
+        "深浅橄榄、灰白和一张黑白建筑图形成材料样板感",
+        "标题位于右上独立单元并以短横线收束"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_signature_environment_system_statement",
+      "archetypeId": "environment-system-statement",
+      "componentName": "Signature08EnvironmentSystemStatement",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-15 16.00.46.png"
+      ],
+      "visualRequirements": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "styleSignals": [
+        "左上大标题与短横线形成明确观点区",
+        "左下两张状态卡、中间说明和右侧竖图构成三列关系",
+        "每张状态卡右上保留带白孔圆节点"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_action_table",
+      "archetypeId": "derived-action-table",
+      "componentName": "Derived01ActionTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_six_node_program",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "把模板的分隔线和层级扩展为行动清单；以 theme14_signature_six_node_program、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的分隔线和层级扩展为行动清单",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "columns",
+          "rows"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived02ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "surface-02",
+        "motif-02",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_environment_system_statement"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme14_signature_split_architecture_cover、theme14_signature_environment_system_statement 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived03CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-01",
+        "surface-01",
+        "motif-03",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived04EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-02",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_stepped_year_blocks",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "stepped-mass",
+        "monochrome-media"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme14_signature_stepped_year_blocks、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived05ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-03",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_program_metric_overview",
+        "theme14_signature_material_comparison_grid"
+      ],
+      "stylePrimitiveRefs": [
+        "monochrome-media",
+        "olive-node"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme14_signature_program_metric_overview、theme14_signature_material_comparison_grid 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "深页以墨绿橄榄 #2D3423 作为全画布底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-03",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "olive-node",
+        "short-rule"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "深浅页面交替出现，均使用严格的矩形分栏与大面积负空间",
+        "深页用米白与苔藓绿卡片形成材料层级，浅页用灰阶块建立体量关系",
+        "阶梯高低块、比例数字和严谨四宫格共同模拟建筑体量与空间层级",
+        "浅页以冷灰白 #ECECEC 作为画布并使用近黑文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived07AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_split_architecture_cover",
+        "theme14_signature_six_node_program"
+      ],
+      "stylePrimitiveRefs": [
+        "short-rule",
+        "right-angle-arrow"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme14_signature_split_architecture_cover、theme14_signature_six_node_program 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线、紧字距和短行宽，常以两行形成建筑体块感",
+        "媒体、数据块和文字沿清晰建筑网格对齐，避免自由漂浮和装饰性重叠",
+        "卡片采用小到中等圆角的实色矩形，不使用阴影和半透明玻璃效果",
+        "重复使用带白色内孔的橄榄圆节点作为项目、指标和状态符号",
+        "中层表面使用苔藓绿 #667553 区分指标与材料模块"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "proposed"
+    },
+    {
+      "id": "theme14_derived_media_case_study",
+      "archetypeId": "derived-media-case-study",
+      "componentName": "Derived08MediaCaseStudy",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "media-02",
+        "motif-02",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_architectural_case_grid",
+        "theme14_signature_split_architecture_cover"
+      ],
+      "stylePrimitiveRefs": [
+        "right-angle-arrow",
+        "stepped-mass"
+      ],
+      "derivationReason": "把模板的图片裁切与图注语法扩展为案例页；以 theme14_signature_architectural_case_grid、theme14_signature_split_architecture_cover 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的图片裁切与图注语法扩展为案例页",
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "styleSignals": [
+        "正文与注释使用克制的中性无衬线，数字百分比采用粗体并与说明分栏",
+        "标题下方短横线与圆形节点作为固定定位语法，常出现在左列或卡片角部",
+        "图片常占据半页、横向通栏或固定网格单元，不加彩色蒙版和复杂滤镜",
+        "重复使用短水平规则线和直角方向箭头强调章节与动作",
+        "高对比文字与结构线使用米白 #F3F3ED 或近黑 #10110E"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "media",
+          "caption",
+          "facts"
+        ]
+      },
+      "implementationStatus": "proposed"
+    }
+  ],
+  "gates": [
+    "Every signature visual rule is implemented in theme CSS or a theme-owned primitive.",
+    "Every modify/new reference archetype has one implemented observed module with evidenceRefs.",
+    "Every inferred module cites at least four Style DNA rules, two observed anchor modules, and one signature primitive without claiming direct page evidence.",
+    "Theme-owned modules are composed before original-theme fallback modules in the same family.",
+    "Rendered audit pages pass the palette-conformance validator for the declared paletteMode.",
+    "Reused modules retain their field, control, chart, media, and runtime contracts.",
+    "Modified modules document the source page and contract changes.",
+    "At least one rendered audit page exists for every external reference archetype.",
+    "At least eight observed modules and eight inferred modules cover the recurring typography, composition, surface, media, and motif grammar.",
+    "Every composed page passes full-library text overflow, clipping, oversized-text, and overlap validation.",
+    "No reference image is shipped as a flattened slide background unless explicitly licensed and requested."
+  ]
+}

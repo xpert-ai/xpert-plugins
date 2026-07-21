@@ -1,0 +1,1147 @@
+{
+  "schemaVersion": 3,
+  "qualityVersion": 3,
+  "generationMode": "fidelity",
+  "policyVersion": 2,
+  "themeKey": "theme13",
+  "externalPlan": "../../../../theme-evidence/theme13-plan.json",
+  "styleGrammar": {
+    "schemaVersion": 1,
+    "rules": [
+      {
+        "id": "color-01",
+        "category": "color",
+        "description": "以暖灰白 #F2F1EF 作为大面积画布，保持编辑式留白",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "color-02",
+        "category": "color",
+        "description": "以近黑 #111111 承担超大标题、表格线和关键正文",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "color-03",
+        "category": "color",
+        "description": "以荧光青柠 #B7F23A 作为增长与行动强调色",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "color-04",
+        "category": "color",
+        "description": "以明亮紫 #856BEA 和橙色 #F36C2B 形成三色卡片系统",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "typography-01",
+        "category": "typography",
+        "description": "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "typography-02",
+        "category": "typography",
+        "description": "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "composition-01",
+        "category": "composition",
+        "description": "页面以不对称编辑网格组织，大标题、大片留白和一组高饱和卡片形成张力",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "composition-02",
+        "category": "composition",
+        "description": "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "composition-03",
+        "category": "composition",
+        "description": "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "surface-01",
+        "category": "surface",
+        "description": "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "surface-02",
+        "category": "surface",
+        "description": "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "media-01",
+        "category": "media",
+        "description": "图片以宽幅、竖幅或三联拼贴裁切，保持自然色并服务于大块版式",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "media-02",
+        "category": "media",
+        "description": "媒体上可叠加轻微暗色渐变承载白色说明和动作胶囊，但不得整页平铺截图",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "motif-01",
+        "category": "motif",
+        "description": "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "motif-02",
+        "category": "motif",
+        "description": "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "motif-03",
+        "category": "motif",
+        "description": "胶囊标签既用于章节分类也用于表格状态，颜色取自青柠、紫、橙三色",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "signature-01",
+        "category": "signature",
+        "description": "每页至少出现一种循环符号、亮色卡片或胶囊标签，但不在同一区域堆叠全部装饰",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "signature-02",
+        "category": "signature",
+        "description": "亮色只占局部信息表面，画布与大部分文字保持暖灰白和近黑以维持可读性",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "signature-03",
+        "category": "signature",
+        "description": "超大标题必须预留稳定边界并限制行数，禁止通过根节点缩放解决溢出",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "forbidden-01",
+        "category": "forbidden",
+        "description": "禁止玻璃拟态、发光描边、深色科技背景和通用蓝色渐变",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "forbidden-02",
+        "category": "forbidden",
+        "description": "禁止把参考截图作为整页背景，也禁止生成遮挡正文的超大装饰文字",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      }
+    ],
+    "forbiddenRuleIds": [
+      "forbidden-01",
+      "forbidden-02"
+    ],
+    "primitives": [
+      {
+        "id": "orbit-arrow",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "rounded-color-card",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "pill-label",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "corner-block",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      },
+      {
+        "id": "squiggle-rail",
+        "evidenceRefs": [
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.05.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.14.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.18.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.22.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.27.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.31.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.34.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.39.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.42.png",
+          "/Users/lilinhao/ppt模版/商业计划书/截屏2026-07-17 13.36.48.png"
+        ]
+      }
+    ]
+  },
+  "moduleSources": {
+    "observed": 8,
+    "inferred": 8
+  },
+  "modules": [
+    {
+      "id": "theme13_signature_rounded_media_cover",
+      "archetypeId": "rounded-media-cover",
+      "componentName": "Signature01RoundedMediaCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.05.png"
+      ],
+      "visualRequirements": [
+        "上方宽幅圆角媒体与左下超大标题形成垂直张力",
+        "品牌双圆与圆形箭头分别压住两侧底边",
+        "标题控制在两行并保留大面积空白"
+      ],
+      "styleSignals": [
+        "上方宽幅圆角媒体与左下超大标题形成垂直张力",
+        "品牌双圆与圆形箭头分别压住两侧底边",
+        "标题控制在两行并保留大面积空白"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_pill_agenda_table",
+      "archetypeId": "pill-agenda-table",
+      "componentName": "Signature02PillAgendaTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.14.png",
+        "截屏2026-07-17 13.36.48.png"
+      ],
+      "visualRequirements": [
+        "通栏细线划分五个可扫描行",
+        "彩色胶囊承担分类或状态而非背景装饰",
+        "灰色波浪线在标题区弱化出现且不覆盖文本"
+      ],
+      "styleSignals": [
+        "通栏细线划分五个可扫描行",
+        "彩色胶囊承担分类或状态而非背景装饰",
+        "灰色波浪线在标题区弱化出现且不覆盖文本"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_editorial_metric_image",
+      "archetypeId": "editorial-metric-image",
+      "componentName": "Signature03EditorialMetricImage",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.18.png",
+        "截屏2026-07-17 13.36.39.png"
+      ],
+      "visualRequirements": [
+        "右侧竖向圆角图片作为稳定视觉锚点",
+        "青柠与橙色指标卡以局部叠压建立层级",
+        "左侧标题正文保持窄列和高留白"
+      ],
+      "styleSignals": [
+        "右侧竖向圆角图片作为稳定视觉锚点",
+        "青柠与橙色指标卡以局部叠压建立层级",
+        "左侧标题正文保持窄列和高留白"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_three_color_strategy",
+      "archetypeId": "three-color-strategy",
+      "componentName": "Signature04ThreeColorStrategy",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.22.png"
+      ],
+      "visualRequirements": [
+        "橙紫青柠三张等宽大卡横向并列",
+        "白色圆形动作切口贴近卡片右下角",
+        "卡内文字层级一致且不使用阴影"
+      ],
+      "styleSignals": [
+        "橙紫青柠三张等宽大卡横向并列",
+        "白色圆形动作切口贴近卡片右下角",
+        "卡内文字层级一致且不使用阴影"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_mosaic_action_path",
+      "archetypeId": "mosaic-action-path",
+      "componentName": "Signature05MosaicActionPath",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.27.png"
+      ],
+      "visualRequirements": [
+        "左侧用胶囊标题和分隔行组织阶段动作",
+        "右侧由三块不等比圆角媒体拼贴形成路径感",
+        "橙色角块作为页级定位标记"
+      ],
+      "styleSignals": [
+        "左侧用胶囊标题和分隔行组织阶段动作",
+        "右侧由三块不等比圆角媒体拼贴形成路径感",
+        "橙色角块作为页级定位标记"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_dual_track_narrative",
+      "archetypeId": "dual-track-narrative",
+      "componentName": "Signature06DualTrackNarrative",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.31.png"
+      ],
+      "visualRequirements": [
+        "大标题与正文占据左半区",
+        "右侧两条叙事轨道以橙色胶囊开头",
+        "极大留白和角块维持编辑式节奏"
+      ],
+      "styleSignals": [
+        "大标题与正文占据左半区",
+        "右侧两条叙事轨道以橙色胶囊开头",
+        "极大留白和角块维持编辑式节奏"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_triptych_action_media",
+      "archetypeId": "triptych-action-media",
+      "componentName": "Signature07TriptychActionMedia",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.34.png",
+        "截屏2026-07-17 13.36.42.png"
+      ],
+      "visualRequirements": [
+        "三张高纵横比圆角媒体并列或组成二加一结构",
+        "媒体底部渐变承载白色标题与简述",
+        "动作胶囊含圆形箭头并贴近卡片底边"
+      ],
+      "styleSignals": [
+        "三张高纵横比圆角媒体并列或组成二加一结构",
+        "媒体底部渐变承载白色标题与简述",
+        "动作胶囊含圆形箭头并贴近卡片底边"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_quote_metric_showcase",
+      "archetypeId": "quote-metric-showcase",
+      "componentName": "Signature08QuoteMetricShowcase",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "截屏2026-07-17 13.36.39.png",
+        "截屏2026-07-17 13.36.42.png"
+      ],
+      "visualRequirements": [
+        "一句观点与超大数字分别落在亮色卡片中",
+        "卡片与竖向媒体组成强弱分明的三列结构",
+        "黑色正文与彩色表面保持高对比"
+      ],
+      "styleSignals": [
+        "一句观点与超大数字分别落在亮色卡片中",
+        "卡片与竖向媒体组成强弱分明的三列结构",
+        "黑色正文与彩色表面保持高对比"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived01ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_rounded_media_cover",
+        "theme13_signature_quote_metric_showcase"
+      ],
+      "stylePrimitiveRefs": [
+        "orbit-arrow",
+        "rounded-color-card"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme13_signature_rounded_media_cover、theme13_signature_quote_metric_showcase 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以暖灰白 #F2F1EF 作为大面积画布，保持编辑式留白"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以暖灰白 #F2F1EF 作为大面积画布，保持编辑式留白"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived02CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "surface-02",
+        "motif-02",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_editorial_metric_image",
+        "theme13_signature_three_color_strategy"
+      ],
+      "stylePrimitiveRefs": [
+        "rounded-color-card",
+        "pill-label"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme13_signature_editorial_metric_image、theme13_signature_three_color_strategy 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以近黑 #111111 承担超大标题、表格线和关键正文"
+      ],
+      "styleSignals": [
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以近黑 #111111 承担超大标题、表格线和关键正文"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived03EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-01",
+        "surface-01",
+        "motif-03",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_mosaic_action_path",
+        "theme13_signature_three_color_strategy"
+      ],
+      "stylePrimitiveRefs": [
+        "pill-label",
+        "corner-block"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme13_signature_mosaic_action_path、theme13_signature_three_color_strategy 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "页面以不对称编辑网格组织，大标题、大片留白和一组高饱和卡片形成张力",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "胶囊标签既用于章节分类也用于表格状态，颜色取自青柠、紫、橙三色",
+        "以荧光青柠 #B7F23A 作为增长与行动强调色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "页面以不对称编辑网格组织，大标题、大片留白和一组高饱和卡片形成张力",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "胶囊标签既用于章节分类也用于表格状态，颜色取自青柠、紫、橙三色",
+        "以荧光青柠 #B7F23A 作为增长与行动强调色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived04ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-02",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_editorial_metric_image",
+        "theme13_signature_three_color_strategy"
+      ],
+      "stylePrimitiveRefs": [
+        "corner-block",
+        "squiggle-rail"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme13_signature_editorial_metric_image、theme13_signature_three_color_strategy 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以明亮紫 #856BEA 和橙色 #F36C2B 形成三色卡片系统"
+      ],
+      "styleSignals": [
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以明亮紫 #856BEA 和橙色 #F36C2B 形成三色卡片系统"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_ranked_signals",
+      "archetypeId": "derived-ranked-signals",
+      "componentName": "Derived05RankedSignals",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-03",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_editorial_metric_image",
+        "theme13_signature_pill_agenda_table"
+      ],
+      "stylePrimitiveRefs": [
+        "squiggle-rail",
+        "orbit-arrow"
+      ],
+      "derivationReason": "把模板的数字层级和分隔规则扩展为排行页；以 theme13_signature_editorial_metric_image、theme13_signature_pill_agenda_table 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的数字层级和分隔规则扩展为排行页",
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以暖灰白 #F2F1EF 作为大面积画布，保持编辑式留白"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以暖灰白 #F2F1EF 作为大面积画布，保持编辑式留白"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "items",
+          "highlight"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-03",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_rounded_media_cover",
+        "theme13_signature_dual_track_narrative"
+      ],
+      "stylePrimitiveRefs": [
+        "orbit-arrow",
+        "rounded-color-card"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme13_signature_rounded_media_cover、theme13_signature_dual_track_narrative 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "页面以不对称编辑网格组织，大标题、大片留白和一组高饱和卡片形成张力",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "胶囊标签既用于章节分类也用于表格状态，颜色取自青柠、紫、橙三色",
+        "以近黑 #111111 承担超大标题、表格线和关键正文"
+      ],
+      "styleSignals": [
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "页面以不对称编辑网格组织，大标题、大片留白和一组高饱和卡片形成张力",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "胶囊标签既用于章节分类也用于表格状态，颜色取自青柠、紫、橙三色",
+        "以近黑 #111111 承担超大标题、表格线和关键正文"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived07AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-01",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_rounded_media_cover",
+        "theme13_signature_dual_track_narrative"
+      ],
+      "stylePrimitiveRefs": [
+        "rounded-color-card",
+        "pill-label"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme13_signature_rounded_media_cover、theme13_signature_dual_track_narrative 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以荧光青柠 #B7F23A 作为增长与行动强调色"
+      ],
+      "styleSignals": [
+        "标题使用极粗无衬线并采用明显大于正文的编辑式尺度，允许两行紧凑断行",
+        "内容常沿左侧标题区与右侧媒体或卡片区分栏，元素允许有控制的跨区叠压",
+        "核心信息使用 28 到 40 像素大圆角实体卡，几乎不使用阴影",
+        "重复使用圆形箭头、轨道圆环和相邻双圆构成循环与行动符号",
+        "以荧光青柠 #B7F23A 作为增长与行动强调色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_metric_dashboard",
+      "archetypeId": "derived-metric-dashboard",
+      "componentName": "Derived08MetricDashboard",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-03",
+        "surface-02",
+        "motif-02",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_editorial_metric_image",
+        "theme13_signature_dual_track_narrative"
+      ],
+      "stylePrimitiveRefs": [
+        "pill-label",
+        "corner-block"
+      ],
+      "derivationReason": "把模板的数字、表面和图表语法扩展为指标总览；以 theme13_signature_editorial_metric_image、theme13_signature_dual_track_narrative 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的数字、表面和图表语法扩展为指标总览",
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以明亮紫 #856BEA 和橙色 #F36C2B 形成三色卡片系统"
+      ],
+      "styleSignals": [
+        "正文保持中小号中性无衬线，数字与百分比使用重字重形成信息锚点",
+        "目录和表格使用通栏细线建立秩序，同时用胶囊标签打破严肃感",
+        "媒体容器采用大圆角裁切，卡片可用白色圆形切口或悬浮圆钮形成动作感",
+        "使用灰色手绘波浪线、彩色角块和小型品牌圆标作为跨页识别元素",
+        "以明亮紫 #856BEA 和橙色 #F36C2B 形成三色卡片系统"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "metrics",
+          "trend"
+        ]
+      },
+      "implementationStatus": "implemented"
+    }
+  ]
+}

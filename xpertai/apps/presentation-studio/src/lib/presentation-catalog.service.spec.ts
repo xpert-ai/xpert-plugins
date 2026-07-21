@@ -5,7 +5,7 @@ describe('Presentation catalog', () => {
   const service = new PresentationCatalogService()
 
   it('loads the complete DashiAI catalog', async () => {
-    await expect(service.stats()).resolves.toEqual({ themes: 12, layouts: 1020 })
+    await expect(service.stats()).resolves.toEqual({ themes: 14, layouts: 1190 })
   })
 
   it('queries and inspects layout contracts through upstream workflow code', async () => {
@@ -86,5 +86,24 @@ describe('Presentation catalog', () => {
     expect(runtime.script).not.toContain('"assets/3d/')
     expect(runtime.script).toContain('data:image/png;base64,')
     expect(createHash('sha256').update(runtime.script).digest('hex')).toBe(runtime.runtimeChecksum)
+  })
+
+  it('inlines packaged custom-theme assets for the isolated Workbench runtime', async () => {
+    const custom = new PresentationCatalogService({
+      loadReadyPackage: jest.fn().mockResolvedValue({
+        theme: { themeKey: 'theme15', packageSha256: 'package-hash' },
+        parsed: {
+          browserRuntime: Buffer.from('globalThis.__customImage = "./source/assets/cover.webp";'),
+          manifest: { layouts: { theme15_page001: { key: 'theme15_page001', themePack: 'theme15' } } },
+          assets: [{ path: 'source/assets/cover.webp', buffer: Buffer.from('webp-image') }]
+        }
+      })
+    } as never)
+
+    const runtime = await custom.loadNativeThemeRuntime('theme15', { tenantId: 'tenant-1', xpertId: 'agent-1' })
+
+    expect(runtime.script).toContain('data:image/webp;base64,')
+    expect(runtime.script).not.toContain('source/assets/cover.webp')
+    expect(runtime.layouts).toHaveProperty('theme15_page001')
   })
 })

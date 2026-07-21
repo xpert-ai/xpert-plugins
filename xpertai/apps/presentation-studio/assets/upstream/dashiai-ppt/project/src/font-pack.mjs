@@ -72,7 +72,7 @@ export function stagePresentationFontPack(root, outDir, usedThemeKeys = []) {
 }
 
 function selectFonts(root, usedThemeKeys) {
-  const keys = usedThemeKeys.length ? usedThemeKeys : Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`);
+  const keys = usedThemeKeys.length ? usedThemeKeys : Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`);
   const themeSource = keys.map(key => {
     const file = path.join(root, 'dist/theme-runtime', `imported-theme-runtime.${key}.js`);
     return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
