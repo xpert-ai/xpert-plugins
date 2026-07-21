@@ -37,9 +37,10 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build:sandbox-action": "node scripts/build-sandbox-action.mjs && node scripts/verify-sandbox-action.mjs && node scripts/test-sandbox-action.mjs",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action",
+    "build": "pnpm run build:fonts && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs && pnpm run build:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
@@ -53,7 +54,6 @@
     }
   },
   "dependencies": {
-    "@xpert-ai/design-fonts": "workspace:*",
     "@tldraw/tlschema": "5.1.1",
     "fractional-indexing": "^3.2.0",
     "socket.io-client": "^4.8.1",
@@ -82,6 +82,7 @@
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@xpert-ai/contracts": "3.15.12",
+    "@xpert-ai/design-fonts": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.15.12",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "esbuild": "^0.27.0",

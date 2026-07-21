@@ -38,8 +38,9 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:fonts && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
@@ -52,7 +53,6 @@
     }
   },
   "dependencies": {
-    "@xpert-ai/design-fonts": "workspace:*",
     "@excalidraw/excalidraw": "0.18.1",
     "@excalidraw/mermaid-to-excalidraw": "2.2.2",
     "@fontsource-variable/noto-sans-sc": "5.2.10",
@@ -81,6 +81,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/node": "^20.19.9",
     "@xpert-ai/contracts": "3.15.11",
+    "@xpert-ai/design-fonts": "workspace:*",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.15.11",
     "esbuild": "^0.27.0",

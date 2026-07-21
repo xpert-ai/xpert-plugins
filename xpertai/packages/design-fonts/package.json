@@ -1,6 +1,7 @@
 {
   "name": "@xpert-ai/design-fonts",
   "version": "0.1.1",
+  "private": true,
   "description": "Shared, version-pinned online typography catalog for Xpert design plugins.",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,8 +26,5 @@
   },
   "dependencies": {
     "tslib": "^2.3.0"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

@@ -343,9 +343,6 @@ importers:
 
   apps/canvas:
     dependencies:
-      '@xpert-ai/design-fonts':
-        specifier: workspace:*
-        version: link:../../packages/design-fonts
       '@tldraw/tlschema':
         specifier: 5.1.1
         version: 5.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -389,6 +386,9 @@ importers:
       '@xpert-ai/contracts':
         specifier: 3.15.12
         version: 3.15.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@xpert-ai/plugin-sdk':
         specifier: 3.15.12
         version: 3.15.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@xpert-ai/ocap-core@3.9.1(@xpert-ai/store@3.9.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0))(ajv@8.18.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(ws@8.21.0)(yaml@2.8.2)(zod@3.25.67)
@@ -656,9 +656,6 @@ importers:
 
   apps/excalidraw:
     dependencies:
-      '@xpert-ai/design-fonts':
-        specifier: workspace:*
-        version: link:../../packages/design-fonts
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@18.3.31)(immer@10.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -702,6 +699,9 @@ importers:
       '@xpert-ai/contracts':
         specifier: 3.15.11
         version: 3.15.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@xpert-ai/plugin-sdk':
         specifier: 3.15.11
         version: 3.15.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@xpert-ai/ocap-core@3.9.1(@xpert-ai/store@3.9.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0))(ajv@8.18.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(ws@8.21.0)(yaml@2.8.2)(zod@3.25.67)
@@ -1005,9 +1005,6 @@ importers:
 
   apps/pencil:
     dependencies:
-      '@xpert-ai/design-fonts':
-        specifier: workspace:*
-        version: link:../../packages/design-fonts
       '@fontsource-variable/noto-sans-sc':
         specifier: 5.2.10
         version: 5.2.10
@@ -1063,6 +1060,9 @@ importers:
       '@xpert-ai/contracts':
         specifier: 3.15.11
         version: 3.15.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@xpert-ai/plugin-sdk':
         specifier: 3.15.11
         version: 3.15.11(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@xpert-ai/ocap-core@3.9.1(@xpert-ai/store@3.9.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0))(ajv@8.18.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(ws@8.21.0)(yaml@2.8.2)(zod@3.25.67)
@@ -1093,9 +1093,6 @@ importers:
 
   apps/presentation-studio:
     dependencies:
-      '@xpert-ai/design-fonts':
-        specifier: workspace:*
-        version: link:../../packages/design-fonts
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1208,6 +1205,9 @@ importers:
       '@xpert-ai/contracts':
         specifier: 3.15.12
         version: 3.15.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@xpert-ai/plugin-sdk':
         specifier: 3.15.12
         version: 3.15.12(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@xpert-ai/ocap-core@3.9.1(@xpert-ai/store@3.9.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0))(ajv@8.18.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(ws@8.21.0)(yaml@2.8.2)(zod@3.25.67)
@@ -1241,9 +1241,6 @@ importers:
 
   apps/sites:
     dependencies:
-      '@xpert-ai/design-fonts':
-        specifier: workspace:*
-        version: link:../../packages/design-fonts
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -1266,6 +1263,9 @@ importers:
       '@xpert-ai/contracts':
         specifier: 3.15.10
         version: 3.15.10(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@xpert-ai/plugin-sdk':
         specifier: 3.15.10
         version: 3.15.10(@a2ui/lit@0.8.1(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67)))(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.14(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@xpert-ai/ocap-core@3.9.1(@xpert-ai/store@3.9.1(immer@10.2.0)(rxjs@7.8.2))(date-fns@3.6.0)(i18next@25.6.0(typescript@5.9.3))(idb-keyval@6.2.2)(money-clip@3.0.5)(rxjs@7.8.2)(uuid@11.1.0))(ajv@8.18.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(ws@8.21.0)(yaml@2.8.2)(zod@3.25.67)

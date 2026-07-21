@@ -38,8 +38,9 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-vue build",
-    "build": "pnpm run build:ui && node scripts/clean-dist.mjs && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:fonts && pnpm run build:ui && node scripts/clean-dist.mjs && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
@@ -52,7 +53,6 @@
     }
   },
   "dependencies": {
-    "@xpert-ai/design-fonts": "workspace:*",
     "@open-pencil/core": "0.13.2",
     "@open-pencil/vue": "0.13.2",
     "@fontsource-variable/noto-sans-sc": "5.2.10",
@@ -83,6 +83,7 @@
     "@types/prismjs": "^1.26.6",
     "@vitejs/plugin-vue": "^6.0.7",
     "@xpert-ai/contracts": "3.15.11",
+    "@xpert-ai/design-fonts": "workspace:*",
     "@xpert-ai/plugin-sdk": "3.15.11",
     "@xpert-ai/plugin-shadcn-vue": "workspace:*",
     "jest": "^30.0.2",
