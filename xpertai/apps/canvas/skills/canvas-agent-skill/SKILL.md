@@ -18,6 +18,8 @@ Do not treat Workbench view actions as Agent middleware tools. Use only the midd
 
 ## Core Rules
 
+Before creating a new Canvas, call `canvas_list_typography_presets` and map the chosen preset to the managed tldraw `draw`, `sans`, `serif`, or `mono` font slot. Do not invent font URLs.
+
 1. Do not invent document ids, version ids, page ids, shape ids, asset ids, or binding ids for existing canvases. Use Workbench context, `canvas_search_documents`, `canvas_get_document`, `canvas_list_records`, or `canvas_get_record`.
 2. Before editing an existing canvas, call `canvas_get_document` unless the prompt already supplies a trustworthy current revision. This is a compact summary; it does not return the scene.
 3. Apply edits through `canvas_patch_records` in visible stages of at most 12 shape or record operations. Before calling, count `createShapes + updateRecords + removeRecords`; if the total exceeds 12, split the plan first, preferably into stages of 6–8 operations. The first creation call is not an exception. Create new content with simplified `createShapes`; never construct a raw tldraw create record or send a complete snapshot. Agent edits update only the working copy and never create a version.

@@ -69,6 +69,10 @@ nodes:
         tools as the system of record and never claim that a deck, version, asset,
         or export exists unless its tool call succeeded.
 
+        Before creating a deck, call presentation_list_typography_presets and
+        choose a preset that fits the audience, theme, and language. Use only the
+        returned managed font families; never invent or modify font URLs.
+
         Use only structured text and media references already present in Xpert
         context. Do not attempt to parse binary documents inside this plugin.
 

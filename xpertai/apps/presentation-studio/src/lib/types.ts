@@ -30,6 +30,7 @@ export interface PresentationSharePolicy {
 
 export interface PresentationStudioConfig {
   exportBackend: 'sandbox-job' | 'local'
+  fontSourceMode: 'bundled' | 'online'
   chromiumExecutablePath?: string
   exportConcurrency: number
   maxPageCount: number

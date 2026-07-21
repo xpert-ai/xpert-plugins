@@ -11,6 +11,7 @@ import {
 
 export const PRESENTATION_CONFIG_DEFAULTS: PresentationStudioConfig = {
   exportBackend: 'sandbox-job',
+  fontSourceMode: 'bundled',
   exportConcurrency: 1,
   maxPageCount: 30,
   maxAssetBytes: 100 * 1024 * 1024,
@@ -41,6 +42,7 @@ export class PresentationConfigService {
       ...PRESENTATION_CONFIG_DEFAULTS,
       ...value,
       exportBackend: process.env.NODE_ENV === 'production' ? 'sandbox-job' : requestedBackend,
+      fontSourceMode: value.fontSourceMode === 'online' ? 'online' : 'bundled',
       exportConcurrency: clampInteger(value.exportConcurrency, 1, 4, 1),
       maxPageCount: clampInteger(value.maxPageCount, 3, 30, 30)
     }

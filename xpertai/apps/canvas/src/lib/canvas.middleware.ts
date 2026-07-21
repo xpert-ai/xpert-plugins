@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -9,6 +10,7 @@ import {
   PromiseOrValue,
   RequestContext
 } from '@xpert-ai/plugin-sdk'
+import { z } from 'zod/v3'
 import {
   CANVAS_AGENT_CAPABILITY,
   CANVAS_CREATE_DOCUMENT_TOOL_NAME,
@@ -108,6 +110,18 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
     return {
       name: CANVAS_MIDDLEWARE_NAME,
       tools: [
+        defineCanvasAgentTool(
+          async () => stringifyAgentToolResult({
+            message: 'Canvas maps the selected preset onto tldraw draw, sans, serif, and mono font slots.',
+            presets: serializeTypographyPresets('canvas')
+          }),
+          {
+            name: 'canvas_list_typography_presets',
+            description: 'List version-pinned HTTPS font presets supported by Canvas. Use the semantic draw, sans, serif, or mono shape font after selecting a preset.',
+            schema: z.object({}),
+            verboseParsingErrors: true
+          }
+        ),
         defineCanvasAgentTool(
           async (input: CreateCanvasDocumentInput) => stringifyAgentToolResult(summarizeDocumentMutationResult(await this.service.createDocument(scope, input), 'Canvas document was created.')),
           {

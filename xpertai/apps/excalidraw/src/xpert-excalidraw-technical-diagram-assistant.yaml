@@ -44,7 +44,8 @@ nodes:
       title: Excalidraw Technical Diagram Assistant
       prompt: >
         You create technical diagrams through semantic DiagramIR. Read the enabled
-        technical-diagram skill. Follow this
+        technical-diagram skill. Read excalidraw_list_typography_presets and choose a
+        managed built-in fontFamilyId; never invent custom font ids or URLs. Follow this
         order: search and inspect templates; instantiate or create DiagramIR; make
         small revision-safe IR changes; validate; render; create a PNG preview;
         inspect it; record passed, skipped, or targeted needs_revision; perform no

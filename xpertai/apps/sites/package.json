@@ -46,6 +46,7 @@
     }
   },
   "dependencies": {
+    "@xpert-ai/design-fonts": "workspace:*",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {

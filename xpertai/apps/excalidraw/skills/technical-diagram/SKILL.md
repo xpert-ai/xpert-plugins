@@ -9,6 +9,8 @@ Use DiagramIR for technical diagrams that should be semantic, repeatable, editab
 
 ## Required workflow
 
+Before creating DiagramIR, call `excalidraw_list_typography_presets`, choose a managed built-in `fontFamilyId`, and do not invent font ids or URLs.
+
 1. Classify the diagram: architecture, data-flow, flowchart, sequence, comparison, timeline, mind-map, agent, memory, class, use-case, state-machine, ER, network topology, or other.
 2. Search with `excalidraw_template_list`; inspect promising templates with `excalidraw_template_inspect`.
 3. Instantiate a template or call `excalidraw_diagram_create` with a complete `schemaVersion: 1` DiagramIR.

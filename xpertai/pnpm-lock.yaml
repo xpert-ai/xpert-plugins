@@ -343,9 +343,9 @@ importers:
 
   apps/canvas:
     dependencies:
-      '@fontsource/ibm-plex-sans':
-        specifier: 5.2.8
-        version: 5.2.8
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@tldraw/tlschema':
         specifier: 5.1.1
         version: 5.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -656,6 +656,9 @@ importers:
 
   apps/excalidraw:
     dependencies:
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@18.3.31)(immer@10.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1002,6 +1005,9 @@ importers:
 
   apps/pencil:
     dependencies:
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@fontsource-variable/noto-sans-sc':
         specifier: 5.2.10
         version: 5.2.10
@@ -1087,6 +1093,9 @@ importers:
 
   apps/presentation-studio:
     dependencies:
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1232,6 +1241,9 @@ importers:
 
   apps/sites:
     dependencies:
+      '@xpert-ai/design-fonts':
+        specifier: workspace:*
+        version: link:../../packages/design-fonts
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -2824,6 +2836,12 @@ importers:
       zod:
         specifier: 3.25.67
         version: 3.25.67
+
+  packages/design-fonts:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
 
   packages/file-system:
     dependencies:

@@ -52,6 +52,7 @@
     }
   },
   "dependencies": {
+    "@xpert-ai/design-fonts": "workspace:*",
     "@open-pencil/core": "0.13.2",
     "@open-pencil/vue": "0.13.2",
     "@fontsource-variable/noto-sans-sc": "5.2.10",

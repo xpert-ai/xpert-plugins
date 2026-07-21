@@ -16,6 +16,8 @@ Do not treat Workbench view actions as Agent middleware tools. Use only the midd
 
 ## Core Rules
 
+Before creating a new drawing, call `excalidraw_list_typography_presets`, choose a managed built-in preset, and use its returned `fontFamilyId`. Do not invent custom font ids or URLs.
+
 1. Do not invent drawing ids, version ids, or element ids for existing drawings. Use Workbench context, `excalidraw_search_drawings`, `excalidraw_get_drawing`, or `excalidraw_get_scene_item`.
 2. Prefer direct Excalidraw elements as the default creation path. Use Mermaid only when the user explicitly asks for Mermaid, provides Mermaid source, or wants a fast low-fidelity draft where exact layout and editability are less important.
 3. If the rendered `excalidrawDrawingId` value or middleware-injected current Workbench context is present, update that current Workbench drawing. Do not call `excalidraw_create_drawing` for additions, blank-area insertions, title edits, restyling, or other updates to that drawing.

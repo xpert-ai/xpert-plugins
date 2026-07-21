@@ -77,6 +77,17 @@ describe('Excalidraw DiagramEngine reference implementation', () => {
     expect(() => parseDiagramIr(missing)).toThrow(/unknown target node/)
   })
 
+  it('applies a managed Excalidraw font family to every compiled text element', () => {
+    const { adapter, compiler } = createEngine()
+    const ir = adapter.instantiate(BUILTIN_DIAGRAM_TEMPLATES[0], BUILTIN_DIAGRAM_TEMPLATES[0].defaults)
+    ir.appearance.fontFamilyId = 3
+
+    const textElements = compiler.compile(parseDiagramIr(ir)).elements.filter((element) => element.type === 'text')
+
+    expect(textElements.length).toBeGreaterThan(0)
+    expect(textElements.every((element) => element.fontFamily === 3)).toBe(true)
+  })
+
   it('renders SVG to PNG and writes both artifacts to workspace-scoped quality paths', async () => {
     const { adapter, compiler } = createEngine()
     const ir = adapter.instantiate(BUILTIN_DIAGRAM_TEMPLATES[0], {
