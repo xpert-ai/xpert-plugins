@@ -28,6 +28,8 @@ describe('ExcalidrawArtifactViewerService', () => {
     const documentHead = html.slice(0, html.indexOf('<script>window.__XPERT_EXCALIDRAW_ARTIFACT__='))
     expect(documentHead).not.toMatch(/<script\s+src=/i)
     expect(documentHead).not.toMatch(/<link\s+[^>]*href=/i)
+    expect(documentHead).toContain('font-src data: https:')
+    expect(documentHead).toContain("connect-src 'none'")
     const payloadScript = html.split('<script>window.__XPERT_EXCALIDRAW_ARTIFACT__=')[1]?.split('</script>')[0] ?? ''
     expect(payloadScript).not.toContain('collaborators')
   })
