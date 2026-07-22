@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { buildOnlineFontFaceCss } from '@xpert-ai/design-fonts'
 import { createHash } from 'node:crypto'
 import { graphFromSnapshot } from './pencil-graph.js'
 import type { PencilGraphSnapshot } from './types.js'
@@ -45,6 +46,7 @@ export class PencilArtifactViewerService {
       title: normalizeText(input.title, 'Untitled Pencil design'),
       description: normalizeOptionalText(input.description),
       revision: normalizeRevision(input.revision),
+      fontCss: buildOnlineFontFaceCss(collectPublishedFontFamilies(pages)),
       pages
     })
     const buffer = Buffer.from(html, 'utf8')
@@ -104,6 +106,7 @@ function renderViewerHtml(input: {
   title: string
   description?: string
   revision: number
+  fontCss: string
   pages: Array<{ id: string; name: string; svg: string }>
 }) {
   const navigation = input.pages
@@ -115,10 +118,23 @@ function renderViewerHtml(input: {
   const empty = input.pages.length ? '' : '<div class="empty">This design has no pages.</div>'
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(input.title)}</title><style>${VIEWER_CSS}</style></head>
+<title>${escapeHtml(input.title)}</title><style>${input.fontCss}${input.fontCss ? '\n' : ''}${VIEWER_CSS}</style></head>
 <body><header><div><h1>${escapeHtml(input.title)}</h1>${input.description ? `<p>${escapeHtml(input.description)}</p>` : ''}</div><span>Revision ${input.revision}</span></header>
 <main><aside aria-label="Pages">${navigation}</aside><div class="viewer"><div class="viewport">${pages}${empty}</div><div class="controls" aria-label="View controls"><button type="button" data-action="out" aria-label="Zoom out">−</button><button type="button" data-action="reset" aria-label="Reset zoom">100%</button><button type="button" data-action="fit" aria-label="Fit page">Fit</button><button type="button" data-action="in" aria-label="Zoom in">+</button><button type="button" data-action="fullscreen" aria-label="Enter fullscreen" title="Enter fullscreen">⛶</button></div></div></main>
 <script>${VIEWER_SCRIPT}</script></body></html>`
+}
+
+function collectPublishedFontFamilies(pages: Array<{ svg: string }>) {
+  const families = new Set<string>()
+  for (const page of pages) {
+    for (const match of page.svg.matchAll(/\bfont-family\s*=\s*["']([^"']+)["']/gi)) {
+      const family = match[1]?.trim()
+      if (family) {
+        families.add(family)
+      }
+    }
+  }
+  return [...families]
 }
 
 const VIEWER_CSS = `
