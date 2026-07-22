@@ -29,6 +29,7 @@ import {
   TIntegrationDingTalkOptions
 } from './types.js'
 import { DingTalkClient } from './dingtalk.client.js'
+import { resolveDingTalkSendFileFromBuffer, type DingTalkResolvedSendFile } from './dingtalk-send-file.js'
 
 type DingTalkRecipient = {
   type: 'chat_id' | 'open_id' | 'user_id' | 'union_id' | 'email'
@@ -91,7 +92,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     mention: true,
     group: true,
     thread: false,
-    media: false,
+    media: true,
     textChunkLimit: CHAT_CHANNEL_TEXT_LIMITS['dingtalk'] || 3000,
     streamingUpdate: true
   }
@@ -606,11 +607,66 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     }
   }
 
-  async sendMedia(): Promise<TChatSendResult> {
-    return {
-      success: false,
-      error: 'DingTalk media send is not implemented in plugin v1'
+  async sendMedia(
+    ctx: TChatContext,
+    media: {
+      type: 'image' | 'file' | 'audio' | 'video'
+      url?: string
+      content?: Buffer
+      filename?: string
     }
+  ): Promise<TChatSendResult> {
+    try {
+      if (media.type !== 'file' || !media.content) {
+        return {
+          success: false,
+          error: 'DingTalk sendMedia currently supports file content only'
+        }
+      }
+
+      const file = resolveDingTalkSendFileFromBuffer(media.content, {
+        descriptor: {
+          originalName: media.filename || 'file'
+        }
+      })
+      const uploaded = await this.uploadFile(ctx.integration.id, file)
+      const client = await this.getOrCreateDingTalkClientById(ctx.integration.id)
+      const result = await client.sendMessage({
+        recipient: this.resolveRecipient(ctx),
+        robotCodeOverride: this.resolveRobotCode(ctx) || undefined,
+        msgType: 'interactive',
+        content: {
+          msgKey: 'sampleFile',
+          msgParam: {
+            mediaId: uploaded.mediaId,
+            fileName: file.fileName,
+            fileType: file.fileType
+          }
+        },
+        allowFallback: false
+      })
+
+      return {
+        success: true,
+        messageId: result.messageId || undefined
+      }
+    } catch (error: any) {
+      this.logger.error('Failed to send DingTalk file message', error)
+      return {
+        success: false,
+        error: error?.message || 'Failed to send file message'
+      }
+    }
+  }
+
+  async uploadFile(integrationId: string, file: DingTalkResolvedSendFile, timeoutMs?: number) {
+    const client = await this.getOrCreateDingTalkClientById(integrationId)
+    return client.uploadMediaFile({
+      buffer: file.buffer,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      timeoutMs
+    })
   }
 
   async createMessage(integrationId: string, message: {
@@ -781,17 +837,17 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
   }
 
   private resolveRecipient(ctx: TChatContext): DingTalkRecipient {
-    if (ctx.chatId) {
-      return {
-        type: 'chat_id',
-        id: ctx.chatId
-      }
-    }
-
     if (ctx.userId) {
       return {
         type: 'user_id',
         id: ctx.userId
+      }
+    }
+
+    if (ctx.chatId) {
+      return {
+        type: 'chat_id',
+        id: ctx.chatId
       }
     }
 

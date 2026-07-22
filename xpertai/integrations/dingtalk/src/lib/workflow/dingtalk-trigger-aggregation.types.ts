@@ -1,5 +1,5 @@
 import { defineChannelMessageType } from '@xpert-ai/plugin-sdk'
-import type { DingTalkInboundFile } from '../types.js'
+import type { DingTalkInboundFile, DingTalkRecipient } from '../types.js'
 
 export const DINGTALK_TRIGGER_FLUSH_MESSAGE_TYPE = defineChannelMessageType('dingtalk', 'trigger_flush', 1)
 
@@ -14,6 +14,8 @@ export interface DingTalkTriggerAggregationMessageContext {
 	chatId?: string
 	userId?: string
 	senderOpenId?: string
+	senderRecipient?: DingTalkRecipient
+	chatType?: 'private' | 'group'
 	sessionWebhook?: string
 	robotCode?: string
 	language?: string

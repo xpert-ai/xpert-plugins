@@ -127,6 +127,8 @@ export class DingTalkChatDispatchService {
 			integrationId: dingtalkMessage.integrationId,
 			chatId: dingtalkMessage.chatId,
 			senderOpenId: dingtalkMessage.senderOpenId,
+			senderRecipient: dingtalkMessage.senderRecipient,
+			chatType: dingtalkMessage.chatType,
 			robotCode: dingtalkMessage.robotCode,
 			sessionWebhook: dingtalkMessage.sessionWebhook,
 			reject: Boolean(input.options?.reject),
@@ -184,9 +186,22 @@ export class DingTalkChatDispatchService {
 					integrationId: dingtalkMessage.integrationId,
 					chatId: dingtalkMessage.chatId,
 					channelUserId: dingtalkMessage.senderOpenId,
+					chatType: dingtalkMessage.chatType,
 					...(dingtalkMessage.robotCode ? { robotCode: dingtalkMessage.robotCode } : {}),
 					// sessionWebhook for notify tools fallback when robotCode is unavailable (e.g. group reply)
-					...(dingtalkMessage.sessionWebhook ? { sessionWebhook: dingtalkMessage.sessionWebhook } : {})
+					...(dingtalkMessage.sessionWebhook ? { sessionWebhook: dingtalkMessage.sessionWebhook } : {}),
+					context: {
+						from: 'dingtalk',
+						channelType: 'dingtalk',
+						sourceIntegrationId: dingtalkMessage.integrationId,
+						integrationId: dingtalkMessage.integrationId,
+						chatId: dingtalkMessage.chatId,
+						chatType: dingtalkMessage.chatType,
+						senderRecipient: dingtalkMessage.senderRecipient,
+						...(dingtalkMessage.robotCode ? { robotCode: dingtalkMessage.robotCode } : {}),
+						...(dingtalkMessage.sessionWebhook ? { sessionWebhook: dingtalkMessage.sessionWebhook } : {}),
+						xpertId
+					}
 				} as TChatOptions & { xpertId: string },
 				callback: {
 					messageType: DINGTALK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
