@@ -10,13 +10,24 @@ import {
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
   PromiseOrValue,
+  WORKSPACE_FILES_SOURCE,
+  WorkspaceFilesRuntimeCapability,
   getErrorMessage
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { DingTalkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
-import { DINGTALK_INTEGRATION_SELECT_URL, iconImage, normalizeDingTalkRobotCode } from '../types.js'
+import {
+  resolveDingTalkSendFileFromWorkspace,
+  toDingTalkSendFileMetadata,
+  type DingTalkSendFileDescriptor
+} from '../dingtalk-send-file.js'
+import { iconImage, normalizeDingTalkRobotCode } from '../types.js'
+import {
+  resolveDingTalkTrustedRuntimeContext,
+  type DingTalkTrustedRuntimeContext
+} from './dingtalk-trusted-runtime-context.js'
 
 const DINGTALK_NOTIFY_MIDDLEWARE_NAME = 'DingTalkNotifyMiddleware'
 const DEFAULT_TIMEOUT_MS = 10000
@@ -26,8 +37,8 @@ const RecipientTypeSchema = z.enum(['chat_id', 'open_id', 'user_id', 'union_id',
 
 const middlewareConfigSchema = z.object({
   integrationId: z.string().optional().nullable(),
-  recipient_type: RecipientTypeSchema.describe('DingTalk recipient type'),
-  recipient_id: z.string().describe('DingTalk recipient id'),
+  recipient_type: RecipientTypeSchema.optional().nullable().describe('DingTalk recipient type (optional)'),
+  recipient_id: z.string().optional().nullable().describe('DingTalk recipient id (optional)'),
   template: z
     .object({
       enabled: z.boolean().default(true),
@@ -52,7 +63,7 @@ const sendTextNotificationSchema = z.object({
     .string()
     .optional()
     .nullable()
-    .describe('Optional session webhook for fallback send when robotCode is unavailable'),
+    .describe('Legacy configured-target session webhook. Ignored for trusted trigger-routed conversations.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -80,7 +91,52 @@ const sendRichNotificationSchema = z.object({
     .string()
     .optional()
     .nullable()
-    .describe('Optional session webhook for fallback send when robotCode is unavailable'),
+    .describe('Legacy configured-target session webhook. Ignored for trusted trigger-routed conversations.'),
+  timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
+})
+
+const sendFileReferenceSchema = z.object({
+  source: z.literal(WORKSPACE_FILES_SOURCE).optional(),
+  filePath: z.string().optional().describe('Workspace-relative file path.'),
+  workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+  originalName: z.string().optional().describe('Original filename.'),
+  name: z.string().optional().describe('Alias for originalName.'),
+  mimeType: z.string().optional().describe('Optional MIME type.'),
+  size: z.number().int().positive().optional().describe('Optional expected file size in bytes.')
+})
+
+const sendFileDescriptorSchema = z.object({
+  path: z.string().optional().describe('Sandbox /workspace path or workspace-relative path.'),
+  filePath: z.string().optional().describe('Workspace-relative file path alias.'),
+  workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+  fileRef: sendFileReferenceSchema.optional().describe('Xpert workspace file reference returned by a file tool.'),
+  originalName: z.string().optional().describe('Filename to show in DingTalk.'),
+  name: z.string().optional().describe('Alias for originalName.'),
+  mimeType: z.string().optional().describe('Optional MIME type.'),
+  mimetype: z.string().optional().describe('Alias for mimeType.'),
+  extension: z.string().optional().describe('Optional file extension without a leading dot.'),
+  size: z.number().int().positive().optional().describe('Optional expected file size in bytes.')
+})
+
+const sendFileSchema = z.object({
+  file: sendFileDescriptorSchema.optional().describe('File descriptor returned by an Xpert file tool.'),
+  path: z.string().optional().describe('Sandbox /workspace path or workspace-relative path.'),
+  filePath: z.string().optional().describe('Workspace-relative file path alias.'),
+  workspacePath: z.string().optional().describe('Workspace-relative file path or sandbox /workspace path alias.'),
+  fileRef: sendFileReferenceSchema.optional(),
+  originalName: z.string().optional().describe('Filename to show in DingTalk.'),
+  original_name: z.string().optional().describe('Alias for originalName.'),
+  fileName: z.string().optional().describe('Alias for originalName.'),
+  file_name: z.string().optional().describe('Alias for originalName.'),
+  filename: z.string().optional().describe('Alias for originalName.'),
+  name: z.string().optional().describe('Alias for originalName.'),
+  mimeType: z.string().optional().describe('Optional MIME type.'),
+  mime_type: z.string().optional().describe('Alias for mimeType.'),
+  mimetype: z.string().optional().describe('Alias for mimeType.'),
+  contentType: z.string().optional().describe('Alias for mimeType.'),
+  content_type: z.string().optional().describe('Alias for mimeType.'),
+  extension: z.string().optional().describe('Optional file extension without a leading dot.'),
+  size: z.number().int().positive().optional().describe('Optional expected file size in bytes.'),
   timeoutMs: z.number().int().min(100).optional().nullable().describe('Request timeout in milliseconds')
 })
 
@@ -242,6 +298,77 @@ function normalizeString(value: unknown): string | null {
   }
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+function readFirstString(records: Array<Record<string, unknown> | undefined>, keys: string[]): string | null {
+  for (const record of records) {
+    if (!record) {
+      continue
+    }
+    for (const key of keys) {
+      const value = normalizeString(record[key])
+      if (value) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
+function readFirstNumber(records: Array<Record<string, unknown> | undefined>, keys: string[]): number | null {
+  for (const record of records) {
+    if (!record) {
+      continue
+    }
+    for (const key of keys) {
+      const value = record[key]
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
+function buildDingTalkSendFileDescriptor(input: Record<string, unknown>): DingTalkSendFileDescriptor {
+  const nestedFile = isPlainObject(input.file) ? input.file : {}
+  const fileRef = isPlainObject(nestedFile.fileRef)
+    ? nestedFile.fileRef
+    : isPlainObject(input.fileRef)
+    ? input.fileRef
+    : undefined
+  const metadataRecords = [nestedFile, input, fileRef]
+
+  return {
+    path: readFirstString(metadataRecords, ['path']),
+    filePath: readFirstString(metadataRecords, ['filePath', 'file_path']),
+    workspacePath: readFirstString(metadataRecords, ['workspacePath', 'workspace_path']),
+    ...(fileRef
+      ? {
+          fileRef: {
+            source: readFirstString([fileRef], ['source']),
+            filePath: readFirstString([fileRef], ['filePath', 'file_path']),
+            workspacePath: readFirstString([fileRef], ['workspacePath', 'workspace_path']),
+            originalName: readFirstString([fileRef], ['originalName', 'original_name']),
+            name: readFirstString([fileRef], ['name']),
+            mimeType: readFirstString([fileRef], ['mimeType', 'mime_type', 'mimetype']),
+            size: readFirstNumber([fileRef], ['size'])
+          }
+        }
+      : {}),
+    originalName: readFirstString(metadataRecords, [
+      'originalName',
+      'original_name',
+      'fileName',
+      'file_name',
+      'filename'
+    ]),
+    name: readFirstString(metadataRecords, ['name']),
+    mimeType: readFirstString(metadataRecords, ['mimeType', 'mime_type', 'contentType', 'content_type']),
+    mimetype: readFirstString(metadataRecords, ['mimetype']),
+    extension: readFirstString(metadataRecords, ['extension', 'ext']),
+    size: readFirstNumber(metadataRecords, ['size'])
+  }
 }
 
 function normalizeTimeout(value: unknown, fallback: number): number {
@@ -491,65 +618,18 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
       value: iconImage
     },
     label: {
-      en_US: 'DingTalk Notify Middleware',
-      zh_Hans: '钉钉通知中间件'
+      en_US: 'DingTalk Runtime',
+      zh_Hans: '钉钉运行时'
     },
     description: {
       en_US:
-        'Provides tools to send DingTalk notifications. IMPORTANT: For normal conversation replies, just output text directly—the system streams it automatically. Use these tools ONLY when: (1) user explicitly asks to send/notify someone; (2) proactive notification to another user/chat; (3) sending a card with action buttons (confirm/reject/select).',
+        'Attach this runtime to a DingTalk-triggered agent. It uses the trusted trigger integration and conversation for notifications, cards, and workspace files, without integration or recipient selectors. IMPORTANT: For normal conversation replies, just output text directly—the system streams it automatically.',
       zh_Hans:
-        '提供钉钉通知发送工具。重要：普通对话回复请直接输出文本，系统会自动流式展示。仅在以下情况使用工具：(1) 用户明确要求发送/通知某人；(2) 主动推送给其他用户或群；(3) 发送带操作按钮的卡片（确认/拒绝/选择）。'
+        '挂载到由钉钉触发的智能体后，通知、卡片和工作区文件会自动使用可信的触发器集成与当前会话，无需选择集成或收件人。重要：普通对话回复请直接输出文本，系统会自动流式展示。'
     },
     configSchema: {
       type: 'object',
       properties: {
-        integrationId: {
-          type: 'string',
-          title: {
-            en_US: 'DingTalk Integration',
-            zh_Hans: '钉钉集成'
-          },
-          description: {
-            en_US: 'Default integration used by notify tools',
-            zh_Hans: '通知工具默认使用的钉钉集成'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: DINGTALK_INTEGRATION_SELECT_URL,
-            variable: true,
-            span: 2,
-          }
-        },
-        recipient_type: {
-          type: 'string',
-          enum: ['chat_id', 'open_id', 'user_id', 'union_id', 'email'],
-          title: {
-            en_US: 'Recipient type',
-            zh_Hans: '收件人类型'
-          },
-        },
-        recipient_id: {
-          type: 'string',
-          description: {
-            en_US: 'chat_id uses group selector; other recipient types use user selector.',
-            zh_Hans: 'chat_id 使用群选择；其他收件人类型使用用户选择。'
-          },
-          'x-ui': {
-            component: 'remoteSelect',
-            selectUrl: '/api/dingtalk/recipient-select-options',
-            variable: true,
-            depends: [
-              {
-                name: 'integrationId',
-                alias: 'integration',
-              },
-              {
-                name: 'recipient_type',
-                alias: 'recipientType',
-              }
-            ]
-          }
-        },
         template: {
           type: 'object',
           properties: {
@@ -610,10 +690,13 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
       strict: parsed.template?.strict === true
     }
 
-    const resolveInput = <T extends Record<string, unknown>>(value: T) => {
+    const resolveInput = <T extends Record<string, unknown>>(value: T, config?: unknown) => {
       const state = getCurrentStateSafe()
+      const trustedRuntimeContext = resolveDingTalkTrustedRuntimeContext(config)
       const renderedInput = renderTemplateValue(value, state, templateOptions)
-      const renderedRecipients = renderTemplateValue([{ type: parsed.recipient_type, id: parsed.recipient_id }], state, templateOptions)
+      const renderedRecipients = parsed.recipient_type && parsed.recipient_id
+        ? renderTemplateValue([{ type: parsed.recipient_type, id: parsed.recipient_id }], state, templateOptions)
+        : null
       const renderedDefaults = renderTemplateValue(parsed.defaults, state, templateOptions)
       const renderedIntegration = renderTemplateValue(parsed.integrationId, state, templateOptions)
       const integrationId = resolveStateBackedString(renderedIntegration, state)
@@ -627,24 +710,57 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         renderedInput,
         renderedRecipients,
         integrationId,
+        trustedRuntimeContext,
         timeoutMs
       }
     }
 
-    const resolveRecipients = (renderedRecipients: unknown, state: Record<string, unknown>) => {
-      return normalizeRecipients(renderedRecipients, state)
+    const resolveSendTarget = (
+      runtimeContext: DingTalkTrustedRuntimeContext,
+      configuredIntegrationId: string | null,
+      renderedRecipients: unknown,
+      state: Record<string, unknown>
+    ): {
+      source: 'runtime' | 'configured'
+      integrationId: string | null
+      recipients: DingTalkRecipient[]
+    } => {
+      const chatType = runtimeContext.chatType?.toLowerCase()
+      if (chatType === 'group' && runtimeContext.chatId) {
+        return {
+          source: 'runtime',
+          integrationId: runtimeContext.integrationId ?? null,
+          recipients: [{ type: 'chat_id', id: runtimeContext.chatId }]
+        }
+      }
+
+      if (chatType === 'private' && runtimeContext.senderRecipient) {
+        return {
+          source: 'runtime',
+          integrationId: runtimeContext.integrationId ?? null,
+          recipients: [runtimeContext.senderRecipient]
+        }
+      }
+
+      return {
+        source: 'configured',
+        integrationId: configuredIntegrationId,
+        recipients: normalizeRecipients(renderedRecipients, state)
+      }
     }
 
     const requireIntegrationId = (integrationId: string | null, toolName: string) => {
       if (!integrationId) {
-        throw new Error(`[${toolName}] integrationId is required. Configure middleware integration.`)
+        throw new Error(`[${toolName}] A DingTalk trigger integration is required.`)
       }
       return integrationId
     }
 
-    const requireRecipients = (recipients: DingTalkRecipient[], toolName: string) => {
+    const requireTriggerRecipients = (recipients: DingTalkRecipient[], toolName: string) => {
       if (!recipients.length) {
-        throw new Error(`[${toolName}] recipients is required. Configure recipients.`)
+        throw new Error(
+          `[${toolName}] No trusted DingTalk recipient was found. Run this tool from a DingTalk-triggered conversation.`
+        )
       }
       return recipients
     }
@@ -743,13 +859,27 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'dingtalk_send_text_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          const recipients = requireRecipients(resolveRecipients(renderedRecipients, state), toolName)
+          const { state, renderedInput, renderedRecipients, integrationId, trustedRuntimeContext, timeoutMs } =
+            resolveInput(parameters, config)
+          const sendTarget = resolveSendTarget(trustedRuntimeContext, integrationId, renderedRecipients, state)
+          if (sendTarget.source === 'runtime' && !sendTarget.integrationId) {
+            throw new Error(`[${toolName}] The current DingTalk conversation is missing its trusted runtime integrationId.`)
+          }
+          const resolvedIntegrationId = requireIntegrationId(sendTarget.integrationId, toolName)
+          const recipients = requireTriggerRecipients(sendTarget.recipients, toolName)
           const content = normalizeString(renderedInput.content)
           const conversationIds = resolveConversationIds(state)
-          const sessionWebhook = resolveSessionWebhookFromState((renderedInput as Record<string, unknown>)?.sessionWebhook, state)
-          const robotCodeOverride = resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
+          if (trustedRuntimeContext.chatId) {
+            conversationIds.add(trustedRuntimeContext.chatId)
+          }
+          const sessionWebhook =
+            normalizeString(trustedRuntimeContext.sessionWebhook) ||
+            (sendTarget.source === 'configured'
+              ? resolveSessionWebhookFromState((renderedInput as Record<string, unknown>)?.sessionWebhook, state)
+              : null)
+          const robotCodeOverride =
+            normalizeDingTalkRobotCode(trustedRuntimeContext.robotCode) ||
+            resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
 
           if (!content) {
             throw new Error(`[${toolName}] content is required`)
@@ -807,15 +937,113 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
     tools.push(
       tool(
         async (parameters, config) => {
+          const toolName = 'dingtalk_send_file'
+          const toolCallId = getToolCallIdFromConfig(config)
+          const { state, renderedInput, renderedRecipients, integrationId, trustedRuntimeContext, timeoutMs } =
+            resolveInput(parameters, config)
+          const fileTarget = resolveSendTarget(trustedRuntimeContext, integrationId, renderedRecipients, state)
+          if (fileTarget.source === 'runtime' && !fileTarget.integrationId) {
+            throw new Error(`[${toolName}] The current DingTalk conversation is missing its trusted runtime integrationId.`)
+          }
+          const resolvedIntegrationId = requireIntegrationId(fileTarget.integrationId, toolName)
+          const recipients = requireTriggerRecipients(fileTarget.recipients, toolName)
+          const workspaceFiles = context.runtime?.capabilities?.get(WorkspaceFilesRuntimeCapability)
+          if (!workspaceFiles?.readRuntimeBuffer) {
+            throw new Error(
+              `[${toolName}] platform.workspace.files runtime capability is required to read workspace files.`
+            )
+          }
+
+          const file = await resolveDingTalkSendFileFromWorkspace(
+            buildDingTalkSendFileDescriptor(renderedInput as Record<string, unknown>),
+            { workspaceFiles }
+          )
+          const uploaded = await withTimeout(
+            this.dingtalkChannel.uploadFile(resolvedIntegrationId, file, timeoutMs),
+            timeoutMs,
+            `[${toolName}] upload '${file.fileName}'`
+          )
+          const robotCodeOverride =
+            fileTarget.source === 'runtime'
+              ? normalizeDingTalkRobotCode(trustedRuntimeContext.robotCode)
+              : resolveRobotCodeFromState(undefined, state)
+          const result = await runSendTaskBatch({
+            integrationId: resolvedIntegrationId,
+            toolName,
+            recipients,
+            timeoutMs,
+            allowDegraded: false,
+            onSuccess: async (recipient) => {
+              await this.tryBindConversationForRecipient({
+                integrationId: resolvedIntegrationId,
+                recipient,
+                context
+              })
+            },
+            task: async (recipient) => {
+              const response = await this.dingtalkChannel.createMessage(resolvedIntegrationId, {
+                recipient,
+                robotCodeOverride,
+                msgType: 'interactive',
+                content: {
+                  msgKey: 'sampleFile',
+                  msgParam: {
+                    mediaId: uploaded.mediaId,
+                    fileName: file.fileName,
+                    fileType: file.fileType
+                  }
+                },
+                allowFallback: false
+              })
+
+              return {
+                messageId: response?.data?.message_id ?? null,
+                degraded: response?.degraded === true
+              }
+            }
+          })
+          result.data = {
+            file: toDingTalkSendFileMetadata(file)
+          }
+
+          return buildCommand(toolName, toolCallId, result)
+        },
+        {
+          name: 'dingtalk_send_file',
+          description:
+            'Send a generated, edited, or previously found Xpert workspace file to the trusted current DingTalk conversation. The tool cannot choose another integration, chat, or user.',
+          schema: sendFileSchema,
+          verboseParsingErrors: true
+        }
+      )
+    )
+
+    tools.push(
+      tool(
+        async (parameters, config) => {
           const toolName = 'dingtalk_send_rich_notification'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, renderedRecipients, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
-          const recipients = requireRecipients(resolveRecipients(renderedRecipients, state), toolName)
+          const { state, renderedInput, renderedRecipients, integrationId, trustedRuntimeContext, timeoutMs } =
+            resolveInput(parameters, config)
+          const sendTarget = resolveSendTarget(trustedRuntimeContext, integrationId, renderedRecipients, state)
+          if (sendTarget.source === 'runtime' && !sendTarget.integrationId) {
+            throw new Error(`[${toolName}] The current DingTalk conversation is missing its trusted runtime integrationId.`)
+          }
+          const resolvedIntegrationId = requireIntegrationId(sendTarget.integrationId, toolName)
+          const recipients = requireTriggerRecipients(sendTarget.recipients, toolName)
           const mode = renderedInput.mode as 'markdown' | 'interactive' | 'template'
           const conversationIds = resolveConversationIds(state)
-          const sessionWebhook = resolveSessionWebhookFromState((renderedInput as Record<string, unknown>)?.sessionWebhook, state)
-          const robotCodeOverride = resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
+          if (trustedRuntimeContext.chatId) {
+            conversationIds.add(trustedRuntimeContext.chatId)
+          }
+          const sessionWebhook =
+            normalizeString(trustedRuntimeContext.sessionWebhook) ||
+            (sendTarget.source === 'configured'
+              ? resolveSessionWebhookFromState((renderedInput as Record<string, unknown>)?.sessionWebhook, state)
+              : null)
+          const robotCodeOverride =
+            normalizeDingTalkRobotCode(trustedRuntimeContext.robotCode) ||
+            resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
 
           const markdown = normalizeString(renderedInput.markdown)
           const card = normalizeCardPayload(renderedInput.card)
@@ -903,8 +1131,11 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'dingtalk_update_message'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
+          const { renderedInput, integrationId, trustedRuntimeContext, timeoutMs } = resolveInput(parameters, config)
+          const resolvedIntegrationId = requireIntegrationId(
+            trustedRuntimeContext.integrationId ?? integrationId,
+            toolName
+          )
           const messageId = normalizeString(renderedInput.messageId)
           const mode = renderedInput.mode as 'text' | 'interactive' | 'template'
 
@@ -988,15 +1219,21 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'dingtalk_recall_message'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { state, renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
+          const { state, renderedInput, integrationId, trustedRuntimeContext, timeoutMs } =
+            resolveInput(parameters, config)
+          const resolvedIntegrationId = requireIntegrationId(
+            trustedRuntimeContext.integrationId ?? integrationId,
+            toolName
+          )
           const messageId = normalizeString(renderedInput.messageId)
 
           if (!messageId) {
             throw new Error(`[${toolName}] messageId is required`)
           }
 
-          const robotCodeOverride = resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
+          const robotCodeOverride =
+            normalizeDingTalkRobotCode(trustedRuntimeContext.robotCode) ||
+            resolveRobotCodeFromState((renderedInput as Record<string, unknown>)?.robotCode, state)
 
           const recallResult = await withTimeout(
             this.dingtalkChannel.deleteMessage(resolvedIntegrationId, messageId, {
@@ -1048,8 +1285,11 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         async (parameters, config) => {
           const toolName = 'dingtalk_list_users'
           const toolCallId = getToolCallIdFromConfig(config)
-          const { renderedInput, integrationId, timeoutMs } = resolveInput(parameters)
-          const resolvedIntegrationId = requireIntegrationId(integrationId, toolName)
+          const { renderedInput, integrationId, trustedRuntimeContext, timeoutMs } = resolveInput(parameters, config)
+          const resolvedIntegrationId = requireIntegrationId(
+            trustedRuntimeContext.integrationId ?? integrationId,
+            toolName
+          )
           const keyword = normalizeString(renderedInput.keyword)
           const pageSize = normalizeIntInRange(renderedInput.pageSize, 20, 1, 100)
           const pageToken = normalizeString(renderedInput.pageToken)

@@ -6,6 +6,7 @@ export const INTEGRATION_DINGTALK_LONG = 'dingtalk_long'
 export const DINGTALK_INTEGRATION_SELECT_PATH = 'integration-select-options'
 export const DINGTALK_INTEGRATION_SELECT_URL = `/api/dingtalk/${DINGTALK_INTEGRATION_SELECT_PATH}`
 export const DINGTALK_APP_CREDENTIALS_HELP_URL = 'https://open.dingtalk.com/document/'
+export const DINGTALK_MAX_FILE_BYTES = 10 * 1024 * 1024
 export const DINGTALK_APP_CREDENTIALS_HELP_LABEL = {
   en_US: 'Get AppKey',
   zh_Hans: '获取AppKey'
@@ -155,10 +156,49 @@ export type DingTalkCardElement = DingTalkRenderElement
 export type DingTalkImageMimeType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 
 export type DingTalkInboundFile = {
-  fileUrl: string
+  id?: string
+  fileUrl?: string
+  url?: string
   mimeType?: string
+  mimetype?: string
   originalName?: string
+  name?: string
   fileKey?: string
+  fileId?: string
+  fileAssetId?: string
+  storageFileId?: string
+  filePath?: string
+  workspacePath?: string
+  size?: number
+}
+
+export type DingTalkRecipient = {
+  type: 'chat_id' | 'open_id' | 'user_id' | 'union_id' | 'email'
+  id: string
+}
+
+/**
+ * Resolve a sender only when the DingTalk callback field defines the ID type.
+ * Ambiguous generic senderId values are intentionally not classified.
+ */
+export function resolveDingTalkSenderRecipient(value: unknown): DingTalkRecipient | null {
+  const payload = value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+  const sender = payload?.sender && typeof payload.sender === 'object' && !Array.isArray(payload.sender)
+    ? (payload.sender as Record<string, unknown>)
+    : null
+  const normalize = (candidate: unknown) =>
+    typeof candidate === 'string' && candidate.trim() ? candidate.trim() : null
+  const userId = normalize(payload?.senderStaffId) || normalize(sender?.staffId) || normalize(payload?.staffId)
+  if (userId) {
+    return { type: 'user_id', id: userId }
+  }
+  const openId = normalize(payload?.senderOpenId) || normalize(sender?.openId)
+  if (openId) {
+    return { type: 'open_id', id: openId }
+  }
+  return null
 }
 
 export type TDingTalkEvent = {
@@ -204,6 +244,7 @@ export type ChatDingTalkContext<T = TDingTalkEvent> = {
   chatType?: 'private' | 'group'
   userId?: string
   senderOpenId?: string
+  senderRecipient?: DingTalkRecipient
   sessionWebhook?: string
   input?: string
   message?: T

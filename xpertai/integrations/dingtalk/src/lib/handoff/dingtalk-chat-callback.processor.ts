@@ -403,6 +403,8 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 					userId: context.userId,
 					chatId: context.chatId,
 					senderOpenId: context.senderOpenId,
+					senderRecipient: context.senderRecipient,
+					chatType: context.chatType,
 					sessionWebhook: context.sessionWebhook,
 					dingtalkChannel: this.dingtalkChannel
 				},
@@ -695,6 +697,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		const normalized = toolName.trim().toLowerCase()
 		return (
 			normalized === 'dingtalk_send_text_notification' ||
+			normalized === 'dingtalk_send_file' ||
 			normalized === 'dingtalk_send_rich_notification' ||
 			normalized === 'dingtalk_update_message' ||
 			normalized === 'dingtalk_recall_message'

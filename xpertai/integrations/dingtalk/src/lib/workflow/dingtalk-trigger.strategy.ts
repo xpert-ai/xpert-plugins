@@ -363,6 +363,8 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 				chatId: params.dingtalkMessage.chatId,
 				userId: params.dingtalkMessage.dingtalkUserId,
 				senderOpenId: params.dingtalkMessage.senderOpenId,
+				senderRecipient: params.dingtalkMessage.senderRecipient,
+				chatType: params.dingtalkMessage.chatType,
 				sessionWebhook: params.dingtalkMessage.sessionWebhook,
 				robotCode: params.dingtalkMessage.robotCode,
 				language: params.dingtalkMessage.language
@@ -411,6 +413,8 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 						preferLanguage: state.latestMessage.language,
 						userId: state.latestMessage.userId,
 						senderOpenId: state.latestMessage.senderOpenId,
+						senderRecipient: state.latestMessage.senderRecipient,
+						chatType: state.latestMessage.chatType,
 						sessionWebhook: state.latestMessage.sessionWebhook,
 						robotCode: state.latestMessage.robotCode,
 						chatId: state.latestMessage.chatId,

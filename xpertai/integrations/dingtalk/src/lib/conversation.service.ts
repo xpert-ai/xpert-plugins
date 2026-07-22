@@ -1,10 +1,13 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   IntegrationPermissionService,
+  WorkspaceFilesRuntimeCapability,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AgentMiddlewareRuntimeCapabilityRegistry,
   type PluginContext,
   RequestContext,
   runWithRequestContext,
@@ -15,6 +18,7 @@ import {
 import Bull, { Queue } from 'bull'
 import { type Cache } from 'cache-manager'
 import { Repository } from 'typeorm'
+import { createHash } from 'node:crypto'
 import { ChatDingTalkMessage } from './message.js'
 import {
   buildAnonymousConversationKey,
@@ -28,18 +32,22 @@ import { DispatchDingTalkChatCommand, DispatchDingTalkChatPayload } from './hand
 import { DINGTALK_PLUGIN_CONTEXT, DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
 import {
   ChatDingTalkContext,
+  DINGTALK_MAX_FILE_BYTES,
   DingTalkImageMimeType,
   DingTalkInboundFile,
   isConfirmAction,
   isDingTalkCardActionValue,
   isEndAction,
   isRejectAction,
+  normalizeDingTalkRobotCode,
   resolveDingTalkCardActionValue,
+  resolveDingTalkSenderRecipient,
   TDingTalkEvent,
   TIntegrationDingTalkOptions
 } from './types.js'
 import { DingTalkConversationBindingEntity } from './entities/dingtalk-conversation-binding.entity.js'
 import { DingTalkTriggerBindingEntity } from './entities/dingtalk-trigger-binding.entity.js'
+import { resolveDingTalkFileMimeType, sanitizeDingTalkFileName } from './dingtalk-send-file.js'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -50,6 +58,7 @@ type DingTalkConversationQueueJob = {
   integrationId: string
   userId: string
   senderOpenId?: string
+  senderRecipient?: ChatDingTalkContext['senderRecipient']
   chatId?: string
   chatType?: 'private' | 'group' | 'channel' | 'thread'
   input?: string
@@ -68,6 +77,13 @@ type DingTalkRequestUser = {
   tenantId?: string
   organizationId?: string
   [key: string]: unknown
+}
+
+type DingTalkInboundFileRef = {
+  kind: 'image' | 'file'
+  downloadCode: string
+  fileName?: string
+  robotCode?: string
 }
 
 type DingTalkTriggerService = {
@@ -123,7 +139,6 @@ export interface DingTalkDispatchExecutionContext {
 
 @Injectable()
 export class DingTalkConversationService implements OnModuleDestroy {
-  private static readonly maxInlineImageBytes = 10 * 1024 * 1024
   private readonly logger = new Logger(DingTalkConversationService.name)
   private readonly queueNamespace = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`
   private _integrationPermissionService: IntegrationPermissionService
@@ -144,7 +159,10 @@ export class DingTalkConversationService implements OnModuleDestroy {
     @Inject(DINGTALK_TRIGGER_STRATEGY)
     private readonly dingtalkTriggerStrategy: DingTalkTriggerService,
     @Inject(DINGTALK_PLUGIN_CONTEXT)
-    private readonly pluginContext: PluginContext
+    private readonly pluginContext: PluginContext,
+    @Optional()
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
   ) {}
 
   private get integrationPermissionService(): IntegrationPermissionService {
@@ -513,9 +531,15 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return null
     }
 
-    const files = await this.resolveInboundImageFiles({
+    const activeConversationId = existingConversation?.conversationId ?? latestBinding?.conversationId
+    const files = await this.resolveInboundFiles({
       integrationId,
-      message: options.message
+      message: options.message,
+      xpertId: targetXpertId,
+      tenantId: requestUser.tenantId,
+      organizationId: requestUser.organizationId || integration.organizationId,
+      userId: UUID_PATTERN.test(requestUser.id) ? requestUser.id : undefined,
+      conversationId: activeConversationId
     })
     const dispatchFiles = files.length ? files : undefined
     const activeMessage = await this.getActiveMessage(conversationUserKey, targetXpertId)
@@ -527,8 +551,14 @@ export class DingTalkConversationService implements OnModuleDestroy {
         preferLanguage: integration.options?.preferLanguage,
         userId: options.userId,
         senderOpenId,
+        senderRecipient: options.senderRecipient || resolveDingTalkSenderRecipient(options.message) || undefined,
         sessionWebhook: (options.message as any)?.sessionWebhook,
+        robotCode:
+          normalizeDingTalkRobotCode((options.message as any)?.robotCode) ||
+          normalizeDingTalkRobotCode(integration.options?.robotCode) ||
+          undefined,
         chatId: options.chatId,
+        chatType: options.chatType === 'group' ? 'group' : 'private',
         dingtalkChannel: this.dingtalkChannel
       },
       {
@@ -537,7 +567,6 @@ export class DingTalkConversationService implements OnModuleDestroy {
       }
     )
 
-    const activeConversationId = existingConversation?.conversationId ?? latestBinding?.conversationId
     if (activeConversationId) {
       if (triggerBinding?.xpertId === targetXpertId) {
         const handledByTrigger = await dingtalkTriggerStrategy.handleInboundMessage({
@@ -729,7 +758,9 @@ export class DingTalkConversationService implements OnModuleDestroy {
                 integrationId: job.data.integrationId,
                 userId: requestUser.id,
                 senderOpenId: job.data.senderOpenId,
+                senderRecipient: job.data.senderRecipient,
                 chatId: job.data.chatId,
+                chatType: job.data.chatType,
                 input: job.data.input,
                 message: job.data.message,
                 preferLanguage: job.data.preferLanguage,
@@ -790,6 +821,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
       chatId: message.chatId,
       chatType: message.chatType,
       senderOpenId: message.senderId,
+      senderRecipient: resolveDingTalkSenderRecipient(message.raw) || undefined,
       requestUser
     })
   }
@@ -953,11 +985,16 @@ export class DingTalkConversationService implements OnModuleDestroy {
     return text || undefined
   }
 
-  private async resolveInboundImageFiles(params: {
+  private async resolveInboundFiles(params: {
     integrationId: string
     message?: unknown
+    xpertId: string
+    tenantId?: string
+    organizationId?: string
+    userId?: string
+    conversationId?: string
   }): Promise<DingTalkInboundFile[]> {
-    const refs = this.extractInboundImageRefs(params.message)
+    const refs = this.extractInboundFileRefs(params.message)
     if (!refs.length) {
       return []
     }
@@ -971,35 +1008,114 @@ export class DingTalkConversationService implements OnModuleDestroy {
       })
       const buffer = this.normalizeBuffer(downloaded?.buffer)
       if (!buffer?.length) {
-        throw new Error(`DingTalk image file "${ref.downloadCode}" did not return content`)
+        throw new Error(`DingTalk inbound file "${ref.downloadCode}" did not return content`)
       }
-      if (buffer.length > DingTalkConversationService.maxInlineImageBytes) {
+      if (buffer.length > DINGTALK_MAX_FILE_BYTES) {
         throw new Error(
-          `DingTalk image file "${ref.downloadCode}" is too large (${buffer.length} bytes). Maximum size is ${DingTalkConversationService.maxInlineImageBytes} bytes.`
+          `DingTalk inbound file "${ref.downloadCode}" is too large (${buffer.length} bytes). Maximum size is ${DINGTALK_MAX_FILE_BYTES} bytes.`
         )
       }
 
-      const mimeType = this.detectImageMimeType(buffer) ?? this.normalizeImageMimeType(downloaded?.mimeType)
-      if (!mimeType) {
-        throw new Error(`DingTalk image file "${ref.downloadCode}" returned unsupported image content`)
+      if (ref.kind === 'image') {
+        const mimeType = this.detectImageMimeType(buffer) ?? this.normalizeImageMimeType(downloaded?.mimeType)
+        if (!mimeType) {
+          throw new Error(`DingTalk image file "${ref.downloadCode}" returned unsupported image content`)
+        }
+
+        const fileUrl = `data:${mimeType};base64,${buffer.toString('base64')}`
+        files.push({
+          fileUrl,
+          mimeType,
+          originalName: downloaded?.fileName || ref.fileName || `${ref.downloadCode}${this.resolveImageExtension(mimeType)}`,
+          fileKey: ref.downloadCode
+        })
+        continue
       }
 
-      files.push({
-        fileUrl: `data:${mimeType};base64,${buffer.toString('base64')}`,
-        mimeType,
-        originalName: downloaded?.fileName || ref.fileName || `${ref.downloadCode}${this.resolveImageExtension(mimeType)}`,
-        fileKey: ref.downloadCode
-      })
+      files.push(await this.materializeInboundFile(buffer, downloaded, ref, params))
     }
 
     return files
   }
 
-  private extractInboundImageRefs(message: unknown): Array<{
-    downloadCode: string
-    fileName?: string
-    robotCode?: string
-  }> {
+  private async materializeInboundFile(
+    buffer: Buffer,
+    downloaded: { mimeType?: string; fileName?: string } | null | undefined,
+    ref: DingTalkInboundFileRef,
+    scope: {
+      integrationId: string
+      xpertId: string
+      tenantId?: string
+      organizationId?: string
+      userId?: string
+      conversationId?: string
+    }
+  ): Promise<DingTalkInboundFile> {
+    const workspaceFiles = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+    if (!workspaceFiles) {
+      throw new Error('Platform workspace files capability is required for DingTalk inbound files')
+    }
+
+    const fallbackName = `dingtalk-file-${createHash('sha256').update(ref.downloadCode).digest('hex').slice(0, 12)}`
+    const originalName = sanitizeDingTalkFileName(downloaded?.fileName || ref.fileName, fallbackName)
+    const mimeType = resolveDingTalkFileMimeType(originalName, downloaded?.mimeType)
+    const workspaceScope = {
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      catalog: 'xperts' as const,
+      xpertId: scope.xpertId,
+      isolateByUser: false
+    }
+    const metadata = {
+      source: 'dingtalk_message_file',
+      integrationId: scope.integrationId,
+      organizationId: scope.organizationId,
+      downloadCodeHash: createHash('sha256').update(ref.downloadCode).digest('hex'),
+      resourceType: ref.kind
+    }
+    const uploaded = await workspaceFiles.uploadBuffer({
+      ...workspaceScope,
+      folder: `files/dingtalk/${this.safePathSegment(scope.integrationId)}/${metadata.downloadCodeHash.slice(0, 16)}`,
+      fileName: originalName,
+      originalName,
+      mimeType,
+      size: buffer.length,
+      buffer,
+      metadata
+    })
+    const understood = await workspaceFiles.understandFile({
+      ...workspaceScope,
+      filePath: uploaded.filePath,
+      originalName,
+      mimeType: uploaded.mimeType || mimeType,
+      size: uploaded.size ?? buffer.length,
+      fileUrl: uploaded.fileUrl ?? uploaded.url,
+      purpose: 'chat_attachment',
+      parseMode: 'auto',
+      conversationId: scope.conversationId,
+      metadata
+    })
+
+    const fileUrl = understood.fileUrl ?? understood.url ?? uploaded.fileUrl ?? uploaded.url
+    return {
+      id: understood.fileAssetId ?? understood.fileId ?? understood.id,
+      fileAssetId: understood.fileAssetId,
+      fileId: understood.fileId,
+      storageFileId: understood.storageFileId,
+      filePath: understood.filePath || uploaded.filePath,
+      workspacePath: understood.workspacePath || uploaded.workspacePath,
+      fileUrl,
+      url: fileUrl,
+      mimeType: understood.mimeType || uploaded.mimeType || mimeType,
+      mimetype: understood.mimeType || uploaded.mimeType || mimeType,
+      originalName: understood.originalName || originalName,
+      name: understood.originalName || originalName,
+      fileKey: ref.downloadCode,
+      size: understood.size ?? uploaded.size ?? buffer.length
+    }
+  }
+
+  private extractInboundFileRefs(message: unknown): DingTalkInboundFileRef[] {
     const payload = this.normalizeRecord(message)
     if (!payload) {
       return []
@@ -1009,11 +1125,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
     const content = this.normalizeRecord(payload.content) ?? this.safeJsonRecord(payload.content)
     const nestedMessage = this.normalizeRecord(payload.message)
     const nestedContent = this.normalizeRecord(nestedMessage?.content) ?? this.safeJsonRecord(nestedMessage?.content)
-    const refs: Array<{
-      downloadCode: string
-      fileName?: string
-      robotCode?: string
-    }> = []
+    const refs: DingTalkInboundFileRef[] = []
     const baseRecords = [payload, content, nestedContent].filter((item): item is Record<string, unknown> => Boolean(item))
 
     if (msgType === 'image' || msgType === 'picture') {
@@ -1025,7 +1137,18 @@ export class DingTalkConversationService implements OnModuleDestroy {
         this.normalizeRecord(payload.file) ??
         this.normalizeRecord(content?.file) ??
         this.normalizeRecord(nestedContent?.file)
-      const ref = this.extractInboundImageRef([content, nestedContent, image, file, payload], baseRecords)
+      const ref = this.extractInboundFileRef('image', [content, nestedContent, image, file, payload], baseRecords)
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+
+    if (msgType === 'file') {
+      const file =
+        this.normalizeRecord(payload.file) ??
+        this.normalizeRecord(content?.file) ??
+        this.normalizeRecord(nestedContent?.file)
+      const ref = this.extractInboundFileRef('file', [content, nestedContent, file, payload], baseRecords)
       if (ref) {
         refs.push(ref)
       }
@@ -1045,7 +1168,7 @@ export class DingTalkConversationService implements OnModuleDestroy {
 
       const image = this.normalizeRecord(item?.image)
       const file = this.normalizeRecord(item?.file)
-      const ref = this.extractInboundImageRef([item, image, file, content, nestedContent, payload], baseRecords)
+      const ref = this.extractInboundFileRef('image', [item, image, file, content, nestedContent, payload], baseRecords)
       if (ref) {
         refs.push(ref)
       }
@@ -1058,14 +1181,11 @@ export class DingTalkConversationService implements OnModuleDestroy {
     return [...dedupedRefs.values()]
   }
 
-  private extractInboundImageRef(
+  private extractInboundFileRef(
+    kind: DingTalkInboundFileRef['kind'],
     records: Array<Record<string, unknown> | null | undefined>,
     baseRecords: Array<Record<string, unknown>>
-  ): {
-    downloadCode: string
-    fileName?: string
-    robotCode?: string
-  } | null {
+  ): DingTalkInboundFileRef | null {
     const sourceRecords = records.filter((item): item is Record<string, unknown> => Boolean(item))
     const downloadCode = this.firstNormalizedString(sourceRecords, [
       'downloadCode',
@@ -1080,10 +1200,15 @@ export class DingTalkConversationService implements OnModuleDestroy {
     }
 
     return {
+      kind,
       downloadCode,
       fileName: this.firstNormalizedString(sourceRecords, ['fileName', 'filename', 'name']),
       robotCode: this.firstNormalizedString(baseRecords, ['robotCode', 'robot_code'])
     }
+  }
+
+  private safePathSegment(value: string): string {
+    return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 128) || 'unknown'
   }
 
   private resolveDingTalkMessageType(record: Record<string, unknown> | null, includeTypeField = false): string | undefined {

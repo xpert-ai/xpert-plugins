@@ -8,7 +8,9 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
     currentTenantId: jest.fn(() => null),
     getOrganizationId: jest.fn(() => null)
   },
-  runWithRequestContext: jest.fn((_user: unknown, fn: () => unknown) => fn())
+  runWithRequestContext: jest.fn((_user: unknown, fn: () => unknown) => fn()),
+  WorkspaceFilesRuntimeCapability: Symbol.for('WorkspaceFilesRuntimeCapability'),
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES_TOKEN'
 }))
 
 jest.mock('./workflow/dingtalk-trigger.strategy.js', () => ({
@@ -47,6 +49,30 @@ describe('DingTalkConversationService', () => {
 	      errorMessage: jest.fn().mockResolvedValue(undefined),
 	      getOrCreateDingTalkClientById: jest.fn().mockResolvedValue(dingtalkClient)
 	    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn().mockResolvedValue({
+        filePath: 'files/dingtalk/integration-1/hash/report.pdf',
+        workspacePath: '/workspace/files/dingtalk/integration-1/hash/report.pdf',
+        fileUrl: 'workspace://files/dingtalk/integration-1/hash/report.pdf',
+        mimeType: 'application/pdf',
+        size: 11
+      }),
+      understandFile: jest.fn().mockResolvedValue({
+        fileAssetId: 'file-asset-1',
+        fileId: 'file-1',
+        filePath: 'files/dingtalk/integration-1/hash/report.pdf',
+        workspacePath: '/workspace/files/dingtalk/integration-1/hash/report.pdf',
+        fileUrl: 'workspace://files/dingtalk/integration-1/hash/report.pdf',
+        originalName: 'report.pdf',
+        mimeType: 'application/pdf',
+        size: 11
+      })
+    }
+    const runtimeCapabilities = {
+      get: jest.fn((key: unknown) =>
+        key === Symbol.for('WorkspaceFilesRuntimeCapability') ? workspaceFiles : undefined
+      )
+    }
     const conversationBindingRepository = {
       findOne: jest.fn().mockResolvedValue(null),
       upsert: jest.fn().mockResolvedValue(undefined),
@@ -85,7 +111,8 @@ describe('DingTalkConversationService', () => {
       conversationBindingRepository as any,
       triggerBindingRepository as any,
       triggerStrategy as any,
-      pluginContext as any
+      pluginContext as any,
+      runtimeCapabilities as any
     )
 
     return {
@@ -93,6 +120,7 @@ describe('DingTalkConversationService', () => {
       commandBus,
 	      dingtalkChannel,
 	      dingtalkClient,
+      workspaceFiles,
 	      conversationBindingRepository,
       triggerBindingRepository,
       triggerStrategy,
@@ -134,6 +162,10 @@ describe('DingTalkConversationService', () => {
       input: 'hello',
       senderOpenId: 'sender-open-id',
       chatId: 'chat-1',
+      chatType: 'private',
+      message: {
+        senderStaffId: 'sender-staff-id'
+      },
       userId: 'user-1'
     } as any)
 
@@ -145,6 +177,10 @@ describe('DingTalkConversationService', () => {
       })
     )
     expect(dingtalkChannel.errorMessage).not.toHaveBeenCalled()
+
+    const dingtalkMessage = triggerStrategy.handleInboundMessage.mock.calls[0][0].dingtalkMessage
+    expect(dingtalkMessage.chatContext.chatType).toBe('private')
+    expect(dingtalkMessage.chatContext.senderRecipient).toEqual({ type: 'user_id', id: 'sender-staff-id' })
   })
 
   it('persists explicit callback context when conversation starts outside request context', async () => {
@@ -261,6 +297,91 @@ describe('DingTalkConversationService', () => {
 	      })
 	    )
 	  })
+
+  it('stores inbound DingTalk files in the Xpert workspace before dispatch', async () => {
+    const {
+      service,
+      commandBus,
+      conversationBindingRepository,
+      dingtalkClient,
+      workspaceFiles,
+      triggerBindingRepository,
+      triggerStrategy
+    } = createService()
+    const fileBuffer = Buffer.from('%PDF-report')
+    dingtalkClient.downloadMessageFile.mockResolvedValueOnce({
+      buffer: fileBuffer,
+      mimeType: 'application/pdf',
+      fileName: 'report.pdf'
+    })
+    triggerBindingRepository.findOne.mockResolvedValueOnce({ xpertId: 'xpert-1' })
+    conversationBindingRepository.findOne.mockResolvedValueOnce({
+      conversationUserKey: 'integration-1:chat-1:sender-open-id',
+      xpertId: 'xpert-1',
+      conversationId: 'conversation-1',
+      updatedAt: new Date()
+    })
+    triggerStrategy.handleInboundMessage.mockResolvedValueOnce(false)
+
+    await service.processMessage({
+      integrationId: 'integration-1',
+      senderOpenId: 'sender-open-id',
+      chatId: 'chat-1',
+      userId: 'user-1',
+      message: {
+        eventId: 'msg-file-1',
+        conversationId: 'chat-1',
+        senderId: 'sender-open-id',
+        msgType: 'file',
+        content: {
+          downloadCode: 'download-code-file-1',
+          fileName: 'report.pdf'
+        }
+      }
+    } as any)
+
+    expect(dingtalkClient.downloadMessageFile).toHaveBeenCalledWith({
+      downloadCode: 'download-code-file-1',
+      robotCode: undefined
+    })
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        isolateByUser: false,
+        fileName: 'report.pdf',
+        mimeType: 'application/pdf',
+        buffer: fileBuffer
+      })
+    )
+    expect(workspaceFiles.understandFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        purpose: 'chat_attachment',
+        conversationId: 'conversation-1'
+      })
+    )
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          xpertId: 'xpert-1',
+          input: '',
+          files: [
+            expect.objectContaining({
+              fileAssetId: 'file-asset-1',
+              fileId: 'file-1',
+              workspacePath: '/workspace/files/dingtalk/integration-1/hash/report.pdf',
+              originalName: 'report.pdf',
+              mimeType: 'application/pdf'
+            })
+          ]
+        })
+      })
+    )
+    const dispatchedFile = (commandBus.execute.mock.calls[0][0] as any).input.files[0]
+    expect(dispatchedFile.fileUrl).not.toMatch(/^data:/)
+  })
 
   it('forwards DingTalk picture messages as vision files', async () => {
     const { service, commandBus, conversationBindingRepository, dingtalkClient, dingtalkChannel, triggerBindingRepository, triggerStrategy } =

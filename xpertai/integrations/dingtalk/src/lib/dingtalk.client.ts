@@ -6,7 +6,8 @@ import {
   normalizeDingTalkRobotCode,
   parseDingTalkClientError,
   formatDingTalkErrorToMarkdown,
-  resolveDingTalkHttpCallbackEnabled
+  resolveDingTalkHttpCallbackEnabled,
+  DINGTALK_MAX_FILE_BYTES
 } from './types.js'
 
 type DingTalkRecipient = {
@@ -52,6 +53,12 @@ export type DingTalkDownloadedMessageFile = {
   buffer: Buffer
   mimeType?: string
   fileName?: string
+}
+
+export type DingTalkUploadedMedia = {
+  mediaId: string
+  type?: string
+  createdAt?: number
 }
 
 export class DingTalkClient {
@@ -285,7 +292,8 @@ export class DingTalkClient {
 
     const response = await this.http.get<ArrayBuffer>(downloadUrl, {
       responseType: 'arraybuffer',
-      timeout: input.timeoutMs || 15_000
+      timeout: input.timeoutMs || 15_000,
+      maxContentLength: DINGTALK_MAX_FILE_BYTES
     })
     const buffer = Buffer.from(response.data)
     const mimeType = this.getHeaderValue(response.headers as Record<string, unknown>, 'content-type')?.split(';')[0]?.trim()
@@ -295,6 +303,64 @@ export class DingTalkClient {
       buffer,
       mimeType,
       fileName
+    }
+  }
+
+  async uploadMediaFile(input: {
+    buffer: Buffer
+    fileName: string
+    mimeType?: string | null
+    timeoutMs?: number
+  }): Promise<DingTalkUploadedMedia> {
+    if (!input.buffer.length) {
+      throw new Error('DingTalk media upload does not support empty files')
+    }
+
+    const fileName = this.stringOrEmpty(input.fileName)
+    if (!fileName) {
+      throw new Error('DingTalk media upload fileName is required')
+    }
+
+    const token = await this.getLegacyToken()
+    const form = new FormData()
+    form.append(
+      'media',
+      new Blob([new Uint8Array(input.buffer)], {
+        type: this.stringOrEmpty(input.mimeType) || 'application/octet-stream'
+      }),
+      fileName
+    )
+
+    const { data } = await this.http.post<{
+      errcode?: number
+      errmsg?: string
+      media_id?: string
+      mediaId?: string
+      type?: string
+      created_at?: number
+      createdAt?: number
+    }>(`${this.legacyApiBaseUrl}/media/upload`, form, {
+      params: {
+        access_token: token,
+        type: 'file'
+      },
+      timeout: input.timeoutMs || 15_000,
+      maxBodyLength: Infinity
+    })
+
+    if (data?.errcode && data.errcode !== 0) {
+      throw new Error(`DingTalk media upload failed: ${data?.errmsg || data?.errcode}`)
+    }
+
+    const mediaId = this.stringOrEmpty(data?.media_id) || this.stringOrEmpty(data?.mediaId)
+    if (!mediaId) {
+      throw new Error('Missing media_id in DingTalk media upload response')
+    }
+
+    return {
+      mediaId,
+      type: this.stringOrEmpty(data?.type) || undefined,
+      createdAt: Number(data?.created_at ?? data?.createdAt) || undefined
     }
   }
 
@@ -1047,7 +1113,9 @@ export class DingTalkClient {
             degraded: true,
             messageId: sessionFallback.messageId || null
           }
-        } catch {}
+        } catch {
+          // Continue to the configured webhook fallback.
+        }
       }
 
       if (this.options.webhookAccessToken) {
@@ -1062,7 +1130,9 @@ export class DingTalkClient {
             degraded: true,
             messageId: fallback.messageId
           }
-        } catch {}
+        } catch {
+          // Return the documented degraded result below.
+        }
       }
 
       return {

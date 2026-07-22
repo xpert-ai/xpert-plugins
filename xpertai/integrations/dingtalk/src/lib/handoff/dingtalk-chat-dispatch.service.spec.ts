@@ -23,6 +23,8 @@ function createDingTalkMessage(
 		integrationId: string
 		chatId: string
 		senderOpenId: string
+		senderRecipient: { type: 'user_id' | 'open_id'; id: string }
+		chatType: 'private' | 'group'
 		robotCode: string
 		sessionWebhook: string
 		update: jest.Mock
@@ -38,6 +40,8 @@ function createDingTalkMessage(
 		integrationId: overrides.integrationId ?? 'integration-1',
 		chatId: overrides.chatId ?? 'chat-1',
 		senderOpenId: overrides.senderOpenId ?? 'sender-open-id',
+		senderRecipient: overrides.senderRecipient ?? { type: 'user_id', id: 'sender-staff-id' },
+		chatType: overrides.chatType ?? 'private',
 		robotCode: overrides.robotCode ?? 'robot-code-1',
 		sessionWebhook: overrides.sessionWebhook ?? 'https://oapi.dingtalk.com/robot/send/session',
 		update: overrides.update ?? jest.fn().mockResolvedValue(undefined),
@@ -143,6 +147,18 @@ describe('DingTalkChatDispatchService', () => {
 		})
 		expect((message.payload as any).request.input).toBeUndefined()
 		expect((message.payload as any).request.confirm).toBeUndefined()
+		expect((message.payload as any).options.context).toEqual({
+			from: 'dingtalk',
+			channelType: 'dingtalk',
+			sourceIntegrationId: 'integration-1',
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			chatType: 'private',
+			senderRecipient: { type: 'user_id', id: 'sender-staff-id' },
+			robotCode: 'robot-code-1',
+			sessionWebhook: 'https://oapi.dingtalk.com/robot/send/session',
+			xpertId: 'xpert-1'
+		})
 	})
 
 	it('buildDispatchMessage forwards inbound files to the chat request input', async () => {

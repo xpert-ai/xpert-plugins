@@ -324,6 +324,8 @@ describe('DingTalkTriggerStrategy', () => {
 					chatId: 'chat-1',
 					dingtalkUserId: 'user-1',
 					senderOpenId: 'sender-1',
+					senderRecipient: { type: 'user_id', id: 'staff-1' },
+					chatType: 'private',
 					sessionWebhook: 'https://example.com/session',
 					language: 'zh-Hans'
 				} as any,
@@ -345,7 +347,9 @@ describe('DingTalkTriggerStrategy', () => {
 				conversationId: 'conversation-1',
 				latestMessage: expect.objectContaining({
 					chatId: 'chat-1',
-					senderOpenId: 'sender-1'
+					senderOpenId: 'sender-1',
+					senderRecipient: { type: 'user_id', id: 'staff-1' },
+					chatType: 'private'
 				})
 			}),
 			expect.any(Number)
