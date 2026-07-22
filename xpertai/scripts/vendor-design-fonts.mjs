@@ -12,7 +12,7 @@ const vendorDist = join(pluginDist, 'vendor', 'design-fonts')
 await mkdir(vendorDist, { recursive: true })
 await cp(sourceDist, vendorDist, { recursive: true })
 
-let replacementCount = 0
+let vendoredImportCount = 0
 for (const file of await listFiles(pluginDist)) {
   if (!/\.(?:js|d\.ts)$/.test(file) || file.startsWith(vendorDist)) {
     continue
@@ -20,17 +20,18 @@ for (const file of await listFiles(pluginDist)) {
   const source = await readFile(file, 'utf8')
   const vendorEntry = relative(dirname(file), join(vendorDist, 'index.js')).split(sep).join('/')
   const specifier = vendorEntry.startsWith('.') ? vendorEntry : `./${vendorEntry}`
-  const rewritten = source.replace(/(['"])@xpert-ai\/design-fonts\1/g, (_match, quote) => {
-    replacementCount += 1
-    return `${quote}${specifier}${quote}`
-  })
+  const rewritten = source.replace(/(['"])@xpert-ai\/design-fonts\1/g, (_match, quote) => `${quote}${specifier}${quote}`)
+  const escapedSpecifier = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`(['"])${escapedSpecifier}\\1`).test(rewritten)) {
+    vendoredImportCount += 1
+  }
   if (rewritten !== source) {
     await writeFile(file, rewritten)
   }
 }
 
-if (!replacementCount) {
-  throw new Error(`No @xpert-ai/design-fonts imports were found in ${pluginDist}.`)
+if (!vendoredImportCount) {
+  throw new Error(`No @xpert-ai/design-fonts or vendored design font imports were found in ${pluginDist}.`)
 }
 
 async function listFiles(directory) {
