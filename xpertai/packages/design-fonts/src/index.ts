@@ -135,11 +135,11 @@ const EXCALIDRAW_FONT_FAMILY_IDS: Readonly<Record<NonNullable<TypographyPreset['
   Virgil: 1,
   Helvetica: 2,
   Cascadia: 3,
-  Excalifont: 4,
-  Nunito: 5,
-  'Lilita One': 6,
-  'Comic Shanns': 7,
-  'Liberation Sans': 8
+  Excalifont: 5,
+  Nunito: 6,
+  'Lilita One': 7,
+  'Comic Shanns': 8,
+  'Liberation Sans': 9
 }
 
 function preset(
