@@ -28,6 +28,10 @@ import {
   normalizeThemeKeys,
 } from './components/themes/theme-registry-codegen.mjs';
 import {
+  GENERATED_THEME_KEYS,
+  GENERATED_THEME_RECIPES,
+} from './components/themes/generated-theme-definitions.mjs';
+import {
   buildClientRuntime,
   buildClientRuntimeFromModules,
   prebuiltBundlePath,
@@ -221,6 +225,12 @@ function buildImportedThemeRuntime(outFile, usedThemeKeys = []) {
         return;
       }
     }
+    const sharedGeneratedBundle = prebuiltBundlePath(ROOT, 'generated');
+    if (normalized.length && normalized.every(themeKey => GENERATED_THEME_KEYS.includes(themeKey))
+      && fs.existsSync(sharedGeneratedBundle)) {
+      fs.copyFileSync(sharedGeneratedBundle, outFile);
+      return;
+    }
     // 多主题(或单主题缺自包含 bundle):用预构建 minified 模块链接(无主题源)。
     if (normalized.length && prebuiltModulesAvailable(normalized)) {
       buildClientRuntimeFromModules({ root: ROOT, outFile, themeKeys: normalized });
@@ -290,6 +300,11 @@ function copyImportedThemeAssets(outDir, usedThemeKeys = []) {
   // the showcase) copies everything; a single-/few-theme deck skips the rest,
   // shrinking the deck and not leaking other themes' image/video source assets.
   const usedFilter = new Set(usedThemeKeys || []);
+  for (const themeKey of usedThemeKeys || []) {
+    for (const sourceTheme of GENERATED_THEME_RECIPES[themeKey]?.sources || []) {
+      usedFilter.add(sourceTheme);
+    }
+  }
   const copiedByRelativePath = new Map(
     REQUIRED_OUTPUT_ASSETS.map(assetPath => [
       assetPath,

@@ -33,9 +33,9 @@ Presentation Studio is more than a one-time slide generator. Its full-screen Wor
 
 The interface inherits Xpert theme variables, keeps each panel independently scrollable, and loads only the theme runtime required by the active deck.
 
-## 12 themes and 1,020 layouts
+## 14 themes and 1,188 layouts
 
-The plugin includes all 12 DashiAI theme packs and 1,020 presentation layouts. Layouts cover common presentation roles such as:
+The plugin includes all 14 DashiAI theme packs and 1,188 presentation layouts. Layouts cover common presentation roles such as:
 
 - title and section covers;
 - agendas and chapter navigation;
@@ -113,7 +113,7 @@ The OSS base deployment intentionally does not start a Sandbox Runtime worker an
 
 ## Included technology and licensing
 
-Presentation Studio vendors the DashiAI PPT Skill at commit `69ac66443e36e11cfca4a7f30721dc71a4278d28`, including its 12 themes, 1,020 layouts, rendering runtime, and export support. Upstream attribution, source, integrity metadata, and third-party notices are included with the plugin.
+Presentation Studio vendors the DashiAI PPT Skill at commit `69ac66443e36e11cfca4a7f30721dc71a4278d28` plus the locally migrated `theme13` and `theme14`, including 14 themes, 1,188 layouts, rendering runtime, and export support. Upstream attribution, source, integrity metadata, and third-party notices are included with the plugin.
 
 Presentation fonts are not committed as binary files inside the vendored upstream source. The plugin pins the required OFL-1.1 Fontsource packages as runtime dependencies, detects the families used by the selected theme, and stages only that theme's font pack into the render job. HTML export then embeds the WOFF2 data and generated license inventory into the self-contained file. This keeps Git history and the plugin source package smaller without adding a CDN request or changing offline export behavior.
 

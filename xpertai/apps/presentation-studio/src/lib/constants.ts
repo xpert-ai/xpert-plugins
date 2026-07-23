@@ -25,12 +25,32 @@ export const PRESENTATION_SANDBOX_ACTION = 'presentation.export'
 export const PRESENTATION_SANDBOX_ACTION_VERSION = '1.0.2'
 export const PRESENTATION_SANDBOX_JOB_TIMEOUT_MS = 600_000
 export const DASHIAI_UPSTREAM_COMMIT = '69ac66443e36e11cfca4a7f30721dc71a4278d28'
-export const DASHIAI_LAYOUT_COUNT = 1020
-export const DASHIAI_CONTROL_COUNT = 8576
+export const DASHIAI_LAYOUT_COUNT = 1188
+export const DASHIAI_CONTROL_COUNT = 9942
 export const PRESENTATION_THEME_PACKS = [
   'theme01', 'theme02', 'theme03', 'theme04', 'theme05', 'theme06',
-  'theme07', 'theme08', 'theme09', 'theme10', 'theme11', 'theme12'
+  'theme07', 'theme08', 'theme09', 'theme10', 'theme11', 'theme12',
+  'theme13', 'theme14'
 ] as const
+export const PRESENTATION_THEME_CATALOG = {
+  theme01: { displayName: '轻拟态风', scenario: '产品介绍、企业汇报、方案说明、轻量级发布' },
+  theme02: { displayName: '炫光紫绿风', scenario: '科技发布会、AI/自动驾驶/机器人主题、增长故事、创新项目展示' },
+  theme03: { displayName: '深浅代码风', scenario: '技术方案、开发者大会、系统架构、AI 工程实践' },
+  theme04: { displayName: '玻璃糖果风', scenario: '年轻化品牌、消费产品、创意提案、社媒感内容' },
+  theme05: { displayName: '色谱图表风', scenario: '数据报告、市场分析、KPI 复盘、行业研究' },
+  theme06: { displayName: '深色图谱风', scenario: '高密度数据展示、战略分析、科技/金融/产业报告' },
+  theme07: { displayName: '冷白调研风', scenario: '调研报告、白皮书、竞品分析、学术/政策型表达' },
+  theme08: { displayName: '黑金实验风', scenario: '高端发布、品牌提案、实验性概念、奢华科技叙事' },
+  theme09: { displayName: '深蓝杂志风', scenario: '品牌故事、人物访谈、企业形象册、深度专题' },
+  theme10: { displayName: '金色指数风', scenario: '金融数据、投资报告、商业指数、年度榜单' },
+  theme11: { displayName: '高能增长风', scenario: '增长复盘、商业计划、融资路演、市场扩张方案' },
+  theme12: { displayName: '声波霓虹风', scenario: '音乐娱乐、潮流活动、直播内容、年轻化发布' },
+  theme13: { displayName: '深蓝光环风', scenario: '科技汇报、产品发布、技术复盘' },
+  theme14: { displayName: '紫橙怪趣风', scenario: '节日活动、创意课堂、娱乐故事' }
+} as const satisfies Record<(typeof PRESENTATION_THEME_PACKS)[number], {
+  displayName: string
+  scenario: string
+}>
 export const PRESENTATION_STATUSES = ['draft', 'reviewed', 'archived', 'failed'] as const
 export const PRESENTATION_SLIDE_STATUSES = ['active', 'skipped', 'deleted'] as const
 export const PRESENTATION_EXPORT_KINDS = ['html', 'pdf', 'pptx'] as const

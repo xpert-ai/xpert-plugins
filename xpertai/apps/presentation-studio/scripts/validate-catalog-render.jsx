@@ -24,8 +24,8 @@ const pagesByTheme = THEME_PAGES.reduce((groups, page) => {
   groups.set(page.themeKey, pages)
   return groups
 }, new Map())
-assert.equal(pagesByTheme.size, 12, 'catalog must contain exactly 12 themes')
-assert.equal(THEME_PAGES.length, 1020, 'catalog must contain exactly 1020 layouts')
+assert.equal(pagesByTheme.size, 14, 'catalog must contain exactly 14 themes')
+assert.equal(THEME_PAGES.length, 1188, 'catalog must contain exactly 1188 layouts')
 
 const contractErrors = THEME_PAGES.flatMap((page) => {
   try {

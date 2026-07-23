@@ -99,7 +99,7 @@ export const presentationStudioTemplates: XpertTemplateContribution[] = [{
   key: PRESENTATION_ASSISTANT_TEMPLATE_KEY,
   name: 'Presentation Studio Assistant',
   title: '演示文稿生成助手',
-  description: '基于 DashiAI 12 套主题和 1020 个版式的人机协作演示文稿助手。',
+  description: '基于 DashiAI 14 套主题和 1188 个版式的人机协作演示文稿助手。',
   category: 'Productivity',
   type: XpertTypeEnum.Agent,
   targetApps: ['data-xpert', 'xpert'],
