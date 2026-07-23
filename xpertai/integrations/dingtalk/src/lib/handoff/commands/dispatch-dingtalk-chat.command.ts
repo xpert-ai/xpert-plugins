@@ -3,6 +3,7 @@ import type { DingTalkInboundFile } from '../../types.js'
 
 export type DispatchDingTalkChatPayload = {
 	xpertId: string
+	dispatchMessageId?: string
 	input?: string
 	files?: DingTalkInboundFile[]
 	dingtalkMessage: ChatDingTalkMessage

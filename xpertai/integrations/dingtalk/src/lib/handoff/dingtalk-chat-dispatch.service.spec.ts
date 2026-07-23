@@ -55,15 +55,11 @@ function mockRequestContext(params?: {
 	tenantId?: string
 	organizationId?: string
 	language?: string
-	headers?: Record<string, unknown>
 }) {
 	jest.spyOn(RequestContext, 'currentUserId').mockReturnValue((params?.userId ?? 'request-user-id') as any)
 	jest.spyOn(RequestContext, 'currentTenantId').mockReturnValue((params?.tenantId ?? 'request-tenant-id') as any)
 	jest.spyOn(RequestContext, 'getOrganizationId').mockReturnValue((params?.organizationId ?? 'request-organization-id') as any)
 	jest.spyOn(RequestContext, 'getLanguageCode').mockReturnValue((params?.language ?? 'zh-Hans') as any)
-	jest.spyOn(RequestContext, 'currentRequest').mockReturnValue({
-		headers: params?.headers ?? {}
-	} as any)
 }
 
 describe('DingTalkChatDispatchService', () => {
@@ -159,6 +155,27 @@ describe('DingTalkChatDispatchService', () => {
 			sessionWebhook: 'https://oapi.dingtalk.com/robot/send/session',
 			xpertId: 'xpert-1'
 		})
+	})
+
+	it('buildDispatchMessage preserves a stable aggregate dispatch message id', async () => {
+		mockRequestContext()
+		const { service, runStateService } = createFixture()
+		const dingtalkMessage = createDingTalkMessage()
+
+		const message = await service.buildDispatchMessage({
+			xpertId: 'xpert-1',
+			dispatchMessageId: 'dingtalk-chat-aggregate-stable-id',
+			input: 'hi',
+			dingtalkMessage: dingtalkMessage as any
+		})
+
+		expect(message.id).toBe('dingtalk-chat-aggregate-stable-id')
+		expect(message.traceId).toBe('dingtalk-chat-aggregate-stable-id')
+		expect(runStateService.save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sourceMessageId: 'dingtalk-chat-aggregate-stable-id'
+			})
+		)
 	})
 
 	it('buildDispatchMessage forwards inbound files to the chat request input', async () => {

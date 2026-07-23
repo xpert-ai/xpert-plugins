@@ -29,7 +29,12 @@ import {
   TIntegrationDingTalkOptions
 } from './types.js'
 import { DingTalkClient } from './dingtalk.client.js'
-import { resolveDingTalkSendFileFromBuffer, type DingTalkResolvedSendFile } from './dingtalk-send-file.js'
+import {
+  buildDingTalkSendMediaContent,
+  resolveDingTalkSendFileFromBuffer,
+  resolveDingTalkSendImageFromBuffer,
+  type DingTalkResolvedSendFile
+} from './dingtalk-send-file.js'
 
 type DingTalkRecipient = {
   type: 'chat_id' | 'open_id' | 'user_id' | 'union_id' | 'email'
@@ -617,14 +622,16 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
     }
   ): Promise<TChatSendResult> {
     try {
-      if (media.type !== 'file' || !media.content) {
+      if ((media.type !== 'file' && media.type !== 'image') || !media.content) {
         return {
           success: false,
-          error: 'DingTalk sendMedia currently supports file content only'
+          error: 'DingTalk sendMedia supports image or file content only'
         }
       }
 
-      const file = resolveDingTalkSendFileFromBuffer(media.content, {
+      const resolveMedia =
+        media.type === 'image' ? resolveDingTalkSendImageFromBuffer : resolveDingTalkSendFileFromBuffer
+      const file = resolveMedia(media.content, {
         descriptor: {
           originalName: media.filename || 'file'
         }
@@ -635,14 +642,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         recipient: this.resolveRecipient(ctx),
         robotCodeOverride: this.resolveRobotCode(ctx) || undefined,
         msgType: 'interactive',
-        content: {
-          msgKey: 'sampleFile',
-          msgParam: {
-            mediaId: uploaded.mediaId,
-            fileName: file.fileName,
-            fileType: file.fileType
-          }
-        },
+        content: buildDingTalkSendMediaContent(file, uploaded.mediaId),
         allowFallback: false
       })
 
@@ -651,10 +651,10 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
         messageId: result.messageId || undefined
       }
     } catch (error: any) {
-      this.logger.error('Failed to send DingTalk file message', error)
+      this.logger.error('Failed to send DingTalk media message', error)
       return {
         success: false,
-        error: error?.message || 'Failed to send file message'
+        error: error?.message || 'Failed to send media message'
       }
     }
   }
@@ -665,6 +665,7 @@ export class DingTalkChannelStrategy implements IChatChannel<TIntegrationDingTal
       buffer: file.buffer,
       fileName: file.fileName,
       mimeType: file.mimeType,
+      mediaType: file.mediaType,
       timeoutMs
     })
   }

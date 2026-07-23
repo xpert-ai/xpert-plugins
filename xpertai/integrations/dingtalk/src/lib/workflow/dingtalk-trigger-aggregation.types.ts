@@ -27,6 +27,8 @@ export interface DingTalkTriggerAggregationState {
 	conversationUserKey: string
 	xpertId: string
 	version: number
+	dispatchMessageId: string
+	deliveryStatus?: 'pending' | 'dispatching' | 'dispatched'
 	inputParts: string[]
 	files?: DingTalkInboundFile[]
 	lastMessageAt: number

@@ -116,7 +116,7 @@ export class DingTalkChatDispatchService {
 			)
 		}
 
-		const runId = `dingtalk-chat-${randomUUID()}`
+		const runId = input.dispatchMessageId ?? `dingtalk-chat-${randomUUID()}`
 		const sessionKey = conversationId ?? runId
 		const language = dingtalkMessage.language || RequestContext.getLanguageCode()
 		const callbackContext: DingTalkChatCallbackContext = {
@@ -132,7 +132,6 @@ export class DingTalkChatDispatchService {
 			robotCode: dingtalkMessage.robotCode,
 			sessionWebhook: dingtalkMessage.sessionWebhook,
 			reject: Boolean(input.options?.reject),
-			streaming: this.resolveStreamingOverrideFromRequest(),
 			message: this.toMessageSnapshot(dingtalkMessage, input.input)
 		}
 
@@ -140,10 +139,10 @@ export class DingTalkChatDispatchService {
 			sourceMessageId: runId,
 			nextSequence: 1,
 			responseMessageContent: '',
+			pendingSegmentText: '',
+			deliveredSegmentCount: 0,
 			context: callbackContext,
 			pendingEvents: {},
-			lastFlushAt: 0,
-			lastFlushedLength: 0,
 			renderItems: (callbackContext.message?.elements ?? []).map((element) => ({
 				kind: 'structured' as const,
 				element: { ...element }
@@ -294,24 +293,6 @@ export class DingTalkChatDispatchService {
 				header: message.header,
 				elements: [...(message.elements ?? [])]
 			}
-		}
-	}
-
-	private resolveStreamingOverrideFromRequest(): DingTalkChatCallbackContext['streaming'] | undefined {
-		const request = RequestContext.currentRequest()
-		const rawHeader =
-			request?.headers?.['x-dingtalk-update-window-ms'] ??
-			request?.headers?.['dingtalk-update-window-ms']
-		const rawValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader
-		if (!rawValue) {
-			return undefined
-		}
-		const parsed = parseInt(String(rawValue), 10)
-		if (!Number.isFinite(parsed) || parsed <= 0) {
-			return undefined
-		}
-		return {
-			updateWindowMs: parsed
 		}
 	}
 
