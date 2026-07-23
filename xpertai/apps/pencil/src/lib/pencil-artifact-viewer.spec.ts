@@ -60,10 +60,19 @@ describe('PencilArtifactViewerService', () => {
     expect(html).toContain('requestFullscreen')
     expect(html).toContain('fullscreenchange')
     expect(html).toContain('viewer-fullscreen')
+    expect(html).toContain('grid-template-rows:auto minmax(0,1fr)')
+    expect(html).toContain('max-height:52px')
+    expect(html).toContain("window.matchMedia('(max-width:700px)')")
+    expect(html).toContain('const fitWidth=')
+    expect(html).toContain('window.visualViewport?.addEventListener')
     expect(html).toContain('Second page')
     expect(html).not.toContain('Internal page')
     expect(html).not.toContain('https://example.com')
     expect(html).not.toContain('fetch(')
+
+    const viewerScript = html.match(/<script>([\s\S]*)<\/script>/)?.[1]
+    expect(viewerScript).toBeDefined()
+    expect(() => new Function(viewerScript as string)).not.toThrow()
   })
 
   it('loads managed online fonts used by the published SVG', async () => {
