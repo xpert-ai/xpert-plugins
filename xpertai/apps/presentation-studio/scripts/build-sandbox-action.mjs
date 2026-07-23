@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { cp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -23,6 +23,18 @@ await cp(path.join(packageRoot, 'assets', 'upstream', 'dashiai-ppt', 'project'),
   filter: shouldCopyBundleEntry
 })
 await cp(path.join(packageRoot, 'assets', 'upstream', 'UPSTREAM.json'), path.join(bundleRoot, 'UPSTREAM.json'))
+const runtimeBuild = await import(pathToFileURL(path.join(
+  projectRoot,
+  'src',
+  'components',
+  'themes',
+  'runtime-build.mjs'
+)).href)
+runtimeBuild.buildClientRuntimeFromModules({
+  root: projectRoot,
+  outFile: path.join(projectRoot, 'dist', 'theme-runtime', 'imported-theme-runtime.generated.js'),
+  themeKeys: ['theme13', 'theme14']
+})
 
 await build({
   entryPoints: [path.join(sourceRoot, 'runner.mjs')],

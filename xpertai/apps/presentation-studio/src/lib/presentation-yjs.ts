@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { PRESENTATION_THEME_PACKS } from './constants.js'
 import type {
   PresentationDeckSpec,
   PresentationEditorState,
@@ -264,7 +265,9 @@ function readNullableString(value: PresentationJsonValue | undefined) {
 }
 
 function readThemePack(value: PresentationJsonValue | undefined): PresentationThemePack {
-  return typeof value === 'string' && /^theme(?:0[1-9]|1[0-2])$/.test(value) ? value as PresentationThemePack : 'theme01'
+  return typeof value === 'string' && (PRESENTATION_THEME_PACKS as readonly string[]).includes(value)
+    ? value as PresentationThemePack
+    : 'theme01'
 }
 
 function readSlideStatus(value: PresentationJsonValue | undefined): PresentationSlideStatus {

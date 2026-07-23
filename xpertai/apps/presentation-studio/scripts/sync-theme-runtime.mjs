@@ -15,11 +15,13 @@ if (!/^[0-9a-f]{40}$/.test(commit)) {
   throw new Error(`UPSTREAM.json must pin a full 40-character Git commit, received: ${commit}`)
 }
 
-const themeKeys = Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
-const files = themeKeys.flatMap((themeKey) => [
-  `${themeKey}.module.mjs`,
-  `imported-theme-runtime.${themeKey}.js`
-])
+const originalThemeKeys = Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
+const themeKeys = Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
+const files = [
+  ...themeKeys.map((themeKey) => `${themeKey}.module.mjs`),
+  ...originalThemeKeys.map((themeKey) => `imported-theme-runtime.${themeKey}.js`),
+  ...(metadata.generatedRuntimeFiles ?? [])
+]
 const vendorRelativeRoot = 'dashiai-ppt/project/dist/theme-runtime'
 const upstreamRelativeRoot = 'skills/dashiai-ppt/project/dist/theme-runtime'
 const outputRoot = join(upstreamRoot, vendorRelativeRoot)
@@ -48,6 +50,9 @@ async function syncFile(fileName) {
 
   const target = join(outputRoot, fileName)
   if (existsSync(target) && await sha256File(target) === expected) return null
+  if ((metadata.localFiles ?? []).includes(relativePath)) {
+    throw new Error(`Locally vendored theme runtime is missing or stale: ${relativePath}`)
+  }
 
   const url = `https://raw.githubusercontent.com/${repository}/${commit}/${upstreamRelativeRoot}/${fileName}`
   const temporary = `${target}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`

@@ -1,4 +1,5 @@
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { PRESENTATION_THEME_CATALOG, PRESENTATION_THEME_PACKS } from './constants.js'
 import { PresentationStudioMiddleware } from './presentation-studio.middleware.js'
 
 jest.mock('@langchain/core/callbacks/dispatch', () => ({ dispatchCustomEvent: jest.fn().mockResolvedValue(undefined) }))
@@ -171,6 +172,16 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     expect(inspectTool?.description).toContain('HARD LIMIT')
     expect(inspectTool?.description).toContain('sequential batches of at most 8')
     expect(addSlideTool?.description).toContain('array items may contain only allowedKeys')
+  })
+
+  it('exposes every theme name and scenario to the agent', async () => {
+    const { agentMiddleware } = await createHarness()
+    const createDeckTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_create_deck')
+
+    for (const key of PRESENTATION_THEME_PACKS) {
+      expect(createDeckTool?.description).toContain(`${key} ${PRESENTATION_THEME_CATALOG[key].displayName}`)
+      expect(createDeckTool?.description).toContain(PRESENTATION_THEME_CATALOG[key].scenario)
+    }
   })
 
   it('returns only the share URL when an HTML share is ready', async () => {

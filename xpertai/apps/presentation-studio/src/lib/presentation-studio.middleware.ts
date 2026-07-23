@@ -24,6 +24,7 @@ import {
   PRESENTATION_MUTATION_TOOL_NAMES,
   PRESENTATION_SLIDE_STATUSES,
   PRESENTATION_STATUSES,
+  PRESENTATION_THEME_CATALOG,
   PRESENTATION_THEME_PACKS,
   PRESENTATION_TOOL_NAMES,
   PRESENTATION_WORKBENCH_CAPABILITY
@@ -40,7 +41,10 @@ import {
   type PresentationWorkbenchAgentContext
 } from './types.js'
 
-const themeSchema = z.enum(PRESENTATION_THEME_PACKS)
+const themeGuide = PRESENTATION_THEME_PACKS
+  .map((key) => `${key} ${PRESENTATION_THEME_CATALOG[key].displayName}（${PRESENTATION_THEME_CATALOG[key].scenario}）`)
+  .join('; ')
+const themeSchema = z.enum(PRESENTATION_THEME_PACKS).describe(`Available presentation themes: ${themeGuide}`)
 const statusSchema = z.enum(PRESENTATION_STATUSES)
 const slideStatusSchema = z.enum(PRESENTATION_SLIDE_STATUSES)
 const exportKindSchema = z.enum(PRESENTATION_EXPORT_KINDS)
@@ -180,7 +184,7 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         }),
         tool((input) => compact(this.service.createDeck(scope, input)), {
           name: 'presentation_create_deck',
-          description: toolDescription(currentDeckHint, 'Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck.'),
+          description: toolDescription(currentDeckHint, `Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck. Introduce or recommend themes by their display name and scenario when helpful. Available themes: ${themeGuide}`),
           schema: createDeckSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.searchDecks(scope, input)), {

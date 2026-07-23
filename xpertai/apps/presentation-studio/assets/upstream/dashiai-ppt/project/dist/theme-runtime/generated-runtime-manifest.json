@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "strategy": "shared-esm-splitting",
+  "themeKeys": [
+    "theme13",
+    "theme14"
+  ],
+  "entries": {
+    "theme13": "theme13.module.mjs",
+    "theme14": "theme14.module.mjs"
+  },
+  "sharedChunks": [
+    "generated-chunks/chunk-ANKYGXEN.mjs"
+  ],
+  "totalBytes": 4334189,
+  "uniqueInputBytes": 4345745,
+  "budgetBytes": 9437184,
+  "outputToUniqueInputRatio": 0.9973,
+  "standaloneBundles": false
+}

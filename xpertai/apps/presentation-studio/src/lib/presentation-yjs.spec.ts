@@ -50,6 +50,15 @@ describe('Presentation Yjs document', () => {
     expect(result.status).toBe('reviewed')
   })
 
+  it('preserves generated theme keys when materializing a deck', () => {
+    const generatedThemeSpec: PresentationDeckSpec = {
+      ...spec,
+      themePack: 'theme14',
+      slides: [{ id: 'slide-1', layout: 'theme14_page001', status: 'active', props: {} }]
+    }
+    expect(materializePresentationYDoc(createPresentationYDoc(generatedThemeSpec)).spec.themePack).toBe('theme14')
+  })
+
   it('stores editable text as Y.Text and migrates legacy strings without changing content', () => {
     const current = createPresentationYDoc(spec, {
       slideOrder: ['slide-1'], skippedSlides: [], deletedSlides: [], duplicatedSlides: [],
