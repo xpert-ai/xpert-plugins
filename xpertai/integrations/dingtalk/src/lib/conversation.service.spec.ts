@@ -244,6 +244,45 @@ describe('DingTalkConversationService', () => {
 	    expect(first.getUserQueueName('integration-1:user-1')).not.toBe(second.getUserQueueName('integration-1:user-1'))
 	  })
 
+  it('does not retry the whole inbound queue job after file side effects may have run', async () => {
+    const { service } = createService()
+    const queue = {
+      add: jest.fn().mockResolvedValue(undefined)
+    }
+    jest.spyOn(service, 'getUserQueue').mockResolvedValue(queue as never)
+
+    await service.handleMessage(
+      {
+        chatId: 'chat-1',
+        chatType: 'private',
+        senderId: 'sender-open-id',
+        content: 'hello',
+        raw: {
+          msgType: 'text'
+        }
+      } as never,
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        integration: {
+          id: 'integration-1',
+          createdById: '11111111-1111-4111-8111-111111111111',
+          options: {}
+        }
+      } as never
+    )
+
+    expect(queue.add).toHaveBeenCalledTimes(1)
+    expect(queue.add.mock.calls[0]).toHaveLength(1)
+    expect(queue.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integrationId: 'integration-1',
+        input: 'hello',
+        senderOpenId: 'sender-open-id'
+      })
+    )
+  })
+
 	  it('forwards inbound image messages as vision files', async () => {
 	    const { service, commandBus, conversationBindingRepository, dingtalkClient, dingtalkChannel, triggerBindingRepository, triggerStrategy } =
 	      createService()
@@ -381,6 +420,88 @@ describe('DingTalkConversationService', () => {
     )
     const dispatchedFile = (commandBus.execute.mock.calls[0][0] as any).input.files[0]
     expect(dispatchedFile.fileUrl).not.toMatch(/^data:/)
+  })
+
+  it('stores files embedded in DingTalk quoted-message metadata before dispatch', async () => {
+    const {
+      service,
+      commandBus,
+      conversationBindingRepository,
+      dingtalkClient,
+      triggerBindingRepository,
+      triggerStrategy,
+      workspaceFiles
+    } = createService()
+    dingtalkClient.downloadMessageFile.mockResolvedValueOnce({
+      buffer: Buffer.from('%PDF-quoted-report'),
+      mimeType: 'application/pdf',
+      fileName: 'quoted-report.pdf'
+    })
+    workspaceFiles.understandFile.mockResolvedValueOnce({
+      fileAssetId: 'quoted-file-asset-1',
+      fileId: 'quoted-file-1',
+      filePath: 'files/dingtalk/integration-1/hash/quoted-report.pdf',
+      workspacePath: '/workspace/files/dingtalk/integration-1/hash/quoted-report.pdf',
+      fileUrl: 'workspace://files/dingtalk/integration-1/hash/quoted-report.pdf',
+      originalName: 'quoted-report.pdf',
+      mimeType: 'application/pdf',
+      size: 18
+    })
+    triggerBindingRepository.findOne.mockResolvedValueOnce({ xpertId: 'xpert-1' })
+    conversationBindingRepository.findOne.mockResolvedValueOnce({
+      conversationUserKey: 'integration-1:chat-1:sender-open-id',
+      xpertId: 'xpert-1',
+      conversationId: 'conversation-1',
+      updatedAt: new Date()
+    })
+    triggerStrategy.handleInboundMessage.mockResolvedValueOnce(false)
+
+    await service.processMessage({
+      integrationId: 'integration-1',
+      senderOpenId: 'sender-open-id',
+      chatId: 'chat-1',
+      userId: 'user-1',
+      message: {
+        eventId: 'msg-reply-1',
+        conversationId: 'chat-1',
+        senderId: 'sender-open-id',
+        msgType: 'text',
+        robotCode: 'robot-code-1',
+        originalMsgId: 'msg-file-1',
+        text: {
+          content: '看一下文件内容',
+          isReplyMsg: true,
+          repliedMsg: {
+            msgType: 'file',
+            content: JSON.stringify({
+              downloadCode: 'download-code-quoted-file-1',
+              fileName: 'quoted-report.pdf'
+            })
+          }
+        }
+      }
+    } as any)
+
+    expect(dingtalkClient.downloadMessageFile).toHaveBeenCalledWith({
+      downloadCode: 'download-code-quoted-file-1',
+      robotCode: 'robot-code-1'
+    })
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          xpertId: 'xpert-1',
+          input: '看一下文件内容',
+          files: [
+            expect.objectContaining({
+              fileAssetId: 'quoted-file-asset-1',
+              fileId: 'quoted-file-1',
+              originalName: 'quoted-report.pdf',
+              mimeType: 'application/pdf'
+            })
+          ]
+        })
+      })
+    )
   })
 
   it('forwards DingTalk picture messages as vision files', async () => {

@@ -117,6 +117,7 @@ describe('DingTalkNotifyMiddleware', () => {
         buffer: fileBuffer,
         fileName: 'report.pdf',
         fileType: 'pdf',
+        mediaType: 'file',
         mimeType: 'application/pdf'
       }),
       1000
@@ -131,6 +132,50 @@ describe('DingTalkNotifyMiddleware', () => {
           mediaId: 'media-1',
           fileName: 'report.pdf',
           fileType: 'pdf'
+        }
+      },
+      allowFallback: false
+    })
+  })
+
+  it('sends workspace images through the DingTalk image message channel', async () => {
+    const { middleware, dingtalkChannel, workspaceFiles } = createFixture()
+    const imageBuffer = Buffer.from('chart bytes')
+    workspaceFiles.readRuntimeBuffer.mockResolvedValueOnce({
+      name: 'chart.png',
+      filePath: 'files/chart.png',
+      workspacePath: '/workspace/files/chart.png',
+      mimeType: 'image/png',
+      size: imageBuffer.length,
+      buffer: imageBuffer
+    })
+    const sendFile = getTool(middleware, 'dingtalk_send_file')
+
+    await sendFile.invoke({
+      path: 'files/chart.png',
+      originalName: 'chart.png',
+      mimeType: 'image/png'
+    })
+
+    expect(dingtalkChannel.uploadFile).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        buffer: imageBuffer,
+        fileName: 'chart.png',
+        fileType: 'png',
+        mediaType: 'image',
+        mimeType: 'image/png'
+      }),
+      1000
+    )
+    expect(dingtalkChannel.createMessage).toHaveBeenCalledWith('integration-1', {
+      recipient: { type: 'chat_id', id: 'chat-1' },
+      robotCodeOverride: null,
+      msgType: 'interactive',
+      content: {
+        msgKey: 'sampleImageMsg',
+        msgParam: {
+          photoURL: 'media-1'
         }
       },
       allowFallback: false

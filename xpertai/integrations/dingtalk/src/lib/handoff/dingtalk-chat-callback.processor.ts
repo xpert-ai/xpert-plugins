@@ -3,7 +3,6 @@ import {
 	HandoffMessage,
 	HandoffProcessorStrategy,
 	IHandoffProcessor,
-	type PluginContext,
 	ProcessContext,
 	ProcessResult,
 } from '@xpert-ai/plugin-sdk'
@@ -13,21 +12,12 @@ import { DingTalkConversationService } from '../conversation.service.js'
 import { resolveConversationUserKey as resolveDingTalkConversationUserKey } from '../conversation-user-key.js'
 import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
 import {
-	DEFAULT_STREAM_UPDATE_WINDOW_MS,
-	DEFAULT_FIRST_FLUSH_MIN_CHARS,
-	MAX_FIRST_FLUSH_MIN_CHARS,
-	IntegrationDingTalkPluginConfig,
-	MAX_STREAM_UPDATE_WINDOW_MS,
-	MIN_FIRST_FLUSH_MIN_CHARS,
-	MIN_STREAM_UPDATE_WINDOW_MS
-} from '../plugin-config.js'
-import { DINGTALK_PLUGIN_CONTEXT } from '../tokens.js'
-import {
 	DINGTALK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE,
 	DingTalkChatCallbackContext,
 	DingTalkChatMessageSnapshot,
 	DingTalkChatStreamCallbackPayload,
 	DingTalkEventRenderItem,
+	DingTalkRenderItem,
 } from './dingtalk-chat.types.js'
 import { DingTalkChatRunState, DingTalkChatRunStateService } from './dingtalk-chat-run-state.service.js'
 import { DingTalkCardElement, DingTalkStructuredElement } from '../types.js'
@@ -61,9 +51,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 	
 	constructor(
 		private readonly dingtalkChannel: DingTalkChannelStrategy,
-		private readonly runStateService: DingTalkChatRunStateService,
-		@Inject(DINGTALK_PLUGIN_CONTEXT)
-		private readonly pluginContext: PluginContext<IntegrationDingTalkPluginConfig>
+		private readonly runStateService: DingTalkChatRunStateService
 	) {}
 
 	async process(
@@ -185,7 +173,7 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 	 * MESSAGE:
 	 * - append content into response buffer
 	 * - keep compatibility with structured update payload
-	 * - flush buffered text to DingTalk by configurable time window
+	 * - flush buffered text at tool-call boundaries
 	 *
 	 * EVENT:
 	 * - apply conversation/message lifecycle events
@@ -218,9 +206,13 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			const structuredMessageData = this.toRecord(messageData)
 			const textDelta = this.extractMessageTextDelta(messageData)
 
+			if (this.isToolCallStartMessage(structuredMessageData)) {
+				await this.flushPendingTextSegment(state)
+			}
+
 			if (textDelta) {
 				state.responseMessageContent += textDelta
-				this.appendStreamTextDelta(state, textDelta)
+				state.pendingSegmentText += textDelta
 			}
 
 			if (typeof messageData !== 'string') {
@@ -252,24 +244,9 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 				return
 			}
 
-			this.logger.debug(`Appended stream content for source message "${state.sourceMessageId}", current buffered length: ${state.responseMessageContent.length}`)
-			const now = Date.now()
-			const updateWindowMs = this.resolveStreamUpdateWindowMs(context)
-			const firstFlushMinChars = this.resolveFirstFlushMinChars(context)
-			if (
-				this.shouldFlushStreamContent(
-					state,
-					now,
-					updateWindowMs,
-					firstFlushMinChars,
-					Boolean(context.message?.id)
-				)
-			) {
-				const message = ensureDingTalkMessage()
-				await this.flushStreamContent(state, message, now)
-				context.message = this.toMessageSnapshot(message, context.message?.text)
-				await this.syncActiveMessageCache(context)
-			}
+			this.logger.debug(
+				`Appended stream content for source message "${state.sourceMessageId}", current buffered length: ${state.responseMessageContent.length}`
+			)
 			return
 		}
 
@@ -329,6 +306,9 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			case ChatMessageEventTypeEnum.ON_TOOL_ERROR:
 			case ChatMessageEventTypeEnum.ON_TOOL_MESSAGE:
 			case ChatMessageEventTypeEnum.ON_CHAT_EVENT: {
+				if (eventPayload.event === ChatMessageEventTypeEnum.ON_TOOL_START) {
+					await this.flushPendingTextSegment(state)
+				}
 				const data = (eventPayload.data ?? {}) as Record<string, unknown>
 				const toolName = this.resolveManagedEventTool(data)
 				if (this.shouldSkipManagedToolEventRender(toolName)) {
@@ -367,11 +347,26 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			currentStatus === XpertAgentExecutionStatusEnum.ERROR
 
 		if (!keepTerminalState) {
-			if (state.renderItems.length > 0 || context.reject || dingtalkMessage.elements.length > 0) {
-				dingtalkMessage.renderItems = state.renderItems
+			const finalSegmentText = state.pendingSegmentText.trim()
+			const finalRenderItems: DingTalkRenderItem[] = state.renderItems.filter(
+				(item) => item.kind !== 'stream_text'
+			)
+			if (finalSegmentText) {
+				finalRenderItems.push({
+					kind: 'stream_text',
+					text: finalSegmentText
+				})
+			}
+			if (
+				finalRenderItems.length > 0 ||
+				context.reject ||
+				dingtalkMessage.elements.length > 0
+			) {
+				dingtalkMessage.renderItems = finalRenderItems
 				await dingtalkMessage.update({
 					status: XpertAgentExecutionStatusEnum.SUCCESS
 				})
+				state.pendingSegmentText = ''
 			}
 		}
 
@@ -434,10 +429,10 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 			sourceMessageId,
 			nextSequence: 1,
 			responseMessageContent: '',
+			pendingSegmentText: '',
+			deliveredSegmentCount: 0,
 			context,
 			pendingEvents: {},
-			lastFlushAt: 0,
-			lastFlushedLength: 0,
 			renderItems
 		}
 	}
@@ -446,68 +441,50 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 		return {
 			...state,
 			pendingEvents: state.pendingEvents ?? {},
-			lastFlushAt: state.lastFlushAt ?? 0,
-			lastFlushedLength: state.lastFlushedLength ?? 0
+			pendingSegmentText: state.pendingSegmentText ?? '',
+			deliveredSegmentCount: state.deliveredSegmentCount ?? 0
 		}
 	}
 
-	private resolveStreamUpdateWindowMs(context: DingTalkChatCallbackContext): number {
-		const fromContext = context.streaming?.updateWindowMs
-		const fromConfig = this.pluginContext.config?.streaming?.updateWindowMs
-		const candidate = fromContext ?? fromConfig ?? DEFAULT_STREAM_UPDATE_WINDOW_MS
-		return Math.min(
-			MAX_STREAM_UPDATE_WINDOW_MS,
-			Math.max(MIN_STREAM_UPDATE_WINDOW_MS, candidate)
-		)
-	}
-
-	private resolveFirstFlushMinChars(context: DingTalkChatCallbackContext): number {
-		const fromContext = context.streaming?.firstFlushMinChars
-		const fromConfig = this.pluginContext.config?.streaming?.firstFlushMinChars
-		const candidate = fromContext ?? fromConfig ?? DEFAULT_FIRST_FLUSH_MIN_CHARS
-		return Math.min(
-			MAX_FIRST_FLUSH_MIN_CHARS,
-			Math.max(MIN_FIRST_FLUSH_MIN_CHARS, candidate)
-		)
-	}
-
-	private shouldFlushStreamContent(
-		state: DingTalkChatRunState,
-		now: number,
-		updateWindowMs: number,
-		firstFlushMinChars: number,
-		hasMessageId: boolean
-	): boolean {
-		if (!state.responseMessageContent) {
-			return false
-		}
-		if (state.responseMessageContent.length <= state.lastFlushedLength) {
-			return false
-		}
-		if (!hasMessageId) {
-			const text = state.responseMessageContent
-			if (text.length < firstFlushMinChars) {
-				return false
-			}
-		}
-		return now - state.lastFlushAt >= updateWindowMs
-	}
-
-	private appendStreamTextDelta(state: DingTalkChatRunState, textDelta: string): void {
-		if (!textDelta) {
+	private async flushPendingTextSegment(state: DingTalkChatRunState): Promise<void> {
+		const content = state.pendingSegmentText.trim()
+		if (!content) {
+			state.pendingSegmentText = ''
 			return
 		}
 
-		const items = state.renderItems
-		const last = items[items.length - 1]
-		if (last?.kind === 'stream_text') {
-			last.text = `${last.text}${textDelta}`
-		} else {
-			items.push({
-				kind: 'stream_text',
-				text: textDelta
-			})
+		await this.sendStandaloneTextSegment(state, content)
+		state.pendingSegmentText = ''
+	}
+
+	private async sendStandaloneTextSegment(
+		state: DingTalkChatRunState,
+		content: string
+	): Promise<void> {
+		const context = state.context
+		if (!context.integrationId || !context.chatId) {
+			throw new Error('DingTalk stream segment requires integrationId and chatId')
 		}
+
+		await this.dingtalkChannel.createMessage(context.integrationId, {
+			recipient: {
+				type: 'chat_id',
+				id: context.chatId
+			},
+			sessionWebhook: context.sessionWebhook,
+			robotCodeOverride: context.robotCode,
+			msgType: 'markdown',
+			content: {
+				title: 'Xpert Notification',
+				markdown: content
+			},
+			preferSessionWebhook: Boolean(context.sessionWebhook)
+		})
+
+		state.deliveredSegmentCount += 1
+		this.logger.debug(
+			`Delivered DingTalk stream segment for source message "${state.sourceMessageId}", segment=${state.deliveredSegmentCount}, length=${content.length}`
+		)
 	}
 
 	private appendStructuredElements(
@@ -520,18 +497,6 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 				element: cloneStructuredElement(element)
 			})
 		}
-	}
-
-	private async flushStreamContent(
-		state: DingTalkChatRunState,
-		dingtalkMessage: ChatDingTalkMessage,
-		now: number
-	) {
-		this.logger.debug(`Flushing stream content for source message "${state.sourceMessageId}", content length: ${state.responseMessageContent.length}`)
-		dingtalkMessage.renderItems = state.renderItems
-		await dingtalkMessage.update()
-		state.lastFlushAt = now
-		state.lastFlushedLength = state.responseMessageContent.length
 	}
 
 	private upsertManagedEventElement(
@@ -669,6 +634,15 @@ export class DingTalkChatStreamCallbackProcessor implements IHandoffProcessor<Di
 	private isKnownMessagePayloadType(value: unknown): boolean {
 		const type = this.toNonEmptyString(value)
 		return type === 'text' || type === 'text_delta' || type === 'update' || type === 'reasoning' || type === 'component'
+	}
+
+	private isToolCallStartMessage(value: Record<string, unknown> | null): boolean {
+		if (value?.type !== 'component') {
+			return false
+		}
+
+		const component = this.toRecord(value.data)
+		return component?.category === 'Tool' && component?.status === 'running'
 	}
 
 	private normalizeStreamText(value: string | null | undefined): string {

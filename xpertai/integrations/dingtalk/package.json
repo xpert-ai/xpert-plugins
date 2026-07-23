@@ -36,7 +36,7 @@
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.13.0",
+    "@xpert-ai/plugin-sdk": "^3.15.2",
     "i18next": "25.6.0",
     "@xpert-ai/contracts": "^3.13.0",
     "@nestjs/common": "^11.1.6",
