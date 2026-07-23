@@ -16,6 +16,7 @@ export const SvgIcon = readFileSync(join(moduleDir, '_assets/icon_s_en.svg'), 'u
 
 export interface TongyiCredentials {
     dashscope_api_key: string
+    api_host?: string
     use_international_endpoint?: boolean | string
 }
 
@@ -42,11 +43,30 @@ export function isTongyiInternationalEndpointEnabled(credentials?: Partial<Tongy
     return value === true || value === 'true'
 }
 
+export function normalizeTongyiApiHost(apiHost?: string): string | undefined {
+    const normalizedHost = apiHost?.trim().replace(/\/+$/, '')
+    if (!normalizedHost) {
+        return undefined
+    }
+
+    return /^https?:\/\//i.test(normalizedHost) ? normalizedHost : `https://${normalizedHost}`
+}
+
 export function getTongyiCompatibleBaseUrl(credentials: TongyiCredentials): string {
+    const apiHost = normalizeTongyiApiHost(credentials.api_host)
+    if (apiHost) {
+        return joinTongyiApiUrl(apiHost, '/compatible-mode/v1')
+    }
+
     return isTongyiInternationalEndpointEnabled(credentials) ? TongyiIntlBaseUrl : TongyiDefaultBaseUrl
 }
 
 export function getTongyiHttpBaseUrl(credentials: TongyiCredentials): string {
+    const apiHost = normalizeTongyiApiHost(credentials.api_host)
+    if (apiHost) {
+        return joinTongyiApiUrl(apiHost, '/api/v1')
+    }
+
     return isTongyiInternationalEndpointEnabled(credentials) ? TongyiIntlHttpBaseUrl : TongyiDefaultHttpBaseUrl
 }
 
