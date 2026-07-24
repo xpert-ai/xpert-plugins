@@ -1,6 +1,12 @@
 import { BadRequestException } from '@nestjs/common'
 import { createRequire } from 'node:module'
 import * as Y from 'yjs'
+
+jest.mock('@xpert-ai/plugin-sdk', () => ({
+  XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('XPERT_RUNTIME_CAPABILITIES_TOKEN'),
+  pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`
+}))
+
 import { OfficeEditorService } from './office-editor.service.js'
 
 const requireFromHere = createRequire(import.meta.url)
@@ -10,6 +16,8 @@ describe('OfficeEditorService', () => {
   let snapshots: MemoryRepository<any>
   let updates: MemoryRepository<any>
   let operations: MemoryRepository<any>
+  let fileVersions: MemoryRepository<any>
+  let workspaceFiles: MemoryWorkspaceFiles
   let service: OfficeEditorService
 
   beforeEach(() => {
@@ -17,7 +25,18 @@ describe('OfficeEditorService', () => {
     snapshots = new MemoryRepository('snapshot')
     updates = new MemoryRepository('update')
     operations = new MemoryRepository('operation')
-    service = new OfficeEditorService(documents as never, snapshots as never, updates as never, operations as never)
+    fileVersions = new MemoryRepository('file-version')
+    workspaceFiles = new MemoryWorkspaceFiles()
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      {
+        get: () => workspaceFiles
+      } as never
+    )
   })
 
   it('creates typed documents with scoped snapshots and hides them across organizations', async () => {
@@ -203,6 +222,76 @@ describe('OfficeEditorService', () => {
       })
     )
     expect(await operations.find({ where: { documentId: imported.document.id } })).toHaveLength(1)
+    expect(imported.fileVersion).toEqual(expect.objectContaining({
+      documentId: imported.document.id,
+      versionNumber: 1,
+      fileName: 'workbook.xlsx'
+    }))
+  })
+
+  it('automatically edits the persisted XLSX file and creates an idempotent downloadable version', async () => {
+    const imported = await service.importDocument(testScope(), {
+      importFormat: 'xlsx',
+      documentType: 'spreadsheet',
+      title: 'Automated workbook',
+      fileName: 'workbook.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileBase64: createXlsxBuffer().toString('base64')
+    })
+
+    const before = await service.readExcel(testScope(), {
+      documentId: imported.document.id,
+      sheetName: 'Data',
+      range: 'A1:C2'
+    })
+    expect(before.versionNumber).toBe(1)
+    expect(before.workbook.rows[1][1].value).toBe(123)
+
+    const edited = await service.editExcel(testScope(), {
+      documentId: imported.document.id,
+      expectedVersionNumber: 1,
+      idempotencyKey: 'edit-1',
+      operations: [
+        {
+          type: 'set_range_values',
+          sheetName: 'Data',
+          range: 'B2',
+          values: [[456]]
+        },
+        {
+          type: 'set_range_formulas',
+          sheetName: 'Data',
+          range: 'C2',
+          formulas: [['=B2*3']]
+        }
+      ]
+    })
+
+    expect(edited.fileVersion.versionNumber).toBe(2)
+    expect(edited.operation.status).toBe('applied')
+    expect(edited.file).toEqual(expect.objectContaining({
+      fileName: 'workbook.xlsx',
+      extension: 'xlsx'
+    }))
+
+    const file = await service.getExcelFile(testScope(), imported.document.id, true)
+    const XLSX = requireFromHere('xlsx') as any
+    const workbook = XLSX.read(Buffer.from(file.fileBase64, 'base64'), { type: 'buffer', cellFormula: true })
+    expect(workbook.Sheets.Data.B2.v).toBe(456)
+    expect(workbook.Sheets.Data.C2.f).toBe('B2*3')
+
+    const replayed = await service.editExcel(testScope(), {
+      documentId: imported.document.id,
+      expectedVersionNumber: 1,
+      idempotencyKey: 'edit-1',
+      operations: [{
+        type: 'clear_range',
+        sheetName: 'Data',
+        range: 'A1'
+      }]
+    })
+    expect(replayed.replayed).toBe(true)
+    expect((await fileVersions.find({ where: { documentId: imported.document.id } }))).toHaveLength(2)
   })
 
   it('rejects mismatched import discriminators without guessing from filenames', async () => {
@@ -444,6 +533,37 @@ class MemoryRepository<T extends Record<string, any>> {
       }
       return 0
     })
+  }
+}
+
+class MemoryWorkspaceFiles {
+  private readonly files = new Map<string, Buffer>()
+  private sequence = 0
+
+  async uploadBuffer(input: { buffer: Buffer; fileName?: string; originalName: string }) {
+    const filePath = `workspace/file-${++this.sequence}/${input.fileName ?? input.originalName}`
+    this.files.set(filePath, Buffer.from(input.buffer))
+    return {
+      filePath,
+      workspacePath: filePath,
+      fileUrl: `https://files.example.test/${this.sequence}`,
+      size: input.buffer.byteLength
+    }
+  }
+
+  async readBuffer(input: { filePath: string }) {
+    const buffer = this.files.get(input.filePath)
+    if (!buffer) {
+      throw new Error('File not found')
+    }
+    return {
+      filePath: input.filePath,
+      buffer: Buffer.from(buffer)
+    }
+  }
+
+  async deleteFile(input: { filePath: string }) {
+    this.files.delete(input.filePath)
   }
 }
 

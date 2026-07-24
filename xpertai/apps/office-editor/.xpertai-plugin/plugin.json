@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-office-editor",
   "version": "0.1.0",
-  "description": "Univer Office editor app plugin for human and Agent collaborative spreadsheets, documents, and presentations.",
+  "description": "Office editor app plugin with server-side XLSX automation and collaborative Univer documents and presentations.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/office-editor",
   "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/office-editor",
@@ -20,8 +20,8 @@
   "artifactNamespace": "office_editor",
   "interface": {
     "displayName": "Office Editor",
-    "shortDescription": "Agent-ready Univer Office editor",
-    "longDescription": "Build and edit Univer-native spreadsheets, documents, and presentations with human review, Agent middleware tools, Yjs collaboration, a Workbench, and an Assistant template.",
+    "shortDescription": "Agent-ready XLSX and Univer Office editor",
+    "longDescription": "Automatically read, edit, version, and download XLSX files while collaborating on Univer-native spreadsheets, documents, and presentations.",
     "developerName": "XpertAI",
     "category": "Productivity",
     "capabilities": [

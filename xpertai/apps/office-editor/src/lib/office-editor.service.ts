@@ -1,21 +1,32 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID, createHash } from 'node:crypto'
 import { Repository } from 'typeorm'
 import * as Y from 'yjs'
 import {
+  XPERT_RUNTIME_CAPABILITIES_TOKEN
+} from '@xpert-ai/plugin-sdk'
+import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import {
   OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX,
   OFFICE_EDITOR_COLLAB_SESSION_TTL_MS,
   OFFICE_EDITOR_DOCUMENT_TYPES,
   OFFICE_EDITOR_IMPORT_FORMATS,
-  OFFICE_EDITOR_OPERATION_TYPES
+  OFFICE_EDITOR_OPERATION_TYPES,
+  OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY
 } from './constants.js'
 import {
   OfficeDocument,
+  OfficeFileVersion,
   OfficeOperation,
   OfficeSnapshot,
   OfficeYjsUpdate
 } from './entities/index.js'
+import {
+  applyExcelOperations,
+  exportSpreadsheetSnapshotToXlsx,
+  readExcelWorkbook
+} from './excel-automation.service.js'
 import {
   convertOfficeImport,
   OFFICE_IMPORT_MAX_BYTES
@@ -24,6 +35,7 @@ import type {
   AddOfficeReviewNoteInput,
   CompleteOfficeOperationInput,
   CreateOfficeDocumentInput,
+  EditExcelWorkbookInput,
   ImportOfficeDocumentInput,
   OfficeCollabSession,
   OfficeDocumentType,
@@ -31,10 +43,14 @@ import type {
   OfficeOperationInput,
   OfficeOperationType,
   OfficeScope,
+  OfficeWorkspaceFileScope,
+  OfficeWorkspaceFilesApi,
   OfficeWorkbenchQuery,
   PrepareOfficeAssistantPromptInput,
   QueueOfficeOperationInput,
+  ReadExcelWorkbookInput,
   ReportOfficeFailureInput,
+  RestoreExcelVersionInput,
   SaveOfficeSnapshotInput,
   SyncOfficeYjsStateInput
 } from './types.js'
@@ -50,6 +66,21 @@ type ScopedQuery = {
   id?: string
   documentId?: string
   updateHash?: string
+  idempotencyKey?: string
+}
+
+const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+type ExcelFileResult = {
+  documentId: string
+  fileVersionId?: string
+  versionNumber: number
+  fileName: string
+  filePath: string
+  fileUrl: string
+  mimeType: string
+  size: number
+  extension: 'xlsx'
 }
 
 @Injectable()
@@ -64,7 +95,12 @@ export class OfficeEditorService {
     @InjectRepository(OfficeYjsUpdate)
     private readonly yjsUpdateRepository: Repository<OfficeYjsUpdate>,
     @InjectRepository(OfficeOperation)
-    private readonly operationRepository: Repository<OfficeOperation>
+    private readonly operationRepository: Repository<OfficeOperation>,
+    @InjectRepository(OfficeFileVersion)
+    private readonly fileVersionRepository: Repository<OfficeFileVersion>,
+    @Optional()
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
   ) {}
 
   async createDocument(scope: OfficeScope, input: CreateOfficeDocumentInput) {
@@ -168,6 +204,13 @@ export class OfficeEditorService {
       assistantId: normalizeOptional(input.assistantId) ?? normalizeOptional(scope.assistantId),
       conversationId: normalizeOptional(input.conversationId) ?? normalizeOptional(scope.conversationId)
     })
+    const fileVersion = importFormat === 'xlsx'
+      ? await this.saveExcelFileVersion(scope, created.document, buffer, {
+          fileName,
+          source: 'import',
+          changeSummary: `Imported XLSX file ${fileName}.`
+        })
+      : null
 
     const operation = await this.operationRepository.save(
       this.operationRepository.create({
@@ -186,14 +229,20 @@ export class OfficeEditorService {
         },
         result: {
           fidelity: conversion.fidelity,
-          warnings: conversion.warnings
+          warnings: conversion.warnings,
+          fileVersionId: fileVersion?.id ?? null
         },
         createdById: normalizeOptional(scope.userId)
       })
     )
+    const storedDocument = fileVersion
+      ? await this.requireDocument(scope, requireEntityId(created.document.id, 'Office document id is required.'))
+      : created.document
 
     return {
       ...created,
+      document: storedDocument,
+      fileVersion,
       operation,
       import: {
         importFormat,
@@ -208,8 +257,269 @@ export class OfficeEditorService {
     }
   }
 
+  async readExcel(scope: OfficeScope, input: ReadExcelWorkbookInput) {
+    const document = await this.requireSpreadsheet(scope, input.documentId)
+    const version = await this.requireCurrentExcelVersion(scope, document)
+    const file = await this.readExcelVersionBuffer(scope, version)
+    return {
+      documentId: document.id,
+      fileVersionId: version.id,
+      versionNumber: version.versionNumber,
+      fileName: version.fileName,
+      workbook: readExcelWorkbook(file.buffer, {
+        sheetName: normalizeOptional(input.sheetName),
+        range: normalizeOptional(input.range)
+      })
+    }
+  }
+
+  async editExcel(scope: OfficeScope, input: EditExcelWorkbookInput) {
+    const document = await this.requireSpreadsheet(scope, input.documentId)
+    const idempotencyKey = normalizeOptional(input.idempotencyKey)
+    if (idempotencyKey) {
+      const existing = await this.operationRepository.findOne({
+        where: scopedWhere(scope, {
+          documentId: input.documentId,
+          idempotencyKey
+        })
+      })
+      if (existing?.status === 'applied') {
+        const result = existing.result as Record<string, any> | null
+        const fileVersionId = normalizeOptional(result?.fileVersionId)
+        const version = fileVersionId
+          ? await this.requireExcelVersion(scope, input.documentId, fileVersionId)
+          : await this.requireCurrentExcelVersion(scope, document)
+        return this.buildExcelEditResult(document, version, existing, true)
+      }
+      if (existing) {
+        throw new ConflictException(`Excel operation with idempotencyKey "${idempotencyKey}" is ${existing.status}.`)
+      }
+    }
+
+    const expectedVersionNumber = normalizeExpectedVersion(input.expectedVersionNumber)
+    if (
+      expectedVersionNumber !== undefined &&
+      expectedVersionNumber !== (document.currentFileVersionNumber ?? 0)
+    ) {
+      const conflict = await this.operationRepository.save(
+        this.operationRepository.create({
+          ...scopedCreate(scope),
+          documentId: input.documentId,
+          snapshotId: document.currentSnapshotId,
+          operationType: 'excel_automation',
+          source: 'agent',
+          status: 'conflict',
+          input: {
+            expectedVersionNumber,
+            actualVersionNumber: document.currentFileVersionNumber ?? 0,
+            operations: input.operations
+          },
+          idempotencyKey,
+          errorMessage: 'Excel file version conflict.',
+          createdById: normalizeOptional(scope.userId)
+        })
+      )
+      throw new ConflictException(
+        `Excel file version conflict: expected ${expectedVersionNumber}, current version is ${document.currentFileVersionNumber ?? 0}. Operation ${conflict.id} was not applied.`
+      )
+    }
+
+    let operation = await this.operationRepository.save(
+      this.operationRepository.create({
+        ...scopedCreate(scope),
+        documentId: input.documentId,
+        snapshotId: document.currentSnapshotId,
+        operationType: 'excel_automation',
+        source: 'agent',
+        status: 'processing',
+        input: {
+          expectedVersionNumber: expectedVersionNumber ?? document.currentFileVersionNumber ?? 0,
+          operations: input.operations
+        },
+        idempotencyKey,
+        createdById: normalizeOptional(scope.userId)
+      })
+    )
+
+    try {
+      const sourceVersion = await this.requireCurrentExcelVersion(scope, document)
+      const sourceFile = await this.readExcelVersionBuffer(scope, sourceVersion)
+      const edited = applyExcelOperations(sourceFile.buffer, input.operations)
+      const conversion = await convertOfficeImport({
+        importFormat: 'xlsx',
+        documentType: 'spreadsheet',
+        title: document.title,
+        fileName: sourceVersion.fileName,
+        mimeType: XLSX_MIME_TYPE,
+        buffer: edited.buffer
+      })
+      const fileVersion = await this.saveExcelFileVersion(scope, document, edited.buffer, {
+        fileName: sourceVersion.fileName,
+        source: 'agent',
+        sourceVersionId: sourceVersion.id,
+        operationId: operation.id,
+        changeSummary: normalizeOptional(input.changeSummary) ?? edited.summaries.join(' ')
+      })
+      const yjsStateBase64 = createYjsStateBase64({
+        documentId: input.documentId,
+        documentType: 'spreadsheet',
+        snapshot: conversion.snapshot
+      })
+      const saved = await this.saveSnapshot(scope, {
+        documentId: input.documentId,
+        snapshot: conversion.snapshot,
+        snapshotText: conversion.snapshotText,
+        source: 'agent',
+        yjsStateBase64,
+        yjsStateVectorBase64: encodeStateVectorBase64(yjsStateBase64),
+        operationId: operation.id,
+        changeSummary: normalizeOptional(input.changeSummary) ?? edited.summaries.join(' ')
+      })
+      operation = await this.operationRepository.save({
+        ...operation,
+        snapshotId: saved.snapshot.id,
+        status: 'applied',
+        result: {
+          fileVersionId: fileVersion.id,
+          fileVersionNumber: fileVersion.versionNumber,
+          snapshotId: saved.snapshot.id,
+          snapshotVersionNumber: saved.snapshot.versionNumber,
+          editedCellCount: edited.editedCellCount,
+          summaries: edited.summaries,
+          warnings: conversion.warnings
+        },
+        errorMessage: undefined
+      })
+      return this.buildExcelEditResult(saved.document, fileVersion, operation, false)
+    } catch (error) {
+      operation = await this.operationRepository.save({
+        ...operation,
+        status: 'failed',
+        errorMessage: getErrorMessage(error)
+      })
+      throw error
+    }
+  }
+
+  async listExcelVersions(scope: OfficeScope, documentId: string) {
+    await this.requireSpreadsheet(scope, documentId)
+    const items = await this.fileVersionRepository.find({
+      where: scopedWhere(scope, { documentId }),
+      order: { versionNumber: 'DESC' },
+      take: 50
+    })
+    return { documentId, items }
+  }
+
+  async restoreExcelVersion(scope: OfficeScope, input: RestoreExcelVersionInput) {
+    const document = await this.requireSpreadsheet(scope, input.documentId)
+    const expectedVersionNumber = normalizeExpectedVersion(input.expectedVersionNumber)
+    if (
+      expectedVersionNumber !== undefined &&
+      expectedVersionNumber !== (document.currentFileVersionNumber ?? 0)
+    ) {
+      throw new ConflictException(
+        `Excel file version conflict: expected ${expectedVersionNumber}, current version is ${document.currentFileVersionNumber ?? 0}.`
+      )
+    }
+    const sourceVersion = await this.requireExcelVersion(scope, input.documentId, input.versionId)
+    const sourceFile = await this.readExcelVersionBuffer(scope, sourceVersion)
+    let operation = await this.operationRepository.save(
+      this.operationRepository.create({
+        ...scopedCreate(scope),
+        documentId: input.documentId,
+        snapshotId: document.currentSnapshotId,
+        operationType: 'excel_restore',
+        source: 'agent',
+        status: 'processing',
+        input: {
+          versionId: input.versionId,
+          versionNumber: sourceVersion.versionNumber
+        },
+        createdById: normalizeOptional(scope.userId)
+      })
+    )
+    try {
+      const conversion = await convertOfficeImport({
+        importFormat: 'xlsx',
+        documentType: 'spreadsheet',
+        title: document.title,
+        fileName: sourceVersion.fileName,
+        mimeType: XLSX_MIME_TYPE,
+        buffer: sourceFile.buffer
+      })
+      const fileVersion = await this.saveExcelFileVersion(scope, document, sourceFile.buffer, {
+        fileName: sourceVersion.fileName,
+        source: 'restore',
+        sourceVersionId: sourceVersion.id,
+        operationId: operation.id,
+        changeSummary: normalizeOptional(input.changeSummary) ?? `Restored Excel version ${sourceVersion.versionNumber}.`
+      })
+      const yjsStateBase64 = createYjsStateBase64({
+        documentId: input.documentId,
+        documentType: 'spreadsheet',
+        snapshot: conversion.snapshot
+      })
+      const saved = await this.saveSnapshot(scope, {
+        documentId: input.documentId,
+        snapshot: conversion.snapshot,
+        snapshotText: conversion.snapshotText,
+        source: 'restore',
+        yjsStateBase64,
+        yjsStateVectorBase64: encodeStateVectorBase64(yjsStateBase64),
+        operationId: operation.id,
+        changeSummary: normalizeOptional(input.changeSummary) ?? `Restored Excel version ${sourceVersion.versionNumber}.`
+      })
+      operation = await this.operationRepository.save({
+        ...operation,
+        snapshotId: saved.snapshot.id,
+        status: 'applied',
+        result: {
+          restoredFromVersionId: sourceVersion.id,
+          fileVersionId: fileVersion.id,
+          fileVersionNumber: fileVersion.versionNumber,
+          snapshotId: saved.snapshot.id
+        }
+      })
+      return this.buildExcelEditResult(saved.document, fileVersion, operation, false)
+    } catch (error) {
+      await this.operationRepository.save({
+        ...operation,
+        status: 'failed',
+        errorMessage: getErrorMessage(error)
+      })
+      throw error
+    }
+  }
+
+  async getExcelFile(scope: OfficeScope, documentId: string, includeBase64: true): Promise<ExcelFileResult & { fileBase64: string }>
+  async getExcelFile(scope: OfficeScope, documentId: string, includeBase64?: false): Promise<ExcelFileResult>
+  async getExcelFile(scope: OfficeScope, documentId: string, includeBase64 = false): Promise<ExcelFileResult | (ExcelFileResult & { fileBase64: string })> {
+    const document = await this.requireSpreadsheet(scope, documentId)
+    const version = await this.requireCurrentExcelVersion(scope, document)
+    const result: ExcelFileResult = {
+      documentId,
+      fileVersionId: version.id,
+      versionNumber: version.versionNumber,
+      fileName: version.fileName,
+      filePath: version.workspaceFilePath,
+      fileUrl: version.workspaceFileUrl ?? '',
+      mimeType: version.mimeType,
+      size: version.size,
+      extension: 'xlsx'
+    }
+    if (includeBase64) {
+      const file = await this.readExcelVersionBuffer(scope, version)
+      return {
+        ...result,
+        fileBase64: file.buffer.toString('base64')
+      }
+    }
+    return result
+  }
+
   async saveSnapshot(scope: OfficeScope, input: SaveOfficeSnapshotInput) {
-    const document = await this.requireDocument(scope, input.documentId)
+    let document = await this.requireDocument(scope, input.documentId)
     const nextVersionNumber = (document.currentVersionNumber ?? 0) + 1
     const yjsStateBase64 = normalizeOptional(input.yjsStateBase64) ?? document.yjsStateBase64
     const yjsStateVectorBase64 = normalizeOptional(input.yjsStateVectorBase64) ?? (yjsStateBase64 ? encodeStateVectorBase64(yjsStateBase64) : document.yjsStateVectorBase64)
@@ -231,6 +541,21 @@ export class OfficeEditorService {
         createdById: normalizeOptional(scope.userId)
       })
     )
+    let fileVersion: OfficeFileVersion | null = null
+    if (
+      document.documentType === 'spreadsheet' &&
+      document.currentFileVersionId &&
+      (input.source ?? 'workbench') === 'workbench'
+    ) {
+      const buffer = exportSpreadsheetSnapshotToXlsx(input.snapshot, document.title)
+      fileVersion = await this.saveExcelFileVersion(scope, document, buffer, {
+        fileName: document.fileName ?? `${document.title}.xlsx`,
+        source: 'workbench',
+        operationId: normalizeOptional(input.operationId),
+        changeSummary: normalizeOptional(input.changeSummary) ?? 'Saved from Office Editor Workbench.'
+      })
+      document = await this.requireDocument(scope, input.documentId)
+    }
 
     const savedDocument = await this.documentRepository.save({
       ...document,
@@ -245,7 +570,8 @@ export class OfficeEditorService {
 
     return {
       document: savedDocument,
-      snapshot
+      snapshot,
+      fileVersion
     }
   }
 
@@ -411,9 +737,26 @@ export class OfficeEditorService {
 
   async deleteDocument(scope: OfficeScope, documentId: string) {
     await this.requireDocument(scope, documentId)
+    const fileVersions = await this.fileVersionRepository.find({
+      where: scopedWhere(scope, { documentId })
+    })
+    const workspaceFiles = this.runtimeCapabilities?.get<OfficeWorkspaceFilesApi>(OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    if (workspaceFiles) {
+      await Promise.all(fileVersions.map(async (version) => {
+        try {
+          await workspaceFiles.deleteFile({
+            ...resolveFileVersionWorkspaceScope(scope, version),
+            filePath: version.workspaceFilePath
+          })
+        } catch {
+          // Best-effort file cleanup; scoped database records are still removed below.
+        }
+      }))
+    }
     await this.operationRepository.delete(scopedWhere(scope, { documentId }))
     await this.yjsUpdateRepository.delete(scopedWhere(scope, { documentId }))
     await this.snapshotRepository.delete(scopedWhere(scope, { documentId }))
+    await this.fileVersionRepository.delete(scopedWhere(scope, { documentId }))
     await this.documentRepository.delete(scopedWhere(scope, { id: documentId }))
     return {
       deleted: true,
@@ -545,7 +888,7 @@ export class OfficeEditorService {
 
   private async getDocumentDetail(scope: OfficeScope, documentId: string) {
     const document = await this.requireDocument(scope, documentId)
-    const [snapshots, operations] = await Promise.all([
+    const [snapshots, operations, fileVersions] = await Promise.all([
       this.snapshotRepository.find({
         where: scopedWhere(scope, { documentId }),
         order: { versionNumber: 'DESC' },
@@ -555,6 +898,11 @@ export class OfficeEditorService {
         where: scopedWhere(scope, { documentId }),
         order: { createdAt: 'DESC' },
         take: 30
+      }),
+      this.fileVersionRepository.find({
+        where: scopedWhere(scope, { documentId }),
+        order: { versionNumber: 'DESC' },
+        take: 20
       })
     ])
     const currentSnapshot =
@@ -566,7 +914,8 @@ export class OfficeEditorService {
       item: document,
       currentSnapshot,
       snapshots,
-      operations
+      operations,
+      fileVersions
     }
   }
 
@@ -578,6 +927,169 @@ export class OfficeEditorService {
       throw new NotFoundException('Office Editor document was not found.')
     }
     return document
+  }
+
+  private async requireSpreadsheet(scope: OfficeScope, documentId: string) {
+    const document = await this.requireDocument(scope, documentId)
+    if (document.documentType !== 'spreadsheet') {
+      throw new BadRequestException('Excel automation requires a spreadsheet document.')
+    }
+    return document
+  }
+
+  private async requireCurrentExcelVersion(scope: OfficeScope, document: OfficeDocument) {
+    if (!document.id || !document.currentFileVersionId) {
+      throw new BadRequestException('Spreadsheet has no XLSX file version. Import an XLSX file before using Excel automation.')
+    }
+    return this.requireExcelVersion(scope, document.id, document.currentFileVersionId)
+  }
+
+  private async requireExcelVersion(scope: OfficeScope, documentId: string, versionId: string) {
+    const version = await this.fileVersionRepository.findOne({
+      where: scopedWhere(scope, { id: versionId, documentId })
+    })
+    if (!version) {
+      throw new NotFoundException('Excel file version was not found.')
+    }
+    return version
+  }
+
+  private workspaceFiles() {
+    const files = this.runtimeCapabilities?.get<OfficeWorkspaceFilesApi>(OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    if (!files) {
+      throw new BadRequestException('Xpert workspace file runtime capability is required for XLSX storage.')
+    }
+    return files
+  }
+
+  private async readExcelVersionBuffer(scope: OfficeScope, version: OfficeFileVersion) {
+    return this.workspaceFiles().readBuffer({
+      ...resolveFileVersionWorkspaceScope(scope, version),
+      filePath: version.workspaceFilePath
+    })
+  }
+
+  private async saveExcelFileVersion(
+    scope: OfficeScope,
+    document: OfficeDocument,
+    buffer: Buffer,
+    input: {
+      fileName: string
+      source: 'import' | 'agent' | 'workbench' | 'restore'
+      sourceVersionId?: string
+      operationId?: string
+      changeSummary?: string
+    }
+  ) {
+    const documentId = requireEntityId(document.id, 'Office document id is required.')
+    const sourceFileVersionId = document.currentFileVersionId ?? null
+    let currentDocument = await this.requireDocument(scope, documentId)
+    if ((currentDocument.currentFileVersionId ?? null) !== sourceFileVersionId) {
+      throw new ConflictException(
+        `Excel file changed before the new version could be written. Current version is ${currentDocument.currentFileVersionNumber ?? 0}.`
+      )
+    }
+    const nextVersionNumber = (currentDocument.currentFileVersionNumber ?? 0) + 1
+    const checksumValue = checksum(buffer)
+    const workspaceScope = resolveDocumentWorkspaceScope(scope, currentDocument)
+    const uploaded = await this.workspaceFiles().uploadBuffer({
+      ...workspaceScope,
+      buffer,
+      originalName: input.fileName,
+      mimeType: XLSX_MIME_TYPE,
+      size: buffer.byteLength,
+      folder: buildExcelVersionFolder(documentId),
+      fileName: buildExcelVersionFileName(nextVersionNumber, checksumValue),
+      metadata: {
+        documentType: 'office-editor-xlsx-version',
+        documentId,
+        versionNumber: nextVersionNumber,
+        source: input.source
+      }
+    })
+    let persistedVersion: OfficeFileVersion | null = null
+    try {
+      currentDocument = await this.requireDocument(scope, documentId)
+      if ((currentDocument.currentFileVersionId ?? null) !== sourceFileVersionId) {
+        throw new ConflictException(
+          `Excel file changed while the new version was being written. Current version is ${currentDocument.currentFileVersionNumber ?? 0}.`
+        )
+      }
+      const version = await this.fileVersionRepository.save(
+        this.fileVersionRepository.create({
+          ...scopedCreate(scope),
+          documentId,
+          versionNumber: nextVersionNumber,
+          source: input.source,
+          workspaceFilePath: uploaded.filePath,
+          workspaceFileUrl: normalizeOptional(uploaded.fileUrl) ?? normalizeOptional(uploaded.url),
+          workspaceCatalog: workspaceScope.catalog,
+          workspaceScopeId: workspaceScope.scopeId,
+          fileName: input.fileName,
+          mimeType: XLSX_MIME_TYPE,
+          size: buffer.byteLength,
+          checksum: checksumValue,
+          sourceVersionId: normalizeOptional(input.sourceVersionId),
+          operationId: normalizeOptional(input.operationId),
+          changeSummary: normalizeOptional(input.changeSummary),
+          createdById: normalizeOptional(scope.userId)
+        })
+      )
+      persistedVersion = version
+      await this.documentRepository.save({
+        ...currentDocument,
+        fileName: input.fileName,
+        mimeType: XLSX_MIME_TYPE,
+        size: buffer.byteLength,
+        workspaceFilePath: uploaded.filePath,
+        workspaceFileUrl: normalizeOptional(uploaded.fileUrl) ?? normalizeOptional(uploaded.url),
+        workspaceCatalog: workspaceScope.catalog,
+        workspaceScopeId: workspaceScope.scopeId,
+        currentFileVersionId: version.id,
+        currentFileVersionNumber: nextVersionNumber,
+        lastEditedById: normalizeOptional(scope.userId),
+        lastEditedAt: new Date()
+      })
+      return version
+    } catch (error) {
+      if (persistedVersion?.id) {
+        try {
+          await this.fileVersionRepository.delete(scopedWhere(scope, { id: persistedVersion.id }))
+        } catch {
+          // Best-effort rollback of a file version whose document pointer was not committed.
+        }
+      }
+      try {
+        await this.workspaceFiles().deleteFile({
+          ...workspaceScope,
+          filePath: uploaded.filePath
+        })
+      } catch {
+        // The primary error is more actionable; orphan cleanup remains best-effort.
+      }
+      throw error
+    }
+  }
+
+  private buildExcelEditResult(
+    document: OfficeDocument,
+    version: OfficeFileVersion,
+    operation: OfficeOperation,
+    replayed: boolean
+  ) {
+    return {
+      document,
+      fileVersion: version,
+      operation,
+      replayed,
+      file: {
+        fileName: version.fileName,
+        filePath: version.workspaceFilePath,
+        fileUrl: version.workspaceFileUrl ?? '',
+        mimeType: version.mimeType,
+        extension: 'xlsx'
+      }
+    }
   }
 
   private async countYjsUpdates(scope: OfficeScope, documentId: string) {
@@ -730,7 +1242,85 @@ function stripKnownExtension(fileName: string, importFormat: OfficeImportFormat)
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error && error.message ? error.message : 'Office import failed.'
+  return error instanceof Error && error.message ? error.message : 'Office operation failed.'
+}
+
+function normalizeExpectedVersion(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+  if (!Number.isInteger(value) || value < 1) {
+    throw new BadRequestException('expectedVersionNumber must be a positive integer.')
+  }
+  return value
+}
+
+function resolveDocumentWorkspaceScope(scope: OfficeScope, document: OfficeDocument): OfficeWorkspaceFileScope {
+  const projectId = normalizeOptional(scope.projectId) ?? normalizeOptional(document.projectId)
+  if (projectId) {
+    return {
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      catalog: 'projects',
+      scopeId: projectId,
+      projectId
+    }
+  }
+
+  const xpertId = normalizeOptional(scope.assistantId) ?? normalizeOptional(document.assistantId)
+  if (!xpertId) {
+    throw new BadRequestException('XLSX workspace storage requires an assistant or project scope.')
+  }
+  return {
+    tenantId: scope.tenantId,
+    userId: scope.userId,
+    catalog: 'xperts',
+    scopeId: xpertId,
+    xpertId,
+    isolateByUser: false
+  }
+}
+
+function resolveFileVersionWorkspaceScope(
+  scope: OfficeScope,
+  version: OfficeFileVersion
+): OfficeWorkspaceFileScope {
+  if (version.workspaceCatalog === 'projects' && version.workspaceScopeId) {
+    return {
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      catalog: 'projects',
+      scopeId: version.workspaceScopeId,
+      projectId: version.workspaceScopeId
+    }
+  }
+  if (version.workspaceCatalog === 'xperts' && version.workspaceScopeId) {
+    return {
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      catalog: 'xperts',
+      scopeId: version.workspaceScopeId,
+      xpertId: version.workspaceScopeId,
+      isolateByUser: false
+    }
+  }
+  throw new BadRequestException('Excel file version workspace scope is missing. Re-import the XLSX file.')
+}
+
+function buildExcelVersionFolder(documentId: string) {
+  return `files/office-editor/documents/${normalizePathSegment(documentId)}/excel-versions`
+}
+
+function buildExcelVersionFileName(versionNumber: number, checksumValue: string) {
+  return `v${versionNumber}-${checksumValue.slice(0, 8)}.xlsx`
+}
+
+function normalizePathSegment(value: string) {
+  const normalized = value.trim()
+  if (!normalized || !/^[A-Za-z0-9._-]+$/.test(normalized)) {
+    throw new BadRequestException('Invalid Office document path segment.')
+  }
+  return normalized
 }
 
 function createDefaultSnapshot(documentType: OfficeDocumentType, title: string) {
