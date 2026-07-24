@@ -136,6 +136,7 @@ export function applyExcelOperations(buffer: Buffer, operations: ExcelAutomation
       if (currentName !== nextName && workbook.Sheets[nextName]) {
         throw new BadRequestException(`Excel sheet "${nextName}" already exists.`)
       }
+      rewriteWorkbookSheetReferences(workbook, currentName, nextName)
       const index = workbook.SheetNames.indexOf(currentName)
       workbook.SheetNames[index] = nextName
       delete workbook.Sheets[currentName]
@@ -410,6 +411,176 @@ function preserveCellPresentation(cell: any) {
     ...(cell.s !== undefined ? { s: cell.s } : {}),
     ...(cell.z !== undefined ? { z: cell.z } : {})
   }
+}
+
+function rewriteWorkbookSheetReferences(
+  workbook: {
+    SheetNames: string[]
+    Sheets: Record<string, Record<string, unknown>>
+    Workbook?: {
+      Names?: Array<{ Ref?: unknown }>
+    }
+  },
+  currentName: string,
+  nextName: string
+) {
+  if (currentName === nextName) {
+    return
+  }
+
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet = workbook.Sheets[sheetName]
+    for (const [address, cell] of Object.entries(worksheet ?? {})) {
+      if (address.startsWith('!') || !isUnknownRecord(cell) || typeof cell.f !== 'string') {
+        continue
+      }
+      cell.f = rewriteSheetReferenceExpression(cell.f, currentName, nextName)
+    }
+  }
+
+  for (const definedName of workbook.Workbook?.Names ?? []) {
+    if (typeof definedName.Ref === 'string') {
+      definedName.Ref = rewriteSheetReferenceExpression(definedName.Ref, currentName, nextName)
+    }
+  }
+}
+
+function rewriteSheetReferenceExpression(expression: string, currentName: string, nextName: string) {
+  const currentNameLower = currentName.toLowerCase()
+  const quotedNextName = quoteExcelSheetName(nextName)
+  let output = ''
+  let index = 0
+
+  while (index < expression.length) {
+    const character = expression[index]
+
+    if (character === '"') {
+      const end = copyExcelStringLiteral(expression, index)
+      output += expression.slice(index, end)
+      index = end
+      continue
+    }
+
+    if (character === "'") {
+      const quotedReference = readQuotedSheetReference(expression, index)
+      if (quotedReference) {
+        const previous = index > 0 ? expression[index - 1] : ''
+        if (
+          isThreeDimensionalSheetReference(quotedReference.sheetName, currentNameLower) ||
+          (
+            quotedReference.sheetName.toLowerCase() === currentNameLower &&
+            (previous === ':' || quotedReference.separator === ':')
+          )
+        ) {
+          throw unsupportedThreeDimensionalRename(currentName)
+        }
+        output +=
+          quotedReference.separator === '!' &&
+          quotedReference.sheetName.toLowerCase() === currentNameLower
+          ? `${quotedNextName}!`
+          : expression.slice(index, quotedReference.end)
+        index = quotedReference.end
+        continue
+      }
+    }
+
+    if (matchesUnquotedSheetName(expression, index, currentName)) {
+      const previous = index > 0 ? expression[index - 1] : ''
+      const next = expression[index + currentName.length] ?? ''
+      if (previous === ':' || next === ':') {
+        throw unsupportedThreeDimensionalRename(currentName)
+      }
+      if (next === '!') {
+        output += `${quotedNextName}!`
+        index += currentName.length + 1
+        continue
+      }
+    }
+
+    output += character
+    index += 1
+  }
+
+  return output
+}
+
+function copyExcelStringLiteral(expression: string, start: number) {
+  let index = start + 1
+  while (index < expression.length) {
+    if (expression[index] !== '"') {
+      index += 1
+      continue
+    }
+    if (expression[index + 1] === '"') {
+      index += 2
+      continue
+    }
+    return index + 1
+  }
+  return expression.length
+}
+
+function readQuotedSheetReference(expression: string, start: number) {
+  let sheetName = ''
+  let index = start + 1
+  while (index < expression.length) {
+    if (expression[index] !== "'") {
+      sheetName += expression[index]
+      index += 1
+      continue
+    }
+    if (expression[index + 1] === "'") {
+      sheetName += "'"
+      index += 2
+      continue
+    }
+    const separator = expression[index + 1]
+    if (separator !== '!' && separator !== ':') {
+      return null
+    }
+    return {
+      sheetName,
+      separator,
+      end: index + 2
+    }
+  }
+  return null
+}
+
+function matchesUnquotedSheetName(expression: string, index: number, sheetName: string) {
+  if (expression.slice(index, index + sheetName.length).toLowerCase() !== sheetName.toLowerCase()) {
+    return false
+  }
+  const previous = index > 0 ? expression[index - 1] : ''
+  if (previous && /[A-Za-z0-9_.\]'"]/.test(previous)) {
+    return false
+  }
+  const next = expression[index + sheetName.length] ?? ''
+  return next === '!' || next === ':'
+}
+
+function isThreeDimensionalSheetReference(sheetReference: string, currentNameLower: string) {
+  const separatorIndex = sheetReference.indexOf(':')
+  if (separatorIndex < 0) {
+    return false
+  }
+  const startName = sheetReference.slice(0, separatorIndex).toLowerCase()
+  const endName = sheetReference.slice(separatorIndex + 1).toLowerCase()
+  return startName === currentNameLower || endName === currentNameLower
+}
+
+function quoteExcelSheetName(sheetName: string) {
+  return `'${sheetName.replace(/'/g, "''")}'`
+}
+
+function unsupportedThreeDimensionalRename(sheetName: string) {
+  return new BadRequestException(
+    `Excel sheet "${sheetName}" is used in a 3D formula reference. Rename the dependent formulas before renaming the sheet.`
+  )
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
 function expandSheetRange(XLSX: any, worksheet: any, editedRange: any) {

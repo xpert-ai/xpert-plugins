@@ -43,6 +43,7 @@ import type {
   OfficeOperationInput,
   OfficeOperationType,
   OfficeScope,
+  OfficeWorkspaceCatalog,
   OfficeWorkspaceFileScope,
   OfficeWorkspaceFilesApi,
   OfficeWorkbenchQuery,
@@ -1256,7 +1257,16 @@ function normalizeExpectedVersion(value: number | null | undefined) {
 }
 
 function resolveDocumentWorkspaceScope(scope: OfficeScope, document: OfficeDocument): OfficeWorkspaceFileScope {
-  const projectId = normalizeOptional(scope.projectId) ?? normalizeOptional(document.projectId)
+  const persistedScope = resolvePersistedWorkspaceScope(
+    scope,
+    document.workspaceCatalog,
+    document.workspaceScopeId
+  )
+  if (persistedScope) {
+    return persistedScope
+  }
+
+  const projectId = normalizeOptional(document.projectId) ?? normalizeOptional(scope.projectId)
   if (projectId) {
     return {
       tenantId: scope.tenantId,
@@ -1267,7 +1277,7 @@ function resolveDocumentWorkspaceScope(scope: OfficeScope, document: OfficeDocum
     }
   }
 
-  const xpertId = normalizeOptional(scope.assistantId) ?? normalizeOptional(document.assistantId)
+  const xpertId = normalizeOptional(document.assistantId) ?? normalizeOptional(scope.assistantId)
   if (!xpertId) {
     throw new BadRequestException('XLSX workspace storage requires an assistant or project scope.')
   }
@@ -1285,26 +1295,43 @@ function resolveFileVersionWorkspaceScope(
   scope: OfficeScope,
   version: OfficeFileVersion
 ): OfficeWorkspaceFileScope {
-  if (version.workspaceCatalog === 'projects' && version.workspaceScopeId) {
+  const persistedScope = resolvePersistedWorkspaceScope(
+    scope,
+    version.workspaceCatalog,
+    version.workspaceScopeId
+  )
+  if (persistedScope) {
+    return persistedScope
+  }
+  throw new BadRequestException('Excel file version workspace scope is missing. Re-import the XLSX file.')
+}
+
+function resolvePersistedWorkspaceScope(
+  scope: OfficeScope,
+  catalog: OfficeWorkspaceCatalog | null | undefined,
+  scopeId: string | null | undefined
+): OfficeWorkspaceFileScope | null {
+  const normalizedScopeId = normalizeOptional(scopeId)
+  if (catalog === 'projects' && normalizedScopeId) {
     return {
       tenantId: scope.tenantId,
       userId: scope.userId,
       catalog: 'projects',
-      scopeId: version.workspaceScopeId,
-      projectId: version.workspaceScopeId
+      scopeId: normalizedScopeId,
+      projectId: normalizedScopeId
     }
   }
-  if (version.workspaceCatalog === 'xperts' && version.workspaceScopeId) {
+  if (catalog === 'xperts' && normalizedScopeId) {
     return {
       tenantId: scope.tenantId,
       userId: scope.userId,
       catalog: 'xperts',
-      scopeId: version.workspaceScopeId,
-      xpertId: version.workspaceScopeId,
+      scopeId: normalizedScopeId,
+      xpertId: normalizedScopeId,
       isolateByUser: false
     }
   }
-  throw new BadRequestException('Excel file version workspace scope is missing. Re-import the XLSX file.')
+  return null
 }
 
 function buildExcelVersionFolder(documentId: string) {
