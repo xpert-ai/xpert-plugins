@@ -52,7 +52,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'app',
               name: 'office-editor',
               displayName: 'Office Editor',
-              description: 'Build and edit Univer-native spreadsheets, documents, and presentations with Agents and humans.',
+              description: 'Automatically edit versioned XLSX files and collaborate on Univer-native Office documents.',
               icon: {
                 type: 'svg',
                 value: OFFICE_EDITOR_ICON,
@@ -62,13 +62,13 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
                 {
                   name: 'edit-office-document',
                   displayName: 'Edit Office Document',
-                  description: 'Open and edit Univer-native Office documents in the Workbench.',
+                  description: 'Open Office documents and download versioned XLSX files in the Workbench.',
                   access: 'write'
                 },
                 {
                   name: 'queue-agent-edits',
                   displayName: 'Queue Agent Edits',
-                  description: 'Let Agents queue spreadsheet, document, and presentation edits for human review.',
+                  description: 'Let Agents automatically edit XLSX files or queue document and presentation edits for review.',
                   access: 'write'
                 },
                 {
@@ -89,7 +89,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               type: 'tool',
               name: OFFICE_EDITOR_MIDDLEWARE_NAME,
               displayName: 'Office Editor Agent Tools',
-              description: 'Assistant middleware tools for Office document creation, reading, queued edits, review notes, and failures.'
+              description: 'Assistant middleware tools for server-side XLSX automation, file versions, queued edits, and review.'
             },
             {
               type: 'assistant-template',
@@ -146,7 +146,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       color: '#0f766e'
     },
     displayName: 'Office Editor',
-    description: 'Agentic Univer Office editor plugin for spreadsheets, documents, presentations, Yjs collaboration, and human review.',
+    description: 'Agentic Office editor with server-side XLSX automation, file versioning, Univer editing, Yjs collaboration, and human review.',
     keywords: ['office', 'univer', 'spreadsheet', 'document', 'presentation', 'yjs', 'collaboration', 'middleware', 'view-extension', 'assistant-template'],
     author: 'XpertAI Team'
   },
@@ -172,6 +172,7 @@ export * from './lib/types.js'
 export * from './lib/entities/index.js'
 export * from './lib/office-editor.plugin.js'
 export * from './lib/office-editor.service.js'
+export * from './lib/excel-automation.service.js'
 export * from './lib/office-editor.middleware.js'
 export * from './lib/office-editor-view.provider.js'
 export * from './lib/office-editor-collab.gateway.js'

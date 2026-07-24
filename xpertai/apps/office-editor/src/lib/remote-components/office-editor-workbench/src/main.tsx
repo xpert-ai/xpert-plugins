@@ -55,6 +55,7 @@ import * as Y from 'yjs'
 import {
   Badge,
   Button,
+  Download,
   FileJson,
   PanelLeftClose,
   PanelLeftOpen,
@@ -100,6 +101,7 @@ type DetailPayload = {
   currentSnapshot?: SnapshotRecord | null
   snapshots?: SnapshotRecord[]
   operations?: OperationRecord[]
+  fileVersions?: Array<Record<string, any>>
   collab?: {
     sessionId: string
     namespace: string
@@ -153,6 +155,7 @@ function App() {
   const ydocRef = React.useRef<Y.Doc | null>(null)
   const socketRef = React.useRef<Socket | null>(null)
   const clientIdRef = React.useRef(`office-editor-${Math.random().toString(36).slice(2)}`)
+  const applyingOperationsRef = React.useRef(false)
   const t = createTranslator(context?.locale)
 
   React.useEffect(() => {
@@ -385,27 +388,66 @@ function App() {
     })
   }
 
-  async function applyQueuedOperations() {
-    if (!editorRef.current || !selectedId || !detail?.operations?.length) {
+  async function downloadExcel() {
+    if (!selectedId || detail?.item?.documentType !== 'spreadsheet') {
       return
     }
-    const queued = detail.operations.filter((operation) => operation.status === 'queued' && operation.operationType !== 'review_note')
-    for (const operation of queued) {
-      const result = await editorRef.current.applyOperation(operation)
-      await executeAction(
-        'complete_operation',
+    await runBusy(async () => {
+      const response = await executeAction(
+        'get_excel_file',
         selectedId,
-        {
-          operationId: operation.id,
-          status: result.success ? 'applied' : 'failed',
-          result,
-          errorMessage: result.success ? undefined : result.error
-        },
+        { documentId: selectedId },
         { documentId: selectedId }
       )
-      if (result.success) {
-        setDirty(true)
+      const payload = getResponsePayload(response)?.data || getResponsePayload(response)
+      if (!payload?.fileBase64) {
+        throw new Error('The current XLSX file is unavailable.')
       }
+      const bytes = base64ToUint8Array(payload.fileBase64)
+      const blob = new Blob([bytes], { type: payload.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = payload.fileName || `${detail?.item?.title || 'workbook'}.xlsx`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      notify('success', t('downloaded'))
+    })
+  }
+
+  async function applyQueuedOperations() {
+    if (applyingOperationsRef.current || !editorRef.current || !selectedId || !detail?.operations?.length) {
+      return
+    }
+    applyingOperationsRef.current = true
+    const queued = detail.operations.filter((operation) => operation.status === 'queued' && operation.operationType !== 'review_note')
+    let appliedCount = 0
+    try {
+      for (const operation of queued) {
+        const result = await editorRef.current.applyOperation(operation)
+        await executeAction(
+          'complete_operation',
+          selectedId,
+          {
+            operationId: operation.id,
+            status: result.success ? 'applied' : 'failed',
+            result: result.success ? { applied: true, snapshotPersisted: false } : result,
+            errorMessage: result.success ? undefined : result.error
+          },
+          { documentId: selectedId }
+        )
+        if (result.success) {
+          appliedCount += 1
+          setDirty(true)
+        }
+      }
+      if (appliedCount > 0) {
+        await saveSnapshot(`Applied ${appliedCount} queued Office operation(s).`)
+      }
+    } finally {
+      applyingOperationsRef.current = false
     }
   }
 
@@ -607,6 +649,12 @@ function App() {
               <Upload className="oe-icon" aria-hidden="true" />
               {t('import')}
             </Button>
+            {detail?.item?.documentType === 'spreadsheet' && detail?.item?.currentFileVersionId ? (
+              <Button variant="outline" title={t('download')} disabled={busy} onClick={downloadExcel}>
+                <Download className="oe-icon" aria-hidden="true" />
+                {t('download')}
+              </Button>
+            ) : null}
             <Badge className="oe-status-badge" variant={collabState === 'connected' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : undefined}>{t('collab')}: {t(collabState)}</Badge>
             <Badge className="oe-status-badge" variant="outline" data-status={dirty ? 'warning' : 'success'}>{dirty ? t('dirty') : t('synced')}</Badge>
             <Button variant="outline" title={t('sync')} disabled={!selectedId || busy} onClick={syncCollabState}>
@@ -679,7 +727,7 @@ function App() {
               <div className="oe-operation" key={operation.id}>
                 <div className="oe-operation-row">
                   <strong>{operationLabel(operation.operationType, t)}</strong>
-                  <Badge className="oe-status-badge" variant={operation.status === 'applied' || operation.status === 'failed' ? 'outline' : 'secondary'} data-status={operation.status === 'applied' ? 'success' : operation.status === 'failed' ? 'warning' : undefined}>
+                  <Badge className="oe-status-badge" variant={operation.status === 'applied' || operation.status === 'failed' || operation.status === 'conflict' ? 'outline' : 'secondary'} data-status={operation.status === 'applied' ? 'success' : operation.status === 'failed' || operation.status === 'conflict' ? 'warning' : undefined}>
                     {t(operation.status || 'queued')}
                   </Badge>
                 </div>
@@ -852,6 +900,12 @@ function operationLabel(value: string | undefined, t: ReturnType<typeof createTr
   }
   if (value === 'failure_report') {
     return t('operationFailureReport')
+  }
+  if (value === 'excel_automation') {
+    return t('operationExcelAutomation')
+  }
+  if (value === 'excel_restore') {
+    return t('operationExcelRestore')
   }
   if (value === 'sheet_set_range_values') {
     return t('operationSheetSetRangeValues')

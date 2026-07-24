@@ -95,12 +95,55 @@ describe('OfficeEditorMiddleware', () => {
     expect(result.message).toMatch(/queued/i)
     expect(result.operation.status).toBe('queued')
   })
+
+  it('executes typed Excel automation and returns the generated XLSX artifact', async () => {
+    const service = createService()
+    service.editExcel.mockResolvedValue({
+      fileVersion: { id: 'file-version-2', versionNumber: 2 },
+      operation: { id: 'operation-2', status: 'applied' },
+      file: {
+        fileName: 'workbook.xlsx',
+        filePath: 'workspace/workbook.xlsx',
+        fileUrl: 'https://files.example.test/workbook.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        extension: 'xlsx'
+      }
+    })
+    const middleware = new OfficeEditorMiddleware(service as never)
+    const runtime = middleware.createMiddleware({}, testContext())
+    const editTool = runtime.tools?.find((candidate: any) => candidate.name === 'office_excel_edit') as any
+    const input = {
+      documentId: 'document-1',
+      expectedVersionNumber: 1,
+      idempotencyKey: 'request-1',
+      operations: [{
+        type: 'set_range_values',
+        sheetName: 'Data',
+        range: 'A1:B1',
+        values: [['A', 1]]
+      }]
+    }
+
+    expect(editTool.schema.parse(input)).toEqual(input)
+    const [content, artifact] = await editTool.invoke(input)
+    expect(service.editExcel).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1' }),
+      input
+    )
+    expect(JSON.parse(content).operation.status).toBe('applied')
+    expect(artifact.files[0].fileName).toBe('workbook.xlsx')
+  })
 })
 
 function createService() {
   return {
     createDocument: jest.fn(),
     getWorkbenchData: jest.fn(),
+    readExcel: jest.fn(),
+    editExcel: jest.fn(),
+    listExcelVersions: jest.fn(),
+    restoreExcelVersion: jest.fn(),
+    getExcelFile: jest.fn(),
     queueOperation: jest.fn(),
     addReviewNote: jest.fn(),
     reportFailure: jest.fn()
