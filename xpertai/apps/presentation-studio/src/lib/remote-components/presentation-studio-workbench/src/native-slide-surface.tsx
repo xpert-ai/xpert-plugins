@@ -1,5 +1,11 @@
 import * as React from 'react'
 import * as Y from 'yjs'
+import {
+  PRESENTATION_SYSTEM_IMAGE_ALT_PROP,
+  PRESENTATION_SYSTEM_IMAGE_ASSET_PROP,
+  PRESENTATION_SYSTEM_SLIDE_KIND_PROP,
+  themePreviewSlideFromProps
+} from '../../../presentation-theme-preview.contract'
 import { collectNativeRuntimeStyleText, releaseNativeSlide, renderNativeSlide, type LoadedNativeRuntime } from './native-runtime'
 import type { JsonObject, JsonValue, PresenceState } from './types'
 
@@ -156,6 +162,18 @@ export function NativeSlideSurface({
   React.useLayoutEffect(() => {
     const slide = slideRef.current
     if (!slide) return
+    const themePreview = themePreviewSlideFromProps(props)
+    if (themePreview) {
+      const propsKey = stableJsonStringify(props)
+      if (lastRenderedPropsKeyRef.current !== propsKey) {
+        renderThemePreviewImageSlide(slide, themePreview)
+        lastRenderedPropsKeyRef.current = propsKey
+        cleanupTextRef.current?.()
+        cleanupTextRef.current = null
+        setSelectedElement(null)
+      }
+      return
+    }
     const renderProps = omitStudioOnlyProps(props)
     const propsKey = stableJsonStringify(renderProps)
     if (lastRenderedPropsKeyRef.current === propsKey) {
@@ -473,8 +491,25 @@ function synchronizeTextElements(slide: HTMLElement, texts: TextMap) {
 }
 
 function omitStudioOnlyProps(props: JsonObject) {
-  const { [STUDIO_ELEMENT_POSITIONS_KEY]: _positions, ...renderProps } = props
+  const {
+    [STUDIO_ELEMENT_POSITIONS_KEY]: _positions,
+    [PRESENTATION_SYSTEM_SLIDE_KIND_PROP]: _slideKind,
+    [PRESENTATION_SYSTEM_IMAGE_ASSET_PROP]: _imageAsset,
+    [PRESENTATION_SYSTEM_IMAGE_ALT_PROP]: _imageAlt,
+    ...renderProps
+  } = props
   return renderProps
+}
+
+function renderThemePreviewImageSlide(slide: HTMLElement, preview: { image: string; alt: string }) {
+  const frame = document.createElement('div')
+  frame.className = 'presentation-theme-preview-frame'
+  const image = document.createElement('img')
+  image.className = 'presentation-theme-preview-image'
+  image.alt = preview.alt
+  if (preview.image) image.src = preview.image
+  frame.appendChild(image)
+  slide.replaceChildren(frame)
 }
 
 function applyElementPositions(slide: HTMLElement, props: JsonObject, activeDragKey?: string) {
@@ -880,6 +915,8 @@ const NATIVE_CANVAS_STYLE = `
   *, *::before, *::after { box-sizing:border-box; }
   .slide { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform:scale(var(--ps-native-scale, 1)); transform-origin:top left; }
   .imported-theme-root { width:100%; height:100%; overflow:hidden; }
+  .presentation-theme-preview-frame { width:100%; height:100%; display:grid; place-items:center; padding:34px; background:#f4f2ed; }
+  .presentation-theme-preview-image { display:block; width:100%; height:100%; object-fit:contain; border-radius:18px; box-shadow:0 18px 54px rgba(15,23,42,.16); }
   [data-collab-element-id] { outline-offset:4px; }
   [data-collab-element-id]:not([data-editable-id]) { cursor:default; }
   [data-collab-element-id]:not([data-editable-id]):hover { outline:1px dashed rgba(37,99,235,.22); border-radius:6px; }

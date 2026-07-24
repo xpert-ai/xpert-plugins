@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -19,6 +19,14 @@ for (const file of [
   'assets/upstream/UPSTREAM.json',
   '.xpertai-plugin/plugin.json'
 ]) await access(join(root, file))
+
+const themePreviewFilenames = await readdir(join(root, 'assets', 'theme-previews'))
+for (let index = 1; index <= 14; index += 1) {
+  const themeKey = `theme${String(index).padStart(2, '0')}`
+  if (themePreviewFilenames.filter((filename) => filename.startsWith(`${themeKey}-`) && filename.endsWith('.png')).length !== 1) {
+    throw new Error(`Expected exactly one packaged preview image for ${themeKey}.`)
+  }
+}
 
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 const remoteApp = await readFile(join(root, 'dist/lib/remote-components/presentation-studio-workbench/app.js'), 'utf8')

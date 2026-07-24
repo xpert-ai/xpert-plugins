@@ -10,6 +10,11 @@ describe('Presentation Studio assistant template', () => {
     expect(dsl).toContain('accepts at most 8 layouts per call')
     expect(dsl.toLowerCase()).toContain('items may contain only allowedkeys')
     expect(dsl).toContain('presentation-studio-agent-v2')
+    expect(dsl).toContain('presentation_list_theme_previews')
+    expect(dsl).toContain('description is immediately followed by its own preview image')
+    expect(dsl).toContain('你有哪些生成ppt的主题')
+    expect(dsl).toContain('Before any user-facing answer that lists, counts, names, describes, compares')
+    expect(dsl).toContain('text-only preliminary theme answer')
   })
 
   it('connects the presentation and common middlewares to the Agent', () => {
@@ -45,7 +50,7 @@ describe('Presentation Studio assistant template', () => {
   })
 
   it('declares the workspace prompt workflows used to start presentation tasks', () => {
-    const expectedArgsHints = {
+    const expectedArgsHints: Record<string, string> = {
       'presentation-create': '{"topic_or_material":"...","audience":"...","page_count":10,"goal":"..."}',
       'presentation-refine': '{"deck_id":"...","requirements":"..."}',
       'presentation-export': '{"deck_id":"...","formats":["html","pdf","pptx"]}',

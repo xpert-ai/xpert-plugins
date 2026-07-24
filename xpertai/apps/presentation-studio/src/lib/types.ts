@@ -7,6 +7,7 @@ import type {
   PRESENTATION_THEME_PACKS,
   PRESENTATION_VERSION_SOURCES
 } from './constants.js'
+import type { PresentationDeckKind } from './presentation-theme-preview.contract.js'
 
 export type PresentationJsonPrimitive = string | number | boolean | null
 export type PresentationJsonValue = PresentationJsonPrimitive | PresentationJsonObject | PresentationJsonValue[]
@@ -78,6 +79,7 @@ export interface PresentationEditorState {
 }
 
 export interface PresentationDeckSpec {
+  kind?: PresentationDeckKind
   title: string
   goal: string
   audience?: string | null

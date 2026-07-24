@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { extname } from 'node:path'
 import {
   ArtifactsRuntimeCapability,
@@ -48,6 +49,17 @@ import {
 import { PresentationCatalogService } from './presentation-catalog.service.js'
 import { PresentationConfigService } from './presentation-config.service.js'
 import { PresentationRendererService } from './presentation-renderer.service.js'
+import {
+  PRESENTATION_STANDARD_DECK_KIND,
+  PRESENTATION_THEME_PREVIEW_DECK_KIND,
+  presentationDeckKind
+} from './presentation-theme-preview.contract.js'
+import {
+  PRESENTATION_THEME_PREVIEW_ITEMS,
+  PRESENTATION_THEME_PREVIEW_TITLE,
+  resolveThemePreviewImagePath,
+  themePreviewMarkdown
+} from './presentation-theme-preview.js'
 import {
   createPresentationYDoc,
   decodeYDoc,
@@ -108,12 +120,24 @@ interface PatchSlideInput {
   changeSummary?: string
 }
 
+interface ThemePreviewGalleryItem {
+  themePack: PresentationThemePack
+  displayName: string
+  scenario: string
+  fileName: string
+  fileUrl: string
+  filePath: string
+  mimeType: 'image/png'
+  extension: 'png'
+}
+
 const WORKING_EXPORT_SNAPSHOT_KEY = '__presentationWorkingSnapshot'
 const WORKBENCH_AGENT_CONTEXT_TTL_SECONDS = 30 * 60
 /** Business façade for deck state, collaboration, versioning, exports, and sharing. */
 @Injectable()
 export class PresentationStudioService {
   private readonly workbenchAgentContexts = new Map<string, { value: PresentationWorkbenchAgentContext; expiresAt: number }>()
+  private readonly themePreviewGalleryLoads = new Map<string, Promise<ThemePreviewGalleryItem[]>>()
 
   constructor(
     @InjectRepository(PresentationDeck) private readonly deckRepository: Repository<PresentationDeck>,
@@ -135,6 +159,7 @@ export class PresentationStudioService {
     const themePack = requireTheme(input.themePack)
     const pageCount = clampPageCount(input.pageCount, this.config.get().maxPageCount)
     const spec: PresentationDeckSpec = {
+      kind: PRESENTATION_STANDARD_DECK_KIND,
       title,
       goal,
       audience: optionalText(input.audience),
@@ -171,6 +196,63 @@ export class PresentationStudioService {
     return compactDeck(deck, 'Deck created. Search and inspect layouts before adding slides.')
   }
 
+  async getThemePreviewGallery(scope: PresentationScope) {
+    const key = themePreviewScopeKey(scope)
+    const current = this.themePreviewGalleryLoads.get(key)
+    if (current) return current
+    const pending = this.loadThemePreviewGallery(scope)
+    this.themePreviewGalleryLoads.set(key, pending)
+    try {
+      return await pending
+    } catch (error) {
+      this.themePreviewGalleryLoads.delete(key)
+      throw error
+    }
+  }
+
+  async getThemePreviewGuide(scope: PresentationScope) {
+    const items = await this.getThemePreviewGallery(scope)
+    return {
+      title: PRESENTATION_THEME_PREVIEW_TITLE,
+      markdown: themePreviewMarkdown(items),
+      themes: items.map(({ fileName, filePath, mimeType, extension, ...item }) => item),
+      files: items.map(({ fileName, fileUrl, filePath, mimeType, extension }) => ({
+        fileName, fileUrl, filePath, mimeType, extension
+      }))
+    }
+  }
+
+  private async loadThemePreviewGallery(scope: PresentationScope): Promise<ThemePreviewGalleryItem[]> {
+    const workspaceScope = themePreviewWorkspaceScope(scope)
+    const files = this.workspaceFiles()
+    const items: ThemePreviewGalleryItem[] = []
+    for (const item of PRESENTATION_THEME_PREVIEW_ITEMS) {
+      const buffer = await readFile(resolveThemePreviewImagePath(item.filename))
+      const uploaded = await files.uploadBuffer({
+        ...workspaceScope,
+        buffer,
+        originalName: item.filename,
+        mimeType: 'image/png',
+        size: buffer.byteLength,
+        folder: 'files/presentation-studio/theme-previews'
+      })
+      const fileUrl = optionalText(uploaded.fileUrl) ?? optionalText(uploaded.url)
+      const filePath = optionalText(uploaded.filePath) ?? optionalText(uploaded.workspacePath)
+      if (!fileUrl || !filePath) throw new Error(`Theme preview workspace file is unavailable: ${item.themePack}`)
+      items.push({
+        themePack: item.themePack,
+        displayName: item.displayName,
+        scenario: item.scenario,
+        fileName: item.filename,
+        fileUrl,
+        filePath,
+        mimeType: 'image/png',
+        extension: 'png'
+      })
+    }
+    return items
+  }
+
   async searchDecks(scope: PresentationScope, query: PresentationWorkbenchQuery) {
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
@@ -183,12 +265,18 @@ export class PresentationStudioService {
       take: pageSize
     })
     const search = optionalText(query.search)?.toLowerCase()
-    const filtered = search ? items.filter((item) => `${item.title} ${item.goal}`.toLowerCase().includes(search)) : items
+    const presentationItems = items.filter((item) =>
+      presentationDeckKind(item.deckSpec?.kind) !== PRESENTATION_THEME_PREVIEW_DECK_KIND
+    )
+    const filtered = search
+      ? presentationItems.filter((item) => `${item.title} ${item.goal}`.toLowerCase().includes(search))
+      : presentationItems
+    const visibleTotal = Math.max(0, total - (items.length - presentationItems.length))
     return {
       tableKey: 'decks',
-      table: { key: 'decks', items: filtered.map((item) => compactDeck(item)), total: search ? filtered.length : total, page, pageSize },
+      table: { key: 'decks', items: filtered.map((item) => compactDeck(item)), total: search ? filtered.length : visibleTotal, page, pageSize },
       items: filtered.map((item) => compactDeck(item)),
-      total: search ? filtered.length : total,
+      total: search ? filtered.length : visibleTotal,
       page,
       pageSize,
       exportCapabilities: await this.renderer.getExportCapabilities()
@@ -329,7 +417,7 @@ export class PresentationStudioService {
   async registerRuntimeAsset(
     scope: PresentationScope,
     input: { deckId: string; role: string; slideId?: string; evidence?: PresentationJsonValue },
-    file: { name: string; mimeType?: string; size?: number; buffer: Buffer; reference: WorkspacePortableFileReference }
+    file: { name: string; mimeType?: string; size?: number; buffer: Buffer; reference: WorkspacePortableFileReference; fileUrl?: string }
   ) {
     const deck = await this.requireDeck(scope, input.deckId)
     validateAssetType(file.name, file.mimeType)
@@ -342,13 +430,24 @@ export class PresentationStudioService {
       mimeType: file.mimeType,
       size,
       sha256,
+      fileUrl: optionalText(file.fileUrl),
       workspacePath: file.reference.workspacePath
     }
     const asset = await this.assetRepository.save(this.assetRepository.create({
       ...scopeFields(scope), deckId: deck.id, slideId: optionalText(input.slideId), role: requireText(input.role, 'Asset role is required.'),
       fileName: file.name, mimeType: file.mimeType, size, sha256, fileReference: reference, evidence: input.evidence, createdById: optionalText(scope.userId)
     }))
-    return { message: 'Asset registered.', deckId: deck.id, assetId: asset.id, reference: `asset://${asset.id}`, fileName: asset.fileName, mimeType: asset.mimeType, size }
+    return {
+      message: 'Asset registered.',
+      deckId: deck.id,
+      assetId: asset.id,
+      reference: `asset://${asset.id}`,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType,
+      size,
+      fileUrl: reference.fileUrl,
+      workspacePath: reference.workspacePath
+    }
   }
 
   async uploadAsset(scope: PresentationScope, input: { deckId: string; role: string; slideId?: string; fileName: string; mimeType?: string }, buffer: Buffer) {
@@ -363,7 +462,12 @@ export class PresentationStudioService {
     })
     const reference = portableReference(uploaded, workspaceScope, input.fileName, input.mimeType, buffer.byteLength)
     return this.registerRuntimeAsset(scope, input, {
-      name: input.fileName, mimeType: input.mimeType, size: buffer.byteLength, buffer, reference
+      name: input.fileName,
+      mimeType: input.mimeType,
+      size: buffer.byteLength,
+      buffer,
+      reference,
+      fileUrl: uploaded.fileUrl ?? uploaded.url
     })
   }
 
@@ -1009,6 +1113,9 @@ export class PresentationStudioService {
     expectedRevision?: number,
     entityMutation?: (deck: PresentationDeck) => void
   ) {
+    if (presentationDeckKind(deck.deckSpec?.kind) === PRESENTATION_THEME_PREVIEW_DECK_KIND) {
+      throw new BadRequestException('The built-in theme preview presentation is read-only.')
+    }
     const deckId = requireId(deck.id, 'Deck id is required for Yjs mutation.')
     const collaboration = this.collaboration()
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
@@ -1432,6 +1539,27 @@ function scopeFields(scope: PresentationScope) {
   }
 }
 
+function themePreviewScopeKey(scope: PresentationScope) {
+  return [
+    optionalText(scope.tenantId) ?? '',
+    optionalText(scope.organizationId) ?? '',
+    optionalText(scope.workspaceId) ?? '',
+    optionalText(scope.projectId) ?? '',
+    scopeXpertId(scope) ?? '',
+    optionalText(scope.userId) ?? ''
+  ].join(':')
+}
+
+function themePreviewWorkspaceScope(scope: PresentationScope) {
+  const tenantId = optionalText(scope.tenantId)
+  const userId = optionalText(scope.userId)
+  const projectId = optionalText(scope.projectId)
+  if (projectId) return { tenantId, userId, catalog: 'projects' as const, scopeId: projectId, projectId }
+  const xpertId = scopeXpertId(scope)
+  if (xpertId) return { tenantId, userId, catalog: 'xperts' as const, scopeId: xpertId, xpertId, isolateByUser: false }
+  throw new BadRequestException('Theme preview requires a project or Agent workspace scope.')
+}
+
 function scopedDeckWhere(scope: PresentationScope, id?: string): FindOptionsWhere<PresentationDeck> {
   const xpertId = scopeXpertId(scope)
   return { ...(id ? { id } : {}), ...scopeFilter(scope), ...(xpertId ? { assistantId: xpertId } : {}) }
@@ -1510,7 +1638,10 @@ function isPresentationShareAccessMode(value: ArtifactAccessMode): value is Pres
 
 function compactDeck(deck: PresentationDeck, message?: string) {
   return {
-    ...(message ? { message } : {}), deckId: deck.id, title: deck.title, goal: deck.goal, audience: deck.audience, owner: deck.owner,
+    ...(message ? { message } : {}),
+    deckId: deck.id,
+    kind: presentationDeckKind(deck.deckSpec?.kind),
+    title: deck.title, goal: deck.goal, audience: deck.audience, owner: deck.owner,
     themePack: deck.themePack, status: deck.status, revision: deck.revision, currentVersionId: deck.currentVersionId,
     currentVersionNumber: deck.currentVersionNumber, pageCount: deck.deckSpec?.pageCount ?? 0,
     activeSlides: activeSlides(deck.deckSpec).length, checksum: deck.checksum, updatedAt: deck.updatedAt

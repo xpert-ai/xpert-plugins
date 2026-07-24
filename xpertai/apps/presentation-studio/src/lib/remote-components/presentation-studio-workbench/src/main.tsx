@@ -97,6 +97,10 @@ import {
   type CollaborationClient,
   type CollaborationPresenceStore
 } from '@xpert-ai/plugin-sdk/collaboration-client'
+import {
+  PRESENTATION_THEME_PREVIEW_DECK_KIND,
+  presentationDeckKind
+} from '../../../presentation-theme-preview.contract'
 import './styles.css'
 import { debug, setDebugDefault } from './debug-logger'
 import { translator } from './i18n'
@@ -123,11 +127,13 @@ import type {
   RemoteContext,
   ShareAccessMode,
   SharePolicy,
+  ThemePreviewItem,
   VersionSummary
 } from './types'
 
 type YValue = JsonValue | Y.Map<YValue> | Y.Array<YValue>
 type InspectorTab = 'design' | 'versions' | 'exports' | 'assets'
+type WorkspaceMode = 'deck' | 'theme-previews'
 type ShareActionResult = Partial<ExportSummary> & {
   exportId?: string
   kind?: ExportSummary['kind']
@@ -182,6 +188,9 @@ function App() {
   const [context, setContext] = React.useState<RemoteContext>({})
   const [ready, setReady] = React.useState(false)
   const [decks, setDecks] = React.useState<DeckSummary[]>([])
+  const [workspaceMode, setWorkspaceMode] = React.useState<WorkspaceMode>('deck')
+  const [themePreviews, setThemePreviews] = React.useState<ThemePreviewItem[]>([])
+  const [themePreviewsBusy, setThemePreviewsBusy] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [detail, setDetail] = React.useState<DeckDetail | null>(null)
   const [doc, setDoc] = React.useState<Y.Doc | null>(null)
@@ -236,7 +245,7 @@ function App() {
   React.useEffect(() => { detailRef.current = detail }, [detail])
   React.useEffect(() => persistPanelCollapsed('left', leftCollapsed), [leftCollapsed])
   React.useEffect(() => persistPanelCollapsed('right', rightCollapsed), [rightCollapsed])
-  React.useEffect(reportResize, [ready, decks.length, detail, leftCollapsed, rightCollapsed, showCreate, assetPickerOpen])
+  React.useEffect(reportResize, [ready, decks.length, detail, leftCollapsed, rightCollapsed, showCreate, assetPickerOpen, workspaceMode, themePreviews.length])
 
   const loadDecks = React.useCallback(async () => {
     const response = await requestData({ page: 1, pageSize: 50, parameters: { table: 'decks' } })
@@ -244,7 +253,9 @@ function App() {
     const object = isObject(value) ? value : {}
     const table = isObject(object.table) ? object.table : undefined
     const items = Array.isArray(table?.items) ? table.items : Array.isArray(object.items) ? object.items : []
-    const next = items.map(toDeckSummary).filter((item): item is DeckSummary => item !== null)
+    const next = items
+      .map(toDeckSummary)
+      .filter((item): item is DeckSummary => item !== null && item.kind !== PRESENTATION_THEME_PREVIEW_DECK_KIND)
     decksRef.current = next
     setDecks(next)
     return next
@@ -350,6 +361,7 @@ function App() {
   }, [stopCollaboration, updateRevisionFromAck])
 
   const openDeck = React.useCallback(async (deckId: string) => {
+    setWorkspaceMode('deck')
     setBusy(true)
     setRuntimeBusy(true)
     setError('')
@@ -376,6 +388,25 @@ function App() {
       setRuntimeBusy(false)
     }
   }, [startCollaboration])
+
+  const openThemePreviews = React.useCallback(async () => {
+    setWorkspaceMode('theme-previews')
+    setPresenting(false)
+    if (themePreviews.length || themePreviewsBusy) return
+    setThemePreviewsBusy(true)
+    setError('')
+    try {
+      const result = actionData<{ title: string; items: ThemePreviewItem[] }>(
+        await executeAction('load_theme_previews', null, {})
+      )
+      setThemePreviews(Array.isArray(result.items) ? result.items.map(toThemePreviewItem).filter((item): item is ThemePreviewItem => item !== null) : [])
+    } catch (caught) {
+      setError(messageOf(caught))
+      notify('error', messageOf(caught))
+    } finally {
+      setThemePreviewsBusy(false)
+    }
+  }, [themePreviews.length, themePreviewsBusy])
 
   const refreshDetail = React.useCallback(async (deckId: string) => {
     const response = await requestData({ parameters: { table: 'deck_detail', deckId } })
@@ -506,6 +537,10 @@ function App() {
   React.useEffect(() => {
     if (!ready) return
     const timer = window.setTimeout(() => {
+      if (workspaceMode === 'theme-previews') {
+        void clearAssistantContext()
+        return
+      }
       if (!detail) {
         void clearAssistantContext()
         return
@@ -524,10 +559,11 @@ function App() {
         .catch((caught) => debug.warn('assistant-context-update-failed', { message: messageOf(caught) }))
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [ready, detail, activeSlide?.id, activeSlide?.layout, activeIndex, visibleSlides.length, activeLayout?.label])
+  }, [ready, workspaceMode, detail, activeSlide?.id, activeSlide?.layout, activeIndex, visibleSlides.length, activeLayout?.label])
 
   React.useEffect(() => {
-    const ids = collectAssetIds(activeProps).filter((id) => !assetPreviews[id]).slice(0, 8)
+    const source = collectAssetIds(activeProps)
+    const ids = [...new Set(source)].filter((id) => !assetPreviews[id]).slice(0, 8)
     if (!ids.length || !selectedId) return
     void loadAssetPreviewBatch(selectedId, ids).then((items) => {
       setAssetPreviews((current) => ({ ...current, ...Object.fromEntries(items.map((item) => [item.id, item])) }))
@@ -867,17 +903,25 @@ function App() {
   return <div className="ps-studio" data-theme-mode={context.theme?.mode === 'dark' ? 'dark' : 'light'}>
     <header className="ps-topbar">
       <div className="ps-topbar-leading">
-        <Button variant="ghost" size="icon" title={leftCollapsed ? t('showDeckPanel') : t('hideDeckPanel')} onClick={() => setLeftCollapsed((value) => !value)}>
+        {workspaceMode === 'deck' ? <Button variant="ghost" size="icon" title={leftCollapsed ? t('showDeckPanel') : t('hideDeckPanel')} onClick={() => setLeftCollapsed((value) => !value)}>
           {leftCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-        </Button>
+        </Button> : null}
         <strong className="ps-product-title">{t('title')}</strong>
         <Select value={selectedId ?? undefined} onValueChange={(value) => void openDeck(value)}>
-          <SelectTrigger className="ps-deck-switcher"><SelectValue placeholder={t('noDeck')} /></SelectTrigger>
+          <SelectTrigger className="ps-deck-switcher" onPointerDown={() => setWorkspaceMode('deck')}><SelectValue placeholder={t('noDeck')} /></SelectTrigger>
           <SelectContent>{decks.map((deck) => <SelectItem value={deck.deckId} key={deck.deckId}>{deck.title}</SelectItem>)}</SelectContent>
         </Select>
-        <Badge variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : undefined}>{t(collabState)}</Badge>
+        <Button
+          className="ps-theme-preview-trigger"
+          variant={workspaceMode === 'theme-previews' ? 'secondary' : 'outline'}
+          aria-pressed={workspaceMode === 'theme-previews'}
+          onClick={() => void openThemePreviews()}
+        >
+          <Image />{t('themePreviews')}
+        </Button>
+        {workspaceMode === 'deck' ? <Badge variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : undefined}>{t(collabState)}</Badge> : null}
       </div>
-      <div className="ps-topbar-actions">
+      {workspaceMode === 'deck' ? <div className="ps-topbar-actions">
         <div className="ps-avatar-stack">
           {collaborators.slice(0, 5).map((presence) => <CollaboratorAvatar actor={presence} key={presence.presenceId} t={t} />)}
         </div>
@@ -918,12 +962,13 @@ function App() {
         <Button variant="ghost" size="icon" title={rightCollapsed ? t('showInspector') : t('hideInspector')} onClick={() => setRightCollapsed((value) => !value)}>
           {rightCollapsed ? <PanelRightOpen /> : <PanelRightClose />}
         </Button>
-      </div>
+      </div> : null}
     </header>
 
     {error ? <div className="ps-error-banner">{error}<Button variant="ghost" size="sm" onClick={() => setError('')}>×</Button></div> : null}
 
     <main className="ps-workspace">
+      {workspaceMode === 'theme-previews' ? <ThemePreviewGallery items={themePreviews} busy={themePreviewsBusy} t={t} /> :
       <ResizablePanelGroup orientation="horizontal">
         {!leftCollapsed ? <>
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="24%" className="ps-panel ps-left-panel">
@@ -960,7 +1005,9 @@ function App() {
 
         <ResizablePanel minSize="38%" className="ps-center-panel">
           <div className="ps-canvas-toolbar">
-            <div><span className="ps-live-dot" /> <strong>{activeSlide ? runtimePayload?.layouts[activeSlide.layout]?.label ?? activeSlide.layout : t('presentationConsole')}</strong><span className="ps-page-indicator">{activeIndex + 1}/{visibleSlides.length}</span></div>
+            <div><span className="ps-live-dot" /> <strong>{activeSlide
+              ? runtimePayload?.layouts[activeSlide.layout]?.label || activeSlide.layout
+              : t('presentationConsole')}</strong><span className="ps-page-indicator">{activeIndex + 1}/{visibleSlides.length}</span></div>
             <div className="ps-zoom-controls">
               <Button variant="ghost" size="icon" onClick={() => setZoom((value) => Math.max(0.5, value - 0.1))}><ZoomOut /></Button>
               <span>{Math.round(zoom * 100)}%</span>
@@ -1006,7 +1053,7 @@ function App() {
             </Tabs>
           </ResizablePanel>
         </> : null}
-      </ResizablePanelGroup>
+      </ResizablePanelGroup>}
     </main>
 
     <input ref={fileInputRef} className="ps-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAsset(file); event.currentTarget.value = '' }} />
@@ -1022,6 +1069,28 @@ function App() {
   </div>
 }
 
+function ThemePreviewGallery(props: {
+  items: ThemePreviewItem[]
+  busy: boolean
+  t: ReturnType<typeof translator>
+}) {
+  return <section className="ps-theme-preview-workspace" aria-label={props.t('themePreviews')}>
+    <div className="ps-theme-preview-heading">
+      <div>
+        <h1>{props.t('themePreviews')}</h1>
+        <p>{props.t('themePreviewDescription')}</p>
+      </div>
+      <Badge variant="secondary">{props.items.length || 14}</Badge>
+    </div>
+    {props.busy && !props.items.length ? <div className="ps-loading">{props.t('loadingThemePreviews')}</div> :
+      <ol className="ps-theme-preview-list">
+        {props.items.map((item) => <li className="ps-theme-preview-page" key={item.themePack}>
+          <img src={item.fileUrl} alt={`${item.themePack} ${item.displayName}`} loading="lazy" />
+        </li>)}
+      </ol>}
+  </section>
+}
+
 function SortableSlideItem(props: {
   slide: SlideSnapshot
   slideProps: JsonObject
@@ -1032,13 +1101,17 @@ function SortableSlideItem(props: {
   doc: Y.Doc | null
   textRevision: number
   assetPreviews: Record<string, AssetPreview>
+  readOnly?: boolean
   onSelect(): void
   onDuplicate(): void
   onSkip(): void
   onDelete(): void
   labels: { duplicate: string; skip: string; unskip: string; delete: string }
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.slide.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.slide.id,
+    disabled: props.readOnly
+  })
   const visibilityRef = React.useRef<HTMLDivElement | null>(null)
   const visible = useNearViewport(visibilityRef)
   return <ContextMenu><ContextMenuTrigger asChild><div ref={setNodeRef} className={`ps-slide-item${props.selected ? ' is-active' : ''}${props.slide.status === 'skipped' ? ' is-skipped' : ''}${isDragging ? ' is-dragging' : ''}`} style={{ transform: CSS.Transform.toString(transform), transition }}>
@@ -1048,8 +1121,8 @@ function SortableSlideItem(props: {
       </div>
       <span className="ps-slide-number">{String(props.index + 1).padStart(2, '0')}</span>
     </button>
-    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="ps-slide-more" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</DropdownMenuItem><DropdownMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="ps-destructive-menu-item" onSelect={props.onDelete}><Trash2 />{props.labels.delete}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
-  </div></ContextMenuTrigger><ContextMenuContent><ContextMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</ContextMenuItem><ContextMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</ContextMenuItem><ContextMenuSeparator /><ContextMenuItem onSelect={props.onDelete}><Trash2 />{props.labels.delete}</ContextMenuItem></ContextMenuContent></ContextMenu>
+    {!props.readOnly ? <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="ps-slide-more" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</DropdownMenuItem><DropdownMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="ps-destructive-menu-item" onSelect={props.onDelete}><Trash2 />{props.labels.delete}</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : null}
+  </div></ContextMenuTrigger>{!props.readOnly ? <ContextMenuContent><ContextMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</ContextMenuItem><ContextMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</ContextMenuItem><ContextMenuSeparator /><ContextMenuItem onSelect={props.onDelete}><Trash2 />{props.labels.delete}</ContextMenuItem></ContextMenuContent> : null}</ContextMenu>
 }
 
 function DesignInspector({ layout, props, onCommit, onSchedule, onFocusControl, onOpenAssets, t }: {
@@ -1310,10 +1383,20 @@ async function loadAssetPreviewBatch(deckId: string, assetIds: string[]) {
   return Array.isArray(result.items) ? result.items : []
 }
 
+function toThemePreviewItem(value: ThemePreviewItem): ThemePreviewItem | null {
+  if (!isObject(value) || typeof value.themePack !== 'string' || typeof value.displayName !== 'string' || typeof value.scenario !== 'string' || typeof value.fileUrl !== 'string') return null
+  return {
+    themePack: value.themePack,
+    displayName: value.displayName,
+    scenario: value.scenario,
+    fileUrl: value.fileUrl
+  }
+}
+
 function toDeckSummary(value: JsonValue): DeckSummary | null {
   if (!isObject(value) || typeof value.deckId !== 'string' || typeof value.title !== 'string') return null
   return {
-    deckId: value.deckId, title: value.title, goal: typeof value.goal === 'string' ? value.goal : '', themePack: typeof value.themePack === 'string' ? value.themePack : 'theme01', status: typeof value.status === 'string' ? value.status : 'draft', revision: typeof value.revision === 'number' ? value.revision : 0, currentVersionId: typeof value.currentVersionId === 'string' ? value.currentVersionId : undefined, currentVersionNumber: typeof value.currentVersionNumber === 'number' ? value.currentVersionNumber : 0, pageCount: typeof value.pageCount === 'number' ? value.pageCount : 0, activeSlides: typeof value.activeSlides === 'number' ? value.activeSlides : 0, checksum: typeof value.checksum === 'string' ? value.checksum : undefined
+    deckId: value.deckId, kind: presentationDeckKind(value.kind), title: value.title, goal: typeof value.goal === 'string' ? value.goal : '', themePack: typeof value.themePack === 'string' ? value.themePack : 'theme01', status: typeof value.status === 'string' ? value.status : 'draft', revision: typeof value.revision === 'number' ? value.revision : 0, currentVersionId: typeof value.currentVersionId === 'string' ? value.currentVersionId : undefined, currentVersionNumber: typeof value.currentVersionNumber === 'number' ? value.currentVersionNumber : 0, pageCount: typeof value.pageCount === 'number' ? value.pageCount : 0, activeSlides: typeof value.activeSlides === 'number' ? value.activeSlides : 0, checksum: typeof value.checksum === 'string' ? value.checksum : undefined
   }
 }
 

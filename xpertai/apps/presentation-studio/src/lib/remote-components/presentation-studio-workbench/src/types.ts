@@ -7,6 +7,7 @@ export interface JsonObject { [key: string]: JsonValue }
 
 export interface DeckSummary {
   deckId: string
+  kind: 'standard' | 'theme_preview'
   title: string
   goal: string
   themePack: string
@@ -73,6 +74,13 @@ export interface ExportSummary {
   sandboxJobId?: string
 }
 export interface AssetSummary { id: string; role: string; fileName: string; size: number; reference: string }
+
+export interface ThemePreviewItem {
+  themePack: string
+  displayName: string
+  scenario: string
+  fileUrl: string
+}
 
 export interface LayoutControl {
   key?: string
