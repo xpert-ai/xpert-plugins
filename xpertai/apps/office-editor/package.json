@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-office-editor",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Office editor plugin with server-side XLSX automation, file versioning, and collaborative Univer documents and presentations.",
   "author": {
     "name": "XpertAI",
