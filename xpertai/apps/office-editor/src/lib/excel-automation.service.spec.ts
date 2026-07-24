@@ -43,6 +43,59 @@ describe('Excel automation engine', () => {
     }])).toThrow(/last Excel sheet/i)
   })
 
+  it('rewrites cell formulas and defined names when a referenced sheet is renamed', () => {
+    const XLSX = requireFromHere('xlsx') as any
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([[10]]), 'OldName')
+    const summary = XLSX.utils.aoa_to_sheet([[]])
+    summary.A1 = { t: 'n', f: 'SUM(OldName!A1, 1)', v: 11 }
+    summary.A2 = { t: 's', f: '="OldName!A1"', v: 'OldName!A1' }
+    summary.A3 = { t: 'n', f: "SUM('OldName'!A1, 2)", v: 12 }
+    summary['!ref'] = 'A1:A3'
+    XLSX.utils.book_append_sheet(workbook, summary, 'Summary')
+    workbook.Workbook = {
+      ...(workbook.Workbook ?? {}),
+      Names: [
+        { Name: 'InputValue', Ref: 'OldName!$A$1' },
+        { Name: 'ExternalValue', Ref: "'[Other.xlsx]OldName'!$A$1" }
+      ]
+    }
+    const source = Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }))
+
+    const edited = applyExcelOperations(source, [{
+      type: 'rename_sheet',
+      sheetName: 'OldName',
+      newSheetName: "New 'Name"
+    }])
+    const result = XLSX.read(edited.buffer, { type: 'buffer', cellFormula: true })
+
+    expect(result.Sheets.Summary.A1.f).toBe("SUM('New ''Name'!A1, 1)")
+    expect(result.Sheets.Summary.A2.f).toBe('="OldName!A1"')
+    expect(result.Sheets.Summary.A3.f).toBe("SUM('New ''Name'!A1, 2)")
+    expect(result.Workbook.Names).toEqual(expect.arrayContaining([
+      expect.objectContaining({ Name: 'InputValue', Ref: "'New ''Name'!$A$1" }),
+      expect.objectContaining({ Name: 'ExternalValue', Ref: "'[Other.xlsx]OldName'!$A$1" })
+    ]))
+  })
+
+  it('rejects sheet renames used by unsupported 3D formula references', () => {
+    const XLSX = requireFromHere('xlsx') as any
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([[1]]), 'Data')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([[2]]), 'Other')
+    const summary = XLSX.utils.aoa_to_sheet([[]])
+    summary.A1 = { t: 'n', f: "SUM('Data':Other!A1)", v: 3 }
+    summary['!ref'] = 'A1'
+    XLSX.utils.book_append_sheet(workbook, summary, 'Summary')
+    const source = Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }))
+
+    expect(() => applyExcelOperations(source, [{
+      type: 'rename_sheet',
+      sheetName: 'Data',
+      newSheetName: 'Inputs'
+    }])).toThrow(/3D formula reference/i)
+  })
+
   it('exports a Univer spreadsheet snapshot to a downloadable XLSX buffer', () => {
     const buffer = exportSpreadsheetSnapshotToXlsx({
       sheetOrder: ['sheet-1'],

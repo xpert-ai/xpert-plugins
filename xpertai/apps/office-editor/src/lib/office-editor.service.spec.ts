@@ -294,6 +294,73 @@ describe('OfficeEditorService', () => {
     expect((await fileVersions.find({ where: { documentId: imported.document.id } }))).toHaveLength(2)
   })
 
+  it('keeps later XLSX versions in the persisted owner scope when another assistant edits the document', async () => {
+    const ownerScope = {
+      ...testScope(),
+      projectId: null,
+      assistantId: 'assistant-a',
+      conversationId: 'conversation-a'
+    }
+    const imported = await service.importDocument(ownerScope, {
+      importFormat: 'xlsx',
+      documentType: 'spreadsheet',
+      title: 'Shared workbook',
+      fileName: 'shared.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileBase64: createXlsxBuffer().toString('base64')
+    })
+    expect(workspaceFiles.uploads[0]).toEqual(expect.objectContaining({
+      catalog: 'xperts',
+      scopeId: 'assistant-a',
+      xpertId: 'assistant-a'
+    }))
+
+    const otherAssistantScope = {
+      ...ownerScope,
+      assistantId: 'assistant-b',
+      conversationId: 'conversation-b'
+    }
+    await service.editExcel(otherAssistantScope, {
+      documentId: imported.document.id,
+      expectedVersionNumber: 1,
+      idempotencyKey: 'assistant-b-edit',
+      operations: [{
+        type: 'set_range_values',
+        sheetName: 'Data',
+        range: 'B2',
+        values: [[789]]
+      }]
+    })
+
+    expect(workspaceFiles.uploads[1]).toEqual(expect.objectContaining({
+      catalog: 'xperts',
+      scopeId: 'assistant-a',
+      xpertId: 'assistant-a'
+    }))
+    await service.saveSnapshot(otherAssistantScope, {
+      documentId: imported.document.id,
+      source: 'workbench',
+      snapshot: imported.snapshot.snapshot,
+      changeSummary: 'Saved by assistant B Workbench'
+    })
+    expect(workspaceFiles.uploads[2]).toEqual(expect.objectContaining({
+      catalog: 'xperts',
+      scopeId: 'assistant-a',
+      xpertId: 'assistant-a'
+    }))
+    const storedDocument = await documents.findOne({ where: { id: imported.document.id } })
+    expect(storedDocument).toEqual(expect.objectContaining({
+      assistantId: 'assistant-a',
+      workspaceCatalog: 'xperts',
+      workspaceScopeId: 'assistant-a',
+      currentFileVersionNumber: 3
+    }))
+    expect(
+      (await fileVersions.find({ where: { documentId: imported.document.id } }))
+        .map((version) => version.workspaceScopeId)
+    ).toEqual(['assistant-a', 'assistant-a', 'assistant-a'])
+  })
+
   it('rejects mismatched import discriminators without guessing from filenames', async () => {
     const buffer = createXlsxBuffer()
     await expect(
@@ -539,8 +606,28 @@ class MemoryRepository<T extends Record<string, any>> {
 class MemoryWorkspaceFiles {
   private readonly files = new Map<string, Buffer>()
   private sequence = 0
+  readonly uploads: Array<{
+    catalog?: string
+    scopeId?: string
+    xpertId?: string
+    projectId?: string
+  }> = []
 
-  async uploadBuffer(input: { buffer: Buffer; fileName?: string; originalName: string }) {
+  async uploadBuffer(input: {
+    buffer: Buffer
+    fileName?: string
+    originalName: string
+    catalog?: string
+    scopeId?: string
+    xpertId?: string
+    projectId?: string
+  }) {
+    this.uploads.push({
+      catalog: input.catalog,
+      scopeId: input.scopeId,
+      xpertId: input.xpertId,
+      projectId: input.projectId
+    })
     const filePath = `workspace/file-${++this.sequence}/${input.fileName ?? input.originalName}`
     this.files.set(filePath, Buffer.from(input.buffer))
     return {
