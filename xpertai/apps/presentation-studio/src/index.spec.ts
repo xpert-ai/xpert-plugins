@@ -10,7 +10,7 @@ import {
 describe('Presentation Studio plugin', () => {
   it('publishes aligned system Agentic App metadata', () => {
     expect(plugin.meta.name).toBe('@xpert-ai/plugin-presentation-studio')
-    expect(plugin.meta.version).toBe('0.1.0')
+    expect(plugin.meta.version).toBe('0.6.3')
     expect(plugin.meta.level).toBe('system')
     expect(plugin.meta.targetApps).toEqual(['data-xpert', 'xpert'])
     const capabilities = plugin.meta.targetAppMeta?.['data-xpert']?.capabilities ?? []

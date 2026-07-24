@@ -58,6 +58,7 @@ export const PRESENTATION_EXPORT_STATUSES = ['queued', 'running', 'succeeded', '
 export const PRESENTATION_VERSION_SOURCES = ['agent', 'workbench', 'collaboration', 'restore', 'system'] as const
 export const PRESENTATION_TOOL_NAMES = [
   'presentation_create_deck',
+  'presentation_list_theme_previews',
   'presentation_search_decks',
   'presentation_get_deck',
   'presentation_search_layouts',

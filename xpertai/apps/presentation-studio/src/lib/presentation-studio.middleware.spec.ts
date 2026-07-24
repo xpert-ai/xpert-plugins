@@ -1,4 +1,5 @@
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { SystemMessage } from '@langchain/core/messages'
 import { PRESENTATION_THEME_CATALOG, PRESENTATION_THEME_PACKS } from './constants.js'
 import { PresentationStudioMiddleware } from './presentation-studio.middleware.js'
 
@@ -15,6 +16,16 @@ describe('PresentationStudioMiddleware agent awareness', () => {
       createAgentCollabActor: jest.fn().mockReturnValue(actor),
       publishAgentAwareness: jest.fn().mockResolvedValue({}),
       getWorkbenchAgentContext: jest.fn().mockResolvedValue(options.currentContext ?? null),
+      getThemePreviewGuide: jest.fn().mockResolvedValue({
+        markdown: '**theme01 轻拟态风**：适合产品介绍。\\n![theme01 轻拟态风](https://xpert.test/theme01.png)',
+        files: [{
+          fileName: 'theme01-轻拟态风.png',
+          filePath: '/workspace/theme01-轻拟态风.png',
+          fileUrl: 'https://xpert.test/theme01.png',
+          mimeType: 'image/png',
+          extension: 'png'
+        }]
+      }),
       shareDeckHtmlExport: jest.fn().mockResolvedValue({
         exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
         publicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
@@ -174,14 +185,58 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     expect(addSlideTool?.description).toContain('array items may contain only allowedKeys')
   })
 
-  it('exposes every theme name and scenario to the agent', async () => {
+  it('routes every theme inventory response through the image preview tool', async () => {
     const { agentMiddleware } = await createHarness()
+    const previewTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_list_theme_previews')
     const createDeckTool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_create_deck')
+    const createDeckSchema = createDeckTool?.schema as unknown as {
+      shape: { themePack: { description?: string } }
+    }
+
+    expect(previewTool?.description).toContain('你有哪些生成ppt的主题')
+    expect(previewTool?.description).toContain('before any user-facing answer')
+    expect(previewTool?.description).toContain('Never answer theme inventory')
+    expect(previewTool?.description).toContain('do not send a text-only preliminary list')
+    expect(createDeckTool?.description).toContain('presentation_list_theme_previews')
+    expect(createDeckSchema.shape.themePack.description).toContain('presentation_list_theme_previews')
 
     for (const key of PRESENTATION_THEME_PACKS) {
-      expect(createDeckTool?.description).toContain(`${key} ${PRESENTATION_THEME_CATALOG[key].displayName}`)
-      expect(createDeckTool?.description).toContain(PRESENTATION_THEME_CATALOG[key].scenario)
+      expect(createDeckTool?.description).not.toContain(PRESENTATION_THEME_CATALOG[key].scenario)
+      expect(createDeckSchema.shape.themePack.description).not.toContain(PRESENTATION_THEME_CATALOG[key].scenario)
     }
+  })
+
+  it('injects the mandatory image preview rule into every model call', async () => {
+    const { agentMiddleware } = await createHarness()
+    const handler = jest.fn(async (_request: unknown) => ({ content: 'ok' }))
+
+    await agentMiddleware.wrapModelCall?.({
+      systemMessage: new SystemMessage('Base prompt.'),
+      messages: [],
+      tools: [],
+      state: { messages: [] },
+      runtime: {}
+    } as never, handler as never)
+
+    const request = handler.mock.calls[0]?.[0] as { systemMessage: SystemMessage }
+    expect(request.systemMessage.content).toContain('Base prompt.')
+    expect(request.systemMessage.content).toContain('你有哪些生成ppt的主题')
+    expect(request.systemMessage.content).toContain('presentation_list_theme_previews')
+    expect(request.systemMessage.content).toContain('Do not send a text-only preliminary theme answer')
+    expect(request.systemMessage.content).toContain('only authoritative source')
+  })
+
+  it('returns the ordered theme guide with image artifacts for chat rendering', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    const tool = (agentMiddleware.tools ?? []).find((candidate) => candidate.name === 'presentation_list_theme_previews')
+
+    expect(tool?.responseFormat).toBe('content_and_artifact')
+    await expect(tool?.invoke({})).resolves.toContain(
+      '![theme01 轻拟态风](https://xpert.test/theme01.png)'
+    )
+    expect(service.getThemePreviewGuide).toHaveBeenCalledWith(expect.objectContaining({
+      assistantId: 'assistant-1'
+    }))
   })
 
   it('returns only the share URL when an HTML share is ready', async () => {

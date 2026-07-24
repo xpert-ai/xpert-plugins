@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import { PRESENTATION_THEME_PACKS } from './constants.js'
+import { presentationDeckKind } from './presentation-theme-preview.contract.js'
 import type {
   PresentationDeckSpec,
   PresentationEditorState,
@@ -23,6 +24,7 @@ export function createPresentationYDoc(spec: PresentationDeckSpec, editorState?:
 export function writeDeckToYDoc(doc: Y.Doc, spec: PresentationDeckSpec, editorState?: PresentationEditorState | null, status: PresentationStatus = 'draft') {
   doc.transact(() => {
     const deck = doc.getMap<PresentationJsonValue>('deck')
+    deck.set('kind', presentationDeckKind(spec.kind))
     deck.set('title', spec.title)
     deck.set('goal', spec.goal)
     setOptional(deck, 'audience', spec.audience)
@@ -69,6 +71,7 @@ export function materializePresentationYDoc(doc: Y.Doc): { spec: PresentationDec
   const themePack = readThemePack(deck.get('themePack'))
   const status = presentationStatusFromY(deck.get('status'))
   const title = readString(deck.get('title')) || 'Untitled presentation'
+  const kind = presentationDeckKind(deck.get('kind'))
   const goal = readString(deck.get('goal')) || title
   const audience = readNullableString(deck.get('audience'))
   const owner = readNullableString(deck.get('owner'))
@@ -77,6 +80,7 @@ export function materializePresentationYDoc(doc: Y.Doc): { spec: PresentationDec
 
   return {
     spec: {
+      kind,
       title,
       goal,
       audience,
