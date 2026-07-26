@@ -1,0 +1,4 @@
+interface:
+  display_name: "Image to Three.js Semantic Modeling"
+  short_description: "Build quality-gated procedural Three.js models"
+  default_prompt: "Use $img2threejs-semantic-modeling to rebuild this project from its admitted reference images."

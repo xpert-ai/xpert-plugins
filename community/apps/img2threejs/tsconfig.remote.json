@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node", "react", "react-dom"],
+    "rootDir": "src/lib"
+  },
+  "include": [
+    "src/lib/contracts/viewer-scene.ts",
+    "src/lib/remote-components/**/*.ts",
+    "src/lib/remote-components/**/*.tsx"
+  ]
+}
