@@ -201,6 +201,95 @@ function createHarness() {
 }
 
 describe('StoryProductionService rendering', () => {
+  it('preserves server-owned Workspace media references on human saves', async () => {
+    const harness = createHarness()
+    const save = jest
+      .spyOn(harness.service, 'saveProduction')
+      .mockResolvedValue({
+        success: true,
+        duplicate: false,
+        projectId: harness.project.id,
+        revision: 4,
+        production: { documentRevision: 2 }
+      } as never)
+    const currentScene = harness.production.scenes[0]
+    await harness.service.saveProductionFromWorkbench(scope, {
+      projectId: harness.project.id,
+      operationId: 'human:production:0001',
+      baseRevision: 3,
+      production: {
+        sourceSynopsis: harness.production.sourceSynopsis,
+        adaptationGoal: harness.production.adaptationGoal,
+        visualStyle: harness.production.visualStyle,
+        audience: harness.production.audience,
+        characters: harness.production.characters,
+        scenes: [
+          {
+            ...currentScene,
+            shots: currentScene.shots.map((shot) => ({
+              ...shot,
+              dialogueSpeakerId: 'lin',
+              dialogueType: 'voice_over' as const,
+              soundEffects: ['rain'],
+              candidates: shot.candidates.map(
+                (candidate): {
+                  id: string
+                  kind: 'image'
+                  label: string
+                  selected: boolean
+                  fileUrl?: string
+                  workspacePath?: string
+                } => ({
+                  id: candidate.id,
+                  kind: candidate.kind as 'image',
+                  label: 'Human-selected still',
+                  selected: true
+                })
+              ).concat([
+                {
+                  id: 'untrusted-browser-candidate',
+                  kind: 'image' as const,
+                  label: 'Browser metadata only',
+                  selected: false,
+                  fileUrl: 'https://attacker.example/fake.png',
+                  workspacePath: 'outside/scope/fake.png'
+                }
+              ])
+            }))
+          }
+        ]
+      },
+      changeSummary: 'Human corrected the shot metadata'
+    })
+
+    const saved = save.mock.calls[0][1].production
+    const candidate = saved.scenes[0].shots[0].candidates?.[0]
+    expect(candidate).toEqual(
+      expect.objectContaining({
+        label: 'Human-selected still',
+        fileReference: expect.objectContaining({
+          source: 'platform.workspace.files',
+          tenantId: 'tenant-a'
+        }),
+        mimeType: 'image/png',
+        sha256: 'a'.repeat(64)
+      })
+    )
+    expect(saved.scenes[0].shots[0]).toEqual(
+      expect.objectContaining({
+        dialogueSpeakerId: 'lin',
+        dialogueType: 'voice_over',
+        soundEffects: ['rain']
+      })
+    )
+    expect(saved.scenes[0].shots[0].candidates?.[1]).toEqual({
+      id: 'untrusted-browser-candidate',
+      kind: 'image',
+      label: 'Browser metadata only',
+      selected: false
+    })
+  })
+
   it('enqueues only the render business id and persists the durable queued record', async () => {
     const harness = createHarness()
     const result = await harness.service.startRender(scope, {

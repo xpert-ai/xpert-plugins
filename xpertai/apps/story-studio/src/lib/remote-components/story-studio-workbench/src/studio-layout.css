@@ -304,11 +304,11 @@ body {
   padding: 7px 10px;
 }
 
-.ss-canvas-header > div {
+.ss-canvas-heading {
   gap: 8px;
 }
 
-.ss-canvas-header > div > span {
+.ss-canvas-heading > span {
   width: 28px;
   height: 28px;
   border-radius: 6px;

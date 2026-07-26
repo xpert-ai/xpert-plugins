@@ -9,6 +9,11 @@ import {
   Send
 } from '@xpert-ai/plugin-shadcn-ui'
 import type { MessageKey } from './i18n'
+import type {
+  ProjectEditDraft,
+  StoryEditorSession
+} from './editor-state'
+import { StageEditor } from './stage-editor'
 import {
   type Asset,
   type Candidate,
@@ -24,7 +29,8 @@ export {
   parseHandoffView,
   parseProductionView,
   parseRenderCapability,
-  parseRenderView
+  parseRenderView,
+  productionActionDocument
 } from './production-data'
 export type {
   Candidate,
@@ -104,6 +110,13 @@ export function ProductionPanel(props: {
   generating: boolean
   handingOff: boolean
   inspectorCollapsed: boolean
+  editor: StoryEditorSession | null
+  onEdit: () => void
+  onSaveEdit: (rebase?: boolean) => void
+  onDiscardEdit: () => void
+  onProjectDraftChange: (draft: ProjectEditDraft) => void
+  onProductionDraftChange: (draft: ProductionView) => void
+  onUseAgentVersion: () => void
   onGenerate: () => void
   onQueryGeneration: () => void
   onRender: () => void
@@ -121,6 +134,13 @@ export function ProductionPanel(props: {
     generating,
     handingOff,
     inspectorCollapsed,
+    editor,
+    onEdit,
+    onSaveEdit,
+    onDiscardEdit,
+    onProjectDraftChange,
+    onProductionDraftChange,
+    onUseAgentVersion,
     onGenerate,
     onQueryGeneration,
     onRender,
@@ -134,22 +154,97 @@ export function ProductionPanel(props: {
 
   return (
     <section className={`ss-stage-workspace ${inspectorCollapsed ? 'is-inspector-collapsed' : ''}`}>
-      <div className="ss-stage-canvas">
+      <div
+        className={`ss-stage-canvas ${
+          editor?.pendingRemote ? 'has-editor-conflict' : ''
+        }`}
+      >
         <header className="ss-canvas-header">
-          <div>
+          <div className="ss-canvas-heading">
             <span>{String(activeStage).padStart(2, '0')}</span>
             <div>
               <h3>{t(STAGE_KEYS[activeStage] ?? 'production.title')}</h3>
               <p>{t(STAGE_HELP_KEYS[activeStage] ?? 'production.emptyHelp')}</p>
             </div>
           </div>
-          <Badge className={ready ? 'ss-ready-badge' : 'ss-pending-badge'}>
-            {t(ready ? 'workflow.stageReady' : 'workflow.stagePending')}
-          </Badge>
+          <div className="ss-canvas-actions">
+            {editor ? (
+              <>
+                <Badge variant="outline">
+                  {t(editor.dirty ? 'editor.unsaved' : 'actions.edit')}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={editor.saving}
+                  onClick={onDiscardEdit}
+                >
+                  {t('actions.discard')}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={
+                    editor.saving ||
+                    !editor.dirty ||
+                    (activeStage > 1 && !editor.productionDraft)
+                  }
+                  onClick={() => onSaveEdit(false)}
+                >
+                  {t(editor.saving ? 'editor.saving' : 'actions.save')}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Badge className={ready ? 'ss-ready-badge' : 'ss-pending-badge'}>
+                  {t(ready ? 'workflow.stageReady' : 'workflow.stagePending')}
+                </Badge>
+                {activeStage <= 7 ? (
+                  <Button size="sm" variant="outline" onClick={onEdit}>
+                    {t('actions.edit')}
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </div>
         </header>
 
+        {editor?.pendingRemote ? (
+          <div className="ss-editor-conflict" role="alert">
+            <div>
+              <strong>{t('editor.agentPending')}</strong>
+              <p>{t('editor.agentPendingHelp')}</p>
+            </div>
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={editor.saving}
+                onClick={onUseAgentVersion}
+              >
+                {t('editor.useAgent')}
+              </Button>
+              <Button
+                size="sm"
+                disabled={editor.saving || !editor.dirty}
+                onClick={() => onSaveEdit(true)}
+              >
+                {t('editor.keepMine')}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <div className={`ss-stage-content is-stage-${activeStage}`}>
-          {!production ? (
+          {editor ? (
+            <StageEditor
+              stage={activeStage}
+              project={editor.projectDraft}
+              production={editor.productionDraft}
+              onProjectChange={onProjectDraftChange}
+              onProductionChange={onProductionDraftChange}
+              t={t}
+            />
+          ) : !production ? (
             <EmptyStage t={t} />
           ) : (
             <StageContent

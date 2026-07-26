@@ -44,6 +44,7 @@ export interface StoryScope {
   userId?: string | null
   assistantId?: string | null
   conversationId?: string | null
+  actorType?: StoryActorType
 }
 
 export interface CreateStoryProjectInput {

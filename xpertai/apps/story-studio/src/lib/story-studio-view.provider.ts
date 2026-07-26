@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import {
+  HttpException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -36,9 +40,13 @@ import {
 import {
   createStoryProjectSchema,
   searchStoryProjectsSchema,
+  updateStoryProjectSchema,
   updateStoryProjectStatusSchema
 } from './story-agent-tool.schemas.js'
-import { startStoryRenderSchema } from './story-production.schemas.js'
+import {
+  saveStoryProductionSchema,
+  startStoryRenderSchema
+} from './story-production.schemas.js'
 import { prepareStoryCutHandoffSchema } from './story-cut-handoff.schemas.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
@@ -47,9 +55,13 @@ import { StoryStudioService } from './story-studio.service.js'
 import type {
   CreateStoryProjectInput,
   StoryScope,
+  UpdateStoryProjectInput,
   UpdateStoryProjectStatusInput
 } from './types.js'
-import type { StartStoryRenderInput } from './production-types.js'
+import type {
+  SaveStoryProductionInput,
+  StartStoryRenderInput
+} from './production-types.js'
 import type { PrepareStoryCutHandoffInput } from './story-cut-handoff.types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
@@ -237,6 +249,18 @@ export class StoryStudioViewProvider
             label: text('Load visual demo', '载入视觉示例'),
             icon: 'ri-movie-line',
             placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'update_project',
+            label: text('Save project details', '保存项目详情'),
+            icon: 'ri-save-line',
+            actionType: 'invoke'
+          },
+          {
+            key: 'save_production',
+            label: text('Save production', '保存制作内容'),
+            icon: 'ri-save-line',
             actionType: 'invoke'
           },
           {
@@ -448,6 +472,32 @@ export class StoryStudioViewProvider
           data: result
         }
       }
+      if (actionKey === 'update_project') {
+        const input = parseUpdateProjectAction(request)
+        const result = await this.service.updateProject(scope, input)
+        return {
+          ...success('Project details saved', '项目详情已保存'),
+          data: result,
+          refresh: true
+        }
+      }
+      if (actionKey === 'save_production') {
+        const input = parseSaveProductionAction(request)
+        const result =
+          await this.productionService.saveProductionFromWorkbench(
+            scope,
+            input
+          )
+        return {
+          ...success('Production content saved', '制作内容已保存'),
+          data: {
+            projectId: result.projectId,
+            revision: result.revision,
+            documentRevision: result.production.documentRevision
+          },
+          refresh: true
+        }
+      }
       if (actionKey === 'start_render') {
         const input = parseStartRenderAction(request)
         const result = await this.productionService.startRender(scope, input)
@@ -466,11 +516,31 @@ export class StoryStudioViewProvider
       }
       return failure('Unsupported action')
     } catch (error) {
-      return failure(
-        error instanceof Error ? error.message : 'Story Studio action failed.'
-      )
+      return actionFailure(error)
     }
   }
+}
+
+function parseUpdateProjectAction(
+  request: XpertViewActionRequest
+): UpdateStoryProjectInput {
+  return updateStoryProjectSchema.parse({
+    ...(request.input ?? {}),
+    changeSummary:
+      readInputString(request, 'changeSummary') ??
+      'Updated Story Studio project details'
+  }) as UpdateStoryProjectInput
+}
+
+function parseSaveProductionAction(
+  request: XpertViewActionRequest
+): SaveStoryProductionInput {
+  return saveStoryProductionSchema.parse({
+    ...(request.input ?? {}),
+    changeSummary:
+      readInputString(request, 'changeSummary') ??
+      'Updated Story Studio production content'
+  }) as SaveStoryProductionInput
 }
 
 async function readProductionDetail(
@@ -633,7 +703,8 @@ function scopeFromContext(context: XpertResolvedViewHostContext): StoryScope {
     workspaceId: context.workspaceId ?? null,
     hostProjectId: readHostProjectId(context),
     userId: context.userId ?? null,
-    assistantId: context.hostType === 'agent' ? context.hostId : null
+    assistantId: context.hostType === 'agent' ? context.hostId : null,
+    actorType: context.userId ? 'user' : 'system'
   }
 }
 
@@ -718,6 +789,36 @@ function failure(message: string): XpertViewActionResult {
     success: false,
     message: text(message, message)
   }
+}
+
+function actionFailure(error: unknown): XpertViewActionResult {
+  if (error instanceof HttpException) {
+    const response = error.getResponse()
+    if (typeof response === 'string') return failure(response)
+    if (response && typeof response === 'object') {
+      const body = response as Record<string, unknown>
+      const message =
+        typeof body.message === 'string'
+          ? body.message
+          : error.message || 'Story Studio action failed.'
+      return {
+        ...failure(message),
+        data: {
+          ...(typeof body.errorCode === 'string'
+            ? { errorCode: body.errorCode }
+            : {}),
+          ...(typeof body.currentRevision === 'number'
+            ? { currentRevision: body.currentRevision }
+            : {})
+        }
+      }
+    }
+  }
+  return failure(
+    error instanceof Error
+      ? error.message
+      : 'Story Studio action failed.'
+  )
 }
 
 function htmlLang(locale?: string | null) {

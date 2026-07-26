@@ -51,9 +51,11 @@ import type {
   WaitStoryRenderInput
 } from './production-types.js'
 import { uploadStoryDemoAssets } from './story-demo-assets.js'
+import { storyActor } from './story-actor.js'
 import { createStoryboardComposition, totalProductionDuration } from './storyboard-composition.js'
 import { createStoryDemoProduction } from './story-demo-case.js'
 import {
+  mergeWorkbenchProductionMedia,
   prepareRenderMedia,
   sanitizeAssets,
   sanitizeScenes
@@ -131,7 +133,7 @@ export class StoryProductionService {
           assetCount: productionCounts.assets,
           shotCount: productionCounts.shots,
           candidateCount: productionCounts.candidates,
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: new Date()
         }
       )
@@ -160,7 +162,7 @@ export class StoryProductionService {
           operationId: input.operationId,
           inputChecksum: checksum,
           changeSummary: input.changeSummary,
-          lastEditedById: scope.userId ?? scope.assistantId ?? null
+          lastEditedById: storyActor(scope).actorId
         })
       )
       await logRepository.save(
@@ -170,8 +172,7 @@ export class StoryProductionService {
           operationId: input.operationId,
           operationFingerprint,
           action: 'production_saved',
-          actorType: scope.assistantId ? 'agent' : scope.userId ? 'user' : 'system',
-          actorId: scope.userId ?? scope.assistantId ?? null,
+          ...storyActor(scope),
           changeSummary: input.changeSummary,
           previousRevision: project.revision,
           resultingRevision: nextRevision,
@@ -185,6 +186,27 @@ export class StoryProductionService {
         revision: nextRevision,
         production: compactProduction(row)
       }
+    })
+  }
+
+  async saveProductionFromWorkbench(
+    scope: StoryScope,
+    input: SaveStoryProductionInput
+  ) {
+    validateScope(scope)
+    const existing = await this.productions.findOne({
+      where: scopedWhere<StoryProduction>(scope, {
+        projectId: input.projectId
+      })
+    })
+    return this.saveProduction(scope, {
+      ...input,
+      production: existing
+        ? mergeWorkbenchProductionMedia(
+            input.production,
+            productionDocumentFromRow(existing)
+          )
+        : input.production
     })
   }
 
@@ -620,8 +642,7 @@ export class StoryProductionService {
           action === 'render_queued' ? render.operationId : `${action}:${render.id}`,
         operationFingerprint: render.inputChecksum,
         action,
-        actorType: scope.assistantId ? 'agent' : scope.userId ? 'user' : 'system',
-        actorId: scope.userId ?? scope.assistantId ?? null,
+        ...storyActor(scope),
         changeSummary:
           action === 'render_queued'
             ? render.changeSummary

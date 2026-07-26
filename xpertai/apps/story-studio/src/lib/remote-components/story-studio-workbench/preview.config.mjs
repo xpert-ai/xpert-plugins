@@ -236,6 +236,107 @@ export default {
           }
         }
       }
+      if (message.actionKey === 'update_project') {
+        const input = message.input ?? {}
+        const current = state.projects.find(
+          (item) => item.id === input.projectId
+        )
+        if (!current) throw new Error('Preview project was not found.')
+        if (current.revision !== input.baseRevision) {
+          return revisionConflict(current.revision)
+        }
+        const previousRevision = current.revision
+        const changedFields = []
+        for (const key of [
+          'title',
+          'description',
+          'premise',
+          'productionFormat',
+          'aspectRatio',
+          'targetDurationSeconds',
+          'tags'
+        ]) {
+          if (Object.hasOwn(input, key)) {
+            current[key] = structuredClone(input[key])
+            changedFields.push(key)
+          }
+        }
+        current.revision += 1
+        current.updatedAt = '2026-07-25T12:01:00.000Z'
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: current.id,
+          previousRevision,
+          revision: current.revision,
+          changedFields
+        })
+        return {
+          result: {
+            success: true,
+            data: mutationResult(
+              current,
+              input.operationId,
+              false,
+              previousRevision,
+              changedFields
+            )
+          }
+        }
+      }
+      if (message.actionKey === 'save_production') {
+        const input = message.input ?? {}
+        const current = state.projects.find(
+          (item) => item.id === input.projectId
+        )
+        if (!current) throw new Error('Preview project was not found.')
+        if (current.revision !== input.baseRevision) {
+          return revisionConflict(current.revision)
+        }
+        const previousRevision = current.revision
+        const previous = state.productionByProject[input.projectId]
+        const counts = productionCounts(input.production)
+        const production = {
+          ...structuredClone(input.production),
+          id:
+            previous?.id ??
+            '00000000-0000-4000-8000-000000000088',
+          projectId: input.projectId,
+          projectRevision: previousRevision + 1,
+          documentRevision: (previous?.documentRevision ?? 0) + 1,
+          counts,
+          totalDurationSeconds: productionDuration(input.production),
+          updatedAt: '2026-07-25T12:02:00.000Z'
+        }
+        state.productionByProject[input.projectId] = production
+        current.revision += 1
+        current.updatedAt = production.updatedAt
+        current.counts = {
+          sources: counts.sources,
+          events: counts.beats,
+          episodes: counts.episodes,
+          assets: counts.assets,
+          shots: counts.shots,
+          candidates: counts.candidates
+        }
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: current.id,
+          previousRevision,
+          revision: current.revision,
+          documentRevision: production.documentRevision,
+          changedFields: ['production']
+        })
+        return {
+          result: {
+            success: true,
+            data: {
+              projectId: current.id,
+              revision: current.revision,
+              documentRevision: production.documentRevision
+            }
+          }
+        }
+      }
       if (message.actionKey === 'start_render') {
         const input = message.input ?? {}
         const render = {
@@ -610,7 +711,8 @@ function mutationResult(
   item,
   operationId,
   duplicate,
-  previousRevision = null
+  previousRevision = null,
+  changedFields = null
 ) {
   return {
     project: structuredClone(item),
@@ -623,10 +725,81 @@ function mutationResult(
       revision: item.revision,
       status: item.status,
       changedFields:
-        previousRevision === null ? ['title', 'status'] : ['status'],
+        changedFields ??
+        (previousRevision === null ? ['title', 'status'] : ['status']),
       nextAction: item.nextAction
     }
   }
+}
+
+function revisionConflict(currentRevision) {
+  return {
+    result: {
+      success: false,
+      message: {
+        en_US: 'The project changed remotely.',
+        zh_Hans: '项目已被 Agent 更新，请先合并或重新加载。'
+      },
+      data: {
+        errorCode: 'story_revision_conflict',
+        currentRevision
+      }
+    }
+  }
+}
+
+function productionCounts(production) {
+  const scenes = Array.isArray(production?.scenes)
+    ? production.scenes
+    : []
+  const shots = scenes.flatMap((scene) =>
+    Array.isArray(scene.shots) ? scene.shots : []
+  )
+  const assets = Array.isArray(production?.assets)
+    ? production.assets
+    : []
+  const candidates = [
+    ...assets.flatMap((asset) =>
+      Array.isArray(asset.candidates) ? asset.candidates : []
+    ),
+    ...shots.flatMap((shot) =>
+      Array.isArray(shot.candidates) ? shot.candidates : []
+    )
+  ]
+  return {
+    sources: Array.isArray(production?.sourceMaterials)
+      ? production.sourceMaterials.length
+      : 0,
+    beats: Array.isArray(production?.storyPlan?.beats)
+      ? production.storyPlan.beats.length
+      : 0,
+    episodes: Array.isArray(production?.episodes)
+      ? production.episodes.length
+      : 0,
+    assets: assets.length,
+    characters: Array.isArray(production?.characters)
+      ? production.characters.length
+      : 0,
+    scenes: scenes.length,
+    shots: shots.length,
+    candidates: candidates.length,
+    selectedCandidates: candidates.filter(
+      (candidate) => candidate.selected === true
+    ).length
+  }
+}
+
+function productionDuration(production) {
+  return (production?.scenes ?? []).reduce(
+    (total, scene) =>
+      total +
+      (scene.shots ?? []).reduce(
+        (sceneTotal, shot) =>
+          sceneTotal + (Number(shot.durationSeconds) || 0),
+        0
+      ),
+    0
+  )
 }
 
 function nextAction(status) {

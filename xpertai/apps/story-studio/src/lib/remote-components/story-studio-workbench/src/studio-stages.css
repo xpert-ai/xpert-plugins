@@ -26,14 +26,14 @@
   background: color-mix(in srgb, var(--ss-panel) 94%, transparent);
 }
 
-.ss-canvas-header > div {
+.ss-canvas-heading {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
 }
 
-.ss-canvas-header > div > span {
+.ss-canvas-heading > span {
   width: 34px;
   height: 34px;
   display: grid;

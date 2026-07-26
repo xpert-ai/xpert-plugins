@@ -13,7 +13,8 @@ export interface StoryStudioAssistantProject {
 }
 
 export function buildStoryStudioAssistantContext(
-  project: StoryStudioAssistantProject | null
+  project: StoryStudioAssistantProject | null,
+  dirty = false
 ) {
   if (!project) {
     return {
@@ -27,7 +28,7 @@ export function buildStoryStudioAssistantContext(
     env: {
       storyProjectId: project.id,
       storyProjectRevision: String(project.revision),
-      storyProjectDirty: 'false'
+      storyProjectDirty: String(dirty)
     },
     context: {
       currentProject: {

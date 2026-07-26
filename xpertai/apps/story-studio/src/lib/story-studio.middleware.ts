@@ -408,7 +408,8 @@ function scopeFromContext(context: IAgentMiddlewareContext): StoryScope {
     hostProjectId: context.projectId ?? null,
     userId: context.userId ?? null,
     assistantId: context.xpertId ?? null,
-    conversationId: context.conversationId ?? null
+    conversationId: context.conversationId ?? null,
+    actorType: 'agent'
   }
 }
 

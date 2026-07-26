@@ -1,6 +1,14 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   Button,
   ChevronRight,
@@ -68,6 +76,8 @@ import {
   type RenderCapabilityView,
   type RenderView
 } from './production-panel'
+import { useStoryEditor } from './use-story-editor'
+import { findHandoff, readHostThemeMode } from './workbench-data'
 
 const h: typeof React.createElement = React.createElement
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
@@ -142,12 +152,45 @@ function App() {
   const [draft, setDraft] = React.useState<CreateProjectDraft>(EMPTY_PROJECT_DRAFT)
   const [projectsCollapsed, setProjectsCollapsed] = React.useState(false)
   const [inspectorCollapsed, setInspectorCollapsed] = React.useState(false)
+  const [discardOpen, setDiscardOpen] = React.useState(false)
+  const [pendingNavigation, setPendingNavigation] = React.useState<
+    | { kind: 'stage'; stage: number }
+    | { kind: 'project'; projectId: string }
+    | {
+        kind: 'refresh'
+        preferredId?: string | null
+        requestedPage?: number
+      }
+    | { kind: 'discard' }
+    | null
+  >(null)
   const selectedRef = React.useRef<ProjectSummary | null>(null)
   const pageRef = React.useRef(1)
   const searchRef = React.useRef('')
   const statusRef = React.useRef<ProjectStatus | 'all'>('all')
+  const refreshAfterToolEventRef = React.useRef<
+    (event: RemoteValue) => Promise<void>
+  >(async () => undefined)
   const t = createTranslator(context?.locale)
   const themeMode = readHostThemeMode(context?.theme)
+  const {
+    editor,
+    editorRef,
+    beginEdit,
+    closeEditor,
+    updateProjectDraft,
+    updateProductionDraft,
+    markRemotePending,
+    saveEditor,
+    useAgentVersion
+  } = useStoryEditor({
+    activeStage,
+    production,
+    getProject: () => selectedRef.current,
+    getSnapshot: requestProjectSnapshot,
+    reload: (projectId) => reloadProjects(projectId),
+    t
+  })
 
   React.useEffect(() => {
     selectedRef.current = selected
@@ -200,7 +243,7 @@ function App() {
         applyWorkbenchPayload(nextContext.payload)
         void reloadProjects()
       },
-      (event) => void refreshAfterToolEvent(event)
+      (event) => void refreshAfterToolEventRef.current(event)
     )
     post('ready')
   }, [])
@@ -221,6 +264,8 @@ function App() {
     themeMode,
     projectsCollapsed,
     inspectorCollapsed,
+    editor,
+    discardOpen,
     context?.locale
   ])
 
@@ -229,7 +274,7 @@ function App() {
     const timer = window.setTimeout(() => {
       void invokeClientCommand(
         ASSISTANT_CONTEXT_COMMAND,
-        buildStoryStudioAssistantContext(selected)
+        buildStoryStudioAssistantContext(selected, editor?.dirty === true)
       ).catch((error) => {
         storyStudioDebug.warn('assistant.context.sync.failed', {
           message: getErrorMessage(error instanceof Error ? error : String(error))
@@ -237,7 +282,13 @@ function App() {
       })
     }, 150)
     return () => window.clearTimeout(timer)
-  }, [context, selected?.id, selected?.revision, selected?.status])
+  }, [
+    context,
+    selected?.id,
+    selected?.revision,
+    selected?.status,
+    editor?.dirty
+  ])
 
   function applyWorkbenchPayload(value: RemoteValue) {
     const payload = isRemoteObject(value) ? value : null
@@ -312,8 +363,74 @@ function App() {
     }
   }
 
-  async function selectProject(projectId: string) {
-    await reloadProjects(projectId)
+  function requestNavigation(
+    navigation: NonNullable<typeof pendingNavigation>
+  ) {
+    if (editorRef.current?.dirty) {
+      setPendingNavigation(navigation)
+      setDiscardOpen(true)
+      return
+    }
+    void applyNavigation(navigation)
+  }
+
+  async function applyNavigation(
+    navigation: NonNullable<typeof pendingNavigation>
+  ) {
+    setDiscardOpen(false)
+    setPendingNavigation(null)
+    closeEditor()
+    if (navigation.kind === 'stage') {
+      setActiveStage(navigation.stage)
+      return
+    }
+    if (navigation.kind === 'project') {
+      await reloadProjects(navigation.projectId)
+      return
+    }
+    if (navigation.kind === 'refresh') {
+      await reloadProjects(
+        navigation.preferredId,
+        navigation.requestedPage
+      )
+    }
+  }
+
+  function selectProject(projectId: string) {
+    requestNavigation({ kind: 'project', projectId })
+  }
+
+  function requestDiscardEdit() {
+    const current = editorRef.current
+    if (!current?.dirty) {
+      closeEditor()
+      return
+    }
+    setPendingNavigation({ kind: 'discard' })
+    setDiscardOpen(true)
+  }
+
+  async function requestProjectSnapshot(projectId: string) {
+    const response = await requestData({
+      page: pageRef.current,
+      pageSize: PROJECT_PAGE_SIZE,
+      search: searchRef.current,
+      parameters: {
+        table: 'projects',
+        ...(statusRef.current === 'all'
+          ? {}
+          : { status: statusRef.current }),
+        projectId
+      }
+    })
+    const payload = getResponsePayload(response)
+    const object = isRemoteObject(payload) ? payload : null
+    return {
+      project: object ? parseProject(object.detail) : null,
+      production: object
+        ? parseProductionView(object.production)
+        : null
+    }
   }
 
   async function createProject() {
@@ -540,9 +657,28 @@ function App() {
       toolName: normalized.toolName ?? '',
       projectId: normalized.projectId ?? ''
     })
-    await reloadProjects(normalized.projectId ?? selectedRef.current?.id ?? null)
+    const currentEditor = editorRef.current
+    const targetId =
+      normalized.projectId ?? selectedRef.current?.id ?? null
+    if (
+      currentEditor?.dirty &&
+      targetId === currentEditor.projectId
+    ) {
+      markRemotePending()
+      notify('warning', t('editor.agentPending'))
+      return
+    }
+    if (
+      currentEditor &&
+      targetId === currentEditor.projectId
+    ) {
+      closeEditor()
+    }
+    await reloadProjects(targetId)
     notify('info', t('messages.agentRefresh'))
   }
+
+  refreshAfterToolEventRef.current = refreshAfterToolEvent
 
   const nextStatus = selected ? NEXT_STATUS[selected.status] : undefined
   const pageCount = Math.max(1, Math.ceil(total / PROJECT_PAGE_SIZE))
@@ -571,7 +707,7 @@ function App() {
             variant="outline"
             size="sm"
             disabled={busy}
-            onClick={() => void reloadProjects()}
+            onClick={() => requestNavigation({ kind: 'refresh' })}
           >
             <RotateCcw aria-hidden="true" />{t('actions.refresh')}
           </Button>
@@ -579,12 +715,16 @@ function App() {
             className="ss-header-secondary-action"
             variant="outline"
             size="sm"
-            disabled={busy}
+            disabled={busy || editor?.dirty}
             onClick={() => void createDemoProject()}
           >
             {t('actions.loadDemo')}
           </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button
+            size="sm"
+            disabled={editor?.dirty}
+            onClick={() => setCreateOpen(true)}
+          >
             <Plus aria-hidden="true" />{t('actions.newProject')}
           </Button>
         </div>
@@ -600,7 +740,9 @@ function App() {
               className={`ss-stage ${ready ? 'is-ready' : ''} ${activeStage === number ? 'is-active' : ''}`}
               key={stage}
               aria-current={activeStage === number ? 'step' : undefined}
-              onClick={() => setActiveStage(number)}
+              onClick={() =>
+                requestNavigation({ kind: 'stage', stage: number })
+              }
             >
               <span className="ss-stage-number">{number}</span>
               <span><strong>{t(stage)}</strong><small>{t(ready ? 'stage.ready' : 'stage.pending')}</small></span>
@@ -649,7 +791,11 @@ function App() {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       pageRef.current = 1
-                      void reloadProjects(null, 1)
+                      requestNavigation({
+                        kind: 'refresh',
+                        preferredId: null,
+                        requestedPage: 1
+                      })
                     }
                   }}
                 />
@@ -661,7 +807,11 @@ function App() {
                     setStatus(next)
                     statusRef.current = next
                     pageRef.current = 1
-                    void reloadProjects(null, 1)
+                    requestNavigation({
+                      kind: 'refresh',
+                      preferredId: null,
+                      requestedPage: 1
+                    })
                   }}
                 >
                   <SelectTrigger size="sm" className="ss-filter-trigger" aria-label={t('filters.allStatuses')}>
@@ -693,11 +843,11 @@ function App() {
                 )) : <div className="ss-empty">{t('projects.empty')}</div>}
               </div>
               <div className="ss-pagination">
-                <Button variant="outline" size="sm" disabled={busy || page <= 1} onClick={() => void reloadProjects(null, page - 1)}>
+                <Button variant="outline" size="sm" disabled={busy || page <= 1} onClick={() => requestNavigation({ kind: 'refresh', preferredId: null, requestedPage: page - 1 })}>
                   {t('pagination.previous')}
                 </Button>
                 <span>{t('pagination.page', { page, pages: pageCount })}</span>
-                <Button variant="outline" size="sm" disabled={busy || page >= pageCount} onClick={() => void reloadProjects(null, page + 1)}>
+                <Button variant="outline" size="sm" disabled={busy || page >= pageCount} onClick={() => requestNavigation({ kind: 'refresh', preferredId: null, requestedPage: page + 1 })}>
                   {t('pagination.next')}
                 </Button>
               </div>
@@ -717,7 +867,7 @@ function App() {
                 <div className="ss-detail-actions">
                   <Badge className={`status-${selected.status}`}>{t(STATUS_KEYS[selected.status])}</Badge>
                   {nextStatus ? (
-                    <Button size="sm" disabled={busy} onClick={() => void advanceProject()}>
+                    <Button size="sm" disabled={busy || editor?.dirty} onClick={() => void advanceProject()}>
                       {t('actions.advance', { stage: t(STATUS_KEYS[nextStatus]) })}
                       <ChevronRight aria-hidden="true" />
                     </Button>
@@ -740,6 +890,13 @@ function App() {
                 onHandoff={() => void prepareCutHandoff()}
                 inspectorCollapsed={inspectorCollapsed}
                 onInspectorCollapsedChange={setInspectorCollapsed}
+                editor={editor}
+                onEdit={beginEdit}
+                onSaveEdit={(rebase) => void saveEditor(rebase)}
+                onDiscardEdit={requestDiscardEdit}
+                onProjectDraftChange={updateProjectDraft}
+                onProductionDraftChange={updateProductionDraft}
+                onUseAgentVersion={() => void useAgentVersion()}
                 t={t}
               />
 
@@ -773,6 +930,34 @@ function App() {
         onCreate={() => void createProject()}
         t={t}
       />
+      <AlertDialog
+        open={discardOpen}
+        onOpenChange={(open) => {
+          setDiscardOpen(open)
+          if (!open) setPendingNavigation(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('editor.discardTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('editor.discardHelp')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const navigation =
+                  pendingNavigation ?? ({ kind: 'discard' } as const)
+                void applyNavigation(navigation)
+              }}
+            >
+              {t('editor.discardConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -806,27 +991,6 @@ function readShotReadiness(production: ProductionView | null) {
     ).length,
     total: shots.length
   }
-}
-
-function readHostThemeMode(value: RemoteValue): 'light' | 'dark' {
-  if (typeof value === 'string') return value.toLowerCase().includes('dark') ? 'dark' : 'light'
-  if (isRemoteObject(value)) {
-    const mode = value.mode
-    if (typeof mode === 'string' && mode.toLowerCase().includes('dark')) return 'dark'
-  }
-  return 'light'
-}
-
-function findHandoff(value: RemoteValue): HandoffView | null {
-  const direct = parseHandoffView(value)
-  if (direct) return direct
-  if (!isRemoteObject(value)) return null
-  return (
-    parseHandoffView(value.handoff) ??
-    findHandoff(value.data) ??
-    findHandoff(value.result) ??
-    findHandoff(value.payload)
-  )
 }
 
 const rootElement = document.getElementById('root')

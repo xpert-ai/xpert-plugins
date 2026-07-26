@@ -7,7 +7,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
     `plugin_${namespace}_${key}`
 }))
 
-import { NotFoundException } from '@nestjs/common'
+import { ConflictException, NotFoundException } from '@nestjs/common'
 import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
   AGENT_WORKBENCH_FIXED_SLOT,
@@ -82,7 +82,8 @@ function createHarness() {
         nextAction: project.nextAction
       }
     }),
-    updateProjectStatus: jest.fn()
+    updateProjectStatus: jest.fn(),
+    updateProject: jest.fn()
   }
   const production = {
     getProduction: jest
@@ -96,7 +97,8 @@ function createHarness() {
       backend: 'sandbox-job'
     }),
     startRender: jest.fn(),
-    createDemoProduction: jest.fn()
+    createDemoProduction: jest.fn(),
+    saveProductionFromWorkbench: jest.fn()
   }
   const cutHandoffs = {
     getLatestSummary: jest.fn().mockResolvedValue(null),
@@ -137,6 +139,9 @@ describe('StoryStudioViewProvider', () => {
       ASSISTANT_CONTEXT_SET_COMMAND,
       ASSISTANT_CHAT_SEND_MESSAGE_COMMAND
     ])
+    expect(manifest.actions?.map((action) => action.key)).toEqual(
+      expect.arrayContaining(['update_project', 'save_production'])
+    )
   })
 
   it('passes search pagination and scope to the service', async () => {
@@ -160,7 +165,8 @@ describe('StoryStudioViewProvider', () => {
         tenantId: 'tenant-a',
         organizationId: 'org-a',
         workspaceId: 'workspace-a',
-        assistantId: 'assistant-a'
+        assistantId: 'assistant-a',
+        actorType: 'user'
       }),
       {
         status: 'draft',
@@ -294,5 +300,143 @@ describe('StoryStudioViewProvider', () => {
 
     expect(result.success).toBe(false)
     expect(service.createProject).not.toHaveBeenCalled()
+  })
+
+  it('saves human project details with nullable clears and user scope', async () => {
+    const { provider, service } = createHarness()
+    service.updateProject.mockResolvedValue({
+      project: { ...project, title: 'Human edit', revision: 2 },
+      receipt: { revision: 2 }
+    })
+
+    const result = await provider.executeViewAction(
+      hostContext(),
+      STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      'update_project',
+      {
+        input: {
+          projectId: project.id,
+          operationId: 'human:update:project',
+          baseRevision: 1,
+          title: 'Human edit',
+          description: null,
+          premise: null,
+          targetDurationSeconds: null,
+          changeSummary: 'Human corrected the project brief'
+        }
+      }
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({ success: true, refresh: true })
+    )
+    expect(service.updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: 'user', userId: 'user-a' }),
+      expect.objectContaining({
+        title: 'Human edit',
+        description: null,
+        premise: null,
+        targetDurationSeconds: null
+      })
+    )
+  })
+
+  it('saves a complete production document through the safe Workbench path', async () => {
+    const { provider, production } = createHarness()
+    production.saveProductionFromWorkbench.mockResolvedValue({
+      projectId: project.id,
+      revision: 2,
+      production: { documentRevision: 3 }
+    })
+    const document = {
+      sourceSynopsis: 'A reviewed source.',
+      adaptationGoal: 'Create a five second short.',
+      visualStyle: 'High contrast studio light.',
+      characters: [],
+      scenes: [
+        {
+          id: 'scene-1',
+          order: 1,
+          title: 'Opening',
+          summary: 'The character enters.',
+          shots: [
+            {
+              id: 'shot-1',
+              title: 'Entrance',
+              composition: 'Medium shot.',
+              action: 'The door opens.',
+              camera: 'Slow push.',
+              durationSeconds: 5,
+              candidates: []
+            }
+          ]
+        }
+      ]
+    }
+    const result = await provider.executeViewAction(
+      hostContext(),
+      STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      'save_production',
+      {
+        input: {
+          projectId: project.id,
+          operationId: 'human:save:production',
+          baseRevision: 1,
+          production: document,
+          changeSummary: 'Human corrected the storyboard'
+        }
+      }
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        refresh: true,
+        data: expect.objectContaining({
+          revision: 2,
+          documentRevision: 3
+        })
+      })
+    )
+    expect(production.saveProductionFromWorkbench).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: 'user' }),
+      expect.objectContaining({ production: document })
+    )
+  })
+
+  it('returns structured revision conflicts so the Workbench can keep its draft', async () => {
+    const { provider, service } = createHarness()
+    service.updateProject.mockRejectedValue(
+      new ConflictException({
+        errorCode: 'story_revision_conflict',
+        message: 'Story project changed. Refresh the project and retry.',
+        currentRevision: 5
+      })
+    )
+
+    const result = await provider.executeViewAction(
+      hostContext(),
+      STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      'update_project',
+      {
+        input: {
+          projectId: project.id,
+          operationId: 'human:stale:project',
+          baseRevision: 1,
+          title: 'Stale edit',
+          changeSummary: 'Attempted a stale human edit'
+        }
+      }
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: {
+          errorCode: 'story_revision_conflict',
+          currentRevision: 5
+        }
+      })
+    )
   })
 })

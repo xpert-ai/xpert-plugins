@@ -1,8 +1,31 @@
 import { createTranslator, normalizeLocale } from './i18n'
+import { buildStoryStudioAssistantContext } from './assistant-context'
 import type { RemoteObject } from './runtime'
 import { normalizeStoryToolEvent } from './tool-event'
 
 describe('Story Studio remote utility boundaries', () => {
+  it('marks unsaved human drafts in Assistant context', () => {
+    const context = buildStoryStudioAssistantContext(
+      {
+        id: 'project-1',
+        title: 'Moon Harbor',
+        productionFormat: 'vertical_short',
+        aspectRatio: '9:16',
+        targetDurationSeconds: 60,
+        status: 'planning',
+        revision: 4,
+        tags: [],
+        nextAction: 'Review'
+      },
+      true
+    )
+    expect(context).toEqual(
+      expect.objectContaining({
+        env: expect.objectContaining({ storyProjectDirty: 'true' })
+      })
+    )
+  })
+
   it('normalizes locale variants and interpolates the complete catalogs', () => {
     expect(normalizeLocale('zh_TW')).toBe('zh-Hant')
     expect(normalizeLocale('zh-CN')).toBe('zh-Hans')

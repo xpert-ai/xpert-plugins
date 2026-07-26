@@ -20,6 +20,7 @@ import type {
   StoryScene
 } from './production-types.js'
 import { buildStoryScopeKey } from './story-studio.service.js'
+import { storyActor } from './story-actor.js'
 import type { StoryScope } from './types.js'
 
 const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024
@@ -145,7 +146,7 @@ export class StoryGeneratedMediaService {
         {
           revision: nextRevision,
           candidateCount: project.candidateCount + 1,
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: new Date()
         }
       )
@@ -164,8 +165,7 @@ export class StoryGeneratedMediaService {
       production.operationId = input.operationId
       production.inputChecksum = checksumOf(nextScenes)
       production.changeSummary = input.changeSummary
-      production.lastEditedById =
-        scope.userId ?? scope.assistantId ?? null
+      production.lastEditedById = storyActor(scope).actorId
       await productionRepository.save(production)
       await logRepository.save(
         logRepository.create({
@@ -174,12 +174,7 @@ export class StoryGeneratedMediaService {
           operationId: input.operationId,
           operationFingerprint,
           action: 'generated_video_attached',
-          actorType: scope.assistantId
-            ? 'agent'
-            : scope.userId
-              ? 'user'
-              : 'system',
-          actorId: scope.userId ?? scope.assistantId ?? null,
+          ...storyActor(scope),
           changeSummary: input.changeSummary,
           previousRevision: project.revision,
           resultingRevision: nextRevision,

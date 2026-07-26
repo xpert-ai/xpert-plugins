@@ -13,6 +13,7 @@ import {
   Repository
 } from 'typeorm'
 import { StoryActionLog, StoryProject } from './entities/index.js'
+import { storyActor } from './story-actor.js'
 import type {
   CreateStoryProjectInput,
   GetStoryProjectSummaryInput,
@@ -93,7 +94,7 @@ export class StoryStudioService {
           status: 'draft',
           revision: 1,
           tags: normalizeTags(input.tags),
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: now
         })
       )
@@ -225,7 +226,7 @@ export class StoryStudioService {
         {
           ...patch,
           revision,
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: new Date()
         }
       )
@@ -298,7 +299,7 @@ export class StoryStudioService {
                 failureRecoverable: null
               }
             : {}),
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: new Date()
         }
       )
@@ -370,7 +371,7 @@ export class StoryStudioService {
             'Failure message is required.'
           ),
           failureRecoverable: input.recoverable,
-          lastEditedById: scope.userId ?? scope.assistantId ?? null,
+          lastEditedById: storyActor(scope).actorId,
           lastEditedAt: new Date()
         }
       )
@@ -503,8 +504,7 @@ async function writeLog(
       operationId: input.operationId,
       operationFingerprint: input.operationFingerprint,
       action: input.action,
-      actorType: scope.assistantId ? 'agent' : scope.userId ? 'user' : 'system',
-      actorId: scope.userId ?? scope.assistantId ?? null,
+      ...storyActor(scope),
       changeSummary: requiredText(
         input.changeSummary,
         'Change summary is required.'

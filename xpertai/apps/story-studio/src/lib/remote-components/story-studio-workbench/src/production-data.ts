@@ -12,6 +12,7 @@ export type Candidate = {
   fileUrl: string | null
   workspacePath: string | null
   originalName: string | null
+  mimeType?: string | null
   size: number | null
   sha256: string | null
   prompt: string | null
@@ -94,6 +95,7 @@ export type Shot = {
 
 export type Scene = {
   id: string
+  order: number
   title: string
   summary: string
   location: string | null
@@ -105,6 +107,7 @@ export type ProductionView = {
   sourceSynopsis: string
   visualStyle: string
   adaptationGoal: string
+  audience?: string | null
   totalDurationSeconds: number
   sourceMaterials: SourceMaterial[]
   storyPlan: StoryPlan | null
@@ -181,6 +184,7 @@ export function parseProductionView(value: RemoteValue): ProductionView | null {
     sourceSynopsis,
     visualStyle,
     adaptationGoal,
+    audience: nullableString(value, 'audience'),
     totalDurationSeconds: numberField(value, 'totalDurationSeconds') ?? 0,
     counts: {
       sources: numberField(counts, 'sources') ?? 0,
@@ -390,9 +394,11 @@ function parseScene(value: RemoteValue): Scene | null {
   const id = stringField(value, 'id')
   const title = stringField(value, 'title')
   const summary = stringField(value, 'summary')
-  if (!id || !title || !summary) return null
+  const order = numberField(value, 'order')
+  if (!id || !title || !summary || order === null) return null
   return {
     id,
+    order,
     title,
     summary,
     location: nullableString(value, 'location'),
@@ -462,10 +468,116 @@ function parseCandidate(value: RemoteValue): Candidate | null {
     fileUrl: nullableString(value, 'fileUrl'),
     workspacePath: nullableString(value, 'workspacePath'),
     originalName: nullableString(value, 'originalName'),
+    mimeType: nullableString(value, 'mimeType'),
     size: numberField(value, 'size'),
     sha256: nullableString(value, 'sha256'),
     prompt: nullableString(value, 'prompt'),
     providerReceipt: parseProviderReceipt(value.providerReceipt)
+  }
+}
+
+export function productionActionDocument(
+  production: ProductionView
+): RemoteObject {
+  return JSON.parse(
+    JSON.stringify({
+      sourceSynopsis: production.sourceSynopsis,
+      adaptationGoal: production.adaptationGoal,
+      visualStyle: production.visualStyle,
+      ...(production.audience ? { audience: production.audience } : {}),
+      sourceMaterials: production.sourceMaterials,
+      ...(production.storyPlan ? { storyPlan: production.storyPlan } : {}),
+      episodes: production.episodes.map((episode) => ({
+        id: episode.id,
+        order: episode.order,
+        title: episode.title,
+        summary: episode.summary,
+        script: episode.script,
+        ...(episode.targetDurationSeconds
+          ? { targetDurationSeconds: episode.targetDurationSeconds }
+          : {})
+      })),
+      assets: production.assets.map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        name: asset.name,
+        description: asset.description,
+        prompt: asset.prompt,
+        candidates: asset.candidates.map(serializeCandidate)
+      })),
+      characters: production.characters.map((character) => ({
+        id: character.id,
+        name: character.name,
+        ...(character.role ? { role: character.role } : {}),
+        ...(character.visualDescription
+          ? { visualDescription: character.visualDescription }
+          : {}),
+        ...(character.voiceReference
+          ? {
+              voiceReference: {
+                url: character.voiceReference.url,
+                label: character.voiceReference.label,
+                ...(character.voiceReference.license
+                  ? { license: character.voiceReference.license }
+                  : {}),
+                ...(character.voiceReference.sourceUrl
+                  ? { sourceUrl: character.voiceReference.sourceUrl }
+                  : {})
+              }
+            }
+          : {})
+      })),
+      scenes: production.scenes.map((scene) => ({
+        id: scene.id,
+        order: scene.order,
+        title: scene.title,
+        summary: scene.summary,
+        ...(scene.location ? { location: scene.location } : {}),
+        ...(scene.timeOfDay ? { timeOfDay: scene.timeOfDay } : {}),
+        shots: scene.shots.map((shot) => ({
+          id: shot.id,
+          title: shot.title,
+          composition: shot.composition,
+          action: shot.action,
+          camera: shot.camera,
+          ...(shot.dialogue ? { dialogue: shot.dialogue } : {}),
+          ...(shot.dialogueSpeakerId
+            ? { dialogueSpeakerId: shot.dialogueSpeakerId }
+            : {}),
+          ...(shot.dialogueType
+            ? { dialogueType: shot.dialogueType }
+            : {}),
+          ...(shot.soundEffects.length
+            ? { soundEffects: shot.soundEffects }
+            : {}),
+          durationSeconds: shot.durationSeconds,
+          candidates: shot.candidates.map(serializeCandidate)
+        }))
+      }))
+    })
+  ) as RemoteObject
+}
+
+function serializeCandidate(candidate: Candidate) {
+  return {
+    id: candidate.id,
+    kind: candidate.kind,
+    label: candidate.label,
+    selected: candidate.selected,
+    ...(candidate.fileUrl ? { fileUrl: candidate.fileUrl } : {}),
+    ...(candidate.workspacePath
+      ? { workspacePath: candidate.workspacePath }
+      : {}),
+    ...(candidate.prompt ? { prompt: candidate.prompt } : {}),
+    ...(candidate.providerReceipt
+      ? { providerReceipt: candidate.providerReceipt }
+      : {}),
+    ...(candidate.originalName
+      ? { originalName: candidate.originalName }
+      : {}),
+    ...(candidate.mimeType ? { mimeType: candidate.mimeType } : {}),
+    ...(candidate.size ? { size: candidate.size } : {}),
+    ...(candidate.sha256 ? { sha256: candidate.sha256 } : {})
   }
 }
 

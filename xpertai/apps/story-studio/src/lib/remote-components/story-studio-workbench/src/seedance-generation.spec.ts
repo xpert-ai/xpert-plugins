@@ -31,6 +31,7 @@ const production: ProductionView = {
   scenes: [
     {
       id: 'scene-one',
+      order: 1,
       title: '地窖',
       summary: 'The reveal.',
       location: '苏府地窖',

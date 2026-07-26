@@ -33,6 +33,7 @@ import type {
   StoryCutHandoffSummary
 } from './story-cut-handoff.types.js'
 import { STORY_CUT_HANDOFF_CONTRACT_VERSION } from './story-cut-handoff.types.js'
+import { storyActor } from './story-actor.js'
 import { buildStoryScopeKey } from './story-studio.service.js'
 import type { StoryMediaCandidate } from './production-types.js'
 import type { StoryScope } from './types.js'
@@ -146,7 +147,7 @@ export class StoryCutHandoffService {
           cutProjectRevision: previous?.cutProjectRevision ?? null,
           cutProposalId: null,
           changeSummary: input.changeSummary,
-          createdById: scope.userId ?? scope.assistantId ?? null
+          createdById: storyActor(scope).actorId
         })
       )
       await logs.save(
@@ -156,12 +157,7 @@ export class StoryCutHandoffService {
           operationId: input.operationId,
           operationFingerprint: checksumOf(input),
           action: 'cut_handoff_prepared',
-          actorType: scope.assistantId
-            ? 'agent'
-            : scope.userId
-              ? 'user'
-              : 'system',
-          actorId: scope.userId ?? scope.assistantId ?? null,
+          ...storyActor(scope),
           changeSummary: input.changeSummary,
           previousRevision: project.revision,
           resultingRevision: project.revision,
@@ -308,12 +304,7 @@ export class StoryCutHandoffService {
             input.status === 'failed'
               ? 'cut_handoff_failed'
               : 'cut_handoff_delivered',
-          actorType: scope.assistantId
-            ? 'agent'
-            : scope.userId
-              ? 'user'
-              : 'system',
-          actorId: scope.userId ?? scope.assistantId ?? null,
+          ...storyActor(scope),
           changeSummary: input.changeSummary,
           previousRevision: project.revision,
           resultingRevision: project.revision,

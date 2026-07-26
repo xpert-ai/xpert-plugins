@@ -44,6 +44,16 @@ export interface RemoteBridgeContext {
   debug?: RemoteValue
 }
 
+export class RemoteActionError extends Error {
+  constructor(
+    message: string,
+    readonly data: RemoteObject | null
+  ) {
+    super(message)
+    this.name = 'RemoteActionError'
+  }
+}
+
 type RemoteWindow = Window & {
   XpertRemoteUI?: {
     applyTheme?: (theme: RemoteValue) => void
@@ -187,8 +197,9 @@ export function requireSuccessfulAction(
   if (!isRemoteObject(payload) || payload.success !== false) {
     return payload
   }
-  throw new Error(
-    readLocalizedMessage(payload.message) ?? runtimeText.remoteRequestFailed
+  throw new RemoteActionError(
+    readLocalizedMessage(payload.message) ?? runtimeText.remoteRequestFailed,
+    isRemoteObject(payload.data) ? payload.data : null
   )
 }
 
