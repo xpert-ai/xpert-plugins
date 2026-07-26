@@ -8,6 +8,13 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
 const shadcnUiDistEntry = join(workspaceRoot, 'packages', 'shadcn-ui', 'dist', 'index.js')
+const hyperframesSdkEntry = fileURLToPath(import.meta.resolve('@hyperframes/sdk'))
+const hyperframesCoreRuntime = join(
+  dirname(dirname(dirname(hyperframesSdkEntry))),
+  'core',
+  'dist',
+  'hyperframe.runtime.iife.js'
+)
 const componentNames = ['motion-workbench']
 const sourceExtensions = new Set(['.ts', '.tsx'])
 
@@ -72,6 +79,22 @@ function localWorkspacePackagesPlugin() {
   }
 }
 
+function hyperframesRuntimeSourcePlugin() {
+  return {
+    name: 'xpert-motion-hyperframes-runtime-source',
+    setup(buildApi) {
+      buildApi.onResolve({ filter: /^virtual:hyperframes-runtime$/ }, () => ({
+        path: hyperframesCoreRuntime,
+        namespace: 'hyperframes-runtime-source'
+      }))
+      buildApi.onLoad({ filter: /.*/, namespace: 'hyperframes-runtime-source' }, async (args) => ({
+        contents: `export default ${JSON.stringify(await readFile(args.path, 'utf8'))}`,
+        loader: 'js'
+      }))
+    }
+  }
+}
+
 async function bundleComponent(componentName) {
   const componentDir = join(remoteRoot, componentName)
   const sourceDir = join(componentDir, 'src')
@@ -102,7 +125,7 @@ async function bundleComponent(componentName) {
       '.woff2': 'dataurl',
       '.svg': 'text'
     },
-    plugins: [localWorkspacePackagesPlugin(), reactShimPlugin(componentName)],
+    plugins: [localWorkspacePackagesPlugin(), hyperframesRuntimeSourcePlugin(), reactShimPlugin(componentName)],
     banner: {
       js: ';'
     },

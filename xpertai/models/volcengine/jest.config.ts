@@ -1,3 +1,6 @@
+/**
+ * @jest-config-loader-options {"project":"tsconfig.jest.json"}
+ */
 /* eslint-disable */
 import { readFileSync } from 'fs';
 

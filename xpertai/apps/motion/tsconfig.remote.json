@@ -14,6 +14,7 @@
   "include": [
     "src/lib/types.ts",
     "src/lib/html-motion.ts",
+    "src/lib/hyperframes-product-intro.ts",
     "src/lib/workbench-model.ts",
     "src/lib/remote-components/motion-workbench/src/**/*.ts",
     "src/lib/remote-components/motion-workbench/src/**/*.tsx"

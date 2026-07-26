@@ -32,6 +32,8 @@
   ],
   "scripts": {
     "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
+    "test": "pnpm run build && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit",
+    "typecheck": "pnpm run build && tsc -p tsconfig.spec.json --noEmit",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {

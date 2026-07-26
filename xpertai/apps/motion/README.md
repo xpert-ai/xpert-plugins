@@ -6,8 +6,9 @@ It provides:
 
 - Motion Assistant template for recipe routing and artifact creation.
 - Motion middleware tools for recipe search, scoped project CRUD, versioning, exports, status updates, and failure reporting.
-- Motion Workbench remote component with Projects, Motion Library, HTML Workbench, native HyperFrames Composer, Legacy Video Composer, Versions, and Exports.
+- Motion Workbench remote component with Projects, Motion Library, HTML Workbench, native HyperFrames storyboard/element editing, Legacy Video Composer, Versions, and Exports.
 - HyperFrames SDK persistence/validation and Player preview, without embedding Studio.
+- Structured six-scene product-intro generation, including a ready-to-customize Xpert AI launch-film template.
 - Managed Queue + Sandbox Jobs production rendering through HyperFrames Producer.
 - Imported upstream recipe/spec/template assets under `assets/upstream`, pinned by `UPSTREAM-BASELINE.md` with attribution preserved.
 - Canvas/WebCodecs local preview and browser MP4 export for historical JSON video projects only.
@@ -26,9 +27,9 @@ Production rendering requires the platform profile `browser/video-playwright-1.6
 ## Package
 
 ```bash
-pnpm --dir /Users/xpertai/GitHub/os/xpert-plugins/xpertai/apps/motion build
-pnpm --dir /Users/xpertai/GitHub/os/xpert-plugins/xpertai/apps/motion typecheck
-pnpm --dir /Users/xpertai/GitHub/os/xpert-plugins/xpertai/apps/motion test
+pnpm --dir apps/motion build
+pnpm --dir apps/motion typecheck
+pnpm --dir apps/motion test
 ```
 
 ## Public Interfaces
@@ -45,6 +46,7 @@ pnpm --dir /Users/xpertai/GitHub/os/xpert-plugins/xpertai/apps/motion test
 - `motion_search_recipes`
 - `motion_get_recipe`
 - `motion_create_project`
+- `motion_create_product_intro`
 - `motion_get_project`
 - `motion_save_web_artifact`
 - `motion_save_video_composition`

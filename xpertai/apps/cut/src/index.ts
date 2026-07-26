@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
+import { CUT_PACKAGE_METADATA } from './package-metadata.js'
 import {
   CUT_AGENT_CAPABILITY,
   CUT_ARTIFACT_NAMESPACE,
@@ -20,11 +18,10 @@ import { CutPlugin } from './lib/cut.plugin.js'
 import { cutTemplates } from './lib/cut.templates.js'
 import { CUT_PLUGIN_CONTEXT } from './lib/tokens.js'
 
-const moduleDir = dirname(fileURLToPath(import.meta.url))
-const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as { name: string; version: string }
 const ConfigSchema = z.object({})
 const operations = [
   { name: 'cut_create_projects', displayName: 'Create Cut projects', description: 'Create scoped, versioned video-editing projects.', access: 'write' as const },
+  { name: 'cut_accept_story_handoff', displayName: 'Accept StoryCutHandoff', description: 'Create an initial Cut timeline or a reviewable proposal from a validated StoryCutHandoff v1 contract.', access: 'write' as const },
   { name: 'cut_edit_timelines', displayName: 'Edit Cut timelines', description: 'Import media, create evidence-backed review proposals, and apply revision-safe atomic clip, property, track, batch, and save operations.', access: 'write' as const },
   { name: 'cut_transcribe_captions', displayName: 'Transcribe and review captions', description: 'Queue platform-model transcription, import/export subtitles, review drafts, and commit approved captions.', access: 'write' as const },
   { name: 'cut_review_export', displayName: 'Review and export', description: 'Open Cut Workbench, review timelines, and export MP4 locally or through a bounded Sandbox Job.', access: 'write' as const }
@@ -32,8 +29,8 @@ const operations = [
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: packageJson.name,
-    version: packageJson.version,
+    name: CUT_PACKAGE_METADATA.name,
+    version: CUT_PACKAGE_METADATA.version,
     artifactNamespace: CUT_ARTIFACT_NAMESPACE,
     level: 'system',
     targetApps: ['data-xpert', 'xpert'],
@@ -97,6 +94,8 @@ export * from './lib/cut-caption.service.js'
 export * from './lib/cut-media-intelligence.service.js'
 export * from './lib/cut-proposal.js'
 export * from './lib/cut-proposal.service.js'
+export * from './lib/cut-story-handoff.js'
+export * from './lib/cut-story-handoff.service.js'
 export * from './lib/cut-render.service.js'
 export * from './lib/cut-render.processor.js'
 export * from './lib/cut-transcription.js'

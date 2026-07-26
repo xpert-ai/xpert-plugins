@@ -15,6 +15,7 @@ import {
 import { z } from 'zod/v3'
 import {
   CUT_AGENT_CAPABILITY,
+  CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
   CUT_ADD_COVER_TOOL_NAME,
   CUT_ADD_CLIP_TOOL_NAME,
   CUT_APPLY_BATCH_TOOL_NAME,
@@ -96,6 +97,11 @@ import {
 } from './cut-proposal.js'
 import { CutProposalService } from './cut-proposal.service.js'
 import { CutRenderService } from './cut-render.service.js'
+import { CutStoryHandoffService } from './cut-story-handoff.service.js'
+import {
+  cutAcceptStoryHandoffSchema,
+  type AcceptStoryCutHandoffInput
+} from './cut-story-handoff.js'
 import type { SearchCutMediaSegmentsInput } from './cut-media-intelligence.service.js'
 import type { ApplyCutEditBatchInput, ApplyCutEditInput, CutEditOperation, CutJsonValue, CutScope } from './types.js'
 
@@ -421,6 +427,7 @@ MUTATIONS.delete(CUT_GET_EDIT_PROPOSAL_TOOL_NAME)
 MUTATIONS.delete(CUT_REPORT_FAILURE_TOOL_NAME)
 
 const CURRENT_PROJECT_TOOLS = new Set<string>(CUT_MIDDLEWARE_TOOL_NAMES)
+CURRENT_PROJECT_TOOLS.delete(CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME)
 CURRENT_PROJECT_TOOLS.delete(CUT_CREATE_PROJECT_TOOL_NAME)
 CURRENT_PROJECT_TOOLS.delete(CUT_REPORT_FAILURE_TOOL_NAME)
 
@@ -447,7 +454,8 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
     private readonly captions: CutCaptionService,
     private readonly intelligence: CutMediaIntelligenceService,
     private readonly proposals: CutProposalService,
-    private readonly renders: CutRenderService
+    private readonly renders: CutRenderService,
+    private readonly storyHandoffs?: CutStoryHandoffService
   ) {}
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
@@ -455,6 +463,34 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
     return {
       name: CUT_MIDDLEWARE_NAME,
       tools: [
+        tool(async (input: AcceptStoryCutHandoffInput) => {
+          const files = context.runtime.capabilities?.require(
+            WorkspaceFilesRuntimeCapability
+          )
+          if (!files) {
+            throw new Error(
+              'Workspace Files capability is required for cut_accept_story_handoff.'
+            )
+          }
+          if (!this.storyHandoffs) {
+            throw new Error(
+              'Cut Story handoff service is unavailable.'
+            )
+          }
+          return compact(
+            await this.storyHandoffs.accept(
+              scope,
+              input,
+              (workspacePath) => files.readRuntimeBuffer(workspacePath)
+            )
+          )
+        }, {
+          name: CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
+          description:
+            'Accept one strict StoryCutHandoff v1 contract. The first handoff creates a Cut project and Story-managed timeline clips; later Story revisions import media and create an evidence-backed review proposal without changing the timeline. Return the receipt to story_record_cut_handoff_delivery.',
+          schema: cutAcceptStoryHandoffSchema,
+          verboseParsingErrors: true
+        }),
         tool(async (input) => {
           const result = await this.service.createProject(scope, input)
           return compact({

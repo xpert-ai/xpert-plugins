@@ -188,6 +188,7 @@ describe('Seedream AIGC tools', () => {
     expect(textToImageSchema.properties.model.default).toBe('doubao-seedream-4-5-251128')
     expect(videoQuerySchema.properties.task_id['x-ui'].title.zh_Hans).toBe('任务 ID')
     expect(videoQuerySchema.properties.download_video.default).toBe('true')
+    expect(videoQuerySchema.properties.wait_seconds.default).toBe(45)
     expect(videoQuerySchema.required).toEqual(['task_id'])
   })
 
@@ -230,6 +231,8 @@ describe('Seedream AIGC tools', () => {
     expect(videoQuerySchema.properties.download_video.default).toBe('true')
     expect(videoQuerySchema.properties.download_video.enum).toEqual(['true', 'false'])
     expect(videoQuerySchema.properties.download_video['x-ui'].enumLabels.true.zh_Hans).toBe('启用')
+    expect(videoQuerySchema.properties.wait_seconds.maximum).toBe(45)
+    expect(videoQuerySchema.properties.wait_seconds['x-ui'].title.zh_Hans).toBe('有界等待')
     expect(videoQuerySchema.required).toEqual(['task_id'])
   })
 
@@ -410,6 +413,65 @@ describe('Seedream AIGC tools', () => {
     )
   })
 
+  it('normalizes sandbox workspace paths through the runtime-aware workspace API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: 'task-runtime-workspace',
+      status: 'queued',
+      model: 'doubao-seedance-2-0-fast-260128'
+    }))
+    const readRuntimeBuffer = jest.fn(async () => ({
+      name: 'shot-01.png',
+      filePath: 'story-studio/project-1/demo-assets/shot-01.png',
+      workspacePath: '/workspace/story-studio/project-1/demo-assets/shot-01.png',
+      buffer: Buffer.from('runtime-workspace-image'),
+      mimeType: 'image/png',
+      catalog: 'xperts' as const,
+      scopeId: 'xpert-1'
+    }))
+    workspaceFiles.readRuntimeBuffer = readRuntimeBuffer
+
+    const tool = buildSeedreamTools({
+      credentials,
+      workspaceFiles,
+      fetch: fetchMock
+    }).find((_) => _.name === 'seedance_image_to_video')
+
+    await tool?.invoke({
+      id: 'call-runtime-workspace-input',
+      name: 'seedance_image_to_video',
+      type: 'tool_call',
+      args: {
+        prompt: 'animate this storyboard frame',
+        input_image_file:
+          '/workspace/story-studio/project-1/demo-assets/shot-01.png',
+        model: 'doubao-seedance-2-0-fast-260128',
+        duration: 5
+      }
+    })
+
+    expect(readRuntimeBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath:
+          '/workspace/story-studio/project-1/demo-assets/shot-01.png'
+      })
+    )
+    expect(workspaceFiles.readBuffer).not.toHaveBeenCalled()
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(
+      expect.objectContaining({
+        content: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'image_url',
+            image_url: {
+              url: `data:image/png;base64,${Buffer.from(
+                'runtime-workspace-image'
+              ).toString('base64')}`
+            }
+          })
+        ])
+      })
+    )
+  })
+
   it('accepts JSON string arrays for multi-image inputs', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({
       data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
@@ -518,14 +580,15 @@ describe('Seedream AIGC tools', () => {
       type: 'tool_call',
       args: {
         task_id: 'task-1',
-        download_video: 'true'
+        download_video: 'true',
+        wait_seconds: 0
       }
     })
 
     const [content] = normalizeToolResult(result)
     expect(content).toContain('Video task task-1 status: running.')
-    expect(content).toContain('No video_url is available yet')
-    expect(content).toContain('Do not repeat seedance_video_query with the same task_id in this turn')
+    expect(content).toContain('No video_url is available after a bounded 0-second wait')
+    expect(content).toContain('may be queried in a later turn')
     expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
   })
 
@@ -613,6 +676,67 @@ describe('Seedream AIGC tools', () => {
         }
       })
     ).rejects.toThrow('text(optional)+image+video requires at least one reference image')
+  })
+
+  it('passes public audio URLs as Seedance reference audio', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: 'task-audio-reference',
+      status: 'submitted',
+      model: 'doubao-seedance-2-0-fast-260128'
+    }))
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_multimodal_reference_to_video'
+    )
+
+    await tool?.invoke({
+      id: 'call-audio-reference',
+      name: 'seedance_multimodal_reference_to_video',
+      type: 'tool_call',
+      args: {
+        prompt: '角色准确说出台词，口型与语音同步。',
+        model: 'doubao-seedance-2-0-fast-260128',
+        input_mode: 'text_image_audio',
+        reference_image_files: [
+          `data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`
+        ],
+        reference_audio_urls: 'https://media.example/mandarin-voice.mp3',
+        generate_audio: 'true'
+      }
+    })
+
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(payload.generate_audio).toBe(true)
+    expect(payload.content).toEqual(
+      expect.arrayContaining([
+        {
+          type: 'audio_url',
+          audio_url: { url: 'https://media.example/mandarin-voice.mp3' },
+          role: 'reference_audio'
+        }
+      ])
+    )
+  })
+
+  it('rejects non-public reference audio URLs', async () => {
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_multimodal_reference_to_video'
+    )
+
+    await expect(
+      tool?.invoke({
+        id: 'call-private-audio-reference',
+        name: 'seedance_multimodal_reference_to_video',
+        type: 'tool_call',
+        args: {
+          input_mode: 'text_image_audio',
+          reference_image_files: [
+            `data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`
+          ],
+          reference_audio_urls: 'http://127.0.0.1/voice.mp3'
+        }
+      })
+    ).rejects.toThrow('reference audio URL must be a public HTTPS URL')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('normalizes Seedance 2.0 video options', () => {
