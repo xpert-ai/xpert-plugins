@@ -4,12 +4,10 @@ import {
   CredentialsValidateFailedError,
   ModelProvider,
 } from '@xpert-ai/plugin-sdk';
-import { AiModelTypeEnum } from '@xpert-ai/contracts';
 import {
+  getMoonshotBaseUrl,
   Moonshot,
-  MoonshotBaseUrl,
   MoonshotCredentials,
-  toCredentialKwargs,
 } from './types.js';
 
 @Injectable()
@@ -18,7 +16,7 @@ export class MoonshotProviderStrategy extends ModelProvider {
   override logger = new Logger(MoonshotProviderStrategy.name);
 
   getBaseUrl(credentials: MoonshotCredentials): string {
-    return credentials.base_url || MoonshotBaseUrl;
+    return getMoonshotBaseUrl(credentials);
   }
 
   getAuthorization(credentials: MoonshotCredentials): string {
@@ -29,9 +27,22 @@ export class MoonshotProviderStrategy extends ModelProvider {
     credentials: MoonshotCredentials
   ): Promise<void> {
     try {
-      const modelInstance = this.getModelManager(AiModelTypeEnum.LLM);
-      // Use moonshot-v1-8k for validation (most cost-effective)
-      await modelInstance.validateCredentials('moonshot-v1-8k', credentials);
+      const baseUrl = this.getBaseUrl(credentials).replace(/\/+$/, '');
+      const response = await fetch(`${baseUrl}/models`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: this.getAuthorization(credentials),
+        },
+      });
+
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        throw new CredentialsValidateFailedError(
+          errorMessage ||
+            `Moonshot credentials verification failed with status ${response.status}`
+        );
+      }
     } catch (ex: unknown) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex;
@@ -55,4 +66,3 @@ export class MoonshotProviderStrategy extends ModelProvider {
     }
   }
 }
-
