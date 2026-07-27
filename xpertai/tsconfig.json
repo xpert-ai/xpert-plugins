@@ -224,6 +224,30 @@
     },
     {
       "path": "./models/mimo"
+    },
+    {
+      "path": "./apps/presentation-studio"
+    },
+    {
+      "path": "./packages/design-fonts"
+    },
+    {
+      "path": "./apps/canvas"
+    },
+    {
+      "path": "./apps/motion"
+    },
+    {
+      "path": "./apps/pencil"
+    },
+    {
+      "path": "./skills/pdf"
+    },
+    {
+      "path": "./apps/sites"
+    },
+    {
+      "path": "./apps/cut"
     }
   ]
 }

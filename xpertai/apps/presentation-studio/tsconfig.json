@@ -14,5 +14,10 @@
     "useDefineForClassFields": false
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    {
+      "path": "../../packages/design-fonts"
+    }
+  ]
 }
