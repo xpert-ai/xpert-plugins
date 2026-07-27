@@ -215,6 +215,15 @@
     },
     {
       "path": "./apps/story-studio"
+    },
+    {
+      "path": "./models/longcat"
+    },
+    {
+      "path": "./models/stepfun"
+    },
+    {
+      "path": "./models/mimo"
     }
   ]
 }
