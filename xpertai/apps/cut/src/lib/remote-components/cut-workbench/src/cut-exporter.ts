@@ -124,12 +124,31 @@ async function renderAudioMix(document: CutDocument, codec: 'aac' | 'opus') {
   if (!(await canEncodeAudio(codec))) throw new Error(`${codec.toUpperCase()} audio encoding is unavailable in this browser.`)
   const sampleRate = 44_100
   const context = new AudioContext({ sampleRate })
-  const decoded = await Promise.all(clips.map(async (clip) => {
-    const response = await fetch(clip.previewUrl!, { credentials: 'include' })
-    if (!response.ok) throw new Error(`Audio source ${clip.name} could not be loaded.`)
-    return { clip, buffer: await context.decodeAudioData(await response.arrayBuffer()) }
-  }))
-  await context.close()
+  let decoded: Array<{ clip: CutClip; buffer: AudioBuffer }>
+  try {
+    decoded = (await Promise.all(clips.map(async (clip) => {
+      const response = await fetch(clip.previewUrl!, { credentials: 'include' })
+      if (!response.ok) throw new Error(`Audio source ${clip.name} could not be loaded.`)
+      try {
+        return { clip, buffer: await context.decodeAudioData(await response.arrayBuffer()) }
+      } catch (error) {
+        // Video containers are allowed to be silent. Web Audio reports the same
+        // decode failure for a valid video-only file as it does for damaged
+        // embedded audio, so preserve the visual export and omit that clip from
+        // the audio mix. Explicit audio clips remain strict.
+        if (clip.type !== 'video') throw error
+        console.warn('CUT_AUDIO_DECODE_SKIPPED', {
+          clipId: clip.id,
+          clipName: clip.name,
+          reason: error instanceof Error ? error.message : String(error)
+        })
+        return null
+      }
+    }))).filter((item): item is { clip: CutClip; buffer: AudioBuffer } => item !== null)
+  } finally {
+    await context.close().catch(() => undefined)
+  }
+  if (!decoded.length) return null
   const offline = new OfflineAudioContext(2, Math.ceil(document.settings.durationSeconds * sampleRate), sampleRate)
   for (const { clip, buffer } of decoded) {
     const source = offline.createBufferSource()

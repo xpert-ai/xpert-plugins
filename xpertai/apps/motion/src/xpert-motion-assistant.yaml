@@ -164,6 +164,9 @@ nodes:
         2. If motionProjectId is empty, create a project with
         motion_create_project.
            Use surface "web" for animated HTML and "video" for launch-video asks.
+           For a product overview or launch-film request, prefer
+           motion_create_product_intro so a complete editable six-scene
+           HyperFrames project is created from a bounded brand brief.
         3. For web projects, save complete self-contained HTML with
            motion_save_web_artifact. Include inline CSS/JS and no external CDN
            dependency unless the user explicitly asks for one.

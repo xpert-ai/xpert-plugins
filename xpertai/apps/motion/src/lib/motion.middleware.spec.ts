@@ -21,6 +21,7 @@ import { ChatMessageEventTypeEnum, ChatMessageStepCategory } from '@xpert-ai/con
 import type { AgentMiddleware, IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import {
   MOTION_CREATE_PROJECT_TOOL_NAME,
+  MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
   MOTION_EXPORT_ARTIFACT_TOOL_NAME,
   MOTION_FINALIZE_VERSION_TOOL_NAME,
   MOTION_GET_PROJECT_TOOL_NAME,
@@ -79,6 +80,7 @@ describe('Motion middleware', () => {
       MOTION_SEARCH_RECIPES_TOOL_NAME,
       MOTION_GET_RECIPE_TOOL_NAME,
       MOTION_CREATE_PROJECT_TOOL_NAME,
+      MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
       MOTION_GET_PROJECT_TOOL_NAME,
       MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
       MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
@@ -88,6 +90,51 @@ describe('Motion middleware', () => {
       MOTION_UPDATE_PROJECT_STATUS_TOOL_NAME,
       MOTION_REPORT_FAILURE_TOOL_NAME
     ])
+  })
+
+  it('creates a complete product-intro project from a bounded brief', async () => {
+    const createProject = jest.fn(async (scope, input) => ({
+      item: {
+        id: 'motion-product-intro',
+        title: input.title,
+        surface: input.surface,
+        videoEngine: 'hyperframes',
+        status: 'draft',
+        workingCopyRevision: 1
+      }
+    }))
+    const agentMiddleware = createMiddleware({ createProject })
+    const createTool = getMiddlewareTool(agentMiddleware, MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME)
+    const input = {
+      brandName: 'Xpert AI',
+      tagline: 'Open-source enterprise Agent platform',
+      problem: 'Enterprise AI needs more than a chatbot.',
+      solution: 'Orchestrate agents, workflows, knowledge and governed actions.',
+      features: [
+        { title: 'Agents', description: 'Coordinate specialized agent teams.' },
+        { title: 'Governance', description: 'Review and audit business actions.' }
+      ],
+      cta: 'Build production-grade agent systems.',
+      website: 'xpertai.cn',
+      duration: 36,
+      changeSummary: 'Create the Xpert AI product film'
+    }
+    const result = JSON.parse(await createTool.invoke(input)) as {
+      projectId: string
+      videoEngine: string
+    }
+
+    expect(result.projectId).toBe('motion-product-intro')
+    expect(result.videoEngine).toBe('hyperframes')
+    expect(createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant', organizationId: 'org' }),
+      expect.objectContaining({
+        title: 'Xpert AI Product Intro',
+        surface: 'video',
+        hyperframesHtml: expect.stringContaining('data-hf-id="scene-cta"'),
+        changeSummary: 'Create the Xpert AI product film'
+      })
+    )
   })
 
   it('dispatches mutation change summaries as Tool events instead of Computer events', async () => {

@@ -212,6 +212,9 @@
     },
     {
       "path": "./skills/spreadsheets"
+    },
+    {
+      "path": "./apps/story-studio"
     }
   ]
 }

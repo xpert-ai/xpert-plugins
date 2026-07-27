@@ -7,6 +7,8 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
     "check:plugin-entity-tables": "node scripts/check-plugin-entity-tables.mjs",
+    "test:plugin-entity-tables": "node --test scripts/check-plugin-entity-tables.test.mjs",
+    "remote-view:preview": "node tools/remote-view-preview/cli.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

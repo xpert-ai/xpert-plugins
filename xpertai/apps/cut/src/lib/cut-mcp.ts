@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod/v3'
+import { CUT_PACKAGE_METADATA } from '../package-metadata.js'
 import {
   applyCutEdit,
   createStarterCutProject,
@@ -11,7 +12,7 @@ import {
 import type { CutEditOperation, CutProjectDocument } from './types.js'
 
 export const CUT_MCP_SERVER_NAME = 'xpert-cut-ir'
-export const CUT_MCP_SERVER_VERSION = '0.1.0'
+export const CUT_MCP_SERVER_VERSION = CUT_PACKAGE_METADATA.version
 export const CUT_MCP_TOOL_NAMES = [
   'cut_ir_create_project',
   'cut_ir_validate_project',

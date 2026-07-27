@@ -95,6 +95,18 @@ try {
   const decodedWaveform = await frame.locator('.audio-waveform[data-waveform-source="decoded"]').isVisible()
   console.log('cut-e2e: iframe media loaded')
 
+  await frame.getByText('cut-e2e.svg', { exact: true }).click()
+  await frame.locator('.media-asset-preview.image').waitFor()
+  const sourcePreviewAspect = await frame.locator('.media-asset-preview.image').evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    return rect.width / rect.height
+  })
+  if (Math.abs(sourcePreviewAspect - 16 / 9) > 0.02) {
+    throw new Error(`Cut source preview lost its intrinsic aspect ratio: ${sourcePreviewAspect}`)
+  }
+  await frame.getByRole('button', { name: 'Back to timeline', exact: true }).click()
+  console.log('cut-e2e: source media preview aspect verified')
+
   await frame.locator('input[type="file"][accept="video/*,audio/*,image/*"]').setInputFiles({
     name: '记录—Xpert访谈.wav',
     mimeType: 'audio/wav',
@@ -119,7 +131,9 @@ try {
   const embeddedVideoAudioPreview = await frame.locator('.stage-shell video').evaluate((video) => video.muted === false && video.volume === .5)
   await frame.getByRole('button', { name: 'Play', exact: true }).click()
   await page.waitForTimeout(100)
-  const embeddedVideoAudioPlaying = await frame.locator('.stage-shell video').evaluate((video) => video.paused === false && video.muted === false)
+  const embeddedVideoAudioPlaying = await frame.locator('.stage-shell video').evaluate((video) => {
+    return video.paused === false && (video.muted === false || video.dataset.previewAudioRoute === 'web-audio')
+  })
   await frame.getByRole('button', { name: 'Pause', exact: true }).click()
   await page.evaluate(() => {
     window.__cutHost.document.tracks[0].clips = window.__cutHost.document.tracks[0].clips.filter((clip) => clip.id !== 'embedded-audio-video')
@@ -130,7 +144,8 @@ try {
   console.log('cut-e2e: embedded video audio preview verified')
 
   await frame.getByText('cut-e2e.wav', { exact: true }).click()
-  await frame.getByRole('button', { name: 'Analyze locally', exact: true }).click()
+  await frame.getByRole('button', { name: 'AI media analysis: cut-e2e.wav', exact: true }).click()
+  await frame.getByRole('button', { name: 'Start analysis', exact: true }).click()
   await frame.locator('.media-evidence-list > div').first().waitFor({ timeout: 20_000 })
   const localMediaIntelligence = await frame.locator('.media-evidence-list > div').count() > 0
   console.log('cut-e2e: local audio evidence analysis and persistence verified')

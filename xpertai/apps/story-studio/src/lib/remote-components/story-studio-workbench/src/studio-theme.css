@@ -1,0 +1,153 @@
+:root {
+  color-scheme: light;
+  --ss-bg: #f4f5f8;
+  --ss-panel: #ffffff;
+  --ss-panel-2: #f8f9fb;
+  --ss-panel-3: #eef0f5;
+  --ss-line: #dfe2e9;
+  --ss-line-strong: #c9ced9;
+  --ss-text: #17191f;
+  --ss-muted: #6f7480;
+  --ss-faint: #9298a5;
+  --ss-accent: #7c3aed;
+  --ss-accent-2: #9b6cff;
+  --ss-accent-soft: #eee7ff;
+  --ss-green: #14b887;
+  --ss-green-soft: #def8ee;
+  --ss-yellow: #d99319;
+  --ss-yellow-soft: #fff3d8;
+  --ss-red: #e34f5f;
+  --ss-red-soft: #fee8eb;
+  --ss-blue: #2f8cff;
+  --ss-shadow: 0 16px 50px rgba(36, 31, 52, 0.08);
+  --ss-grid: rgba(62, 68, 82, 0.055);
+  background: var(--ss-bg);
+}
+
+:root[data-story-theme='dark'] {
+  color-scheme: dark;
+  --ss-bg: #090b0f;
+  --ss-panel: #101318;
+  --ss-panel-2: #141820;
+  --ss-panel-3: #1a1f28;
+  --ss-line: #252b35;
+  --ss-line-strong: #353d49;
+  --ss-text: #f2f4f8;
+  --ss-muted: #9aa2af;
+  --ss-faint: #707987;
+  --ss-accent: #8b4dff;
+  --ss-accent-2: #aa7bff;
+  --ss-accent-soft: #251b3b;
+  --ss-green: #27d6a0;
+  --ss-green-soft: #12352c;
+  --ss-yellow: #f4b34b;
+  --ss-yellow-soft: #382a14;
+  --ss-red: #ff6b78;
+  --ss-red-soft: #3a1d23;
+  --ss-blue: #4aa2ff;
+  --ss-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+  --ss-grid: rgba(190, 199, 215, 0.05);
+  background: var(--ss-bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ss-bg);
+  color: var(--ss-text);
+}
+
+body {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-size: 14px;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.ss-root {
+  min-height: 760px;
+  overflow: hidden;
+  background: var(--ss-bg);
+}
+
+.ss-root [data-slot='button'] {
+  border-color: var(--ss-line-strong);
+}
+
+.ss-root [data-slot='button'][data-variant='outline'] {
+  background: var(--ss-panel) !important;
+  color: var(--ss-text) !important;
+}
+
+.ss-root [data-slot='button'][data-variant='outline']:hover {
+  background: var(--ss-panel-3) !important;
+}
+
+.ss-root [data-slot='badge'] {
+  border-color: var(--ss-line-strong);
+}
+
+.ss-ready-badge {
+  border-color: color-mix(in srgb, var(--ss-green) 45%, transparent) !important;
+  background: var(--ss-green-soft) !important;
+  color: var(--ss-green) !important;
+}
+
+.ss-pending-badge {
+  border-color: color-mix(in srgb, var(--ss-yellow) 45%, transparent) !important;
+  background: var(--ss-yellow-soft) !important;
+  color: var(--ss-yellow) !important;
+}
+
+.status-draft,
+.status-planning {
+  background: var(--ss-accent-soft) !important;
+  color: var(--ss-accent-2) !important;
+}
+
+.status-production,
+.status-review {
+  background: var(--ss-yellow-soft) !important;
+  color: var(--ss-yellow) !important;
+}
+
+.status-completed {
+  background: var(--ss-green-soft) !important;
+  color: var(--ss-green) !important;
+}
+
+.status-failed {
+  background: var(--ss-red-soft) !important;
+  color: var(--ss-red) !important;
+}
+
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ss-stage,
+  .ss-project-item,
+  .ss-source-card,
+  .ss-shot-card,
+  .ss-media-grid > article,
+  .ss-asset-grid > article {
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      transform 160ms ease;
+  }
+}

@@ -14,6 +14,27 @@ export type PreviewMediaSyncState = {
   targetTime: number
 }
 
+export type PreviewNativeAudioState = {
+  active: boolean
+  capturedAudio: boolean
+  requestedVolume: number
+  mutedByTimeline?: boolean
+}
+
+/**
+ * Future clips are pre-rolled so their first frame is ready at the cut. Keep
+ * their native media element muted until they become active; otherwise a clip
+ * mounted after the user's original Play gesture can be rejected by browser
+ * autoplay policy. Captured audio stays muted natively and is mixed by WebAudio.
+ */
+export function previewNativeAudioState(state: PreviewNativeAudioState) {
+  const requestedVolume = Math.min(1, Math.max(0, state.requestedVolume))
+  return {
+    volume: state.capturedAudio ? 1 : state.active ? requestedVolume : 0,
+    muted: state.capturedAudio || !state.active || Boolean(state.mutedByTimeline) || requestedVolume === 0
+  }
+}
+
 /**
  * Media elements advance on their own while playing. Re-seeking them on every
  * React playhead update causes large or non-range-addressable files to stall
@@ -34,6 +55,20 @@ export function shouldMountPreviewMedia(
   if (!clip.previewUrl || (clip.type !== 'video' && clip.type !== 'audio')) return false
   if (playhead >= clip.start && playhead < clip.start + clip.duration) return true
   return clip.start > playhead && clip.start - playhead <= PREVIEW_MEDIA_PREROLL_SECONDS
+}
+
+/**
+ * A visual track can contain legacy or imported overlaps. Its last active clip
+ * is the visible winner (matching canvas paint order); suppress the covered
+ * clips so their embedded audio is not mixed underneath the visible shot.
+ */
+export function activePreviewVisualClipIds(document: CutProjectDocument, playhead: number) {
+  return document.tracks.flatMap((track) => {
+    if (track.kind !== 'visual' || track.hidden) return []
+    const active = track.clips.filter((clip) => playhead >= clip.start && playhead < clip.start + clip.duration)
+    const winner = active[active.length - 1]
+    return winner ? [winner.id] : []
+  })
 }
 
 export function audibleTimelineClips(document: CutProjectDocument) {

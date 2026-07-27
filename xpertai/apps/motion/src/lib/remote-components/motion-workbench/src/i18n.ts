@@ -19,7 +19,7 @@ const DICTIONARY = {
   code: { en: 'Code', 'zh-Hans': '代码' },
   color: { en: 'Color', 'zh-Hans': '颜色' },
   compositionInvalid: { en: 'SDK validation failed', 'zh-Hans': 'SDK 校验失败' },
-  compositionStats: { en: '{elements} elements · {animations} GSAP animations', 'zh-Hans': '{elements} 个元素 · {animations} 个 GSAP 动画' },
+  compositionStats: { en: '{elements} elements · {animations} animations', 'zh-Hans': '{elements} 个元素 · {animations} 个动画' },
   compositionValid: { en: 'SDK document valid', 'zh-Hans': 'SDK 文档有效' },
   hyperframesEngine: { en: 'HyperFrames · standard engine', 'zh-Hans': 'HyperFrames · 标准引擎' },
   hyperframesEngineHelp: { en: 'Native composition source is persisted through the SDK, previewed by Player, and rendered by Producer.', 'zh-Hans': '原生 composition 源码经 SDK 持久化、由 Player 预览、由 Producer 生产渲染。' },
@@ -27,6 +27,23 @@ const DICTIONARY = {
   hyperframesRecipeHelp: { en: 'This recipe targets the legacy layer model. For native HyperFrames projects, ask the Motion Agent to apply it through the composition source and SDK.', 'zh-Hans': '此配方针对旧图层模型。原生 HyperFrames 项目请让 Motion Agent 通过 composition 源码与 SDK 应用该动效。' },
   hyperframesSaved: { en: 'HyperFrames composition saved through the SDK', 'zh-Hans': 'HyperFrames composition 已通过 SDK 保存' },
   hyperframesSourceEmpty: { en: 'Create a new video project to receive a native HyperFrames starter composition.', 'zh-Hans': '请新建视频项目以生成原生 HyperFrames 起始 composition。' },
+  hyperframesStoryboard: { en: 'Storyboard', 'zh-Hans': '故事板' },
+  hyperframesInspector: { en: 'Element inspector', 'zh-Hans': '元素检查器' },
+  hyperframesInspectorHelp: { en: 'Select a scene or timed element, then edit its copy, timing, and inline presentation through the SDK.', 'zh-Hans': '选择场景或时间元素，然后通过 SDK 编辑文案、时间与内联样式。' },
+  hyperframesNoElements: { en: 'No editable timed elements were found.', 'zh-Hans': '未找到可编辑的时间元素。' },
+  hyperframesElementText: { en: 'Element text', 'zh-Hans': '元素文本' },
+  hyperframesElementStart: { en: 'Start (seconds)', 'zh-Hans': '开始（秒）' },
+  hyperframesElementDuration: { en: 'Duration (seconds)', 'zh-Hans': '时长（秒）' },
+  hyperframesElementX: { en: 'X position', 'zh-Hans': 'X 位置' },
+  hyperframesElementY: { en: 'Y position', 'zh-Hans': 'Y 位置' },
+  hyperframesElementOpacity: { en: 'Opacity', 'zh-Hans': '不透明度' },
+  hyperframesApplyElement: { en: 'Apply element changes', 'zh-Hans': '应用元素修改' },
+  hyperframesTemplate: { en: 'Product intro template', 'zh-Hans': '产品介绍片模板' },
+  hyperframesTemplateHelp: { en: 'Replace the unsaved draft with a complete six-scene Xpert AI product film, then customize it in the storyboard.', 'zh-Hans': '用完整六场景 Xpert AI 产品介绍片替换未保存草稿，然后在故事板中继续定制。' },
+  hyperframesUseXpertTemplate: { en: 'Use Xpert AI intro', 'zh-Hans': '使用 Xpert AI 介绍片' },
+  hyperframesTemplateApplied: { en: 'Xpert AI product-intro template applied', 'zh-Hans': '已应用 Xpert AI 产品介绍片模板' },
+  hyperframesUndoEdit: { en: 'Undo structured edit', 'zh-Hans': '撤销结构化编辑' },
+  hyperframesSelectedElement: { en: 'Selected: {name}', 'zh-Hans': '已选择：{name}' },
   latestRender: { en: 'Latest production render', 'zh-Hans': '最新生产渲染' },
   legacyLocalExport: { en: 'Local MP4', 'zh-Hans': '本地 MP4' },
   legacyVideoEngine: { en: 'Legacy Canvas/WebCodecs', 'zh-Hans': '旧版 Canvas/WebCodecs' },
@@ -237,9 +254,20 @@ export type LocaleKey = keyof typeof DICTIONARY
 export type Translator = ReturnType<typeof createTranslator>
 
 export function createTranslator(locale?: string | null) {
-  const zhHans = String(locale || '').toLowerCase().startsWith('zh')
-  const language = zhHans ? 'zh-Hans' : 'en'
+  const language = normalizeMotionLocale(locale)
   return (key: LocaleKey, params?: Record<string, string | number>) => interpolate(DICTIONARY[key]?.[language] ?? DICTIONARY[key]?.en ?? key, params)
+}
+
+export function normalizeMotionLocale(locale?: string | null): 'en' | 'zh-Hans' {
+  const normalized = String(locale || '').trim().replaceAll('_', '-').toLowerCase()
+  if (normalized === 'zh-hans' || normalized === 'zh-cn' || normalized === 'zh-sg') return 'zh-Hans'
+  return 'en'
+}
+
+export function motionRuntimeText(locale?: string | null) {
+  return normalizeMotionLocale(locale) === 'zh-Hans'
+    ? { requestTimeout: '请求超时', remoteRequestFailed: '远程请求失败' }
+    : { requestTimeout: 'Request timed out', remoteRequestFailed: 'Remote request failed' }
 }
 
 export function localizeOptions<T extends { value: string; labelKey: LocaleKey }>(options: ReadonlyArray<T>, t: Translator) {

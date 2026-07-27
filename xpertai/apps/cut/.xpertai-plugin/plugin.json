@@ -1,6 +1,5 @@
 {
   "name": "@xpert-ai/plugin-cut",
-  "version": "0.1.0",
   "description": "Agentic non-linear video editor adapted from pinned OpenCut architecture.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/cut",
@@ -52,6 +51,7 @@
           { "type": "assistant-template", "name": "cut-assistant", "displayName": "Cut Assistant", "description": "Assistant template for video editing.", "metadata": { "app": "cut" } },
           { "type": "app", "name": "cut", "displayName": "Cut", "description": "Agentic non-linear video editor.", "operations": [
             { "name": "cut_create_projects", "displayName": "Create Cut projects", "description": "Create scoped versioned video projects.", "access": "write" },
+            { "name": "cut_accept_story_handoff", "displayName": "Accept StoryCutHandoff", "description": "Create a Cut timeline or reviewable proposal from StoryCutHandoff v1.", "access": "write" },
             { "name": "cut_edit_timelines", "displayName": "Edit Cut timelines", "description": "Import media and edit timelines.", "access": "write" },
             { "name": "cut_review_export", "displayName": "Review and export", "description": "Review timelines and export MP4 locally or through a bounded Sandbox Job.", "access": "write" }
           ] },

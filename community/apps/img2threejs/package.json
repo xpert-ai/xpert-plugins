@@ -1,0 +1,96 @@
+{
+  "name": "@xpert-ai/plugin-img2threejs",
+  "version": "0.1.0",
+  "description": "Agentic App for turning reference images into quality-gated, animation-ready procedural Three.js TypeScript models.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/img2threejs"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    ".xpertai-plugin",
+    "dist",
+    "skills",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && node scripts/build-sandbox-action.mjs && node scripts/verify-sandbox-action.mjs",
+    "lint": "tsc -p tsconfig.spec.json --noEmit",
+    "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
+    "remote:check": "node scripts/build-remote-components.mjs --check",
+    "test:backend:integration": "pnpm run build && node --test tests/backend.integration.test.mjs",
+    "test:workbench:mock": "pnpm run build && node --test tests/workbench.mock.e2e.test.mjs",
+    "test": "pnpm run build && node scripts/run-tests.mjs && node --test tests/backend.integration.test.mjs tests/sandbox-action.e2e.test.mjs tests/workbench.mock.e2e.test.mjs && pnpm run remote:check"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "img2threejs"
+    }
+  },
+  "dependencies": {
+    "sharp": "0.35.3",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.15.18",
+    "@xpert-ai/plugin-sdk": "^3.15.18",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "yaml": ">=2.0.0",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@phosphor-icons/react": "2.1.10",
+    "@types/node": "^20.19.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "0.185.0",
+    "@xpert-ai/contracts": "^3.15.18",
+    "@xpert-ai/plugin-sdk": "^3.15.18",
+    "@esbuild/darwin-arm64": "0.28.1",
+    "@esbuild/linux-x64": "0.28.1",
+    "esbuild": "0.28.1",
+    "playwright-core": "1.61.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "sql.js": "^1.13.0",
+    "typeorm": "^0.3.24",
+    "three": "0.185.1",
+    "typescript": "^5.9.2",
+    "yaml": "^2.8.1",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

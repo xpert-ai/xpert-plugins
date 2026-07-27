@@ -26,7 +26,14 @@ import {
   moveCutTransform, resizeCutTransform, rotateCutTransform, type CutResizeHandle
 } from '../../../cut-canvas-transform'
 import { computeCutWaveform } from '../../../cut-waveform'
-import { MAX_CUT_PROJECT_DURATION, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from '../../../cut-media-playback'
+import {
+  activePreviewVisualClipIds,
+  MAX_CUT_PROJECT_DURATION,
+  previewNativeAudioState,
+  restoreClipSourceDuration,
+  shouldMountPreviewMedia,
+  shouldSeekPreviewMedia
+} from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
   mapCutSpeechSourceRange, placeCutMediaClip, removeUnusedStarterAudioTrack, rippleDeleteCutRanges,
@@ -40,9 +47,7 @@ import {
   scaleTimelinePixelsPerSecond,
   timelinePixelsPerSecondFromSlider,
   timelineRulerMarks,
-  timelineVideoThumbnailSamples,
-  timelineZoomSliderValue,
-  type CutTimelineThumbnailSample
+  timelineZoomSliderValue
 } from '../../../cut-timeline'
 import { canExportCutVideo, exportCutVideo } from './cut-exporter'
 import { createCutTranslator, type CutMessageKey } from './cut-i18n'
@@ -69,6 +74,7 @@ import {
 import { cutDebug } from './debug'
 import type { AnalysisJobSummary, CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaEvidenceSummary, MediaSummary, ProjectDetail } from './cut-types'
 import { cutTextBackgroundCss, cutTextFontFamilyCss, cutTextProjectFontSize, cutTextShadowCss } from './cut-text-rendering'
+import { MediaAssetPreview, MediaCard, TimelineVideoStrip } from './cut-media-ui'
 import { TextClipInspector } from './text-clip-inspector'
 import {
   SmartSpeechCleanup, type SpeechCleanupTextSelection, type SpeechCleanupTranscriptOption
@@ -98,9 +104,6 @@ const FILE_ACCESS_REFRESH_WINDOW_MS = 5 * 60 * 1_000
 const FILE_ACCESS_REFRESH_RETRY_MS = 30_000
 const FILE_ACCESS_CONCURRENCY = 4
 const CREATE_PROJECT_SELECT_VALUE = '__cut_create_project__'
-const TIMELINE_THUMBNAIL_WIDTH = 96
-const TIMELINE_THUMBNAIL_CACHE_LIMIT = 240
-const TIMELINE_THUMBNAIL_CONCURRENCY = 2
 const LIBRARY_TAB_TITLES: Record<string, CutMessageKey> = {
   media: 'library', sounds: 'sounds', text: 'text', stickers: 'stickers', effects: 'effects', transitions: 'transitions',
   captions: 'captions', tasks: 'tasks', adjustment: 'adjustment', settings: 'settings', speechCleanup: 'cleanupPanelTitle'
@@ -147,16 +150,6 @@ type MediaAccessGrant = {
 }
 type ExportMode = 'browser' | 'background'
 
-type TimelineThumbnailTask = {
-  run: () => Promise<string | null>
-  resolve: (value: string | null) => void
-  reject: (reason?: unknown) => void
-}
-
-const timelineThumbnailCache = new Map<string, Promise<string | null>>()
-const timelineThumbnailQueue: TimelineThumbnailTask[] = []
-let activeTimelineThumbnailTasks = 0
-
 function App() {
   const [context, setContext] = React.useState<RemoteContext | null>(null)
   const [data, setData] = React.useState<CutViewData>(EMPTY)
@@ -192,6 +185,7 @@ function App() {
   const [mediaSearch, setMediaSearch] = React.useState('')
   const [selectedMediaKey, setSelectedMediaKey] = React.useState<string | null>(null)
   const [mediaAnalysisAssetId, setMediaAnalysisAssetId] = React.useState('')
+  const [mediaAnalysisPanelKey, setMediaAnalysisPanelKey] = React.useState<string | null>(null)
   const [mediaAnalysisProgress, setMediaAnalysisProgress] = React.useState<{ progress: number; message: string } | null>(null)
   const [captionText, setCaptionText] = React.useState('')
   const [captionReview, setCaptionReview] = React.useState<CaptionDraftPage | null>(null)
@@ -445,6 +439,12 @@ function App() {
     if (data.detail?.media.some((asset) => mediaDragKey(asset) === selectedMediaKey)) return
     setSelectedMediaKey(null)
   }, [data.detail?.media, selectedMediaKey])
+
+  React.useEffect(() => {
+    if (!mediaAnalysisPanelKey) return
+    if (data.detail?.media.some((asset) => mediaDragKey(asset) === mediaAnalysisPanelKey)) return
+    setMediaAnalysisPanelKey(null)
+  }, [data.detail?.media, mediaAnalysisPanelKey])
 
   React.useEffect(() => {
     if (localTranscriptionMedia.some((asset) => asset.id === localTranscriptionAssetId)) return
@@ -1606,10 +1606,25 @@ function App() {
               <div className="media-grid">{filteredMedia.map((asset, index) => {
                 const key = mediaDragKey(asset)
                 const selected = key === selectedMediaKey
-                const canAnalyze = selected && Boolean(asset.id) && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))
+                const canAnalyze = Boolean(asset.id) && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))
+                const analysisOpen = canAnalyze && mediaAnalysisPanelKey === key
                 return <React.Fragment key={asset.id ?? `${asset.originalName}-${index}`}>
-                  <MediaCard asset={asset} selected={selected} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />
-                  {canAnalyze && <div className="media-analysis-card" data-media-analysis-state={mediaAnalysisProgress ? 'running' : 'idle'}>
+                  <MediaCard
+                    asset={asset}
+                    selected={selected}
+                    analysisAvailable={canAnalyze}
+                    analysisOpen={analysisOpen}
+                    dragType={CUT_MEDIA_DRAG_TYPE}
+                    dragKey={key}
+                    onSelect={() => previewMediaAsset(asset)}
+                    onAdd={() => addMediaAsset(asset)}
+                    onToggleAnalysis={() => {
+                      previewMediaAsset(asset)
+                      setMediaAnalysisPanelKey((current) => current === key ? null : key)
+                    }}
+                    t={t}
+                  />
+                  {analysisOpen && <div className="media-analysis-card" data-media-analysis-state={mediaAnalysisProgress ? 'running' : 'idle'}>
                     <div className="media-analysis-heading"><span className="caption-section-title"><Sparkles />{t('mediaIntelligence')}</span><strong title={asset.originalName}>{asset.originalName}</strong></div>
                     {mediaAnalysisProgress ? <div className="local-transcription-progress"><Progress value={mediaAnalysisProgress.progress} /><span>{mediaAnalysisProgress.message}</span><Button variant="outline" size="sm" onClick={() => mediaAnalysisCancelRef.current?.()}>{t('cancelJob')}</Button></div>
                       : <Button size="sm" variant="outline" disabled={!mediaAnalysisAssetId || dirty || saving} onClick={() => void runLocalMediaAnalysis()}><Sparkles />{t('mediaAnalyze')}</Button>}
@@ -1627,7 +1642,10 @@ function App() {
               <Button variant="outline" className="text-preset body" onClick={() => addTextClip('bodyText')}>{t('addBody')}</Button>
             </div></TabsContent>
             <TabsContent value="sounds" className="cut-library-pane"><div className="media-grid">
-              {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} selected={mediaDragKey(asset) === selectedMediaKey} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />)}
+              {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => {
+                const key = mediaDragKey(asset)
+                return <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} selected={key === selectedMediaKey} dragType={CUT_MEDIA_DRAG_TYPE} dragKey={key} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />
+              })}
             </div></TabsContent>
             <TabsContent value="stickers" className="cut-library-pane"><div className="sticker-grid">
               {STICKER_PRESETS.map((sticker) => <button key={sticker} onClick={() => addSticker(sticker)}>{sticker}</button>)}
@@ -2029,30 +2047,6 @@ function App() {
   </div>
 }
 
-function MediaCard({ asset, selected, onSelect, onAdd, t }: { asset: MediaSummary; selected: boolean; onSelect: () => void; onAdd: () => void; t: Translator }) {
-  const visual = asset.mimeType.startsWith('image/') && asset.previewUrl
-  return <div role="button" tabIndex={0} aria-pressed={selected} className={`media-card ${selected ? 'selected' : ''}`} draggable onDragStart={(event) => {
-    event.dataTransfer.effectAllowed = 'copy'
-    event.dataTransfer.setData(CUT_MEDIA_DRAG_TYPE, mediaDragKey(asset))
-  }} onClick={onSelect} onKeyDown={(event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    onSelect()
-  }} title={`${t('previewMedia')}: ${asset.originalName}`}>
-    <span className="media-thumb">{visual ? <img src={asset.previewUrl ?? ''} crossOrigin="use-credentials" alt="" /> : asset.mimeType.startsWith('video/') ? <Film /> : asset.mimeType.startsWith('audio/') ? <Music2 /> : <Image />}</span>
-    <span><strong>{asset.originalName}</strong><small>{formatBytes(asset.size)}</small></span>
-    <Button variant="ghost" size="icon-xs" className="media-card-add" title={t('addToTimeline')} aria-label={`${t('addToTimeline')}: ${asset.originalName}`} onClick={(event) => { event.stopPropagation(); onAdd() }}><Plus /></Button>
-  </div>
-}
-
-function MediaAssetPreview({ asset, onState, emptyText }: { asset: MediaSummary; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void; emptyText: string }) {
-  const source = asset.previewUrl ?? undefined
-  if (!source) return <div className="media-asset-preview empty"><Film /><p>{emptyText}</p></div>
-  if (asset.mimeType.startsWith('image/')) return <div className="media-asset-preview image"><img src={source} alt={asset.originalName} crossOrigin="use-credentials" draggable={false} onLoad={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
-  if (asset.mimeType.startsWith('audio/')) return <div className="media-asset-preview audio"><Music2 /><strong>{asset.originalName}</strong><audio src={source} controls crossOrigin="use-credentials" onLoadStart={() => onState('loading', asset.id, source)} onLoadedData={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
-  return <div className="media-asset-preview video"><video src={source} controls crossOrigin="use-credentials" playsInline onLoadStart={() => onState('loading', asset.id, source)} onLoadedData={() => onState('loaded', asset.id, source)} onError={() => onState('error', asset.id, source)} /></div>
-}
-
 function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSelect, onTransform, onState, emptyText }: {
   document: CutDocument | null
   playhead: number
@@ -2086,12 +2080,14 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
     return () => observer.disconnect()
   }, [document?.settings.width, document?.settings.height])
   if (!document) return <div className="preview-empty"><Film /><p>{emptyText}</p></div>
+  const activeVisualClipIds = new Set(activePreviewVisualClipIds(document, playhead))
   const visualClips = document.tracks.filter((track) => track.kind === 'visual' && !track.hidden)
     .flatMap((track) => track.clips.map((clip) => ({ clip, muted: track.muted })))
-    .filter(({ clip }) => playhead >= clip.start && playhead < clip.start + clip.duration)
+    .filter(({ clip }) => activeVisualClipIds.has(clip.id))
   const stagedVisualClips = document.tracks.filter((track) => track.kind === 'visual' && !track.hidden)
     .flatMap((track) => track.clips.map((clip) => ({ clip, muted: track.muted })))
-    .filter(({ clip }) => (playhead >= clip.start && playhead < clip.start + clip.duration) || shouldMountPreviewMedia(clip, playhead))
+    .filter(({ clip }) => activeVisualClipIds.has(clip.id)
+      || (!(playhead >= clip.start && playhead < clip.start + clip.duration) && shouldMountPreviewMedia(clip, playhead)))
   const stagedAudioClips = document.tracks.filter((track) => track.kind === 'audio' && !track.muted)
     .flatMap((track) => track.clips)
     .filter((clip) => shouldMountPreviewMedia(clip, playhead))
@@ -2105,7 +2101,7 @@ function StageCanvas({ document, playhead, playing, zoom, selectedClipIds, onSel
   }}>
     {!visualClips.length && <div className="preview-empty"><Film /><p>{emptyText}</p></div>}
     {stagedVisualClips.map(({ clip, muted }) => {
-      const active = playhead >= clip.start && playhead < clip.start + clip.duration
+      const active = activeVisualClipIds.has(clip.id)
       return <StageLayer key={clip.id} clip={clip} document={document} previewScale={previewScale} playhead={playhead} playing={playing} active={active} muted={muted} selected={active && selectedClipIds.includes(clip.id)} onSelect={() => onSelect(clip.id)} onTransform={(transform) => onTransform(clip.id, transform)} onState={onState} />
     })}
     {stagedAudioClips.map((clip) => {
@@ -2266,8 +2262,11 @@ function StageVideo({ clip, playhead, playing, active, muted, onState }: { clip:
     video.playbackRate = clip.playbackRate ?? 1
     const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
     const capturedAudio = setPreviewCapturedAudioGain(video, active && !muted ? requestedVolume : 0)
-    video.volume = capturedAudio ? 1 : active ? requestedVolume : 0
-    video.muted = capturedAudio || muted || requestedVolume === 0
+    const nativeAudio = previewNativeAudioState({ active, capturedAudio, requestedVolume, mutedByTimeline: muted })
+    video.volume = nativeAudio.volume
+    video.muted = nativeAudio.muted
+    video.dataset.previewActive = active ? 'true' : 'false'
+    video.dataset.previewAudioRoute = capturedAudio ? 'web-audio' : nativeAudio.muted ? 'muted' : 'native'
     if (playing && (shouldSeek || video.paused) && !playRequestRef.current) {
       const request = video.play()
       playRequestRef.current = request
@@ -2314,8 +2313,11 @@ function StageAudio({ clip, playhead, playing, active, onState }: { clip: CutCli
     audio.playbackRate = clip.playbackRate ?? 1
     const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
     const capturedAudio = setPreviewCapturedAudioGain(audio, active ? requestedVolume : 0)
-    audio.volume = capturedAudio ? 1 : active ? requestedVolume : 0
-    audio.muted = capturedAudio
+    const nativeAudio = previewNativeAudioState({ active, capturedAudio, requestedVolume })
+    audio.volume = nativeAudio.volume
+    audio.muted = nativeAudio.muted
+    audio.dataset.previewActive = active ? 'true' : 'false'
+    audio.dataset.previewAudioRoute = capturedAudio ? 'web-audio' : nativeAudio.muted ? 'muted' : 'native'
     if (playing && (shouldSeek || audio.paused) && !playRequestRef.current) {
       const request = audio.play()
       playRequestRef.current = request
@@ -2486,173 +2488,6 @@ function NumberInput({ value, onValue, ...props }: { value: number; onValue: (va
 
 function ColorField({ label, value, onValue }: { label: string; value: string; onValue: (value: string) => void }) {
   return <label className="color-field"><span>{label}</span><span><input type="color" value={normalizeHex(value)} onChange={(event) => onValue(event.target.value)} /><Input value={value} onChange={(event) => onValue(event.target.value)} /></span></label>
-}
-
-function TimelineVideoStrip({ clip, pixelsPerSecond }: { clip: CutClip; pixelsPerSecond: number }) {
-  const rootRef = React.useRef<HTMLSpanElement | null>(null)
-  const [samples, setSamples] = React.useState<CutTimelineThumbnailSample[]>([])
-  const [frames, setFrames] = React.useState<Map<string, string>>(() => new Map())
-
-  React.useLayoutEffect(() => {
-    const root = rootRef.current
-    const scroller = root?.closest('.timeline-scroll')
-    if (!root || !(scroller instanceof HTMLElement)) return undefined
-    let animationFrame = 0
-    const measure = () => {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = requestAnimationFrame(() => {
-        const clipRect = root.getBoundingClientRect()
-        const viewportRect = scroller.getBoundingClientRect()
-        const next = timelineVideoThumbnailSamples({
-          clipDuration: clip.duration,
-          trimIn: clip.trimIn,
-          playbackRate: clip.playbackRate,
-          pixelsPerSecond,
-          visibleStart: viewportRect.left - clipRect.left,
-          visibleEnd: viewportRect.right - clipRect.left,
-          cellWidth: TIMELINE_THUMBNAIL_WIDTH,
-          maxSamples: 24
-        })
-        setSamples((current) => thumbnailSamplesEqual(current, next) ? current : next)
-      })
-    }
-    measure()
-    scroller.addEventListener('scroll', measure, { passive: true })
-    window.addEventListener('resize', measure)
-    const observer = new ResizeObserver(measure)
-    observer.observe(root)
-    observer.observe(scroller)
-    return () => {
-      cancelAnimationFrame(animationFrame)
-      scroller.removeEventListener('scroll', measure)
-      window.removeEventListener('resize', measure)
-      observer.disconnect()
-    }
-  }, [clip.duration, clip.playbackRate, clip.trimIn, pixelsPerSecond])
-
-  React.useEffect(() => {
-    const source = clip.previewUrl
-    if (!source || !samples.length) return undefined
-    let cancelled = false
-    void Promise.all(samples.map(async (sample) => {
-      const key = timelineThumbnailKey(source, sample.sourceTime)
-      const frame = await requestTimelineVideoThumbnail(source, sample.sourceTime)
-      return { key, frame }
-    })).then((resolved) => {
-      if (cancelled) return
-      setFrames((current) => {
-        const next = new Map(current)
-        for (const item of resolved) if (item.frame) next.set(item.key, item.frame)
-        return next
-      })
-    })
-    return () => { cancelled = true }
-  }, [clip.previewUrl, samples])
-
-  return <span ref={rootRef} className="timeline-video-strip" aria-hidden="true">
-    {samples.map((sample) => {
-      const key = timelineThumbnailKey(clip.previewUrl ?? '', sample.sourceTime)
-      const frame = frames.get(key)
-      return frame
-        ? <img key={key} src={frame} draggable={false} style={{ left: sample.left, width: sample.width }} alt="" />
-        : <i key={key} className="timeline-video-frame-placeholder" style={{ left: sample.left, width: sample.width }} />
-    })}
-  </span>
-}
-
-function thumbnailSamplesEqual(left: readonly CutTimelineThumbnailSample[], right: readonly CutTimelineThumbnailSample[]) {
-  return left.length === right.length && left.every((sample, index) => {
-    const candidate = right[index]
-    return candidate?.left === sample.left && candidate.width === sample.width && candidate.sourceTime === sample.sourceTime
-  })
-}
-
-function timelineThumbnailKey(source: string, sourceTime: number) {
-  return `${source}#t=${sourceTime.toFixed(3)}`
-}
-
-function requestTimelineVideoThumbnail(source: string, sourceTime: number) {
-  const key = timelineThumbnailKey(source, sourceTime)
-  const cached = timelineThumbnailCache.get(key)
-  if (cached) return cached
-  while (timelineThumbnailCache.size >= TIMELINE_THUMBNAIL_CACHE_LIMIT) {
-    const oldest = timelineThumbnailCache.keys().next().value as string | undefined
-    if (!oldest) break
-    timelineThumbnailCache.delete(oldest)
-  }
-  const pending = enqueueTimelineThumbnail(() => captureTimelineVideoThumbnail(source, sourceTime))
-    .catch((error) => {
-      cutDebug.debug('timeline.thumbnail-skipped', { sourceTime, reason: errorText(error) })
-      return null
-    })
-  timelineThumbnailCache.set(key, pending)
-  return pending
-}
-
-function enqueueTimelineThumbnail(run: () => Promise<string | null>) {
-  return new Promise<string | null>((resolve, reject) => {
-    timelineThumbnailQueue.push({ run, resolve, reject })
-    drainTimelineThumbnailQueue()
-  })
-}
-
-function drainTimelineThumbnailQueue() {
-  while (activeTimelineThumbnailTasks < TIMELINE_THUMBNAIL_CONCURRENCY && timelineThumbnailQueue.length) {
-    const task = timelineThumbnailQueue.shift()!
-    activeTimelineThumbnailTasks += 1
-    void task.run().then(task.resolve, task.reject).finally(() => {
-      activeTimelineThumbnailTasks -= 1
-      drainTimelineThumbnailQueue()
-    })
-  }
-}
-
-async function captureTimelineVideoThumbnail(source: string, sourceTime: number) {
-  const video = document.createElement('video')
-  video.crossOrigin = 'use-credentials'
-  video.preload = 'auto'
-  video.muted = true
-  video.playsInline = true
-  video.src = source
-  try {
-    await waitForTimelineMedia(video, 'loadedmetadata')
-    const maximum = Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.04) : sourceTime
-    const target = Math.min(Math.max(0, sourceTime), maximum)
-    if (target <= 0.01) {
-      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) await waitForTimelineMedia(video, 'loadeddata')
-    } else {
-      const seeked = waitForTimelineMedia(video, 'seeked')
-      video.currentTime = target
-      await seeked
-    }
-    if (!video.videoWidth || !video.videoHeight) return null
-    const canvas = document.createElement('canvas')
-    canvas.width = 160
-    canvas.height = 90
-    const context = canvas.getContext('2d')
-    if (!context) return null
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    return canvas.toDataURL('image/jpeg', 0.68)
-  } finally {
-    video.removeAttribute('src')
-    video.load()
-  }
-}
-
-function waitForTimelineMedia(media: HTMLMediaElement, eventName: 'loadedmetadata' | 'loadeddata' | 'seeked') {
-  return new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(() => finish(new Error(`Timed out waiting for ${eventName}.`)), 12_000)
-    const onReady = () => finish()
-    const onError = () => finish(new Error(`Unable to decode a timeline thumbnail (${media.error?.code ?? 'media error'}).`))
-    const finish = (error?: Error) => {
-      window.clearTimeout(timeout)
-      media.removeEventListener(eventName, onReady)
-      media.removeEventListener('error', onError)
-      error ? reject(error) : resolve()
-    }
-    media.addEventListener(eventName, onReady, { once: true })
-    media.addEventListener('error', onError, { once: true })
-  })
 }
 
 function AudioWaveform({ clip }: { clip: CutClip }) {

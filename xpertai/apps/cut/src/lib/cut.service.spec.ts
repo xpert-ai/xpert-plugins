@@ -74,7 +74,8 @@ describe('CutService scoped persistence and Workspace Files', () => {
       runtimeCapabilities as AgentMiddlewareRuntimeCapabilityRegistry
     )
     const scope: CutScope = {
-      tenantId: 'tenant-a', organizationId: 'org-a', projectId: 'platform-project-a', userId: 'user-a', assistantId: 'assistant-a'
+      tenantId: 'tenant-a', organizationId: 'org-a', workspaceId: 'workspace-a',
+      projectId: 'platform-project-a', userId: 'user-a', assistantId: 'assistant-a'
     }
     const created = await service.createProject(scope, { title: 'Cut service gate', changeSummary: 'Created service gate project.' })
     const projectId = created.item.id!
@@ -159,9 +160,23 @@ describe('CutService scoped persistence and Workspace Files', () => {
       mimeType: 'image/svg+xml',
       reference: { source: 'platform.workspace.files', tenantId: 'tenant-a' }
     })
+    media.rows[0]!.originalName = 'legacy-seedance.mp4'
+    media.rows[0]!.mimeType = 'application/octet-stream'
+    await expect(service.resolveMediaFile(scope, projectId, imported.media.id!)).resolves.toMatchObject({
+      fileName: 'legacy-seedance.mp4',
+      mimeType: 'video/mp4'
+    })
+    expect((await service.getProject(scope, projectId)).media[0]).toMatchObject({
+      originalName: 'legacy-seedance.mp4',
+      mimeType: 'video/mp4'
+    })
+    media.rows[0]!.originalName = 'gate.svg'
+    media.rows[0]!.mimeType = 'image/svg+xml'
     await expect(service.resolveMediaFile({ ...scope, organizationId: 'org-b' }, projectId, imported.media.id!))
       .rejects.toThrow('current tenant and organization')
     await expect(service.resolveMediaFile({ ...scope, assistantId: 'assistant-b' }, projectId, imported.media.id!))
+      .resolves.toMatchObject({ fileName: 'gate.svg', mimeType: 'image/svg+xml' })
+    await expect(service.resolveMediaFile({ ...scope, workspaceId: 'workspace-b' }, projectId, imported.media.id!))
       .rejects.toThrow('current host project')
 
     const validated = await service.applyEditBatch(scope, {
@@ -225,6 +240,8 @@ describe('CutService scoped persistence and Workspace Files', () => {
       reference: { source: 'platform.workspace.files', tenantId: 'tenant-a' }
     })
     await expect(service.resolveExportFile({ ...scope, assistantId: 'assistant-b' }, projectId, webm.export.id!))
+      .resolves.toMatchObject({ fileName: 'gate.webm', mimeType: 'video/webm' })
+    await expect(service.resolveExportFile({ ...scope, workspaceId: 'workspace-b' }, projectId, webm.export.id!))
       .rejects.toThrow('current host project')
 
     const summary = await service.getProjectSummary(scope, projectId)

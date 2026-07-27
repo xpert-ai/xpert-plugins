@@ -44,6 +44,19 @@ export type WorkspaceFile = {
 export type WorkspaceFilesApi = {
   uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
   readBuffer(input: { filePath: string } & Record<string, unknown>): Promise<WorkspaceFile & { buffer: Buffer }>
+  readRuntimeBuffer?(
+    input:
+      | string
+      | ({
+          path?: string | null
+          filePath?: string | null
+          workspacePath?: string | null
+          mimeType?: string | null
+          mimetype?: string | null
+          name?: string | null
+          originalName?: string | null
+        } & Record<string, unknown>)
+  ): Promise<WorkspaceFile & { buffer: Buffer }>
   deleteFile(input: { filePath: string } & Record<string, unknown>): Promise<void>
 }
 

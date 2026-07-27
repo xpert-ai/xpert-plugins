@@ -262,7 +262,10 @@ export class CutService {
       where: scopedWhere<CutMediaAsset>(scope, { cutProjectId: input.projectId }),
       order: { createdAt: 'ASC' }
     }))
-      .filter((asset) => !kinds || kinds.has(mediaKind(asset.mimeType)))
+      .filter((asset) =>
+        !kinds ||
+        kinds.has(mediaKind(effectiveMediaMimeType(asset)))
+      )
       .filter((asset) => !search || normalizeCutFileName(asset.originalName, 'cut-media').toLowerCase().includes(search))
       .filter((asset) => !input.unusedOnly || (usage.get(requireId(asset.id)) ?? 0) === 0)
     const { page, pageSize, start } = pagination(input.page, input.pageSize)
@@ -645,30 +648,25 @@ export class CutService {
 
   async resolveMediaFile(scope: CutScope, projectId: string, mediaAssetId: string) {
     const project = await this.requireProject(scope, projectId)
-    if ((scope.assistantId && project.assistantId !== scope.assistantId)
-      || (scope.projectId && project.platformProjectId !== scope.projectId)) {
-      throw new NotFoundException('Cut media was not found in the current host project.')
-    }
+    assertHostProjectAccess(scope, project, 'media')
     const asset = await this.media.findOne({
       where: scopedWhere<CutMediaAsset>(scope, { id: mediaAssetId, cutProjectId: projectId })
     })
-    if (!asset || !['video/', 'audio/', 'image/'].some((prefix) => asset.mimeType.startsWith(prefix))) {
+    const mimeType = asset ? effectiveMediaMimeType(asset) : null
+    if (!asset || !mimeType || !['video/', 'audio/', 'image/'].some((prefix) => mimeType.startsWith(prefix))) {
       throw new NotFoundException('Cut media was not found in the current project.')
     }
     return {
       reference: asset.fileReference,
       fileName: normalizeCutFileName(asset.originalName, 'cut-media'),
-      mimeType: asset.mimeType,
+      mimeType,
       size: asset.size
     }
   }
 
   async resolveExportFile(scope: CutScope, projectId: string, exportId: string) {
     const project = await this.requireProject(scope, projectId)
-    if ((scope.assistantId && project.assistantId !== scope.assistantId)
-      || (scope.projectId && project.platformProjectId !== scope.projectId)) {
-      throw new NotFoundException('Cut export was not found in the current host project.')
-    }
+    assertHostProjectAccess(scope, project, 'export')
     const record = await this.exports.findOne({
       where: scopedWhere<CutExport>(scope, { id: exportId, cutProjectId: projectId })
     })
@@ -750,7 +748,15 @@ export class CutService {
       }
     } else {
       const referenceChanged = JSON.stringify(asset.fileReference) !== JSON.stringify(reference)
-      if (referenceChanged || hasNewMediaMetadata(asset, mediaMetadata)) {
+      const identityChanged =
+        asset.originalName !== input.name ||
+        asset.mimeType !== input.mimeType ||
+        asset.size !== input.size
+      if (
+        referenceChanged ||
+        identityChanged ||
+        hasNewMediaMetadata(asset, mediaMetadata)
+      ) {
         asset = await this.media.save({
           ...asset,
           originalName: input.name,
@@ -859,6 +865,26 @@ function scopedWhere<T extends ScopedEntity>(scope: CutScope, where: Partial<T>)
     tenantId: scope.tenantId,
     organizationId: (scope.organizationId ?? null) as T['organizationId']
   } as FindOptionsWhere<T>
+}
+
+function assertHostProjectAccess(scope: CutScope, project: CutProject, resource: 'media' | 'export') {
+  const denied = () => {
+    throw new NotFoundException(`Cut ${resource} was not found in the current host project.`)
+  }
+
+  // A Cut project is a workspace asset and may be opened by more than one
+  // Assistant in that workspace (for example after a Story Studio handoff).
+  // Assistant identity is only a legacy fallback when no stable workspace or
+  // platform-project boundary exists on both sides.
+  if (scope.workspaceId && project.workspaceId) {
+    if (scope.workspaceId !== project.workspaceId) denied()
+    return
+  }
+  if (scope.projectId && project.platformProjectId) {
+    if (scope.projectId !== project.platformProjectId) denied()
+    return
+  }
+  if (scope.assistantId && project.assistantId && scope.assistantId !== project.assistantId) denied()
 }
 
 function workspaceTarget(scope: CutScope, project: CutProject) {
@@ -975,11 +1001,12 @@ function mediaKind(mimeType: string): CutMediaAssetKind {
 }
 
 function compactAgentMedia(asset: CutMediaAsset, usedByClipCount: number) {
+  const mimeType = effectiveMediaMimeType(asset)
   return {
     id: asset.id,
     originalName: normalizeCutFileName(asset.originalName, 'cut-media'),
-    kind: mediaKind(asset.mimeType),
-    mimeType: asset.mimeType,
+    kind: mediaKind(mimeType),
+    mimeType,
     size: asset.size,
     duration: asset.duration ?? null,
     containerDuration: asset.containerDuration ?? null,
@@ -1130,10 +1157,11 @@ function compactProject(project: CutProject) {
 }
 
 function compactMedia(asset: CutMediaAsset) {
+  const mimeType = effectiveMediaMimeType(asset)
   return {
     id: asset.id,
     originalName: normalizeCutFileName(asset.originalName, 'cut-media'),
-    mimeType: asset.mimeType,
+    mimeType,
     size: asset.size,
     checksum: asset.checksum,
     fileReference: asset.fileReference,
@@ -1148,6 +1176,20 @@ function compactMedia(asset: CutMediaAsset) {
     displayHeight: asset.displayHeight ?? null,
     rotationDegrees: asset.rotationDegrees ?? null
   }
+}
+
+function effectiveMediaMimeType(
+  asset: Pick<CutMediaAsset, 'mimeType' | 'originalName'>
+) {
+  if (
+    asset.mimeType.toLowerCase() === 'application/octet-stream' &&
+    normalizeCutFileName(asset.originalName, 'cut-media')
+      .toLowerCase()
+      .endsWith('.mp4')
+  ) {
+    return 'video/mp4'
+  }
+  return asset.mimeType
 }
 
 function compactMediaMetadata(metadata: CutMediaMetadata): CutMediaMetadata {

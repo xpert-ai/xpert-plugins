@@ -23,6 +23,7 @@ Use the tools in this order unless the user asks for a direct lookup:
 - `motion_search_recipes`: find recipes by query, surface, target, runtime, export kind, and status.
 - `motion_get_recipe`: inspect a selected recipe manifest, skill text, and implementation files.
 - `motion_create_project`: create a project from title, brief, selected recipes, HTML, or native HyperFrames source. A new `video` project defaults to HyperFrames.
+- `motion_create_product_intro`: create a complete editable six-scene HyperFrames product-introduction project from a bounded brand brief. Prefer this for product overview and launch-film requests.
 - `motion_get_project`: retrieve working copy, versions, exports, and logs.
 - `motion_save_web_artifact`: persist a complete HTML document with Motion runtime attributes.
 - `motion_save_hyperframes_composition`: persist a complete self-contained native HyperFrames HTML composition. Use this for new video projects.
@@ -50,6 +51,7 @@ New video projects use a complete native HyperFrames HTML document as the source
 - Give editable elements stable `data-hf-id` values and explicit `data-start` / `data-duration` timing when relevant.
 - Keep the document self-contained. Inline CSS, scripts, fonts, and data-URI media; production Sandbox Jobs have no network access.
 - Use the public HyperFrames SDK document model. Preview is handled by Player; production MP4/GIF is handled by Producer.
+- Prefer `motion_create_product_intro` for a complete product overview, then review and customize scene copy/timing in the Workbench storyboard before rendering.
 - Never require or generate a HyperFrames Studio embedding.
 - After saving, use `motion_export_artifact` with `mp4` or `gif` to queue a production render. Report the queued state truthfully; do not claim completion until the export record is `succeeded`.
 

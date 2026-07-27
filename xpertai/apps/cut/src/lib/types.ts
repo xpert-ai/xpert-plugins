@@ -38,6 +38,7 @@ export type CutActionType =
   | 'cut_edit_proposal_applied'
   | 'cut_edit_proposal_reverted'
   | 'cut_edit_proposal_rejected'
+  | 'cut_story_handoff_accepted'
   | 'cut_render_started'
   | 'cut_render_completed'
   | 'cut_render_failed'

@@ -23,6 +23,7 @@ export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 export const MOTION_SEARCH_RECIPES_TOOL_NAME = 'motion_search_recipes'
 export const MOTION_GET_RECIPE_TOOL_NAME = 'motion_get_recipe'
 export const MOTION_CREATE_PROJECT_TOOL_NAME = 'motion_create_project'
+export const MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME = 'motion_create_product_intro'
 export const MOTION_GET_PROJECT_TOOL_NAME = 'motion_get_project'
 export const MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME = 'motion_save_web_artifact'
 export const MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME = 'motion_save_video_composition'
@@ -36,6 +37,7 @@ export const MOTION_MIDDLEWARE_TOOL_NAMES = [
   MOTION_SEARCH_RECIPES_TOOL_NAME,
   MOTION_GET_RECIPE_TOOL_NAME,
   MOTION_CREATE_PROJECT_TOOL_NAME,
+  MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
   MOTION_GET_PROJECT_TOOL_NAME,
   MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
   MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
