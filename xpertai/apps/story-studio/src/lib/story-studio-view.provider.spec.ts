@@ -89,16 +89,9 @@ function createHarness() {
     getProduction: jest
       .fn()
       .mockRejectedValue(new NotFoundException('not found')),
-    getRender: jest
-      .fn()
-      .mockRejectedValue(new NotFoundException('not found')),
-    getRenderCapability: jest.fn().mockResolvedValue({
-      available: true,
-      backend: 'sandbox-job'
-    }),
-    startRender: jest.fn(),
     createDemoProduction: jest.fn(),
-    saveProductionFromWorkbench: jest.fn()
+    saveProductionFromWorkbench: jest.fn(),
+    resolveMediaCandidateFile: jest.fn()
   }
   const cutHandoffs = {
     getLatestSummary: jest.fn().mockResolvedValue(null),
@@ -139,8 +132,51 @@ describe('StoryStudioViewProvider', () => {
       ASSISTANT_CONTEXT_SET_COMMAND,
       ASSISTANT_CHAT_SEND_MESSAGE_COMMAND
     ])
+    expect(Reflect.get(manifest, 'fileAccess')).toEqual({
+      purposes: ['preview']
+    })
     expect(manifest.actions?.map((action) => action.key)).toEqual(
       expect.arrayContaining(['update_project', 'save_production'])
+    )
+  })
+
+  it('resolves preview media through the scoped production service', async () => {
+    const { provider, production } = createHarness()
+    production.resolveMediaCandidateFile.mockResolvedValue({
+      reference: {
+        source: 'platform.workspace.files',
+        tenantId: 'tenant-a',
+        filePath: 'story-studio/project/shot.mp4',
+        workspacePath: '/workspace/story-studio/project/shot.mp4'
+      },
+      fileName: 'shot.mp4',
+      mimeType: 'video/mp4',
+      size: 1024
+    })
+
+    await expect(
+      provider.resolveViewFile(
+        hostContext(),
+        STORY_STUDIO_WORKBENCH_VIEW_KEY,
+        {
+          fileKey: 'candidate-video',
+          targetId: project.id,
+          purpose: 'preview'
+        }
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        fileName: 'shot.mp4',
+        mimeType: 'video/mp4'
+      })
+    )
+    expect(production.resolveMediaCandidateFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        actorType: 'user'
+      }),
+      project.id,
+      'candidate-video'
     )
   })
 

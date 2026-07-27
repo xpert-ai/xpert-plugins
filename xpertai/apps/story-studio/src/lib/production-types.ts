@@ -5,8 +5,6 @@ export interface StoryJsonObject {
 }
 
 export type StoryMediaKind = 'image' | 'video' | 'audio'
-export type StoryRenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
-export type StoryRenderQuality = 'draft' | 'standard' | 'high'
 
 export interface StoryPortableFileReference extends StoryJsonObject {
   source: 'platform.workspace.files'
@@ -165,33 +163,6 @@ export interface AttachGeneratedVideoInput {
   changeSummary: string
 }
 
-export interface StartStoryRenderInput {
-  projectId: string
-  operationId: string
-  expectedRevision: number
-  quality?: StoryRenderQuality
-  fps?: 24 | 30
-  fileName?: string
-  changeSummary: string
-}
-
-export interface GetStoryRenderInput {
-  projectId: string
-  renderId?: string
-}
-
-export interface WaitStoryRenderInput extends GetStoryRenderInput {
-  cursor?: string
-}
-
-export interface StoryRenderQueueJobData {
-  renderId: string
-  tenantId: string
-  organizationId?: string | null
-  workspaceId?: string | null
-  hostProjectId?: string | null
-}
-
 export interface StoryProductionSummary {
   id: string
   projectId: string
@@ -220,37 +191,4 @@ export interface StoryProductionSummary {
   }
   totalDurationSeconds: number
   updatedAt: string | null
-}
-
-export interface StoryRenderSummary {
-  id: string
-  projectId: string
-  sourceRevision: number
-  status: StoryRenderStatus
-  progress: number
-  stage: string
-  quality: StoryRenderQuality
-  fps: number
-  fileName: string
-  filePath: string | null
-  fileUrl: string | null
-  artifactId: string | null
-  artifactVersionId: string | null
-  mimeType: string
-  size: number | null
-  checksum: string | null
-  errorMessage: string | null
-  createdAt: string | null
-  completedAt: string | null
-}
-
-export interface StoryRenderCapability {
-  available: boolean
-  backend: 'sandbox-job'
-  reason?: string
-  message?: string
-  action?: string
-  actionVersion?: string
-  runtimeProfile?: string | null
-  workerCount?: number
 }

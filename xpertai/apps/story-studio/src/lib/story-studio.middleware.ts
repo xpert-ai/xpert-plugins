@@ -12,21 +12,21 @@ import {
   type AgentMiddleware,
   type IAgentMiddlewareContext,
   type IAgentMiddlewareStrategy,
-  type PromiseOrValue
+  type PromiseOrValue,
+  type WorkspaceFilesApi,
+  type WorkspaceRuntimeFileBuffer
 } from '@xpert-ai/plugin-sdk'
 import {
   STORY_CREATE_PROJECT_TOOL_NAME,
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_GET_PRODUCTION_TOOL_NAME,
   STORY_GET_CUT_HANDOFF_TOOL_NAME,
-  STORY_GET_RENDER_TOOL_NAME,
   STORY_GET_PROJECT_SUMMARY_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,
   STORY_RECORD_CUT_HANDOFF_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
   STORY_SAVE_PRODUCTION_TOOL_NAME,
   STORY_PREPARE_CUT_HANDOFF_TOOL_NAME,
-  STORY_START_RENDER_TOOL_NAME,
   STORY_STUDIO_AGENT_CAPABILITY,
   STORY_STUDIO_FEATURE,
   STORY_STUDIO_ICON,
@@ -34,8 +34,7 @@ import {
   STORY_STUDIO_MUTATION_TOOL_NAMES,
   STORY_STUDIO_WORKBENCH_CAPABILITY,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME,
-  STORY_UPDATE_PROJECT_TOOL_NAME,
-  STORY_WAIT_RENDER_TOOL_NAME
+  STORY_UPDATE_PROJECT_TOOL_NAME
 } from './constants.js'
 import { stringifyStoryAgentResult } from './story-agent-response.js'
 import { defineStoryAgentTool } from './story-agent-tool.factory.js'
@@ -64,18 +63,12 @@ import type {
 import {
   attachGeneratedVideoSchema,
   getStoryProductionSchema,
-  getStoryRenderSchema,
-  saveStoryProductionSchema,
-  startStoryRenderSchema,
-  waitStoryRenderSchema
+  saveStoryProductionSchema
 } from './story-production.schemas.js'
 import type {
   AttachGeneratedVideoInput,
   GetStoryProductionInput,
-  GetStoryRenderInput,
-  SaveStoryProductionInput,
-  StartStoryRenderInput,
-  WaitStoryRenderInput
+  SaveStoryProductionInput
 } from './production-types.js'
 import type {
   CreateStoryProjectInput,
@@ -260,11 +253,16 @@ export class StoryStudioMiddleware
                 typeof files.readRuntimeBuffer
               >[0]
             )
+            const durableFile = await persistGeneratedVideo(
+              files,
+              input,
+              file
+            )
             return stringifyStoryAgentResult(
               await this.generatedMedia.attachGeneratedVideo(
                 scope,
                 input,
-                file
+                durableFile
               )
             )
           },
@@ -273,45 +271,6 @@ export class StoryStudioMiddleware
             description:
               'Attach one completed Seedance MP4 from the current Agent Workspace to an exact production shot. Read the latest Story Studio project revision first. Pass the workspacePath returned by seedance_video_query, its task id/model/status receipt, and select=true to make this video the shot render source. Never pass base64 or a provider URL.',
             schema: attachGeneratedVideoSchema,
-            verboseParsingErrors: true
-          }
-        ),
-        defineStoryAgentTool(
-          async (input: StartStoryRenderInput) =>
-            stringifyStoryAgentResult(
-              await this.production.startRender(scope, input)
-            ),
-          {
-            name: STORY_START_RENDER_TOOL_NAME,
-            description:
-              'Submit a durable asynchronous MP4 storyboard render from the saved production plan. This returns quickly with a render id; use story_wait_render to follow it. Rendering requires the platform video Sandbox and Workspace Files.',
-            schema: startStoryRenderSchema,
-            verboseParsingErrors: true
-          }
-        ),
-        defineStoryAgentTool(
-          async (input: GetStoryRenderInput) =>
-            stringifyStoryAgentResult(
-              await this.production.getRender(scope, input)
-            ),
-          {
-            name: STORY_GET_RENDER_TOOL_NAME,
-            description:
-              'Get the latest or exact Story Studio render status without waiting.',
-            schema: getStoryRenderSchema,
-            verboseParsingErrors: true
-          }
-        ),
-        defineStoryAgentTool(
-          async (input: WaitStoryRenderInput) =>
-            stringifyStoryAgentResult(
-              await this.production.waitRender(scope, input)
-            ),
-          {
-            name: STORY_WAIT_RENDER_TOOL_NAME,
-            description:
-              'Wait up to 45 seconds for a Story Studio render state change. Pass the returned cursor into the next call until terminal is true. Durable rendering continues even if this bounded wait ends.',
-            schema: waitStoryRenderSchema,
             verboseParsingErrors: true
           }
         ),
@@ -394,6 +353,39 @@ export class StoryStudioMiddleware
         }
       }
     }
+  }
+}
+
+async function persistGeneratedVideo(
+  files: WorkspaceFilesApi,
+  input: AttachGeneratedVideoInput,
+  source: WorkspaceRuntimeFileBuffer
+): Promise<WorkspaceRuntimeFileBuffer> {
+  const fileName = `${input.candidateId}.mp4`
+  const written = await files.writeRuntimeBuffer({
+    buffer: source.buffer,
+    folder: `files/story-studio/${input.projectId}/generated`,
+    fileName,
+    originalName: fileName,
+    mimeType: 'video/mp4',
+    size: source.buffer.length,
+    metadata: {
+      source: 'story-studio',
+      provider: input.providerReceipt.provider,
+      providerTaskId: input.providerReceipt.taskId,
+      sceneId: input.sceneId,
+      shotId: input.shotId,
+      candidateId: input.candidateId
+    }
+  })
+  return {
+    ...source,
+    ...written,
+    buffer: source.buffer,
+    name: written.name,
+    mimeType: written.mimeType ?? 'video/mp4',
+    size: written.size ?? source.buffer.length,
+    reference: written.reference
   }
 }
 

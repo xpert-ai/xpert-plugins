@@ -249,29 +249,6 @@ export const attachGeneratedVideoSchema = z
   })
   .strict()
 
-export const startStoryRenderSchema = z
-  .object({
-    projectId,
-    operationId,
-    expectedRevision: z.number().int().min(1),
-    quality: z.enum(['draft', 'standard', 'high']).optional(),
-    fps: z.union([z.literal(24), z.literal(30)]).optional(),
-    fileName: bounded(200).regex(/^[^/\\\0]+\.mp4$/i).optional(),
-    changeSummary
-  })
-  .strict()
-
-export const getStoryRenderSchema = z
-  .object({
-    projectId,
-    renderId: z.string().uuid().optional()
-  })
-  .strict()
-
-export const waitStoryRenderSchema = getStoryRenderSchema.extend({
-  cursor: z.string().max(300).optional()
-}).strict()
-
 function uniqueIds(
   values: Array<string | number>,
   label: string,

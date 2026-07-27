@@ -29,10 +29,8 @@ import { computeCutWaveform } from '../../../cut-waveform'
 import {
   activePreviewVisualClipIds,
   MAX_CUT_PROJECT_DURATION,
-  previewNativeAudioState,
   restoreClipSourceDuration,
-  shouldMountPreviewMedia,
-  shouldSeekPreviewMedia
+  shouldMountPreviewMedia
 } from '../../../cut-media-playback'
 import {
   copyCutClips, duplicateCutClips, extractCutAudio, pasteCutClips, removeCutClips, splitCutClips,
@@ -75,6 +73,7 @@ import { cutDebug } from './debug'
 import type { AnalysisJobSummary, CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaEvidenceSummary, MediaSummary, ProjectDetail } from './cut-types'
 import { cutTextBackgroundCss, cutTextFontFamilyCss, cutTextProjectFontSize, cutTextShadowCss } from './cut-text-rendering'
 import { MediaAssetPreview, MediaCard, TimelineVideoStrip } from './cut-media-ui'
+import { resumePreviewCapturedAudio, StageAudio, StageVideo } from './cut-preview-media'
 import { TextClipInspector } from './text-clip-inspector'
 import {
   SmartSpeechCleanup, type SpeechCleanupTextSelection, type SpeechCleanupTranscriptOption
@@ -2206,7 +2205,7 @@ function StageLayer({ clip, document, previewScale, playhead, playing, active, m
   const previewTextMetric = (value: number) => value * previewScale
   return <div ref={rootRef} className={`stage-layer ${selected ? 'selected' : ''}`} style={style} onPointerDown={(event) => beginCanvasInteraction(event, 'move')} onPointerMove={moveCanvasInteraction} onPointerUp={endCanvasInteraction} onPointerCancel={cancelCanvasInteraction}>
     <div className="stage-layer-content" style={contentStyle}>
-      {clip.type === 'video' && clip.previewUrl ? <StageVideo clip={clip} playhead={playhead} playing={playing} active={active} muted={muted || Boolean(clip.audioDetached)} onState={onState} /> : null}
+      {clip.type === 'video' && clip.previewUrl ? <StageVideo clip={clip} playhead={playhead} playing={playing} active={active} muted={muted || Boolean(clip.audioDetached)} objectFit={mediaStyle.objectFit} onState={onState} /> : null}
       {clip.type === 'image' && clip.previewUrl ? <img src={clip.previewUrl} style={mediaStyle} crossOrigin="use-credentials" draggable={false} alt={clip.name} onLoad={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} /> : null}
       {clip.type === 'color' ? <div className="stage-color" style={{ background: clip.color ?? '#111827' }} /> : null}
       {clip.type === 'text' ? <div className="stage-text" style={{
@@ -2230,176 +2229,6 @@ function StageLayer({ clip, document, previewScale, playhead, playing, active, m
       {(['north-west', 'north-east', 'south-west', 'south-east'] as const).map((handle) => <span key={handle} className={`canvas-transform-handle ${handle}`} aria-hidden="true" onPointerDown={(event) => beginCanvasInteraction(event, handle)} />)}
     </React.Fragment>}
   </div>
-}
-
-function StageVideo({ clip, playhead, playing, active, muted, onState }: { clip: CutClip; playhead: number; playing: boolean; active: boolean; muted: boolean; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void }) {
-  const ref = React.useRef<HTMLVideoElement | null>(null)
-  const previousPlayheadRef = React.useRef(playhead)
-  const wasPlayingRef = React.useRef(false)
-  const playRequestRef = React.useRef<Promise<void> | null>(null)
-  React.useEffect(() => {
-    const video = ref.current
-    return () => {
-      if (video) releasePreviewCapturedAudio(video)
-    }
-  }, [])
-  React.useEffect(() => {
-    const video = ref.current
-    if (!video) return
-    const target = Math.max(0, clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1))
-    const shouldSeek = shouldSeekPreviewMedia({
-      playing,
-      wasPlaying: wasPlayingRef.current,
-      playhead,
-      previousPlayhead: previousPlayheadRef.current,
-      currentTime: video.currentTime,
-      targetTime: target
-    })
-    if (shouldSeek) {
-      cutDebug.debug('preview.video-seek', { clipId: clip.id, playing, target: Math.round(target * 1_000) / 1_000 })
-      video.currentTime = Math.max(0, target)
-    }
-    video.playbackRate = clip.playbackRate ?? 1
-    const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
-    const capturedAudio = setPreviewCapturedAudioGain(video, active && !muted ? requestedVolume : 0)
-    const nativeAudio = previewNativeAudioState({ active, capturedAudio, requestedVolume, mutedByTimeline: muted })
-    video.volume = nativeAudio.volume
-    video.muted = nativeAudio.muted
-    video.dataset.previewActive = active ? 'true' : 'false'
-    video.dataset.previewAudioRoute = capturedAudio ? 'web-audio' : nativeAudio.muted ? 'muted' : 'native'
-    if (playing && (shouldSeek || video.paused) && !playRequestRef.current) {
-      const request = video.play()
-      playRequestRef.current = request
-      void request.catch((error) => cutDebug.warn(`preview.video-play-failed: ${errorText(error)}`)).finally(() => {
-        if (playRequestRef.current === request) playRequestRef.current = null
-      })
-    } else if (!playing) {
-      video.pause()
-      playRequestRef.current = null
-    }
-    previousPlayheadRef.current = playhead
-    wasPlayingRef.current = playing
-  }, [active, clip, muted, playhead, playing])
-  return <video ref={ref} src={clip.previewUrl} style={{ objectFit: mediaObjectFit(clip.mediaFit) }} crossOrigin="use-credentials" playsInline onLoadStart={() => onState('loading', clip.mediaAssetId, clip.previewUrl)} onLoadedData={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} />
-}
-
-function StageAudio({ clip, playhead, playing, active, onState }: { clip: CutClip; playhead: number; playing: boolean; active: boolean; onState: (state: string, mediaAssetId?: string, sourceUrl?: string) => void }) {
-  const ref = React.useRef<HTMLAudioElement | null>(null)
-  const previousPlayheadRef = React.useRef(playhead)
-  const wasPlayingRef = React.useRef(false)
-  const playRequestRef = React.useRef<Promise<void> | null>(null)
-  React.useEffect(() => {
-    const audio = ref.current
-    return () => {
-      if (audio) releasePreviewCapturedAudio(audio)
-    }
-  }, [])
-  React.useEffect(() => {
-    const audio = ref.current
-    if (!audio) return
-    const target = Math.max(0, clip.trimIn + (playhead - clip.start) * (clip.playbackRate ?? 1))
-    const shouldSeek = shouldSeekPreviewMedia({
-      playing,
-      wasPlaying: wasPlayingRef.current,
-      playhead,
-      previousPlayhead: previousPlayheadRef.current,
-      currentTime: audio.currentTime,
-      targetTime: target
-    })
-    if (shouldSeek) {
-      cutDebug.debug('preview.audio-seek', { clipId: clip.id, playing, target: Math.round(target * 1_000) / 1_000 })
-      audio.currentTime = Math.max(0, target)
-    }
-    audio.playbackRate = clip.playbackRate ?? 1
-    const requestedVolume = clamp(clip.volume ?? 1, 0, 1)
-    const capturedAudio = setPreviewCapturedAudioGain(audio, active ? requestedVolume : 0)
-    const nativeAudio = previewNativeAudioState({ active, capturedAudio, requestedVolume })
-    audio.volume = nativeAudio.volume
-    audio.muted = nativeAudio.muted
-    audio.dataset.previewActive = active ? 'true' : 'false'
-    audio.dataset.previewAudioRoute = capturedAudio ? 'web-audio' : nativeAudio.muted ? 'muted' : 'native'
-    if (playing && (shouldSeek || audio.paused) && !playRequestRef.current) {
-      const request = audio.play()
-      playRequestRef.current = request
-      void request.catch((error) => cutDebug.warn(`preview.audio-play-failed: ${errorText(error)}`)).finally(() => {
-        if (playRequestRef.current === request) playRequestRef.current = null
-      })
-    } else if (!playing) {
-      audio.pause()
-      playRequestRef.current = null
-    }
-    previousPlayheadRef.current = playhead
-    wasPlayingRef.current = playing
-  }, [active, clip, playhead, playing])
-  return <audio ref={ref} src={clip.previewUrl} crossOrigin="use-credentials" className="stage-audio" onLoadedData={() => onState('loaded', clip.mediaAssetId, clip.previewUrl)} onError={() => onState('error', clip.mediaAssetId, clip.previewUrl)} />
-}
-
-/**
- * Chromium may pause a pre-rolled media element when it becomes audible.
- * Keep the element muted and route its captured raw audio through a gain node,
- * so gaps stay silent without interrupting the media clock at clip boundaries.
- */
-type CaptureStreamMediaElement = HTMLMediaElement & {
-  captureStream?: () => MediaStream
-}
-
-type PreviewCapturedAudioRoute = {
-  source: MediaStreamAudioSourceNode
-  gain: GainNode
-}
-
-let previewCapturedAudioContext: AudioContext | null = null
-const previewCapturedAudioRoutes = new WeakMap<HTMLMediaElement, PreviewCapturedAudioRoute>()
-const previewCapturedAudioWarnings = new WeakSet<HTMLMediaElement>()
-
-function ensurePreviewCapturedAudioContext() {
-  previewCapturedAudioContext ??= new AudioContext()
-  return previewCapturedAudioContext
-}
-
-function setPreviewCapturedAudioGain(media: HTMLMediaElement, volume: number) {
-  let route = previewCapturedAudioRoutes.get(media)
-  if (!route) {
-    const captureStream = (media as CaptureStreamMediaElement).captureStream
-    if (!captureStream) return false
-    try {
-      const stream = captureStream.call(media)
-      // Chromium can expose captureStream() before the decoded audio track is
-      // attached. Keep native element audio until a later playback update can
-      // establish the captured route; an empty stream is not a routing error.
-      if (!stream.getAudioTracks().length) return false
-      const context = ensurePreviewCapturedAudioContext()
-      const source = context.createMediaStreamSource(stream)
-      const gain = context.createGain()
-      source.connect(gain).connect(context.destination)
-      route = { source, gain }
-      previewCapturedAudioRoutes.set(media, route)
-    } catch (error) {
-      if (!previewCapturedAudioWarnings.has(media)) {
-        previewCapturedAudioWarnings.add(media)
-        cutDebug.warn(`preview.captured-audio-routing-failed: ${errorText(error)}`)
-      }
-      return false
-    }
-  }
-  const context = ensurePreviewCapturedAudioContext()
-  route.gain.gain.setValueAtTime(clamp(volume, 0, 1), context.currentTime)
-  return true
-}
-
-function resumePreviewCapturedAudio() {
-  const context = ensurePreviewCapturedAudioContext()
-  if (context.state === 'suspended') {
-    void context.resume().catch((error) => cutDebug.warn(`preview.captured-audio-resume-failed: ${errorText(error)}`))
-  }
-}
-
-function releasePreviewCapturedAudio(media: HTMLMediaElement) {
-  const route = previewCapturedAudioRoutes.get(media)
-  if (!route) return
-  route.source.disconnect()
-  route.gain.disconnect()
-  previewCapturedAudioRoutes.delete(media)
 }
 
 function ClipInspector({ clip, document, t, onChange, onDuplicate, onDelete, onRestoreSourceDuration, restoringDuration }: {

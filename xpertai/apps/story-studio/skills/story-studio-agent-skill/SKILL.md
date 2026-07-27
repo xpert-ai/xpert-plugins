@@ -1,6 +1,6 @@
 ---
 name: story-studio-agent-skill
-description: Manage scoped Story Studio projects, structured production plans, Seedance video candidates, durable storyboard renders, revision-safe mutations, explicit review gates, and failure reporting.
+description: Manage scoped Story Studio projects, structured production plans, Seedance video candidates, browser sequence review, revision-safe Cut handoff, explicit review gates, and failure reporting.
 ---
 
 # Story Studio Agent Skill
@@ -39,10 +39,12 @@ Use Story Studio middleware tools as the project system of record.
    path, prompt, provider receipt, and `select=true` when the user's generation
    action authorizes replacing the selected still for that shot. Never attach
    base64 or a provider URL.
-11. Start a durable MP4 render with `story_start_render`. Follow it with
-   `story_wait_render`, passing the returned cursor until `terminal` is true.
-12. Claim that a video exists only when render status is `succeeded` and the
-    result includes a Workspace path or URL.
+11. Claim that a shot video exists only after the completed Seedance Workspace
+    MP4 has been attached. Story Studio previews selected shot videos directly
+    in the browser; do not request or claim a separate animatic render.
+12. For professional assembly or export, prepare the versioned
+    `StoryCutHandoff v1`, deliver its exact contract to Cut, and record Cut's
+    authoritative receipt.
 13. Use `story_report_failure` when a requested project operation cannot be
    completed, including a stable failure code and a recoverable flag.
 14. Treat moving a project into review, completed, failed, or archived as an

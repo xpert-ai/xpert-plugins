@@ -133,6 +133,18 @@ export function requestData(query: RemoteObject = {}) {
   return request('requestData', { query })
 }
 
+export function requestFileAccess(
+  fileKey: string,
+  targetId: string,
+  purpose: 'preview' = 'preview'
+) {
+  return request('requestFileAccess', {
+    fileKey,
+    targetId,
+    purpose
+  })
+}
+
 export function executeAction(
   actionKey: string,
   targetId: string | null,

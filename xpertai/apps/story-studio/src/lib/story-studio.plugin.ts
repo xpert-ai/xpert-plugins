@@ -8,13 +8,11 @@ import {
   StoryActionLog,
   StoryCutHandoff,
   StoryProduction,
-  StoryProject,
-  StoryRender
+  StoryProject
 } from './entities/index.js'
 import { StoryGeneratedMediaService } from './story-generated-media.service.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
-import { StoryRenderProcessor } from './story-render.processor.js'
 import { StoryStudioMiddleware } from './story-studio.middleware.js'
 import { StoryStudioService } from './story-studio.service.js'
 import { StoryStudioViewProvider } from './story-studio-view.provider.js'
@@ -23,8 +21,7 @@ export const STORY_STUDIO_ENTITIES = [
   StoryProject,
   StoryActionLog,
   StoryCutHandoff,
-  StoryProduction,
-  StoryRender
+  StoryProduction
 ]
 
 @XpertServerPlugin({
@@ -35,7 +32,6 @@ export const STORY_STUDIO_ENTITIES = [
     StoryProductionService,
     StoryGeneratedMediaService,
     StoryCutHandoffService,
-    StoryRenderProcessor,
     StoryStudioMiddleware,
     StoryStudioViewProvider
   ],
@@ -50,7 +46,7 @@ export class StoryStudioPlugin
   implements IOnPluginBootstrap, IOnPluginDestroy
 {
   onPluginBootstrap(): void {
-    // Lifecycle hook reserved for future queue registration diagnostics.
+    // No plugin-owned worker lifecycle is required.
   }
 
   onPluginDestroy(): void {

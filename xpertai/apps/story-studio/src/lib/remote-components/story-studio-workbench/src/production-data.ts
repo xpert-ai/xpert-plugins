@@ -128,24 +128,6 @@ export type ProductionView = {
   }
 }
 
-export type RenderView = {
-  id: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
-  progress: number
-  stage: string
-  fileName: string
-  fileUrl: string | null
-  filePath: string | null
-  size: number | null
-  errorMessage: string | null
-}
-
-export type RenderCapabilityView = {
-  available: boolean
-  message: string | null
-  runtimeProfile: string | null
-}
-
 export type HandoffView = {
   id: string
   projectId: string
@@ -207,36 +189,6 @@ export function parseProductionView(value: RemoteValue): ProductionView | null {
       .map(parseCharacter)
       .filter(isPresent),
     scenes: value.scenes.map(parseScene).filter(isPresent)
-  }
-}
-
-export function parseRenderView(value: RemoteValue): RenderView | null {
-  if (!isRemoteObject(value)) return null
-  const id = stringField(value, 'id')
-  const status = renderStatus(value.status)
-  const fileName = stringField(value, 'fileName')
-  if (!id || !status || !fileName) return null
-  return {
-    id,
-    status,
-    progress: numberField(value, 'progress') ?? 0,
-    stage: stringField(value, 'stage') ?? status,
-    fileName,
-    fileUrl: nullableString(value, 'fileUrl'),
-    filePath: nullableString(value, 'filePath'),
-    size: numberField(value, 'size'),
-    errorMessage: nullableString(value, 'errorMessage')
-  }
-}
-
-export function parseRenderCapability(
-  value: RemoteValue
-): RenderCapabilityView | null {
-  if (!isRemoteObject(value) || typeof value.available !== 'boolean') return null
-  return {
-    available: value.available,
-    message: nullableString(value, 'message'),
-    runtimeProfile: nullableString(value, 'runtimeProfile')
   }
 }
 
@@ -595,16 +547,6 @@ function parseProviderReceipt(
     status,
     model: nullableString(value, 'model')
   }
-}
-
-function renderStatus(value: RemoteValue): RenderView['status'] | null {
-  return value === 'queued' ||
-    value === 'running' ||
-    value === 'succeeded' ||
-    value === 'failed' ||
-    value === 'cancelled'
-    ? value
-    : null
 }
 
 function stringField(value: RemoteObject, key: string) {

@@ -15,11 +15,10 @@
   ],
   "skills": "./skills/",
   "artifactNamespace": "story_studio",
-  "sandboxActions": "./dist/sandbox-actions/storyboard-render/action.json",
   "interface": {
     "displayName": "Story Studio",
     "shortDescription": "Agentic story adaptation and production planning",
-    "longDescription": "Create scoped story projects through eight reviewable stages, generate and select shot videos through Seedance, optionally render an animatic, then freeze a versioned StoryCutHandoff for professional editing in Cut.",
+    "longDescription": "Create scoped story projects through eight reviewable stages, generate and select shot videos through Seedance, preview them in sequence, then freeze a versioned StoryCutHandoff for professional editing in Cut.",
     "developerName": "XpertAI",
     "category": "Creativity",
     "capabilities": ["Interactive", "Read", "Write"],
@@ -29,8 +28,8 @@
     "defaultPrompt": [
       "Create a vertical short-drama project from my premise.",
       "Review the current story project and recommend the next production stage.",
-      "Move the selected project into planning after I approve the brief."
-      ,"Build a three-shot production plan and render a storyboard MP4."
+      "Move the selected project into planning after I approve the brief.",
+      "Build a three-shot production plan and prepare selected videos for Cut."
     ],
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
@@ -98,15 +97,6 @@
                 "description": {
                   "en_US": "Apply explicit, reviewable project metadata and status changes.",
                   "zh_Hans": "应用明确、可审核的项目元数据和状态变更。"
-                },
-                "access": "write"
-              },
-              {
-                "name": "render-storyboard-video",
-                "displayName": "Render storyboard video",
-                "description": {
-                  "en_US": "Queue a durable storyboard MP4 from the reviewed scene and shot plan.",
-                  "zh_Hans": "根据已审核的场景与镜头计划异步渲染分镜 MP4。"
                 },
                 "access": "write"
               },
@@ -231,15 +221,6 @@
                 "description": {
                   "en_US": "Apply explicit, reviewable project metadata and status changes.",
                   "zh_Hans": "应用明确、可审核的项目元数据和状态变更。"
-                },
-                "access": "write"
-              },
-              {
-                "name": "render-storyboard-video",
-                "displayName": "Render storyboard video",
-                "description": {
-                  "en_US": "Queue a durable storyboard MP4 from the reviewed scene and shot plan.",
-                  "zh_Hans": "根据已审核的场景与镜头计划异步渲染分镜 MP4。"
                 },
                 "access": "write"
               },

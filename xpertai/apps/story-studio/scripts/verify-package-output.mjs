@@ -9,7 +9,6 @@ const requiredFiles = [
   'dist/xpert-story-studio-assistant.yaml',
   'dist/lib/remote-components/story-studio-workbench/app.js',
   'dist/lib/remote-components/story-studio-workbench/app.css',
-  'dist/sandbox-actions/storyboard-render/action.json',
   '.xpertai-plugin/plugin.json',
   'assets/logo.svg',
   'assets/composerIcon.svg',
@@ -63,9 +62,28 @@ if (
 if (packageJson.xpert?.plugin?.level !== 'system') {
   throw new Error('Story Studio must remain a system-level plugin.')
 }
+if (Object.hasOwn(pluginManifest, 'sandboxActions')) {
+  throw new Error('Story Studio must not publish the retired storyboard renderer.')
+}
 if (
-  pluginManifest.sandboxActions !==
-  './dist/sandbox-actions/storyboard-render/action.json'
+  existsSync(
+    join(
+      packageRoot,
+      'dist',
+      'sandbox-actions',
+      'storyboard-render',
+      'action.json'
+    )
+  )
 ) {
-  throw new Error('Story Studio Sandbox Action manifest is missing.')
+  throw new Error('Retired storyboard renderer leaked into package output.')
+}
+for (const retiredFile of [
+  'dist/lib/entities/story-render.entity.js',
+  'dist/lib/story-render.processor.js',
+  'dist/lib/storyboard-composition.js'
+]) {
+  if (existsSync(join(packageRoot, retiredFile))) {
+    throw new Error(`Retired render module leaked into package output: ${retiredFile}`)
+  }
 }

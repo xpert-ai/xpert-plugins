@@ -76,7 +76,24 @@ function middlewareContext(): IAgentMiddlewareContext {
               filePath: 'files/task.mp4',
               workspacePath: '/workspace/files/task.mp4'
             }
-          })
+          }),
+          writeRuntimeBuffer: jest.fn().mockImplementation((input) => ({
+            name: input.fileName,
+            filePath: `${input.folder}/${input.fileName}`,
+            workspacePath: `/workspace/${input.folder}/${input.fileName}`,
+            mimeType: input.mimeType,
+            size: input.size,
+            catalog: 'xperts',
+            scopeId: 'assistant-a',
+            reference: {
+              source: 'platform.workspace.files',
+              filePath: `${input.folder}/${input.fileName}`,
+              workspacePath: `/workspace/${input.folder}/${input.fileName}`,
+              catalog: 'xperts',
+              scopeId: 'assistant-a',
+              xpertId: 'assistant-a'
+            }
+          }))
         })
       }
     }
@@ -103,10 +120,7 @@ function createHarness() {
   }
   const production = {
     saveProduction: jest.fn(),
-    getProduction: jest.fn(),
-    startRender: jest.fn(),
-    getRender: jest.fn(),
-    waitRender: jest.fn()
+    getProduction: jest.fn()
   }
   const generatedMedia = {
     attachGeneratedVideo: jest.fn()
@@ -302,7 +316,10 @@ describe('StoryStudioMiddleware', () => {
       }),
       expect.objectContaining({
         reference: expect.objectContaining({
-          source: 'platform.workspace.files'
+          source: 'platform.workspace.files',
+          filePath: expect.stringContaining(
+            'files/story-studio/'
+          )
         })
       })
     )

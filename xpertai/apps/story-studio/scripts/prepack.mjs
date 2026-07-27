@@ -59,6 +59,7 @@ function packageFile(requireFromRoot, packageName, filePath) {
 runNode(packageFile(requireFromShadcnUi, 'vite', 'bin/vite.js'), ['build'], {
   cwd: shadcnUiRoot
 })
+runNode(join(packageRoot, 'scripts', 'clean-build-output.mjs'))
 runNode(requireFromShadcnUi.resolve('typescript/bin/tsc'), [
   '-p',
   'tsconfig.lib.json',
@@ -72,6 +73,4 @@ runNode(requireFromPackage.resolve('typescript/bin/tsc'), [
   'tsconfig.lib.json'
 ])
 runNode(join(packageRoot, 'scripts', 'copy-assets.mjs'))
-runNode(join(packageRoot, 'scripts', 'build-sandbox-action.mjs'))
-runNode(join(packageRoot, 'scripts', 'verify-sandbox-action.mjs'))
 runNode(join(packageRoot, 'scripts', 'verify-package-output.mjs'))

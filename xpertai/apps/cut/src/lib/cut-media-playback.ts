@@ -21,6 +21,28 @@ export type PreviewNativeAudioState = {
   mutedByTimeline?: boolean
 }
 
+export type PreviewMediaTimelineState = {
+  active: boolean
+  playhead: number
+  clipStart: number
+  trimIn: number
+  playbackRate?: number
+}
+
+/**
+ * An inactive future clip is mounted only to buffer its first usable frame.
+ * Keep it parked at trimIn; advancing it against the global playhead would
+ * consume the whole source before the timeline reaches the cut.
+ */
+export function previewMediaTargetTime(state: PreviewMediaTimelineState) {
+  const localTime = state.active ? Math.max(0, state.playhead - state.clipStart) : 0
+  return Math.max(0, state.trimIn + localTime * (state.playbackRate ?? 1))
+}
+
+export function shouldPlayPreviewMedia(timelinePlaying: boolean, active: boolean) {
+  return timelinePlaying && active
+}
+
 /**
  * Future clips are pre-rolled so their first frame is ready at the cut. Keep
  * their native media element muted until they become active; otherwise a clip

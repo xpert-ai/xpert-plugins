@@ -10,7 +10,7 @@ The current implementation includes:
 - tenant- and organization-scoped story projects;
 - revision-safe project mutations and audit records;
 - strict Agent middleware tools for project lifecycle, production documents,
-  completed Seedance media attachment, and bounded long-running render waits;
+  completed Seedance media attachment, and versioned Cut handoff;
 - a declared `@xpert-ai/plugin-volcengine` / `seedream_aigc` Assistant
   dependency for Seedance 2.0 image-to-video generation and Workspace output;
 - structured source materials, story beats, timed episode scripts, character /
@@ -18,11 +18,8 @@ The current implementation includes:
   candidates, selection evidence, and total-duration validation;
 - character-bound voice references, exact dialogue speakers and dialogue types,
   per-shot sound effects, and Seedance 2.0 synchronized audio generation;
-- Managed Queue + Sandbox Jobs production rendering on the platform
-  `browser/video-playwright-1.61/v1` profile;
-- MP4 output through Workspace Files, registered as an immutable binary
-  Artifact version; authenticated playback keeps the scoped Workspace URL so
-  the browser receives `video/mp4`;
+- browser-side sequential review of selected Seedance Workspace videos, with
+  each clip's original audio preserved;
 - a Story Studio Assistant template;
 - a React Workbench with eight clickable review stages, project creation,
   search, production review, explicit light/dark themes, Seedance media review,
@@ -31,8 +28,8 @@ The current implementation includes:
   project and editable timeline; later Story revisions create a review proposal
   and never overwrite the Cut timeline;
 - an original built-in case, **朱门账影**, that loads three consistent visual
-  frames into scoped Workspace Files and renders them as a 15-second vertical
-  animatic.
+  frames into scoped Workspace Files for the full generation and Cut handoff
+  workflow.
 
 ## How the eight stages work
 
@@ -48,10 +45,11 @@ The current implementation includes:
 6. **Storyboard** converts the script into ordered shots with composition,
    action, camera, dialogue, duration, and preview frames.
 7. **Media generation** sends selected storyboard frames to Seedance, waits
-   within a bounded query window, stores completed Workspace MP4s with
-   allowlisted provider receipts, and explicitly selects the source used by
-   each shot. Dialogue shots use a bound public voice reference when available;
-   every generation keeps `generate_audio=true`.
+   within a bounded query window, copies each completed MP4 into a durable
+   Story Studio Workspace folder, stores allowlisted provider receipts, and
+   explicitly selects the source used by each shot. Dialogue shots use a bound
+   public voice reference when available; every generation keeps
+   `generate_audio=true`.
 8. **Cut handoff** requires exactly one selected Workspace MP4 per ordered shot,
    freezes paths, checksums, timing, aspect ratio, dimensions, and frame rate in
    `StoryCutHandoff v1`, then asks Cut to create either the initial editable
@@ -60,12 +58,13 @@ The current implementation includes:
 Use **Load visual demo** in the Workbench to create the complete **朱门账影**
 case. Its story, prompts, and generated images are original Story Studio assets.
 
-The built-in renderer produces an optional deterministic storyboard/animatic
-MP4 from reviewed shots and selected Workspace media. Seedance and Cut remain
-cross-plugin Assistant handoffs: Story Studio declares both plugins, accepts
-only completed scoped Workspace MP4s through `story_attach_generated_video`,
-and exchanges a portable contract through Agent tools. It never imports private
-provider or Cut services and never stores model credentials.
+Story Studio previews selected Workspace MP4s directly in shot order and does
+not create a second combined video. Seedance and Cut remain cross-plugin
+Assistant handoffs: Story Studio declares both plugins, accepts only completed
+scoped Workspace MP4s through `story_attach_generated_video`, and exchanges a
+portable contract through Agent tools. Professional composition, audio mixing,
+subtitles, effects, and export remain Cut responsibilities. Story Studio never
+imports private provider or Cut services and never stores model credentials.
 
 ## Development
 
@@ -87,6 +86,6 @@ After build and tests, validate the plugin lifecycle through
 `plugin-dev-harness`. Use the platform `plugin:deploy:local` flow for an
 installed-platform check; do not copy files into plugin staging directories.
 
-Production rendering requires Workspace Files, Artifacts, Managed Queue, a
-healthy `sandbox-browser` worker, and the platform Browser Video runtime. The
-server checks all capabilities before it creates a render record.
+Media review requires scoped Workspace file grants. Final composition and
+export require the Cut plugin through the versioned `StoryCutHandoff v1`
+contract; Story Studio does not require a Sandbox video runtime.

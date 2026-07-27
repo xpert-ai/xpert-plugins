@@ -1,7 +1,6 @@
 import {
   attachGeneratedVideoSchema,
-  saveStoryProductionSchema,
-  startStoryRenderSchema
+  saveStoryProductionSchema
 } from './story-production.schemas.js'
 
 const production = {
@@ -56,7 +55,7 @@ const production = {
 }
 
 describe('Story production schemas', () => {
-  it('accepts a bounded, renderable production document', () => {
+  it('accepts a bounded production document', () => {
     const parsed = saveStoryProductionSchema.parse({
       projectId: '00000000-0000-4000-8000-000000000001',
       operationId: 'production:story:0001',
@@ -85,7 +84,7 @@ describe('Story production schemas', () => {
     ).toThrow('was not found in characters')
   })
 
-  it('rejects duplicate shot ids and films outside the render duration bound', () => {
+  it('rejects duplicate shot ids', () => {
     const invalid = {
       ...production,
       scenes: [
@@ -106,30 +105,6 @@ describe('Story production schemas', () => {
         changeSummary: 'Invalid duplicate shots'
       })
     ).toThrow('Shot ids must be unique')
-  })
-
-  it('accepts only an MP4 file name and supported production fps', () => {
-    expect(
-      startStoryRenderSchema.parse({
-        projectId: '00000000-0000-4000-8000-000000000001',
-        operationId: 'render:story:0001',
-        expectedRevision: 3,
-        quality: 'standard',
-        fps: 24,
-        fileName: 'memory-courier.mp4',
-        changeSummary: 'Queued the reviewed storyboard render'
-      }).fps
-    ).toBe(24)
-    expect(() =>
-      startStoryRenderSchema.parse({
-        projectId: '00000000-0000-4000-8000-000000000001',
-        operationId: 'render:story:0002',
-        expectedRevision: 3,
-        fps: 60,
-        fileName: '../escape.mp4',
-        changeSummary: 'Invalid render'
-      })
-    ).toThrow()
   })
 
   it('accepts a bounded Seedance Workspace attachment receipt', () => {

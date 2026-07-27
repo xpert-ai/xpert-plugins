@@ -167,12 +167,14 @@ test(
     )
     await frame.getByRole('button', { name: /媒体生成/ }).click()
     await assertVisible(frame.getByText('Seedance 生成队列'))
-    await frame.getByRole('button', { name: '渲染预演 MP4' }).click()
-    await assertVisible(frame.getByText('正在渲染 0%', { exact: true }))
+    await assertVisible(frame.getByText('已选视频顺序预览'))
+    await assertVisible(frame.getByText('已就绪 2 段'))
     assert.equal(
-      preview.state.actions.at(-1)?.actionKey,
-      'start_render'
+      await frame.getByRole('button', { name: '渲染预演 MP4' }).count(),
+      0
     )
+    assert.equal(await frame.locator('.ss-sequence-player video').count(), 1)
+    assert.equal(await frame.locator('.ss-sequence-list li').count(), 2)
     await frame.getByRole('button', { name: /Cut 交接/ }).click()
     await assertVisible(
       frame.getByRole('heading', { name: '创建 Cut 项目', exact: true })
