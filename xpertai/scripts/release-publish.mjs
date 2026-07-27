@@ -151,4 +151,4 @@ if (changedPackageNames.length > 0) {
   console.log('No publish-target workspace packages detected. Skip build.');
 }
 
-run('pnpm', ['exec', 'changeset', 'publish', '--access', 'public']);
+run('pnpm', ['exec', 'changeset', 'publish']);
